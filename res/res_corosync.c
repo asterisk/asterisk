@@ -79,6 +79,15 @@ struct corosync_node {
 	struct ast_sockaddr addr;
 };
 
+/*! \brief Corosync ipc dispatch/request and reply size */
+#define COROSYNC_IPC_BUFFER_SIZE				(8192 * 128)
+
+/*! \brief Version of pthread_create to ensure stack is large enough */
+#define corosync_pthread_create_background(a, b, c, d)				\
+	ast_pthread_create_stack(a, b, c, d,					\
+		(AST_BACKGROUND_STACKSIZE + (3 * COROSYNC_IPC_BUFFER_SIZE)),	\
+		__FILE__, __FUNCTION__, __LINE__, #c)
+
 static struct corosync_node *corosync_node_alloc(struct ast_event *event)
 {
 	struct corosync_node *node;
@@ -810,19 +819,27 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 	for (i = 1, cs_err = cpg_iteration_next(cpg_iter, &cpg_desc);
 			cs_err == CS_OK;
 			cs_err = cpg_iteration_next(cpg_iter, &cpg_desc), i++) {
+#ifdef HAVE_COROSYNC_CFG_STATE_TRACK
 		corosync_cfg_node_address_t addrs[8];
 		int num_addrs = 0;
 		unsigned int j;
+#endif
 
+		ast_cli(a->fd, "=== Node %u\n", i);
+		ast_cli(a->fd, "=== --> Group: %s\n", cpg_desc.group.value);
+
+#ifdef HAVE_COROSYNC_CFG_STATE_TRACK
+		/*
+		 * Corosync 2.x cfg lib needs to allocate 1M on stack after calling
+		 * corosync_cfg_get_node_addrs. netconsole thread has allocated only 0.5M
+		 * resulting in crash.
+		 */
 		cs_err = corosync_cfg_get_node_addrs(cfg_handle, cpg_desc.nodeid,
 				ARRAY_LEN(addrs), &num_addrs, addrs);
 		if (cs_err != CS_OK) {
 			ast_log(LOG_WARNING, "Failed to get node addresses\n");
 			continue;
 		}
-
-		ast_cli(a->fd, "=== Node %u\n", i);
-		ast_cli(a->fd, "=== --> Group: %s\n", cpg_desc.group.value);
 
 		for (j = 0; j < num_addrs; j++) {
 			struct sockaddr *sa = (struct sockaddr *) addrs[j].address;
@@ -833,7 +850,9 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 
 			ast_cli(a->fd, "=== --> Address %u: %s\n", j + 1, buf);
 		}
-
+#else
+		ast_cli(a->fd, "=== --> Nodeid: %"PRIu32"\n", cpg_desc.nodeid);
+#endif
 	}
 
 	ast_cli(a->fd, "===\n"
@@ -1159,7 +1178,7 @@ static int load_module(void)
 		goto failed;
 	}
 
-	if (ast_pthread_create_background(&dispatch_thread.id, NULL,
+	if (corosync_pthread_create_background(&dispatch_thread.id, NULL,
 			dispatch_thread_handler, NULL)) {
 		ast_log(LOG_ERROR, "Error starting CPG dispatch thread.\n");
 		goto failed;
