@@ -179,11 +179,14 @@ static void pgsql_log(struct ast_event *event)
 	if (connected) {
 		struct columns *cur;
 		struct ast_str *sql = ast_str_create(maxsize), *sql2 = ast_str_create(maxsize2);
-		char buf[257], escapebuf[513];
+		char buf[257];
+		char *escapebuf = NULL;
 		const char *value;
 		int first = 1;
+		size_t bufsize = 513;
 
-		if (!sql || !sql2) {
+		escapebuf = ast_malloc(bufsize);
+		if (!escapebuf || !sql || !sql2) {
 			goto ast_log_cleanup;
 		}
 
@@ -307,6 +310,22 @@ static void pgsql_log(struct ast_event *event)
 					/* XXX Might want to handle dates, times, and other misc fields here XXX */
 				} else {
 					if (value) {
+						size_t required_size = strlen(value) * 2 + 1;
+
+						/* If our argument size exceeds our buffer, grow it,
+						 * as PQescapeStringConn() expects the buffer to be
+						 * adequitely sized and does *NOT* do size checking.
+						 */
+						if (required_size > bufsize) {
+							char *tmpbuf = ast_realloc(escapebuf, required_size);
+
+							if (!tmpbuf) {
+								goto ast_log_cleanup;
+							}
+
+							escapebuf = tmpbuf;
+							bufsize = required_size;
+						}
 						PQescapeStringConn(conn, escapebuf, value, strlen(value), NULL);
 					} else {
 						escapebuf[0] = '\0';
@@ -377,6 +396,7 @@ static void pgsql_log(struct ast_event *event)
 ast_log_cleanup:
 		ast_free(sql);
 		ast_free(sql2);
+		ast_free(escapebuf);
 	}
 
 	ast_mutex_unlock(&pgsql_lock);
