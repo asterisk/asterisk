@@ -1198,8 +1198,13 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 {
 	pjsip_inv_session *inv_session = session->inv_session;
 
-	if (inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
-		/* Don't try to do anything with a hung-up call */
+	/* For every request except BYE we disallow sending of the message when
+	 * the session has been disconnected. A BYE request is special though
+	 * because it can be sent again after the session is disconnected except
+	 * with credentials.
+	 */
+	if (inv_session->state == PJSIP_INV_STATE_DISCONNECTED &&
+		tdata->msg->line.req.method.id != PJSIP_BYE_METHOD) {
 		return;
 	}
 
