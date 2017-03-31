@@ -588,9 +588,34 @@ AST_EXT_LIB_SETUP([ZLIB], [zlib compression], [z])
 
 AC_FUNC_ALLOCA
 AC_HEADER_DIRENT
+if test -z $ac_header_dirent -o "$ac_header_dirent" = "no"; then
+  AC_MSG_ERROR([*** Could not find dirent header that defines 'DIR'.])
+fi
+
 AC_HEADER_STDC
+if test "$ac_cv_header_stdc" != "yes"; then
+  AC_MSG_ERROR([*** ANSI C header files not found.])
+fi
+
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/event.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h])
+if test "$ac_cv_header_sys_wait_h" != "yes"; then
+  AC_MSG_ERROR([*** POSIX.1 compatible sys/wait.h is required.])
+fi
+
+# Check for headers that are unconditionally required on all platforms.  Do not use
+# this to check for headers that are only needed by modules.
+AC_CHECK_HEADERS([ \
+  arpa/nameser.h assert.h ctype.h dlfcn.h errno.h fcntl.h float.h grp.h \
+  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h resolv.h \
+  sched.h stdarg.h stdint.h stdio.h stdlib.h string.h syslog.h \
+  sys/file.h sys/ioctl.h sys/param.h sys/resource.h sys/socket.h sys/stat.h \
+  sys/time.h sys/types.h sys/un.h \
+  termios.h time.h unistd.h \
+], [], [
+  AC_MSG_ERROR([*** A required header was not found.])
+])
+
+AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
 
 # Any one of these packages support a mandatory requirement, so we want to check on them as early as possible.
 AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])

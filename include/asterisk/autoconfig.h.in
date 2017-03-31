@@ -62,6 +62,9 @@
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
 
+/* Define to 1 if you have the <assert.h> header file. */
+#undef HAVE_ASSERT_H
+
 /* Define to 1 if you have the `atan' function. */
 #undef HAVE_ATAN
 
@@ -170,6 +173,9 @@
 /* Define to 1 if you have the 'crypt_r' function. */
 #undef HAVE_CRYPT_R
 
+/* Define to 1 if you have the <ctype.h> header file. */
+#undef HAVE_CTYPE_H
+
 /* Define to 1 if you have a functional curl library. */
 #undef HAVE_CURL
 
@@ -198,6 +204,9 @@
 /* Define to 1 if your system has the dladdr() GNU extension */
 #undef HAVE_DLADDR
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
 
@@ -209,6 +218,9 @@
 
 /* Define to 1 if you have the `endpwent' function. */
 #undef HAVE_ENDPWENT
+
+/* Define to 1 if you have the <errno.h> header file. */
+#undef HAVE_ERRNO_H
 
 /* Define to 1 if you have the `euidaccess' function. */
 #undef HAVE_EUIDACCESS
@@ -242,6 +254,9 @@
 
 /* Define to 1 if you have the LIBFFTW3 library. */
 #undef HAVE_FFTW3
+
+/* Define to 1 if you have the <float.h> header file. */
+#undef HAVE_FLOAT_H
 
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
@@ -311,6 +326,9 @@
 
 /* Define if your system has the GMIME libraries. */
 #undef HAVE_GMIME
+
+/* Define to 1 if you have the <grp.h> header file. */
+#undef HAVE_GRP_H
 
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
@@ -460,6 +478,9 @@
 
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
+
+/* Define to 1 if you have the <math.h> header file. */
+#undef HAVE_MATH_H
 
 /* Define to 1 if you have the `memchr' function. */
 #undef HAVE_MEMCHR
@@ -752,6 +773,9 @@
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
+/* Define to 1 if you have the <pwd.h> header file. */
+#undef HAVE_PWD_H
+
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
@@ -764,6 +788,9 @@
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
+/* Define to 1 if you have the <regex.h> header file. */
+#undef HAVE_REGEX_H
+
 /* Define to 1 if you have the `remainder' function. */
 #undef HAVE_REMAINDER
 
@@ -772,6 +799,9 @@
 
 /* Define to 1 if you have the LIBRESAMPLE library. */
 #undef HAVE_RESAMPLE
+
+/* Define to 1 if you have the <resolv.h> header file. */
+#undef HAVE_RESOLV_H
 
 /* Define to 1 if your system has the close resolver function. */
 #undef HAVE_RES_CLOSE
@@ -808,6 +838,9 @@
 
 /* Define to 1 if your system has /sbin/launchd. */
 #undef HAVE_SBIN_LAUNCHD
+
+/* Define to 1 if you have the <sched.h> header file. */
+#undef HAVE_SCHED_H
 
 /* Define if your system has the SDL libraries. */
 #undef HAVE_SDL
@@ -889,6 +922,9 @@
    zero-length file name argument. */
 #undef HAVE_STAT_EMPTY_STRING_BUG
 
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
+
 /* Define to 1 if stdbool.h conforms to C99. */
 #undef HAVE_STDBOOL_H
 
@@ -897,6 +933,9 @@
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
@@ -1066,9 +1105,6 @@
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
 
-/* Define to 1 if you have the <sys/io.h> header file. */
-#undef HAVE_SYS_IO_H
-
 /* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
    */
 #undef HAVE_SYS_NDIR_H
@@ -1078,6 +1114,9 @@
 
 /* Define to 1 if your system has working sys/poll.h */
 #undef HAVE_SYS_POLL_H
+
+/* Define to 1 if you have the <sys/resource.h> header file. */
+#undef HAVE_SYS_RESOURCE_H
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
@@ -1096,6 +1135,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/un.h> header file. */
+#undef HAVE_SYS_UN_H
 
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
@@ -1117,6 +1159,9 @@
 
 /* Define to 1 if your system defines timersub. */
 #undef HAVE_TIMERSUB
+
+/* Define to 1 if you have the <time.h> header file. */
+#undef HAVE_TIME_H
 
 /* Define to 1 if you have the Term Info library. */
 #undef HAVE_TINFO

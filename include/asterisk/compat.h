@@ -27,35 +27,18 @@
 #define	__STDC_VERSION__ 0
 #endif
 
-#ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
-
-#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
 
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
 #endif
 
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
-
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-
 #include <stdarg.h>
-
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>    /* not necessarily present - could be in stdlib */
@@ -65,9 +48,7 @@
 
 #include <stdio.h>	/* this is always present */
 
-#ifdef HAVE_STRING_H
 #include <string.h>
-#endif
 
 #ifndef AST_POLL_COMPAT
 #include <poll.h>
@@ -158,7 +139,6 @@ void timersub(struct timeval *tvend, struct timeval *tvstart, struct timeval *tv
 
 #include <alloca.h>
 #include <strings.h>
-#include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <signal.h>

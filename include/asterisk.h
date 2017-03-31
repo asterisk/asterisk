@@ -19,12 +19,11 @@
 #define _ASTERISK_H
 
 #include "asterisk/autoconfig.h"
+#include "asterisk/compat.h"
 
 #if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2) && defined(MALLOC_DEBUG)
 #include "asterisk/astmm.h"
 #endif
-
-#include "asterisk/compat.h"
 
 /* Default to allowing the umask or filesystem ACLs to determine actual file
  * creation permissions
@@ -54,8 +53,6 @@
 
 #if defined(DEBUG_FD_LEAKS) && !defined(STANDALONE) && !defined(STANDALONE2) && !defined(STANDALONE_AEL)
 /* These includes are all about ordering */
-#include <stdio.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <fcntl.h>
