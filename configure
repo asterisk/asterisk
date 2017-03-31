@@ -4854,28 +4854,6 @@ if test ${prefix} = ${ac_default_prefix} || test ${prefix} = 'NONE'; then
      fi
 fi
 
-#
-# The following code for detecting lib64 was taken from Fedora's
-# /usr/share/config.site with a modification to check that the
-# /usr/lib64 directory actually exists.  This prevents libdir from
-# being set to /usr/lib64 on 64-bit systems that still use /usr/lib.
-#
-if test "$prefix" = /usr ||\
-     { test "$prefix" = NONE && test "$ac_default_prefix" = /usr ; }
-then
-     for i in x86_64 ppc64 s390x aarch64; do
-        if test $host_cpu = $i; then
-           if test "$libdir" = '${exec_prefix}/lib' &&\
-              { test -d "${exec_prefix}/lib64" || test -d "${ac_default_prefix}/lib64" ; } ; then
-              libdir='${exec_prefix}/lib64'
-              { $as_echo "$as_me:${as_lineno-$LINENO}:  Setting libdir=${libdir} " >&5
-$as_echo "$as_me:  Setting libdir=${libdir} " >&6;}
-           fi
-           break
-        fi
-     done
-fi
-
 BUILD_PLATFORM=${build}
 BUILD_CPU=${build_cpu}
 BUILD_VENDOR=${build_vendor}
