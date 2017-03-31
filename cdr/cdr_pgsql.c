@@ -217,6 +217,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 	struct ast_tm tm;
 	char *pgerror;
 	PGresult *result;
+	int res = -1;
 
 	ast_mutex_lock(&pgsql_lock);
 
@@ -246,13 +247,14 @@ static int pgsql_log(struct ast_cdr *cdr)
 	if (connected) {
 		struct columns *cur;
 		struct ast_str *sql = ast_str_create(maxsize), *sql2 = ast_str_create(maxsize2);
-		char buf[257], escapebuf[513], *value;
+		char buf[257];
+		char *escapebuf = NULL, *value;
 		int first = 1;
+		size_t bufsize = 513;
 
-		if (!sql || !sql2) {
-			ast_free(sql);
-			ast_free(sql2);
-			return -1;
+		escapebuf = ast_malloc(bufsize);
+		if (!escapebuf || !sql || !sql2) {
+			goto ast_log_cleanup;
 		}
 
 		ast_str_set(&sql, 0, "INSERT INTO %s (", table);
@@ -373,10 +375,28 @@ static int pgsql_log(struct ast_cdr *cdr)
 					}
 				/* XXX Might want to handle dates, times, and other misc fields here XXX */
 				} else {
-					if (value)
+					if (value) {
+						size_t required_size = strlen(value) * 2 + 1;
+
+						/* If our argument size exceeds our buffer, grow it,
+						 * as PQescapeStringConn() expects the buffer to be
+						 * adequitely sized and does *NOT* do size checking.
+						 */
+						if (required_size > bufsize) {
+							char *tmpbuf = ast_realloc(escapebuf, required_size);
+
+							if (!tmpbuf) {
+								AST_RWLIST_UNLOCK(&psql_columns);
+								goto ast_log_cleanup;
+							}
+
+							escapebuf = tmpbuf;
+							bufsize = required_size;
+						}
 						PQescapeStringConn(conn, escapebuf, value, strlen(value), NULL);
-					else
+					} else {
 						escapebuf[0] = '\0';
+					}
 					LENGTHEN_BUF2(strlen(escapebuf) + 3);
 					ast_str_append(&sql2, 0, "%s'%s'", first ? "" : ",", escapebuf);
 				}
@@ -410,10 +430,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				PQfinish(conn);
 				conn = NULL;
 				connected = 0;
-				ast_mutex_unlock(&pgsql_lock);
-				ast_free(sql);
-				ast_free(sql2);
-				return -1;
+				goto ast_log_cleanup;
 			}
 		}
 		result = PQexec(conn, ast_str_buffer(sql));
@@ -434,30 +451,28 @@ static int pgsql_log(struct ast_cdr *cdr)
 					pgerror = PQresultErrorMessage(result);
 					ast_log(LOG_ERROR, "HARD ERROR!  Attempted reconnection failed.  DROPPING CALL RECORD!\n");
 					ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
-				}  else {
+				} else {
 					/* Second try worked out ok */
 					totalrecords++;
 					records++;
-					ast_mutex_unlock(&pgsql_lock);
-					PQclear(result);
-					return 0;
+					res = 0;
 				}
 			}
-			ast_mutex_unlock(&pgsql_lock);
-			PQclear(result);
-			ast_free(sql);
-			ast_free(sql2);
-			return -1;
 		} else {
 			totalrecords++;
 			records++;
+			res = 0;
 		}
 		PQclear(result);
+
+ast_log_cleanup:
+		ast_free(escapebuf);
 		ast_free(sql);
 		ast_free(sql2);
 	}
+
 	ast_mutex_unlock(&pgsql_lock);
-	return 0;
+	return res;
 }
 
 /* This function should be called without holding the pgsql_columns lock */
