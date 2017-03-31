@@ -1,3 +1,33 @@
+2017-03-31 14:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.15.0-rc2 Released.
+
+2017-03-28 13:01 +0000 [276c9172f7]  Walter Doekes <walter+github@wjd.nu>
+
+	* build: Fix deb build issues with fakeroot
+
+	  If DESTDIR is set, don't call ldconfig. Assume that DESTDIR is used to
+	  create a binary archive. The ldconfig call should be delegated to the
+	  archive postinst script. This fixes the case where fakeroot wraps 'make
+	  install' causing $EUID to be 0 even though it doesn't have permission to
+	  call ldconfig.
+
+	  The previous logic in configure.ac to detect and correct libdir
+	  has been removed as it was not completely accurate.  CentOS 64-bit
+	  users should again specifiy --libdir=/usr/lib64 when configuring
+	  to prevent install to /usr/lib.
+
+	  Updated Makefile:check-old-libdir to check for orphans in
+	  lib64 when installing to lib as well as orphans in lib when installing
+	  to lib64.
+
+	  Updated Makefile and main/Makefile uninstall targets to remove the
+	  orphans using the new logic.
+
+	  ASTERISK-26705
+
+	  Change-Id: I51739d4a03e60bff38be719b8d2ead0007afdd51
+
 2017-03-23 20:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.15.0-rc1 Released.
