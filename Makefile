@@ -606,26 +606,56 @@ oldmodcheck:
 
 ld-cache-update:
 ifneq ($(LDCONFIG),)
+ifeq ($(DESTDIR),)  # DESTDIR means binary archive creation; ldconfig should be run on postinst
 	@if [ $${EUID} -eq 0 ] ; then \
-		$(LDCONFIG) "$(DESTDIR)$(ASTLIBDIR)/" ; \
+		$(LDCONFIG) "$(ASTLIBDIR)/" ; \
 	else \
 		echo " WARNING WARNING WARNING" ;\
 		echo "" ;\
 		echo " You cannot rebuild the system linker cache unless you are root. " ;\
-		echo " You MUST do one of the follwing..." ;\
+		echo " You MUST do one of the following..." ;\
 		echo "  * Re-run 'make install' as root. " ;\
-		echo "  * Run 'ldconfig $(DESTDIR)$(ASTLIBDIR)' as root. " ;\
-		echo "  * Run asterisk with 'LD_LIBRARY_PATH=$(DESTDIR)$(ASTLIBDIR) asterisk' " ;\
+		echo "  * Run 'ldconfig $(ASTLIBDIR)' as root. " ;\
+		echo "  * Run asterisk with 'LD_LIBRARY_PATH=$(ASTLIBDIR) asterisk' " ;\
 		echo "" ;\
 		echo " WARNING WARNING WARNING" ;\
 	fi
 endif
+endif
 
-ifeq ($(and $(findstring 64,$(HOST_CPU)),$(findstring lib64,$(DESTDIR)$(ASTLIBDIR))),lib64)
-_oldlibdir = $(subst lib64,lib,$(DESTDIR)$(ASTLIBDIR))
+export _oldlibdir =
+export _oldmoddir =
+ifeq ($(findstring 64,$(HOST_CPU)),64)
+    # Strip any trailing '/' so the dir and notdir functions work correctly
+    _current_libdir = $(patsubst %/,%,$(DESTDIR)$(ASTLIBDIR))
+
+    # Only process if the paths end in lib64 or lib.
+    # If we're installing to lib64, check lib for orphans.
+    # If we're installing to lib, check lib64 for orphans.
+    # Otherwise, leave _oldlibdir empty.
+    ifeq ($(notdir $(_current_libdir)),lib64)
+        _oldlibdir = $(dir $(_current_libdir))lib
+    else ifeq ($(notdir $(_current_libdir)),lib)
+        _oldlibdir = $(dir $(_current_libdir))lib64
+    endif
+
+    # Strip any trailing '/' so the dir and notdir functions work correctly
+    _current_moddir = $(patsubst %/,%,$(DESTDIR)$(ASTMODDIR))
+
+    # Only process if the paths contain /lib64/ or /lib/.
+    # If we're installing to lib64, check lib for orphans.
+    # If we're installing to lib, check lib64 for orphans.
+    # Otherwise, leave _oldmoddir empty.
+    ifeq ($(findstring /lib64/,$(_current_moddir)),/lib64/)
+        _oldmoddir = $(subst /lib64/,/lib/,$(_current_moddir))
+    else ifeq ($(findstring /lib/,$(_current_moddir)),/lib/)
+        _oldmoddir = $(subst /lib/,/lib64/,$(_current_moddir))
+    endif
+endif
 
 check-old-libdir:
-	@oldfiles=`find "$(_oldlibdir)" -name libasterisk* -print -quit -o \( -path *asterisk/modules/* -a -name *.so \) -print -quit` ;\
+	@test -n "$(_oldlibdir)" -a -d "$(_oldlibdir)" || exit 0 ;\
+	oldfiles=`find "$(_oldlibdir)" -name libasterisk* -print -quit -o \( -path *asterisk/modules/* -a -name *.so \) -print -quit 2>/dev/null` ;\
 	if [ "x$$oldfiles" != "x" ] ; then \
 		echo " WARNING WARNING WARNING" ;\
 		echo "" ;\
@@ -647,10 +677,6 @@ check-old-libdir:
 		echo "" ;\
 		echo " WARNING WARNING WARNING" ;\
 	fi
-else
-check-old-libdir:
-
-endif
 
 badshell:
 ifneq ($(filter ~%,$(DESTDIR)),)
@@ -912,7 +938,7 @@ main-binuninstall:
 
 _uninstall: $(SUBDIRS_UNINSTALL) main-binuninstall
 	rm -f "$(DESTDIR)$(ASTMODDIR)/"*
-	rm -f "$(subst lib64,lib,$(DESTDIR)$(ASTMODDIR))/"*
+	test -n "$(_oldmoddir)" -a -d "$(_oldmoddir)" && rm -f "$(_oldmoddir)/"* || :
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/astgenkey"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/autosupport"
 	rm -rf "$(DESTDIR)$(ASTHEADERDIR)"
@@ -945,7 +971,7 @@ uninstall: _uninstall
 
 uninstall-all: _uninstall
 	rm -rf "$(DESTDIR)$(ASTMODDIR)"
-	rm -rf "$(subst lib64,lib,$(DESTDIR)$(ASTMODDIR))"
+	test -n "$(_oldmoddir)" -a -d "$(_oldmoddir)" && rm -rf "$(_oldmoddir)" || :
 	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
 	rm -rf "$(DESTDIR)$(ASTDATADIR)"
 	rm -rf "$(DESTDIR)$(ASTSPOOLDIR)"
