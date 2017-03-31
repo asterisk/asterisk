@@ -322,6 +322,7 @@ static void pgsql_log(struct ast_event *event)
 							char *tmpbuf = ast_realloc(escapebuf, required_size);
 
 							if (!tmpbuf) {
+								AST_RWLIST_UNLOCK(&psql_columns);
 								goto ast_log_cleanup;
 							}
 
@@ -382,8 +383,6 @@ static void pgsql_log(struct ast_event *event)
 					ast_log(LOG_ERROR, "Reason: %s\n", pgerror);
 				}
 			}
-			PQclear(result);
-			goto ast_log_cleanup;
 		}
 		PQclear(result);
 
