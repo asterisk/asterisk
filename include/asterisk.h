@@ -317,6 +317,7 @@ struct ast_module;
 struct ast_variable;
 struct ast_str;
 struct ast_sched_context;
+struct ast_json;
 
 /* Some handy macros for turning a preprocessor token into (effectively) a quoted string */
 #define __stringify_1(x)	#x
