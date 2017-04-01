@@ -19,7 +19,6 @@
 #ifndef _ASTERISK_STASIS_SYSTEM_H
 #define _ASTERISK_STASIS_SYSTEM_H
 
-#include "asterisk/json.h"
 #include "asterisk/stasis.h"
 
 /*!
