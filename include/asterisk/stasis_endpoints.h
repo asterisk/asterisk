@@ -28,7 +28,6 @@
  */
 
 #include "asterisk/endpoints.h"
-#include "asterisk/json.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stringfields.h"
