@@ -195,8 +195,16 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	struct ast_sockaddr *media_address =  &address_rtp;
 
 	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
-		ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0);
-		media_address = &temp_media_address;
+		if (ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0)) {
+			ast_debug(1, "Endpoint %s: Binding RTP media to %s\n",
+				ast_sorcery_object_get_id(session->endpoint),
+				session->endpoint->media.address);
+			media_address = &temp_media_address;
+		} else {
+			ast_debug(1, "Endpoint %s: RTP media address invalid: %s\n",
+				ast_sorcery_object_get_id(session->endpoint),
+				session->endpoint->media.address);
+		}
 	} else {
 		struct ast_sip_transport *transport =
 			ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
@@ -206,9 +214,14 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 			char hoststr[PJ_INET6_ADDRSTRLEN];
 
 			pj_sockaddr_print(&transport->state->host, hoststr, sizeof(hoststr), 0);
-			ast_debug(1, "Transport: %s bound to host: %s, using this for media.\n",
-					  session->endpoint->transport, hoststr);
-			ast_sockaddr_parse(media_address, hoststr, 0);
+			if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
+				ast_debug(1, "Transport %s bound to %s: Using it for RTP media.\n",
+					session->endpoint->transport, hoststr);
+				media_address = &temp_media_address;
+			} else {
+				ast_debug(1, "Transport %s bound to %s: Invalid for RTP media.\n",
+					session->endpoint->transport, hoststr);
+			}
 		}
 		ao2_cleanup(transport);
 	}
