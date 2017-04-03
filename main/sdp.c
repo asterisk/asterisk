@@ -500,69 +500,10 @@ int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_opt
 	return 0;
 }
 
-/* TODO
- * This isn't set anywhere yet.
- */
-/*! \brief Scheduler for RTCP purposes */
-static struct ast_sched_context *sched;
-
-/*! \brief Internal function which creates an RTP instance */
-static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options,
-	enum ast_media_type media_type)
+int ast_sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
+	const struct ast_sdp_options *options, int stream_index)
 {
-	struct ast_rtp_instance *rtp;
-	struct ast_rtp_engine_ice *ice;
-	struct ast_sockaddr temp_media_address;
-	static struct ast_sockaddr address_rtp;
-	struct ast_sockaddr *media_address =  &address_rtp;
-
-	if (options->bind_rtp_to_media_address && !ast_strlen_zero(options->media_address)) {
-		ast_sockaddr_parse(&temp_media_address, options->media_address, 0);
-		media_address = &temp_media_address;
-	} else {
-		if (ast_check_ipv6()) {
-			ast_sockaddr_parse(&address_rtp, "::", 0);
-		} else {
-			ast_sockaddr_parse(&address_rtp, "0.0.0.0", 0);
-		}
-	}
-
-	if (!(rtp = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL))) {
-		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n",
-			options->rtp_engine);
-		return NULL;
-	}
-
-	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, 1);
-	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_NAT, options->rtp_symmetric);
-
-	if (options->ice == AST_SDP_ICE_DISABLED && (ice = ast_rtp_instance_get_ice(rtp))) {
-		ice->stop(rtp);
-	}
-
-	if (options->telephone_event) {
-		ast_rtp_instance_dtmf_mode_set(rtp, AST_RTP_DTMF_MODE_RFC2833);
-		ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_DTMF, 1);
-	}
-
-	if (media_type == AST_MEDIA_TYPE_AUDIO &&
-			(options->tos_audio || options->cos_audio)) {
-		ast_rtp_instance_set_qos(rtp, options->tos_audio,
-			options->cos_audio, "SIP RTP Audio");
-	} else if (media_type == AST_MEDIA_TYPE_VIDEO &&
-			(options->tos_video || options->cos_video)) {
-		ast_rtp_instance_set_qos(rtp, options->tos_video,
-			options->cos_video, "SIP RTP Video");
-	}
-
-	ast_rtp_instance_set_last_rx(rtp, time(NULL));
-
-	return rtp;
-}
-
-int ast_sdp_add_m_from_stream(struct ast_sdp *sdp, const struct ast_sdp_options *options,
-	struct ast_rtp_instance *rtp, const struct ast_stream *stream)
-{
+	struct ast_stream *stream = ast_stream_topology_get_stream(ast_sdp_state_get_local_topology(sdp_state), stream_index);
 	struct ast_sdp_m_line *m_line;
 	struct ast_format_cap *caps;
 	int i;
@@ -572,13 +513,15 @@ int ast_sdp_add_m_from_stream(struct ast_sdp *sdp, const struct ast_sdp_options 
 	enum ast_media_type media_type;
 	char tmp[64];
 	struct ast_sockaddr address_rtp;
+	struct ast_rtp_instance *rtp = ast_sdp_state_get_rtp_instance(sdp_state, stream_index);
 	struct ast_sdp_a_line *a_line;
 
-
-	ast_assert(sdp && options && rtp && stream);
+	ast_assert(sdp && options && stream);
 
 	media_type = ast_stream_get_type(stream);
-	ast_rtp_instance_get_local_address(rtp, &address_rtp);
+	if (ast_sdp_state_get_stream_connection_address(sdp_state, 0, &address_rtp)) {
+		return -1;
+	}
 
 	m_line = ast_sdp_m_alloc(
 		ast_codec_media_type2str(ast_stream_get_type(stream)),
@@ -673,7 +616,7 @@ int ast_sdp_add_m_from_stream(struct ast_sdp *sdp, const struct ast_sdp_options 
 		}
 	}
 
-	a_line = ast_sdp_a_alloc(options->locally_held ? "sendonly" : "sendrecv", "");
+	a_line = ast_sdp_a_alloc(ast_sdp_state_get_locally_held(sdp_state, stream_index) ? "sendonly" : "sendrecv", "");
 	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 		ast_sdp_a_free(a_line);
 		ast_sdp_m_free(m_line);
@@ -699,7 +642,6 @@ struct ast_sdp *ast_sdp_create_from_state(const struct ast_sdp_state *sdp_state)
 	struct ast_sdp_c_line *c_line = NULL;
 	struct ast_sdp_s_line *s_line = NULL;
 	struct ast_sdp_t_line *t_line = NULL;
-	struct ast_rtp_instance *rtp = NULL;
 	char *address_type;
 	struct timeval tv = ast_tvnow();
 	uint32_t t;
@@ -732,25 +674,18 @@ struct ast_sdp *ast_sdp_create_from_state(const struct ast_sdp_state *sdp_state)
 	}
 
 	for (stream_num = 0; stream_num < stream_count; stream_num++) {
-		struct ast_stream *stream = ast_stream_topology_get_stream(topology, stream_num);
+		enum ast_media_type type = ast_stream_get_type(ast_stream_topology_get_stream(topology, stream_num));
 
-		rtp = create_rtp(options, ast_stream_get_type(stream));
-		if (!rtp) {
-			goto error;
-		}
-
-		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_INSTANCE,
-			rtp, (ast_stream_data_free_fn)&ast_rtp_instance_destroy);
-
-		if (ast_sdp_add_m_from_stream(sdp, options, rtp, stream)) {
-			goto error;
+		if (type == AST_MEDIA_TYPE_AUDIO || type == AST_MEDIA_TYPE_VIDEO) {
+			if (ast_sdp_add_m_from_rtp_stream(sdp, sdp_state, options, stream_num)) {
+				goto error;
+			}
 		}
 	}
 
 	return sdp;
 
 error:
-	ao2_cleanup(rtp);
 	if (sdp) {
 		ast_sdp_free(sdp);
 	} else {

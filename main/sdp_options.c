@@ -64,7 +64,6 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, telephone_event);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_ipv6);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, g726_non_standard);
-DEFINE_GETTERS_SETTERS_FOR(unsigned int, locally_held);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, cos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_video);
