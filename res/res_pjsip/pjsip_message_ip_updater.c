@@ -339,8 +339,10 @@ static pj_bool_t multihomed_on_rx_message(pjsip_rx_data *rdata)
 	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_id);
 
 	if (!(transport && transport->symmetric_transport)) {
+		ao2_cleanup(transport);
 		return PJ_FALSE;
 	}
+	ao2_cleanup(transport);
 
 	x_transport = PJ_POOL_ALLOC_T(rdata->tp_info.pool, pjsip_param);
 	x_transport->name = pj_strdup3(rdata->tp_info.pool, AST_SIP_X_AST_TXP);
