@@ -1,3 +1,36 @@
+2017-04-04 12:37 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert3 Released.
+
+2017-03-27 09:03 +0000 [d91f264721]  Corey Farrell <git@cfware.com>
+
+	* CDR: Protect from data overflow in ast_cdr_setuserfield.
+
+	  ast_cdr_setuserfield wrote to a fixed length field using strcpy. This could
+	  result in a buffer overrun when called from chan_sip or func_cdr. This patch
+	  adds a maximum bytes written to the field by using ast_copy_string instead.
+
+	  ASTERISK-26897 #close
+	  patches:
+	    0001-CDR-Protect-from-data-overflow-in-ast_cdr_setuserfie.patch submitted
+	      by Corey Farrell (license #5909)
+
+	  Change-Id: Ib23ca77e9b9e2803a450e1206af45df2d2fdf65c
+
+2017-03-14 09:27 +0000 [563b639e5a]  Robert Mordec <r.mordec@slican.pl>
+
+	* app_queue: Member stuck as pending after forwarding previous call from queue
+
+	  Queue member will get stuck in pending_members if queue calls a device
+	  that is different from the one observed for state changes.
+
+	  This patch removes members from pending_members as a result of channel stasis
+	  events such as blind or attended transfers and hangup.
+
+	  ASTERISK-26862 #close
+
+	  Change-Id: I8bf6df487b9bb35726c08049ff25cdad5e357727
+
 2017-03-07 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert2 Released.
