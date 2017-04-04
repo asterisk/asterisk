@@ -1,3 +1,22 @@
+2017-04-04 12:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.14.1 Released.
+
+2017-03-27 09:03 +0000 [a667d8f8b1]  Corey Farrell <git@cfware.com>
+
+	* CDR: Protect from data overflow in ast_cdr_setuserfield.
+
+	  ast_cdr_setuserfield wrote to a fixed length field using strcpy. This could
+	  result in a buffer overrun when called from chan_sip or func_cdr. This patch
+	  adds a maximum bytes written to the field by using ast_copy_string instead.
+
+	  ASTERISK-26897 #close
+	  patches:
+	    0001-CDR-Protect-from-data-overflow-in-ast_cdr_setuserfie.patch submitted
+	      by Corey Farrell (license #5909)
+
+	  Change-Id: Ib23ca77e9b9e2803a450e1206af45df2d2fdf65c
+
 2017-02-13 19:51 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.14.0 Released.
