@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
+app_queue
+------------------
+ * PAUSEALL/UNPAUSEALL now sets the pause reason in the queue_log if it has
+   been defined.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
 ------------------------------------------------------------------------------
