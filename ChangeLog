@@ -1,3 +1,47 @@
+2017-04-05 12:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.4.0-rc3 Released.
+
+2017-04-03 15:38 +0000 [347c5304cf]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_sdp_rtp.c: Don't alter global addr variable.
+
+	  * create_rtp(): Fix unexpected alteration of global address_rtp if a
+	  transport is bound to an address.
+
+	  * create_rtp(): Fix use of uninitialized memory if the endpoint RTP media
+	  address is invalid or the transport has an invalid address.
+
+	  ASTERISK-26851
+
+	  Change-Id: Icde42e65164a88913cb5c2601b285eebcff397b7
+
+2017-03-27 09:03 +0000 [a3a42c0907]  Corey Farrell <git@cfware.com>
+
+	* CDR: Protect from data overflow in ast_cdr_setuserfield.
+
+	  ast_cdr_setuserfield wrote to a fixed length field using strcpy. This could
+	  result in a buffer overrun when called from chan_sip or func_cdr. This patch
+	  adds a maximum bytes written to the field by using ast_copy_string instead.
+
+	  ASTERISK-26897 #close
+	  patches:
+	    0001-CDR-Protect-from-data-overflow-in-ast_cdr_setuserfie.patch submitted
+	      by Corey Farrell (license #5909)
+
+	  Change-Id: Ib23ca77e9b9e2803a450e1206af45df2d2fdf65c
+
+2017-04-03 13:56 +0000 [6cdd55f2ca]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Fix transport ref leak.
+
+	  We were leaking a transport ref in multihomed_on_rx_message() which
+	  resulted in the FRACK about excessive ref counts.
+
+	  ASTERISK-26916 #close
+
+	  Change-Id: I7a96658a9614a060565bb9ad51cb1c9c11ee145f
+
 2017-03-31 14:06 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.4.0-rc2 Released.
