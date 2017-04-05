@@ -443,8 +443,8 @@ same => n,Congestion()
 ;
 exten => s,1,Dial(${ARG1})
 exten => s,n,Goto(s-${DIALSTATUS},1)
-exten => s-NOANSWER,1,Hangup
-exten => s-BUSY,1,Hangup
+exten => s-NOANSWER,1,Hangup()
+exten => s-BUSY,1,Hangup()
 exten => _s-.,1,NoOp
 
 [stdexten]
@@ -473,15 +473,15 @@ exten => _X.,n,Set(LOCAL(mbx)=${ext}${IF($[!${ISNULL(${cntx})}]?@${cntx})})
 exten => _X.,n,Dial(${dev},20)				; Ring the interface, 20 seconds maximum
 exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
-exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
+exten => stdexten-NOANSWER,1,VoiceMail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
 exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
-exten => stdexten-BUSY,1,Voicemail(${mbx},b)		; If busy, send to voicemail w/ busy announce
+exten => stdexten-BUSY,1,VoiceMail(${mbx},b)		; If busy, send to voicemail w/ busy announce
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
 exten => _stde[x]te[n]-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
-exten => a,1,VoicemailMain(${mbx})			; If they press *, send the user into VoicemailMain
+exten => a,1,VoiceMailMain(${mbx})			; If they press *, send the user into VoicemailMain
 exten => a,n,Return()
 
 [stdPrivacyexten]
@@ -507,11 +507,11 @@ exten => _X.,n,Dial(${dev},20,p)			; Ring the interface, 20 seconds maximum, cal
 						; option (or use P for databased call _X.creening)
 exten => _X.,n,Goto(stdexten-${DIALSTATUS},1)		; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
 
-exten => stdexten-NOANSWER,1,Voicemail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
+exten => stdexten-NOANSWER,1,VoiceMail(${mbx},u)	; If unavailable, send to voicemail w/ unavail announce
 exten => stdexten-NOANSWER,n,NoOp(Finish stdPrivacyexten NOANSWER)
 exten => stdexten-NOANSWER,n,Return()			; If they press #, return to start
 
-exten => stdexten-BUSY,1,Voicemail(${mbx},b)		; If busy, send to voicemail w/ busy announce
+exten => stdexten-BUSY,1,VoiceMail(${mbx},b)		; If busy, send to voicemail w/ busy announce
 exten => stdexten-BUSY,n,NoOp(Finish stdPrivacyexten BUSY)
 exten => stdexten-BUSY,n,Return()			; If they press #, return to start
 
@@ -521,10 +521,10 @@ exten => stdexten-TORTURE,1,Goto(${tortcntx},s,1)	; Callee chose to send this ca
 
 exten => _stde[x]te[n]-.,1,Goto(stdexten-NOANSWER,1)	; Treat anything else as no answer
 
-exten => a,1,VoicemailMain(${mbx})		; If they press *, send the user into VoicemailMain
-exten => a,n,Return
+exten => a,1,VoiceMailMain(${mbx})		; If they press *, send the user into VoicemailMain
+exten => a,n,Return()
 
-[macro-page];
+[macro-page]
 ;
 ; Paging macro:
 ;
@@ -533,26 +533,25 @@ exten => a,n,Return
 ;   ${ARG1} - Device to page
 
 exten => s,1,ChanIsAvail(${ARG1},s)			; s is for ANY call
-exten => s,n,GoToIf($[${AVAILSTATUS} = "1"]?autoanswer:fail)
+exten => s,n,GotoIf($[${AVAILSTATUS} = "1"]?autoanswer:fail)
 exten => s,n(autoanswer),Set(_ALERT_INFO="RA")			; This is for the PolyComs
 exten => s,n,SIPAddHeader(Call-Info: Answer-After=0)	; This is for the Grandstream, Snoms, and Others
 exten => s,n,NoOp()					; Add others here and Post on the Wiki!!!!
 exten => s,n,Dial(${ARG1})
-exten => s,n(fail),Hangup
+exten => s,n(fail),Hangup()
 
 
 [demo]
-include => stdexten
 ;
 ; We start with what to do when a call first comes in.
 ;
 exten => s,1,Wait(1)			; Wait a second, just for fun
-exten => s,n,Answer			; Answer the line
+exten => s,n,Answer()			; Answer the line
 exten => s,n,Set(TIMEOUT(digit)=5)	; Set Digit Timeout to 5 seconds
 exten => s,n,Set(TIMEOUT(response)=10)	; Set Response Timeout to 10 seconds
 exten => s,n(restart),BackGround(demo-congrats)	; Play a congratulatory message
 exten => s,n(instruct),BackGround(demo-instruct)	; Play some instructions
-exten => s,n,WaitExten			; Wait for an extension to be dialed.
+exten => s,n,WaitExten()		; Wait for an extension to be dialed.
 
 exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
 exten => 2,n,Goto(s,instruct)
@@ -570,16 +569,16 @@ exten => 1234,1,Playback(transfer,skip)		; "Please hold while..."
 exten => 1234,n,Gosub(${EXTEN},stdexten(${GLOBAL(CONSOLE)}))
 exten => 1234,n,Goto(default,s,1)		; exited Voicemail
 
-exten => 1235,1,Voicemail(1234,u)		; Right to voicemail
+exten => 1235,1,VoiceMail(1234,u)		; Right to voicemail
 
 exten => 1236,1,Dial(Console/dsp)		; Ring forever
-exten => 1236,n,Voicemail(1234,b)		; Unless busy
+exten => 1236,n,VoiceMail(1234,b)		; Unless busy
 
 ;
 ; # for when they're done with the demo
 ;
 exten => #,1,Playback(demo-thanks)	; "Thanks for trying the demo"
-exten => #,n,Hangup			; Hang them up.
+exten => #,n,Hangup()			; Hang them up.
 
 ;
 ; A timeout and "invalid extension rule"
@@ -591,7 +590,7 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 ; Create an extension, 500, for dialing the
 ; Asterisk demo.
 ;
-exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
+exten => 500,1,Playback(demo-abouttotry)	; Let them know what's going on
 exten => 500,n,Dial(IAX2/guest@pbx.digium.com/s@default)	; Call the Asterisk demo
 exten => 500,n,Playback(demo-nogo)	; Couldn't connect to the demo site
 exten => 500,n,Goto(s,6)		; Return to the start over message.
@@ -600,7 +599,7 @@ exten => 500,n,Goto(s,6)		; Return to the start over message.
 ; Create an extension, 600, for evaluating echo latency.
 ;
 exten => 600,1,Playback(demo-echotest)	; Let them know what's going on
-exten => 600,n,Echo			; Do the echo test
+exten => 600,n,Echo()			; Do the echo test
 exten => 600,n,Playback(demo-echodone)	; Let them know it's over
 exten => 600,n,Goto(s,6)		; Start over
 
@@ -618,7 +617,7 @@ exten => 7999,2,Page(Local/Grandstream1@page&Local/Xlite1@page&Local/1234@page/n
 
 ; Give voicemail at extension 8500
 ;
-exten => 8500,1,VoicemailMain
+exten => 8500,1,VoiceMailMain()
 exten => 8500,n,Goto(s,6)
 ;
 ; Here's what a phone entry would look like (IXJ for example)
@@ -684,9 +683,9 @@ include => demo
 ;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1(Joe Schmoe) ; Channel hints for presence
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
 ;exten => 6245,n(dial),Dial(${HINT},20,rtT)	; Use hint as listed
-;exten => 6245,n,Voicemail(6245,u)		; Voicemail (unavailable)
+;exten => 6245,n,VoiceMail(6245,u)		; Voicemail (unavailable)
 ;exten => 6245,s+1,Hangup			; s+1, same as n
-;exten => 6245,dial+101,Voicemail(6245,b)	; Voicemail (busy)
+;exten => 6245,dial+101,VoiceMail(6245,b)	; Voicemail (busy)
 ;exten => 6361,1,Dial(IAX2/JaneDoe,,rm)		; ring without time limit
 ;exten => 6389,1,Dial(MGCP/aaln/1@192.168.0.14)
 ;exten => 6390,1,Dial(JINGLE/caller/callee) ; Dial via jingle using labels
