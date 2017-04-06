@@ -157,6 +157,7 @@ struct moh_files_state {
 
 /* Custom astobj2 flag */
 #define MOH_NOTDELETED          (1 << 30)       /*!< Find only records that aren't deleted? */
+#define MOH_REALTIME          (1 << 31)       /*!< Find only records that are realtime */
 
 static struct ast_flags global_flags[1] = {{0}};        /*!< global MOH_ flags */
 
@@ -1678,7 +1679,9 @@ static int moh_class_mark(void *obj, void *arg, int flags)
 {
 	struct mohclass *class = obj;
 
-	class->delete = 1;
+	if ( ((flags & MOH_REALTIME) && class->realtime) || !(flags & MOH_REALTIME) ) {
+		class->delete = 1;
+	}
 
 	return 0;
 }
@@ -1694,22 +1697,27 @@ static int load_moh_classes(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	struct mohclass *class;	
+	struct mohclass *class;
 	char *cat;
 	int numclasses = 0;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	cfg = ast_config_load("musiconhold.conf", config_flags);
 
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		if (ast_check_realtime("musiconhold") && reload) {
+			ao2_t_callback(mohclasses, OBJ_NODATA | MOH_REALTIME, moh_class_mark, NULL, "Mark realtime classes for deletion");
+			ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, moh_classes_delete_marked, NULL, "Purge marked classes");
+		}
+		moh_rescan_files();
+		return 0;
+	}
+
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
 		if (ast_check_realtime("musiconhold") && reload) {
 			ao2_t_callback(mohclasses, OBJ_NODATA, moh_class_mark, NULL, "Mark deleted classes");
 			ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, moh_classes_delete_marked, NULL, "Purge marked classes");
 		}
-		return 0;
-	}
-	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
-		moh_rescan_files();
 		return 0;
 	}
 
