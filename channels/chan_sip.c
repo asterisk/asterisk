@@ -25818,8 +25818,7 @@ static int handle_request_update(struct sip_pvt *p, struct sip_request *req)
  * \retval 0 ok
  * \retval -1 failure
  */
-static int handle_request_invite_st(struct sip_pvt *p, struct sip_request *req,
-		const char *required, int reinvite)
+static int handle_request_invite_st(struct sip_pvt *p, struct sip_request *req, int reinvite)
 {
 	const char *p_uac_se_hdr;       /* UAC's Session-Expires header string                      */
 	const char *p_uac_min_se;       /* UAC's requested Min-SE interval (char string)            */
@@ -25899,8 +25898,8 @@ static int handle_request_invite_st(struct sip_pvt *p, struct sip_request *req,
 
 		case SESSION_TIMER_MODE_REFUSE:
 			if (p->reqsipoptions & SIP_OPT_TIMER) {
-				transmit_response_with_unsupported(p, "420 Option Disabled", req, required);
-				ast_log(LOG_WARNING, "Received SIP INVITE with supported but disabled option: %s\n", required);
+				transmit_response_with_unsupported(p, "420 Option Disabled", req, "timer");
+				ast_log(LOG_WARNING, "Received SIP INVITE with supported but disabled option: timer\n");
 				return -1;
 			}
 			break;
@@ -26006,7 +26005,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	 * then send a 420 with only those unsupported options listed */
 	if (!ast_strlen_zero(unsupported)) {
 		transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, unsupported);
-		ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: required:%s unsupported:%s\n", required, unsupported);
+		ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: %s\n", unsupported);
 		p->invitestate = INV_COMPLETED;
 		if (!p->lastinvite) {
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -26444,7 +26443,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 			make_our_tag(p);
 
-			if (handle_request_invite_st(p, req, required, reinvite)) {
+			if (handle_request_invite_st(p, req, reinvite)) {
 				p->invitestate = INV_COMPLETED;
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				res = INV_REQ_ERROR;
@@ -26486,7 +26485,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		if (!req->ignore)
 			reinvite = 1;
 
-		if (handle_request_invite_st(p, req, required, reinvite)) {
+		if (handle_request_invite_st(p, req, reinvite)) {
 			p->invitestate = INV_COMPLETED;
 			if (!p->lastinvite) {
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
