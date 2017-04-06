@@ -413,6 +413,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 		/* send request, possibly wait for reply */
 		struct sockaddr_in src;
 		socklen_t srclen;
+		struct timeval start;
 
 		/* Send STUN message. */
 		res = stun_send(s, dst, req);
@@ -426,12 +427,20 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 			break;
 		}
 
+		start = ast_tvnow();
 try_again:
 		/* Wait for response. */
 		{
 			struct pollfd pfds = { .fd = s, .events = POLLIN };
+			int ms;
 
-			res = ast_poll(&pfds, 1, 3000);
+			ms = ast_remaining_ms(start, 3000);
+			if (ms <= 0) {
+				/* No response, timeout */
+				res = 1;
+				continue;
+			}
+			res = ast_poll(&pfds, 1, ms);
 			if (res < 0) {
 				/* Error */
 				continue;
