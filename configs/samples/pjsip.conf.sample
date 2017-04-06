@@ -77,6 +77,8 @@
 ;   * Defines a permission list or references one stored in acl.conf
 ; * Registration "registration"
 ;   * Contains information about an outbound SIP registration
+; * Resource Lists
+;   * Contains information for configuring resource lists.
 ; * Phone Provisioning "phoneprov"
 ;   * Contains information needed by res_phoneprov for autoprovisioning
 
@@ -1103,3 +1105,142 @@
                 ; Common variables include LINE, LINEKEYS, etc.
                 ; See phoneprov.conf.sample for others.
 ;type=          ; Must be of type phoneprov (default: "")
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_outbound_publish
+;======================OUTBOUND_PUBLISHEN SECTION OPTIONS=====================
+; See https://wiki.asterisk.org/wiki/display/AST/Publishing+Extension+State
+; for more information.
+;[outbound-publish]
+;type=outbound-publish     ; Must be of type 'outbound-publish'.
+
+;expiration=3600           ; Expiration time for publications in seconds
+
+;outbound_auth=            ; Authentication object(s) to be used for outbound
+                           ; publishes.
+                           ; This is a comma-delimited list of auth	sections
+                           ; defined in pjsip.conf used to respond to outbound
+                           ; authentication challenges.
+                           ; Using the same auth section for inbound and
+                           ; outbound authentication is not recommended.  There
+                           ; is a difference in meaning for an empty realm
+                           ; setting between inbound and outbound authentication
+                           ; uses. See the auth realm description for details.
+
+;outbound_proxy=           ; SIP URI of the outbound proxy used to send
+                           ; publishes
+
+;server_uri=               ; SIP URI of the server and entity to publish to.
+                           ; This is the URI at which to find the entity and
+                           ; server to send the outbound PUBLISH to.
+                           ; This URI is used as the request URI of the outbound
+                           ; PUBLISH request from Asterisk.
+
+;from_uri=                 ; SIP URI to use in the From header.
+                           ; This is the URI that will be placed into the From
+                           ; header of outgoing PUBLISH messages. If no URI is
+                           ; specified then the URI provided in server_uri will
+                           ; be used.
+
+;to_uri=                   ; SIP URI to use in the To header.
+                           ; This is the URI that will be placed into the To
+                           ; header of outgoing PUBLISH messages. If no URI is
+                           ; specified then the URI provided in server_uri will
+                           ; be used.
+
+;event=                    ; Event type of the PUBLISH.
+
+;max_auth_attempts=        ; Maximum number of authentication attempts before
+                           ; stopping the pub.
+
+;transport=                ; Transport used for outbound publish.
+                           ; A transport configured in pjsip.conf. As with other
+                           ; res_pjsip modules, this will use the first
+                           ; available transport of the appropriate type if
+                           ; unconfigured.
+
+;multi_user=no             ; Enable multi-user support (Asterisk 14+ only)
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_pubsub
+;=============================RESOURCE-LIST===================================
+; See https://wiki.asterisk.org/wiki/pages/viewpage.action?pageId=30278158
+; for more information.
+;[resource_list]
+;type=resource_list        ; Must be of type 'resource_list'.
+
+;event=                    ; The SIP event package that the list resource.
+                           ; belongs to.  The SIP event package describes the
+                           ; types of resources that Asterisk reports the state
+                           ; of.
+
+;list_item=                ; The name of a resource to report state on.
+                           ; In general Asterisk looks up list items in the
+                           ; following way:
+                           ;  1. Check if the list item refers to another
+                           ;     configured resource list.
+                           ;  2. Pass the name of the resource off to
+                           ;     event-package-specific handlers to find the
+                           ;     specified resource.
+                           ; The second part means that the way the list item
+                           ; is specified depends on what type of list this is.
+                           ; For instance, if you have the event set to
+                           ; presence, then list items should be in the form of
+                           ; dialplan_extension@dialplan_context. For
+                           ; message-summary, mailbox names should be listed.
+
+;full_state=no             ; Indicates if the entire list's state should be
+                           ; sent out.
+                           ; If this option is enabled, and a resource changes
+                           ; state, then Asterisk will construct a notification
+                           ; that contains the state of all resources in the
+                           ; list. If the option is disabled, Asterisk will
+                           ; construct a notification that only contains the
+                           ; states of resources that have changed.
+                           ; NOTE: Even with this option disabled, there are
+                           ; certain situations where Asterisk is forced to send
+                           ; a notification with the states of all resources in
+                           ; the list. When a subscriber renews or terminates
+                           ; its subscription to the list, Asterisk MUST send
+                           ; a full state notification.
+
+;notification_batch_interval=0
+                           ; Time Asterisk should wait, in milliseconds,
+                           ; before sending notifications.
+
+;==========================INBOUND_PUBLICATION================================
+; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; for more information.
+;[inbound-publication]
+;type=                     ; Must be of type 'inbound-publication'.
+
+;endpoint=                 ; Optional name of an endpoint that is only allowed
+                           ; to publish to this resource.
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_publish_asterisk
+;==========================ASTERISK_PUBLICATION===============================
+; See https://wiki.asterisk.org/wiki/display/AST/Exchanging+Device+and+Mailbox+State+Using+PJSIP
+; for more information.
+;[asterisk-publication]
+;type=asterisk-publication ; Must be of type 'asterisk-publication'.
+
+;devicestate_publish=      ; Optional name of a publish item that can be used
+                           ; to publish a req.
+
+;mailboxstate_publish=     ; Optional name of a publish item that can be used
+                           ; to publish a req.
+
+;device_state=no           ; Whether we should permit incoming device state
+                           ; events.
+
+;device_state_filter=      ; Optional regular expression used to filter what
+                           ; devices we accept events for.
+
+;mailbox_state=no          ; Whether we should permit incoming mailbox state
+                           ; events.
+
+;mailbox_state_filter=     ; Optional regular expression used to filter what
+                           ; mailboxes we accept events for.
