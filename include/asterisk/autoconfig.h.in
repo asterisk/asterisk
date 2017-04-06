@@ -617,6 +617,10 @@
 /* Define if your system has the PJSIP_TLS_TRANSPORT_PROTO headers. */
 #undef HAVE_PJSIP_TLS_TRANSPORT_PROTO
 
+/* Define to 1 if PJPROJECT has the pjsip_tsx_layer_find_tsx2 support feature.
+   */
+#undef HAVE_PJSIP_TSX_LAYER_FIND_TSX2
+
 /* Define to 1 if PJPROJECT has the pj_ssl_cert_load_from_files2 support
    feature. */
 #undef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
