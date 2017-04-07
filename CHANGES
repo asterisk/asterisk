@@ -12,6 +12,16 @@
 --- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
 ------------------------------------------------------------------------------
 
+res_rtp_asterisk
+------------------
+ * Added the stun_blacklist option to rtp.conf.  Some multihomed servers have
+   IP interfaces that cannot reach the STUN server specified by stunaddr.
+   Blacklist those interface subnets from trying to send a STUN packet to find
+   the external IP address.  Attempting to send the STUN packet needlessly
+   delays processing incoming and outgoing SIP INVITEs because we will wait
+   for a response that can never come until we give up on the response.
+   Multiple subnets may be listed.
+
 res_pjsip_config_wizard
 ------------------
  * Two new parameters have been added to the pjsip config wizard.
