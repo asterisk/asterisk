@@ -84,6 +84,9 @@
 ;ps_aors => odbc,asterisk
 ;ps_domain_aliases => odbc,asterisk
 ;ps_endpoint_id_ips => odbc,asterisk
+;ps_outbound_publishes => odbc,asterisk
+;ps_inbound_publications = odbc,asterisk
+;ps_asterisk_publications = odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
 ;meetme => mysql,general

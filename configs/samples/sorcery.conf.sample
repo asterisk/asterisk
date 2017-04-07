@@ -67,3 +67,12 @@ test=memory
 
 ;[res_pjsip_endpoint_identifier_ip]
 ;identify=realtime,ps_endpoint_id_ips
+
+;[res_pjsip_outbound_publish]
+;outbound-publish=realtime,ps_outbound_publishes
+
+;[res_pjsip_pubsub]
+;inbound-publication=realtime,ps_inbound_publications
+
+;[res_pjsip_publish_asterisk]
+;asterisk-publication=realtime,ps_asterisk_publications
