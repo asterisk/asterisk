@@ -30,20 +30,9 @@ extern "C" {
 
 #ifndef _ASTERISK_ASTMM_H
 #define _ASTERISK_ASTMM_H
-/* IWYU pragma: private, include "asterisk/utils.h" */
-
-#ifndef STANDALONE
+/* IWYU pragma: private, include "asterisk.h" */
 
 #define __AST_DEBUG_MALLOC
-
-#include "asterisk.h"
-
-/* Include these now to prevent them from being needed later */
-#include <sys/types.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
 
 void *ast_std_malloc(size_t size);
 void *ast_std_calloc(size_t nmemb, size_t size);
@@ -178,8 +167,6 @@ void __ast_mm_init_phase_2(void);
 
 #define ast_free(a) \
 	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#endif /* !STANDALONE */
 
 #else
 #error "NEVER INCLUDE astmm.h DIRECTLY!!"

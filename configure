@@ -13249,6 +13249,10 @@ fi
 
 fi
 
+if test -z $ac_header_dirent -o "$ac_header_dirent" = "no"; then
+  as_fn_error $? "*** Could not find dirent header that defines 'DIR'." "$LINENO" 5
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
 $as_echo_n "checking for ANSI C header files... " >&6; }
 if ${ac_cv_header_stdc+:} false; then :
@@ -13361,6 +13365,10 @@ $as_echo "#define STDC_HEADERS 1" >>confdefs.h
 
 fi
 
+if test "$ac_cv_header_stdc" != "yes"; then
+  as_fn_error $? "*** ANSI C header files not found." "$LINENO" 5
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sys/wait.h that is POSIX.1 compatible" >&5
 $as_echo_n "checking for sys/wait.h that is POSIX.1 compatible... " >&6; }
 if ${ac_cv_header_sys_wait_h+:} false; then :
@@ -13402,7 +13410,38 @@ $as_echo "#define HAVE_SYS_WAIT_H 1" >>confdefs.h
 
 fi
 
-for ac_header in arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h strings.h sys/event.h sys/file.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h termios.h unistd.h utime.h arpa/nameser.h sys/io.h
+if test "$ac_cv_header_sys_wait_h" != "yes"; then
+  as_fn_error $? "*** POSIX.1 compatible sys/wait.h is required." "$LINENO" 5
+fi
+
+# Check for headers that are unconditionally required on all platforms.  Do not use
+# this to check for headers that are only needed by modules.
+for ac_header in  \
+  arpa/nameser.h assert.h ctype.h dlfcn.h errno.h fcntl.h float.h grp.h \
+  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h resolv.h \
+  sched.h stdarg.h stdint.h stdio.h stdlib.h string.h syslog.h \
+  sys/file.h sys/ioctl.h sys/param.h sys/resource.h sys/socket.h sys/stat.h \
+  sys/time.h sys/types.h sys/un.h \
+  termios.h time.h unistd.h \
+
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+else
+
+  as_fn_error $? "*** A required header was not found." "$LINENO" 5
+
+fi
+
+done
+
+
+for ac_header in arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
