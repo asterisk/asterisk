@@ -53,7 +53,7 @@
    Coders                   Testers                  Reporters                
    31 Sean Bright           1 Matt Jordan            6 George Joseph          
    21 Richard Mudgett                                4 Richard Begg           
-   13 George Joseph                                  4 Michael Maier          
+   14 George Joseph                                  4 Michael Maier          
    12 Joshua Colp                                    4 Nic Colledge           
    5 Matt Jordan                                     4 Matt Jordan            
    4 Tzafrir Cohen                                   4 Tzafrir Cohen          
@@ -708,6 +708,8 @@
    +------------------------------------------------------------------------+
    | Revision   | Author          | Summary                                 |
    |------------+-----------------+-----------------------------------------|
+   | eba02a30bb | gtjoseph        | Update for 13.15.0                      |
+   |------------+-----------------+-----------------------------------------|
    | 0800ab33b5 | gtjoseph        | Update for 13.15.0-rc3                  |
    |------------+-----------------+-----------------------------------------|
    | e6c7e7d08f | gtjoseph        | Update for 13.15.0-rc2                  |
@@ -820,11 +822,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- asterisk-13.14.0-summary.html                                                                   |  336 -
- asterisk-13.14.0-summary.txt                                                                    |  878 ----
+ asterisk-13.14.0-summary.html                                                                   |  336 ---
+ asterisk-13.14.0-summary.txt                                                                    |  878 ---------
  b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   89
- b/ChangeLog                                                                                     | 1892 +++++++++-
+ b/ChangeLog                                                                                     |   23
  b/Makefile                                                                                      |   90
  b/UPGRADE.txt                                                                                   |    9
  b/addons/res_config_mysql.c                                                                     |   61
@@ -834,20 +836,20 @@
  b/apps/app_minivm.c                                                                             |    8
  b/apps/app_mixmonitor.c                                                                         |   21
  b/apps/app_originate.c                                                                          |    8
- b/apps/app_queue.c                                                                              |   98
+ b/apps/app_queue.c                                                                              |   98 -
  b/apps/app_record.c                                                                             |   13
  b/apps/app_voicemail.c                                                                          |   57
  b/apps/confbridge/conf_config_parser.c                                                          |   12
  b/apps/confbridge/confbridge_manager.c                                                          |    2
- b/asterisk-13.15.0-rc3-summary.html                                                             |   15
- b/asterisk-13.15.0-rc3-summary.txt                                                              |   98
+ b/asterisk-13.15.0-summary.html                                                                 |  374 +++
+ b/asterisk-13.15.0-summary.txt                                                                  |  968 ++++++++++
  b/bridges/bridge_native_rtp.c                                                                   |    6
  b/bridges/bridge_softmix.c                                                                      |    3
  b/build_tools/download_externals                                                                |    4
  b/channels/chan_alsa.c                                                                          |   20
  b/channels/chan_iax2.c                                                                          |    8
  b/channels/chan_pjsip.c                                                                         |   57
- b/channels/chan_sip.c                                                                           |  180
+ b/channels/chan_sip.c                                                                           |  180 +
  b/channels/chan_skinny.c                                                                        |   49
  b/channels/chan_unistim.c                                                                       |   27
  b/channels/pjsip/cli_commands.c                                                                 |   16
@@ -858,7 +860,7 @@
  b/configs/samples/sip.conf.sample                                                               |    2
  b/configs/samples/sorcery.conf.sample                                                           |    2
  b/configs/samples/voicemail.conf.sample                                                         |    9
- b/configure                                                                                     |  125
+ b/configure                                                                                     |  125 +
  b/configure.ac                                                                                  |    4
  b/contrib/ast-db-manage/config/versions/15db7b91a97a_add_rtcp_mux.py                            |   31
  b/contrib/ast-db-manage/config/versions/465e70e8c337_add_match_header_attribute_to_identify.py  |   21
@@ -907,41 +909,41 @@
  b/menuselect/menuselect.h                                                                       |    3
  b/pbx/pbx_dundi.c                                                                               |    8
  b/pbx/pbx_realtime.c                                                                            |   23
- b/pbx/pbx_spool.c                                                                               |  282 -
+ b/pbx/pbx_spool.c                                                                               |  282 +-
  b/res/res_clioriginate.c                                                                        |    8
  b/res/res_config_curl.c                                                                         |    7
- b/res/res_config_ldap.c                                                                         |  768 ++--
+ b/res/res_config_ldap.c                                                                         |  768 ++++---
  b/res/res_config_odbc.c                                                                         |    6
- b/res/res_config_pgsql.c                                                                        |  194 -
+ b/res/res_config_pgsql.c                                                                        |  194 +-
  b/res/res_config_sqlite.c                                                                       |    8
- b/res/res_config_sqlite3.c                                                                      |  228 +
+ b/res/res_config_sqlite3.c                                                                      |  228 ++
  b/res/res_hep.c                                                                                 |    5
  b/res/res_hep_pjsip.c                                                                           |   12
- b/res/res_pjsip.c                                                                               |  244 +
+ b/res/res_pjsip.c                                                                               |  244 +-
  b/res/res_pjsip/config_transport.c                                                              |   22
  b/res/res_pjsip/pjsip_cli.c                                                                     |    2
  b/res/res_pjsip/pjsip_configuration.c                                                           |    2
- b/res/res_pjsip/pjsip_distributor.c                                                             |  127
+ b/res/res_pjsip/pjsip_distributor.c                                                             |  127 -
  b/res/res_pjsip/pjsip_message_ip_updater.c                                                      |   85
  b/res/res_pjsip/pjsip_options.c                                                                 |    4
  b/res/res_pjsip/pjsip_scheduler.c                                                               |   32
  b/res/res_pjsip/security_events.c                                                               |    4
- b/res/res_pjsip_authenticator_digest.c                                                          |  105
- b/res/res_pjsip_endpoint_identifier_ip.c                                                        |  101
+ b/res/res_pjsip_authenticator_digest.c                                                          |  105 -
+ b/res/res_pjsip_endpoint_identifier_ip.c                                                        |  101 -
  b/res/res_pjsip_exten_state.c                                                                   |    5
  b/res/res_pjsip_history.c                                                                       |    7
  b/res/res_pjsip_messaging.c                                                                     |   10
  b/res/res_pjsip_mwi.c                                                                           |    2
  b/res/res_pjsip_nat.c                                                                           |   47
  b/res/res_pjsip_outbound_publish.c                                                              |   18
- b/res/res_pjsip_outbound_registration.c                                                         |  140
- b/res/res_pjsip_pubsub.c                                                                        |  274 +
+ b/res/res_pjsip_outbound_registration.c                                                         |  140 +
+ b/res/res_pjsip_pubsub.c                                                                        |  274 ++
  b/res/res_pjsip_refer.c                                                                         |    7
- b/res/res_pjsip_sdp_rtp.c                                                                       |  106
+ b/res/res_pjsip_sdp_rtp.c                                                                       |  106 +
  b/res/res_pjsip_session.c                                                                       |   63
  b/res/res_pjsip_t38.c                                                                           |    5
  b/res/res_pjsip_transport_websocket.c                                                           |   69
- b/res/res_rtp_asterisk.c                                                                        |  382 +-
+ b/res/res_rtp_asterisk.c                                                                        |  382 ++-
  b/res/res_sorcery_memory_cache.c                                                                |   14
  b/res/res_stasis_device_state.c                                                                 |   39
  b/third-party/pjproject/Makefile                                                                |    2
@@ -950,19 +952,20 @@
  b/third-party/pjproject/patches/0000-remove-third-party.patch                                   |   49
  b/third-party/pjproject/patches/0010-evsub-Add-pjsip_evsub_set_uas_timeout.patch                |   84
  b/third-party/pjproject/patches/0011-r5554-svn-backport-Increase-SENDER_WIDTH-column-size.patch |   77
- b/third-party/pjproject/patches/0013-r5559-svn-backport-Fix-to-resolve-DNS-SRV-crashes.patch    |  112
+ b/third-party/pjproject/patches/0013-r5559-svn-backport-Fix-to-resolve-DNS-SRV-crashes.patch    |  112 +
  b/third-party/pjproject/patches/0014-Add-pjsip-transport-register-type-ipv6.patch               |   62
  b/third-party/pjproject/patches/0025-fix-print-xml-crash.patch                                  |   24
- b/third-party/pjproject/patches/README                                                          |    5
+ b/third-party/pjproject/patches/README                                                          |    7
+ b/third-party/pjproject/patches/config_site.h                                                   |    6
  third-party/pjproject/patches/0001-r5397-pjsip_generic_array_max_count.patch                    |   58
  third-party/pjproject/patches/0001-r5400-pjsip_tx_data_dec_ref.patch                            |   24
  third-party/pjproject/patches/0002-Fix-1946-Avoid-deinitialization-of-uninitialized-cli.patch   |   56
- third-party/pjproject/patches/0002-r5435-add-pjsip_inv_session-ref_cnt.patch                    |  212 -
+ third-party/pjproject/patches/0002-r5435-add-pjsip_inv_session-ref_cnt.patch                    |  212 --
  third-party/pjproject/patches/0003-r5403-pjsip_IPV6_V6ONLY.patch                                |   13
  third-party/pjproject/patches/0004-resolver.c-Prevent-SERVFAIL-from-marking-name-server.patch   |   48
- third-party/pjproject/patches/0005-Re-1969-Fix-crash-on-using-an-already-destroyed-SSL-.patch   |  164
- third-party/pjproject/patches/0006-r5471-svn-backport-Various-fixes-for-DNS-IPv6.patch          |  134
+ third-party/pjproject/patches/0005-Re-1969-Fix-crash-on-using-an-already-destroyed-SSL-.patch   |  164 -
+ third-party/pjproject/patches/0006-r5471-svn-backport-Various-fixes-for-DNS-IPv6.patch          |  134 -
  third-party/pjproject/patches/0006-r5473-svn-backport-Fix-pending-query.patch                   |   28
  third-party/pjproject/patches/0006-r5475-svn-backport-Remove-DNS-cache-entry.patch              |   70
  third-party/pjproject/patches/0006-r5477-svn-backport-Fix-DNS-write-on-freed-memory.patch       |   33
- 145 files changed, 6378 insertions(+), 3620 deletions(-)
+ 146 files changed, 5752 insertions(+), 3614 deletions(-)
