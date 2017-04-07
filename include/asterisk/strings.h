@@ -26,6 +26,7 @@
 /* #define DEBUG_OPAQUE */
 
 #include <ctype.h>
+#include <limits.h>
 
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
@@ -1174,6 +1175,19 @@ char *ast_tech_to_upper(char *dev_str),
 )
 
 /*!
+ * \brief Restrict hash value range
+ *
+ * \details
+ * Hash values used all over asterisk are expected to be non-negative
+ * (signed) int values.  This function restricts an unsigned int hash
+ * value to the positive half of the (signed) int values.
+ */
+static force_inline int attribute_pure ast_str_hash_restrict(unsigned int hash)
+{
+	return (int) (hash & (unsigned int) INT_MAX);
+}
+
+/*!
  * \brief Compute a hash value on a string
  *
  * This famous hash algorithm was written by Dan Bernstein and is
@@ -1183,20 +1197,21 @@ char *ast_tech_to_upper(char *dev_str),
  */
 static force_inline int attribute_pure ast_str_hash(const char *str)
 {
-	int hash = 5381;
+	unsigned int hash = 5381;
 
-	while (*str)
-		hash = hash * 33 ^ *str++;
+	while (*str) {
+		hash = hash * 33 ^ (unsigned char) *str++;
+	}
 
-	return abs(hash);
+	return ast_str_hash_restrict(hash);
 }
 
 /*!
  * \brief Compute a hash value on a string
  *
  * \param[in] str The string to add to the hash
- * \param[in] hash The hash value to add to
- * 
+ * \param[in] seed The hash value to start with
+ *
  * \details
  * This version of the function is for when you need to compute a
  * string hash of more than one string.
@@ -1206,12 +1221,15 @@ static force_inline int attribute_pure ast_str_hash(const char *str)
  *
  * \sa http://www.cse.yorku.ca/~oz/hash.html
  */
-static force_inline int ast_str_hash_add(const char *str, int hash)
+static force_inline int ast_str_hash_add(const char *str, int seed)
 {
-	while (*str)
-		hash = hash * 33 ^ *str++;
+	unsigned int hash = (unsigned int) seed;
 
-	return abs(hash);
+	while (*str) {
+		hash = hash * 33 ^ (unsigned char) *str++;
+	}
+
+	return ast_str_hash_restrict(hash);
 }
 
 /*!
@@ -1223,13 +1241,13 @@ static force_inline int ast_str_hash_add(const char *str, int hash)
  */
 static force_inline int attribute_pure ast_str_case_hash(const char *str)
 {
-	int hash = 5381;
+	unsigned int hash = 5381;
 
 	while (*str) {
-		hash = hash * 33 ^ tolower(*str++);
+		hash = hash * 33 ^ (unsigned char) tolower(*str++);
 	}
 
-	return abs(hash);
+	return ast_str_hash_restrict(hash);
 }
 
 /*!
