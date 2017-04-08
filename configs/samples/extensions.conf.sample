@@ -542,6 +542,7 @@ exten => s,n(fail),Hangup()
 
 
 [demo]
+include => stdexten
 ;
 ; We start with what to do when a call first comes in.
 ;
