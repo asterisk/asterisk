@@ -447,6 +447,7 @@ static int set_caps(struct ast_sip_session *session,
 static pjmedia_sdp_attr* generate_rtpmap_attr(struct ast_sip_session *session, pjmedia_sdp_media *media, pj_pool_t *pool,
 					      int rtp_code, int asterisk_format, struct ast_format *format, int code)
 {
+	extern pj_bool_t pjsip_use_compact_form;
 	pjmedia_sdp_rtpmap rtpmap;
 	pjmedia_sdp_attr *attr = NULL;
 	char tmp[64];
@@ -455,6 +456,11 @@ static pjmedia_sdp_attr* generate_rtpmap_attr(struct ast_sip_session *session, p
 
 	snprintf(tmp, sizeof(tmp), "%d", rtp_code);
 	pj_strdup2(pool, &media->desc.fmt[media->desc.fmt_count++], tmp);
+
+	if (rtp_code <= AST_RTP_PT_LAST_STATIC && pjsip_use_compact_form) {
+		return NULL;
+	}
+
 	rtpmap.pt = media->desc.fmt[media->desc.fmt_count - 1];
 	rtpmap.clock_rate = ast_rtp_lookup_sample_rate2(asterisk_format, format, code);
 	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, options));
@@ -1254,11 +1260,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			continue;
 		}
 
-		if (!(attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
-			ao2_ref(format, -1);
-			continue;
+		if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
+			media->attr[media->attr_count++] = attr;
 		}
-		media->attr[media->attr_count++] = attr;
 
 		if ((attr = generate_fmtp_attr(pool, format, rtp_code))) {
 			media->attr[media->attr_count++] = attr;
@@ -1287,11 +1291,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				continue;
 			}
 
-			if (!(attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
-				continue;
+			if ((attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
+				media->attr[media->attr_count++] = attr;
 			}
-
-			media->attr[media->attr_count++] = attr;
 
 			if (index == AST_RTP_DTMF) {
 				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);

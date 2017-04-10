@@ -81,6 +81,12 @@ extern "C" {
 /*! Maximum number of payload types RTP can support. */
 #define AST_RTP_MAX_PT 128
 
+/*!
+ * Last RTP payload type statically assigned, see
+ * http://www.iana.org/assignments/rtp-parameters
+ */
+#define AST_RTP_PT_LAST_STATIC 34
+
 /*! First dynamic RTP payload type */
 #define AST_RTP_PT_FIRST_DYNAMIC 96
 
