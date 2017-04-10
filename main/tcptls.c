@@ -761,14 +761,23 @@ void *ast_tcptls_server_root(void *data)
 		}
 		i = ast_wait_for_input(desc->accept_fd, desc->poll_timeout);
 		if (i <= 0) {
+			/* Prevent tight loop from hogging CPU */
+			usleep(1);
 			continue;
 		}
 		fd = ast_accept(desc->accept_fd, &addr);
 		if (fd < 0) {
-			if ((errno != EAGAIN) && (errno != EWOULDBLOCK) && (errno != EINTR) && (errno != ECONNABORTED)) {
-				ast_log(LOG_ERROR, "Accept failed: %s\n", strerror(errno));
-				break;
+			if (errno != EAGAIN
+				&& errno != EWOULDBLOCK
+				&& errno != EINTR
+				&& errno != ECONNABORTED) {
+				ast_log(LOG_ERROR, "TCP/TLS accept failed: %s\n", strerror(errno));
+				if (errno != EMFILE) {
+					break;
+				}
 			}
+			/* Prevent tight loop from hogging CPU */
+			usleep(1);
 			continue;
 		}
 		tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
@@ -793,10 +802,20 @@ void *ast_tcptls_server_root(void *data)
 
 		/* This thread is now the only place that controls the single ref to tcptls_session */
 		if (ast_pthread_create_detached_background(&launched, NULL, handle_tcptls_connection, tcptls_session)) {
-			ast_log(LOG_ERROR, "Unable to launch helper thread: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "TCP/TLS unable to launch helper thread: %s\n",
+				strerror(errno));
 			ast_tcptls_close_session_file(tcptls_session);
 			ao2_ref(tcptls_session, -1);
 		}
+	}
+
+	ast_log(LOG_ERROR, "TCP/TLS listener thread ended abnormally\n");
+
+	/* Close the listener socket so Asterisk doesn't appear dead. */
+	fd = desc->accept_fd;
+	desc->accept_fd = -1;
+	if (0 <= fd) {
+		close(fd);
 	}
 	return NULL;
 }
