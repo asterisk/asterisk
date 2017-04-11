@@ -2790,7 +2790,7 @@ end:
 	ao2_cleanup(jingle_tech.capabilities);
 	jingle_tech.capabilities = NULL;
 
-	return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 /*! \brief Reload module */

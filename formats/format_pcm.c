@@ -502,6 +502,14 @@ static struct ast_format_def au_f = {
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,	/* this many shorts */
 };
 
+static int unload_module(void)
+{
+	return ast_format_def_unregister(pcm_f.name)
+		|| ast_format_def_unregister(alaw_f.name)
+		|| ast_format_def_unregister(au_f.name)
+		|| ast_format_def_unregister(g722_f.name);
+}
+
 static int load_module(void)
 {
 	int i;
@@ -519,17 +527,11 @@ static int load_module(void)
 	if ( ast_format_def_register(&pcm_f)
 		|| ast_format_def_register(&alaw_f)
 		|| ast_format_def_register(&au_f)
-		|| ast_format_def_register(&g722_f) )
-		return AST_MODULE_LOAD_FAILURE;
+		|| ast_format_def_register(&g722_f) ) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	return ast_format_def_unregister(pcm_f.name)
-		|| ast_format_def_unregister(alaw_f.name)
-		|| ast_format_def_unregister(au_f.name)
-		|| ast_format_def_unregister(g722_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz",

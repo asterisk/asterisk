@@ -165,7 +165,7 @@ static int load_module(void)
 {
 	h264_f.format = ast_format_h264;
 	if (ast_format_def_register(&h264_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

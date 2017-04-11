@@ -455,13 +455,14 @@ static int load_module(void)
 	populate_cache();
 	if (ast_devstate_prov_add(DEVICE_STATE_PROVIDER_STASIS,
 				  stasis_device_state_cb)) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(device_state_subscriptions = ao2_container_alloc(
 		      DEVICE_STATE_BUCKETS, device_state_subscriptions_hash,
 		      device_state_subscriptions_cmp))) {
-		return AST_MODULE_LOAD_FAILURE;
+		ast_devstate_prov_del(DEVICE_STATE_PROVIDER_STASIS);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	stasis_app_register_event_source(&device_state_event_source);

@@ -251,7 +251,7 @@ static int load_module(void)
 	int res = 0;
 
 	if (!router) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	res |= STASIS_MESSAGE_TYPE_INIT(appcdr_message_type);
@@ -261,7 +261,8 @@ static int load_module(void)
 	                                 appcdr_callback, NULL);
 
 	if (res) {
-		return AST_MODULE_LOAD_FAILURE;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }

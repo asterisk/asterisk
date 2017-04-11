@@ -150,13 +150,22 @@ static void default_route(void *data, struct stasis_subscription *sub,
 	}
 }
 
+static int unload_module(void)
+{
+	stasis_unsubscribe_and_join(sub);
+	sub = NULL;
+	stasis_message_router_unsubscribe_and_join(router);
+	router = NULL;
+	return 0;
+}
+
 static int load_module(void)
 {
 	/* You can create a message router to route messages by type */
 	router = stasis_message_router_create(
 		ast_channel_topic_all_cached());
 	if (!router) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	stasis_message_router_add(router, stasis_cache_update_type(),
 		updates, NULL);
@@ -165,18 +174,10 @@ static int load_module(void)
 	/* Or a subscription to receive all of the messages from a topic */
 	sub = stasis_subscribe(ast_channel_topic_all(), statsmaker, NULL);
 	if (!sub) {
-		return AST_MODULE_LOAD_FAILURE;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	stasis_unsubscribe_and_join(sub);
-	sub = NULL;
-	stasis_message_router_unsubscribe_and_join(router);
-	router = NULL;
-	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Example of how to use Stasis",

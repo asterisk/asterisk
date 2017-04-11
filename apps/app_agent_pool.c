@@ -2655,7 +2655,7 @@ static int load_module(void)
 	agents = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_MUTEX,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, agent_pvt_sort_cmp, agent_pvt_cmp);
 	if (!agents) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Init agent holding bridge v_table. */
@@ -2679,8 +2679,9 @@ static int load_module(void)
 	res |= ast_register_application_xml(app_agent_request, agent_request_exec);
 
 	if (res) {
+		ast_log(LOG_ERROR, "Unable to register application. Not loading module.\n");
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_config()) {

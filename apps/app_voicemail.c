@@ -14976,7 +14976,7 @@ static int load_module(void)
 	umask(my_umask);
 
 	if (!(inprocess_container = ao2_container_alloc(573, inprocess_hash_fn, inprocess_cmp_fn))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* compute the location of the voicemail spool directory */

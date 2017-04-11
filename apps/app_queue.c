@@ -8876,7 +8876,7 @@ static int reload_queue_rules(int reload)
 		if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
 			AST_LIST_UNLOCK(&rule_lists);
 			ast_config_destroy(cfg);
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		} else {
 			ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
 			AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);

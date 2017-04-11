@@ -500,6 +500,13 @@ int ast_verb_console_get(void);
  */
 void ast_verb_console_set(int verb_level);
 
+/*!
+ * \brief Test if logger is initialized
+ *
+ * \retval true if the logger is initialized
+ */
+int ast_is_logger_initialized(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

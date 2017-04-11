@@ -633,13 +633,14 @@ static int load_module(void)
 
 	r = STASIS_MESSAGE_TYPE_INIT(stasis_app_recording_snapshot_type);
 	if (r != 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	recordings = ao2_container_alloc(RECORDING_BUCKETS, recording_hash,
 		recording_cmp);
 	if (!recordings) {
-		return AST_MODULE_LOAD_FAILURE;
+		STASIS_MESSAGE_TYPE_CLEANUP(stasis_app_recording_snapshot_type);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }

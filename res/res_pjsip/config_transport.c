@@ -1348,7 +1348,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	transport_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS, internal_state_hash, internal_state_cmp);
 	if (!transport_states) {
 		ast_log(LOG_ERROR, "Unable to allocate transport states container\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return -1;
 	}
 
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");

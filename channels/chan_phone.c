@@ -1418,7 +1418,7 @@ static int load_module(void)
 	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	v = ast_variable_browse(cfg, "interfaces");
 	while(v) {
@@ -1434,7 +1434,7 @@ static int load_module(void)
 					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					__unload_module();
-					return AST_MODULE_LOAD_FAILURE;
+					return AST_MODULE_LOAD_DECLINE;
 				}
 		} else if (!strcasecmp(v->name, "silencesupression")) {
 			silencesupression = ast_true(v->value);
@@ -1510,7 +1510,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register channel class 'Phone'\n");
 		ast_config_destroy(cfg);
 		__unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_config_destroy(cfg);
 	/* And start the monitor for the first time */
