@@ -230,7 +230,7 @@ static int unload_module(void)
 /*! \internal \brief Load the module */
 static int load_module(void)
 {
-	return ast_custom_function_register(&hold_intercept_function) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+	return ast_custom_function_register(&hold_intercept_function) ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Hold interception dialplan function");

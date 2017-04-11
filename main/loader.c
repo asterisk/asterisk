@@ -1251,6 +1251,7 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 		case AST_MODULE_LOAD_DECLINE:
 			break;
 		case AST_MODULE_LOAD_FAILURE:
+			ast_log(LOG_ERROR, "*** Failed to load module %s\n", mod->resource);
 			res = -1;
 			goto done;
 		case AST_MODULE_LOAD_SKIP:

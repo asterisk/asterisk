@@ -8694,7 +8694,7 @@ static int load_module(void)
 		ao2_ref(skinny_tech.capabilities, -1);
 		ao2_ref(default_cap, -1);
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Make sure we can register our skinny channel type */
@@ -8702,7 +8702,7 @@ static int load_module(void)
 		ao2_ref(default_cap, -1);
 		ao2_ref(skinny_tech.capabilities, -1);
 		ast_log(LOG_ERROR, "Unable to register channel class 'Skinny'\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_rtp_glue_register(&skinny_rtp_glue);
@@ -8719,7 +8719,7 @@ static int load_module(void)
 		ast_channel_unregister(&skinny_tech);
 		ao2_ref(default_cap, -1);
 		ao2_ref(skinny_tech.capabilities, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

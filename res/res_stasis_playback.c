@@ -664,13 +664,14 @@ static int load_module(void)
 
 	r = STASIS_MESSAGE_TYPE_INIT(stasis_app_playback_snapshot_type);
 	if (r != 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	playbacks = ao2_container_alloc(PLAYBACK_BUCKETS, playback_hash,
 		playback_cmp);
 	if (!playbacks) {
-		return AST_MODULE_LOAD_FAILURE;
+		STASIS_MESSAGE_TYPE_CLEANUP(stasis_app_playback_snapshot_type);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }

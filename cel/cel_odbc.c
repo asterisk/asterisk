@@ -810,13 +810,14 @@ static int load_module(void)
 
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Load failed.\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	load_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
 	if (ast_cel_backend_register(ODBC_BACKEND_NAME, odbc_log)) {
 		ast_log(LOG_ERROR, "Unable to subscribe to CEL events\n");
-		return AST_MODULE_LOAD_FAILURE;
+		free_config();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -825,7 +826,7 @@ static int reload(void)
 {
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Reload failed.\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	free_config();

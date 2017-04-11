@@ -193,14 +193,15 @@ static enum ast_module_load_result load_module(void)
 {
 	if (AST_RWLIST_WRLOCK(&sinks)) {
 		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	load_config();
 	AST_RWLIST_UNLOCK(&sinks);
 
 	if (ast_cel_backend_register(CUSTOM_BACKEND_NAME, custom_log)) {
-		return AST_MODULE_LOAD_FAILURE;
+		free_config();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -209,7 +210,7 @@ static int reload(void)
 {
 	if (AST_RWLIST_WRLOCK(&sinks)) {
 		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	free_config();

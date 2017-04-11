@@ -223,20 +223,6 @@ static struct ast_format_def f[] = {
 	{	.desc_size = 0 }	/* terminator */
 };
 
-static int load_module(void)
-{
-	int i;
-
-	for (i = 0; f[i].desc_size ; i++) {
-		f[i].format = ast_format_g726;
-		if (ast_format_def_register(&f[i])) {	/* errors are fatal */
-			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
-			return AST_MODULE_LOAD_FAILURE;
-		}
-	}
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
 static int unload_module(void)
 {
 	int i;
@@ -246,6 +232,21 @@ static int unload_module(void)
 			ast_log(LOG_WARNING, "Failed to unregister format %s.\n", f[i].name);
 	}
 	return(0);
+}
+
+static int load_module(void)
+{
+	int i;
+
+	for (i = 0; f[i].desc_size ; i++) {
+		f[i].format = ast_format_g726;
+		if (ast_format_def_register(&f[i])) {	/* errors are fatal */
+			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
+			unload_module();
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw G.726 (16/24/32/40kbps) data",

@@ -3932,7 +3932,7 @@ static int load_module(void)
 	if (register_channel_tech(conf_record_get_tech())
 		|| register_channel_tech(conf_announce_get_tech())) {
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Create a container to hold the conference bridges */
@@ -3940,7 +3940,7 @@ static int load_module(void)
 		conference_bridge_hash_cb, conference_bridge_cmp_cb);
 	if (!conference_bridges) {
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Setup manager stasis subscriptions */
@@ -3965,7 +3965,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 	if (res) {
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

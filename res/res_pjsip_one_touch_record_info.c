@@ -112,7 +112,7 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&info_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register One Touch Recording supplement\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

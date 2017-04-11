@@ -1103,46 +1103,6 @@ static struct ast_http_uri http_uri = {
 	.no_decode_uri = 1,
 };
 
-static int load_module(void)
-{
-	ast_mutex_init(&root_handler_lock);
-
-	/* root_handler may have been built during a declined load */
-	if (!root_handler) {
-		root_handler = root_handler_create();
-	}
-	if (!root_handler) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
-	/* oom_json may have been built during a declined load */
-	if (!oom_json) {
-		oom_json = ast_json_pack(
-			"{s: s}", "error", "Allocation failed");
-	}
-	if (!oom_json) {
-		/* Ironic */
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
-	if (ast_ari_config_init() != 0) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (is_enabled()) {
-		ast_debug(3, "ARI enabled\n");
-		ast_http_uri_link(&http_uri);
-	} else {
-		ast_debug(3, "ARI disabled\n");
-	}
-
-	if (ast_ari_cli_register() != 0) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
 static int unload_module(void)
 {
 	ast_ari_cli_unregister();
@@ -1162,6 +1122,49 @@ static int unload_module(void)
 	oom_json = NULL;
 
 	return 0;
+}
+
+static int load_module(void)
+{
+	ast_mutex_init(&root_handler_lock);
+
+	/* root_handler may have been built during a declined load */
+	if (!root_handler) {
+		root_handler = root_handler_create();
+	}
+	if (!root_handler) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* oom_json may have been built during a declined load */
+	if (!oom_json) {
+		oom_json = ast_json_pack(
+			"{s: s}", "error", "Allocation failed");
+	}
+	if (!oom_json) {
+		/* Ironic */
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_ari_config_init() != 0) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (is_enabled()) {
+		ast_debug(3, "ARI enabled\n");
+		ast_http_uri_link(&http_uri);
+	} else {
+		ast_debug(3, "ARI disabled\n");
+	}
+
+	if (ast_ari_cli_register() != 0) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload_module(void)

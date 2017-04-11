@@ -347,7 +347,7 @@ static int load_module(void)
 {
 	test_features_chan_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!test_features_chan_tech.capabilities) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(test_features_chan_tech.capabilities, TEST_CHANNEL_FORMAT, 0);
 	ast_channel_register(&test_features_chan_tech);

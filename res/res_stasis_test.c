@@ -273,7 +273,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (STASIS_MESSAGE_TYPE_INIT(stasis_test_message_type) != 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

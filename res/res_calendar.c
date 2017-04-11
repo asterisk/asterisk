@@ -1882,7 +1882,7 @@ static int load_module(void)
 {
 	if (!(calendars = ao2_container_alloc(CALENDAR_BUCKETS, calendar_hash_fn, calendar_cmp_fn))) {
 		ast_log(LOG_ERROR, "Unable to allocate calendars container!\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_config(0)) {
@@ -1896,7 +1896,9 @@ static int load_module(void)
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create sched context\n");
-		return AST_MODULE_LOAD_FAILURE;
+		ast_config_destroy(calendar_config);
+		calendar_config = NULL;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {

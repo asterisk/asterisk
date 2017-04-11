@@ -926,6 +926,26 @@ static struct ast_cli_entry cli_alsa[] = {
 	AST_CLI_DEFINE(console_mute, "Disable/Enable mic input"),
 };
 
+static int unload_module(void)
+{
+	ast_channel_unregister(&alsa_tech);
+	ast_cli_unregister_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
+
+	if (alsa.icard)
+		snd_pcm_close(alsa.icard);
+	if (alsa.ocard)
+		snd_pcm_close(alsa.ocard);
+	if (alsa.owner)
+		ast_softhangup(alsa.owner, AST_SOFTHANGUP_APPUNLOAD);
+	if (alsa.owner)
+		return -1;
+
+	ao2_cleanup(alsa_tech.capabilities);
+	alsa_tech.capabilities = NULL;
+
+	return 0;
+}
+
 /*!
  * \brief Load the module
  *
@@ -996,37 +1016,21 @@ static int load_module(void)
 	if (soundcard_init() < 0) {
 		ast_verb(2, "No sound card detected -- console channel will be unavailable\n");
 		ast_verb(2, "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
+		unload_module();
+
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_channel_register(&alsa_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Console'\n");
-		return AST_MODULE_LOAD_FAILURE;
+		unload_module();
+
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	ast_channel_unregister(&alsa_tech);
-	ast_cli_unregister_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
-
-	if (alsa.icard)
-		snd_pcm_close(alsa.icard);
-	if (alsa.ocard)
-		snd_pcm_close(alsa.ocard);
-	if (alsa.owner)
-		ast_softhangup(alsa.owner, AST_SOFTHANGUP_APPUNLOAD);
-	if (alsa.owner)
-		return -1;
-
-	ao2_cleanup(alsa_tech.capabilities);
-	alsa_tech.capabilities = NULL;
-
-	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ALSA Console Channel Driver",

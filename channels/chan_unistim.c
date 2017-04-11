@@ -7119,7 +7119,7 @@ buff_failed:
 	global_cap = NULL;
 	ao2_cleanup(unistim_tech.capabilities);
 	unistim_tech.capabilities = NULL;
-	return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 static int unload_module(void)

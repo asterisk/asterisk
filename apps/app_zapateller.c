@@ -134,7 +134,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ((ast_register_application_xml(app, zapateller_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
+	return ((ast_register_application_xml(app, zapateller_exec)) ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS);
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");
