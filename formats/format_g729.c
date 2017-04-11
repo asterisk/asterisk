@@ -138,7 +138,7 @@ static int load_module(void)
 {
 	g729_f.format = ast_format_g729;
 	if (ast_format_def_register(&g729_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

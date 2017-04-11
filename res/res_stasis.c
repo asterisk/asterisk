@@ -2111,12 +2111,12 @@ static int load_module(void)
 		37, bridges_channel_hash_fn, bridges_channel_sort_fn, NULL);
 	if (!apps_registry || !app_controls || !app_bridges || !app_bridges_moh || !app_bridges_playback) {
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (messaging_init()) {
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	bridge_stasis_init();

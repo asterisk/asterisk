@@ -1441,7 +1441,7 @@ static int load_module(void)
 {
 	websocketuri.data = websocket_server_internal_create();
 	if (!websocketuri.data) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_http_uri_link(&websocketuri);
 	websocket_add_protocol_internal("echo", websocket_echo_callback);

@@ -219,7 +219,7 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&refer_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register Send to Voicemail supplement\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

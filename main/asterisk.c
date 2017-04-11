@@ -4354,7 +4354,11 @@ int main(int argc, char *argv[])
 static inline void check_init(int init_result, const char *name)
 {
 	if (init_result) {
-		printf("%s initialization failed.\n%s", name, term_quit());
+		if (ast_is_logger_initialized()) {
+			ast_log(LOG_ERROR, "%s initialization failed.  ASTERISK EXITING!\n%s", name, term_quit());
+		} else {
+			fprintf(stderr, "%s initialization failed.  ASTERISK EXITING!\n%s", name, term_quit());
+		}
 		ast_run_atexits(0);
 		exit(init_result == -2 ? 2 : 1);
 	}

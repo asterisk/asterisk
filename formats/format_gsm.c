@@ -183,7 +183,7 @@ static int load_module(void)
 {
 	gsm_f.format = ast_format_gsm;
 	if (ast_format_def_register(&gsm_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
