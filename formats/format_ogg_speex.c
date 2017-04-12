@@ -312,6 +312,15 @@ static struct ast_format_def speex32_f = {
 	.desc_size = sizeof(struct speex_desc),
 };
 
+static int unload_module(void)
+{
+	int res = 0;
+	res |= ast_format_def_unregister(speex_f.name);
+	res |= ast_format_def_unregister(speex16_f.name);
+	res |= ast_format_def_unregister(speex32_f.name);
+	return res;
+}
+
 static int load_module(void)
 {
 	speex_f.format = ast_format_speex;
@@ -321,19 +330,11 @@ static int load_module(void)
 	if (ast_format_def_register(&speex_f) ||
 	    ast_format_def_register(&speex16_f) ||
 	    ast_format_def_register(&speex32_f)) {
-		return AST_MODULE_LOAD_FAILURE;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	int res = 0;
-	res |= ast_format_def_unregister(speex_f.name);
-	res |= ast_format_def_unregister(speex16_f.name);
-	res |= ast_format_def_unregister(speex32_f.name);
-	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "OGG/Speex audio",

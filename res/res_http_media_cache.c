@@ -425,13 +425,13 @@ static int load_module(void)
 	if (ast_bucket_scheme_register("http", &http_bucket_wizard, &http_bucket_file_wizard,
 			NULL, NULL)) {
 		ast_log(LOG_ERROR, "Failed to register Bucket HTTP wizard scheme implementation\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_bucket_scheme_register("https", &https_bucket_wizard, &https_bucket_file_wizard,
 			NULL, NULL)) {
 		ast_log(LOG_ERROR, "Failed to register Bucket HTTPS wizard scheme implementation\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
