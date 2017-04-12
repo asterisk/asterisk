@@ -131,13 +131,13 @@ static int rtcpstats;			/*!< Are we debugging RTCP? */
 static int rtcpinterval = RTCP_DEFAULT_INTERVALMS; /*!< Time between rtcp reports in millisecs */
 static struct ast_sockaddr rtpdebugaddr;	/*!< Debug packets to/from this host */
 static struct ast_sockaddr rtcpdebugaddr;	/*!< Debug RTCP packets to/from this host */
-static int rtpdebugport;		/*< Debug only RTP packets from IP or IP+Port if port is > 0 */
-static int rtcpdebugport;		/*< Debug only RTCP packets from IP or IP+Port if port is > 0 */
+static int rtpdebugport;		/*!< Debug only RTP packets from IP or IP+Port if port is > 0 */
+static int rtcpdebugport;		/*!< Debug only RTCP packets from IP or IP+Port if port is > 0 */
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
-static int strictrtp = DEFAULT_STRICT_RTP; /*< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
-static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
+static int strictrtp = DEFAULT_STRICT_RTP; /*!< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
+static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*!< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
 #ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
 static struct sockaddr_in stunaddr;
@@ -145,8 +145,13 @@ static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
+
 static struct ast_ha *ice_blacklist = NULL;    /*!< Blacklisted ICE networks */
 static ast_rwlock_t ice_blacklist_lock = AST_RWLOCK_INIT_VALUE;
+
+/*! Blacklisted networks for STUN requests */
+static struct ast_ha *stun_blacklist = NULL;
+static ast_rwlock_t stun_blacklist_lock = AST_RWLOCK_INIT_VALUE;
 
 
 /*! \brief Pool factory used by pjlib to allocate memory. */
@@ -2523,6 +2528,32 @@ static int rtp_address_is_ice_blacklisted(const pj_sockaddr_t *address)
 	return result;
 }
 
+/*!
+ * \internal
+ * \brief Checks an address against the STUN blacklist
+ * \since 13.16.0
+ *
+ * \note If there is no stun_blacklist list, always returns 0
+ *
+ * \param addr The address to consider
+ *
+ * \retval 0 if address is not STUN blacklisted
+ * \retval 1 if address is STUN blacklisted
+ */
+static int stun_address_is_blacklisted(const struct ast_sockaddr *addr)
+{
+	int result = 1;
+
+	ast_rwlock_rdlock(&stun_blacklist_lock);
+	if (!stun_blacklist
+		|| ast_apply_ha(stun_blacklist, addr) == AST_SENSE_ALLOW) {
+		result = 0;
+	}
+	ast_rwlock_unlock(&stun_blacklist_lock);
+
+	return result;
+}
+
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
@@ -2557,7 +2588,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr.sin_addr.s_addr && ast_sockaddr_is_ipv4(addr) && count) {
+	if (stunaddr.sin_addr.s_addr && count && ast_sockaddr_is_ipv4(addr)
+		&& !stun_address_is_blacklisted(addr)) {
 		struct sockaddr_in answer;
 
 		if (!ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP ? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer)) {
@@ -5626,6 +5658,66 @@ static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
 };
 
+#ifdef HAVE_PJPROJECT
+/*!
+ * \internal
+ * \brief Clear the configured blacklist.
+ * \since 13.16.0
+ *
+ * \param lock R/W lock protecting the blacklist
+ * \param blacklist List to clear
+ *
+ * \return Nothing
+ */
+static void blacklist_clear(ast_rwlock_t *lock, struct ast_ha **blacklist)
+{
+	ast_rwlock_wrlock(lock);
+	ast_free_ha(*blacklist);
+	*blacklist = NULL;
+	ast_rwlock_unlock(lock);
+}
+
+/*!
+ * \internal
+ * \brief Load the blacklist configuration.
+ * \since 13.16.0
+ *
+ * \param cfg Raw config file options.
+ * \param option_name Blacklist option name
+ * \param lock R/W lock protecting the blacklist
+ * \param blacklist List to load
+ *
+ * \return Nothing
+ */
+static void blacklist_config_load(struct ast_config *cfg, const char *option_name,
+	ast_rwlock_t *lock, struct ast_ha **blacklist)
+{
+	struct ast_variable *var;
+
+	ast_rwlock_wrlock(lock);
+	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		if (!strcasecmp(var->name, option_name)) {
+			struct ast_ha *na;
+			int ha_error = 0;
+
+			na = ast_append_ha("d", var->value, *blacklist, &ha_error);
+			if (!na) {
+				ast_log(LOG_WARNING, "Invalid %s value: %s\n",
+					option_name, var->value);
+			} else {
+				*blacklist = na;
+			}
+			if (ha_error) {
+				ast_log(LOG_ERROR,
+					"Bad %s configuration value line %d: %s\n",
+					option_name, var->lineno, var->value);
+			}
+		}
+	}
+	ast_rwlock_unlock(lock);
+}
+#endif
+
 static int rtp_reload(int reload)
 {
 	struct ast_config *cfg;
@@ -5638,7 +5730,7 @@ static int rtp_reload(int reload)
 #endif
 
 	cfg = ast_config_load2("rtp.conf", "rtp", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
@@ -5664,141 +5756,126 @@ static int rtp_reload(int reload)
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
 	host_candidate_overrides_clear();
-	ast_rwlock_wrlock(&ice_blacklist_lock);
-	ast_free_ha(ice_blacklist);
-	ice_blacklist = NULL;
-	ast_rwlock_unlock(&ice_blacklist_lock);
+	blacklist_clear(&ice_blacklist_lock, &ice_blacklist);
+	blacklist_clear(&stun_blacklist_lock, &stun_blacklist);
 #endif
 
-	if (cfg) {
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
-			rtpstart = atoi(s);
-			if (rtpstart < MINIMUM_RTP_PORT)
-				rtpstart = MINIMUM_RTP_PORT;
-			if (rtpstart > MAXIMUM_RTP_PORT)
-				rtpstart = MAXIMUM_RTP_PORT;
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpend"))) {
-			rtpend = atoi(s);
-			if (rtpend < MINIMUM_RTP_PORT)
-				rtpend = MINIMUM_RTP_PORT;
-			if (rtpend > MAXIMUM_RTP_PORT)
-				rtpend = MAXIMUM_RTP_PORT;
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "rtcpinterval"))) {
-			rtcpinterval = atoi(s);
-			if (rtcpinterval == 0)
-				rtcpinterval = 0; /* Just so we're clear... it's zero */
-			if (rtcpinterval < RTCP_MIN_INTERVALMS)
-				rtcpinterval = RTCP_MIN_INTERVALMS; /* This catches negative numbers too */
-			if (rtcpinterval > RTCP_MAX_INTERVALMS)
-				rtcpinterval = RTCP_MAX_INTERVALMS;
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "rtpchecksums"))) {
-#ifdef SO_NO_CHECK
-			nochecksums = ast_false(s) ? 1 : 0;
-#else
-			if (ast_false(s))
-				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
-#endif
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "dtmftimeout"))) {
-			dtmftimeout = atoi(s);
-			if ((dtmftimeout < 0) || (dtmftimeout > 64000)) {
-				ast_log(LOG_WARNING, "DTMF timeout of '%d' outside range, using default of '%d' instead\n",
-					dtmftimeout, DEFAULT_DTMF_TIMEOUT);
-				dtmftimeout = DEFAULT_DTMF_TIMEOUT;
-			};
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "strictrtp"))) {
-			strictrtp = ast_true(s);
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "probation"))) {
-			if ((sscanf(s, "%d", &learning_min_sequential) <= 0) || learning_min_sequential <= 0) {
-				ast_log(LOG_WARNING, "Value for 'probation' could not be read, using default of '%d' instead\n",
-					DEFAULT_LEARNING_MIN_SEQUENTIAL);
-			}
-		}
-#ifdef HAVE_PJPROJECT
-		if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
-			icesupport = ast_true(s);
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
-			stunaddr.sin_port = htons(STANDARD_STUN_PORT);
-			if (ast_parse_arg(s, PARSE_INADDR, &stunaddr)) {
-				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", s);
-			}
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "turnaddr"))) {
-			struct sockaddr_in addr;
-			addr.sin_port = htons(DEFAULT_TURN_PORT);
-			if (ast_parse_arg(s, PARSE_INADDR, &addr)) {
-				ast_log(LOG_WARNING, "Invalid TURN server address: %s\n", s);
-			} else {
-				pj_strdup2_with_null(pool, &turnaddr, ast_inet_ntoa(addr.sin_addr));
-				/* ntohs() is not a bug here. The port number is used in host byte order with
-				 * a pjnat API. */
-				turnport = ntohs(addr.sin_port);
-			}
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "turnusername"))) {
-			pj_strdup2_with_null(pool, &turnusername, s);
-		}
-		if ((s = ast_variable_retrieve(cfg, "general", "turnpassword"))) {
-			pj_strdup2_with_null(pool, &turnpassword, s);
-		}
-
-		AST_RWLIST_WRLOCK(&host_candidates);
-		for (var = ast_variable_browse(cfg, "ice_host_candidates"); var; var = var->next) {
-			struct ast_sockaddr local_addr, advertised_addr;
-			pj_str_t address;
-
-			ast_sockaddr_setnull(&local_addr);
-			ast_sockaddr_setnull(&advertised_addr);
-
-			if (ast_parse_arg(var->name, PARSE_ADDR | PARSE_PORT_IGNORE, &local_addr)) {
-				ast_log(LOG_WARNING, "Invalid local ICE host address: %s\n", var->name);
-				continue;
-			}
-
-			if (ast_parse_arg(var->value, PARSE_ADDR | PARSE_PORT_IGNORE, &advertised_addr)) {
-				ast_log(LOG_WARNING, "Invalid advertised ICE host address: %s\n", var->value);
-				continue;
-			}
-
-			if (!(candidate = ast_calloc(1, sizeof(*candidate)))) {
-				ast_log(LOG_ERROR, "Failed to allocate ICE host candidate mapping.\n");
-				break;
-			}
-
-			pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&local_addr)), &candidate->local);
-			pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&advertised_addr)), &candidate->advertised);
-
-			AST_RWLIST_INSERT_TAIL(&host_candidates, candidate, next);
-		}
-		AST_RWLIST_UNLOCK(&host_candidates);
-
-		/* Read ICE blacklist configuration lines */
-		ast_rwlock_wrlock(&ice_blacklist_lock);
-		for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
-			if (!strcasecmp(var->name, "ice_blacklist")) {
-				struct ast_ha *na;
-				int ha_error = 0;
-				if (!(na = ast_append_ha("d", var->value, ice_blacklist, &ha_error))) {
-					ast_log(LOG_WARNING, "Invalid ice_blacklist value: %s\n", var->value);
-				} else {
-					ice_blacklist = na;
-				}
-				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad ice_blacklist configuration value line %d : %s\n", var->lineno, var->value);
-				}
-			}
-		}
-		ast_rwlock_unlock(&ice_blacklist_lock);
-
-#endif
-		ast_config_destroy(cfg);
+	if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
+		rtpstart = atoi(s);
+		if (rtpstart < MINIMUM_RTP_PORT)
+			rtpstart = MINIMUM_RTP_PORT;
+		if (rtpstart > MAXIMUM_RTP_PORT)
+			rtpstart = MAXIMUM_RTP_PORT;
 	}
+	if ((s = ast_variable_retrieve(cfg, "general", "rtpend"))) {
+		rtpend = atoi(s);
+		if (rtpend < MINIMUM_RTP_PORT)
+			rtpend = MINIMUM_RTP_PORT;
+		if (rtpend > MAXIMUM_RTP_PORT)
+			rtpend = MAXIMUM_RTP_PORT;
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "rtcpinterval"))) {
+		rtcpinterval = atoi(s);
+		if (rtcpinterval == 0)
+			rtcpinterval = 0; /* Just so we're clear... it's zero */
+		if (rtcpinterval < RTCP_MIN_INTERVALMS)
+			rtcpinterval = RTCP_MIN_INTERVALMS; /* This catches negative numbers too */
+		if (rtcpinterval > RTCP_MAX_INTERVALMS)
+			rtcpinterval = RTCP_MAX_INTERVALMS;
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "rtpchecksums"))) {
+#ifdef SO_NO_CHECK
+		nochecksums = ast_false(s) ? 1 : 0;
+#else
+		if (ast_false(s))
+			ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
+#endif
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "dtmftimeout"))) {
+		dtmftimeout = atoi(s);
+		if ((dtmftimeout < 0) || (dtmftimeout > 64000)) {
+			ast_log(LOG_WARNING, "DTMF timeout of '%d' outside range, using default of '%d' instead\n",
+				dtmftimeout, DEFAULT_DTMF_TIMEOUT);
+			dtmftimeout = DEFAULT_DTMF_TIMEOUT;
+		};
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "strictrtp"))) {
+		strictrtp = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "probation"))) {
+		if ((sscanf(s, "%d", &learning_min_sequential) <= 0) || learning_min_sequential <= 0) {
+			ast_log(LOG_WARNING, "Value for 'probation' could not be read, using default of '%d' instead\n",
+				DEFAULT_LEARNING_MIN_SEQUENTIAL);
+		}
+	}
+#ifdef HAVE_PJPROJECT
+	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
+		icesupport = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
+		stunaddr.sin_port = htons(STANDARD_STUN_PORT);
+		if (ast_parse_arg(s, PARSE_INADDR, &stunaddr)) {
+			ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", s);
+		}
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "turnaddr"))) {
+		struct sockaddr_in addr;
+		addr.sin_port = htons(DEFAULT_TURN_PORT);
+		if (ast_parse_arg(s, PARSE_INADDR, &addr)) {
+			ast_log(LOG_WARNING, "Invalid TURN server address: %s\n", s);
+		} else {
+			pj_strdup2_with_null(pool, &turnaddr, ast_inet_ntoa(addr.sin_addr));
+			/* ntohs() is not a bug here. The port number is used in host byte order with
+			 * a pjnat API. */
+			turnport = ntohs(addr.sin_port);
+		}
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "turnusername"))) {
+		pj_strdup2_with_null(pool, &turnusername, s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "turnpassword"))) {
+		pj_strdup2_with_null(pool, &turnpassword, s);
+	}
+
+	AST_RWLIST_WRLOCK(&host_candidates);
+	for (var = ast_variable_browse(cfg, "ice_host_candidates"); var; var = var->next) {
+		struct ast_sockaddr local_addr, advertised_addr;
+		pj_str_t address;
+
+		ast_sockaddr_setnull(&local_addr);
+		ast_sockaddr_setnull(&advertised_addr);
+
+		if (ast_parse_arg(var->name, PARSE_ADDR | PARSE_PORT_IGNORE, &local_addr)) {
+			ast_log(LOG_WARNING, "Invalid local ICE host address: %s\n", var->name);
+			continue;
+		}
+
+		if (ast_parse_arg(var->value, PARSE_ADDR | PARSE_PORT_IGNORE, &advertised_addr)) {
+			ast_log(LOG_WARNING, "Invalid advertised ICE host address: %s\n", var->value);
+			continue;
+		}
+
+		if (!(candidate = ast_calloc(1, sizeof(*candidate)))) {
+			ast_log(LOG_ERROR, "Failed to allocate ICE host candidate mapping.\n");
+			break;
+		}
+
+		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&local_addr)), &candidate->local);
+		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&advertised_addr)), &candidate->advertised);
+
+		AST_RWLIST_INSERT_TAIL(&host_candidates, candidate, next);
+	}
+	AST_RWLIST_UNLOCK(&host_candidates);
+
+	/* Read ICE blacklist configuration lines */
+	blacklist_config_load(cfg, "ice_blacklist", &ice_blacklist_lock, &ice_blacklist);
+
+	/* Read STUN blacklist configuration lines */
+	blacklist_config_load(cfg, "stun_blacklist", &stun_blacklist_lock, &stun_blacklist);
+#endif
+
+	ast_config_destroy(cfg);
+
 	if (rtpstart >= rtpend) {
 		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
 		rtpstart = DEFAULT_RTP_START;
