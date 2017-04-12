@@ -210,24 +210,30 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 				session->endpoint->media.address);
 		}
 	} else {
-		struct ast_sip_transport *transport =
-			ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
-									   session->endpoint->transport);
+		struct ast_sip_transport *transport;
 
-		if (transport && transport->state) {
-			char hoststr[PJ_INET6_ADDRSTRLEN];
+		transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
+			session->endpoint->transport);
+		if (transport) {
+			struct ast_sip_transport_state *trans_state;
 
-			pj_sockaddr_print(&transport->state->host, hoststr, sizeof(hoststr), 0);
-			if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
-				ast_debug(1, "Transport %s bound to %s: Using it for RTP media.\n",
-					session->endpoint->transport, hoststr);
-				media_address = &temp_media_address;
-			} else {
-				ast_debug(1, "Transport %s bound to %s: Invalid for RTP media.\n",
-					session->endpoint->transport, hoststr);
+			trans_state = ast_sip_get_transport_state(ast_sorcery_object_get_id(transport));
+			if (trans_state) {
+				char hoststr[PJ_INET6_ADDRSTRLEN];
+
+				pj_sockaddr_print(&trans_state->host, hoststr, sizeof(hoststr), 0);
+				if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
+					ast_debug(1, "Transport %s bound to %s: Using it for RTP media.\n",
+						session->endpoint->transport, hoststr);
+					media_address = &temp_media_address;
+				} else {
+					ast_debug(1, "Transport %s bound to %s: Invalid for RTP media.\n",
+						session->endpoint->transport, hoststr);
+				}
+				ao2_ref(trans_state, -1);
 			}
+			ao2_ref(transport, -1);
 		}
-		ao2_cleanup(transport);
 	}
 
 	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, media_address, NULL))) {
