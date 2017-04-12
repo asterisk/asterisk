@@ -56,6 +56,19 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 		return 0;
 	}
 
+	/* Request resend of T.38 negotiation if in progress and the other leg not yet T.38
+	 */
+	if (ast_channel_get_t38_state(c0) == T38_STATE_NEGOTIATING && ast_channel_get_t38_state(c1) == T38_STATE_UNKNOWN) {
+		struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_PARMS, };
+		ast_debug(3, "Sending T.38 param renegotiation to first channel %s.\n", ast_channel_name(c0));
+		ast_indicate_data(c0, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+	}
+	if (ast_channel_get_t38_state(c1) == T38_STATE_NEGOTIATING && ast_channel_get_t38_state(c0) == T38_STATE_UNKNOWN) {
+		struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REQUEST_PARMS, };
+		ast_debug(3, "Sending T.38 param renegotiation to second channel %s.\n", ast_channel_name(c1));
+		ast_indicate_data(c1, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+	}
+
 	return ast_channel_make_compatible(c0, c1);
 }
 
