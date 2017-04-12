@@ -1858,12 +1858,17 @@ static int sorcery_cache_create(void *obj, void *arg, int flags)
 
 void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *type, const char *id)
 {
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct ast_sorcery_object_type *object_type;
 	void *object = NULL;
 	int i;
 	unsigned int cached = 0;
 
-	if (!object_type || ast_strlen_zero(id)) {
+	if (ast_strlen_zero(id)) {
+		return NULL;
+	}
+
+	object_type = ao2_find(sorcery->types, type, OBJ_SEARCH_KEY);
+	if (!object_type) {
 		return NULL;
 	}
 
@@ -1891,6 +1896,7 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 	}
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
+	ao2_ref(object_type, -1);
 	return object;
 }
 
