@@ -137,7 +137,7 @@ static int load_module(void)
 {
 	ilbc_f.format = ast_format_ilbc;
 	if (ast_format_def_register(&ilbc_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

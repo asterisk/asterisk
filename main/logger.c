@@ -1655,6 +1655,11 @@ static void logger_queue_init(void)
 	}
 }
 
+int ast_is_logger_initialized(void)
+{
+	return logger_initialized;
+}
+
 /*!
  * \brief Start the ast_queue_log() logger.
  *

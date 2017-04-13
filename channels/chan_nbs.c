@@ -259,12 +259,14 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (!(nbs_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(nbs_tech.capabilities, ast_format_slin, 0);
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&nbs_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ao2_ref(nbs_tech.capabilities, -1);
+		nbs_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;

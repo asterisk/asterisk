@@ -1607,7 +1607,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (ast_register_application_xml(app, adsi_exec))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

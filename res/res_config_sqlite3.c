@@ -1361,18 +1361,18 @@ static int load_module(void)
 	discover_sqlite3_caps();
 
 	if (!((databases = ao2_container_alloc(DB_BUCKETS, db_hash_fn, db_cmp_fn)))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (parse_config(0)) {
 		ao2_ref(databases, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(ast_config_engine_register(&sqlite3_config_engine))) {
 		ast_log(LOG_ERROR, "The config API must have changed, this shouldn't happen.\n");
 		ao2_ref(databases, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

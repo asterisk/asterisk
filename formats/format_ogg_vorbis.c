@@ -425,7 +425,7 @@ static int load_module(void)
 {
 	vorbis_f.format = ast_format_slin;
 	if (ast_format_def_register(&vorbis_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

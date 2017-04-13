@@ -977,7 +977,7 @@ static int load_module(void)
 {
 	if (load_config(0)) {
 		if (ast_register_application_xml(app, alarmreceiver_exec)) {
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 		return AST_MODULE_LOAD_SUCCESS;
 	}

@@ -1437,6 +1437,31 @@ error:
 #endif
 }
 
+static int unload_module(void)
+{
+	struct chan_oss_pvt *o, *next;
+
+	ast_channel_unregister(&oss_tech);
+	ast_cli_unregister_multiple(cli_oss, ARRAY_LEN(cli_oss));
+
+	o = oss_default.next;
+	while (o) {
+		close(o->sounddev);
+		if (o->owner)
+			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
+		if (o->owner)
+			return -1;
+		next = o->next;
+		ast_free(o->name);
+		ast_free(o);
+		o = next;
+	}
+	ao2_cleanup(oss_tech.capabilities);
+	oss_tech.capabilities = NULL;
+
+	return 0;
+}
+
 /*!
  * \brief Load the module
  *
@@ -1474,12 +1499,12 @@ static int load_module(void)
 	if (find_desc(oss_active) == NULL) {
 		ast_log(LOG_NOTICE, "Device %s not found\n", oss_active);
 		/* XXX we could default to 'dsp' perhaps ? */
-		/* XXX should cleanup allocated memory etc. */
-		return AST_MODULE_LOAD_FAILURE;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(oss_tech.capabilities = ast_format_cap_alloc(0))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(oss_tech.capabilities, ast_format_slin, 0);
 
@@ -1494,32 +1519,6 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_oss, ARRAY_LEN(cli_oss));
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-
-static int unload_module(void)
-{
-	struct chan_oss_pvt *o, *next;
-
-	ast_channel_unregister(&oss_tech);
-	ast_cli_unregister_multiple(cli_oss, ARRAY_LEN(cli_oss));
-
-	o = oss_default.next;
-	while (o) {
-		close(o->sounddev);
-		if (o->owner)
-			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
-		if (o->owner)
-			return -1;
-		next = o->next;
-		ast_free(o->name);
-		ast_free(o);
-		o = next;
-	}
-	ao2_cleanup(oss_tech.capabilities);
-	oss_tech.capabilities = NULL;
-
-	return 0;
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "OSS Console Channel Driver");

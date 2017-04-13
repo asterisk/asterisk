@@ -192,7 +192,7 @@ static int load_module(void)
 		REG_EXTENDED | REG_ICASE | REG_NOSUB);
 
 	if (res != 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }

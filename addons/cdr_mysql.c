@@ -353,9 +353,20 @@ db_reconnect:
 	return 0;
 }
 
+static void free_strings(void)
+{
+	struct unload_string *us;
+
+	AST_LIST_LOCK(&unload_strings);
+	while ((us = AST_LIST_REMOVE_HEAD(&unload_strings, entry))) {
+		ast_free(us->str);
+		ast_free(us);
+	}
+	AST_LIST_UNLOCK(&unload_strings);
+}
+
 static int my_unload_module(int reload)
 { 
-	struct unload_string *us;
 	struct column *entry;
 
 	ast_cli_unregister_multiple(cdr_mysql_status_cli, sizeof(cdr_mysql_status_cli) / sizeof(struct ast_cli_entry));
@@ -366,12 +377,7 @@ static int my_unload_module(int reload)
 		records = 0;
 	}
 
-	AST_LIST_LOCK(&unload_strings);
-	while ((us = AST_LIST_REMOVE_HEAD(&unload_strings, entry))) {
-		ast_free(us->str);
-		ast_free(us);
-	}
-	AST_LIST_UNLOCK(&unload_strings);
+	free_strings();
 
 	if (!reload) {
 		AST_RWLIST_WRLOCK(&columns);
@@ -507,13 +513,16 @@ static int my_load_module(int reload)
 	} else {
 		calldate_compat = 0;
 	}
+	ast_free(compat);
 
 	if (res < 0) {
 		if (reload) {
 			AST_RWLIST_UNLOCK(&columns);
 		}
 		ast_config_destroy(cfg);
-		return AST_MODULE_LOAD_FAILURE;
+		free_strings();
+
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Check for any aliases */
@@ -584,7 +593,9 @@ static int my_load_module(int reload)
 			connected = 0;
 			AST_RWLIST_UNLOCK(&columns);
 			ast_config_destroy(cfg);
-			return AST_MODULE_LOAD_FAILURE;
+			free_strings();
+
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		if (!(result = mysql_store_result(&mysql))) {
@@ -593,7 +604,9 @@ static int my_load_module(int reload)
 			connected = 0;
 			AST_RWLIST_UNLOCK(&columns);
 			ast_config_destroy(cfg);
-			return AST_MODULE_LOAD_FAILURE;
+			free_strings();
+
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		while ((row = mysql_fetch_row(result))) {
@@ -659,7 +672,8 @@ static int my_load_module(int reload)
 	AST_RWLIST_UNLOCK(&columns);
 	ast_config_destroy(cfg);
 	if (res < 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		my_unload_module(0);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!reload) {
@@ -673,7 +687,12 @@ static int my_load_module(int reload)
 		res = ast_cli_register_multiple(cdr_mysql_status_cli, sizeof(cdr_mysql_status_cli) / sizeof(struct ast_cli_entry));
 	}
 
-	return res;
+	if (res) {
+		my_unload_module(0);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int load_module(void)

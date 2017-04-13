@@ -4706,9 +4706,13 @@ static int load_module(void)
 	ast_format_cap_append(mbl_tech.capabilities, DEVICE_FRAME_FORMAT, 0);
 	/* Check if we have Bluetooth, no point loading otherwise... */
 	dev_id = hci_get_route(NULL);
+
 	s = hci_open_dev(dev_id);
 	if (dev_id < 0 || s < 0) {
 		ast_log(LOG_ERROR, "No Bluetooth devices found. Not loading module.\n");
+		ao2_ref(mbl_tech.capabilities, -1);
+		mbl_tech.capabilities = NULL;
+		hci_close_dev(s);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -4716,6 +4720,8 @@ static int load_module(void)
 
 	if (mbl_load_config()) {
 		ast_log(LOG_ERROR, "Errors reading config file %s. Not loading module.\n", MBL_CONFIG);
+		ao2_ref(mbl_tech.capabilities, -1);
+		mbl_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -4740,10 +4746,9 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 
 e_cleanup:
-	if (sdp_session)
-		sdp_close(sdp_session);
+	unload_module();
 
-	return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Bluetooth Mobile Device Channel Driver",

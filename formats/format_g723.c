@@ -144,7 +144,7 @@ static int load_module(void)
 	g723_1_f.format = ast_format_g723;
 
 	if (ast_format_def_register(&g723_1_f))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

@@ -237,6 +237,19 @@ static struct ast_format_def *slin_list[] = {
 	&slin192_f,
 };
 
+static int unload_module(void)
+{
+	int res = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_LEN(slin_list); i++) {
+		if (ast_format_def_unregister(slin_list[i]->name)) {
+			res = -1;
+		}
+	}
+	return res;
+}
+
 static int load_module(void)
 {
 	int i;
@@ -253,24 +266,12 @@ static int load_module(void)
 
 	for (i = 0; i < ARRAY_LEN(slin_list); i++) {
 		if (ast_format_def_register(slin_list[i])) {
-			return AST_MODULE_LOAD_FAILURE;
+			unload_module();
+			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	int res = 0;
-	int i = 0;
-
-	for (i = 0; i < ARRAY_LEN(slin_list); i++) {
-		if (ast_format_def_unregister(slin_list[i]->name)) {
-			res |= AST_MODULE_LOAD_FAILURE;
-		}
-	}
-	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw Signed Linear Audio support (SLN) 8khz-192khz",

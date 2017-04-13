@@ -98,7 +98,7 @@ static int load_module(void)
 {
 	jpeg_format.format = ast_format_jpeg;
 	if (ast_image_register(&jpeg_format))
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
