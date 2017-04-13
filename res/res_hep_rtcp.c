@@ -155,7 +155,7 @@ static int load_module(void)
 	stasis_rtp_subscription = stasis_subscribe(ast_rtp_topic(),
 		rtp_topic_handler, NULL);
 	if (!stasis_rtp_subscription) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

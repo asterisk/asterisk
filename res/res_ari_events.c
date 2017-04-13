@@ -417,6 +417,15 @@ static struct stasis_rest_handlers events = {
 	.children = { &events_user, }
 };
 
+static int unload_module(void)
+{
+	ast_ari_remove_handler(&events);
+	ao2_cleanup(events.ws_server);
+	events.ws_server = NULL;
+	stasis_app_unref();
+	return 0;
+}
+
 static int load_module(void)
 {
 	int res = 0;
@@ -428,31 +437,27 @@ static int load_module(void)
 
 	events.ws_server = ast_websocket_server_create();
 	if (!events.ws_server) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	protocol = ast_websocket_sub_protocol_alloc("ari");
 	if (!protocol) {
 		ao2_ref(events.ws_server, -1);
 		events.ws_server = NULL;
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	protocol->session_attempted = ast_ari_events_event_websocket_ws_attempted_cb;
 	protocol->session_established = ast_ari_events_event_websocket_ws_established_cb;
 	res |= ast_websocket_server_add_protocol2(events.ws_server, protocol);
 	stasis_app_ref();
 	res |= ast_ari_add_handler(&events);
-	return res;
-}
 
-static int unload_module(void)
-{
-	ast_ari_remove_handler(&events);
-	ao2_cleanup(events.ws_server);
-	events.ws_server = NULL;
-	ast_ari_websocket_events_event_websocket_dtor();
-	stasis_app_unref();
-	return 0;
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - WebSocket resource",
