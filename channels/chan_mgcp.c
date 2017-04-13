@@ -4851,11 +4851,11 @@ static int reload_config(int reload)
 static int load_module(void)
 {
 	if (!(global_capability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(mgcp_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_ref(global_capability, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(global_capability, ast_format_ulaw, 0);
 	ast_format_cap_append(mgcp_tech.capabilities, ast_format_ulaw, 0);
@@ -4864,7 +4864,7 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 		ao2_ref(global_capability, -1);
 		ao2_ref(mgcp_tech.capabilities, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(io = io_context_create())) {
@@ -4872,7 +4872,7 @@ static int load_module(void)
 		ast_sched_context_destroy(sched);
 		ao2_ref(global_capability, -1);
 		ao2_ref(mgcp_tech.capabilities, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (reload_config(0)) {
@@ -4888,7 +4888,7 @@ static int load_module(void)
 		ast_sched_context_destroy(sched);
 		ao2_ref(global_capability, -1);
 		ao2_ref(mgcp_tech.capabilities, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_rtp_glue_register(&mgcp_rtp_glue);

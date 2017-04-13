@@ -538,20 +538,22 @@ static struct ast_format_def wav_f = {
 	.desc_size = sizeof(struct wav_desc),
 };
 
+static int unload_module(void)
+{
+	return ast_format_def_unregister(wav_f.name)
+		|| ast_format_def_unregister(wav16_f.name);
+}
+
 static int load_module(void)
 {
 	wav_f.format = ast_format_slin;
 	wav16_f.format = ast_format_slin16;
 	if (ast_format_def_register(&wav_f)
-		|| ast_format_def_register(&wav16_f))
-		return AST_MODULE_LOAD_FAILURE;
+		|| ast_format_def_register(&wav16_f)) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	return ast_format_def_unregister(wav_f.name)
-		|| ast_format_def_unregister(wav16_f.name);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Microsoft WAV/WAV16 format (8kHz/16kHz Signed Linear)",

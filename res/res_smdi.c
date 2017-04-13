@@ -1128,7 +1128,7 @@ static int smdi_load(int reload)
 	if (!AST_LIST_EMPTY(&mwi_monitor.mailbox_mappings) && mwi_monitor.thread == AST_PTHREADT_NULL
 		&& ast_pthread_create_background(&mwi_monitor.thread, NULL, mwi_monitor_handler, NULL)) {
 		ast_log(LOG_ERROR, "Failed to start MWI monitoring thread.  This module will not operate.\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return -1;
 	}
 
 	if (ao2_container_count(new_ifaces)) {
@@ -1371,7 +1371,7 @@ static int load_module(void)
 	res = smdi_load(0);
 	if (res < 0) {
 		_unload_module(1);
-		return res;
+		return AST_MODULE_LOAD_DECLINE;
 	} else if (res == 1) {
 		_unload_module(1);
 		ast_log(LOG_NOTICE, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");

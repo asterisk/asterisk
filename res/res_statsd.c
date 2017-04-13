@@ -351,7 +351,8 @@ static int load_module(void)
 	}
 
 	if (statsd_init() != 0) {
-		return AST_MODULE_LOAD_FAILURE;
+		aco_info_destroy(&cfg_info);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;

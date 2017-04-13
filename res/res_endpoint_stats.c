@@ -120,7 +120,7 @@ static int load_module(void)
 
 	router = stasis_message_router_create(ast_endpoint_topic_all_cached());
 	if (!router) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	stasis_message_router_add(router, stasis_cache_update_type(), cache_update_cb, NULL);
 

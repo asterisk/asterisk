@@ -19609,11 +19609,11 @@ static int load_module(void)
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 
 	if (STASIS_MESSAGE_TYPE_INIT(dahdichannel_type)) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(dahdi_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(dahdi_tech.capabilities, ast_format_slin, 0);
 	ast_format_cap_append(dahdi_tech.capabilities, ast_format_ulaw, 0);
@@ -19621,7 +19621,7 @@ static int load_module(void)
 
 	if (dahdi_native_load(ast_module_info->self, &dahdi_tech)) {
 		ao2_ref(dahdi_tech.capabilities, -1);
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 #ifdef HAVE_PRI
@@ -19639,7 +19639,7 @@ static int load_module(void)
 	if (ast_cc_agent_register(&dahdi_pri_cc_agent_callbacks)
 		|| ast_cc_monitor_register(&dahdi_pri_cc_monitor_callbacks)) {
 		__unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 #endif	/* defined(HAVE_PRI_CCSS) */
 	if (sig_pri_load(
@@ -19650,7 +19650,7 @@ static int load_module(void)
 #endif	/* defined(HAVE_PRI_CCSS) */
 		)) {
 		__unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 #endif
 #if defined(HAVE_SS7)
@@ -19673,7 +19673,7 @@ static int load_module(void)
 	if (ast_channel_register(&dahdi_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'DAHDI'\n");
 		__unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 #ifdef HAVE_PRI
 	ast_cli_register_multiple(dahdi_pri_cli, ARRAY_LEN(dahdi_pri_cli));

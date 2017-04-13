@@ -211,7 +211,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_cli_register(&cli_ulimit) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+	return ast_cli_register(&cli_ulimit) ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Resource limits");

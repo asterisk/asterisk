@@ -1269,7 +1269,7 @@ static int load_module(void)
 
 	shutdown_group = ast_serializer_shutdown_group_alloc();
 	if (!shutdown_group) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_publish");

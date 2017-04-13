@@ -1681,7 +1681,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
 		unload_module();
-		return 1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	sqlite_freemem(errormsg);
@@ -1701,7 +1701,7 @@ static int load_module(void)
 		if (!query) {
 			ast_log(LOG_ERROR, "Unable to allocate SQL query\n");
 			unload_module();
-			return 1;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		ast_debug(1, "SQL query: %s\n", query);
@@ -1720,7 +1720,7 @@ static int load_module(void)
 				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
 				unload_module();
-				return 1;
+				return AST_MODULE_LOAD_DECLINE;
 			}
 
 			sqlite_freemem(errormsg);
@@ -1730,7 +1730,7 @@ static int load_module(void)
 			if (!query) {
 				ast_log(LOG_ERROR, "Unable to allocate SQL query\n");
 				unload_module();
-				return 1;
+				return AST_MODULE_LOAD_DECLINE;
 			}
 
 			ast_debug(1, "SQL query: %s\n", query);
@@ -1745,7 +1745,7 @@ static int load_module(void)
 				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
 				unload_module();
-				return 1;
+				return AST_MODULE_LOAD_DECLINE;
 			}
 		}
 		sqlite_freemem(errormsg);
@@ -1755,7 +1755,7 @@ static int load_module(void)
 
 		if (error) {
 			unload_module();
-			return 1;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		cdr_registered = 1;
@@ -1765,12 +1765,12 @@ static int load_module(void)
 
 	if (error) {
 		unload_module();
-		return 1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	cli_status_registered = 1;
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime SQLite configuration",

@@ -2083,7 +2083,7 @@ static int load_module(void)
 
 	shutdown_group = ast_serializer_shutdown_group_alloc();
 	if (!shutdown_group) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Create outbound registration states container. */
@@ -2092,7 +2092,7 @@ static int load_module(void)
 	if (!new_states) {
 		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ao2_global_obj_replace_unref(current_states, new_states);
 	ao2_ref(new_states, -1);
@@ -2136,7 +2136,7 @@ static int load_module(void)
 			&registration_observer)) {
 		ast_log(LOG_ERROR, "Unable to register observers.\n");
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Register how this module identifies endpoints. */
@@ -2147,7 +2147,7 @@ static int load_module(void)
 	if (!cli_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
 		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	cli_formatter->name = "registration";
 	cli_formatter->print_header = cli_print_header;
