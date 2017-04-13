@@ -422,6 +422,7 @@ static int unload_module(void)
 	ast_ari_remove_handler(&events);
 	ao2_cleanup(events.ws_server);
 	events.ws_server = NULL;
+	ast_ari_websocket_events_event_websocket_dtor();
 	stasis_app_unref();
 	return 0;
 }
@@ -432,11 +433,12 @@ static int load_module(void)
 	struct ast_websocket_protocol *protocol;
 
 	if (ast_ari_websocket_events_event_websocket_init() == -1) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	events.ws_server = ast_websocket_server_create();
 	if (!events.ws_server) {
+		ast_ari_websocket_events_event_websocket_dtor();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -444,6 +446,7 @@ static int load_module(void)
 	if (!protocol) {
 		ao2_ref(events.ws_server, -1);
 		events.ws_server = NULL;
+		ast_ari_websocket_events_event_websocket_dtor();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	protocol->session_attempted = ast_ari_events_event_websocket_ws_attempted_cb;
