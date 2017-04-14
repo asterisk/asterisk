@@ -224,6 +224,11 @@ extern struct ast_format *ast_format_t140;
 extern struct ast_format *ast_format_t140_red;
 
 /*!
+ * \brief Built-in cached T.38 format.
+ */
+extern struct ast_format *ast_format_t38;
+
+/*!
  * \brief Built-in "null" format.
  */
 extern struct ast_format *ast_format_none;

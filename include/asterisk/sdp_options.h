@@ -19,6 +19,8 @@
 #ifndef _ASTERISK_SDP_OPTIONS_H
 #define _ASTERISK_SDP_OPTIONS_H
 
+#include "asterisk/udptl.h"
+
 struct ast_sdp_options;
 
 /*!
@@ -426,5 +428,85 @@ unsigned int ast_sdp_options_get_rtcp_mux(const struct ast_sdp_options *options)
  * \param value Boolean that indicates if RTCP MUX should be enabled.
  */
 void ast_sdp_options_set_rtcp_mux(struct ast_sdp_options *options, unsigned int value);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options udptl_symmetric
+ *
+ * \param options SDP Options
+ * \param udptl_symmetric
+ */
+void ast_sdp_options_set_udptl_symmetric(struct ast_sdp_options *options,
+	unsigned int udptl_symmetric);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options udptl_symmetric
+ *
+ * \param options SDP Options
+ *
+ * \returns udptl_symmetric
+ */
+unsigned int ast_sdp_options_get_udptl_symmetric(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options udptl_error_correction
+ *
+ * \param options SDP Options
+ * \param error_correction
+ */
+void ast_sdp_options_set_udptl_error_correction(struct ast_sdp_options *options,
+	enum ast_t38_ec_modes error_correction);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options udptl_error_correction
+ *
+ * \param options SDP Options
+ *
+ * \returns udptl_error_correction
+ */
+enum ast_t38_ec_modes ast_sdp_options_get_udptl_error_correction(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options udptl_far_max_datagram
+ *
+ * \param options SDP Options
+ * \param far_max_datagram
+ */
+void ast_sdp_options_set_udptl_far_max_datagram(struct ast_sdp_options *options,
+	unsigned int far_max_datagram);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options udptl_far_max_datagram
+ *
+ * \param options SDP Options
+ *
+ * \returns udptl_far_max_datagram
+ */
+unsigned int ast_sdp_options_get_udptl_far_max_datagram(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options bind_udptl_to_media_address
+ *
+ * \param options SDP Options
+ * \param bind_udptl_to_media_address
+ */
+void ast_sdp_options_set_bind_udptl_to_media_address(struct ast_sdp_options *options,
+	unsigned int bind_udptl_to_media_address);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options bind_udptl_to_media_address
+ *
+ * \param options SDP Options
+ *
+ * \returns bind_udptl_to_media_address
+ */
+unsigned int ast_sdp_options_get_bind_udptl_to_media_address(const struct ast_sdp_options *options);
 
 #endif /* _ASTERISK_SDP_OPTIONS_H */
