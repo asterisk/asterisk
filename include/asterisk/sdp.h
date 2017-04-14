@@ -535,8 +535,8 @@ struct ast_sdp_payload *ast_sdp_m_get_payload(const struct ast_sdp_m_line *m_lin
  * \param format Format
  * \param code from AST_RTP list
  *
- * \retval non-NULL Success
- * \retval NULL Failure
+ * \retval 0 Success
+ * \retval non-0 Failure
  *
  * \since 15
  */
