@@ -271,7 +271,7 @@ static int stun_start_monitor(void)
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int setup_stunaddr(const char *value)
+static int setup_stunaddr(const char *value, int reload)
 {
 	char *val;
 	char *host_str;
@@ -307,8 +307,12 @@ static int setup_stunaddr(const char *value)
 	stun_addr.ss.ss_family = AF_INET;
 	if (ast_get_ip(&stun_addr, host_str)) {
 		ast_log(LOG_WARNING, "Unable to lookup STUN server '%s'\n", host_str);
-		ast_free(host_str);
-		return -1;
+
+		/* Only treat this as fatal if we are reloading */
+		if (reload) {
+			ast_free(host_str);
+			return -1;
+		}
 	}
 
 	/* Save STUN server information. */
@@ -350,7 +354,7 @@ static int load_config(int startup)
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (!strcasecmp(v->name, "stunaddr")) {
-			if (setup_stunaddr(v->value)) {
+			if (setup_stunaddr(v->value, !startup)) {
 				ast_log(LOG_WARNING, "Invalid STUN server address: %s at line %d\n",
 					v->value, v->lineno);
 			}
