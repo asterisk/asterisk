@@ -231,7 +231,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 /* SUN .au support routines */
 
-#define AU_HEADER_SIZE		24
+#define MIN_AU_HEADER_SIZE	24
 #define AU_HEADER(var)		uint32_t var[6]
 
 #define AU_HDR_MAGIC_OFF	0
@@ -266,7 +266,11 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 #endif
 #endif
 
-static int check_header(FILE *f)
+struct au_desc {
+	uint32_t hdr_size;
+};
+
+static int check_header(struct ast_filestream *fs)
 {
 	AU_HEADER(header);
 	uint32_t magic;
@@ -276,7 +280,10 @@ static int check_header(FILE *f)
 	uint32_t sample_rate;
 	uint32_t channels;
 
-	if (fread(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
+	struct au_desc *desc = fs->_private;
+	FILE *f = fs->f;
+
+	if (fread(header, 1, MIN_AU_HEADER_SIZE, f) != MIN_AU_HEADER_SIZE) {
 		ast_log(LOG_WARNING, "Read failed (header)\n");
 		return -1;
 	}
@@ -285,8 +292,8 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Bad magic: 0x%x\n", magic);
 	}
 	hdr_size = ltohl(header[AU_HDR_HDR_SIZE_OFF]);
-	if (hdr_size < AU_HEADER_SIZE) {
-		hdr_size = AU_HEADER_SIZE;
+	if (hdr_size < MIN_AU_HEADER_SIZE) {
+		hdr_size = MIN_AU_HEADER_SIZE;
 	}
 /*	data_size = ltohl(header[AU_HDR_DATA_SIZE_OFF]); */
 	encoding = ltohl(header[AU_HDR_ENCODING_OFF]);
@@ -311,20 +318,26 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Failed to skip to data: %u\n", hdr_size);
 		return -1;
 	}
+
+	/* We'll need this later */
+	desc->hdr_size = hdr_size;
+
 	return data_size;
 }
 
-static int update_header(FILE *f)
+static int update_header(struct ast_filestream *fs)
 {
 	off_t cur, end;
 	uint32_t datalen;
 	int bytes;
+	struct au_desc *desc = fs->_private;
+	FILE *f = fs->f;
 
 	cur = ftell(f);
 	fseek(f, 0, SEEK_END);
 	end = ftell(f);
 	/* data starts 24 bytes in */
-	bytes = end - AU_HEADER_SIZE;
+	bytes = end - desc->hdr_size;
 	datalen = htoll(bytes);
 
 	if (cur < 0) {
@@ -346,12 +359,15 @@ static int update_header(FILE *f)
 	return 0;
 }
 
-static int write_header(FILE *f)
+static int write_header(struct ast_filestream *fs)
 {
+	struct au_desc *desc = fs->_private;
+	FILE *f = fs->f;
+
 	AU_HEADER(header);
 
 	header[AU_HDR_MAGIC_OFF] = htoll((uint32_t) AU_MAGIC);
-	header[AU_HDR_HDR_SIZE_OFF] = htoll(AU_HEADER_SIZE);
+	header[AU_HDR_HDR_SIZE_OFF] = htoll(desc->hdr_size);
 	header[AU_HDR_DATA_SIZE_OFF] = 0;
 	header[AU_HDR_ENCODING_OFF] = htoll(AU_ENC_8BIT_ULAW);
 	header[AU_HDR_SAMPLE_RATE_OFF] = htoll(DEFAULT_SAMPLE_RATE);
@@ -359,7 +375,7 @@ static int write_header(FILE *f)
 
 	/* Write an au header, ignoring sizes which will be filled in later */
 	fseek(f, 0, SEEK_SET);
-	if (fwrite(header, 1, AU_HEADER_SIZE, f) != AU_HEADER_SIZE) {
+	if (fwrite(header, 1, MIN_AU_HEADER_SIZE, f) != MIN_AU_HEADER_SIZE) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
@@ -368,14 +384,18 @@ static int write_header(FILE *f)
 
 static int au_open(struct ast_filestream *s)
 {
-	if (check_header(s->f) < 0)
+	if (check_header(s) < 0)
 		return -1;
 	return 0;
 }
 
 static int au_rewrite(struct ast_filestream *s, const char *comment)
 {
-	if (write_header(s->f))
+	struct au_desc *desc = s->_private;
+
+	desc->hdr_size = MIN_AU_HEADER_SIZE;
+
+	if (write_header(s))
 		return -1;
 	return 0;
 }
@@ -383,8 +403,11 @@ static int au_rewrite(struct ast_filestream *s, const char *comment)
 /* XXX check this, probably incorrect */
 static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	off_t min = AU_HEADER_SIZE, max, cur;
+	off_t min, max, cur;
 	long offset = 0, bytes;
+	struct au_desc *desc = fs->_private;
+
+	min = desc->hdr_size;
 
 	if (ast_format_cmp(fs->fmt->format, ast_format_g722) == AST_FORMAT_CMP_EQUAL)
 		bytes = sample_offset / 2;
@@ -440,13 +463,14 @@ static int au_trunc(struct ast_filestream *fs)
 	if (ftruncate(fd, cur)) {
 		return -1;
 	}
-	return update_header(fs->f);
+	return update_header(fs);
 }
 
 static off_t au_tell(struct ast_filestream *fs)
 {
+	struct au_desc *desc = fs->_private;
 	off_t offset = ftello(fs->f);
-	return offset - AU_HEADER_SIZE;
+	return offset - desc->hdr_size;
 }
 
 static struct ast_format_def alaw_f = {
@@ -498,6 +522,7 @@ static struct ast_format_def au_f = {
 	.tell = au_tell,
 	.read = pcm_read,
 	.buf_size = BUF_SIZE + AST_FRIENDLY_OFFSET,	/* this many shorts */
+	.desc_size = sizeof(struct au_desc),
 };
 
 static int unload_module(void)
