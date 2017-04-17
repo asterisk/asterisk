@@ -456,7 +456,6 @@ static int load_module(void)
 	res |= ast_websocket_server_add_protocol2(events.ws_server, protocol);
 	stasis_app_ref();
 	res |= ast_ari_add_handler(&events);
-
 	if (res) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
