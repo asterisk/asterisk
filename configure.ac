@@ -1101,6 +1101,15 @@ if test "${ac_cv_have_variable_fdset}x" = "0x"; then
 		AC_DEFINE([CONFIGURE_RAN_AS_ROOT], 1, [Some configure tests will unexpectedly fail if configure is run by a non-root user.  These may be able to be tested at runtime.]))
 fi
 
+AC_MSG_CHECKING([if we have usable eventfd support])
+AC_RUN_IFELSE(
+  [AC_LANG_PROGRAM([#include <sys/eventfd.h>],
+      [return eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE) == -1;])],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([HAVE_EVENTFD], 1, [Define to 1 if your system supports eventfd and the EFD_NONBLOCK and EFD_SEMAPHORE flags.]),
+  AC_MSG_RESULT(no)
+)
+
 AST_GCC_ATTRIBUTE(pure)
 AST_GCC_ATTRIBUTE(malloc)
 AST_GCC_ATTRIBUTE(const)

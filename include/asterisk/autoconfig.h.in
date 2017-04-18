@@ -209,6 +209,10 @@
 /* Define to 1 if you have the `euidaccess' function. */
 #undef HAVE_EUIDACCESS
 
+/* Define to 1 if your system supports eventfd and the EFD_NONBLOCK and
+   EFD_SEMAPHORE flags. */
+#undef HAVE_EVENTFD
+
 /* Define to 1 if you have the `exp' function. */
 #undef HAVE_EXP
 

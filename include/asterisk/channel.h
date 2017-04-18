@@ -123,6 +123,7 @@ References:
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
+#include "asterisk/alertpipe.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/poll-compat.h"
@@ -4200,12 +4201,6 @@ struct ast_namedgroups *ast_channel_named_pickupgroups(const struct ast_channel 
 void ast_channel_named_pickupgroups_set(struct ast_channel *chan, struct ast_namedgroups *value);
 
 /* Alertpipe accessors--the "internal" functions for channel.c use only */
-typedef enum {
-	AST_ALERT_READ_SUCCESS = 0,
-	AST_ALERT_NOT_READABLE,
-	AST_ALERT_READ_FAIL,
-	AST_ALERT_READ_FATAL,
-} ast_alert_status_t;
 int ast_channel_alert_write(struct ast_channel *chan);
 int ast_channel_alert_writable(struct ast_channel *chan);
 ast_alert_status_t ast_channel_internal_alert_flush(struct ast_channel *chan);
