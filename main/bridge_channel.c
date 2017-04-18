@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 
 #include "asterisk/heap.h"
+#include "asterisk/alertpipe.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/app.h"
@@ -956,7 +957,6 @@ static void bridge_frame_free(struct ast_frame *frame)
 int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr)
 {
 	struct ast_frame *dup;
-	char nudge = 0;
 
 	if (bridge_channel->suspended
 		/* Also defer DTMF frames. */
@@ -985,7 +985,7 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 	}
 
 	AST_LIST_INSERT_TAIL(&bridge_channel->wr_queue, dup, frame_list);
-	if (write(bridge_channel->alert_pipe[1], &nudge, sizeof(nudge)) != sizeof(nudge)) {
+	if (ast_alertpipe_write(bridge_channel->alert_pipe)) {
 		ast_log(LOG_ERROR, "We couldn't write alert pipe for %p(%s)... something is VERY wrong\n",
 			bridge_channel, ast_channel_name(bridge_channel->chan));
 	}
@@ -2259,25 +2259,6 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 
 /*!
  * \internal
- * \param bridge_channel Channel to read wr_queue alert pipe.
- *
- * \return Nothing
- */
-static void bridge_channel_read_wr_queue_alert(struct ast_bridge_channel *bridge_channel)
-{
-	char nudge;
-
-	if (read(bridge_channel->alert_pipe[0], &nudge, sizeof(nudge)) < 0) {
-		if (errno != EINTR && errno != EAGAIN) {
-			ast_log(LOG_WARNING, "read() failed for alert pipe on %p(%s): %s\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan),
-				strerror(errno));
-		}
-	}
-}
-
-/*!
- * \internal
  * \brief Handle bridge channel write frame to channel.
  * \since 12.0.0
  *
@@ -2298,7 +2279,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 		/* No frame, flush the alert pipe of excess alerts. */
 		ast_log(LOG_WARNING, "Weird.  No frame from bridge for %s to process?\n",
 			ast_channel_name(bridge_channel->chan));
-		bridge_channel_read_wr_queue_alert(bridge_channel);
+		ast_alertpipe_read(bridge_channel->alert_pipe);
 		ast_bridge_channel_unlock(bridge_channel);
 		return;
 	}
@@ -2314,7 +2295,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 				break;
 			}
 		}
-		bridge_channel_read_wr_queue_alert(bridge_channel);
+		ast_alertpipe_read(bridge_channel->alert_pipe);
 		AST_LIST_REMOVE_CURRENT(frame_list);
 		break;
 	}
@@ -2852,62 +2833,6 @@ int bridge_channel_internal_allows_optimization(struct ast_bridge_channel *bridg
 		&& AST_LIST_EMPTY(&bridge_channel->wr_queue);
 }
 
-/*!
- * \internal
- * \brief Close a pipe.
- * \since 12.0.0
- *
- * \param my_pipe What to close.
- *
- * \return Nothing
- */
-static void pipe_close(int *my_pipe)
-{
-	if (my_pipe[0] > -1) {
-		close(my_pipe[0]);
-		my_pipe[0] = -1;
-	}
-	if (my_pipe[1] > -1) {
-		close(my_pipe[1]);
-		my_pipe[1] = -1;
-	}
-}
-
-/*!
- * \internal
- * \brief Initialize a pipe as non-blocking.
- * \since 12.0.0
- *
- * \param my_pipe What to initialize.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int pipe_init_nonblock(int *my_pipe)
-{
-	int flags;
-
-	my_pipe[0] = -1;
-	my_pipe[1] = -1;
-	if (pipe(my_pipe)) {
-		ast_log(LOG_WARNING, "Can't create pipe! Try increasing max file descriptors with ulimit -n\n");
-		return -1;
-	}
-	flags = fcntl(my_pipe[0], F_GETFL);
-	if (fcntl(my_pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING, "Unable to set read pipe nonblocking! (%d: %s)\n",
-			errno, strerror(errno));
-		return -1;
-	}
-	flags = fcntl(my_pipe[1], F_GETFL);
-	if (fcntl(my_pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING, "Unable to set write pipe nonblocking! (%d: %s)\n",
-			errno, strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
 /* Destroy elements of the bridge channel structure and the bridge channel structure itself */
 static void bridge_channel_destroy(void *obj)
 {
@@ -2927,7 +2852,7 @@ static void bridge_channel_destroy(void *obj)
 	while ((fr = AST_LIST_REMOVE_HEAD(&bridge_channel->wr_queue, frame_list))) {
 		bridge_frame_free(fr);
 	}
-	pipe_close(bridge_channel->alert_pipe);
+	ast_alertpipe_close(bridge_channel->alert_pipe);
 
 	ast_cond_destroy(&bridge_channel->cond);
 
@@ -2944,7 +2869,7 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 		return NULL;
 	}
 	ast_cond_init(&bridge_channel->cond, NULL);
-	if (pipe_init_nonblock(bridge_channel->alert_pipe)) {
+	if (ast_alertpipe_init(bridge_channel->alert_pipe)) {
 		ao2_ref(bridge_channel, -1);
 		return NULL;
 	}

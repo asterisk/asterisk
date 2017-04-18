@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "asterisk/alertpipe.h"
 #include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/channel_internal.h"
@@ -1237,152 +1238,52 @@ void ast_channel_named_pickupgroups_set(struct ast_channel *chan, struct ast_nam
 /* Alertpipe functions */
 int ast_channel_alert_write(struct ast_channel *chan)
 {
-	char blah = 0x7F;
-
-	if (!ast_channel_alert_writable(chan)) {
-		errno = EBADF;
-		return 0;
-	}
-	/* preset errno in case returned size does not match */
-	errno = EPIPE;
-	return write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah);
-}
-
-static int channel_internal_alert_check_nonblock(struct ast_channel *chan)
-{
-	int flags;
-
-	flags = fcntl(chan->alertpipe[0], F_GETFL);
-	/* For some odd reason, the alertpipe occasionally loses nonblocking status,
-	 * which immediately causes a deadlock scenario.  Detect and prevent this. */
-	if ((flags & O_NONBLOCK) == 0) {
-		ast_log(LOG_ERROR, "Alertpipe on channel %s lost O_NONBLOCK?!!\n", ast_channel_name(chan));
-		if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-			return -1;
-		}
-	}
-	return 0;
+	return ast_alertpipe_write(chan->alertpipe);
 }
 
 ast_alert_status_t ast_channel_internal_alert_flush(struct ast_channel *chan)
 {
-	int bytes_read;
-	char blah[100];
-
-	if (!ast_channel_internal_alert_readable(chan)) {
-		return AST_ALERT_NOT_READABLE;
-	}
-	if (channel_internal_alert_check_nonblock(chan)) {
-		return AST_ALERT_READ_FATAL;
-	}
-
-	/* Read the alertpipe until it is exhausted. */
-	for (;;) {
-		bytes_read = read(chan->alertpipe[0], blah, sizeof(blah));
-		if (bytes_read < 0) {
-			if (errno == EINTR) {
-				continue;
-			}
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				/*
-				 * Would block so nothing left to read.
-				 * This is the normal loop exit.
-				 */
-				break;
-			}
-			ast_log(LOG_WARNING, "read() failed flushing alertpipe: %s\n",
-				strerror(errno));
-			return AST_ALERT_READ_FAIL;
-		}
-		if (!bytes_read) {
-			/* Read nothing so we are done */
-			break;
-		}
-	}
-
-	return AST_ALERT_READ_SUCCESS;
+	return ast_alertpipe_flush(chan->alertpipe);
 }
 
 ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan)
 {
-	char blah;
-
-	if (!ast_channel_internal_alert_readable(chan)) {
-		return AST_ALERT_NOT_READABLE;
-	}
-	if (channel_internal_alert_check_nonblock(chan)) {
-		return AST_ALERT_READ_FATAL;
-	}
-
-	if (read(chan->alertpipe[0], &blah, sizeof(blah)) < 0) {
-		if (errno != EINTR && errno != EAGAIN) {
-			ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
-			return AST_ALERT_READ_FAIL;
-		}
-	}
-
-	return AST_ALERT_READ_SUCCESS;
+	return ast_alertpipe_read(chan->alertpipe);
 }
 
 int ast_channel_alert_writable(struct ast_channel *chan)
 {
-	return chan->alertpipe[1] > -1;
+	return ast_alertpipe_writable(chan->alertpipe);
 }
 
 int ast_channel_internal_alert_readable(struct ast_channel *chan)
 {
-	return chan->alertpipe[0] > -1;
+	return ast_alertpipe_readable(chan->alertpipe);
 }
 
 void ast_channel_internal_alertpipe_clear(struct ast_channel *chan)
 {
-	chan->alertpipe[0] = chan->alertpipe[1] = -1;
+	ast_alertpipe_clear(chan->alertpipe);
 }
 
 void ast_channel_internal_alertpipe_close(struct ast_channel *chan)
 {
-	if (ast_channel_internal_alert_readable(chan)) {
-		close(chan->alertpipe[0]);
-		chan->alertpipe[0] = -1;
-	}
-	if (ast_channel_alert_writable(chan)) {
-		close(chan->alertpipe[1]);
-		chan->alertpipe[1] = -1;
-	}
+	ast_alertpipe_close(chan->alertpipe);
 }
 
 int ast_channel_internal_alertpipe_init(struct ast_channel *chan)
 {
-	if (pipe(chan->alertpipe)) {
-		ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe! Try increasing max file descriptors with ulimit -n\n");
-		return -1;
-	} else {
-		int flags = fcntl(chan->alertpipe[0], F_GETFL);
-		if (fcntl(chan->alertpipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-			return -1;
-		}
-		flags = fcntl(chan->alertpipe[1], F_GETFL);
-		if (fcntl(chan->alertpipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "Channel allocation failed: Unable to set alertpipe nonblocking! (%d: %s)\n", errno, strerror(errno));
-			return -1;
-		}
-	}
-	return 0;
+	return ast_alertpipe_init(chan->alertpipe);
 }
 
 int ast_channel_internal_alert_readfd(struct ast_channel *chan)
 {
-	return chan->alertpipe[0];
+	return ast_alertpipe_readfd(chan->alertpipe);
 }
 
 void ast_channel_internal_alertpipe_swap(struct ast_channel *chan1, struct ast_channel *chan2)
 {
-	int i;
-	for (i = 0; i < ARRAY_LEN(chan1->alertpipe); i++) {
-		SWAP(chan1->alertpipe[i], chan2->alertpipe[i]);
-	}
+	ast_alertpipe_swap(chan1->alertpipe, chan2->alertpipe);
 }
 
 /* file descriptor array accessors */
