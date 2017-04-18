@@ -67,6 +67,9 @@
 #define AST_API_MODULE
 #include "asterisk/config.h"
 
+#define AST_API_MODULE
+#include "asterisk/alertpipe.h"
+
 static char base64[64];
 static char b2a[256];
 
