@@ -1721,8 +1721,10 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 		dtls_srtp_stop_timeout_timer(instance, rtp, 1);
 		ao2_lock(instance);
 
-		if (rtp->rtcp->dtls.ssl && (rtp->rtcp->dtls.ssl != ssl)) {
-			SSL_free(rtp->rtcp->dtls.ssl);
+		if (rtp->rtcp->dtls.ssl) {
+			if (rtp->rtcp->dtls.ssl != ssl) {
+				SSL_free(rtp->rtcp->dtls.ssl);
+			}
 			rtp->rtcp->dtls.ssl = NULL;
 		}
 	}
@@ -5445,14 +5447,14 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				 * to activating RTP. It is not until RTP is activated that timers start for RTCP
 				 * transmission
 				 */
-				if (rtp->rtcp->s > -1) {
+				if (rtp->rtcp->s > -1 && rtp->rtcp->s != rtp->s) {
 					close(rtp->rtcp->s);
 				}
 				rtp->rtcp->s = rtp->s;
 				ast_rtp_instance_get_remote_address(instance, &addr);
 				ast_sockaddr_copy(&rtp->rtcp->them, &addr);
 #ifdef HAVE_OPENSSL_SRTP
-				if (rtp->rtcp->dtls.ssl) {
+				if (rtp->rtcp->dtls.ssl && rtp->rtcp->dtls.ssl != rtp->dtls.ssl) {
 					SSL_free(rtp->rtcp->dtls.ssl);
 				}
 				rtp->rtcp->dtls.ssl = rtp->dtls.ssl;
@@ -5460,7 +5462,6 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			}
 
 			ast_debug(1, "Setup RTCP on RTP instance '%p'\n", instance);
-			return;
 		} else {
 			if (rtp->rtcp) {
 				if (rtp->rtcp->schedid > -1) {
@@ -5481,6 +5482,10 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					close(rtp->rtcp->s);
 				}
 #ifdef HAVE_OPENSSL_SRTP
+				ao2_unlock(instance);
+				dtls_srtp_stop_timeout_timer(instance, rtp, 1);
+				ao2_lock(instance);
+
 				if (rtp->rtcp->dtls.ssl && rtp->rtcp->dtls.ssl != rtp->dtls.ssl) {
 					SSL_free(rtp->rtcp->dtls.ssl);
 				}
@@ -5489,11 +5494,8 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				ast_free(rtp->rtcp);
 				rtp->rtcp = NULL;
 			}
-			return;
 		}
 	}
-
-	return;
 }
 
 /*! \pre instance is locked */
