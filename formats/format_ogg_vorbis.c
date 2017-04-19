@@ -160,6 +160,7 @@ static int ogg_vorbis_rewrite(struct ast_filestream *s,
 
 	if (vorbis_encode_init_vbr(&tmp->vi, 1, DEFAULT_SAMPLE_RATE, 0.4)) {
 		ast_log(LOG_ERROR, "Unable to initialize Vorbis encoder!\n");
+		vorbis_info_clear(&tmp->vi);
 		return -1;
 	}
 
@@ -275,6 +276,13 @@ static void ogg_vorbis_close(struct ast_filestream *fs)
 		 * and write out the rest of the data */
 		vorbis_analysis_wrote(&s->vd, 0);
 		write_stream(s, fs->f);
+
+		/* Cleanup */
+		ogg_stream_clear(&s->os);
+		vorbis_block_clear(&s->vb);
+		vorbis_dsp_clear(&s->vd);
+		vorbis_comment_clear(&s->vc);
+		vorbis_info_clear(&s->vi);
 	} else {
 		/* clear OggVorbis_File handle */
 		ov_clear(&s->ov_f);
