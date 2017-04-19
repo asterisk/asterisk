@@ -80,9 +80,8 @@ struct wav_desc {	/* format-specific parameters */
 
 static int check_header_fmt(FILE *f, int hsize, int hz)
 {
-	short format, chans, bysam, bisam;
-	int bysec;
-	int freq;
+	unsigned short format, chans, bysam, bisam;
+	unsigned int freq, bysec;
 	if (hsize < 16) {
 		ast_log(LOG_WARNING, "Unexpected header size %d\n", hsize);
 		return -1;
@@ -92,7 +91,7 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 		return -1;
 	}
 	if (ltohs(format) != 1) {
-		ast_log(LOG_WARNING, "Not a supported wav file format (%d). Only PCM encoded, 16 bit, mono, 8kHz files are supported with a lowercase '.wav' extension.\n", ltohs(format));
+		ast_log(LOG_WARNING, "Not a supported wav file format (%d). Only PCM encoded, 16 bit, mono, 8kHz/16kHz files are supported with a lowercase '.wav' extension.\n", ltohs(format));
 		return -1;
 	}
 	if (fread(&chans, 1, 2, f) != 2) {
@@ -107,10 +106,9 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 		ast_log(LOG_WARNING, "Read failed (freq)\n");
 		return -1;
 	}
-	if (((ltohl(freq) != 8000) && (ltohl(freq) != 16000)) ||
-		((ltohl(freq) == 8000) && (hz != 8000)) ||
-		((ltohl(freq) == 16000) && (hz != 16000))) {
-		ast_log(LOG_WARNING, "Unexpected frequency mismatch %d (expecting %d)\n", ltohl(freq),hz);
+	freq = ltohl(freq);
+	if ((freq != 8000 && freq != 16000) || freq != hz) {
+		ast_log(LOG_WARNING, "Unexpected frequency mismatch %d (expecting %d)\n", freq, hz);
 		return -1;
 	}
 	/* Ignore the byte frequency */
@@ -323,9 +321,15 @@ static int wav_open(struct ast_filestream *s)
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
-	struct wav_desc *tmp = (struct wav_desc *)s->_private;
-	if ((tmp->maxlen = check_header(s->f, ast_format_get_sample_rate(s->fmt->format))) < 0)
+	struct wav_desc *tmp = s->_private;
+	unsigned int sample_rate = ast_format_get_sample_rate(s->fmt->format);
+
+	tmp->maxlen = check_header(s->f, sample_rate);
+	if (tmp->maxlen < 0) {
 		return -1;
+	}
+
+	tmp->hz = sample_rate;
 	return 0;
 }
 
