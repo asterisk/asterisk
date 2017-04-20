@@ -447,19 +447,24 @@ static struct stasis_rest_handlers endpoints = {
 	.children = { &endpoints_sendMessage,&endpoints_tech, }
 };
 
-static int load_module(void)
-{
-	int res = 0;
-	stasis_app_ref();
-	res |= ast_ari_add_handler(&endpoints);
-	return res;
-}
-
 static int unload_module(void)
 {
 	ast_ari_remove_handler(&endpoints);
 	stasis_app_unref();
 	return 0;
+}
+
+static int load_module(void)
+{
+	int res = 0;
+	stasis_app_ref();
+	res |= ast_ari_add_handler(&endpoints);
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Endpoint resources",

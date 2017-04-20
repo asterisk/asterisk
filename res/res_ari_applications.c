@@ -492,19 +492,24 @@ static struct stasis_rest_handlers applications = {
 	.children = { &applications_applicationName, }
 };
 
-static int load_module(void)
-{
-	int res = 0;
-	stasis_app_ref();
-	res |= ast_ari_add_handler(&applications);
-	return res;
-}
-
 static int unload_module(void)
 {
 	ast_ari_remove_handler(&applications);
 	stasis_app_unref();
 	return 0;
+}
+
+static int load_module(void)
+{
+	int res = 0;
+	stasis_app_ref();
+	res |= ast_ari_add_handler(&applications);
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Stasis application resources",
