@@ -78,7 +78,7 @@ struct ast_ari_channels_originate_args {
 	const char *other_channel_id;
 	/*! The unique id of the channel which is originating this one. */
 	const char *originator;
-	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names an be found with "core show codecs". */
+	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
 };
 /*!
@@ -179,7 +179,7 @@ struct ast_ari_channels_originate_with_id_args {
 	const char *other_channel_id;
 	/*! The unique id of the channel which is originating this one. */
 	const char *originator;
-	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names an be found with "core show codecs". */
+	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
 };
 /*!
