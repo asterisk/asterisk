@@ -356,7 +356,7 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
  * creates a topology and separates the media types in format_cap into
  * separate streams.
  *
- * \param caps The format capabilities structure
+ * \param caps The format capabilities structure (NULL creates an empty topology)
  *
  * \retval non-NULL success
  * \retval NULL failure
