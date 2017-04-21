@@ -7457,8 +7457,8 @@ struct pbx_outgoing {
 	int dial_res;
 	/*! \brief Set when dialing is completed */
 	unsigned int dialed:1;
-	/*! \brief Set when execution is completed */
-	unsigned int executed:1;
+	/*! \brief Set if we've spawned a thread to do our work */
+	unsigned int in_separate_thread:1;
 };
 
 /*! \brief Destructor for outgoing structure */
@@ -7481,13 +7481,19 @@ static void *pbx_outgoing_exec(void *data)
 	RAII_VAR(struct pbx_outgoing *, outgoing, data, ao2_cleanup);
 	enum ast_dial_result res;
 
-	/* Notify anyone interested that dialing is complete */
 	res = ast_dial_run(outgoing->dial, NULL, 0);
-	ao2_lock(outgoing);
-	outgoing->dial_res = res;
-	outgoing->dialed = 1;
-	ast_cond_signal(&outgoing->cond);
-	ao2_unlock(outgoing);
+
+	if (outgoing->in_separate_thread) {
+		/* Notify anyone interested that dialing is complete */
+		ao2_lock(outgoing);
+		outgoing->dial_res = res;
+		outgoing->dialed = 1;
+		ast_cond_signal(&outgoing->cond);
+		ao2_unlock(outgoing);
+	} else {
+		/* We still need the dial result, but we don't need to lock */
+		outgoing->dial_res = res;
+	}
 
 	/* If the outgoing leg was not answered we can immediately return and go no further */
 	if (res != AST_DIAL_RESULT_ANSWERED) {
@@ -7526,12 +7532,6 @@ static void *pbx_outgoing_exec(void *data)
 			ast_dial_answered_steal(outgoing->dial);
 		}
 	}
-
-	/* Notify anyone else again that may be interested that execution is complete */
-	ao2_lock(outgoing);
-	outgoing->executed = 1;
-	ast_cond_signal(&outgoing->cond);
-	ao2_unlock(outgoing);
 
 	return NULL;
 }
@@ -7712,34 +7712,42 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 		}
 	}
 
+	/* This extra reference is dereferenced by pbx_outgoing_exec */
 	ao2_ref(outgoing, +1);
-	if (ast_pthread_create_detached(&thread, NULL, pbx_outgoing_exec, outgoing)) {
-		ast_log(LOG_WARNING, "Unable to spawn dialing thread for '%s/%s'\n", type, addr);
-		ao2_ref(outgoing, -1);
-		if (locked_channel) {
-			if (!synchronous) {
-				ast_channel_unlock(dialed);
+
+	if (synchronous == AST_OUTGOING_WAIT_COMPLETE) {
+		/*
+		 * Because we are waiting until this is complete anyway, there is no
+		 * sense in creating another thread that we will just need to wait
+		 * for, so instead we commandeer the current thread.
+		 */
+		pbx_outgoing_exec(outgoing);
+	} else {
+		outgoing->in_separate_thread = 1;
+
+		if (ast_pthread_create_detached(&thread, NULL, pbx_outgoing_exec, outgoing)) {
+			ast_log(LOG_WARNING, "Unable to spawn dialing thread for '%s/%s'\n", type, addr);
+			ao2_ref(outgoing, -1);
+			if (locked_channel) {
+				if (!synchronous) {
+					ast_channel_unlock(dialed);
+				}
+				ast_channel_unref(dialed);
 			}
-			ast_channel_unref(dialed);
+			return -1;
 		}
-		return -1;
+
+		if (synchronous) {
+			ao2_lock(outgoing);
+			/* Wait for dialing to complete */
+			while (!outgoing->dialed) {
+				ast_cond_wait(&outgoing->cond, ao2_object_get_lockaddr(outgoing));
+			}
+			ao2_unlock(outgoing);
+		}
 	}
 
 	if (synchronous) {
-		ao2_lock(outgoing);
-		/* Wait for dialing to complete */
-		while (!outgoing->dialed) {
-			ast_cond_wait(&outgoing->cond, ao2_object_get_lockaddr(outgoing));
-		}
-		if (1 < synchronous
-			&& outgoing->dial_res == AST_DIAL_RESULT_ANSWERED) {
-			/* Wait for execution to complete */
-			while (!outgoing->executed) {
-				ast_cond_wait(&outgoing->cond, ao2_object_get_lockaddr(outgoing));
-			}
-		}
-		ao2_unlock(outgoing);
-
 		/* Determine the outcome of the dialing attempt up to it being answered. */
 		if (reason) {
 			*reason = pbx_dial_reason(outgoing->dial_res,
