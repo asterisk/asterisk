@@ -854,16 +854,16 @@ static int b64_inbuf(struct b64_baseio *bio, FILE *fi)
 	if (bio->ateof)
 		return 0;
 
-	if ((l = fread(bio->iobuf, 1, B64_BASEMAXINLINE,fi)) <= 0) {
-		if (ferror(fi))
-			return -1;
-
+	if ((l = fread(bio->iobuf, 1, B64_BASEMAXINLINE, fi)) != B64_BASEMAXINLINE) {
 		bio->ateof = 1;
-		return 0;
+		if (l == 0) {
+			/* Assume EOF */
+			return 0;
+		}
 	}
 
-	bio->iolen= l;
-	bio->iocp= 0;
+	bio->iolen = l;
+	bio->iocp = 0;
 
 	return 1;
 }
