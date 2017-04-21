@@ -85,9 +85,17 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	/* Send a frame from the file to the appropriate channel */
 
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
-	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
-		if (res)
-			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+		if (feof(s->f)) {
+			if (res) {
+				ast_log(LOG_WARNING, "Incomplete frame data at end of %s file "
+						"(expected %d bytes, read %d)\n",
+						ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
+					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+		}
 		return NULL;
 	}
 	s->fr.datalen = res;
@@ -142,9 +150,10 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		const char *src = (ast_format_cmp(fs->fmt->format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) ? alaw_silence : ulaw_silence;
 
 		while (left) {
-			size_t written = fwrite(src, 1, (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
-			if (written == -1)
+			size_t written = fwrite(src, 1, MIN(left, BUF_SIZE), fs->f);
+			if (written < MIN(left, BUF_SIZE)) {
 				break;	/* error */
+			}
 			left -= written;
 		}
 		ret = 0; /* successful */
@@ -212,7 +221,10 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 				to_write = fpos - cur;
 				if (to_write > sizeof(buf))
 					to_write = sizeof(buf);
-				fwrite(buf, 1, to_write, fs->f);
+				if (fwrite(buf, 1, to_write, fs->f) != to_write) {
+					ast_log(LOG_ERROR, "Failed to write to file: %s\n", strerror(errno));
+					return -1;
+				}
 				cur += to_write;
 			}
 		}

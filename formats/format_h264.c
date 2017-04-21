@@ -52,7 +52,7 @@ struct h264_desc {
 static int h264_open(struct ast_filestream *s)
 {
 	unsigned int ts;
-	if (fread(&ts, 1, sizeof(ts), s->f) < sizeof(ts)) {
+	if (fread(&ts, 1, sizeof(ts), s->f) != sizeof(ts)) {
 		ast_log(LOG_WARNING, "Empty file!\n");
 		return -1;
 	}
@@ -68,7 +68,7 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	struct h264_desc *fs = (struct h264_desc *)s->_private;
 
 	/* Send a frame from the file to the appropriate channel */
-	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
+	if ((res = fread(&len, 1, sizeof(len), s->f)) != sizeof(len))
 		return NULL;
 	len = ntohs(len);
 	mark = (len & FRAME_ENDED) ? 1 : 0;
@@ -79,8 +79,16 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	}
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
-		if (res)
-			ast_log(LOG_WARNING, "Short read (%d of %d) (%s)!\n", res, len, strerror(errno));
+		if (feof(s->f)) {
+			if (res) {
+				ast_log(LOG_WARNING, "Incomplete frame data at end of %s file "
+						"(expected %d bytes, read %d)\n",
+						ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
+					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+		}
 		return NULL;
 	}
 	s->fr.samples = fs->lastts;
