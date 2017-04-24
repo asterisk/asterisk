@@ -1084,7 +1084,7 @@ int ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct a
 	return merge_sdps(sdp_state, sdp);
 }
 
-int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void *remote)
+int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, const void *remote)
 {
 	struct ast_sdp *sdp;
 	int ret;

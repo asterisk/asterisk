@@ -164,7 +164,7 @@ int ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct a
  *
  * \since 15
  */
-int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void *remote);
+int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, const void *remote);
 
 /*!
  * \brief Reset the SDP state and stream capabilities as if the SDP state had just been allocated.

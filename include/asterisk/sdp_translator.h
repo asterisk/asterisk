@@ -34,9 +34,9 @@ struct ast_sdp_translator_ops {
 	/*! Free translator private data */
 	void (*translator_free)(void *translator_priv);
 	/*! Convert the channel-native SDP into an internal Asterisk SDP */
-	struct ast_sdp *(*to_sdp)(void *repr_sdp, void *translator_priv);
+	struct ast_sdp *(*to_sdp)(const void *repr_sdp, void *translator_priv);
 	/*! Convert an internal Asterisk SDP into a channel-native SDP */
-	void *(*from_sdp)(const struct ast_sdp *sdp, void *translator_priv);
+	const void *(*from_sdp)(const struct ast_sdp *sdp, void *translator_priv);
 };
 
 /*!
@@ -87,7 +87,7 @@ void ast_sdp_translator_free(struct ast_sdp_translator *translator);
  * \retval NULL FAIL
  * \retval Non-NULL The translated SDP
  */
-struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator, void *native_sdp);
+struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator, const void *native_sdp);
 
 /*!
  * \brief Translate an internal Asterisk SDP to a native SDP
@@ -97,7 +97,7 @@ struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator,
  * \retval NULL FAIL
  * \retval non-NULL The translated SDP
  */
-void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
+const void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
 	const struct ast_sdp *ast_sdp);
 
 #endif /* _ASTERISK_SDP_TRANSLATOR_H */
