@@ -66,6 +66,7 @@
 #include "asterisk/bridge_after.h"
 #include "asterisk/features_config.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/stream.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -970,16 +971,16 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 		c = o->chan = NULL;
 		cause = AST_CAUSE_BUSY;
 	} else {
-		struct ast_format_cap *nativeformats;
+		struct ast_stream_topology *topology;
 
 		ast_channel_lock(in);
-		nativeformats = ao2_bump(ast_channel_nativeformats(in));
+		topology = ast_stream_topology_clone(ast_channel_get_stream_topology(in));
 		ast_channel_unlock(in);
 
 		/* Setup parameters */
-		c = o->chan = ast_request(tech, nativeformats, NULL, in, stuff, &cause);
+		c = o->chan = ast_request_with_stream_topology(tech, topology, NULL, in, stuff, &cause);
 
-		ao2_cleanup(nativeformats);
+		ast_stream_topology_free(topology);
 
 		if (c) {
 			if (single && !caller_entertained) {
@@ -2444,7 +2445,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		char *tech = strsep(&number, "/");
 		size_t tech_len;
 		size_t number_len;
-		struct ast_format_cap *nativeformats;
+		struct ast_stream_topology *topology;
 
 		num_dialed++;
 		if (ast_strlen_zero(number)) {
@@ -2496,13 +2497,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		 */
 		ast_party_connected_line_copy(&tmp->connected, ast_channel_connected(chan));
 
-		nativeformats = ao2_bump(ast_channel_nativeformats(chan));
+		topology = ast_stream_topology_clone(ast_channel_get_stream_topology(chan));
 
 		ast_channel_unlock(chan);
 
-		tc = ast_request(tmp->tech, nativeformats, NULL, chan, tmp->number, &cause);
+		tc = ast_request_with_stream_topology(tmp->tech, topology, NULL, chan, tmp->number, &cause);
 
-		ao2_cleanup(nativeformats);
+		ast_stream_topology_free(topology);
 
 		if (!tc) {
 			/* If we can't, just go on to the next call */

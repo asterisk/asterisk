@@ -392,6 +392,32 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	return topology;
 }
 
+struct ast_format_cap *ast_format_cap_from_stream_topology(
+    struct ast_stream_topology *topology)
+{
+	struct ast_format_cap *caps;
+	int i;
+
+	ast_assert(topology != NULL);
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+
+		if (!stream->formats) {
+			continue;
+		}
+
+		ast_format_cap_append_from_cap(caps, stream->formats, AST_MEDIA_TYPE_UNKNOWN);
+	}
+
+	return caps;
+}
+
 struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 	const struct ast_stream_topology *topology,
 	enum ast_media_type type)

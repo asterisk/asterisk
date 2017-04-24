@@ -203,6 +203,8 @@ enum ast_bridge_result {
 
 typedef unsigned long long ast_group_t;
 
+struct ast_stream_topology;
+
 /*! \todo Add an explanation of an Asterisk generator
 */
 struct ast_generator {
@@ -629,6 +631,26 @@ struct ast_channel_tech {
 	 * \retval non-NULL channel on success
 	 */
 	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
+
+	/*!
+	 * \brief Requester - to set up call data structures (pvt's) with stream topology
+	 *
+	 * \param type type of channel to request
+	 * \param topology Stream topology for requested channel
+	 * \param assignedid Unique ID string to assign to channel
+	 * \param requestor channel asking for data
+	 * \param addr destination of the call
+	 * \param cause Cause of failure
+	 *
+	 * \details
+	 * Request a channel of a given type, with addr as optional information used
+	 * by the low level module
+	 *
+	 * \retval NULL failure
+	 * \retval non-NULL channel on success
+	 */
+	struct ast_channel *(* const requester_with_stream_topology)(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
+
 
 	int (* const devicestate)(const char *device_number);	/*!< Devicestate call back */
 	int (* const presencestate)(const char *presence_provider, char **subtype, char **message); /*!< Presencestate callback */
@@ -1392,6 +1414,25 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \retval non-NULL channel on success
  */
 struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
+
+/*!
+ * \brief Requests a channel (specifying stream topology)
+ *
+ * \param type type of channel to request
+ * \param topology Stream topology for requested channel
+ * \param assignedids Unique ID to create channel with
+ * \param requestor channel asking for data
+ * \param addr destination of the call
+ * \param cause Cause of failure
+ *
+ * \details
+ * Request a channel of a given type, with addr as optional information used
+ * by the low level module
+ *
+ * \retval NULL failure
+ * \retval non-NULL channel on success
+ */
+struct ast_channel *ast_request_with_stream_topology(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
 
 enum ast_channel_requestor_relationship {
 	/*! The requestor is the future bridge peer of the channel. */

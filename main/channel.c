@@ -5976,7 +5976,8 @@ static int set_security_requirements(const struct ast_channel *requestor, struct
 	return 0;
 }
 
-struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
+static struct ast_channel *request_channel(const char *type, struct ast_format_cap *request_cap, struct ast_stream_topology *topology,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
 {
 	struct chanlist *chan;
 	struct ast_channel *c;
@@ -5993,13 +5994,47 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 	}
 
 	AST_RWLIST_TRAVERSE(&backends, chan, list) {
+		if (strcasecmp(type, chan->tech->type)) {
+			continue;
+		}
+
+		break;
+	}
+
+	AST_RWLIST_UNLOCK(&backends);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
+		*cause = AST_CAUSE_NOSUCHDRIVER;
+		return NULL;
+	}
+
+	/* Allow either format capabilities or stream topology to be provided and adapt */
+	if (chan->tech->requester_with_stream_topology) {
+		struct ast_stream_topology *tmp_converted_topology = NULL;
+
+		if (!topology && request_cap) {
+			/* Turn the requested capabilities into a stream topology */
+			topology = tmp_converted_topology = ast_stream_topology_create_from_format_cap(request_cap);
+		}
+
+		c = chan->tech->requester_with_stream_topology(type, topology, assignedids, requestor, addr, cause);
+
+		ast_stream_topology_free(tmp_converted_topology);
+		if (!c) {
+			return NULL;
+		}
+	} else if (chan->tech->requester) {
+		struct ast_format_cap *tmp_converted_cap = NULL;
 		struct ast_format_cap *tmp_cap;
 		RAII_VAR(struct ast_format *, tmp_fmt, NULL, ao2_cleanup);
 		RAII_VAR(struct ast_format *, best_audio_fmt, NULL, ao2_cleanup);
 		struct ast_format_cap *joint_cap;
 
-		if (strcasecmp(type, chan->tech->type))
-			continue;
+		if (!request_cap && topology) {
+			/* Turn the request stream topology into capabilities */
+			request_cap = tmp_converted_cap = ast_format_cap_from_stream_topology(topology);
+		}
 
 		/* find the best audio format to use */
 		tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
@@ -6018,13 +6053,10 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 					ast_format_cap_get_names(chan->tech->capabilities, &tech_codecs),
 					ast_format_cap_get_names(request_cap, &request_codecs));
 				*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-				AST_RWLIST_UNLOCK(&backends);
+				ao2_cleanup(tmp_converted_cap);
 				return NULL;
 			}
 		}
-		AST_RWLIST_UNLOCK(&backends);
-		if (!chan->tech->requester)
-			return NULL;
 
 		/* XXX Only the audio format calculated as being the best for translation
 		 * purposes is used for the request. This is because we don't have the ability
@@ -6033,50 +6065,58 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		 */
 		joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (!joint_cap) {
+			ao2_cleanup(tmp_converted_cap);
 			return NULL;
 		}
 		ast_format_cap_append_from_cap(joint_cap, request_cap, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(joint_cap, AST_MEDIA_TYPE_AUDIO);
 		ast_format_cap_append(joint_cap, best_audio_fmt, 0);
+		ao2_cleanup(tmp_converted_cap);
 
-		if (!(c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause))) {
+		c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause);
+
+		if (!c) {
 			ao2_ref(joint_cap, -1);
 			return NULL;
 		}
-
-		if (requestor) {
-			ast_callid callid;
-
-			ast_channel_lock_both(c, (struct ast_channel *) requestor);
-
-			/* Set the newly created channel's callid to the same as the requestor. */
-			callid = ast_channel_callid(requestor);
-			if (callid) {
-				ast_channel_callid_set(c, callid);
-			}
-
-			ast_channel_unlock(c);
-			ast_channel_unlock((struct ast_channel *) requestor);
-		}
-
-		ao2_ref(joint_cap, -1);
-
-		if (set_security_requirements(requestor, c)) {
-			ast_log(LOG_WARNING, "Setting security requirements failed\n");
-			ast_hangup(c);
-			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-			return NULL;
-		}
-
-		/* no need to generate a Newchannel event here; it is done in the channel_alloc call */
-		return c;
+	} else {
+		return NULL;
 	}
 
-	ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
-	*cause = AST_CAUSE_NOSUCHDRIVER;
-	AST_RWLIST_UNLOCK(&backends);
+	if (requestor) {
+		ast_callid callid;
 
-	return NULL;
+		ast_channel_lock_both(c, (struct ast_channel *) requestor);
+
+		/* Set the newly created channel's callid to the same as the requestor. */
+		callid = ast_channel_callid(requestor);
+		if (callid) {
+			ast_channel_callid_set(c, callid);
+		}
+
+		ast_channel_unlock(c);
+		ast_channel_unlock((struct ast_channel *) requestor);
+	}
+
+	if (set_security_requirements(requestor, c)) {
+		ast_log(LOG_WARNING, "Setting security requirements failed\n");
+		ast_hangup(c);
+		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+		return NULL;
+	}
+
+	/* no need to generate a Newchannel event here; it is done in the channel_alloc call */
+	return c;
+}
+
+struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
+{
+	return request_channel(type, request_cap, NULL, assignedids, requestor, addr, cause);
+}
+
+struct ast_channel *ast_request_with_stream_topology(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
+{
+	return request_channel(type, NULL, topology, assignedids, requestor, addr, cause);
 }
 
 /*!
