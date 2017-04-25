@@ -69,7 +69,7 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="capture_address" default="192.168.1.1:9061">
+				<configOption name="capture_address">
 					<synopsis>The address and port of the Homer server to send packets to.</synopsis>
 				</configOption>
 				<configOption name="capture_password">
@@ -97,8 +97,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip6.h>
-
-#define DEFAULT_HEP_SERVER ""
 
 /*! Generic vendor ID. Used for HEPv3 standard packets */
 #define GENERIC_VENDOR_ID 0x0000
@@ -282,11 +280,13 @@ static AO2_GLOBAL_OBJ_STATIC(global_data);
 static struct ast_taskprocessor *hep_queue_tp;
 
 static void *module_config_alloc(void);
+static int hepv3_config_pre_apply(void);
 static void hepv3_config_post_apply(void);
 
 /*! \brief Register information about the configs being processed by this module */
 CONFIG_INFO_STANDARD(cfg_info, global_config, module_config_alloc,
 	.files = ACO_FILES(&hepv3_conf),
+	.pre_apply_config = hepv3_config_pre_apply,
 	.post_apply_config = hepv3_config_post_apply,
 );
 
@@ -378,6 +378,8 @@ static struct hepv3_runtime_data *hepv3_data_alloc(struct hepv3_global_config *c
 	if (!data) {
 		return NULL;
 	}
+
+	data->sockfd = -1;
 
 	if (!ast_sockaddr_parse(&data->remote_addr, config->capture_address, PARSE_PORT_REQUIRE)) {
 		ast_log(AST_LOG_WARNING, "Failed to create address from %s\n", config->capture_address);
@@ -596,11 +598,33 @@ int hepv3_send_packet(struct hepv3_capture_info *capture_info)
 }
 
 /*!
+ * \brief Pre-apply callback for the config framework.
+ *
+ * This validates that required fields exist and are populated.
+ */
+static int hepv3_config_pre_apply(void)
+{
+	struct module_config *config = aco_pending_config(&cfg_info);
+
+	if (!config->general->enabled) {
+		/* If we're not enabled, we don't care about anything else */
+		return 0;
+	}
+
+	if (ast_strlen_zero(config->general->capture_address)) {
+		ast_log(AST_LOG_ERROR, "Missing required configuration option 'capture_address'\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*!
  * \brief Post-apply callback for the config framework.
  *
  * This will create the run-time information from the supplied
  * configuration.
-*/
+ */
 static void hepv3_config_post_apply(void)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(global_config), ao2_cleanup);
@@ -655,7 +679,7 @@ static int load_module(void)
 	}
 
 	aco_option_register(&cfg_info, "enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct hepv3_global_config, enabled));
-	aco_option_register(&cfg_info, "capture_address", ACO_EXACT, global_options, DEFAULT_HEP_SERVER, OPT_STRINGFIELD_T, 0, STRFLDSET(struct hepv3_global_config, capture_address));
+	aco_option_register(&cfg_info, "capture_address", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct hepv3_global_config, capture_address));
 	aco_option_register(&cfg_info, "capture_password", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct hepv3_global_config, capture_password));
 	aco_option_register(&cfg_info, "capture_id", ACO_EXACT, global_options, "0", OPT_UINT_T, 0, STRFLDSET(struct hepv3_global_config, capture_id));
 	aco_option_register_custom(&cfg_info, "uuid_type", ACO_EXACT, global_options, "call-id", uuid_type_handler, 0);
