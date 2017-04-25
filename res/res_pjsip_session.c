@@ -2150,12 +2150,29 @@ static int new_invite(void *data)
 		goto end;
 	};
 
-	if ((sdp_info = pjsip_rdata_get_sdp_info(invite->rdata)) && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
+	pjsip_timer_setting_default(&timer);
+	timer.min_se = invite->session->endpoint->extensions.timer.min_se;
+	timer.sess_expires = invite->session->endpoint->extensions.timer.sess_expires;
+	pjsip_timer_init_session(invite->session->inv_session, &timer);
+
+	/*
+	 * At this point, we've verified what we can that won't take awhile,
+	 * so let's go ahead and send a 100 Trying out to stop any
+	 * retransmissions.
+	 */
+	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
+		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		goto end;
+	}
+	ast_sip_session_send_response(invite->session, tdata);
+
+	sdp_info = pjsip_rdata_get_sdp_info(invite->rdata);
+	if (sdp_info && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
 		if (handle_incoming_sdp(invite->session, sdp_info->sdp)) {
-			if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 488, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			tdata = NULL;
+			if (pjsip_inv_end_session(invite->session->inv_session, 488, NULL, &tdata) == PJ_SUCCESS
+				&& tdata) {
 				ast_sip_session_send_response(invite->session, tdata);
-			} else  {
-				pjsip_inv_terminate(invite->session->inv_session, 488, PJ_TRUE);
 			}
 			goto end;
 		}
@@ -2168,33 +2185,21 @@ static int new_invite(void *data)
 
 	/* If we were unable to create a local SDP terminate the session early, it won't go anywhere */
 	if (!local) {
-		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
+		tdata = NULL;
+		if (pjsip_inv_end_session(invite->session->inv_session, 500, NULL, &tdata) == PJ_SUCCESS
+			&& tdata) {
 			ast_sip_session_send_response(invite->session, tdata);
-		} else  {
-			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
 		}
 		goto end;
-	} else {
-		pjsip_inv_set_local_sdp(invite->session->inv_session, local);
-		pjmedia_sdp_neg_set_prefer_remote_codec_order(invite->session->inv_session->neg, PJ_FALSE);
+	}
+
+	pjsip_inv_set_local_sdp(invite->session->inv_session, local);
+	pjmedia_sdp_neg_set_prefer_remote_codec_order(invite->session->inv_session->neg, PJ_FALSE);
 #ifdef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
-		if (!invite->session->endpoint->preferred_codec_only) {
-			pjmedia_sdp_neg_set_answer_multiple_codecs(invite->session->inv_session->neg, PJ_TRUE);
-		}
+	if (!invite->session->endpoint->preferred_codec_only) {
+		pjmedia_sdp_neg_set_answer_multiple_codecs(invite->session->inv_session->neg, PJ_TRUE);
+	}
 #endif
-	}
-
-	pjsip_timer_setting_default(&timer);
-	timer.min_se = invite->session->endpoint->extensions.timer.min_se;
-	timer.sess_expires = invite->session->endpoint->extensions.timer.sess_expires;
-	pjsip_timer_init_session(invite->session->inv_session, &timer);
-
-	/* At this point, we've verified what we can, so let's go ahead and send a 100 Trying out */
-	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
-		goto end;
-	}
-	ast_sip_session_send_response(invite->session, tdata);
 
 	handle_incoming_request(invite->session, invite->rdata);
 
