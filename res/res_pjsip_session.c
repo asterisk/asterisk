@@ -1328,9 +1328,7 @@ static void session_destructor(void *obj)
 	ao2_cleanup(session->req_caps);
 	ao2_cleanup(session->direct_media_cap);
 
-	if (session->dsp) {
-		ast_dsp_free(session->dsp);
-	}
+	ast_dsp_free(session->dsp);
 
 	if (session->inv_session) {
 		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
@@ -1400,6 +1398,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	struct ast_sip_contact *contact, pjsip_inv_session *inv_session, pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	struct ast_sip_session *ret_session;
 	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
 
@@ -1407,10 +1406,37 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	if (!session) {
 		return NULL;
 	}
+
 	AST_LIST_HEAD_INIT(&session->supplements);
+	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
+	ast_party_id_init(&session->id);
+
+	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!session->direct_media_cap) {
+		return NULL;
+	}
+	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!session->req_caps) {
+		return NULL;
+	}
 	session->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
 	if (!session->datastores) {
 		return NULL;
+	}
+
+	if (endpoint->dtmf == AST_SIP_DTMF_INBAND || endpoint->dtmf == AST_SIP_DTMF_AUTO) {
+		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
+	}
+	if (endpoint->faxdetect) {
+		dsp_features |= DSP_FEATURE_FAX_DETECT;
+	}
+	if (dsp_features) {
+		session->dsp = ast_dsp_new();
+		if (!session->dsp) {
+			return NULL;
+		}
+
+		ast_dsp_set_features(session->dsp, dsp_features);
 	}
 
 	session->endpoint = ao2_bump(endpoint);
@@ -1449,30 +1475,6 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	inv_session->mod_data[session_module.id] = ao2_bump(session);
 	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
-	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	if (!session->req_caps) {
-		/* Release the ref held by session->inv_session */
-		ao2_ref(session, -1);
-		return NULL;
-	}
-
-	if ((endpoint->dtmf == AST_SIP_DTMF_INBAND) || (endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
-		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
-	}
-
-	if (endpoint->faxdetect) {
-		dsp_features |= DSP_FEATURE_FAX_DETECT;
-	}
-
-	if (dsp_features) {
-		if (!(session->dsp = ast_dsp_new())) {
-			/* Release the ref held by session->inv_session */
-			ao2_ref(session, -1);
-			return NULL;
-		}
-
-		ast_dsp_set_features(session->dsp, dsp_features);
-	}
 
 	if (add_supplements(session)) {
 		/* Release the ref held by session->inv_session */
@@ -1484,11 +1486,11 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 			iter->session_begin(session);
 		}
 	}
-	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
-	ast_party_id_init(&session->id);
-	ao2_ref(session, +1);
-	return session;
+
+	/* Avoid unnecessary ref manipulation to return a session */
+	ret_session = session;
+	session = NULL;
+	return ret_session;
 }
 
 /*! \brief struct controlling the suspension of the session's serializer. */
@@ -1704,6 +1706,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	pjsip_dialog *dlg;
 	struct pjsip_inv_session *inv_session;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	struct ast_sip_session *ret_session;
 
 	/* If no location has been provided use the AOR list from the endpoint itself */
 	if (location || !contact) {
@@ -1760,14 +1763,17 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	if (ast_format_cap_count(req_caps)) {
 		/* get joint caps between req_caps and endpoint caps */
 		struct ast_format_cap *joint_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		ast_format_cap_get_compatible(req_caps, session->endpoint->media.codecs, joint_caps);
+
+		ast_format_cap_get_compatible(req_caps, endpoint->media.codecs, joint_caps);
 
 		/* if joint caps */
 		if (ast_format_cap_count(joint_caps)) {
 			/* copy endpoint caps into session->req_caps */
-			ast_format_cap_append_from_cap(session->req_caps, session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
+			ast_format_cap_append_from_cap(session->req_caps,
+				endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
 			/* replace instances of joint caps equivalents in session->req_caps */
-			ast_format_cap_replace_from_cap(session->req_caps, joint_caps, AST_MEDIA_TYPE_UNKNOWN);
+			ast_format_cap_replace_from_cap(session->req_caps, joint_caps,
+				AST_MEDIA_TYPE_UNKNOWN);
 		}
 		ao2_cleanup(joint_caps);
 	}
@@ -1781,8 +1787,10 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	ao2_ref(session, +1);
-	return session;
+	/* Avoid unnecessary ref manipulation to return a session */
+	ret_session = session;
+	session = NULL;
+	return ret_session;
 }
 
 void ast_sip_session_terminate(struct ast_sip_session *session, int response)
