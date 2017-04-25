@@ -48,6 +48,9 @@
 		size_t current;			\
 	}
 
+/*! \brief Integer vector definition */
+AST_VECTOR(ast_vector_int, int);
+
 /*!
  * \brief Define a vector structure with a read/write lock
  *
@@ -238,6 +241,29 @@
 		}											\
 	} while(0);										\
 	res;											\
+})
+
+/*!
+ * \brief Default a vector up to size with the given value.
+ *
+ * \note If a size of 0 is given then all elements in the given vector are set.
+ * \note The vector will grow to the given size if needed.
+ *
+ * \param vec Vector to default.
+ * \param size The number of elements to default
+ * \param value The default value to set each element to
+ */
+#define AST_VECTOR_DEFAULT(vec, size, value) ({ \
+	int res = 0;							\
+	typeof((size)) __size = (size) ? (size) : AST_VECTOR_SIZE(vec);	\
+	size_t idx;							\
+	for (idx = 0; idx < __size; ++idx) {				\
+		res = AST_VECTOR_REPLACE(vec, idx, value);		\
+		if (res == -1) {					\
+			break;						\
+		}							\
+	}								\
+	res;								\
 })
 
 /*!
@@ -551,6 +577,42 @@
 	ast_assert(__idx < (vec)->current);	\
 	(vec)->elems[__idx];			\
 })
+
+/*!
+ * \brief Get the nth index from a vector that matches the given comparison
+ *
+ * \param vec Vector to get from.
+ * \param nth The nth index to find
+ * \param value Value to pass into comparator.
+ * \param cmp Comparator function/macros (called as \c cmp(elem, value))
+ *
+ * \return a pointer to the element that was found or NULL
+ */
+#define AST_VECTOR_GET_INDEX_NTH(vec, nth, value, cmp) ({ \
+	int res = -1; \
+	size_t idx; \
+	typeof(nth) __nth = (nth); \
+	typeof(value) __value = (value); \
+	for (idx = 0; idx < (vec)->current; ++idx) { \
+		if (cmp((vec)->elems[idx], __value) && !(--__nth)) {	\
+			res = (int)idx;					\
+			break; \
+		} \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Get the 1st index from a vector that matches the given comparison
+ *
+ * \param vec Vector to get from.
+ * \param value Value to pass into comparator.
+ * \param cmp Comparator function/macros (called as \c cmp(elem, value))
+ *
+ * \return a pointer to the element that was found or NULL
+ */
+#define AST_VECTOR_GET_INDEX(vec, value, cmp) \
+	AST_VECTOR_GET_INDEX_NTH(vec, 1, value, cmp)
 
 /*!
  * \brief Get an element from a vector that matches the given comparison
