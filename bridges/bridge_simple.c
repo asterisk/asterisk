@@ -42,6 +42,10 @@
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_technology.h"
 #include "asterisk/frame.h"
+#include "asterisk/stream.h"
+
+static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
+		struct ast_bridge_channel *bridge_channel);
 
 static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
@@ -56,7 +60,13 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 		return 0;
 	}
 
-	return ast_channel_make_compatible(c0, c1);
+	if (ast_channel_make_compatible(c0, c1)) {
+		return -1;
+	}
+
+	/* Align stream topologies */
+	simple_bridge_stream_topology_changed(bridge, NULL);
+	return 0;
 }
 
 static int simple_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
@@ -70,7 +80,33 @@ static struct ast_bridge_technology simple_bridge = {
 	.preference = AST_BRIDGE_PREFERENCE_BASE_1TO1MIX,
 	.join = simple_bridge_join,
 	.write = simple_bridge_write,
+	.stream_topology_changed = simple_bridge_stream_topology_changed,
 };
+
+static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
+		struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
+	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
+	struct ast_stream_topology *t0 = ast_channel_get_stream_topology(c0);
+	struct ast_stream_topology *t1 = ast_channel_get_stream_topology(c1);
+
+	/*
+	 * The bridge_channel should only be NULL after both channels join
+	 * the bridge and their topologies are being aligned.
+	 */
+	if (bridge_channel && ast_channel_get_stream_topology_change_source(
+		    bridge_channel->chan) == &simple_bridge) {
+		return;
+	}
+
+	/* Align topologies according to size or first channel to join */
+	if (ast_stream_topology_get_count(t0) < ast_stream_topology_get_count(t1)) {
+		ast_channel_request_stream_topology_change(c0, t1, &simple_bridge);
+	} else {
+		ast_channel_request_stream_topology_change(c1, t0, &simple_bridge);
+	}
+}
 
 static int unload_module(void)
 {

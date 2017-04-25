@@ -183,6 +183,12 @@ struct ast_bridge_channel {
 			unsigned int padding:30;
 		};
 	};
+	struct {
+		/*! An index mapping of where a channel's media needs to be routed */
+		struct ast_vector_int to_bridge;
+		/*! An index mapping of where a bridge's media needs to be routed */
+		struct ast_vector_int to_channel;
+	} stream_map;
 };
 
 /*!
@@ -703,6 +709,27 @@ void ast_bridge_channel_feature_digit_add(struct ast_bridge_channel *bridge_chan
  * \return Nothing
  */
 void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel, int digit);
+
+/*!
+ * \brief Maps a channel's stream topology to and from the bridge
+ * \since 15.0.0
+ *
+ * When a channel joins a bridge or its associated stream topology is updated, each stream
+ * in the topology needs to be mapped according to its media type to the bridge. Calling
+ * this method creates a mapping of each stream on the channel indexed to the bridge's
+ * supported media types and vice versa (i.e. bridge's media types indexed to channel
+ * streams).
+ *
+ * The first channel to join the bridge creates the initial order for the bridge's media
+ * types (e.g. a one to one mapping is made). Subsequently added channels are mapped to
+ * that order adding more media types if/when the newly added channel has more streams
+ * and/or media types specified by the bridge.
+ *
+ * \param bridge_channel Channel to map
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

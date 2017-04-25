@@ -4904,6 +4904,7 @@ int ast_channel_is_multistream(struct ast_channel *chan);
  *
  * \param chan The channel to change
  * \param topology The new stream topology
+ * \param change_source The source that initiated the change
  *
  * \pre chan is locked
  *
@@ -4918,7 +4919,8 @@ int ast_channel_is_multistream(struct ast_channel *chan);
  * \note This interface is provided for applications and resources to request that the topology change.
  *       It is not for use by the channel driver itself.
  */
-int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct ast_stream_topology *topology);
+int ast_channel_request_stream_topology_change(struct ast_channel *chan,
+	struct ast_stream_topology *topology, void *change_source);
 
 /*!
  * \brief Provide notice to a channel that the stream topology has changed
@@ -4935,5 +4937,14 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct 
  *       It is not for use by the channel driver itself.
  */
 int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_stream_topology *topology);
+
+/*!
+ * \brief Retrieve the source that initiated the last stream topology change
+ *
+ * \param chan The channel
+ *
+ * \retval The channel's stream topology change source
+ */
+void *ast_channel_get_stream_topology_change_source(struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */

@@ -440,6 +440,13 @@ static void bridge_channel_complete_join(struct ast_bridge *bridge, struct ast_b
 	}
 
 	bridge_channel->just_joined = 0;
+
+	/*
+	 * When a channel joins the bridge its streams need to be mapped to the bridge's
+	 * media types vector. This way all streams map to the same media type index for
+	 * a given channel.
+	 */
+	ast_bridge_channel_stream_map(bridge_channel);
 }
 
 /*!
@@ -689,6 +696,8 @@ static void destroy_bridge(void *obj)
 		bridge->technology = NULL;
 	}
 
+	AST_VECTOR_FREE(&bridge->media_types);
+
 	bridge->callid = 0;
 
 	cleanup_video_mode(bridge);
@@ -743,6 +752,8 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
 	}
 
 	bridge->v_table = v_table;
+
+	AST_VECTOR_INIT(&bridge->media_types, AST_MEDIA_TYPE_END);
 
 	return bridge;
 }

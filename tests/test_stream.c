@@ -1592,7 +1592,7 @@ AST_TEST_DEFINE(stream_topology_change_request_from_application_non_multistream)
 	topology = ast_stream_topology_alloc();
 	ast_test_validate_cleanup(test, topology, res, done);
 
-	change_res = ast_channel_request_stream_topology_change(mock_channel, topology);
+	change_res = ast_channel_request_stream_topology_change(mock_channel, topology, NULL);
 
 	ast_test_validate_cleanup(test, change_res == -1, res, done);
 	ast_test_validate_cleanup(test, !pvt->indicated_change_request, res, done);
@@ -1700,7 +1700,7 @@ AST_TEST_DEFINE(stream_topology_change_request_from_application)
 	topology = ast_stream_topology_alloc();
 	ast_test_validate_cleanup(test, topology, res, done);
 
-	change_res = ast_channel_request_stream_topology_change(mock_channel, topology);
+	change_res = ast_channel_request_stream_topology_change(mock_channel, topology, NULL);
 
 	ast_test_validate_cleanup(test, !change_res, res, done);
 	ast_test_validate_cleanup(test, pvt->indicated_change_request, res, done);
@@ -1830,6 +1830,97 @@ AST_TEST_DEFINE(format_cap_from_stream_topology)
 	return AST_TEST_PASS;
 }
 
+#define topology_append_stream(topology, name, type, res, label) \
+	do { \
+		struct ast_stream *__stream = ast_stream_alloc((name), (type)); \
+		ast_test_validate_cleanup(test, __stream, res, label); \
+		if (ast_stream_topology_append_stream((topology), __stream) < 0) { \
+			ast_stream_free(__stream); \
+			res = AST_TEST_FAIL; \
+			goto label;	     \
+		} \
+	} while(0)
+
+AST_TEST_DEFINE(stream_topology_map_create)
+{
+	RAII_VAR(struct ast_stream_topology *, t0, NULL, ast_stream_topology_free);
+
+	struct ast_vector_int types = { NULL };
+	struct ast_vector_int v0 = { NULL };
+	struct ast_vector_int v1 = { NULL };
+
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_map_create";
+		info->category = "/main/stream/";
+		info->summary = "stream topology map creation unit test";
+		info->description =
+			"Test that creating a stream topology map works";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, AST_VECTOR_INIT(&types, 5) == 0);
+
+	/* Map a first topology and check that it mapped one to one */
+	ast_test_validate_cleanup(test, (t0 = ast_stream_topology_alloc()), res, done);
+	topology_append_stream(t0, "audio", AST_MEDIA_TYPE_AUDIO, res, done);
+	topology_append_stream(t0, "video", AST_MEDIA_TYPE_VIDEO, res, done);
+
+	ast_stream_topology_map(t0, &types, &v0, &v1);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&types) == 2, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 0) == AST_MEDIA_TYPE_AUDIO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 1) == AST_MEDIA_TYPE_VIDEO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 0) == 0, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 1) == 1, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 0) == 0, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 1) == 1, res, done);
+
+	/* Map a second topology and check that it merged */
+	ast_stream_topology_free(t0);
+	ast_test_validate_cleanup(test, (t0 = ast_stream_topology_alloc()), res, done);
+	topology_append_stream(t0, "video", AST_MEDIA_TYPE_VIDEO, res, done);
+	topology_append_stream(t0, "audio", AST_MEDIA_TYPE_AUDIO, res, done);
+
+	ast_stream_topology_map(t0, &types, &v0, &v1);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&types) == 2, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 0) == AST_MEDIA_TYPE_AUDIO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 1) == AST_MEDIA_TYPE_VIDEO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 0) == 1, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 1) == 0, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 0) == 1, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 1) == 0, res, done);
+
+	/* Map a third topology with more streams and check that it merged */
+	ast_stream_topology_free(t0);
+	ast_test_validate_cleanup(test, (t0 = ast_stream_topology_alloc()), res, done);
+	topology_append_stream(t0, "video", AST_MEDIA_TYPE_VIDEO, res, done);
+	topology_append_stream(t0, "audio", AST_MEDIA_TYPE_AUDIO, res, done);
+	topology_append_stream(t0, "audio", AST_MEDIA_TYPE_AUDIO, res, done);
+
+	ast_stream_topology_map(t0, &types, &v0, &v1);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&types) == 3, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 0) == AST_MEDIA_TYPE_AUDIO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 1) == AST_MEDIA_TYPE_VIDEO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&types, 2) == AST_MEDIA_TYPE_AUDIO, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 0) == 1, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 1) == 0, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v0, 2) == 2, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 0) == 1, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 1) == 0, res, done);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&v1, 2) == 2, res, done);
+
+done:
+	AST_VECTOR_FREE(&v1);
+	AST_VECTOR_FREE(&v0);
+	AST_VECTOR_FREE(&types);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -1855,6 +1946,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_change_request_from_application);
 	AST_TEST_UNREGISTER(stream_topology_change_request_from_channel);
 	AST_TEST_UNREGISTER(format_cap_from_stream_topology);
+	AST_TEST_UNREGISTER(stream_topology_map_create);
 	return 0;
 }
 
@@ -1882,6 +1974,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_change_request_from_application);
 	AST_TEST_REGISTER(stream_topology_change_request_from_channel);
 	AST_TEST_REGISTER(format_cap_from_stream_topology);
+	AST_TEST_REGISTER(stream_topology_map_create);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

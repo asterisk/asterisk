@@ -158,6 +158,25 @@ struct ast_bridge_technology {
 	 * \note On entry, bridge is already locked.
 	 */
 	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
+	/*!
+	 * \brief Callback for when a request has been made to change a stream topology on a channel
+	 *
+	 * This is called when a bridge receives a request to change the topology on the channel. A bridge
+	 * technology should define a handler for this callback if it needs to update internals or intercept
+	 * the request and not pass it on to other channels. This can be done by returning a nonzero value.
+	 *
+	 * \retval 0 Frame accepted by the bridge.
+	 * \retval -1 Frame rejected.
+	 */
+	int (*stream_topology_request_change)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+	/*!
+	 * \brief Callback for when a stream topology changes on the channel
+	 *
+	 * This is called when a bridge receives an indication that a topology has been changed on a channel
+	 * and the new topology has been mapped to the bridge. A bridge technology should define a handler for
+	 * this callback if it needs to update internals due to a channel's topology changing.
+	 */
+	void (*stream_topology_changed)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*! TRUE if the bridge technology is currently suspended. */
 	unsigned int suspended:1;
 	/*! Module this bridge technology belongs to. It is used for reference counting bridges using the technology. */

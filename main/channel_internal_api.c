@@ -219,6 +219,7 @@ struct ast_channel {
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
 	struct ast_stream_topology *stream_topology; /*!< Stream topology */
+	void *stream_topology_change_source; /*!< Source that initiated a stream topology change */
 	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 };
 
@@ -836,6 +837,17 @@ void ast_channel_internal_set_stream_topology(struct ast_channel *chan,
 	ast_stream_topology_free(chan->stream_topology);
 	chan->stream_topology = topology;
 	channel_set_default_streams(chan);
+}
+
+void ast_channel_internal_set_stream_topology_change_source(
+	struct ast_channel *chan, void *change_source)
+{
+	chan->stream_topology_change_source = change_source;
+}
+
+void *ast_channel_get_stream_topology_change_source(struct ast_channel *chan)
+{
+	return chan->stream_topology_change_source;
 }
 
 void ast_channel_nativeformats_set(struct ast_channel *chan,

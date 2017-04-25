@@ -27,6 +27,7 @@
 #define _AST_STREAM_H_
 
 #include "asterisk/codec.h"
+#include "asterisk/vector.h"
 
 /*!
  * \brief Forward declaration for a stream, as it is opaque
@@ -42,6 +43,11 @@ struct ast_format_cap;
  * \brief The topology of a set of streams
  */
 struct ast_stream_topology;
+
+/*!
+ * \brief A mapping of two topologies.
+ */
+struct ast_stream_topology_map;
 
 typedef void (*ast_stream_data_free_fn)(void *);
 
@@ -404,5 +410,22 @@ struct ast_format_cap *ast_format_cap_from_stream_topology(
 struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 	const struct ast_stream_topology *topology,
 	enum ast_media_type type);
+
+/*!
+ * \brief Map a given topology's streams to the given types.
+ *
+ * \note The given vectors in which mapping values are placed are reset by
+ *       this function. This means if those vectors already contain mapping
+ *       values they will be lost.
+ *
+ * \param topology The topology to map
+ * \param types The media types to be mapped
+ * \param v0 Index mapping of topology to types
+ * \param v1 Index mapping of types to topology
+ *
+ * \since 15
+ */
+void ast_stream_topology_map(const struct ast_stream_topology *topology,
+	struct ast_vector_int *types, struct ast_vector_int *v0, struct ast_vector_int *v1);
 
 #endif /* _AST_STREAM_H */

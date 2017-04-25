@@ -10909,7 +10909,8 @@ enum ast_channel_error ast_channel_errno(void)
 	return ast_channel_internal_errno();
 }
 
-int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct ast_stream_topology *topology)
+int ast_channel_request_stream_topology_change(struct ast_channel *chan,
+		struct ast_stream_topology *topology, void *change_source)
 {
 	ast_assert(chan != NULL);
 	ast_assert(topology != NULL);
@@ -10917,6 +10918,8 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct 
 	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
 		return -1;
 	}
+
+	ast_channel_internal_set_stream_topology_change_source(chan, change_source);
 
 	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, topology, sizeof(topology));
 }

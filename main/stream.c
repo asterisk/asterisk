@@ -434,3 +434,48 @@ struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 
 	return NULL;
 }
+
+void ast_stream_topology_map(const struct ast_stream_topology *topology,
+	struct ast_vector_int *types, struct ast_vector_int *v0, struct ast_vector_int *v1)
+{
+	int i;
+	int nths[AST_MEDIA_TYPE_END] = {0};
+	int size = ast_stream_topology_get_count(topology);
+
+	/*
+	 * Clear out any old mappings and initialize the new ones
+	 */
+	AST_VECTOR_FREE(v0);
+	AST_VECTOR_FREE(v1);
+
+	/*
+	 * Both vectors are sized to the topology. The media types vector is always
+	 * guaranteed to be the size of the given topology or greater.
+	 */
+	AST_VECTOR_INIT(v0, size);
+	AST_VECTOR_INIT(v1, size);
+
+	for (i = 0; i < size; ++i) {
+		struct ast_stream *stream = ast_stream_topology_get_stream(topology, i);
+		enum ast_media_type type = ast_stream_get_type(stream);
+		int index = AST_VECTOR_GET_INDEX_NTH(types, ++nths[type],
+			type, AST_VECTOR_ELEM_DEFAULT_CMP);
+
+		if (index == -1) {
+			/*
+			 * If a given type is not found for an index level then update the
+			 * media types vector with that type. This keeps the media types
+			 * vector always at the max topology size.
+			 */
+			AST_VECTOR_APPEND(types, type);
+			index = AST_VECTOR_SIZE(types) - 1;
+		}
+
+		/*
+		 * The mapping is reflexive in the sense that if it maps in one direction
+		 * then the reverse direction maps back to the other's index.
+		 */
+		AST_VECTOR_REPLACE(v0, i, index);
+		AST_VECTOR_REPLACE(v1, index, i);
+	}
+}

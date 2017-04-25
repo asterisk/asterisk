@@ -55,6 +55,7 @@
 #include "asterisk/causes.h"
 #include "asterisk/test.h"
 #include "asterisk/sem.h"
+#include "asterisk/stream.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -980,6 +981,16 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		ast_bridge_channel_unlock(bridge_channel);
 		bridge_frame_free(dup);
 		return 0;
+	}
+
+	if (ast_channel_is_multistream(bridge_channel->chan) &&
+	    (fr->frametype == AST_FRAME_IMAGE || fr->frametype == AST_FRAME_TEXT ||
+	     fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_VOICE)) {
+		/* Media frames need to be mapped to an appropriate write stream */
+		dup->stream_num = AST_VECTOR_GET(
+			&bridge_channel->stream_map.to_bridge, fr->stream_num);
+	} else {
+		dup->stream_num = -1;
 	}
 
 	AST_LIST_INSERT_TAIL(&bridge_channel->wr_queue, dup, frame_list);
@@ -2249,6 +2260,9 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 		/* Should never happen. */
 		ast_assert(0);
 		break;
+	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
+		ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
+		break;
 	default:
 		ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
 		break;
@@ -2268,6 +2282,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 {
 	struct ast_frame *fr;
 	struct sync_payload *sync_payload;
+	int num;
 
 	ast_bridge_channel_lock(bridge_channel);
 
@@ -2324,9 +2339,18 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	case AST_FRAME_NULL:
 		break;
 	default:
+		if (fr->stream_num >= (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel)) {
+			/* Nowhere to write to, so drop it */
+			break;
+		}
+
+		/* Find what stream number to write to for the channel */
+		num = fr->stream_num < 0 ? -1 :
+			AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num);
+
 		/* Write the frame to the channel. */
 		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_SIMPLE;
-		ast_write(bridge_channel->chan, fr);
+		ast_write_stream(bridge_channel->chan, num, fr);
 		break;
 	}
 	bridge_frame_free(fr);
@@ -2434,6 +2458,27 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 		case AST_CONTROL_PROCEEDING:
 		case AST_CONTROL_ANSWER:
 			ast_channel_publish_dial(NULL, bridge_channel->chan, NULL, controls[frame->subclass.integer]);
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
+			if (bridge_channel->bridge->technology->stream_topology_request_change &&
+			    bridge_channel->bridge->technology->stream_topology_request_change(
+				    bridge_channel->bridge, bridge_channel)) {
+				/* Topology change was denied so drop frame */
+				bridge_frame_free(frame);
+				return;
+			}
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
+			/*
+			 * If a stream topology has changed then the bridge_channel's
+			 * media mapping needs to be updated.
+			 */
+			ast_bridge_channel_stream_map(bridge_channel);
+
+			if (bridge_channel->bridge->technology->stream_topology_changed) {
+				bridge_channel->bridge->technology->stream_topology_changed(
+					bridge_channel->bridge, bridge_channel);
+			}
 			break;
 		default:
 			break;
@@ -2885,6 +2930,9 @@ static void bridge_channel_destroy(void *obj)
 
 	ao2_cleanup(bridge_channel->write_format);
 	ao2_cleanup(bridge_channel->read_format);
+
+	AST_VECTOR_FREE(&bridge_channel->stream_map.to_bridge);
+	AST_VECTOR_FREE(&bridge_channel->stream_map.to_channel);
 }
 
 struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *bridge)
@@ -2905,5 +2953,14 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 		ao2_ref(bridge_channel->bridge, +1);
 	}
 
+	/* The stream_map is initialized later - see ast_bridge_channel_stream_map */
+
 	return bridge_channel;
+}
+
+void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel)
+{
+	ast_stream_topology_map(ast_channel_get_stream_topology(bridge_channel->chan),
+		&bridge_channel->bridge->media_types, &bridge_channel->stream_map.to_bridge,
+		&bridge_channel->stream_map.to_channel);
 }

@@ -323,6 +323,9 @@ struct ast_bridge {
 		/*! Immutable bridge UUID. */
 		AST_STRING_FIELD(uniqueid);
 	);
+
+	/*! Type mapping used for media routing */
+	struct ast_vector_int media_types;
 };
 
 /*! \brief Bridge base class virtual method table. */
