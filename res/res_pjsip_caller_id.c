@@ -436,7 +436,7 @@ static pjsip_fromto_hdr *create_new_id_hdr(const pj_str_t *hdr_name, pjsip_fromt
 	id_name_addr = pjsip_uri_clone(tdata->pool, base->uri);
 	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
 
-	if (id->name.valid) {
+	if (id->name.valid && !ast_strlen_zero(id->name.str)) {
 		int name_buf_len = strlen(id->name.str) * 2 + 1;
 		char *name_buf = ast_alloca(name_buf_len);
 
@@ -450,7 +450,12 @@ static pjsip_fromto_hdr *create_new_id_hdr(const pj_str_t *hdr_name, pjsip_fromt
 		pj_strdup2(tdata->pool, &id_name_addr->display, NULL);
 	}
 
-	pj_strdup2(tdata->pool, &id_uri->user, id->number.str);
+	if (id->number.valid) {
+		pj_strdup2(tdata->pool, &id_uri->user, id->number.str);
+	} else {
+		/* Similar to name, make sure the number is also cleared when invalid */
+		pj_strdup2(tdata->pool, &id_uri->user, NULL);
+	}
 
 	id_hdr->uri = (pjsip_uri *) id_name_addr;
 	return id_hdr;
