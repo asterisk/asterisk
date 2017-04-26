@@ -29275,6 +29275,17 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		}
 	}
 
+	/* If a bind address has been specified, use it */
+	if ((s->type == AST_TRANSPORT_TLS) && !ast_sockaddr_isnull(&sip_tls_desc.local_address)) {
+		ca->local_address = sip_tls_desc.local_address;
+	}
+	else if ((s->type == AST_TRANSPORT_TCP) && !ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
+		ca->local_address = sip_tcp_desc.local_address;
+	}
+	/* Reset tcp source port to zero to let system pick a random one */
+	if (!ast_sockaddr_isnull(&ca->local_address)) {
+		ast_sockaddr_set_port(&ca->local_address, 0);
+	}
 	/* Create a client connection for address, this does not start the connection, just sets it up. */
 	if (!(s->tcptls_session = ast_tcptls_client_create(ca))) {
 		goto create_tcptls_session_fail;
