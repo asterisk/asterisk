@@ -34,16 +34,15 @@ struct ast_sdp_options {
 		AST_STRING_FIELD(rtp_engine);
 	);
 	struct {
-		unsigned int bind_rtp_to_media_address : 1;
-		unsigned int bind_udptl_to_media_address : 1;
-		unsigned int rtp_symmetric : 1;
-		unsigned int udptl_symmetric : 1;
-		unsigned int telephone_event : 1;
-		unsigned int rtp_ipv6 : 1;
-		unsigned int g726_non_standard : 1;
-		unsigned int locally_held : 1;
-		unsigned int rtcp_mux: 1;
-		unsigned int ssrc: 1;
+		unsigned int bind_rtp_to_media_address:1;
+		unsigned int bind_udptl_to_media_address:1;
+		unsigned int rtp_symmetric:1;
+		unsigned int udptl_symmetric:1;
+		unsigned int rtp_ipv6:1;
+		unsigned int g726_non_standard:1;
+		unsigned int locally_held:1;
+		unsigned int rtcp_mux:1;
+		unsigned int ssrc:1;
 	};
 	struct {
 		unsigned int tos_audio;
@@ -52,6 +51,7 @@ struct ast_sdp_options {
 		unsigned int cos_video;
 		unsigned int udptl_far_max_datagram;
 	};
+	enum ast_sdp_options_dtmf dtmf;
 	enum ast_sdp_options_ice ice;
 	enum ast_sdp_options_impl impl;
 	enum ast_sdp_options_encryption encryption;
