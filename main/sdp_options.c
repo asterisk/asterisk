@@ -76,6 +76,7 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, cos_video);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_ice, ice);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_impl, impl);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_encryption, encryption);
+DEFINE_GETTERS_SETTERS_FOR(unsigned int, ssrc);
 
 static void set_defaults(struct ast_sdp_options *options)
 {
