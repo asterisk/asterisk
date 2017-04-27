@@ -444,8 +444,14 @@ struct ast_frame *ast_trans_frameout(struct ast_trans_pvt *pvt,
 	}
 	if (datalen) {
 		f->datalen = datalen;
+		f->data.ptr = pvt->outbuf.c;
 	} else {
 		f->datalen = pvt->datalen;
+		if (!f->datalen) {
+			f->data.ptr = NULL;
+		} else {
+			f->data.ptr = pvt->outbuf.c;
+		}
 		pvt->datalen = 0;
 	}
 
