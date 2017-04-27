@@ -2052,11 +2052,16 @@ static int hangup(void *data)
 	struct ast_sip_session *session = channel->session;
 	int cause = h_data->cause;
 
-	ast_sip_session_terminate(session, cause);
+	/*
+	 * It's possible that session_terminate might cause the session to be destroyed
+	 * immediately so we need to keep a reference to it so we can NULL session->channel
+	 * afterwards.
+	 */
+	ast_sip_session_terminate(ao2_bump(session), cause);
 	clear_session_and_channel(session, ast, pvt);
+	ao2_cleanup(session);
 	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
-
 	return 0;
 }
 
