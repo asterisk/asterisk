@@ -23,6 +23,7 @@
 #include "asterisk/codec.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/sdp_state.h"
 #include "asterisk/sdp_options.h"
@@ -712,34 +713,56 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 		ao2_ref(caps, -1);
 		return NULL;
 	}
-	ast_rtp_codecs_payloads_initialize(&codecs);
 
-	for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
-		struct ast_sdp_payload *payload_s;
-		struct ast_sdp_rtpmap *rtpmap;
-		int payload;
+	switch (ast_stream_get_type(stream)) {
+	case AST_MEDIA_TYPE_AUDIO:
+	case AST_MEDIA_TYPE_VIDEO:
+		ast_rtp_codecs_payloads_initialize(&codecs);
 
-		payload_s = ast_sdp_m_get_payload(m_line, i);
-		sscanf(payload_s->fmt, "%30d", &payload);
-		ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, payload);
+		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
+			struct ast_sdp_payload *payload_s;
+			struct ast_sdp_rtpmap *rtpmap;
+			int payload;
 
-		rtpmap = sdp_payload_get_rtpmap(m_line, payload);
-		if (!rtpmap) {
-			continue;
+			payload_s = ast_sdp_m_get_payload(m_line, i);
+			sscanf(payload_s->fmt, "%30d", &payload);
+			ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, payload);
+
+			rtpmap = sdp_payload_get_rtpmap(m_line, payload);
+			if (!rtpmap) {
+				continue;
+			}
+			ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
+				payload, m_line->type, rtpmap->encoding_name, 0,
+				rtpmap->clock_rate);
+			ast_sdp_rtpmap_free(rtpmap);
+
+			process_fmtp(m_line, payload, &codecs);
 		}
-		ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
-			payload, m_line->type, rtpmap->encoding_name, 0,
-			rtpmap->clock_rate);
-		ast_sdp_rtpmap_free(rtpmap);
 
-		process_fmtp(m_line, payload, &codecs);
+		ast_rtp_codecs_payload_formats(&codecs, caps, &non_ast_fmts);
+		ast_rtp_codecs_payloads_destroy(&codecs);
+		break;
+	case AST_MEDIA_TYPE_IMAGE:
+		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
+			struct ast_sdp_payload *payload;
+
+			/* As we don't carry T.38 over RTP we do our own format check */
+			payload = ast_sdp_m_get_payload(m_line, i);
+			if (!strcasecmp(payload->fmt, "t38")) {
+				ast_format_cap_append(caps, ast_format_t38, 0);
+			}
+		}
+		break;
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_TEXT:
+	case AST_MEDIA_TYPE_END:
+		break;
 	}
 
-	ast_rtp_codecs_payload_formats(&codecs, caps, &non_ast_fmts);
 	ast_stream_set_formats(stream, caps);
-
 	ao2_ref(caps, -1);
-	ast_rtp_codecs_payloads_destroy(&codecs);
+
 	return stream;
 }
 

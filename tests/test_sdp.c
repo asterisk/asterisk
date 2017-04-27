@@ -130,6 +130,22 @@ static int validate_rtpmap(struct ast_test *test, const struct ast_sdp_m_line *m
 	return -1;
 }
 
+static enum ast_test_result_state validate_t38(struct ast_test *test, const struct ast_sdp_m_line *m_line)
+{
+	struct ast_sdp_a_line *a_line;
+
+	a_line = ast_sdp_m_find_attribute(m_line, "T38FaxVersion", -1);
+	ast_test_validate(test, a_line && !strcmp(a_line->value, "0"));
+
+	a_line = ast_sdp_m_find_attribute(m_line, "T38FaxMaxBitRate", -1);
+	ast_test_validate(test, a_line && !strcmp(a_line->value, "14400"));
+
+	a_line = ast_sdp_m_find_attribute(m_line, "T38FaxRateManagement", -1);
+	ast_test_validate(test, a_line && !strcmp(a_line->value, "transferredTCF"));
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(invalid_rtpmap)
 {
 	/* a=rtpmap: is already assumed. This is the part after that */
@@ -405,6 +421,7 @@ AST_TEST_DEFINE(topology_to_sdp)
 	struct sdp_format formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
 		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 	};
 
 	switch(cmd) {
@@ -437,7 +454,7 @@ AST_TEST_DEFINE(topology_to_sdp)
 		goto end;
 	}
 
-	if (ast_sdp_get_m_count(sdp) != 2) {
+	if (ast_sdp_get_m_count(sdp) != 3) {
 		ast_test_status_update(test, "Unexpected number of streams in generated SDP: %d\n",
 			ast_sdp_get_m_count(sdp));
 		goto end;
@@ -475,6 +492,14 @@ AST_TEST_DEFINE(topology_to_sdp)
 	}
 
 	if (validate_rtpmap(test, m_line, "H264")) {
+		goto end;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line(test, m_line, "image", 1)) {
+		goto end;
+	}
+	if (validate_t38(test, m_line) != AST_TEST_PASS) {
 		goto end;
 	}
 
@@ -527,6 +552,7 @@ AST_TEST_DEFINE(sdp_to_topology)
 	struct sdp_format sdp_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
 		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 	};
 	static const char *expected_audio_formats[] = {
 		"ulaw",
@@ -537,6 +563,9 @@ AST_TEST_DEFINE(sdp_to_topology)
 	static const char *expected_video_formats[] = {
 		"h264",
 		"vp8",
+	};
+	static const char *expected_image_formats[] = {
+		"t38",
 	};
 
 	switch(cmd) {
@@ -565,7 +594,7 @@ AST_TEST_DEFINE(sdp_to_topology)
 
 	topology = ast_get_topology_from_sdp(sdp);
 
-	if (ast_stream_topology_get_count(topology) != 2) {
+	if (ast_stream_topology_get_count(topology) != 3) {
 		ast_test_status_update(test, "Unexpected topology count '%d'. Expecting 2\n",
 			ast_stream_topology_get_count(topology));
 		res = AST_TEST_FAIL;
@@ -580,6 +609,12 @@ AST_TEST_DEFINE(sdp_to_topology)
 
 	if (validate_formats(test, topology, 1, AST_MEDIA_TYPE_VIDEO,
 			ARRAY_LEN(expected_video_formats), expected_video_formats)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	if (validate_formats(test, topology, 2, AST_MEDIA_TYPE_IMAGE,
+			ARRAY_LEN(expected_image_formats), expected_image_formats)) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}

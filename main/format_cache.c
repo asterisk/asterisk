@@ -231,6 +231,11 @@ struct ast_format *ast_format_t140;
 struct ast_format *ast_format_t140_red;
 
 /*!
+ * \brief Built-in cached T.38 format.
+ */
+struct ast_format *ast_format_t38;
+
+/*!
  * \brief Built-in "null" format.
  */
 struct ast_format *ast_format_none;
@@ -342,6 +347,7 @@ static void format_cache_shutdown(void)
 	ao2_replace(ast_format_vp8, NULL);
 	ao2_replace(ast_format_t140_red, NULL);
 	ao2_replace(ast_format_t140, NULL);
+	ao2_replace(ast_format_t38, NULL);
 	ao2_replace(ast_format_none, NULL);
 	ao2_replace(ast_format_silk8, NULL);
 	ao2_replace(ast_format_silk12, NULL);
@@ -442,6 +448,8 @@ static void set_cached_format(const char *name, struct ast_format *format)
 		ao2_replace(ast_format_t140_red, format);
 	} else if (!strcmp(name, "t140")) {
 		ao2_replace(ast_format_t140, format);
+	} else if (!strcmp(name, "t38")) {
+		ao2_replace(ast_format_t38, format);
 	} else if (!strcmp(name, "none")) {
 		ao2_replace(ast_format_none, format);
 	} else if (!strcmp(name, "silk8")) {

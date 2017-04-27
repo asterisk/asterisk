@@ -822,6 +822,12 @@ static struct ast_codec t140 = {
 	.type = AST_MEDIA_TYPE_TEXT,
 };
 
+static struct ast_codec t38 = {
+	.name = "t38",
+	.description = "T.38 UDPTL Fax",
+	.type = AST_MEDIA_TYPE_IMAGE,
+};
+
 static int silk_samples(struct ast_frame *frame)
 {
 	/* XXX This is likely not at all what's intended from this callback. However,
@@ -952,6 +958,7 @@ int ast_codec_builtin_init(void)
 	res |= CODEC_REGISTER_AND_CACHE(vp8);
 	res |= CODEC_REGISTER_AND_CACHE(t140red);
 	res |= CODEC_REGISTER_AND_CACHE(t140);
+	res |= CODEC_REGISTER_AND_CACHE(t38);
 	res |= CODEC_REGISTER_AND_CACHE(none);
 	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk8", silk8);
 	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk12", silk12);

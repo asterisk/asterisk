@@ -35,7 +35,9 @@ struct ast_sdp_options {
 	);
 	struct {
 		unsigned int bind_rtp_to_media_address : 1;
+		unsigned int bind_udptl_to_media_address : 1;
 		unsigned int rtp_symmetric : 1;
+		unsigned int udptl_symmetric : 1;
 		unsigned int telephone_event : 1;
 		unsigned int rtp_ipv6 : 1;
 		unsigned int g726_non_standard : 1;
@@ -47,10 +49,12 @@ struct ast_sdp_options {
 		unsigned int cos_audio;
 		unsigned int tos_video;
 		unsigned int cos_video;
+		unsigned int udptl_far_max_datagram;
 	};
 	enum ast_sdp_options_ice ice;
 	enum ast_sdp_options_impl impl;
 	enum ast_sdp_options_encryption encryption;
+	enum ast_t38_ec_modes udptl_error_correction;
 };
 
 #endif /* _MAIN_SDP_PRIVATE_H */

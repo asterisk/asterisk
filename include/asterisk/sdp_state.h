@@ -24,6 +24,8 @@
 
 struct ast_sdp_state;
 struct ast_sockaddr;
+struct ast_udptl;
+struct ast_control_t38_parameters;
 
 /*!
  * \brief Allocate a new SDP state
@@ -49,6 +51,14 @@ void ast_sdp_state_free(struct ast_sdp_state *sdp_state);
  * Stream numbers correspond to the streams in the topology of the associated channel
  */
 struct ast_rtp_instance *ast_sdp_state_get_rtp_instance(const struct ast_sdp_state *sdp_state,
+	int stream_index);
+
+/*!
+ * \brief Get the associated UDPTL instance for a particular stream on the SDP state.
+ *
+ * Stream numbers correspond to the streams in the topology of the associated channel
+ */
+struct ast_udptl *ast_sdp_state_get_udptl_instance(const struct ast_sdp_state *sdp_state,
 	int stream_index);
 
 /*!
@@ -222,6 +232,17 @@ int ast_sdp_state_set_connection_address(struct ast_sdp_state *sdp_state, int st
  */
 void ast_sdp_state_set_locally_held(struct ast_sdp_state *sdp_state,
 	int stream_index, unsigned int locally_held);
+
+/*!
+ * \since 15.0.0
+ * \brief Set the UDPTL session parameters
+ *
+ * \param sdp_state
+ * \param stream_index The stream to set the UDPTL session parameters for
+ * \param params
+ */
+void ast_sdp_state_set_t38_parameters(struct ast_sdp_state *sdp_state,
+	int stream_index, struct ast_control_t38_parameters *params);
 
 /*!
  * \since 15.0.0
