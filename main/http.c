@@ -526,6 +526,10 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	/* send content */
 	if (method != AST_HTTP_HEAD || status_code >= 400) {
 		if (out && ast_str_strlen(out)) {
+			/*
+			 * NOTE: Because ser->f is a non-standard FILE *, fwrite() will probably not
+			 * behave exactly as documented.
+			 */
 			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
 				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
 				close_connection = 1;
@@ -537,6 +541,10 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 			int len;
 
 			while ((len = read(fd, buf, sizeof(buf))) > 0) {
+				/*
+				 * NOTE: Because ser->f is a non-standard FILE *, fwrite() will probably not
+				 * behave exactly as documented.
+				 */
 				if (fwrite(buf, len, 1, ser->f) != 1) {
 					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 					close_connection = 1;
@@ -923,6 +931,11 @@ static int http_body_read_contents(struct ast_tcptls_session_instance *ser, char
 {
 	int res;
 
+	/*
+	 * NOTE: Because ser->f is a non-standard FILE *, fread() does not behave as
+	 * documented.
+	 */
+
 	/* Stay in fread until get all the expected data or timeout. */
 	res = fread(buf, length, 1, ser->f);
 	if (res < 1) {
@@ -949,6 +962,11 @@ static int http_body_discard_contents(struct ast_tcptls_session_instance *ser, i
 {
 	int res;
 	char buf[MAX_HTTP_LINE_LENGTH];/* Discard buffer */
+
+	/*
+	 * NOTE: Because ser->f is a non-standard FILE *, fread() does not behave as
+	 * documented.
+	 */
 
 	/* Stay in fread until get all the expected data or timeout. */
 	while (sizeof(buf) < length) {
@@ -1065,6 +1083,11 @@ static int http_body_check_chunk_sync(struct ast_tcptls_session_instance *ser)
 {
 	int res;
 	char chunk_sync[2];
+
+	/*
+	 * NOTE: Because ser->f is a non-standard FILE *, fread() does not behave as
+	 * documented.
+	 */
 
 	/* Stay in fread until get the expected CRLF or timeout. */
 	res = fread(chunk_sync, sizeof(chunk_sync), 1, ser->f);

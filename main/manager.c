@@ -6500,6 +6500,12 @@ static int get_input(struct mansession *s, char *output)
 	}
 
 	ao2_lock(s->session);
+	/*
+	 * It is worth noting here that you can all but ignore fread()'s documentation
+	 * for the purposes of this call. The FILE * we are working with here was created
+	 * as a result of a call to fopencookie() (or equivalent) in tcptls.c, and as such
+	 * the behavior of fread() is not as documented. Frankly, I think this is gross.
+	 */
 	res = fread(src + s->session->inlen, 1, maxlen - s->session->inlen, s->session->f);
 	if (res < 1) {
 		res = -1;	/* error return */

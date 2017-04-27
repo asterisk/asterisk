@@ -363,7 +363,7 @@ static void wav_close(struct ast_filestream *s)
 
 	/* Pad to even length */
 	if (fs->bytes & 0x1) {
-		if (!fwrite(&zero, 1, 1, s->f)) {
+		if (fwrite(&zero, 1, 1, s->f) != 1) {
 			ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 		}
 	}
@@ -387,14 +387,23 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	here = ftello(s->f);
 	if (fs->maxlen - here < bytes)		/* truncate if necessary */
 		bytes = fs->maxlen - here;
-	if (bytes < 0)
-		bytes = 0;
+	if (bytes <= 0) {
+		return NULL;
+	}
 /* 	ast_debug(1, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
-	
-	if ( (res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) <= 0 ) {
-		if (res)
-			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+		if (feof(s->f)) {
+			if (res) {
+				ast_log(LOG_WARNING, "Incomplete frame data at end of %s file "
+						"(expected %d bytes, read %d)\n",
+						ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
+					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+		}
 		return NULL;
 	}
 	s->fr.datalen = res;
