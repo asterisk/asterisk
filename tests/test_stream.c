@@ -1773,6 +1773,63 @@ done:
 	return res;
 }
 
+AST_TEST_DEFINE(format_cap_from_stream_topology)
+{
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, stream_caps, NULL, ao2_cleanup);
+	struct ast_stream_topology *topology;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "format_cap_from_stream_topology";
+		info->category = "/main/stream/";
+		info->summary = "stream topology to format capabilities conversion test";
+		info->description =
+			"Test that converting a stream topology to format capabilities results in expected formats";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_test_status_update(test, "Could not allocate an empty format capabilities structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_ulaw, 0)) {
+		ast_test_status_update(test, "Failed to append a ulaw format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_h264, 0)) {
+		ast_test_status_update(test, "Failed to append an h264 format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	topology = ast_stream_topology_create_from_format_cap(caps);
+	if (!topology) {
+		ast_test_status_update(test, "Failed to create a stream topology from format capabilities of ulaw and h264\n");
+		return AST_TEST_FAIL;
+	}
+
+	stream_caps = ast_format_cap_from_stream_topology(topology);
+	if (!stream_caps) {
+		ast_test_status_update(test, "Failed to create a format capabilities from a stream topology\n");
+		ast_stream_topology_free(topology);
+		return AST_TEST_FAIL;
+	}
+
+	ast_stream_topology_free(topology);
+
+	if (!ast_format_cap_identical(caps, stream_caps)) {
+		ast_test_status_update(test, "Converting format capabilities into topology and back resulted in different formats\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -1797,6 +1854,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_change_request_from_channel_non_multistream);
 	AST_TEST_UNREGISTER(stream_topology_change_request_from_application);
 	AST_TEST_UNREGISTER(stream_topology_change_request_from_channel);
+	AST_TEST_UNREGISTER(format_cap_from_stream_topology);
 	return 0;
 }
 
@@ -1823,6 +1881,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_change_request_from_channel_non_multistream);
 	AST_TEST_REGISTER(stream_topology_change_request_from_application);
 	AST_TEST_REGISTER(stream_topology_change_request_from_channel);
+	AST_TEST_REGISTER(format_cap_from_stream_topology);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

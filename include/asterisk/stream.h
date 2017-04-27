@@ -375,6 +375,22 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	struct ast_format_cap *cap);
 
 /*!
+ * \brief A helper function that, given a stream topology, creates a format
+ * capabilities structure containing all formats from all streams.
+ *
+ * \param topology The topology of streams
+ *
+  * \retval non-NULL success
+  * \retval NULL failure
+  *
+  * \note The stream topology is NOT altered by this function.
+  *
+  * \since 15
+  */
+struct ast_format_cap *ast_format_cap_from_stream_topology(
+    struct ast_stream_topology *topology);
+
+/*!
  * \brief Gets the first stream of a specific type from the topology
  *
  * \param topology The topology of streams
