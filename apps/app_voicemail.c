@@ -2728,9 +2728,9 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 			*(vmu->email) = '\0';
 		return -1;
 	}
-	if (fread(buf, len, 1, p) < len) {
+	if (fread(buf, 1, len, p) != len) {
 		if (ferror(p)) {
-			ast_log(LOG_ERROR, "Short read while reading in mail file.\n");
+			ast_log(LOG_ERROR, "Error while reading mail file: %s\n");
 			return -1;
 		}
 	}
@@ -4743,12 +4743,12 @@ static int inbuf(struct baseio *bio, FILE *fi)
 	if (bio->ateof)
 		return 0;
 
-	if ((l = fread(bio->iobuf, 1, BASEMAXINLINE, fi)) <= 0) {
-		if (ferror(fi))
-			return -1;
-
+	if ((l = fread(bio->iobuf, 1, BASEMAXINLINE, fi)) != BASEMAXINLINE) {
 		bio->ateof = 1;
-		return 0;
+		if (l == 0) {
+			/* Assume EOF */
+			return 0;
+		}
 	}
 
 	bio->iolen = l;

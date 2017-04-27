@@ -64,8 +64,17 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	}
 	/* Read the data into the buffer */
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, size);
-	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != size) {
-		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
+		if (feof(s->f)) {
+			if (res) {
+				ast_log(LOG_WARNING, "Incomplete frame data at end of %s file "
+						"(expected %d bytes, read %d)\n",
+						ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
+					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+		}
 		return NULL;
 	}
 	*whennext = s->fr.samples = 240;

@@ -55,10 +55,18 @@ static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
 
-	AST_FRAME_SET_BUFFER(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
+	AST_FRAME_SET_BUFFER(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
-		if (res)
-			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+		if (feof(s->f)) {
+			if (res) {
+				ast_log(LOG_WARNING, "Incomplete frame data at end of %s file "
+						"(expected %d bytes, read %d)\n",
+						ast_format_get_name(s->fr.subclass.format), GSM_FRAME_SIZE, res);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
+					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+		}
 		return NULL;
 	}
 	*whennext = s->fr.samples = GSM_SAMPLES;
@@ -131,7 +139,7 @@ static int gsm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		int i;
 		fseeko(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / GSM_FRAME_SIZE; i++) {
-			if (!fwrite(gsm_silence, 1, GSM_FRAME_SIZE, fs->f)) {
+			if (fwrite(gsm_silence, 1, GSM_FRAME_SIZE, fs->f) != GSM_FRAME_SIZE) {
 				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 			}
 		}
