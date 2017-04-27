@@ -4414,11 +4414,15 @@ void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr, const s
 	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
 
 	if (id->name.valid) {
-		int name_buf_len = strlen(id->name.str) * 2 + 1;
-		char *name_buf = ast_alloca(name_buf_len);
+		if (!ast_strlen_zero(id->name.str)) {
+			int name_buf_len = strlen(id->name.str) * 2 + 1;
+			char *name_buf = ast_alloca(name_buf_len);
 
-		ast_escape_quoted(id->name.str, name_buf, name_buf_len);
-		pj_strdup2(pool, &id_name_addr->display, name_buf);
+			ast_escape_quoted(id->name.str, name_buf, name_buf_len);
+			pj_strdup2(pool, &id_name_addr->display, name_buf);
+		} else {
+			pj_strdup2(pool, &id_name_addr->display, NULL);
+		}
 	}
 
 	if (id->number.valid) {
