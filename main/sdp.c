@@ -500,201 +500,268 @@ int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_opt
 	return 0;
 }
 
-int ast_sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
-	const struct ast_sdp_options *options, int stream_index)
+static struct ast_sdp_a_line *sdp_find_attribute_common(const struct ast_sdp_a_lines *a_lines,
+	const char *attr_name, int payload)
 {
-	struct ast_stream *stream = ast_stream_topology_get_stream(ast_sdp_state_get_local_topology(sdp_state), stream_index);
-	struct ast_sdp_m_line *m_line;
-	struct ast_format_cap *caps;
-	int i;
-	int rtp_code;
-	int min_packet_size = 0;
-	int max_packet_size = 0;
-	enum ast_media_type media_type;
-	char tmp[64];
-	struct ast_sockaddr address_rtp;
-	struct ast_rtp_instance *rtp = ast_sdp_state_get_rtp_instance(sdp_state, stream_index);
 	struct ast_sdp_a_line *a_line;
+	int i;
 
-	ast_assert(sdp && options && stream);
+	for (i = 0; i < AST_VECTOR_SIZE(a_lines); ++i) {
+		int a_line_payload;
 
-	media_type = ast_stream_get_type(stream);
-	if (ast_sdp_state_get_stream_connection_address(sdp_state, 0, &address_rtp)) {
-		return -1;
-	}
-
-	m_line = ast_sdp_m_alloc(
-		ast_codec_media_type2str(ast_stream_get_type(stream)),
-		ast_sockaddr_port(&address_rtp), 1,
-		options->encryption != AST_SDP_ENCRYPTION_DISABLED ? "RTP/SAVP" : "RTP/AVP",
-		NULL);
-	if (!m_line) {
-		return -1;
-	}
-
-	caps = ast_stream_get_formats(stream);
-
-	for (i = 0; i < ast_format_cap_count(caps); i++) {
-		struct ast_format *format = ast_format_cap_get_format(caps, i);
-
-		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1, format, 0)) == -1) {
-			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
-			ao2_ref(format, -1);
+		a_line = AST_VECTOR_GET(a_lines, i);
+		if (strcmp(a_line->name, attr_name)) {
 			continue;
 		}
 
-		if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, format, 0)) {
-			ast_sdp_m_free(m_line);
-			ao2_ref(format, -1);
-			return -1;
-		}
-
-		if (ast_format_get_maximum_ms(format) &&
-			((ast_format_get_maximum_ms(format) < max_packet_size) || !max_packet_size)) {
-			max_packet_size = ast_format_get_maximum_ms(format);
-		}
-
-		ao2_ref(format, -1);
-	}
-
-	if (media_type != AST_MEDIA_TYPE_VIDEO) {
-		for (i = 1LL; i <= AST_RTP_MAX; i <<= 1) {
-			if (!(options->telephone_event & i)) {
-				continue;
+		if (payload >= 0) {
+			int sscanf_res;
+			sscanf_res = sscanf(a_line->value, "%30d", &a_line_payload);
+			if (sscanf_res == 1 && payload == a_line_payload) {
+				return a_line;
 			}
-
-			rtp_code = ast_rtp_codecs_payload_code(
-				ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
-
-			if (rtp_code == -1) {
-				continue;
-			}
-
-			if (sdp_m_add_rtpmap(m_line, options, rtp_code, 0, NULL, i)) {
-				continue;
-			}
-
-			if (i == AST_RTP_DTMF) {
-				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
-				a_line = ast_sdp_a_alloc("fmtp", tmp);
-				if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-					ast_sdp_a_free(a_line);
-					ast_sdp_m_free(m_line);
-					return -1;
-				}
-			}
+		} else {
+			return a_line;
 		}
-	}
-
-	if (ast_sdp_m_get_a_count(m_line) == 0) {
-		return 0;
-	}
-
-	/* If ptime is set add it as an attribute */
-	min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(rtp));
-	if (!min_packet_size) {
-		min_packet_size = ast_format_cap_get_framing(caps);
-	}
-	if (min_packet_size) {
-		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
-
-		a_line = ast_sdp_a_alloc("ptime", tmp);
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
-		}
-	}
-
-	if (max_packet_size) {
-		snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
-		a_line = ast_sdp_a_alloc("maxptime", tmp);
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
-		}
-	}
-
-	a_line = ast_sdp_a_alloc(ast_sdp_state_get_locally_held(sdp_state, stream_index) ? "sendonly" : "sendrecv", "");
-	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-		ast_sdp_a_free(a_line);
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
-
-	if (ast_sdp_add_m(sdp, m_line)) {
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
-
-	return 0;
-}
-
-struct ast_sdp *ast_sdp_create_from_state(const struct ast_sdp_state *sdp_state)
-{
-	const struct ast_sdp_options *options;
-	RAII_VAR(struct ast_sdp *, sdp, NULL, ao2_cleanup);
-	const const struct ast_stream_topology *topology;
-	int stream_count;
-	int stream_num;
-	struct ast_sdp_o_line *o_line = NULL;
-	struct ast_sdp_c_line *c_line = NULL;
-	struct ast_sdp_s_line *s_line = NULL;
-	struct ast_sdp_t_line *t_line = NULL;
-	char *address_type;
-	struct timeval tv = ast_tvnow();
-	uint32_t t;
-	ast_assert(!!sdp_state);
-
-	options = ast_sdp_state_get_options(sdp_state);
-	topology = ast_sdp_state_get_local_topology(sdp_state);
-	stream_count = ast_stream_topology_get_count(topology);
-
-	t = tv.tv_sec + 2208988800UL;
-	address_type = (strchr(options->media_address, ':') ? "IP6" : "IP4");
-
-	o_line = ast_sdp_o_alloc(options->sdpowner, t, t, address_type, options->media_address);
-	if (!o_line) {
-		goto error;
-	}
-	c_line = ast_sdp_c_alloc(address_type, options->media_address);
-	if (!c_line) {
-		goto error;
-	}
-
-	s_line = ast_sdp_s_alloc(options->sdpsession);
-	if (!s_line) {
-		goto error;
-	}
-
-	sdp = ast_sdp_alloc(o_line, c_line, s_line, NULL);
-	if (!sdp) {
-		goto error;
-	}
-
-	for (stream_num = 0; stream_num < stream_count; stream_num++) {
-		enum ast_media_type type = ast_stream_get_type(ast_stream_topology_get_stream(topology, stream_num));
-
-		if (type == AST_MEDIA_TYPE_AUDIO || type == AST_MEDIA_TYPE_VIDEO) {
-			if (ast_sdp_add_m_from_rtp_stream(sdp, sdp_state, options, stream_num)) {
-				goto error;
-			}
-		}
-	}
-
-	return sdp;
-
-error:
-	if (sdp) {
-		ast_sdp_free(sdp);
-	} else {
-		ast_sdp_t_free(t_line);
-		ast_sdp_s_free(s_line);
-		ast_sdp_c_free(c_line);
-		ast_sdp_o_free(o_line);
 	}
 
 	return NULL;
 }
 
+struct ast_sdp_a_line *ast_sdp_find_attribute(const struct ast_sdp *sdp,
+	const char *attr_name, int payload)
+{
+	return sdp_find_attribute_common(sdp->a_lines, attr_name, payload);
+}
+
+struct ast_sdp_a_line *ast_sdp_m_find_attribute(const struct ast_sdp_m_line *m_line,
+	const char *attr_name, int payload)
+{
+	return sdp_find_attribute_common(m_line->a_lines, attr_name, payload);
+}
+
+struct ast_sdp_rtpmap *ast_sdp_rtpmap_alloc(int payload, const char *encoding_name,
+	int clock_rate, const char *encoding_parameters)
+{
+	struct ast_sdp_rtpmap *rtpmap;
+	char *buf_pos;
+
+	rtpmap = ast_calloc(1, sizeof(*rtpmap) + strlen(encoding_name) + strlen(encoding_parameters) + 2);
+	if (!rtpmap) {
+		return NULL;
+	}
+
+	rtpmap->payload = payload;
+	rtpmap->clock_rate = clock_rate;
+
+	buf_pos = rtpmap->buf;
+	COPY_STR_AND_ADVANCE(buf_pos, rtpmap->encoding_name, encoding_name);
+	COPY_STR_AND_ADVANCE(buf_pos, rtpmap->encoding_parameters, encoding_parameters);
+
+	return rtpmap;
+}
+
+void ast_sdp_rtpmap_free(struct ast_sdp_rtpmap *rtpmap)
+{
+	ast_free(rtpmap);
+}
+
+struct ast_sdp_rtpmap *ast_sdp_a_get_rtpmap(const struct ast_sdp_a_line *a_line)
+{
+	char *value_copy;
+	char *slash;
+	int payload;
+	char encoding_name[64];
+	int clock_rate;
+	char *encoding_parameters;
+	struct ast_sdp_rtpmap *rtpmap;
+	int clock_rate_len;
+
+	value_copy = ast_strip(ast_strdupa(a_line->value));
+
+	if (sscanf(value_copy, "%30d %63s", &payload, encoding_name) != 2) {
+		return NULL;
+	}
+
+	slash = strchr(encoding_name, '/');
+	if (!slash) {
+		return NULL;
+	}
+	*slash++ = '\0';
+	if (ast_strlen_zero(encoding_name)) {
+		return NULL;
+	}
+	if (sscanf(slash, "%30d%n", &clock_rate, &clock_rate_len) < 1) {
+		return NULL;
+	}
+
+	slash += clock_rate_len;
+	if (!ast_strlen_zero(slash)) {
+		if (*slash == '/') {
+			*slash++ = '\0';
+			encoding_parameters = slash;
+			if (ast_strlen_zero(encoding_parameters)) {
+				return NULL;
+			}
+		} else {
+			return NULL;
+		}
+	} else {
+		encoding_parameters = "";
+	}
+
+	rtpmap = ast_sdp_rtpmap_alloc(payload, encoding_name, clock_rate,
+		encoding_parameters);
+
+	return rtpmap;
+}
+
+/*!
+ * \brief Turn an SDP attribute into an sdp_rtpmap structure
+ *
+ * \param m_line The media section where this attribute was found.
+ * \param payload The RTP payload to find an rtpmap for
+ * \param[out] rtpmap The rtpmap to fill in.
+ * \return Zero if successful, otherwise less than zero
+ */
+static struct ast_sdp_rtpmap *sdp_payload_get_rtpmap(const struct ast_sdp_m_line *m_line, int payload)
+{
+	struct ast_sdp_a_line *rtpmap_attr;
+
+	rtpmap_attr = ast_sdp_m_find_attribute(m_line, "rtpmap", payload);
+	if (!rtpmap_attr) {
+		return NULL;
+	}
+
+	return ast_sdp_a_get_rtpmap(rtpmap_attr);
+}
+
+/*!
+ * \brief Find and process fmtp attributes for a given payload
+ *
+ * \param m_line The stream on which to search for the fmtp attribute
+ * \param payload The specific fmtp attribute to search for
+ * \param codecs The current RTP codecs that have been built up
+ */
+static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
+	struct ast_rtp_codecs *codecs)
+{
+	struct ast_sdp_a_line *attr;
+	char *param;
+	char *param_start;
+	char *param_end;
+	size_t len;
+	struct ast_format *replace;
+	struct ast_format *format;
+
+	attr = ast_sdp_m_find_attribute(m_line, "fmtp", payload);
+	if (!attr) {
+		return;
+	}
+
+	/* Extract the "a=fmtp:%d %s" attribute parameter string after the payload type. */
+	param_start = ast_skip_nonblanks(attr->value);/* Skip payload type */
+	param_start = ast_skip_blanks(param_start);
+	param_end = ast_skip_nonblanks(param_start);
+	if (param_end == param_start) {
+		/* There is no parameter string */
+		return;
+	}
+	len = param_end - param_start;
+	param = ast_alloca(len + 1);
+	memcpy(param, param_start, len);
+	param[len] = '\0';
+
+	format = ast_rtp_codecs_get_payload_format(codecs, payload);
+	if (!format) {
+		return;
+	}
+
+	replace = ast_format_parse_sdp_fmtp(format, param);
+	if (replace) {
+		ast_rtp_codecs_payload_replace_format(codecs, payload, replace);
+		ao2_ref(replace, -1);
+	}
+	ao2_ref(format, -1);
+}
+
+/*!
+ * \brief Convert an SDP stream into an Asterisk stream
+ *
+ * Given an m-line from an SDP, convert it into an ast_stream structure.
+ * This takes formats, as well as clock-rate and fmtp attributes into account.
+ *
+ * \param m_line The SDP media section to convert
+ * \retval NULL An error occurred
+ * \retval non-NULL The converted stream
+ */
+static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
+{
+	int i;
+	int non_ast_fmts;
+	struct ast_rtp_codecs codecs;
+	struct ast_format_cap *caps;
+	struct ast_stream *stream;
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
+	stream = ast_stream_alloc(m_line->type, ast_media_type_from_str(m_line->type));
+	if (!stream) {
+		ao2_ref(caps, -1);
+		return NULL;
+	}
+	ast_rtp_codecs_payloads_initialize(&codecs);
+
+	for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
+		struct ast_sdp_payload *payload_s;
+		struct ast_sdp_rtpmap *rtpmap;
+		int payload;
+
+		payload_s = ast_sdp_m_get_payload(m_line, i);
+		sscanf(payload_s->fmt, "%30d", &payload);
+		ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, payload);
+
+		rtpmap = sdp_payload_get_rtpmap(m_line, payload);
+		if (!rtpmap) {
+			continue;
+		}
+		ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
+			payload, m_line->type, rtpmap->encoding_name, 0,
+			rtpmap->clock_rate);
+		ast_sdp_rtpmap_free(rtpmap);
+
+		process_fmtp(m_line, payload, &codecs);
+	}
+
+	ast_rtp_codecs_payload_formats(&codecs, caps, &non_ast_fmts);
+	ast_stream_set_formats(stream, caps);
+
+	ao2_ref(caps, -1);
+	ast_rtp_codecs_payloads_destroy(&codecs);
+	return stream;
+}
+
+struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp)
+{
+	struct ast_stream_topology *topology;
+	int i;
+
+	topology = ast_stream_topology_alloc();
+	if (!topology) {
+		return NULL;
+	}
+
+	for (i = 0; i < ast_sdp_get_m_count(sdp); ++i) {
+		struct ast_stream *stream;
+
+		stream = get_stream_from_m(ast_sdp_get_m(sdp, i));
+		if (!stream) {
+			continue;
+		}
+		ast_stream_topology_append_stream(topology, stream);
+	}
+
+	return topology;
+}
