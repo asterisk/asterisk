@@ -1300,9 +1300,19 @@ static void session_destructor(void *obj)
 	struct ast_sip_session *session = obj;
 	struct ast_sip_session_supplement *supplement;
 	struct ast_sip_session_delayed_request *delay;
+	const char *endpoint_name = session->endpoint ?
+		ast_sorcery_object_get_id(session->endpoint) : "<none>";
 
-	ast_debug(3, "Destroying SIP session with endpoint %s\n",
-		session->endpoint ? ast_sorcery_object_get_id(session->endpoint) : "<none>");
+	ast_debug(3, "Destroying SIP session with endpoint %s\n", endpoint_name);
+
+	ast_test_suite_event_notify("SESSION_DESTROYING",
+		"Endpoint: %s\r\n"
+		"AOR: %s\r\n"
+		"Contact: %s"
+		, endpoint_name
+		, session->aor ? ast_sorcery_object_get_id(session->aor) : "<none>"
+		, session->contact ? ast_sorcery_object_get_id(session->contact) : "<none>"
+		);
 
 	while ((supplement = AST_LIST_REMOVE_HEAD(&session->supplements, next))) {
 		if (supplement->session_destroy) {
@@ -1331,6 +1341,8 @@ static void session_destructor(void *obj)
 	if (session->inv_session) {
 		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
 	}
+
+	ast_test_suite_event_notify("SESSION_DESTROYED", "Endpoint: %s", endpoint_name);
 }
 
 static int add_supplements(struct ast_sip_session *session)
@@ -1791,6 +1803,9 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	return ret_session;
 }
 
+static int session_end(void *vsession);
+static int session_end_completion(void *vsession);
+
 void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 {
 	pj_status_t status;
@@ -1807,7 +1822,25 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 
 	switch (session->inv_session->state) {
 	case PJSIP_INV_STATE_NULL:
-		pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
+		if (!session->inv_session->invite_tsx) {
+			/*
+			 * Normally, it's pjproject's transaction cleanup that ultimately causes the
+			 * final session reference to be released but if both STATE and invite_tsx are NULL,
+			 * we never created a transaction in the first place.  In this case, we need to
+			 * do the cleanup ourselves.
+			 */
+			/* Transfer the inv_session session reference to the session_end_task */
+			session->inv_session->mod_data[session_module.id] = NULL;
+			pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
+			session_end(session);
+			/*
+			 * session_end_completion will cleanup the final session reference unless
+			 * ast_sip_session_terminate's caller is holding one.
+			 */
+			session_end_completion(session);
+		} else {
+			pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
+		}
 		break;
 	case PJSIP_INV_STATE_CONFIRMED:
 		if (session->inv_session->invite_tsx) {
