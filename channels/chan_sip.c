@@ -28952,7 +28952,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 					return -1;
 				}
 				if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
-					ast_queue_control(p->owner, AST_CONTROL_SRCCHANGE);
+					ast_queue_control(p->owner, AST_CONTROL_UPDATE_RTP_PEER);
 				}
 			}
 			sched_check_pendings(p);
