@@ -693,6 +693,17 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
 	ao2_ref(format, -1);
 }
 
+/*
+ * Needed so we don't have an external function referenced as data.
+ * The dynamic linker doesn't handle that very well.
+ */
+static void rtp_codecs_free(struct ast_rtp_codecs *codecs)
+{
+	if (codecs) {
+		ast_rtp_codecs_payloads_destroy(codecs);
+	}
+}
+
 /*!
  * \brief Convert an SDP stream into an Asterisk stream
  *
@@ -700,16 +711,19 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
  * This takes formats, as well as clock-rate and fmtp attributes into account.
  *
  * \param m_line The SDP media section to convert
+ * \param g726_non_standard Non-zero if G.726 is non-standard
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The converted stream
  */
-static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
+static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line, int g726_non_standard)
 {
 	int i;
 	int non_ast_fmts;
-	struct ast_rtp_codecs codecs;
+	struct ast_rtp_codecs *codecs;
 	struct ast_format_cap *caps;
 	struct ast_stream *stream;
+	enum ast_rtp_options options;
 
 	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!caps) {
@@ -724,8 +738,15 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 	switch (ast_stream_get_type(stream)) {
 	case AST_MEDIA_TYPE_AUDIO:
 	case AST_MEDIA_TYPE_VIDEO:
-		ast_rtp_codecs_payloads_initialize(&codecs);
+		codecs = ast_calloc(1, sizeof(*codecs));
+		if (!codecs || ast_rtp_codecs_payloads_initialize(codecs)) {
+			rtp_codecs_free(codecs);
+			ast_stream_free(stream);
+			ao2_ref(caps, -1);
+			return NULL;
+		}
 
+		options = g726_non_standard ? AST_RTP_OPT_G726_NONSTANDARD : 0;
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
 			struct ast_sdp_payload *payload_s;
 			struct ast_sdp_rtpmap *rtpmap;
@@ -733,22 +754,25 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 
 			payload_s = ast_sdp_m_get_payload(m_line, i);
 			sscanf(payload_s->fmt, "%30d", &payload);
-			ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, payload);
 
 			rtpmap = sdp_payload_get_rtpmap(m_line, payload);
 			if (!rtpmap) {
+				/* No rtpmap attribute.  Try static payload type format assignment */
+				ast_rtp_codecs_payloads_set_m_type(codecs, NULL, payload);
 				continue;
 			}
-			ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
-				payload, m_line->type, rtpmap->encoding_name, 0,
-				rtpmap->clock_rate);
-			ast_sdp_rtpmap_free(rtpmap);
 
-			process_fmtp(m_line, payload, &codecs);
+			if (!ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, payload,
+				m_line->type, rtpmap->encoding_name, options, rtpmap->clock_rate)) {
+				/* Successfully mapped the payload type to format */
+				process_fmtp(m_line, payload, codecs);
+			}
+			ast_sdp_rtpmap_free(rtpmap);
 		}
 
-		ast_rtp_codecs_payload_formats(&codecs, caps, &non_ast_fmts);
-		ast_rtp_codecs_payloads_destroy(&codecs);
+		ast_rtp_codecs_payload_formats(codecs, caps, &non_ast_fmts);
+		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_CODECS, codecs,
+			(ast_stream_data_free_fn) rtp_codecs_free);
 		break;
 	case AST_MEDIA_TYPE_IMAGE:
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
@@ -773,7 +797,7 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 	return stream;
 }
 
-struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp)
+struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp, int g726_non_standard)
 {
 	struct ast_stream_topology *topology;
 	int i;
@@ -786,11 +810,21 @@ struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp)
 	for (i = 0; i < ast_sdp_get_m_count(sdp); ++i) {
 		struct ast_stream *stream;
 
-		stream = get_stream_from_m(ast_sdp_get_m(sdp, i));
+		stream = get_stream_from_m(ast_sdp_get_m(sdp, i), g726_non_standard);
 		if (!stream) {
-			continue;
+			/*
+			 * The topology cannot match the SDP because
+			 * we failed to create a corresponding stream.
+			 */
+			ast_stream_topology_free(topology);
+			return NULL;
 		}
-		ast_stream_topology_append_stream(topology, stream);
+		if (ast_stream_topology_append_stream(topology, stream) < 0) {
+			/* Failed to add stream to topology */
+			ast_stream_free(stream);
+			ast_stream_topology_free(topology);
+			return NULL;
+		}
 	}
 
 	return topology;

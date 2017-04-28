@@ -638,11 +638,12 @@ void ast_sdp_rtpmap_free(struct ast_sdp_rtpmap *rtpmap);
  * each m-line corresponding to a stream in the created topology.
  *
  * \param sdp The SDP to convert
+ * \param g726_non_standard Non-zero if G.726 is non-standard
  *
  * \retval NULL An error occurred when converting
  * \retval non-NULL The generated stream topology
  *
  * \since 15.0.0
  */
-struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp);
+struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp, int g726_non_standard);
 #endif /* _SDP_PRIV_H */

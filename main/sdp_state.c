@@ -1007,7 +1007,8 @@ static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *rem
 	struct ast_stream_topology *remote_capabilities;
 	int i;
 
-	remote_capabilities = ast_get_topology_from_sdp(remote_sdp);
+	remote_capabilities = ast_get_topology_from_sdp(remote_sdp,
+		sdp_state->options->g726_non_standard);
 	if (!remote_capabilities) {
 		return -1;
 	}

@@ -623,7 +623,11 @@ AST_TEST_DEFINE(sdp_to_topology)
 		goto end;
 	}
 
-	topology = ast_get_topology_from_sdp(sdp);
+	topology = ast_get_topology_from_sdp(sdp, 0);
+	if (!topology) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 
 	if (ast_stream_topology_get_count(topology) != 3) {
 		ast_test_status_update(test, "Unexpected topology count '%d'. Expecting 2\n",

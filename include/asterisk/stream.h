@@ -55,39 +55,39 @@ typedef void (*ast_stream_data_free_fn)(void *);
  * \brief States that a stream may be in
  */
 enum ast_stream_state {
-    /*!
-     * \brief Set when the stream has been removed
-     */
-    AST_STREAM_STATE_REMOVED = 0,
-    /*!
-     * \brief Set when the stream is sending and receiving media
-     */
-    AST_STREAM_STATE_SENDRECV,
-    /*!
-     * \brief Set when the stream is sending media only
-     */
-    AST_STREAM_STATE_SENDONLY,
-    /*!
-     * \brief Set when the stream is receiving media only
-     */
-    AST_STREAM_STATE_RECVONLY,
-    /*!
-     * \brief Set when the stream is not sending OR receiving media
-     */
-    AST_STREAM_STATE_INACTIVE,
+	/*!
+	 * \brief Set when the stream has been removed
+	 */
+	AST_STREAM_STATE_REMOVED = 0,
+	/*!
+	 * \brief Set when the stream is sending and receiving media
+	 */
+	AST_STREAM_STATE_SENDRECV,
+	/*!
+	 * \brief Set when the stream is sending media only
+	 */
+	AST_STREAM_STATE_SENDONLY,
+	/*!
+	 * \brief Set when the stream is receiving media only
+	 */
+	AST_STREAM_STATE_RECVONLY,
+	/*!
+	 * \brief Set when the stream is not sending OR receiving media
+	 */
+	AST_STREAM_STATE_INACTIVE,
 };
 
 /*!
  * \brief Stream data slots
  */
 enum ast_stream_data_slot {
-    /*!
-     * \brief Data slot for RTP instance
-     */
-	AST_STREAM_DATA_RTP_INSTANCE = 0,
-    /*!
-     * \brief Controls the size of the data pointer array
-     */
+	/*!
+	 * \brief Data slot for RTP instance
+	 */
+	AST_STREAM_DATA_RTP_CODECS = 0,
+	/*!
+	 * \brief Controls the size of the data pointer array
+	 */
 	AST_STREAM_DATA_SLOT_MAX
 };
 
@@ -386,15 +386,15 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
  *
  * \param topology The topology of streams
  *
-  * \retval non-NULL success
-  * \retval NULL failure
-  *
-  * \note The stream topology is NOT altered by this function.
-  *
-  * \since 15
-  */
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note The stream topology is NOT altered by this function.
+ *
+ * \since 15
+ */
 struct ast_format_cap *ast_format_cap_from_stream_topology(
-    struct ast_stream_topology *topology);
+	struct ast_stream_topology *topology);
 
 /*!
  * \brief Gets the first stream of a specific type from the topology
