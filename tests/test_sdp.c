@@ -276,6 +276,7 @@ AST_TEST_DEFINE(find_attr)
 	enum ast_test_result_state res = AST_TEST_PASS;
 	struct ast_sdp_m_line *m_line;
 	struct ast_sdp_a_line *a_line;
+	int idx;
 
 	switch(cmd) {
 	case TEST_INIT:
@@ -283,7 +284,7 @@ AST_TEST_DEFINE(find_attr)
 		info->category = "/main/sdp/";
 		info->summary = "Ensure that finding attributes works as expected";
 		info->description =
-			"An SDP m-line is created, and two attributes are added.\n"
+			"A SDP m-line is created, and attributes are added.\n"
 			"We then attempt a series of attribute-finding calls that are expected to work\n"
 			"followed by a series of attribute-finding calls that are expected fo fail.";
 		return AST_TEST_NOT_RUN;
@@ -302,6 +303,12 @@ AST_TEST_DEFINE(find_attr)
 		goto end;
 	}
 	ast_sdp_m_add_a(m_line, a_line);
+	a_line = ast_sdp_a_alloc("foo", "0 bee");
+	if (!a_line) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	ast_sdp_m_add_a(m_line, a_line);
 
 	a_line = ast_sdp_a_alloc("baz", "howdy");
 	if (!a_line) {
@@ -312,18 +319,74 @@ AST_TEST_DEFINE(find_attr)
 
 	/* These should work */
 	a_line = ast_sdp_m_find_attribute(m_line, "foo", 0);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
 		ast_test_status_update(test, "Failed to find attribute 'foo' with payload '0'\n");
 		res = AST_TEST_FAIL;
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "foo", -1);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
 		ast_test_status_update(test, "Failed to find attribute 'foo' with unspecified payload\n");
 		res = AST_TEST_FAIL;
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "baz", -1);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "howdy")) {
 		ast_test_status_update(test, "Failed to find attribute 'baz' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+	}
+
+	idx = ast_sdp_m_find_a_first(m_line, "foo", 0);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find first attribute 'foo' with payload '0'\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
+		ast_test_status_update(test, "Find first attribute 'foo' with payload '0' didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", 0);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find next attribute 'foo' with payload '0'\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bee")) {
+		ast_test_status_update(test, "Find next attribute 'foo' with payload '0' didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", 0);
+	if (0 <= idx) {
+		ast_test_status_update(test, "Find next attribute 'foo' with payload '0' found too many\n");
+		res = AST_TEST_FAIL;
+	}
+
+	idx = ast_sdp_m_find_a_first(m_line, "foo", -1);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find first attribute 'foo' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
+		ast_test_status_update(test, "Find first attribute 'foo' with unspecified payload didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", -1);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find next attribute 'foo' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bee")) {
+		ast_test_status_update(test, "Find next attribute 'foo' with unspecified payload didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", -1);
+	if (0 <= idx) {
+		ast_test_status_update(test, "Find next attribute 'foo' with unspecified payload found too many\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -345,7 +408,7 @@ AST_TEST_DEFINE(find_attr)
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "wibble", -1);
 	if (a_line) {
-		ast_test_status_update(test, "Found non-existent attribute 'foo' with unspecified payload\n");
+		ast_test_status_update(test, "Found non-existent attribute 'wibble' with unspecified payload\n");
 		res = AST_TEST_FAIL;
 	}
 

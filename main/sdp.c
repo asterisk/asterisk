@@ -508,44 +508,81 @@ int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_opt
 		|| sdp_m_add_fmtp(m_line, format, rtp_code) ? -1 : 0;
 }
 
-static struct ast_sdp_a_line *sdp_find_attribute_common(const struct ast_sdp_a_lines *a_lines,
+static int sdp_find_a_common(const struct ast_sdp_a_lines *a_lines, int start,
 	const char *attr_name, int payload)
 {
 	struct ast_sdp_a_line *a_line;
-	int i;
+	int idx;
 
-	for (i = 0; i < AST_VECTOR_SIZE(a_lines); ++i) {
+	ast_assert(-1 <= start);
+
+	for (idx = start + 1; idx < AST_VECTOR_SIZE(a_lines); ++idx) {
 		int a_line_payload;
 
-		a_line = AST_VECTOR_GET(a_lines, i);
+		a_line = AST_VECTOR_GET(a_lines, idx);
 		if (strcmp(a_line->name, attr_name)) {
 			continue;
 		}
 
 		if (payload >= 0) {
 			int sscanf_res;
+
 			sscanf_res = sscanf(a_line->value, "%30d", &a_line_payload);
 			if (sscanf_res == 1 && payload == a_line_payload) {
-				return a_line;
+				return idx;
 			}
 		} else {
-			return a_line;
+			return idx;
 		}
 	}
 
-	return NULL;
+	return -1;
+}
+
+int ast_sdp_find_a_first(const struct ast_sdp *sdp, const char *attr_name, int payload)
+{
+	return sdp_find_a_common(sdp->a_lines, -1, attr_name, payload);
+}
+
+int ast_sdp_find_a_next(const struct ast_sdp *sdp, int last, const char *attr_name, int payload)
+{
+	return sdp_find_a_common(sdp->a_lines, last, attr_name, payload);
 }
 
 struct ast_sdp_a_line *ast_sdp_find_attribute(const struct ast_sdp *sdp,
 	const char *attr_name, int payload)
 {
-	return sdp_find_attribute_common(sdp->a_lines, attr_name, payload);
+	int idx;
+
+	idx = ast_sdp_find_a_first(sdp, attr_name, payload);
+	if (idx < 0) {
+		return NULL;
+	}
+	return ast_sdp_get_a(sdp, idx);
+}
+
+int ast_sdp_m_find_a_first(const struct ast_sdp_m_line *m_line, const char *attr_name,
+	int payload)
+{
+	return sdp_find_a_common(m_line->a_lines, -1, attr_name, payload);
+}
+
+int ast_sdp_m_find_a_next(const struct ast_sdp_m_line *m_line, int last,
+	const char *attr_name, int payload)
+{
+	return sdp_find_a_common(m_line->a_lines, last, attr_name, payload);
 }
 
 struct ast_sdp_a_line *ast_sdp_m_find_attribute(const struct ast_sdp_m_line *m_line,
 	const char *attr_name, int payload)
 {
-	return sdp_find_attribute_common(m_line->a_lines, attr_name, payload);
+	int idx;
+
+	idx = ast_sdp_m_find_a_first(m_line, attr_name, payload);
+	if (idx < 0) {
+		return NULL;
+	}
+	return ast_sdp_m_get_a(m_line, idx);
 }
 
 struct ast_sdp_rtpmap *ast_sdp_rtpmap_alloc(int payload, const char *encoding_name,
@@ -644,17 +681,8 @@ static struct ast_sdp_rtpmap *sdp_payload_get_rtpmap(const struct ast_sdp_m_line
 	return ast_sdp_a_get_rtpmap(rtpmap_attr);
 }
 
-/*!
- * \brief Find and process fmtp attributes for a given payload
- *
- * \param m_line The stream on which to search for the fmtp attribute
- * \param payload The specific fmtp attribute to search for
- * \param codecs The current RTP codecs that have been built up
- */
-static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
-	struct ast_rtp_codecs *codecs)
+static void process_fmtp_value(const char *value, int payload, struct ast_rtp_codecs *codecs)
 {
-	struct ast_sdp_a_line *attr;
 	char *param;
 	char *param_start;
 	char *param_end;
@@ -662,13 +690,11 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
 	struct ast_format *replace;
 	struct ast_format *format;
 
-	attr = ast_sdp_m_find_attribute(m_line, "fmtp", payload);
-	if (!attr) {
-		return;
-	}
-
-	/* Extract the "a=fmtp:%d %s" attribute parameter string after the payload type. */
-	param_start = ast_skip_nonblanks(attr->value);/* Skip payload type */
+	/*
+	 * Extract the "a=fmtp:%d %s" attribute parameter string value which
+	 * starts after the colon.
+	 */
+	param_start = ast_skip_nonblanks(value);/* Skip payload type */
 	param_start = ast_skip_blanks(param_start);
 	param_end = ast_skip_nonblanks(param_start);
 	if (param_end == param_start) {
@@ -691,6 +717,28 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
 		ao2_ref(replace, -1);
 	}
 	ao2_ref(format, -1);
+}
+
+/*!
+ * \brief Find and process all fmtp attribute lines for a given payload
+ *
+ * \param m_line The stream on which to search for the fmtp attributes
+ * \param payload The specific fmtp attribute to search for
+ * \param codecs The current RTP codecs that have been built up
+ */
+static void process_fmtp_lines(const struct ast_sdp_m_line *m_line, int payload,
+	struct ast_rtp_codecs *codecs)
+{
+	const struct ast_sdp_a_line *a_line;
+	int idx;
+
+	idx = ast_sdp_m_find_a_first(m_line, "fmtp", payload);
+	for (; 0 <= idx; idx = ast_sdp_m_find_a_next(m_line, idx, "fmtp", payload)) {
+		a_line = ast_sdp_m_get_a(m_line, idx);
+		ast_assert(a_line != NULL);
+
+		process_fmtp_value(a_line->value, payload, codecs);
+	}
 }
 
 /*
@@ -765,7 +813,7 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line,
 			if (!ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, payload,
 				m_line->type, rtpmap->encoding_name, options, rtpmap->clock_rate)) {
 				/* Successfully mapped the payload type to format */
-				process_fmtp(m_line, payload, codecs);
+				process_fmtp_lines(m_line, payload, codecs);
 			}
 			ast_sdp_rtpmap_free(rtpmap);
 		}
