@@ -31,7 +31,9 @@
 #include "asterisk/module.h"
 #include "asterisk/strings.h"
 
-static pjsip_www_authenticate_hdr *get_auth_header(pjsip_rx_data *challenge) {
+static pjsip_www_authenticate_hdr *get_auth_header(pjsip_rx_data *challenge,
+	const void *start)
+{
 	pjsip_hdr_e search_type;
 
 	if (challenge->msg_info.msg->line.status.code == PJSIP_SC_UNAUTHORIZED) {
@@ -45,29 +47,22 @@ static pjsip_www_authenticate_hdr *get_auth_header(pjsip_rx_data *challenge) {
 		return NULL ;
 	}
 
-	return pjsip_msg_find_hdr(challenge->msg_info.msg, search_type, NULL);
+	return pjsip_msg_find_hdr(challenge->msg_info.msg, search_type, start);
 
 }
 
 static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess,
-		const struct ast_sip_auth_vector *auth_vector, pjsip_rx_data *challenge)
+		const struct ast_sip_auth_vector *auth_vector, pjsip_rx_data *challenge,
+		pjsip_www_authenticate_hdr *auth_hdr)
 {
 	size_t auth_size = AST_VECTOR_SIZE(auth_vector);
 	struct ast_sip_auth **auths = ast_alloca(auth_size * sizeof(*auths));
 	pjsip_cred_info *auth_creds = ast_alloca(auth_size * sizeof(*auth_creds));
-	pjsip_www_authenticate_hdr *auth_hdr = NULL;
 	int res = 0;
 	int i;
 
 	if (ast_sip_retrieve_auths(auth_vector, auths)) {
 		res = -1;
-		goto cleanup;
-	}
-
-	auth_hdr = get_auth_header(challenge);
-	if (auth_hdr == NULL) {
-		res = -1;
-		ast_log(LOG_ERROR, "Unable to find authenticate header in challenge.\n");
 		goto cleanup;
 	}
 
@@ -101,21 +96,50 @@ cleanup:
 	return res;
 }
 
-static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
-		pjsip_tx_data *old_request, pjsip_tx_data **new_request)
+static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_vector *auths,
+	pjsip_rx_data *challenge, pjsip_tx_data *old_request, pjsip_tx_data **new_request)
 {
 	pjsip_auth_clt_sess auth_sess;
 	pjsip_cseq_hdr *cseq;
 	pj_status_t status;
+	struct ast_sip_endpoint *endpoint;
+	char *id = NULL;
+	const char *id_type;
+	pjsip_www_authenticate_hdr *auth_hdr;
+	struct ast_str *realms;
+	pjsip_dialog *dlg;
 
-	if (pjsip_auth_clt_init(&auth_sess, ast_sip_get_pjsip_endpoint(),
-				old_request->pool, 0) != PJ_SUCCESS) {
-		ast_log(LOG_WARNING, "Failed to initialize client authentication session\n");
+	dlg = pjsip_rdata_get_dlg(challenge);
+	if (dlg) {
+		endpoint = ast_sip_dialog_get_endpoint(dlg);
+		id = endpoint ? ast_strdupa(ast_sorcery_object_get_id(endpoint)) : NULL;
+		ao2_cleanup(endpoint);
+		id_type = "Endpoint";
+	}
+	/* If there was no dialog, then this is probably a REGISTER so no endpoint */
+	if (!id) {
+		id = ast_alloca(strlen(challenge->pkt_info.src_name) + 7 /* ':' + port + NULL */);
+		sprintf(id, "%s:%d", challenge->pkt_info.src_name, challenge->pkt_info.src_port);
+		id_type = "Host";
+	}
+
+	auth_hdr = get_auth_header(challenge, NULL);
+	if (auth_hdr == NULL) {
+		ast_log(LOG_ERROR, "%s: '%s': Unable to find authenticate header in challenge.\n",
+			id_type, id);
 		return -1;
 	}
 
-	if (set_outbound_authentication_credentials(&auth_sess, auths, challenge)) {
-		ast_log(LOG_WARNING, "Failed to set authentication credentials\n");
+	if (pjsip_auth_clt_init(&auth_sess, ast_sip_get_pjsip_endpoint(),
+				old_request->pool, 0) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "%s: '%s': Failed to initialize client authentication session\n",
+			id_type, id);
+		return -1;
+	}
+
+	if (set_outbound_authentication_credentials(&auth_sess, auths, challenge, auth_hdr)) {
+		ast_log(LOG_WARNING, "%s: '%s': Failed to set authentication credentials\n",
+			id_type, id);
 #if defined(HAVE_PJSIP_AUTH_CLT_DEINIT)
 		/* In case it is not a noop here in the future. */
 		pjsip_auth_clt_deinit(&auth_sess);
@@ -128,6 +152,7 @@ static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_ve
 	/* Release any cached auths */
 	pjsip_auth_clt_deinit(&auth_sess);
 #endif
+
 	switch (status) {
 	case PJ_SUCCESS:
 		/* PJSIP creates a new transaction for new_request (meaning it creates a new
@@ -141,18 +166,33 @@ static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_ve
 		++cseq->cseq;
 		return 0;
 	case PJSIP_ENOCREDENTIAL:
+		realms = ast_str_create(32);
+		if (realms) {
+			ast_str_append(&realms, 0, "%.*s", (int)auth_hdr->challenge.common.realm.slen,
+				auth_hdr->challenge.common.realm.ptr);
+			while((auth_hdr = get_auth_header(challenge, auth_hdr->next))) {
+				ast_str_append(&realms, 0, ",%.*s", (int)auth_hdr->challenge.common.realm.slen,
+					auth_hdr->challenge.common.realm.ptr);
+			}
+		}
 		ast_log(LOG_WARNING,
-			"Unable to create request with auth.  No auth credentials for any realms in challenge.\n");
+			"%s: '%s': Unable to create request with auth. "
+			"No auth credentials for realm(s) '%s' in challenge.\n", id_type, id,
+			realms ? ast_str_buffer(realms) : "<unknown>");
+		ast_free(realms);
 		break;
 	case PJSIP_EAUTHSTALECOUNT:
 		ast_log(LOG_WARNING,
-			"Unable to create request with auth.  Number of stale retries exceeded.\n");
+			"%s: '%s': Unable to create request with auth.  Number of stale retries exceeded.\n",
+			id_type, id);
 		break;
 	case PJSIP_EFAILEDCREDENTIAL:
-		ast_log(LOG_WARNING, "Authentication credentials not accepted by server.\n");
+		ast_log(LOG_WARNING, "%s: '%s': Authentication credentials not accepted by server.\n",
+			id_type, id);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Unable to create request with auth. Unknown failure.\n");
+		ast_log(LOG_WARNING, "%s: '%s': Unable to create request with auth. Unknown failure.\n",
+			id_type, id);
 		break;
 	}
 
