@@ -522,6 +522,7 @@ const struct ast_sdp_options *ast_sdp_state_get_options(
  *
  * \param local Our local stream
  * \param remote A remote stream
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The joint stream created
  */
@@ -540,10 +541,6 @@ static struct ast_stream *merge_streams(const struct ast_stream *local,
 		ast_stream_get_type(remote));
 	if (!joint_stream) {
 		return NULL;
-	}
-
-	if (!local) {
-		return joint_stream;
 	}
 
 	joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
@@ -576,63 +573,100 @@ static struct ast_stream *merge_streams(const struct ast_stream *local,
  * \param local The local topology
  * \param media_type The type of stream we are looking for
  * \param[in,out] media_indices Keeps track of where to start searching in the topology
- * \retval NULL No corresponding stream found
- * \retval non-NULL The corresponding stream
+ *
+ * \retval -1 No corresponding stream found
+ * \retval index The corresponding stream index
  */
 static int get_corresponding_index(const struct ast_stream_topology *local,
 	enum ast_media_type media_type, int *media_indices)
 {
 	int i;
-	int winner = -1;
 
 	for (i = media_indices[media_type]; i < ast_stream_topology_get_count(local); ++i) {
 		struct ast_stream *candidate;
 
 		candidate = ast_stream_topology_get_stream(local, i);
 		if (ast_stream_get_type(candidate) == media_type) {
-			winner = i;
-			break;
+			media_indices[media_type] = i + 1;
+			return i;
 		}
 	}
 
-	media_indices[media_type] = i + 1;
-	return winner;
+	/* No stream of the type left in the topology */
+	media_indices[media_type] = i;
+	return -1;
 }
 
 /*!
+ * XXX TODO The merge_capabilities() function needs to be split into
+ * merging for new local topologies and new remote topologies.  Also
+ * the possibility of changing the stream types needs consideration.
+ * Audio to video may or may not need us to keep the same RTP instance
+ * because the stream position is still RTP.  A new RTP instance would
+ * cause us to change ports.  Audio to image is definitely going to
+ * happen for T.38.
+ *
+ * A new remote topology as an initial offer needs to dictate the
+ * number of streams and the order.  As a sdp_state option we may
+ * allow creation of new active streams not defined by the current
+ * local topology.  A subsequent remote offer can change the stream
+ * types and add streams.  The sdp_state option could regulate
+ * creation of new active streams here as well.  An answer cannot
+ * change stream types or the number of streams but can decline
+ * streams.  Any attempt to do so should report an error and possibly
+ * disconnect the call.
+ *
+ * A local topology update needs to be merged differently.  It cannot
+ * reduce the number of streams already defined without violating the
+ * SDP RFC.  The local merge could take the new topology stream
+ * verbatim and add declined streams to fill out any shortfall with
+ * the exiting topology.  This strategy is needed if we want to change
+ * an audio stream to an image stream for T.38 fax and vice versa.
+ * The local merge could take the new topology and map the streams to
+ * the existing local topology.  The new topology stream format caps
+ * would be copied into the merged topology so we could change what
+ * codecs are negotiated.
+ */
+/*!
  * \brief Merge existing stream capabilities and a new topology into joint capabilities.
  *
- * This is a bit complicated. The idea is that we already have some capabilities set, and
- * we've now been confronted with a new stream topology. We want to take what's been
- * presented to us and merge those new capabilities with our own.
- *
- * For each of the new streams, we try to find a corresponding stream in our current
- * capabilities. If we find one, then we get the compatible formats of the two streams
- * and create a new stream with those formats set. We then will re-use the underlying
- * media instance (such as an RTP instance) on this merged stream.
- *
- * The create_new parameter determines whether we should attempt to create new media
- * instances.
- * If we do not find a corresponding stream, then we create a new one. If the
- * create_new parameter is true, this created stream is made a clone of the new stream,
- * and a media instance is created. If the create_new parameter is not true, then the
- * created stream has no formats set and no media instance is created for it.
- *
- * \param current Current capabilities of the SDP state (may be NULL)
+ * \param sdp_state The state needing capabilities merged
  * \param new_topology The new topology to base merged capabilities on
- * \param options The options set on the SDP state
+ * \param is_local If new_topology is a local update.
+ *
+ * \details
+ * This is a bit complicated. The idea is that we already have some
+ * capabilities set, and we've now been confronted with a new stream
+ * topology.  We want to take what's been presented to us and merge
+ * those new capabilities with our own.
+ *
+ * For each of the new streams, we try to find a corresponding stream
+ * in our proposed capabilities.  If we find one, then we get the
+ * compatible formats of the two streams and create a new stream with
+ * those formats set.  We then will re-use the underlying media
+ * instance (such as an RTP instance) on this merged stream.
+ *
+ * The is_local parameter determines whether we should attempt to
+ * create new media instances.  If we do not find a corresponding
+ * stream, then we create a new one.  If the is_local parameter is
+ * true, this created stream is made a clone of the new stream, and a
+ * media instance is created.  If the is_local parameter is not true,
+ * then the created stream has no formats set and no media instance is
+ * created for it.
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The merged capabilities
  */
-static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_capabilities *current,
-	const struct ast_stream_topology *new_topology, const struct ast_sdp_options *options, int create_missing)
+static struct sdp_state_capabilities *merge_capabilities(const struct ast_sdp_state *sdp_state,
+	const struct ast_stream_topology *new_topology, int is_local)
 {
+	const struct sdp_state_capabilities *local = sdp_state->proposed_capabilities;
 	struct sdp_state_capabilities *joint_capabilities;
-	struct ast_stream_topology *topology;
 	int media_indices[AST_MEDIA_TYPE_END] = {0};
 	int i;
+	static const char dummy_name[] = "dummy";
 
-	ast_assert(current != NULL);
+	ast_assert(local != NULL);
 
 	joint_capabilities = ast_calloc(1, sizeof(*joint_capabilities));
 	if (!joint_capabilities) {
@@ -644,20 +678,18 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		goto fail;
 	}
 
-	if (AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&current->streams))) {
+	if (AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&local->streams))) {
 		goto fail;
 	}
-	ast_sockaddr_copy(&joint_capabilities->connection_address, &current->connection_address);
-	topology = current->topology;
+	ast_sockaddr_copy(&joint_capabilities->connection_address, &local->connection_address);
 
 	for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
 		enum ast_media_type new_stream_type;
 		struct ast_stream *new_stream;
-		struct ast_stream *current_stream;
+		struct ast_stream *local_stream;
 		struct ast_stream *joint_stream;
-		struct sdp_state_stream *current_state_stream;
 		struct sdp_state_stream *joint_state_stream;
-		int current_index;
+		int local_index;
 
 		joint_state_stream = ast_calloc(1, sizeof(*joint_state_stream));
 		if (!joint_state_stream) {
@@ -667,26 +699,57 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		new_stream = ast_stream_topology_get_stream(new_topology, i);
 		new_stream_type = ast_stream_get_type(new_stream);
 
-		current_index = get_corresponding_index(topology, new_stream_type, media_indices);
-		if (current_index >= 0) {
-			current_stream = ast_stream_topology_get_stream(topology, current_index);
-			joint_stream = merge_streams(current_stream, new_stream);
+		local_index = get_corresponding_index(local->topology, new_stream_type, media_indices);
+		if (0 <= local_index) {
+			local_stream = ast_stream_topology_get_stream(local->topology, local_index);
+			if (!strcmp(ast_stream_get_name(local_stream), dummy_name)) {
+				/* The local stream is a non-exixtent dummy stream. */
+				local_stream = NULL;
+			}
+		} else {
+			local_stream = NULL;
+		}
+		if (local_stream) {
+			struct sdp_state_stream *local_state_stream;
+			struct ast_rtp_codecs *codecs;
+
+			if (is_local) {
+				/* Replace the local stream with the new local stream. */
+				joint_stream = ast_stream_clone(new_stream);
+			} else {
+				joint_stream = merge_streams(local_stream, new_stream);
+			}
 			if (!joint_stream) {
 				sdp_state_stream_free(joint_state_stream);
 				goto fail;
 			}
 
-			current_state_stream = AST_VECTOR_GET(&current->streams, current_index);
-			joint_state_stream->type = current_state_stream->type;
+			local_state_stream = AST_VECTOR_GET(&local->streams, local_index);
+			joint_state_stream->type = local_state_stream->type;
 
 			switch (joint_state_stream->type) {
 			case AST_MEDIA_TYPE_AUDIO:
 			case AST_MEDIA_TYPE_VIDEO:
-				joint_state_stream->instance = ao2_bump(current_state_stream->instance);
+				joint_state_stream->instance = ao2_bump(local_state_stream->instance);
+				if (is_local) {
+					break;
+				}
+				codecs = ast_stream_get_data(new_stream, AST_STREAM_DATA_RTP_CODECS);
+				ast_assert(codecs != NULL);
+				if (sdp_state->role == SDP_ROLE_ANSWERER) {
+					/*
+					 * Setup rx payload type mapping to prefer the mapping
+					 * from the peer that the RFC says we SHOULD use.
+					 */
+					ast_rtp_codecs_payloads_xover(codecs, codecs, NULL);
+				}
+				ast_rtp_codecs_payloads_copy(codecs,
+					ast_rtp_instance_get_codecs(joint_state_stream->instance),
+					joint_state_stream->instance);
 				break;
 			case AST_MEDIA_TYPE_IMAGE:
-				joint_state_stream->udptl = ao2_bump(current_state_stream->udptl);
-				joint_state_stream->t38_local_params = current_state_stream->t38_local_params;
+				joint_state_stream->udptl = ao2_bump(local_state_stream->udptl);
+				joint_state_stream->t38_local_params = local_state_stream->t38_local_params;
 				break;
 			case AST_MEDIA_TYPE_UNKNOWN:
 			case AST_MEDIA_TYPE_TEXT:
@@ -694,13 +757,14 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 				break;
 			}
 
-			if (!ast_sockaddr_isnull(&current_state_stream->connection_address)) {
-				ast_sockaddr_copy(&joint_state_stream->connection_address, &current_state_stream->connection_address);
+			if (!ast_sockaddr_isnull(&local_state_stream->connection_address)) {
+				ast_sockaddr_copy(&joint_state_stream->connection_address,
+					&local_state_stream->connection_address);
 			} else {
 				ast_sockaddr_setnull(&joint_state_stream->connection_address);
 			}
-			joint_state_stream->locally_held = current_state_stream->locally_held;
-		} else if (create_missing) {
+			joint_state_stream->locally_held = local_state_stream->locally_held;
+		} else if (is_local) {
 			/* We don't have a stream state that corresponds to the stream in the new topology, so
 			 * create a stream state as appropriate.
 			 */
@@ -713,7 +777,8 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			switch (new_stream_type) {
 			case AST_MEDIA_TYPE_AUDIO:
 			case AST_MEDIA_TYPE_VIDEO:
-				joint_state_stream->instance = create_rtp(options, new_stream_type);
+				joint_state_stream->instance = create_rtp(sdp_state->options,
+					new_stream_type);
 				if (!joint_state_stream->instance) {
 					ast_stream_free(joint_stream);
 					sdp_state_stream_free(joint_state_stream);
@@ -721,7 +786,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 				}
 				break;
 			case AST_MEDIA_TYPE_IMAGE:
-				joint_state_stream->udptl = create_udptl(options);
+				joint_state_stream->udptl = create_udptl(sdp_state->options);
 				if (!joint_state_stream->udptl) {
 					ast_stream_free(joint_stream);
 					sdp_state_stream_free(joint_state_stream);
@@ -740,7 +805,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			 * dummy stream to go in its place so that the resulting SDP created will contain
 			 * the stream but will have no port or codecs set
 			 */
-			joint_stream = ast_stream_alloc("dummy", new_stream_type);
+			joint_stream = ast_stream_alloc(dummy_name, new_stream_type);
 			if (!joint_stream) {
 				sdp_state_stream_free(joint_state_stream);
 				goto fail;
@@ -1013,8 +1078,7 @@ static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *rem
 		return -1;
 	}
 
-	joint_capabilities = merge_capabilities(sdp_state->proposed_capabilities,
-		remote_capabilities, sdp_state->options, 0);
+	joint_capabilities = merge_capabilities(sdp_state, remote_capabilities, 0);
 	ast_stream_topology_free(remote_capabilities);
 	if (!joint_capabilities) {
 		return -1;
@@ -1127,7 +1191,7 @@ int ast_sdp_state_update_local_topology(struct ast_sdp_state *sdp_state, struct 
 	ast_assert(sdp_state != NULL);
 	ast_assert(streams != NULL);
 
-	capabilities = merge_capabilities(sdp_state->proposed_capabilities, streams, sdp_state->options, 1);
+	capabilities = merge_capabilities(sdp_state, streams, 1);
 	if (!capabilities) {
 		return -1;
 	}
