@@ -708,8 +708,14 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 {
 	int i;
 
-	ast_rwlock_rdlock(&src->codecs_lock);
 	ast_rwlock_wrlock(&dest->codecs_lock);
+
+	/* Deadlock avoidance because of held write lock. */
+	while (ast_rwlock_tryrdlock(&src->codecs_lock)) {
+		ast_rwlock_unlock(&dest->codecs_lock);
+		sched_yield();
+		ast_rwlock_wrlock(&dest->codecs_lock);
+	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(&src->payloads); i++) {
 		struct ast_rtp_payload_type *type;
@@ -732,8 +738,8 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 		}
 	}
 	dest->framing = src->framing;
-	ast_rwlock_unlock(&dest->codecs_lock);
 	ast_rwlock_unlock(&src->codecs_lock);
+	ast_rwlock_unlock(&dest->codecs_lock);
 }
 
 void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload)
