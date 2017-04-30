@@ -785,7 +785,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	chana_exten = ast_strdupa(ast_channel_exten(chana));
 	chana_context = ast_strdupa(ast_channel_context(chana));
 	chana_priority = ast_channel_priority(chana);
-	if (!ast_test_flag(ast_channel_flags(chana), AST_FLAG_IN_AUTOLOOP)) {
+	if (ast_test_flag(ast_channel_flags(chana), AST_FLAG_IN_AUTOLOOP)) {
 		chana_priority++;
 	}
 	ast_channel_unlock(chana);
@@ -801,7 +801,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	chanb_exten = ast_strdupa(ast_channel_exten(chanb));
 	chanb_context = ast_strdupa(ast_channel_context(chanb));
 	chanb_priority = ast_channel_priority(chanb);
-	if (!ast_test_flag(ast_channel_flags(chanb), AST_FLAG_IN_AUTOLOOP)) {
+	if (ast_test_flag(ast_channel_flags(chanb), AST_FLAG_IN_AUTOLOOP)) {
 		chanb_priority++;
 	}
 	ast_channel_unlock(chanb);
@@ -812,7 +812,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_bridge_set_after_go_on(chana, chana_context, chana_exten, chana_priority, NULL);
+	ast_bridge_set_after_goto(chana, chana_context, chana_exten, chana_priority);
 	if (ast_bridge_add_channel(bridge, chana, NULL, playtone & PLAYTONE_CHANNEL1, xfer_cfg_a ? xfer_cfg_a->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel1 to bridge: %s", ast_channel_name(chana));
 		astman_send_error(s, m, buf);
@@ -820,7 +820,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_bridge_set_after_go_on(chanb, chanb_context, chanb_exten, chanb_priority, NULL);
+	ast_bridge_set_after_goto(chanb, chanb_context, chanb_exten, chanb_priority);
 	if (ast_bridge_add_channel(bridge, chanb, NULL, playtone & PLAYTONE_CHANNEL2, xfer_cfg_b ? xfer_cfg_b->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel2 to bridge: %s", ast_channel_name(chanb));
 		astman_send_error(s, m, buf);

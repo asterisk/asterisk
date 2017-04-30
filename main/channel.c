@@ -10642,6 +10642,7 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 		char *context;
 		char *name;
 		int amaflags;
+		int priority;
 		struct ast_format *readformat;
 		struct ast_format *writeformat;
 	} my_vars = { 0, };
@@ -10652,6 +10653,16 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	my_vars.context = ast_strdupa(ast_channel_context(yankee));
 	my_vars.name = ast_strdupa(ast_channel_name(yankee));
 	my_vars.amaflags = ast_channel_amaflags(yankee);
+	my_vars.priority = ast_channel_priority(yankee);
+	/* The priority as returned by ast_channel_yank is where the channel
+	 * should go if the dialplan is executed on it. If the channel is
+	 * already executing dialplan then the priority currently set is
+	 * where it is currently. We increment it so it becomes where it should
+	 * execute.
+	 */
+	if (ast_test_flag(ast_channel_flags(yankee), AST_FLAG_IN_AUTOLOOP)) {
+		my_vars.priority++;
+	}
 	my_vars.writeformat = ao2_bump(ast_channel_writeformat(yankee));
 	my_vars.readformat = ao2_bump(ast_channel_readformat(yankee));
 	ast_channel_unlock(yankee);
@@ -10671,6 +10682,7 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	ast_channel_set_writeformat(yanked_chan, my_vars.writeformat);
 	ao2_cleanup(my_vars.readformat);
 	ao2_cleanup(my_vars.writeformat);
+	ast_channel_priority_set(yanked_chan, my_vars.priority);
 
 	ast_channel_unlock(yanked_chan);
 
