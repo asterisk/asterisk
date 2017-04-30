@@ -4640,6 +4640,9 @@ struct ast_bridge_channel *ast_channel_get_bridge_channel(struct ast_channel *ch
  *
  * \note absolutely _NO_ channel locks should be held before calling this function.
  *
+ * \note The dialplan location on the returned channel is where the channel
+ * should be started in the dialplan if it is returned to it.
+ *
  * \param yankee The channel to gain control of
  * \retval NULL Could not gain control of the channel
  * \retval non-NULL The channel
