@@ -1182,6 +1182,37 @@ void ast_sdp_state_set_t38_parameters(struct ast_sdp_state *sdp_state,
 	stream_state->t38_local_params = *params;
 }
 
+/*!
+ * \brief Add SSRC-level attributes if appropriate.
+ *
+ * This function does nothing if the SDP options indicate not to add SSRC-level attributes.
+ *
+ * Currently, the only attribute added is cname, which is retrieved from the RTP instance.
+ *
+ * \param m_line The m_line on which to add the SSRC attributes
+ * \param options Options that indicate what, if any, SSRC attributes to add
+ * \param rtp RTP instance from which we get SSRC-level information
+ */
+static void add_ssrc_attributes(struct ast_sdp_m_line *m_line, const struct ast_sdp_options *options,
+	struct ast_rtp_instance *rtp)
+{
+	struct ast_sdp_a_line *a_line;
+	char attr_buffer[128];
+
+	if (!ast_sdp_options_get_ssrc(options)) {
+		return;
+	}
+
+	snprintf(attr_buffer, sizeof(attr_buffer), "%u cname:%s", ast_rtp_instance_get_ssrc(rtp),
+		ast_rtp_instance_get_cname(rtp));
+
+	a_line = ast_sdp_a_alloc("ssrc", attr_buffer);
+	if (!a_line) {
+		return;
+	}
+	ast_sdp_m_add_a(m_line, a_line);
+}
+
 static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
 	const struct ast_sdp_options *options, const struct sdp_state_capabilities *capabilities, int stream_index)
 {
@@ -1311,6 +1342,8 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 		ast_sdp_m_free(m_line);
 		return -1;
 	}
+
+	add_ssrc_attributes(m_line, options, rtp);
 
 	if (ast_sdp_add_m(sdp, m_line)) {
 		ast_sdp_m_free(m_line);

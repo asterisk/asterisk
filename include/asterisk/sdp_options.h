@@ -509,4 +509,23 @@ void ast_sdp_options_set_bind_udptl_to_media_address(struct ast_sdp_options *opt
  */
 unsigned int ast_sdp_options_get_bind_udptl_to_media_address(const struct ast_sdp_options *options);
 
+/*!
+ * \since 15.0.0
+ * \brief Enable setting SSRC level attributes on SDPs
+ *
+ * \param options SDP Options
+ * \param ssrc Boolean indicating if SSRC attributes should be included in generated SDPs
+ */
+void ast_sdp_options_set_ssrc(struct ast_sdp_options *options, unsigned int ssrc);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options ssrc
+ *
+ * \param options SDP Options
+ *
+ * \returns Whether SSRC-level attributes will be added to our SDP.
+ */
+unsigned int ast_sdp_options_get_ssrc(const struct ast_sdp_options *options);
+
 #endif /* _ASTERISK_SDP_OPTIONS_H */

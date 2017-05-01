@@ -474,6 +474,8 @@ static void ast_rtp_stun_request(struct ast_rtp_instance *instance, struct ast_s
 static void ast_rtp_stop(struct ast_rtp_instance *instance);
 static int ast_rtp_qos_set(struct ast_rtp_instance *instance, int tos, int cos, const char* desc);
 static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
+static unsigned int ast_rtp_get_ssrc(struct ast_rtp_instance *instance);
+static const char *ast_rtp_get_cname(struct ast_rtp_instance *instance);
 
 #ifdef HAVE_OPENSSL_SRTP
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
@@ -1903,6 +1905,8 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.dtls = &ast_rtp_dtls,
 	.activate = ast_rtp_activate,
 #endif
+	.ssrc_get = ast_rtp_get_ssrc,
+	.cname_get = ast_rtp_get_cname,
 };
 
 #ifdef HAVE_OPENSSL_SRTP
@@ -5813,6 +5817,27 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 	rtp->seqno++;
 
 	return res;
+}
+
+/*! \pre instance is locked */
+static unsigned int ast_rtp_get_ssrc(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	return rtp->ssrc;
+}
+
+/*! \pre instance is locked */
+static const char *ast_rtp_get_cname(struct ast_rtp_instance *instance)
+{
+	/* XXX
+	 *
+	 * Asterisk currently puts a zero-length CNAME value in RTCP SDES items,
+	 * meaning our CNAME will always be an empty string. In future, should
+	 * Asterisk actually start using meaningful CNAMEs, this function will
+	 * need to return that instead of an empty string
+	 */
+	return "";
 }
 
 #ifdef HAVE_OPENSSL_SRTP

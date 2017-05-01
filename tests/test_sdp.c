@@ -29,6 +29,7 @@
 #include "asterisk/format.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/format_cap.h"
+#include "asterisk/rtp_engine.h"
 
 static int validate_o_line(struct ast_test *test, const struct ast_sdp_o_line *o_line,
 	const char *sdpowner, const char *address_type, const char *address)
@@ -353,26 +354,56 @@ end:
 	return res;
 }
 
+static struct ast_sdp_options *sdp_options_common(void)
+{
+	struct ast_sdp_options *options;
+
+	options = ast_sdp_options_alloc();
+	if (!options) {
+		return NULL;
+	}
+	ast_sdp_options_set_media_address(options, "127.0.0.1");
+	ast_sdp_options_set_sdpowner(options, "me");
+	ast_sdp_options_set_rtp_engine(options, "asterisk");
+	ast_sdp_options_set_impl(options, AST_SDP_IMPL_PJMEDIA);
+
+	return options;
+}
+
 struct sdp_format {
 	enum ast_media_type type;
 	const char *formats;
 };
 
-static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_format *formats)
+/*!
+ * \brief Common method to build an SDP state for a test.
+ *
+ * This uses the passed-in formats to create a stream topology, which is then used to create the SDP
+ * state.
+ *
+ * There is an optional test_options field you can use if your test has specific options you need to
+ * set. If your test does not require anything special, it can just pass NULL for this parameter. If
+ * you do pass in test_options, this function steals ownership of those options.
+ *
+ * \param num_streams The number of elements in the formats array.
+ * \param formats Array of media types and formats that will be in the state.
+ * \param test_options Optional SDP options.
+ */
+static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_format *formats, struct ast_sdp_options *test_options)
 {
 	struct ast_stream_topology *topology = NULL;
 	struct ast_sdp_state *state = NULL;
 	struct ast_sdp_options *options;
 	int i;
 
-	options = ast_sdp_options_alloc();
-	if (!options) {
-		goto end;
+	if (!test_options) {
+		options = sdp_options_common();
+		if (!options) {
+			goto end;
+		}
+	} else {
+		options = test_options;
 	}
-	ast_sdp_options_set_media_address(options, "127.0.0.1");
-	ast_sdp_options_set_sdpowner(options, "me");
-	ast_sdp_options_set_rtp_engine(options, "asterisk");
-	ast_sdp_options_set_impl(options, AST_SDP_IMPL_PJMEDIA);
 
 	topology = ast_stream_topology_alloc();
 	if (!topology) {
@@ -436,7 +467,7 @@ AST_TEST_DEFINE(topology_to_sdp)
 		break;
 	}
 
-	sdp_state = build_sdp_state(ARRAY_LEN(formats), formats);
+	sdp_state = build_sdp_state(ARRAY_LEN(formats), formats, NULL);
 	if (!sdp_state) {
 		goto end;
 	}
@@ -580,7 +611,7 @@ AST_TEST_DEFINE(sdp_to_topology)
 		break;
 	}
 
-	sdp_state = build_sdp_state(ARRAY_LEN(sdp_formats), sdp_formats);
+	sdp_state = build_sdp_state(ARRAY_LEN(sdp_formats), sdp_formats, NULL);
 	if (!sdp_state) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -704,13 +735,13 @@ AST_TEST_DEFINE(sdp_merge_symmetric)
 		break;
 	}
 
-	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats);
+	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
 	if (!sdp_state_offerer) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats);
+	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
 	if (!sdp_state_answerer) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -782,13 +813,13 @@ AST_TEST_DEFINE(sdp_merge_crisscross)
 		break;
 	}
 
-	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats);
+	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
 	if (!sdp_state_offerer) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats);
+	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
 	if (!sdp_state_answerer) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -827,6 +858,111 @@ end:
 	return res;
 }
 
+static int validate_ssrc(struct ast_test *test, struct ast_sdp_m_line *m_line,
+	struct ast_rtp_instance *rtp)
+{
+	unsigned int ssrc;
+	const char *cname;
+	struct ast_sdp_a_line *a_line;
+	char attr_value[128];
+
+	ssrc = ast_rtp_instance_get_ssrc(rtp);
+	cname = ast_rtp_instance_get_cname(rtp);
+
+	snprintf(attr_value, sizeof(attr_value), "%u cname:%s", ssrc, cname);
+
+	a_line = ast_sdp_m_find_attribute(m_line, "ssrc", -1);
+	if (!a_line) {
+		ast_test_status_update(test, "Could not find 'ssrc' attribute\n");
+		return -1;
+	}
+
+	if (strcmp(a_line->value, attr_value)) {
+		ast_test_status_update(test, "SDP attribute '%s' did not match expected attribute '%s'\n",
+			a_line->value, attr_value);
+		return -1;
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(sdp_ssrc_attributes)
+{
+	enum ast_test_result_state res;
+	struct ast_sdp_state *test_state = NULL;
+	struct ast_sdp_options *options;
+	struct sdp_format formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
+	};
+	const struct ast_sdp *sdp;
+	struct ast_sdp_m_line *m_line;
+	struct ast_rtp_instance *rtp;
+
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_ssrc_attributes";
+		info->category = "/main/sdp/";
+		info->summary = "Ensure SSRC-level attributes are added to local SDPs";
+		info->description =
+			"An SDP is created and is instructed to include SSRC-level attributes.\n"
+			"This test ensures that the CNAME SSRC-level attribute is present and\n"
+			"that the values match what the RTP instance reports";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	res = AST_TEST_FAIL;
+
+	options = sdp_options_common();
+	if (!options) {
+		ast_test_status_update(test, "Failed to allocate SDP options\n");
+		goto end;
+	}
+	ast_sdp_options_set_ssrc(options, 1);
+
+	test_state = build_sdp_state(ARRAY_LEN(formats), formats, options);
+	if (!test_state) {
+		ast_test_status_update(test, "Failed to create SDP state\n");
+		goto end;
+	}
+
+	sdp = ast_sdp_state_get_local_sdp(test_state);
+	if (!sdp) {
+		ast_test_status_update(test, "Failed to get local SDP\n");
+		goto end;
+	}
+
+	/* Need a couple of sanity checks */
+	if (ast_sdp_get_m_count(sdp) != ARRAY_LEN(formats)) {
+		ast_test_status_update(test, "SDP m count is %d instead of %zu\n",
+			ast_sdp_get_m_count(sdp), ARRAY_LEN(formats));
+		goto end;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 0);
+	if (!m_line) {
+		ast_test_status_update(test, "Failed to get SDP m-line\n");
+		goto end;
+	}
+
+	rtp = ast_sdp_state_get_rtp_instance(test_state, 0);
+	if (!rtp) {
+		ast_test_status_update(test, "Failed to get the RTP instance\n");
+		goto end;
+	}
+
+	if (validate_ssrc(test, m_line, rtp)) {
+		goto end;
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	ast_sdp_state_free(test_state);
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(invalid_rtpmap);
@@ -836,6 +972,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(sdp_to_topology);
 	AST_TEST_UNREGISTER(sdp_merge_symmetric);
 	AST_TEST_UNREGISTER(sdp_merge_crisscross);
+	AST_TEST_UNREGISTER(sdp_ssrc_attributes);
 
 	return 0;
 }
@@ -849,6 +986,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(sdp_to_topology);
 	AST_TEST_REGISTER(sdp_merge_symmetric);
 	AST_TEST_REGISTER(sdp_merge_crisscross);
+	AST_TEST_REGISTER(sdp_ssrc_attributes);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

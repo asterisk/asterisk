@@ -3340,3 +3340,29 @@ void ast_rtp_instance_set_last_rx(struct ast_rtp_instance *rtp, time_t time)
 {
 	rtp->last_rx = time;
 }
+
+unsigned int ast_rtp_instance_get_ssrc(struct ast_rtp_instance *rtp)
+{
+	unsigned int ssrc = 0;
+
+	ao2_lock(rtp);
+	if (rtp->engine->ssrc_get) {
+		ssrc = rtp->engine->ssrc_get(rtp);
+	}
+	ao2_unlock(rtp);
+
+	return ssrc;
+}
+
+const char *ast_rtp_instance_get_cname(struct ast_rtp_instance *rtp)
+{
+	const char *cname = "";
+
+	ao2_lock(rtp);
+	if (rtp->engine->cname_get) {
+		cname = rtp->engine->cname_get(rtp);
+	}
+	ao2_unlock(rtp);
+
+	return cname;
+}

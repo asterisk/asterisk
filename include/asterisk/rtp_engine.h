@@ -599,6 +599,10 @@ struct ast_rtp_engine {
 	void (*available_formats)(struct ast_rtp_instance *instance, struct ast_format_cap *to_endpoint, struct ast_format_cap *to_asterisk, struct ast_format_cap *result);
 	/*! Callback to send CNG */
 	int (*sendcng)(struct ast_rtp_instance *instance, int level);
+	/*! Callback to retrieve local SSRC */
+	unsigned int (*ssrc_get)(struct ast_rtp_instance *instance);
+	/*! Callback to retrieve RTCP SDES CNAME */
+	const char *(*cname_get)(struct ast_rtp_instance *instance);
 	/*! Callback to pointer for optional ICE support */
 	struct ast_rtp_engine_ice *ice;
 	/*! Callback to pointer for optional DTLS SRTP support */
@@ -2388,6 +2392,24 @@ time_t ast_rtp_instance_get_last_rx(const struct ast_rtp_instance *rtp);
  * \param time The last reception time
  */
 void ast_rtp_instance_set_last_rx(struct ast_rtp_instance *rtp, time_t time);
+
+/*!
+ * \brief Retrieve the local SSRC value that we will be using
+ *
+ * \param rtp The RTP instance
+ * \return The SSRC value
+ */
+unsigned int ast_rtp_instance_get_ssrc(struct ast_rtp_instance *rtp);
+
+/*!
+ * \brief Retrieve the CNAME used in RTCP SDES items
+ *
+ * This is a pointer directly into the RTP struct, not a copy.
+ *
+ * \param rtp The RTP instance
+ * \return the CNAME
+ */
+const char *ast_rtp_instance_get_cname(struct ast_rtp_instance *rtp);
 
 /*! \addtogroup StasisTopicsAndMessages
  * @{
