@@ -1073,7 +1073,7 @@ const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state)
 	return ast_sdp_translator_from_sdp(sdp_state->translator, sdp);
 }
 
-void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct ast_sdp *sdp)
+int ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct ast_sdp *sdp)
 {
 	ast_assert(sdp_state != NULL);
 
@@ -1081,12 +1081,13 @@ void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct 
 		sdp_state->role = SDP_ROLE_ANSWERER;
 	}
 
-	merge_sdps(sdp_state, sdp);
+	return merge_sdps(sdp_state, sdp);
 }
 
 int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void *remote)
 {
 	struct ast_sdp *sdp;
+	int ret;
 
 	ast_assert(sdp_state != NULL);
 
@@ -1094,9 +1095,9 @@ int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void
 	if (!sdp) {
 		return -1;
 	}
-	ast_sdp_state_set_remote_sdp(sdp_state, sdp);
+	ret = ast_sdp_state_set_remote_sdp(sdp_state, sdp);
 	ast_sdp_free(sdp);
-	return 0;
+	return ret;
 }
 
 int ast_sdp_state_reset(struct ast_sdp_state *sdp_state)

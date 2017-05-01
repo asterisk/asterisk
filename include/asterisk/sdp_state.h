@@ -146,9 +146,12 @@ const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state);
  * \param sdp_state
  * \param sdp
  *
+ * \retval 0 Success
+ * \retval non-0 Failure
+ *
  * \since 15
  */
-void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct ast_sdp *sdp);
+int ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct ast_sdp *sdp);
 
 /*!
  * \brief Set the remote SDP from an Implementation
