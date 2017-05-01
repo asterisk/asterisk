@@ -30,7 +30,7 @@
 #include "asterisk/codec.h"
 #include "asterisk/udptl.h"
 
-#include "../include/asterisk/sdp.h"
+#include "asterisk/sdp.h"
 #include "asterisk/stream.h"
 
 #include "sdp_private.h"
@@ -171,7 +171,7 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 		return NULL;
 	}
 
-	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, 1);
+	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_STANDARD);
 	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_NAT, options->rtp_symmetric);
 
 	if (options->ice == AST_SDP_ICE_DISABLED && (ice = ast_rtp_instance_get_ice(rtp))) {
@@ -252,8 +252,7 @@ static struct sdp_state_capabilities *sdp_initialize_state_capabilities(const st
 		return NULL;
 	}
 
-	if (AST_VECTOR_INIT(&capabilities->streams,
-			ast_stream_topology_get_count(topology))) {
+	if (AST_VECTOR_INIT(&capabilities->streams, ast_stream_topology_get_count(topology))) {
 		sdp_state_capabilities_free(capabilities);
 		return NULL;
 	}
@@ -264,17 +263,18 @@ static struct sdp_state_capabilities *sdp_initialize_state_capabilities(const st
 
 		state_stream = ast_calloc(1, sizeof(*state_stream));
 		if (!state_stream) {
+			sdp_state_capabilities_free(capabilities);
 			return NULL;
 		}
 
 		state_stream->type = ast_stream_get_type(ast_stream_topology_get_stream(topology, i));
-
 		switch (state_stream->type) {
 		case AST_MEDIA_TYPE_AUDIO:
 		case AST_MEDIA_TYPE_VIDEO:
 			state_stream->instance = create_rtp(options, state_stream->type);
 			if (!state_stream->instance) {
 				sdp_state_stream_free(state_stream);
+				sdp_state_capabilities_free(capabilities);
 				return NULL;
 			}
 			break;
@@ -282,16 +282,24 @@ static struct sdp_state_capabilities *sdp_initialize_state_capabilities(const st
 			state_stream->udptl = create_udptl(options);
 			if (!state_stream->udptl) {
 				sdp_state_stream_free(state_stream);
+				sdp_state_capabilities_free(capabilities);
 				return NULL;
 			}
 			break;
 		case AST_MEDIA_TYPE_UNKNOWN:
 		case AST_MEDIA_TYPE_TEXT:
 		case AST_MEDIA_TYPE_END:
-			break;
+			ast_assert(0);
+			sdp_state_stream_free(state_stream);
+			sdp_state_capabilities_free(capabilities);
+			return NULL;
 		}
 
-		AST_VECTOR_APPEND(&capabilities->streams, state_stream);
+		if (AST_VECTOR_APPEND(&capabilities->streams, state_stream)) {
+			sdp_state_stream_free(state_stream);
+			sdp_state_capabilities_free(capabilities);
+			return NULL;
+		}
 	}
 
 	return capabilities;
@@ -632,7 +640,9 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		goto fail;
 	}
 
-	AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&current->streams));
+	if (AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&current->streams))) {
+		goto fail;
+	}
 	ast_sockaddr_copy(&joint_capabilities->connection_address, &current->connection_address);
 	topology = current->topology;
 
@@ -654,11 +664,11 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		new_stream_type = ast_stream_get_type(new_stream);
 
 		current_index = get_corresponding_index(topology, new_stream_type, media_indices);
-
 		if (current_index >= 0) {
 			current_stream = ast_stream_topology_get_stream(topology, current_index);
 			joint_stream = merge_streams(current_stream, new_stream);
 			if (!joint_stream) {
+				sdp_state_stream_free(joint_state_stream);
 				goto fail;
 			}
 
@@ -692,6 +702,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			 */
 			joint_stream = ast_stream_clone(new_stream);
 			if (!joint_stream) {
+				sdp_state_stream_free(joint_state_stream);
 				goto fail;
 			}
 
@@ -700,12 +711,16 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			case AST_MEDIA_TYPE_VIDEO:
 				joint_state_stream->instance = create_rtp(options, new_stream_type);
 				if (!joint_state_stream->instance) {
+					ast_stream_free(joint_stream);
+					sdp_state_stream_free(joint_state_stream);
 					goto fail;
 				}
 				break;
 			case AST_MEDIA_TYPE_IMAGE:
 				joint_state_stream->udptl = create_udptl(options);
 				if (!joint_state_stream->udptl) {
+					ast_stream_free(joint_stream);
+					sdp_state_stream_free(joint_state_stream);
 					goto fail;
 				}
 				break;
@@ -723,12 +738,20 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			 */
 			joint_stream = ast_stream_alloc("dummy", new_stream_type);
 			if (!joint_stream) {
+				sdp_state_stream_free(joint_state_stream);
 				goto fail;
 			}
 		}
 
-		ast_stream_topology_append_stream(joint_capabilities->topology, joint_stream);
-		AST_VECTOR_APPEND(&joint_capabilities->streams, joint_state_stream);
+		if (ast_stream_topology_append_stream(joint_capabilities->topology, joint_stream) < 0) {
+			ast_stream_free(joint_stream);
+			sdp_state_stream_free(joint_state_stream);
+			goto fail;
+		}
+		if (AST_VECTOR_APPEND(&joint_capabilities->streams, joint_state_stream)) {
+			sdp_state_stream_free(joint_state_stream);
+			goto fail;
+		}
 	}
 
 	return joint_capabilities;
@@ -974,8 +997,7 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
  * \retval -1 Failure
  * \retval 0 Success
  */
-static int merge_sdps(struct ast_sdp_state *sdp_state,
-	const struct ast_sdp *remote_sdp)
+static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *remote_sdp)
 {
 	struct sdp_state_capabilities *joint_capabilities;
 	int i;
@@ -1073,7 +1095,7 @@ int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void
 		return -1;
 	}
 	ast_sdp_state_set_remote_sdp(sdp_state, sdp);
-
+	ast_sdp_free(sdp);
 	return 0;
 }
 
@@ -1285,13 +1307,13 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 
 			rtp_code = ast_rtp_codecs_payload_code(
 				ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
-
 			if (rtp_code == -1) {
 				continue;
 			}
 
 			if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
-				continue;
+				ast_sdp_m_free(m_line);
+				return -1;
 			}
 
 			if (i == AST_RTP_DTMF) {
@@ -1307,6 +1329,7 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 	}
 
 	if (ast_sdp_m_get_a_count(m_line) == 0) {
+		ast_sdp_m_free(m_line);
 		return 0;
 	}
 

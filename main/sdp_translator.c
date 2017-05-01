@@ -84,6 +84,9 @@ struct ast_sdp_translator *ast_sdp_translator_new(enum ast_sdp_options_impl repr
 
 void ast_sdp_translator_free(struct ast_sdp_translator *translator)
 {
+	if (!translator) {
+		return;
+	}
 	translator->ops->translator_free(translator->translator_priv);
 	ast_free(translator);
 }

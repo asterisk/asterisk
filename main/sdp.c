@@ -435,19 +435,25 @@ static int sdp_m_add_fmtp(struct ast_sdp_m_line *m_line, const struct ast_format
 	int rtp_code)
 {
 	struct ast_str *fmtp0 = ast_str_alloca(256);
+	struct ast_sdp_a_line *a_line;
 	char *tmp;
 
 	ast_format_generate_sdp_fmtp(format, rtp_code, &fmtp0);
 	if (ast_str_strlen(fmtp0) == 0) {
-		return -1;
+		/* Format doesn't have fmtp attributes */
+		return 0;
 	}
 
 	tmp = ast_str_buffer(fmtp0) + ast_str_strlen(fmtp0) - 1;
-		/* remove any carriage return line feeds */
+	/* remove any carriage return line feeds */
 	while (*tmp == '\r' || *tmp == '\n') --tmp;
 	*++tmp = '\0';
 
-	/* ast...generate gives us everything, just need value */
+	/*
+	 * ast...generate gives us everything, just need value
+	 *
+	 * It can also give multiple fmtp attribute lines. (silk does)
+	 */
 	tmp = strchr(ast_str_buffer(fmtp0), ':');
 	if (tmp && tmp[1] != '\0') {
 		tmp++;
@@ -455,7 +461,10 @@ static int sdp_m_add_fmtp(struct ast_sdp_m_line *m_line, const struct ast_format
 		tmp = ast_str_buffer(fmtp0);
 	}
 
-	ast_sdp_m_add_a(m_line, ast_sdp_a_alloc("fmtp", tmp));
+	a_line = ast_sdp_a_alloc("fmtp", tmp);
+	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+		return -1;
+	}
 
 	return 0;
 }
@@ -495,10 +504,8 @@ static int sdp_m_add_rtpmap(struct ast_sdp_m_line *m_line,
 int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_options *options,
 	int rtp_code, int asterisk_format, const struct ast_format *format, int code)
 {
-	sdp_m_add_rtpmap(m_line, options, rtp_code, asterisk_format, format, code);
-	sdp_m_add_fmtp(m_line, format, rtp_code);
-
-	return 0;
+	return sdp_m_add_rtpmap(m_line, options, rtp_code, asterisk_format, format, code)
+		|| sdp_m_add_fmtp(m_line, format, rtp_code) ? -1 : 0;
 }
 
 static struct ast_sdp_a_line *sdp_find_attribute_common(const struct ast_sdp_a_lines *a_lines,

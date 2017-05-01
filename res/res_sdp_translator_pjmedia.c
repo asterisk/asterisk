@@ -26,7 +26,7 @@
 #include "asterisk/test.h"
 #include "asterisk/module.h"
 
-#include "../include/asterisk/sdp.h"
+#include "asterisk/sdp.h"
 #ifdef HAVE_PJPROJECT
 #include <pjlib.h>
 #include <pjmedia.h>
