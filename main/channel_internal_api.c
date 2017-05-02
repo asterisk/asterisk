@@ -852,14 +852,10 @@ void ast_channel_nativeformats_set(struct ast_channel *chan,
 		return;
 	}
 
-	if ((!ast_channel_is_multistream(chan)) || !value) {
+	if (!ast_channel_is_multistream(chan) || !value) {
 		struct ast_stream_topology *new_topology;
 
-		if (!value) {
-			new_topology = ast_stream_topology_alloc();
-		} else {
-			new_topology = ast_stream_topology_create_from_format_cap(value);
-		}
+		new_topology = ast_stream_topology_create_from_format_cap(value);
 		ast_channel_internal_set_stream_topology(chan, new_topology);
 	}
 }

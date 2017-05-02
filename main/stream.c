@@ -345,11 +345,9 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	struct ast_stream_topology *topology;
 	enum ast_media_type type;
 
-	ast_assert(cap != NULL);
-
 	topology = ast_stream_topology_alloc();
-	if (!topology) {
-		return NULL;
+	if (!topology || !cap || !ast_format_cap_count(cap)) {
+		return topology;
 	}
 
 	for (type = AST_MEDIA_TYPE_UNKNOWN + 1; type < AST_MEDIA_TYPE_END; type++) {
