@@ -37,6 +37,45 @@
 	<support_level>core</support_level>
  ***/
 
+/*
+ * XXX TODO: The memory in the pool is held onto longer than necessary.  It
+ * is kept and grows for the duration of the associated chan_pjsip session.
+ *
+ * The translation API does not need to be so generic.  The users will know
+ * at compile time what the non-Asterisk SDP format they have or need.  They
+ * should simply call the specific translation functions.  However, to make
+ * this a loadable module we need to be able to keep it in memory when a
+ * dependent module is loaded.
+ *
+ * To address both issues I propose this API:
+ *
+ * void ast_sdp_translate_pjmedia_ref(void) - Inc this module's user ref
+ * void ast_sdp_translate_pjmedia_unref(void) - Dec this module's user ref.
+ *    The res_pjsip_session.c:ast_sip_session_alloc() can call the module ref
+ *    and the session's destructor can call the module unref.
+ *
+ * struct ast_sdp *ast_sdp_translate_pjmedia_from(const pjmedia_sdp_session *pjmedia_sdp);
+ *
+ * pjmedia_sdp_session *ast_sdp_translate_pjmedia_to(const struct ast_sdp *sdp, pj_pool_t *pool);
+ *    Passing in a memory pool allows the memory to be obtained from an
+ *    rdata memory pool that will be released when the message processing
+ *    is complete.  This prevents memory from accumulating for the duration
+ *    of a call.
+ *
+ * int ast_sdp_translate_pjmedia_set_remote_sdp(struct ast_sdp_state *sdp_state, const pjmedia_sdp_session *remote);
+ * const pjmedia_sdp_session *ast_sdp_translate_pjmedia_get_local_sdp(struct ast_sdp_state *sdp_state, pj_pool_t *pool);
+ *    These two functions just do the bookkeeping to translate and set or get
+ *    the requested SDP.
+ *
+ *
+ * XXX TODO: This code doesn't handle allocation failures very well.  i.e.,
+ *   It assumes they will never happen.
+ *
+ * XXX TODO: This code uses ast_alloca() inside loops.  Doing so if the number
+ *   of times through the loop is unconstrained will blow the stack.
+ *   See dupa_pj_str() usage.
+ */
+
 static pj_caching_pool sdp_caching_pool;
 
 
