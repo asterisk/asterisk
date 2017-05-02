@@ -30,12 +30,22 @@ struct ast_control_t38_parameters;
 /*!
  * \brief Allocate a new SDP state
  *
+ * \details
  * SDP state keeps tabs on everything SDP-related for a media session.
  * Most SDP operations will require the state to be provided.
  * Ownership of the SDP options is taken on by the SDP state.
  * A good strategy is to call this during session creation.
+ *
+ * \param topology Initial stream topology to offer.
+ *                NULL if we are going to be the answerer.  We can always
+ *                update the local topology later if it turns out we need
+ *                to be the offerer.
+ * \param options SDP options for the duration of the session.
+ *
+ * \retval SDP state struct
+ * \retval NULL on failure
  */
-struct ast_sdp_state *ast_sdp_state_alloc(struct ast_stream_topology *streams,
+struct ast_sdp_state *ast_sdp_state_alloc(struct ast_stream_topology *topology,
 	struct ast_sdp_options *options);
 
 /*!
@@ -86,6 +96,8 @@ int ast_sdp_state_get_stream_connection_address(const struct ast_sdp_state *sdp_
  *
  * If this is called prior to receiving a remote SDP, then this will just mirror
  * the local configured endpoint capabilities.
+ *
+ * \note Cannot return NULL.  It is a BUG if it does.
  */
 const struct ast_stream_topology *ast_sdp_state_get_joint_topology(
 	const struct ast_sdp_state *sdp_state);
@@ -93,6 +105,7 @@ const struct ast_stream_topology *ast_sdp_state_get_joint_topology(
 /*!
  * \brief Get the local topology
  *
+ * \note Cannot return NULL.  It is a BUG if it does.
  */
 const struct ast_stream_topology *ast_sdp_state_get_local_topology(
 	const struct ast_sdp_state *sdp_state);
@@ -114,9 +127,10 @@ const struct ast_sdp_options *ast_sdp_state_get_options(
  * \retval NULL Failure
  *
  * \note
- * This function will allocate a new SDP with RTP instances if it has not already
- * been allocated.
- *
+ * This function will return the last local SDP created if one were
+ * previously requested for the current negotiation.  Otherwise it
+ * creates our SDP offer/answer depending on what role we are playing
+ * in the current negotiation.
  */
 const struct ast_sdp *ast_sdp_state_get_local_sdp(struct ast_sdp_state *sdp_state);
 
@@ -152,6 +166,7 @@ const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state);
  *
  * \retval 0 Success
  * \retval non-0 Failure
+ *         Use ast_sdp_state_is_offer_rejected() to see if the SDP offer was rejected.
  *
  * \since 15
  */
@@ -165,39 +180,72 @@ int ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct a
  *
  * \retval 0 Success
  * \retval non-0 Failure
+ *         Use ast_sdp_state_is_offer_rejected() to see if the SDP offer was rejected.
  *
  * \since 15
  */
 int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, const void *remote);
 
 /*!
- * \brief Reset the SDP state and stream capabilities as if the SDP state had just been allocated.
+ * \brief Was the set remote offer rejected.
+ * \since 15.0.0
  *
  * \param sdp_state
- * \param remote The implementation's representation of an SDP.
+ *
+ * \retval 0 if not rejected.
+ * \retval non-zero if rejected.
+ */
+int ast_sdp_state_is_offer_rejected(struct ast_sdp_state *sdp_state);
+
+/*!
+ * \brief Are we the SDP offerer.
+ * \since 15.0.0
+ *
+ * \param sdp_state
+ *
+ * \retval 0 if we are not the offerer.
+ * \retval non-zero we are the offerer.
+ */
+int ast_sdp_state_is_offerer(struct ast_sdp_state *sdp_state);
+
+/*!
+ * \brief Are we the SDP answerer.
+ * \since 15.0.0
+ *
+ * \param sdp_state
+ *
+ * \retval 0 if we are not the answerer.
+ * \retval non-zero we are the answerer.
+ */
+int ast_sdp_state_is_answerer(struct ast_sdp_state *sdp_state);
+
+/*!
+ * \brief Restart the SDP offer/answer negotiations.
+ *
+ * \param sdp_state
  *
  * \retval 0 Success
- *
- * \note
- * This is most useful for when a channel driver is sending a session refresh message
- * and needs to re-advertise its initial capabilities instead of the previously-negotiated
- * joint capabilities.
- *
- * \since 15
+ * \retval non-0 Failure
  */
-int ast_sdp_state_reset(struct ast_sdp_state *sdp_state);
+int ast_sdp_state_restart_negotiations(struct ast_sdp_state *sdp_state);
 
 /*!
  * \brief Update the local stream topology on the SDP state.
  *
+ * \details
+ * Basically we are saving off any topology updates until we create the
+ * next SDP offer.  Repeated updates merge with the previous updated
+ * topology.
+ *
  * \param sdp_state
- * \param streams The new stream topology.
+ * \param topology The new stream topology.
  *
  * \retval 0 Success
+ * \retval non-0 Failure
  *
  * \since 15
  */
-int ast_sdp_state_update_local_topology(struct ast_sdp_state *sdp_state, struct ast_stream_topology *streams);
+int ast_sdp_state_update_local_topology(struct ast_sdp_state *sdp_state, struct ast_stream_topology *topology);
 
 /*!
  * \brief Set the local address (IP address) to use for connection addresses
@@ -231,7 +279,26 @@ int ast_sdp_state_set_connection_address(struct ast_sdp_state *sdp_state, int st
 
 /*!
  * \since 15.0.0
- * \brief Set a stream to be held or unheld
+ * \brief Set the global locally held state.
+ *
+ * \param sdp_state
+ * \param locally_held
+ */
+void ast_sdp_state_set_global_locally_held(struct ast_sdp_state *sdp_state, unsigned int locally_held);
+
+/*!
+ * \since 15.0.0
+ * \brief Get the global locally held state.
+ *
+ * \param sdp_state
+ *
+ * \returns locally_held
+ */
+unsigned int ast_sdp_state_get_global_locally_held(const struct ast_sdp_state *sdp_state);
+
+/*!
+ * \since 15.0.0
+ * \brief Set a stream to be held or unheld locally
  *
  * \param sdp_state
  * \param stream_index The stream to set the held value for
@@ -239,6 +306,30 @@ int ast_sdp_state_set_connection_address(struct ast_sdp_state *sdp_state, int st
  */
 void ast_sdp_state_set_locally_held(struct ast_sdp_state *sdp_state,
 	int stream_index, unsigned int locally_held);
+
+/*!
+ * \since 15.0.0
+ * \brief Get whether a stream is locally held or not
+ *
+ * \param sdp_state
+ * \param stream_index The stream to get the held state for
+ *
+ * \returns locally_held
+ */
+unsigned int ast_sdp_state_get_locally_held(const struct ast_sdp_state *sdp_state,
+	int stream_index);
+
+/*!
+ * \since 15.0.0
+ * \brief Get whether a stream is remotely held or not
+ *
+ * \param sdp_state
+ * \param stream_index The stream to get the held state for
+ *
+ * \returns remotely_held
+ */
+unsigned int ast_sdp_state_get_remotely_held(const struct ast_sdp_state *sdp_state,
+	int stream_index);
 
 /*!
  * \since 15.0.0
@@ -250,17 +341,5 @@ void ast_sdp_state_set_locally_held(struct ast_sdp_state *sdp_state,
  */
 void ast_sdp_state_set_t38_parameters(struct ast_sdp_state *sdp_state,
 	int stream_index, struct ast_control_t38_parameters *params);
-
-/*!
- * \since 15.0.0
- * \brief Get whether a stream is held or not
- *
- * \param sdp_state
- * \param stream_index The stream to get the held state for
- *
- * \returns locally_held
- */
-unsigned int ast_sdp_state_get_locally_held(const struct ast_sdp_state *sdp_state,
-	int stream_index);
 
 #endif /* _ASTERISK_SDP_STATE_H */

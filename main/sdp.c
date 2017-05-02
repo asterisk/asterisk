@@ -109,11 +109,9 @@ void ast_sdp_t_free(struct ast_sdp_t_line *t_line)
 	ast_free(t_line);
 }
 
-void ast_sdp_free(struct ast_sdp *sdp)
+static void ast_sdp_dtor(void *vdoomed)
 {
-	if (!sdp) {
-		return;
-	}
+	struct ast_sdp *sdp = vdoomed;
 
 	ast_sdp_o_free(sdp->o_line);
 	ast_sdp_s_free(sdp->s_line);
@@ -121,7 +119,6 @@ void ast_sdp_free(struct ast_sdp *sdp)
 	ast_sdp_t_free(sdp->t_line);
 	ast_sdp_a_lines_free(sdp->a_lines);
 	ast_sdp_m_lines_free(sdp->m_lines);
-	ast_free(sdp);
 }
 
 #define COPY_STR_AND_ADVANCE(p, dest, source) \
@@ -314,28 +311,28 @@ struct ast_sdp *ast_sdp_alloc(struct ast_sdp_o_line *o_line,
 {
 	struct ast_sdp *new_sdp;
 
-	new_sdp = ast_calloc(1, sizeof *new_sdp);
+	new_sdp = ao2_alloc_options(sizeof(*new_sdp), ast_sdp_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!new_sdp) {
 		return NULL;
 	}
 
 	new_sdp->a_lines = ast_calloc(1, sizeof(*new_sdp->a_lines));
 	if (!new_sdp->a_lines) {
-		ast_sdp_free(new_sdp);
+		ao2_ref(new_sdp, -1);
 		return NULL;
 	}
 	if (AST_VECTOR_INIT(new_sdp->a_lines, 20)) {
-		ast_sdp_free(new_sdp);
+		ao2_ref(new_sdp, -1);
 		return NULL;
 	}
 
 	new_sdp->m_lines = ast_calloc(1, sizeof(*new_sdp->m_lines));
 	if (!new_sdp->m_lines) {
-		ast_sdp_free(new_sdp);
+		ao2_ref(new_sdp, -1);
 		return NULL;
 	}
 	if (AST_VECTOR_INIT(new_sdp->m_lines, 20)) {
-		ast_sdp_free(new_sdp);
+		ao2_ref(new_sdp, -1);
 		return NULL;
 	}
 
@@ -741,6 +738,62 @@ static void process_fmtp_lines(const struct ast_sdp_m_line *m_line, int payload,
 	}
 }
 
+/*!
+ * \internal
+ * \brief Determine the RTP stream direction in the given a lines.
+ * \since 15.0.0
+ *
+ * \param a_lines Attribute lines to search.
+ *
+ * \retval Stream direction on success.
+ * \retval AST_STREAM_STATE_REMOVED on failure.
+ *
+ * \return Nothing
+ */
+static enum ast_stream_state get_a_line_direction(const struct ast_sdp_a_lines *a_lines)
+{
+	if (a_lines) {
+		enum ast_stream_state direction;
+		int idx;
+		const struct ast_sdp_a_line *a_line;
+
+		for (idx = 0; idx < AST_VECTOR_SIZE(a_lines); ++idx) {
+			a_line = AST_VECTOR_GET(a_lines, idx);
+			direction = ast_stream_str2state(a_line->name);
+			if (direction != AST_STREAM_STATE_REMOVED) {
+				return direction;
+			}
+		}
+	}
+
+	return AST_STREAM_STATE_REMOVED;
+}
+
+/*!
+ * \internal
+ * \brief Determine the RTP stream direction.
+ * \since 15.0.0
+ *
+ * \param a_lines The SDP media global attributes
+ * \param m_line The SDP media section to convert
+ *
+ * \return Stream direction
+ */
+static enum ast_stream_state get_stream_direction(const struct ast_sdp_a_lines *a_lines, const struct ast_sdp_m_line *m_line)
+{
+	enum ast_stream_state direction;
+
+	direction = get_a_line_direction(m_line->a_lines);
+	if (direction != AST_STREAM_STATE_REMOVED) {
+		return direction;
+	}
+	direction = get_a_line_direction(a_lines);
+	if (direction != AST_STREAM_STATE_REMOVED) {
+		return direction;
+	}
+	return AST_STREAM_STATE_SENDRECV;
+}
+
 /*
  * Needed so we don't have an external function referenced as data.
  * The dynamic linker doesn't handle that very well.
@@ -758,13 +811,14 @@ static void rtp_codecs_free(struct ast_rtp_codecs *codecs)
  * Given an m-line from an SDP, convert it into an ast_stream structure.
  * This takes formats, as well as clock-rate and fmtp attributes into account.
  *
+ * \param a_lines The SDP media global attributes
  * \param m_line The SDP media section to convert
  * \param g726_non_standard Non-zero if G.726 is non-standard
  *
  * \retval NULL An error occurred
  * \retval non-NULL The converted stream
  */
-static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line, int g726_non_standard)
+static struct ast_stream *get_stream_from_m(const struct ast_sdp_a_lines *a_lines, const struct ast_sdp_m_line *m_line, int g726_non_standard)
 {
 	int i;
 	int non_ast_fmts;
@@ -793,6 +847,14 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line,
 			ao2_ref(caps, -1);
 			return NULL;
 		}
+		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_CODECS, codecs,
+			(ast_stream_data_free_fn) rtp_codecs_free);
+
+		if (!m_line->port) {
+			/* Stream is declined.  There may not be any attributes. */
+			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+			break;
+		}
 
 		options = g726_non_standard ? AST_RTP_OPT_G726_NONSTANDARD : 0;
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
@@ -819,10 +881,16 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line,
 		}
 
 		ast_rtp_codecs_payload_formats(codecs, caps, &non_ast_fmts);
-		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_CODECS, codecs,
-			(ast_stream_data_free_fn) rtp_codecs_free);
+
+		ast_stream_set_state(stream, get_stream_direction(a_lines, m_line));
 		break;
 	case AST_MEDIA_TYPE_IMAGE:
+		if (!m_line->port) {
+			/* Stream is declined.  There may not be any attributes. */
+			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+			break;
+		}
+
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
 			struct ast_sdp_payload *payload;
 
@@ -830,12 +898,15 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line,
 			payload = ast_sdp_m_get_payload(m_line, i);
 			if (!strcasecmp(payload->fmt, "t38")) {
 				ast_format_cap_append(caps, ast_format_t38, 0);
+				ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
 			}
 		}
 		break;
 	case AST_MEDIA_TYPE_UNKNOWN:
 	case AST_MEDIA_TYPE_TEXT:
 	case AST_MEDIA_TYPE_END:
+		/* Consider these unsupported streams as declined */
+		ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
 		break;
 	}
 
@@ -858,7 +929,7 @@ struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp,
 	for (i = 0; i < ast_sdp_get_m_count(sdp); ++i) {
 		struct ast_stream *stream;
 
-		stream = get_stream_from_m(ast_sdp_get_m(sdp, i), g726_non_standard);
+		stream = get_stream_from_m(sdp->a_lines, ast_sdp_get_m(sdp, i), g726_non_standard);
 		if (!stream) {
 			/*
 			 * The topology cannot match the SDP because

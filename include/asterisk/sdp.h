@@ -254,16 +254,6 @@ void ast_sdp_s_free(struct ast_sdp_s_line *s_line);
 void ast_sdp_t_free(struct ast_sdp_t_line *t_line);
 
 /*!
- * \brief Free an SDP
- * Frees the sdp and all resources it contains
- *
- * \param sdp The sdp to free
- *
- * \since 15
- */
-void ast_sdp_free(struct ast_sdp *sdp);
-
-/*!
  * \brief Allocate an SDP Attribute
  *
  * \param name Attribute Name
@@ -544,7 +534,7 @@ int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_opt
 	int rtp_code, int asterisk_format, const struct ast_format *format, int code);
 
 /*!
- * \brief Create an SDP
+ * \brief Create an SDP ao2 object
  *
  * \param o_line Origin
  * \param c_line Connection

@@ -89,12 +89,31 @@ static int validate_m_line(struct ast_test *test, const struct ast_sdp_m_line *m
 	}
 
 	if (ast_sdp_m_get_payload_count(m_line) != num_payloads) {
-		ast_test_status_update(test, "Expected m-line payload count %d but got %d\n",
-			num_payloads, ast_sdp_m_get_payload_count(m_line));
+		ast_test_status_update(test, "Expected %s m-line payload count %d but got %d\n",
+			media_type, num_payloads, ast_sdp_m_get_payload_count(m_line));
 		return -1;
 	}
 
-	ast_test_status_update(test, "SDP m-line is as expected\n");
+	ast_test_status_update(test, "SDP %s m-line is as expected\n", media_type);
+	return 0;
+}
+
+static int validate_m_line_declined(struct ast_test *test,
+	const struct ast_sdp_m_line *m_line, const char *media_type)
+{
+	if (strcmp(m_line->type, media_type)) {
+		ast_test_status_update(test, "Expected m-line media type %s but got %s\n",
+			media_type, m_line->type);
+		return -1;
+	}
+
+	if (m_line->port != 0) {
+		ast_test_status_update(test, "Expected %s m-line to be declined but got port %u\n",
+			media_type, m_line->port);
+		return -1;
+	}
+
+	ast_test_status_update(test, "SDP %s m-line is as expected\n", media_type);
 	return 0;
 }
 
@@ -438,6 +457,26 @@ struct sdp_format {
 	const char *formats;
 };
 
+static int build_sdp_option_formats(struct ast_sdp_options *options, int num_streams, const struct sdp_format *formats)
+{
+	int idx;
+
+	for (idx = 0; idx < num_streams; ++idx) {
+		RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!caps) {
+			return -1;
+		}
+
+		if (ast_format_cap_update_by_allow_disallow(caps, formats[idx].formats, 1) < 0) {
+			return -1;
+		}
+		ast_sdp_options_set_format_cap_type(options, formats[idx].type, caps);
+	}
+	return 0;
+}
+
 /*!
  * \brief Common method to build an SDP state for a test.
  *
@@ -450,9 +489,16 @@ struct sdp_format {
  *
  * \param num_streams The number of elements in the formats array.
  * \param formats Array of media types and formats that will be in the state.
+ * \param opt_num_streams The number of new stream types allowed to create.
+ *           Not used if test_options provided.
+ * \param opt_formats Array of new stream media types and formats allowed to create.
+ *           NULL if use a default stream creation.
+ *           Not used if test_options provided.
  * \param test_options Optional SDP options.
  */
-static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_format *formats, struct ast_sdp_options *test_options)
+static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_format *formats,
+	int opt_num_streams, const struct sdp_format *opt_formats,
+	struct ast_sdp_options *test_options)
 {
 	struct ast_stream_topology *topology = NULL;
 	struct ast_sdp_state *state = NULL;
@@ -460,8 +506,32 @@ static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_f
 	int i;
 
 	if (!test_options) {
+		unsigned int max_streams;
+
+		static const struct sdp_format sdp_formats[] = {
+			{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+			{ AST_MEDIA_TYPE_VIDEO, "vp8" },
+			{ AST_MEDIA_TYPE_IMAGE, "t38" },
+		};
+
 		options = sdp_options_common();
 		if (!options) {
+			goto end;
+		}
+
+		/* Determine max_streams to allow */
+		max_streams = ARRAY_LEN(sdp_formats);
+		if (ARRAY_LEN(sdp_formats) < num_streams) {
+			max_streams = num_streams;
+		}
+		ast_sdp_options_set_max_streams(options, max_streams);
+
+		/* Determine new stream formats and types allowed */
+		if (!opt_formats) {
+			opt_num_streams = ARRAY_LEN(sdp_formats);
+			opt_formats = sdp_formats;
+		}
+		if (build_sdp_option_formats(options, opt_num_streams, opt_formats)) {
 			goto end;
 		}
 	} else {
@@ -489,7 +559,10 @@ static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_f
 			goto end;
 		}
 		ast_stream_set_formats(stream, caps);
-		ast_stream_topology_append_stream(topology, stream);
+		if (ast_stream_topology_append_stream(topology, stream) < 0) {
+			ast_stream_free(stream);
+			goto end;
+		}
 	}
 
 	state = ast_sdp_state_alloc(topology, options);
@@ -530,7 +603,8 @@ AST_TEST_DEFINE(topology_to_sdp)
 		break;
 	}
 
-	sdp_state = build_sdp_state(ARRAY_LEN(formats), formats, NULL);
+	sdp_state = build_sdp_state(ARRAY_LEN(formats), formats,
+		ARRAY_LEN(formats), formats, NULL);
 	if (!sdp_state) {
 		goto end;
 	}
@@ -674,7 +748,8 @@ AST_TEST_DEFINE(sdp_to_topology)
 		break;
 	}
 
-	sdp_state = build_sdp_state(ARRAY_LEN(sdp_formats), sdp_formats, NULL);
+	sdp_state = build_sdp_state(ARRAY_LEN(sdp_formats), sdp_formats,
+		ARRAY_LEN(sdp_formats), sdp_formats, NULL);
 	if (!sdp_state) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -723,7 +798,7 @@ end:
 	return res;
 }
 
-static int validate_merged_sdp(struct ast_test *test, const struct ast_sdp *sdp)
+static int validate_avi_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
 {
 	struct ast_sdp_m_line *m_line;
 
@@ -769,7 +844,11 @@ static int validate_merged_sdp(struct ast_test *test, const struct ast_sdp *sdp)
 	return 0;
 }
 
-AST_TEST_DEFINE(sdp_merge_symmetric)
+static enum ast_test_result_state sdp_negotiation_completed_tests(struct ast_test *test,
+	int offer_num_streams, const struct sdp_format *offer_formats,
+	int answer_num_streams, const struct sdp_format *answer_formats,
+	int allowed_ans_num_streams, const struct sdp_format *allowed_ans_formats,
+	int (*validate_sdp)(struct ast_test *test, const struct ast_sdp *sdp))
 {
 	enum ast_test_result_state res = AST_TEST_PASS;
 	struct ast_sdp_state *sdp_state_offerer = NULL;
@@ -777,38 +856,15 @@ AST_TEST_DEFINE(sdp_merge_symmetric)
 	const struct ast_sdp *offerer_sdp;
 	const struct ast_sdp *answerer_sdp;
 
-	static const struct sdp_format offerer_formats[] = {
-		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
-		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
-		{ AST_MEDIA_TYPE_IMAGE, "t38" },
-	};
-	static const struct sdp_format answerer_formats[] = {
-		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
-		{ AST_MEDIA_TYPE_VIDEO, "vp8" },
-		{ AST_MEDIA_TYPE_IMAGE, "t38" },
-	};
-
-	switch(cmd) {
-	case TEST_INIT:
-		info->name = "sdp_merge_symmetric";
-		info->category = "/main/sdp/";
-		info->summary = "Merge two SDPs with symmetric stream types";
-		info->description =
-			"SDPs 1 and 2 each have one audio and one video stream (in that order).\n"
-			"SDP 1 offers to SDP 2, who answers. We ensure that both local SDPs have\n"
-			"the expected stream types and the expected formats";
-		return AST_TEST_NOT_RUN;
-	case TEST_EXECUTE:
-		break;
-	}
-
-	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
+	sdp_state_offerer = build_sdp_state(offer_num_streams, offer_formats,
+		offer_num_streams, offer_formats, NULL);
 	if (!sdp_state_offerer) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
+	sdp_state_answerer = build_sdp_state(answer_num_streams, answer_formats,
+		allowed_ans_num_streams, allowed_ans_formats, NULL);
 	if (!sdp_state_answerer) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -820,22 +876,37 @@ AST_TEST_DEFINE(sdp_merge_symmetric)
 		goto end;
 	}
 
-	ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp);
+	if (ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 	answerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_answerer);
 	if (!answerer_sdp) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp);
-
-	/* Get the offerer SDP again because it's now going to be the joint SDP */
-	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
-	if (validate_merged_sdp(test, offerer_sdp)) {
+	if (ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp)) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
-	if (validate_merged_sdp(test, answerer_sdp)) {
+
+	/*
+	 * Restart SDP negotiations to build the joint SDP on the offerer
+	 * side.  Otherwise we will get the original offer for use in
+	 * case of retransmissions.
+	 */
+	if (ast_sdp_state_restart_negotiations(sdp_state_offerer)) {
+		ast_test_status_update(test, "Restarting negotiations failed\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
+	if (validate_sdp(test, offerer_sdp)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	if (validate_sdp(test, answerer_sdp)) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
@@ -847,14 +918,37 @@ end:
 	return res;
 }
 
-AST_TEST_DEFINE(sdp_merge_crisscross)
+AST_TEST_DEFINE(sdp_negotiation_initial)
 {
-	enum ast_test_result_state res = AST_TEST_PASS;
-	struct ast_sdp_state *sdp_state_offerer = NULL;
-	struct ast_sdp_state *sdp_state_answerer = NULL;
-	const struct ast_sdp *offerer_sdp;
-	const struct ast_sdp *answerer_sdp;
+	static const struct sdp_format offerer_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
+		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
+	};
 
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_negotiation_initial";
+		info->category = "/main/sdp/";
+		info->summary = "Simulate an initial negotiation";
+		info->description =
+			"Initial negotiation tests creating new streams on the answering side.\n"
+			"After negotiation both offerer and answerer sides should have the same\n"
+			"expected stream types and formats.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	return sdp_negotiation_completed_tests(test,
+		ARRAY_LEN(offerer_formats), offerer_formats,
+		0, NULL,
+		0, NULL,
+		validate_avi_sdp_streams);
+}
+
+AST_TEST_DEFINE(sdp_negotiation_type_change)
+{
 	static const struct sdp_format offerer_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
 		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
@@ -868,82 +962,45 @@ AST_TEST_DEFINE(sdp_merge_crisscross)
 
 	switch(cmd) {
 	case TEST_INIT:
-		info->name = "sdp_merge_crisscross";
+		info->name = "sdp_negotiation_type_change";
 		info->category = "/main/sdp/";
-		info->summary = "Merge two SDPs with symmetric stream types";
+		info->summary = "Simulate a re-negotiation changing stream types";
 		info->description =
-			"SDPs 1 and 2 each have one audio and one video stream. However, SDP 1 and\n"
-			"2 natively have the formats in a different order.\n"
-			"SDP 1 offers to SDP 2, who answers. We ensure that both local SDPs have\n"
-			"the expected stream types and the expected formats. Since SDP 1 was the\n"
-			"offerer, the format order on SDP 1 should determine the order of formats in the SDPs";
+			"Reinvite negotiation tests changing stream types on the answering side.\n"
+			"After negotiation both offerer and answerer sides should have the same\n"
+			"expected stream types and formats.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
 	}
 
-	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
-	if (!sdp_state_offerer) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-
-	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
-	if (!sdp_state_answerer) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-
-	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
-	if (!offerer_sdp) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-
-	ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp);
-	answerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_answerer);
-	if (!answerer_sdp) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-
-	ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp);
-
-	/* Get the offerer SDP again because it's now going to be the joint SDP */
-	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
-	if (validate_merged_sdp(test, offerer_sdp)) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-	if (validate_merged_sdp(test, answerer_sdp)) {
-		res = AST_TEST_FAIL;
-		goto end;
-	}
-
-end:
-	ast_sdp_state_free(sdp_state_offerer);
-	ast_sdp_state_free(sdp_state_answerer);
-
-	return res;
+	return sdp_negotiation_completed_tests(test,
+		ARRAY_LEN(offerer_formats), offerer_formats,
+		ARRAY_LEN(answerer_formats), answerer_formats,
+		0, NULL,
+		validate_avi_sdp_streams);
 }
 
-static int validate_merged_sdp_asymmetric(struct ast_test *test, const struct ast_sdp *sdp, int is_offer)
+static int validate_ava_declined_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
 {
 	struct ast_sdp_m_line *m_line;
-	const char *side = is_offer ? "Offer side" : "Answer side";
 
 	if (!sdp) {
-		ast_test_status_update(test, "%s does not have a SDP\n", side);
 		return -1;
 	}
 
-	/* Stream 0 */
 	m_line = ast_sdp_get_m(sdp, 0);
-	if (validate_m_line(test, m_line, "audio", 1)) {
+	if (validate_m_line_declined(test, m_line, "audio")) {
 		return -1;
 	}
-	if (!m_line->port) {
-		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 0, "n't");
+
+	m_line = ast_sdp_get_m(sdp, 1);
+	if (validate_m_line_declined(test, m_line, "video")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line(test, m_line, "audio", 1)) {
 		return -1;
 	}
 	if (validate_rtpmap(test, m_line, "PCMU")) {
@@ -954,61 +1011,16 @@ static int validate_merged_sdp_asymmetric(struct ast_test *test, const struct as
 	if (!validate_rtpmap(test, m_line, "PCMA")) {
 		return -1;
 	}
-	if (!validate_rtpmap(test, m_line, "G722")) {
-		return -1;
-	}
-	if (!validate_rtpmap(test, m_line, "opus")) {
-		return -1;
-	}
-
-	/* The remaining streams should be declined */
-
-	/* Stream 1 */
-	m_line = ast_sdp_get_m(sdp, 1);
-	if (validate_m_line(test, m_line, "audio", 1)) {
-		return -1;
-	}
-	if (m_line->port) {
-		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 1, "");
-		return -1;
-	}
-
-	/* Stream 2 */
-	m_line = ast_sdp_get_m(sdp, 2);
-	if (validate_m_line(test, m_line, "video", 1)) {
-		return -1;
-	}
-	if (m_line->port) {
-		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 2, "");
-		return -1;
-	}
-
-	/* Stream 3 */
-	m_line = ast_sdp_get_m(sdp, 3);
-	if (validate_m_line(test, m_line, "image", 1)) {
-		return -1;
-	}
-	if (m_line->port) {
-		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 3, "");
-		return -1;
-	}
 
 	return 0;
 }
 
-AST_TEST_DEFINE(sdp_merge_asymmetric)
+AST_TEST_DEFINE(sdp_negotiation_decline_incompatible)
 {
-	enum ast_test_result_state res = AST_TEST_PASS;
-	struct ast_sdp_state *sdp_state_offerer = NULL;
-	struct ast_sdp_state *sdp_state_answerer = NULL;
-	const struct ast_sdp *offerer_sdp;
-	const struct ast_sdp *answerer_sdp;
-
 	static const struct sdp_format offerer_formats[] = {
-		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
-		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
-		{ AST_MEDIA_TYPE_VIDEO, "h261" },
-		{ AST_MEDIA_TYPE_IMAGE, "t38" },
+		{ AST_MEDIA_TYPE_AUDIO, "alaw" },
+		{ AST_MEDIA_TYPE_VIDEO, "vp8" },
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw" },
 	};
 	static const struct sdp_format answerer_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
@@ -1016,26 +1028,128 @@ AST_TEST_DEFINE(sdp_merge_asymmetric)
 
 	switch(cmd) {
 	case TEST_INIT:
-		info->name = "sdp_merge_asymmetric";
+		info->name = "sdp_negotiation_decline_incompatible";
 		info->category = "/main/sdp/";
-		info->summary = "Merge two SDPs with an asymmetric number of streams";
+		info->summary = "Simulate an initial negotiation declining streams";
 		info->description =
-			"SDP 1 offers a four stream topology: Audio,Audio,Video,T.38\n"
-			"SDP 2 only has a single audio stream topology\n"
-			"We ensure that both local SDPs have the expected stream types and\n"
-			"the expected declined streams";
+			"Initial negotiation tests declining incompatible streams on the answering side.\n"
+			"After negotiation both offerer and answerer sides should have the same\n"
+			"expected stream types and formats.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
 	}
 
-	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
+	return sdp_negotiation_completed_tests(test,
+		ARRAY_LEN(offerer_formats), offerer_formats,
+		ARRAY_LEN(answerer_formats), answerer_formats,
+		ARRAY_LEN(answerer_formats), answerer_formats,
+		validate_ava_declined_sdp_streams);
+}
+
+static int validate_aaaa_declined_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
+{
+	struct ast_sdp_m_line *m_line;
+
+	if (!sdp) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 0);
+	if (validate_m_line(test, m_line, "audio", 1)) {
+		return -1;
+	}
+	if (validate_rtpmap(test, m_line, "PCMU")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 1);
+	if (validate_m_line(test, m_line, "audio", 1)) {
+		return -1;
+	}
+	if (validate_rtpmap(test, m_line, "PCMU")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line(test, m_line, "audio", 1)) {
+		return -1;
+	}
+	if (validate_rtpmap(test, m_line, "PCMU")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 3);
+	if (validate_m_line_declined(test, m_line, "audio")) {
+		return -1;
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(sdp_negotiation_decline_max_streams)
+{
+	static const struct sdp_format offerer_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+	};
+
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_negotiation_decline_max_streams";
+		info->category = "/main/sdp/";
+		info->summary = "Simulate an initial negotiation declining excessive streams";
+		info->description =
+			"Initial negotiation tests declining too many streams on the answering side.\n"
+			"After negotiation both offerer and answerer sides should have the same\n"
+			"expected stream types and formats.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	return sdp_negotiation_completed_tests(test,
+		ARRAY_LEN(offerer_formats), offerer_formats,
+		0, NULL,
+		0, NULL,
+		validate_aaaa_declined_sdp_streams);
+}
+
+AST_TEST_DEFINE(sdp_negotiation_not_acceptable)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct ast_sdp_state *sdp_state_offerer = NULL;
+	struct ast_sdp_state *sdp_state_answerer = NULL;
+	const struct ast_sdp *offerer_sdp;
+
+	static const struct sdp_format offerer_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "alaw" },
+		{ AST_MEDIA_TYPE_AUDIO, "alaw" },
+	};
+
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_negotiation_not_acceptable";
+		info->category = "/main/sdp/";
+		info->summary = "Simulate an initial negotiation declining all streams";
+		info->description =
+			"Initial negotiation tests declining all streams for a 488 on the answering side.\n"
+			"Negotiations should fail because there are no acceptable streams.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats,
+		ARRAY_LEN(offerer_formats), offerer_formats, NULL);
 	if (!sdp_state_offerer) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
+	sdp_state_answerer = build_sdp_state(0, NULL, 0, NULL, NULL);
 	if (!sdp_state_answerer) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -1047,24 +1161,15 @@ AST_TEST_DEFINE(sdp_merge_asymmetric)
 		goto end;
 	}
 
-	ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp);
-	answerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_answerer);
-	if (!answerer_sdp) {
+	if (!ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp)) {
+		ast_test_status_update(test, "Bad.  Setting remote SDP was successful.\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
-
-	ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp);
-
-#if defined(XXX_TODO_NEED_TO_HANDLE_DECLINED_STREAMS_ON_OFFER_SIDE)
-	/* Get the offerer SDP again because it's now going to be the joint SDP */
-	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
-	if (validate_merged_sdp_asymmetric(test, offerer_sdp, 1)) {
+	if (!ast_sdp_state_is_offer_rejected(sdp_state_answerer)) {
+		ast_test_status_update(test, "Bad.  Negotiation failed for some other reason.\n");
 		res = AST_TEST_FAIL;
-	}
-#endif
-	if (validate_merged_sdp_asymmetric(test, answerer_sdp, 0)) {
-		res = AST_TEST_FAIL;
+		goto end;
 	}
 
 end:
@@ -1135,9 +1240,12 @@ AST_TEST_DEFINE(sdp_ssrc_attributes)
 		ast_test_status_update(test, "Failed to allocate SDP options\n");
 		goto end;
 	}
+	if (build_sdp_option_formats(options, ARRAY_LEN(formats), formats)) {
+		goto end;
+	}
 	ast_sdp_options_set_ssrc(options, 1);
 
-	test_state = build_sdp_state(ARRAY_LEN(formats), formats, options);
+	test_state = build_sdp_state(ARRAY_LEN(formats), formats, 0, NULL, options);
 	if (!test_state) {
 		ast_test_status_update(test, "Failed to create SDP state\n");
 		goto end;
@@ -1179,6 +1287,726 @@ end:
 	return res;
 }
 
+struct sdp_topology_stream {
+	/*! Media stream type: audio, video, image */
+	enum ast_media_type type;
+	/*! Media stream state: removed/declined, sendrecv */
+	enum ast_stream_state state;
+	/*! Comma separated list of formats allowed on the stream.  Can be NULL if stream is removed/declined. */
+	const char *formats;
+	/*! Optional name of stream.  NULL for default name. */
+	const char *name;
+};
+
+struct sdp_update_test {
+	/*! Maximum number of streams.  (0 if default) */
+	int max_streams;
+	/*! Optional initial SDP state topology (NULL if not present) */
+	const struct sdp_topology_stream * const *initial;
+	/*! Required first topology update */
+	const struct sdp_topology_stream * const *update_1;
+	/*! Optional second topology update (NULL if not present) */
+	const struct sdp_topology_stream * const *update_2;
+	/*! Expected topology to be offered */
+	const struct sdp_topology_stream * const *expected;
+};
+
+static struct ast_stream_topology *build_update_topology(const struct sdp_topology_stream * const *spec)
+{
+	struct ast_stream_topology *topology;
+	const struct sdp_topology_stream *desc;
+
+	topology = ast_stream_topology_alloc();
+	if (!topology) {
+		return NULL;
+	}
+
+	for (desc = *spec; desc; ++spec, desc = *spec) {
+		struct ast_stream *stream;
+		const char *name;
+
+		name = desc->name ?: ast_codec_media_type2str(desc->type);
+		stream = ast_stream_alloc(name, desc->type);
+		if (!stream) {
+			goto fail;
+		}
+		ast_stream_set_state(stream, desc->state);
+		if (desc->formats) {
+			struct ast_format_cap *caps;
+
+			caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+			if (!caps) {
+				goto fail;
+			}
+			if (ast_format_cap_update_by_allow_disallow(caps, desc->formats, 1) < 0) {
+				ao2_ref(caps, -1);
+				goto fail;
+			}
+			ast_stream_set_formats(stream, caps);
+			ao2_ref(caps, -1);
+		}
+		if (ast_stream_topology_append_stream(topology, stream) < 0) {
+			ast_stream_free(stream);
+			goto fail;
+		}
+	}
+	return topology;
+
+fail:
+	ast_stream_topology_free(topology);
+	return NULL;
+}
+
+static int cmp_update_topology(struct ast_test *test,
+	const struct ast_stream_topology *expected, const struct ast_stream_topology *merged)
+{
+	int status = 0;
+	int idx;
+	int max_streams;
+	struct ast_stream *exp_stream;
+	struct ast_stream *mrg_stream;
+
+	idx = ast_stream_topology_get_count(expected);
+	max_streams = ast_stream_topology_get_count(merged);
+	if (idx != max_streams) {
+		ast_test_status_update(test, "Expected %d streams got %d streams\n",
+			idx, max_streams);
+		status = -1;
+	}
+	if (idx < max_streams) {
+		max_streams = idx;
+	}
+
+	/* Compare common streams by position */
+	for (idx = 0; idx < max_streams; ++idx) {
+		exp_stream = ast_stream_topology_get_stream(expected, idx);
+		mrg_stream = ast_stream_topology_get_stream(merged, idx);
+
+		if (strcmp(ast_stream_get_name(exp_stream), ast_stream_get_name(mrg_stream))) {
+			ast_test_status_update(test,
+				"Stream %d: Expected stream name '%s' got stream name '%s'\n",
+				idx,
+				ast_stream_get_name(exp_stream),
+				ast_stream_get_name(mrg_stream));
+			status = -1;
+		}
+
+		if (ast_stream_get_state(exp_stream) != ast_stream_get_state(mrg_stream)) {
+			ast_test_status_update(test,
+				"Stream %d: Expected stream state '%s' got stream state '%s'\n",
+				idx,
+				ast_stream_state2str(ast_stream_get_state(exp_stream)),
+				ast_stream_state2str(ast_stream_get_state(mrg_stream)));
+			status = -1;
+		}
+
+		if (ast_stream_get_type(exp_stream) != ast_stream_get_type(mrg_stream)) {
+			ast_test_status_update(test,
+				"Stream %d: Expected stream type '%s' got stream type '%s'\n",
+				idx,
+				ast_codec_media_type2str(ast_stream_get_type(exp_stream)),
+				ast_codec_media_type2str(ast_stream_get_type(mrg_stream)));
+			status = -1;
+			continue;
+		}
+
+		if (ast_stream_get_state(exp_stream) == AST_STREAM_STATE_REMOVED
+			|| ast_stream_get_state(mrg_stream) == AST_STREAM_STATE_REMOVED) {
+			/*
+			 * Cannot compare formats if one of the streams is
+			 * declined because there may not be any on the declined
+			 * stream.
+			 */
+			continue;
+		}
+		if (!ast_format_cap_identical(ast_stream_get_formats(exp_stream),
+			ast_stream_get_formats(mrg_stream))) {
+			ast_test_status_update(test,
+				"Stream %d: Expected formats do not match merged formats\n",
+				idx);
+			status = -1;
+		}
+	}
+
+	return status;
+}
+
+
+static const struct sdp_topology_stream audio_declined_no_name = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_REMOVED, NULL, NULL
+};
+
+static const struct sdp_topology_stream audio_ulaw_no_name = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "ulaw", NULL
+};
+
+static const struct sdp_topology_stream audio_alaw_no_name = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "alaw", NULL
+};
+
+static const struct sdp_topology_stream audio_g722_no_name = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "g722", NULL
+};
+
+static const struct sdp_topology_stream audio_g723_no_name = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "g723", NULL
+};
+
+static const struct sdp_topology_stream video_declined_no_name = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, NULL, NULL
+};
+
+static const struct sdp_topology_stream video_h261_no_name = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h261", NULL
+};
+
+static const struct sdp_topology_stream video_h263_no_name = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h263", NULL
+};
+
+static const struct sdp_topology_stream video_h264_no_name = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h264", NULL
+};
+
+static const struct sdp_topology_stream video_vp8_no_name = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "vp8", NULL
+};
+
+static const struct sdp_topology_stream image_declined_no_name = {
+	AST_MEDIA_TYPE_IMAGE, AST_STREAM_STATE_REMOVED, NULL, NULL
+};
+
+static const struct sdp_topology_stream image_t38_no_name = {
+	AST_MEDIA_TYPE_IMAGE, AST_STREAM_STATE_SENDRECV, "t38", NULL
+};
+
+
+static const struct sdp_topology_stream *top_ulaw_alaw_h264__vp8[] = {
+	&audio_ulaw_no_name,
+	&audio_alaw_no_name,
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top__vp8_alaw_h264_ulaw[] = {
+	&video_vp8_no_name,
+	&audio_alaw_no_name,
+	&video_h264_no_name,
+	&audio_ulaw_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_alaw_ulaw__vp8_h264[] = {
+	&audio_alaw_no_name,
+	&audio_ulaw_no_name,
+	&video_vp8_no_name,
+	&video_h264_no_name,
+	NULL
+};
+
+/* Sorting by type with no new or deleted streams */
+static const struct sdp_update_test mrg_by_type_00 = {
+	.initial  = top_ulaw_alaw_h264__vp8,
+	.update_1 = top__vp8_alaw_h264_ulaw,
+	.expected = top_alaw_ulaw__vp8_h264,
+};
+
+
+static const struct sdp_topology_stream *top_alaw__vp8[] = {
+	&audio_alaw_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_h264__vp8_ulaw[] = {
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	&audio_ulaw_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_ulaw_h264__vp8[] = {
+	&audio_ulaw_no_name,
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+/* Sorting by type and adding a stream */
+static const struct sdp_update_test mrg_by_type_01 = {
+	.initial  = top_alaw__vp8,
+	.update_1 = top_h264__vp8_ulaw,
+	.expected = top_ulaw_h264__vp8,
+};
+
+
+static const struct sdp_topology_stream *top_alaw__vp8_vdec[] = {
+	&audio_alaw_no_name,
+	&video_vp8_no_name,
+	&video_declined_no_name,
+	NULL
+};
+
+/* Sorting by type and deleting a stream */
+static const struct sdp_update_test mrg_by_type_02 = {
+	.initial  = top_ulaw_h264__vp8,
+	.update_1 = top_alaw__vp8,
+	.expected = top_alaw__vp8_vdec,
+};
+
+
+static const struct sdp_topology_stream *top_h264_alaw_ulaw[] = {
+	&video_h264_no_name,
+	&audio_alaw_no_name,
+	&audio_ulaw_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top__t38[] = {
+	&image_t38_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_vdec__t38_adec[] = {
+	&video_declined_no_name,
+	&image_t38_no_name,
+	&audio_declined_no_name,
+	NULL
+};
+
+/* Sorting by type changing stream types for T.38 */
+static const struct sdp_update_test mrg_by_type_03 = {
+	.initial  = top_h264_alaw_ulaw,
+	.update_1 = top__t38,
+	.expected = top_vdec__t38_adec,
+};
+
+
+/* Sorting by type changing stream types back from T.38 */
+static const struct sdp_update_test mrg_by_type_04 = {
+	.initial  = top_vdec__t38_adec,
+	.update_1 = top_h264_alaw_ulaw,
+	.expected = top_h264_alaw_ulaw,
+};
+
+
+static const struct sdp_topology_stream *top_h264[] = {
+	&video_h264_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_vdec__t38[] = {
+	&video_declined_no_name,
+	&image_t38_no_name,
+	NULL
+};
+
+/* Sorting by type changing stream types for T.38 */
+static const struct sdp_update_test mrg_by_type_05 = {
+	.initial  = top_h264,
+	.update_1 = top__t38,
+	.expected = top_vdec__t38,
+};
+
+
+static const struct sdp_topology_stream *top_h264_idec[] = {
+	&video_h264_no_name,
+	&image_declined_no_name,
+	NULL
+};
+
+/* Sorting by type changing stream types back from T.38 */
+static const struct sdp_update_test mrg_by_type_06 = {
+	.initial  = top_vdec__t38,
+	.update_1 = top_h264,
+	.expected = top_h264_idec,
+};
+
+
+static const struct sdp_topology_stream *top_ulaw_adec_h264__vp8[] = {
+	&audio_ulaw_no_name,
+	&audio_declined_no_name,
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_h263_alaw_h261_h264_vp8[] = {
+	&video_h263_no_name,
+	&audio_alaw_no_name,
+	&video_h261_no_name,
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_alaw_h264_h263_h261_vp8[] = {
+	&audio_alaw_no_name,
+	&video_h264_no_name,
+	&video_h263_no_name,
+	&video_h261_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+/* Sorting by type with backfill and adding streams */
+static const struct sdp_update_test mrg_by_type_07 = {
+	.initial  = top_ulaw_adec_h264__vp8,
+	.update_1 = top_h263_alaw_h261_h264_vp8,
+	.expected = top_alaw_h264_h263_h261_vp8,
+};
+
+
+static const struct sdp_topology_stream *top_ulaw_alaw_h264__vp8_h261[] = {
+	&audio_ulaw_no_name,
+	&audio_alaw_no_name,
+	&video_h264_no_name,
+	&video_vp8_no_name,
+	&video_h261_no_name,
+	NULL
+};
+
+/* Sorting by type overlimit of 4 and drop */
+static const struct sdp_update_test mrg_by_type_08 = {
+	.max_streams = 4,
+	.initial  = top_ulaw_alaw_h264__vp8,
+	.update_1 = top_ulaw_alaw_h264__vp8_h261,
+	.expected = top_ulaw_alaw_h264__vp8,
+};
+
+
+static const struct sdp_topology_stream *top_ulaw_alaw_h264[] = {
+	&audio_ulaw_no_name,
+	&audio_alaw_no_name,
+	&video_h264_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_alaw_h261__vp8[] = {
+	&audio_alaw_no_name,
+	&video_h261_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_alaw_adec_h261__vp8[] = {
+	&audio_alaw_no_name,
+	&audio_declined_no_name,
+	&video_h261_no_name,
+	&video_vp8_no_name,
+	NULL
+};
+
+/* Sorting by type with delete and add of streams */
+static const struct sdp_update_test mrg_by_type_09 = {
+	.initial  = top_ulaw_alaw_h264,
+	.update_1 = top_alaw_h261__vp8,
+	.expected = top_alaw_adec_h261__vp8,
+};
+
+
+static const struct sdp_topology_stream *top_ulaw_adec_h264[] = {
+	&audio_ulaw_no_name,
+	&audio_declined_no_name,
+	&video_h264_no_name,
+	NULL
+};
+
+/* Sorting by type and adding streams */
+static const struct sdp_update_test mrg_by_type_10 = {
+	.initial  = top_ulaw_adec_h264,
+	.update_1 = top_alaw_ulaw__vp8_h264,
+	.expected = top_alaw_ulaw__vp8_h264,
+};
+
+
+static const struct sdp_topology_stream *top_adec_g722_h261[] = {
+	&audio_declined_no_name,
+	&audio_g722_no_name,
+	&video_h261_no_name,
+	NULL
+};
+
+/* Sorting by type and deleting old streams */
+static const struct sdp_update_test mrg_by_type_11 = {
+	.initial  = top_ulaw_alaw_h264,
+	.update_1 = top_adec_g722_h261,
+	.expected = top_adec_g722_h261,
+};
+
+
+static const struct sdp_topology_stream audio_alaw4dave = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "alaw", "dave"
+};
+
+static const struct sdp_topology_stream audio_g7224dave = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "g722", "dave"
+};
+
+static const struct sdp_topology_stream audio_ulaw4fred = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "ulaw", "fred"
+};
+
+static const struct sdp_topology_stream audio_alaw4fred = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "alaw", "fred"
+};
+
+static const struct sdp_topology_stream audio_ulaw4rose = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "ulaw", "rose"
+};
+
+static const struct sdp_topology_stream audio_g7224rose = {
+	AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, "g722", "rose"
+};
+
+
+static const struct sdp_topology_stream video_h2614dave = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h261", "dave"
+};
+
+static const struct sdp_topology_stream video_h2634dave = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h263", "dave"
+};
+
+static const struct sdp_topology_stream video_h2634fred = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h263", "fred"
+};
+
+static const struct sdp_topology_stream video_h2644fred = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h264", "fred"
+};
+
+static const struct sdp_topology_stream video_h2644rose = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h264", "rose"
+};
+
+static const struct sdp_topology_stream video_h2614rose = {
+	AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, "h261", "rose"
+};
+
+
+static const struct sdp_topology_stream *top_adave_alaw_afred_ulaw_arose_g722_vdave_h261_vfred_h263_vrose_h264[] = {
+	&audio_alaw4dave,
+	&audio_alaw_no_name,
+	&audio_ulaw4fred,
+	&audio_ulaw_no_name,
+	&audio_g7224rose,
+	&audio_g722_no_name,
+	&video_h2614dave,
+	&video_h261_no_name,
+	&video_h2634fred,
+	&video_h263_no_name,
+	&video_h2644rose,
+	&video_h264_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_vfred_vrose_vdave_h263_h264_h261_afred_ulaw_arose_g722_adave_alaw[] = {
+	&video_h2644fred,
+	&video_h2614rose,
+	&video_h2634dave,
+	&video_h263_no_name,
+	&video_h264_no_name,
+	&video_h261_no_name,
+	&audio_alaw4fred,
+	&audio_ulaw_no_name,
+	&audio_ulaw4rose,
+	&audio_g722_no_name,
+	&audio_g7224dave,
+	&audio_alaw_no_name,
+	NULL
+};
+
+static const struct sdp_topology_stream *top_adave_ulaw_afred_g722_arose_alaw_vdave_h263_vfred_h264_vrose_h261[] = {
+	&audio_g7224dave,
+	&audio_ulaw_no_name,
+	&audio_alaw4fred,
+	&audio_g722_no_name,
+	&audio_ulaw4rose,
+	&audio_alaw_no_name,
+	&video_h2634dave,
+	&video_h263_no_name,
+	&video_h2644fred,
+	&video_h264_no_name,
+	&video_h2614rose,
+	&video_h261_no_name,
+	NULL
+};
+
+/* Sorting by name and type with no new or deleted streams */
+static const struct sdp_update_test mrg_by_name_00 = {
+	.initial  = top_adave_alaw_afred_ulaw_arose_g722_vdave_h261_vfred_h263_vrose_h264,
+	.update_1 = top_vfred_vrose_vdave_h263_h264_h261_afred_ulaw_arose_g722_adave_alaw,
+	.expected = top_adave_ulaw_afred_g722_arose_alaw_vdave_h263_vfred_h264_vrose_h261,
+};
+
+
+static const struct sdp_topology_stream *top_adave_g723_h261[] = {
+	&audio_g7224dave,
+	&audio_g723_no_name,
+	&video_h261_no_name,
+	NULL
+};
+
+/* Sorting by name and type adding names to streams */
+static const struct sdp_update_test mrg_by_name_01 = {
+	.initial  = top_ulaw_alaw_h264,
+	.update_1 = top_adave_g723_h261,
+	.expected = top_adave_g723_h261,
+};
+
+
+/* Sorting by name and type removing names from streams */
+static const struct sdp_update_test mrg_by_name_02 = {
+	.initial  = top_adave_g723_h261,
+	.update_1 = top_ulaw_alaw_h264,
+	.expected = top_ulaw_alaw_h264,
+};
+
+
+static const struct sdp_update_test *sdp_update_cases[] = {
+	/* Merging by type */
+	/* 00 */ &mrg_by_type_00,
+	/* 01 */ &mrg_by_type_01,
+	/* 02 */ &mrg_by_type_02,
+	/* 03 */ &mrg_by_type_03,
+	/* 04 */ &mrg_by_type_04,
+	/* 05 */ &mrg_by_type_05,
+	/* 06 */ &mrg_by_type_06,
+	/* 07 */ &mrg_by_type_07,
+	/* 08 */ &mrg_by_type_08,
+	/* 09 */ &mrg_by_type_09,
+	/* 10 */ &mrg_by_type_10,
+	/* 11 */ &mrg_by_type_11,
+
+	/* Merging by name and type */
+	/* 12 */ &mrg_by_name_00,
+	/* 13 */ &mrg_by_name_01,
+	/* 14 */ &mrg_by_name_02,
+};
+
+AST_TEST_DEFINE(sdp_update_topology)
+{
+	enum ast_test_result_state res;
+	unsigned int idx;
+	int status;
+	struct ast_sdp_options *options;
+	struct ast_stream_topology *topology;
+	struct ast_sdp_state *test_state = NULL;
+
+	static const struct sdp_format sdp_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,g723" },
+		{ AST_MEDIA_TYPE_VIDEO, "h261,h263,h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
+	};
+
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_update_topology";
+		info->category = "/main/sdp/";
+		info->summary = "Merge topology updates from the system";
+		info->description =
+			"1) Create a SDP state with an optional initial topology.\n"
+			"2) Update the initial topology with one or two new topologies.\n"
+			"3) Get the SDP offer to merge the updates into the initial topology.\n"
+			"4) Check that the offered topology matches the expected topology.\n"
+			"5) Repeat these steps for each test case defined.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	res = AST_TEST_FAIL;
+	for (idx = 0; idx < ARRAY_LEN(sdp_update_cases); ++idx) {
+		ast_test_status_update(test, "Starting update case %d\n", idx);
+
+		/* Create a SDP state with an optional initial topology. */
+		options = sdp_options_common();
+		if (!options) {
+			ast_test_status_update(test, "Failed to allocate SDP options\n");
+			goto end;
+		}
+		if (sdp_update_cases[idx]->max_streams) {
+			ast_sdp_options_set_max_streams(options, sdp_update_cases[idx]->max_streams);
+		}
+		if (build_sdp_option_formats(options, ARRAY_LEN(sdp_formats), sdp_formats)) {
+			ast_test_status_update(test, "Failed to setup SDP options new stream formats\n");
+			goto end;
+		}
+		if (sdp_update_cases[idx]->initial) {
+			topology = build_update_topology(sdp_update_cases[idx]->initial);
+			if (!topology) {
+				ast_test_status_update(test, "Failed to build initial SDP state topology\n");
+				goto end;
+			}
+		} else {
+			topology = NULL;
+		}
+		test_state = ast_sdp_state_alloc(topology, options);
+		ast_stream_topology_free(topology);
+		if (!test_state) {
+			ast_test_status_update(test, "Failed to build SDP state\n");
+			goto end;
+		}
+
+		/* Update the initial topology with one or two new topologies. */
+		topology = build_update_topology(sdp_update_cases[idx]->update_1);
+		if (!topology) {
+			ast_test_status_update(test, "Failed to build first update SDP state topology\n");
+			goto end;
+		}
+		status = ast_sdp_state_update_local_topology(test_state, topology);
+		ast_stream_topology_free(topology);
+		if (status) {
+			ast_test_status_update(test, "Failed to update first update SDP state topology\n");
+			goto end;
+		}
+		if (sdp_update_cases[idx]->update_2) {
+			topology = build_update_topology(sdp_update_cases[idx]->update_2);
+			if (!topology) {
+				ast_test_status_update(test, "Failed to build second update SDP state topology\n");
+				goto end;
+			}
+			status = ast_sdp_state_update_local_topology(test_state, topology);
+			ast_stream_topology_free(topology);
+			if (status) {
+				ast_test_status_update(test, "Failed to update second update SDP state topology\n");
+				goto end;
+			}
+		}
+
+		/* Get the SDP offer to merge the updates into the initial topology. */
+		if (!ast_sdp_state_get_local_sdp(test_state)) {
+			ast_test_status_update(test, "Failed to create offer SDP\n");
+			goto end;
+		}
+
+		/* Check that the offered topology matches the expected topology. */
+		topology = build_update_topology(sdp_update_cases[idx]->expected);
+		if (!topology) {
+			ast_test_status_update(test, "Failed to build expected topology\n");
+			goto end;
+		}
+		status = cmp_update_topology(test, topology,
+			ast_sdp_state_get_local_topology(test_state));
+		ast_stream_topology_free(topology);
+		if (status) {
+			ast_test_status_update(test, "Failed to match expected topology\n");
+			goto end;
+		}
+
+		/* Repeat for each test case defined. */
+		ast_sdp_state_free(test_state);
+		test_state = NULL;
+	}
+	res = AST_TEST_PASS;
+
+end:
+	ast_sdp_state_free(test_state);
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(invalid_rtpmap);
@@ -1186,10 +2014,13 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(find_attr);
 	AST_TEST_UNREGISTER(topology_to_sdp);
 	AST_TEST_UNREGISTER(sdp_to_topology);
-	AST_TEST_UNREGISTER(sdp_merge_symmetric);
-	AST_TEST_UNREGISTER(sdp_merge_crisscross);
-	AST_TEST_UNREGISTER(sdp_merge_asymmetric);
+	AST_TEST_UNREGISTER(sdp_negotiation_initial);
+	AST_TEST_UNREGISTER(sdp_negotiation_type_change);
+	AST_TEST_UNREGISTER(sdp_negotiation_decline_incompatible);
+	AST_TEST_UNREGISTER(sdp_negotiation_decline_max_streams);
+	AST_TEST_UNREGISTER(sdp_negotiation_not_acceptable);
 	AST_TEST_UNREGISTER(sdp_ssrc_attributes);
+	AST_TEST_UNREGISTER(sdp_update_topology);
 
 	return 0;
 }
@@ -1201,10 +2032,13 @@ static int load_module(void)
 	AST_TEST_REGISTER(find_attr);
 	AST_TEST_REGISTER(topology_to_sdp);
 	AST_TEST_REGISTER(sdp_to_topology);
-	AST_TEST_REGISTER(sdp_merge_symmetric);
-	AST_TEST_REGISTER(sdp_merge_crisscross);
-	AST_TEST_REGISTER(sdp_merge_asymmetric);
+	AST_TEST_REGISTER(sdp_negotiation_initial);
+	AST_TEST_REGISTER(sdp_negotiation_type_change);
+	AST_TEST_REGISTER(sdp_negotiation_decline_incompatible);
+	AST_TEST_REGISTER(sdp_negotiation_decline_max_streams);
+	AST_TEST_REGISTER(sdp_negotiation_not_acceptable);
 	AST_TEST_REGISTER(sdp_ssrc_attributes);
+	AST_TEST_REGISTER(sdp_update_topology);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

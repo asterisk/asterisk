@@ -228,6 +228,17 @@ void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state
 const char *ast_stream_state2str(enum ast_stream_state state);
 
 /*!
+ * \brief Convert a string to a stream state
+ *
+ * \param str The string to convert
+ *
+ * \return The stream state
+ *
+ * \since 15.0.0
+ */
+enum ast_stream_state ast_stream_str2state(const char *str);
+
+/*!
  * \brief Get the opaque stream data
  *
  * \param stream The media stream
