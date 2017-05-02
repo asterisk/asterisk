@@ -92,12 +92,12 @@ void ast_sdp_translator_free(struct ast_sdp_translator *translator)
 }
 
 struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator,
-	void *native_sdp)
+	const void *native_sdp)
 {
 	return translator->ops->to_sdp(native_sdp, translator->translator_priv);
 }
 
-void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
+const void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
 	const struct ast_sdp *ast_sdp)
 {
 	return translator->ops->from_sdp(ast_sdp, translator->translator_priv);

@@ -89,7 +89,7 @@ static struct ast_sdp_m_line *pjmedia_copy_m_line(struct pjmedia_sdp_media *pjme
 	return m_line;
 }
 
-static void pjmedia_copy_a_lines(struct ast_sdp *new_sdp, pjmedia_sdp_session *pjmedia_sdp)
+static void pjmedia_copy_a_lines(struct ast_sdp *new_sdp, const pjmedia_sdp_session *pjmedia_sdp)
 {
 	int i;
 
@@ -100,7 +100,7 @@ static void pjmedia_copy_a_lines(struct ast_sdp *new_sdp, pjmedia_sdp_session *p
 }
 
 static void pjmedia_copy_m_lines(struct ast_sdp *new_sdp,
-	struct pjmedia_sdp_session *pjmedia_sdp)
+	const struct pjmedia_sdp_session *pjmedia_sdp)
 {
 	int i;
 
@@ -109,9 +109,9 @@ static void pjmedia_copy_m_lines(struct ast_sdp *new_sdp,
 	}
 }
 
-static struct ast_sdp *pjmedia_to_sdp(void *in, void *translator_priv)
+static struct ast_sdp *pjmedia_to_sdp(const void *in, void *translator_priv)
 {
-	struct pjmedia_sdp_session *pjmedia_sdp = in;
+	const struct pjmedia_sdp_session *pjmedia_sdp = in;
 
 	struct ast_sdp_o_line *o_line = ast_sdp_o_alloc(dupa_pj_str(pjmedia_sdp->origin.user),
 		pjmedia_sdp->origin.id, pjmedia_sdp->origin.version,
@@ -239,7 +239,7 @@ static void copy_m_lines_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_s
 	}
 }
 
-static void *sdp_to_pjmedia(const struct ast_sdp *sdp, void *translator_priv)
+static const void *sdp_to_pjmedia(const struct ast_sdp *sdp, void *translator_priv)
 {
 	pj_pool_t *pool = translator_priv;
 	pjmedia_sdp_session *pjmedia_sdp;
@@ -470,7 +470,7 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
       "a=rtpmap:32 MPV/90000\r\n\r\n";
 	pj_pool_t *pool;
 	pjmedia_sdp_session *pjmedia_sdp_orig;
-	pjmedia_sdp_session *pjmedia_sdp_dup;
+	const pjmedia_sdp_session *pjmedia_sdp_dup;
 	struct ast_sdp *sdp = NULL;
 	pj_status_t status;
 	enum ast_test_result_state res = AST_TEST_PASS;
