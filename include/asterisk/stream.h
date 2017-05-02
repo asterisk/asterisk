@@ -126,7 +126,7 @@ void ast_stream_free(struct ast_stream *stream);
  * \retval NULL failure
  *
  * \note Opaque data pointers set with ast_stream_set_data() are not part
- * of the deep clone.  The pointers are simply copied.
+ * of the deep clone.  We have no way to clone the data.
  *
  * \since 15
  */

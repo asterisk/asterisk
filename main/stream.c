@@ -99,6 +99,7 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream)
 {
 	struct ast_stream *new_stream;
 	size_t stream_size;
+	int idx;
 
 	if (!stream) {
 		return NULL;
@@ -113,6 +114,12 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream)
 	memcpy(new_stream, stream, stream_size);
 	if (new_stream->formats) {
 		ao2_ref(new_stream->formats, +1);
+	}
+
+	/* We cannot clone the opaque data because we don't know how. */
+	for (idx = 0; idx < AST_STREAM_DATA_SLOT_MAX; ++idx) {
+		new_stream->data[idx] = NULL;
+		new_stream->data_free_fn[idx] = NULL;
 	}
 
 	return new_stream;
