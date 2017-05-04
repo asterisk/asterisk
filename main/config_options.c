@@ -588,10 +588,13 @@ enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco
 	};
 
 	ao2_cleanup(info->internal->pending);
+	info->internal->pending = NULL;
 	return ACO_PROCESS_OK;
 
 error:
 	ao2_cleanup(info->internal->pending);
+	info->internal->pending = NULL;
+
 	return ACO_PROCESS_ERROR;
 }
 
@@ -704,6 +707,8 @@ try_alias:
 
 end:
 	ao2_cleanup(info->internal->pending);
+	info->internal->pending = NULL;
+
 	return res;
 }
 int aco_process_var(struct aco_type *type, const char *cat, struct ast_variable *var, void *obj)
