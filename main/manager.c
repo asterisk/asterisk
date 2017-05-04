@@ -8723,6 +8723,10 @@ static void manager_shutdown(void)
 	ami_tls_cfg.pvtfile = NULL;
 	ast_free(ami_tls_cfg.cipher);
 	ami_tls_cfg.cipher = NULL;
+	ast_free(ami_tls_cfg.cafile);
+	ami_tls_cfg.cafile = NULL;
+	ast_free(ami_tls_cfg.capath);
+	ami_tls_cfg.capath = NULL;
 
 	ao2_global_obj_release(mgr_sessions);
 
@@ -8823,6 +8827,10 @@ static void manager_set_defaults(void)
 	ami_tls_cfg.pvtfile = ast_strdup("");
 	ast_free(ami_tls_cfg.cipher);
 	ami_tls_cfg.cipher = ast_strdup("");
+	ast_free(ami_tls_cfg.cafile);
+	ami_tls_cfg.cafile = ast_strdup("");
+	ast_free(ami_tls_cfg.capath);
+	ami_tls_cfg.capath = ast_strdup("");
 }
 
 static int __init_manager(int reload, int by_external_config)
