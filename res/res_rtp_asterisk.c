@@ -3904,7 +3904,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			return 0;
 		}
 
-		if (ast_sockaddr_isnull(&rtp->rtcp->them)) {
+		if (ast_sockaddr_isnull(&rtp->rtcp->them) || rtp->rtcp->schedid < 0) {
 			/*
 			 * RTCP was stopped.
 			 */
@@ -5501,21 +5501,20 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 		}
 	}
 
-	if (rtp->rtcp) {
+	if (rtp->rtcp && !ast_sockaddr_isnull(addr)) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
 		ast_sockaddr_copy(&rtp->rtcp->them, addr);
-		if (!ast_sockaddr_isnull(addr)) {
-			if (rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
-				ast_sockaddr_set_port(&rtp->rtcp->them, ast_sockaddr_port(addr) + 1);
 
-				/* Update the local RTCP address with what is being used */
-				ast_sockaddr_set_port(&local, ast_sockaddr_port(&local) + 1);
-			}
-			ast_sockaddr_copy(&rtp->rtcp->us, &local);
+		if (rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
+			ast_sockaddr_set_port(&rtp->rtcp->them, ast_sockaddr_port(addr) + 1);
 
-			ast_free(rtp->rtcp->local_addr_str);
-			rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&local));
+			/* Update the local RTCP address with what is being used */
+			ast_sockaddr_set_port(&local, ast_sockaddr_port(&local) + 1);
 		}
+		ast_sockaddr_copy(&rtp->rtcp->us, &local);
+
+		ast_free(rtp->rtcp->local_addr_str);
+		rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&local));
 	}
 
 	rtp->rxseqno = 0;
@@ -5725,9 +5724,6 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 	}
 
 	ast_rtp_instance_set_remote_address(instance, &addr);
-	if (rtp->rtcp) {
-		ast_sockaddr_setnull(&rtp->rtcp->them);
-	}
 
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
 }
