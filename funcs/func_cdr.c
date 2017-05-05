@@ -379,7 +379,7 @@ static void cdr_write_callback(void *data, struct stasis_subscription *sub, stru
 			payload->cmd, payload->cmd);
 		return;
 	}
-	if (ast_strlen_zero(payload->value)) {
+	if (!payload->value) {
 		ast_log(AST_LOG_WARNING, "%s requires a value (%s(variable)=value)\n)",
 			payload->cmd, payload->cmd);
 		return;
