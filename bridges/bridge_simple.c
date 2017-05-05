@@ -91,6 +91,9 @@ static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
 	struct ast_stream_topology *t0 = ast_channel_get_stream_topology(c0);
 	struct ast_stream_topology *t1 = ast_channel_get_stream_topology(c1);
 
+	if (bridge_channel) {
+		ast_bridge_channel_stream_map(bridge_channel);
+	}
 	/*
 	 * The bridge_channel should only be NULL after both channels join
 	 * the bridge and their topologies are being aligned.

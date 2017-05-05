@@ -747,7 +747,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct ast_sdp_st
 
 			if (is_local) {
 				/* Replace the local stream with the new local stream. */
-				joint_stream = ast_stream_clone(new_stream);
+				joint_stream = ast_stream_clone(new_stream, NULL);
 			} else {
 				joint_stream = merge_streams(local_stream, new_stream);
 			}
@@ -800,7 +800,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct ast_sdp_st
 			/* We don't have a stream state that corresponds to the stream in the new topology, so
 			 * create a stream state as appropriate.
 			 */
-			joint_stream = ast_stream_clone(new_stream);
+			joint_stream = ast_stream_clone(new_stream, NULL);
 			if (!joint_stream) {
 				sdp_state_stream_free(joint_state_stream);
 				goto fail;

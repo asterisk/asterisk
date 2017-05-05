@@ -31,7 +31,11 @@
 	<support_level>core</support_level>
  ***/
 
+#include "asterisk.h"
 
+#include "asterisk/stream.h"
+#include "asterisk/test.h"
+#include "asterisk/vector.h"
 #include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
@@ -53,6 +57,10 @@
  * mixed out its own write audio stream because it is not talking. */
 #define DEFAULT_SOFTMIX_SILENCE_THRESHOLD 2500
 #define DEFAULT_SOFTMIX_TALKING_THRESHOLD 160
+
+#define SOFTBRIDGE_VIDEO_DEST_PREFIX "softbridge_dest"
+#define SOFTBRIDGE_VIDEO_DEST_LEN strlen(SOFTBRIDGE_VIDEO_DEST_PREFIX)
+#define SOFTBRIDGE_VIDEO_DEST_SEPARATOR '_'
 
 struct softmix_stats {
 	/*! Each index represents a sample rate used above the internal rate. */
@@ -401,6 +409,215 @@ static void softmix_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridg
 	}
 }
 
+/*!
+ * \brief Determine if a stream is a video source stream.
+ *
+ * \param stream The stream to test
+ * \retval 1 The stream is a video source
+ * \retval 0 The stream is not a video source
+ */
+static int is_video_source(const struct ast_stream *stream)
+{
+	if (ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO &&
+		strncmp(ast_stream_get_name(stream), SOFTBRIDGE_VIDEO_DEST_PREFIX,
+			SOFTBRIDGE_VIDEO_DEST_LEN)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Determine if a stream is a video destination stream.
+ *
+ * A source channel name can be provided to narrow this to a destination stream
+ * for a particular source channel. Further, a source stream name can be provided
+ * to narrow this to a particular source stream's destination. However, empty strings
+ * can be provided to match any destination video stream, regardless of source channel
+ * or source stream.
+ *
+ * \param stream The stream to test
+ * \param source_channel_name The name of a source video channel to match
+ * \param source_stream_name The name of the source video stream to match
+ * \retval 1 The stream is a video destination stream
+ * \retval 0 The stream is not a video destination stream
+ */
+static int is_video_dest(const struct ast_stream *stream, const char *source_channel_name,
+	const char *source_stream_name)
+{
+	char *dest_video_name;
+	size_t dest_video_name_len;
+
+	if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_VIDEO) {
+		return 0;
+	}
+
+	dest_video_name_len = SOFTBRIDGE_VIDEO_DEST_LEN + 1;
+
+	if (!ast_strlen_zero(source_channel_name)) {
+		dest_video_name_len += strlen(source_channel_name) + 1;
+		if (!ast_strlen_zero(source_stream_name)) {
+			dest_video_name_len += strlen(source_stream_name) + 1;
+		}
+	}
+	dest_video_name = ast_alloca(dest_video_name_len);
+
+	if (!ast_strlen_zero(source_channel_name)) {
+		if (!ast_strlen_zero(source_stream_name)) {
+			snprintf(dest_video_name, dest_video_name_len, "%s%c%s%c%s",
+				SOFTBRIDGE_VIDEO_DEST_PREFIX, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
+				source_channel_name, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
+				source_stream_name);
+			return !strcmp(ast_stream_get_name(stream), dest_video_name);
+		} else {
+			snprintf(dest_video_name, dest_video_name_len, "%s%c%s",
+				SOFTBRIDGE_VIDEO_DEST_PREFIX, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
+				source_channel_name);
+			return !strncmp(ast_stream_get_name(stream), dest_video_name, dest_video_name_len - 1);
+		}
+	} else {
+		snprintf(dest_video_name, dest_video_name_len, "%s",
+			SOFTBRIDGE_VIDEO_DEST_PREFIX);
+		return !strncmp(ast_stream_get_name(stream), dest_video_name, dest_video_name_len - 1);
+	}
+
+	return 0;
+}
+
+static int append_source_streams(struct ast_stream_topology *dest,
+	const char *channel_name,
+	const struct ast_stream_topology *source)
+{
+	int i;
+
+	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
+		struct ast_stream *stream;
+		struct ast_stream *stream_clone;
+		char *stream_clone_name;
+		size_t stream_clone_name_len;
+
+		stream = ast_stream_topology_get_stream(source, i);
+		if (!is_video_source(stream)) {
+			continue;
+		}
+
+		/* The +3 is for the two underscore separators and null terminator */
+		stream_clone_name_len = SOFTBRIDGE_VIDEO_DEST_LEN + strlen(channel_name) + strlen(ast_stream_get_name(stream)) + 3;
+		stream_clone_name = ast_alloca(stream_clone_name_len);
+		snprintf(stream_clone_name, stream_clone_name_len, "%s_%s_%s", SOFTBRIDGE_VIDEO_DEST_PREFIX,
+			channel_name, ast_stream_get_name(stream));
+
+		stream_clone = ast_stream_clone(stream, stream_clone_name);
+		if (!stream_clone) {
+			return -1;
+		}
+		if (ast_stream_topology_append_stream(dest, stream_clone) < 0) {
+			ast_stream_free(stream_clone);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int append_all_streams(struct ast_stream_topology *dest,
+	const struct ast_stream_topology *source)
+{
+	int i;
+
+	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
+		struct ast_stream *clone;
+
+		clone = ast_stream_clone(ast_stream_topology_get_stream(source, i), NULL);
+		if (!clone) {
+			return -1;
+		}
+		if (ast_stream_topology_append_stream(dest, clone) < 0) {
+			ast_stream_free(clone);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Issue channel stream topology change requests.
+ *
+ * When in SFU mode, each participant needs to be able to
+ * send video directly to other participants in the bridge.
+ * This means that all participants need to have their topologies
+ * updated. The joiner needs to have destination streams for
+ * all current participants, and the current participants need
+ * to have destinations streams added for the joiner's sources.
+ *
+ * \param joiner The channel that is joining the softmix bridge
+ * \param participants The current participants in the softmix bridge
+ */
+static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast_bridge_channels_list *participants)
+{
+	struct ast_stream_topology *joiner_topology = NULL;
+	struct ast_stream_topology *joiner_video = NULL;
+	struct ast_stream_topology *existing_video = NULL;
+	struct ast_bridge_channel *participant;
+
+	joiner_video = ast_stream_topology_alloc();
+	if (!joiner_video) {
+		return;
+	}
+
+	if (append_source_streams(joiner_video, ast_channel_name(joiner->chan), ast_channel_get_stream_topology(joiner->chan))) {
+		goto cleanup;
+	}
+
+	existing_video = ast_stream_topology_alloc();
+	if (!existing_video) {
+		goto cleanup;
+	}
+
+	AST_LIST_TRAVERSE(participants, participant, entry) {
+		if (participant == joiner) {
+			continue;
+		}
+		if (append_source_streams(existing_video, ast_channel_name(participant->chan),
+				ast_channel_get_stream_topology(participant->chan))) {
+			goto cleanup;
+		}
+	}
+
+	joiner_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
+	if (!joiner_topology) {
+		goto cleanup;
+	}
+	if (append_all_streams(joiner_topology, existing_video)) {
+		goto cleanup;
+	}
+	ast_channel_request_stream_topology_change(joiner->chan, joiner_topology, NULL);
+
+	AST_LIST_TRAVERSE(participants, participant, entry) {
+		struct ast_stream_topology *participant_topology;
+
+		if (participant == joiner) {
+			continue;
+		}
+		participant_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
+		if (!participant_topology) {
+			goto cleanup;
+		}
+		if (append_all_streams(participant_topology, joiner_video)) {
+			ast_stream_topology_free(participant_topology);
+			goto cleanup;
+		}
+		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
+		ast_stream_topology_free(participant_topology);
+	}
+
+cleanup:
+	ast_stream_topology_free(joiner_video);
+	ast_stream_topology_free(existing_video);
+	ast_stream_topology_free(joiner_topology);
+}
+
 /*! \brief Function called when a channel is joined into the bridge */
 static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
@@ -464,18 +681,83 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 			: DEFAULT_SOFTMIX_INTERVAL,
 		bridge_channel, 0, set_binaural, pos_id, is_announcement);
 
+	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_SFU) {
+		sfu_topologies_on_join(bridge_channel, &bridge->channels);
+	}
+
 	softmix_poke_thread(softmix_data);
+	return 0;
+}
+
+static int remove_destination_streams(struct ast_stream_topology *dest,
+	const char *channel_name,
+	const struct ast_stream_topology *source)
+{
+	int i;
+
+	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
+		struct ast_stream *stream;
+		struct ast_stream *stream_clone;
+
+		stream = ast_stream_topology_get_stream(source, i);
+
+		if (is_video_dest(stream, channel_name, NULL)) {
+			continue;
+		}
+
+		stream_clone = ast_stream_clone(stream, NULL);
+		if (!stream_clone) {
+			continue;
+		}
+		if (ast_stream_topology_append_stream(dest, stream_clone) < 0) {
+			ast_stream_free(stream_clone);
+		}
+	}
+
+	return 0;
+}
+
+static int sfu_topologies_on_leave(struct ast_bridge_channel *leaver, struct ast_bridge_channels_list *participants)
+{
+	struct ast_stream_topology *leaver_topology;
+	struct ast_bridge_channel *participant;
+
+	leaver_topology = ast_stream_topology_alloc();
+	if (!leaver_topology) {
+		return -1;
+	}
+
+	AST_LIST_TRAVERSE(participants, participant, entry) {
+		struct ast_stream_topology *participant_topology;
+
+		participant_topology = ast_stream_topology_alloc();
+		if (!participant_topology) {
+			continue;
+		}
+
+		remove_destination_streams(participant_topology, ast_channel_name(leaver->chan), ast_channel_get_stream_topology(participant->chan));
+		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
+		ast_stream_topology_free(participant_topology);
+	}
+
+	remove_destination_streams(leaver_topology, "", ast_channel_get_stream_topology(leaver->chan));
+	ast_channel_request_stream_topology_change(leaver->chan, leaver_topology, NULL);
+	ast_stream_topology_free(leaver_topology);
+
 	return 0;
 }
 
 /*! \brief Function called when a channel leaves the bridge */
 static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-
 	struct softmix_channel *sc;
 	struct softmix_bridge_data *softmix_data;
 	softmix_data = bridge->tech_pvt;
 	sc = bridge_channel->tech_pvt;
+
+	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_SFU) {
+		sfu_topologies_on_leave(bridge_channel, &bridge->channels);
+	}
 
 	if (!sc) {
 		return;
@@ -564,6 +846,12 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
 		} else if (video_src_priority == 2) {
 			softmix_pass_video_top_priority(bridge, frame);
 		}
+		break;
+	case AST_BRIDGE_VIDEO_MODE_SFU:
+		/* Nothing special to do here, the bridge channel stream map will ensure the
+		 * video goes everywhere it needs to
+		 */
+		ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
 	}
 }
@@ -1323,6 +1611,140 @@ static void softmix_bridge_destroy(struct ast_bridge *bridge)
 	bridge->tech_pvt = NULL;
 }
 
+/*!
+ * \brief Map a source stream to all of its destination streams.
+ *
+ * \param source_stream_name Name of the source stream
+ * \param source_channel_name Name of channel where the source stream originates
+ * \param bridge_stream_position The slot in the bridge where source video will come from
+ * \param participants The bridge_channels in the bridge
+ */
+static void map_source_to_destinations(const char *source_stream_name, const char *source_channel_name,
+	size_t bridge_stream_position, struct ast_bridge_channels_list *participants)
+{
+	struct ast_bridge_channel *participant;
+
+	AST_LIST_TRAVERSE(participants, participant, entry) {
+		int i;
+		struct ast_stream_topology *topology;
+
+		if (!strcmp(source_channel_name, ast_channel_name(participant->chan))) {
+			continue;
+		}
+
+		ast_bridge_channel_lock(participant);
+		topology = ast_channel_get_stream_topology(participant->chan);
+
+		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
+			struct ast_stream *stream;
+
+			stream = ast_stream_topology_get_stream(topology, i);
+			if (is_video_dest(stream, source_channel_name, source_stream_name)) {
+				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, bridge_stream_position, i);
+				break;
+			}
+		}
+		ast_bridge_channel_unlock(participant);
+	}
+}
+
+/*\brief stream_topology_changed callback
+ *
+ * For most video modes, nothing beyond the ordinary is required.
+ * For the SFU case, though, we need to completely remap the streams
+ * in order to ensure video gets directed where it is expected to go.
+ *
+ * \param bridge The bridge
+ * \param bridge_channel Channel whose topology has changed
+ */
+static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_bridge_channel *participant;
+	struct ast_vector_int media_types;
+	int nths[AST_MEDIA_TYPE_END] = {0};
+
+	switch (bridge->softmix.video_mode.mode) {
+	case AST_BRIDGE_VIDEO_MODE_NONE:
+	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
+	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
+	default:
+		ast_bridge_channel_stream_map(bridge_channel);
+		return;
+	case AST_BRIDGE_VIDEO_MODE_SFU:
+		break;
+	}
+
+	AST_VECTOR_INIT(&media_types, AST_MEDIA_TYPE_END);
+
+	/* First traversal: re-initialize all of the participants' stream maps */
+	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
+		int size;
+
+		ast_bridge_channel_lock(participant);
+		size = ast_stream_topology_get_count(ast_channel_get_stream_topology(participant->chan));
+
+		AST_VECTOR_FREE(&participant->stream_map.to_channel);
+		AST_VECTOR_FREE(&participant->stream_map.to_bridge);
+
+		AST_VECTOR_INIT(&participant->stream_map.to_channel, size);
+		AST_VECTOR_INIT(&participant->stream_map.to_bridge, size);
+		ast_bridge_channel_unlock(participant);
+	}
+
+	/* Second traversal: Map specific video channels from their source to their destinations.
+	 *
+	 * This is similar to what is done in ast_stream_topology_map(), except that
+	 * video channels are handled differently. Each video source has it's own
+	 * unique index on the bridge. this way, a particular channel's source video
+	 * can be distributed to the appropriate destination streams on the other
+	 * channels
+	 */
+	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
+		int i;
+		struct ast_stream_topology *topology;
+
+		topology = ast_channel_get_stream_topology(participant->chan);
+
+		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
+			struct ast_stream *stream = ast_stream_topology_get_stream(topology, i);
+			ast_bridge_channel_lock(participant);
+			if (is_video_source(stream)) {
+				AST_VECTOR_APPEND(&media_types, AST_MEDIA_TYPE_VIDEO);
+				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, AST_VECTOR_SIZE(&media_types) - 1);
+				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, AST_VECTOR_SIZE(&media_types) - 1, -1);
+				/* Unlock the participant to prevent potential deadlock
+				 * in map_source_to_destinations
+				 */
+				ast_bridge_channel_unlock(participant);
+				map_source_to_destinations(ast_stream_get_name(stream), ast_channel_name(participant->chan),
+					AST_VECTOR_SIZE(&media_types) - 1, &bridge->channels);
+				ast_bridge_channel_lock(participant);
+			} else if (is_video_dest(stream, NULL, NULL)) {
+				/* We expect to never read media from video destination channels, but just
+				 * in case, we should set their to_bridge value to -1.
+				 */
+				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, -1);
+			} else {
+				/* XXX This is copied from ast_stream_topology_map(). This likely could
+				 * be factored out in some way
+				 */
+				enum ast_media_type type = ast_stream_get_type(stream);
+				int index = AST_VECTOR_GET_INDEX_NTH(&media_types, ++nths[type],
+					type, AST_VECTOR_ELEM_DEFAULT_CMP);
+
+				if (index == -1) {
+					AST_VECTOR_APPEND(&media_types, type);
+					index = AST_VECTOR_SIZE(&media_types) - 1;
+				}
+
+				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, index);
+				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, index, i);
+			}
+			ast_bridge_channel_unlock(participant);
+		}
+	}
+}
+
 static struct ast_bridge_technology softmix_bridge = {
 	.name = "softmix",
 	.capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX,
@@ -1334,11 +1756,301 @@ static struct ast_bridge_technology softmix_bridge = {
 	.leave = softmix_bridge_leave,
 	.unsuspend = softmix_bridge_unsuspend,
 	.write = softmix_bridge_write,
+	.stream_topology_changed = softmix_bridge_stream_topology_changed,
 };
+
+#ifdef TEST_FRAMEWORK
+struct stream_parameters {
+	const char *name;
+	const char *formats;
+	enum ast_media_type type;
+};
+
+static struct ast_stream_topology *build_topology(const struct stream_parameters *params, size_t num_streams)
+{
+	struct ast_stream_topology *topology;
+	size_t i;
+
+	topology = ast_stream_topology_alloc();
+	if (!topology) {
+		return NULL;
+	}
+
+	for (i = 0; i < num_streams; ++i) {
+		RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+		struct ast_stream *stream;
+
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!caps) {
+			goto fail;
+		}
+		if (ast_format_cap_update_by_allow_disallow(caps, params[i].formats, 1) < 0) {
+			goto fail;
+		}
+		stream = ast_stream_alloc(params[i].name, params[i].type);
+		if (!stream) {
+			goto fail;
+		}
+		ast_stream_set_formats(stream, caps);
+		if (ast_stream_topology_append_stream(topology, stream) < 0) {
+			ast_stream_free(stream);
+			goto fail;
+		}
+	}
+
+	return topology;
+
+fail:
+	ast_stream_topology_free(topology);
+	return NULL;
+}
+
+static int validate_stream(struct ast_test *test, struct ast_stream *stream,
+	const struct stream_parameters *params)
+{
+	struct ast_format_cap *stream_caps;
+	struct ast_format_cap *params_caps;
+
+	if (ast_stream_get_type(stream) != params->type) {
+		ast_test_status_update(test, "Expected stream type '%s' but got type '%s'\n",
+			ast_codec_media_type2str(params->type),
+			ast_codec_media_type2str(ast_stream_get_type(stream)));
+		return -1;
+	}
+	if (strcmp(ast_stream_get_name(stream), params->name)) {
+		ast_test_status_update(test, "Expected stream name '%s' but got type '%s'\n",
+			params->name, ast_stream_get_name(stream));
+		return -1;
+	}
+
+	stream_caps = ast_stream_get_formats(stream);
+	params_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!params_caps) {
+		ast_test_status_update(test, "Allocation error on capabilities\n");
+		return -1;
+	}
+	ast_format_cap_update_by_allow_disallow(params_caps, params->formats, 1);
+
+	if (ast_format_cap_identical(stream_caps, params_caps)) {
+		ast_test_status_update(test, "Formats are not as expected on stream '%s'\n",
+			ast_stream_get_name(stream));
+		ao2_cleanup(params_caps);
+		return -1;
+	}
+
+	ao2_cleanup(params_caps);
+	return 0;
+}
+
+static int validate_original_streams(struct ast_test *test, struct ast_stream_topology *topology,
+	const struct stream_parameters *params, size_t num_streams)
+{
+	int i;
+
+	if (ast_stream_topology_get_count(topology) < num_streams) {
+		ast_test_status_update(test, "Topology only has %d streams. Needs to have at least %zu\n",
+			ast_stream_topology_get_count(topology), num_streams);
+		return -1;
+	}
+
+	for (i = 0; i < ARRAY_LEN(params); ++i) {
+		if (validate_stream(test, ast_stream_topology_get_stream(topology, i), &params[i])) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(sfu_append_source_streams)
+{
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	static const struct stream_parameters bob_streams[] = {
+		{ "bob_audio", "ulaw,alaw,g722,opus", AST_MEDIA_TYPE_AUDIO, },
+		{ "bob_video", "h264,vp8", AST_MEDIA_TYPE_VIDEO, },
+	};
+	static const struct stream_parameters alice_streams[] = {
+		{ "alice_audio", "ulaw,opus", AST_MEDIA_TYPE_AUDIO, },
+		{ "alice_video", "vp8", AST_MEDIA_TYPE_VIDEO, },
+	};
+	static const struct stream_parameters alice_dest_stream = {
+		"softbridge_dest_PJSIP/Bob-00000001_bob_video", "vp8", AST_MEDIA_TYPE_VIDEO,
+	};
+	static const struct stream_parameters bob_dest_stream = {
+		"softbridge_dest_PJSIP/Alice-00000000_alice_video", "h264,vp8", AST_MEDIA_TYPE_VIDEO,
+	};
+	struct ast_stream_topology *topology_alice = NULL;
+	struct ast_stream_topology *topology_bob = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sfu_append_source_streams";
+		info->category = "/bridges/bridge_softmix/";
+		info->summary = "Test appending of video streams";
+		info->description =
+			"This tests does stuff.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topology_alice = build_topology(alice_streams, ARRAY_LEN(alice_streams));
+	if (!topology_alice) {
+		goto end;
+	}
+
+	topology_bob = build_topology(bob_streams, ARRAY_LEN(bob_streams));
+	if (!topology_bob) {
+		goto end;
+	}
+
+	if (append_source_streams(topology_alice, "PJSIP/Bob-00000001", topology_bob)) {
+		ast_test_status_update(test, "Failed to append Bob's streams to Alice\n");
+		goto end;
+	}
+
+	if (ast_stream_topology_get_count(topology_alice) != 3) {
+		ast_test_status_update(test, "Alice's topology isn't large enough! It's %d but needs to be %d\n",
+			ast_stream_topology_get_count(topology_alice), 3);
+		goto end;
+	}
+
+	if (validate_original_streams(test, topology_alice, alice_streams, ARRAY_LEN(alice_streams))) {
+		goto end;
+	}
+
+	if (validate_stream(test, ast_stream_topology_get_stream(topology_alice, 2), &alice_dest_stream)) {
+		goto end;
+	}
+
+	if (append_source_streams(topology_bob, "PJSIP/Alice-00000000", topology_alice)) {
+		ast_test_status_update(test, "Failed to append Alice's streams to Bob\n");
+		goto end;
+	}
+
+	if (ast_stream_topology_get_count(topology_bob) != 3) {
+		ast_test_status_update(test, "Bob's topology isn't large enough! It's %d but needs to be %d\n",
+			ast_stream_topology_get_count(topology_bob), 3);
+		goto end;
+	}
+
+	if (validate_original_streams(test, topology_bob, bob_streams, ARRAY_LEN(bob_streams))) {
+		goto end;
+	}
+
+	if (validate_stream(test, ast_stream_topology_get_stream(topology_bob, 2), &bob_dest_stream)) {
+		goto end;
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	ast_stream_topology_free(topology_alice);
+	ast_stream_topology_free(topology_bob);
+	return res;
+}
+
+AST_TEST_DEFINE(sfu_remove_destination_streams)
+{
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	static const struct stream_parameters params[] = {
+		{ "alice_audio", "ulaw,alaw,g722,opus", AST_MEDIA_TYPE_AUDIO, },
+		{ "alice_video", "h264,vp8", AST_MEDIA_TYPE_VIDEO, },
+		{ "softbridge_dest_PJSIP/Bob-00000001_video", "vp8", AST_MEDIA_TYPE_VIDEO, },
+		{ "softbridge_dest_PJSIP/Carol-00000002_video", "h264", AST_MEDIA_TYPE_VIDEO, },
+	};
+	static const struct {
+		const char *channel_name;
+		int num_streams;
+		int params_index[4];
+	} removal_results[] = {
+		{ "PJSIP/Bob-00000001", 3, { 0, 1, 3, -1 }, },
+		{ "PJSIP/Edward-00000004", 4, { 0, 1, 2, 3 }, },
+		{ "", 2, { 0, 1, -1, -1 }, },
+	};
+	struct ast_stream_topology *orig = NULL;
+	struct ast_stream_topology *result = NULL;
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "sfu_remove_destination_streams";
+		info->category = "/bridges/bridge_softmix/";
+		info->summary = "Test removal of destination video streams";
+		info->description =
+			"This tests does stuff.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	orig = build_topology(params, ARRAY_LEN(params));
+	if (!orig) {
+		ast_test_status_update(test, "Unable to build initial stream topology\n");
+		goto end;
+	}
+
+	for (i = 0; i < ARRAY_LEN(removal_results); ++i) {
+		int j;
+
+		result = ast_stream_topology_alloc();
+		if (!result) {
+			ast_test_status_update(test, "Unable to allocate result stream topology\n");
+			goto end;
+		}
+
+		if (remove_destination_streams(result, removal_results[i].channel_name, orig)) {
+			ast_test_status_update(test, "Failure while attempting to remove video streams\n");
+			goto end;
+		}
+
+		if (ast_stream_topology_get_count(result) != removal_results[i].num_streams) {
+			ast_test_status_update(test, "Resulting topology has %d streams, when %d are expected\n",
+				ast_stream_topology_get_count(result), removal_results[i].num_streams);
+			goto end;
+		}
+
+		for (j = 0; j < removal_results[i].num_streams; ++j) {
+			struct ast_stream *actual;
+			struct ast_stream *expected;
+			int orig_index;
+
+			actual = ast_stream_topology_get_stream(result, j);
+
+			orig_index = removal_results[i].params_index[j];
+			expected = ast_stream_topology_get_stream(orig, orig_index);
+
+			if (!ast_format_cap_identical(ast_stream_get_formats(actual),
+				ast_stream_get_formats(expected))) {
+				struct ast_str *expected_str;
+				struct ast_str *actual_str;
+
+				expected_str = ast_str_alloca(64);
+				actual_str = ast_str_alloca(64);
+
+				ast_test_status_update(test, "Mismatch between expected (%s) and actual (%s) stream formats\n",
+					ast_format_cap_get_names(ast_stream_get_formats(expected), &expected_str),
+					ast_format_cap_get_names(ast_stream_get_formats(actual), &actual_str));
+				goto end;
+			}
+		}
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	ast_stream_topology_free(orig);
+	ast_stream_topology_free(result);
+	return res;
+}
+
+#endif
 
 static int unload_module(void)
 {
 	ast_bridge_technology_unregister(&softmix_bridge);
+	AST_TEST_UNREGISTER(sfu_append_source_streams);
+	AST_TEST_UNREGISTER(sfu_remove_destination_streams);
 	return 0;
 }
 
@@ -1348,6 +2060,8 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	AST_TEST_REGISTER(sfu_append_source_streams);
+	AST_TEST_REGISTER(sfu_remove_destination_streams);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

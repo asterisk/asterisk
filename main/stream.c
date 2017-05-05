@@ -95,23 +95,26 @@ struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 	return stream;
 }
 
-struct ast_stream *ast_stream_clone(const struct ast_stream *stream)
+struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char *name)
 {
 	struct ast_stream *new_stream;
 	size_t stream_size;
 	int idx;
+	const char *stream_name;
 
 	if (!stream) {
 		return NULL;
 	}
 
-	stream_size = sizeof(*stream) + strlen(stream->name) + 1;
+	stream_name = name ?: stream->name;
+	stream_size = sizeof(*stream) + strlen(stream_name) + 1;
 	new_stream = ast_calloc(1, stream_size);
 	if (!new_stream) {
 		return NULL;
 	}
 
-	memcpy(new_stream, stream, stream_size);
+	memcpy(new_stream, stream, sizeof(*new_stream));
+	strcpy(new_stream->name, stream_name); /* Safe */
 	if (new_stream->formats) {
 		ao2_ref(new_stream->formats, +1);
 	}
@@ -269,7 +272,7 @@ struct ast_stream_topology *ast_stream_topology_clone(
 
 	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
 		struct ast_stream *stream =
-			ast_stream_clone(AST_VECTOR_GET(&topology->streams, i));
+			ast_stream_clone(AST_VECTOR_GET(&topology->streams, i), NULL);
 
 		if (!stream || AST_VECTOR_APPEND(&new_topology->streams, stream)) {
 			ast_stream_free(stream);

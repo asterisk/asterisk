@@ -989,6 +989,11 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		/* Media frames need to be mapped to an appropriate write stream */
 		dup->stream_num = AST_VECTOR_GET(
 			&bridge_channel->stream_map.to_bridge, fr->stream_num);
+		if (dup->stream_num == -1) {
+			ast_bridge_channel_unlock(bridge_channel);
+			bridge_frame_free(dup);
+			return 0;
+		}
 	} else {
 		dup->stream_num = -1;
 	}
@@ -2339,7 +2344,9 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	case AST_FRAME_NULL:
 		break;
 	default:
-		if (fr->stream_num >= (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel)) {
+		if (fr->stream_num > 0 &&
+				(fr->stream_num >= (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel) ||
+				AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num) == -1)) {
 			/* Nowhere to write to, so drop it */
 			break;
 		}
@@ -2473,11 +2480,11 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			 * If a stream topology has changed then the bridge_channel's
 			 * media mapping needs to be updated.
 			 */
-			ast_bridge_channel_stream_map(bridge_channel);
-
 			if (bridge_channel->bridge->technology->stream_topology_changed) {
 				bridge_channel->bridge->technology->stream_topology_changed(
 					bridge_channel->bridge, bridge_channel);
+			} else {
+				ast_bridge_channel_stream_map(bridge_channel);
 			}
 			break;
 		default:

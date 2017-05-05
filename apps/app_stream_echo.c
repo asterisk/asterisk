@@ -249,7 +249,7 @@ static struct ast_stream_topology *stream_echo_topology_alloc(
 		}
 
 		do {
-			stream = ast_stream_clone(stream);
+			stream = ast_stream_clone(stream, NULL);
 
 			if (!stream || ast_stream_topology_append_stream(res, stream) < 0) {
 				ast_stream_free(stream);
