@@ -23,8 +23,8 @@
 
 #include "sdp_private.h"
 
+#define DEFAULT_DTMF AST_SDP_DTMF_NONE
 #define DEFAULT_ICE AST_SDP_ICE_DISABLED
-#define DEFAULT_TELEPHONE_EVENT 0
 #define DEFAULT_IMPL AST_SDP_IMPL_STRING
 #define DEFAULT_ENCRYPTION AST_SDP_ENCRYPTION_DISABLED
 
@@ -65,7 +65,6 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, udptl_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_t38_ec_modes, udptl_error_correction);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, udptl_far_max_datagram);
-DEFINE_GETTERS_SETTERS_FOR(unsigned int, telephone_event);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_ipv6);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, g726_non_standard);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtcp_mux);
@@ -73,6 +72,7 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, cos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_video);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, cos_video);
+DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_dtmf, dtmf);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_ice, ice);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_impl, impl);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_encryption, encryption);
@@ -80,8 +80,8 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, ssrc);
 
 static void set_defaults(struct ast_sdp_options *options)
 {
+	options->dtmf = DEFAULT_DTMF;
 	options->ice = DEFAULT_ICE;
-	options->telephone_event = DEFAULT_TELEPHONE_EVENT;
 	options->impl = DEFAULT_IMPL;
 	options->encryption = DEFAULT_ENCRYPTION;
 }

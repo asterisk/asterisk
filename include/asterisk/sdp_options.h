@@ -24,6 +24,20 @@
 struct ast_sdp_options;
 
 /*!
+ * \brief SDP DTMF mode options
+ */
+enum ast_sdp_options_dtmf {
+	/*! No DTMF to be used */
+	AST_SDP_DTMF_NONE,
+	/*! Use RFC 4733 events for DTMF */
+	AST_SDP_DTMF_RFC_4733,
+	/*! Use DTMF in the audio stream */
+	AST_SDP_DTMF_INBAND,
+	/*! Use SIP 4733 if supported by the other side or INBAND if not */
+	AST_SDP_DTMF_AUTO,
+};
+
+/*!
  * \brief ICE options
  *
  * This is an enum because it will support a TRICKLE-ICE option
@@ -212,26 +226,6 @@ unsigned int ast_sdp_options_get_rtp_symmetric(const struct ast_sdp_options *opt
 
 /*!
  * \since 15.0.0
- * \brief Set SDP Options telephone_event
- *
- * \param options SDP Options
- * \param telephone_event
- */
-void ast_sdp_options_set_telephone_event(struct ast_sdp_options *options,
-	unsigned int telephone_event);
-
-/*!
- * \since 15.0.0
- * \brief Get SDP Options telephone_event
- *
- * \param options SDP Options
- *
- * \returns telephone_event
- */
-unsigned int ast_sdp_options_get_telephone_event(const struct ast_sdp_options *options);
-
-/*!
- * \since 15.0.0
  * \brief Set SDP Options rtp_ipv6
  *
  * \param options SDP Options
@@ -349,6 +343,26 @@ void ast_sdp_options_set_cos_video(struct ast_sdp_options *options,
  * \returns cos_video
  */
 unsigned int ast_sdp_options_get_cos_video(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options dtmf
+ *
+ * \param options SDP Options
+ * \param dtmf
+ */
+void ast_sdp_options_set_dtmf(struct ast_sdp_options *options,
+	enum ast_sdp_options_dtmf dtmf);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options dtmf
+ *
+ * \param options SDP Options
+ *
+ * \returns dtmf
+ */
+enum ast_sdp_options_dtmf ast_sdp_options_get_dtmf(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0

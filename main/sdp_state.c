@@ -178,9 +178,11 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 		ice->stop(rtp);
 	}
 
-	if (options->telephone_event) {
+	if (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO) {
 		ast_rtp_instance_dtmf_mode_set(rtp, AST_RTP_DTMF_MODE_RFC2833);
 		ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_DTMF, 1);
+	} else if (options->dtmf == AST_SDP_DTMF_INBAND) {
+		ast_rtp_instance_dtmf_mode_set(rtp, AST_RTP_DTMF_MODE_INBAND);
 	}
 
 	if (media_type == AST_MEDIA_TYPE_AUDIO &&
@@ -1257,7 +1259,6 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 
 	ast_assert(sdp && options && stream);
 
-	media_type = ast_stream_get_type(stream);
 	if (rtp) {
 		if (ast_sdp_state_get_stream_connection_address(sdp_state, 0, &address_rtp)) {
 			return -1;
@@ -1300,31 +1301,24 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 		ao2_ref(format, -1);
 	}
 
-	if (rtp && media_type != AST_MEDIA_TYPE_VIDEO) {
-		for (i = 1LL; i <= AST_RTP_MAX; i <<= 1) {
-			if (!(options->telephone_event & i)) {
-				continue;
-			}
-
-			rtp_code = ast_rtp_codecs_payload_code(
-				ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
-			if (rtp_code == -1) {
-				continue;
-			}
-
+	media_type = ast_stream_get_type(stream);
+	if (rtp && media_type != AST_MEDIA_TYPE_VIDEO
+		&& (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO)) {
+		i = AST_RTP_DTMF;
+		rtp_code = ast_rtp_codecs_payload_code(
+			ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
+		if (-1 < rtp_code) {
 			if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
 				ast_sdp_m_free(m_line);
 				return -1;
 			}
 
-			if (i == AST_RTP_DTMF) {
-				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
-				a_line = ast_sdp_a_alloc("fmtp", tmp);
-				if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-					ast_sdp_a_free(a_line);
-					ast_sdp_m_free(m_line);
-					return -1;
-				}
+			snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
+			a_line = ast_sdp_a_alloc("fmtp", tmp);
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
 			}
 		}
 	}
