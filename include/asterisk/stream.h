@@ -56,7 +56,7 @@ typedef void (*ast_stream_data_free_fn)(void *);
  */
 enum ast_stream_state {
 	/*!
-	 * \brief Set when the stream has been removed
+	 * \brief Set when the stream has been removed/declined
 	 */
 	AST_STREAM_STATE_REMOVED = 0,
 	/*!
