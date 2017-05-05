@@ -24,8 +24,10 @@
 
 struct ast_sdp_options {
 	AST_DECLARE_STRING_FIELDS(
-		/*! Optional media address to use in SDP */
+		/*! Media address to use in SDP */
 		AST_STRING_FIELD(media_address);
+		/*! Optional address of the interface media should use. */
+		AST_STRING_FIELD(interface_address);
 		/*! SDP origin username */
 		AST_STRING_FIELD(sdpowner);
 		/*! SDP session name */
@@ -34,8 +36,6 @@ struct ast_sdp_options {
 		AST_STRING_FIELD(rtp_engine);
 	);
 	struct {
-		unsigned int bind_rtp_to_media_address:1;
-		unsigned int bind_udptl_to_media_address:1;
 		unsigned int rtp_symmetric:1;
 		unsigned int udptl_symmetric:1;
 		unsigned int rtp_ipv6:1;

@@ -126,6 +126,26 @@ const char *ast_sdp_options_get_media_address(const struct ast_sdp_options *opti
 
 /*!
  * \since 15.0.0
+ * \brief Set SDP Options interface_address
+ *
+ * \param options SDP Options
+ * \param interface_address
+ */
+void ast_sdp_options_set_interface_address(struct ast_sdp_options *options,
+	const char *interface_address);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options interface_address
+ *
+ * \param options SDP Options
+ *
+ * \returns interface_address
+ */
+const char *ast_sdp_options_get_interface_address(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
  * \brief Set SDP Options sdpowner
  *
  * \param options SDP Options
@@ -183,26 +203,6 @@ void ast_sdp_options_set_rtp_engine(struct ast_sdp_options *options,
  * \returns rtp_engine
  */
 const char *ast_sdp_options_get_rtp_engine(const struct ast_sdp_options *options);
-
-/*!
- * \since 15.0.0
- * \brief Set SDP Options bind_rtp_to_media_address
- *
- * \param options SDP Options
- * \param bind_rtp_to_media_address
- */
-void ast_sdp_options_set_bind_rtp_to_media_address(struct ast_sdp_options *options,
-	unsigned int bind_rtp_to_media_address);
-
-/*!
- * \since 15.0.0
- * \brief Get SDP Options bind_rtp_to_media_address
- *
- * \param options SDP Options
- *
- * \returns bind_rtp_to_media_address
- */
-unsigned int ast_sdp_options_get_bind_rtp_to_media_address(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -502,26 +502,6 @@ void ast_sdp_options_set_udptl_far_max_datagram(struct ast_sdp_options *options,
  * \returns udptl_far_max_datagram
  */
 unsigned int ast_sdp_options_get_udptl_far_max_datagram(const struct ast_sdp_options *options);
-
-/*!
- * \since 15.0.0
- * \brief Set SDP Options bind_udptl_to_media_address
- *
- * \param options SDP Options
- * \param bind_udptl_to_media_address
- */
-void ast_sdp_options_set_bind_udptl_to_media_address(struct ast_sdp_options *options,
-	unsigned int bind_udptl_to_media_address);
-
-/*!
- * \since 15.0.0
- * \brief Get SDP Options bind_udptl_to_media_address
- *
- * \param options SDP Options
- *
- * \returns bind_udptl_to_media_address
- */
-unsigned int ast_sdp_options_get_bind_udptl_to_media_address(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
