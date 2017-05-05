@@ -35,6 +35,7 @@
 
 #include <sys/types.h>
 #include <time.h>
+#include <math.h>
 
 #include <sql.h>
 #include <sqlext.h>
@@ -607,40 +608,62 @@ static void odbc_log(struct ast_event *event)
 					if (ast_strlen_zero(colptr)) {
 						continue;
 					} else {
-						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, fraction = 0;
-						if (strcasecmp(entry->name, "eventdate") == 0) {
-							struct ast_tm tm;
-							ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
-							year = tm.tm_year + 1900;
-							month = tm.tm_mon + 1;
-							day = tm.tm_mday;
-							hour = tm.tm_hour;
-							minute = tm.tm_min;
-							second = (tableptr->allowleapsec || tm.tm_sec < 60) ? tm.tm_sec : 59;
-							fraction = tm.tm_usec;
+						if (datefield) {
+							/*
+							 * We've already properly formatted the timestamp so there's no need
+							 * to parse it and re-format it.
+							 */
+							ast_str_append(&sql, 0, "%s%s", separator, entry->name);
+							LENGTHEN_BUF2(27);
+							ast_str_append(&sql2, 0, "%s{ts '%s'}", separator, colptr);
 						} else {
-							int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d.%6d", &year, &month, &day, &hour, &minute, &second, &fraction);
+							int year = 0, month = 0, day = 0, hour = 0, minute = 0;
+							/* MUST use double for microsecond precision */
+							double second = 0.0;
+							if (strcasecmp(entry->name, "eventdate") == 0) {
+								/*
+								 * There doesn't seem to be any reference to 'eventdate' anywhere
+								 * other than in this module.  It should be considered for removal
+								 * at a later date.
+								 */
+								struct ast_tm tm;
+								ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
+								year = tm.tm_year + 1900;
+								month = tm.tm_mon + 1;
+								day = tm.tm_mday;
+								hour = tm.tm_hour;
+								minute = tm.tm_min;
+								second = (tableptr->allowleapsec || tm.tm_sec < 60) ? tm.tm_sec : 59;
+								second += (tm.tm_usec / 1000000.0);
+							} else {
+								/*
+								 * If we're here, the data to be inserted MAY be a timestamp
+								 * but the column is.  We parse as much as we can.
+								 */
+								int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%lf", &year, &month, &day, &hour, &minute, &second);
 
-							if ((count != 3 && count != 5 && count != 6 && count != 7) || year <= 0 ||
-								month <= 0 || month > 12 || day < 0 || day > 31 ||
-								((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
-								(month == 2 && year % 400 == 0 && day > 29) ||
-								(month == 2 && year % 100 == 0 && day > 28) ||
-								(month == 2 && year % 4 == 0 && day > 29) ||
-								(month == 2 && year % 4 != 0 && day > 28) ||
-								hour > 23 || minute > 59 || second > (tableptr->allowleapsec ? 60 : 59) || hour < 0 || minute < 0 || second < 0 || fraction < 0) {
-								ast_log(LOG_WARNING, "CEL variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
-								continue;
+								if ((count != 3 && count != 5 && count != 6) || year <= 0 ||
+									month <= 0 || month > 12 || day < 0 || day > 31 ||
+									((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
+									(month == 2 && year % 400 == 0 && day > 29) ||
+									(month == 2 && year % 100 == 0 && day > 28) ||
+									(month == 2 && year % 4 == 0 && day > 29) ||
+									(month == 2 && year % 4 != 0 && day > 28) ||
+									hour > 23 || minute > 59 || ((int)floor(second)) > (tableptr->allowleapsec ? 60 : 59) ||
+									hour < 0 || minute < 0 || ((int)floor(second)) < 0) {
+									ast_log(LOG_WARNING, "CEL variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
+									continue;
+								}
+
+								if (year > 0 && year < 100) {
+									year += 2000;
+								}
 							}
 
-							if (year > 0 && year < 100) {
-								year += 2000;
-							}
+							ast_str_append(&sql, 0, "%s%s", separator, entry->name);
+							LENGTHEN_BUF2(27);
+							ast_str_append(&sql2, 0, "%s{ts '%04d-%02d-%02d %02d:%02d:%09.6lf'}", separator, year, month, day, hour, minute, second);
 						}
-
-						ast_str_append(&sql, 0, "%s%s", separator, entry->name);
-						LENGTHEN_BUF2(27);
-						ast_str_append(&sql2, 0, "%s{ts '%04d-%02d-%02d %02d:%02d:%02d.%d'}", separator, year, month, day, hour, minute, second, fraction);
 					}
 					break;
 				case SQL_INTEGER:
