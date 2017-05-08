@@ -507,6 +507,22 @@ void ast_verb_console_set(int verb_level);
  */
 int ast_is_logger_initialized(void);
 
+/*!
+ * \brief Set the maximum number of messages allowed in the processing queue
+ *
+ * \param queue_limit
+ *
+ * \return Nothing
+ */
+void ast_logger_set_queue_limit(int queue_limit);
+
+/*!
+ * \brief Get the maximum number of messages allowed in the processing queue
+ *
+ * \return Queue limit
+ */
+int ast_logger_get_queue_limit(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
