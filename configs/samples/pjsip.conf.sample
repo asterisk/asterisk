@@ -766,6 +766,10 @@
                ; header to this value (default: "")
 ;asymmetric_rtp_codec= ; Allow the sending and receiving codec to differ and
                        ; not be automatically matched (default: "no")
+;refer_blind_progress= ; Whether to notifies all the progress details on blind
+                       ; transfer (default: "yes"). The value "no" is useful
+                       ; for some SIP phones (Mitel/Aastra, Snom) which expect
+                       ; a sip/frag "200 OK" after REFER has been accepted.
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
