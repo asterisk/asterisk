@@ -963,6 +963,14 @@
 						since they mandate this option's use.
 					</para></description>
 				</configOption>
+				<configOption name="refer_blind_progress" default="yes">
+					<synopsis>Whether to notifies all the progress details on blind transfer</synopsis>
+					<description><para>
+						Some SIP phones (Mitel/Aastra, Snom) expect a sip/frag "200 OK"
+						after REFER has been accepted. If set to <literal>no</literal> then asterisk
+						will not send the progress details, but immediately will send "200 OK".
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
