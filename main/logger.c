@@ -88,6 +88,11 @@ static int display_callids;
 
 AST_THREADSTORAGE(unique_callid);
 
+static int logger_queue_size;
+static int logger_queue_limit = 1000;
+static int logger_messages_discarded;
+static unsigned int high_water_alert;
+
 static enum rotatestrategy {
 	NONE = 0,                /* Do not rotate log files at all, instead rely on external mechanisms */
 	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
@@ -721,6 +726,16 @@ static int init_logger_chain(const char *altconf)
 			fprintf(stderr, "rotatetimestamp option has been deprecated.  Please use rotatestrategy instead.\n");
 		}
 	}
+	if ((s = ast_variable_retrieve(cfg, "general", "logger_queue_limit"))) {
+		if (sscanf(s, "%30d", &logger_queue_limit) != 1) {
+			fprintf(stderr, "logger_queue_limit has an invalid value.  Leaving at default of %d.\n",
+				logger_queue_limit);
+		}
+		if (logger_queue_limit < 10) {
+			fprintf(stderr, "logger_queue_limit must be >= 10. Setting to 10.\n");
+			logger_queue_limit = 10;
+		}
+	}
 
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
@@ -1299,6 +1314,7 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	case CLI_GENERATE:
 		return NULL;
 	}
+	ast_cli(a->fd, "Logger queue limit: %d\n\n", logger_queue_limit);
 	ast_cli(a->fd, FORMATL, "Channel", "Type", "Formatter", "Status");
 	ast_cli(a->fd, "Configuration\n");
 	ast_cli(a->fd, FORMATL, "-------", "----", "---------", "------");
@@ -1587,6 +1603,79 @@ static void logger_print_normal(struct logmsg *logmsg)
 	return;
 }
 
+static struct logmsg * __attribute__((format(printf, 7, 0))) format_log_message_ap(int level,
+	int sublevel, const char *file, int line, const char *function, ast_callid callid,
+	const char *fmt, va_list ap)
+{
+	struct logmsg *logmsg = NULL;
+	struct ast_str *buf = NULL;
+	struct ast_tm tm;
+	struct timeval now = ast_tvnow();
+	int res = 0;
+	char datestring[256];
+
+	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE))) {
+		return NULL;
+	}
+
+	/* Build string */
+	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
+
+	/* If the build failed, then abort and free this structure */
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return NULL;
+	}
+
+	/* Create a new logging message */
+	if (!(logmsg = ast_calloc_with_stringfields(1, struct logmsg, res + 128))) {
+		return NULL;
+	}
+
+	/* Copy string over */
+	ast_string_field_set(logmsg, message, ast_str_buffer(buf));
+
+	/* Set type */
+	if (level == __LOG_VERBOSE) {
+		logmsg->type = LOGMSG_VERBOSE;
+	} else {
+		logmsg->type = LOGMSG_NORMAL;
+	}
+
+	if (display_callids && callid) {
+		logmsg->callid = callid;
+	}
+
+	/* Create our date/time */
+	ast_localtime(&now, &tm, NULL);
+	ast_strftime(datestring, sizeof(datestring), dateformat, &tm);
+	ast_string_field_set(logmsg, date, datestring);
+
+	/* Copy over data */
+	logmsg->level = level;
+	logmsg->sublevel = sublevel;
+	logmsg->line = line;
+	ast_string_field_set(logmsg, level_name, levels[level]);
+	ast_string_field_set(logmsg, file, file);
+	ast_string_field_set(logmsg, function, function);
+	logmsg->lwp = ast_get_tid();
+
+	return logmsg;
+}
+
+static struct logmsg * __attribute__((format(printf, 7, 0))) format_log_message(int level,
+	int sublevel, const char *file, int line, const char *function, ast_callid callid,
+	const char *fmt, ...)
+{
+	struct logmsg *logmsg;
+	va_list ap;
+
+	va_start(ap, fmt);
+	logmsg = format_log_message_ap(level, sublevel, file, line, function, callid, fmt, ap);
+	va_end(ap);
+
+	return logmsg;
+}
+
 /*! \brief Actual logging thread */
 static void *logger_thread(void *data)
 {
@@ -1603,8 +1692,21 @@ static void *logger_thread(void *data)
 				ast_cond_wait(&logcond, &logmsgs.lock);
 			}
 		}
+
+		if (high_water_alert) {
+			msg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
+				"Logging resumed.  %d message%s discarded.\n",
+				logger_messages_discarded, logger_messages_discarded == 1 ? "" : "s");
+			if (msg) {
+				AST_LIST_INSERT_TAIL(&logmsgs, msg, list);
+			}
+			high_water_alert = 0;
+			logger_messages_discarded = 0;
+		}
+
 		next = AST_LIST_FIRST(&logmsgs);
 		AST_LIST_HEAD_INIT_NOLOCK(&logmsgs);
+		logger_queue_size = 0;
 		AST_LIST_UNLOCK(&logmsgs);
 
 		/* Otherwise go through and process each message in the order added */
@@ -1863,78 +1965,35 @@ void ast_callid_threadstorage_auto_clean(ast_callid callid, int callid_created)
 /*!
  * \brief send log messages to syslog and/or the console
  */
-static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int sublevel, const char *file, int line, const char *function, ast_callid callid, const char *fmt, va_list ap)
+static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int sublevel,
+	const char *file, int line, const char *function, ast_callid callid,
+	const char *fmt, va_list ap)
 {
 	struct logmsg *logmsg = NULL;
-	struct ast_str *buf = NULL;
-	struct ast_tm tm;
-	struct timeval now = ast_tvnow();
-	int res = 0;
-	char datestring[256];
 
 	if (level == __LOG_VERBOSE && ast_opt_remote && ast_opt_exec) {
 		return;
 	}
 
-	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
-		return;
-
-	if (level != __LOG_VERBOSE && AST_RWLIST_EMPTY(&logchannels)) {
-		/*
-		 * we don't have the logger chain configured yet,
-		 * so just log to stdout
-		 */
-		int result;
-		result = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
-		if (result != AST_DYNSTR_BUILD_FAILED) {
-			term_filter_escapes(ast_str_buffer(buf));
-			fputs(ast_str_buffer(buf), stdout);
+	AST_LIST_LOCK(&logmsgs);
+	if (logger_queue_size >= logger_queue_limit && !close_logger_thread) {
+		logger_messages_discarded++;
+		if (!high_water_alert && !close_logger_thread) {
+			logmsg = format_log_message(__LOG_WARNING, 0, "logger", 0, "***", 0,
+				"Log queue threshold (%d) exceeded.  Discarding new messages.\n", logger_queue_limit);
+			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+			high_water_alert = 1;
+			ast_cond_signal(&logcond);
 		}
+		AST_LIST_UNLOCK(&logmsgs);
 		return;
 	}
+	AST_LIST_UNLOCK(&logmsgs);
 
-	/* Ignore anything that never gets logged anywhere */
-	if (level != __LOG_VERBOSE && !(global_logmask & (1 << level)))
+	logmsg = format_log_message_ap(level, sublevel, file, line, function, callid, fmt, ap);
+	if (!logmsg) {
 		return;
-
-	/* Build string */
-	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
-
-	/* If the build failed, then abort and free this structure */
-	if (res == AST_DYNSTR_BUILD_FAILED)
-		return;
-
-	/* Create a new logging message */
-	if (!(logmsg = ast_calloc_with_stringfields(1, struct logmsg, res + 128)))
-		return;
-
-	/* Copy string over */
-	ast_string_field_set(logmsg, message, ast_str_buffer(buf));
-
-	/* Set type */
-	if (level == __LOG_VERBOSE) {
-		logmsg->type = LOGMSG_VERBOSE;
-	} else {
-		logmsg->type = LOGMSG_NORMAL;
 	}
-
-	if (display_callids && callid) {
-		logmsg->callid = callid;
-	}
-
-	/* Create our date/time */
-	ast_localtime(&now, &tm, NULL);
-	ast_strftime(datestring, sizeof(datestring), dateformat, &tm);
-	ast_string_field_set(logmsg, date, datestring);
-
-	/* Copy over data */
-	logmsg->level = level;
-	logmsg->sublevel = sublevel;
-	logmsg->line = line;
-	ast_string_field_set(logmsg, level_name, levels[level]);
-	ast_string_field_set(logmsg, file, file);
-	ast_string_field_set(logmsg, function, function);
-	logmsg->lwp = ast_get_tid();
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {
@@ -1944,6 +2003,7 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 			logmsg_free(logmsg);
 		} else {
 			AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+			logger_queue_size++;
 			ast_cond_signal(&logcond);
 		}
 		AST_LIST_UNLOCK(&logmsgs);
@@ -2302,3 +2362,12 @@ const char *ast_logger_get_dateformat(void)
 	return dateformat;
 }
 
+void ast_logger_set_queue_limit(int queue_limit)
+{
+	logger_queue_limit = queue_limit;
+}
+
+int ast_logger_get_queue_limit(void)
+{
+	return logger_queue_limit;
+}
