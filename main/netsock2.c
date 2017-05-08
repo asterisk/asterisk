@@ -433,11 +433,16 @@ int ast_sockaddr_cmp_addr(const struct ast_sockaddr *a, const struct ast_sockadd
 
 uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, int line, const char *func)
 {
-	if (addr->ss.ss_family == AF_INET &&
-	    addr->len == sizeof(struct sockaddr_in)) {
+	/*
+	 * Test addr->len first to be tolerant of an ast_sockaddr_setnull()
+	 * addr.  In that case addr->len might be the only value initialized.
+	 */
+	if (addr->len == sizeof(struct sockaddr_in)
+		&& addr->ss.ss_family == AF_INET) {
 		return ntohs(((struct sockaddr_in *)&addr->ss)->sin_port);
-	} else if (addr->ss.ss_family == AF_INET6 &&
-		 addr->len == sizeof(struct sockaddr_in6)) {
+	}
+	if (addr->len == sizeof(struct sockaddr_in6)
+		&& addr->ss.ss_family == AF_INET6) {
 		return ntohs(((struct sockaddr_in6 *)&addr->ss)->sin6_port);
 	}
 	if (option_debug >= 1) {
@@ -448,11 +453,15 @@ uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, i
 
 void _ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port, const char *file, int line, const char *func)
 {
-	if (addr->ss.ss_family == AF_INET &&
-	    addr->len == sizeof(struct sockaddr_in)) {
+	/*
+	 * Test addr->len first to be tolerant of an ast_sockaddr_setnull()
+	 * addr.  In that case addr->len might be the only value initialized.
+	 */
+	if (addr->len == sizeof(struct sockaddr_in)
+		&& addr->ss.ss_family == AF_INET) {
 		((struct sockaddr_in *)&addr->ss)->sin_port = htons(port);
-	} else if (addr->ss.ss_family == AF_INET6 &&
-		 addr->len == sizeof(struct sockaddr_in6)) {
+	} else if (addr->len == sizeof(struct sockaddr_in6)
+		&& addr->ss.ss_family == AF_INET6) {
 		((struct sockaddr_in6 *)&addr->ss)->sin6_port = htons(port);
 	} else if (option_debug >= 1) {
 		ast_log(__LOG_DEBUG, file, line, func,
