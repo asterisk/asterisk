@@ -82,6 +82,39 @@ struct ast_tcptls_stream {
 	int exclusive_input;
 };
 
+#if defined(DO_SSL)
+AST_THREADSTORAGE(err2str_threadbuf);
+#define ERR2STR_BUFSIZE   128
+
+static const char *ssl_error_to_string(int sslerr, int ret)
+{
+	switch (sslerr) {
+	case SSL_ERROR_SSL:
+		return "Internal SSL error";
+	case SSL_ERROR_SYSCALL:
+		if (!ret) {
+			return "System call EOF";
+		} else if (ret == -1) {
+			char *buf;
+
+			buf = ast_threadstorage_get(&err2str_threadbuf, ERR2STR_BUFSIZE);
+			if (!buf) {
+				return "Unknown";
+			}
+
+			snprintf(buf, ERR2STR_BUFSIZE, "Underlying BIO error: %s", strerror(errno));
+			return buf;
+		} else {
+			return "System call other";
+		}
+	default:
+		break;
+	}
+
+	return "Unknown";
+}
+#endif
+
 void ast_tcptls_stream_set_timeout_disable(struct ast_tcptls_stream *stream)
 {
 	ast_assert(stream != NULL);
@@ -150,12 +183,17 @@ static HOOK_T tcptls_stream_read(void *cookie, char *buf, LEN_T size)
 #if defined(DO_SSL)
 	if (stream->ssl) {
 		for (;;) {
+			int sslerr;
+			char err[256];
+
 			res = SSL_read(stream->ssl, buf, size);
 			if (0 < res) {
 				/* We read some payload data. */
 				return res;
 			}
-			switch (SSL_get_error(stream->ssl, res)) {
+
+			sslerr = SSL_get_error(stream->ssl, res);
+			switch (sslerr) {
 			case SSL_ERROR_ZERO_RETURN:
 				/* Report EOF for a shutdown */
 				ast_debug(1, "TLS clean shutdown alert reading data\n");
@@ -203,7 +241,8 @@ static HOOK_T tcptls_stream_read(void *cookie, char *buf, LEN_T size)
 				break;
 			default:
 				/* Report EOF for an undecoded SSL or transport error. */
-				ast_debug(1, "TLS transport or SSL error reading data\n");
+				ast_debug(1, "TLS transport or SSL error reading data: %s, %s\n", ERR_error_string(sslerr, err),
+					ssl_error_to_string(sslerr, res));
 				return 0;
 			}
 			if (!ms) {
@@ -278,6 +317,9 @@ static HOOK_T tcptls_stream_write(void *cookie, const char *buf, LEN_T size)
 		written = 0;
 		remaining = size;
 		for (;;) {
+			int sslerr;
+			char err[256];
+
 			res = SSL_write(stream->ssl, buf + written, remaining);
 			if (res == remaining) {
 				/* Everything was written. */
@@ -289,7 +331,8 @@ static HOOK_T tcptls_stream_write(void *cookie, const char *buf, LEN_T size)
 				remaining -= res;
 				continue;
 			}
-			switch (SSL_get_error(stream->ssl, res)) {
+			sslerr = SSL_get_error(stream->ssl, res);
+			switch (sslerr) {
 			case SSL_ERROR_ZERO_RETURN:
 				ast_debug(1, "TLS clean shutdown alert writing data\n");
 				if (written) {
@@ -318,7 +361,8 @@ static HOOK_T tcptls_stream_write(void *cookie, const char *buf, LEN_T size)
 				break;
 			default:
 				/* Undecoded SSL or transport error. */
-				ast_debug(1, "TLS transport or SSL error writing data\n");
+				ast_debug(1, "TLS transport or SSL error writing data: %s, %s\n", ERR_error_string(sslerr, err),
+					ssl_error_to_string(sslerr, res));
 				if (written) {
 					/* Report partial write. */
 					return written;
@@ -395,8 +439,11 @@ static int tcptls_stream_close(void *cookie)
 			 */
 			res = SSL_shutdown(stream->ssl);
 			if (res < 0) {
-				ast_log(LOG_ERROR, "SSL_shutdown() failed: %d\n",
-					SSL_get_error(stream->ssl, res));
+				int sslerr = SSL_get_error(stream->ssl, res);
+				char err[256];
+
+				ast_log(LOG_ERROR, "SSL_shutdown() failed: %s, %s\n",
+					ERR_error_string(sslerr, err), ssl_error_to_string(sslerr, res));
 			}
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -588,6 +635,7 @@ static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, c
 
 	return ret;
 }
+
 #endif
 
 /*! \brief
@@ -603,7 +651,6 @@ static void *handle_tcptls_connection(void *data)
 #ifdef DO_SSL
 	int (*ssl_setup)(SSL *) = (tcptls_session->client) ? SSL_connect : SSL_accept;
 	int ret;
-	char err[256];
 #endif
 
 	/* TCP/TLS connections are associated with external protocols, and
@@ -641,7 +688,11 @@ static void *handle_tcptls_connection(void *data)
 	else if ( (tcptls_session->ssl = SSL_new(tcptls_session->parent->tls_cfg->ssl_ctx)) ) {
 		SSL_set_fd(tcptls_session->ssl, tcptls_session->fd);
 		if ((ret = ssl_setup(tcptls_session->ssl)) <= 0) {
-			ast_log(LOG_ERROR, "Problem setting up ssl connection: %s\n", ERR_error_string(ERR_get_error(), err));
+			char err[256];
+			int sslerr = SSL_get_error(tcptls_session->ssl, ret);
+
+			ast_log(LOG_ERROR, "Problem setting up ssl connection: %s, %s\n", ERR_error_string(sslerr, err),
+				ssl_error_to_string(sslerr, ret));
 		} else if ((tcptls_session->f = tcptls_stream_fopen(tcptls_session->stream_cookie,
 			tcptls_session->ssl, tcptls_session->fd, -1))) {
 			if ((tcptls_session->client && !ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_DONT_VERIFY_SERVER))
