@@ -37,6 +37,39 @@ struct ast_iostream {
 	char rbuf[2048];
 };
 
+#if defined(DO_SSL)
+AST_THREADSTORAGE(err2str_threadbuf);
+#define ERR2STR_BUFSIZE   128
+
+static const char *ssl_error_to_string(int sslerr, int ret)
+{
+	switch (sslerr) {
+	case SSL_ERROR_SSL:
+		return "Internal SSL error";
+	case SSL_ERROR_SYSCALL:
+		if (!ret) {
+			return "System call EOF";
+		} else if (ret == -1) {
+			char *buf;
+
+			buf = ast_threadstorage_get(&err2str_threadbuf, ERR2STR_BUFSIZE);
+			if (!buf) {
+				return "Unknown";
+			}
+
+			snprintf(buf, ERR2STR_BUFSIZE, "Underlying BIO error: %s", strerror(errno));
+			return buf;
+		} else {
+			return "System call other";
+		}
+	default:
+		break;
+	}
+
+	return "Unknown";
+}
+#endif
+
 int ast_iostream_get_fd(struct ast_iostream *stream)
 {
 	return stream->fd;
@@ -109,13 +142,16 @@ static ssize_t iostream_read(struct ast_iostream *stream, void *buf, size_t size
 #if defined(DO_SSL)
 	if (stream->ssl) {
 		for (;;) {
+			int sslerr;
+			char err[256];
 			res = SSL_read(stream->ssl, buf, size);
 			if (0 < res) {
 				/* We read some payload data. */
 				stream->timeout = stream->timeout_reset;
 				return res;
 			}
-			switch (SSL_get_error(stream->ssl, res)) {
+			sslerr = SSL_get_error(stream->ssl, res);
+			switch (sslerr) {
 			case SSL_ERROR_ZERO_RETURN:
 				/* Report EOF for a shutdown */
 				ast_debug(1, "TLS clean shutdown alert reading data\n");
@@ -163,7 +199,8 @@ static ssize_t iostream_read(struct ast_iostream *stream, void *buf, size_t size
 				break;
 			default:
 				/* Report EOF for an undecoded SSL or transport error. */
-				ast_debug(1, "TLS transport or SSL error reading data\n");
+				ast_debug(1, "TLS transport or SSL error reading data:  %s, %s\n", ERR_error_string(sslerr, err),
+					ssl_error_to_string(sslerr, res));
 				return 0;
 			}
 			if (!ms) {
@@ -318,6 +355,8 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 		written = 0;
 		remaining = size;
 		for (;;) {
+			int sslerr;
+			char err[256];
 			res = SSL_write(stream->ssl, buf + written, remaining);
 			if (res == remaining) {
 				/* Everything was written. */
@@ -329,7 +368,8 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 				remaining -= res;
 				continue;
 			}
-			switch (SSL_get_error(stream->ssl, res)) {
+			sslerr = SSL_get_error(stream->ssl, res);
+			switch (sslerr) {
 			case SSL_ERROR_ZERO_RETURN:
 				ast_debug(1, "TLS clean shutdown alert writing data\n");
 				if (written) {
@@ -358,7 +398,8 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 				break;
 			default:
 				/* Undecoded SSL or transport error. */
-				ast_debug(1, "TLS transport or SSL error writing data\n");
+				ast_debug(1, "TLS transport or SSL error writing data: %s, %s\n", ERR_error_string(sslerr, err),
+					ssl_error_to_string(sslerr, res));
 				if (written) {
 					/* Report partial write. */
 					return written;
@@ -461,8 +502,10 @@ int ast_iostream_close(struct ast_iostream *stream)
 			 */
 			res = SSL_shutdown(stream->ssl);
 			if (res < 0) {
-				ast_log(LOG_ERROR, "SSL_shutdown() failed: %d\n",
-					SSL_get_error(stream->ssl, res));
+				int sslerr = SSL_get_error(stream->ssl, res);
+				char err[256];
+				ast_log(LOG_ERROR, "SSL_shutdown() failed: %s, %s\n",
+					ERR_error_string(sslerr, err), ssl_error_to_string(sslerr, res));
 			}
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -534,7 +577,7 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 #ifdef DO_SSL
 	struct ast_iostream *stream = *pstream;
 	int (*ssl_setup)(SSL *) = client ? SSL_connect : SSL_accept;
-	char err[256];
+	int res;
 
 	stream->ssl = SSL_new(ssl_ctx);
 	if (!stream->ssl) {
@@ -551,9 +594,13 @@ int ast_iostream_start_tls(struct ast_iostream **pstream, SSL_CTX *ssl_ctx, int 
 	 */
 	SSL_set_fd(stream->ssl, stream->fd);
 
-	if (ssl_setup(stream->ssl) <= 0) {
-		ast_log(LOG_ERROR, "Problem setting up ssl connection: %s\n",
-			ERR_error_string(ERR_get_error(), err));
+	res = ssl_setup(stream->ssl);
+	if (res <= 0) {
+		int sslerr = SSL_get_error(stream->ssl, res);
+		char err[256];
+
+		ast_log(LOG_ERROR, "Problem setting up ssl connection: %s, %s\n",
+			ERR_error_string(sslerr, err), ssl_error_to_string(sslerr, res));
 		errno = EIO;
 		return -1;
 	}
