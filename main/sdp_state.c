@@ -1734,13 +1734,16 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
 	if (!c_line) {
 		goto error;
 	}
-
 	s_line = ast_sdp_s_alloc(options->sdpsession);
 	if (!s_line) {
 		goto error;
 	}
+	t_line = ast_sdp_t_alloc(0, 0);
+	if (!t_line) {
+		goto error;
+	}
 
-	sdp = ast_sdp_alloc(o_line, c_line, s_line, NULL);
+	sdp = ast_sdp_alloc(o_line, c_line, s_line, t_line);
 	if (!sdp) {
 		goto error;
 	}
