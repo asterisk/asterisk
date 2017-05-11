@@ -22,6 +22,15 @@ res_rtp_asterisk
    for a response that can never come until we give up on the response.
    Multiple subnets may be listed.
 
+Logging
+-------------------
+ * Added logger_queue_limit to the configuration options.
+   All log messages go to a queue serviced by a single thread
+   which does all the IO.  This setting controls how big that
+   queue can get (and therefore how much memory is allocated)
+   before new messages are discarded.
+   The default is 1000.
+
 res_pjsip_config_wizard
 ------------------
  * Two new parameters have been added to the pjsip config wizard.
