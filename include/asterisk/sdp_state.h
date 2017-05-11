@@ -146,6 +146,10 @@ const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state);
  * \param sdp_state
  * \param sdp
  *
+ * \note It is assumed that the passed in SDP has been checked for sanity
+ * already.  e.g., There are no syntax errors, a c= line is reachable for
+ * each m= line, etc...
+ *
  * \retval 0 Success
  * \retval non-0 Failure
  *
