@@ -78,6 +78,14 @@
 ; Directory for log files is configures in asterisk.conf
 ; option astlogdir
 ;
+; All log messages go to a queue serviced by a single thread
+; which does all the IO.  This setting controls how big that
+; queue can get (and therefore how much memory is allocated)
+; before new messages are discarded.
+; The default is 1000
+;logger_queue_limit = 250
+;
+;
 [logfiles]
 ;
 ; Format is "filename" and then "levels" of debugging to be included:
