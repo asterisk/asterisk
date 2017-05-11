@@ -42,6 +42,12 @@ res_pjsip_config_wizard
    endpoint/outbound_proxy, aor/outbound_proxy and registration/outbound_proxy
    parameters.
 
+res_hep_rtcp
+------------------
+ * If the 'call-id' value is specified for the uuid_type option and a
+   chan_sip channel is used the resulting HEP traffic will now contain the
+   SIP Call-ID instead of the Asterisk channel name.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.14.0 to Asterisk 13.15.0 ----------
 ------------------------------------------------------------------------------

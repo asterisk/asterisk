@@ -24,5 +24,9 @@ capture_id = 1234                  ; A unique integer identifier for this
                                    ; with each packet from this server.
 uuid_type = call-id                ; Specify the preferred source for the Homer
                                    ; correlation UUID. Valid options are:
-                                   ; - 'call-id' for the PJSIP SIP Call-ID
+                                   ; - 'call-id' for the PJSIP or chan_sip SIP
+                                   ;             Call-ID
                                    ; - 'channel' for the Asterisk channel name
+                                   ; Note: If 'call-id' is specified but the
+                                   ; channel is not PJSIP or chan_sip then the
+                                   ; Asterisk channel name will be used instead.
