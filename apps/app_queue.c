@@ -1545,6 +1545,7 @@ struct queue_ent {
 	int pending;                           /*!< Non-zero if we are attempting to call a member */
 	int max_penalty;                       /*!< Limit the members that can take this call to this penalty or lower */
 	int min_penalty;                       /*!< Limit the members that can take this call to this penalty or higher */
+	int raise_penalty;                     /*!< Float lower penalty mambers to a minimum penalty */
 	int linpos;                            /*!< If using linear strategy, what position are we at? */
 	int linwrapped;                        /*!< Is the linpos wrapped? */
 	time_t start;                          /*!< When we started holding */
@@ -1605,8 +1606,10 @@ struct penalty_rule {
 	int time;                           /*!< Number of seconds that need to pass before applying this rule */
 	int max_value;                      /*!< The amount specified in the penalty rule for max penalty */
 	int min_value;                      /*!< The amount specified in the penalty rule for min penalty */
+	int raise_value;                      /*!< The amount specified in the penalty rule for min penalty */
 	int max_relative;                   /*!< Is the max adjustment relative? 1 for relative, 0 for absolute */
 	int min_relative;                   /*!< Is the min adjustment relative? 1 for relative, 0 for absolute */
+	int raise_relative;                   /*!< Is the min adjustment relative? 1 for relative, 0 for absolute */
 	AST_LIST_ENTRY(penalty_rule) list;  /*!< Next penalty_rule */
 };
 
@@ -2233,7 +2236,7 @@ static struct ast_json *queue_member_blob_create(struct call_queue *q, struct me
  * is available, the function immediately returns 0. If no members are available,
  * then -1 is returned.
  */
-static int get_member_status(struct call_queue *q, int max_penalty, int min_penalty, enum empty_conditions conditions, int devstate)
+static int get_member_status(struct call_queue *q, int max_penalty, int min_penalty, int raise_penalty, enum empty_conditions conditions, int devstate)
 {
 	struct member *member;
 	struct ao2_iterator mem_iter;
@@ -2241,7 +2244,12 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 	ao2_lock(q);
 	mem_iter = ao2_iterator_init(q->members, 0);
 	for (; (member = ao2_iterator_next(&mem_iter)); ao2_ref(member, -1)) {
-		if ((max_penalty != INT_MAX && member->penalty > max_penalty) || (min_penalty != INT_MAX && member->penalty < min_penalty)) {
+		int penalty = member->penalty;
+		if (raise_penalty != INT_MAX && penalty < raise_penalty) {
+			ast_debug(4, "%s is having his penalty raised up from %d to %d\n", member->membername, penalty, raise_penalty);
+			penalty = raise_penalty;
+		}
+		if ((max_penalty != INT_MAX && penalty > max_penalty) || (min_penalty != INT_MAX && penalty < min_penalty)) {
 			if (conditions & QUEUE_EMPTY_PENALTY) {
 				ast_debug(4, "%s is unavailable because his penalty is not between %d and %d\n", member->membername, min_penalty, max_penalty);
 				continue;
@@ -2306,7 +2314,7 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 
 	if (!devstate && (conditions & QUEUE_EMPTY_RINGING)) {
 		/* member state still may be RINGING due to lag in event message - check again with device state */
-		return get_member_status(q, max_penalty, min_penalty, conditions, 1);
+		return get_member_status(q, max_penalty, min_penalty, raise_penalty, conditions, 1);
 	}
 	return -1;
 }
@@ -2810,7 +2818,7 @@ static void clear_queue(struct call_queue *q)
 */
 static int insert_penaltychange(const char *list_name, const char *content, const int linenum)
 {
-	char *timestr, *maxstr, *minstr, *contentdup;
+	char *timestr, *maxstr, *minstr, *raisestr, *contentdup;
 	struct penalty_rule *rule = NULL, *rule_iter;
 	struct rule_list *rl_iter;
 	int penaltychangetime, inserted = 0;
@@ -2828,8 +2836,16 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 	}
 
 	*maxstr++ = '\0';
-	timestr = contentdup;
+	if ((minstr = strchr(maxstr,','))) {
+		*minstr++ = '\0';
+		if ((raisestr = strchr(minstr,','))) {
+			*raisestr++ = '\0';
+		}
+	} else {
+		raisestr = NULL;
+	}
 
+	timestr = contentdup;
 	if ((penaltychangetime = atoi(timestr)) < 0) {
 		ast_log(LOG_WARNING, "Improper time parameter specified for penaltychange rule at line %d. Ignoring.\n", linenum);
 		ast_free(rule);
@@ -2837,10 +2853,6 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 	}
 
 	rule->time = penaltychangetime;
-
-	if ((minstr = strchr(maxstr,','))) {
-		*minstr++ = '\0';
-	}
 
 	/* The last check will evaluate true if either no penalty change is indicated for a given rule
 	 * OR if a min penalty change is indicated but no max penalty change is */
@@ -2857,6 +2869,15 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 		rule->min_value = atoi(minstr);
 	} else { /*there was no minimum specified, so assume this means no change*/
 		rule->min_relative = 1;
+	}
+
+	if (!ast_strlen_zero(raisestr)) {
+		if (*raisestr == '+' || *raisestr == '-') {
+			rule->raise_relative = 1;
+		}
+		rule->raise_value = atoi(raisestr);
+	} else { /*there was no raise specified, so assume this means no change*/
+		rule->raise_relative = 1;
 	}
 
 	/*We have the rule made, now we need to insert it where it belongs*/
@@ -2915,9 +2936,10 @@ static int load_realtime_rules(void)
 		return 0;
 	}
 	while ((rulecat = ast_category_browse(cfg, rulecat))) {
-		const char *timestr, *maxstr, *minstr, *rule_name;
+		const char *timestr, *maxstr, *minstr, *raisestr, *rule_name;
 		int penaltychangetime, rule_exists = 0, inserted = 0;
-		int max_penalty = 0, min_penalty = 0, min_relative = 0, max_relative = 0;
+		int max_penalty = 0, min_penalty = 0, raise_penalty = 0;
+		int min_relative = 0, max_relative = 0, raise_relative = 0;
 		struct penalty_rule *new_penalty_rule = NULL;
 
 		rule_name = ast_variable_retrieve(cfg, rulecat, "rule_name");
@@ -2968,11 +2990,22 @@ static int load_realtime_rules(void)
 				min_relative = 1;
 			}
 		}
+		if (!(raisestr = ast_variable_retrieve(cfg, rulecat, "raise_penalty")) ||
+			ast_strlen_zero(raisestr) || sscanf(raisestr, "%30d", &raise_penalty) != 1) {
+			raise_penalty = 0;
+			raise_relative = 1;
+		} else {
+			if (*raisestr == '+' || *raisestr == '-') {
+				raise_relative = 1;
+			}
+		}
 		new_penalty_rule->time = penaltychangetime;
 		new_penalty_rule->max_relative = max_relative;
 		new_penalty_rule->max_value = max_penalty;
 		new_penalty_rule->min_relative = min_relative;
 		new_penalty_rule->min_value = min_penalty;
+		new_penalty_rule->raise_relative = raise_relative;
+		new_penalty_rule->raise_value = raise_penalty;
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&new_rl->rules, pr_iter, list) {
 			if (new_penalty_rule->time < pr_iter->time) {
 				AST_LIST_INSERT_BEFORE_CURRENT(new_penalty_rule, list);
@@ -3714,7 +3747,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	/* This is our one */
 	if (q->joinempty) {
 		int status = 0;
-		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, q->joinempty, 0))) {
+		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, qe->raise_penalty, q->joinempty, 0))) {
 			*reason = QUEUE_JOINEMPTY;
 			ao2_unlock(q);
 			queue_t_unref(q, "Done with realtime queue");
@@ -5429,6 +5462,32 @@ static void update_qe_rule(struct queue_ent *qe)
 			qe->min_penalty, ast_channel_name(qe->chan), qe->pr->time);
 	}
 
+	if (qe->raise_penalty != INT_MAX) {
+		char raise_penalty_str[20];
+		int raise_penalty;
+
+		if (qe->pr->raise_relative) {
+			raise_penalty = qe->raise_penalty + qe->pr->raise_value;
+		} else {
+			raise_penalty = qe->pr->raise_value;
+		}
+
+		/* a relative change to the penalty could put it below 0 */
+		if (raise_penalty < 0) {
+			raise_penalty = 0;
+		}
+
+		if (max_penalty != INT_MAX && raise_penalty > max_penalty) {
+			raise_penalty = max_penalty;
+		}
+
+		snprintf(raise_penalty_str, sizeof(raise_penalty_str), "%d", raise_penalty);
+		pbx_builtin_setvar_helper(qe->chan, "QUEUE_RAISE_PENALTY", raise_penalty_str);
+		qe->raise_penalty = raise_penalty;
+		ast_debug(3, "Setting raised penalty to %d for caller %s since %d seconds have elapsed\n",
+			qe->raise_penalty, ast_channel_name(qe->chan), qe->pr->time);
+	}
+
 	qe->pr = AST_LIST_NEXT(qe->pr, list);
 }
 
@@ -5462,7 +5521,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		if (qe->parent->leavewhenempty) {
 			int status = 0;
 
-			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->parent->leavewhenempty, 0))) {
+			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->raise_penalty, qe->parent->leavewhenempty, 0))) {
 				*reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(qe->parent->name, ast_channel_uniqueid(qe->chan), "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) (time(NULL) - qe->start));
 				leave_queue(qe);
@@ -5592,10 +5651,15 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	/* disregarding penalty on too few members? */
 	int membercount = ao2_container_count(q->members);
 	unsigned char usepenalty = (membercount <= q->penaltymemberslimit) ? 0 : 1;
+	int penalty = mem->penalty;
 
 	if (usepenalty) {
-		if ((qe->max_penalty != INT_MAX && mem->penalty > qe->max_penalty) ||
-			(qe->min_penalty != INT_MAX && mem->penalty < qe->min_penalty)) {
+		if (qe->raise_penalty != INT_MAX && penalty < qe->raise_penalty) {
+			/* Low penalty is raised up to the current minimum */
+			penalty = qe->raise_penalty;
+		}
+		if ((qe->max_penalty != INT_MAX && penalty > qe->max_penalty) ||
+			(qe->min_penalty != INT_MAX && penalty < qe->min_penalty)) {
 			return -1;
 		}
 	} else {
@@ -5606,7 +5670,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
 		/* Everyone equal, except for penalty */
-		tmp->metric = mem->penalty * 1000000 * usepenalty;
+		tmp->metric = penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LINEAR:
 		if (pos < qe->linpos) {
@@ -5618,7 +5682,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 			}
 			tmp->metric = pos;
 		}
-		tmp->metric += mem->penalty * 1000000 * usepenalty;
+		tmp->metric += penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_RRORDERED:
 	case QUEUE_STRATEGY_RRMEMORY:
@@ -5632,18 +5696,18 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 			}
 			tmp->metric = pos;
 		}
-		tmp->metric += mem->penalty * 1000000 * usepenalty;
+		tmp->metric += penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_RANDOM:
 		tmp->metric = ast_random() % 1000;
-		tmp->metric += mem->penalty * 1000000 * usepenalty;
+		tmp->metric += penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_WRANDOM:
-		tmp->metric = ast_random() % ((1 + mem->penalty) * 1000);
+		tmp->metric = ast_random() % ((1 + penalty) * 1000);
 		break;
 	case QUEUE_STRATEGY_FEWESTCALLS:
 		tmp->metric = mem->calls;
-		tmp->metric += mem->penalty * 1000000 * usepenalty;
+		tmp->metric += penalty * 1000000 * usepenalty;
 		break;
 	case QUEUE_STRATEGY_LEASTRECENT:
 		if (!mem->lastcall) {
@@ -5651,7 +5715,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		} else {
 			tmp->metric = 1000000 - (time(NULL) - mem->lastcall);
 		}
-		tmp->metric += mem->penalty * 1000000 * usepenalty;
+		tmp->metric += penalty * 1000000 * usepenalty;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
@@ -7914,8 +7978,10 @@ static void copy_rules(struct queue_ent *qe, const char *rulename)
 			new_pr->time = pr_iter->time;
 			new_pr->max_value = pr_iter->max_value;
 			new_pr->min_value = pr_iter->min_value;
+			new_pr->raise_value = pr_iter->raise_value;
 			new_pr->max_relative = pr_iter->max_relative;
 			new_pr->min_relative = pr_iter->min_relative;
+			new_pr->raise_relative = pr_iter->raise_relative;
 			AST_LIST_INSERT_TAIL(&qe->qe_rules, new_pr, list);
 		}
 	}
@@ -7941,9 +8007,10 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	const char *user_priority;
 	const char *max_penalty_str;
 	const char *min_penalty_str;
+	const char *raise_penalty_str;
 	int prio;
 	int qcontinue = 0;
-	int max_penalty, min_penalty;
+	int max_penalty, min_penalty, raise_penalty;
 	enum queue_result reason = QUEUE_UNKNOWN;
 	/* whether to exit Queue application after the timeout hits */
 	int tries = 0;
@@ -8055,6 +8122,18 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	} else {
 		min_penalty = INT_MAX;
 	}
+
+	if ((raise_penalty_str = pbx_builtin_getvar_helper(chan, "QUEUE_RAISE_PENALTY"))) {
+		if (sscanf(raise_penalty_str, "%30d", &raise_penalty) == 1) {
+			ast_debug(1, "%s: Got raise penalty %d from ${QUEUE_RAISE_PENALTY}.\n", ast_channel_name(chan), raise_penalty);
+		} else {
+			ast_log(LOG_WARNING, "${QUEUE_RAISE_PENALTY}: Invalid value (%s), channel %s.\n",
+				raise_penalty_str, ast_channel_name(chan));
+			raise_penalty = INT_MAX;
+		}
+	} else {
+		raise_penalty = INT_MAX;
+	}
 	ast_channel_unlock(chan);
 
 	if (ast_test_flag(&opts, OPT_RINGING)) {
@@ -8084,6 +8163,7 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	qe.prio = prio;
 	qe.max_penalty = max_penalty;
 	qe.min_penalty = min_penalty;
+	qe.raise_penalty = raise_penalty;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
@@ -8171,7 +8251,7 @@ check_turns:
 
 		if (qe.parent->leavewhenempty) {
 			int status = 0;
-			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty, 0))) {
+			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.raise_penalty, qe.parent->leavewhenempty, 0))) {
 				record_abandoned(&qe);
 				reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
@@ -10620,7 +10700,7 @@ static char *handle_queue_rule_show(struct ast_cli_entry *e, int cmd, struct ast
 		if (ast_strlen_zero(rule) || !strcasecmp(rl_iter->name, rule)) {
 			ast_cli(a->fd, "Rule: %s\n", rl_iter->name);
 			AST_LIST_TRAVERSE(&rl_iter->rules, pr_iter, list) {
-				ast_cli(a->fd, "\tAfter %d seconds, adjust QUEUE_MAX_PENALTY %s %d and adjust QUEUE_MIN_PENALTY %s %d\n", pr_iter->time, pr_iter->max_relative ? "by" : "to", pr_iter->max_value, pr_iter->min_relative ? "by" : "to", pr_iter->min_value);
+				ast_cli(a->fd, "\tAfter %d seconds, adjust QUEUE_MAX_PENALTY %s %d, adjust QUEUE_MIN_PENALTY %s %d and adjust QUEUE_RAISE_PENALTY %s %d\n", pr_iter->time, pr_iter->max_relative ? "by" : "to", pr_iter->max_value, pr_iter->min_relative ? "by" : "to", pr_iter->min_value, pr_iter->raise_relative ? "by" : "to", pr_iter->raise_value);
 			}
 		}
 	}
@@ -10918,6 +10998,7 @@ AST_DATA_STRUCTURE(member, DATA_EXPORT_MEMBER);
 	MEMBER(queue_ent, pending, AST_DATA_INTEGER)				\
 	MEMBER(queue_ent, max_penalty, AST_DATA_INTEGER)			\
 	MEMBER(queue_ent, min_penalty, AST_DATA_INTEGER)			\
+	MEMBER(queue_ent, raise_penalty, AST_DATA_INTEGER)			\
 	MEMBER(queue_ent, linpos, AST_DATA_INTEGER)				\
 	MEMBER(queue_ent, linwrapped, AST_DATA_INTEGER)				\
 	MEMBER(queue_ent, start, AST_DATA_INTEGER)				\
