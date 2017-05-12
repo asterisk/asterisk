@@ -276,6 +276,7 @@ AST_TEST_DEFINE(find_attr)
 	enum ast_test_result_state res = AST_TEST_PASS;
 	struct ast_sdp_m_line *m_line;
 	struct ast_sdp_a_line *a_line;
+	int idx;
 
 	switch(cmd) {
 	case TEST_INIT:
@@ -283,7 +284,7 @@ AST_TEST_DEFINE(find_attr)
 		info->category = "/main/sdp/";
 		info->summary = "Ensure that finding attributes works as expected";
 		info->description =
-			"An SDP m-line is created, and two attributes are added.\n"
+			"A SDP m-line is created, and attributes are added.\n"
 			"We then attempt a series of attribute-finding calls that are expected to work\n"
 			"followed by a series of attribute-finding calls that are expected fo fail.";
 		return AST_TEST_NOT_RUN;
@@ -302,6 +303,12 @@ AST_TEST_DEFINE(find_attr)
 		goto end;
 	}
 	ast_sdp_m_add_a(m_line, a_line);
+	a_line = ast_sdp_a_alloc("foo", "0 bee");
+	if (!a_line) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	ast_sdp_m_add_a(m_line, a_line);
 
 	a_line = ast_sdp_a_alloc("baz", "howdy");
 	if (!a_line) {
@@ -312,18 +319,74 @@ AST_TEST_DEFINE(find_attr)
 
 	/* These should work */
 	a_line = ast_sdp_m_find_attribute(m_line, "foo", 0);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
 		ast_test_status_update(test, "Failed to find attribute 'foo' with payload '0'\n");
 		res = AST_TEST_FAIL;
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "foo", -1);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
 		ast_test_status_update(test, "Failed to find attribute 'foo' with unspecified payload\n");
 		res = AST_TEST_FAIL;
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "baz", -1);
-	if (!a_line) {
+	if (!a_line || strcmp(a_line->value, "howdy")) {
 		ast_test_status_update(test, "Failed to find attribute 'baz' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+	}
+
+	idx = ast_sdp_m_find_a_first(m_line, "foo", 0);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find first attribute 'foo' with payload '0'\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
+		ast_test_status_update(test, "Find first attribute 'foo' with payload '0' didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", 0);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find next attribute 'foo' with payload '0'\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bee")) {
+		ast_test_status_update(test, "Find next attribute 'foo' with payload '0' didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", 0);
+	if (0 <= idx) {
+		ast_test_status_update(test, "Find next attribute 'foo' with payload '0' found too many\n");
+		res = AST_TEST_FAIL;
+	}
+
+	idx = ast_sdp_m_find_a_first(m_line, "foo", -1);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find first attribute 'foo' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bar")) {
+		ast_test_status_update(test, "Find first attribute 'foo' with unspecified payload didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", -1);
+	if (idx < 0) {
+		ast_test_status_update(test, "Failed to find next attribute 'foo' with unspecified payload\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+	a_line = ast_sdp_m_get_a(m_line, idx);
+	if (!a_line || strcmp(a_line->value, "0 bee")) {
+		ast_test_status_update(test, "Find next attribute 'foo' with unspecified payload didn't match\n");
+		res = AST_TEST_FAIL;
+	}
+	idx = ast_sdp_m_find_a_next(m_line, idx, "foo", -1);
+	if (0 <= idx) {
+		ast_test_status_update(test, "Find next attribute 'foo' with unspecified payload found too many\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -345,7 +408,7 @@ AST_TEST_DEFINE(find_attr)
 	}
 	a_line = ast_sdp_m_find_attribute(m_line, "wibble", -1);
 	if (a_line) {
-		ast_test_status_update(test, "Found non-existent attribute 'foo' with unspecified payload\n");
+		ast_test_status_update(test, "Found non-existent attribute 'wibble' with unspecified payload\n");
 		res = AST_TEST_FAIL;
 	}
 
@@ -623,10 +686,14 @@ AST_TEST_DEFINE(sdp_to_topology)
 		goto end;
 	}
 
-	topology = ast_get_topology_from_sdp(sdp);
+	topology = ast_get_topology_from_sdp(sdp, 0);
+	if (!topology) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 
 	if (ast_stream_topology_get_count(topology) != 3) {
-		ast_test_status_update(test, "Unexpected topology count '%d'. Expecting 2\n",
+		ast_test_status_update(test, "Unexpected topology count '%d'. Expecting 3\n",
 			ast_stream_topology_get_count(topology));
 		res = AST_TEST_FAIL;
 		goto end;
@@ -665,11 +732,9 @@ static int validate_merged_sdp(struct ast_test *test, const struct ast_sdp *sdp)
 	}
 
 	m_line = ast_sdp_get_m(sdp, 0);
-
 	if (validate_m_line(test, m_line, "audio", 1)) {
 		return -1;
 	}
-
 	if (validate_rtpmap(test, m_line, "PCMU")) {
 		return -1;
 	}
@@ -678,26 +743,26 @@ static int validate_merged_sdp(struct ast_test *test, const struct ast_sdp *sdp)
 	if (!validate_rtpmap(test, m_line, "PCMA")) {
 		return -1;
 	}
-
 	if (!validate_rtpmap(test, m_line, "G722")) {
 		return -1;
 	}
-
 	if (!validate_rtpmap(test, m_line, "opus")) {
 		return -1;
 	}
 
 	m_line = ast_sdp_get_m(sdp, 1);
-
 	if (validate_m_line(test, m_line, "video", 1)) {
 		return -1;
 	}
-
 	if (validate_rtpmap(test, m_line, "VP8")) {
 		return -1;
 	}
-
 	if (!validate_rtpmap(test, m_line, "H264")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line(test, m_line, "image", 1)) {
 		return -1;
 	}
 
@@ -715,10 +780,12 @@ AST_TEST_DEFINE(sdp_merge_symmetric)
 	static const struct sdp_format offerer_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
 		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 	};
 	static const struct sdp_format answerer_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
 		{ AST_MEDIA_TYPE_VIDEO, "vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 	};
 
 	switch(cmd) {
@@ -791,8 +858,10 @@ AST_TEST_DEFINE(sdp_merge_crisscross)
 	static const struct sdp_format offerer_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
 		{ AST_MEDIA_TYPE_VIDEO, "h264,vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 	};
 	static const struct sdp_format answerer_formats[] = {
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
 		{ AST_MEDIA_TYPE_VIDEO, "vp8" },
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
 	};
@@ -849,6 +918,153 @@ AST_TEST_DEFINE(sdp_merge_crisscross)
 	if (validate_merged_sdp(test, answerer_sdp)) {
 		res = AST_TEST_FAIL;
 		goto end;
+	}
+
+end:
+	ast_sdp_state_free(sdp_state_offerer);
+	ast_sdp_state_free(sdp_state_answerer);
+
+	return res;
+}
+
+static int validate_merged_sdp_asymmetric(struct ast_test *test, const struct ast_sdp *sdp, int is_offer)
+{
+	struct ast_sdp_m_line *m_line;
+	const char *side = is_offer ? "Offer side" : "Answer side";
+
+	if (!sdp) {
+		ast_test_status_update(test, "%s does not have a SDP\n", side);
+		return -1;
+	}
+
+	/* Stream 0 */
+	m_line = ast_sdp_get_m(sdp, 0);
+	if (validate_m_line(test, m_line, "audio", 1)) {
+		return -1;
+	}
+	if (!m_line->port) {
+		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 0, "n't");
+		return -1;
+	}
+	if (validate_rtpmap(test, m_line, "PCMU")) {
+		return -1;
+	}
+
+	/* The other audio formats should *NOT* be present */
+	if (!validate_rtpmap(test, m_line, "PCMA")) {
+		return -1;
+	}
+	if (!validate_rtpmap(test, m_line, "G722")) {
+		return -1;
+	}
+	if (!validate_rtpmap(test, m_line, "opus")) {
+		return -1;
+	}
+
+	/* The remaining streams should be declined */
+
+	/* Stream 1 */
+	m_line = ast_sdp_get_m(sdp, 1);
+	if (validate_m_line(test, m_line, "audio", 1)) {
+		return -1;
+	}
+	if (m_line->port) {
+		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 1, "");
+		return -1;
+	}
+
+	/* Stream 2 */
+	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line(test, m_line, "video", 1)) {
+		return -1;
+	}
+	if (m_line->port) {
+		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 2, "");
+		return -1;
+	}
+
+	/* Stream 3 */
+	m_line = ast_sdp_get_m(sdp, 3);
+	if (validate_m_line(test, m_line, "image", 1)) {
+		return -1;
+	}
+	if (m_line->port) {
+		ast_test_status_update(test, "%s stream %d does%s have a port\n", side, 3, "");
+		return -1;
+	}
+
+	return 0;
+}
+
+AST_TEST_DEFINE(sdp_merge_asymmetric)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct ast_sdp_state *sdp_state_offerer = NULL;
+	struct ast_sdp_state *sdp_state_answerer = NULL;
+	const struct ast_sdp *offerer_sdp;
+	const struct ast_sdp *answerer_sdp;
+
+	static const struct sdp_format offerer_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw,g722,opus" },
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+		{ AST_MEDIA_TYPE_VIDEO, "h261" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
+	};
+	static const struct sdp_format answerer_formats[] = {
+		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
+	};
+
+	switch(cmd) {
+	case TEST_INIT:
+		info->name = "sdp_merge_asymmetric";
+		info->category = "/main/sdp/";
+		info->summary = "Merge two SDPs with an asymmetric number of streams";
+		info->description =
+			"SDP 1 offers a four stream topology: Audio,Audio,Video,T.38\n"
+			"SDP 2 only has a single audio stream topology\n"
+			"We ensure that both local SDPs have the expected stream types and\n"
+			"the expected declined streams";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats, NULL);
+	if (!sdp_state_offerer) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	sdp_state_answerer = build_sdp_state(ARRAY_LEN(answerer_formats), answerer_formats, NULL);
+	if (!sdp_state_answerer) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
+	if (!offerer_sdp) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp);
+	answerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_answerer);
+	if (!answerer_sdp) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
+
+	ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp);
+
+#if defined(XXX_TODO_NEED_TO_HANDLE_DECLINED_STREAMS_ON_OFFER_SIDE)
+	/* Get the offerer SDP again because it's now going to be the joint SDP */
+	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
+	if (validate_merged_sdp_asymmetric(test, offerer_sdp, 1)) {
+		res = AST_TEST_FAIL;
+	}
+#endif
+	if (validate_merged_sdp_asymmetric(test, answerer_sdp, 0)) {
+		res = AST_TEST_FAIL;
 	}
 
 end:
@@ -972,6 +1188,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(sdp_to_topology);
 	AST_TEST_UNREGISTER(sdp_merge_symmetric);
 	AST_TEST_UNREGISTER(sdp_merge_crisscross);
+	AST_TEST_UNREGISTER(sdp_merge_asymmetric);
 	AST_TEST_UNREGISTER(sdp_ssrc_attributes);
 
 	return 0;
@@ -986,6 +1203,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(sdp_to_topology);
 	AST_TEST_REGISTER(sdp_merge_symmetric);
 	AST_TEST_REGISTER(sdp_merge_crisscross);
+	AST_TEST_REGISTER(sdp_merge_asymmetric);
 	AST_TEST_REGISTER(sdp_ssrc_attributes);
 
 	return AST_MODULE_LOAD_SUCCESS;

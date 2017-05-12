@@ -64,6 +64,11 @@ enum ast_sdp_role {
 
 typedef int (*state_fn)(struct ast_sdp_state *state);
 
+struct sdp_state_rtp {
+	/*! The underlying RTP instance */
+	struct ast_rtp_instance *instance;
+};
+
 struct sdp_state_udptl {
 	/*! The underlying UDPTL instance */
 	struct ast_udptl *instance;
@@ -74,7 +79,7 @@ struct sdp_state_stream {
 	enum ast_media_type type;
 	union {
 		/*! The underlying RTP instance */
-		struct ast_rtp_instance *instance;
+		struct sdp_state_rtp *rtp;
 		/*! The underlying UDPTL instance */
 		struct sdp_state_udptl *udptl;
 	};
@@ -85,6 +90,16 @@ struct sdp_state_stream {
 	/*! UDPTL session parameters */
 	struct ast_control_t38_parameters t38_local_params;
 };
+
+static void sdp_state_rtp_destroy(void *obj)
+{
+	struct sdp_state_rtp *rtp = obj;
+
+	if (rtp->instance) {
+		ast_rtp_instance_stop(rtp->instance);
+		ast_rtp_instance_destroy(rtp->instance);
+	}
+}
 
 static void sdp_state_udptl_destroy(void *obj)
 {
@@ -100,9 +115,7 @@ static void sdp_state_stream_free(struct sdp_state_stream *state_stream)
 	switch (state_stream->type) {
 	case AST_MEDIA_TYPE_AUDIO:
 	case AST_MEDIA_TYPE_VIDEO:
-		if (state_stream->instance) {
-			ast_rtp_instance_destroy(state_stream->instance);
-		}
+		ao2_cleanup(state_stream->rtp);
 		break;
 	case AST_MEDIA_TYPE_IMAGE:
 		ao2_cleanup(state_stream->udptl);
@@ -145,10 +158,10 @@ static void sdp_state_capabilities_free(struct sdp_state_capabilities *capabilit
 static struct ast_sched_context *sched;
 
 /*! \brief Internal function which creates an RTP instance */
-static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options,
+static struct sdp_state_rtp *create_rtp(const struct ast_sdp_options *options,
 	enum ast_media_type media_type)
 {
-	struct ast_rtp_instance *rtp;
+	struct sdp_state_rtp *rtp;
 	struct ast_rtp_engine_ice *ice;
 	static struct ast_sockaddr address_rtp;
 	struct ast_sockaddr *media_address = &address_rtp;
@@ -167,38 +180,57 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 		}
 	}
 
-	rtp = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL);
+	rtp = ao2_alloc_options(sizeof(*rtp), sdp_state_rtp_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!rtp) {
-		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n",
-			options->rtp_engine);
 		return NULL;
 	}
 
-	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_STANDARD);
-	ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_NAT, options->rtp_symmetric);
+	rtp->instance = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL);
+	if (!rtp->instance) {
+		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n",
+			options->rtp_engine);
+		ao2_ref(rtp, -1);
+		return NULL;
+	}
 
-	if (options->ice == AST_SDP_ICE_DISABLED && (ice = ast_rtp_instance_get_ice(rtp))) {
-		ice->stop(rtp);
+	ast_rtp_instance_set_prop(rtp->instance, AST_RTP_PROPERTY_RTCP,
+		AST_RTP_INSTANCE_RTCP_STANDARD);
+	ast_rtp_instance_set_prop(rtp->instance, AST_RTP_PROPERTY_NAT,
+		options->rtp_symmetric);
+
+	if (options->ice == AST_SDP_ICE_DISABLED
+		&& (ice = ast_rtp_instance_get_ice(rtp->instance))) {
+		ice->stop(rtp->instance);
 	}
 
 	if (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO) {
-		ast_rtp_instance_dtmf_mode_set(rtp, AST_RTP_DTMF_MODE_RFC2833);
-		ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_DTMF, 1);
+		ast_rtp_instance_dtmf_mode_set(rtp->instance, AST_RTP_DTMF_MODE_RFC2833);
+		ast_rtp_instance_set_prop(rtp->instance, AST_RTP_PROPERTY_DTMF, 1);
 	} else if (options->dtmf == AST_SDP_DTMF_INBAND) {
-		ast_rtp_instance_dtmf_mode_set(rtp, AST_RTP_DTMF_MODE_INBAND);
+		ast_rtp_instance_dtmf_mode_set(rtp->instance, AST_RTP_DTMF_MODE_INBAND);
 	}
 
-	if (media_type == AST_MEDIA_TYPE_AUDIO &&
-			(options->tos_audio || options->cos_audio)) {
-		ast_rtp_instance_set_qos(rtp, options->tos_audio,
-			options->cos_audio, "SIP RTP Audio");
-	} else if (media_type == AST_MEDIA_TYPE_VIDEO &&
-			(options->tos_video || options->cos_video)) {
-		ast_rtp_instance_set_qos(rtp, options->tos_video,
-			options->cos_video, "SIP RTP Video");
+	switch (media_type) {
+	case AST_MEDIA_TYPE_AUDIO:
+		if (options->tos_audio || options->cos_audio) {
+			ast_rtp_instance_set_qos(rtp->instance, options->tos_audio,
+				options->cos_audio, "SIP RTP Audio");
+		}
+		break;
+	case AST_MEDIA_TYPE_VIDEO:
+		if (options->tos_video || options->cos_video) {
+			ast_rtp_instance_set_qos(rtp->instance, options->tos_video,
+				options->cos_video, "SIP RTP Video");
+		}
+		break;
+	case AST_MEDIA_TYPE_IMAGE:
+	case AST_MEDIA_TYPE_TEXT:
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_END:
+		break;
 	}
 
-	ast_rtp_instance_set_last_rx(rtp, time(NULL));
+	ast_rtp_instance_set_last_rx(rtp->instance, time(NULL));
 
 	return rtp;
 }
@@ -278,8 +310,8 @@ static struct sdp_state_capabilities *sdp_initialize_state_capabilities(const st
 		switch (state_stream->type) {
 		case AST_MEDIA_TYPE_AUDIO:
 		case AST_MEDIA_TYPE_VIDEO:
-			state_stream->instance = create_rtp(options, state_stream->type);
-			if (!state_stream->instance) {
+			state_stream->rtp = create_rtp(options, state_stream->type);
+			if (!state_stream->rtp) {
 				sdp_state_stream_free(state_stream);
 				sdp_state_capabilities_free(capabilities);
 				return NULL;
@@ -413,11 +445,11 @@ struct ast_rtp_instance *ast_sdp_state_get_rtp_instance(
 			sdp_state->proposed_capabilities->topology, stream_index)) == AST_MEDIA_TYPE_VIDEO);
 
 	stream_state = sdp_state_get_stream(sdp_state, stream_index);
-	if (!stream_state) {
+	if (!stream_state || !stream_state->rtp) {
 		return NULL;
 	}
 
-	return stream_state->instance;
+	return stream_state->rtp->instance;
 }
 
 struct ast_udptl *ast_sdp_state_get_udptl_instance(
@@ -467,7 +499,7 @@ int ast_sdp_state_get_stream_connection_address(const struct ast_sdp_state *sdp_
 		stream_index))) {
 	case AST_MEDIA_TYPE_AUDIO:
 	case AST_MEDIA_TYPE_VIDEO:
-		ast_rtp_instance_get_local_address(stream_state->instance, address);
+		ast_rtp_instance_get_local_address(stream_state->rtp->instance, address);
 		break;
 	case AST_MEDIA_TYPE_IMAGE:
 		ast_udptl_get_us(stream_state->udptl->instance, address);
@@ -522,6 +554,7 @@ const struct ast_sdp_options *ast_sdp_state_get_options(
  *
  * \param local Our local stream
  * \param remote A remote stream
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The joint stream created
  */
@@ -540,10 +573,6 @@ static struct ast_stream *merge_streams(const struct ast_stream *local,
 		ast_stream_get_type(remote));
 	if (!joint_stream) {
 		return NULL;
-	}
-
-	if (!local) {
-		return joint_stream;
 	}
 
 	joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
@@ -576,63 +605,100 @@ static struct ast_stream *merge_streams(const struct ast_stream *local,
  * \param local The local topology
  * \param media_type The type of stream we are looking for
  * \param[in,out] media_indices Keeps track of where to start searching in the topology
- * \retval NULL No corresponding stream found
- * \retval non-NULL The corresponding stream
+ *
+ * \retval -1 No corresponding stream found
+ * \retval index The corresponding stream index
  */
 static int get_corresponding_index(const struct ast_stream_topology *local,
 	enum ast_media_type media_type, int *media_indices)
 {
 	int i;
-	int winner = -1;
 
 	for (i = media_indices[media_type]; i < ast_stream_topology_get_count(local); ++i) {
 		struct ast_stream *candidate;
 
 		candidate = ast_stream_topology_get_stream(local, i);
 		if (ast_stream_get_type(candidate) == media_type) {
-			winner = i;
-			break;
+			media_indices[media_type] = i + 1;
+			return i;
 		}
 	}
 
-	media_indices[media_type] = i + 1;
-	return winner;
+	/* No stream of the type left in the topology */
+	media_indices[media_type] = i;
+	return -1;
 }
 
 /*!
+ * XXX TODO The merge_capabilities() function needs to be split into
+ * merging for new local topologies and new remote topologies.  Also
+ * the possibility of changing the stream types needs consideration.
+ * Audio to video may or may not need us to keep the same RTP instance
+ * because the stream position is still RTP.  A new RTP instance would
+ * cause us to change ports.  Audio to image is definitely going to
+ * happen for T.38.
+ *
+ * A new remote topology as an initial offer needs to dictate the
+ * number of streams and the order.  As a sdp_state option we may
+ * allow creation of new active streams not defined by the current
+ * local topology.  A subsequent remote offer can change the stream
+ * types and add streams.  The sdp_state option could regulate
+ * creation of new active streams here as well.  An answer cannot
+ * change stream types or the number of streams but can decline
+ * streams.  Any attempt to do so should report an error and possibly
+ * disconnect the call.
+ *
+ * A local topology update needs to be merged differently.  It cannot
+ * reduce the number of streams already defined without violating the
+ * SDP RFC.  The local merge could take the new topology stream
+ * verbatim and add declined streams to fill out any shortfall with
+ * the exiting topology.  This strategy is needed if we want to change
+ * an audio stream to an image stream for T.38 fax and vice versa.
+ * The local merge could take the new topology and map the streams to
+ * the existing local topology.  The new topology stream format caps
+ * would be copied into the merged topology so we could change what
+ * codecs are negotiated.
+ */
+/*!
  * \brief Merge existing stream capabilities and a new topology into joint capabilities.
  *
- * This is a bit complicated. The idea is that we already have some capabilities set, and
- * we've now been confronted with a new stream topology. We want to take what's been
- * presented to us and merge those new capabilities with our own.
- *
- * For each of the new streams, we try to find a corresponding stream in our current
- * capabilities. If we find one, then we get the compatible formats of the two streams
- * and create a new stream with those formats set. We then will re-use the underlying
- * media instance (such as an RTP instance) on this merged stream.
- *
- * The create_new parameter determines whether we should attempt to create new media
- * instances.
- * If we do not find a corresponding stream, then we create a new one. If the
- * create_new parameter is true, this created stream is made a clone of the new stream,
- * and a media instance is created. If the create_new parameter is not true, then the
- * created stream has no formats set and no media instance is created for it.
- *
- * \param current Current capabilities of the SDP state (may be NULL)
+ * \param sdp_state The state needing capabilities merged
  * \param new_topology The new topology to base merged capabilities on
- * \param options The options set on the SDP state
+ * \param is_local If new_topology is a local update.
+ *
+ * \details
+ * This is a bit complicated. The idea is that we already have some
+ * capabilities set, and we've now been confronted with a new stream
+ * topology.  We want to take what's been presented to us and merge
+ * those new capabilities with our own.
+ *
+ * For each of the new streams, we try to find a corresponding stream
+ * in our proposed capabilities.  If we find one, then we get the
+ * compatible formats of the two streams and create a new stream with
+ * those formats set.  We then will re-use the underlying media
+ * instance (such as an RTP instance) on this merged stream.
+ *
+ * The is_local parameter determines whether we should attempt to
+ * create new media instances.  If we do not find a corresponding
+ * stream, then we create a new one.  If the is_local parameter is
+ * true, this created stream is made a clone of the new stream, and a
+ * media instance is created.  If the is_local parameter is not true,
+ * then the created stream has no formats set and no media instance is
+ * created for it.
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The merged capabilities
  */
-static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_capabilities *current,
-	const struct ast_stream_topology *new_topology, const struct ast_sdp_options *options, int create_missing)
+static struct sdp_state_capabilities *merge_capabilities(const struct ast_sdp_state *sdp_state,
+	const struct ast_stream_topology *new_topology, int is_local)
 {
+	const struct sdp_state_capabilities *local = sdp_state->proposed_capabilities;
 	struct sdp_state_capabilities *joint_capabilities;
-	struct ast_stream_topology *topology;
 	int media_indices[AST_MEDIA_TYPE_END] = {0};
 	int i;
+	static const char dummy_name[] = "dummy";
 
-	ast_assert(current != NULL);
+	ast_assert(local != NULL);
 
 	joint_capabilities = ast_calloc(1, sizeof(*joint_capabilities));
 	if (!joint_capabilities) {
@@ -644,20 +710,18 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		goto fail;
 	}
 
-	if (AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&current->streams))) {
+	if (AST_VECTOR_INIT(&joint_capabilities->streams, AST_VECTOR_SIZE(&local->streams))) {
 		goto fail;
 	}
-	ast_sockaddr_copy(&joint_capabilities->connection_address, &current->connection_address);
-	topology = current->topology;
+	ast_sockaddr_copy(&joint_capabilities->connection_address, &local->connection_address);
 
 	for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
 		enum ast_media_type new_stream_type;
 		struct ast_stream *new_stream;
-		struct ast_stream *current_stream;
+		struct ast_stream *local_stream;
 		struct ast_stream *joint_stream;
-		struct sdp_state_stream *current_state_stream;
 		struct sdp_state_stream *joint_state_stream;
-		int current_index;
+		int local_index;
 
 		joint_state_stream = ast_calloc(1, sizeof(*joint_state_stream));
 		if (!joint_state_stream) {
@@ -667,26 +731,57 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 		new_stream = ast_stream_topology_get_stream(new_topology, i);
 		new_stream_type = ast_stream_get_type(new_stream);
 
-		current_index = get_corresponding_index(topology, new_stream_type, media_indices);
-		if (current_index >= 0) {
-			current_stream = ast_stream_topology_get_stream(topology, current_index);
-			joint_stream = merge_streams(current_stream, new_stream);
+		local_index = get_corresponding_index(local->topology, new_stream_type, media_indices);
+		if (0 <= local_index) {
+			local_stream = ast_stream_topology_get_stream(local->topology, local_index);
+			if (!strcmp(ast_stream_get_name(local_stream), dummy_name)) {
+				/* The local stream is a non-exixtent dummy stream. */
+				local_stream = NULL;
+			}
+		} else {
+			local_stream = NULL;
+		}
+		if (local_stream) {
+			struct sdp_state_stream *local_state_stream;
+			struct ast_rtp_codecs *codecs;
+
+			if (is_local) {
+				/* Replace the local stream with the new local stream. */
+				joint_stream = ast_stream_clone(new_stream);
+			} else {
+				joint_stream = merge_streams(local_stream, new_stream);
+			}
 			if (!joint_stream) {
 				sdp_state_stream_free(joint_state_stream);
 				goto fail;
 			}
 
-			current_state_stream = AST_VECTOR_GET(&current->streams, current_index);
-			joint_state_stream->type = current_state_stream->type;
+			local_state_stream = AST_VECTOR_GET(&local->streams, local_index);
+			joint_state_stream->type = local_state_stream->type;
 
 			switch (joint_state_stream->type) {
 			case AST_MEDIA_TYPE_AUDIO:
 			case AST_MEDIA_TYPE_VIDEO:
-				joint_state_stream->instance = ao2_bump(current_state_stream->instance);
+				joint_state_stream->rtp = ao2_bump(local_state_stream->rtp);
+				if (is_local) {
+					break;
+				}
+				codecs = ast_stream_get_data(new_stream, AST_STREAM_DATA_RTP_CODECS);
+				ast_assert(codecs != NULL);
+				if (sdp_state->role == SDP_ROLE_ANSWERER) {
+					/*
+					 * Setup rx payload type mapping to prefer the mapping
+					 * from the peer that the RFC says we SHOULD use.
+					 */
+					ast_rtp_codecs_payloads_xover(codecs, codecs, NULL);
+				}
+				ast_rtp_codecs_payloads_copy(codecs,
+					ast_rtp_instance_get_codecs(joint_state_stream->rtp->instance),
+					joint_state_stream->rtp->instance);
 				break;
 			case AST_MEDIA_TYPE_IMAGE:
-				joint_state_stream->udptl = ao2_bump(current_state_stream->udptl);
-				joint_state_stream->t38_local_params = current_state_stream->t38_local_params;
+				joint_state_stream->udptl = ao2_bump(local_state_stream->udptl);
+				joint_state_stream->t38_local_params = local_state_stream->t38_local_params;
 				break;
 			case AST_MEDIA_TYPE_UNKNOWN:
 			case AST_MEDIA_TYPE_TEXT:
@@ -694,13 +789,14 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 				break;
 			}
 
-			if (!ast_sockaddr_isnull(&current_state_stream->connection_address)) {
-				ast_sockaddr_copy(&joint_state_stream->connection_address, &current_state_stream->connection_address);
+			if (!ast_sockaddr_isnull(&local_state_stream->connection_address)) {
+				ast_sockaddr_copy(&joint_state_stream->connection_address,
+					&local_state_stream->connection_address);
 			} else {
 				ast_sockaddr_setnull(&joint_state_stream->connection_address);
 			}
-			joint_state_stream->locally_held = current_state_stream->locally_held;
-		} else if (create_missing) {
+			joint_state_stream->locally_held = local_state_stream->locally_held;
+		} else if (is_local) {
 			/* We don't have a stream state that corresponds to the stream in the new topology, so
 			 * create a stream state as appropriate.
 			 */
@@ -713,15 +809,16 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			switch (new_stream_type) {
 			case AST_MEDIA_TYPE_AUDIO:
 			case AST_MEDIA_TYPE_VIDEO:
-				joint_state_stream->instance = create_rtp(options, new_stream_type);
-				if (!joint_state_stream->instance) {
+				joint_state_stream->rtp = create_rtp(sdp_state->options,
+					new_stream_type);
+				if (!joint_state_stream->rtp) {
 					ast_stream_free(joint_stream);
 					sdp_state_stream_free(joint_state_stream);
 					goto fail;
 				}
 				break;
 			case AST_MEDIA_TYPE_IMAGE:
-				joint_state_stream->udptl = create_udptl(options);
+				joint_state_stream->udptl = create_udptl(sdp_state->options);
 				if (!joint_state_stream->udptl) {
 					ast_stream_free(joint_stream);
 					sdp_state_stream_free(joint_state_stream);
@@ -740,7 +837,7 @@ static struct sdp_state_capabilities *merge_capabilities(const struct sdp_state_
 			 * dummy stream to go in its place so that the resulting SDP created will contain
 			 * the stream but will have no port or codecs set
 			 */
-			joint_stream = ast_stream_alloc("dummy", new_stream_type);
+			joint_stream = ast_stream_alloc(dummy_name, new_stream_type);
 			if (!joint_stream) {
 				sdp_state_stream_free(joint_state_stream);
 				goto fail;
@@ -889,24 +986,33 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
  * sides.
  *
  * \param state The SDP state in which SDPs have been negotiated
- * \param rtp The RTP instance that is being updated
+ * \param rtp The RTP wrapper that is being updated
  * \param options Our locally-supported SDP options
  * \param remote_sdp The SDP we most recently received
  * \param remote_m_line The remote SDP stream that corresponds to the RTP instance we are modifying
  */
-static void update_rtp_after_merge(const struct ast_sdp_state *state, struct ast_rtp_instance *rtp,
+static void update_rtp_after_merge(const struct ast_sdp_state *state,
+	struct sdp_state_rtp *rtp,
     const struct ast_sdp_options *options,
 	const struct ast_sdp *remote_sdp,
 	const struct ast_sdp_m_line *remote_m_line)
 {
-	if (ast_sdp_options_get_rtcp_mux(options) && ast_sdp_m_find_attribute(remote_m_line, "rtcp-mux", -1)) {
-		ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_MUX);
+	if (!rtp) {
+		/* This is a dummy stream */
+		return;
+	}
+
+	if (ast_sdp_options_get_rtcp_mux(options)
+		&& ast_sdp_m_find_attribute(remote_m_line, "rtcp-mux", -1)) {
+		ast_rtp_instance_set_prop(rtp->instance, AST_RTP_PROPERTY_RTCP,
+			AST_RTP_INSTANCE_RTCP_MUX);
 	} else {
-		ast_rtp_instance_set_prop(rtp, AST_RTP_PROPERTY_RTCP, AST_RTP_INSTANCE_RTCP_STANDARD);
+		ast_rtp_instance_set_prop(rtp->instance, AST_RTP_PROPERTY_RTCP,
+			AST_RTP_INSTANCE_RTCP_STANDARD);
 	}
 
 	if (ast_sdp_options_get_ice(options) == AST_SDP_ICE_ENABLED_STANDARD) {
-		update_ice(state, rtp, options, remote_sdp, remote_m_line);
+		update_ice(state, rtp->instance, options, remote_sdp, remote_m_line);
 	}
 }
 
@@ -934,6 +1040,11 @@ static void update_udptl_after_merge(const struct ast_sdp_state *state, struct s
 	struct ast_sdp_c_line *c_line;
 	unsigned int fax_max_datagram;
 	struct ast_sockaddr *addrs;
+
+	if (!udptl) {
+		/* This is a dummy stream */
+		return;
+	}
 
 	a_line = ast_sdp_m_find_attribute(remote_m_line, "t38faxmaxdatagram", -1);
 	if (!a_line) {
@@ -1007,13 +1118,13 @@ static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *rem
 	struct ast_stream_topology *remote_capabilities;
 	int i;
 
-	remote_capabilities = ast_get_topology_from_sdp(remote_sdp);
+	remote_capabilities = ast_get_topology_from_sdp(remote_sdp,
+		sdp_state->options->g726_non_standard);
 	if (!remote_capabilities) {
 		return -1;
 	}
 
-	joint_capabilities = merge_capabilities(sdp_state->proposed_capabilities,
-		remote_capabilities, sdp_state->options, 0);
+	joint_capabilities = merge_capabilities(sdp_state, remote_capabilities, 0);
 	ast_stream_topology_free(remote_capabilities);
 	if (!joint_capabilities) {
 		return -1;
@@ -1038,7 +1149,7 @@ static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *rem
 		switch (ast_stream_get_type(ast_stream_topology_get_stream(joint_capabilities->topology, i))) {
 		case AST_MEDIA_TYPE_AUDIO:
 		case AST_MEDIA_TYPE_VIDEO:
-			update_rtp_after_merge(sdp_state, state_stream->instance, sdp_state->options,
+			update_rtp_after_merge(sdp_state, state_stream->rtp, sdp_state->options,
 				remote_sdp, ast_sdp_get_m(remote_sdp, i));
 			break;
 		case AST_MEDIA_TYPE_IMAGE:
@@ -1126,7 +1237,7 @@ int ast_sdp_state_update_local_topology(struct ast_sdp_state *sdp_state, struct 
 	ast_assert(sdp_state != NULL);
 	ast_assert(streams != NULL);
 
-	capabilities = merge_capabilities(sdp_state->proposed_capabilities, streams, sdp_state->options, 1);
+	capabilities = merge_capabilities(sdp_state, streams, 1);
 	if (!capabilities) {
 		return -1;
 	}
@@ -1247,122 +1358,162 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 	struct ast_format_cap *caps;
 	int i;
 	int rtp_code;
+	int rtp_port;
 	int min_packet_size = 0;
 	int max_packet_size = 0;
 	enum ast_media_type media_type;
 	char tmp[64];
-	struct ast_sockaddr address_rtp;
+	struct sdp_state_stream *stream_state;
 	struct ast_rtp_instance *rtp;
 	struct ast_sdp_a_line *a_line;
 
 	stream = ast_stream_topology_get_stream(capabilities->topology, stream_index);
-	rtp = AST_VECTOR_GET(&capabilities->streams, stream_index)->instance;
 
 	ast_assert(sdp && options && stream);
 
+	caps = ast_stream_get_formats(stream);
+
+	stream_state = AST_VECTOR_GET(&capabilities->streams, stream_index);
+	if (stream_state->rtp && caps && ast_format_cap_count(caps)) {
+		rtp = stream_state->rtp->instance;
+	} else {
+		/* This is a disabled stream */
+		rtp = NULL;
+	}
+
 	if (rtp) {
+		struct ast_sockaddr address_rtp;
+
 		if (ast_sdp_state_get_stream_connection_address(sdp_state, 0, &address_rtp)) {
 			return -1;
 		}
+		rtp_port = ast_sockaddr_port(&address_rtp);
 	} else {
-		ast_sockaddr_setnull(&address_rtp);
+		rtp_port = 0;
 	}
 
 	m_line = ast_sdp_m_alloc(
 		ast_codec_media_type2str(ast_stream_get_type(stream)),
-		ast_sockaddr_port(&address_rtp), 1,
+		rtp_port, 1,
 		options->encryption != AST_SDP_ENCRYPTION_DISABLED ? "RTP/SAVP" : "RTP/AVP",
 		NULL);
 	if (!m_line) {
 		return -1;
 	}
 
-	caps = ast_stream_get_formats(stream);
+	if (rtp_port) {
+		/* Stream is not declined/disabled */
+		for (i = 0; i < ast_format_cap_count(caps); i++) {
+			struct ast_format *format = ast_format_cap_get_format(caps, i);
 
-	for (i = 0; i < ast_format_cap_count(caps); i++) {
-		struct ast_format *format = ast_format_cap_get_format(caps, i);
+			rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1,
+				format, 0);
+			if (rtp_code == -1) {
+				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n",
+					ast_format_get_name(format));
+				ao2_ref(format, -1);
+				continue;
+			}
 
-		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1, format, 0)) == -1) {
-			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
-			ao2_ref(format, -1);
-			continue;
-		}
-
-		if (ast_sdp_m_add_format(m_line, options, rtp_code, 1, format, 0)) {
-			ast_sdp_m_free(m_line);
-			ao2_ref(format, -1);
-			return -1;
-		}
-
-		if (ast_format_get_maximum_ms(format) &&
-			((ast_format_get_maximum_ms(format) < max_packet_size) || !max_packet_size)) {
-			max_packet_size = ast_format_get_maximum_ms(format);
-		}
-
-		ao2_ref(format, -1);
-	}
-
-	media_type = ast_stream_get_type(stream);
-	if (rtp && media_type != AST_MEDIA_TYPE_VIDEO
-		&& (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO)) {
-		i = AST_RTP_DTMF;
-		rtp_code = ast_rtp_codecs_payload_code(
-			ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
-		if (-1 < rtp_code) {
-			if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
+			if (ast_sdp_m_add_format(m_line, options, rtp_code, 1, format, 0)) {
 				ast_sdp_m_free(m_line);
+				ao2_ref(format, -1);
 				return -1;
 			}
 
-			snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
-			a_line = ast_sdp_a_alloc("fmtp", tmp);
+			if (ast_format_get_maximum_ms(format)
+				&& ((ast_format_get_maximum_ms(format) < max_packet_size)
+					|| !max_packet_size)) {
+				max_packet_size = ast_format_get_maximum_ms(format);
+			}
+
+			ao2_ref(format, -1);
+		}
+
+		media_type = ast_stream_get_type(stream);
+		if (media_type != AST_MEDIA_TYPE_VIDEO
+			&& (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO)) {
+			i = AST_RTP_DTMF;
+			rtp_code = ast_rtp_codecs_payload_code(
+				ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
+			if (-1 < rtp_code) {
+				if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
+					ast_sdp_m_free(m_line);
+					return -1;
+				}
+
+				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
+				a_line = ast_sdp_a_alloc("fmtp", tmp);
+				if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+					ast_sdp_a_free(a_line);
+					ast_sdp_m_free(m_line);
+					return -1;
+				}
+			}
+		}
+
+		/* If ptime is set add it as an attribute */
+		min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(rtp));
+		if (!min_packet_size) {
+			min_packet_size = ast_format_cap_get_framing(caps);
+		}
+		if (min_packet_size) {
+			snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
+
+			a_line = ast_sdp_a_alloc("ptime", tmp);
 			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 				ast_sdp_a_free(a_line);
 				ast_sdp_m_free(m_line);
 				return -1;
 			}
 		}
-	}
 
-	if (ast_sdp_m_get_a_count(m_line) == 0) {
-		ast_sdp_m_free(m_line);
-		return 0;
-	}
+		if (max_packet_size) {
+			snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
+			a_line = ast_sdp_a_alloc("maxptime", tmp);
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+		}
 
-	/* If ptime is set add it as an attribute */
-	min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(rtp));
-	if (!min_packet_size) {
-		min_packet_size = ast_format_cap_get_framing(caps);
-	}
-	if (min_packet_size) {
-		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
-
-		a_line = ast_sdp_a_alloc("ptime", tmp);
+		a_line = ast_sdp_a_alloc(ast_sdp_state_get_locally_held(sdp_state, stream_index)
+			? "sendonly" : "sendrecv", "");
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
-	}
 
-	if (max_packet_size) {
-		snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
-		a_line = ast_sdp_a_alloc("maxptime", tmp);
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
+		add_ssrc_attributes(m_line, options, rtp);
+	} else {
+		/* Declined/disabled stream */
+		struct ast_sdp_payload *payload;
+		const char *fmt;
+
+		/*
+		 * Add a static payload type placeholder to the declined/disabled stream.
+		 *
+		 * XXX We should use the default payload type in the received offer but
+		 * we don't have that available.
+		 */
+		switch (ast_stream_get_type(stream)) {
+		default:
+		case AST_MEDIA_TYPE_AUDIO:
+			fmt = "0"; /* ulaw */
+			break;
+		case AST_MEDIA_TYPE_VIDEO:
+			fmt = "31"; /* H.261 */
+			break;
+		}
+		payload = ast_sdp_payload_alloc(fmt);
+		if (!payload || ast_sdp_m_add_payload(m_line, payload)) {
+			ast_sdp_payload_free(payload);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
 	}
-
-	a_line = ast_sdp_a_alloc(ast_sdp_state_get_locally_held(sdp_state, stream_index) ? "sendonly" : "sendrecv", "");
-	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-		ast_sdp_a_free(a_line);
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
-
-	add_ssrc_attributes(m_line, options, rtp);
 
 	if (ast_sdp_add_m(sdp, m_line)) {
 		ast_sdp_m_free(m_line);
@@ -1400,27 +1551,37 @@ static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp
 	struct ast_sdp_m_line *m_line;
 	struct ast_sdp_payload *payload;
 	char tmp[64];
-	struct ast_sockaddr address_udptl;
 	struct sdp_state_udptl *udptl;
 	struct ast_sdp_a_line *a_line;
 	struct sdp_state_stream *stream_state;
+	int udptl_port;
 
 	stream = ast_stream_topology_get_stream(capabilities->topology, stream_index);
-	udptl = AST_VECTOR_GET(&capabilities->streams, stream_index)->udptl;
 
 	ast_assert(sdp && options && stream);
 
+	stream_state = AST_VECTOR_GET(&capabilities->streams, stream_index);
+	if (stream_state->udptl) {
+		udptl = stream_state->udptl;
+	} else {
+		/* This is a disabled stream */
+		udptl = NULL;
+	}
+
 	if (udptl) {
+		struct ast_sockaddr address_udptl;
+
 		if (ast_sdp_state_get_stream_connection_address(sdp_state, 0, &address_udptl)) {
 			return -1;
 		}
+		udptl_port = ast_sockaddr_port(&address_udptl);
 	} else {
-		ast_sockaddr_setnull(&address_udptl);
+		udptl_port = 0;
 	}
 
 	m_line = ast_sdp_m_alloc(
 		ast_codec_media_type2str(ast_stream_get_type(stream)),
-		ast_sockaddr_port(&address_udptl), 1, "udptl", NULL);
+		udptl_port, 1, "udptl", NULL);
 	if (!m_line) {
 		return -1;
 	}
@@ -1432,97 +1593,100 @@ static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp
 		return -1;
 	}
 
-	stream_state = sdp_state_get_stream(sdp_state, stream_index);
+	if (udptl_port) {
+		/* Stream is not declined/disabled */
+		stream_state = sdp_state_get_stream(sdp_state, stream_index);
 
-	snprintf(tmp, sizeof(tmp), "%u", stream_state->t38_local_params.version);
-	a_line = ast_sdp_a_alloc("T38FaxVersion", tmp);
-	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-		ast_sdp_a_free(a_line);
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
-
-	snprintf(tmp, sizeof(tmp), "%u", t38_get_rate(stream_state->t38_local_params.rate));
-	a_line = ast_sdp_a_alloc("T38FaxMaxBitRate", tmp);
-	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-		ast_sdp_a_free(a_line);
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
-
-	if (stream_state->t38_local_params.fill_bit_removal) {
-		a_line = ast_sdp_a_alloc("T38FaxFillBitRemoval", "");
+		snprintf(tmp, sizeof(tmp), "%u", stream_state->t38_local_params.version);
+		a_line = ast_sdp_a_alloc("T38FaxVersion", tmp);
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
-	}
 
-	if (stream_state->t38_local_params.transcoding_mmr) {
-		a_line = ast_sdp_a_alloc("T38FaxTranscodingMMR", "");
+		snprintf(tmp, sizeof(tmp), "%u", t38_get_rate(stream_state->t38_local_params.rate));
+		a_line = ast_sdp_a_alloc("T38FaxMaxBitRate", tmp);
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
-	}
 
-	if (stream_state->t38_local_params.transcoding_jbig) {
-		a_line = ast_sdp_a_alloc("T38FaxTranscodingJBIG", "");
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
+		if (stream_state->t38_local_params.fill_bit_removal) {
+			a_line = ast_sdp_a_alloc("T38FaxFillBitRemoval", "");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
 		}
-	}
 
-	switch (stream_state->t38_local_params.rate_management) {
-	case AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF:
-		a_line = ast_sdp_a_alloc("T38FaxRateManagement", "transferredTCF");
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
+		if (stream_state->t38_local_params.transcoding_mmr) {
+			a_line = ast_sdp_a_alloc("T38FaxTranscodingMMR", "");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
 		}
-		break;
-	case AST_T38_RATE_MANAGEMENT_LOCAL_TCF:
-		a_line = ast_sdp_a_alloc("T38FaxRateManagement", "localTCF");
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
-		}
-		break;
-	}
 
-	snprintf(tmp, sizeof(tmp), "%u", ast_udptl_get_local_max_datagram(udptl->instance));
-	a_line = ast_sdp_a_alloc("T38FaxMaxDatagram", tmp);
-	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-		ast_sdp_a_free(a_line);
-		ast_sdp_m_free(m_line);
-		return -1;
-	}
+		if (stream_state->t38_local_params.transcoding_jbig) {
+			a_line = ast_sdp_a_alloc("T38FaxTranscodingJBIG", "");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+		}
 
-	switch (ast_udptl_get_error_correction_scheme(udptl->instance)) {
-	case UDPTL_ERROR_CORRECTION_NONE:
-		break;
-	case UDPTL_ERROR_CORRECTION_FEC:
-		a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPFEC");
+		switch (stream_state->t38_local_params.rate_management) {
+		case AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF:
+			a_line = ast_sdp_a_alloc("T38FaxRateManagement", "transferredTCF");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+			break;
+		case AST_T38_RATE_MANAGEMENT_LOCAL_TCF:
+			a_line = ast_sdp_a_alloc("T38FaxRateManagement", "localTCF");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+			break;
+		}
+
+		snprintf(tmp, sizeof(tmp), "%u", ast_udptl_get_local_max_datagram(udptl->instance));
+		a_line = ast_sdp_a_alloc("T38FaxMaxDatagram", tmp);
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
-		break;
-	case UDPTL_ERROR_CORRECTION_REDUNDANCY:
-		a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPRedundancy");
-		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-			ast_sdp_a_free(a_line);
-			ast_sdp_m_free(m_line);
-			return -1;
+
+		switch (ast_udptl_get_error_correction_scheme(udptl->instance)) {
+		case UDPTL_ERROR_CORRECTION_NONE:
+			break;
+		case UDPTL_ERROR_CORRECTION_FEC:
+			a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPFEC");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+			break;
+		case UDPTL_ERROR_CORRECTION_REDUNDANCY:
+			a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPRedundancy");
+			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+				ast_sdp_a_free(a_line);
+				ast_sdp_m_free(m_line);
+				return -1;
+			}
+			break;
 		}
-		break;
 	}
 
 	if (ast_sdp_add_m(sdp, m_line)) {

@@ -508,44 +508,81 @@ int ast_sdp_m_add_format(struct ast_sdp_m_line *m_line, const struct ast_sdp_opt
 		|| sdp_m_add_fmtp(m_line, format, rtp_code) ? -1 : 0;
 }
 
-static struct ast_sdp_a_line *sdp_find_attribute_common(const struct ast_sdp_a_lines *a_lines,
+static int sdp_find_a_common(const struct ast_sdp_a_lines *a_lines, int start,
 	const char *attr_name, int payload)
 {
 	struct ast_sdp_a_line *a_line;
-	int i;
+	int idx;
 
-	for (i = 0; i < AST_VECTOR_SIZE(a_lines); ++i) {
+	ast_assert(-1 <= start);
+
+	for (idx = start + 1; idx < AST_VECTOR_SIZE(a_lines); ++idx) {
 		int a_line_payload;
 
-		a_line = AST_VECTOR_GET(a_lines, i);
+		a_line = AST_VECTOR_GET(a_lines, idx);
 		if (strcmp(a_line->name, attr_name)) {
 			continue;
 		}
 
 		if (payload >= 0) {
 			int sscanf_res;
+
 			sscanf_res = sscanf(a_line->value, "%30d", &a_line_payload);
 			if (sscanf_res == 1 && payload == a_line_payload) {
-				return a_line;
+				return idx;
 			}
 		} else {
-			return a_line;
+			return idx;
 		}
 	}
 
-	return NULL;
+	return -1;
+}
+
+int ast_sdp_find_a_first(const struct ast_sdp *sdp, const char *attr_name, int payload)
+{
+	return sdp_find_a_common(sdp->a_lines, -1, attr_name, payload);
+}
+
+int ast_sdp_find_a_next(const struct ast_sdp *sdp, int last, const char *attr_name, int payload)
+{
+	return sdp_find_a_common(sdp->a_lines, last, attr_name, payload);
 }
 
 struct ast_sdp_a_line *ast_sdp_find_attribute(const struct ast_sdp *sdp,
 	const char *attr_name, int payload)
 {
-	return sdp_find_attribute_common(sdp->a_lines, attr_name, payload);
+	int idx;
+
+	idx = ast_sdp_find_a_first(sdp, attr_name, payload);
+	if (idx < 0) {
+		return NULL;
+	}
+	return ast_sdp_get_a(sdp, idx);
+}
+
+int ast_sdp_m_find_a_first(const struct ast_sdp_m_line *m_line, const char *attr_name,
+	int payload)
+{
+	return sdp_find_a_common(m_line->a_lines, -1, attr_name, payload);
+}
+
+int ast_sdp_m_find_a_next(const struct ast_sdp_m_line *m_line, int last,
+	const char *attr_name, int payload)
+{
+	return sdp_find_a_common(m_line->a_lines, last, attr_name, payload);
 }
 
 struct ast_sdp_a_line *ast_sdp_m_find_attribute(const struct ast_sdp_m_line *m_line,
 	const char *attr_name, int payload)
 {
-	return sdp_find_attribute_common(m_line->a_lines, attr_name, payload);
+	int idx;
+
+	idx = ast_sdp_m_find_a_first(m_line, attr_name, payload);
+	if (idx < 0) {
+		return NULL;
+	}
+	return ast_sdp_m_get_a(m_line, idx);
 }
 
 struct ast_sdp_rtpmap *ast_sdp_rtpmap_alloc(int payload, const char *encoding_name,
@@ -644,17 +681,8 @@ static struct ast_sdp_rtpmap *sdp_payload_get_rtpmap(const struct ast_sdp_m_line
 	return ast_sdp_a_get_rtpmap(rtpmap_attr);
 }
 
-/*!
- * \brief Find and process fmtp attributes for a given payload
- *
- * \param m_line The stream on which to search for the fmtp attribute
- * \param payload The specific fmtp attribute to search for
- * \param codecs The current RTP codecs that have been built up
- */
-static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
-	struct ast_rtp_codecs *codecs)
+static void process_fmtp_value(const char *value, int payload, struct ast_rtp_codecs *codecs)
 {
-	struct ast_sdp_a_line *attr;
 	char *param;
 	char *param_start;
 	char *param_end;
@@ -662,13 +690,11 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
 	struct ast_format *replace;
 	struct ast_format *format;
 
-	attr = ast_sdp_m_find_attribute(m_line, "fmtp", payload);
-	if (!attr) {
-		return;
-	}
-
-	/* Extract the "a=fmtp:%d %s" attribute parameter string after the payload type. */
-	param_start = ast_skip_nonblanks(attr->value);/* Skip payload type */
+	/*
+	 * Extract the "a=fmtp:%d %s" attribute parameter string value which
+	 * starts after the colon.
+	 */
+	param_start = ast_skip_nonblanks(value);/* Skip payload type */
 	param_start = ast_skip_blanks(param_start);
 	param_end = ast_skip_nonblanks(param_start);
 	if (param_end == param_start) {
@@ -694,22 +720,58 @@ static void process_fmtp(const struct ast_sdp_m_line *m_line, int payload,
 }
 
 /*!
+ * \brief Find and process all fmtp attribute lines for a given payload
+ *
+ * \param m_line The stream on which to search for the fmtp attributes
+ * \param payload The specific fmtp attribute to search for
+ * \param codecs The current RTP codecs that have been built up
+ */
+static void process_fmtp_lines(const struct ast_sdp_m_line *m_line, int payload,
+	struct ast_rtp_codecs *codecs)
+{
+	const struct ast_sdp_a_line *a_line;
+	int idx;
+
+	idx = ast_sdp_m_find_a_first(m_line, "fmtp", payload);
+	for (; 0 <= idx; idx = ast_sdp_m_find_a_next(m_line, idx, "fmtp", payload)) {
+		a_line = ast_sdp_m_get_a(m_line, idx);
+		ast_assert(a_line != NULL);
+
+		process_fmtp_value(a_line->value, payload, codecs);
+	}
+}
+
+/*
+ * Needed so we don't have an external function referenced as data.
+ * The dynamic linker doesn't handle that very well.
+ */
+static void rtp_codecs_free(struct ast_rtp_codecs *codecs)
+{
+	if (codecs) {
+		ast_rtp_codecs_payloads_destroy(codecs);
+	}
+}
+
+/*!
  * \brief Convert an SDP stream into an Asterisk stream
  *
  * Given an m-line from an SDP, convert it into an ast_stream structure.
  * This takes formats, as well as clock-rate and fmtp attributes into account.
  *
  * \param m_line The SDP media section to convert
+ * \param g726_non_standard Non-zero if G.726 is non-standard
+ *
  * \retval NULL An error occurred
  * \retval non-NULL The converted stream
  */
-static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
+static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line, int g726_non_standard)
 {
 	int i;
 	int non_ast_fmts;
-	struct ast_rtp_codecs codecs;
+	struct ast_rtp_codecs *codecs;
 	struct ast_format_cap *caps;
 	struct ast_stream *stream;
+	enum ast_rtp_options options;
 
 	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!caps) {
@@ -724,8 +786,15 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 	switch (ast_stream_get_type(stream)) {
 	case AST_MEDIA_TYPE_AUDIO:
 	case AST_MEDIA_TYPE_VIDEO:
-		ast_rtp_codecs_payloads_initialize(&codecs);
+		codecs = ast_calloc(1, sizeof(*codecs));
+		if (!codecs || ast_rtp_codecs_payloads_initialize(codecs)) {
+			rtp_codecs_free(codecs);
+			ast_stream_free(stream);
+			ao2_ref(caps, -1);
+			return NULL;
+		}
 
+		options = g726_non_standard ? AST_RTP_OPT_G726_NONSTANDARD : 0;
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
 			struct ast_sdp_payload *payload_s;
 			struct ast_sdp_rtpmap *rtpmap;
@@ -733,22 +802,25 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 
 			payload_s = ast_sdp_m_get_payload(m_line, i);
 			sscanf(payload_s->fmt, "%30d", &payload);
-			ast_rtp_codecs_payloads_set_m_type(&codecs, NULL, payload);
 
 			rtpmap = sdp_payload_get_rtpmap(m_line, payload);
 			if (!rtpmap) {
+				/* No rtpmap attribute.  Try static payload type format assignment */
+				ast_rtp_codecs_payloads_set_m_type(codecs, NULL, payload);
 				continue;
 			}
-			ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL,
-				payload, m_line->type, rtpmap->encoding_name, 0,
-				rtpmap->clock_rate);
-			ast_sdp_rtpmap_free(rtpmap);
 
-			process_fmtp(m_line, payload, &codecs);
+			if (!ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, payload,
+				m_line->type, rtpmap->encoding_name, options, rtpmap->clock_rate)) {
+				/* Successfully mapped the payload type to format */
+				process_fmtp_lines(m_line, payload, codecs);
+			}
+			ast_sdp_rtpmap_free(rtpmap);
 		}
 
-		ast_rtp_codecs_payload_formats(&codecs, caps, &non_ast_fmts);
-		ast_rtp_codecs_payloads_destroy(&codecs);
+		ast_rtp_codecs_payload_formats(codecs, caps, &non_ast_fmts);
+		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_CODECS, codecs,
+			(ast_stream_data_free_fn) rtp_codecs_free);
 		break;
 	case AST_MEDIA_TYPE_IMAGE:
 		for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
@@ -773,7 +845,7 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line)
 	return stream;
 }
 
-struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp)
+struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp, int g726_non_standard)
 {
 	struct ast_stream_topology *topology;
 	int i;
@@ -786,11 +858,21 @@ struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp)
 	for (i = 0; i < ast_sdp_get_m_count(sdp); ++i) {
 		struct ast_stream *stream;
 
-		stream = get_stream_from_m(ast_sdp_get_m(sdp, i));
+		stream = get_stream_from_m(ast_sdp_get_m(sdp, i), g726_non_standard);
 		if (!stream) {
-			continue;
+			/*
+			 * The topology cannot match the SDP because
+			 * we failed to create a corresponding stream.
+			 */
+			ast_stream_topology_free(topology);
+			return NULL;
 		}
-		ast_stream_topology_append_stream(topology, stream);
+		if (ast_stream_topology_append_stream(topology, stream) < 0) {
+			/* Failed to add stream to topology */
+			ast_stream_free(stream);
+			ast_stream_topology_free(topology);
+			return NULL;
+		}
 	}
 
 	return topology;
