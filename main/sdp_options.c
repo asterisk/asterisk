@@ -55,12 +55,11 @@ type ast_sdp_options_get_##field(const struct ast_sdp_options *options) \
 } \
 
 DEFINE_STRINGFIELD_GETTERS_SETTERS_FOR(media_address, 0);
+DEFINE_STRINGFIELD_GETTERS_SETTERS_FOR(interface_address, 0);
 DEFINE_STRINGFIELD_GETTERS_SETTERS_FOR(sdpowner, 0);
 DEFINE_STRINGFIELD_GETTERS_SETTERS_FOR(sdpsession, 0);
 DEFINE_STRINGFIELD_GETTERS_SETTERS_FOR(rtp_engine, 0);
 
-DEFINE_GETTERS_SETTERS_FOR(unsigned int, bind_rtp_to_media_address);
-DEFINE_GETTERS_SETTERS_FOR(unsigned int, bind_udptl_to_media_address);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, udptl_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_t38_ec_modes, udptl_error_correction);

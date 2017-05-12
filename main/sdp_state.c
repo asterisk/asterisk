@@ -150,13 +150,15 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 {
 	struct ast_rtp_instance *rtp;
 	struct ast_rtp_engine_ice *ice;
-	struct ast_sockaddr temp_media_address;
 	static struct ast_sockaddr address_rtp;
-	struct ast_sockaddr *media_address =  &address_rtp;
+	struct ast_sockaddr *media_address = &address_rtp;
 
-	if (options->bind_rtp_to_media_address && !ast_strlen_zero(options->media_address)) {
-		ast_sockaddr_parse(&temp_media_address, options->media_address, 0);
-		media_address = &temp_media_address;
+	if (!ast_strlen_zero(options->interface_address)) {
+		if (!ast_sockaddr_parse(&address_rtp, options->interface_address, 0)) {
+			ast_log(LOG_ERROR, "Attempted to bind RTP to invalid media address: %s\n",
+				options->interface_address);
+			return NULL;
+		}
 	} else {
 		if (ast_check_ipv6()) {
 			ast_sockaddr_parse(&address_rtp, "::", 0);
@@ -165,7 +167,8 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 		}
 	}
 
-	if (!(rtp = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL))) {
+	rtp = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL);
+	if (!rtp) {
 		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n",
 			options->rtp_engine);
 		return NULL;
@@ -204,13 +207,15 @@ static struct ast_rtp_instance *create_rtp(const struct ast_sdp_options *options
 static struct sdp_state_udptl *create_udptl(const struct ast_sdp_options *options)
 {
 	struct sdp_state_udptl *udptl;
-	struct ast_sockaddr temp_media_address;
 	static struct ast_sockaddr address_udptl;
-	struct ast_sockaddr *media_address =  &address_udptl;
+	struct ast_sockaddr *media_address = &address_udptl;
 
-	if (options->bind_udptl_to_media_address && !ast_strlen_zero(options->media_address)) {
-		ast_sockaddr_parse(&temp_media_address, options->media_address, 0);
-		media_address = &temp_media_address;
+	if (!ast_strlen_zero(options->interface_address)) {
+		if (!ast_sockaddr_parse(&address_udptl, options->interface_address, 0)) {
+			ast_log(LOG_ERROR, "Attempted to bind UDPTL to invalid media address: %s\n",
+				options->interface_address);
+			return NULL;
+		}
 	} else {
 		if (ast_check_ipv6()) {
 			ast_sockaddr_parse(&address_udptl, "::", 0);
