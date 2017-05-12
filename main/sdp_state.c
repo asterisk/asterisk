@@ -340,9 +340,7 @@ struct ast_sdp_state {
 	struct sdp_state_capabilities *negotiated_capabilities;
 	/*! Proposed capabilities */
 	struct sdp_state_capabilities *proposed_capabilities;
-	/*! Remote capabilities, learned through remote SDP */
-	struct ast_stream_topology *remote_capabilities;
-	/*! Local SDP. Generated via the options and local capabilities. */
+	/*! Local SDP. Generated via the options and currently negotiated/proposed capabilities. */
 	struct ast_sdp *local_sdp;
 	/*! SDP options. Configured options beyond media capabilities. */
 	struct ast_sdp_options *options;
@@ -389,7 +387,6 @@ void ast_sdp_state_free(struct ast_sdp_state *sdp_state)
 
 	sdp_state_capabilities_free(sdp_state->negotiated_capabilities);
 	sdp_state_capabilities_free(sdp_state->proposed_capabilities);
-	ast_stream_topology_free(sdp_state->remote_capabilities);
 	ast_sdp_free(sdp_state->local_sdp);
 	ast_sdp_options_free(sdp_state->options);
 	ast_sdp_translator_free(sdp_state->translator);
@@ -1007,15 +1004,17 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
 static int merge_sdps(struct ast_sdp_state *sdp_state, const struct ast_sdp *remote_sdp)
 {
 	struct sdp_state_capabilities *joint_capabilities;
+	struct ast_stream_topology *remote_capabilities;
 	int i;
 
-	sdp_state->remote_capabilities = ast_get_topology_from_sdp(remote_sdp);
-	if (!sdp_state->remote_capabilities) {
+	remote_capabilities = ast_get_topology_from_sdp(remote_sdp);
+	if (!remote_capabilities) {
 		return -1;
 	}
 
 	joint_capabilities = merge_capabilities(sdp_state->proposed_capabilities,
-		sdp_state->remote_capabilities, sdp_state->options, 0);
+		remote_capabilities, sdp_state->options, 0);
+	ast_stream_topology_free(remote_capabilities);
 	if (!joint_capabilities) {
 		return -1;
 	}
@@ -1113,9 +1112,6 @@ int ast_sdp_state_reset(struct ast_sdp_state *sdp_state)
 
 	ast_sdp_free(sdp_state->local_sdp);
 	sdp_state->local_sdp = NULL;
-
-	ast_stream_topology_free(sdp_state->remote_capabilities);
-	sdp_state->remote_capabilities = NULL;
 
 	set_proposed_capabilities(sdp_state, NULL);
 
