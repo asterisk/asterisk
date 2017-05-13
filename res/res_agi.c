@@ -3121,12 +3121,14 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argc >= 3 ? argv[2] : "");
 
 	if ((app_to_exec = pbx_findapp(argv[1]))) {
+		ast_channel_lock(chan);
 		if (!(workaround = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS))) {
 			ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
+		ast_channel_unlock(chan);
 		res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
 		if (!workaround) {
-			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
+			ast_channel_clear_flag(chan, AST_FLAG_DISABLE_WORKAROUNDS);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
