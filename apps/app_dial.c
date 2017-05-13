@@ -2870,7 +2870,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", opt_args[OPT_ARG_ANNOUNCE]);
 			}
 
-			ast_set_flag(ast_channel_flags(peer), AST_FLAG_END_DTMF_ONLY);
+			ast_channel_set_flag(peer, AST_FLAG_END_DTMF_ONLY);
 			while (ast_channel_stream(peer)) {
 				int ms;
 
@@ -2934,13 +2934,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				}
 				ast_sched_runq(ast_channel_sched(peer));
 			}
-			ast_clear_flag(ast_channel_flags(peer), AST_FLAG_END_DTMF_ONLY);
+			ast_channel_clear_flag(peer, AST_FLAG_END_DTMF_ONLY);
 		}
 
 		if (chan && peer && ast_test_flag64(&opts, OPT_GOTO) && !ast_strlen_zero(opt_args[OPT_ARG_GOTO])) {
 			/* chan and peer are going into the PBX; as such neither are considered
 			 * outgoing channels any longer */
-			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING);
+			ast_channel_clear_flag(chan, AST_FLAG_OUTGOING);
 
 			ast_replace_subargument_delimiter(opt_args[OPT_ARG_GOTO]);
 			ast_parseable_goto(chan, opt_args[OPT_ARG_GOTO]);
