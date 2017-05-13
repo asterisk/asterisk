@@ -1288,8 +1288,10 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 	int pre = 0;
 
 	if (chan) {
+		ast_channel_lock(chan);
 		pre = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
+		ast_channel_unlock(chan);
 	}
 	return pre;
 }
@@ -1297,8 +1299,9 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 /*! \brief Unset defer DTMF flag on channel */
 void ast_channel_undefer_dtmf(struct ast_channel *chan)
 {
-	if (chan)
-		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF);
+	if (chan) {
+		ast_channel_clear_flag(chan, AST_FLAG_DEFER_DTMF);
+	}
 }
 
 struct ast_channel *ast_channel_callback(ao2_callback_data_fn *cb_fn, void *arg,
@@ -3223,7 +3226,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 		return -1;
 
 	/* Only look for the end of DTMF, don't bother with the beginning and don't emulate things */
-	ast_set_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+	ast_channel_set_flag(c, AST_FLAG_END_DTMF_ONLY);
 
 	/* Wait for a digit, no more than timeout_ms milliseconds total.
 	 * Or, wait indefinitely if timeout_ms is <0.
@@ -3242,12 +3245,12 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 			if (errno == 0 || errno == EINTR)
 				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
-			ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+			ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 			return -1;
 		} else if (outfd > -1) {
 			/* The FD we were watching has something waiting */
 			ast_log(LOG_WARNING, "The FD we were waiting for has something waiting. Waitfordigit returning numeric 1\n");
-			ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+			ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 			return 1;
 		} else if (rchan) {
 			int res;
@@ -3261,13 +3264,13 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 			case AST_FRAME_DTMF_END:
 				res = f->subclass.integer;
 				ast_frfree(f);
-				ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+				ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return res;
 			case AST_FRAME_CONTROL:
 				switch (f->subclass.integer) {
 				case AST_CONTROL_HANGUP:
 					ast_frfree(f);
-					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return -1;
 				case AST_CONTROL_STREAM_STOP:
 				case AST_CONTROL_STREAM_SUSPEND:
@@ -3278,7 +3281,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 					 * that perform stream control will handle this. */
 					res = f->subclass.integer;
 					ast_frfree(f);
-					ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return res;
 				case AST_CONTROL_PVT_CAUSE_CODE:
 				case AST_CONTROL_RINGING:
@@ -3313,7 +3316,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 		}
 	}
 
-	ast_clear_flag(ast_channel_flags(c), AST_FLAG_END_DTMF_ONLY);
+	ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 
 	return 0; /* Time is up */
 }
@@ -5709,9 +5712,9 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	} else if (caller) { /* no outgoing helper so use caller if available */
 		call_forward_inherit(new_chan, caller, orig);
 	}
-	ast_set_flag(ast_channel_flags(new_chan), AST_FLAG_ORIGINATED);
 
 	ast_channel_lock_both(orig, new_chan);
+	ast_channel_set_flag(new_chan, AST_FLAG_ORIGINATED);
 	pbx_builtin_setvar_helper(new_chan, "FORWARDERNAME", forwarder);
 	ast_party_connected_line_copy(ast_channel_connected(new_chan), ast_channel_connected(orig));
 	ast_party_redirecting_copy(ast_channel_redirecting(new_chan), ast_channel_redirecting(orig));
@@ -10946,4 +10949,18 @@ int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_str
 	}
 
 	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_CHANGED, topology, sizeof(topology));
+}
+
+void ast_channel_set_flag(struct ast_channel *chan, unsigned int flag)
+{
+	ast_channel_lock(chan);
+	ast_set_flag(ast_channel_flags(chan), flag);
+	ast_channel_unlock(chan);
+}
+
+void ast_channel_clear_flag(struct ast_channel *chan, unsigned int flag)
+{
+	ast_channel_lock(chan);
+	ast_clear_flag(ast_channel_flags(chan), flag);
+	ast_channel_unlock(chan);
 }

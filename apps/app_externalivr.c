@@ -642,9 +642,9 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	waitfds[0] = ast_iostream_get_fd(eivr_commands);
 	waitfds[1] = eivr_errors ? ast_iostream_get_fd(eivr_errors) : -1;
 
- 	while (1) {
- 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
- 			ast_chan_log(LOG_ERROR, chan, "Is a zombie\n");
+	while (1) {
+		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
+			ast_chan_log(LOG_ERROR, chan, "Is a zombie\n");
  			break;
  		}
  		if (!hangup_info_sent && !(ast_test_flag(&flags, run_dead)) && ast_check_hangup(chan)) {

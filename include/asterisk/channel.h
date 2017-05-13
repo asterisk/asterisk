@@ -4437,6 +4437,31 @@ void ast_channel_dialed_causes_clear(const struct ast_channel *chan);
 struct ast_flags *ast_channel_flags(struct ast_channel *chan);
 
 /*!
+ * \since 13.17.0
+ * \brief Set a flag on a channel
+ *
+ * \param chan The channel to set the flag on
+ * \param flag The flag to set
+ *
+ * \note This will lock the channel internally. If the channel is already
+ * locked it is still safe to call.
+ */
+
+void ast_channel_set_flag(struct ast_channel *chan, unsigned int flag);
+
+/*!
+ * \since 13.17.0
+ * \param Clear a flag on a channel
+ *
+ * \param chan The channel to clear the flag from
+ * \param flag The flag to clear
+ *
+ * \note This will lock the channel internally. If the channel is already
+ * locked it is still safe to call.
+ */
+void ast_channel_clear_flag(struct ast_channel *chan, unsigned int flag);
+
+/*!
  * \since 12.4.0
  * \brief Return whether or not any manager variables have been set
  *
