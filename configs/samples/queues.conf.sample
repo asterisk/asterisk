@@ -299,8 +299,8 @@ monitor-type = MixMonitor
 ;
 ;random-periodic-announce=no
 ;
-; If set to yes, the periodic announcment frequency will be timed from the end
-; of each announcment rather than from the start of each announcment.  This
+; If set to yes, the periodic announcement frequency will be timed from the end
+; of each announcement rather than from the start of each announcement.  This
 ; defaults to off.
 ;
 ;relative-periodic-announce=yes
