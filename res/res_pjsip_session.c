@@ -2094,39 +2094,8 @@ struct new_invite {
 	pjsip_rx_data *rdata;
 };
 
-static void new_invite_destroy(void *obj)
+static int new_invite(struct new_invite *invite)
 {
-	struct new_invite *invite = obj;
-
-	ao2_cleanup(invite->session);
-
-	if (invite->rdata) {
-		pjsip_rx_data_free_cloned(invite->rdata);
-	}
-}
-
-static struct new_invite *new_invite_alloc(struct ast_sip_session *session, pjsip_rx_data *rdata)
-{
-	struct new_invite *invite = ao2_alloc(sizeof(*invite), new_invite_destroy);
-
-	if (!invite) {
-		return NULL;
-	}
-
-	ao2_ref(session, +1);
-	invite->session = session;
-
-	if (pjsip_rx_data_clone(rdata, 0, &invite->rdata) != PJ_SUCCESS) {
-		ao2_ref(invite, -1);
-		return NULL;
-	}
-
-	return invite;
-}
-
-static int new_invite(void *data)
-{
-	RAII_VAR(struct new_invite *, invite, data, ao2_cleanup);
 	pjsip_tx_data *tdata = NULL;
 	pjsip_timer_setting timer;
 	pjsip_rdata_sdp_info *sdp_info;
@@ -2246,7 +2215,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	pjsip_tx_data *tdata = NULL;
 	pjsip_inv_session *inv_session = NULL;
 	struct ast_sip_session *session;
-	struct new_invite *invite;
+	struct new_invite invite;
 
 	ast_assert(endpoint != NULL);
 
@@ -2283,18 +2252,17 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	}
 
-	invite = new_invite_alloc(session, rdata);
-	if (!invite || ast_sip_push_task(session->serializer, new_invite, invite)) {
-		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
-			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-		} else {
-			pjsip_inv_send_msg(inv_session, tdata);
-		}
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(inv_session);
-#endif
-		ao2_cleanup(invite);
-	}
+	/*
+	 * The current thread is supposed be the session serializer to prevent
+	 * any initial INVITE retransmissions from trying to setup the same
+	 * call again.
+	 */
+	ast_assert(ast_taskprocessor_is_task(session->serializer));
+
+	invite.session = session;
+	invite.rdata = rdata;
+	new_invite(&invite);
+
 	ao2_ref(session, -1);
 }
 
@@ -2335,13 +2303,14 @@ static pj_bool_t has_supplement(const struct ast_sip_session *session, const pjs
  * 2) An in-dialog request that the inv_session layer does not
  *    handle is received (such as an in-dialog INFO)
  *
- * In all cases, there is very little we actually do in this function
+ * Except for INVITEs, there is very little we actually do in this function
  * 1) For requests we don't handle, we return PJ_FALSE
- * 2) For new INVITEs, throw the work into the SIP threadpool to be done
- *    there to free up the thread(s) handling incoming requests
- * 3) For in-dialog requests we handle, we defer handling them until the
- *    on_inv_state_change() callback instead (where we will end up putting
- *    them into the threadpool).
+ * 2) For new INVITEs, handle them now to prevent retransmissions from
+ *    trying to setup the same call again.
+ * 3) For in-dialog requests we handle, we process them in the
+ *    .on_state_changed = session_inv_on_state_changed or
+ *    .on_tsx_state_changed = session_inv_on_tsx_state_changed
+ *    callbacks instead.
  */
 static pj_bool_t session_on_rx_request(pjsip_rx_data *rdata)
 {
