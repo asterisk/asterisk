@@ -1,3 +1,41 @@
+2017-05-19 20:45 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert4 Released.
+
+2017-04-13 11:14 +0000 [7e8b57db67]  gtjoseph <gjoseph@digium.com>
+
+	* AST-2017-004: chan_skinny:  Add EOF check in skinny_session
+
+	  The while(1) loop in skinny_session wasn't checking for EOF so
+	  a packet that was longer than a header but still truncated
+	  would spin the while loop infinitely.  Not only does this
+	  permanently tie up a thread and drive a core to 100% utilization,
+	  the call of ast_log() in such a tight loop eats all available
+	  process memory.
+
+	  Added poll with timeout to top of read loop
+
+	  ASTERISK-26940 #close
+	  Reported-by: Sandro Gauci
+
+	  Change-Id: I2ce65f3c5cb24b4943a9f75b64d545a1e2cd2898
+
+2017-04-13 17:17 +0000 [d0e628e792]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2017-003: Handle zero-length body parts correctly.
+
+	  ASTERISK-26939 #close
+
+	  Change-Id: I7ea235ab39833a187db4e078f0788bd0af0a24fd
+
+2017-04-13 17:16 +0000 [14e57ba5b5]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2017-002: Ensure transaction key buffer is large enough.
+
+	  ASTERISK-26938 #close
+
+	  Change-Id: I266490792fd8896a23be7cb92f316b7e69356413
+
 2017-04-04 12:37 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert3 Released.

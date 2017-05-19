@@ -1,8 +1,8 @@
                                 Release Summary
 
-                         asterisk-certified/13.13-cert3
+                         asterisk-certified/13.13-cert4
 
-                                Date: 2017-04-04
+                                Date: 2017-05-19
 
                            <asteriskteam@digium.com>
 
@@ -21,19 +21,17 @@
 
                                  [Back to Top]
 
-   This release has been made to address one or more security vulnerabilities
-   that have been identified. A security advisory document has been published
-   for each vulnerability that includes additional information. Users of
-   versions of Asterisk that are affected are strongly encouraged to review
-   the advisories and determine what action they should take to protect their
-   systems from these issues.
-
-   Security Advisories:
-
-     * AST-2017-001
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-certified/13.13-cert2.
+   previous release, asterisk-certified/13.13-cert3.
 
      ----------------------------------------------------------------------
 
@@ -51,8 +49,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Corey Farrell                                   1 Alex VillacAs Lasso    
-   1 Robert Mordec                                   1 Robert Mordec          
+   2 Mark Michelson                                  3 Sandro Gauci           
+   1 George Joseph          
 
      ----------------------------------------------------------------------
 
@@ -65,20 +63,26 @@
 
   Bug
 
-    Category: Applications/app_queue
+    Category: Channels/chan_skinny
 
-   ASTERISK-26862: app_queue: Queue stops calling members with local
-   interface after forwarding in previous call
-   Reported by: Robert Mordec
-     * [563b639e5a] Robert Mordec -- app_queue: Member stuck as pending after
-       forwarding previous call from queue
+   ASTERISK-26940: Asterisk Skinny memory exhaustion vulnerability leads to
+   DoS
+   Reported by: Sandro Gauci
+     * [7e8b57db67] gtjoseph -- AST-2017-004: chan_skinny: Add EOF check in
+       skinny_session
 
-    Category: Channels/chan_sip/General
+    Category: pjproject/pjsip
 
-   ASTERISK-26897: chan_sip: Security vulnerability with client code header
-   Reported by: Alex VillacAs Lasso
-     * [d91f264721] Corey Farrell -- CDR: Protect from data overflow in
-       ast_cdr_setuserfield.
+   ASTERISK-26939: Out of bound memory access in PJSIP multipart parser
+   crashes Asterisk
+   Reported by: Sandro Gauci
+     * [d0e628e792] Mark Michelson -- AST-2017-003: Handle zero-length body
+       parts correctly.
+   ASTERISK-26938: Heap overflow in CSEQ header parsing affects Asterisk
+   chan_pjsip and PJSIP
+   Reported by: Sandro Gauci
+     * [14e57ba5b5] Mark Michelson -- AST-2017-002: Ensure transaction key
+       buffer is large enough.
 
      ----------------------------------------------------------------------
 
@@ -89,4 +93,7 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ channels/chan_skinny.c                                                                      |  122 +++++-----
+ third-party/pjproject/patches/0058-Parse-zero-length-multipart-body-parts-correctly.patch   |   41 +++
+ third-party/pjproject/patches/0059-Ensure-2543-transaction-key-buffer-is-large-enough.patch |   24 +
+ 3 files changed, 131 insertions(+), 56 deletions(-)
