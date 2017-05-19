@@ -1210,7 +1210,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 static int process_sdp_o(const char *o, struct sip_pvt *p);
 static int process_sdp_c(const char *c, struct ast_sockaddr *addr);
 static int process_sdp_a_sendonly(const char *a, int *sendonly);
-static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance);
+static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance, int rtcp_mux);
 static int process_sdp_a_rtcp_mux(const char *a, struct sip_pvt *p, int *requested);
 static int process_sdp_a_dtls(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance);
 static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newaudiortp, int *last_rtpmap_codec);
@@ -10144,6 +10144,24 @@ static void set_ice_components(struct sip_pvt *p, struct ast_rtp_instance *insta
 	}
 }
 
+static int has_media_level_attribute(int start, struct sip_request *req, const char *attr)
+{
+	int next = start;
+	char type;
+	const char *value;
+
+	/* We don't care about the return result here */
+	get_sdp_iterate(&next, req, "m");
+
+	while ((type = get_sdp_line(&start, next, req, &value)) != '\0') {
+		if (type == 'a' && !strcasecmp(value, attr)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief Process SIP SDP offer, select formats and activate media channels
 	If offer is rejected, we will not change any properties of the call
  	Return 0 on success, a negative value on errors.
@@ -10286,13 +10304,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			else if (process_sdp_a_image(value, p))
 				processed = TRUE;
 
-			if (process_sdp_a_ice(value, p, p->rtp)) {
+			if (process_sdp_a_ice(value, p, p->rtp, 0)) {
 				processed = TRUE;
 			}
-			if (process_sdp_a_ice(value, p, p->vrtp)) {
+			if (process_sdp_a_ice(value, p, p->vrtp, 0)) {
 				processed = TRUE;
 			}
-			if (process_sdp_a_ice(value, p, p->trtp)) {
+			if (process_sdp_a_ice(value, p, p->trtp, 0)) {
 				processed = TRUE;
 			}
 
@@ -10332,6 +10350,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int image = FALSE;
 		int text = FALSE;
 		int processed_crypto = FALSE;
+		int rtcp_mux_offered = 0;
 		char protocol[18] = {0,};
 		unsigned int x;
 		struct ast_rtp_engine_dtls *dtls;
@@ -10350,6 +10369,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		}
 		AST_LIST_INSERT_TAIL(&p->offered_media, offer, next);
 		offer->type = SDP_UNKNOWN;
+
+		/* We need to check for this ahead of time */
+		rtcp_mux_offered = has_media_level_attribute(iterator, req, "rtcp-mux");
 
 		/* Check for 'audio' media offer */
 		if (strncmp(m, "audio ", 6) == 0) {
@@ -10717,7 +10739,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			case 'a':
 				/* Audio specific scanning */
 				if (audio) {
-					if (process_sdp_a_ice(value, p, p->rtp)) {
+					if (process_sdp_a_ice(value, p, p->rtp, rtcp_mux_offered)) {
 						processed = TRUE;
 					} else if (process_sdp_a_dtls(value, p, p->rtp)) {
 						processed_crypto = TRUE;
@@ -10738,7 +10760,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				/* Video specific scanning */
 				else if (video) {
-					if (process_sdp_a_ice(value, p, p->vrtp)) {
+					if (process_sdp_a_ice(value, p, p->vrtp, rtcp_mux_offered)) {
 						processed = TRUE;
 					} else if (process_sdp_a_dtls(value, p, p->vrtp)) {
 						processed_crypto = TRUE;
@@ -10757,7 +10779,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 				/* Text (T.140) specific scanning */
 				else if (text) {
-					if (process_sdp_a_ice(value, p, p->trtp)) {
+					if (process_sdp_a_ice(value, p, p->trtp, rtcp_mux_offered)) {
 						processed = TRUE;
 					} else if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
@@ -11269,7 +11291,7 @@ static int process_sdp_a_sendonly(const char *a, int *sendonly)
 	return found;
 }
 
-static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance)
+static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_instance *instance, int rtcp_mux_offered)
 {
 	struct ast_rtp_engine_ice *ice;
 	int found = FALSE;
@@ -11289,6 +11311,12 @@ static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_in
 		found = TRUE;
 	} else if (sscanf(a, "candidate: %31s %30u %3s %30u %23s %30u typ %5s %*s %23s %*s %30u", foundation, &candidate.id, transport, (unsigned *)&candidate.priority,
 			  address, &port, cand_type, relay_address, &relay_port) >= 7) {
+
+		if (rtcp_mux_offered && ast_test_flag(&p->flags[2], SIP_PAGE3_RTCP_MUX) && candidate.id > 1) {
+			/* If we support RTCP-MUX and they offered it, don't consider RTCP candidates */
+			return TRUE;
+		}
+
 		candidate.foundation = foundation;
 		candidate.transport = transport;
 
