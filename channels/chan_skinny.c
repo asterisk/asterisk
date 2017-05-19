@@ -6646,7 +6646,7 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 #ifdef AST_DEVMODE
 	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 #endif
-	
+
 
 	if (!codecs) {
 		return 0;
@@ -7487,6 +7487,8 @@ static void skinny_session_cleanup(void *data)
 	destroy_session(s);
 }
 
+#define PACKET_TIMEOUT 10000
+
 static void *skinny_session(void *data)
 {
 	int res;
@@ -7533,77 +7535,85 @@ static void *skinny_session(void *data)
 			}
 		}
 
-		if (fds[0].revents) {
-
-			if (!(req = ast_calloc(1, SKINNY_MAX_PACKET))) {
-				ast_log(LOG_WARNING, "Unable to allocated memorey for skinny_req.\n");
-				break;
-			}
-
-			ast_mutex_lock(&s->lock);
-			s->lockstate = 1;
-
-			if ((res = read(s->fd, req, skinny_header_size)) != skinny_header_size) {
-				if (res < 0) {
-					ast_log(LOG_WARNING, "Header read() returned error: %s\n", strerror(errno));
-				} else {
-					ast_log(LOG_WARNING, "Unable to read header. Only found %d bytes.\n", res);
-				}
-				break;
-			}
-
-			eventmessage = letohl(req->e);
-			if (eventmessage < 0) {
-				ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
-				break;
-			}
-
-			dlen = letohl(req->len) - 4;
-			if (dlen < 0) {
-				ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
-				break;
-			}
-			if (dlen > (SKINNY_MAX_PACKET - skinny_header_size)) {
-				ast_log(LOG_WARNING, "Skinny packet too large (%d bytes), max length(%d bytes)\n", dlen+8, SKINNY_MAX_PACKET);
-				break;
-			}
-
-			bytesread = 0;
-			while (1) {
-				if ((res = read(s->fd, ((char*)&req->data)+bytesread, dlen-bytesread)) < 0) {
-					ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
-					break;
-				}
-				bytesread += res;
-				if (bytesread >= dlen) {
-					if (res < bytesread) {
-						ast_log(LOG_WARNING, "Rest of partial data received.\n");
-					}
-					if (bytesread > dlen) {
-						ast_log(LOG_WARNING, "Client sent wrong amount of data (%d), expected (%d).\n", bytesread, dlen);
-						res = -1;
-					}
-					break;
-				}
-
-				ast_log(LOG_WARNING, "Partial data received, waiting (%d bytes read of %d)\n", bytesread, dlen);
-				if (sched_yield() < 0) {
-					ast_log(LOG_WARNING, "Data yield() returned error: %s\n", strerror(errno));
-					res = -1;
-					break;
-				}
-			}
-
-			s->lockstate = 0;
-			ast_mutex_unlock(&s->lock);
-			if (res < 0) {
-				break;
-			}
-
-			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			res = handle_message(req, s);
-			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		if (!fds[0].revents) {
+			continue;
 		}
+		ast_debug(1, "Reading header\n");
+
+		if (!(req = ast_calloc(1, SKINNY_MAX_PACKET))) {
+			ast_log(LOG_WARNING, "Unable to allocated memorey for skinny_req.\n");
+			break;
+		}
+
+		ast_mutex_lock(&s->lock);
+		s->lockstate = 1;
+
+		if ((res = read(s->fd, req, skinny_header_size)) != skinny_header_size) {
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Header read() returned error: %s\n", strerror(errno));
+			} else {
+				ast_log(LOG_WARNING, "Unable to read header. Only found %d bytes.\n", res);
+			}
+			break;
+		}
+
+		eventmessage = letohl(req->e);
+		if (eventmessage < 0) {
+			ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
+			break;
+		}
+
+		dlen = letohl(req->len) - 4;
+		if (dlen < 0) {
+			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
+			break;
+		}
+		if (dlen > (SKINNY_MAX_PACKET - skinny_header_size)) {
+			ast_log(LOG_WARNING, "Skinny packet too large (%d bytes), max length(%d bytes)\n", dlen+8, SKINNY_MAX_PACKET);
+			break;
+		}
+
+		ast_debug(1, "Read header: Message ID: 0x%04x,  %d bytes in packet\n", eventmessage, dlen);
+
+		bytesread = 0;
+		while (bytesread < dlen) {
+			ast_debug(1, "Waiting %dms for %d bytes of %d\n", PACKET_TIMEOUT, dlen - bytesread, dlen);
+			fds[0].revents = 0;
+			res = ast_poll(fds, 1, PACKET_TIMEOUT);
+			if (res <= 0) {
+				if (res == 0) {
+					ast_debug(1, "Poll timed out waiting for %d bytes\n", dlen - bytesread);
+				} else {
+					ast_log(LOG_WARNING, "Poll failed waiting for %d bytes: %s\n",
+						dlen - bytesread, strerror(errno));
+				}
+				ast_verb(3, "Ending Skinny session from %s (bad input)\n", ast_inet_ntoa(s->sin.sin_addr));
+				res = -1;
+
+				break;
+			}
+			if (!fds[0].revents) {
+				continue;
+			}
+
+			res = read(s->fd, ((char*)&req->data)+bytesread, dlen-bytesread);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
+				break;
+			}
+			bytesread += res;
+			ast_debug(1, "Read %d bytes.  %d of %d now read\n", res, bytesread, dlen);
+		}
+
+		s->lockstate = 0;
+		ast_mutex_unlock(&s->lock);
+		if (res < 0) {
+			break;
+		}
+
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		res = handle_message(req, s);
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		if (req) {
 			ast_free(req);
