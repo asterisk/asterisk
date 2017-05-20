@@ -2813,8 +2813,161 @@ static void add_ssrc_attributes(struct ast_sdp_m_line *m_line, const struct ast_
 	ast_sdp_m_add_a(m_line, a_line);
 }
 
+/*!
+ * \internal
+ * \brief Create a declined m-line from a remote requested stream.
+ * \since 15.0.0
+ *
+ * \details
+ * Using the last received remote SDP create a declined stream
+ * m-line for the requested stream.  The stream may be unsupported.
+ *
+ * \param sdp Our SDP under construction to append the declined stream.
+ * \param sdp_state
+ * \param stream_index Which remote SDP stream we are declining.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+static int sdp_add_m_from_declined_remote_stream(struct ast_sdp *sdp,
+	const struct ast_sdp_state *sdp_state, int stream_index)
+{
+	const struct ast_sdp_m_line *m_line_remote;
+	struct ast_sdp_m_line *m_line;
+	int idx;
+
+	ast_assert(sdp && sdp_state && sdp_state->remote_sdp);
+	ast_assert(stream_index < ast_sdp_get_m_count(sdp_state->remote_sdp));
+
+	/*
+	 * The only way we can generate a declined unsupported stream
+	 * m-line is if the remote offered it to us.
+	 */
+	m_line_remote = ast_sdp_get_m(sdp_state->remote_sdp, stream_index);
+
+	/* Copy remote SDP stream m-line except for port number. */
+	m_line = ast_sdp_m_alloc(m_line_remote->type, 0, m_line_remote->port_count,
+		m_line_remote->proto, NULL);
+	if (!m_line) {
+		return -1;
+	}
+
+	/* Copy any m-line payload strings from the remote SDP */
+	for (idx = 0; idx < ast_sdp_m_get_payload_count(m_line_remote); ++idx) {
+		const struct ast_sdp_payload *payload_remote;
+		struct ast_sdp_payload *payload;
+
+		payload_remote = ast_sdp_m_get_payload(m_line_remote, idx);
+		payload = ast_sdp_payload_alloc(payload_remote->fmt);
+		if (!payload) {
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+		if (ast_sdp_m_add_payload(m_line, payload)) {
+			ast_sdp_payload_free(payload);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+	}
+
+	if (ast_sdp_add_m(sdp, m_line)) {
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Create a declined m-line for our SDP stream.
+ * \since 15.0.0
+ *
+ * \param sdp Our SDP under construction to append the declined stream.
+ * \param sdp_state
+ * \param type Stream type we are declining.
+ * \param stream_index Which remote SDP stream we are declining.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ */
+static int sdp_add_m_from_declined_stream(struct ast_sdp *sdp,
+	const struct ast_sdp_state *sdp_state, enum ast_media_type type, int stream_index)
+{
+	struct ast_sdp_m_line *m_line;
+	const char *proto;
+	const char *fmt;
+	struct ast_sdp_payload *payload;
+
+	if (sdp_state->role == SDP_ROLE_ANSWERER) {
+		/* We are declining the remote stream or it is still declined. */
+		return sdp_add_m_from_declined_remote_stream(sdp, sdp_state, stream_index);
+	}
+
+	/* Send declined remote stream in our offer if the type matches. */
+	if (sdp_state->remote_sdp
+		&& stream_index < ast_sdp_get_m_count(sdp_state->remote_sdp)) {
+		if (!sdp_is_stream_type_supported(type)
+			|| !strcasecmp(ast_sdp_get_m(sdp_state->remote_sdp, stream_index)->type,
+				ast_codec_media_type2str(type))) {
+			/* Stream is still declined */
+			return sdp_add_m_from_declined_remote_stream(sdp, sdp_state, stream_index);
+		}
+	}
+
+	/* Build a new declined stream in our offer. */
+	switch (type) {
+	case AST_MEDIA_TYPE_AUDIO:
+	case AST_MEDIA_TYPE_VIDEO:
+		proto = "RTP/AVP";
+		break;
+	case AST_MEDIA_TYPE_IMAGE:
+		proto = "udptl";
+		break;
+	default:
+		/* Stream type not supported */
+		ast_assert(0);
+		return -1;
+	}
+	m_line = ast_sdp_m_alloc(ast_codec_media_type2str(type), 0, 1, proto, NULL);
+	if (!m_line) {
+		return -1;
+	}
+
+	/* Add a dummy static payload type */
+	switch (type) {
+	case AST_MEDIA_TYPE_AUDIO:
+		fmt = "0"; /* ulaw */
+		break;
+	case AST_MEDIA_TYPE_VIDEO:
+		fmt = "31"; /* H.261 */
+		break;
+	case AST_MEDIA_TYPE_IMAGE:
+		fmt = "t38"; /* T.38 */
+		break;
+	default:
+		/* Stream type not supported */
+		ast_assert(0);
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+	payload = ast_sdp_payload_alloc(fmt);
+	if (!payload || ast_sdp_m_add_payload(m_line, payload)) {
+		ast_sdp_payload_free(payload);
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	if (ast_sdp_add_m(sdp, m_line)) {
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
-	const struct ast_sdp_options *options, const struct sdp_state_capabilities *capabilities, int stream_index)
+	const struct sdp_state_capabilities *capabilities, int stream_index)
 {
 	struct ast_stream *stream;
 	struct ast_sdp_m_line *m_line;
@@ -2829,11 +2982,14 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 	struct sdp_state_stream *stream_state;
 	struct ast_rtp_instance *rtp;
 	struct ast_sdp_a_line *a_line;
+	const struct ast_sdp_options *options;
+	const char *direction;
 
 	stream = ast_stream_topology_get_stream(capabilities->topology, stream_index);
 
-	ast_assert(sdp && options && stream);
+	ast_assert(sdp && sdp_state && stream);
 
+	options = sdp_state->options;
 	caps = ast_stream_get_formats(stream);
 
 	stream_state = AST_VECTOR_GET(&capabilities->streams, stream_index);
@@ -2856,145 +3012,118 @@ static int sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_s
 		rtp_port = 0;
 	}
 
-	m_line = ast_sdp_m_alloc(
-		ast_codec_media_type2str(ast_stream_get_type(stream)),
-		rtp_port, 1,
+	media_type = ast_stream_get_type(stream);
+	if (!rtp_port) {
+		/* Declined/disabled stream */
+		return sdp_add_m_from_declined_stream(sdp, sdp_state, media_type, stream_index);
+	}
+
+	/* Stream is not declined/disabled */
+	m_line = ast_sdp_m_alloc(ast_codec_media_type2str(media_type), rtp_port, 1,
 		options->encryption != AST_SDP_ENCRYPTION_DISABLED ? "RTP/SAVP" : "RTP/AVP",
 		NULL);
 	if (!m_line) {
 		return -1;
 	}
 
-	if (rtp_port) {
-		const char *direction;
+	for (i = 0; i < ast_format_cap_count(caps); i++) {
+		struct ast_format *format = ast_format_cap_get_format(caps, i);
 
-		/* Stream is not declined/disabled */
-		for (i = 0; i < ast_format_cap_count(caps); i++) {
-			struct ast_format *format = ast_format_cap_get_format(caps, i);
-
-			rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1,
-				format, 0);
-			if (rtp_code == -1) {
-				ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n",
-					ast_format_get_name(format));
-				ao2_ref(format, -1);
-				continue;
-			}
-
-			if (ast_sdp_m_add_format(m_line, options, rtp_code, 1, format, 0)) {
-				ast_sdp_m_free(m_line);
-				ao2_ref(format, -1);
-				return -1;
-			}
-
-			if (ast_format_get_maximum_ms(format)
-				&& ((ast_format_get_maximum_ms(format) < max_packet_size)
-					|| !max_packet_size)) {
-				max_packet_size = ast_format_get_maximum_ms(format);
-			}
-
+		rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(rtp), 1,
+			format, 0);
+		if (rtp_code == -1) {
+			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n",
+				ast_format_get_name(format));
 			ao2_ref(format, -1);
+			continue;
 		}
 
-		media_type = ast_stream_get_type(stream);
-		if (media_type != AST_MEDIA_TYPE_VIDEO
-			&& (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO)) {
-			i = AST_RTP_DTMF;
-			rtp_code = ast_rtp_codecs_payload_code(
-				ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
-			if (-1 < rtp_code) {
-				if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
-					ast_sdp_m_free(m_line);
-					return -1;
-				}
+		if (ast_sdp_m_add_format(m_line, options, rtp_code, 1, format, 0)) {
+			ast_sdp_m_free(m_line);
+			ao2_ref(format, -1);
+			return -1;
+		}
 
-				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
-				a_line = ast_sdp_a_alloc("fmtp", tmp);
-				if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-					ast_sdp_a_free(a_line);
-					ast_sdp_m_free(m_line);
-					return -1;
-				}
+		if (ast_format_get_maximum_ms(format)
+			&& ((ast_format_get_maximum_ms(format) < max_packet_size)
+				|| !max_packet_size)) {
+			max_packet_size = ast_format_get_maximum_ms(format);
+		}
+
+		ao2_ref(format, -1);
+	}
+
+	if (media_type != AST_MEDIA_TYPE_VIDEO
+		&& (options->dtmf == AST_SDP_DTMF_RFC_4733 || options->dtmf == AST_SDP_DTMF_AUTO)) {
+		i = AST_RTP_DTMF;
+		rtp_code = ast_rtp_codecs_payload_code(
+			ast_rtp_instance_get_codecs(rtp), 0, NULL, i);
+		if (-1 < rtp_code) {
+			if (ast_sdp_m_add_format(m_line, options, rtp_code, 0, NULL, i)) {
+				ast_sdp_m_free(m_line);
+				return -1;
 			}
-		}
 
-		/* If ptime is set add it as an attribute */
-		min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(rtp));
-		if (!min_packet_size) {
-			min_packet_size = ast_format_cap_get_framing(caps);
-		}
-		if (min_packet_size) {
-			snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
-
-			a_line = ast_sdp_a_alloc("ptime", tmp);
+			snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
+			a_line = ast_sdp_a_alloc("fmtp", tmp);
 			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 				ast_sdp_a_free(a_line);
 				ast_sdp_m_free(m_line);
 				return -1;
 			}
 		}
+	}
 
-		if (max_packet_size) {
-			snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
-			a_line = ast_sdp_a_alloc("maxptime", tmp);
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-		}
+	/* If ptime is set add it as an attribute */
+	min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(rtp));
+	if (!min_packet_size) {
+		min_packet_size = ast_format_cap_get_framing(caps);
+	}
+	if (min_packet_size) {
+		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
 
-		if (sdp_state->locally_held || stream_state->locally_held) {
-			if (stream_state->remotely_held) {
-				direction = "inactive";
-			} else {
-				direction = "sendonly";
-			}
-		} else {
-			if (stream_state->remotely_held) {
-				direction = "recvonly";
-			} else {
-				/* Default is "sendrecv" */
-				direction = NULL;
-			}
-		}
-		if (direction) {
-			a_line = ast_sdp_a_alloc(direction, "");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-		}
-
-		add_ssrc_attributes(m_line, options, rtp);
-	} else {
-		/* Declined/disabled stream */
-		struct ast_sdp_payload *payload;
-		const char *fmt;
-
-		/*
-		 * Add a static payload type placeholder to the declined/disabled stream.
-		 *
-		 * XXX We should use the default payload type in the received offer but
-		 * we don't have that available.
-		 */
-		switch (ast_stream_get_type(stream)) {
-		default:
-		case AST_MEDIA_TYPE_AUDIO:
-			fmt = "0"; /* ulaw */
-			break;
-		case AST_MEDIA_TYPE_VIDEO:
-			fmt = "31"; /* H.261 */
-			break;
-		}
-		payload = ast_sdp_payload_alloc(fmt);
-		if (!payload || ast_sdp_m_add_payload(m_line, payload)) {
-			ast_sdp_payload_free(payload);
+		a_line = ast_sdp_a_alloc("ptime", tmp);
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
 	}
+
+	if (max_packet_size) {
+		snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
+		a_line = ast_sdp_a_alloc("maxptime", tmp);
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+	}
+
+	if (sdp_state->locally_held || stream_state->locally_held) {
+		if (stream_state->remotely_held) {
+			direction = "inactive";
+		} else {
+			direction = "sendonly";
+		}
+	} else {
+		if (stream_state->remotely_held) {
+			direction = "recvonly";
+		} else {
+			/* Default is "sendrecv" */
+			direction = NULL;
+		}
+	}
+	if (direction) {
+		a_line = ast_sdp_a_alloc(direction, "");
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+	}
+
+	add_ssrc_attributes(m_line, options, rtp);
 
 	if (ast_sdp_add_m(sdp, m_line)) {
 		ast_sdp_m_free(m_line);
@@ -3026,11 +3155,12 @@ static unsigned int t38_get_rate(enum ast_control_t38_rate rate)
 }
 
 static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
-	const struct ast_sdp_options *options, const struct sdp_state_capabilities *capabilities, int stream_index)
+	const struct sdp_state_capabilities *capabilities, int stream_index)
 {
 	struct ast_stream *stream;
 	struct ast_sdp_m_line *m_line;
 	struct ast_sdp_payload *payload;
+	enum ast_media_type media_type;
 	char tmp[64];
 	struct sdp_state_udptl *udptl;
 	struct ast_sdp_a_line *a_line;
@@ -3039,7 +3169,7 @@ static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp
 
 	stream = ast_stream_topology_get_stream(capabilities->topology, stream_index);
 
-	ast_assert(sdp && options && stream);
+	ast_assert(sdp && sdp_state && stream);
 
 	stream_state = AST_VECTOR_GET(&capabilities->streams, stream_index);
 	if (stream_state->udptl
@@ -3061,9 +3191,15 @@ static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp
 		udptl_port = 0;
 	}
 
-	m_line = ast_sdp_m_alloc(
-		ast_codec_media_type2str(ast_stream_get_type(stream)),
-		udptl_port, 1, "udptl", NULL);
+	media_type = ast_stream_get_type(stream);
+	if (!udptl_port) {
+		/* Declined/disabled stream */
+		return sdp_add_m_from_declined_stream(sdp, sdp_state, media_type, stream_index);
+	}
+
+	/* Stream is not declined/disabled */
+	m_line = ast_sdp_m_alloc(ast_codec_media_type2str(media_type), udptl_port, 1,
+		"udptl", NULL);
 	if (!m_line) {
 		return -1;
 	}
@@ -3075,98 +3211,95 @@ static int sdp_add_m_from_udptl_stream(struct ast_sdp *sdp, const struct ast_sdp
 		return -1;
 	}
 
-	if (udptl_port) {
-		/* Stream is not declined/disabled */
-		snprintf(tmp, sizeof(tmp), "%u", stream_state->t38_local_params.version);
-		a_line = ast_sdp_a_alloc("T38FaxVersion", tmp);
+	snprintf(tmp, sizeof(tmp), "%u", stream_state->t38_local_params.version);
+	a_line = ast_sdp_a_alloc("T38FaxVersion", tmp);
+	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+		ast_sdp_a_free(a_line);
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	snprintf(tmp, sizeof(tmp), "%u", t38_get_rate(stream_state->t38_local_params.rate));
+	a_line = ast_sdp_a_alloc("T38FaxMaxBitRate", tmp);
+	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+		ast_sdp_a_free(a_line);
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	if (stream_state->t38_local_params.fill_bit_removal) {
+		a_line = ast_sdp_a_alloc("T38FaxFillBitRemoval", "");
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
+	}
 
-		snprintf(tmp, sizeof(tmp), "%u", t38_get_rate(stream_state->t38_local_params.rate));
-		a_line = ast_sdp_a_alloc("T38FaxMaxBitRate", tmp);
+	if (stream_state->t38_local_params.transcoding_mmr) {
+		a_line = ast_sdp_a_alloc("T38FaxTranscodingMMR", "");
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
+	}
 
-		if (stream_state->t38_local_params.fill_bit_removal) {
-			a_line = ast_sdp_a_alloc("T38FaxFillBitRemoval", "");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-		}
-
-		if (stream_state->t38_local_params.transcoding_mmr) {
-			a_line = ast_sdp_a_alloc("T38FaxTranscodingMMR", "");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-		}
-
-		if (stream_state->t38_local_params.transcoding_jbig) {
-			a_line = ast_sdp_a_alloc("T38FaxTranscodingJBIG", "");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-		}
-
-		switch (stream_state->t38_local_params.rate_management) {
-		case AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF:
-			a_line = ast_sdp_a_alloc("T38FaxRateManagement", "transferredTCF");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-			break;
-		case AST_T38_RATE_MANAGEMENT_LOCAL_TCF:
-			a_line = ast_sdp_a_alloc("T38FaxRateManagement", "localTCF");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-			break;
-		}
-
-		snprintf(tmp, sizeof(tmp), "%u", ast_udptl_get_local_max_datagram(udptl->instance));
-		a_line = ast_sdp_a_alloc("T38FaxMaxDatagram", tmp);
+	if (stream_state->t38_local_params.transcoding_jbig) {
+		a_line = ast_sdp_a_alloc("T38FaxTranscodingJBIG", "");
 		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
 			ast_sdp_a_free(a_line);
 			ast_sdp_m_free(m_line);
 			return -1;
 		}
+	}
 
-		switch (ast_udptl_get_error_correction_scheme(udptl->instance)) {
-		case UDPTL_ERROR_CORRECTION_NONE:
-			break;
-		case UDPTL_ERROR_CORRECTION_FEC:
-			a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPFEC");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-			break;
-		case UDPTL_ERROR_CORRECTION_REDUNDANCY:
-			a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPRedundancy");
-			if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
-				ast_sdp_a_free(a_line);
-				ast_sdp_m_free(m_line);
-				return -1;
-			}
-			break;
+	switch (stream_state->t38_local_params.rate_management) {
+	case AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF:
+		a_line = ast_sdp_a_alloc("T38FaxRateManagement", "transferredTCF");
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
 		}
+		break;
+	case AST_T38_RATE_MANAGEMENT_LOCAL_TCF:
+		a_line = ast_sdp_a_alloc("T38FaxRateManagement", "localTCF");
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+		break;
+	}
+
+	snprintf(tmp, sizeof(tmp), "%u", ast_udptl_get_local_max_datagram(udptl->instance));
+	a_line = ast_sdp_a_alloc("T38FaxMaxDatagram", tmp);
+	if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+		ast_sdp_a_free(a_line);
+		ast_sdp_m_free(m_line);
+		return -1;
+	}
+
+	switch (ast_udptl_get_error_correction_scheme(udptl->instance)) {
+	case UDPTL_ERROR_CORRECTION_NONE:
+		break;
+	case UDPTL_ERROR_CORRECTION_FEC:
+		a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPFEC");
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+		break;
+	case UDPTL_ERROR_CORRECTION_REDUNDANCY:
+		a_line = ast_sdp_a_alloc("T38FaxUdpEC", "t38UDPRedundancy");
+		if (!a_line || ast_sdp_m_add_a(m_line, a_line)) {
+			ast_sdp_a_free(a_line);
+			ast_sdp_m_free(m_line);
+			return -1;
+		}
+		break;
 	}
 
 	if (ast_sdp_add_m(sdp, m_line)) {
@@ -3200,7 +3333,7 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
 	uint32_t t;
 	int stream_count;
 
-	options = ast_sdp_state_get_options(sdp_state);
+	options = sdp_state->options;
 	topology = capabilities->topology;
 
 	t = tv.tv_sec + 2208988800UL;
@@ -3233,18 +3366,22 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
 		switch (ast_stream_get_type(ast_stream_topology_get_stream(topology, stream_num))) {
 		case AST_MEDIA_TYPE_AUDIO:
 		case AST_MEDIA_TYPE_VIDEO:
-			if (sdp_add_m_from_rtp_stream(sdp, sdp_state, options, capabilities, stream_num)) {
+			if (sdp_add_m_from_rtp_stream(sdp, sdp_state, capabilities, stream_num)) {
 				goto error;
 			}
 			break;
 		case AST_MEDIA_TYPE_IMAGE:
-			if (sdp_add_m_from_udptl_stream(sdp, sdp_state, options, capabilities, stream_num)) {
+			if (sdp_add_m_from_udptl_stream(sdp, sdp_state, capabilities, stream_num)) {
 				goto error;
 			}
 			break;
 		case AST_MEDIA_TYPE_UNKNOWN:
 		case AST_MEDIA_TYPE_TEXT:
 		case AST_MEDIA_TYPE_END:
+			/* Decline any of these streams from the remote. */
+			if (sdp_add_m_from_declined_remote_stream(sdp, sdp_state, stream_num)) {
+				goto error;
+			}
 			break;
 		}
 	}
