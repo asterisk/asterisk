@@ -2373,6 +2373,39 @@ error:
 }
 #endif
 
+static int rtcp_mux(struct ast_rtp *rtp, const unsigned char *packet)
+{
+	uint8_t version;
+	uint8_t pt;
+	uint8_t m;
+
+	if (!rtp->rtcp || rtp->rtcp->type != AST_RTP_INSTANCE_RTCP_MUX) {
+		return 0;
+	}
+
+	version = (packet[0] & 0XC0) >> 6;
+	if (version == 0) {
+		/* version 0 indicates this is a STUN packet and shouldn't
+		 * be interpreted as a possible RTCP packet
+		 */
+		return 0;
+	}
+
+	/* The second octet of a packet will be one of the following:
+	 * For RTP: The marker bit (1 bit) and the RTP payload type (7 bits)
+	 * For RTCP: The payload type (8)
+	 *
+	 * RTP has a forbidden range of payload types (64-95) since these
+	 * will conflict with RTCP payload numbers if the marker bit is set.
+	 */
+	m = packet[1] & 0x80;
+	pt = packet[1] & 0x7F;
+	if (m && pt >= 64 && pt <= 95) {
+		return 1;
+	}
+	return 0;
+}
+
 /*! \pre instance is locked */
 static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp)
 {
@@ -2495,7 +2528,8 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	}
 #endif
 
-	if ((*in & 0xC0) && res_srtp && srtp && res_srtp->unprotect(srtp, buf, &len, rtcp) < 0) {
+	if ((*in & 0xC0) && res_srtp && srtp && res_srtp->unprotect(
+		    srtp, buf, &len, rtcp || rtcp_mux(rtp, buf)) < 0) {
 	   return -1;
 	}
 
@@ -4855,39 +4889,6 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 
 	ao2_unlock(instance1);
 	ao2_lock(instance);
-	return 0;
-}
-
-static int rtcp_mux(struct ast_rtp *rtp, const unsigned char *packet)
-{
-	uint8_t version;
-	uint8_t pt;
-	uint8_t m;
-
-	if (!rtp->rtcp || rtp->rtcp->type != AST_RTP_INSTANCE_RTCP_MUX) {
-		return 0;
-	}
-
-	version = (packet[0] & 0XC0) >> 6;
-	if (version == 0) {
-		/* version 0 indicates this is a STUN packet and shouldn't
-		 * be interpreted as a possible RTCP packet
-		 */
-		return 0;
-	}
-
-	/* The second octet of a packet will be one of the following:
-	 * For RTP: The marker bit (1 bit) and the RTP payload type (7 bits)
-	 * For RTCP: The payload type (8)
-	 *
-	 * RTP has a forbidden range of payload types (64-95) since these
-	 * will conflict with RTCP payload numbers if the marker bit is set.
-	 */
-	m = packet[1] & 0x80;
-	pt = packet[1] & 0x7F;
-	if (m && pt >= 64 && pt <= 95) {
-		return 1;
-	}
 	return 0;
 }
 
