@@ -946,11 +946,6 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		}
 	}
 
-	/*
-	 * We MUST call set_from_header() before pjsip_inv_(reinvite|update).  If we don't, the
-	 * From in the reINVITE/UPDATE will be wrong but the rest of the messages will be OK.
-	 */
-	set_from_header(session);
 
 	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
 		if (pjsip_inv_reinvite(inv_session, NULL, new_sdp, &tdata)) {
