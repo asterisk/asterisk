@@ -28,4 +28,8 @@
 ;   to lock for writing.
 ;
 ;batch=1000
-
+;
+; busy timeout - timeout in miliseconds to stop waiting for locked database.
+;   More info at https://www.sqlite.org/c3ref/busy_timeout.html
+;
+;busy_timeout=1000
