@@ -4552,15 +4552,30 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 {
 	int res;
 	struct ast_format *readformat;
+	struct ast_format *requested_format = NULL;
+	const char *requested_format_name;
 
 	if (ast_check_hangup(chan)) {
 		ast_log(LOG_ERROR, "EAGI cannot be run on a dead/hungup channel, please use AGI.\n");
 		return 0;
 	}
+
+	requested_format_name = pbx_builtin_getvar_helper(chan, "EAGI_AUDIO_FORMAT");
+	if (requested_format_name) {
+		requested_format = ast_format_cache_get(requested_format_name);
+		if (requested_format) {
+			ast_verb(3, "<%s> Setting EAGI audio pipe format to %s\n",
+					 ast_channel_name(chan), ast_format_get_name(requested_format));
+		} else {
+			ast_log(LOG_ERROR, "Could not find requested format: %s\n", requested_format_name);
+		}
+	}
+
 	readformat = ao2_bump(ast_channel_readformat(chan));
-	if (ast_set_read_format(chan, ast_format_slin)) {
+	if (ast_set_read_format(chan, requested_format ?: ast_format_slin)) {
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", ast_channel_name(chan));
-		ao2_ref(readformat, -1);
+		ao2_cleanup(requested_format);
+		ao2_cleanup(readformat);
 		return -1;
 	}
 	res = agi_exec_full(chan, data, 1, 0);
@@ -4570,7 +4585,8 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 				ast_format_get_name(readformat));
 		}
 	}
-	ao2_ref(readformat, -1);
+	ao2_cleanup(requested_format);
+	ao2_cleanup(readformat);
 	return res;
 }
 
