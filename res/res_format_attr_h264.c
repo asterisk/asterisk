@@ -186,6 +186,8 @@ static struct ast_format *h264_parse_sdp_fmtp(const struct ast_format *format, c
 		unsigned int val;
 		unsigned long int val2;
 
+		attrib = ast_strip(attrib);
+
 		if (sscanf(attrib, "profile-level-id=%lx", &val2) == 1) {
 			attr->PROFILE_IDC = ((val2 >> 16) & 0xFF);
 			attr->PROFILE_IOP = ((val2 >> 8) & 0xFF);
