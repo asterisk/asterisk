@@ -158,6 +158,8 @@ static struct ast_format *h263_parse_sdp_fmtp(const struct ast_format *format, c
 	while ((attrib = strsep(&attribs, ";"))) {
 		unsigned int val, val2 = 0, val3 = 0, val4 = 0;
 
+		attrib = ast_strip(attrib);
+
 		if (sscanf(attrib, "SQCIF=%30u", &val) == 1) {
 			attr->SQCIF = val;
 		} else if (sscanf(attrib, "QCIF=%30u", &val) == 1) {
