@@ -241,6 +241,14 @@ struct ast_test_info {
 	 * \note The description must not end with a newline.
 	 */
 	const char *description;
+	/*!
+	 * \brief Only run if explicitly named
+	 *
+	 * \details
+	 * Run this test only if it's explicitly named on the command line.
+	 * Do NOT run it as part of an execute category or execute all command.
+	 */
+	unsigned int explicit_only;
 };
 
 #ifdef TEST_FRAMEWORK
