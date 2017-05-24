@@ -9,23 +9,40 @@
 ; realtime_rules = yes
 ;
 
-; It is possible to change the value of the QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY
+; It is possible to change the value of the QUEUE_MAX_PENALTY, QUEUE_MIN_PENALTY and QUEUE_RAISE_PENALTY
 ; channel variables in mid-call by defining rules in the queue for when to do so. This can allow for
 ; a call to be opened to more members or potentially a different set of members.
 ; The advantage to changing members this way as opposed to inserting the caller into a
 ; different queue with more members or reinserting the caller into the same queue with a different
 ; QUEUE_MAX_PENALTY or QUEUE_MIN_PENALTY set is that the caller does not lose his place in the queue.
 ;
+; QUEUE_MAX_PENALTY, QUEUE_MIN_PENALTY and QUEUE_RAISE_PENALTY only apply to a queue call, and are only
+; modified by these rules if they are initially set in the dialplan.
+;
+; If QUEUE_MIN_PENALTY is set, agents with a lower penalty value will not be considered for the caller.
+; If QUEUE_MAX_PENALTY is set, agents with a higher penalty value will not be considered for the caller.
+; If QUEUE_RAISE_PENALTY is set, agents with a lower penalty will be treated as having a penalty = QUEUE_RAISE_PENALTY.
+;
+; QUEUE_RAISE_PENALTY example:
+;   - Agent 1 has penalty 1
+;   - Agent 2 has penalty 2
+;   - the queue rule is set to:
+;       penaltychange => 30,,,2
+;
+;   Prior to the 30 second mark, Agent 1 will take priority over Agent 2 for call distribution.
+;   After 30 seconds, Agent 1's priority is bumped to 2 by the penaltychange, so both agents are treated equally.
+;
 ; Note: There is a limitation to these rules; a caller will follow the penaltychange rules for
 ; the queue that were defined at the time the caller entered the queue. If an update to the rules is
 ; made during the caller's stay in the queue, these will not be reflected for that caller.
 ;
 ; The syntax for these rules is
-; penaltychange => <number of seconds into the call>,<absolute or relative change to QUEUE_MAX_PENALTY>[,absolute or relative change to QUEUE_MIN_PENALTY]
+; penaltychange => <number of seconds into the call>,<absolute or relative change to QUEUE_MAX_PENALTY>[,absolute or relative change to QUEUE_MIN_PENALTY][,absolute or relative change to QUEUE_RAISE_PENALTY]
 ;
 ; Example:
 ; [myrule]
 ; penaltychange => 30,+3   ; 30 seconds into the call increase the QUEUE_MAX_PENALTY by 3, no change to QUEUE_MIN_PENALTY
 ; penaltychange => 60,10,5 ; 60 seconds into the call increase the QUEUE_MAX_PENALTY to 10 and increase the QUEUE_MIN_PENALTY to 5
 ; penaltychange => 75,,7   ; 75 seconds into the call keep the QUEUE_MAX_PENALTY the same and increase the QUEUE_MIN_PENALTY to 7
+; penaltychange => 90,,,20 ; 90 seconds into the call leave QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY untouched and set QUEUE_RAISE_PENALTY to 20
 
