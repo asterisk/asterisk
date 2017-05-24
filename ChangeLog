@@ -1,3 +1,38 @@
+2017-05-24 16:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.5.0-rc2 Released.
+
+2017-05-19 10:05 +0000 [48a59c5679]  Sean Bright <sean.bright@gmail.com>
+
+	* chan_sip: Better ICE handling for RTCP-MUX
+
+	  If we are offered or are offering RTCP-MUX, don't consider RTCP ICE
+	  candidates. This confuses certain browsers (current Firefox for
+	  example) and causes intial audio setup delays.
+
+	  ASTERISK-26982 #close
+
+	  Change-Id: Ifeaf47e83972fe8dbe58b7fb3d6d1823400cfb91
+	  (cherry picked from commit f487eb1c1732477fd9a02eb20f091c2ba79f53ea)
+
+2017-05-22 13:51 +0000 [5b5237264e]  Kevin Harwell <kharwell@digium.com>
+
+	* res_rtp_asterisk: rtcp mux using the wrong srtp unprotecting algorithm
+
+	  When using rtcp mux if an rtcp payload came in it would still use the srtp
+	  unprotect algorithm instead of the srtp unprotect rtcp method. Since rtcp
+	  data was being passed to the rtp unprotect method this would result in an
+	  error.
+
+	  This patch ensures that the correct unprotect method is chosen by making
+	  sure the passed in rtcp flag is appropriately set when rtcp mux is enabled
+	  and an rtcp payload is received.
+
+	  ASTERISK-26979 #close
+
+	  Change-Id: Ic5409f9d1a267f1d4785fc5aed867daaecca6241
+	  (cherry picked from commit 9db41320b8eeb53a991bf6b781cc239acd322876)
+
 2017-05-22 20:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.5.0-rc1 Released.
