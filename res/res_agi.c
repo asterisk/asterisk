@@ -449,13 +449,34 @@
 			Records to a given file.
 		</synopsis>
 		<syntax>
-			<parameter name="filename" required="true" />
-			<parameter name="format" required="true" />
-			<parameter name="escape_digits" required="true" />
-			<parameter name="timeout" required="true" />
-			<parameter name="offset samples" />
-			<parameter name="BEEP" />
-			<parameter name="s=silence" />
+			<parameter name="filename" required="true">
+				<para>The destination filename of the recorded audio.</para>
+			</parameter>
+			<parameter name="format" required="true">
+				<para>The audio format in which to save the resulting file.</para>
+			</parameter>
+			<parameter name="escape_digits" required="true">
+				<para>The DTMF digits that will terminate the recording process.</para>
+			</parameter>
+			<parameter name="timeout" required="true">
+				<para>The maximum recording time in milliseconds. Set to -1 for no
+				limit.</para>
+			</parameter>
+			<parameter name="offset_samples">
+				<para>Causes the recording to first seek to the specified offset before
+				recording begins.</para>
+			</parameter>
+			<parameter name="beep">
+				<para>Causes Asterisk to play a beep as recording begins. This argument
+				can take any value.</para>
+			</parameter>
+			<parameter name="s=silence">
+				<para>The number of seconds of silence that are permitted before the
+				recording is terminated, regardless of the
+				<replaceable>escape_digits</replaceable> or <replaceable>timeout</replaceable>
+				arguments. If specified, this parameter must be preceded by
+				<literal>s=</literal>.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Record to a file until a given dtmf digit in the sequence is received.
@@ -463,7 +484,9 @@
 			will be recorded. The <replaceable>timeout</replaceable> is the maximum record time in
 			milliseconds, or <literal>-1</literal> for no <replaceable>timeout</replaceable>.
 			<replaceable>offset samples</replaceable> is optional, and, if provided, will seek
-			to the offset without exceeding the end of the file. <replaceable>silence</replaceable> is
+			to the offset without exceeding the end of the
+			file. <replaceable>beep</replaceable> can take any value, and causes Asterisk
+			to play a beep to the channel that is about to be recorded. <replaceable>silence</replaceable> is
 			the number of seconds of silence allowed before the function returns despite the
 			lack of dtmf digits or reaching <replaceable>timeout</replaceable>. <replaceable>silence</replaceable>
 			value must be preceded by <literal>s=</literal> and is also optional.</para>
