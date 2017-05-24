@@ -3807,6 +3807,14 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge)
 	ast_bridge_unlock(bridge);
 }
 
+void ast_bridge_set_sfu_video_mode(struct ast_bridge *bridge)
+{
+	ast_bridge_lock(bridge);
+	cleanup_video_mode(bridge);
+	bridge->softmix.video_mode.mode = AST_BRIDGE_VIDEO_MODE_SFU;
+	ast_bridge_unlock(bridge);
+}
+
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyframe)
 {
 	struct ast_bridge_video_talker_src_data *data;

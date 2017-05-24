@@ -1952,25 +1952,36 @@ static int video_mode_handler(const struct aco_option *opt, struct ast_variable 
 		ast_set_flags_to(b_profile,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
 				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED);
 	} else if (!strcasecmp(var->value, "last_marked")) {
 		ast_set_flags_to(b_profile,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
 				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU,
 			BRIDGE_OPT_VIDEO_SRC_LAST_MARKED);
 	} else if (!strcasecmp(var->value, "follow_talker")) {
 		ast_set_flags_to(b_profile,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
 				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER,
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU,
 			BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
 	} else if (!strcasecmp(var->value, "none")) {
 		ast_clear_flag(b_profile,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
 				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU);
+	} else if (!strcasecmp(var->value, "sfu")) {
+		ast_set_flags_to(b_profile,
+			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU,
+			BRIDGE_OPT_VIDEO_SRC_SFU);
 	} else {
 		return -1;
 	}
