@@ -346,7 +346,7 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 		execute = 0;
 		switch (mode) {
 		case TEST_CATEGORY:
-			if (!test_cat_cmp(test->info.category, category)) {
+			if (!test_cat_cmp(test->info.category, category) && !test->info.explicit_only) {
 				execute = 1;
 			}
 			break;
@@ -356,7 +356,7 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 			}
 			break;
 		case TEST_ALL:
-			execute = 1;
+			execute = !test->info.explicit_only;
 		}
 
 		if (execute) {
