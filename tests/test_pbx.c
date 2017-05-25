@@ -323,8 +323,29 @@ cleanup:
 	return res;
 }
 
+AST_TEST_DEFINE(segv)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "RAISE_SEGV";
+		info->category = "/DO_NOT_RUN/";
+		info->summary = "RAISES SEGV!!! (will only be run if explicitly called)";
+		info->description = "RAISES SEGV!!! (will only be run if explicitly called). "
+			"This test is mainly used for testing CI and tool failure scenarios.";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	raise(SIGSEGV);
+
+	return AST_TEST_FAIL;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(segv);
 	AST_TEST_UNREGISTER(pattern_match_test);
 	return 0;
 }
@@ -332,6 +353,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(pattern_match_test);
+	AST_TEST_REGISTER(segv);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
