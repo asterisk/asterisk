@@ -90,8 +90,6 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 
 	ast_channel_lock(c);
 	bridge = ast_channel_get_bridge(c);
-	ast_channel_unlock(c);
-
 	snprintf(buf,size,
 		"Name=               %s\n"
 		"Type=               %s\n"
@@ -168,7 +166,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)",
 		ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)",
 		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"));
-
+	ast_channel_unlock(c);
 	ao2_cleanup(bridge);
 	return 0;
 }
