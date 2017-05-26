@@ -1256,7 +1256,6 @@ COMPRESS
 FIND
 PYTHON
 FLEX
-CUT
 CAT
 CMP
 BISON
@@ -6842,47 +6841,6 @@ $as_echo "no" >&6; }
 fi
 
 
-# Extract the first word of "cut", so it can be a program name with args.
-set dummy cut; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_CUT+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $CUT in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_CUT="$CUT" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_CUT="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_path_CUT" && ac_cv_path_CUT=":"
-  ;;
-esac
-fi
-CUT=$ac_cv_path_CUT
-if test -n "$CUT"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $CUT" >&5
-$as_echo "$CUT" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
 # Extract the first word of "flex", so it can be a program name with args.
 set dummy flex; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -9332,7 +9290,7 @@ $as_echo "configuring" >&6; }
 		as_fn_error $? "nm is required to build bundled pjproject" "$LINENO" 5
 	fi
 	if test "${MD5}" = ":" ; then
-		as_fn_error $? "md5dum is required to build bundled pjproject" "$LINENO" 5
+		as_fn_error $? "md5sum is required to build bundled pjproject" "$LINENO" 5
 	fi
 	if test "${CAT}" = ":" ; then
 		as_fn_error $? "cat is required to build bundled pjproject" "$LINENO" 5
@@ -32925,6 +32883,516 @@ if test "x${PBX_SRTP}" != "x1" -a "${USE_SRTP}" != "no"; then
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_FOUND=yes
+else
+  AST_SRTP_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_FOUND}" = "yes"; then
+      SRTP_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP=DIR has been specified, use it.
+      if test "x${SRTP_DIR}" != "x"; then
+         SRTP_INCLUDE="-I${SRTP_DIR}/include"
+      fi
+      SRTP_INCLUDE="${SRTP_INCLUDE} "
+      if test "xsrtp2/srtp.h" = "x" ; then	# no header, assume found
+         SRTP_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "srtp2/srtp.h" "ac_cv_header_srtp2_srtp_h" "$ac_includes_default"
+if test "x$ac_cv_header_srtp2_srtp_h" = xyes; then :
+  SRTP_HEADER_FOUND=1
+else
+  SRTP_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_HEADER_FOUND}" = "x0" ; then
+         SRTP_LIB=""
+         SRTP_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_LIB=""
+         fi
+         PBX_SRTP=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP 1
+_ACEOF
+
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_VERSION 2
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_SRTP}" = "x1"; then
+   ast_ext_lib_check_shared_saved_libs="${LIBS}"
+   ast_ext_lib_check_shared_saved_ldflags="${LDFLAGS}"
+   ast_ext_lib_check_shared_saved_cflags="${CFLAGS}"
+   LIBS="${LIBS} ${SRTP_LIB} "
+   LDFLAGS="${LDFLAGS} -shared -fPIC"
+   CFLAGS="${CFLAGS} ${SRTP_INCLUDE} "
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for the ability of -lsrtp2 to be linked in a shared object" >&5
+$as_echo_n "checking for the ability of -lsrtp2 to be linked in a shared object... " >&6; }
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+       #include <srtp2/srtp.h>
+int
+main ()
+{
+srtp_init();
+
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+
+else
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
+$as_echo "$as_me: WARNING: ***" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** libsrtp2 could not be linked as a shared object." >&5
+$as_echo "$as_me: WARNING: *** libsrtp2 could not be linked as a shared object." >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** Try compiling libsrtp2 manually. Configure libsrtp2" >&5
+$as_echo "$as_me: WARNING: *** Try compiling libsrtp2 manually. Configure libsrtp2" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** with ./configure --prefix=/usr replacing /usr with" >&5
+$as_echo "$as_me: WARNING: *** with ./configure --prefix=/usr replacing /usr with" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** the prefix of your choice, and then make with" >&5
+$as_echo "$as_me: WARNING: *** the prefix of your choice, and then make with" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** 'make libsrtp2.so'" >&5
+$as_echo "$as_me: WARNING: *** 'make libsrtp2.so'" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
+$as_echo "$as_me: WARNING: ***" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** After re-installing libsrtp2, re-run the Asterisk" >&5
+$as_echo "$as_me: WARNING: *** After re-installing libsrtp2, re-run the Asterisk" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** configure script." >&5
+$as_echo "$as_me: WARNING: *** configure script." >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
+$as_echo "$as_me: WARNING: ***" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** If you do not need SRTP support re-run configure" >&5
+$as_echo "$as_me: WARNING: *** If you do not need SRTP support re-run configure" >&2;}
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** with the --without-srtp option." >&5
+$as_echo "$as_me: WARNING: *** with the --without-srtp option." >&2;}
+    exit 1
+
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+   CFLAGS="${ast_ext_lib_check_shared_saved_cflags}"
+   LDFLAGS="${ast_ext_lib_check_shared_saved_ldflags}"
+   LIBS="${ast_ext_lib_check_shared_saved_libs}"
+fi
+
+
+if test "x$PBX_SRTP" = x1;
+then
+
+if test "x${PBX_SRTP_256}" != "x1" -a "${USE_SRTP_256}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_256=DIR has been specified, use it.
+   if test "x${SRTP_256_DIR}" != "x"; then
+      if test -d ${SRTP_256_DIR}/lib; then
+         pbxlibdir="-L${SRTP_256_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_256_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_crypto_policy_set_aes_cm_256_hmac_sha1_80"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_256_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_256_FOUND=yes
+else
+  AST_SRTP_256_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_256_FOUND}" = "yes"; then
+      SRTP_256_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP_256=DIR has been specified, use it.
+      if test "x${SRTP_256_DIR}" != "x"; then
+         SRTP_256_INCLUDE="-I${SRTP_256_DIR}/include"
+      fi
+      SRTP_256_INCLUDE="${SRTP_256_INCLUDE} "
+      if test "x" = "x" ; then	# no header, assume found
+         SRTP_256_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_256_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "" "ac_cv_header_" "$ac_includes_default"
+if test "x$ac_cv_header_" = xyes; then :
+  SRTP_256_HEADER_FOUND=1
+else
+  SRTP_256_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_256_HEADER_FOUND}" = "x0" ; then
+         SRTP_256_LIB=""
+         SRTP_256_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_256_LIB=""
+         fi
+         PBX_SRTP_256=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_256 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_SRTP_GCM}" != "x1" -a "${USE_SRTP_GCM}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_GCM=DIR has been specified, use it.
+   if test "x${SRTP_GCM_DIR}" != "x"; then
+      if test -d ${SRTP_GCM_DIR}/lib; then
+         pbxlibdir="-L${SRTP_GCM_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_GCM_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_crypto_policy_set_aes_gcm_128_8_auth"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_GCM_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_GCM_FOUND=yes
+else
+  AST_SRTP_GCM_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_GCM_FOUND}" = "yes"; then
+      SRTP_GCM_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP_GCM=DIR has been specified, use it.
+      if test "x${SRTP_GCM_DIR}" != "x"; then
+         SRTP_GCM_INCLUDE="-I${SRTP_GCM_DIR}/include"
+      fi
+      SRTP_GCM_INCLUDE="${SRTP_GCM_INCLUDE} "
+      if test "x" = "x" ; then	# no header, assume found
+         SRTP_GCM_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_GCM_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "" "ac_cv_header_" "$ac_includes_default"
+if test "x$ac_cv_header_" = xyes; then :
+  SRTP_GCM_HEADER_FOUND=1
+else
+  SRTP_GCM_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_GCM_HEADER_FOUND}" = "x0" ; then
+         SRTP_GCM_LIB=""
+         SRTP_GCM_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_GCM_LIB=""
+         fi
+         PBX_SRTP_GCM=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_GCM 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_SRTP_SHUTDOWN}" != "x1" -a "${USE_SRTP_SHUTDOWN}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_SHUTDOWN=DIR has been specified, use it.
+   if test "x${SRTP_SHUTDOWN_DIR}" != "x"; then
+      if test -d ${SRTP_SHUTDOWN_DIR}/lib; then
+         pbxlibdir="-L${SRTP_SHUTDOWN_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_SHUTDOWN_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_shutdown"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_SHUTDOWN_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_SHUTDOWN_FOUND=yes
+else
+  AST_SRTP_SHUTDOWN_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_SHUTDOWN_FOUND}" = "yes"; then
+      SRTP_SHUTDOWN_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP_SHUTDOWN=DIR has been specified, use it.
+      if test "x${SRTP_SHUTDOWN_DIR}" != "x"; then
+         SRTP_SHUTDOWN_INCLUDE="-I${SRTP_SHUTDOWN_DIR}/include"
+      fi
+      SRTP_SHUTDOWN_INCLUDE="${SRTP_SHUTDOWN_INCLUDE} "
+      if test "xsrtp2/srtp.h" = "x" ; then	# no header, assume found
+         SRTP_SHUTDOWN_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_SHUTDOWN_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "srtp2/srtp.h" "ac_cv_header_srtp2_srtp_h" "$ac_includes_default"
+if test "x$ac_cv_header_srtp2_srtp_h" = xyes; then :
+  SRTP_SHUTDOWN_HEADER_FOUND=1
+else
+  SRTP_SHUTDOWN_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_SHUTDOWN_HEADER_FOUND}" = "x0" ; then
+         SRTP_SHUTDOWN_LIB=""
+         SRTP_SHUTDOWN_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_SHUTDOWN_LIB=""
+         fi
+         PBX_SRTP_SHUTDOWN=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_SHUTDOWN 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+    # libsrtp2 removed support for PRNG, so we require OpenSSL
+    if test "x$PBX_OPENSSL" != x1;
+    then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
+$as_echo "$as_me: WARNING: ***" >&2;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** OpenSSL required when using libsrtp2, checking for libsrtp instead." >&5
+$as_echo "$as_me: WARNING: *** OpenSSL required when using libsrtp2, checking for libsrtp instead." >&2;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
+$as_echo "$as_me: WARNING: ***" >&2;}
+	PBX_SRTP=0
+    fi
+fi
+
+if test "x$PBX_SRTP" != x1;
+then
+
+if test "x${PBX_SRTP}" != "x1" -a "${USE_SRTP}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP=DIR has been specified, use it.
+   if test "x${SRTP_DIR}" != "x"; then
+      if test -d ${SRTP_DIR}/lib; then
+         pbxlibdir="-L${SRTP_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_init"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
       as_ac_Lib=`$as_echo "ac_cv_lib_srtp_${pbxfuncname}" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp" >&5
 $as_echo_n "checking for ${pbxfuncname} in -lsrtp... " >&6; }
@@ -33007,26 +33475,29 @@ fi
 #define HAVE_SRTP 1
 _ACEOF
 
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_VERSION 1
+_ACEOF
+
       fi
    fi
 fi
 
 
 
-if test "$PBX_SRTP" = "1";
-then
-    saved_libs="${LIBS}"
-    saved_ldflags="${LDFLAGS}"
-    saved_cflags="${CFLAGS}"
-    LIBS="${LIBS} ${SRTP_LIB}"
-    LDFLAGS="${LDFLAGS} -shared -fPIC"
-    CFLAGS="${CFLAGS} ${SRTP_INCLUDE}"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for the ability of -lsrtp to be linked in a shared object" >&5
+if test "x${PBX_SRTP}" = "x1"; then
+   ast_ext_lib_check_shared_saved_libs="${LIBS}"
+   ast_ext_lib_check_shared_saved_ldflags="${LDFLAGS}"
+   ast_ext_lib_check_shared_saved_cflags="${CFLAGS}"
+   LIBS="${LIBS} ${SRTP_LIB} "
+   LDFLAGS="${LDFLAGS} -shared -fPIC"
+   CFLAGS="${CFLAGS} ${SRTP_INCLUDE} "
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for the ability of -lsrtp to be linked in a shared object" >&5
 $as_echo_n "checking for the ability of -lsrtp to be linked in a shared object... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-        #include <srtp/srtp.h>
+       #include <srtp/srtp.h>
 int
 main ()
 {
@@ -33038,12 +33509,16 @@ srtp_init();
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+
+
 else
 
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
+
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
 $as_echo "$as_me: WARNING: ***" >&2;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** libsrtp could not be linked as a shared object." >&5
@@ -33054,8 +33529,8 @@ $as_echo "$as_me: WARNING: *** Try compiling libsrtp manually. Configure libsrtp
 $as_echo "$as_me: WARNING: *** with ./configure CFLAGS=-fPIC --prefix=/usr" >&2;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** replacing /usr with the prefix of your choice." >&5
 $as_echo "$as_me: WARNING: *** replacing /usr with the prefix of your choice." >&2;}
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** After re-installing libsrtp" >&5
-$as_echo "$as_me: WARNING: *** After re-installing libsrtp" >&2;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** After re-installing libsrtp, re-run the Asterisk" >&5
+$as_echo "$as_me: WARNING: *** After re-installing libsrtp, re-run the Asterisk" >&2;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** configure script." >&5
 $as_echo "$as_me: WARNING: *** configure script." >&2;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: ***" >&5
@@ -33067,16 +33542,18 @@ $as_echo "$as_me: WARNING: *** with the --without-srtp option." >&2;}
         exit 1
 
 
+
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-    LIBS="${saved_libs}"
-    LDFLAGS="${saved_ldflags}"
-    CFLAGS="${saved_cflags}"
+   CFLAGS="${ast_ext_lib_check_shared_saved_cflags}"
+   LDFLAGS="${ast_ext_lib_check_shared_saved_ldflags}"
+   LIBS="${ast_ext_lib_check_shared_saved_libs}"
 fi
 
-if test "$PBX_SRTP" = "1";
-then
+
+    if test "x$PBX_SRTP" = x1;
+    then
 
 if test "x${PBX_SRTP_256}" != "x1" -a "${USE_SRTP_256}" != "no"; then
    pbxlibdir=""
@@ -33296,7 +33773,7 @@ if test "x${PBX_SRTP_GCM}" != "x1" -a "${USE_SRTP_GCM}" != "no"; then
          pbxlibdir="-L${SRTP_GCM_DIR}"
       fi
    fi
-   pbxfuncname="aes_gcm_128_openssl"
+   pbxfuncname="crypto_policy_set_aes_gcm_128_8_auth"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_SRTP_GCM_FOUND=yes
    else
@@ -33388,8 +33865,6 @@ _ACEOF
    fi
 fi
 
-
-fi
 
 
 if test "x${PBX_SRTP_SHUTDOWN}" != "x1" -a "${USE_SRTP_SHUTDOWN}" != "no"; then
@@ -33495,6 +33970,8 @@ _ACEOF
 fi
 
 
+    fi
+fi
 
 for ver in 2.0 2.2 2.4 2.6; do
 
