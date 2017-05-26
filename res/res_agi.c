@@ -4066,7 +4066,7 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 				ast_agi_send(agi->fd, chan, "520 Invalid command syntax.  Proper usage not available.\n");
 			} else {
 				ast_agi_send(agi->fd, chan, "520-Invalid command syntax.  Proper usage follows:\n");
-				ast_agi_send(agi->fd, chan, "%s", c->usage);
+				ast_agi_send(agi->fd, chan, "%s\n", c->usage);
 				ast_agi_send(agi->fd, chan, "520 End of proper usage.\n");
 			}
 
