@@ -4850,7 +4850,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		ast_channel_clear_flag(chan, AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 	}
 	if (chan2_wait) {
-		ast_channel_clear_flag(chan, AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
+		ast_channel_clear_flag(chan2, AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 	}
 
 	chan2 = ast_channel_unref(chan2);
