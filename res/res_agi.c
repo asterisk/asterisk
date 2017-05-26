@@ -3206,6 +3206,10 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 
 static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
+	if (argc != 4) {
+		return RESULT_SHOWUSAGE;
+	}
+
 	if (argv[3])
 		pbx_builtin_setvar_helper(chan, argv[2], argv[3]);
 
@@ -4024,7 +4028,7 @@ static void publish_async_exec_end(struct ast_channel *chan, int command_id, con
 
 static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int dead)
 {
-	const char *argv[MAX_ARGS];
+	const char *argv[MAX_ARGS] = {0};
 	int argc = MAX_ARGS;
 	int res;
 	agi_command *c;
