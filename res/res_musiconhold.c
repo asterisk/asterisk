@@ -1548,8 +1548,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 	if (!res) {
+		ast_channel_lock(chan);
 		ast_channel_latest_musicclass_set(chan, mohclass->name);
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
+		ast_channel_unlock(chan);
 	}
 
 	mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
@@ -1559,10 +1561,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
-	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
 	ast_channel_lock(chan);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	if (ast_channel_music_state(chan)) {
 		if (ast_channel_stream(chan)) {
 			ast_closestream(ast_channel_stream(chan));

@@ -300,11 +300,11 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		res = 0;
 	}
 
+	ast_channel_lock(chan);
 	if (!as->orig_end_dtmf_flag) {
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	}
 
-	ast_channel_lock(chan);
 	while ((f = AST_LIST_REMOVE_HEAD(&as->deferred_frames, frame_list))) {
 		if (!((1 << f->frametype) & as->ignore_frame_types)) {
 			ast_queue_frame_head(chan, f);

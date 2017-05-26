@@ -4257,8 +4257,10 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	ast_channel_pbx(c)->rtimeoutms = 10000;
 	ast_channel_pbx(c)->dtimeoutms = 5000;
 
+	ast_channel_lock(c);
 	autoloopflag = ast_test_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 	ast_set_flag(ast_channel_flags(c), AST_FLAG_IN_AUTOLOOP);
+	ast_channel_unlock(c);
 
 	if (ast_strlen_zero(ast_channel_exten(c))) {
 		/* If not successful fall back to 's' - but only if there is no given exten  */
@@ -4503,8 +4505,10 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		ast_pbx_hangup_handler_run(c);
 	}
 
+	ast_channel_lock(c);
 	ast_set2_flag(ast_channel_flags(c), autoloopflag, AST_FLAG_IN_AUTOLOOP);
 	ast_clear_flag(ast_channel_flags(c), AST_FLAG_BRIDGE_HANGUP_RUN); /* from one round to the next, make sure this gets cleared */
+	ast_channel_unlock(c);
 	pbx_destroy(ast_channel_pbx(c));
 	ast_channel_pbx_set(c, NULL);
 
