@@ -338,6 +338,17 @@ const char *ast_format_get_codec_name(const struct ast_format *format);
 int ast_format_can_be_smoothed(const struct ast_format *format);
 
 /*!
+ * \since 13.17.0
+ *
+ * \brief Get smoother flags for this format
+ *
+ * \param format The media format
+ *
+ * \return smoother flags for the provided format
+ */
+int ast_format_get_smoother_flags(const struct ast_format *format);
+
+/*!
  * \brief Get the media type of a format
  *
  * \param format The media format
