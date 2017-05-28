@@ -54,6 +54,7 @@
 #include "asterisk/format_cache.h"
 #include "asterisk/multicast_rtp.h"
 #include "asterisk/app.h"
+#include "asterisk/smoother.h"
 
 /*! Command value used for Linksys paging to indicate we are starting */
 #define LINKSYS_MCAST_STARTCMD 6
@@ -95,6 +96,7 @@ struct multicast_rtp {
 	uint16_t seqno;
 	unsigned int lastts;	
 	struct timeval txcore;
+	struct ast_smoother *smoother;
 };
 
 enum {
@@ -395,9 +397,53 @@ static int multicast_rtp_destroy(struct ast_rtp_instance *instance)
 		multicast_send_control_packet(instance, multicast, LINKSYS_MCAST_STOPCMD);
 	}
 
+	if (multicast->smoother) {
+		ast_smoother_free(multicast->smoother);
+	}
+
 	close(multicast->socket);
 
 	ast_free(multicast);
+
+	return 0;
+}
+
+static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *frame, int codec)
+{
+	struct multicast_rtp *multicast = ast_rtp_instance_get_data(instance);
+	unsigned int ms = calc_txstamp(multicast, &frame->delivery);
+	unsigned char *rtpheader;
+	struct ast_sockaddr remote_address = { {0,} };
+	int rate = rtp_get_rate(frame->subclass.format) / 1000;
+	int hdrlen = 12;
+
+	/* Calculate last TS */
+	multicast->lastts = multicast->lastts + ms * rate;
+
+	/* Construct an RTP header for our packet */
+	rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
+	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno)));
+
+	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
+		put_unaligned_uint32(rtpheader + 4, htonl(frame->ts * 8));
+	} else {
+		put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
+	}
+
+	put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
+
+	/* Increment sequence number and wrap to 0 if it overflows 16 bits. */
+	multicast->seqno = 0xFFFF & (multicast->seqno + 1);
+
+	/* Finally send it out to the eager phones listening for us */
+	ast_rtp_instance_get_remote_address(instance, &remote_address);
+
+	if (ast_sendto(multicast->socket, (void *) rtpheader, frame->datalen + hdrlen, 0, &remote_address) < 0) {
+		ast_log(LOG_ERROR, "Multicast RTP Transmission error to %s: %s\n",
+			ast_sockaddr_stringify(&remote_address),
+			strerror(errno));
+		return -1;
+	}
 
 	return 0;
 }
@@ -406,12 +452,9 @@ static int multicast_rtp_destroy(struct ast_rtp_instance *instance)
 static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
 	struct multicast_rtp *multicast = ast_rtp_instance_get_data(instance);
-	struct ast_frame *f = frame;
-	struct ast_sockaddr remote_address;
-	int hdrlen = 12, res = 0, codec;
-	unsigned char *rtpheader;
-	unsigned int ms = calc_txstamp(multicast, &frame->delivery);
-	int rate = rtp_get_rate(frame->subclass.format) / 1000;
+	struct ast_format *format;
+	struct ast_frame *f;
+	int codec;
 
 	/* We only accept audio, nothing else */
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -425,45 +468,56 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 		return -1;
 	}
 
-	/* If we do not have space to construct an RTP header duplicate the frame so we get some */
-	if (frame->offset < hdrlen) {
-		f = ast_frdup(frame);
+	format = frame->subclass.format;
+	if (!multicast->smoother && ast_format_can_be_smoothed(format)) {
+		unsigned int smoother_flags = ast_format_get_smoother_flags(format);
+		unsigned int framing_ms = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(instance));
+
+		if (!framing_ms && (smoother_flags & AST_SMOOTHER_FLAG_FORCED)) {
+			framing_ms = ast_format_get_default_ms(format);
+		}
+
+		if (framing_ms) {
+			multicast->smoother = ast_smoother_new((framing_ms * ast_format_get_minimum_bytes(format)) / ast_format_get_minimum_ms(format));
+			if (!multicast->smoother) {
+				ast_log(LOG_WARNING, "Unable to create smoother: format %s ms: %u len %u\n",
+						ast_format_get_name(format), framing_ms, ast_format_get_minimum_bytes(format));
+				return -1;
+			}
+			ast_smoother_set_flags(multicast->smoother, smoother_flags);
+		}
 	}
-	
-	/* Calucate last TS */
-	multicast->lastts = multicast->lastts + ms * rate;
-	
-	/* Construct an RTP header for our packet */
-	rtpheader = (unsigned char *)(f->data.ptr - hdrlen);
-	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno)));
-	
-	if (ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO)) {
-		put_unaligned_uint32(rtpheader + 4, htonl(f->ts * 8));
+
+	if (multicast->smoother) {
+		if (ast_smoother_test_flag(multicast->smoother, AST_SMOOTHER_FLAG_BE)) {
+			ast_smoother_feed_be(multicast->smoother, frame);
+		} else {
+			ast_smoother_feed(multicast->smoother, frame);
+		}
+
+		while ((f = ast_smoother_read(multicast->smoother)) && f->data.ptr) {
+			rtp_raw_write(instance, f, codec);
+		}
 	} else {
-		put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
+		int hdrlen = 12;
+
+		/* If we do not have space to construct an RTP header duplicate the frame so we get some */
+		if (frame->offset < hdrlen) {
+			f = ast_frdup(frame);
+		} else {
+			f = frame;
+		}
+
+		if (f->data.ptr) {
+			rtp_raw_write(instance, f, codec);
+		}
+
+		if (f != frame) {
+			ast_frfree(f);
+		}
 	}
 
-	put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
-
-	/* Increment sequence number and wrap to 0 if it overflows 16 bits. */
-	multicast->seqno = 0xFFFF & (multicast->seqno + 1);
-
-	/* Finally send it out to the eager phones listening for us */
-	ast_rtp_instance_get_remote_address(instance, &remote_address);
-
-	if (ast_sendto(multicast->socket, (void *) rtpheader, f->datalen + hdrlen, 0, &remote_address) < 0) {
-		ast_log(LOG_ERROR, "Multicast RTP Transmission error to %s: %s\n",
-			ast_sockaddr_stringify(&remote_address),
-			strerror(errno));
-		res = -1;
-	}
-
-	/* If we were forced to duplicate the frame free the new one */
-	if (frame != f) {
-		ast_frfree(f);
-	}
-
-	return res;
+	return 0;
 }
 
 /*! \brief Function called to read from a multicast instance */
