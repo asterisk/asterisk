@@ -33,6 +33,7 @@ extern "C" {
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
 #define AST_SMOOTHER_FLAG_BE		(1 << 1)
+#define AST_SMOOTHER_FLAG_FORCED	(1 << 2)
 
 /*! \name AST_Smoother
 */
