@@ -157,7 +157,7 @@ static int handle_find_recording(const char *dir_name, const char *filename, voi
 		return 0;
 	}
 
-	if (ast_asprintf(&data->file_with_ext, "%s/%s", dir_name, filename)) {
+	if (ast_asprintf(&data->file_with_ext, "%s/%s", dir_name, filename) < 0) {
 		return -1;
 	}
 
@@ -252,7 +252,7 @@ static int handle_scan_file(const char *dir_name, const char *filename, void *ob
 		return 0;
 	}
 
-	if (ast_asprintf(&filepath, "%s/%s", dir_name, filename)) {
+	if (ast_asprintf(&filepath, "%s/%s", dir_name, filename) < 0) {
 		return -1;
 	}
 
