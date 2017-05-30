@@ -32,11 +32,8 @@ ALL_C_MODS:=app_mysql \
             cdr_mysql \
             chan_mobile \
             chan_ooh323 \
+            format_mp3 \
             res_config_mysql
-
-ifneq ($(wildcard mp3/Makefile),)
-	ALL_C_MODS += format_mp3
-endif
 
 all: check_mp3 _all
 
@@ -65,6 +62,10 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
 $(call MOD_ADD_C,chan_ooh323,$(H323SOURCE))
 
+ifneq ($(wildcard mp3/Makefile),)
 $(call MOD_ADD_C,format_mp3,mp3/common.c mp3/dct64_i386.c mp3/decode_ntom.c mp3/layer3.c mp3/tabinit.c mp3/interface.c)
 
 .PHONY: check_mp3
+else
+.PHONY: check_mp3 format_mp3.o format_mp3.so
+endif
