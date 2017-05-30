@@ -342,8 +342,9 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	const struct ast_channel_snapshot *snapshot = obj;
 	struct ast_channel *channel = ast_channel_get_by_name(snapshot->name);
 	struct ast_sip_channel_pvt *cpvt = channel ? ast_channel_tech_pvt(channel) : NULL;
-	struct chan_pjsip_pvt *pvt = cpvt ? cpvt->pvt : NULL;
-	struct ast_sip_session_media *media = pvt ? pvt->media[SIP_MEDIA_AUDIO] : NULL;
+	struct ast_sip_session *session;
+	struct ast_sip_session_media *media;
+	struct ast_rtp_instance *rtp;
 	struct ast_rtp_instance_stats stats;
 	char *print_name = NULL;
 	char *print_time = alloca(32);
@@ -351,21 +352,38 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	ast_assert(context->output_buffer != NULL);
 
-	if (!media || !media->rtp) {
+	if (!channel) {
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		return -1;
+	}
+
+	ast_channel_lock(channel);
+
+	session = cpvt->session;
+	if (!session) {
+		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
 		return -1;
 	}
 
+	media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
+	if (!media || !media->rtp) {
+		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		ast_channel_unlock(channel);
+		ao2_cleanup(channel);
+		return -1;
+	}
+
+	rtp = ao2_bump(media->rtp);
+
 	codec_in_use[0] = '\0';
 
-	if (channel) {
-		ast_channel_lock(channel);
-		if (ast_channel_rawreadformat(channel)) {
-			ast_copy_string(codec_in_use, ast_format_get_name(ast_channel_rawreadformat(channel)), sizeof(codec_in_use));
-		}
-		ast_channel_unlock(channel);
+	if (ast_channel_rawreadformat(channel)) {
+		ast_copy_string(codec_in_use, ast_format_get_name(ast_channel_rawreadformat(channel)), sizeof(codec_in_use));
 	}
+
+	ast_channel_unlock(channel);
 
 	print_name = ast_strdupa(snapshot->name);
 	/* Skip the PJSIP/.  We know what channel type it is and we need the space. */
@@ -373,7 +391,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, 32);
 
-	if (ast_rtp_instance_get_stats(media->rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
+	if (ast_rtp_instance_get_stats(rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
 		ast_str_append(&context->output_buffer, 0, "%s direct media\n", snapshot->name);
 	} else {
 		ast_str_append(&context->output_buffer, 0,
@@ -398,6 +416,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		);
 	}
 
+	ao2_cleanup(rtp);
 	ao2_cleanup(channel);
 
 	return 0;

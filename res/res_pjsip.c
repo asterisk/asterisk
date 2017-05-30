@@ -978,6 +978,20 @@
 						on Ringing when already INUSE.
 					</para></description>
 				</configOption>
+				<configOption name="max_audio_streams" default="1">
+					<synopsis>The maximum number of allowed audio streams for the endpoint</synopsis>
+					<description><para>
+						This option enforces a limit on the maximum simultaneous negotiated audio
+						streams allowed for the endpoint.
+					</para></description>
+				</configOption>
+				<configOption name="max_video_streams" default="1">
+					<synopsis>The maximum number of allowed video streams for the endpoint</synopsis>
+					<description><para>
+						This option enforces a limit on the maximum simultaneous negotiated video
+						streams allowed for the endpoint.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

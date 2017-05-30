@@ -779,6 +779,10 @@
                               ; The value "yes" is useful for some SIP phones
                               ; (Cisco SPA) to be able to indicate and pick up
                               ; ringing devices.
+;max_audio_streams= ; The maximum number of allowed negotiated audio streams
+                    ; (default: 1)
+;max_video_streams= ; The maximum number of allowed negotiated video streams
+                    ; (default: 1)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

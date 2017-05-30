@@ -284,6 +284,53 @@ struct ast_stream_topology *ast_stream_topology_clone(
 	return new_topology;
 }
 
+int ast_stream_topology_equal(const struct ast_stream_topology *left,
+	const struct ast_stream_topology *right)
+{
+	int index;
+
+	ast_assert(left != NULL);
+	ast_assert(right != NULL);
+
+	if (ast_stream_topology_get_count(left) != ast_stream_topology_get_count(right)) {
+		return 0;
+	}
+
+	for (index = 0; index < ast_stream_topology_get_count(left); ++index) {
+		const struct ast_stream *left_stream = ast_stream_topology_get_stream(left, index);
+		const struct ast_stream *right_stream = ast_stream_topology_get_stream(right, index);
+
+		if (ast_stream_get_type(left_stream) != ast_stream_get_type(right_stream)) {
+			return 0;
+		}
+
+		if (ast_stream_get_state(left_stream) != ast_stream_get_state(right_stream)) {
+			return 0;
+		}
+
+		if (!ast_stream_get_formats(left_stream) && ast_stream_get_formats(right_stream) &&
+			ast_format_cap_count(ast_stream_get_formats(right_stream))) {
+			/* A NULL format capabilities and an empty format capabilities are the same, as they have
+			 * no formats inside. If one does though... they are not equal.
+			 */
+			return 0;
+		} else if (!ast_stream_get_formats(right_stream) && ast_stream_get_formats(left_stream) &&
+			ast_format_cap_count(ast_stream_get_formats(left_stream))) {
+			return 0;
+		} else if (ast_stream_get_formats(left_stream) && ast_stream_get_formats(right_stream) &&
+			!ast_format_cap_identical(ast_stream_get_formats(left_stream), ast_stream_get_formats(right_stream))) {
+			/* But if both are actually present we need to do an actual identical check. */
+			return 0;
+		}
+
+		if (strcmp(ast_stream_get_name(left_stream), ast_stream_get_name(right_stream))) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 void ast_stream_topology_free(struct ast_stream_topology *topology)
 {
 	if (!topology) {

@@ -34,25 +34,12 @@ struct transport_info_data {
 	pj_sockaddr local_addr;
 };
 
-/*!
- * \brief Positions of various media
- */
-enum sip_session_media_position {
-	/*! \brief First is audio */
-	SIP_MEDIA_AUDIO = 0,
-	/*! \brief Second is video */
-	SIP_MEDIA_VIDEO,
-	/*! \brief Last is the size for media details */
-	SIP_MEDIA_SIZE,
-};
 
 /*!
  * \brief The PJSIP channel driver pvt, stored in the \ref ast_sip_channel_pvt
  * data structure
  */
 struct chan_pjsip_pvt {
-	/*! \brief The available media sessions */
-	struct ast_sip_session_media *media[SIP_MEDIA_SIZE];
 };
 
 #endif /* _CHAN_PJSIP_HEADER */

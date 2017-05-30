@@ -290,6 +290,20 @@ struct ast_stream_topology *ast_stream_topology_clone(
 	const struct ast_stream_topology *topology);
 
 /*!
+ * \brief Compare two stream topologies to see if they are equal
+ *
+ * \param left The left topology
+ * \param right The right topology
+ *
+ * \retval 1 topologies are equivalent
+ * \retval 0 topologies differ
+ *
+ * \since 15
+ */
+int ast_stream_topology_equal(const struct ast_stream_topology *left,
+	const struct ast_stream_topology *right);
+
+/*!
  * \brief Destroy a stream topology
  *
  * \param topology The topology of streams
@@ -391,7 +405,7 @@ int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
  * since a new format capabilities structure is created for each media type.
  *
  * \note Each stream will have its name set to the corresponding media type.
- * For example: "AST_MEDIA_TYPE_AUDIO".
+ * For example: "audio".
  *
  * \note Each stream will be set to the sendrecv state.
  *

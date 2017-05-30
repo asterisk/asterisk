@@ -22,6 +22,7 @@
 #include "asterisk/test.h"
 #include "asterisk/statsd.h"
 #include "asterisk/pbx.h"
+#include "asterisk/stream.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -1321,6 +1322,11 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
+	endpoint->media.topology = ast_stream_topology_create_from_format_cap(endpoint->media.codecs);
+	if (!endpoint->media.topology) {
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1941,6 +1947,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_overlap", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_overlap));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "refer_blind_progress", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, refer_blind_progress));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "notify_early_inuse_ringing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, notify_early_inuse_ringing));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_audio_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_audio_streams));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_video_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_video_streams));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2060,7 +2068,8 @@ static void endpoint_destructor(void* obj)
 
 	ast_string_field_free_memory(endpoint);
 
-	ao2_ref(endpoint->media.codecs, -1);
+	ao2_cleanup(endpoint->media.codecs);
+	ast_stream_topology_free(endpoint->media.topology);
 	subscription_configuration_destroy(&endpoint->subscription);
 	info_configuration_destroy(&endpoint->info);
 	media_configuration_destroy(&endpoint->media);

@@ -666,6 +666,8 @@ struct ast_sip_endpoint_media_configuration {
 	struct ast_sip_t38_configuration t38;
 	/*! Configured codecs */
 	struct ast_format_cap *codecs;
+	/*! Capabilities in topology form */
+	struct ast_stream_topology *topology;
 	/*! DSCP TOS bits for audio streams */
 	unsigned int tos_audio;
 	/*! Priority for audio streams */
@@ -680,6 +682,10 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int bind_rtp_to_media_address;
 	/*! Use RTCP-MUX */
 	unsigned int rtcp_mux;
+	/*! Maximum number of audio streams to offer/accept */
+	unsigned int max_audio_streams;
+	/*! Maximum number of video streams to offer/accept */
+	unsigned int max_video_streams;
 };
 
 /*!

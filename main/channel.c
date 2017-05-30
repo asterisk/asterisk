@@ -4928,17 +4928,28 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		goto done;
 	}
 
-	/* If this frame is writing an audio or video frame get the stream information */
-	if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO) {
-		/* Initially use the default stream unless an explicit stream is provided */
-		stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(fr->subclass.format));
-
-		if (stream_num >= 0) {
-			if (stream_num >= ast_stream_topology_get_count(ast_channel_get_stream_topology(chan))) {
-				goto done;
-			}
-			stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
+	if (stream_num >= 0) {
+		/* If we were told to write to an explicit stream then allow this frame through, no matter
+		 * if the type is expected or not (a framehook could change)
+		 */
+		if (stream_num >= ast_stream_topology_get_count(ast_channel_get_stream_topology(chan))) {
+			goto done;
 		}
+		stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
+		default_stream = ast_channel_get_default_stream(chan, ast_stream_get_type(stream));
+	} else if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_MODEM) {
+		/* If we haven't been told of a stream then we need to figure out which once we need */
+		enum ast_media_type type = AST_MEDIA_TYPE_UNKNOWN;
+
+		/* Some frame types have a fixed media type */
+		if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO) {
+			type = ast_format_get_type(fr->subclass.format);
+		} else if (fr->frametype == AST_FRAME_MODEM) {
+			type = AST_MEDIA_TYPE_IMAGE;
+		}
+
+		/* No stream was specified, so use the default one */
+		stream = default_stream = ast_channel_get_default_stream(chan, type);
 	}
 
 	/* Perform the framehook write event here. After the frame enters the framehook list
@@ -5035,12 +5046,16 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 			res = ast_channel_tech(chan)->write_video(chan, fr);
 		} else {
 			res = 0;
-
 		}
 		break;
 	case AST_FRAME_MODEM:
-		res = (ast_channel_tech(chan)->write == NULL) ? 0 :
-			ast_channel_tech(chan)->write(chan, fr);
+		if (ast_channel_tech(chan)->write_stream) {
+			res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+		} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
+			res = ast_channel_tech(chan)->write(chan, fr);
+		} else {
+			res = 0;
+		}
 		break;
 	case AST_FRAME_VOICE:
 		if (ast_opt_generic_plc && ast_format_cmp(fr->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
@@ -10946,6 +10961,12 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan,
 
 	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
 		return -1;
+	}
+
+	if (ast_stream_topology_equal(ast_channel_get_stream_topology(chan), topology)) {
+		ast_debug(3, "Topology of %s already matches what is requested so ignoring topology change request\n",
+				ast_channel_name(chan));
+		return 0;
 	}
 
 	ast_channel_internal_set_stream_topology_change_source(chan, change_source);
