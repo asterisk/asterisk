@@ -99,7 +99,7 @@ AST_TEST_DEFINE(json_test_false)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "false";
+		info->name = "type_false";
 		info->category = CATEGORY;
 		info->summary = "Testing fundamental JSON false value.";
 		info->description = "Test JSON abstraction library.";
@@ -124,7 +124,7 @@ AST_TEST_DEFINE(json_test_true)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "true";
+		info->name = "type_true";
 		info->category = CATEGORY;
 		info->summary = "Testing JSON true value.";
 		info->description = "Test JSON abstraction library.";
@@ -149,7 +149,7 @@ AST_TEST_DEFINE(json_test_bool0)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "bool0";
+		info->name = "type_bool0";
 		info->category = CATEGORY;
 		info->summary = "Testing JSON boolean function (false).";
 		info->description = "Test JSON abstraction library.";
@@ -176,7 +176,7 @@ AST_TEST_DEFINE(json_test_bool1)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "bool1";
+		info->name = "type_bool1";
 		info->category = CATEGORY;
 		info->summary = "Testing JSON boolean function (true).";
 		info->description = "Test JSON abstraction library.";
@@ -203,7 +203,7 @@ AST_TEST_DEFINE(json_test_null)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "null";
+		info->name = "type_null";
 		info->category = CATEGORY;
 		info->summary = "Testing JSON null value.";
 		info->description = "Test JSON abstraction library.";
@@ -255,7 +255,7 @@ AST_TEST_DEFINE(json_test_string)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "string";
+		info->name = "type_string";
 		info->category = CATEGORY;
 		info->summary = "Basic string tests.";
 		info->description = "Test JSON abstraction library.";
@@ -360,7 +360,7 @@ AST_TEST_DEFINE(json_test_int)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "int";
+		info->name = "type_int";
 		info->category = CATEGORY;
 		info->summary = "Basic JSON integer tests.";
 		info->description = "Test JSON abstraction library.";
@@ -1644,7 +1644,7 @@ AST_TEST_DEFINE(json_test_timeval)
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "timeval";
+		info->name = "type_timeval";
 		info->category = CATEGORY;
 		info->summary = "JSON encoding of timevals.";
 		info->description = "Test JSON abstraction library.";
