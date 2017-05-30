@@ -32,8 +32,11 @@ ALL_C_MODS:=app_mysql \
             cdr_mysql \
             chan_mobile \
             chan_ooh323 \
-            format_mp3 \
             res_config_mysql
+
+ifneq ($(wildcard mp3/Makefile),)
+	ALL_C_MODS += format_mp3
+endif
 
 all: check_mp3 _all
 
@@ -43,10 +46,10 @@ ifeq ($(filter format_mp3,$(MENUSELECT_ADDONS)),)
 		echo ; \
 		echo "**************************************************************" ; \
 		echo "***                                                        ***" ; \
-		echo "***   --->  READ THIS OR YOUR BUILD WILL FAIL  <---        ***" ; \
+		echo "***    ---> IMPORTANT INFORMATION ABOUT format_mp3 <---    ***" ; \
 		echo "***                                                        ***" ; \
 		echo "*** format_mp3 has been selected to be installed, but the  ***" ; \
-		echo "*** mp3 decoder library has not yet been downloaded into   ***" ; \
+		echo "*** MP3 decoder library has not yet been downloaded into   ***" ; \
 		echo "*** the source tree.  To do so, please run the following   ***" ; \
 		echo "*** command:                                               ***" ; \
 		echo "***                                                        ***" ; \
