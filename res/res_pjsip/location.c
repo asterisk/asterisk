@@ -171,12 +171,36 @@ static int contact_link_static(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*! \brief Internal callback function which removes any contact which is unreachable */
+static int contact_remove_unreachable(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ast_sip_contact_status *status;
+	int unreachable;
+
+	status = ast_res_pjsip_find_or_create_contact_status(contact);
+	if (!status) {
+		return 0;
+	}
+
+	unreachable = (status->status == UNAVAILABLE);
+	ao2_ref(status, -1);
+
+	return unreachable ? CMP_MATCH : 0;
+}
+
 struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct ast_sip_aor *aor)
+{
+	return ast_sip_location_retrieve_first_aor_contact_filtered(aor, AST_SIP_CONTACT_FILTER_DEFAULT);
+}
+
+struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags)
 {
 	struct ao2_container *contacts;
 	struct ast_sip_contact *contact = NULL;
 
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_filtered(aor, flags);
 	if (contacts && ao2_container_count(contacts)) {
 		/* Get the first AOR contact in the container. */
 		contact = ao2_callback(contacts, 0, NULL, NULL);
@@ -186,6 +210,12 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct
 }
 
 struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct ast_sip_aor *aor)
+{
+	return ast_sip_location_retrieve_aor_contacts_nolock_filtered(aor, AST_SIP_CONTACT_FILTER_DEFAULT);
+}
+
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags)
 {
 	/* Give enough space for ^ at the beginning and ;@ at the end, since that is our object naming scheme */
 	char regex[strlen(ast_sorcery_object_get_id(aor)) + 4];
@@ -205,10 +235,20 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct
 		ao2_callback(aor->permanent_contacts, OBJ_NODATA, contact_link_static, contacts);
 	}
 
+	if (flags & AST_SIP_CONTACT_FILTER_REACHABLE) {
+		ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, contact_remove_unreachable, NULL);
+	}
+
 	return contacts;
 }
 
 struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor)
+{
+	return ast_sip_location_retrieve_aor_contacts_filtered(aor, AST_SIP_CONTACT_FILTER_DEFAULT);
+}
+
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags)
 {
 	struct ao2_container *contacts;
 	struct ast_named_lock *lock;
@@ -219,15 +259,22 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 	}
 
 	ao2_lock(lock);
-	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock_filtered(aor, flags);
 	ao2_unlock(lock);
 	ast_named_lock_put(lock);
 
 	return contacts;
 }
 
+
 void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, struct ast_sip_aor **aor,
 	struct ast_sip_contact **contact)
+{
+	ast_sip_location_retrieve_contact_and_aor_from_list_filtered(aor_list, AST_SIP_CONTACT_FILTER_DEFAULT, aor, contact);
+}
+
+void ast_sip_location_retrieve_contact_and_aor_from_list_filtered(const char *aor_list, unsigned int flags,
+	struct ast_sip_aor **aor, struct ast_sip_contact **contact)
 {
 	char *aor_name;
 	char *rest;
@@ -247,7 +294,7 @@ void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, s
 		if (!(*aor)) {
 			continue;
 		}
-		*contact = ast_sip_location_retrieve_first_aor_contact(*aor);
+		*contact = ast_sip_location_retrieve_first_aor_contact_filtered(*aor, flags);
 		/* If a valid contact is available use its URI for dialing */
 		if (*contact) {
 			break;

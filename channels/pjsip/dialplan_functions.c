@@ -898,7 +898,7 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
 		if (!aor) {
 			/* If the AOR provided is not found skip it, there may be more */
 			continue;
-		} else if (!(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		} else if (!(contacts = ast_sip_location_retrieve_aor_contacts_filtered(aor, AST_SIP_CONTACT_FILTER_REACHABLE))) {
 			/* No contacts are available, skip it as well */
 			continue;
 		} else if (!ao2_container_count(contacts)) {
