@@ -863,6 +863,17 @@ struct ast_sip_endpoint_identifier {
 };
 
 /*!
+ * \brief Contact retrieval filtering flags
+ */
+enum ast_sip_contact_filter {
+	/*! \brief Default filter flags */
+	AST_SIP_CONTACT_FILTER_DEFAULT = 0,
+
+	/*! \brief Return only reachable or unknown contacts */
+	AST_SIP_CONTACT_FILTER_REACHABLE = (1 << 0),
+};
+
+/*!
  * \brief Register a SIP service in Asterisk.
  *
  * This is more-or-less a wrapper around pjsip_endpt_register_module().
@@ -1048,6 +1059,18 @@ struct ast_sip_aor *ast_sip_location_retrieve_aor(const char *aor_name);
 struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct ast_sip_aor *aor);
 
 /*!
+ * \brief Retrieve the first bound contact for an AOR and filter based on flags
+ * \since 13.16.0
+ *
+ * \param aor Pointer to the AOR
+ * \param flags Filtering flags
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ */
+struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags);
+
+/*!
  * \brief Retrieve all contacts currently available for an AOR
  *
  * \param aor Pointer to the AOR
@@ -1062,6 +1085,23 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct
 struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor);
 
 /*!
+ * \brief Retrieve all contacts currently available for an AOR and filter based on flags
+ * \since 13.16.0
+ *
+ * \param aor Pointer to the AOR
+ * \param flags Filtering flags
+ *
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ *
+ * \warning
+ * Since this function prunes expired contacts before returning, it holds a named write
+ * lock on the aor.  If you already hold the lock, call ast_sip_location_retrieve_aor_contacts_nolock instead.
+ */
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags);
+
+/*!
  * \brief Retrieve all contacts currently available for an AOR without locking the AOR
  * \since 13.9.0
  *
@@ -1074,6 +1114,22 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
  * This function should only be called if you already hold a named write lock on the aor.
  */
 struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct ast_sip_aor *aor);
+
+/*!
+ * \brief Retrieve all contacts currently available for an AOR without locking the AOR and filter based on flags
+ * \since 13.16.0
+ *
+ * \param aor Pointer to the AOR
+ * \param flags Filtering flags
+ *
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ *
+ * \warning
+ * This function should only be called if you already hold a named write lock on the aor.
+ */
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock_filtered(const struct ast_sip_aor *aor,
+	unsigned int flags);
 
 /*!
  * \brief Retrieve the first bound contact from a list of AORs
@@ -1102,6 +1158,18 @@ struct ao2_container *ast_sip_location_retrieve_contacts_from_aor_list(const cha
  */
  void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, struct ast_sip_aor **aor,
 	struct ast_sip_contact **contact);
+
+/*!
+ * \brief Retrieve the first bound contact AND the AOR chosen from a list of AORs and filter based on flags
+ * \since 13.16.0
+ *
+ * \param aor_list A comma-separated list of AOR names
+ * \param flags Filtering flags
+ * \param aor The chosen AOR
+ * \param contact The chosen contact
+ */
+void ast_sip_location_retrieve_contact_and_aor_from_list_filtered(const char *aor_list, unsigned int flags,
+	struct ast_sip_aor **aor, struct ast_sip_contact **contact);
 
 /*!
  * \brief Retrieve a named contact
