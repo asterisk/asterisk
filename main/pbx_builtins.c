@@ -1113,6 +1113,13 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 		}
 	}
 
+	/* If ast_waitstream didn't give us back a digit, there is nothing else to do */
+	if (res <= 0) {
+		goto done;
+	}
+
+	exten[0] = res;
+
 	/*
 	 * If the single digit DTMF is an extension in the specified context, then
 	 * go there and signal no DTMF.  Otherwise, we should exit with that DTMF.
@@ -1132,7 +1139,6 @@ static int pbx_builtin_background(struct ast_channel *chan, const char *data)
 	 * be returned (see #16434).
 	 */
 	if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS)
-		&& (exten[0] = res)
 		&& ast_canmatch_extension(chan, args.context, exten, 1,
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))
 		&& !ast_matchmore_extension(chan, args.context, exten, 1,
