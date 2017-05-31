@@ -1719,7 +1719,8 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	if (location || !contact) {
 		location = S_OR(location, endpoint->aors);
 
-		ast_sip_location_retrieve_contact_and_aor_from_list(location, &found_aor, &found_contact);
+		ast_sip_location_retrieve_contact_and_aor_from_list_filtered(location, AST_SIP_CONTACT_FILTER_REACHABLE,
+			&found_aor, &found_contact);
 		if (!found_contact || ast_strlen_zero(found_contact->uri)) {
 			uri = location;
 		} else {
