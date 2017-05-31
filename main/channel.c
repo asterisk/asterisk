@@ -9232,7 +9232,7 @@ static int redirecting_reason_build_data(unsigned char *data, size_t datalen,
 
 	if (reason->str) {
 		length = strlen(reason->str);
-		if (datalen < pos + sizeof(data[0] * 2) + length) {
+		if (datalen < pos + (sizeof(data[0]) * 2) + length) {
 			ast_log(LOG_WARNING, "No space left for %s string\n", label);
 			return -1;
 		}
