@@ -4663,7 +4663,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 	if (cnf) {
 		if (confflags->flags && !cnf->chan &&
 		    !ast_test_flag64(confflags, CONFFLAG_QUIET) &&
-		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW) | CONFFLAG_INTROUSER_VMREC) {
+		    ast_test_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC)) {
 			ast_log(LOG_WARNING, "No DAHDI channel available for conference, user introduction disabled (is chan_dahdi loaded?)\n");
 			ast_clear_flag64(confflags, CONFFLAG_INTROUSER | CONFFLAG_INTROUSERNOREVIEW | CONFFLAG_INTROUSER_VMREC);
 		}
