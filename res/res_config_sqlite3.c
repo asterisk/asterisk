@@ -103,6 +103,7 @@ struct realtime_sqlite3_db {
 	unsigned int exiting:1;
 	unsigned int wakeup:1;
 	unsigned int batch;
+	int busy_timeout;
 };
 
 struct ao2_container *databases;
@@ -342,7 +343,7 @@ static int db_open(struct realtime_sqlite3_db *db)
 		ao2_unlock(db);
 		return -1;
 	}
-	sqlite3_busy_timeout(db->handle, 1000);
+	sqlite3_busy_timeout(db->handle, db->busy_timeout);
 
 	if (db->debug) {
 		sqlite3_trace(db->handle, trace_cb, db);
@@ -400,6 +401,7 @@ static struct realtime_sqlite3_db *new_realtime_sqlite3_db(struct ast_config *co
 	db->requirements = REALTIME_SQLITE3_REQ_WARN;
 	db->batch = 100;
 	ast_string_field_set(db, name, cat);
+	db->busy_timeout = 1000;
 
 	for (var = ast_variable_browse(config, cat); var; var = var->next) {
 		if (!strcasecmp(var->name, "dbfile")) {
@@ -410,6 +412,10 @@ static struct realtime_sqlite3_db *new_realtime_sqlite3_db(struct ast_config *co
 			ast_app_parse_timelen(var->value, (int *) &db->batch, TIMELEN_MILLISECONDS);
 		} else if (!strcasecmp(var->name, "debug")) {
 			db->debug = ast_true(var->value);
+		} else if (!strcasecmp(var->name, "busy_timeout")) {
+			if (ast_parse_arg(var->value, PARSE_INT32|PARSE_DEFAULT, &(db->busy_timeout), 1000) != 0) {
+				ast_log(LOG_WARNING, "Invalid busy_timeout value '%s' at res_config_sqlite3.conf:%d. Using 1000 instead.\n", var->value, var->lineno);
+			}
 		}
 	}
 
@@ -452,6 +458,11 @@ static int update_realtime_sqlite3_db(struct realtime_sqlite3_db *db, struct ast
 		sqlite3_close(db->handle);
 		ast_string_field_set(db, filename, new->filename);
 		db_open(db); /* Also handles setting appropriate debug on new handle */
+	}
+
+	if (db->busy_timeout != new->busy_timeout) {
+		db->busy_timeout = new->busy_timeout;
+		sqlite3_busy_timeout(db->handle, db->busy_timeout);
 	}
 
 	if (db->batch != new->batch) {

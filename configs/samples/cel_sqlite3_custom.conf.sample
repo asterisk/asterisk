@@ -22,3 +22,4 @@
 ;table	=> cel
 ;columns	=> eventtype, eventtime, cidname, cidnum, cidani, cidrdnis, ciddnid, context, exten, channame, appname, appdata, amaflags, accountcode, uniqueid, userfield, peer, userdeftype, eventextra
 ;values	=> '${eventtype}','${eventtime}','${CALLERID(name)}','${CALLERID(num)}','${CALLERID(ANI)}','${CALLERID(RDNIS)}','${CALLERID(DNID)}','${CHANNEL(context)}','${CHANNEL(exten)}','${CHANNEL(channame)}','${CHANNEL(appname)}','${CHANNEL(appdata)}','${CHANNEL(amaflags)}','${CHANNEL(accountcode)}','${CHANNEL(uniqueid)}','${CHANNEL(userfield)}','${BRIDGEPEER}','${userdeftype}','${eventextra}'
+;busy_timeout	=> 1000
