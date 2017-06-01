@@ -1331,6 +1331,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ; DTLS-SRTP support is available if the underlying RTP engine in use supports it.
 ;
+; Note: DTLS configuration must be set directly on a user, peer, or friend. Setting these
+;       options globally in the [general] section will have no effect.
+;
 ; dtlsenable = yes                   ; Enable or disable DTLS-SRTP support
 ; dtlsverify = yes                   ; Verify that provided peer certificate and fingerprint are valid
 ;				     ; A value of 'yes' will perform both certificate and fingerprint verification
