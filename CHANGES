@@ -23,6 +23,15 @@ res_agi
 --- Functionality changes from Asterisk 13.15.0 to Asterisk 13.16.0 ----------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * A new endpoint option "refer_blind_progress" was added to turn off notifying
+   the progress details on Blind Transfer. If this option is not set then
+   the chan_pjsip will send NOTIFY "200 OK" immediately after "202 Accepted".
+   On default is enabled.
+   Some SIP phones like Mitel/Aastra or Snom keep the line busy until
+   receive "200 OK".
+
 res_rtp_asterisk
 ------------------
  * Added the stun_blacklist option to rtp.conf.  Some multihomed servers have
