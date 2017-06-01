@@ -30,11 +30,8 @@ ALL_C_MODS:=app_mysql \
             cdr_mysql \
             chan_mobile \
             chan_ooh323 \
+            format_mp3 \
             res_config_mysql
-
-ifneq ($(wildcard mp3/Makefile),)
-	ALL_C_MODS += format_mp3
-endif
 
 all: check_mp3 _all
 
@@ -64,7 +61,9 @@ clean::
 	if [ -f mp3/Makefile ] ; then $(MAKE) -C mp3 clean ; fi
 	rm -f $(addprefix ooh323c/src/,$(H323OBJS))
 
+ifneq ($(wildcard mp3/Makefile),)
 format_mp3.so: mp3/common.o mp3/dct64_i386.o mp3/decode_ntom.o mp3/layer3.o mp3/tabinit.o mp3/interface.o
+endif
 
 chan_ooh323.o: _ASTCFLAGS+=$(H323CFLAGS)
 chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
@@ -72,3 +71,7 @@ chan_ooh323.so: $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDrive
 $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_ooh323)
 
 .PHONY: check_mp3
+
+ifeq ($(wildcard mp3/Makefile),)
+.PHONY: format_mp3.o format_mp3.so
+endif
