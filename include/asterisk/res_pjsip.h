@@ -767,6 +767,8 @@ struct ast_sip_endpoint {
 	unsigned int asymmetric_rtp_codec;
 	/*! Do we allow overlap dialling? */
 	unsigned int allow_overlap;
+	/*! Whether to notifies all the progress details on blind transfer */
+	unsigned int refer_blind_progress;
 };
 
 /*! URI parameter for symmetric transport */
