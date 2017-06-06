@@ -121,6 +121,7 @@ void ast_stream_free(struct ast_stream *stream);
  * \brief Create a deep clone of an existing stream
  *
  * \param stream The existing stream
+ * \param Optional name for cloned stream. If NULL, then existing stream's name is copied.
  *
  * \retval non-NULL success
  * \retval NULL failure
@@ -130,7 +131,7 @@ void ast_stream_free(struct ast_stream *stream);
  *
  * \since 15
  */
-struct ast_stream *ast_stream_clone(const struct ast_stream *stream);
+struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char *name);
 
 /*!
  * \brief Get the name of a stream

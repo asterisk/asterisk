@@ -102,6 +102,10 @@ enum ast_bridge_video_mode_type {
 	/*! A single user's video feed is distributed to all bridge channels, but
 	 *  that feed is automatically picked based on who is talking the most. */
 	AST_BRIDGE_VIDEO_MODE_TALKER_SRC,
+	/*! Operate as a selective forwarding unit. Video from each participant is
+	 * cloned to a dedicated stream on a subset of the remaining participants.
+	 */
+	AST_BRIDGE_VIDEO_MODE_SFU,
 };
 
 /*! \brief This is used for both SINGLE_SRC mode to set what channel
@@ -267,6 +271,8 @@ struct ast_bridge_softmix {
 	unsigned int binaural_active;
 };
 
+AST_LIST_HEAD_NOLOCK(ast_bridge_channels_list, ast_bridge_channel);
+
 /*!
  * \brief Structure that contains information about a bridge
  */
@@ -284,7 +290,7 @@ struct ast_bridge {
 	/*! Call ID associated with the bridge */
 	ast_callid callid;
 	/*! Linked list of channels participating in the bridge */
-	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
+	struct ast_bridge_channels_list channels;
 	/*! Queue of actions to perform on the bridge. */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) action_queue;
 	/*! Softmix technology parameters. */
