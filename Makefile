@@ -124,6 +124,9 @@ _ASTLDFLAGS+=$(LDOPTS)
 # libxml2 cflags
 _ASTCFLAGS+=$(LIBXML2_INCLUDE)
 
+# BIND_8_COMPAT
+_ASTCFLAGS+=$(BIND8_CFLAGS)
+
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
 
