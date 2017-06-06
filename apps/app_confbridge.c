@@ -1483,6 +1483,8 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 
 		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
 			ast_bridge_set_talker_src_video_mode(conference->bridge);
+		} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_SFU)) {
+			ast_bridge_set_sfu_video_mode(conference->bridge);
 		}
 
 		/* Link it into the conference bridges container */
@@ -2841,7 +2843,9 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			break;
 		case MENU_ACTION_SET_SINGLE_VIDEO_SRC:
 			ao2_lock(conference);
-			ast_bridge_set_single_src_video_mode(conference->bridge, bridge_channel->chan);
+			if (!ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_SFU)) {
+				ast_bridge_set_single_src_video_mode(conference->bridge, bridge_channel->chan);
+			}
 			ao2_unlock(conference);
 			break;
 		case MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC:

@@ -898,6 +898,11 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge);
 
 /*!
+ * \brief Set the bridge to be a selective forwarding unit
+ */
+void ast_bridge_set_sfu_video_mode(struct ast_bridge *bridge);
+
+/*!
  * \brief Update information about talker energy for talker src video mode.
  */
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyfame);
