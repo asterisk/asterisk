@@ -40,11 +40,19 @@
 ASTERISK_REGISTER_FILE()
 
 #include <math.h>                       /* for pow */
-#include <srtp/srtp.h>
-#ifdef HAVE_OPENSSL
-#include <openssl/rand.h>
+
+#if HAVE_SRTP_VERSION > 1
+# include <srtp2/srtp.h>
+# include <srtp2/crypto_types.h>
+# include "srtp/srtp_compat.h"
+# include <openssl/rand.h>
 #else
-#include <srtp/crypto_kernel.h>
+# include <srtp/srtp.h>
+# ifdef HAVE_OPENSSL
+#  include <openssl/rand.h>
+# else
+#  include <srtp/crypto_kernel.h>
+# endif
 #endif
 
 #include "asterisk/astobj2.h"           /* for ao2_t_ref, etc */
