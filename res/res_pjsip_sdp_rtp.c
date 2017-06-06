@@ -411,7 +411,24 @@ static int set_caps(struct ast_sip_session *session,
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(caps, media_type);
-		ast_format_cap_append_from_cap(caps, joint, media_type);
+
+		/*
+		 * If we don't allow the sending codec to be changed on our side
+		 * then get the best codec from the joint capabilities of the media
+		 * type and use only that. This ensures the core won't start sending
+		 * out a format that we aren't currently sending.
+		 */
+		if (!session->endpoint->asymmetric_rtp_codec) {
+			struct ast_format *best;
+
+			best = ast_format_cap_get_best_by_type(joint, media_type);
+			if (best) {
+				ast_format_cap_append(caps, best, ast_format_cap_get_framing(joint));
+				ao2_ref(best, -1);
+			}
+		} else {
+			ast_format_cap_append_from_cap(caps, joint, media_type);
+		}
 
 		/*
 		 * Apply the new formats to the channel, potentially changing

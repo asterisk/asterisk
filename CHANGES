@@ -25,6 +25,12 @@ chan_pjsip
    function any contact which is considered unreachable due to qualify being
    enabled will no longer be called.
 
+ * The asymmetric_rtp_codec option now also controls whether chan_pjsip will
+   send media as-is without transcoding if the codec has been negotiated in the
+   SDP. If set to "no" then Asterisk will only ever send the preferred codec
+   from the SDP, unless the remote side sends a different codec and we will
+   switch to match.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
 ------------------------------------------------------------------------------
