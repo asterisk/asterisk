@@ -38,6 +38,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/format.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/frame.h"
+#include "asterisk/smoother.h"
 
 int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name,
 	struct ast_module *mod);
@@ -265,7 +266,7 @@ static struct ast_codec slin8 = {
 	.minimum_bytes = 160,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin12 = {
@@ -279,7 +280,7 @@ static struct ast_codec slin12 = {
 	.minimum_bytes = 240,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin16 = {
@@ -293,7 +294,7 @@ static struct ast_codec slin16 = {
 	.minimum_bytes = 320,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin24 = {
@@ -307,7 +308,7 @@ static struct ast_codec slin24 = {
 	.minimum_bytes = 480,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin32 = {
@@ -321,7 +322,7 @@ static struct ast_codec slin32 = {
 	.minimum_bytes = 640,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin44 = {
@@ -335,7 +336,7 @@ static struct ast_codec slin44 = {
 	.minimum_bytes = 882,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin48 = {
@@ -349,7 +350,7 @@ static struct ast_codec slin48 = {
 	.minimum_bytes = 960,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin96 = {
@@ -363,7 +364,7 @@ static struct ast_codec slin96 = {
 	.minimum_bytes = 1920,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static struct ast_codec slin192 = {
@@ -377,7 +378,7 @@ static struct ast_codec slin192 = {
 	.minimum_bytes = 3840,
 	.samples_count = slin_samples,
 	.get_length = slin_length,
-	.smooth = 1,
+	.smooth = AST_SMOOTHER_FLAGS_PACK(AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED),
 };
 
 static int lpc10_samples(struct ast_frame *frame)
