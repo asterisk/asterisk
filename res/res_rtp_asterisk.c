@@ -3747,7 +3747,7 @@ static int ast_rtcp_write(const void *data)
 }
 
 /*! \pre instance is locked */
-static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *frame, int codec)
+static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *frame, int codec)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int pred, mark = 0;
@@ -4016,10 +4016,10 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	/* If no smoother is present see if we have to set one up */
 	if (!rtp->smoother && ast_format_can_be_smoothed(format)) {
+		unsigned int smoother_flags = ast_format_get_smoother_flags(format);
 		unsigned int framing_ms = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(instance));
-		int is_slinear = ast_format_cache_is_slinear(format);
 
-		if (!framing_ms && is_slinear) {
+		if (!framing_ms && (smoother_flags & AST_SMOOTHER_FLAG_FORCED)) {
 			framing_ms = ast_format_get_default_ms(format);
 		}
 
@@ -4030,9 +4030,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 					ast_format_get_name(format), framing_ms, ast_format_get_minimum_bytes(format));
 				return -1;
 			}
-			if (is_slinear) {
-				ast_smoother_set_flags(rtp->smoother, AST_SMOOTHER_FLAG_BE);
-			}
+			ast_smoother_set_flags(rtp->smoother, smoother_flags);
 		}
 	}
 
@@ -4047,7 +4045,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		}
 
 		while ((f = ast_smoother_read(rtp->smoother)) && (f->data.ptr)) {
-				ast_rtp_raw_write(instance, f, codec);
+				rtp_raw_write(instance, f, codec);
 		}
 	} else {
 		int hdrlen = 12;
@@ -4059,7 +4057,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			f = frame;
 		}
 		if (f->data.ptr) {
-			ast_rtp_raw_write(instance, f, codec);
+			rtp_raw_write(instance, f, codec);
 		}
 		if (f != frame) {
 			ast_frfree(f);
