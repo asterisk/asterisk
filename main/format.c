@@ -377,7 +377,13 @@ const char *ast_format_get_codec_name(const struct ast_format *format)
 
 int ast_format_can_be_smoothed(const struct ast_format *format)
 {
-	return format->codec->smooth;
+	/* Coalesce to 1 if non-zero */
+	return format->codec->smooth ? 1 : 0;
+}
+
+int ast_format_get_smoother_flags(const struct ast_format *format)
+{
+	return AST_SMOOTHER_FLAGS_UNPACK(format->codec->smooth);
 }
 
 enum ast_media_type ast_format_get_type(const struct ast_format *format)
