@@ -99,6 +99,8 @@ struct multicast_rtp {
 	struct ast_smoother *smoother;
 };
 
+#define MAX_TIMESTAMP_SKEW 640
+
 enum {
 	OPT_CODEC = (1 << 0),
 	OPT_LOOP =  (1 << 1),
@@ -415,21 +417,36 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	unsigned char *rtpheader;
 	struct ast_sockaddr remote_address = { {0,} };
 	int rate = rtp_get_rate(frame->subclass.format) / 1000;
-	int hdrlen = 12;
+	int hdrlen = 12, mark = 0;
 
-	/* Calculate last TS */
-	multicast->lastts = multicast->lastts + ms * rate;
+	if (ast_format_cmp(frame->subclass.format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) {
+		frame->samples /= 2;
+	}
+
+	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
+		multicast->lastts = frame->ts * rate;
+	} else {
+		/* Try to predict what our timestamp should be */
+		int pred = multicast->lastts + frame->samples;
+
+		/* Calculate last TS */
+		multicast->lastts = multicast->lastts + ms * rate;
+		if (ast_tvzero(frame->delivery)) {
+			int delta = abs((int) multicast->lastts - pred);
+			if (delta < MAX_TIMESTAMP_SKEW) {
+				multicast->lastts = pred;
+			} else {
+				ast_debug(3, "Difference is %d, ms is %u\n", delta, ms);
+				mark = 1;
+			}
+		}
+	}
 
 	/* Construct an RTP header for our packet */
 	rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
-	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno)));
 
-	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
-		put_unaligned_uint32(rtpheader + 4, htonl(frame->ts * 8));
-	} else {
-		put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
-	}
-
+	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno) | (mark << 23)));
+	put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
 	put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
 
 	/* Increment sequence number and wrap to 0 if it overflows 16 bits. */
