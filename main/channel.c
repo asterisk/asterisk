@@ -5040,26 +5040,21 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 			apply_plc(chan, fr);
 		}
 
+		f = fr;
+
 		/*
 		 * Send frame to audiohooks if present, if frametype is linear (else, later as per
 		 * previous behavior)
 		 */
 		if ((stream == default_stream) && ast_channel_audiohooks(chan)) {
 			if (ast_format_cache_is_slinear(fr->subclass.format)) {
-				struct ast_frame *old_frame;
 				hooked = 1;
-				old_frame = fr;
-				fr = ast_audiohook_write_list(chan, ast_channel_audiohooks(chan), AST_AUDIOHOOK_DIRECTION_WRITE, fr);
-				if (old_frame != fr) {
-					ast_frfree(old_frame);
-				}
+				f = ast_audiohook_write_list(chan, ast_channel_audiohooks(chan), AST_AUDIOHOOK_DIRECTION_WRITE, fr);
 			}
 		}
 
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
-		if ((stream != default_stream) || ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) == AST_FORMAT_CMP_EQUAL) {
-			f = fr;
-		} else {
+		if ((stream == default_stream) && ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) != AST_FORMAT_CMP_EQUAL) {
 			if (ast_format_cmp(ast_channel_writeformat(chan), fr->subclass.format) != AST_FORMAT_CMP_EQUAL) {
 				struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
@@ -5085,7 +5080,18 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 					break;
 				}
 			}
-			f = ast_channel_writetrans(chan) ? ast_translate(ast_channel_writetrans(chan), fr, 0) : fr;
+
+			if (ast_channel_writetrans(chan)) {
+				struct ast_frame *trans_frame = ast_translate(ast_channel_writetrans(chan), f, 0);
+                               if (trans_frame != f && f != fr) {
+                                       /*
+                                        * If translate gives us a new frame and so did the audio
+                                        * hook then we need to free the one from the audio hook.
+                                        */
+                                       ast_frfree(f);
+                               }
+                               f = trans_frame;
+                       }
 		}
 
 		if (!f) {
