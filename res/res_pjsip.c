@@ -3040,7 +3040,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	if (res != PJ_SUCCESS) {
 		if (res == PJSIP_EINVALIDURI) {
 			ast_log(LOG_ERROR,
-				"Endpoint '%s': Could not create dialog to invalid URI '%s'.  Is endpoint registered?\n",
+				"Endpoint '%s': Could not create dialog to invalid URI '%s'.  Is endpoint registered and reachable?\n",
 				ast_sorcery_object_get_id(endpoint), uri);
 		}
 		return NULL;
