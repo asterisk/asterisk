@@ -1104,7 +1104,8 @@ AC_RUN_IFELSE(
       [return eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE) == -1;])],
   AC_MSG_RESULT(yes)
   AC_DEFINE([HAVE_EVENTFD], 1, [Define to 1 if your system supports eventfd and the EFD_NONBLOCK and EFD_SEMAPHORE flags.]),
-  AC_MSG_RESULT(no)
+  AC_MSG_RESULT(no),
+  AC_MSG_RESULT(cross-compile)
 )
 
 AST_GCC_ATTRIBUTE(pure)
