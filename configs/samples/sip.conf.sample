@@ -1234,7 +1234,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;   Peers handle both inbound and outbound calls and are matched by ip/port, so for
 ;   The case of incoming calls from the peer, the IP address must match in order for
 ;   The invitation to work. This means calls made from either direction won't work if
-;   The peer is unregistered while host=dynamic or if the host is otherise not set to
+;   The peer is unregistered while host=dynamic or if the host is otherwise not set to
 ;   the correct IP of the sender.
 ; * For entities with 'type=user':
 ;   Asterisk users handle inbound calls only (meaning they call Asterisk, Asterisk can't
