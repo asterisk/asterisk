@@ -1387,6 +1387,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		} else {
 			res = -1;
 		}
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_sorcery_object_get_id(channel->session->endpoint));
 		break;
 	case AST_CONTROL_VIDUPDATE:
 		media = pvt->media[SIP_MEDIA_VIDEO];
