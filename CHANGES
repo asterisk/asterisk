@@ -12,6 +12,15 @@
 --- Functionality changes from Asterisk 14.5.0 to Asterisk 14.6.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * A new endpoint option "refer_blind_progress" was added to turn off notifying
+   the progress details on Blind Transfer. If this option is not set then
+   the chan_pjsip will send NOTIFY "200 OK" immediately after "202 Accepted".
+   On default is enabled.
+   Some SIP phones like Mitel/Aastra or Snom keep the line busy until
+   receive "200 OK".
+
 res_agi
 ------------------
  * The EAGI() application will now look for a dialplan variable named
@@ -28,15 +37,6 @@ chan_pjsip
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
 ------------------------------------------------------------------------------
-
-res_pjsip
-------------------
- * A new endpoint option "refer_blind_progress" was added to turn off notifying
-   the progress details on Blind Transfer. If this option is not set then
-   the chan_pjsip will send NOTIFY "200 OK" immediately after "202 Accepted".
-   On default is enabled.
-   Some SIP phones like Mitel/Aastra or Snom keep the line busy until
-   receive "200 OK".
 
 res_rtp_asterisk
 ------------------
