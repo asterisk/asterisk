@@ -396,6 +396,11 @@ int ast_unregister_application(const char *app)
 	struct ast_app *cur;
 	int cmp;
 
+	/* Anticipate need for conlock in unreference_cached_app(), in order to avoid
+	 * possible deadlock with pbx_extension_helper()/pbx_findapp()
+	 */
+	ast_rdlock_contexts();
+
 	AST_RWLIST_WRLOCK(&apps);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
 		cmp = strcasecmp(app, cur->name);
@@ -417,6 +422,8 @@ int ast_unregister_application(const char *app)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&apps);
+
+	ast_unlock_contexts();
 
 	return cur ? 0 : -1;
 }
