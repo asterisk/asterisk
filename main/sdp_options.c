@@ -77,6 +77,39 @@ DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_impl, impl);
 DEFINE_GETTERS_SETTERS_FOR(enum ast_sdp_options_encryption, encryption);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, ssrc);
 
+struct ast_sched_context *ast_sdp_options_get_sched_type(const struct ast_sdp_options *options, enum ast_media_type type)
+{
+	struct ast_sched_context *sched = NULL;
+
+	switch (type) {
+	case AST_MEDIA_TYPE_AUDIO:
+	case AST_MEDIA_TYPE_VIDEO:
+	case AST_MEDIA_TYPE_IMAGE:
+	case AST_MEDIA_TYPE_TEXT:
+		sched = options->sched[type];
+		break;
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_END:
+		break;
+	}
+	return sched;
+}
+
+void ast_sdp_options_set_sched_type(struct ast_sdp_options *options, enum ast_media_type type, struct ast_sched_context *sched)
+{
+	switch (type) {
+	case AST_MEDIA_TYPE_AUDIO:
+	case AST_MEDIA_TYPE_VIDEO:
+	case AST_MEDIA_TYPE_IMAGE:
+	case AST_MEDIA_TYPE_TEXT:
+		options->sched[type] = sched;
+		break;
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_END:
+		break;
+	}
+}
+
 static void set_defaults(struct ast_sdp_options *options)
 {
 	options->dtmf = DEFAULT_DTMF;
