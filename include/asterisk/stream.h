@@ -359,6 +359,25 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	unsigned int position, struct ast_stream *stream);
 
 /*!
+ * \brief Delete a specified stream from the given topology.
+ * \since 15.0.0
+ *
+ * \param topology The topology of streams.
+ * \param position The topology position to delete.
+ *
+ * \note Deleting a stream will completely remove it from the topology
+ * as if it never existed in it.  i.e., Any following stream positions
+ * will shift down so there is no gap.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.
+ *
+ * \return Nothing
+ */
+int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
+	unsigned int position);
+
+/*!
  * \brief A helper function that, given a format capabilities structure,
  * creates a topology and separates the media types in format_cap into
  * separate streams.

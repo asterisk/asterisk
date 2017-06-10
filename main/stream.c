@@ -349,6 +349,29 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	return AST_VECTOR_REPLACE(&topology->streams, position, stream);
 }
 
+int ast_stream_topology_del_stream(struct ast_stream_topology *topology,
+	unsigned int position)
+{
+	struct ast_stream *stream;
+
+	ast_assert(topology != NULL);
+
+	if (AST_VECTOR_SIZE(&topology->streams) <= position) {
+		return -1;
+	}
+
+	stream = AST_VECTOR_REMOVE_ORDERED(&topology->streams, position);
+	ast_stream_free(stream);
+
+	/* Fix up higher stream position indices */
+	for (; position < AST_VECTOR_SIZE(&topology->streams); ++position) {
+		stream = AST_VECTOR_GET(&topology->streams, position);
+		stream->position = position;
+	}
+
+	return 0;
+}
+
 struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	struct ast_format_cap *cap)
 {

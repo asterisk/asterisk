@@ -529,6 +529,146 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 	return AST_TEST_PASS;
 }
 
+static int check_stream_positions(struct ast_test *test, const struct ast_stream_topology *topology)
+{
+	const struct ast_stream *stream;
+	int idx;
+	int pos;
+	enum ast_media_type type;
+
+	for (idx = 0; idx < ast_stream_topology_get_count(topology); ++idx) {
+		stream = ast_stream_topology_get_stream(topology, idx);
+		pos = ast_stream_get_position(stream);
+		if (idx != pos) {
+			type = ast_stream_get_type(stream);
+			ast_test_status_update(test, "Failed: '%s' stream says it is at position %d instead of %d\n",
+				ast_codec_media_type2str(type), pos, idx);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+AST_TEST_DEFINE(stream_topology_del_stream)
+{
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+	struct ast_stream *stream;
+	enum ast_media_type type;
+	int idx;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_del_stream";
+		info->category = "/main/stream/";
+		info->summary = "stream topology stream delete unit test";
+		info->description =
+			"Test that deleting streams at a specific position in a topology works";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topology = ast_stream_topology_alloc();
+	if (!topology) {
+		ast_test_status_update(test, "Failed to create media stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* Create streams */
+	for (type = AST_MEDIA_TYPE_UNKNOWN; type < AST_MEDIA_TYPE_END; ++type) {
+		stream = ast_stream_alloc(ast_codec_media_type2str(type), type);
+		if (!stream) {
+			ast_test_status_update(test, "Failed to create '%s' stream for testing stream topology\n",
+				ast_codec_media_type2str(type));
+			return AST_TEST_FAIL;
+		}
+		if (ast_stream_topology_append_stream(topology, stream) == -1) {
+			ast_test_status_update(test, "Failed to append '%s' stream to topology\n",
+				ast_codec_media_type2str(type));
+			ast_stream_free(stream);
+			return AST_TEST_FAIL;
+		}
+	}
+
+	/* Check initial stream positions and types for sanity. */
+	type = AST_MEDIA_TYPE_UNKNOWN;
+	for (idx = 0; idx < ast_stream_topology_get_count(topology); ++idx, ++type) {
+		stream = ast_stream_topology_get_stream(topology, idx);
+		if (type != ast_stream_get_type(stream)) {
+			ast_test_status_update(test, "Initial topology types failed: Expected:%s Got:%s\n",
+				ast_codec_media_type2str(type),
+				ast_codec_media_type2str(ast_stream_get_type(stream)));
+			return AST_TEST_FAIL;
+		}
+	}
+	if (check_stream_positions(test, topology)) {
+		ast_test_status_update(test, "Initial topology positions failed.\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* Try to delete outside of topology size */
+	if (!ast_stream_topology_del_stream(topology, ast_stream_topology_get_count(topology))) {
+		ast_test_status_update(test, "Deleting stream outside of topology succeeded!\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* Try to delete the last topology stream */
+	if (ast_stream_topology_del_stream(topology, ast_stream_topology_get_count(topology) - 1)) {
+		ast_test_status_update(test, "Failed deleting last stream of topology.\n");
+		return AST_TEST_FAIL;
+	}
+	if (check_stream_positions(test, topology)) {
+		ast_test_status_update(test, "Last stream delete topology positions failed.\n");
+		return AST_TEST_FAIL;
+	}
+	stream = ast_stream_topology_get_stream(topology, ast_stream_topology_get_count(topology) - 1);
+	type = ast_stream_get_type(stream);
+	if (type != AST_MEDIA_TYPE_END - 2) {
+		ast_test_status_update(test, "Last stream delete types failed: Expected:%s Got:%s\n",
+			ast_codec_media_type2str(AST_MEDIA_TYPE_END - 2),
+			ast_codec_media_type2str(type));
+		return AST_TEST_FAIL;
+	}
+
+	/* Try to delete the second stream in the topology */
+	if (ast_stream_topology_del_stream(topology, 1)) {
+		ast_test_status_update(test, "Failed deleting second stream in topology.\n");
+		return AST_TEST_FAIL;
+	}
+	if (check_stream_positions(test, topology)) {
+		ast_test_status_update(test, "Second stream delete topology positions failed.\n");
+		return AST_TEST_FAIL;
+	}
+	stream = ast_stream_topology_get_stream(topology, 1);
+	type = ast_stream_get_type(stream);
+	if (type != AST_MEDIA_TYPE_UNKNOWN + 2) {
+		ast_test_status_update(test, "Second stream delete types failed: Expected:%s Got:%s\n",
+			ast_codec_media_type2str(AST_MEDIA_TYPE_UNKNOWN + 2),
+			ast_codec_media_type2str(type));
+		return AST_TEST_FAIL;
+	}
+
+	/* Try to delete the first stream in the topology */
+	if (ast_stream_topology_del_stream(topology, 0)) {
+		ast_test_status_update(test, "Failed deleting first stream in topology.\n");
+		return AST_TEST_FAIL;
+	}
+	if (check_stream_positions(test, topology)) {
+		ast_test_status_update(test, "First stream delete topology positions failed.\n");
+		return AST_TEST_FAIL;
+	}
+	stream = ast_stream_topology_get_stream(topology, 0);
+	type = ast_stream_get_type(stream);
+	if (type != AST_MEDIA_TYPE_UNKNOWN + 2) {
+		ast_test_status_update(test, "First stream delete types failed: Expected:%s Got:%s\n",
+			ast_codec_media_type2str(AST_MEDIA_TYPE_UNKNOWN + 2),
+			ast_codec_media_type2str(type));
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 {
 	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
@@ -1933,6 +2073,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_clone);
 	AST_TEST_UNREGISTER(stream_topology_append_stream);
 	AST_TEST_UNREGISTER(stream_topology_set_stream);
+	AST_TEST_UNREGISTER(stream_topology_del_stream);
 	AST_TEST_UNREGISTER(stream_topology_create_from_format_cap);
 	AST_TEST_UNREGISTER(stream_topology_get_first_stream_by_type);
 	AST_TEST_UNREGISTER(stream_topology_create_from_channel_nativeformats);
@@ -1961,6 +2102,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_clone);
 	AST_TEST_REGISTER(stream_topology_append_stream);
 	AST_TEST_REGISTER(stream_topology_set_stream);
+	AST_TEST_REGISTER(stream_topology_del_stream);
 	AST_TEST_REGISTER(stream_topology_create_from_format_cap);
 	AST_TEST_REGISTER(stream_topology_get_first_stream_by_type);
 	AST_TEST_REGISTER(stream_topology_create_from_channel_nativeformats);
