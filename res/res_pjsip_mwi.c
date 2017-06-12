@@ -1278,7 +1278,9 @@ static struct ast_sorcery_observer global_observer = {
 
 static int reload(void)
 {
-	create_mwi_subscriptions();
+	if (!ast_sip_get_mwi_disable_initial_unsolicited()) {
+		create_mwi_subscriptions();
+	}
 	return 0;
 }
 
@@ -1301,13 +1303,13 @@ static int load_module(void)
 		ast_sip_unregister_subscription_handler(&mwi_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	create_mwi_subscriptions();
 
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 
 	if (!ast_sip_get_mwi_disable_initial_unsolicited()) {
+		create_mwi_subscriptions();
 		if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 			ast_sip_push_task(NULL, send_initial_notify_all, NULL);
 		} else {
