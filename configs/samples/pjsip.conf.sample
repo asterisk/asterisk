@@ -774,6 +774,11 @@
                        ; transfer (default: "yes"). The value "no" is useful
                        ; for some SIP phones (Mitel/Aastra, Snom) which expect
                        ; a sip/frag "200 OK" after REFER has been accepted.
+;notify_early_inuse_ringing = ; Whether to notifies dialog-info 'early'
+                              ; on INUSE && RINGING state (default: "no").
+                              ; The value "yes" is useful for some SIP phones
+                              ; (Cisco SPA) to be able to indicate and pick up
+                              ; ringing devices.
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
