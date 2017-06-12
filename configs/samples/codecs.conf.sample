@@ -162,9 +162,9 @@ packetloss_percentage=10;
 ;complexity= ; Encoder's computational complexity. Can be any number between 0
              ; and 10, inclusive. Note, 10 equals the highest complexity.
              ; (default: 10)
-;max_bandwitdth= ; Encoder's maximum bandwidth allowed. Sets an upper bandwidth
-                 ; bound on the encoder. Can be any of the following: narrow,
-                 ; medium, wide, super_wide, full. (default: full)
+;max_bandwidth= ; Encoder's maximum bandwidth allowed. Sets an upper bandwidth
+                ; bound on the encoder. Can be any of the following: narrow,
+                ; medium, wide, super_wide, full. (default: full)
 ;signal= ; Encoder's signal type. Aids in mode selection on the encoder: Can
          ; be any of the following: auto, voice, music. (default: auto)
 ;application= ; Encoder's application type. Can be any of the following: voip,
