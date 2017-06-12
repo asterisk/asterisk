@@ -82,7 +82,8 @@ void ast_sip_sanitize_xml(const char *input, char *output, size_t len)
 }
 
 void ast_sip_presence_exten_state_to_str(int state, char **statestring, char **pidfstate,
-			       char **pidfnote, enum ast_sip_pidf_state *local_state)
+			       char **pidfnote, enum ast_sip_pidf_state *local_state,
+			       unsigned int notify_early_inuse_ringing)
 {
 	switch (state) {
 	case AST_EXTENSION_RINGING:
@@ -92,7 +93,11 @@ void ast_sip_presence_exten_state_to_str(int state, char **statestring, char **p
 		*pidfnote = "Ringing";
 		break;
 	case (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING):
-		*statestring = "confirmed";
+		if (notify_early_inuse_ringing) {
+			*statestring = "early";
+		} else {
+			*statestring = "confirmed";
+		}
 		*local_state = NOTIFY_INUSE;
 		*pidfstate = "busy";
 		*pidfnote = "Ringing";

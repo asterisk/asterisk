@@ -965,6 +965,13 @@
 						will not send the progress details, but immediately will send "200 OK".
 					</para></description>
 				</configOption>
+				<configOption name="notify_early_inuse_ringing" default="no">
+					<synopsis>Whether to notifies dialog-info 'early' on InUse&amp;Ringing state</synopsis>
+					<description><para>
+						Control whether dialog-info subscriptions get 'early' state
+						on Ringing when already INUSE.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

@@ -107,6 +107,8 @@ static int dialog_info_generate_body_content(void *body, void *data)
 	enum ast_sip_pidf_state local_state;
 	unsigned int version;
 	char version_str[32], sanitized[PJSIP_MAX_URL_SIZE];
+	struct ast_sip_endpoint *endpoint = NULL;
+	unsigned int notify_early_inuse_ringing = 0;
 
 	if (!local || !state_data->sub) {
 		return -1;
@@ -120,8 +122,12 @@ static int dialog_info_generate_body_content(void *body, void *data)
 	stripped = ast_strip_quoted(local, "<", ">");
 	ast_sip_sanitize_xml(stripped, sanitized, sizeof(sanitized));
 
+	if (state_data->sub && (endpoint = ast_sip_subscription_get_endpoint(state_data->sub))) {
+	    notify_early_inuse_ringing = endpoint->notify_early_inuse_ringing;
+	    ao2_cleanup(endpoint);
+	}
 	ast_sip_presence_exten_state_to_str(state_data->exten_state, &statestring,
-			&pidfstate, &pidfnote, &local_state);
+			&pidfstate, &pidfnote, &local_state, notify_early_inuse_ringing);
 
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog_info, "xmlns", "urn:ietf:params:xml:ns:dialog-info");
 
@@ -133,7 +139,7 @@ static int dialog_info_generate_body_content(void *body, void *data)
 
 	dialog = ast_sip_presence_xml_create_node(state_data->pool, dialog_info, "dialog");
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog, "id", state_data->exten);
-	if (state_data->exten_state == AST_EXTENSION_RINGING) {
+	if (!ast_strlen_zero(statestring) && !strcmp(statestring, "early")) {
 		ast_sip_presence_xml_create_attr(state_data->pool, dialog, "direction", "recipient");
 	}
 

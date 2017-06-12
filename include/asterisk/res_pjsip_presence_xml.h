@@ -69,7 +69,8 @@ void ast_sip_sanitize_xml(const char *input, char *output, size_t len);
  * \param[out] local_state
  */
 void ast_sip_presence_exten_state_to_str(int state, char **statestring,
-		char **pidfstate, char **pidfnote, enum ast_sip_pidf_state *local_state);
+		char **pidfstate, char **pidfnote, enum ast_sip_pidf_state *local_state,
+		unsigned int notify_early_inuse_ringing);
 
 /*!
  * \brief Create XML attribute

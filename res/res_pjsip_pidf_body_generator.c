@@ -58,7 +58,7 @@ static int pidf_generate_body_content(void *body, void *data)
 	struct ast_sip_exten_state_data *state_data = data;
 
 	ast_sip_presence_exten_state_to_str(state_data->exten_state, &statestring,
-			&pidfstate, &pidfnote, &local_state);
+			&pidfstate, &pidfnote, &local_state, 0);
 
 	if (!pjpidf_pres_add_note(state_data->pool, pres, pj_cstr(&note, pidfnote))) {
 		ast_log(LOG_WARNING, "Unable to add note to PIDF presence\n");

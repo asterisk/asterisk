@@ -80,7 +80,7 @@ static int pidf_supplement_body(void *body, void *data)
 	enum ast_sip_pidf_state local_state;
 
 	ast_sip_presence_exten_state_to_str(state_data->exten_state, &statestring,
-			&pidfstate, &pidfnote, &local_state);
+			&pidfstate, &pidfnote, &local_state, 0);
 
 	add_eyebeam(state_data->pool, pres, pidfstate);
 	return 0;
