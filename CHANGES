@@ -21,6 +21,10 @@ res_pjsip
    Some SIP phones like Mitel/Aastra or Snom keep the line busy until
    receive "200 OK".
 
+ * A new endpoint option "notify_early_inuse_ringing" was added to control
+   whether to notify dialog-info state 'early' or 'confirmed' on Ringing
+   when already INUSE.
+
 res_agi
 ------------------
  * The EAGI() application will now look for a dialplan variable named
