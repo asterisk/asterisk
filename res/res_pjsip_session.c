@@ -1905,6 +1905,9 @@ int ast_sip_session_defer_termination(struct ast_sip_session *session)
 
 	session->defer_terminate = 1;
 
+	session->defer_end = 1;
+	session->ended_while_deferred = 0;
+
 	session->scheduled_termination.id = 0;
 	ao2_ref(session, +1);
 	session->scheduled_termination.user_data = session;
@@ -1942,6 +1945,7 @@ void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session)
 		/* Already canceled or timer fired. */
 		return;
 	}
+
 	session->defer_terminate = 0;
 
 	if (session->terminate_while_deferred) {
@@ -1951,6 +1955,22 @@ void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session)
 
 	/* Stop the termination timer if it is still running. */
 	sip_session_defer_termination_stop_timer(session);
+}
+
+void ast_sip_session_end_if_deferred(struct ast_sip_session *session)
+{
+	if (!session->defer_end) {
+		return;
+	}
+
+	session->defer_end = 0;
+
+	if (session->ended_while_deferred) {
+		/* Complete the session end started by the remote hangup. */
+		ast_debug(3, "Ending session (%p) after being deferred\n", session);
+		session->ended_while_deferred = 0;
+		session_end(session);
+	}
 }
 
 struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
@@ -2672,6 +2692,12 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 	}
 
 	if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+		if (session->defer_end) {
+			ast_debug(3, "Deferring session (%p) end\n", session);
+			session->ended_while_deferred = 1;
+			return;
+		}
+
 		if (ast_sip_push_task(session->serializer, session_end, session)) {
 			/* Do it anyway even though this is not the right thread. */
 			session_end(session);
