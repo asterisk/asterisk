@@ -1547,6 +1547,10 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
+
+	CHECK_ARI_MODULE_LOADED();
+
+
 	stasis_app_ref();
 	res |= ast_ari_add_handler(&bridges);
 	if (res) {
