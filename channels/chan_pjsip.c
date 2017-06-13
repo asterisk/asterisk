@@ -735,11 +735,24 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 
 	if (!session->endpoint->asymmetric_rtp_codec &&
 		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		/* For maximum compatibility we ensure that the write format matches that of the received media */
+		struct ast_format_cap *caps;
+
+		/* For maximum compatibility we ensure that the formats match that of the received media */
 		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when we're sending '%s', switching to match\n",
 			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
 			ast_format_get_name(ast_channel_rawwriteformat(ast)));
+
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (caps) {
+			ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(ast), AST_MEDIA_TYPE_UNKNOWN);
+			ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_AUDIO);
+			ast_format_cap_append(caps, f->subclass.format, 0);
+			ast_channel_nativeformats_set(ast, caps);
+			ao2_ref(caps, -1);
+		}
+
 		ast_set_write_format_path(ast, ast_channel_writeformat(ast), f->subclass.format);
+		ast_set_read_format_path(ast, ast_channel_readformat(ast), f->subclass.format);
 
 		if (ast_channel_is_bridged(ast)) {
 			ast_channel_set_unbridged_nolock(ast, 1);
