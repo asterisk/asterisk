@@ -539,6 +539,7 @@ static int refer_attended_task(void *data)
 		}
 	}
 
+	ast_sip_session_end_if_deferred(attended->transferer);
 	if (response != 200) {
 		if (!ast_sip_push_task(attended->transferer->serializer,
 			defer_termination_cancel, attended->transferer)) {
@@ -757,6 +758,7 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 
 		/* Push it to the other session, which will have both channels with minimal locking */
 		if (ast_sip_push_task(other_session->serializer, refer_attended_task, attended)) {
+			ast_sip_session_end_if_deferred(session);
 			ast_sip_session_defer_termination_cancel(session);
 			ao2_cleanup(attended);
 			return 500;
@@ -794,9 +796,12 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 
 		response = xfer_response_code2sip(ast_bridge_transfer_blind(1, session->channel,
 			"external_replaces", context, refer_blind_callback, &refer));
+
+		ast_sip_session_end_if_deferred(session);
 		if (response != 200) {
 			ast_sip_session_defer_termination_cancel(session);
 		}
+
 		return response;
 	}
 }
@@ -841,9 +846,12 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 
 	response = xfer_response_code2sip(ast_bridge_transfer_blind(1, session->channel,
 		exten, context, refer_blind_callback, &refer));
+
+	ast_sip_session_end_if_deferred(session);
 	if (response != 200) {
 		ast_sip_session_defer_termination_cancel(session);
 	}
+
 	return response;
 }
 
