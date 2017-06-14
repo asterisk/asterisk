@@ -1,4 +1,4 @@
-PJPROJECT_URL = http://www.pjsip.org/release/$(PJPROJECT_VERSION)
+PJPROJECT_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/pjproject/$(PJPROJECT_VERSION)
 
 # Even though we're not installing pjproject, we're setting prefix to /opt/pjproject to be safe
 
