@@ -3443,7 +3443,7 @@ static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 		ast_debug(3, "Changing ssrc for SRTP from %u to %u\n", rtp->ssrc, ssrc);
 		res_srtp->change_source(srtp, rtp->ssrc, ssrc);
 		if (rtcp_srtp != srtp) {
-			res_srtp->change_source(srtp, rtp->ssrc, ssrc);
+			res_srtp->change_source(rtcp_srtp, rtp->ssrc, ssrc);
 		}
 	}
 
