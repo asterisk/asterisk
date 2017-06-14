@@ -97,7 +97,7 @@ endef
 define download_from_pjproject
 	($(SHELL_ECHO_PREFIX) Downloading $(TARBALL_URL) to $(TARBALL) ;\
 	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,60) $(TARBALL_URL) > $(TARBALL) &&\
-	$(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/MD5SUM to $(PJMD5SUM) &&\
+	$(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/MD5SUM.TXT to $(PJMD5SUM) &&\
 	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,60) $(PJPROJECT_URL)/MD5SUM.TXT > $(PJMD5SUM) &&\
 	$(verify_tarball))
 endef
