@@ -2732,7 +2732,7 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	}
 	if (fread(buf, 1, len, p) != len) {
 		if (ferror(p)) {
-			ast_log(LOG_ERROR, "Error while reading mail file: %s\n");
+			ast_log(LOG_ERROR, "Error while reading mail file: %s\n", tmp);
 			return -1;
 		}
 	}
