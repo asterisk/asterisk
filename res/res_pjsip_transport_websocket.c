@@ -302,10 +302,14 @@ static int get_write_timeout(void)
 
 		for (; (transport_state = ao2_iterator_next(&it_transport_states)); ao2_cleanup(transport_state)) {
 			struct ast_sip_transport *transport;
+
 			if (transport_state->type != AST_TRANSPORT_WS && transport_state->type != AST_TRANSPORT_WSS) {
 				continue;
 			}
 			transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id);
+			if (!transport) {
+				continue;
+			}
 			ast_debug(5, "Found %s transport with write timeout: %d\n",
 				transport->type == AST_TRANSPORT_WS ? "WS" : "WSS",
 				transport->write_timeout);
