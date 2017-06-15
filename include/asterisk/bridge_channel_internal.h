@@ -98,6 +98,17 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
 
 /*!
  * \internal
+ * \brief Queue any deferred frames on the channel.
+ * \since 13.17.0
+ *
+ * \param bridge_channel Channel that the deferred frames should be pulled from and queued to.
+ *
+ * \return Nothing
+ */
+void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \internal
  * \brief Push the bridge channel into its specified bridge.
  * \since 12.0.0
  *

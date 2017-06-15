@@ -145,6 +145,8 @@ struct ast_bridge_channel {
 	AST_LIST_ENTRY(ast_bridge_channel) entry;
 	/*! Queue of outgoing frames to the channel. */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) wr_queue;
+	/*! Queue of deferred frames, queued onto channel when other party joins. */
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_queue;
 	/*! Pipe to alert thread when frames are put into the wr_queue. */
 	int alert_pipe[2];
 	/*!
