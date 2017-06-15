@@ -13134,10 +13134,25 @@ static void imap_logout(const char *mailbox_id)
 		return;
 	}
 
+	ast_mutex_lock(&vms->lock);
 	vms->mailstream = mail_close(vms->mailstream);
+	ast_mutex_unlock(&vms->lock);
+
 	vmstate_delete(vms);
 }
 
+static void imap_close_subscribed_mailboxes(void)
+{
+	struct mwi_sub *mwi_sub;
+
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			imap_logout(mwi_sub->mailbox);
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
+}
 #endif
 
 static int handle_unsubscribe(void *datap)
@@ -13591,7 +13606,11 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	strcpy(listen_control_restart_key, DEFAULT_LISTEN_CONTROL_RESTART_KEY);
 	strcpy(listen_control_stop_key, DEFAULT_LISTEN_CONTROL_STOP_KEY);
 
-	/* Free all the users structure */	
+#ifdef IMAP_STORAGE
+	imap_close_subscribed_mailboxes();
+#endif
+
+	/* Free all the users structure */
 	free_vm_users();
 
 	/* Free all the zones structure */
@@ -14985,6 +15004,9 @@ static int unload_module(void)
 	ast_unload_realtime("voicemail");
 	ast_unload_realtime("voicemail_data");
 
+#ifdef IMAP_STORAGE
+	imap_close_subscribed_mailboxes();
+#endif
 	free_vm_users();
 	free_vm_zones();
 	return res;
