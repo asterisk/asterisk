@@ -1086,7 +1086,9 @@ static void remove_subscription(struct sip_subscription_tree *obj)
 static void destroy_subscription(struct ast_sip_subscription *sub)
 {
 	ast_debug(3, "Destroying SIP subscription from '%s->%s'\n",
-		ast_sorcery_object_get_id(sub->tree->endpoint), sub->resource);
+		sub->tree->endpoint ? ast_sorcery_object_get_id(sub->tree->endpoint) : "Unknown",
+		sub->resource);
+
 	ast_free(sub->body_text);
 
 	AST_VECTOR_FREE(&sub->children);
@@ -1243,13 +1245,13 @@ static void subscription_tree_destructor(void *obj)
 		sub_tree->endpoint ? ast_sorcery_object_get_id(sub_tree->endpoint) : "Unknown",
 		sub_tree->root ? sub_tree->root->resource : "Unknown");
 
-	ao2_cleanup(sub_tree->endpoint);
-
 	destroy_subscriptions(sub_tree->root);
 
 	if (sub_tree->dlg) {
 		ast_sip_push_task_synchronous(sub_tree->serializer, subscription_unreference_dialog, sub_tree);
 	}
+
+	ao2_cleanup(sub_tree->endpoint);
 
 	ast_taskprocessor_unreference(sub_tree->serializer);
 	ast_module_unref(ast_module_info->self);
