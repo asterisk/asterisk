@@ -370,6 +370,8 @@ static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, 
 		endpoint->dtmf = AST_SIP_DTMF_RFC_4733;
 	} else if (!strcasecmp(var->value, "inband")) {
 		endpoint->dtmf = AST_SIP_DTMF_INBAND;
+	} else if (!strcasecmp(var->value, "auto_info")) {
+		endpoint->dtmf = AST_SIP_DTMF_AUTO_INFO;
 	} else if (!strcasecmp(var->value, "info")) {
 		endpoint->dtmf = AST_SIP_DTMF_INFO;
 	} else if (!strcasecmp(var->value, "auto")) {
@@ -394,8 +396,11 @@ static int dtmf_to_str(const void *obj, const intptr_t *args, char **buf)
 		*buf = "inband"; break;
 	case AST_SIP_DTMF_INFO :
 		*buf = "info"; break;
-       case AST_SIP_DTMF_AUTO :
+	case AST_SIP_DTMF_AUTO :
 		*buf = "auto"; break;
+	case AST_SIP_DTMF_AUTO_INFO :
+		*buf = "auto_info";
+		break;
 	default:
 		*buf = "none";
 	}
