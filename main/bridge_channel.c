@@ -638,18 +638,21 @@ void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int caus
 static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	const struct ast_control_t38_parameters *t38_parameters;
+	int deferred;
 
 	ast_assert(frame->frametype != AST_FRAME_BRIDGE_ACTION_SYNC);
 
 	ast_bridge_channel_lock_bridge(bridge_channel);
-/*
- * XXX need to implement a deferred write queue for when there
- * is no peer channel in the bridge (yet or it was kicked).
- *
- * The tech decides if a frame needs to be pushed back for deferral.
- * simple_bridge/native_bridge are likely the only techs that will do this.
- */
-	bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
+
+	deferred = bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
+	if (deferred) {
+		struct ast_frame *dup;
+
+		dup = ast_frdup(frame);
+		if (dup) {
+			AST_LIST_INSERT_HEAD(&bridge_channel->deferred_queue, dup, frame_list);
+		}
+	}
 
 	/* Remember any owed events to the bridge. */
 	switch (frame->frametype) {
@@ -751,6 +754,18 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
 		bridge_channel->owed.t38_terminate = 0;
 		orig_bridge->technology->write(orig_bridge, NULL, &frame);
 	}
+}
+
+void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_frame *frame;
+
+	ast_channel_lock(bridge_channel->chan);
+	while ((frame = AST_LIST_REMOVE_HEAD(&bridge_channel->deferred_queue, frame_list))) {
+		ast_queue_frame_head(bridge_channel->chan, frame);
+		ast_frfree(frame);
+	}
+	ast_channel_unlock(bridge_channel->chan);
 }
 
 /*!
@@ -2932,6 +2947,11 @@ static void bridge_channel_destroy(void *obj)
 		bridge_frame_free(fr);
 	}
 	ast_alertpipe_close(bridge_channel->alert_pipe);
+
+	/* Flush any unhandled deferred_queue frames. */
+	while ((fr = AST_LIST_REMOVE_HEAD(&bridge_channel->deferred_queue, frame_list))) {
+		ast_frfree(fr);
+	}
 
 	ast_cond_destroy(&bridge_channel->cond);
 

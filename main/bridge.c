@@ -476,6 +476,7 @@ static void bridge_complete_join(struct ast_bridge *bridge)
 	}
 
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		bridge_channel_queue_deferred_frames(bridge_channel);
 		if (!bridge_channel->just_joined) {
 			continue;
 		}
