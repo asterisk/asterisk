@@ -13029,6 +13029,40 @@ static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
 	ast_free(mwi_sub);
 }
 
+#ifdef IMAP_STORAGE
+static void imap_logout(const char *mailbox_id)
+{
+	char *context;
+	char *mailbox;
+	struct ast_vm_user vmus;
+	RAII_VAR(struct ast_vm_user *, vmu, NULL, free_user);
+	struct vm_state *vms = NULL;
+
+	if (ast_strlen_zero(mailbox_id)
+		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
+		return;
+	}
+
+	memset(&vmus, 0, sizeof(vmus));
+
+	if (!(vmu = find_user(&vmus, context, mailbox)) || vmu->imapuser[0] == '\0') {
+		return;
+	}
+
+	vms = get_vm_state_by_imapuser(vmu->imapuser, 0);
+	if (!vms) {
+		vms = get_vm_state_by_mailbox(mailbox, context, 0);
+	}
+	if (!vms) {
+		return;
+	}
+
+	vms->mailstream = mail_close(vms->mailstream);
+	vmstate_delete(vms);
+}
+
+#endif
+
 static int handle_unsubscribe(void *datap)
 {
 	struct mwi_sub *mwi_sub;
@@ -13040,6 +13074,9 @@ static int handle_unsubscribe(void *datap)
 			AST_LIST_REMOVE_CURRENT(entry);
 			/* Don't break here since a duplicate uniqueid
 			 * may have been added as a result of a cache dump. */
+#ifdef IMAP_STORAGE
+			imap_logout(mwi_sub->mailbox);
+#endif
 			mwi_sub_destroy(mwi_sub);
 		}
 	}
