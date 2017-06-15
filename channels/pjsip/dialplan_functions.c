@@ -927,36 +927,40 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
 static int media_offer_read_av(struct ast_sip_session *session, char *buf,
 			       size_t len, enum ast_media_type media_type)
 {
-	int i, size = 0;
+	int idx;
+	size_t accum = 0;
 
-	for (i = 0; i < ast_format_cap_count(session->req_caps); i++) {
-		struct ast_format *fmt = ast_format_cap_get_format(session->req_caps, i);
+	/* Note: buf is not terminated while the string is being built. */
+	for (idx = 0; idx < ast_format_cap_count(session->req_caps); ++idx) {
+		struct ast_format *fmt;
+		size_t size;
 
+		fmt = ast_format_cap_get_format(session->req_caps, idx);
 		if (ast_format_get_type(fmt) != media_type) {
 			ao2_ref(fmt, -1);
 			continue;
 		}
 
-		/* add one since we'll include a comma */
+		/* Add one for a comma or terminator */
 		size = strlen(ast_format_get_name(fmt)) + 1;
 		if (len < size) {
 			ao2_ref(fmt, -1);
 			break;
 		}
+
+		/* Append the format name */
+		strcpy(buf + accum, ast_format_get_name(fmt));/* Safe */
+		ao2_ref(fmt, -1);
+
+		accum += size;
 		len -= size;
 
-		/* no reason to use strncat here since we have already ensured buf has
-                   enough space, so strcat can be safely used */
-		strcat(buf, ast_format_get_name(fmt));
-		strcat(buf, ",");
-
-		ao2_ref(fmt, -1);
+		/* The last comma on the built string will be set to the terminator. */
+		buf[accum - 1] = ',';
 	}
 
-	if (size) {
-		/* remove the extra comma */
-		buf[strlen(buf) - 1] = '\0';
-	}
+	/* Remove the trailing comma or terminate an empty buffer. */
+	buf[accum ? accum - 1 : 0] = '\0';
 	return 0;
 }
 
@@ -996,6 +1000,9 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_AUDIO);
 	} else if (!strcmp(data, "video")) {
 		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_VIDEO);
+	} else {
+		/* Ensure that the buffer is empty */
+		buf[0] = '\0';
 	}
 
 	return 0;
