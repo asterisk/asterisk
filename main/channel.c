@@ -10822,7 +10822,7 @@ static const struct ast_datastore_info *suppress_get_datastore_information(enum 
 
 int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype)
 {
-	RAII_VAR(struct suppress_data *, suppress, NULL, ao2_cleanup);
+	struct suppress_data *suppress;
 	const struct ast_datastore_info *datastore_info = NULL;
 	struct ast_datastore *datastore = NULL;
 	struct ast_framehook_interface interface = {
@@ -10858,6 +10858,7 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 	if (framehook_id < 0) {
 		/* Hook attach failed.  Get rid of the evidence. */
 		ast_log(LOG_WARNING, "Failed to attach framehook while attempting to suppress a stream.\n");
+		ao2_ref(suppress, -1);
 		return -1;
 	}
 
@@ -10869,11 +10870,11 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 	if (!(datastore = ast_datastore_alloc(datastore_info, NULL))) {
 		ast_log(LOG_WARNING, "Failed to allocate datastore while attempting to suppress a stream.\n");
 		ast_framehook_detach(chan, framehook_id);
+		ao2_ref(suppress, -1);
 		return -1;
 	}
 
-	/* and another ref for the datastore */
-	ao2_ref(suppress, +1);
+	/* the ref provided by the allocation is taken by the datastore */
 	datastore->data = suppress;
 
 	ast_channel_datastore_add(chan, datastore);
