@@ -63,7 +63,37 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 
 static int simple_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
-	return ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
+	const struct ast_control_t38_parameters *t38_parameters;
+	int defer = 0;
+
+	if (!ast_bridge_queue_everyone_else(bridge, bridge_channel, frame)) {
+		/* This frame was successfully queued so no need to defer */
+		return 0;
+	}
+
+	/* Depending on the frame defer it so when the next channel joins it receives it */
+	switch (frame->frametype) {
+	case AST_FRAME_CONTROL:
+		switch (frame->subclass.integer) {
+		case AST_CONTROL_T38_PARAMETERS:
+			t38_parameters = frame->data.ptr;
+			switch (t38_parameters->request_response) {
+			case AST_T38_REQUEST_NEGOTIATE:
+				defer = -1;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return defer;
 }
 
 static struct ast_bridge_technology simple_bridge = {

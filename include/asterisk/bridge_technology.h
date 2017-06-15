@@ -156,6 +156,9 @@ struct ast_bridge_technology {
 	 * \retval -1 Frame needs to be deferred.
 	 *
 	 * \note On entry, bridge is already locked.
+	 *
+	 * \note Deferred frames will be automatically queued onto the channel when another
+	 * channel joins the bridge.
 	 */
 	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
 	/*!
