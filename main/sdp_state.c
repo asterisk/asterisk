@@ -875,6 +875,7 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
 {
 	struct ast_rtp_engine_ice *ice;
 	const struct ast_sdp_a_line *attr;
+	const struct ast_sdp_a_line *attr_rtcp_mux;
 	unsigned int attr_i;
 
 	/* If ICE support is not enabled or available exit early */
@@ -902,9 +903,11 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
 		return;
 	}
 
-	if (ast_sdp_m_find_attribute(remote_m_line, "ice-lite", -1)) {
+	if (ast_sdp_find_attribute(remote_sdp, "ice-lite", -1)) {
 		ice->ice_lite(rtp);
 	}
+
+	attr_rtcp_mux = ast_sdp_m_find_attribute(remote_m_line, "rtcp-mux", -1);
 
 	/* Find all of the candidates */
 	for (attr_i = 0; attr_i < ast_sdp_m_get_a_count(remote_m_line); ++attr_i) {
@@ -931,9 +934,9 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
 			continue;
 		}
 
-		if (ast_sdp_options_get_rtcp_mux(options)
-			&& ast_sdp_m_find_attribute(remote_m_line, "rtcp-mux", -1)
-			&& candidate.id > 1) {
+		if (candidate.id > 1
+			&& attr_rtcp_mux
+			&& ast_sdp_options_get_rtcp_mux(options)) {
 			/* Remote side may have offered RTP and RTCP candidates. However, if we're using RTCP MUX,
 			 * then we should ignore RTCP candidates.
 			 */
