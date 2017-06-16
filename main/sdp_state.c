@@ -997,9 +997,30 @@ static void update_rtp_after_merge(const struct ast_sdp_state *state,
 	const struct ast_sdp *remote_sdp,
 	const struct ast_sdp_m_line *remote_m_line)
 {
+	struct ast_sdp_c_line *c_line;
+	struct ast_sockaddr *addrs;
+
 	if (!rtp) {
 		/* This is a dummy stream */
 		return;
+	}
+
+	c_line = remote_m_line->c_line;
+	if (!c_line) {
+		c_line = remote_sdp->c_line;
+	}
+	/*
+	 * There must be a c= line somewhere but that would be an error by
+	 * the far end that should have been caught by a validation check
+	 * before we processed the SDP.
+	 */
+	ast_assert(c_line != NULL);
+
+	if (ast_sockaddr_resolve(&addrs, c_line->address, PARSE_PORT_FORBID, AST_AF_UNSPEC) > 0) {
+		/* Apply connection information to the RTP instance */
+		ast_sockaddr_set_port(addrs, remote_m_line->port);
+		ast_rtp_instance_set_remote_address(rtp->instance, addrs);
+		ast_free(addrs);
 	}
 
 	if (ast_sdp_options_get_rtcp_mux(options)
@@ -1011,9 +1032,7 @@ static void update_rtp_after_merge(const struct ast_sdp_state *state,
 			AST_RTP_INSTANCE_RTCP_STANDARD);
 	}
 
-	if (ast_sdp_options_get_ice(options) == AST_SDP_ICE_ENABLED_STANDARD) {
-		update_ice(state, rtp->instance, options, remote_sdp, remote_m_line);
-	}
+	update_ice(state, rtp->instance, options, remote_sdp, remote_m_line);
 }
 
 /*!
@@ -1066,12 +1085,19 @@ static void update_udptl_after_merge(const struct ast_sdp_state *state, struct s
 		}
 	}
 
-	c_line = remote_sdp->c_line;
-	if (remote_m_line->c_line) {
-		c_line = remote_m_line->c_line;
+	c_line = remote_m_line->c_line;
+	if (!c_line) {
+		c_line = remote_sdp->c_line;
 	}
+	/*
+	 * There must be a c= line somewhere but that would be an error by
+	 * the far end that should have been caught by a validation check
+	 * before we processed the SDP.
+	 */
+	ast_assert(c_line != NULL);
 
 	if (ast_sockaddr_resolve(&addrs, c_line->address, PARSE_PORT_FORBID, AST_AF_UNSPEC) > 0) {
+		/* Apply connection information to the UDPTL instance */
 		ast_sockaddr_set_port(addrs, remote_m_line->port);
 		ast_udptl_set_peer(udptl->instance, addrs);
 		ast_free(addrs);
@@ -1734,13 +1760,16 @@ static struct ast_sdp *sdp_create_from_state(const struct ast_sdp_state *sdp_sta
 	if (!c_line) {
 		goto error;
 	}
-
 	s_line = ast_sdp_s_alloc(options->sdpsession);
 	if (!s_line) {
 		goto error;
 	}
+	t_line = ast_sdp_t_alloc(0, 0);
+	if (!t_line) {
+		goto error;
+	}
 
-	sdp = ast_sdp_alloc(o_line, c_line, s_line, NULL);
+	sdp = ast_sdp_alloc(o_line, c_line, s_line, t_line);
 	if (!sdp) {
 		goto error;
 	}

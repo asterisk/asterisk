@@ -755,7 +755,12 @@ AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 {
 	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
-	struct ast_stream *first_stream, *second_stream, *third_stream, *fourth_stream;
+	struct ast_stream *first_stream;
+	struct ast_stream *second_stream;
+	struct ast_stream *third_stream;
+	struct ast_stream *fourth_stream;
+	struct ast_stream *fifth_stream;
+	struct ast_stream *sixth_stream;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -780,6 +785,7 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
 	}
+	ast_stream_set_state(first_stream, AST_STREAM_STATE_REMOVED);
 
 	if (ast_stream_topology_append_stream(topology, first_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
@@ -799,9 +805,9 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 		return AST_TEST_FAIL;
 	}
 
-	third_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
+	third_stream = ast_stream_alloc("audio3", AST_MEDIA_TYPE_AUDIO);
 	if (!third_stream) {
-		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
+		ast_test_status_update(test, "Failed to create a third audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -811,11 +817,12 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 		return AST_TEST_FAIL;
 	}
 
-	fourth_stream = ast_stream_alloc("video2", AST_MEDIA_TYPE_VIDEO);
+	fourth_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!fourth_stream) {
-		ast_test_status_update(test, "Failed to create a second video stream for testing stream topology\n");
+		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
 	}
+	ast_stream_set_state(fourth_stream, AST_STREAM_STATE_REMOVED);
 
 	if (ast_stream_topology_append_stream(topology, fourth_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
@@ -823,12 +830,36 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_AUDIO) != first_stream) {
+	fifth_stream = ast_stream_alloc("video2", AST_MEDIA_TYPE_VIDEO);
+	if (!fifth_stream) {
+		ast_test_status_update(test, "Failed to create a second video stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, fifth_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(fifth_stream);
+		return AST_TEST_FAIL;
+	}
+
+	sixth_stream = ast_stream_alloc("video3", AST_MEDIA_TYPE_VIDEO);
+	if (!sixth_stream) {
+		ast_test_status_update(test, "Failed to create a third video stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, sixth_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(sixth_stream);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_AUDIO) != second_stream) {
 		ast_test_status_update(test, "Retrieved first audio stream from topology but it is not the correct one\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_VIDEO) != third_stream) {
+	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_VIDEO) != fifth_stream) {
 		ast_test_status_update(test, "Retrieved first video stream from topology but it is not the correct one\n");
 		return AST_TEST_FAIL;
 	}
@@ -1918,6 +1949,8 @@ AST_TEST_DEFINE(format_cap_from_stream_topology)
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, stream_caps, NULL, ao2_cleanup);
 	struct ast_stream_topology *topology;
+	struct ast_stream *stream;
+	struct ast_format_cap *new_cap;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1938,18 +1971,52 @@ AST_TEST_DEFINE(format_cap_from_stream_topology)
 	}
 
 	if (ast_format_cap_append(caps, ast_format_ulaw, 0)) {
-		ast_test_status_update(test, "Failed to append a ulaw format to capabilities for channel nativeformats\n");
+		ast_test_status_update(test, "Failed to append ulaw format to capabilities\n");
 		return AST_TEST_FAIL;
 	}
 
 	if (ast_format_cap_append(caps, ast_format_h264, 0)) {
-		ast_test_status_update(test, "Failed to append an h264 format to capabilities for channel nativeformats\n");
+		ast_test_status_update(test, "Failed to append h264 format to capabilities\n");
 		return AST_TEST_FAIL;
 	}
 
 	topology = ast_stream_topology_create_from_format_cap(caps);
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create a stream topology from format capabilities of ulaw and h264\n");
+		return AST_TEST_FAIL;
+	}
+
+	/*
+	 * Append declined stream with formats that should not be included
+	 * in combined topology caps.
+	 */
+	stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
+		ast_stream_topology_free(topology);
+		return AST_TEST_FAIL;
+	}
+	ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+	new_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!new_cap) {
+		ast_test_status_update(test, "Could not allocate an empty format capabilities structure\n");
+		ast_stream_free(stream);
+		ast_stream_topology_free(topology);
+		return AST_TEST_FAIL;
+	}
+	if (ast_format_cap_append(new_cap, ast_format_alaw, 0)) {
+		ast_test_status_update(test, "Failed to append alaw format to capabilities\n");
+		ao2_cleanup(new_cap);
+		ast_stream_free(stream);
+		ast_stream_topology_free(topology);
+		return AST_TEST_FAIL;
+	}
+	ast_stream_set_formats(stream, new_cap);
+	ao2_cleanup(new_cap);
+	if (ast_stream_topology_append_stream(topology, stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(stream);
+		ast_stream_topology_free(topology);
 		return AST_TEST_FAIL;
 	}
 

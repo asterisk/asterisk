@@ -437,9 +437,11 @@ struct ast_format_cap *ast_format_cap_from_stream_topology(
 	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
-		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+		struct ast_stream *stream;
 
-		if (!stream->formats) {
+		stream = AST_VECTOR_GET(&topology->streams, i);
+		if (!stream->formats
+			|| stream->state == AST_STREAM_STATE_REMOVED) {
 			continue;
 		}
 
@@ -458,9 +460,11 @@ struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 	ast_assert(topology != NULL);
 
 	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
-		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+		struct ast_stream *stream;
 
-		if (stream->type == type) {
+		stream = AST_VECTOR_GET(&topology->streams, i);
+		if (stream->type == type
+			&& stream->state != AST_STREAM_STATE_REMOVED) {
 			return stream;
 		}
 	}
