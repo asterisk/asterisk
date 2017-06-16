@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Save to raw, headerless G729 data.
- * \note This is not an encoder/decoder. The codec fo g729 is only
+ * \note This is not an encoder/decoder. The codec for g729 is only
  * available with a commercial license from Digium, due to patent
  * restrictions. Check http://www.digium.com for information.
  * \arg Extensions: g729 
