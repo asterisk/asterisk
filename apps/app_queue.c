@@ -1009,6 +1009,26 @@
 			<para>Reset the statistics for a queue.</para>
 		</description>
 	</manager>
+	<manager name="QueueChangePriorityCaller" language="en_US">
+		<synopsis>
+			Change priority of a caller on queue.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Queue" required="true">
+				<para>The name of the queue to take action on.</para>
+			</parameter>
+			<parameter name="Caller" required="true">
+				<para>The caller (channel) to change priority on queue.</para>
+			</parameter>
+
+			<parameter name="Priority" required="true">
+				<para>Priority value for change for caller on queue.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
 
 	<managerEvent language="en_US" name="QueueMemberStatus">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
@@ -1408,6 +1428,7 @@ static const struct autopause {
 #define	RES_OUTOFMEMORY	(-2)		/*!< Out of memory */
 #define	RES_NOSUCHQUEUE	(-3)		/*!< No such queue */
 #define RES_NOT_DYNAMIC (-4)		/*!< Member is not dynamic */
+#define RES_NOT_CALLER  (-5)		/*!< Caller not found */
 
 static char *app = "Queue";
 
@@ -7232,6 +7253,39 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	return res;
 }
 
+
+/*! \brief Change priority caller into a queue
+ * \retval RES_NOSUCHQUEUE queue does not exist
+ * \retval RES_OKAY change priority
+ * \retval RES_NOT_CALLER queue exists but no caller
+*/
+static int change_priority_caller_on_queue(const char *queuename, const char *caller, int priority)
+{
+	struct call_queue *q;
+	struct queue_ent *qe;
+	int res = RES_NOSUCHQUEUE;
+
+	/*! \note Ensure the appropriate realtime queue is loaded.  Note that this
+	 * short-circuits if the queue is already in memory. */
+	if (!(q = find_load_queue_rt_friendly(queuename))) {
+		return res;
+	}
+
+	ao2_lock(q);
+	res = RES_NOT_CALLER;
+	for (qe = q->head; qe; qe = qe->next) {
+		if (strcmp(ast_channel_name(qe->chan), caller) == 0) {
+			ast_debug(1, "%s Caller new prioriry %d in queue %s\n",
+			             caller, priority, queuename);
+			qe->prio = priority;
+			res = RES_OKAY;
+		}
+	}
+	ao2_unlock(q);
+	return res;
+}
+
+
 static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason)
 {
 	struct ast_json *json_blob = queue_member_blob_create(q, member);
@@ -10189,6 +10243,50 @@ static int manager_queue_member_penalty(struct mansession *s, const struct messa
 	return 0;
 }
 
+static int manager_change_priority_caller_on_queue(struct mansession *s, const struct message *m)
+{
+	const char *queuename, *caller, *priority_s;
+	int priority = 0;
+
+	queuename = astman_get_header(m, "Queue");
+	caller = astman_get_header(m, "Caller");
+	priority_s = astman_get_header(m, "Priority");
+
+	if (ast_strlen_zero(queuename)) {
+		astman_send_error(s, m, "'Queue' not specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(caller)) {
+		astman_send_error(s, m, "'Caller' not specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(priority_s)) {
+		astman_send_error(s, m, "'Priority' not specified.");
+		return 0;
+	} else if (sscanf(priority_s, "%30d", &priority) != 1) {
+		astman_send_error(s, m, "'Priority' need integer.");
+		return 0;
+	}
+
+	switch (change_priority_caller_on_queue(queuename, caller, priority)) {
+	case RES_OKAY:
+		astman_send_ack(s, m, "Priority change for caller on queue");
+		break;
+	case RES_NOSUCHQUEUE:
+		astman_send_error(s, m, "Unable to change priority caller on queue: No such queue");
+		break;
+	case RES_NOT_CALLER:
+		astman_send_error(s, m, "Unable to change priority caller on queue: No such caller");
+		break;
+	}
+
+	return 0;
+}
+
+
+
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *queuename, *interface, *membername = NULL, *state_interface = NULL;
@@ -10375,6 +10473,57 @@ static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct
 
 	return res;
 }
+
+
+
+static char *handle_queue_change_priority_caller(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *queuename, *caller;
+	int priority;
+	char *res = CLI_FAILURE;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue priority caller";
+		e->usage =
+			"Usage: queue priority caller <channel> on <queue> to <priority>\n"
+			"       Change the priority of a channel on a queue.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 8) {
+		return CLI_SHOWUSAGE;
+	} else if (strcmp(a->argv[4], "on")) {
+		return CLI_SHOWUSAGE;
+	} else if (strcmp(a->argv[6], "to")) {
+		return CLI_SHOWUSAGE;
+	} else if (sscanf(a->argv[7], "%30d", &priority) != 1) {
+		ast_log (LOG_ERROR, "<priority> parameter must be an integer.\n");
+		return CLI_SHOWUSAGE;
+	}
+
+	caller = a->argv[3];
+	queuename = a->argv[5];
+
+	switch (change_priority_caller_on_queue(queuename, caller, priority)) {
+	case RES_OKAY:
+		res = CLI_SUCCESS;
+		break;
+	case RES_NOSUCHQUEUE:
+		ast_cli(a->fd, "Unable change priority caller %s on queue '%s': No such queue\n", caller, queuename);
+		break;
+	case RES_NOT_CALLER:
+		ast_cli(a->fd, "Unable to change priority caller '%s' on queue '%s': Not there\n", caller, queuename);
+
+		break;
+	}
+
+	return res;
+}
+
+
 
 static char *complete_queue_pause_member(const char *line, const char *word, int pos, int state)
 {
@@ -10821,6 +10970,7 @@ static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(handle_queue_set_member_ringinuse, "Set ringinuse for a channel of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_reload, "Reload queues, members, queue rules, or parameters"),
 	AST_CLI_DEFINE(handle_queue_reset, "Reset statistics for a queue"),
+	AST_CLI_DEFINE(handle_queue_change_priority_caller, "Change priority caller on queue"),
 };
 
 /* struct call_queue astdata mapping. */
@@ -11132,6 +11282,7 @@ static int unload_module(void)
 	ast_manager_unregister("QueueReload");
 	ast_manager_unregister("QueueReset");
 	ast_manager_unregister("QueueMemberRingInUse");
+	ast_manager_unregister("QueueChangePriorityCaller");
 	ast_unregister_application(app_aqm);
 	ast_unregister_application(app_rqm);
 	ast_unregister_application(app_pqm);
@@ -11250,6 +11401,7 @@ static int load_module(void)
 	err |= ast_manager_register_xml("QueueRule", 0, manager_queue_rule_show);
 	err |= ast_manager_register_xml("QueueReload", 0, manager_queue_reload);
 	err |= ast_manager_register_xml("QueueReset", 0, manager_queue_reset);
+	err |= ast_manager_register_xml("QueueChangePriorityCaller", 0,  manager_change_priority_caller_on_queue);
 	err |= ast_custom_function_register(&queuevar_function);
 	err |= ast_custom_function_register(&queueexists_function);
 	err |= ast_custom_function_register(&queuemembercount_function);
