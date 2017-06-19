@@ -35,6 +35,8 @@ struct ast_sdp_options {
 		/*! RTP Engine Name */
 		AST_STRING_FIELD(rtp_engine);
 	);
+	/*! Scheduler context for the media stream types (Mainly for RTP) */
+	struct ast_sched_context *sched[AST_MEDIA_TYPE_END];
 	struct {
 		unsigned int rtp_symmetric:1;
 		unsigned int udptl_symmetric:1;

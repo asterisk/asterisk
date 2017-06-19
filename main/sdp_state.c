@@ -151,12 +151,6 @@ static void sdp_state_capabilities_free(struct sdp_state_capabilities *capabilit
 	ast_free(capabilities);
 }
 
-/* TODO
- * This isn't set anywhere yet.
- */
-/*! \brief Scheduler for RTCP purposes */
-static struct ast_sched_context *sched;
-
 /*! \brief Internal function which creates an RTP instance */
 static struct sdp_state_rtp *create_rtp(const struct ast_sdp_options *options,
 	enum ast_media_type media_type)
@@ -185,7 +179,8 @@ static struct sdp_state_rtp *create_rtp(const struct ast_sdp_options *options,
 		return NULL;
 	}
 
-	rtp->instance = ast_rtp_instance_new(options->rtp_engine, sched, media_address, NULL);
+	rtp->instance = ast_rtp_instance_new(options->rtp_engine,
+		ast_sdp_options_get_sched_type(options, media_type), media_address, NULL);
 	if (!rtp->instance) {
 		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n",
 			options->rtp_engine);

@@ -522,4 +522,29 @@ void ast_sdp_options_set_ssrc(struct ast_sdp_options *options, unsigned int ssrc
  */
 unsigned int ast_sdp_options_get_ssrc(const struct ast_sdp_options *options);
 
+/*!
+ * \brief Set the SDP options scheduler context used to create new streams of the type.
+ * \since 15.0.0
+ *
+ * \param options SDP Options
+ * \param type Media type the scheduler context is for.
+ * \param sched Scheduler context to use for the specified media type.
+ *
+ * \return Nothing
+ */
+void ast_sdp_options_set_sched_type(struct ast_sdp_options *options,
+	enum ast_media_type type, struct ast_sched_context *sched);
+
+/*!
+ * \brief Get the SDP options scheduler context used to create new streams of the type.
+ * \since 15.0.0
+ *
+ * \param options SDP Options
+ * \param type Media type the format cap represents.
+ *
+ * \return The stored scheduler context to create new streams of the type.
+ */
+struct ast_sched_context *ast_sdp_options_get_sched_type(const struct ast_sdp_options *options,
+	enum ast_media_type type);
+
 #endif /* _ASTERISK_SDP_OPTIONS_H */
