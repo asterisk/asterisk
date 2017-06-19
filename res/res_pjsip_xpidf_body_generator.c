@@ -63,7 +63,7 @@ static int xpidf_generate_body_content(void *body, void *data)
 	pj_xml_node *msnsubstatus;
 
 	ast_sip_presence_exten_state_to_str(state_data->exten_state, &statestring,
-			&pidfstate, &pidfnote, &local_state);
+			&pidfstate, &pidfnote, &local_state, 0);
 
 	ast_sip_presence_xml_find_node_attr(state_data->pool, pres, "atom", "id",
 			&atom, &attr);
