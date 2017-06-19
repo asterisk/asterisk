@@ -1057,8 +1057,18 @@ static void channel_stolen_cb(void *data, struct ast_channel *old_chan, struct a
 {
 	struct stasis_app_control *control;
 
-	/* find control */
-	control = ao2_callback(app_controls, 0, masq_match_cb, old_chan);
+	/*
+	 * At this point, old_chan is the channel pointer that is in Stasis() and
+	 * has the unknown channel's name in it while new_chan is the channel pointer
+	 * that is not in Stasis(), but has the guts of the channel that Stasis() knows
+	 * about.
+	 *
+	 * Find and unlink control since the channel has a new name/uniqueid
+	 * and its hash has changed.  Since the channel is leaving stasis don't
+	 * bother putting it back into the container.  Nobody is going to
+	 * remove it from the container later.
+	 */
+	control = ao2_callback(app_controls, OBJ_UNLINK, masq_match_cb, old_chan);
 	if (!control) {
 		ast_log(LOG_ERROR, "Could not find control for masqueraded channel\n");
 		return;
@@ -1099,8 +1109,10 @@ static void channel_replaced_cb(void *data, struct ast_channel *old_chan, struct
 		return;
 	}
 
-	/* find, unlink, and relink control since the channel has a new name and
-	 * its hash has likely changed */
+	/*
+	 * Find, unlink, and relink control since the channel has a new
+	 * name/uniqueid and its hash has changed.
+	 */
 	control = ao2_callback(app_controls, OBJ_UNLINK, masq_match_cb, new_chan);
 	if (!control) {
 		ast_log(LOG_ERROR, "Could not find control for masquerading channel\n");
