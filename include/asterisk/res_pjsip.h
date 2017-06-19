@@ -763,6 +763,8 @@ struct ast_sip_endpoint {
 	unsigned int allow_overlap;
 	/*! Whether to notifies all the progress details on blind transfer */
 	unsigned int refer_blind_progress;
+	/*! Whether to notifies dialog-info 'early' on INUSE && RINGING state */
+	unsigned int notify_early_inuse_ringing;
 };
 
 /*! URI parameter for symmetric transport */
