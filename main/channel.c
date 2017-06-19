@@ -1006,6 +1006,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * the world know of its existance
 	 */
 	ast_channel_stage_snapshot_done(tmp);
+
+	ast_debug(1, "Channel %p '%s' allocated\n", tmp, ast_channel_name(tmp));
+
 	return tmp;
 }
 
@@ -2230,6 +2233,8 @@ static void ast_channel_destructor(void *obj)
 	char device_name[AST_CHANNEL_NAME];
 	ast_callid callid;
 
+	ast_debug(1, "Channel %p '%s' destroying\n", chan, ast_channel_name(chan));
+
 	/* Stop monitoring */
 	if (ast_channel_monitor(chan)) {
 		ast_channel_monitor(chan)->stop(chan, 0);
@@ -2672,6 +2677,9 @@ void ast_hangup(struct ast_channel *chan)
 		return;
 	}
 
+	ast_debug(1, "Channel %p '%s' hanging up.  Refs: %d\n", chan, ast_channel_name(chan),
+		ao2_ref(chan, 0));
+
 	ast_autoservice_stop(chan);
 
 	ast_channel_lock(chan);
@@ -2731,7 +2739,6 @@ void ast_hangup(struct ast_channel *chan)
 		ast_assert(ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING) == 0);
 	}
 
-	ast_debug(1, "Hanging up channel '%s'\n", ast_channel_name(chan));
 	if (ast_channel_tech(chan)->hangup) {
 		ast_channel_tech(chan)->hangup(chan);
 	}
