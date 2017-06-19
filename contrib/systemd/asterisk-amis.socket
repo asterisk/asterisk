@@ -1,0 +1,10 @@
+[Unit]
+Description=Asterisk Manager Interface TLS Socket
+
+[Socket]
+Service=asterisk.service
+ListenStream=0.0.0.0:5039
+
+[Install]
+WantedBy=sockets.target
+RequiredBy=asterisk.service

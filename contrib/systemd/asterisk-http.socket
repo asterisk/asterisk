@@ -1,0 +1,11 @@
+[Unit]
+Description=Asterisk HTTP Socket
+
+[Socket]
+Service=asterisk.service
+FreeBind=true
+ListenStream=127.0.0.1:8088
+
+[Install]
+WantedBy=sockets.target
+RequiredBy=asterisk.service
