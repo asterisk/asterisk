@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 14.5.0 to Asterisk 14.6.0 ------------
 ------------------------------------------------------------------------------
 
+app_voicemail
+------------------
+ * A new global option "imap_poll_logout" was added to specify whether need to
+   disconnect from the IMAP server after polling of mailboxes.
+   Default: no
+
 res_pjsip
 ------------------
  * A new endpoint option "refer_blind_progress" was added to turn off notifying
