@@ -1,0 +1,26 @@
+[Unit]
+Description=Asterisk Sockets
+
+[Socket]
+FreeBind=true
+SocketUser=asterisk
+SocketGroup=asterisk
+SocketMode=0660
+
+# CLI
+ListenStream=/var/run/asterisk/asterisk.ctl
+# AMI
+ListenStream=0.0.0.0:5038
+# AMIS
+ListenStream=0.0.0.0:5039
+# HTTP
+ListenStream=127.0.0.1:8088
+# HTTPS
+ListenStream=127.0.0.1:8089
+# chan_sip TCP
+ListenStream=0.0.0.0:5060
+# chan_sip TLS
+ListenStream=0.0.0.0:5061
+
+[Install]
+WantedBy=sockets.target

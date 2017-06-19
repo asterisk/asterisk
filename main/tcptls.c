@@ -40,6 +40,7 @@
 
 #include "asterisk/compat.h"
 #include "asterisk/tcptls.h"
+#include "asterisk/io.h"
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
@@ -618,6 +619,7 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 	int flags;
 	int x = 1;
 	int tls_changed = 0;
+	int sd_socket;
 
 	if (desc->tls_cfg) {
 		char hash[41];
@@ -689,6 +691,19 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		pthread_join(desc->master, NULL);
 	}
 
+	sd_socket = ast_sd_get_fd(SOCK_STREAM, &desc->local_address);
+
+	if (sd_socket != -1) {
+		if (desc->accept_fd != sd_socket) {
+			if (desc->accept_fd != -1) {
+				close(desc->accept_fd);
+			}
+			desc->accept_fd = sd_socket;
+		}
+
+		goto systemd_socket_activation;
+	}
+
 	if (desc->accept_fd != -1) {
 		close(desc->accept_fd);
 	}
@@ -718,6 +733,8 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		ast_log(LOG_ERROR, "Unable to listen for %s!\n", desc->name);
 		goto error;
 	}
+
+systemd_socket_activation:
 	flags = fcntl(desc->accept_fd, F_GETFL);
 	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
 	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {

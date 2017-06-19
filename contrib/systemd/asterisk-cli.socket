@@ -1,0 +1,13 @@
+[Unit]
+Description=Asterisk Command-line Interface Socket
+
+[Socket]
+Service=asterisk.service
+ListenStream=/var/run/asterisk/asterisk.ctl
+SocketUser=asterisk
+SocketGroup=asterisk
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target
+RequiredBy=asterisk.service
