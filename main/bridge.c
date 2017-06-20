@@ -4276,14 +4276,15 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 
 	if (bridge2) {
+		void *tech;
 		struct ast_channel *locals[2];
 
 		/* Have to lock everything just in case a hangup comes in early */
-		ast_local_lock_all(local_chan, &locals[0], &locals[1]);
+		ast_local_lock_all(local_chan, &tech, &locals[0], &locals[1]);
 		if (!locals[0] || !locals[1]) {
 			ast_log(LOG_ERROR, "Transfer failed probably due to an early hangup - "
 				"missing other half of '%s'\n", ast_channel_name(local_chan));
-			ast_local_unlock_all(local_chan);
+			ast_local_unlock_all(tech, locals[0], locals[1]);
 			ao2_cleanup(local_chan);
 			return AST_BRIDGE_TRANSFER_FAIL;
 		}
@@ -4294,7 +4295,7 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		}
 
 		ast_attended_transfer_message_add_link(transfer_msg, locals);
-		ast_local_unlock_all(local_chan);
+		ast_local_unlock_all(tech, locals[0], locals[1]);
 	} else {
 		ast_attended_transfer_message_add_app(transfer_msg, app, local_chan);
 	}
