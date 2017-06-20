@@ -17,7 +17,7 @@
 ; party. Setting this to "yes" will make calls to extensions that don't answer
 ; and don't set a B side channel (such as by using the Dial application)
 ; receive CDR log entries. If this option is set to "no", then those log
-; entries will not be created. Unasnwered Calls which get offered to an
+; entries will not be created. Unanswered Calls which get offered to an
 ; outgoing line will always receive log entries regardless of this option, and
 ; that is the intended behaviour.
 ;unanswered = no
