@@ -1229,10 +1229,50 @@ static void mwi_contact_added(const void *object)
 	mwi_contact_updated(object);
 }
 
+/*! \brief Function called when a contact is deleted */
+static void mwi_contact_deleted(const void *object)
+{
+	const struct ast_sip_contact *contact = object;
+	struct ao2_iterator *mwi_subs;
+	struct mwi_subscription *mwi_sub;
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact *, found_contact, NULL, ao2_cleanup);
+
+	if (contact->endpoint) {
+		endpoint = ao2_bump(contact->endpoint);
+	} else {
+		if (!ast_strlen_zero(contact->endpoint_name)) {
+			endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", contact->endpoint_name);
+		}
+	}
+
+	if (!endpoint || ast_strlen_zero(endpoint->subscription.mwi.mailboxes)) {
+		return;
+	}
+
+	/* Check if there is another contact */
+	found_contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+	if (found_contact) {
+		return;
+	}
+
+	ao2_lock(unsolicited_mwi);
+	mwi_subs = ao2_find(unsolicited_mwi, contact->endpoint_name,
+		OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
+	if (mwi_subs) {
+		for (; (mwi_sub = ao2_iterator_next(mwi_subs)); ao2_cleanup(mwi_sub)) {
+			unsubscribe(mwi_sub, NULL, 0);
+		}
+		ao2_iterator_destroy(mwi_subs);
+	}
+	ao2_unlock(unsolicited_mwi);
+}
+
 /*! \brief Observer for contacts so unsolicited MWI is sent when a contact changes */
 static const struct ast_sorcery_observer mwi_contact_observer = {
 	.created = mwi_contact_added,
 	.updated = mwi_contact_updated,
+	.deleted = mwi_contact_deleted,
 };
 
 /*! \brief Task invoked to send initial MWI NOTIFY for unsolicited */
