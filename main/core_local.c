@@ -235,17 +235,45 @@ struct local_pvt {
 	char exten[AST_MAX_EXTENSION];
 };
 
-void ast_local_lock_all(struct ast_channel *chan, struct ast_channel **outchan,
-			struct ast_channel **outowner)
+void ast_local_lock_all2(struct ast_channel *chan, void **tech_pvt,
+	struct ast_channel **base_chan, struct ast_channel **base_owner)
 {
 	struct local_pvt *p = ast_channel_tech_pvt(chan);
 
-	*outchan = NULL;
-	*outowner = NULL;
+	*tech_pvt = NULL;
+	*base_chan = NULL;
+	*base_owner = NULL;
 
 	if (p) {
-		ao2_ref(p, 1);
-		ast_unreal_lock_all(&p->base, outchan, outowner);
+		*tech_pvt = ao2_bump(p);
+		ast_unreal_lock_all(&p->base, base_chan, base_owner);
+	}
+}
+
+void ast_local_lock_all(struct ast_channel *chan, struct ast_channel **outchan,
+			struct ast_channel **outowner)
+{
+	void *tech_pvt;
+	ast_local_lock_all2(chan, &tech_pvt, outchan, outowner);
+}
+
+void ast_local_unlock_all2(void *tech_pvt, struct ast_channel *base_chan,
+	struct ast_channel *base_owner)
+{
+	if (base_chan) {
+		ast_channel_unlock(base_chan);
+		ast_channel_unref(base_chan);
+	}
+
+	if (base_owner) {
+		ast_channel_unlock(base_owner);
+		ast_channel_unref(base_owner);
+	}
+
+	if (tech_pvt) {
+		struct local_pvt *p = tech_pvt;
+		ao2_unlock(&p->base);
+		ao2_ref(tech_pvt, -1);
 	}
 }
 
@@ -259,19 +287,7 @@ void ast_local_unlock_all(struct ast_channel *chan)
 	}
 
 	base = &p->base;
-
-	if (base->owner) {
-		ast_channel_unlock(base->owner);
-		ast_channel_unref(base->owner);
-	}
-
-	if (base->chan) {
-		ast_channel_unlock(base->chan);
-		ast_channel_unref(base->chan);
-	}
-
-	ao2_unlock(base);
-	ao2_ref(p, -1);
+	ast_local_unlock_all2(p, base->chan, base->owner);
 }
 
 struct ast_channel *ast_local_get_peer(struct ast_channel *ast)
