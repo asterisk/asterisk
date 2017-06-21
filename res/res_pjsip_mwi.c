@@ -1245,8 +1245,8 @@ static void mwi_contact_deleted(const void *object)
 	const struct ast_sip_contact *contact = object;
 	struct ao2_iterator *mwi_subs;
 	struct mwi_subscription *mwi_sub;
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_sip_contact *, found_contact, NULL, ao2_cleanup);
+	struct ast_sip_endpoint *endpoint = NULL;
+	struct ast_sip_contact *found_contact;
 
 	if (contact->endpoint) {
 		endpoint = ao2_bump(contact->endpoint);
@@ -1257,12 +1257,15 @@ static void mwi_contact_deleted(const void *object)
 	}
 
 	if (!endpoint || ast_strlen_zero(endpoint->subscription.mwi.mailboxes)) {
+		ao2_cleanup(endpoint);
 		return;
 	}
 
 	/* Check if there is another contact */
 	found_contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+	ao2_cleanup(endpoint);
 	if (found_contact) {
+		ao2_cleanup(found_contact);
 		return;
 	}
 
