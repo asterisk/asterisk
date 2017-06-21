@@ -42,36 +42,37 @@ struct stasis_message_type;
 /* ------------------------------------------------------------------- */
 
 /*!
- * \brief Lock the "chan" and "owner" channels (and return them) on the base
- *        private structure as well as the base private structure itself.
+ * \brief Add a reference to the local channel's private tech, lock the local channel's
+ *        private base, and add references and lock both sides of the local channel.
  *
- * \note This also adds references to each of the above mentioned elements and
- *       also the underlying private local structure.
  * \note None of these locks should be held prior to calling this function.
- * \note To undo this process call ast_local_unlock_all.
+ * \note To undo this process call ast_local_unlock_all2.
  *
- * \since 13.8.0
+ * \since 13.17.0, 14.6.0
  *
  * \param chan Must be a local channel
- * \param outchan The local channel's "chan" channel
- * \param outowner The local channel's "owner" channel
+ * \param tech_pvt [out] channel's private tech (ref and lock added)
+ * \param base_chan [out] One side of the local channel (ref and lock added)
+ * \param base_owner [out] Other side of the local channel (ref and lock added)
  */
-void ast_local_lock_all(struct ast_channel *chan, struct ast_channel **outchan,
-			struct ast_channel **outowner);
+void ast_local_lock_all(struct ast_channel *chan, void **tech_pvt,
+	struct ast_channel **base_chan, struct ast_channel **base_owner);
 
 /*!
- * \brief Unlock the "chan" and "owner" channels on the base private structure
- *        as well as the base private structure itself.
+ * \brief Remove a reference to the given local channel's private tech, unlock the given
+ *        local channel's private base, and remove references and unlock both sides of
+ *        given the local channel.
  *
- * \note This also removes references to each of the above mentioned elements and
- *       also the underlying private local structure.
- * \note This function should be used in conjunction with ast_local_lock_all.
+ * \note This function should be used in conjunction with ast_local_lock_all2.
  *
- * \since 13.8.0
+ * \since 13.17.0, 14.6.0
  *
- * \param chan Must be a local channel
+ * \param tech_pvt channel's private tech (ref and lock removed)
+ * \param base_chan One side of the local channel (ref and lock removed)
+ * \param base_owner Other side of the local channel (ref and lock removed)
  */
-void ast_local_unlock_all(struct ast_channel *chan);
+void ast_local_unlock_all(void *tech_pvt, struct ast_channel *base_chan,
+	struct ast_channel *base_owner);
 
 /*!
  * \brief Get the other local channel in the pair.
