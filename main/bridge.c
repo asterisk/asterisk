@@ -4787,7 +4787,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	res = AST_BRIDGE_TRANSFER_SUCCESS;
 
 end:
-	if (res == AST_BRIDGE_TRANSFER_SUCCESS && hangup_target) {
+	if ((res == AST_BRIDGE_TRANSFER_SUCCESS && hangup_target) || res == AST_BRIDGE_TRANSFER_FAIL) {
 		ast_softhangup(to_transfer_target, AST_SOFTHANGUP_DEV);
 	}
 
