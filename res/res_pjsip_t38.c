@@ -497,16 +497,21 @@ static struct ast_frame *t38_framehook(struct ast_channel *chan, struct ast_fram
 		return f;
 	}
 
-	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS &&
-		channel->session->endpoint->media.t38.enabled) {
-		struct t38_parameters_task_data *data = t38_parameters_task_data_alloc(channel->session, f);
+	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
+		if (channel->session->endpoint->media.t38.enabled) {
+			struct t38_parameters_task_data *data = t38_parameters_task_data_alloc(channel->session, f);
 
-		if (!data) {
-			return f;
-		}
+			if (!data) {
+				return f;
+			}
 
-		if (ast_sip_push_task(channel->session->serializer, t38_interpret_parameters, data)) {
-			ao2_ref(data, -1);
+			if (ast_sip_push_task(channel->session->serializer, t38_interpret_parameters, data)) {
+				ao2_ref(data, -1);
+			}
+		} else {
+			struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REFUSED, };
+			ast_debug(2, "T.38 support not enabled, rejecting T.38 control packet\n");
+			ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
 		}
 	}
 
@@ -551,10 +556,7 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		return;
 	}
 
-	/* Only attach the framehook if t38 is enabled for the endpoint */
-	if (!session->endpoint->media.t38.enabled) {
-		return;
-	}
+	/* Always attach the framehook so we can quickly reject */
 
 	ast_channel_lock(session->channel);
 
