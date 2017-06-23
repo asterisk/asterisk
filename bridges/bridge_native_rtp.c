@@ -182,10 +182,10 @@ static int rtp_glue_data_get(struct ast_channel *c0, struct rtp_glue_data *glue0
 		}
 	}
 	if (glue0->video.result == glue1->video.result && glue1->video.result == AST_RTP_GLUE_RESULT_REMOTE) {
-		if (glue0->cb->allow_vrtp_remote && !glue0->cb->allow_vrtp_remote(c0, glue1->audio.instance)) {
-			/* if the allow_vrtp_remote indicates that remote isn't allowed, revert to local bridge */
+		if (glue0->cb->allow_vrtp_remote && !glue0->cb->allow_vrtp_remote(c0, glue1->video.instance)) {
+			/* If the allow_vrtp_remote indicates that remote isn't allowed, revert to local bridge */
 			glue0->video.result = glue1->video.result = AST_RTP_GLUE_RESULT_LOCAL;
-		} else if (glue1->cb->allow_vrtp_remote && !glue1->cb->allow_vrtp_remote(c1, glue0->audio.instance)) {
+		} else if (glue1->cb->allow_vrtp_remote && !glue1->cb->allow_vrtp_remote(c1, glue0->video.instance)) {
 			glue0->video.result = glue1->video.result = AST_RTP_GLUE_RESULT_LOCAL;
 		}
 	}
