@@ -1750,7 +1750,7 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 	struct ast_sip_session_media *media = pvt->media[SIP_MEDIA_AUDIO];
 	int res = 0;
 
-	switch (channel->session->endpoint->dtmf) {
+	switch (channel->session->dtmf) {
 	case AST_SIP_DTMF_RFC_4733:
 		if (!media || !media->rtp) {
 			return -1;
@@ -1870,7 +1870,7 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	struct ast_sip_session_media *media = pvt->media[SIP_MEDIA_AUDIO];
 	int res = 0;
 
-	switch (channel->session->endpoint->dtmf) {
+	switch (channel->session->dtmf) {
 	case AST_SIP_DTMF_AUTO_INFO:
 	{
 		if (!media || !media->rtp) {
@@ -2682,6 +2682,12 @@ static struct ast_custom_function media_offer_function = {
 	.write = pjsip_acf_media_offer_write
 };
 
+static struct ast_custom_function dtmf_mode_function = {
+	.name = "PJSIP_DTMF_MODE",
+	.read = pjsip_acf_dtmf_mode_read,
+	.write = pjsip_acf_dtmf_mode_write
+};
+
 static struct ast_custom_function session_refresh_function = {
 	.name = "PJSIP_SEND_SESSION_REFRESH",
 	.write = pjsip_acf_session_refresh_write,
@@ -2723,6 +2729,11 @@ static int load_module(void)
 
 	if (ast_custom_function_register(&media_offer_function)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIP_MEDIA_OFFER dialplan function\n");
+		goto end;
+	}
+
+	if (ast_custom_function_register(&dtmf_mode_function)) {
+		ast_log(LOG_WARNING, "Unable to register PJSIP_DTMF_MODE dialplan function\n");
 		goto end;
 	}
 
@@ -2785,6 +2796,7 @@ static int load_module(void)
 end:
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
+	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&session_refresh_function);
@@ -2807,6 +2819,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
+	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&session_refresh_function);

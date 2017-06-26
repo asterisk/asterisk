@@ -2859,4 +2859,31 @@ int ast_sip_set_tpselector_from_ep_or_uri(const struct ast_sip_endpoint *endpoin
 int ast_sip_dlg_set_transport(const struct ast_sip_endpoint *endpoint, pjsip_dialog *dlg,
 	pjsip_tpselector *selector);
 
+/*!
+ * \brief Convert the DTMF mode enum value into a string
+ * \since 13.18.0
+ *
+ * \param dtmf the dtmf mode
+ * \param buf Buffer to receive dtmf mode string
+ * \param buf_len Buffer length
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ */
+int ast_sip_dtmf_to_str(const enum ast_sip_dtmf_mode dtmf,
+	char *buf, size_t buf_len);
+
+/*!
+ * \brief Convert the DTMF mode name into an enum
+ * \since 13.18.0
+ *
+ * \param dtmf_mode dtmf mode as a string
+ *
+ * \retval  >= 0 The enum value
+ * \retval -1 Failure
+ *
+ */
+int ast_sip_str_to_dtmf(const char *dtmf_mode);
+
 #endif /* _RES_PJSIP_H */
