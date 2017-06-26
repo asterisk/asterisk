@@ -4397,6 +4397,56 @@ const char *ast_sip_get_host_ip_string(int af)
 	return NULL;
 }
 
+int ast_sip_dtmf_to_str(const enum ast_sip_dtmf_mode dtmf,
+		        char *buf, size_t buf_len)
+{
+	switch (dtmf) {
+	case AST_SIP_DTMF_NONE:
+		ast_copy_string(buf, "none", buf_len);
+		break;
+	case AST_SIP_DTMF_RFC_4733:
+		ast_copy_string(buf, "rfc4733", buf_len);
+		break;
+	case AST_SIP_DTMF_INBAND:
+		ast_copy_string(buf, "inband", buf_len);
+		break;
+	case AST_SIP_DTMF_INFO:
+		ast_copy_string(buf, "info", buf_len);
+		break;
+	case AST_SIP_DTMF_AUTO:
+		ast_copy_string(buf, "auto", buf_len);
+		break;
+	case AST_SIP_DTMF_AUTO_INFO:
+		ast_copy_string(buf, "auto_info", buf_len);
+		break;
+	default:
+		buf[0] = '\0';
+		return -1;
+	}
+	return 0;
+}
+
+int ast_sip_str_to_dtmf(const char * dtmf_mode)
+{
+	int result = -1;
+
+	if (!strcasecmp(dtmf_mode, "info")) {
+		result = AST_SIP_DTMF_INFO;
+	} else if (!strcasecmp(dtmf_mode, "rfc4733")) {
+		result = AST_SIP_DTMF_RFC_4733;
+	} else if (!strcasecmp(dtmf_mode, "inband")) {
+		result = AST_SIP_DTMF_INBAND;
+	} else if (!strcasecmp(dtmf_mode, "none")) {
+		result = AST_SIP_DTMF_NONE;
+	} else if (!strcasecmp(dtmf_mode, "auto")) {
+		result = AST_SIP_DTMF_AUTO;
+	} else if (!strcasecmp(dtmf_mode, "auto_info")) {
+		result = AST_SIP_DTMF_AUTO_INFO;
+	}
+
+	return result;
+}
+
 /*!
  * \brief Set name and number information on an identity header.
  *

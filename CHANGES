@@ -33,6 +33,9 @@ res_musiconhold
    which sends signals to the application and its descendants directly, or
    "process" which sends signals only to the application itself.
 
+ * New dialplan function PJSIP_DTMF_MODE added to get or change the DTMF mode
+   of a channel on a per-call basis.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.16.0 to Asterisk 13.17.0 ----------
 ------------------------------------------------------------------------------
