@@ -2007,6 +2007,8 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
 
+	session->dtmf = endpoint->dtmf;
+
 	if (add_supplements(session)) {
 		/* Release the ref held by session->inv_session */
 		ao2_ref(session, -1);
