@@ -366,47 +366,29 @@ static int contact_acl_to_str(const void *obj, const intptr_t *args, char **buf)
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
+	enum ast_sip_dtmf_mode dtmf = ast_sip_str_to_dtmf(var->value);
 
-	if (!strcasecmp(var->value, "rfc4733")) {
-		endpoint->dtmf = AST_SIP_DTMF_RFC_4733;
-	} else if (!strcasecmp(var->value, "inband")) {
-		endpoint->dtmf = AST_SIP_DTMF_INBAND;
-	} else if (!strcasecmp(var->value, "auto_info")) {
-		endpoint->dtmf = AST_SIP_DTMF_AUTO_INFO;
-	} else if (!strcasecmp(var->value, "info")) {
-		endpoint->dtmf = AST_SIP_DTMF_INFO;
-	} else if (!strcasecmp(var->value, "auto")) {
-		endpoint->dtmf = AST_SIP_DTMF_AUTO;
-	} else if (!strcasecmp(var->value, "none")) {
-		endpoint->dtmf = AST_SIP_DTMF_NONE;
-	} else {
+	if (dtmf == -1) {
 		return -1;
 	}
 
+	endpoint->dtmf = dtmf;
 	return 0;
 }
 
 static int dtmf_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
+	char dtmf_str[20];
+	int result = -1;
 
-	switch (endpoint->dtmf) {
-	case AST_SIP_DTMF_RFC_4733 :
-		*buf = "rfc4733"; break;
-	case AST_SIP_DTMF_INBAND :
-		*buf = "inband"; break;
-	case AST_SIP_DTMF_INFO :
-		*buf = "info"; break;
-	case AST_SIP_DTMF_AUTO :
-		*buf = "auto"; break;
-	case AST_SIP_DTMF_AUTO_INFO :
-		*buf = "auto_info";
-		break;
-	default:
-		*buf = "none";
+	result = ast_sip_dtmf_to_str(endpoint->dtmf, dtmf_str, sizeof(dtmf_str));
+
+	if (result == 0) {
+		*buf = ast_strdup(dtmf_str);
+	} else {
+		*buf = ast_strdup("none");
 	}
-
-	*buf = ast_strdup(*buf);
 	return 0;
 }
 
