@@ -278,7 +278,7 @@ static int t38_reinvite_sdp_cb(struct ast_sip_session *session, pjmedia_sdp_sess
 	/* Move the image media stream to the front and have it as the only stream, pjmedia will fill in
 	 * dummy streams for the rest
 	 */
-	for (stream = 0; stream < sdp->media_count++; ++stream) {
+	for (stream = 0; stream < sdp->media_count; ++stream) {
 		if (!pj_strcmp2(&sdp->media[stream]->desc.media, "image")) {
 			sdp->media[0] = sdp->media[stream];
 			sdp->media_count = 1;
