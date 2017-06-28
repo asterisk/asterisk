@@ -825,6 +825,7 @@ struct ast_json *ast_json_vpack(char const *format, va_list ap)
 			ast_log(LOG_ERROR,
 				"Error building JSON from '%s': %s.\n",
 				format, error.text);
+			ast_log_backtrace();
 		}
 	}
 	return r;
