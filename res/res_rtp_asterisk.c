@@ -109,6 +109,8 @@
 #define SRTP_MASTER_SALT_LEN 14
 #define SRTP_MASTER_LEN (SRTP_MASTER_KEY_LEN + SRTP_MASTER_SALT_LEN)
 
+#define RTP_DTLS_ESTABLISHED -37
+
 enum strict_rtp_state {
 	STRICT_RTP_OPEN = 0, /*! No RTP packets should be dropped, all sources accepted */
 	STRICT_RTP_LEARN,    /*! Accept next packet as source */
@@ -2477,7 +2479,11 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			/* Any further connections will be existing since this is now established */
 			dtls->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
 			/* Use the keying material to set up key/salt information */
-			res = dtls_srtp_setup(rtp, srtp, instance, rtcp);
+			if ((res = dtls_srtp_setup(rtp, srtp, instance, rtcp))) {
+				return res;
+			}
+			/* Notify that dtls has been established */
+			res = RTP_DTLS_ESTABLISHED;
 		} else {
 			/* Since we've sent additional traffic start the timeout timer for retransmission */
 			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
@@ -4750,6 +4756,12 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	/* Read in RTCP data from the socket */
 	if ((res = rtcp_recvfrom(instance, read_area, read_area_size,
 				0, &addr)) < 0) {
+		if (res == RTP_DTLS_ESTABLISHED) {
+			rtp->f.frametype = AST_FRAME_CONTROL;
+			rtp->f.subclass.integer = AST_CONTROL_SRCCHANGE;
+			return &rtp->f;
+		}
+
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTCP Read error: %s.  Hanging up.\n",
@@ -4947,6 +4959,12 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	/* Actually read in the data from the socket */
 	if ((res = rtp_recvfrom(instance, read_area, read_area_size, 0,
 				&addr)) < 0) {
+		if (res == RTP_DTLS_ESTABLISHED) {
+			rtp->f.frametype = AST_FRAME_CONTROL;
+			rtp->f.subclass.integer = AST_CONTROL_SRCCHANGE;
+			return &rtp->f;
+		}
+
 		ast_assert(errno != EBADF);
 		if (errno != EAGAIN) {
 			ast_log(LOG_WARNING, "RTP Read error: %s.  Hanging up.\n",
