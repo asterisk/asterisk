@@ -9695,6 +9695,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					"ConnectedLineNum: %s\r\n"
 					"ConnectedLineName: %s\r\n"
 					"Wait: %ld\r\n"
+					"Priority: %d\r\n"
 					"%s"
 					"\r\n",
 					q->name, pos++, ast_channel_name(qe->chan), ast_channel_uniqueid(qe->chan),
@@ -9702,7 +9703,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					S_COR(ast_channel_caller(qe->chan)->id.name.valid, ast_channel_caller(qe->chan)->id.name.str, "unknown"),
 					S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),
 					S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
-					(long) (now - qe->start), idText);
+					(long) (now - qe->start), qe->prio, idText);
 				++q_items;
 			}
 		}
