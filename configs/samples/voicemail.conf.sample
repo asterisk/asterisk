@@ -227,6 +227,9 @@ pagerdateformat=%A, %B %d, %Y at %r
 ;imapclosetimeout=60     ; The TCP close timeout (in seconds)
 ;imapreadtimeout=60      ; The TCP read timeout (in seconds)
 ;imapwritetimeout=60     ; The TCP write timeout (in seconds)
+;imap_poll_logout=no     ; If pollmailboxes=yes, then specify whether need to
+                         ; disconnect from the IMAP server after polling.
+                         ; Default: no
 
 ; -----------------------------------------------------------------------------
 ;

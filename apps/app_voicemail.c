@@ -507,6 +507,7 @@ static int imapversion = 1;
 
 static int expungeonhangup = 1;
 static int imapgreetings = 0;
+static int imap_poll_logout = 0;
 static char delimiter = '\0';
 
 /* mail_open cannot be protected on a stream basis */
@@ -544,6 +545,8 @@ static int imap_retrieve_file (const char *dir, const int msgnum, const char *ma
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms);
 static void check_quota(struct vm_state *vms, char *mailbox);
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box);
+static void imap_logout(const char *mailbox_id);
+
 struct vmstate {
 	struct vm_state *vms;
 	AST_LIST_ENTRY(vmstate) list;
@@ -12305,6 +12308,9 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	strcat(mailbox_full, context);
 
 	inboxcount2(mailbox_full, &urgent, &new, &old);
+#ifdef IMAP_STORAGE
+	imap_logout(mailbox_full);
+#endif
 	queue_mwi_event(NULL, mailbox_full, urgent, new, old);
 
 	return 0;
@@ -13057,6 +13063,12 @@ static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
 
 	inboxcount2(mwi_sub->mailbox, &urgent, &new, &old);
 
+#ifdef IMAP_STORAGE
+	if (imap_poll_logout) {
+		imap_logout(mwi_sub->mailbox);
+	}
+#endif
+
 	if (urgent != mwi_sub->old_urgent || new != mwi_sub->old_new || old != mwi_sub->old_old) {
 		mwi_sub->old_urgent = urgent;
 		mwi_sub->old_new = new;
@@ -13776,6 +13788,11 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			ast_copy_string(greetingfolder, val, sizeof(greetingfolder));
 		} else {
 			ast_copy_string(greetingfolder, imapfolder, sizeof(greetingfolder));
+		}
+		if ((val = ast_variable_retrieve(cfg, "general", "imap_poll_logout"))) {
+			imap_poll_logout = ast_true(val);
+		} else {
+			imap_poll_logout = 0;
 		}
 
 		/* There is some very unorthodox casting done here. This is due
