@@ -599,8 +599,15 @@
 ;direct_media_glare_mitigation=none     ; Mitigation of direct media re INVITE
                                         ; glare (default: "none")
 ;direct_media_method=invite     ; Direct Media method type (default: "invite")
-;connected_line_method=invite   ; Connected line method type (default:
-                                ; "invite")
+;connected_line_method=invite   ; Connected line method type.
+                                ; When set to "invite", check the remote's
+                                ; Allow header and if UPDATE is allowed, send
+                                ; UPDATE instead of INVITE to avoid SDP
+                                ; renegotiation.  If UPDATE is not Allowed,
+                                ; send INVITE.
+                                ; If set to "update", send UPDATE regardless
+                                ; of what the remote Allows.
+                                ; (default: "invite")
 ;direct_media=yes       ; Determines whether media may flow directly between
                         ; endpoints (default: "yes")
 ;disable_direct_media_on_nat=no ; Disable direct media session refreshes when
