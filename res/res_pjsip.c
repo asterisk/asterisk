@@ -193,11 +193,18 @@
 					<description>
 						<para>Method used when updating connected line information.</para>
 						<enumlist>
-							<enum name="invite" />
+							<enum name="invite">
+							<para>When set to <literal>invite</literal>, check the remote's Allow header and
+							if UPDATE is allowed, send UPDATE instead of INVITE to avoid SDP
+							renegotiation.  If UPDATE is not Allowed, send INVITE.</para>
+							</enum>
 							<enum name="reinvite">
 								<para>Alias for the <literal>invite</literal> value.</para>
 							</enum>
-							<enum name="update" />
+							<enum name="update">
+							<para>If set to <literal>update</literal>, send UPDATE regardless of what the remote
+							Allows. </para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
