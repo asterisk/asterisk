@@ -837,7 +837,7 @@ static int suspects_compare(void *obj, void *arg, int flags)
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
 		if (strcmp(object_left->src_name, right_key) == 0) {
-			cmp = CMP_MATCH | CMP_STOP;
+			cmp = CMP_MATCH;
 		}
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
@@ -852,15 +852,25 @@ static int suspects_compare(void *obj, void *arg, int flags)
 	return cmp;
 }
 
-static int suspects_hash(const void *obj, int flags) {
-	const struct unidentified_request *object_left = obj;
+static int suspects_hash(const void *obj, int flags)
+{
+	const struct unidentified_request *object;
+	const char *key;
 
-	if (flags & OBJ_SEARCH_OBJECT) {
-		return ast_str_hash(object_left->src_name);
-	} else if (flags & OBJ_SEARCH_KEY) {
-		return ast_str_hash(obj);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->src_name;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
 	}
-	return -1;
+	return ast_str_hash(key);
 }
 
 static struct ao2_container *cli_unid_get_container(const char *regex)
