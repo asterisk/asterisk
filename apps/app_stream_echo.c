@@ -108,7 +108,6 @@ static int stream_echo_write(struct ast_channel *chan, struct ast_frame *frame,
 	 * we simply want to echo it back out onto the same stream number.
 	 */
 	num = ast_channel_is_multistream(chan) ? frame->stream_num : -1;
-
 	if (ast_write_stream(chan, num, frame)) {
 		return stream_echo_write_error(chan, frame, num);
 	}
@@ -120,7 +119,8 @@ static int stream_echo_write(struct ast_channel *chan, struct ast_frame *frame,
 	 * Note, if the channel is not multi-stream capable then one_to_one will
 	 * always be true, so it is safe to also not check for that here too.
 	 */
-	if (one_to_one || ast_format_get_type(frame->subclass.format) != type) {
+	if (one_to_one || !frame->subclass.format ||
+	    ast_format_get_type(frame->subclass.format) != type) {
 		return 0;
 	}
 
@@ -141,7 +141,6 @@ static int stream_echo_write(struct ast_channel *chan, struct ast_frame *frame,
 
 	for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
 		struct ast_stream *stream = ast_stream_topology_get_stream(topology, i);
-
 		if (num != i && ast_stream_get_type(stream) == type) {
 			if (ast_write_stream(chan, i, frame)) {
 				return stream_echo_write_error(chan, frame, i);
@@ -171,7 +170,7 @@ static int stream_echo_perform(struct ast_channel *chan,
 			request_change = 0;
 		}
 
-		f = ast_read(chan);
+		f = ast_read_stream(chan);
 		if (!f) {
 			return -1;
 		}
@@ -186,11 +185,13 @@ static int stream_echo_perform(struct ast_channel *chan,
 
 		if (f->frametype == AST_FRAME_CONTROL) {
 			if (f->subclass.integer == AST_CONTROL_VIDUPDATE && !update_sent) {
-				if (stream_echo_write(chan, f, one_to_one, type)) {
+				if (stream_echo_write(chan, f, type, one_to_one)) {
 					ast_frfree(f);
 					return -1;
 				}
 				update_sent = 1;
+			} else if (f->subclass.integer == AST_CONTROL_SRCCHANGE) {
+				update_sent = 0;
 			} else if (f->subclass.integer == AST_CONTROL_STREAM_TOPOLOGY_CHANGED) {
 				update_sent = 0;
 				one_to_one = 0; /* Switch writing to one to many */
@@ -200,14 +201,14 @@ static int stream_echo_perform(struct ast_channel *chan,
 				.frametype = AST_FRAME_CONTROL,
 				.subclass.integer = AST_CONTROL_VIDUPDATE,
 			};
-			stream_echo_write(chan, &frame, one_to_one, type);
+			stream_echo_write(chan, &frame, type, one_to_one);
 			update_sent = 1;
 		}
 
 		if (f->frametype != AST_FRAME_CONTROL &&
 		    f->frametype != AST_FRAME_MODEM &&
 		    f->frametype != AST_FRAME_NULL &&
-		    stream_echo_write(chan, f, one_to_one, type)) {
+		    stream_echo_write(chan, f, type, one_to_one)) {
 			ast_frfree(f);
 			return -1;
 		}
