@@ -207,7 +207,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ice->stop(session_media->rtp);
 	}
 
-	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) {
+	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO || session->endpoint->dtmf == AST_SIP_DTMF_AUTO_INFO) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 1);
 	} else if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
@@ -230,7 +230,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 }
 
 static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp_media *stream, struct ast_rtp_codecs *codecs,
-       struct ast_sip_session_media *session_media)
+	struct ast_sip_session_media *session_media)
 {
 	pjmedia_sdp_attr *attr;
 	pjmedia_sdp_rtpmap *rtpmap;
@@ -296,6 +296,16 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	if (!tel_event && (session->endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
 	}
+
+	if (session->endpoint->dtmf == AST_SIP_DTMF_AUTO_INFO) {
+		if  (tel_event) {
+			ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
+		} else {
+			ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_NONE);
+		}
+	}
+
+
 	/* Get the packetization, if it exists */
 	if ((attr = pjmedia_sdp_media_find_attr2(stream, "ptime", NULL))) {
 		unsigned long framing = pj_strtoul(pj_strltrim(&attr->value));
@@ -404,7 +414,8 @@ static int set_caps(struct ast_sip_session *session,
 			ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
 			ast_set_write_format(session->channel, ast_channel_writeformat(session->channel));
 		}
-		if ((session->endpoint->dtmf == AST_SIP_DTMF_AUTO)
+
+		if ( ((session->endpoint->dtmf == AST_SIP_DTMF_AUTO) || (session->endpoint->dtmf == AST_SIP_DTMF_AUTO_INFO) )
 		    && (ast_rtp_instance_dtmf_mode_get(session_media->rtp) == AST_RTP_DTMF_MODE_RFC2833)
 		    && (session->dsp)) {
 			dsp_features = ast_dsp_get_features(session->dsp);
@@ -1136,7 +1147,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
 	int index = 0;
-	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) ? AST_RTP_DTMF : 0;
+	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO || session->endpoint->dtmf == AST_SIP_DTMF_AUTO_INFO) ? AST_RTP_DTMF : 0;
 	int min_packet_size = 0, max_packet_size = 0;
 	int rtp_code;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);

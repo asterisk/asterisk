@@ -1962,6 +1962,12 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 
 		ast_rtp_instance_dtmf_begin(media->rtp, digit);
 		break;
+	case AST_SIP_DTMF_AUTO_INFO:
+		if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_NONE)) {
+			return -1;
+		}
+		ast_rtp_instance_dtmf_begin(media->rtp, digit);
+		break;
 	case AST_SIP_DTMF_NONE:
 		break;
 	case AST_SIP_DTMF_INBAND:
@@ -2063,6 +2069,20 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
 
 	switch (channel->session->endpoint->dtmf) {
+	case AST_SIP_DTMF_AUTO_INFO:
+	{
+		if (!media || !media->rtp) {
+			return -1;
+		}
+		if (ast_rtp_instance_dtmf_mode_get(media->rtp) != AST_RTP_DTMF_MODE_NONE) {
+			ast_debug(3, "Told to send end of digit on Auto-Info channel %s RFC4733 negotiated so using it.\n", ast_channel_name(ast));
+			ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
+			break;
+		}
+		/* If RFC_4733 was not negotiated, fail through to the DTMF_INFO processing */
+		ast_debug(3, "Told to send end of digit on Auto-Info channel %s RFC4733 NOT negotiated using INFO instead.\n", ast_channel_name(ast));
+	}
+
 	case AST_SIP_DTMF_INFO:
 	{
 		struct info_dtmf_data *dtmf_data = info_dtmf_data_alloc(channel->session, digit, duration);
@@ -2095,14 +2115,15 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 		}
 
 		ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
-                break;
-        case AST_SIP_DTMF_AUTO:
-                if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
-                        return -1;
-                }
+		break;
+	case AST_SIP_DTMF_AUTO:
+		if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
+			 return -1;
+		}
 
-                ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
-                break;
+		ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
+		break;
+
 
 	case AST_SIP_DTMF_NONE:
 		break;

@@ -40,6 +40,10 @@ res_pjsip
    whether to notify dialog-info state 'early' or 'confirmed' on Ringing
    when already INUSE.
 
+ * The endpoint option 'dtmf_mode' has a new option 'auto_dtmf' added. This
+   mode works similar to 'auto' except uses DTMF INFO as fallback instead of
+   INBAND.
+
 res_agi
 ------------------
  * The EAGI() application will now look for a dialplan variable named
