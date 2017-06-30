@@ -324,6 +324,28 @@ int ast_sip_session_media_set_write_callback(struct ast_sip_session *session, st
 	return 0;
 }
 
+struct ast_sip_session_media *ast_sip_session_media_get_transport(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
+{
+	int index;
+
+	if (!session->endpoint->media.bundle || ast_strlen_zero(session_media->mid)) {
+		return session_media;
+	}
+
+	for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {
+		struct ast_sip_session_media *bundle_group_session_media;
+
+		bundle_group_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
+
+		/* The first session which is in the bundle group is considered the authoritative session for transport */
+		if (bundle_group_session_media->bundle_group == session_media->bundle_group) {
+			return bundle_group_session_media;
+		}
+	}
+
+	return session_media;
+}
+
 /*!
  * \brief Set an SDP stream handler for a corresponding session media.
  *
@@ -371,6 +393,8 @@ static void session_media_dtor(void *obj)
 	if (session_media->srtp) {
 		ast_sdp_srtp_destroy(session_media->srtp);
 	}
+
+	ast_free(session_media->mid);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
@@ -408,13 +432,25 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		session_media->timeout_sched_id = -1;
 		session_media->type = type;
 		session_media->stream_num = position;
+
+		if (session->endpoint->media.bundle) {
+			/* This is a new stream so create a new mid based on media type and position, which makes it unique.
+			 * If this is the result of an offer the mid will just end up getting replaced.
+			 */
+			if (ast_asprintf(&session_media->mid, "%s-%d", ast_codec_media_type2str(type), position) < 0) {
+				ao2_ref(session_media, -1);
+				return NULL;
+			}
+			session_media->bundle_group = 0;
+		} else {
+			session_media->bundle_group = -1;
+		}
 	}
 
 	AST_VECTOR_REPLACE(&media_state->sessions, position, session_media);
 
 	/* If this stream will be active in some way and it is the first of this type then consider this the default media session to match */
-	if (!media_state->default_session[type] &&
-		ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
+	if (!media_state->default_session[type] && ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
 		media_state->default_session[type] = session_media;
 	}
 
@@ -439,6 +475,78 @@ static int is_stream_limitation_reached(enum ast_media_type type, const struct a
 		 */
 		return 1;
 	}
+}
+
+static int get_mid_bundle_group(const pjmedia_sdp_session *sdp, const char *mid)
+{
+	int bundle_group = 0;
+	int index;
+
+	for (index = 0; index < sdp->attr_count; ++index) {
+		pjmedia_sdp_attr *attr = sdp->attr[index];
+		char value[pj_strlen(&attr->value) + 1], *mids = value, *attr_mid;
+
+		if (pj_strcmp2(&attr->name, "group") || pj_strncmp2(&attr->value, "BUNDLE", 6)) {
+			continue;
+		}
+
+		ast_copy_pj_str(value, &attr->value, sizeof(value));
+
+		/* Skip the BUNDLE at the front */
+		mids += 7;
+
+		while ((attr_mid = strsep(&mids, " "))) {
+			if (!strcmp(attr_mid, mid)) {
+				/* The ordering of attributes determines our internal identification of the bundle group based on number,
+				 * with -1 being not in a bundle group. Since this is only exposed internally for response purposes it's
+				 * actually even fine if things move around.
+				 */
+				return bundle_group;
+			}
+		}
+
+		bundle_group++;
+	}
+
+	return -1;
+}
+
+static int set_mid_and_bundle_group(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media,
+	const pjmedia_sdp_session *sdp,
+	const struct pjmedia_sdp_media *stream)
+{
+	pjmedia_sdp_attr *attr;
+
+	if (!session->endpoint->media.bundle) {
+		return 0;
+	}
+
+	/* By default on an incoming negotiation we assume no mid and bundle group is present */
+	ast_free(session_media->mid);
+	session_media->mid = NULL;
+	session_media->bundle_group = -1;
+	session_media->bundled = 0;
+
+	/* Grab the media identifier for the stream */
+	attr = pjmedia_sdp_media_find_attr2(stream, "mid", NULL);
+	if (!attr) {
+		return 0;
+	}
+
+	session_media->mid = ast_calloc(1, attr->value.slen + 1);
+	if (!session_media->mid) {
+		return 0;
+	}
+	ast_copy_pj_str(session_media->mid, &attr->value, attr->value.slen + 1);
+
+	/* Determine what bundle group this is part of */
+	session_media->bundle_group = get_mid_bundle_group(sdp, session_media->mid);
+
+	/* If this is actually part of a bundle group then the other side requested or accepted the bundle request */
+	session_media->bundled = session_media->bundle_group != -1;
+
+	return 0;
 }
 
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
@@ -497,8 +605,12 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			ast_debug(1, "Declining incoming SDP media stream '%s' at position '%d'\n",
 				ast_codec_media_type2str(type), i);
 			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+			session_media->bundle_group = -1;
+			session_media->bundled = 0;
 			continue;
 		}
+
+		set_mid_and_bundle_group(session, session_media, sdp, remote_stream);
 
 		if (session_media->handler) {
 			handler = session_media->handler;
@@ -588,6 +700,8 @@ static int handle_negotiated_sdp_session_media(struct ast_sip_session_media *ses
 
 	/* We need a null-terminated version of the media string */
 	ast_copy_pj_str(media, &local->media[index]->desc.media, sizeof(media));
+
+	set_mid_and_bundle_group(session, session_media, remote, remote->media[index]);
 
 	handler = session_media->handler;
 	if (handler) {
@@ -3443,6 +3557,82 @@ static int add_sdp_streams(struct ast_sip_session_media *session_media,
 	return 0;
 }
 
+/*! \brief Bundle group building structure */
+struct sip_session_media_bundle_group {
+	/*! \brief The media identifiers in this bundle group */
+	char *mids[PJMEDIA_MAX_SDP_MEDIA];
+	/*! \brief SDP attribute string */
+	struct ast_str *attr_string;
+};
+
+static int add_bundle_groups(struct ast_sip_session *session, pj_pool_t *pool, pjmedia_sdp_session *answer)
+{
+	pj_str_t stmp;
+	pjmedia_sdp_attr *attr;
+	struct sip_session_media_bundle_group bundle_groups[PJMEDIA_MAX_SDP_MEDIA];
+	int index, mid_id;
+	struct sip_session_media_bundle_group *bundle_group;
+
+	if (!session->endpoint->media.bundle) {
+		return 0;
+	}
+
+	memset(bundle_groups, 0, sizeof(bundle_groups));
+
+	attr = pjmedia_sdp_attr_create(pool, "msid-semantic", pj_cstr(&stmp, "WMS *"));
+	pjmedia_sdp_attr_add(&answer->attr_count, answer->attr, attr);
+
+	/* Build the bundle group layout so we can then add it to the SDP */
+	for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {
+		struct ast_sip_session_media *session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
+
+		/* If this stream is not part of a bundle group we can't add it */
+		if (session_media->bundle_group == -1) {
+			continue;
+		}
+
+		bundle_group = &bundle_groups[session_media->bundle_group];
+
+		/* If this is the first mid then we need to allocate the attribute string and place BUNDLE in front */
+		if (!bundle_group->mids[0]) {
+			bundle_group->mids[0] = session_media->mid;
+			bundle_group->attr_string = ast_str_create(64);
+			if (!bundle_group->attr_string) {
+				continue;
+			}
+
+			ast_str_set(&bundle_group->attr_string, -1, "BUNDLE %s", session_media->mid);
+			continue;
+		}
+
+		for (mid_id = 1; mid_id < PJMEDIA_MAX_SDP_MEDIA; ++mid_id) {
+			if (!bundle_group->mids[mid_id]) {
+				bundle_group->mids[mid_id] = session_media->mid;
+				ast_str_append(&bundle_group->attr_string, -1, " %s", session_media->mid);
+				break;
+			} else if (!strcmp(bundle_group->mids[mid_id], session_media->mid)) {
+				break;
+			}
+		}
+	}
+
+	/* Add all bundle groups that have mids to the SDP */
+	for (index = 0; index < PJMEDIA_MAX_SDP_MEDIA; ++index) {
+		bundle_group = &bundle_groups[index];
+
+		if (!bundle_group->attr_string) {
+			continue;
+		}
+
+		attr = pjmedia_sdp_attr_create(pool, "group", pj_cstr(&stmp, ast_str_buffer(bundle_group->attr_string)));
+		pjmedia_sdp_attr_add(&answer->attr_count, answer->attr, attr);
+
+		ast_free(bundle_group->attr_string);
+	}
+
+	return 0;
+}
+
 static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer)
 {
 	static const pj_str_t STR_IN = { "IN", 2 };
@@ -3485,6 +3675,7 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	for (i = 0; i < ast_stream_topology_get_count(session->pending_media_state->topology); ++i) {
 		struct ast_sip_session_media *session_media;
 		struct ast_stream *stream;
+		unsigned int streams = local->media_count;
 
 		/* This code does not enforce any maximum stream count limitations as that is done on either
 		 * the handling of an incoming SDP offer or on the handling of a session refresh.
@@ -3501,10 +3692,28 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 			return NULL;
 		}
 
+		/* If a stream was actually added then add any additional details */
+		if (streams != local->media_count) {
+			pjmedia_sdp_media *media = local->media[streams];
+			pj_str_t stmp;
+			pjmedia_sdp_attr *attr;
+
+			/* Add the media identifier if present */
+			if (!ast_strlen_zero(session_media->mid)) {
+				attr = pjmedia_sdp_attr_create(inv->pool_prov, "mid", pj_cstr(&stmp, session_media->mid));
+				pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+			}
+		}
+
 		/* Ensure that we never exceed the maximum number of streams PJMEDIA will allow. */
 		if (local->media_count == PJMEDIA_MAX_SDP_MEDIA) {
 			break;
 		}
+	}
+
+	/* Add any bundle groups that are present on the media state */
+	if (add_bundle_groups(session, inv->pool_prov, local)) {
+		return NULL;
 	}
 
 	/* Use the connection details of an available media if possible for SDP level */
