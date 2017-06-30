@@ -317,6 +317,7 @@ struct ast_rtp {
 	ast_cond_t cond;            /*!< ICE/TURN condition for signaling */
 
 	struct ice_wrap *ice;       /*!< ao2 wrapped ICE session */
+	enum ast_rtp_ice_role role; /*!< Our role in ICE negotiation */
 	pj_turn_sock *turn_rtp;     /*!< RTP TURN relay */
 	pj_turn_sock *turn_rtcp;    /*!< RTCP TURN relay */
 	pj_turn_state_t turn_state; /*!< Current state of the TURN relay session */
@@ -683,7 +684,6 @@ static void ice_wrap_dtor(void *vdoomed)
 static int ice_reset_session(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	pj_ice_sess_role role = rtp->ice->real_ice->role;
 	int res;
 
 	ast_debug(3, "Resetting ICE for RTP instance '%p'\n", instance);
@@ -695,8 +695,9 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	ast_debug(3, "Recreating ICE session %s (%d) for RTP instance '%p'\n", ast_sockaddr_stringify(&rtp->ice_original_rtp_addr), rtp->ice_port, instance);
 	res = ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
 	if (!res) {
-		/* Preserve the role that the old ICE session used */
-		pj_ice_sess_change_role(rtp->ice->real_ice, role);
+		/* Use the current expected role for the ICE session */
+		pj_ice_sess_change_role(rtp->ice->real_ice, rtp->role == AST_RTP_ICE_ROLE_CONTROLLED ?
+			PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
 	}
 
 	/* If we only have one component now, and we previously set up TURN for RTCP,
@@ -767,6 +768,8 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		ast_debug(3, "Proposed == active candidates for RTP instance '%p'\n", instance);
 		ao2_cleanup(rtp->ice_proposed_remote_candidates);
 		rtp->ice_proposed_remote_candidates = NULL;
+		/* If this ICE session is being preserved then go back to the role it currently is */
+		rtp->role = rtp->ice->real_ice->role;
 		return;
 	}
 
@@ -940,10 +943,7 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 		return;
 	}
 
-	pj_thread_register_check();
-
-	pj_ice_sess_change_role(rtp->ice->real_ice, role == AST_RTP_ICE_ROLE_CONTROLLED ?
-		PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
+	rtp->role = role;
 }
 
 /*! \pre instance is locked */
@@ -2526,6 +2526,17 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			return -1;
 		}
 		if (!rtp->passthrough) {
+			/* If a unidirectional ICE negotiation occurs then lock on to the source of the
+			 * ICE traffic and use it as the target. This will occur if the remote side only
+			 * wants to receive media but never send to us.
+			 */
+			if (!rtp->ice_active_remote_candidates && !rtp->ice_proposed_remote_candidates) {
+				if (rtcp) {
+					ast_sockaddr_copy(&rtp->rtcp->them, sa);
+				} else {
+					ast_rtp_instance_set_remote_address(instance, sa);
+				}
+			}
 			return 0;
 		}
 		rtp->passthrough = 0;
