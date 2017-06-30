@@ -229,6 +229,9 @@
 							<enum name="auto">
 								<para>DTMF is sent as RFC 4733 if the other side supports it or as INBAND if not.</para>
 							</enum>
+							<enum name="auto_info">
+								<para>DTMF is sent as RFC 4733 if the other side supports it or as SIP INFO if not.</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
