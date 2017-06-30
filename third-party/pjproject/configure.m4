@@ -1,3 +1,8 @@
+#
+# If this file is changed, be sure to run ASTTOPDIR/bootstrap.sh
+# before committing.
+#
+
 AC_DEFUN([_PJPROJECT_CONFIGURE],
 [
 	if test "${ac_mandatory_list#*PJPROJECT*}" != "$ac_mandatory_list" ; then
@@ -35,17 +40,30 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		AC_MSG_ERROR(cat is required to build bundled pjproject)
 	fi
 
+	AC_ARG_VAR([PJPROJECT_CONFIGURE_OPTS],[Additional configure options to pass to bundled pjproject])
+	this_host=$(./config.sub $(./config.guess))
+	if test "$build" != "$this_host" ; then
+		PJPROJECT_CONFIGURE_OPTS+=" --build=$build"
+	fi
+	if test "$host" != "$this_host" ; then
+		PJPROJECT_CONFIGURE_OPTS+=" --host=$host"
+	fi
+
 	export TAR PATCH SED NM EXTERNALS_CACHE_DIR DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT
-	${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} EXTERNALS_CACHE_DIR=${EXTERNALS_CACHE_DIR} configure
+	export NOISY_BUILD
+	${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
+		PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
+		EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR}" \
+		configure
 	if test $? -ne 0 ; then
 		AC_MSG_RESULT(failed)
 		AC_MSG_NOTICE(Unable to configure ${PJPROJECT_DIR})
-		AC_MSG_ERROR(Run "${GNU_MAKE} -C ${PJPROJECT_DIR} NOISY_BUILD=yes configure" to see error details.)
+		AC_MSG_ERROR(Re-run the ./configure command with 'NOISY_BUILD=yes' appended to see error details.)
 	fi
 
 	AC_MSG_CHECKING(for bundled pjproject)
 
-	PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} EXTERNALS_CACHE_DIR=${EXTERNALS_CACHE_DIR} echo_cflags)
+	PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR}" echo_cflags)
 	PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 	PBX_PJPROJECT=1
 
