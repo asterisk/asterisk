@@ -8301,6 +8301,9 @@ stop:
 			} else if (qcontinue) {
 				reason = QUEUE_CONTINUE;
 				res = 0;
+			} else if (reason == QUEUE_LEAVEEMPTY) {
+				/* Return back to dialplan, don't hang up */
+				res = 0;
 			}
 		} else if (qe.valid_digits) {
 			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHKEY",
