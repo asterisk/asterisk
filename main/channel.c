@@ -3262,8 +3262,12 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 		} else if (rchan) {
 			int res;
 			struct ast_frame *f = ast_read(c);
-			if (!f)
+
+			if (!f) {
+				ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+
 				return -1;
+			}
 
 			switch (f->frametype) {
 			case AST_FRAME_DTMF_BEGIN:
