@@ -871,9 +871,34 @@ int ast_vm_test_destroy_user(const char *context, const char *mailbox);
 int ast_vm_test_create_user(const char *context, const char *mailbox);
 #endif
 
-/*! \brief Safely spawn an external program while closing file descriptors
-	\note This replaces the \b system call in all Asterisk modules
-*/
+/*!
+ * \brief Safely spawn an external program while closing file descriptors
+ *
+ * \note This replaces the \b execvp call in all Asterisk modules
+ *
+ * \param dualfork Non-zero to simulate running the program in the
+ * background by forking twice.  The option provides similar
+ * functionality to the '&' in the OS shell command "cmd &".  The
+ * option allows Asterisk to run a reaper loop to watch the first fork
+ * which immediately exits after spaning the second fork.  The actual
+ * program is run in the second fork.
+ * \param file execvp(file, argv) file parameter
+ * \param argv execvp(file, argv) argv parameter
+ */
+int ast_safe_execvp(int dualfork, const char *file, char *const argv[]);
+
+/*!
+ * \brief Safely spawn an OS shell command while closing file descriptors
+ *
+ * \note This replaces the \b system call in all Asterisk modules
+ *
+ * \param s - OS shell command string to execute.
+ *
+ * \warning Command injection can happen using this call if the passed
+ * in string is created using untrusted data from an external source.
+ * It is best not to use untrusted data.  However, the caller could
+ * filter out dangerous characters to avoid command injection.
+ */
 int ast_safe_system(const char *s);
 
 /*!
