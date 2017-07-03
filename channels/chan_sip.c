@@ -33289,7 +33289,7 @@ static int reload_config(enum channelreloadreason reason)
 		    !ast_sockaddr_cmp(&bindaddr, &sip_tls_desc.local_address) &&
 		    !ast_sockaddr_cmp(&sip_tcp_desc.local_address,
 				      &sip_tls_desc.local_address)) {
-			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tcp_desc.local_address),
+			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tls_desc.local_address),
 				       SIP_DOMAIN_AUTO, NULL);
 		}
 
