@@ -3811,7 +3811,9 @@ static void ast_readconfig(void)
 		/* Set the maximum amount of open files */
 		} else if (!strcasecmp(v->name, "maxfiles")) {
 			ast_option_maxfiles = atoi(v->value);
-			set_ulimit(ast_option_maxfiles);
+			if (!ast_opt_remote) {
+				set_ulimit(ast_option_maxfiles);
+			}
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
 			ast_copy_string(cfg_paths.run_user, v->value, sizeof(cfg_paths.run_user));
