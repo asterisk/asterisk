@@ -33278,15 +33278,15 @@ static int reload_config(enum channelreloadreason reason)
 
 		/* If TCP is running on a different IP than UDP, then add it too */
 		if (!ast_sockaddr_isnull(&sip_tcp_desc.local_address) &&
-		    !ast_sockaddr_cmp(&bindaddr, &sip_tcp_desc.local_address)) {
+		    ast_sockaddr_cmp_addr(&bindaddr, &sip_tcp_desc.local_address)) {
 			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tcp_desc.local_address),
 				       SIP_DOMAIN_AUTO, NULL);
 		}
 
 		/* If TLS is running on a different IP than UDP and TCP, then add that too */
 		if (!ast_sockaddr_isnull(&sip_tls_desc.local_address) &&
-		    !ast_sockaddr_cmp(&bindaddr, &sip_tls_desc.local_address) &&
-		    !ast_sockaddr_cmp(&sip_tcp_desc.local_address,
+		    ast_sockaddr_cmp_addr(&bindaddr, &sip_tls_desc.local_address) &&
+		    ast_sockaddr_cmp_addr(&sip_tcp_desc.local_address,
 				      &sip_tls_desc.local_address)) {
 			add_sip_domain(ast_sockaddr_stringify_addr(&sip_tcp_desc.local_address),
 				       SIP_DOMAIN_AUTO, NULL);
