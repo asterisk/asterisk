@@ -508,7 +508,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	send_content = method != AST_HTTP_HEAD || status_code >= 400;
 
 	/* send http header */
-	ast_iostream_printf(ser->stream,
+	if (ast_iostream_printf(ser->stream,
 		"HTTP/1.1 %d %s\r\n"
 		"%s"
 		"Date: %s\r\n"
@@ -526,13 +526,16 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		http_header ? ast_str_buffer(http_header) : "",
 		content_length,
 		send_content && out && ast_str_strlen(out) ? ast_str_buffer(out) : ""
-		);
+		) <= 0) {
+		ast_debug(1, "ast_iostream_printf() failed: %s\n", strerror(errno));
+		close_connection = 1;
+	}
 
 	/* send content */
-	if (send_content && fd) {
+	if (!close_connection && send_content && fd) {
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			if (ast_iostream_write(ser->stream, buf, len) != len) {
-				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+				ast_debug(1, "ast_iostream_write() failed: %s\n", strerror(errno));
 				close_connection = 1;
 				break;
 			}
