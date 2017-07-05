@@ -505,7 +505,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	}
 
 	/* send http header */
-	fprintf(ser->f,
+	if (fprintf(ser->f,
 		"HTTP/1.1 %d %s\r\n"
 		"%s"
 		"Date: %s\r\n"
@@ -521,17 +521,20 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
 		http_header ? ast_str_buffer(http_header) : "",
 		content_length
-		);
+		) <= 0) {
+		ast_debug(1, "fprintf() failed: %s\n", strerror(errno));
+		close_connection = 1;
+	}
 
 	/* send content */
-	if (method != AST_HTTP_HEAD || status_code >= 400) {
+	if (!close_connection && (method != AST_HTTP_HEAD || status_code >= 400)) {
 		if (out && ast_str_strlen(out)) {
 			/*
 			 * NOTE: Because ser->f is a non-standard FILE *, fwrite() will probably not
 			 * behave exactly as documented.
 			 */
 			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
-				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+				ast_debug(1, "fwrite() failed: %s\n", strerror(errno));
 				close_connection = 1;
 			}
 		}
@@ -546,7 +549,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 				 * behave exactly as documented.
 				 */
 				if (fwrite(buf, len, 1, ser->f) != 1) {
-					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+					ast_debug(1, "fwrite() failed: %s\n", strerror(errno));
 					close_connection = 1;
 					break;
 				}
