@@ -54,6 +54,14 @@ chan_pjsip
    from the SDP, unless the remote side sends a different codec and we will
    switch to match.
 
+Build System
+------------------
+ * Added a new PJPROJECT_CONFIGURE_OPTS environment variable which can be used
+   to pass arbitrary options to the bundled pjproject configure.
+
+ * Automatically set the bundled pjproject configure --host and --build
+   options to match those supplied for the asterisk configure.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
 ------------------------------------------------------------------------------
