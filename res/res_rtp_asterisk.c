@@ -1291,6 +1291,8 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 	pj_turn_session_info info;
 	struct ast_sockaddr local, loop;
 	pj_status_t status;
+	pj_turn_sock_cfg turn_sock_cfg;
+	struct ice_wrap *ice;
 
 	ast_rtp_instance_get_local_address(instance, &local);
 	if (ast_sockaddr_is_ipv4(&local)) {
@@ -1353,11 +1355,20 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, rtp->ioqueue->ioqueue, rtp->ioqueue->timerheap);
 
+	/* Use ICE session group lock for TURN session to avoid deadlock */
+	pj_turn_sock_cfg_default(&turn_sock_cfg);
+	ice = rtp->ice;
+	if (ice) {
+		turn_sock_cfg.grp_lock = ice->real_ice->grp_lock;
+		ao2_ref(ice, +1);
+	}
+
 	/* Release the instance lock to avoid deadlock with PJPROJECT group lock */
 	ao2_unlock(instance);
 	status = pj_turn_sock_create(&stun_config,
 		ast_sockaddr_is_ipv4(&addr) ? pj_AF_INET() : pj_AF_INET6(), conn_type,
-		turn_cb, NULL, instance, turn_sock);
+		turn_cb, &turn_sock_cfg, instance, turn_sock);
+	ao2_cleanup(ice);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_WARNING, "Could not create a TURN client socket\n");
 		ao2_lock(instance);
