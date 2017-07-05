@@ -624,12 +624,13 @@ struct ast_rtp_glue {
 	/*!
 	 * \brief Used to prevent two channels from remotely bridging audio rtp if the channel tech has a
 	 *        reason for prohibiting it based on qualities that need to be compared from both channels.
-	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, function this is not used.
+	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
 	 */
 	int (*allow_rtp_remote)(struct ast_channel *chan1, struct ast_rtp_instance *instance);
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying video
 	 * \note This function increases the reference count on the returned RTP instance.
+	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
 	 */
 	enum ast_rtp_glue_result (*get_vrtp_info)(struct ast_channel *chan, struct ast_rtp_instance **instance);
 	/*!
@@ -642,11 +643,15 @@ struct ast_rtp_glue {
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying text
 	 * \note This function increases the reference count on the returned RTP instance.
+	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
 	 */
 	enum ast_rtp_glue_result (*get_trtp_info)(struct ast_channel *chan, struct ast_rtp_instance **instance);
 	/*! Callback for updating the destination that the remote side should send RTP to */
 	int (*update_peer)(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_rtp_instance *vinstance, struct ast_rtp_instance *tinstance, const struct ast_format_cap *cap, int nat_active);
-	/*! Callback for retrieving codecs that the channel can do.  Result returned in result_cap. */
+	/*!
+	 * \brief Callback for retrieving codecs that the channel can do.  Result returned in result_cap.
+	 * \note This function may be NULL for a given channel driver. This should be accounted for and if that is the case, this function is not used.
+	 */
 	void (*get_codec)(struct ast_channel *chan, struct ast_format_cap *result_cap);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_glue) entry;
