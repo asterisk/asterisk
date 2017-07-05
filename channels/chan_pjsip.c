@@ -1272,8 +1272,7 @@ static int update_connected_line_information(void *data)
 			int generate_new_sdp;
 
 			method = session->endpoint->id.refresh_method;
-			if (session->inv_session->invite_tsx
-				&& (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
+			if (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE) {
 				method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 			}
 
