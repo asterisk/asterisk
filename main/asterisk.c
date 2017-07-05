@@ -4560,7 +4560,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(app_init(), "App Core");
 	check_init(devstate_init(), "Device State Core");
 	check_init(ast_msg_init(), "Messaging API");
-	check_init(ast_data_init(), "Data Retrieval API");
 	check_init(ast_channels_init(), "Channel");
 	check_init(ast_endpoint_init(), "Endpoints");
 	check_init(ast_pickup_init(), "Call Pickup");

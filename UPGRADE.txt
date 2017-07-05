@@ -23,6 +23,15 @@
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 ===========================================================
 
+New in 15.0.0:
+
+Core:
+ - The 'Data Retrieval API' has been removed. This API was not actively
+   maintained, was not added to new modules (such as res_pjsip), and there
+   exist better alternatives to acquire the same information, such as the
+   ARI. As a result, the 'DataGet' AMI action as well as the 'data get'
+   CLI command have been removed.
+
 From 14.4.0 to 14.5.0:
 
 Core:
