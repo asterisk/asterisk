@@ -8,10 +8,11 @@ Create Date: 2017-06-19 13:55:15.354706
 
 # revision identifiers, used by Alembic.
 revision = '164abbd708c'
-down_revision = '86bb1efa278d'
+down_revision = 'd7983954dd96'
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 
 OLD_ENUM = ['rfc4733', 'inband', 'info', 'auto']
 NEW_ENUM = ['rfc4733', 'inband', 'info', 'auto', 'auto_info']
