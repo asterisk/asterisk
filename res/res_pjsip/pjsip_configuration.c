@@ -1150,6 +1150,37 @@ static int tos_video_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int from_user_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	/* Valid non-alphanumeric characters for URI */
+	char *valid_uri_marks = "-_.!~*`()";
+	const char *val;
+
+	for (val = var->value; *val; val++) {
+		if (!strchr(valid_uri_marks, *val) && !isdigit(*val) && !isalpha(*val)) {
+			ast_log(LOG_ERROR, "Error configuring endpoint '%s' - '%s' field "
+			"contains invalid character '%c'\n",
+			ast_sorcery_object_get_id(endpoint), var->name, *val);
+			return -1;
+		}
+	}
+
+	ast_string_field_set(endpoint, fromuser, var->value);
+
+	return 0;
+}
+
+static int from_user_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	*buf = ast_strdup(endpoint->fromuser);
+
+	return 0;
+}
+
 static int set_var_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -1914,7 +1945,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_video));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_subscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.allow));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sub_min_expiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "from_user", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "from_user", "", from_user_handler, from_user_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "from_domain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwi_from_user", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_engine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.rtp.engine));
