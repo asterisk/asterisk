@@ -66,7 +66,6 @@
 #include "asterisk/autochan.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
-#include "asterisk/data.h"
 #include "asterisk/channel_internal.h"
 #include "asterisk/features.h"
 #include "asterisk/bridge.h"
@@ -7570,122 +7569,6 @@ int ast_plc_reload(void)
 
 /*!
  * \internal
- * \brief Implements the channels provider.
- */
-static int data_channels_provider_handler(const struct ast_data_search *search,
-	struct ast_data *root)
-{
-	struct ast_channel *c;
-	struct ast_channel_iterator *iter = NULL;
-	struct ast_data *data_channel;
-
-	for (iter = ast_channel_iterator_all_new();
-		iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
-		ast_channel_lock(c);
-
-		data_channel = ast_data_add_node(root, "channel");
-		if (!data_channel) {
-			ast_channel_unlock(c);
-			continue;
-		}
-
-		if (ast_channel_data_add_structure(data_channel, c, 1) < 0) {
-			ast_log(LOG_ERROR, "Unable to add channel structure for channel: %s\n", ast_channel_name(c));
-		}
-
-		ast_channel_unlock(c);
-
-		if (!ast_data_search_match(search, data_channel)) {
-			ast_data_remove_node(root, data_channel);
-		}
-	}
-	if (iter) {
-		ast_channel_iterator_destroy(iter);
-	}
-
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Implements the channeltypes provider.
- */
-static int data_channeltypes_provider_handler(const struct ast_data_search *search,
-	struct ast_data *data_root)
-{
-	struct chanlist *cl;
-	struct ast_data *data_type;
-
-	AST_RWLIST_RDLOCK(&backends);
-	AST_RWLIST_TRAVERSE(&backends, cl, list) {
-		data_type = ast_data_add_node(data_root, "type");
-		if (!data_type) {
-			continue;
-		}
-		ast_data_add_str(data_type, "name", cl->tech->type);
-		ast_data_add_str(data_type, "description", cl->tech->description);
-		ast_data_add_bool(data_type, "devicestate", cl->tech->devicestate ? 1 : 0);
-		ast_data_add_bool(data_type, "presencestate", cl->tech->presencestate ? 1 : 0);
-		ast_data_add_bool(data_type, "indications", cl->tech->indicate ? 1 : 0);
-		ast_data_add_bool(data_type, "transfer", cl->tech->transfer ? 1 : 0);
-		ast_data_add_bool(data_type, "send_digit_begin", cl->tech->send_digit_begin ? 1 : 0);
-		ast_data_add_bool(data_type, "send_digit_end", cl->tech->send_digit_end ? 1 : 0);
-		ast_data_add_bool(data_type, "call", cl->tech->call ? 1 : 0);
-		ast_data_add_bool(data_type, "hangup", cl->tech->hangup ? 1 : 0);
-		ast_data_add_bool(data_type, "answer", cl->tech->answer ? 1 : 0);
-		ast_data_add_bool(data_type, "read", cl->tech->read ? 1 : 0);
-		ast_data_add_bool(data_type, "write", cl->tech->write ? 1 : 0);
-		ast_data_add_bool(data_type, "send_text", cl->tech->send_text ? 1 : 0);
-		ast_data_add_bool(data_type, "send_image", cl->tech->send_image ? 1 : 0);
-		ast_data_add_bool(data_type, "send_html", cl->tech->send_html ? 1 : 0);
-		ast_data_add_bool(data_type, "exception", cl->tech->exception ? 1 : 0);
-		ast_data_add_bool(data_type, "early_bridge", cl->tech->early_bridge ? 1 : 0);
-		ast_data_add_bool(data_type, "fixup", cl->tech->fixup ? 1 : 0);
-		ast_data_add_bool(data_type, "setoption", cl->tech->setoption ? 1 : 0);
-		ast_data_add_bool(data_type, "queryoption", cl->tech->queryoption ? 1 : 0);
-		ast_data_add_bool(data_type, "write_video", cl->tech->write_video ? 1 : 0);
-		ast_data_add_bool(data_type, "write_text", cl->tech->write_text ? 1 : 0);
-		ast_data_add_bool(data_type, "func_channel_read", cl->tech->func_channel_read ? 1 : 0);
-		ast_data_add_bool(data_type, "func_channel_write", cl->tech->func_channel_write ? 1 : 0);
-		ast_data_add_bool(data_type, "get_pvt_uniqueid", cl->tech->get_pvt_uniqueid ? 1 : 0);
-		ast_data_add_bool(data_type, "cc_callback", cl->tech->cc_callback ? 1 : 0);
-
-		ast_data_add_codecs(data_type, "capabilities", cl->tech->capabilities);
-
-		if (!ast_data_search_match(search, data_type)) {
-			ast_data_remove_node(data_root, data_type);
-		}
-	}
-	AST_RWLIST_UNLOCK(&backends);
-
-	return 0;
-}
-
-/*!
- * \internal
- * \brief /asterisk/core/channels provider.
- */
-static const struct ast_data_handler channels_provider = {
-	.version = AST_DATA_HANDLER_VERSION,
-	.get = data_channels_provider_handler
-};
-
-/*!
- * \internal
- * \brief /asterisk/core/channeltypes provider.
- */
-static const struct ast_data_handler channeltypes_provider = {
-	.version = AST_DATA_HANDLER_VERSION,
-	.get = data_channeltypes_provider_handler
-};
-
-static const struct ast_data_entry channel_providers[] = {
-	AST_DATA_ENTRY("/asterisk/core/channels", &channels_provider),
-	AST_DATA_ENTRY("/asterisk/core/channeltypes", &channeltypes_provider),
-};
-
-/*!
- * \internal
  * \brief Print channel object key (name).
  * \since 12.0.0
  *
@@ -7883,7 +7766,6 @@ static void channels_shutdown(void)
 	free_external_channelvars(&ami_vars);
 	free_external_channelvars(&ari_vars);
 
-	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
 	if (channels) {
 		ao2_container_unregister("channels");
@@ -7907,8 +7789,6 @@ int ast_channels_init(void)
 	ast_stasis_channels_init();
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
-
-	ast_data_register_multiple_core(channel_providers, ARRAY_LEN(channel_providers));
 
 	ast_plc_reload();
 

@@ -28,7 +28,6 @@
 
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
-#include "asterisk/data.h"
 
 /*!
  * \brief Description of a tone
@@ -241,13 +240,5 @@ static inline struct ast_tone_zone_sound *ast_tone_zone_sound_ref(struct ast_ton
 	ao2_ref(ts, +1);
 	return ts;
 }
-
-/*!
- * \brief Add a tone_zone structure to the data tree specified.
- *
- * \retval <0 on error.
- * \retval 0 on success.
- */
-int ast_tone_zone_data_add_structure(struct ast_data *tree, struct ast_tone_zone *zone);
 
 #endif /* _ASTERISK_INDICATIONS_H */

@@ -60,7 +60,6 @@
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/data.h"
 #include "asterisk/config_options.h"
 #include "asterisk/json.h"
 #include "asterisk/parking.h"
