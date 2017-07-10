@@ -3743,6 +3743,55 @@ uint32_done:
 		break;
 	}
 
+	case PARSE_TIMELEN:
+	{
+		int x = 0;
+		int *result = p_result;
+		int def = result ? *result : 0;
+		int high = INT_MAX;
+		int low = INT_MIN;
+		enum ast_timelen defunit;
+
+		defunit = va_arg(ap, enum ast_timelen);
+		/* optional arguments: default value and/or (low, high) */
+		if (flags & PARSE_DEFAULT) {
+			def = va_arg(ap, int);
+		}
+		if (flags & (PARSE_IN_RANGE | PARSE_OUT_RANGE)) {
+			low = va_arg(ap, int);
+			high = va_arg(ap, int);
+		}
+		if (ast_strlen_zero(arg)) {
+			error = 1;
+			goto timelen_done;
+		}
+		error = ast_app_parse_timelen(arg, &x, defunit);
+		if (error || x < INT_MIN || x > INT_MAX) {
+			/* Parse error, or type out of int bounds */
+			error = 1;
+			goto timelen_done;
+		}
+		error = (x < low) || (x > high);
+		if (flags & PARSE_RANGE_DEFAULTS) {
+			if (x < low) {
+				def = low;
+			} else if (x > high) {
+				def = high;
+			}
+		}
+		if (flags & PARSE_OUT_RANGE) {
+			error = !error;
+		}
+timelen_done:
+		if (result) {
+			*result  = error ? def : x;
+		}
+
+		ast_debug(3, "extract timelen from [%s] in [%d, %d] gives [%d](%d)\n",
+				arg, low, high, result ? *result : x, error);
+		break;
+	}
+
 	case PARSE_DOUBLE:
 	{
 		double *result = p_result;

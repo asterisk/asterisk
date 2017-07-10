@@ -6,6 +6,10 @@
 [global]
 intopt=-1
 uintopt=1
+timelenopt1=1ms
+timelenopt2=1s
+timelenopt3=1m
+timelenopt4=1h
 doubleopt=0.1
 sockaddropt=1.2.3.4:1234
 boolopt=true
@@ -23,6 +27,10 @@ customopt=yes
 [item]
 intopt=-1
 uintopt=1
+timelenopt1=1
+timelenopt2=1
+timelenopt3=1
+timelenopt4=1
 doubleopt=0.1
 sockaddropt=1.2.3.4:1234
 boolopt=true
