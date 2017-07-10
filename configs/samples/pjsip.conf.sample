@@ -790,6 +790,14 @@
                     ; (default: 1)
 ;max_video_streams= ; The maximum number of allowed negotiated video streams
                     ; (default: 1)
+;webrtc= ; When set to "yes" this also enables the following values that are needed
+         ; for webrtc: rtcp_mux, use_avpf, ice_support, and use_received_transport.
+         ; The following configuration settings also get defaulted as follows:
+         ;     media_encryption=dtls
+         ;     dtls_verify=fingerprint
+         ;     dtls_setup=actpass
+         ; A dtls_cert_file and a dtls_ca_file still need to be specified.
+         ; Default for this option is "no"
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

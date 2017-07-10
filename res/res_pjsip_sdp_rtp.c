@@ -1025,6 +1025,65 @@ static void process_ssrc_attributes(struct ast_sip_session *session, struct ast_
 	}
 }
 
+static void process_msid_attribute(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media, pjmedia_sdp_media *media)
+{
+	pjmedia_sdp_attr *attr;
+
+	if (!session->endpoint->media.webrtc) {
+		return;
+	}
+
+	attr = pjmedia_sdp_media_find_attr2(media, "msid", NULL);
+	if (attr) {
+		ast_free(session_media->msid);
+		ast_copy_pj_str2(&session_media->msid, &attr->value);
+	}
+}
+
+static void add_msid_to_stream(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
+{
+	pj_str_t stmp;
+	pjmedia_sdp_attr *attr;
+
+	if (!session->endpoint->media.webrtc) {
+		return;
+	}
+
+	if (ast_strlen_zero(session_media->msid)) {
+		char uuid1[AST_UUID_STR_LEN], uuid2[AST_UUID_STR_LEN];
+
+		if (ast_asprintf(&session_media->msid, "{%s} {%s}",
+			ast_uuid_generate_str(uuid1, sizeof(uuid1)),
+			ast_uuid_generate_str(uuid2, sizeof(uuid2))) < 0) {
+			session_media->msid = NULL;
+			return;
+		}
+	}
+
+	attr = pjmedia_sdp_attr_create(pool, "msid", pj_cstr(&stmp, session_media->msid));
+	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+}
+
+static void add_rtcp_fb_to_stream(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
+{
+	pj_str_t stmp;
+	pjmedia_sdp_attr *attr;
+
+	if (!session->endpoint->media.webrtc || session_media->type != AST_MEDIA_TYPE_VIDEO) {
+		return;
+	}
+
+	/*
+	 * For now just automatically add it the stream even though it hasn't
+	 * necessarily been negotiated.
+	 */
+	attr = pjmedia_sdp_attr_create(pool, "rtcp-fb", pj_cstr(&stmp, "* ccm fir"));
+	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media, const pjmedia_sdp_session *sdp,
@@ -1068,7 +1127,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	}
 
 	process_ssrc_attributes(session, session_media, stream);
-
+	process_msid_attribute(session, session_media, stream);
 	session_media_transport = ast_sip_session_media_get_transport(session, session_media);
 
 	if (session_media_transport == session_media || !session_media->bundled) {
@@ -1527,6 +1586,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	add_ssrc_to_stream(session, session_media, pool, media);
+	add_msid_to_stream(session, session_media, pool, media);
+	add_rtcp_fb_to_stream(session, session_media, pool, media);
 
 	/* Add the media stream to the SDP */
 	sdp->media[sdp->media_count++] = media;

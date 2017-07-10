@@ -1363,8 +1363,30 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
-	if (endpoint->media.bundle) {
-		endpoint->media.rtcp_mux = 1;
+	endpoint->media.rtcp_mux |= endpoint->media.bundle;
+
+	/*
+	 * If webrtc has been enabled then enable those attributes, and default
+	 * some, that are needed in order for webrtc to work.
+	 */
+	endpoint->media.bundle |= endpoint->media.webrtc;
+	endpoint->media.rtcp_mux |= endpoint->media.webrtc;
+	endpoint->media.rtp.use_avpf |= endpoint->media.webrtc;
+	endpoint->media.rtp.ice_support |= endpoint->media.webrtc;
+	endpoint->media.rtp.use_received_transport |= endpoint->media.webrtc;
+
+	if (endpoint->media.webrtc) {
+		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
+		endpoint->media.rtp.dtls_cfg.enabled = 1;
+		endpoint->media.rtp.dtls_cfg.default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
+		endpoint->media.rtp.dtls_cfg.verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
+
+		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile) ||
+			(ast_strlen_zero(endpoint->media.rtp.dtls_cfg.cafile))) {
+			ast_log(LOG_ERROR, "WebRTC can't be enabled on endpoint '%s' - a DTLS cert "
+				"or ca file has not been specified", ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
 	}
 
 	return 0;
@@ -1990,6 +2012,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_audio_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_audio_streams));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_video_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_video_streams));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bundle", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.bundle));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "webrtc", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.webrtc));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
