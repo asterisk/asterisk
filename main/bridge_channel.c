@@ -998,21 +998,6 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		return 0;
 	}
 
-	if (ast_channel_is_multistream(bridge_channel->chan) &&
-	    (fr->frametype == AST_FRAME_IMAGE || fr->frametype == AST_FRAME_TEXT ||
-	     fr->frametype == AST_FRAME_VIDEO || fr->frametype == AST_FRAME_VOICE)) {
-		/* Media frames need to be mapped to an appropriate write stream */
-		dup->stream_num = AST_VECTOR_GET(
-			&bridge_channel->stream_map.to_bridge, fr->stream_num);
-		if (dup->stream_num == -1) {
-			ast_bridge_channel_unlock(bridge_channel);
-			bridge_frame_free(dup);
-			return 0;
-		}
-	} else {
-		dup->stream_num = -1;
-	}
-
 	AST_LIST_INSERT_TAIL(&bridge_channel->wr_queue, dup, frame_list);
 	if (ast_alertpipe_write(bridge_channel->alert_pipe)) {
 		ast_log(LOG_ERROR, "We couldn't write alert pipe for %p(%s)... something is VERY wrong\n",
@@ -2455,15 +2440,26 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (bridge_channel->features->mute) {
-		frame = ast_read_noaudio(bridge_channel->chan);
+		frame = ast_read_stream_noaudio(bridge_channel->chan);
 	} else {
-		frame = ast_read(bridge_channel->chan);
+		frame = ast_read_stream(bridge_channel->chan);
 	}
 
 	if (!frame) {
 		ast_bridge_channel_kick(bridge_channel, 0);
 		return;
 	}
+
+	if (ast_channel_is_multistream(bridge_channel->chan) &&
+	    (frame->frametype == AST_FRAME_IMAGE || frame->frametype == AST_FRAME_TEXT ||
+	     frame->frametype == AST_FRAME_VIDEO || frame->frametype == AST_FRAME_VOICE)) {
+		/* Media frames need to be mapped to an appropriate write stream */
+		frame->stream_num = AST_VECTOR_GET(
+			&bridge_channel->stream_map.to_bridge, frame->stream_num);
+	} else {
+		frame->stream_num = -1;
+	}
+
 	switch (frame->frametype) {
 	case AST_FRAME_CONTROL:
 		switch (frame->subclass.integer) {

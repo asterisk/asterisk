@@ -600,7 +600,7 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 		if (participant == joiner) {
 			continue;
 		}
-		participant_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
+		participant_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(participant->chan));
 		if (!participant_topology) {
 			goto cleanup;
 		}

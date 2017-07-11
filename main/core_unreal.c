@@ -323,6 +323,19 @@ int ast_unreal_write(struct ast_channel *ast, struct ast_frame *f)
 		return -1;
 	}
 
+	/* If we are told to write a frame with a type that has no corresponding
+	 * stream on the channel then drop it.
+	 */
+	if (f->frametype == AST_FRAME_VOICE) {
+		if (!ast_channel_get_default_stream(ast, AST_MEDIA_TYPE_AUDIO)) {
+			return 0;
+		}
+	} else if (f->frametype == AST_FRAME_VIDEO) {
+		if (!ast_channel_get_default_stream(ast, AST_MEDIA_TYPE_VIDEO)) {
+			return 0;
+		}
+	}
+
 	/* Just queue for delivery to the other side */
 	ao2_ref(p, 1);
 	ao2_lock(p);
