@@ -3071,6 +3071,14 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	/* Update the dialog with the new local URI, we do it afterwards so we can use the dialog pool for construction */
 	pj_strdup_with_null(dlg->pool, &dlg->local.info_str, &local_uri);
 	dlg->local.info->uri = pjsip_parse_uri(dlg->pool, dlg->local.info_str.ptr, dlg->local.info_str.slen, 0);
+	if (!dlg->local.info->uri) {
+		ast_log(LOG_ERROR,
+			"Could not parse URI '%s' for endpoint '%s'\n",
+			dlg->local.info_str.ptr, ast_sorcery_object_get_id(endpoint));
+		dlg->sess_count--;
+		pjsip_dlg_terminate(dlg);
+		return NULL;
+	}
 
 	dlg->local.contact = pjsip_parse_hdr(dlg->pool, &HCONTACT, local_uri.ptr, local_uri.slen, NULL);
 
