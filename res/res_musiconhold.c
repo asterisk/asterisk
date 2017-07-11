@@ -158,6 +158,11 @@ struct moh_files_state {
 
 static struct ast_flags global_flags[1] = {{0}};        /*!< global MOH_ flags */
 
+enum kill_methods {
+	KILL_METHOD_PROCESS_GROUP = 0,
+	KILL_METHOD_PROCESS
+};
+
 struct mohclass {
 	char name[MAX_MUSICCLASS];
 	char dir[256];
@@ -178,6 +183,10 @@ struct mohclass {
 	int pid;
 	time_t start;
 	pthread_t thread;
+	/*! Millisecond delay between kill attempts */
+	size_t kill_delay;
+	/*! Kill method */
+	enum kill_methods kill_method;
 	/*! Source of audio */
 	int srcfd;
 	/*! Generic timer */
@@ -678,6 +687,51 @@ static int spawn_mp3(struct mohclass *class)
 	return fds[0];
 }
 
+static int killer(pid_t pid, int signum, enum kill_methods kill_method)
+{
+	switch (kill_method) {
+	case KILL_METHOD_PROCESS_GROUP:
+		return killpg(pid, signum);
+	case KILL_METHOD_PROCESS:
+		return kill(pid, signum);
+	}
+
+	return -1;
+}
+
+static void killpid(int pid, size_t delay, enum kill_methods kill_method)
+{
+	if (killer(pid, SIGHUP, kill_method) < 0) {
+		if (errno == ESRCH) {
+			return;
+		}
+		ast_log(LOG_WARNING, "Unable to send a SIGHUP to MOH process '%d'?!!: %s\n", pid, strerror(errno));
+	} else {
+		ast_debug(1, "Sent HUP to pid %d%s\n", pid,
+			kill_method == KILL_METHOD_PROCESS_GROUP ? " and all children" : " only");
+	}
+	usleep(delay);
+	if (killer(pid, SIGTERM, kill_method) < 0) {
+		if (errno == ESRCH) {
+			return;
+		}
+		ast_log(LOG_WARNING, "Unable to terminate MOH process '%d'?!!: %s\n", pid, strerror(errno));
+	} else {
+		ast_debug(1, "Sent TERM to pid %d%s\n", pid,
+			kill_method == KILL_METHOD_PROCESS_GROUP ? " and all children" : " only");
+	}
+	usleep(delay);
+	if (killer(pid, SIGKILL, kill_method) < 0) {
+		if (errno == ESRCH) {
+			return;
+		}
+		ast_log(LOG_WARNING, "Unable to kill MOH process '%d'?!!: %s\n", pid, strerror(errno));
+	} else {
+		ast_debug(1, "Sent KILL to pid %d%s\n", pid,
+			kill_method == KILL_METHOD_PROCESS_GROUP ? " and all children" : " only");
+	}
+}
+
 static void *monmp3thread(void *data)
 {
 #define	MOH_MS_INTERVAL		100
@@ -753,28 +807,7 @@ static void *monmp3thread(void *data)
 				class->srcfd = -1;
 				pthread_testcancel();
 				if (class->pid > 1) {
-					do {
-						if (killpg(class->pid, SIGHUP) < 0) {
-							if (errno == ESRCH) {
-								break;
-							}
-							ast_log(LOG_WARNING, "Unable to send a SIGHUP to MOH process?!!: %s\n", strerror(errno));
-						}
-						usleep(100000);
-						if (killpg(class->pid, SIGTERM) < 0) {
-							if (errno == ESRCH) {
-								break;
-							}
-							ast_log(LOG_WARNING, "Unable to terminate MOH process?!!: %s\n", strerror(errno));
-						}
-						usleep(100000);
-						if (killpg(class->pid, SIGKILL) < 0) {
-							if (errno == ESRCH) {
-								break;
-							}
-							ast_log(LOG_WARNING, "Unable to kill MOH process?!!: %s\n", strerror(errno));
-						}
-					} while (0);
+					killpid(class->pid, class->kill_delay, class->kill_method);
 					class->pid = 0;
 				}
 			} else {
@@ -1328,6 +1361,7 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 		)) {
 		class->format = ao2_bump(ast_format_slin);
 		class->srcfd = -1;
+		class->kill_delay = 100000;
 	}
 
 	return class;
@@ -1600,44 +1634,22 @@ static void moh_class_destructor(void *obj)
 
 	if (class->pid > 1) {
 		char buff[8192];
-		int bytes, tbytes = 0, stime = 0, pid = 0;
+		int bytes, tbytes = 0, stime = 0;
 
 		ast_debug(1, "killing %d!\n", class->pid);
 
 		stime = time(NULL) + 2;
-		pid = class->pid;
-		class->pid = 0;
-
-		/* Back when this was just mpg123, SIGKILL was fine.  Now we need
-		 * to give the process a reason and time enough to kill off its
-		 * children. */
-		do {
-			if (killpg(pid, SIGHUP) < 0) {
-				ast_log(LOG_WARNING, "Unable to send a SIGHUP to MOH process?!!: %s\n", strerror(errno));
-			}
-			usleep(100000);
-			if (killpg(pid, SIGTERM) < 0) {
-				if (errno == ESRCH) {
-					break;
-				}
-				ast_log(LOG_WARNING, "Unable to terminate MOH process?!!: %s\n", strerror(errno));
-			}
-			usleep(100000);
-			if (killpg(pid, SIGKILL) < 0) {
-				if (errno == ESRCH) {
-					break;
-				}
-				ast_log(LOG_WARNING, "Unable to kill MOH process?!!: %s\n", strerror(errno));
-			}
-		} while (0);
+		killpid(class->pid, class->kill_delay, class->kill_method);
 
 		while ((ast_wait_for_input(class->srcfd, 100) > 0) && 
 				(bytes = read(class->srcfd, buff, 8192)) && time(NULL) < stime) {
 			tbytes = tbytes + bytes;
 		}
 
-		ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+		ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n",
+			class->pid, tbytes);
 
+		class->pid = 0;
 		close(class->srcfd);
 		class->srcfd = -1;
 	}
@@ -1764,6 +1776,22 @@ static int load_moh_classes(int reload)
 				if (!class->format) {
 					ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);
 					class->format = ao2_bump(ast_format_slin);
+				}
+			} else if (!strcasecmp(var->name, "kill_escalation_delay")) {
+				if (sscanf(var->value, "%zu", &class->kill_delay) == 1) {
+					class->kill_delay *= 1000;
+				} else {
+					ast_log(LOG_WARNING, "kill_escalation_delay '%s' is invalid.  Setting to 100ms\n", var->value);
+					class->kill_delay = 100000;
+				}
+			} else if (!strcasecmp(var->name, "kill_method")) {
+				if (!strcasecmp(var->value, "process")) {
+					class->kill_method = KILL_METHOD_PROCESS;
+				} else if (!strcasecmp(var->value, "process_group")){
+					class->kill_method = KILL_METHOD_PROCESS_GROUP;
+				} else {
+					ast_log(LOG_WARNING, "kill_method '%s' is invalid.  Setting to 'process_group'\n", var->value);
+					class->kill_method = KILL_METHOD_PROCESS_GROUP;
 				}
 			}
 		}
@@ -1899,6 +1927,9 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 		ast_cli(a->fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			ast_cli(a->fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
+			ast_cli(a->fd, "\tKill Escalation Delay: %zu ms\n", class->kill_delay / 1000);
+			ast_cli(a->fd, "\tKill Method: %s\n",
+				class->kill_method == KILL_METHOD_PROCESS ? "process" : "process_group");
 		}
 		if (strcasecmp(class->mode, "files")) {
 			ast_cli(a->fd, "\tFormat: %s\n", ast_format_get_name(class->format));

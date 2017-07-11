@@ -91,3 +91,26 @@ directory=moh
 ;mode=custom
 ;directory=/var/lib/asterisk/mohmp3
 ;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
+
+; By default, when res_musiconhold reloads or unloads, it sends a HUP signal
+; to custom applications (and all descendants), waits 100ms, then sends a
+; TERM signal, waits 100ms, then finally sends a KILL signal.  An application
+; which is interacting with an external device and/or spawns children of its
+; own may not be able to exit cleanly in the default times, expecially if sent
+; a KILL signal, or if it's children are getting signals directly from
+; res_musiconhoild.  To allow extra time, the 'kill_escalation_delay'
+; class option can be used to set the number of milliseconds res_musiconhold
+; waits before escalating kill signals, with the default being the current
+; 100ms.  To control to whom the signals are sent, the "kill_method"
+; class option can be set to "process_group" (the default, existing behavior),
+; which sends signals to the application and its descendants directly, or
+; "process" which sends signals only to the application itself.
+
+;[sox_from_device]
+;mode=custom
+;directory=/var/lib/asterisk/mohmp3
+;application=/usr/bin/sox -q -t alsa -c 2 -r 48000 hw:1 -c 1 -r 8000 -t raw -s -
+; Wait 500ms before escalating kill signals
+;kill_escalation_delay=500
+; Send signals to just the child process instead of all descendants
+;kill_method=process
