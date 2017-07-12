@@ -2219,11 +2219,12 @@ int ast_waitfordigit(struct ast_channel *c, int ms);
  * Same as ast_waitfordigit() with audio fd for outputting read audio and ctrlfd to monitor for reading.
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait (<0 for indefinite).
+ * \param breakon string of DTMF digits to break upon or NULL for any.
  * \param audiofd audio file descriptor to write to if audio frames are received
  * \param ctrlfd control file descriptor to monitor for reading
  * \return Returns 1 if ctrlfd becomes available
  */
-int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
+int ast_waitfordigit_full(struct ast_channel *c, int ms, const char *breakon, int audiofd, int ctrlfd);
 
 /*!
  * \brief Reads multiple digits

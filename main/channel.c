@@ -3160,7 +3160,7 @@ int ast_waitfor(struct ast_channel *c, int ms)
 
 int ast_waitfordigit(struct ast_channel *c, int ms)
 {
-	return ast_waitfordigit_full(c, ms, -1, -1);
+	return ast_waitfordigit_full(c, ms, NULL, -1, -1);
 }
 
 int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data)
@@ -3222,7 +3222,7 @@ int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(co
 	return res;
 }
 
-int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, int cmdfd)
+int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, const char *breakon, int audiofd, int cmdfd)
 {
 	struct timeval start = ast_tvnow();
 	int ms;
@@ -3273,9 +3273,12 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, int audiofd, in
 				break;
 			case AST_FRAME_DTMF_END:
 				res = f->subclass.integer;
-				ast_frfree(f);
-				ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
-				return res;
+				if (!breakon || strchr(breakon, res)) {
+					ast_frfree(f);
+					ast_channel_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+					return res;
+				}
+				break;
 			case AST_FRAME_CONTROL:
 				switch (f->subclass.integer) {
 				case AST_CONTROL_HANGUP:
@@ -6351,11 +6354,11 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 				silgen = ast_channel_start_silence_generator(c);
 			usleep(1000);
 			if (!d)
-				d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
+				d = ast_waitfordigit_full(c, to, NULL, audiofd, ctrlfd);
 		} else {
 			if (!silgen && ast_opt_transmit_silence)
 				silgen = ast_channel_start_silence_generator(c);
-			d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
+			d = ast_waitfordigit_full(c, to, NULL, audiofd, ctrlfd);
 		}
 		if (d < 0) {
 			ast_channel_stop_silence_generator(c, silgen);

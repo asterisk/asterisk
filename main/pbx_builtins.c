@@ -580,6 +580,42 @@
 			<para>This application waits for a specified number of <replaceable>seconds</replaceable>.</para>
 		</description>
 	</application>
+	<application name="WaitDigit" language="en_US">
+		<synopsis>
+			Waits for a digit to be entered.
+		</synopsis>
+		<syntax>
+			<parameter name="seconds">
+				<para>Can be passed with fractions of a second. For example, <literal>1.5</literal> will ask the
+				application to wait for 1.5 seconds.</para>
+			</parameter>
+			<parameter name="digits">
+				<para>Digits to accept, all others are ignored.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This application waits for the user to press one of the accepted
+			<replaceable>digits</replaceable> for a specified number of
+			<replaceable>seconds</replaceable>.</para>
+			<variablelist>
+				<variable name="WAITDIGITSTATUS">
+					<para>This is the final status of the command</para>
+					<value name="ERROR">Parameters are invalid.</value>
+					<value name="DTMF">An accepted digit was received.</value>
+					<value name="TIMEOUT">The timeout passed before any acceptable digits were received.</value>
+					<value name="CANCEL">The channel has hungup or was redirected.</value>
+				</variable>
+				<variable name="WAITDIGITRESULT">
+					<para>The digit that was received, only set if
+					<variable>WAITDIGITSTATUS</variable> is <literal>DTMF</literal>.</para>
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
+			<ref type="application">Wait</ref>
+			<ref type="application">WaitExten</ref>
+		</see-also>
+	</application>
 	<application name="WaitExten" language="en_US">
 		<synopsis>
 			Waits for an extension to be entered.
@@ -951,6 +987,47 @@ static int pbx_builtin_wait(struct ast_channel *chan, const char *data)
 	if (!ast_app_parse_timelen(data, &ms, TIMELEN_SECONDS) && ms > 0) {
 		return ast_safe_sleep(chan, ms);
 	}
+	return 0;
+}
+
+/*!
+ * \ingroup applications
+ */
+static int pbx_builtin_waitdigit(struct ast_channel *chan, const char *data)
+{
+	int res;
+	int ms;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(timeout);
+		AST_APP_ARG(digits);
+	);
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_app_parse_timelen(args.timeout, &ms, TIMELEN_SECONDS) || ms < 0) {
+		pbx_builtin_setvar_helper(chan, "WAITDIGITSTATUS", "ERROR");
+		return 0;
+	}
+
+	/* Wait for "n" seconds */
+	res = ast_waitfordigit_full(chan, ms, S_OR(args.digits, AST_DIGIT_ANY), -1, -1);
+	if (res < 0) {
+		pbx_builtin_setvar_helper(chan, "WAITDIGITSTATUS", "CANCEL");
+		return -1;
+	}
+
+	if (res == 0) {
+		pbx_builtin_setvar_helper(chan, "WAITDIGITSTATUS", "TIMEOUT");
+	} else {
+		char key[2];
+
+		snprintf(key, sizeof(key), "%c", res);
+		pbx_builtin_setvar_helper(chan, "WAITDIGITRESULT", key);
+		pbx_builtin_setvar_helper(chan, "WAITDIGITSTATUS", "DTMF");
+	}
+
 	return 0;
 }
 
@@ -1410,6 +1487,7 @@ struct pbx_builtin {
 	{ "SayPhonetic",    pbx_builtin_sayphonetic },
 	{ "SetAMAFlags",    pbx_builtin_setamaflags },
 	{ "Wait",           pbx_builtin_wait },
+	{ "WaitDigit",      pbx_builtin_waitdigit },
 	{ "WaitExten",      pbx_builtin_waitexten }
 };
 
