@@ -792,16 +792,6 @@
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
 		</see-also>
 	</function>
-	<manager name="Queues" language="en_US">
-		<synopsis>
-			Queues.
-		</synopsis>
-		<syntax>
-		</syntax>
-		<description>
-			<para>Show queues information.</para>
-		</description>
-	</manager>
 	<manager name="QueueStatus" language="en_US">
 		<synopsis>
 			Show queue status.
@@ -9730,19 +9720,6 @@ static char *queue_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	return __queues_show(NULL, a->fd, a->argc, a->argv);
 }
 
-/*!\brief callback to display queues status in manager
-   \addtogroup Group_AMI
- */
-static int manager_queues_show(struct mansession *s, const struct message *m)
-{
-	static const char * const a[] = { "queue", "show" };
-
-	__queues_show(s, -1, 2, a);
-	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
-
-	return RESULT_SUCCESS;
-}
-
 static int manager_queue_rule_show(struct mansession *s, const struct message *m)
 {
 	const char *rule = astman_get_header(m, "Rule");
@@ -10925,7 +10902,6 @@ static int unload_module(void)
 
 	ast_cli_unregister_multiple(cli_queue, ARRAY_LEN(cli_queue));
 	ast_manager_unregister("QueueStatus");
-	ast_manager_unregister("Queues");
 	ast_manager_unregister("QueueRule");
 	ast_manager_unregister("QueueSummary");
 	ast_manager_unregister("QueueAdd");
@@ -11039,7 +11015,6 @@ static int load_module(void)
 	err |= ast_register_application_xml(app_upqm, upqm_exec);
 	err |= ast_register_application_xml(app_ql, ql_exec);
 	err |= ast_register_application_xml(app_qupd, qupd_exec);
-	err |= ast_manager_register_xml("Queues", 0, manager_queues_show);
 	err |= ast_manager_register_xml("QueueStatus", 0, manager_queues_status);
 	err |= ast_manager_register_xml("QueueSummary", 0, manager_queues_summary);
 	err |= ast_manager_register_xml("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member);
