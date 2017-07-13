@@ -81,6 +81,33 @@
 		<member name="CORE-SOUNDS-EN_GB-SIREN14" displayname="English (British Accent), G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
+		<member name="CORE-SOUNDS-EN_NZ-WAV" displayname="English (New Zealand Accent), WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-ULAW" displayname="English (New Zealand Accent), mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-ALAW" displayname="English (New Zealand Accent), a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-GSM" displayname="English (New Zealand Accent), GSM format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-G729" displayname="English (New Zealand Accent), G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-G722" displayname="English (New Zealand Accent), G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-SLN16" displayname="English (New Zealand Accent), Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-SIREN7" displayname="English (New Zealand Accent), G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_NZ-SIREN14" displayname="English (New Zealand Accent), G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
 		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
 			<support_level>core</support_level>
 		</member>
