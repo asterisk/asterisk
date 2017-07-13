@@ -603,6 +603,12 @@ struct ast_rtp_engine {
 	unsigned int (*ssrc_get)(struct ast_rtp_instance *instance);
 	/*! Callback to retrieve RTCP SDES CNAME */
 	const char *(*cname_get)(struct ast_rtp_instance *instance);
+	/*! Callback to bundle an RTP instance to another */
+	int (*bundle)(struct ast_rtp_instance *child, struct ast_rtp_instance *parent);
+	/*! Callback to set remote SSRC information */
+	void (*set_remote_ssrc)(struct ast_rtp_instance *instance, unsigned int ssrc);
+	/*! Callback to set the stream identifier */
+	void (*set_stream_num)(struct ast_rtp_instance *instance, int stream_num);
 	/*! Callback to pointer for optional ICE support */
 	struct ast_rtp_engine_ice *ice;
 	/*! Callback to pointer for optional DTLS SRTP support */
@@ -1512,6 +1518,20 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code);
 
 /*!
+ * \brief Set a payload code for use with a specific Asterisk format
+ *
+ * \param codecs Codecs structure to manipulate
+ * \param code The payload code
+ * \param format Asterisk format
+ *
+ * \retval 0 Payload was set to the given format
+ * \retval -1 Payload was in use or could not be set
+ *
+ * \since 15.0.0
+ */
+int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struct ast_format *format);
+
+/*!
  * \brief Retrieve a tx mapped payload type based on whether it is an Asterisk format and the code
  * \since 14.0.0
  *
@@ -2271,6 +2291,8 @@ int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level);
  *
  * \retval 0 Success
  * \retval non-zero Failure
+ *
+ * \note If no remote policy is provided any existing SRTP policies are left and the new local policy is added
  */
 int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy* remote_policy, struct ast_srtp_policy *local_policy, int rtcp);
 
@@ -2415,6 +2437,36 @@ unsigned int ast_rtp_instance_get_ssrc(struct ast_rtp_instance *rtp);
  * \return the CNAME
  */
 const char *ast_rtp_instance_get_cname(struct ast_rtp_instance *rtp);
+
+/*!
+ * \brief Request that an RTP instance be bundled with another
+ * \since 15.0.0
+ *
+ * \param child The child RTP instance
+ * \param parent The parent RTP instance the child should be bundled with
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_rtp_instance_bundle(struct ast_rtp_instance *child, struct ast_rtp_instance *parent);
+
+/*!
+ * \brief Set the remote SSRC for an RTP instance
+ * \since 15.0.0
+ *
+ * \param rtp The RTP instance
+ * \param ssrc The remote SSRC
+ */
+void ast_rtp_instance_set_remote_ssrc(struct ast_rtp_instance *rtp, unsigned int ssrc);
+
+/*!
+ * \brief Set the stream number for an RTP instance
+ * \since 15.0.0
+ *
+ * \param rtp The RTP instance
+ * \param stream_num The stream identifier number
+ */
+void ast_rtp_instance_set_stream_num(struct ast_rtp_instance *instance, int stream_num);
 
 /*! \addtogroup StasisTopicsAndMessages
  * @{

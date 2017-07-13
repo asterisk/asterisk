@@ -1495,21 +1495,24 @@ static int rtp_codecs_find_non_primary_dynamic_rx(struct ast_rtp_codecs *codecs)
  * \param asterisk_format Non-zero if the given Asterisk format is present
  * \param format Asterisk format to look for
  * \param code The format to look for
+ * \param explicit Require the provided code to be explicitly used
  *
  * \note It is assumed that static_RTP_PT_lock is at least read locked before calling.
  *
  * \retval Numerical payload type
  * \retval -1 if could not assign.
  */
-static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code)
+static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code, int explicit)
 {
-	int payload;
+	int payload = code;
 	struct ast_rtp_payload_type *new_type;
 
-	payload = find_static_payload_type(asterisk_format, format, code);
+	if (!explicit) {
+		payload = find_static_payload_type(asterisk_format, format, code);
 
-	if (payload < 0 && (!asterisk_format || ast_option_rtpusedynamic)) {
-		return payload;
+		if (payload < 0 && (!asterisk_format || ast_option_rtpusedynamic)) {
+			return payload;
+		}
 	}
 
 	new_type = rtp_payload_type_alloc(format, payload, code, 1);
@@ -1525,9 +1528,9 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 		 * The payload type is a static assignment
 		 * or our default dynamic position is available.
 		 */
-               rtp_codecs_payload_replace_rx(codecs, payload, new_type);
-	} else if (-1 < (payload = find_unused_payload(codecs))
-		|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs))) {
+		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else if (!explicit && (-1 < (payload = find_unused_payload(codecs))
+		|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs)))) {
 		/*
 		 * We found the first available empty dynamic position
 		 * or we found a mapping that should no longer be
@@ -1535,6 +1538,11 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 		 */
 		new_type->payload = payload;
 		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else if (explicit) {
+		/*
+		* They explicitly requested this payload number be used but it couldn't be
+		*/
+		payload = -1;
 	} else {
 		/*
 		 * There are no empty or non-primary dynamic positions
@@ -1595,11 +1603,16 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 
 	if (payload < 0) {
 		payload = rtp_codecs_assign_payload_code_rx(codecs, asterisk_format, format,
-			code);
+			code, 0);
 	}
 	ast_rwlock_unlock(&static_RTP_PT_lock);
 
 	return payload;
+}
+
+int ast_rtp_codecs_payload_set_rx(struct ast_rtp_codecs *codecs, int code, struct ast_format *format)
+{
+	return rtp_codecs_assign_payload_code_rx(codecs, 1, format, code, 1);
 }
 
 int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
@@ -2424,7 +2437,7 @@ int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct a
 
 	if (!*srtp) {
 		res = res_srtp->create(srtp, instance, remote_policy);
-	} else {
+	} else if (remote_policy) {
 		res = res_srtp->replace(srtp, instance, remote_policy);
 	}
 	if (!res) {
@@ -3365,4 +3378,39 @@ const char *ast_rtp_instance_get_cname(struct ast_rtp_instance *rtp)
 	ao2_unlock(rtp);
 
 	return cname;
+}
+
+int ast_rtp_instance_bundle(struct ast_rtp_instance *child, struct ast_rtp_instance *parent)
+{
+	int res = -1;
+
+	if (child->engine != parent->engine) {
+		return -1;
+	}
+
+	ao2_lock(child);
+	if (child->engine->bundle) {
+		res = child->engine->bundle(child, parent);
+	}
+	ao2_unlock(child);
+
+	return res;
+}
+
+void ast_rtp_instance_set_remote_ssrc(struct ast_rtp_instance *rtp, unsigned int ssrc)
+{
+	ao2_lock(rtp);
+	if (rtp->engine->set_remote_ssrc) {
+		rtp->engine->set_remote_ssrc(rtp, ssrc);
+	}
+	ao2_unlock(rtp);
+}
+
+void ast_rtp_instance_set_stream_num(struct ast_rtp_instance *rtp, int stream_num)
+{
+	ao2_lock(rtp);
+	if (rtp->engine->set_stream_num) {
+		rtp->engine->set_stream_num(rtp, stream_num);
+	}
+	ao2_unlock(rtp);
 }

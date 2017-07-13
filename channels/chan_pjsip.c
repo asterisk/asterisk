@@ -792,8 +792,6 @@ static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast)
 		return f;
 	}
 
-	f->stream_num = callback_state->session->stream_num;
-
 	if (f->frametype != AST_FRAME_VOICE ||
 		callback_state->session != session->active_media_state->default_session[callback_state->session->type]) {
 		return f;

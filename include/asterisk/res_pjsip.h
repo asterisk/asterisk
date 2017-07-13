@@ -688,6 +688,8 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int max_audio_streams;
 	/*! Maximum number of video streams to offer/accept */
 	unsigned int max_video_streams;
+	/*! Use BUNDLE */
+	unsigned int bundle;
 };
 
 /*!

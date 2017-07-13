@@ -880,11 +880,20 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 static struct ast_frame *media_session_udptl_read_callback(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
+	struct ast_frame *frame;
+
 	if (!session_media->udptl) {
 		return &ast_null_frame;
 	}
 
-	return ast_udptl_read(session_media->udptl);
+	frame = ast_udptl_read(session_media->udptl);
+	if (!frame) {
+		return NULL;
+	}
+
+	frame->stream_num = session_media->stream_num;
+
+	return frame;
 }
 
 static int media_session_udptl_write_callback(struct ast_sip_session *session, struct ast_sip_session_media *session_media, struct ast_frame *frame)

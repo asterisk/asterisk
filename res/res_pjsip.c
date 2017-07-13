@@ -1002,6 +1002,14 @@
 						streams allowed for the endpoint.
 					</para></description>
 				</configOption>
+				<configOption name="bundle" default="no">
+					<synopsis>Enable RTP bundling</synopsis>
+					<description><para>
+						With this option enabled, Asterisk will attempt to negotiate the use of bundle.
+						If negotiated this will result in multiple RTP streams being carried over the same
+						underlying transport. Note that enabling bundle will also enable the rtcp_mux option.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

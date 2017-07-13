@@ -99,6 +99,12 @@ struct ast_sip_session_media {
 	ast_sip_session_media_write_cb write_callback;
 	/*! \brief The stream number to place into any resulting frames */
 	int stream_num;
+	/*! \brief Media identifier for this stream (may be shared across multiple streams) */
+	char *mid;
+	/*! \brief The bundle group the stream belongs to */
+	int bundle_group;
+	/*! \brief Whether this stream is currently bundled or not */
+	unsigned int bundled;
 };
 
 /*!
@@ -832,6 +838,19 @@ int ast_sip_session_media_add_read_callback(struct ast_sip_session *session, str
  */
 int ast_sip_session_media_set_write_callback(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 	ast_sip_session_media_write_cb callback);
+
+/*!
+ * \brief Retrieve the underlying media session that is acting as transport for a media session
+ * \since 15.0.0
+ *
+ * \param session The session
+ * \param session_media The media session to retrieve the transport for
+ *
+ * \note This operates on the pending media state
+ *
+ * \note This function is guaranteed to return non-NULL
+ */
+struct ast_sip_session_media *ast_sip_session_media_get_transport(struct ast_sip_session *session, struct ast_sip_session_media *session_media);
 
 /*! \brief Determines whether the res_pjsip_session module is loaded */
 #define CHECK_PJSIP_SESSION_MODULE_LOADED()				\
