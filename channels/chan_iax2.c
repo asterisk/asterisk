@@ -13064,7 +13064,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		ast_free_acl_list(oldacl);
 	}
 
-	if (!ast_strlen_zero(peer->mailbox)) {
+	if (!ast_strlen_zero(peer->mailbox) && !peer->mwi_event_sub) {
 		struct stasis_topic *mailbox_specific_topic;
 
 		mailbox_specific_topic = ast_mwi_topic(peer->mailbox);
