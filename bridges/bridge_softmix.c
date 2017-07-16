@@ -524,15 +524,32 @@ static int append_all_streams(struct ast_stream_topology *dest,
 	const struct ast_stream_topology *source)
 {
 	int i;
+	int dest_index = 0;
 
 	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
 		struct ast_stream *clone;
+		int added = 0;
 
 		clone = ast_stream_clone(ast_stream_topology_get_stream(source, i), NULL);
 		if (!clone) {
 			return -1;
 		}
-		if (ast_stream_topology_append_stream(dest, clone) < 0) {
+
+		/* If we can reuse an existing removed stream then do so */
+		while (dest_index < ast_stream_topology_get_count(dest)) {
+			struct ast_stream *stream = ast_stream_topology_get_stream(dest, dest_index);
+
+			dest_index++;
+
+			if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+				ast_stream_topology_set_stream(dest, dest_index - 1, clone);
+				added = 1;
+				break;
+			}
+		}
+
+		/* If no removed stream exists that we took the place of append the stream */
+		if (!added && ast_stream_topology_append_stream(dest, clone) < 0) {
 			ast_stream_free(clone);
 			return -1;
 		}
