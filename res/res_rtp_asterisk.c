@@ -2587,8 +2587,14 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 
 #ifdef HAVE_PJPROJECT
 	if (rtp->ice) {
+		enum ast_rtp_ice_component_type component = rtcp ? AST_RTP_ICE_COMPONENT_RTCP : AST_RTP_ICE_COMPONENT_RTP;
 		pj_status_t status;
 		struct ice_wrap *ice;
+
+		/* If RTCP is sharing the same socket then use the same component */
+		if (rtcp && rtp->rtcp->s == rtp->s) {
+			component = AST_RTP_ICE_COMPONENT_RTP;
+		}
 
 		pj_thread_register_check();
 
@@ -2596,8 +2602,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 		ice = rtp->ice;
 		ao2_ref(ice, +1);
 		ao2_unlock(instance);
-		status = pj_ice_sess_send_data(ice->real_ice,
-			rtcp ? AST_RTP_ICE_COMPONENT_RTCP : AST_RTP_ICE_COMPONENT_RTP, temp, len);
+		status = pj_ice_sess_send_data(ice->real_ice, component, temp, len);
 		ao2_ref(ice, -1);
 		ao2_lock(instance);
 		if (status == PJ_SUCCESS) {
