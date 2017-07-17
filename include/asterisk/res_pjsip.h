@@ -690,6 +690,8 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int max_video_streams;
 	/*! Use BUNDLE */
 	unsigned int bundle;
+	/*! Enable webrtc settings and defaults */
+	unsigned int webrtc;
 };
 
 /*!
@@ -2059,6 +2061,24 @@ int ast_sip_append_body(pjsip_tx_data *tdata, const char *body_text);
  * \param size The size of the destination buffer.
  */
 void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size);
+
+/*!
+ * \brief Create and copy a pj_str_t into a standard character buffer.
+ *
+ * pj_str_t is not NULL-terminated. Any place that expects a NULL-
+ * terminated string needs to have the pj_str_t copied into a separate
+ * buffer.
+ *
+ * Copies the pj_str_t contents into a newly allocated buffer pointed to
+ * by dest. NULL-terminates the buffer.
+ *
+ * \note Caller is responsible for freeing the allocated memory.
+ *
+ * \param dest [out] The destination buffer
+ * \param src The pj_str_t to copy
+ * \retval Number of characters copied or negative value on error
+ */
+int ast_copy_pj_str2(char **dest, const pj_str_t *src);
 
 /*!
  * \brief Get the looked-up endpoint on an out-of dialog request or response

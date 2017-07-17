@@ -105,6 +105,8 @@ struct ast_sip_session_media {
 	int bundle_group;
 	/*! \brief Whether this stream is currently bundled or not */
 	unsigned int bundled;
+	/*! \brief RTP/Media streams association identifier */
+	char *msid;
 };
 
 /*!

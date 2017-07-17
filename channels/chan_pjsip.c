@@ -1595,7 +1595,9 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 				/* FIXME: Only use this for VP8. Additional work would have to be done to
 				 * fully support other video codecs */
 
-				if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_vp8) != AST_FORMAT_CMP_NOT_EQUAL) {
+				if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_vp8) != AST_FORMAT_CMP_NOT_EQUAL ||
+					(channel->session->endpoint->media.webrtc &&
+					 ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_h264) != AST_FORMAT_CMP_NOT_EQUAL)) {
 					/* FIXME Fake RTP write, this will be sent as an RTCP packet. Ideally the
 					 * RTP engine would provide a way to externally write/schedule RTCP
 					 * packets */

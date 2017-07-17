@@ -395,6 +395,7 @@ static void session_media_dtor(void *obj)
 	}
 
 	ast_free(session_media->mid);
+	ast_free(session_media->msid);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
@@ -3573,14 +3574,16 @@ static int add_bundle_groups(struct ast_sip_session *session, pj_pool_t *pool, p
 	int index, mid_id;
 	struct sip_session_media_bundle_group *bundle_group;
 
+	if (session->endpoint->media.webrtc) {
+		attr = pjmedia_sdp_attr_create(pool, "msid-semantic", pj_cstr(&stmp, "WMS *"));
+		pjmedia_sdp_attr_add(&answer->attr_count, answer->attr, attr);
+	}
+
 	if (!session->endpoint->media.bundle) {
 		return 0;
 	}
 
 	memset(bundle_groups, 0, sizeof(bundle_groups));
-
-	attr = pjmedia_sdp_attr_create(pool, "msid-semantic", pj_cstr(&stmp, "WMS *"));
-	pjmedia_sdp_attr_add(&answer->attr_count, answer->attr, attr);
 
 	/* Build the bundle group layout so we can then add it to the SDP */
 	for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {

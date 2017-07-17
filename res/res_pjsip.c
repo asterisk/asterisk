@@ -1010,6 +1010,18 @@
 						underlying transport. Note that enabling bundle will also enable the rtcp_mux option.
 					</para></description>
 				</configOption>
+				<configOption name="webrtc" default="no">
+					<synopsis>Defaults and enables some options that are relevant to WebRTC</synopsis>
+					<description><para>
+						When set to "yes" this also enables the following values that are needed in
+						order for basic WebRTC support to work: rtcp_mux, use_avpf, ice_support, and
+						use_received_transport. The following configuration settings also get defaulted
+						as follows:</para>
+						<para>media_encryption=dtls</para>
+						<para>dtls_verify=fingerprint</para>
+						<para>dtls_setup=actpass</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
@@ -4243,6 +4255,18 @@ void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size)
 	memcpy(dest, pj_strbuf(src), chars_to_copy);
 	dest[chars_to_copy] = '\0';
 }
+
+int ast_copy_pj_str2(char **dest, const pj_str_t *src)
+{
+	int res = ast_asprintf(dest, "%.*s", (int)pj_strlen(src), pj_strbuf(src));
+
+	if (res < 0) {
+		*dest = NULL;
+	}
+
+	return res;
+}
+
 
 int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *subtype)
 {
