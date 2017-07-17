@@ -134,6 +134,7 @@ struct ast_bridge_video_mode {
 		struct ast_bridge_video_single_src_data single_src_data;
 		struct ast_bridge_video_talker_src_data talker_src_data;
 	} mode_data;
+	unsigned int video_update_discard;
 };
 
 /*!
@@ -901,6 +902,14 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge);
  * \brief Set the bridge to be a selective forwarding unit
  */
 void ast_bridge_set_sfu_video_mode(struct ast_bridge *bridge);
+
+/*!
+ * \brief Set the amount of time to discard subsequent video updates after a video update has been sent
+ *
+ * \param bridge Bridge to set the minimum video update wait time on
+ * \param video_update_discard Amount of time after sending a video update that others should be discarded
+ */
+void ast_bridge_set_video_update_discard(struct ast_bridge *bridge, unsigned int video_update_discard);
 
 /*!
  * \brief Update information about talker energy for talker src video mode.

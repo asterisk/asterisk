@@ -266,7 +266,8 @@ struct ast_rtp {
 	unsigned int lastitexttimestamp;
 	unsigned int lastotexttimestamp;
 	unsigned int lasteventseqn;
-	int lastrxseqno;                /*!< Last received sequence number */
+	int lastrxseqno;                /*!< Last received sequence number, from the network */
+	int expectedseqno;		/*!< Next expected sequence number, from the core */
 	unsigned short seedrxseqno;     /*!< What sequence number did they start with?*/
 	unsigned int seedrxts;          /*!< What RTP timestamp did they start with? */
 	unsigned int rxcount;           /*!< How many packets have we received? */
@@ -3245,6 +3246,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	rtp->ssrc = ast_random();
 	ast_uuid_generate_str(rtp->cname, sizeof(rtp->cname));
 	rtp->seqno = ast_random() & 0x7fff;
+	rtp->expectedseqno = -1;
 	rtp->sched = sched;
 	ast_sockaddr_copy(&rtp->bind_address, addr);
 
@@ -3274,7 +3276,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
  * \return 0 if element does not match.
  * \return Non-zero if element matches.
  */
-#define SSRC_MAPPING_ELEM_CMP(elem, value) ((elem).ssrc == (value))
+#define SSRC_MAPPING_ELEM_CMP(elem, value) (elem.instance == value)
 
 /*! \pre instance is locked */
 static int ast_rtp_destroy(struct ast_rtp_instance *instance)
@@ -3289,7 +3291,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 
 		ao2_lock(rtp->bundled);
 		bundled_rtp = ast_rtp_instance_get_data(rtp->bundled);
-		AST_VECTOR_REMOVE_CMP_UNORDERED(&bundled_rtp->ssrc_mapping, rtp->themssrc, SSRC_MAPPING_ELEM_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
+		AST_VECTOR_REMOVE_CMP_UNORDERED(&bundled_rtp->ssrc_mapping, instance, SSRC_MAPPING_ELEM_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
 		ao2_unlock(rtp->bundled);
 
 		ao2_lock(instance);
@@ -3897,6 +3899,7 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	unsigned int ms = calc_txstamp(rtp, &frame->delivery);
 	struct ast_sockaddr remote_address = { {0,} };
 	int rate = rtp_get_rate(frame->subclass.format) / 1000;
+	unsigned int seqno;
 
 	if (ast_format_cmp(frame->subclass.format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) {
 		frame->samples /= 2;
@@ -3963,6 +3966,40 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		rtp->lastdigitts = rtp->lastts;
 	}
 
+	/* Assume that the sequence number we expect to use is what will be used until proven otherwise */
+	seqno = rtp->seqno;
+
+	/* If the frame contains sequence number information use it to influence our sequence number */
+	if (ast_test_flag(frame, AST_FRFLAG_HAS_SEQUENCE_NUMBER)) {
+		if (rtp->expectedseqno != -1) {
+			/* Determine where the frame from the core is in relation to where we expected */
+			int difference = frame->seqno - rtp->expectedseqno;
+
+			/* If there is a substantial difference then we've either got packets really out
+			 * of order, or the source is RTP and it has cycled. If this happens we resync
+			 * the sequence number adjustments to this frame. If we also have packet loss
+			 * things won't be reflected correctly but it will sort itself out after a bit.
+			 */
+			if (abs(difference) > 100) {
+				difference = 0;
+			}
+
+			/* Adjust the sequence number being used for this packet accordingly */
+			seqno += difference;
+
+			if (difference >= 0) {
+				/* This frame is on time or in the future */
+				rtp->expectedseqno = frame->seqno + 1;
+				rtp->seqno += difference;
+			}
+		} else {
+			/* This is the first frame with sequence number we've seen, so start keeping track */
+			rtp->expectedseqno = frame->seqno + 1;
+        }
+	} else {
+		rtp->expectedseqno = -1;
+	}
+
 	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
 		rtp->lastts = frame->ts * rate;
 	}
@@ -3974,7 +4011,7 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		int hdrlen = 12, res, ice;
 		unsigned char *rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
 
-		put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
+		put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (seqno) | (mark << 23)));
 		put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
 		put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc));
 
@@ -4011,7 +4048,13 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		}
 	}
 
-	rtp->seqno++;
+	/* If the sequence number that has been used doesn't match what we expected then this is an out of
+	 * order late packet, so we don't need to increment as we haven't yet gotten the expected frame from
+	 * the core.
+	 */
+	if (seqno == rtp->seqno) {
+		rtp->seqno++;
+	}
 
 	return 0;
 }
@@ -5474,6 +5517,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	rtp->f.datalen = res - hdrlen;
 	rtp->f.data.ptr = read_area + hdrlen;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
+	ast_set_flag(&rtp->f, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
 	rtp->f.seqno = seqno;
 	rtp->f.stream_num = rtp->stream_num;
 
@@ -6082,7 +6126,7 @@ static void ast_rtp_set_stream_num(struct ast_rtp_instance *instance, int stream
 static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instance *parent)
 {
 	struct ast_rtp *child_rtp = ast_rtp_instance_get_data(child);
-	struct ast_rtp *parent_rtp = ast_rtp_instance_get_data(parent);
+	struct ast_rtp *parent_rtp;
 	struct rtp_ssrc_mapping mapping;
 	struct ast_sockaddr them = { { 0, } };
 
@@ -6099,7 +6143,7 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 		/* The child lock can't be held while accessing the parent */
 		ao2_lock(child_rtp->bundled);
 		bundled_rtp = ast_rtp_instance_get_data(child_rtp->bundled);
-		AST_VECTOR_REMOVE_CMP_UNORDERED(&bundled_rtp->ssrc_mapping, child_rtp->themssrc, SSRC_MAPPING_ELEM_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
+		AST_VECTOR_REMOVE_CMP_UNORDERED(&bundled_rtp->ssrc_mapping, child, SSRC_MAPPING_ELEM_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
 		ao2_unlock(child_rtp->bundled);
 
 		ao2_lock(child);
@@ -6112,6 +6156,8 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 		rtp_allocate_transport(child, child_rtp);
 		return 0;
 	}
+
+	parent_rtp = ast_rtp_instance_get_data(parent);
 
 	/* We no longer need any transport related resources as we will use our parent RTP instance instead */
 	rtp_deallocate_transport(child, child_rtp);
