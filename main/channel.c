@@ -4180,6 +4180,11 @@ struct ast_frame *ast_read_noaudio(struct ast_channel *chan)
 	return __ast_read(chan, 1, 1);
 }
 
+struct ast_frame *ast_read_stream_noaudio(struct ast_channel *chan)
+{
+	return __ast_read(chan, 1, 0);
+}
+
 int ast_indicate(struct ast_channel *chan, int condition)
 {
 	return ast_indicate_data(chan, condition, NULL, 0);

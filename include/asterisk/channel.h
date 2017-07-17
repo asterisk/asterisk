@@ -2030,6 +2030,26 @@ struct ast_frame *ast_read_stream(struct ast_channel *chan);
 struct ast_frame *ast_read_noaudio(struct ast_channel *chan);
 
 /*!
+ * \brief Reads a frame, but does not filter to just the default streams,
+ * returning AST_FRAME_NULL frame if audio.
+ *
+ * \param chan channel to read a frame from
+ *
+ * \return Returns a frame, or NULL on error.  If it returns NULL, you
+ * best just stop reading frames and assume the channel has been
+ * disconnected.
+ *
+ * \note This function will not perform any filtering and will return
+ *       media frames from all streams on the channel. To determine which
+ *       stream a frame originated from the stream_num on it can be
+ *       examined.
+ *
+ * \note Audio is replaced with AST_FRAME_NULL to avoid
+ * transcode when the resulting audio is not necessary.
+ */
+struct ast_frame *ast_read_stream_noaudio(struct ast_channel *chan);
+
+/*!
  * \brief Write a frame to a channel
  * This function writes the given frame to the indicated channel.
  * \param chan destination channel of the frame
