@@ -785,6 +785,12 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		 * we remove it as a result of the stream limit being reached.
 		 */
 		if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+			/* This stream is no longer being used so release any resources the handler
+			 * may have on it.
+			 */
+			if (session_media->handler) {
+				session_media_set_handler(session_media, NULL);
+			}
 			continue;
 		}
 

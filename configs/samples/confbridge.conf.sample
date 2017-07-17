@@ -218,6 +218,12 @@ type=bridge
                            ; Default is en (English).
 
 ;regcontext=conferences    ; The name of the context into which to register conference names as extensions.
+;video_update_discard=2000 ; Amount of time (in milliseconds) to discard video update requests after sending a video
+                           ; update request. Default is 2000. A video update request is a request for a full video
+                           ; intra-frame. Clients can request this if they require a full frame in order to decode
+                           ; the video stream. Since a full frame can be large limiting how often they occur can
+                           ; reduce bandwidth usage at the cost of increasing how long it may take a newly joined
+                           ; channel to receive the video stream.
 
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after

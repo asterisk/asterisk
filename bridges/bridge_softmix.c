@@ -985,6 +985,8 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
  */
 static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
+	struct softmix_bridge_data *softmix_data = bridge->tech_pvt;
+
 	/*
 	 * XXX Softmix needs to use channel roles to determine what to
 	 * do with control frames.
@@ -992,7 +994,11 @@ static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_br
 
 	switch (frame->subclass.integer) {
 	case AST_CONTROL_VIDUPDATE:
-		ast_bridge_queue_everyone_else(bridge, NULL, frame);
+		if (!bridge->softmix.video_mode.video_update_discard ||
+			ast_tvdiff_ms(ast_tvnow(), softmix_data->last_video_update) > bridge->softmix.video_mode.video_update_discard) {
+			ast_bridge_queue_everyone_else(bridge, NULL, frame);
+			softmix_data->last_video_update = ast_tvnow();
+		}
 		break;
 	default:
 		break;

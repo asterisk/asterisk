@@ -450,6 +450,16 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="video_update_discard" default="2000">
+					<synopsis>Sets the amount of time in milliseconds after sending a video update to discard subsequent video updates</synopsis>
+					<description><para>
+						Sets the amount of time in milliseconds after sending a video update request
+						that subsequent video updates should be discarded. This means that if we
+						send a video update we will discard any other video update requests until
+						after the configured amount of time has elapsed. This prevents flooding of
+						video update requests from clients.
+					</para></description>
+				</configOption>
 				<configOption name="template">
 					<synopsis>When using the CONFBRIDGE dialplan function, use a bridge profile as a template for creating a new temporary profile</synopsis>
 				</configOption>
@@ -1652,6 +1662,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		break;
 	}
 
+	ast_cli(a->fd,"Video Update Discard: %u\n", b_profile.video_update_discard);
+
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_joined:     %s\n", conf_get_sound(CONF_SOUND_HAS_JOINED, b_profile.sounds));
@@ -2220,6 +2232,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "regcontext", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, regcontext));
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
+	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 
