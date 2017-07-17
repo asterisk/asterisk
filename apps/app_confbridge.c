@@ -2145,6 +2145,7 @@ static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 	}
 
 	if (res == -1) {
+		ast_filedelete(user->name_rec_location, NULL);
 		user->name_rec_location[0] = '\0';
 		return -1;
 	}
@@ -2236,6 +2237,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0, volume_adjustments[2];
 	int quiet = 0;
+	int async_delete_task_pushed = 0;
 	char *parse;
 	const char *b_profile_name = NULL;
 	const char *u_profile_name = NULL;
@@ -2481,6 +2483,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		async_play_sound_file(conference,
 			conf_get_sound(CONF_SOUND_HAS_LEFT, conference->b_profile.sounds), NULL);
 		async_delete_name_rec(conference, user.name_rec_location);
+		async_delete_task_pushed = 1;
 	}
 
 	/* play the leave sound */
@@ -2509,6 +2512,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 confbridge_cleanup:
+	if (!async_delete_task_pushed && !ast_strlen_zero(user.name_rec_location)) {
+		ast_filedelete(user.name_rec_location, NULL);
+	}
 	ast_bridge_features_cleanup(&user.features);
 	conf_bridge_profile_destroy(&user.b_profile);
 	return res;
