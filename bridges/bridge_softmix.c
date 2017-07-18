@@ -701,14 +701,15 @@ static int remove_destination_streams(struct ast_stream_topology *dest,
 
 		stream = ast_stream_topology_get_stream(source, i);
 
-		if (is_video_dest(stream, channel_name, NULL)) {
-			continue;
-		}
-
 		stream_clone = ast_stream_clone(stream, NULL);
 		if (!stream_clone) {
 			continue;
 		}
+
+		if (is_video_dest(stream, channel_name, NULL)) {
+			ast_stream_set_state(stream_clone, AST_STREAM_STATE_REMOVED);
+		}
+
 		if (ast_stream_topology_append_stream(dest, stream_clone) < 0) {
 			ast_stream_free(stream_clone);
 		}
@@ -1964,9 +1965,9 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 		int num_streams;
 		int params_index[4];
 	} removal_results[] = {
-		{ "PJSIP/Bob-00000001", 3, { 0, 1, 3, -1 }, },
+		{ "PJSIP/Bob-00000001", 4, { 0, 1, 2, 3 }, },
 		{ "PJSIP/Edward-00000004", 4, { 0, 1, 2, 3 }, },
-		{ "", 2, { 0, 1, -1, -1 }, },
+		{ "", 4, { 0, 1, 2, 3 }, },
 	};
 	struct ast_stream_topology *orig = NULL;
 	struct ast_stream_topology *result = NULL;
@@ -2031,6 +2032,12 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 				ast_test_status_update(test, "Mismatch between expected (%s) and actual (%s) stream formats\n",
 					ast_format_cap_get_names(ast_stream_get_formats(expected), &expected_str),
 					ast_format_cap_get_names(ast_stream_get_formats(actual), &actual_str));
+				goto end;
+			}
+
+			if (is_video_dest(actual, removal_results[i].channel_name, NULL) &&
+				ast_stream_get_state(actual) != AST_STREAM_STATE_REMOVED) {
+				ast_test_status_update(test, "Removed stream %s does not have a state of removed\n", ast_stream_get_name(actual));
 				goto end;
 			}
 		}
