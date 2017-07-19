@@ -324,7 +324,7 @@ static int say_date_generic(struct ast_channel *chan, time_t t,
 	if (format == NULL)
 		format = "";
 
-	ast_localtime(&when, &tm, NULL);
+	ast_localtime(&when, &tm, timezonename);
 	snprintf(buf, sizeof(buf), "%s:%s:%04d%02d%02d%02d%02d.%02d-%d-%3d",
 		prefix,
 		format,
