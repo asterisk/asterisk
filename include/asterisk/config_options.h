@@ -467,6 +467,31 @@ enum aco_option_type {
 	 * {endcode}
 	 */
 	OPT_YESNO_T,
+
+	/*! \brief Type for default option handler for time length signed integers
+	 *
+	 * \note aco_option_register flags:
+	 *   See flags available for use with the PARSE_TIMELEN type for the ast_parse_arg function
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type int
+	 *   The remaining varargs for should be arguments compatible with the varargs for the
+	 *   ast_parse_arg function with the PARSE_TIMELEN type and the flags passed in the
+	 *   aco_option_register flags parameter.
+	 *
+	 * \note In most situations, it is preferable to not pass the PARSE_DEFAULT flag. If a config
+	 * contains an invalid value, it is better to let the config loading fail with warnings so that
+	 * the problem is fixed by the administrator.
+	 *
+	 * Example:
+	 * struct test_item {
+	 *     int timelen;
+	 * };
+	 * {code}
+	 * aco_option_register(&cfg_info, "timelen", ACO_EXACT, my_types, "3", OPT_TIMELEN_T, PARSE_IN_RANGE, FLDSET(struct test_item, intopt), TIMELEN_MILLISECONDS, -10, 10);
+	 * {endcode}
+	 */
+	OPT_TIMELEN_T,
+
 };
 
 /*! \brief A callback function for handling a particular option

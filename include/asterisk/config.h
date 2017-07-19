@@ -1086,6 +1086,11 @@ enum ast_parse_flags {
 	PARSE_UINT16	= 	0x0005,
 #endif
 
+	/* Returns an int processed by ast_app_parse_timelen.
+	 * The first argument is an enum ast_timelen value (required).
+	 */
+	PARSE_TIMELEN	=	0x0006,
+
 	/* Returns a struct ast_sockaddr, with optional default value
 	 * (passed by reference) and port handling (accept, ignore,
 	 * require, forbid). The format is 'ipaddress[:port]'. IPv6 address
@@ -1152,6 +1157,12 @@ enum ast_parse_flags {
  * returns 1, b unchanged
  *    ast_parse_arg("12", PARSE_UINT32|PARSE_IN_RANGE|PARSE_RANGE_DEFAULTS, &a, 1, 10);
  * returns 1, a = 10
+ *     ast_parse_arg("223", PARSE_TIMELEN|PARSE_IN_RANGE, &a, TIMELEN_SECONDS, -1000, 1000);
+ * returns 0, a = 1000
+ *     ast_parse_arg("223", PARSE_TIMELEN|PARSE_IN_RANGE, &a, TIMELEN_SECONDS, -1000, 250000);
+ * returns 0, a = 223000
+ *     ast_parse_arg("223", PARSE_TIMELEN|PARSE_IN_RANGE|PARSE_DEFAULT, &a, TIMELEN_SECONDS, 9999, -1000, 250000);
+ * returns 0, a = 9999
  *    ast_parse_arg("www.foo.biz:44", PARSE_INADDR, &sa);
  * returns 0, sa contains address and port
  *    ast_parse_arg("www.foo.biz", PARSE_INADDR|PARSE_PORT_REQUIRE, &sa);

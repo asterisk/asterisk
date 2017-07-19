@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config_options.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/acl.h"
+#include "asterisk/app.h"
 #include "asterisk/frame.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/cli.h"
@@ -120,6 +121,7 @@ static void config_option_destroy(void *obj)
 
 static int int_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
+static int timelen_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int double_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int sockaddr_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 static int stringfield_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
@@ -153,6 +155,7 @@ static aco_option_handler ast_config_option_default_handler(enum aco_option_type
 	case OPT_SOCKADDR_T: return sockaddr_handler_fn;
 	case OPT_STRINGFIELD_T: return stringfield_handler_fn;
 	case OPT_UINT_T: return uint_handler_fn;
+	case OPT_TIMELEN_T: return timelen_handler_fn;
 
 	case OPT_CUSTOM_T: return NULL;
 	}
@@ -1375,6 +1378,39 @@ static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *va
 		ast_log(LOG_WARNING, "Attempted to set %s=%s, but set it to %u instead due to default)\n", var->name, var->value, *field);
 	} else {
 		res = ast_parse_arg(var->value, flags, field);
+	}
+
+	return res;
+}
+
+/*! \brief Default option handler for timelen signed integers
+ * \note For a description of the opt->flags and opt->args values, see the documentation for
+ * enum aco_option_type in config_options.h
+ */
+static int timelen_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	int *field = (int *)(obj + opt->args[0]);
+	unsigned int flags = PARSE_TIMELEN | opt->flags;
+	int res = 0;
+	if (opt->flags & PARSE_IN_RANGE) {
+		if (opt->flags & PARSE_DEFAULT) {
+			res = ast_parse_arg(var->value, flags, field, (enum ast_timelen) opt->args[1], (int) opt->args[2], (int) opt->args[3], opt->args[4]);
+		} else {
+			res = ast_parse_arg(var->value, flags, field, (enum ast_timelen) opt->args[1], (int) opt->args[2], (int) opt->args[3]);
+		}
+		if (res) {
+			if (opt->flags & PARSE_RANGE_DEFAULTS) {
+				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[2], (int) opt->args[3]);
+				res = 0;
+			} else if (opt->flags & PARSE_DEFAULT) {
+				ast_log(LOG_WARNING, "Failed to set %s=%s, Set to default value %d instead.\n", var->name, var->value, *field);
+				res = 0;
+			}
+		}
+	} else if ((opt->flags & PARSE_DEFAULT) && ast_parse_arg(var->value, flags, field, (enum ast_timelen) opt->args[1], (int) opt->args[2])) {
+		ast_log(LOG_WARNING, "Attempted to set %s=%s, but set it to %d instead due to default)\n", var->name, var->value, *field);
+	} else {
+		res = ast_parse_arg(var->value, flags, field, (enum ast_timelen) opt->args[1]);
 	}
 
 	return res;
