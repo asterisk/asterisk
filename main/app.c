@@ -3062,19 +3062,32 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen uni
 		case 'h':
 		case 'H':
 			unit = TIMELEN_HOURS;
+			if (u[1] != '\0') {
+				return -1;
+			}
 			break;
 		case 's':
 		case 'S':
 			unit = TIMELEN_SECONDS;
+			if (u[1] != '\0') {
+				return -1;
+			}
 			break;
 		case 'm':
 		case 'M':
 			if (toupper(u[1]) == 'S') {
 				unit = TIMELEN_MILLISECONDS;
+				if (u[2] != '\0') {
+					return -1;
+				}
 			} else if (u[1] == '\0') {
 				unit = TIMELEN_MINUTES;
+			} else {
+				return -1;
 			}
 			break;
+		default:
+			return -1;
 		}
 	}
 
