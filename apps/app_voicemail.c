@@ -11066,7 +11066,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			int skipuser, int max_logins, int silent)
 {
 	int useadsi = 0, valid = 0, logretries = 0;
-	char password[AST_MAX_EXTENSION]="", *passptr;
+	char password[AST_MAX_EXTENSION], *passptr;
 	struct ast_vm_user vmus, *vmu = NULL;
 
 	/* If ADSI is supported, setup login screen */
@@ -11108,7 +11108,8 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			adsi_password(chan);
 
 		if (!ast_strlen_zero(prefix)) {
-			char fullusername[80] = "";
+			char fullusername[80];
+
 			ast_copy_string(fullusername, prefix, sizeof(fullusername));
 			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
 			ast_copy_string(mailbox, fullusername, mailbox_size);
@@ -11166,6 +11167,10 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 					free_user(vmu);
 					return -1;
 				}
+				if (ast_waitstream(chan, "")) {	/* Channel is hung up */
+					free_user(vmu);
+					return -1;
+				}
 			} else {
 				if (useadsi)
 					adsi_login(chan);
@@ -11174,10 +11179,6 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 					free_user(vmu);
 					return -1;
 				}
-			}
-			if (ast_waitstream(chan, "")) {	/* Channel is hung up */
-				free_user(vmu);
-				return -1;
 			}
 		}
 	}
