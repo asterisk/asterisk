@@ -2393,7 +2393,7 @@ static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, con
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[3], "%30d", &to) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
+	res = ast_waitfordigit_full(chan, to, NULL, agi->audio, agi->ctrl);
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
@@ -2673,7 +2673,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 
 	/* If the user didnt press a key, wait for digitTimeout*/
 	if (res == 0 ) {
-		res = ast_waitfordigit_full(chan, timeout, agi->audio, agi->ctrl);
+		res = ast_waitfordigit_full(chan, timeout, NULL, agi->audio, agi->ctrl);
 		/* Make sure the new result is in the escape digits of the GET OPTION */
 		if ( !strchr(edigits,res) )
 			res=0;
