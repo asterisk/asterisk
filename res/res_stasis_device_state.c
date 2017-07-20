@@ -108,7 +108,6 @@ static int device_state_subscriptions_cmp(void *obj, void *arg, int flags)
 static void device_state_subscription_destroy(void *obj)
 {
 	struct device_state_subscription *sub = obj;
-	sub->sub = stasis_unsubscribe_and_join(sub->sub);
 	ast_string_field_free_memory(sub);
 }
 
@@ -154,6 +153,9 @@ static struct device_state_subscription *find_device_state_subscription(
 static void remove_device_state_subscription(
 	struct device_state_subscription *sub)
 {
+	if (sub->sub) {
+		sub->sub = stasis_unsubscribe_and_join(sub->sub);
+	}
 	ao2_unlink_flags(device_state_subscriptions, sub, OBJ_NOLOCK);
 }
 
