@@ -1820,8 +1820,8 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 		&& ast_apply_ha(transport_state->localnet, &addr) == AST_SENSE_ALLOW) {
 		return;
 	}
-	ast_debug(5, "Setting media address to %s\n", transport->external_media_address);
-	pj_strdup2(tdata->pool, &stream->conn->addr, transport->external_media_address);
+	ast_debug(5, "Setting media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
+	pj_strdup2(tdata->pool, &stream->conn->addr, ast_sockaddr_stringify_host(&transport_state->external_media_address));
 }
 
 /*! \brief Function which stops the RTP instance */

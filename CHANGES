@@ -21,6 +21,12 @@ app_queue
 --- Functionality changes from Asterisk 14.6.0 to Asterisk 14.7.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * The "external_media_address" on transports is now resolved using dnsmgr and
+   when dnsmgr refreshes are enabled will be automatically updated with the new
+   IP address of a given hostname.
+
 res_musiconhold
 ------------------
  * By default, when res_musiconhold reloads or unloads, it sends a HUP signal
