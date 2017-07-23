@@ -103,15 +103,25 @@ struct ast_sip_transport_state {
 	 */
 	struct ast_ha *localnet;
 	/*!
-	 * DNS manager for refreshing the external address
+	 * DNS manager for refreshing the external signaling address
 	 * \since 13.8.0
 	 */
-	struct ast_dnsmgr_entry *external_address_refresher;
+	struct ast_dnsmgr_entry *external_signaling_address_refresher;
 	/*!
-	 * Optional external address information
+	 * Optional external signaling address information
 	 * \since 13.8.0
 	 */
-	struct ast_sockaddr external_address;
+	struct ast_sockaddr external_signaling_address;
+	/*!
+	 * DNS manager for refreshing the external media address
+	 * \since 13.18.0
+	 */
+	struct ast_dnsmgr_entry *external_media_address_refresher;
+	/*!
+	 * Optional external signaling address information
+	 * \since 13.18.0
+	 */
+	struct ast_sockaddr external_media_address;
 };
 
 /*
