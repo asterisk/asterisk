@@ -273,10 +273,10 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		}
 	}
 
-	if (!ast_sockaddr_isnull(&transport_state->external_address)) {
+	if (!ast_sockaddr_isnull(&transport_state->external_signaling_address)) {
 		/* Update the contact header with the external address */
 		if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
-			pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_address));
+			pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
 			if (transport->external_signaling_port) {
 				uri->port = transport->external_signaling_port;
 				ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
@@ -285,7 +285,7 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 
 		/* Update the via header if relevant */
 		if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
-			pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_address));
+			pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
 			if (transport->external_signaling_port) {
 				via->sent_by.port = transport->external_signaling_port;
 			}
