@@ -2695,9 +2695,10 @@ int ast_rtp_engine_init(void)
 	set_next_mime_type(ast_format_siren7, 0, "audio", "G7221", 16000);
 	set_next_mime_type(ast_format_siren14, 0, "audio", "G7221", 32000);
 	set_next_mime_type(ast_format_g719, 0, "audio", "G719", 48000);
-	/* Opus and VP8 */
+	/* Opus, VP8, and VP9 */
 	set_next_mime_type(ast_format_opus, 0,  "audio", "opus", 48000);
 	set_next_mime_type(ast_format_vp8, 0,  "video", "VP8", 90000);
+	set_next_mime_type(ast_format_vp9, 0, "video", "VP9", 90000);
 
 	/* Define the static rtp payload mappings */
 	add_static_payload(0, ast_format_ulaw, 0);
@@ -2730,6 +2731,8 @@ int ast_rtp_engine_init(void)
 	add_static_payload(104, ast_format_mp4, 0);
 	add_static_payload(105, ast_format_t140_red, 0);   /* Real time text chat (with redundancy encoding) */
 	add_static_payload(106, ast_format_t140, 0);     /* Real time text chat */
+	add_static_payload(108, ast_format_vp9, 0);
+
 	add_static_payload(110, ast_format_speex, 0);
 	add_static_payload(111, ast_format_g726, 0);
 	add_static_payload(112, ast_format_g726_aal2, 0);
