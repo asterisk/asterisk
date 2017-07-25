@@ -193,6 +193,11 @@ struct ast_format *ast_format_mp4;
 struct ast_format *ast_format_vp8;
 
 /*!
+ * \brief Built-in cached vp9 format.
+ */
+struct ast_format *ast_format_vp9;
+
+/*!
  * \brief Built-in cached jpeg format.
  */
 struct ast_format *ast_format_jpeg;
@@ -336,6 +341,7 @@ static void format_cache_shutdown(void)
 	ao2_replace(ast_format_h264, NULL);
 	ao2_replace(ast_format_mp4, NULL);
 	ao2_replace(ast_format_vp8, NULL);
+	ao2_replace(ast_format_vp9, NULL);
 	ao2_replace(ast_format_t140_red, NULL);
 	ao2_replace(ast_format_t140, NULL);
 	ao2_replace(ast_format_none, NULL);
@@ -432,6 +438,8 @@ static void set_cached_format(const char *name, struct ast_format *format)
 		ao2_replace(ast_format_mp4, format);
 	} else if (!strcmp(name, "vp8")) {
 		ao2_replace(ast_format_vp8, format);
+	} else if (!strcmp(name, "vp9")) {
+		ao2_replace(ast_format_vp9, format);
 	} else if (!strcmp(name, "red")) {
 		ao2_replace(ast_format_t140_red, format);
 	} else if (!strcmp(name, "t140")) {

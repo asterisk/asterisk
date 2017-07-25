@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 14.6.0 to Asterisk 14.7.0 ------------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * VP9 is now a supported passthrough video codec and it can be used by
+   specifying "vp9" in the allow line.
+
 res_musiconhold
 ------------------
  * By default, when res_musiconhold reloads or unloads, it sends a HUP signal
