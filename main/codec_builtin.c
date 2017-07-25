@@ -783,6 +783,13 @@ static struct ast_codec vp8 = {
 	.sample_rate = 1000,
 };
 
+static struct ast_codec vp9 = {
+	.name = "vp9",
+	.description = "VP9 video",
+	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
+};
+
 static struct ast_codec t140red = {
 	.name = "red",
 	.description = "T.140 Realtime Text with redundancy",
@@ -922,6 +929,7 @@ int ast_codec_builtin_init(void)
 	res |= CODEC_REGISTER_AND_CACHE(h264);
 	res |= CODEC_REGISTER_AND_CACHE(mpeg4);
 	res |= CODEC_REGISTER_AND_CACHE(vp8);
+	res |= CODEC_REGISTER_AND_CACHE(vp9);
 	res |= CODEC_REGISTER_AND_CACHE(t140red);
 	res |= CODEC_REGISTER_AND_CACHE(t140);
 	res |= CODEC_REGISTER_AND_CACHE(none);
