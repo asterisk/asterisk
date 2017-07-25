@@ -678,6 +678,37 @@ static void ice_wrap_dtor(void *vdoomed)
 	}
 }
 
+static void ast2pj_rtp_ice_role(enum ast_rtp_ice_role ast_role, enum pj_ice_sess_role *pj_role)
+{
+	switch (ast_role) {
+	case AST_RTP_ICE_ROLE_CONTROLLED:
+		*pj_role = PJ_ICE_SESS_ROLE_CONTROLLED;
+		break;
+	case AST_RTP_ICE_ROLE_CONTROLLING:
+		*pj_role = PJ_ICE_SESS_ROLE_CONTROLLING;
+		break;
+	}
+}
+
+static void pj2ast_rtp_ice_role(enum pj_ice_sess_role pj_role, enum ast_rtp_ice_role *ast_role)
+{
+	switch (pj_role) {
+	case PJ_ICE_SESS_ROLE_CONTROLLED:
+		*ast_role = AST_RTP_ICE_ROLE_CONTROLLED;
+		return;
+	case PJ_ICE_SESS_ROLE_CONTROLLING:
+		*ast_role = AST_RTP_ICE_ROLE_CONTROLLING;
+		return;
+	case PJ_ICE_SESS_ROLE_UNKNOWN:
+		/* Don't change anything */
+		return;
+	default:
+		/* If we aren't explicitly handling something, it's a bug */
+		ast_assert(0);
+		return;
+	}
+}
+
 /*! \pre instance is locked */
 static int ice_reset_session(struct ast_rtp_instance *instance)
 {
@@ -694,8 +725,9 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	res = ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
 	if (!res) {
 		/* Use the current expected role for the ICE session */
-		pj_ice_sess_change_role(rtp->ice->real_ice, rtp->role == AST_RTP_ICE_ROLE_CONTROLLED ?
-			PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
+		enum pj_ice_sess_role role = PJ_ICE_SESS_ROLE_UNKNOWN;
+		ast2pj_rtp_ice_role(rtp->role, &role);
+		pj_ice_sess_change_role(rtp->ice->real_ice, role);
 	}
 
 	/* If we only have one component now, and we previously set up TURN for RTCP,
@@ -767,7 +799,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		ao2_cleanup(rtp->ice_proposed_remote_candidates);
 		rtp->ice_proposed_remote_candidates = NULL;
 		/* If this ICE session is being preserved then go back to the role it currently is */
-		rtp->role = rtp->ice->real_ice->role;
+		pj2ast_rtp_ice_role(rtp->ice->real_ice->role, &rtp->role);
 		return;
 	}
 
