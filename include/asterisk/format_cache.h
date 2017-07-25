@@ -184,6 +184,11 @@ extern struct ast_format *ast_format_mp4;
 extern struct ast_format *ast_format_vp8;
 
 /*!
+ * \brief Built-in cached vp9 format.
+ */
+extern struct ast_format *ast_format_vp9;
+
+/*!
  * \brief Built-in cached jpeg format.
  */
 extern struct ast_format *ast_format_jpeg;
