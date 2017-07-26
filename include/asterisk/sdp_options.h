@@ -20,6 +20,7 @@
 #define _ASTERISK_SDP_OPTIONS_H
 
 #include "asterisk/udptl.h"
+#include "asterisk/format_cap.h"
 
 struct ast_sdp_options;
 
@@ -78,6 +79,149 @@ enum ast_sdp_options_encryption {
 	/*! DTLS encryption */
 	AST_SDP_ENCRYPTION_DTLS,
 };
+
+/*!
+ * \brief Callback when processing an offer SDP for our answer SDP.
+ * \since 15.0.0
+ *
+ * \details
+ * This callback is called after merging our last negotiated topology
+ * with the remote's offer topology and before we have sent our answer
+ * SDP.  At this point you can alter new_topology streams.  You can
+ * decline, remove formats, or rename streams.  Changing anything else
+ * on the streams is likely to not end well.
+ *
+ * * To decline a stream simply set the stream state to
+ *   AST_STREAM_STATE_REMOVED.  You could implement a maximum number
+ *   of active streams of a given type policy.
+ *
+ * * To remove formats use the format API to remove any formats from a
+ *   stream.  The streams have the current joint negotiated formats.
+ *   Most likely you would want to remove all but the first format.
+ *
+ * * To rename a stream you need to clone the stream and give it a
+ *   new name and then set it in new_topology using
+ *   ast_stream_topology_set_stream().
+ *
+ * \note Removing all formats is an error.  You should decline the
+ * stream instead.
+ *
+ * \param context User supplied context data pointer for the SDP
+ * state.
+ * \param old_topology Active negotiated topology.  NULL if this is
+ * the first SDP negotiation.  The old topology is available so you
+ * can tell if any streams are new or changing type.
+ * \param new_topology New negotiated topology that we intend to
+ * generate the answer SDP.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_sdp_answerer_modify_cb)(void *context,
+	const struct ast_stream_topology *old_topology,
+	struct ast_stream_topology *new_topology);
+
+/*!
+ * \internal
+ * \brief Callback when generating a topology for our SDP offer.
+ * \since 15.0.0
+ *
+ * \details
+ * This callback is called after merging any topology updates from the
+ * system by ast_sdp_state_update_local_topology() and before we have
+ * sent our offer SDP.  At this point you can alter new_topology
+ * streams.  You can decline, add/remove/update formats, or rename
+ * streams.  Changing anything else on the streams is likely to not
+ * end well.
+ *
+ * * To decline a stream simply set the stream state to
+ *   AST_STREAM_STATE_REMOVED.  You could implement a maximum number
+ *   of active streams of a given type policy.
+ *
+ * * To update formats use the format API to change formats of the
+ *   streams.  The streams have the current proposed formats.  You
+ *   could do whatever you want for formats but you should stay within
+ *   the configured formats for the stream type's endpoint.  However,
+ *   you should use ast_sdp_state_update_local_topology() instead of
+ *   this backdoor method.
+ *
+ * * To rename a stream you need to clone the stream and give it a
+ *   new name and then set it in new_topology using
+ *   ast_stream_topology_set_stream().
+ *
+ * \note Removing all formats is an error.  You should decline the
+ * stream instead.
+ *
+ * \note Declined new streams that are in slots higher than present in
+ * old_topology are removed so the SDP can be smaller.  The remote has
+ * never seen those slots so we shouldn't bother keeping them.
+ *
+ * \param context User supplied context data pointer for the SDP
+ * state.
+ * \param old_topology Active negotiated topology.  NULL if this is
+ * the first SDP negotiation.  The old topology is available so you
+ * can tell if any streams are new or changing type.
+ * \param new_topology Merged topology that we intend to generate the
+ * offer SDP.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_sdp_offerer_modify_cb)(void *context,
+	const struct ast_stream_topology *old_topology,
+	struct ast_stream_topology *new_topology);
+
+/*!
+ * \brief Callback when generating an offer SDP to configure extra stream data.
+ * \since 15.0.0
+ *
+ * \details
+ * This callback is called after any ast_sdp_offerer_modify_cb
+ * callback and before we have sent our offer SDP.  The callback can
+ * call several SDP API calls to configure the proposed capabilities
+ * of streams before we create the SDP offer.  For example, the
+ * callback could configure a stream specific connection address, T.38
+ * parameters, RTP instance, or UDPTL instance parameters.
+ *
+ * \param context User supplied context data pointer for the SDP
+ * state.
+ * \param topology Topology ready to configure extra stream options.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_sdp_offerer_config_cb)(void *context, const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Callback before applying a topology.
+ * \since 15.0.0
+ *
+ * \details
+ * This callback is called before the topology is applied so the
+ * using module can do what is necessary before the topology becomes
+ * active.
+ *
+ * \param context User supplied context data pointer for the SDP
+ * state.
+ * \param topology Topology ready to be applied.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_sdp_preapply_cb)(void *context, const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Callback after applying a topology.
+ * \since 15.0.0
+ *
+ * \details
+ * This callback is called after the topology is applied so the
+ * using module can do what is necessary after the topology becomes
+ * active.
+ *
+ * \param context User supplied context data pointer for the SDP
+ * state.
+ * \param topology Topology already applied.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_sdp_postapply_cb)(void *context, const struct ast_stream_topology *topology);
 
 /*!
  * \since 15.0.0
@@ -203,6 +347,24 @@ void ast_sdp_options_set_rtp_engine(struct ast_sdp_options *options,
  * \returns rtp_engine
  */
 const char *ast_sdp_options_get_rtp_engine(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_state_context(struct ast_sdp_options *options, void *state_context);
+void *ast_sdp_options_get_state_context(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_answerer_modify_cb(struct ast_sdp_options *options, ast_sdp_answerer_modify_cb answerer_modify_cb);
+ast_sdp_answerer_modify_cb ast_sdp_options_get_answerer_modify_cb(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_offerer_modify_cb(struct ast_sdp_options *options, ast_sdp_offerer_modify_cb offerer_modify_cb);
+ast_sdp_offerer_modify_cb ast_sdp_options_get_offerer_modify_cb(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_offerer_config_cb(struct ast_sdp_options *options, ast_sdp_offerer_config_cb offerer_config_cb);
+ast_sdp_offerer_config_cb ast_sdp_options_get_offerer_config_cb(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_preapply_cb(struct ast_sdp_options *options, ast_sdp_preapply_cb preapply_cb);
+ast_sdp_preapply_cb ast_sdp_options_get_preapply_cb(const struct ast_sdp_options *options);
+
+void ast_sdp_options_set_postapply_cb(struct ast_sdp_options *options, ast_sdp_postapply_cb postapply_cb);
+ast_sdp_postapply_cb ast_sdp_options_get_postapply_cb(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -505,6 +667,26 @@ unsigned int ast_sdp_options_get_udptl_far_max_datagram(const struct ast_sdp_opt
 
 /*!
  * \since 15.0.0
+ * \brief Set SDP Options max_streams
+ *
+ * \param options SDP Options
+ * \param max_streams
+ */
+void ast_sdp_options_set_max_streams(struct ast_sdp_options *options,
+	unsigned int max_streams);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options max_streams
+ *
+ * \param options SDP Options
+ *
+ * \returns max_streams
+ */
+unsigned int ast_sdp_options_get_max_streams(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
  * \brief Enable setting SSRC level attributes on SDPs
  *
  * \param options SDP Options
@@ -545,6 +727,48 @@ void ast_sdp_options_set_sched_type(struct ast_sdp_options *options,
  * \return The stored scheduler context to create new streams of the type.
  */
 struct ast_sched_context *ast_sdp_options_get_sched_type(const struct ast_sdp_options *options,
+	enum ast_media_type type);
+
+/*!
+ * \brief Set all allowed stream types to create new streams.
+ * \since 15.0.0
+ *
+ * \param options SDP Options
+ * \param cap Format capabilities to set all allowed stream types at once.
+ *            Could be NULL to disable creating any new streams.
+ *
+ * \return Nothing
+ */
+void ast_sdp_options_set_format_caps(struct ast_sdp_options *options,
+	struct ast_format_cap *cap);
+
+/*!
+ * \brief Set the SDP options format cap used to create new streams of the type.
+ * \since 15.0.0
+ *
+ * \param options SDP Options
+ * \param type Media type the format cap represents.
+ * \param cap Format capabilities to use for the specified media type.
+ *            Could be NULL to disable creating new streams of type.
+ *
+ * \return Nothing
+ */
+void ast_sdp_options_set_format_cap_type(struct ast_sdp_options *options,
+	enum ast_media_type type, struct ast_format_cap *cap);
+
+/*!
+ * \brief Get the SDP options format cap used to create new streams of the type.
+ * \since 15.0.0
+ *
+ * \param options SDP Options
+ * \param type Media type the format cap represents.
+ *
+ * \retval NULL if stream not allowed to be created.
+ * \retval cap to use in negotiating the new stream.
+ *
+ * \note The returned cap does not have its own ao2 ref.
+ */
+struct ast_format_cap *ast_sdp_options_get_format_cap_type(const struct ast_sdp_options *options,
 	enum ast_media_type type);
 
 #endif /* _ASTERISK_SDP_OPTIONS_H */

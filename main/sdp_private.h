@@ -24,7 +24,7 @@
 
 struct ast_sdp_options {
 	AST_DECLARE_STRING_FIELDS(
-		/*! Media address to use in SDP */
+		/*! Media address to advertise in SDP session c= line */
 		AST_STRING_FIELD(media_address);
 		/*! Optional address of the interface media should use. */
 		AST_STRING_FIELD(interface_address);
@@ -37,12 +37,25 @@ struct ast_sdp_options {
 	);
 	/*! Scheduler context for the media stream types (Mainly for RTP) */
 	struct ast_sched_context *sched[AST_MEDIA_TYPE_END];
+	/*! Capabilities to create new streams of the indexed media type. */
+	struct ast_format_cap *caps[AST_MEDIA_TYPE_END];
+	/*! User supplied context data pointer for the SDP state. */
+	void *state_context;
+	/*! Modify negotiated topology before create answer SDP callback. */
+	ast_sdp_answerer_modify_cb answerer_modify_cb;
+	/*! Modify proposed topology before create offer SDP callback. */
+	ast_sdp_offerer_modify_cb offerer_modify_cb;
+	/*! Configure proposed topology extra stream options before create offer SDP callback. */
+	ast_sdp_offerer_config_cb offerer_config_cb;
+	/*! Negotiated topology is about to be applied callback. */
+	ast_sdp_preapply_cb preapply_cb;
+	/*! Negotiated topology was just applied callback. */
+	ast_sdp_postapply_cb postapply_cb;
 	struct {
 		unsigned int rtp_symmetric:1;
 		unsigned int udptl_symmetric:1;
 		unsigned int rtp_ipv6:1;
 		unsigned int g726_non_standard:1;
-		unsigned int locally_held:1;
 		unsigned int rtcp_mux:1;
 		unsigned int ssrc:1;
 	};
@@ -52,6 +65,8 @@ struct ast_sdp_options {
 		unsigned int tos_video;
 		unsigned int cos_video;
 		unsigned int udptl_far_max_datagram;
+		/*! Maximum number of streams to allow. */
+		unsigned int max_streams;
 	};
 	enum ast_sdp_options_dtmf dtmf;
 	enum ast_sdp_options_ice ice;

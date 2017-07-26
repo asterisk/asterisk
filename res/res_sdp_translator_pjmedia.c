@@ -484,7 +484,7 @@ AST_TEST_DEFINE(pjmedia_to_sdp_test)
 	}
 
 cleanup:
-	ast_sdp_free(sdp);
+	ao2_cleanup(sdp);
 	ast_sdp_translator_free(translator);
 	pj_pool_release(pool);
 	return res;
@@ -560,7 +560,7 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
 	}
 
 cleanup:
-	ast_sdp_free(sdp);
+	ao2_cleanup(sdp);
 	ast_sdp_translator_free(translator);
 	pj_pool_release(pool);
 	return res;

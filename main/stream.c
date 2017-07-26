@@ -214,6 +214,23 @@ const char *ast_stream_state2str(enum ast_stream_state state)
 	}
 }
 
+enum ast_stream_state ast_stream_str2state(const char *str)
+{
+	if (!strcmp("sendrecv", str)) {
+		return AST_STREAM_STATE_SENDRECV;
+	}
+	if (!strcmp("sendonly", str)) {
+		return AST_STREAM_STATE_SENDONLY;
+	}
+	if (!strcmp("recvonly", str)) {
+		return AST_STREAM_STATE_RECVONLY;
+	}
+	if (!strcmp("inactive", str)) {
+		return AST_STREAM_STATE_INACTIVE;
+	}
+	return AST_STREAM_STATE_REMOVED;
+}
+
 void *ast_stream_get_data(struct ast_stream *stream, enum ast_stream_data_slot slot)
 {
 	ast_assert(stream != NULL);
