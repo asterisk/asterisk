@@ -24,6 +24,7 @@
 #define _ASTERISK_IO_H
 
 #include "asterisk/poll-compat.h"
+#include "asterisk/netsock2.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -148,6 +149,29 @@ int ast_get_termcols(int fd);
  */
 int ast_sd_notify(const char *state);
 
+/*!
+ * \brief Find a listening file descriptor provided by socket activation.
+ * \param type SOCK_STREAM or SOCK_DGRAM
+ * \param addr The socket address of the bound listener.
+ * \retval <0 No match.
+ * \retval >0 File Descriptor matching sockaddr.
+ *
+ * \note This function returns -1 if systemd's development headers were not
+ * detected on the system.
+ */
+int ast_sd_get_fd(int type, const struct ast_sockaddr *addr);
+
+/*!
+ * \brief Find a listening AF_LOCAL file descriptor provided by socket activation.
+ * \param type SOCK_STREAM or SOCK_DGRAM
+ * \param path The path of the listener.
+ * \retval <0 No match.
+ * \retval >0 File Descriptor matching path.
+ *
+ * \note This function returns -1 if systemd's development headers were not
+ * detected on the system.
+ */
+int ast_sd_get_fd_un(int type, const char *path);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
