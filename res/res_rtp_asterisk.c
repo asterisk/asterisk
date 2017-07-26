@@ -5088,9 +5088,6 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 		return -1;
 	}
 
-	rtp->rxcount++;
-	rtp->rxoctetcount += (len - hdrlen);
-
 	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
 	if (ast_rtp_codecs_find_payload_code(ast_rtp_instance_get_codecs(instance1), bridged_payload) == -1) {
 		ast_debug(1, "Unsupported payload type received \n");
@@ -5362,13 +5359,6 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		ast_rtp_dtmf_continuation(instance);
 	}
 
-	/* If we are directly bridged to another instance send the audio directly out */
-	instance1 = ast_rtp_instance_get_bridged(instance);
-	if (instance1
-		&& !bridge_p2p_rtp_write(instance, instance1, rtpheader, res, hdrlen)) {
-		return &ast_null_frame;
-	}
-
 	/* Pull out the various other fields we will need */
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
@@ -5465,6 +5455,28 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	if (!rtp->themssrc) {
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
+	}
+
+
+	/* If we are directly bridged to another instance send the audio directly out,
+	 * but only after updating core information about the received traffic so that
+	 * outgoing RTCP reflects it.
+	 */
+	instance1 = ast_rtp_instance_get_bridged(instance);
+	if (instance1
+		&& !bridge_p2p_rtp_write(instance, instance1, rtpheader, res, hdrlen)) {
+		struct timeval rxtime;
+		struct ast_frame *f;
+
+		/* Update statistics for jitter so they are correct in RTCP */
+		calc_rxstamp(&rxtime, rtp, timestamp, mark);
+
+		/* When doing P2P we don't need to raise any frames about SSRC change to the core */
+		while ((f = AST_LIST_REMOVE_HEAD(&frames, frame_list)) != NULL) {
+			ast_frfree(f);
+		}
+
+		return &ast_null_frame;
 	}
 
 	if (rtp_debug_test_addr(&addr)) {
