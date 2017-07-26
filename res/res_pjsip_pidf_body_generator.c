@@ -75,7 +75,7 @@ static int pidf_generate_body_content(void *body, void *data)
 	pjpidf_tuple_set_contact(state_data->pool, tuple, pj_cstr(&contact, sanitized));
 	pjpidf_tuple_set_contact_prio(state_data->pool, tuple, pj_cstr(&priority, "1"));
 	pjpidf_status_set_basic_open(pjpidf_tuple_get_status(tuple),
-			local_state == NOTIFY_OPEN);
+			local_state == NOTIFY_OPEN || local_state == NOTIFY_INUSE);
 
 	return 0;
 }

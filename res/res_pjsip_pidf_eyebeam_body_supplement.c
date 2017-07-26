@@ -46,30 +46,28 @@
  */
 static void add_eyebeam(pj_pool_t *pool, pj_xml_node *node, const char *pidfstate)
 {
-	static const char *XMLNS_PP = "xmlns:pp";
-	static const char *XMLNS_PERSON = "urn:ietf:params:xml:ns:pidf:person";
+	static const char *XMLNS_DM_PREFIX = "xmlns:dm";
+	static const char *XMLNS_DM = "urn:ietf:params:xml:ns:pidf:data-model";
 
-	static const char *XMLNS_ES = "xmlns:es";
-	static const char *XMLNS_RPID_STATUS = "urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status";
+	static const char *XMLNS_RPID_PREFIX = "xmlns:rpid";
+	static const char *XMLNS_RPID = "urn:ietf:params:xml:ns:pidf:rpid";
 
-	static const char *XMLNS_EP = "xmlns:ep";
-	static const char *XMLNS_RPID_PERSON = "urn:ietf:params:xml:ns:pidf:rpid:rpid-person";
-
-	pj_xml_node *person = ast_sip_presence_xml_create_node(pool, node, "pp:person");
-	pj_xml_node *status = ast_sip_presence_xml_create_node(pool, person, "status");
+	pj_xml_node *person = ast_sip_presence_xml_create_node(pool, node, "dm:person");
 
 	if (pidfstate[0] != '-') {
-		pj_xml_node *activities = ast_sip_presence_xml_create_node(pool, status, "ep:activities");
-		size_t str_size = sizeof("ep:") + strlen(pidfstate);
+		pj_xml_node *activities = ast_sip_presence_xml_create_node(pool, person, "rpid:activities");
+		size_t str_size = sizeof("rpid:") + strlen(pidfstate);
+		char *act_str = ast_alloca(str_size);
 
-		activities->content.ptr = pj_pool_alloc(pool, str_size);
-		activities->content.slen = pj_ansi_snprintf(activities->content.ptr, str_size,
-				"ep:%s", pidfstate);
+		/* Safe */
+		strcpy(act_str, "rpid:");
+		strcat(act_str, pidfstate);
+
+		ast_sip_presence_xml_create_node(pool, activities, act_str);
 	}
 
-	ast_sip_presence_xml_create_attr(pool, node, XMLNS_PP, XMLNS_PERSON);
-	ast_sip_presence_xml_create_attr(pool, node, XMLNS_ES, XMLNS_RPID_STATUS);
-	ast_sip_presence_xml_create_attr(pool, node, XMLNS_EP, XMLNS_RPID_PERSON);
+	ast_sip_presence_xml_create_attr(pool, node, XMLNS_DM_PREFIX, XMLNS_DM);
+	ast_sip_presence_xml_create_attr(pool, node, XMLNS_RPID_PREFIX, XMLNS_RPID);
 }
 
 static int pidf_supplement_body(void *body, void *data)
