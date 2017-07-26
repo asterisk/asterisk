@@ -1,0 +1,27 @@
+[Unit]
+Description=Asterisk PBX and telephony daemon.
+After=network.target
+
+[Service]
+Type=notify
+Environment=HOME=/var/lib/asterisk
+WorkingDirectory=/var/lib/asterisk
+User=asterisk
+Group=asterisk
+ExecStart=/usr/sbin/asterisk -mqf -C /etc/asterisk/asterisk.conf
+ExecReload=/usr/sbin/asterisk -rx 'core reload'
+
+#Nice=0
+#UMask=0002
+LimitCORE=infinity
+#LimitNOFILE=
+Restart=always
+RestartSec=4
+
+# Prevent duplication of logs with color codes to /var/log/messages
+StandardOutput=null
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

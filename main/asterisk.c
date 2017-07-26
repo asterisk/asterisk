@@ -350,6 +350,7 @@ struct ast_eid ast_eid_default;
 char record_cache_dir[AST_CACHE_DIR_LEN] = DEFAULT_TMP_DIR;
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
+static int ast_socket_is_sd = 0; /*!< Is socket activation responsible for ast_socket? */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
 pid_t ast_mainpid;
 struct console {
@@ -1576,8 +1577,16 @@ static int ast_makesocket(void)
 	uid_t uid = -1;
 	gid_t gid = -1;
 
-	for (x = 0; x < AST_MAX_CONNECTS; x++)
+	for (x = 0; x < AST_MAX_CONNECTS; x++) {
 		consoles[x].fd = -1;
+	}
+
+	if (ast_socket_is_sd) {
+		ast_socket = ast_sd_get_fd_un(SOCK_STREAM, ast_config_AST_SOCKET);
+
+		goto start_lthread;
+	}
+
 	unlink(ast_config_AST_SOCKET);
 	ast_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ast_socket < 0) {
@@ -1602,10 +1611,17 @@ static int ast_makesocket(void)
 		return -1;
 	}
 
+start_lthread:
 	if (ast_pthread_create_background(&lthread, NULL, listener, NULL)) {
 		ast_log(LOG_WARNING, "Unable to create listener thread.\n");
 		close(ast_socket);
 		return -1;
+	}
+
+	if (ast_socket_is_sd) {
+		/* owner/group/permissions are set by systemd, we might not even have access
+		 * to socket file so leave it alone */
+		return 0;
 	}
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
@@ -2075,7 +2091,9 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		pthread_cancel(lthread);
 		close(ast_socket);
 		ast_socket = -1;
-		unlink(ast_config_AST_SOCKET);
+		if (!ast_socket_is_sd) {
+			unlink(ast_config_AST_SOCKET);
+		}
 		pthread_kill(lthread, SIGURG);
 		pthread_join(lthread, NULL);
 	}
@@ -4319,7 +4337,12 @@ int main(int argc, char *argv[])
 	/* Initial value of the maximum active system verbosity level. */
 	ast_verb_sys_level = option_verbose;
 
-	if (ast_tryconnect()) {
+	if (ast_sd_get_fd_un(SOCK_STREAM, ast_config_AST_SOCKET) > 0) {
+		ast_socket_is_sd = 1;
+	}
+
+	/* DO NOT perform check for existing daemon if systemd has CLI socket activation */
+	if (!ast_socket_is_sd && ast_tryconnect()) {
 		/* One is already running */
 		if (ast_opt_remote) {
 			multi_thread_safe = 1;

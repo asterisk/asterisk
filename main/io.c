@@ -36,6 +36,10 @@
 #include "asterisk/utils.h"
 #ifdef HAVE_SYSTEMD
 #include <systemd/sd-daemon.h>
+
+#ifndef SD_LISTEN_FDS_START
+#define SD_LISTEN_FDS_START 3
+#endif
 #endif
 
 #ifdef DEBUG_IO
@@ -391,4 +395,74 @@ int ast_sd_notify(const char *state) {
 #else
 	return 0;
 #endif
+}
+
+/*!
+ * \internal \brief Check the type and sockaddr of a file descriptor.
+ * \param fd File Descriptor to check.
+ * \param type SOCK_STREAM or SOCK_DGRAM
+ * \param addr The socket address to match.
+ * \retval 0 if matching
+ * \retval -1 if not matching
+ */
+#ifdef HAVE_SYSTEMD
+static int ast_sd_is_socket_sockaddr(int fd, int type, const struct ast_sockaddr* addr)
+{
+	int canretry = 1;
+	struct ast_sockaddr fd_addr;
+	struct sockaddr ss;
+	socklen_t ss_len;
+
+	if (sd_is_socket(fd, AF_UNSPEC, type, 1) <= 0) {
+		return -1;
+	}
+
+doretry:
+	if (getsockname(fd, &ss, &ss_len) != 0) {
+		return -1;
+	}
+
+	if (ss.sa_family == AF_UNSPEC && canretry) {
+		/* An unknown bug can cause silent failure from
+		 * the first call to getsockname. */
+		canretry = 0;
+		goto doretry;
+	}
+
+	ast_sockaddr_copy_sockaddr(&fd_addr, &ss, ss_len);
+
+	return ast_sockaddr_cmp(addr, &fd_addr);
+}
+#endif
+
+int ast_sd_get_fd(int type, const struct ast_sockaddr *addr)
+{
+#ifdef HAVE_SYSTEMD
+	int count = sd_listen_fds(0);
+	int idx;
+
+	for (idx = 0; idx < count; idx++) {
+		if (!ast_sd_is_socket_sockaddr(idx + SD_LISTEN_FDS_START, type, addr)) {
+			return idx + SD_LISTEN_FDS_START;
+		}
+	}
+#endif
+
+	return -1;
+}
+
+int ast_sd_get_fd_un(int type, const char *path)
+{
+#ifdef HAVE_SYSTEMD
+	int count = sd_listen_fds(0);
+	int idx;
+
+	for (idx = 0; idx < count; idx++) {
+		if (sd_is_socket_unix(idx + SD_LISTEN_FDS_START, type, 1, path, 0) > 0) {
+			return idx + SD_LISTEN_FDS_START;
+		}
+	}
+#endif
+
+	return -1;
 }
