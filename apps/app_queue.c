@@ -1683,6 +1683,7 @@ struct call_queue {
 	unsigned int timeoutrestart:1;
 	unsigned int announceholdtime:2;
 	unsigned int announceposition:3;
+	unsigned int announceposition_only_up:1; /*!< Only announce position if it has improved */
 	int strategy:4;
 	unsigned int realtime:1;
 	unsigned int found:1;
@@ -2722,6 +2723,7 @@ static void init_queue(struct call_queue *q)
 	q->announcefrequency = 0;
 	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
 	q->announceholdtime = 1;
+	q->announceposition_only_up = 0;
 	q->announcepositionlimit = 10; /* Default 10 positions */
 	q->announceposition = ANNOUNCEPOSITION_YES; /* Default yes */
 	q->roundingseconds = 0; /* Default - don't announce seconds */
@@ -3171,6 +3173,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		} else {
 			q->announceposition = ANNOUNCEPOSITION_NO;
 		}
+	} else if (!strcasecmp(param, "announce-position-only-up")) {
+		q->announceposition_only_up = ast_true(val);
 	} else if (!strcasecmp(param, "announce-position-limit")) {
 		q->announcepositionlimit = atoi(val);
 	} else if (!strcasecmp(param, "periodic-announce")) {
@@ -3908,6 +3912,11 @@ static int say_position(struct queue_ent *qe, int ringing)
 
 	/* If either our position has changed, or we are over the freq timer, say position */
 	if ((qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency)) {
+		return 0;
+	}
+
+	/* Only announce if the caller's queue position has improved since last time */
+	if (qe->parent->announceposition_only_up && qe->last_pos_said <= qe->pos) {
 		return 0;
 	}
 

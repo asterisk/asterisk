@@ -17,6 +17,11 @@ app_queue
  * PAUSEALL/UNPAUSEALL now sets the pause reason in the queue_log if it has
    been defined.
 
+ * A new option, "announce-position-only-up," has been added that, when set to
+   yes, causes position announcements to only be played when the caller's
+   queue position has improved since the last time that we annouced their
+   position. This default is no.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.6.0 to Asterisk 14.7.0 ------------
 ------------------------------------------------------------------------------
