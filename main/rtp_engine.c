@@ -3386,7 +3386,7 @@ int ast_rtp_instance_bundle(struct ast_rtp_instance *child, struct ast_rtp_insta
 {
 	int res = -1;
 
-	if (child->engine != parent->engine) {
+	if (parent && (child->engine != parent->engine)) {
 		return -1;
 	}
 
