@@ -137,6 +137,8 @@ enum {
 	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
 	/*! This frame has been requeued */
 	AST_FRFLAG_REQUEUED = (1 << 1),
+	/*! This frame contains a valid sequence number */
+	AST_FRFLAG_HAS_SEQUENCE_NUMBER = (1 << 2),
 };
 
 struct ast_frame_subclass {
