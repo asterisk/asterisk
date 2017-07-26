@@ -88,6 +88,12 @@ static int validate_m_line(struct ast_test *test, const struct ast_sdp_m_line *m
 		return -1;
 	}
 
+	if (m_line->port == 0) {
+		ast_test_status_update(test, "Expected %s m-line to not be declined\n",
+			media_type);
+		return -1;
+	}
+
 	if (ast_sdp_m_get_payload_count(m_line) != num_payloads) {
 		ast_test_status_update(test, "Expected %s m-line payload count %d but got %d\n",
 			media_type, num_payloads, ast_sdp_m_get_payload_count(m_line));
@@ -462,17 +468,20 @@ static int build_sdp_option_formats(struct ast_sdp_options *options, int num_str
 	int idx;
 
 	for (idx = 0; idx < num_streams; ++idx) {
-		RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+		struct ast_format_cap *caps;
 
-		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (!caps) {
-			return -1;
+		if (ast_strlen_zero(formats[idx].formats)) {
+			continue;
 		}
 
-		if (ast_format_cap_update_by_allow_disallow(caps, formats[idx].formats, 1) < 0) {
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!caps
+			|| ast_format_cap_update_by_allow_disallow(caps, formats[idx].formats, 1) < 0) {
+			ao2_cleanup(caps);
 			return -1;
 		}
 		ast_sdp_options_set_format_cap_type(options, formats[idx].type, caps);
+		ao2_cleanup(caps);
 	}
 	return 0;
 }
@@ -494,10 +503,12 @@ static int build_sdp_option_formats(struct ast_sdp_options *options, int num_str
  * \param opt_formats Array of new stream media types and formats allowed to create.
  *           NULL if use a default stream creation.
  *           Not used if test_options provided.
+ * \param max_streams 0 if set max to max(3, num_streams) else max(max_streams, num_streams)
+ *           Not used if test_options provided.
  * \param test_options Optional SDP options.
  */
 static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_format *formats,
-	int opt_num_streams, const struct sdp_format *opt_formats,
+	int opt_num_streams, const struct sdp_format *opt_formats, unsigned int max_streams,
 	struct ast_sdp_options *test_options)
 {
 	struct ast_stream_topology *topology = NULL;
@@ -506,8 +517,6 @@ static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_f
 	int i;
 
 	if (!test_options) {
-		unsigned int max_streams;
-
 		static const struct sdp_format sdp_formats[] = {
 			{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
 			{ AST_MEDIA_TYPE_VIDEO, "vp8" },
@@ -520,8 +529,10 @@ static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_f
 		}
 
 		/* Determine max_streams to allow */
-		max_streams = ARRAY_LEN(sdp_formats);
-		if (ARRAY_LEN(sdp_formats) < num_streams) {
+		if (!max_streams) {
+			max_streams = ARRAY_LEN(sdp_formats);
+		}
+		if (max_streams < num_streams) {
 			max_streams = num_streams;
 		}
 		ast_sdp_options_set_max_streams(options, max_streams);
@@ -544,21 +555,27 @@ static struct ast_sdp_state *build_sdp_state(int num_streams, const struct sdp_f
 	}
 
 	for (i = 0; i < num_streams; ++i) {
-		RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 		struct ast_stream *stream;
 
-		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (!caps) {
-			goto end;
-		}
-		if (ast_format_cap_update_by_allow_disallow(caps, formats[i].formats, 1) < 0) {
-			goto end;
-		}
 		stream = ast_stream_alloc("sure_thing", formats[i].type);
 		if (!stream) {
 			goto end;
 		}
-		ast_stream_set_formats(stream, caps);
+		if (!ast_strlen_zero(formats[i].formats)) {
+			struct ast_format_cap *caps;
+
+			caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+			if (!caps
+				|| ast_format_cap_update_by_allow_disallow(caps, formats[i].formats, 1) < 0) {
+				ao2_cleanup(caps);
+				ast_stream_free(stream);
+				goto end;
+			}
+			ast_stream_set_formats(stream, caps);
+			ao2_cleanup(caps);
+		} else {
+			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+		}
 		if (ast_stream_topology_append_stream(topology, stream) < 0) {
 			ast_stream_free(stream);
 			goto end;
@@ -604,7 +621,7 @@ AST_TEST_DEFINE(topology_to_sdp)
 	}
 
 	sdp_state = build_sdp_state(ARRAY_LEN(formats), formats,
-		ARRAY_LEN(formats), formats, NULL);
+		ARRAY_LEN(formats), formats, 0, NULL);
 	if (!sdp_state) {
 		goto end;
 	}
@@ -749,7 +766,7 @@ AST_TEST_DEFINE(sdp_to_topology)
 	}
 
 	sdp_state = build_sdp_state(ARRAY_LEN(sdp_formats), sdp_formats,
-		ARRAY_LEN(sdp_formats), sdp_formats, NULL);
+		ARRAY_LEN(sdp_formats), sdp_formats, 0, NULL);
 	if (!sdp_state) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -848,6 +865,7 @@ static enum ast_test_result_state sdp_negotiation_completed_tests(struct ast_tes
 	int offer_num_streams, const struct sdp_format *offer_formats,
 	int answer_num_streams, const struct sdp_format *answer_formats,
 	int allowed_ans_num_streams, const struct sdp_format *allowed_ans_formats,
+	unsigned int max_streams,
 	int (*validate_sdp)(struct ast_test *test, const struct ast_sdp *sdp))
 {
 	enum ast_test_result_state res = AST_TEST_PASS;
@@ -857,36 +875,42 @@ static enum ast_test_result_state sdp_negotiation_completed_tests(struct ast_tes
 	const struct ast_sdp *answerer_sdp;
 
 	sdp_state_offerer = build_sdp_state(offer_num_streams, offer_formats,
-		offer_num_streams, offer_formats, NULL);
+		offer_num_streams, offer_formats, max_streams, NULL);
 	if (!sdp_state_offerer) {
+		ast_test_status_update(test, "Building offerer SDP state failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
 	sdp_state_answerer = build_sdp_state(answer_num_streams, answer_formats,
-		allowed_ans_num_streams, allowed_ans_formats, NULL);
+		allowed_ans_num_streams, allowed_ans_formats, max_streams, NULL);
 	if (!sdp_state_answerer) {
+		ast_test_status_update(test, "Building answerer SDP state failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
 	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
 	if (!offerer_sdp) {
+		ast_test_status_update(test, "Building offerer offer failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
 	if (ast_sdp_state_set_remote_sdp(sdp_state_answerer, offerer_sdp)) {
+		ast_test_status_update(test, "Setting answerer offer failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 	answerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_answerer);
 	if (!answerer_sdp) {
+		ast_test_status_update(test, "Building answerer answer failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
 	if (ast_sdp_state_set_remote_sdp(sdp_state_offerer, answerer_sdp)) {
+		ast_test_status_update(test, "Setting offerer answer failed\n");
 		res = AST_TEST_FAIL;
 		goto end;
 	}
@@ -902,6 +926,11 @@ static enum ast_test_result_state sdp_negotiation_completed_tests(struct ast_tes
 		goto end;
 	}
 	offerer_sdp = ast_sdp_state_get_local_sdp(sdp_state_offerer);
+	if (!offerer_sdp) {
+		ast_test_status_update(test, "Building offerer current sdp failed\n");
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 	if (validate_sdp(test, offerer_sdp)) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -944,6 +973,7 @@ AST_TEST_DEFINE(sdp_negotiation_initial)
 		ARRAY_LEN(offerer_formats), offerer_formats,
 		0, NULL,
 		0, NULL,
+		0,
 		validate_avi_sdp_streams);
 }
 
@@ -978,10 +1008,11 @@ AST_TEST_DEFINE(sdp_negotiation_type_change)
 		ARRAY_LEN(offerer_formats), offerer_formats,
 		ARRAY_LEN(answerer_formats), answerer_formats,
 		0, NULL,
+		0,
 		validate_avi_sdp_streams);
 }
 
-static int validate_ava_declined_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
+static int validate_aviavia_declined_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
 {
 	struct ast_sdp_m_line *m_line;
 
@@ -1000,6 +1031,26 @@ static int validate_ava_declined_sdp_streams(struct ast_test *test, const struct
 	}
 
 	m_line = ast_sdp_get_m(sdp, 2);
+	if (validate_m_line_declined(test, m_line, "image")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 3);
+	if (validate_m_line_declined(test, m_line, "audio")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 4);
+	if (validate_m_line_declined(test, m_line, "video")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 5);
+	if (validate_m_line_declined(test, m_line, "image")) {
+		return -1;
+	}
+
+	m_line = ast_sdp_get_m(sdp, 6);
 	if (validate_m_line(test, m_line, "audio", 1)) {
 		return -1;
 	}
@@ -1018,11 +1069,18 @@ static int validate_ava_declined_sdp_streams(struct ast_test *test, const struct
 AST_TEST_DEFINE(sdp_negotiation_decline_incompatible)
 {
 	static const struct sdp_format offerer_formats[] = {
+		/* Incompatible declined streams */
 		{ AST_MEDIA_TYPE_AUDIO, "alaw" },
 		{ AST_MEDIA_TYPE_VIDEO, "vp8" },
+		{ AST_MEDIA_TYPE_IMAGE, "t38" },
+		/* Initially declined streams */
+		{ AST_MEDIA_TYPE_AUDIO, "" },
+		{ AST_MEDIA_TYPE_VIDEO, "" },
+		{ AST_MEDIA_TYPE_IMAGE, "" },
+		/* Compatible stream so not all are declined */
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw,alaw" },
 	};
-	static const struct sdp_format answerer_formats[] = {
+	static const struct sdp_format allowed_formats[] = {
 		{ AST_MEDIA_TYPE_AUDIO, "ulaw" },
 	};
 
@@ -1032,9 +1090,9 @@ AST_TEST_DEFINE(sdp_negotiation_decline_incompatible)
 		info->category = "/main/sdp/";
 		info->summary = "Simulate an initial negotiation declining streams";
 		info->description =
-			"Initial negotiation tests declining incompatible streams on the answering side.\n"
-			"After negotiation both offerer and answerer sides should have the same\n"
-			"expected stream types and formats.";
+			"Initial negotiation tests declining incompatible streams.\n"
+			"After negotiation both offerer and answerer sides should have\n"
+			"the same expected stream types and formats.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1042,9 +1100,10 @@ AST_TEST_DEFINE(sdp_negotiation_decline_incompatible)
 
 	return sdp_negotiation_completed_tests(test,
 		ARRAY_LEN(offerer_formats), offerer_formats,
-		ARRAY_LEN(answerer_formats), answerer_formats,
-		ARRAY_LEN(answerer_formats), answerer_formats,
-		validate_ava_declined_sdp_streams);
+		0, NULL,
+		ARRAY_LEN(allowed_formats), allowed_formats,
+		ARRAY_LEN(offerer_formats),
+		validate_aviavia_declined_sdp_streams);
 }
 
 static int validate_aaaa_declined_sdp_streams(struct ast_test *test, const struct ast_sdp *sdp)
@@ -1114,6 +1173,7 @@ AST_TEST_DEFINE(sdp_negotiation_decline_max_streams)
 		ARRAY_LEN(offerer_formats), offerer_formats,
 		0, NULL,
 		0, NULL,
+		0,
 		validate_aaaa_declined_sdp_streams);
 }
 
@@ -1143,13 +1203,13 @@ AST_TEST_DEFINE(sdp_negotiation_not_acceptable)
 	}
 
 	sdp_state_offerer = build_sdp_state(ARRAY_LEN(offerer_formats), offerer_formats,
-		ARRAY_LEN(offerer_formats), offerer_formats, NULL);
+		ARRAY_LEN(offerer_formats), offerer_formats, 0, NULL);
 	if (!sdp_state_offerer) {
 		res = AST_TEST_FAIL;
 		goto end;
 	}
 
-	sdp_state_answerer = build_sdp_state(0, NULL, 0, NULL, NULL);
+	sdp_state_answerer = build_sdp_state(0, NULL, 0, NULL, 0, NULL);
 	if (!sdp_state_answerer) {
 		res = AST_TEST_FAIL;
 		goto end;
@@ -1245,7 +1305,7 @@ AST_TEST_DEFINE(sdp_ssrc_attributes)
 	}
 	ast_sdp_options_set_ssrc(options, 1);
 
-	test_state = build_sdp_state(ARRAY_LEN(formats), formats, 0, NULL, options);
+	test_state = build_sdp_state(ARRAY_LEN(formats), formats, 0, NULL, 0, options);
 	if (!test_state) {
 		ast_test_status_update(test, "Failed to create SDP state\n");
 		goto end;
@@ -1335,11 +1395,10 @@ static struct ast_stream_topology *build_update_topology(const struct sdp_topolo
 			struct ast_format_cap *caps;
 
 			caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-			if (!caps) {
-				goto fail;
-			}
-			if (ast_format_cap_update_by_allow_disallow(caps, desc->formats, 1) < 0) {
-				ao2_ref(caps, -1);
+			if (!caps
+				|| ast_format_cap_update_by_allow_disallow(caps, desc->formats, 1) < 0) {
+				ao2_cleanup(caps);
+				ast_stream_free(stream);
 				goto fail;
 			}
 			ast_stream_set_formats(stream, caps);
