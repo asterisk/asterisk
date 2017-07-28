@@ -34,7 +34,7 @@
 #include "asterisk/astobj2.h"
 
 /*! \brief Number of buckets for monitored transports */
-#define TRANSPORTS_BUCKETS 53
+#define TRANSPORTS_BUCKETS 127
 
 #define IDLE_TIMEOUT (pjsip_cfg()->tsx.td)
 
@@ -52,9 +52,6 @@ static pthread_t keepalive_thread = AST_PTHREADT_NULL;
 
 /*! \brief The global interval at which to send keepalives */
 static unsigned int keepalive_interval;
-
-/*! \brief Existing transport manager callback that we need to invoke */
-static pjsip_tp_state_callback tpmgr_state_callback;
 
 /*! \brief Structure for transport to be monitored */
 struct monitored_transport {
@@ -178,14 +175,13 @@ static void monitored_transport_state_callback(pjsip_transport *transport, pjsip
 				/* Let the scheduler inherit the reference from allocation */
 				if (ast_sched_add_variable(sched, IDLE_TIMEOUT, idle_sched_cb, monitored, 1) < 0) {
 					/* Uh Oh.  Could not schedule the idle check.  Kill the transport. */
-					ao2_unlink(transports, monitored);
-					ao2_ref(monitored, -1);
 					pjsip_transport_shutdown(transport);
+				} else {
+					/* monitored ref successfully passed to idle_sched_cb() */
+					break;
 				}
-			} else {
-				/* No scheduled task, so get rid of the allocation reference */
-				ao2_ref(monitored, -1);
 			}
+			ao2_ref(monitored, -1);
 			break;
 		case PJSIP_TP_STATE_SHUTDOWN:
 		case PJSIP_TP_STATE_DISCONNECTED:
@@ -197,12 +193,11 @@ static void monitored_transport_state_callback(pjsip_transport *transport, pjsip
 
 		ao2_ref(transports, -1);
 	}
-
-	/* Forward to the old state callback if present */
-	if (tpmgr_state_callback) {
-		tpmgr_state_callback(transport, state, info);
-	}
 }
+
+struct ast_sip_tpmgr_state_callback monitored_transport_reg = {
+	monitored_transport_state_callback,
+};
 
 /*! \brief Hashing function for monitored transport */
 static int monitored_transport_hash_fn(const void *obj, int flags)
@@ -327,15 +322,8 @@ static pjsip_module idle_monitor_module = {
 static int load_module(void)
 {
 	struct ao2_container *transports;
-	pjsip_tpmgr *tpmgr;
 
 	CHECK_PJSIP_MODULE_LOADED();
-
-	tpmgr = pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint());
-	if (!tpmgr) {
-		ast_log(LOG_ERROR, "No transport manager to attach keepalive functionality to.\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
 
 	transports = ao2_container_alloc(TRANSPORTS_BUCKETS, monitored_transport_hash_fn,
 		monitored_transport_cmp_fn);
@@ -363,8 +351,7 @@ static int load_module(void)
 
 	ast_sip_register_service(&idle_monitor_module);
 
-	tpmgr_state_callback = pjsip_tpmgr_get_state_cb(tpmgr);
-	pjsip_tpmgr_set_state_cb(tpmgr, &monitored_transport_state_callback);
+	ast_sip_transport_state_register(&monitored_transport_reg);
 
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
@@ -375,8 +362,6 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	pjsip_tpmgr *tpmgr;
-
 	if (keepalive_interval) {
 		keepalive_interval = 0;
 		if (keepalive_thread != AST_PTHREADT_NULL) {
@@ -388,10 +373,7 @@ static int unload_module(void)
 
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 
-	tpmgr = pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint());
-	if (tpmgr) {
-		pjsip_tpmgr_set_state_cb(tpmgr, tpmgr_state_callback);
-	}
+	ast_sip_transport_state_unregister(&monitored_transport_reg);
 
 	ast_sip_unregister_service(&idle_monitor_module);
 
