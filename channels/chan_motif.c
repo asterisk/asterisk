@@ -1901,7 +1901,7 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 {
 	RAII_VAR(struct jingle_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct jingle_endpoint *, endpoint, NULL, ao2_cleanup);
-	char *dialed, target[200] = "";
+	char *dialed, target[1024] = "";
 	struct ast_xmpp_buddy *buddy;
 	struct jingle_session *session;
 	struct ast_channel *chan;

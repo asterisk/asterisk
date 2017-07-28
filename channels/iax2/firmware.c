@@ -44,6 +44,8 @@
 
 #include "include/firmware.h"
 
+#define IAX_FIRMWARE_SUBDIR "/firmware/iax"
+
 struct iax_firmware {
 	AST_LIST_ENTRY(iax_firmware) list;
 	int fd;
@@ -206,7 +208,7 @@ void iax_firmware_reload(void)
 	struct iax_firmware *cur = NULL;
 	DIR *fwd;
 	struct dirent *de;
-	char dir[256], fn[256];
+	char fn[PATH_MAX + sizeof(IAX_FIRMWARE_SUBDIR) + sizeof(de->d_name)];
 
 	AST_LIST_LOCK(&firmwares);
 
@@ -216,12 +218,13 @@ void iax_firmware_reload(void)
 	}
 
 	/* Now that we have marked them dead... load new ones */
-	snprintf(dir, sizeof(dir), "%s/firmware/iax", ast_config_AST_DATA_DIR);
-	fwd = opendir(dir);
+	snprintf(fn, sizeof(fn), "%s%s", ast_config_AST_DATA_DIR, IAX_FIRMWARE_SUBDIR);
+	fwd = opendir(fn);
 	if (fwd) {
 		while((de = readdir(fwd))) {
 			if (de->d_name[0] != '.') {
-				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
+				snprintf(fn, sizeof(fn), "%s%s/%s",
+					ast_config_AST_DATA_DIR, IAX_FIRMWARE_SUBDIR, de->d_name);
 				if (!try_firmware(fn)) {
 					ast_verb(2, "Loaded firmware '%s'\n", de->d_name);
 				}
@@ -229,7 +232,7 @@ void iax_firmware_reload(void)
 		}
 		closedir(fwd);
 	} else {
-		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", fn, strerror(errno));
 	}
 
 	/* Clean up leftovers */

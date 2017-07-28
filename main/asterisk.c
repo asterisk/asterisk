@@ -393,6 +393,9 @@ static void ast_el_write_default_histfile(void);
 
 static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup);
 
+#define DEFAULT_MONITOR_DIR DEFAULT_SPOOL_DIR "/monitor"
+#define DEFAULT_RECORDING_DIR DEFAULT_SPOOL_DIR "/recording"
+
 struct _cfg_paths {
 	char config_dir[PATH_MAX];
 	char module_dir[PATH_MAX];
@@ -3526,8 +3529,8 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
 	ast_copy_string(cfg_paths.spool_dir, DEFAULT_SPOOL_DIR, sizeof(cfg_paths.spool_dir));
 	ast_copy_string(cfg_paths.module_dir, DEFAULT_MODULE_DIR, sizeof(cfg_paths.module_dir));
-	snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", cfg_paths.spool_dir);
-	snprintf(cfg_paths.recording_dir, sizeof(cfg_paths.recording_dir), "%s/recording", cfg_paths.spool_dir);
+	ast_copy_string(cfg_paths.monitor_dir, DEFAULT_MONITOR_DIR, sizeof(cfg_paths.monitor_dir));
+	ast_copy_string(cfg_paths.recording_dir, DEFAULT_RECORDING_DIR, sizeof(cfg_paths.recording_dir));
 	ast_copy_string(cfg_paths.var_dir, DEFAULT_VAR_DIR, sizeof(cfg_paths.var_dir));
 	ast_copy_string(cfg_paths.data_dir, DEFAULT_DATA_DIR, sizeof(cfg_paths.data_dir));
 	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));

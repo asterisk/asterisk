@@ -3546,7 +3546,7 @@ struct ast_cc_monitor *ast_cc_get_monitor_by_recall_core_id(const int core_id, c
  */
 static void cc_unique_append(struct ast_str **str, const char *dialstring)
 {
-	char dialstring_search[AST_CHANNEL_NAME];
+	char dialstring_search[AST_CHANNEL_NAME + 1];
 
 	if (ast_strlen_zero(dialstring)) {
 		/* No dialstring to append. */

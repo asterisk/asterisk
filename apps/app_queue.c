@@ -6610,7 +6610,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char oldexten[AST_MAX_EXTENSION]="";
 	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
-	char interfacevar[256]="";
 	struct ast_channel *peer;
 	struct ast_channel *which;
 	struct callattempt *lpeer;
@@ -6811,6 +6810,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		}
 	} else { /* peer is valid */
 		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		RAII_VAR(struct ast_str *, interfacevar, ast_str_create(325), ast_free);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -6924,20 +6924,20 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		ao2_lock(qe->parent);
 		/* if setinterfacevar is defined, make member variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
-		if (qe->parent->setinterfacevar) {
-			snprintf(interfacevar, sizeof(interfacevar), "MEMBERINTERFACE=%s,MEMBERNAME=%s,MEMBERCALLS=%d,MEMBERLASTCALL=%ld,MEMBERPENALTY=%d,MEMBERDYNAMIC=%d,MEMBERREALTIME=%d",
+		if (qe->parent->setinterfacevar && interfacevar) {
+			ast_str_set(&interfacevar, 0, "MEMBERINTERFACE=%s,MEMBERNAME=%s,MEMBERCALLS=%d,MEMBERLASTCALL=%ld,MEMBERPENALTY=%d,MEMBERDYNAMIC=%d,MEMBERREALTIME=%d",
 				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
-		 	pbx_builtin_setvar_multiple(qe->chan, interfacevar);
-			pbx_builtin_setvar_multiple(peer, interfacevar);
+			pbx_builtin_setvar_multiple(qe->chan, ast_str_buffer(interfacevar));
+			pbx_builtin_setvar_multiple(peer, ast_str_buffer(interfacevar));
 		}
 
 		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
-		if (qe->parent->setqueueentryvar) {
-			snprintf(interfacevar, sizeof(interfacevar), "QEHOLDTIME=%ld,QEORIGINALPOS=%d",
+		if (qe->parent->setqueueentryvar && interfacevar) {
+			ast_str_set(&interfacevar, 0, "QEHOLDTIME=%ld,QEORIGINALPOS=%d",
 				(long) (time(NULL) - qe->start), qe->opos);
-			pbx_builtin_setvar_multiple(qe->chan, interfacevar);
-			pbx_builtin_setvar_multiple(peer, interfacevar);
+			pbx_builtin_setvar_multiple(qe->chan, ast_str_buffer(interfacevar));
+			pbx_builtin_setvar_multiple(peer, ast_str_buffer(interfacevar));
 		}
 
 		ao2_unlock(qe->parent);

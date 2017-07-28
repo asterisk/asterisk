@@ -2251,7 +2251,7 @@ static int minivm_greet_exec(struct ast_channel *chan, const char *data)
 	char ecodes[16] = "#";
 	char *tmpptr;
 	struct minivm_account *vmu;
-	char *username = argv[0];
+	char *username;
 
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
