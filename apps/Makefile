@@ -29,6 +29,8 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 
 $(call MOD_ADD_C,app_confbridge,$(wildcard confbridge/*.c))
 
+app_voicemail.o: _ASTCFLAGS+=-Wno-format-truncation
+
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   LIBS+= -lres_ael_share.so -lres_monitor.so -lres_speech.so
   LIBS+= -lres_smdi.so

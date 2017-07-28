@@ -4605,6 +4605,10 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_exten *e, *eroot;
 	struct ast_include *i;
 
+	if (!context) {
+		return NULL;
+	}
+
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
 		q->status = STATUS_NO_CONTEXT;

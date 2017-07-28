@@ -1294,7 +1294,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 					/* Size is minimum length; make it at least 50% greater,
 					 * just to be sure, because PostgreSQL doesn't support
 					 * resizing columns. */
-					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%d)",
+					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%hhu)",
 						size < 15 ? size * 2 :
 						(size * 3 / 2 > 255) ? 255 : size * 3 / 2);
 				} else if (type == RQ_INTEGER1 || type == RQ_UINTEGER1 || type == RQ_INTEGER2) {

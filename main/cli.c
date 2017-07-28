@@ -372,7 +372,7 @@ static char *complete_number(const char *partial, unsigned int min, unsigned int
 	int i, count = 0;
 	unsigned int prospective[2];
 	unsigned int part = strtoul(partial, NULL, 10);
-	char next[12];
+	char next[13];
 
 	if (part < min || part > max) {
 		return NULL;
@@ -1031,7 +1031,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	it_chans = ao2_iterator_init(channels, 0);
 	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
 		struct ast_channel_snapshot *cs = stasis_message_data(msg);
-		char durbuf[10] = "-";
+		char durbuf[16] = "-";
 
 		if (!count) {
 			if ((concise || verbose)  && !ast_tvzero(cs->creationtime)) {
