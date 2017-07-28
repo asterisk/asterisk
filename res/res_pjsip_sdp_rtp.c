@@ -241,6 +241,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	}
 
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
+	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_ASYMMETRIC_CODEC, session->endpoint->asymmetric_rtp_codec);
 
 	if (!session->endpoint->media.rtp.ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
 		ice->stop(session_media->rtp);
