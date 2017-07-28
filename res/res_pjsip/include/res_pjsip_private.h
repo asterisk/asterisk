@@ -135,6 +135,29 @@ void ast_sip_destroy_distributor(void);
 
 /*!
  * \internal
+ * \brief Initialize the transport events notify module
+ * \since 13.18.0
+ *
+ * The transport events notify module is responsible for monitoring
+ * when transports die and calling any registered callbacks when that
+ * happens.  It also manages any PJPROJECT transport state callbacks
+ * registered to it so the callbacks be more dynamic allowing module
+ * loading/unloading.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+int ast_sip_initialize_transport_events(void);
+
+/*!
+ * \internal
+ * \brief Destruct the transport events notify module.
+ * \since 13.18.0
+ */
+void ast_sip_destroy_transport_events(void);
+
+/*!
+ * \internal
  * \brief Initialize global type on a sorcery instance
  *
  * \retval -1 failure
