@@ -140,6 +140,7 @@ endif
 	$(CMD_PREFIX) rm $@.fix
 
 ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
+cdr.o: _ASTCFLAGS+=-Wno-format-truncation
 
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
@@ -314,7 +315,7 @@ endif
 
 endif
 
-tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
 
 $(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB) $(LIBEDIT_OBJ)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
