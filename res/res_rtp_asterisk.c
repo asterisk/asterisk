@@ -313,6 +313,7 @@ struct ast_rtp {
 	void *data;
 	struct ast_rtcp *rtcp;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
+	unsigned int asymmetric_codec;  /*!< Indicate if asymmetric send/receive codecs are allowed */
 
 	struct ast_rtp_instance *bundled; /*!< The RTP instance we are bundled to */
 	int stream_num; /*!< Stream num for this RTP instance */
@@ -5113,6 +5114,23 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 		return -1;
 	}
 
+
+	ao2_replace(rtp->lastrxformat, payload_type->format);
+	ao2_replace(bridged->lasttxformat, payload_type->format);
+
+	/*
+	 * If bridged peer has already received rtp, perform the asymmetric codec check
+	 * if that feature has been activated
+	 */
+	if (!bridged->asymmetric_codec && bridged->lastrxformat != ast_format_none) {
+		if (ast_format_cmp(bridged->lasttxformat, bridged->lastrxformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+			ast_debug(1, "Asymmetric RTP codecs detected (TX: %s, RX: %s) sending frame to core\n",
+					ast_format_get_name(bridged->lasttxformat),
+					ast_format_get_name(bridged->lastrxformat));
+			return -1;
+		}
+	}
+
 	/* If the marker bit has been explicitly set turn it on */
 	if (ast_test_flag(rtp, FLAG_NEED_MARKER_BIT)) {
 		mark = 1;
@@ -5797,6 +5815,8 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				rtp->rtcp = NULL;
 			}
 		}
+	} else if (property == AST_RTP_PROPERTY_ASYMMETRIC_CODEC) {
+		rtp->asymmetric_codec = value;
 	}
 }
 
