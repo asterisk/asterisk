@@ -727,14 +727,11 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 
 	session = channel->session;
 
-	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when it has not been negotiated\n",
-			ast_format_get_name(f->subclass.format), ast_channel_name(ast));
-
-		ast_frfree(f);
-		return &ast_null_frame;
-	}
-
+	/*
+	 * Asymmetric RTP only has one native format set at a time.
+	 * Therefore we need to update the native format to the current
+	 * raw read format BEFORE the native format check
+	 */
 	if (!session->endpoint->asymmetric_rtp_codec &&
 		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		struct ast_format_cap *caps;
@@ -759,6 +756,14 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		if (ast_channel_is_bridged(ast)) {
 			ast_channel_set_unbridged_nolock(ast, 1);
 		}
+	}
+
+	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when it has not been negotiated\n",
+			ast_format_get_name(f->subclass.format), ast_channel_name(ast));
+
+		ast_frfree(f);
+		return &ast_null_frame;
 	}
 
 	if (session->dsp) {
