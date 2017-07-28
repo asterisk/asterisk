@@ -2896,4 +2896,91 @@ int ast_sip_dtmf_to_str(const enum ast_sip_dtmf_mode dtmf,
  */
 int ast_sip_str_to_dtmf(const char *dtmf_mode);
 
+/*!
+ * \brief Transport shutdown monitor callback.
+ * \since 13.18.0
+ *
+ * \param data User data to know what to do when transport shuts down.
+ *
+ * \note The callback does not need to care that data is an ao2 object.
+ *
+ * \return Nothing
+ */
+typedef void (*ast_transport_monitor_shutdown_cb)(void *data);
+
+enum ast_transport_monitor_reg {
+	/*! \brief Successfully registered the transport monitor */
+	AST_TRANSPORT_MONITOR_REG_SUCCESS,
+	/*! \brief Replaced the already existing transport monitor with new one. */
+	AST_TRANSPORT_MONITOR_REG_REPLACED,
+	/*!
+	 * \brief Transport not found to monitor.
+	 * \note Transport is either already shutdown or is not reliable.
+	 */
+	AST_TRANSPORT_MONITOR_REG_NOT_FOUND,
+	/*! \brief Error while registering transport monitor. */
+	AST_TRANSPORT_MONITOR_REG_FAILED,
+};
+
+/*!
+ * \brief Register a reliable transport shutdown monitor callback.
+ * \since 13.18.0
+ *
+ * \param transport Transport to monitor for shutdown.
+ * \param cb Who to call when transport is shutdown.
+ * \param ao2_data Data to pass with the callback.
+ *
+ * \return enum ast_transport_monitor_reg
+ */
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *ao2_data);
+
+/*!
+ * \brief Unregister a reliable transport shutdown monitor callback.
+ * \since 13.18.0
+ *
+ * \param transport Transport to monitor for shutdown.
+ * \param cb Who to call when transport is shutdown.
+ *
+ * \return Nothing
+ */
+void ast_sip_transport_monitor_unregister(pjsip_transport *transport, ast_transport_monitor_shutdown_cb cb);
+
+/*!
+ * \brief Unregister monitor callback from all reliable transports.
+ * \since 13.18.0
+ *
+ * \param cb Who to call when a transport is shutdown.
+ *
+ * \return Nothing
+ */
+void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb);
+
+/*! Transport state notification registration element.  */
+struct ast_sip_tpmgr_state_callback {
+	/*! PJPROJECT transport state notification callback */
+	pjsip_tp_state_callback cb;
+	AST_LIST_ENTRY(ast_sip_tpmgr_state_callback) node;
+};
+
+/*!
+ * \brief Register a transport state notification callback element.
+ * \since 13.18.0
+ *
+ * \param element What we are registering.
+ *
+ * \return Nothing
+ */
+void ast_sip_transport_state_register(struct ast_sip_tpmgr_state_callback *element);
+
+/*!
+ * \brief Unregister a transport state notification callback element.
+ * \since 13.18.0
+ *
+ * \param element What we are unregistering.
+ *
+ * \return Nothing
+ */
+void ast_sip_transport_state_unregister(struct ast_sip_tpmgr_state_callback *element);
+
 #endif /* _RES_PJSIP_H */

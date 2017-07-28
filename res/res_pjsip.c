@@ -4610,6 +4610,7 @@ static int unload_pjsip(void *data)
 		ast_sip_destroy_system();
 		ast_sip_destroy_global_headers();
 		internal_sip_unregister_service(&supplement_module);
+		ast_sip_destroy_transport_events();
 	}
 
 	if (monitor_thread) {
@@ -4688,7 +4689,6 @@ static int load_pjsip(void)
 	return AST_MODULE_LOAD_SUCCESS;
 
 error:
-	unload_pjsip(NULL);
 	return AST_MODULE_LOAD_DECLINE;
 }
 
@@ -4751,6 +4751,11 @@ static int load_module(void)
 
 	/* Now load all the pjproject infrastructure. */
 	if (load_pjsip()) {
+		goto error;
+	}
+
+	if (ast_sip_initialize_transport_events()) {
+		ast_log(LOG_ERROR, "Failed to initialize SIP transport monitor. Aborting load\n");
 		goto error;
 	}
 
