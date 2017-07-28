@@ -1558,7 +1558,7 @@ outrun:
 	}
 	if (!ast_strlen_zero(targs->namerecloc)) {
 		int ret;
-		char fn[PATH_MAX];
+		char fn[PATH_MAX + sizeof(REC_FORMAT)];
 
 		snprintf(fn, sizeof(fn), "%s.%s", targs->namerecloc,
 			     REC_FORMAT);

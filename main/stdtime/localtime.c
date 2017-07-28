@@ -2434,7 +2434,7 @@ static const char *store_by_locale(locale_t prevlocale)
 			cur = NULL;
 			AST_LIST_LOCK(&localelist);
 			for (x = 0; x < 10000; x++) {
-				char name[5];
+				char name[6];
 				snprintf(name, sizeof(name), "%04d", x);
 				if (!find_by_name(name)) {
 					if ((cur = ast_calloc(1, sizeof(*cur) + strlen(name) + 1))) {

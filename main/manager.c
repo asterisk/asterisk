@@ -6115,7 +6115,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
 		struct ast_channel_snapshot *cs = stasis_message_data(msg);
 		struct ast_str *built = ast_manager_build_channel_state_string_prefix(cs, "");
-		char durbuf[10] = "";
+		char durbuf[16] = "";
 
 		if (!built) {
 			continue;

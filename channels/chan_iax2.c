@@ -8545,7 +8545,7 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	int newcall = 0;
 	struct iax_ie_data ied;
-	struct ast_sockaddr new;
+	struct ast_sockaddr new = { {0,} };
 
 	memset(&ied, 0, sizeof(ied));
 	if (!ast_sockaddr_isnull(&ies->apparent_addr)) {

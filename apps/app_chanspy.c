@@ -1442,7 +1442,7 @@ static int extenspy_exec(struct ast_channel *chan, const char *data)
 static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 {
 	const char *spec = "DAHDI";
-	struct ast_flags flags;
+	struct ast_flags flags = {0};
 	struct spy_dtmf_options user_options = {
 		.cycle = '#',
 		.volume = '\0',

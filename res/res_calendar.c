@@ -741,7 +741,7 @@ static void *do_notify(void *data)
 	struct ast_channel *chan = NULL;
 	struct ast_variable *itervar;
 	char *tech, *dest;
-	char buf[8];
+	char buf[33];
 	struct ast_format_cap *caps;
 
 	tech = ast_strdupa(event->owner->notify_channel);

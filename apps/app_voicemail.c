@@ -7913,7 +7913,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 				*duration += prepend_duration;
 				msg_cat = ast_category_get(msg_cfg, "message", NULL);
-				snprintf(duration_buf, 11, "%ld", *duration);
+				snprintf(duration_buf, sizeof(duration_buf), "%ld", *duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_buf, NULL, 0)) {
 					ast_config_text_file_save(textfile, msg_cfg, "app_voicemail");
 				}
@@ -8685,7 +8685,7 @@ static int play_message_duration(struct ast_channel *chan, struct vm_state *vms,
 static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
-	char filename[256], *cid;
+	char filename[PATH_MAX], *cid;
 	const char *origtime, *context, *category, *duration, *flag;
 	struct ast_config *msg_cfg;
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };

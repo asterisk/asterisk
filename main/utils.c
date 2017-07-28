@@ -1490,7 +1490,7 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 	int found = 0;
 	char stack[8];
 
-	if (iss == NULL || *iss == '\0') {
+	if (ast_strlen_zero(st)) {
 		return NULL;
 	}
 

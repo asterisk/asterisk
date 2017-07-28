@@ -275,7 +275,7 @@ static void rebuild_channels(newtComponent c)
 {
 	void *prev = NULL;
 	struct ast_chan *chan;
-	char tmpn[42];
+	char tmpn[sizeof(chan->name) + sizeof(chan->callerid) + 3 - 1];
 	char tmp[256];
 	int x=0;
 	prev = newtListboxGetCurrent(c);

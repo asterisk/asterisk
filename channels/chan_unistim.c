@@ -370,7 +370,7 @@ struct unistim_subchannel {
 struct unistim_line {
 	ast_mutex_t lock;
 	char name[80]; /*! Like 200 */
-	char fullname[80]; /*! Like USTM/200\@black */
+	char fullname[101]; /*! Like USTM/200\@black */
 	char exten[AST_MAX_EXTENSION]; /*! Extension where to start */
 	char cid_num[AST_MAX_EXTENSION]; /*! CallerID Number */
 	char mailbox[AST_MAX_EXTENSION]; /*! Mailbox for MWI */
@@ -3698,7 +3698,7 @@ static void key_select_option(struct unistimsession *pte, char keycode)
 #define SELECTCODEC_MSG "Codec number : .."
 static void handle_select_codec(struct unistimsession *pte)
 {
-	char buf[30], buf2[5];
+	char buf[30], buf2[6];
 
 	pte->state = STATE_SELECTCODEC;
 	ast_copy_string(buf, ustmtext("Using codec", pte), sizeof(buf));

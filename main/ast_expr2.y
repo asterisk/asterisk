@@ -628,13 +628,11 @@ to_string (struct val *vp)
 	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
 		return;
 
-	tmp = malloc ((size_t)25);
-	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"malloc() failed\n");
+	if (asprintf(&tmp, FP___PRINTF, vp->u.i) == -1) {
+		ast_log(LOG_WARNING, "asprintf() failed\n");
 		return;
 	}
 
-	sprintf(tmp, FP___PRINTF, vp->u.i);
 	vp->type = AST_EXPR_string;
 	vp->u.s  = tmp;
 }
