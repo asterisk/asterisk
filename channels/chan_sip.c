@@ -380,6 +380,37 @@
 			<para>Please observe that contents of the SDP (an attachment to the
 			SIP request) can't be accessed with this function.</para>
 		</description>
+		<see-also>
+			<ref type="function">SIP_HEADERS</ref>
+		</see-also>
+	</function>
+	<function name="SIP_HEADERS" language="en_US">
+		<synopsis>
+			Gets the list of SIP header names from an incoming INVITE message.
+		</synopsis>
+		<syntax>
+			<parameter name="prefix">
+				<para>If specified, only the headers matching the given prefix are returned.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns a comma-separated list of header names (without values) from the
+			INVITE message that originated the current channel. Multiple headers with the
+			same name are included in the list only once. The returned list can be iterated
+			over using the functions POP() and SIP_HEADER().</para>
+			<para>For example, <literal>${SIP_HEADERS(Co)}</literal> might return
+			<literal>Contact,Content-Length,Content-Type</literal>. As a practical example,
+			you may use <literal>${SIP_HEADERS(X-)}</literal> to enumerate optional extended
+			headers.</para>
+			<para>This function does not access headers from the incoming SIP REFER message;
+			see the documentation of the function SIP_HEADER for how to access them.</para>
+			<para>Please observe that contents of the SDP (an attachment to the
+			SIP request) can't be accessed with this function.</para>
+		</description>
+		<see-also>
+			<ref type="function">SIP_HEADER</ref>
+			<ref type="function">POP</ref>
+		</see-also>
 	</function>
 	<function name="SIPPEER" language="en_US">
 		<synopsis>
@@ -22995,6 +23026,7 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 {
 	struct sip_pvt *p;
 	const char *content = NULL;
+	char *mutable_data = ast_strdupa(data);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(header);
 		AST_APP_ARG(number);
@@ -23018,7 +23050,7 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 		return -1;
 	}
 
-	AST_STANDARD_APP_ARGS(args, data);
+	AST_STANDARD_APP_ARGS(args, mutable_data);
 	if (!args.number) {
 		number = 1;
 	} else {
@@ -23053,6 +23085,91 @@ static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
 	.read = func_header_read,
 };
+
+/*! \brief Read unique list of SIP headers (dialplan function) */
+static int func_headers_read2(struct ast_channel *chan, const char *function, char *data, struct ast_str **buf, ssize_t maxlen)
+{
+	int i;
+	struct sip_pvt *pvt;
+	char *mutable_data = ast_strdupa(data);
+	struct ast_str *token = ast_str_alloca(100);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(pattern);
+	);
+
+	if (!chan) {
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+
+	if (!IS_SIP_TECH(ast_channel_tech(chan))) {
+		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	pvt = ast_channel_tech_pvt(chan);
+	if (!pvt) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, mutable_data);
+	if (!args.pattern || strcmp(args.pattern, "*") == 0) {
+		args.pattern = "";
+	}
+
+	for (i = 0; i < pvt->initreq.headers; i++) {
+		const char *header = REQ_OFFSET_TO_STR(&pvt->initreq, header[i]);
+		if (ast_begins_with(header, args.pattern)) {
+			int hdrlen = strcspn(header, " \t:,");  /* Comma will break our logic, and illegal per RFC. */
+			const char *term = ast_skip_blanks(header + hdrlen);
+			if (hdrlen > 0 && *term == ':') {  /* Header is malformed otherwise! */
+				const char *s = NULL;
+
+				/* Return short headers in full form always. */
+				if (hdrlen == 1) {
+					char short_hdr[2] = { header[0], '\0' };
+					s = find_full_alias(short_hdr, NULL);
+				}
+				if (s) {
+					/* Short header was found and expanded. */
+					ast_str_set(&token, -1, "%s,", s);
+				} else {
+					/* Return the header as is, whether 1-character or not. */
+					ast_str_set(&token, -1, "%.*s,", hdrlen, header);
+				}
+
+				/* Has the same header been already added? */
+				s = ast_str_buffer(*buf);
+				while ((s = strstr(s, ast_str_buffer(token))) != NULL) {
+					/* Found suffix, but is it the full token? */
+					if (s == ast_str_buffer(*buf) || s[-1] == ',')
+						break;
+					/* Only suffix matched, go on with the search after the comma. */
+					s += hdrlen + 1;
+				}
+
+				/* s is null iff not broken from the loop, hence header not yet added. */
+				if (s == NULL) {
+					ast_str_append(buf, maxlen, "%s", ast_str_buffer(token));
+				}
+			}
+		}
+	}
+
+	ast_str_truncate(*buf, -1);  /* Trim the last comma. Safe if empty. */
+
+	ast_channel_unlock(chan);
+	return 0;
+}
+
+static struct ast_custom_function sip_headers_function = {
+	.name = "SIP_HEADERS",
+	.read2 = func_headers_read2,
+};
+
 
 /*! \brief  Dial plan function to check if domain is local */
 static int func_check_sipdomain(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -35201,6 +35318,7 @@ static int load_module(void)
 
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
+	ast_custom_function_register(&sip_headers_function);
 	ast_custom_function_register(&sippeer_function);
 	ast_custom_function_register(&checksipdomain_function);
 
@@ -35301,6 +35419,7 @@ static int unload_module(void)
 
 	/* Unregister dial plan functions */
 	ast_custom_function_unregister(&sippeer_function);
+	ast_custom_function_unregister(&sip_headers_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);
 
