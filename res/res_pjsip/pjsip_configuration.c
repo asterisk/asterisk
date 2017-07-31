@@ -2020,6 +2020,8 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	load_all_endpoints();
 
+	ast_sip_location_prune_boot_contacts();
+
 	return 0;
 }
 
