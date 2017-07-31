@@ -2022,6 +2022,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 
 	load_all_endpoints();
 
+	ast_sip_location_prune_boot_contacts();
+
 	return 0;
 }
 

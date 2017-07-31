@@ -310,6 +310,47 @@ static int registrar_validate_path(pjsip_rx_data *rdata, struct ast_sip_aor *aor
 	return -1;
 }
 
+/*! Transport monitor for incoming REGISTER contacts */
+struct contact_transport_monitor {
+	/*!
+	 * \brief Sorcery contact name to remove on transport shutdown
+	 * \note Stored after aor_name in space reserved when struct allocated.
+	 */
+	char *contact_name;
+	/*! AOR name the contact is associated */
+	char aor_name[0];
+};
+
+static void register_contact_transport_shutdown_cb(void *data)
+{
+	struct contact_transport_monitor *monitor = data;
+	struct ast_sip_contact *contact;
+	struct ast_named_lock *lock;
+
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", monitor->aor_name);
+	if (!lock) {
+		return;
+	}
+
+	ao2_lock(lock);
+	contact = ast_sip_location_retrieve_contact(monitor->contact_name);
+	if (contact) {
+		ast_sip_location_delete_contact(contact);
+		ast_verb(3, "Removed contact '%s' from AOR '%s' due to transport shutdown\n",
+			contact->uri, monitor->aor_name);
+		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
+			"Contact: %s\r\n"
+			"AOR: %s\r\n"
+			"UserAgent: %s",
+			contact->uri,
+			monitor->aor_name,
+			contact->user_agent);
+		ao2_ref(contact, -1);
+	}
+	ao2_unlock(lock);
+	ast_named_lock_put(lock);
+}
+
 static int register_aor_core(pjsip_rx_data *rdata,
 	struct ast_sip_endpoint *endpoint,
 	struct ast_sip_aor *aor,
@@ -419,6 +460,9 @@ static int register_aor_core(pjsip_rx_data *rdata,
 		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri));
 
 		if (!(contact = ao2_callback(contacts, OBJ_UNLINK, registrar_find_contact, &details))) {
+			int prune_on_boot = 0;
+			pj_str_t host_name;
+
 			/* If they are actually trying to delete a contact that does not exist... be forgiving */
 			if (!expiration) {
 				ast_verb(3, "Attempted to remove non-existent contact '%s' from AOR '%s' by request\n",
@@ -426,12 +470,66 @@ static int register_aor_core(pjsip_rx_data *rdata,
 				continue;
 			}
 
-			if (ast_sip_location_add_contact_nolock(aor, contact_uri, ast_tvadd(ast_tvnow(),
-				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
-					user_agent, via_addr, via_port, call_id, endpoint)) {
+			/* Determine if the contact cannot survive a restart/boot. */
+			if (details.uri->port == rdata->pkt_info.src_port
+				&& !pj_strcmp(&details.uri->host,
+					pj_cstr(&host_name, rdata->pkt_info.src_name))
+				/* We have already checked if the URI scheme is sip: or sips: */
+				&& PJSIP_TRANSPORT_IS_RELIABLE(rdata->tp_info.transport)) {
+				pj_str_t type_name;
+
+				/* Determine the transport parameter value */
+				if (!strcasecmp("WSS", rdata->tp_info.transport->type_name)) {
+					/* WSS is special, as it needs to be ws. */
+					pj_cstr(&type_name, "ws");
+				} else {
+					pj_cstr(&type_name, rdata->tp_info.transport->type_name);
+				}
+
+				if (!pj_stricmp(&details.uri->transport_param, &type_name)
+					&& (endpoint->nat.rewrite_contact
+						/* Websockets are always rewritten */
+						|| !pj_stricmp(&details.uri->transport_param,
+							pj_cstr(&type_name, "ws")))) {
+					/*
+					 * The contact was rewritten to the reliable transport's
+					 * source address.  Disconnecting the transport for any
+					 * reason invalidates the contact.
+					 */
+					prune_on_boot = 1;
+				}
+			}
+
+			contact = ast_sip_location_create_contact(aor, contact_uri,
+				ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1)),
+				path_str ? ast_str_buffer(path_str) : NULL,
+				user_agent, via_addr, via_port, call_id, prune_on_boot, endpoint);
+			if (!contact) {
 				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
-						contact_uri, aor_name);
+					contact_uri, aor_name);
 				continue;
+			}
+
+			if (prune_on_boot) {
+				const char *contact_name;
+				struct contact_transport_monitor *monitor;
+
+				/*
+				 * Monitor the transport in case it gets disconnected because
+				 * the contact won't be valid anymore if that happens.
+				 */
+				contact_name = ast_sorcery_object_get_id(contact);
+				monitor = ao2_alloc_options(sizeof(*monitor) + 2 + strlen(aor_name)
+					+ strlen(contact_name), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+				if (monitor) {
+					strcpy(monitor->aor_name, aor_name);/* Safe */
+					monitor->contact_name = monitor->aor_name + strlen(aor_name) + 1;
+					strcpy(monitor->contact_name, contact_name);/* Safe */
+
+					ast_sip_transport_monitor_register(rdata->tp_info.transport,
+						register_contact_transport_shutdown_cb, monitor);
+					ao2_ref(monitor, -1);
+				}
 			}
 
 			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
@@ -893,6 +991,7 @@ static int unload_module(void)
 	ast_manager_unregister(AMI_SHOW_REGISTRATIONS);
 	ast_manager_unregister(AMI_SHOW_REGISTRATION_CONTACT_STATUSES);
 	ast_sip_unregister_service(&registrar_module);
+	ast_sip_transport_monitor_unregister_all(register_contact_transport_shutdown_cb);
 	return 0;
 }
 
