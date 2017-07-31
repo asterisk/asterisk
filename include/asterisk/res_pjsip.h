@@ -270,6 +270,8 @@ struct ast_sip_contact {
 	AST_STRING_FIELD_EXTENDED(call_id);
 	/*! The name of the endpoint that added the contact */
 	AST_STRING_FIELD_EXTENDED(endpoint_name);
+	/*! If true delete the contact on Asterisk restart/boot */
+	int prune_on_boot;
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -1215,6 +1217,9 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  * \param expiration_time Optional expiration time of the contact
  * \param path_info Path information
  * \param user_agent User-Agent header from REGISTER request
+ * \param via_addr
+ * \param via_port
+ * \param call_id
  * \param endpoint The endpoint that resulted in the contact being added
  *
  * \retval -1 failure
@@ -1238,6 +1243,9 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
  * \param expiration_time Optional expiration time of the contact
  * \param path_info Path information
  * \param user_agent User-Agent header from REGISTER request
+ * \param via_addr
+ * \param via_port
+ * \param call_id
  * \param endpoint The endpoint that resulted in the contact being added
  *
  * \retval -1 failure
@@ -1250,6 +1258,31 @@ int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri
 	struct timeval expiration_time, const char *path_info, const char *user_agent,
 	const char *via_addr, int via_port, const char *call_id,
 	struct ast_sip_endpoint *endpoint);
+
+/*!
+ * \brief Create a new contact for an AOR without locking the AOR
+ * \since 13.18.0
+ *
+ * \param aor Pointer to the AOR
+ * \param uri Full contact URI
+ * \param expiration_time Optional expiration time of the contact
+ * \param path_info Path information
+ * \param user_agent User-Agent header from REGISTER request
+ * \param via_addr
+ * \param via_port
+ * \param call_id
+ * \param prune_on_boot Non-zero if the contact cannot survive a restart/boot.
+ * \param endpoint The endpoint that resulted in the contact being added
+ *
+ * \return The created contact or NULL on failure.
+ *
+ * \warning
+ * This function should only be called if you already hold a named write lock on the aor.
+ */
+struct ast_sip_contact *ast_sip_location_create_contact(struct ast_sip_aor *aor,
+	const char *uri, struct timeval expiration_time, const char *path_info,
+	const char *user_agent, const char *via_addr, int via_port, const char *call_id,
+	int prune_on_boot, struct ast_sip_endpoint *endpoint);
 
 /*!
  * \brief Update a contact
@@ -1270,6 +1303,12 @@ int ast_sip_location_update_contact(struct ast_sip_contact *contact);
 * \retval 0 success
 */
 int ast_sip_location_delete_contact(struct ast_sip_contact *contact);
+
+/*!
+ * \brief Prune the prune_on_boot contacts
+ * \since 13.18.0
+ */
+void ast_sip_location_prune_boot_contacts(void);
 
 /*!
  * \brief Callback called when an outbound request with authentication credentials is to be sent in dialog

@@ -145,6 +145,7 @@ static int transport_create(void *data)
 {
 	struct transport_create_data *create_data = data;
 	struct ws_transport *newtransport = NULL;
+	pjsip_tp_state_callback state_cb;
 
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
 	struct pjsip_tpmgr *tpmgr = pjsip_endpt_get_tpmgr(endpt);
@@ -160,6 +161,10 @@ static int transport_create(void *data)
 		ast_log(LOG_ERROR, "Failed to allocate WebSocket transport.\n");
 		goto on_error;
 	}
+
+	/* Give websocket transport a unique name for its lifetime */
+	snprintf(newtransport->transport.obj_name, PJ_MAX_OBJ_NAME, "ws%p",
+		&newtransport->transport);
 
 	newtransport->transport.endpt = endpt;
 
@@ -219,6 +224,7 @@ static int transport_create(void *data)
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
 	newtransport->transport.info = (char *)pj_pool_alloc(newtransport->transport.pool, 64);
 
+	newtransport->transport.dir = PJSIP_TP_DIR_INCOMING;
 	newtransport->transport.tpmgr = tpmgr;
 	newtransport->transport.send_msg = &ws_send_msg;
 	newtransport->transport.destroy = &ws_destroy;
@@ -242,6 +248,16 @@ static int transport_create(void *data)
 	}
 
 	create_data->transport = newtransport;
+
+	/* Notify application of transport state */
+	state_cb = pjsip_tpmgr_get_state_cb(newtransport->transport.tpmgr);
+	if (state_cb) {
+		pjsip_transport_state_info state_info;
+
+		memset(&state_info, 0, sizeof(state_info));
+		state_cb(&newtransport->transport, PJSIP_TP_STATE_CONNECTED, &state_info);
+	}
+
 	return 0;
 
 on_error:
