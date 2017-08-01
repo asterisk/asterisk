@@ -35,6 +35,7 @@
 static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 {
 	pj_cstr(&uri->host, rdata->pkt_info.src_name);
+	uri->port = rdata->pkt_info.src_port;
 	if (!strcasecmp("WSS", rdata->tp_info.transport->type_name)) {
 		/* WSS is special, we don't want to overwrite the URI at all as it needs to be ws */
 	} else if (strcasecmp("udp", rdata->tp_info.transport->type_name)) {
@@ -42,7 +43,6 @@ static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 	} else {
 		uri->transport_param.slen = 0;
 	}
-	uri->port = rdata->pkt_info.src_port;
 }
 
 static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
@@ -165,7 +165,7 @@ static int find_transport_state_in_use(void *obj, void *arg, int flags)
 		((details->type == transport_state->type) && (transport_state->factory) &&
 			!pj_strcmp(&transport_state->factory->addr_name.host, &details->local_address) &&
 			transport_state->factory->addr_name.port == details->local_port))) {
-		return CMP_MATCH | CMP_STOP;
+		return CMP_MATCH;
 	}
 
 	return 0;
