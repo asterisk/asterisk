@@ -1872,12 +1872,8 @@ static void session_destructor(void *obj)
 
 	ast_taskprocessor_unreference(session->serializer);
 	ao2_cleanup(session->datastores);
-	if (session->active_media_state) {
-		ast_sip_session_media_state_free(session->active_media_state);
-	}
-	if (session->pending_media_state) {
-		ast_sip_session_media_state_free(session->pending_media_state);
-	}
+	ast_sip_session_media_state_free(session->active_media_state);
+	ast_sip_session_media_state_free(session->pending_media_state);
 
 	AST_LIST_HEAD_DESTROY(&session->supplements);
 	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
@@ -3138,13 +3134,6 @@ static int session_end(void *vsession)
 			iter->session_end(session);
 		}
 	}
-
-	/* Release any media resources. */
-	ast_sip_session_media_state_free(session->active_media_state);
-	session->active_media_state = NULL;
-	ast_sip_session_media_state_free(session->pending_media_state);
-	session->pending_media_state = NULL;
-
 	return 0;
 }
 

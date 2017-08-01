@@ -2273,6 +2273,7 @@ static struct hangup_data *hangup_data_alloc(int cause, struct ast_channel *chan
 static void clear_session_and_channel(struct ast_sip_session *session, struct ast_channel *ast)
 {
 	session->channel = NULL;
+	set_channel_on_rtp_instance(session, "");
 	ast_channel_tech_pvt_set(ast, NULL);
 }
 
