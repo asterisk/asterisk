@@ -2554,11 +2554,6 @@ static int session_end(void *vsession)
 			iter->session_end(session);
 		}
 	}
-
-	/* Release any media resources. */
-	ao2_cleanup(session->media);
-	session->media = NULL;
-
 	return 0;
 }
 
