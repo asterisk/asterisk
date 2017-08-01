@@ -3896,8 +3896,8 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 
 		if (!transport_state->localnet
 			|| ast_apply_ha(transport_state->localnet, &addr) != AST_SENSE_ALLOW) {
-			ast_debug(5, "Setting external media address to %s\n", transport->external_media_address);
-			pj_strdup2(tdata->pool, &sdp->conn->addr, transport->external_media_address);
+			ast_debug(5, "Setting external media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
+			pj_strdup2(tdata->pool, &sdp->conn->addr, ast_sockaddr_stringify_host(&transport_state->external_media_address));
 		}
 	}
 
