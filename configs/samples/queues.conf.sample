@@ -345,6 +345,11 @@ monitor-type = MixMonitor
 ;
 ; announce-round-seconds = 10
 ;
+; Only announce the caller's position if it has improved since the last announcement.
+; The default value is no.
+;
+; announce-position-only-up = yes
+;
 ; Use these sound files in making position/holdtime announcements.  The
 ; defaults are as listed below -- change only if you need to.
 ;
