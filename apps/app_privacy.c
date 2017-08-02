@@ -40,7 +40,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
-#include "asterisk/image.h"
 #include "asterisk/callerid.h"
 #include "asterisk/app.h"
 #include "asterisk/config.h"
