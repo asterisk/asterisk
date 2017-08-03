@@ -2492,7 +2492,7 @@ then
     fi
 fi
 
-for ver in 2.0 2.2 2.4 2.6; do
+for ver in 2.0 2.2 2.4 2.6 3.0; do
 	AST_PKG_CONFIG_CHECK([GMIME], gmime-$ver)
 	if test "$PBX_GMIME" = 1; then
 		break;
