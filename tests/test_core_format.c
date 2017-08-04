@@ -860,6 +860,7 @@ AST_TEST_DEFINE(format_attribute_set_without_interface)
 {
 	RAII_VAR(struct ast_codec *, codec, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format *, format, NULL, ao2_cleanup);
+	struct ast_format *attr_set;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -885,10 +886,12 @@ AST_TEST_DEFINE(format_attribute_set_without_interface)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_format_attribute_set(format, "bees", "cool")) {
+	attr_set = ast_format_attribute_set(format, "bees", "cool");
+	if (!attr_set) {
 		ast_test_status_update(test, "Successfully set an attribute on a format without an interface\n");
 		return AST_TEST_FAIL;
 	}
+	ao2_cleanup(attr_set);
 
 	return AST_TEST_PASS;
 }
