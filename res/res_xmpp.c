@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/cli.h"
 #include "asterisk/config_options.h"
+#include "asterisk/json.h"
 
 /*** DOCUMENTATION
 	<application name="JabberSend" language="en_US" module="res_xmpp">
@@ -323,6 +324,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<configOption name="secret">
 					<synopsis>XMPP password</synopsis>
 				</configOption>
+				<configOption name="refresh_token">
+					<synopsis>Google OAuth 2.0 refresh token</synopsis>
+				</configOption>
+				<configOption name="oauth_clientid">
+					<synopsis>Google OAuth 2.0 application's client id</synopsis>
+				</configOption>
+				<configOption name="oauth_secret">
+					<synopsis>Google OAuth 2.0 application's secret</synopsis>
+				</configOption>
 				<configOption name="serverhost">
 					<synopsis>Route to server, e.g. talk.google.com</synopsis>
 				</configOption>
@@ -461,6 +471,9 @@ struct ast_xmpp_client_config {
 		AST_STRING_FIELD(name);        /*!< Name of the client connection */
 		AST_STRING_FIELD(user);        /*!< Username to use for authentication */
 		AST_STRING_FIELD(password);    /*!< Password to use for authentication */
+		AST_STRING_FIELD(refresh_token);   /*!< Refresh token to use for OAuth authentication */
+		AST_STRING_FIELD(oauth_clientid);  /*!< Client ID to use for OAuth authentication */
+		AST_STRING_FIELD(oauth_secret);    /*!< Secret to use for OAuth authentication */
 		AST_STRING_FIELD(server);      /*!< Server hostname */
 		AST_STRING_FIELD(statusmsg);   /*!< Status message for presence */
 		AST_STRING_FIELD(pubsubnode);  /*!< Pubsub node */
@@ -529,6 +542,7 @@ static ast_cond_t message_received_condition;
 static ast_mutex_t messagelock;
 
 static int xmpp_client_config_post_apply(void *obj, void *arg, int flags);
+static int fetch_access_token(struct ast_xmpp_client_config *cfg);
 
 /*! \brief Destructor function for configuration */
 static void ast_xmpp_client_config_destructor(void *obj)
@@ -761,11 +775,15 @@ static int xmpp_config_prelink(void *newitem)
 	if (ast_strlen_zero(clientcfg->user)) {
 		ast_log(LOG_ERROR, "No user specified on client '%s'\n", clientcfg->name);
 		return -1;
-	} else if (ast_strlen_zero(clientcfg->password)) {
-		ast_log(LOG_ERROR, "No password specified on client '%s'\n", clientcfg->name);
+	} else if (ast_strlen_zero(clientcfg->password) && ast_strlen_zero(clientcfg->refresh_token)) {
+		ast_log(LOG_ERROR, "No password or refresh_token specified on client '%s'\n", clientcfg->name);
 		return -1;
 	} else if (ast_strlen_zero(clientcfg->server)) {
 		ast_log(LOG_ERROR, "No server specified on client '%s'\n", clientcfg->name);
+		return -1;
+	} else if (!ast_strlen_zero(clientcfg->refresh_token) &&
+		   (ast_strlen_zero(clientcfg->oauth_clientid) || ast_strlen_zero(clientcfg->oauth_secret))) {
+		ast_log(LOG_ERROR, "No oauth_clientid or oauth_secret specified, so client '%s' can't be used\n", clientcfg->name);
 		return -1;
 	}
 
@@ -778,6 +796,9 @@ static int xmpp_config_prelink(void *newitem)
 	/* If any configuration options are changing that would require reconnecting set the bit so we will do so if possible */
 	if (strcmp(clientcfg->user, oldclientcfg->user) ||
 	    strcmp(clientcfg->password, oldclientcfg->password) ||
+	    strcmp(clientcfg->refresh_token, oldclientcfg->refresh_token) ||
+	    strcmp(clientcfg->oauth_clientid, oldclientcfg->oauth_clientid) ||
+	    strcmp(clientcfg->oauth_secret, oldclientcfg->oauth_secret) ||
 	    strcmp(clientcfg->server, oldclientcfg->server) ||
 	    (clientcfg->port != oldclientcfg->port) ||
 	    (ast_test_flag(&clientcfg->flags, XMPP_COMPONENT) != ast_test_flag(&oldclientcfg->flags, XMPP_COMPONENT)) ||
@@ -2786,7 +2807,13 @@ static int xmpp_client_authenticate_sasl(struct ast_xmpp_client *client, struct 
 	}
 
 	iks_insert_attrib(auth, "xmlns", IKS_NS_XMPP_SASL);
-	iks_insert_attrib(auth, "mechanism", "PLAIN");
+	if (!ast_strlen_zero(cfg->refresh_token)) {
+		iks_insert_attrib(auth, "mechanism", "X-OAUTH2");
+		iks_insert_attrib(auth, "auth:service", "oauth2");
+		iks_insert_attrib(auth, "xmlns:auth", "http://www.google.com/talk/protocol/auth");
+	} else {
+		iks_insert_attrib(auth, "mechanism", "PLAIN");
+	}
 
 	if (strchr(client->jid->user, '/')) {
 		char *user = ast_strdupa(client->jid->user);
@@ -3285,28 +3312,28 @@ static int xmpp_ping_request(struct ast_xmpp_client *client, const char *to, con
 {
 	iks *iq, *ping;
 	int res;
-	
+
 	ast_debug(2, "JABBER: Sending Keep-Alive Ping for client '%s'\n", client->name);
 
 	if (!(iq = iks_new("iq")) || !(ping = iks_new("ping"))) {
 		iks_delete(iq);
 		return -1;
 	}
-	
+
 	iks_insert_attrib(iq, "type", "get");
 	iks_insert_attrib(iq, "to", to);
 	iks_insert_attrib(iq, "from", from);
-	
+
 	ast_xmpp_client_lock(client);
 	iks_insert_attrib(iq, "id", client->mid);
 	ast_xmpp_increment_mid(client->mid);
 	ast_xmpp_client_unlock(client);
-	
+
 	iks_insert_attrib(ping, "xmlns", "urn:xmpp:ping");
 	iks_insert_node(iq, ping);
-	
+
 	res = ast_xmpp_client_send(client, iq);
-	
+
 	iks_delete(ping);
 	iks_delete(iq);
 
@@ -3627,6 +3654,13 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 		return -1;
 	}
 
+	if (!ast_strlen_zero(clientcfg->refresh_token)) {
+		ast_debug(2, "Obtaining OAuth access token for client '%s'\n", client->name);
+		if (fetch_access_token(clientcfg)) {
+			return -1;
+		}
+	}
+
 	ast_xmpp_client_disconnect(client);
 
 	client->timeout = 50;
@@ -3643,7 +3677,7 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 
 	/* Set socket timeout options */
 	setsockopt(iks_fd(client->parser), SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval));
-	
+
 	if (res == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "No XMPP connection available when trying to connect client '%s'\n", client->name);
 		return -1;
@@ -3728,7 +3762,7 @@ static int xmpp_client_receive(struct ast_xmpp_client *client, unsigned int time
 		/* Log the message here, because iksemel's logHook is
 		   unaccessible */
 		xmpp_log_hook(client, buf, len, 1);
-		
+
 		if(buf[0] == ' ') {
 			ast_debug(1, "JABBER: Detected Google Keep Alive. "
 				"Sending out Ping request for client '%s'\n", client->name);
@@ -3867,6 +3901,42 @@ static int xmpp_client_config_merge_buddies(void *obj, void *arg, int flags)
 
 	/* All buddies are unlinked from the configuration buddies container, always */
 	return 1;
+}
+
+static int fetch_access_token(struct ast_xmpp_client_config *cfg)
+{
+	RAII_VAR(char *, cmd, NULL, ast_free);
+	char cBuf[1024] = "";
+	const char *url = "https://www.googleapis.com/oauth2/v3/token";
+	struct ast_json_error error;
+	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
+
+	ast_asprintf(&cmd, "CURL(%s,client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token)",
+		     url, cfg->oauth_clientid, cfg->oauth_secret, cfg->refresh_token);
+
+	ast_debug(2, "Performing OAuth 2.0 authentication for client '%s' using command: %s\n",
+		cfg->name, cmd);
+
+	if (!ast_func_read(NULL, cmd, cBuf, sizeof(cBuf) - 1)) {
+		ast_log(LOG_ERROR, "CURL is unavailable. This is required for OAuth 2.0 authentication of XMPP client '%s'. Please ensure it is loaded.\n",
+			cfg->name);
+		return -1;
+	}
+
+	ast_debug(2, "OAuth 2.0 authentication for client '%s' returned: %s\n", cfg->name, cBuf);
+
+	jobj = ast_json_load_string(cBuf, &error);
+	if (jobj) {
+		const char *token = ast_json_string_get(ast_json_object_get(jobj, "access_token"));
+		if (token) {
+			ast_string_field_set(cfg, password, token);
+			return 0;
+		}
+	}
+
+	ast_log(LOG_ERROR, "An error occurred while performing OAuth 2.0 authentication for client '%s': %s\n", cfg->name, cBuf);
+
+	return -1;
 }
 
 static int xmpp_client_config_post_apply(void *obj, void *arg, int flags)
@@ -4622,8 +4692,8 @@ static int client_buddy_handler(const struct aco_option *opt, struct ast_variabl
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
@@ -4641,6 +4711,9 @@ static int load_module(void)
 
 	aco_option_register(&cfg_info, "username", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, user));
 	aco_option_register(&cfg_info, "secret", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, password));
+	aco_option_register(&cfg_info, "refresh_token", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, refresh_token));
+	aco_option_register(&cfg_info, "oauth_clientid", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, oauth_clientid));
+	aco_option_register(&cfg_info, "oauth_secret", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, oauth_secret));
 	aco_option_register(&cfg_info, "serverhost", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, server));
 	aco_option_register(&cfg_info, "statusmessage", ACO_EXACT, client_options, "Online and Available", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, statusmsg));
 	aco_option_register(&cfg_info, "pubsub_node", ACO_EXACT, client_options, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_xmpp_client_config, pubsubnode));

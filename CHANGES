@@ -44,6 +44,12 @@ res_pjsip
  * New dialplan function PJSIP_DTMF_MODE added to get or change the DTMF mode
    of a channel on a per-call basis.
 
+res_xmpp
+-----------------
+ * OAuth 2.0 authentication is now supported when contacting Google. Follow the
+   instructions in xmpp.conf.sample to retrieve and configure the necessary
+   tokens.
+
 app_queue
 ------------------
  * Add priority to callers in AMI QueueStatus response.
