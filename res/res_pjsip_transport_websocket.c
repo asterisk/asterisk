@@ -365,6 +365,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 
 	if (ast_sip_push_task_synchronous(serializer, transport_create, &create_data)) {
 		ast_log(LOG_ERROR, "Could not create WebSocket transport.\n");
+		ast_taskprocessor_unreference(serializer);
 		ast_websocket_unref(session);
 		return;
 	}
