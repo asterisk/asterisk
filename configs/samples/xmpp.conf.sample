@@ -18,6 +18,29 @@
 ;pubsub_node=pubsub.astjab.org		; Node to use for publishing events via PubSub
 ;username=asterisk@astjab.org/asterisk	; Username with optional resource.
 ;secret=blah				; Password
+;refresh_token=TOKEN_VALUE		; Refresh token issued by Google OAuth 2.0 protocol.
+					; `secret` must NOT be set if you use OAuth.
+					; See https://developers.google.com/identity/protocols/OAuth2WebServer
+					; for more details.
+					; For test reasons you can obtain one on the page
+					; https://developers.google.com/oauthplayground/
+					; 1. Click on Settings icon, check "Use your own OAuth credentials"
+					;    and enter your Client ID and Client Secret (see below).
+					; 2. Input the scope https://www.googleapis.com/auth/googletalk
+					;    and push "Authorize APIs" button.
+					; 3. Approve permissions.
+					; 4. On section "Step 2" push "Exchange authorization code for tokens"
+					;    and get your Refresh token.
+;oauth_clientid=OAUTH_CLIENT_ID_VALUE	; The application's client id to authorize using Google OAuth 2.0 protocol.
+;oauth_secret=OAUTH_SECRET_VALUE	; The application's client secret to authorize using Google OAuth 2.0 protocol.
+					; 1. Create new Project on the page:
+					;    https://console.cloud.google.com/apis/credentials/oauthclient
+					; 2. Create new Application ID on the same page with type Web-application.
+					;    In section "Allowed URI redirections" put the path to the corresponding
+					;    script on your site or https://developers.google.com/oauthplayground
+					;    if you would like to obtain refresh_token from users by hand
+					;    (for example, for test reasons).
+					; 3. Client ID and Client Secret will be shown and available on the same page.
 ;priority=1				; Resource priority
 ;port=5222				; Port to use defaults to 5222
 ;usetls=yes				; Use tls or not
