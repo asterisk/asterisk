@@ -9,6 +9,14 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 15 to Asterisk 16 --------------------
+------------------------------------------------------------------------------
+
+chan_sip
+------------------
+ * New function SIP_HEADERS() enumerates all headers in the incoming INVITE.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
@@ -1539,7 +1547,7 @@ res_pjsip_endpoint_identifer_ip
 ------------------
  * New CLI commands have been added: "pjsip show identif(y|ies)", which lists
    all configured PJSIP identify objects
-   
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
