@@ -140,7 +140,7 @@ endif
 	$(CMD_PREFIX) rm $@.fix
 
 ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
-cdr.o: _ASTCFLAGS+=-Wno-format-truncation
+cdr.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
