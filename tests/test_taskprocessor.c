@@ -677,7 +677,7 @@ AST_TEST_DEFINE(taskprocessor_push_local)
 {
 	RAII_VAR(struct ast_taskprocessor *, tps, NULL,
 		ast_taskprocessor_unreference);
-	struct task_data *task_data;
+	RAII_VAR(struct task_data *, task_data, NULL, ao2_cleanup);
 	int local_data;
 	int res;
 
