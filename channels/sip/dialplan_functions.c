@@ -484,6 +484,9 @@ done:
 		dialog_unlink_all(p);
 		dialog_unref(p, "Destroy test object");
 	}
+	if (chan) {
+		ast_channel_unref(chan);
+	}
 	ast_rtp_engine_unregister(&test_engine);
 	return res;
 }
