@@ -459,7 +459,7 @@ static int line_identify_relationship(void *obj, void *arg, int flags)
 	struct sip_outbound_registration_state *state = obj;
 	pjsip_param *line = arg;
 
-	return !pj_strcmp2(&line->value, state->client_state->line) ? CMP_MATCH | CMP_STOP : 0;
+	return !pj_strcmp2(&line->value, state->client_state->line) ? CMP_MATCH : 0;
 }
 
 static struct pjsip_param *get_uri_option_line(const void *uri)
@@ -558,20 +558,21 @@ static int handle_client_registration(void *data)
 {
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, data, ao2_cleanup);
 	pjsip_tx_data *tdata;
-	pjsip_regc_info info;
-	char server_uri[PJSIP_MAX_URL_SIZE];
-	char client_uri[PJSIP_MAX_URL_SIZE];
 
 	if (client_state->status == SIP_REGISTRATION_STOPPED
 		|| pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS) {
 		return 0;
 	}
 
-	pjsip_regc_get_info(client_state->client, &info);
-	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
-	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
-	ast_debug(1, "Outbound REGISTER attempt %u to '%s' with client '%s'\n",
-		client_state->retries + 1, server_uri, client_uri);
+	if (DEBUG_ATLEAST(1)) {
+		pjsip_regc_info info;
+
+		pjsip_regc_get_info(client_state->client, &info);
+		ast_log(LOG_DEBUG, "Outbound REGISTER attempt %u to '%.*s' with client '%.*s'\n",
+			client_state->retries + 1,
+			(int) info.server_uri.slen, info.server_uri.ptr,
+			(int) info.client_uri.slen, info.client_uri.ptr);
+	}
 
 	if (client_state->support_path) {
 		pjsip_supported_hdr *hdr;
@@ -987,7 +988,8 @@ static void sip_outbound_registration_state_destroy(void *obj)
 	struct sip_outbound_registration_state *state = obj;
 
 	ast_debug(3, "Destroying registration state for registration to server '%s' from client '%s'\n",
-			state->registration->server_uri, state->registration->client_uri);
+		state->registration ? state->registration->server_uri : "",
+		state->registration ? state->registration->client_uri : "");
 	ao2_cleanup(state->registration);
 
 	if (!state->client_state) {
