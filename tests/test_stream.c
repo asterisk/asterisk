@@ -1522,7 +1522,7 @@ static int load_stream_readqueue(struct ast_channel *chan, int frames)
 		}
 		f.stream_num = pvt->frame_count % pvt->streams;
 		f.seqno = pvt->frame_count;
-		ast_queue_frame(chan, ast_frdup(&f));
+		ast_queue_frame(chan, &f);
 		pvt->frame_count++;
 	}
 

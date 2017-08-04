@@ -1038,6 +1038,7 @@ AST_TEST_DEFINE(config_hook)
 	res = AST_TEST_PASS;
 
 out:
+	ast_config_hook_unregister("test_hook");
 	delete_config_file();
 	return res;
 }
@@ -1675,6 +1676,8 @@ AST_TEST_DEFINE(config_options_test)
 	configs.codeccapopt = NULL;
 	ast_string_field_free_memory(&defaults);
 	ast_string_field_free_memory(&configs);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(global_obj);
 	return res;
 }
 
