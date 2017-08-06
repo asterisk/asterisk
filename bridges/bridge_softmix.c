@@ -577,13 +577,18 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 	struct ast_stream_topology *joiner_video = NULL;
 	struct ast_stream_topology *existing_video = NULL;
 	struct ast_bridge_channel *participant;
+	int res;
 
 	joiner_video = ast_stream_topology_alloc();
 	if (!joiner_video) {
 		return;
 	}
 
-	if (append_source_streams(joiner_video, ast_channel_name(joiner->chan), ast_channel_get_stream_topology(joiner->chan))) {
+	ast_channel_lock(joiner->chan);
+	res = append_source_streams(joiner_video, ast_channel_name(joiner->chan), ast_channel_get_stream_topology(joiner->chan));
+	ast_channel_unlock(joiner->chan);
+
+	if (res) {
 		goto cleanup;
 	}
 
@@ -596,13 +601,18 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 		if (participant == joiner) {
 			continue;
 		}
-		if (append_source_streams(existing_video, ast_channel_name(participant->chan),
-				ast_channel_get_stream_topology(participant->chan))) {
+		ast_channel_lock(participant->chan);
+		res = append_source_streams(existing_video, ast_channel_name(participant->chan),
+				ast_channel_get_stream_topology(participant->chan));
+		ast_channel_unlock(participant->chan);
+		if (res) {
 			goto cleanup;
 		}
 	}
 
+	ast_channel_lock(joiner->chan);
 	joiner_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
+	ast_channel_unlock(joiner->chan);
 	if (!joiner_topology) {
 		goto cleanup;
 	}
@@ -617,7 +627,9 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 		if (participant == joiner) {
 			continue;
 		}
+		ast_channel_lock(participant->chan);
 		participant_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(participant->chan));
+		ast_channel_unlock(participant->chan);
 		if (!participant_topology) {
 			goto cleanup;
 		}
@@ -753,12 +765,16 @@ static int sfu_topologies_on_leave(struct ast_bridge_channel *leaver, struct ast
 			continue;
 		}
 
+		ast_channel_lock(participant->chan);
 		remove_destination_streams(participant_topology, ast_channel_name(leaver->chan), ast_channel_get_stream_topology(participant->chan));
+		ast_channel_unlock(participant->chan);
 		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
 		ast_stream_topology_free(participant_topology);
 	}
 
+	ast_channel_lock(leaver->chan);
 	remove_destination_streams(leaver_topology, "", ast_channel_get_stream_topology(leaver->chan));
+	ast_channel_unlock(leaver->chan);
 	ast_channel_request_stream_topology_change(leaver->chan, leaver_topology, NULL);
 	ast_stream_topology_free(leaver_topology);
 
@@ -1657,6 +1673,7 @@ static void map_source_to_destinations(const char *source_stream_name, const cha
 		}
 
 		ast_bridge_channel_lock(participant);
+		ast_channel_lock(participant->chan);
 		topology = ast_channel_get_stream_topology(participant->chan);
 
 		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
@@ -1668,6 +1685,7 @@ static void map_source_to_destinations(const char *source_stream_name, const cha
 				break;
 			}
 		}
+		ast_channel_unlock(participant->chan);
 		ast_bridge_channel_unlock(participant);
 	}
 }
@@ -1702,16 +1720,9 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 
 	/* First traversal: re-initialize all of the participants' stream maps */
 	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
-		int size;
-
 		ast_bridge_channel_lock(participant);
-		size = ast_stream_topology_get_count(ast_channel_get_stream_topology(participant->chan));
-
-		AST_VECTOR_FREE(&participant->stream_map.to_channel);
-		AST_VECTOR_FREE(&participant->stream_map.to_bridge);
-
-		AST_VECTOR_INIT(&participant->stream_map.to_channel, size);
-		AST_VECTOR_INIT(&participant->stream_map.to_bridge, size);
+		AST_VECTOR_RESET(&participant->stream_map.to_channel, AST_VECTOR_ELEM_CLEANUP_NOOP);
+		AST_VECTOR_RESET(&participant->stream_map.to_bridge, AST_VECTOR_ELEM_CLEANUP_NOOP);
 		ast_bridge_channel_unlock(participant);
 	}
 
@@ -1726,6 +1737,8 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
 		int i;
 		struct ast_stream_topology *topology;
+
+		ast_channel_lock(participant->chan);
 
 		topology = ast_channel_get_stream_topology(participant->chan);
 
@@ -1766,6 +1779,8 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 			}
 			ast_bridge_channel_unlock(participant);
 		}
+
+		ast_channel_unlock(participant->chan);
 	}
 }
 
