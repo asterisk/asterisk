@@ -2344,16 +2344,23 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	case AST_FRAME_NULL:
 		break;
 	default:
-		if (fr->stream_num > 0 &&
-				(fr->stream_num >= (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel) ||
-				AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num) == -1)) {
-			/* Nowhere to write to, so drop it */
-			break;
-		}
+		/* Assume that there is no mapped stream for this */
+		num = -1;
 
-		/* Find what stream number to write to for the channel */
-		num = fr->stream_num < 0 ? -1 :
-			AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num);
+		if (fr->stream_num > -1) {
+			ast_bridge_channel_lock(bridge_channel);
+			if (fr->stream_num < (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel)) {
+				num = AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num);
+			}
+			ast_bridge_channel_unlock(bridge_channel);
+
+			/* If there is no mapped stream after checking the mapping then there is nowhere
+			 * to write this frame to, so drop it.
+			 */
+			if (num == -1) {
+				break;
+			}
+		}
 
 		/* Write the frame to the channel. */
 		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_SIMPLE;
@@ -2983,7 +2990,9 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 
 void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel)
 {
+	ast_channel_lock(bridge_channel->chan);
 	ast_stream_topology_map(ast_channel_get_stream_topology(bridge_channel->chan),
 		&bridge_channel->bridge->media_types, &bridge_channel->stream_map.to_bridge,
 		&bridge_channel->stream_map.to_channel);
+	ast_channel_unlock(bridge_channel->chan);
 }
