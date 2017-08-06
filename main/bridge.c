@@ -446,7 +446,12 @@ static void bridge_channel_complete_join(struct ast_bridge *bridge, struct ast_b
 	 * media types vector. This way all streams map to the same media type index for
 	 * a given channel.
 	 */
-	ast_bridge_channel_stream_map(bridge_channel);
+	if (bridge_channel->bridge->technology->stream_topology_changed) {
+		bridge_channel->bridge->technology->stream_topology_changed(
+			bridge_channel->bridge, bridge_channel);
+	} else {
+		ast_bridge_channel_stream_map(bridge_channel);
+	}
 }
 
 /*!
