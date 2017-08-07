@@ -57,6 +57,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef GMIME_TYPE_CONTENT_TYPE
 #define AST_GMIME_VER_24
 #endif
+#if GMIME_MAJOR_VERSION >= 3
+#define AST_GMIME_VER_30
+#endif
 
 /* just a little structure to hold callback info for gmime */
 struct mime_cbinfo {
@@ -86,7 +89,11 @@ static void post_raw(GMimePart *part, const char *post_dir, const char *fn)
 
 	stream = g_mime_stream_fs_new(fd);
 
+#ifdef AST_GMIME_VER_30
+	content = g_mime_part_get_content(part);
+#else
 	content = g_mime_part_get_content_object(part);
+#endif
 	g_mime_data_wrapper_write_to_stream(content, stream);
 	g_mime_stream_flush(stream);
 
@@ -109,7 +116,11 @@ static GMimeMessage *parse_message(FILE *f)
 	
 	g_object_unref(stream);
 
-	message = g_mime_parser_construct_message(parser);
+	message = g_mime_parser_construct_message(parser
+#ifdef AST_GMIME_VER_30
+			, NULL
+#endif
+	);
 
 	g_object_unref(parser);
 
@@ -488,7 +499,11 @@ static int reload(void)
 
 static int load_module(void)
 {
-	g_mime_init(0);
+	g_mime_init(
+#ifndef AST_GMIME_VER_30
+			0
+#endif
+	);
 
 	__ast_http_post_load(0);
 
