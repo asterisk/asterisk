@@ -6022,7 +6022,7 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
 {
 	struct chanlist *chan;
-	struct ast_channel *c;
+	struct ast_channel *c = NULL;
 	int res;
 	int foo;
 
@@ -6063,9 +6063,6 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 		c = chan->tech->requester_with_stream_topology(type, topology, assignedids, requestor, addr, cause);
 
 		ast_stream_topology_free(tmp_converted_topology);
-		if (!c) {
-			return NULL;
-		}
 	} else if (chan->tech->requester) {
 		struct ast_format_cap *tmp_converted_cap = NULL;
 		struct ast_format_cap *tmp_cap;
@@ -6116,12 +6113,10 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 		ao2_cleanup(tmp_converted_cap);
 
 		c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause);
+		ao2_ref(joint_cap, -1);
+	}
 
-		if (!c) {
-			ao2_ref(joint_cap, -1);
-			return NULL;
-		}
-	} else {
+	if (!c) {
 		return NULL;
 	}
 
