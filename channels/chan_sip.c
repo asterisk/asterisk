@@ -377,7 +377,20 @@
 			<para>Since there are several headers (such as Via) which can occur multiple
 			times, SIP_HEADER takes an optional second argument to specify which header with
 			that name to retrieve. Headers start at offset <literal>1</literal>.</para>
-			<para>Please observe that contents of the SDP (an attachment to the
+			<para>This function does not access headers from the REFER message if the call
+			was transferred. To obtain the REFER headers, set the dialplan variable
+			<variable>GET_TRANSFERRER_DATA</variable> to the prefix of the headers of the
+			REFER message that you need to access; for example, <literal>X-</literal> to
+			get all headers starting with <literal>X-</literal>. The variable must be set
+			before a call to the application that starts the channel that may eventually
+			transfer back into the dialplan, and must be inherited by that channel, so prefix
+			it with the <literal>_</literal> or <literal>__</literal> when setting (or
+			set it in the pre-dial handler executed on the new channel). To get all headers
+			of the REFER message, set the value to <literal>*</literal>. Headers
+			are returned in the form of a dialplan hash TRANSFER_DATA, and can be accessed
+			with the functions <variable>HASHKEYS(TRANSFER_DATA)</variable> and, e. g.,
+			<variable>HASH(TRANSFER_DATA,X-That-Special-Header)</variable>.</para>
+			<para>Please also note that contents of the SDP (an attachment to the
 			SIP request) can't be accessed with this function.</para>
 		</description>
 		<see-also>
@@ -18662,6 +18675,29 @@ static int get_sip_pvt_from_replaces(const char *callid, const char *totag,
 	return 0;
 }
 
+static void extract_transferrer_headers(const char *prefix, struct ast_channel *peer, const struct sip_request *req)
+{
+	struct ast_str *pbxvar = ast_str_alloca(120);
+	int i;
+
+	/* The '*' alone matches all headers. */
+	if (strcmp(prefix, "*") == 0) {
+		prefix = "";
+	}
+
+	for (i = 0; i < req->headers; i++) {
+		const char *header = REQ_OFFSET_TO_STR(req, header[i]);
+		if (ast_begins_with(header, prefix)) {
+			int hdrlen = strcspn(header, " \t:");
+			const char *val = ast_skip_blanks(header + hdrlen);
+			if (hdrlen > 0 && *val == ':') {
+				ast_str_set(&pbxvar, -1, "~HASH~TRANSFER_DATA~%.*s~", hdrlen, header);
+				pbx_builtin_setvar_helper(peer, ast_str_buffer(pbxvar), ast_skip_blanks(val + 1));
+			}
+		}
+	}
+}
+
 /*! \brief Call transfer support (the REFER method)
  * 	Extracts Refer headers into pvt dialog structure
  *
@@ -18724,10 +18760,18 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 		peer = ast_channel_bridge_peer(owner_ref);
 		if (peer) {
+			const char *get_xfrdata;
+
 			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT",
 				S_OR(transferer->context, NULL));
 			pbx_builtin_setvar_helper(peer, "__SIPREFERREDBYHDR",
 				S_OR(p_referred_by, NULL));
+
+			ast_channel_lock(peer);
+			get_xfrdata = pbx_builtin_getvar_helper(peer, "GET_TRANSFERRER_DATA");
+			if (!ast_strlen_zero(get_xfrdata)) {
+				extract_transferrer_headers(get_xfrdata, peer, req);
+			}
 			ast_channel_unlock(peer);
 		}
 
