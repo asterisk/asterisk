@@ -407,6 +407,7 @@ AC_SUBST(NOISY_BUILD)
 AC_SUBST(AST_DEVMODE)
 AC_SUBST(AST_DEVMODE_STRICT)
 
+AST_OPTION_ONLY([download-cache], [AST_DOWNLOAD_CACHE], [cached sound AND external module tarfiles], [])
 AST_OPTION_ONLY([sounds-cache], [SOUNDS_CACHE_DIR], [cached sound tarfiles], [])
 AST_OPTION_ONLY([externals-cache], [EXTERNALS_CACHE_DIR], [cached external module tarfiles], [])
 
@@ -424,12 +425,12 @@ AC_SUBST(AST_CODE_COVERAGE)
 AST_CHECK_RAII()
 AST_CHECK_STRSEP_ARRAY_BOUNDS()
 
-PJPROJECT_BUNDLED=no
+PJPROJECT_BUNDLED=yes
 AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_BUNDLED]], [(.*)]), [Define to 1 when using the bundled pjproject.])
 
 AC_ARG_WITH([pjproject-bundled],
 	[AS_HELP_STRING([--with-pjproject-bundled],
-		[Use bundled pjproject libraries])],
+		[Use bundled pjproject libraries (default)])],
 	[case "${withval}" in
 	      n|no) PJPROJECT_BUNDLED=no ;;
 	      *) PJPROJECT_BUNDLED=yes ;;
