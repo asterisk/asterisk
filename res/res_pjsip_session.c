@@ -2396,6 +2396,15 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 		response = 603;
 	}
 
+	/* The media sessions need to exist for the lifetime of the underlying channel
+	 * to ensure that anything (such as bridge_native_rtp) has access to them as
+	 * appropriate. Since ast_sip_session_terminate is called by chan_pjsip and other
+	 * places when the session is to be terminated we terminate any existing
+	 * media sessions here.
+	 */
+	SWAP(session->active_media_state, session->pending_media_state);
+	ast_sip_session_media_state_reset(session->pending_media_state);
+
 	switch (session->inv_session->state) {
 	case PJSIP_INV_STATE_NULL:
 		if (!session->inv_session->invite_tsx) {
