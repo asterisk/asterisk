@@ -14,7 +14,11 @@ if [[ -z "${tmpdir}" ]] ; then
 fi
 trap "rm -rf ${tmpdir}" EXIT
 
-sed -r -e "s/^([^ =]+)\s*=\s*(.*)$/\1=\"\2\"/g" ${ASTTOPDIR}/makeopts >${tmpdir}/makeopts
+# We have to pre-process the makeopts file so it will be parsable by bash
+# Surround values with double quotes
+# Convert make  $(or) functions to bash ${name:-value}
+sed -r  -e "s/^([^ =]+)\s*=\s*(.*)$/\1=\"\2\"/g" \
+	-e 's/^([^ =]+)="\$\(or ([^,]*),([^)]+)\)"/_tmp="\2"\n\1="${_tmp:-\3}"/g'  ${ASTTOPDIR}/makeopts >${tmpdir}/makeopts
 source ${tmpdir}/makeopts
 if [[ -z "${ASTMODDIR}" ]] ; then
 	echo "${module_name}: Unable to parse ${ASTTOPDIR}/makeopts."
