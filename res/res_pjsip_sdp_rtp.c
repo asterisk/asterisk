@@ -1025,44 +1025,46 @@ static void process_ssrc_attributes(struct ast_sip_session *session, struct ast_
 	}
 }
 
-static void process_msid_attribute(struct ast_sip_session *session,
-	struct ast_sip_session_media *session_media, pjmedia_sdp_media *media)
-{
-	pjmedia_sdp_attr *attr;
-
-	if (!session->endpoint->media.webrtc) {
-		return;
-	}
-
-	attr = pjmedia_sdp_media_find_attr2(media, "msid", NULL);
-	if (attr) {
-		ast_free(session_media->msid);
-		ast_copy_pj_str2(&session_media->msid, &attr->value);
-	}
-}
-
 static void add_msid_to_stream(struct ast_sip_session *session,
-	struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
+	struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media,
+	struct ast_stream *stream)
 {
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
+	char msid[(AST_UUID_STR_LEN * 2) + 2];
 
 	if (!session->endpoint->media.webrtc) {
 		return;
 	}
 
-	if (ast_strlen_zero(session_media->msid)) {
-		char uuid1[AST_UUID_STR_LEN], uuid2[AST_UUID_STR_LEN];
+	if (ast_strlen_zero(session_media->mslabel)) {
+		if (ast_sip_session_is_pending_stream_default(session, stream)) {
+			int index;
 
-		if (ast_asprintf(&session_media->msid, "{%s} {%s}",
-			ast_uuid_generate_str(uuid1, sizeof(uuid1)),
-			ast_uuid_generate_str(uuid2, sizeof(uuid2))) < 0) {
-			session_media->msid = NULL;
-			return;
+			/* If this is a default stream we group them together under the same stream, but as different tracks */
+			for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {
+				struct ast_sip_session_media *other_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
+
+				if (session_media == other_session_media) {
+					continue;
+				}
+
+				ast_copy_string(session_media->mslabel, other_session_media->mslabel, sizeof(session_media->mslabel));
+				break;
+			}
+		}
+
+		if (ast_strlen_zero(session_media->mslabel)) {
+			ast_uuid_generate_str(session_media->mslabel, sizeof(session_media->mslabel));
 		}
 	}
 
-	attr = pjmedia_sdp_attr_create(pool, "msid", pj_cstr(&stmp, session_media->msid));
+	if (ast_strlen_zero(session_media->label)) {
+		ast_uuid_generate_str(session_media->label, sizeof(session_media->label));
+	}
+
+	snprintf(msid, sizeof(msid), "%s %s", session_media->mslabel, session_media->label);
+	attr = pjmedia_sdp_attr_create(pool, "msid", pj_cstr(&stmp, msid));
 	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
 }
 
@@ -1127,7 +1129,6 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	}
 
 	process_ssrc_attributes(session, session_media, stream);
-	process_msid_attribute(session, session_media, stream);
 	session_media_transport = ast_sip_session_media_get_transport(session, session_media);
 
 	if (session_media_transport == session_media || !session_media->bundled) {
@@ -1586,7 +1587,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	add_ssrc_to_stream(session, session_media, pool, media);
-	add_msid_to_stream(session, session_media, pool, media);
+	add_msid_to_stream(session, session_media, pool, media, stream);
 	add_rtcp_fb_to_stream(session, session_media, pool, media);
 
 	/* Add the media stream to the SDP */

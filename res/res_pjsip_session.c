@@ -395,7 +395,6 @@ static void session_media_dtor(void *obj)
 	}
 
 	ast_free(session_media->mid);
-	ast_free(session_media->msid);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
