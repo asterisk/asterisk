@@ -114,6 +114,8 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_STUN,
 	/*! Enable RTCP support */
 	AST_RTP_PROPERTY_RTCP,
+	/*! Enable Asymmetric RTP Codecs */
+	AST_RTP_PROPERTY_ASYMMETRIC_CODEC,
 
 	/*!
 	 * \brief Maximum number of RTP properties supported
