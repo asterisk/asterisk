@@ -22,6 +22,30 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 ===========================================================
 
+From 14.6.0 to 14.7.0:
+
+Core:
+ - ast_app_parse_timelen now returns an error if it encounters extra characters
+   at the end of the string to be parsed.
+
+From 14.4.0 to 14.5.0:
+
+Core:
+ - Support for embedded modules has been removed.  This has not worked in
+   many years.  LOADABLE_MODULES menuselect option is also removed as
+   loadable module support is now always enabled.
+
+From 14.3.0 to 14.4.0:
+
+res_rtp_asterisk:
+ - The RTP layer of Asterisk now has support for RFC 5761: "Multiplexing RTP
+   Data and Control Packets on a Single Port." For the PJSIP channel driver,
+   chan_pjsip, you can set "rtcp_mux = yes" on a PJSIP endpoint in pjsip.conf
+   to enable the feature. For chan_sip you can set "rtcp_mux = yes" either
+   globally or on a per-peer basis in sip.conf.
+
+New in 14.0.0
+
 ARI:
  - The policy for when to send "Dial" events has changed. Previously, "Dial"
    events were sent on the calling channel's topic. However, starting in Asterisk
