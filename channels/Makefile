@@ -29,7 +29,7 @@ $(call MOD_ADD_C,chan_pjsip,$(wildcard pjsip/*.c))
 $(call MOD_ADD_C,chan_dahdi,$(wildcard dahdi/*.c) sig_analog.c sig_pri.c sig_ss7.c)
 $(call MOD_ADD_C,chan_misdn,misdn_config.c misdn/isdn_lib.c misdn/isdn_msg_parser.c)
 
-chan_mgcp.o: _ASTCFLAGS+=-Wno-format-truncation
+chan_mgcp.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 chan_misdn.o: _ASTCFLAGS+=-Imisdn
 misdn_config.o: _ASTCFLAGS+=-Imisdn
