@@ -17,6 +17,13 @@ Core
  * VP9 is now a supported passthrough video codec and it can be used by
    specifying "vp9" in the allow line.
 
+Build System
+------------------
+ * A '--with-download-cache' option is now available which is equivalent to
+   setting '--with-sounds-cache' and '--with-externals-cache' to the same
+   value.  The download cache can also be set via the AST_DOWNLOAD_CACHE
+   environment variable.
+
 res_pjsip
 ------------------
  * The "external_media_address" on transports is now resolved using dnsmgr and
