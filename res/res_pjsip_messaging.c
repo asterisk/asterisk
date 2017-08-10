@@ -512,7 +512,7 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	buf[size] = '\0';
 	res |= ast_msg_set_from(msg, "%s", buf);
 
-	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf) - 1, 1);
+	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf) - 1, 3);
 	res |= ast_msg_set_var(msg, "PJSIP_RECVADDR", field);
 
 	switch (rdata->tp_info.transport->key.type) {
