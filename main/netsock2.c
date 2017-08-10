@@ -477,8 +477,12 @@ uint32_t ast_sockaddr_ipv4(const struct ast_sockaddr *addr)
 
 int ast_sockaddr_is_ipv4(const struct ast_sockaddr *addr)
 {
-	return addr->ss.ss_family == AF_INET &&
-	    addr->len == sizeof(struct sockaddr_in);
+	/*
+	 * Test addr->len first to be tolerant of an ast_sockaddr_setnull()
+	 * addr.  In that case addr->len might be the only value initialized.
+	 */
+	return addr->len == sizeof(struct sockaddr_in)
+		&& addr->ss.ss_family == AF_INET;
 }
 
 int ast_sockaddr_is_ipv4_mapped(const struct ast_sockaddr *addr)
@@ -500,8 +504,12 @@ int ast_sockaddr_is_ipv6_link_local(const struct ast_sockaddr *addr)
 
 int ast_sockaddr_is_ipv6(const struct ast_sockaddr *addr)
 {
-	return addr->ss.ss_family == AF_INET6 &&
-	    addr->len == sizeof(struct sockaddr_in6);
+	/*
+	 * Test addr->len first to be tolerant of an ast_sockaddr_setnull()
+	 * addr.  In that case addr->len might be the only value initialized.
+	 */
+	return addr->len == sizeof(struct sockaddr_in6)
+		&& addr->ss.ss_family == AF_INET6;
 }
 
 int ast_sockaddr_is_any(const struct ast_sockaddr *addr)
