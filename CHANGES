@@ -22,6 +22,16 @@ app_queue
    queue position has improved since the last time that we annouced their
    position. This default is no.
 
+Build System
+------------------
+ * '--with-pjproject-bundled' is now the default when running ./configure
+   It can be disabled with '--without-pjproject-bundled'.
+
+ * A '--with-download-cache' option is now available which is equivalent to
+   setting '--with-sounds-cache' and '--with-externals-cache' to the same
+   value.  The download cache can also be set via the AST_DOWNLOAD_CACHE
+   environment variable.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.6.0 to Asterisk 14.7.0 ------------
 ------------------------------------------------------------------------------
