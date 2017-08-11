@@ -727,14 +727,10 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_VOICE:
-		if (bridge_channel) {
-			softmix_bridge_write_voice(bridge, bridge_channel, frame);
-		}
+		softmix_bridge_write_voice(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_VIDEO:
-		if (bridge_channel) {
-			softmix_bridge_write_video(bridge, bridge_channel, frame);
-		}
+		softmix_bridge_write_video(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_CONTROL:
 		res = softmix_bridge_write_control(bridge, bridge_channel, frame);
