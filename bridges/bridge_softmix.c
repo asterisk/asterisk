@@ -786,15 +786,15 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 {
 	struct softmix_channel *sc;
 	struct softmix_bridge_data *softmix_data;
+
 	softmix_data = bridge->tech_pvt;
 	sc = bridge_channel->tech_pvt;
+	if (!sc) {
+		return;
+	}
 
 	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_SFU) {
 		sfu_topologies_on_leave(bridge_channel, &bridge->channels);
-	}
-
-	if (!sc) {
-		return;
 	}
 
 	if (bridge->softmix.binaural_active) {
