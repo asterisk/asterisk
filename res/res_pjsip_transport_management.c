@@ -33,7 +33,7 @@
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
 
-/*! \brief Number of buckets for keepalive transports */
+/*! \brief Number of buckets for monitored transports */
 #define TRANSPORTS_BUCKETS 53
 
 #define IDLE_TIMEOUT (pjsip_cfg()->tsx.td)
@@ -114,7 +114,7 @@ AST_THREADSTORAGE(desc_storage);
 
 static int idle_sched_cb(const void *data)
 {
-	struct monitored_transport *keepalive = (struct monitored_transport *) data;
+	struct monitored_transport *monitored = (struct monitored_transport *) data;
 
 	if (!pj_thread_is_registered()) {
 		pj_thread_t *thread;
@@ -123,7 +123,7 @@ static int idle_sched_cb(const void *data)
 		desc = ast_threadstorage_get(&desc_storage, sizeof(pj_thread_desc));
 		if (!desc) {
 			ast_log(LOG_ERROR, "Could not get thread desc from thread-local storage.\n");
-			ao2_ref(keepalive, -1);
+			ao2_ref(monitored, -1);
 			return 0;
 		}
 
@@ -132,22 +132,22 @@ static int idle_sched_cb(const void *data)
 		pj_thread_register("Transport Monitor", *desc, &thread);
 	}
 
-	if (!keepalive->sip_received) {
+	if (!monitored->sip_received) {
 		ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
-				keepalive->transport->info, IDLE_TIMEOUT / 1000);
-		pjsip_transport_shutdown(keepalive->transport);
+			monitored->transport->info, IDLE_TIMEOUT / 1000);
+		pjsip_transport_shutdown(monitored->transport);
 	}
 
-	ao2_ref(keepalive, -1);
+	ao2_ref(monitored, -1);
 	return 0;
 }
 
 /*! \brief Destructor for keepalive transport */
 static void monitored_transport_destroy(void *obj)
 {
-	struct monitored_transport *keepalive = obj;
+	struct monitored_transport *monitored = obj;
 
-	pjsip_transport_dec_ref(keepalive->transport);
+	pjsip_transport_dec_ref(monitored->transport);
 }
 
 /*! \brief Callback invoked when transport changes occur */
