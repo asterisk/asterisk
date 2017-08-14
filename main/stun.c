@@ -345,6 +345,8 @@ int ast_stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, 
 			if (st.username) {
 				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
 				snprintf(combined, sizeof(combined), "%16s%16s", st.username + 16, st.username);
+			} else {
+				combined[0] = '\0';
 			}
 
 			append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
@@ -400,8 +402,6 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 	stun_req_id(req);
 	reqlen = 0;
 	reqleft = sizeof(req_buf) - sizeof(struct stun_header);
-	req->msgtype = 0;
-	req->msglen = 0;
 	attr = (struct stun_attr *) req->ies;
 	if (username) {
 		append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
