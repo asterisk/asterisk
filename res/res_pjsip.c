@@ -367,9 +367,12 @@
 				<configOption name="rewrite_contact">
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
 					<description><para>
-						On inbound SIP messages from this endpoint, the Contact header or an appropriate Record-Route
-						header will be changed to have the source IP address and port. This option does not affect
-						outbound messages sent to this endpoint.
+						On inbound SIP messages from this endpoint, the Contact header or an
+						appropriate Record-Route header will be changed to have the source IP
+						address and port.  This option does not affect outbound messages sent to
+						this endpoint.  This option helps servers communicate with endpoints
+						that are behind NATs.  This option also helps reuse reliable transport
+						connections such as TCP and TLS.
 					</para></description>
 				</configOption>
 				<configOption name="rtp_ipv6" default="no">
@@ -1362,6 +1365,13 @@
 					<description><para>
 						The Call-ID header is automatically stored based on data present
 						in incoming SIP REGISTER requests and is not intended to be configured manually.
+					</para></description>
+				</configOption>
+				<configOption name="prune_on_boot">
+					<synopsis>A contact that cannot survive a restart/boot.</synopsis>
+					<description><para>
+						The option is set if the incoming SIP REGISTER contact is rewritten
+						on a reliable transport and is not intended to be configured manually.
 					</para></description>
 				</configOption>
 			</configObject>
