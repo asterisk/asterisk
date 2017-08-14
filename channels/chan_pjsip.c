@@ -1477,14 +1477,14 @@ static struct topology_change_refresh_data *topology_change_refresh_data_alloc(
 
 static int on_topology_change_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
-	if (rdata->msg_info.msg->line.status.code == 200) {
+	if (PJSIP_IS_STATUS_IN_CLASS(rdata->msg_info.msg->line.status.code, 200)) {
 		/* The topology was changed to something new so give notice to what requested
 		 * it so it queries the channel and updates accordingly.
 		 */
 		if (session->channel) {
 			ast_queue_control(session->channel, AST_CONTROL_STREAM_TOPOLOGY_CHANGED);
 		}
-	} else if (rdata->msg_info.msg->line.status.code != 100) {
+	} else if (300 <= rdata->msg_info.msg->line.status.code) {
 		/* The topology change failed, so drop the current pending media state */
 		ast_sip_session_media_state_reset(session->pending_media_state);
 	}
