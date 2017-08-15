@@ -467,7 +467,10 @@ static int prune_boot_contacts_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
 
-	if (contact->prune_on_boot) {
+	if (contact->prune_on_boot
+		&& !strcmp(contact->reg_server, ast_config_AST_SYSTEM_NAME ?: "")) {
+		ast_verb(3, "Removed contact '%s' from AOR '%s' due to system boot\n",
+			contact->uri, contact->aor);
 		ast_sip_location_delete_contact(contact);
 	}
 
