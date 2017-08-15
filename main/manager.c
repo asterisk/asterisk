@@ -2905,14 +2905,13 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 	return ret;
 }
 
-
 /*!
  * helper function to send a string to the socket.
  * Return -1 on error (e.g. buffer full).
  */
 static int send_string(struct mansession *s, char *string)
 {
-	struct ast_iostream *stream = s->stream ? s->stream : s->session->stream;
+	struct ast_iostream *stream;
 	int len, res;
 
 	/* It's a result from one of the hook's action invocation */
@@ -2924,6 +2923,8 @@ static int send_string(struct mansession *s, char *string)
 		s->hook->helper(EVENT_FLAG_HOOKRESPONSE, "HookResponse", string);
 		return 0;
 	}
+
+	stream = s->stream ? s->stream : s->session->stream;
 
 	len = strlen(string);
 	ast_iostream_set_timeout_inactivity(stream, s->session->writetimeout);
@@ -2971,7 +2972,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 		return;
 	}
 
-	if (s->tcptls_session != NULL && s->tcptls_session->stream != NULL) {
+	if (s->hook || (s->tcptls_session != NULL && s->tcptls_session->stream != NULL)) {
 		send_string(s, ast_str_buffer(buf));
 	} else {
 		ast_verbose("No connection stream in astman_append, should not happen\n");
