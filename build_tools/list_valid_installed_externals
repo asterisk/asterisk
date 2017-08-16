@@ -6,6 +6,23 @@ fi
 set -e
 
 ASTTOPDIR=${ASTTOPDIR:-.}
+export make=`sed -n -r -e "s/^MAKE\s*=\s*//gp" ${ASTTOPDIR}/makeopts`
+
+getvar() {
+	$make --quiet --no-print-directory -f- <<EOF
+include ${ASTTOPDIR}/makeopts
+all:
+	@echo "\$($1)"
+EOF
+}
+
+
+XMLSTARLET=`getvar XMLSTARLET`
+ASTMODDIR=`getvar ASTMODDIR`
+cache_dir=`getvar EXTERNALS_CACHE_DIR`
+DOWNLOAD_TO_STDOUT=`getvar DOWNLOAD_TO_STDOUT`
+HOST_CPU=`getvar HOST_CPU`
+INSTALL=`getvar INSTALL`
 
 tmpdir=$(mktemp -d)
 if [[ -z "${tmpdir}" ]] ; then
@@ -14,18 +31,11 @@ if [[ -z "${tmpdir}" ]] ; then
 fi
 trap "rm -rf ${tmpdir}" EXIT
 
-# We have to pre-process the makeopts file so it will be parsable by bash
-# Surround values with double quotes
-# Convert make  $(or) functions to bash ${name:-value}
-sed -r  -e "s/^([^ =]+)\s*=\s*(.*)$/\1=\"\2\"/g" \
-	-e 's/^([^ =]+)="\$\(or ([^,]*),([^)]+)\)"/_tmp="\2"\n\1="${_tmp:-\3}"/g'  ${ASTTOPDIR}/makeopts >${tmpdir}/makeopts
-source ${tmpdir}/makeopts
 if [[ -z "${ASTMODDIR}" ]] ; then
 	echo "${module_name}: Unable to parse ${ASTTOPDIR}/makeopts."
 	exit 1
 fi
 
-XMLSTARLET=${XMLSTARLET:-xmlstarlet}
 if [[ "${XMLSTARLET}" = ":" ]] ; then
 	echo "${module_name}: The externals downloader requires xmlstarlet to be installed."
 	exit 1
