@@ -2434,6 +2434,7 @@ static const char *controls[] = {
 static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_frame *frame;
+	int blocked;
 
 	if (!ast_strlen_zero(ast_channel_call_forward(bridge_channel->chan))) {
 		/* TODO If early bridging is ever used by anything other than ARI,
@@ -2485,10 +2486,16 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			ast_channel_publish_dial(NULL, bridge_channel->chan, NULL, controls[frame->subclass.integer]);
 			break;
 		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
-			if (bridge_channel->bridge->technology->stream_topology_request_change &&
-			    bridge_channel->bridge->technology->stream_topology_request_change(
-				    bridge_channel->bridge, bridge_channel)) {
-				/* Topology change was denied so drop frame */
+			ast_bridge_channel_lock_bridge(bridge_channel);
+			blocked = bridge_channel->bridge->technology->stream_topology_request_change
+				&& bridge_channel->bridge->technology->stream_topology_request_change(
+					bridge_channel->bridge, bridge_channel);
+			ast_bridge_unlock(bridge_channel->bridge);
+			if (blocked) {
+				/*
+				 * Topology change was intercepted by the bridge technology
+				 * so drop frame.
+				 */
 				bridge_frame_free(frame);
 				return;
 			}
@@ -2498,12 +2505,14 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			 * If a stream topology has changed then the bridge_channel's
 			 * media mapping needs to be updated.
 			 */
+			ast_bridge_channel_lock_bridge(bridge_channel);
 			if (bridge_channel->bridge->technology->stream_topology_changed) {
 				bridge_channel->bridge->technology->stream_topology_changed(
 					bridge_channel->bridge, bridge_channel);
 			} else {
 				ast_bridge_channel_stream_map(bridge_channel);
 			}
+			ast_bridge_unlock(bridge_channel->bridge);
 			break;
 		default:
 			break;
@@ -2990,9 +2999,11 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 
 void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel)
 {
+	ast_bridge_channel_lock(bridge_channel);
 	ast_channel_lock(bridge_channel->chan);
 	ast_stream_topology_map(ast_channel_get_stream_topology(bridge_channel->chan),
 		&bridge_channel->bridge->media_types, &bridge_channel->stream_map.to_bridge,
 		&bridge_channel->stream_map.to_channel);
 	ast_channel_unlock(bridge_channel->chan);
+	ast_bridge_channel_unlock(bridge_channel);
 }
