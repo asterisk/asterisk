@@ -86,6 +86,11 @@ SHELL_ECHO_PREFIX := echo '[pjproject] '
 
 _all: $(TARGETS)
 
+define tarball_exists
+	(if [ -f $(TARBALL) -a -f $(PJMD5SUM) ] ; then exit 0 ;\
+	else exit 1; fi; )
+endef
+
 define verify_tarball
 	($(SHELL_ECHO_PREFIX) Verifying $(TARBALL) &&\
 	tarball_sum=$$($(CAT) $(TARBALL) | $(MD5) | $(SED) -n -r -e "s/^([^ ]+)\s+.*/\1/gp") ;\
@@ -111,11 +116,12 @@ TARBALL_URL = $(PJPROJECT_URL)/$(TARBALL_FILE)
 PJMD5SUM = $(patsubst %.tar.bz2,%.md5,$(TARBALL))
 
 $(TARBALL): ../versions.mak
-	$(CMD_PREFIX) $(download_from_pjproject) || (rm -rf $@ ;\
+	$(CMD_PREFIX) ($(tarball_exists) && $(verify_tarball) && touch $@) || (rm -rf $@ ;\
+	$(download_from_pjproject)) || (rm -rf $@ ;\
 	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
 
 source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
-	($(verify_tarball)) || (rm -rf $@ ;\
+	$(CMD_PREFIX) $(verify_tarball) || (rm -rf $@ ;\
 	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source pjproject-* >/dev/null 2>&1
