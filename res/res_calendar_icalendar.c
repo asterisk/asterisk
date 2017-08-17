@@ -335,7 +335,7 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 	start_time = icaltime_current_time_with_zone(icaltimezone_get_utc_timezone());
 	end_time = icaltime_current_time_with_zone(icaltimezone_get_utc_timezone());
 	end_time.second += pvt->owner->timeframe * 60;
-	icaltime_normalize(end_time);
+	end_time = icaltime_normalize(end_time);
 
 	for (iter = icalcomponent_get_first_component(pvt->data, ICAL_VEVENT_COMPONENT);
 	     iter;
