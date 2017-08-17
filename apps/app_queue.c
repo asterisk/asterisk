@@ -4000,8 +4000,12 @@ static void recalc_holdtime(struct queue_ent *qe, int newholdtime)
 	/* 2^2 (4) is the filter coefficient; a higher exponent would give old entries more weight */
 
 	ao2_lock(qe->parent);
-	oldvalue = qe->parent->holdtime;
-	qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newholdtime) >> 2;
+	if ((qe->parent->callscompleted + qe->parent->callsabandoned) == 0) {
+		qe->parent->holdtime = newholdtime;
+	} else {
+		oldvalue = qe->parent->holdtime;
+		qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newholdtime) >> 2;
+	}
 	ao2_unlock(qe->parent);
 }
 
@@ -5556,7 +5560,7 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	if (callcompletedinsl) {
 		q->callscompletedinsl++;
 	}
-	if (q->callscompletedinsl == 1) {
+	if (q->callscompleted == 1) {
 		q->talktime = newtalktime;
 	} else {
 		/* Calculate talktime using the same exponential average as holdtime code */
