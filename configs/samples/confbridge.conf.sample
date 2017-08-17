@@ -213,6 +213,9 @@ type=bridge
                            ; first_marked: The first marked user to join the conference with video capabilities
                            ;               is the single source of video distribution among all participants. If
                            ;               that user leaves, the marked user to join after them becomes the source.
+                           ;
+                           ; sfu: Selective Forwarding Unit - Sets multi-stream operation
+                           ;      for a multi-party video conference.
 
 ;language=en               ; Set the language used for announcements to the conference.
                            ; Default is en (English).
