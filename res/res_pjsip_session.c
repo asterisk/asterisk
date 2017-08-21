@@ -1550,6 +1550,46 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 	return 0;
 }
 
+int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
+		ast_sip_session_sdp_creation_cb on_sdp_creation)
+{
+	pjsip_inv_session *inv_session = session->inv_session;
+	pjmedia_sdp_session *new_answer = NULL;
+	const pjmedia_sdp_session *previous_offer = NULL;
+
+	/* The SDP answer can only be regenerated if it is still pending to be sent */
+	if (!inv_session->neg || (pjmedia_sdp_neg_get_state(inv_session->neg) != PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER &&
+		pjmedia_sdp_neg_get_state(inv_session->neg) != PJMEDIA_SDP_NEG_STATE_WAIT_NEGO)) {
+		ast_log(LOG_WARNING, "Requested to regenerate local SDP answer for channel '%s' but negotiation in state '%s'\n",
+			ast_channel_name(session->channel), pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_get_state(inv_session->neg)));
+		return -1;
+	}
+
+	pjmedia_sdp_neg_get_neg_remote(inv_session->neg, &previous_offer);
+	if (pjmedia_sdp_neg_get_state(inv_session->neg) == PJMEDIA_SDP_NEG_STATE_WAIT_NEGO) {
+		/* Transition the SDP negotiator back to when it received the remote offer */
+		pjmedia_sdp_neg_negotiate(inv_session->pool, inv_session->neg, 0);
+		pjmedia_sdp_neg_set_remote_offer(inv_session->pool, inv_session->neg, previous_offer);
+	}
+
+	new_answer = create_local_sdp(inv_session, session, previous_offer);
+	if (!new_answer) {
+		ast_log(LOG_WARNING, "Could not create a new local SDP answer for channel '%s'\n",
+			ast_channel_name(session->channel));
+		return -1;
+	}
+
+	if (on_sdp_creation) {
+		if (on_sdp_creation(session, new_answer)) {
+			return -1;
+		}
+	}
+
+	pjsip_inv_set_sdp_answer(inv_session, new_answer);
+
+	return 0;
+}
+
 void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
 	handle_outgoing_response(session, tdata);
