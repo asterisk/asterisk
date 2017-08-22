@@ -3917,7 +3917,7 @@ static int fetch_access_token(struct ast_xmpp_client_config *cfg)
 	ast_debug(2, "Performing OAuth 2.0 authentication for client '%s' using command: %s\n",
 		cfg->name, cmd);
 
-	if (!ast_func_read(NULL, cmd, cBuf, sizeof(cBuf) - 1)) {
+	if (ast_func_read(NULL, cmd, cBuf, sizeof(cBuf) - 1)) {
 		ast_log(LOG_ERROR, "CURL is unavailable. This is required for OAuth 2.0 authentication of XMPP client '%s'. Please ensure it is loaded.\n",
 			cfg->name);
 		return -1;
