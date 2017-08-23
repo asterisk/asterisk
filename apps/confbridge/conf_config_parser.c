@@ -391,6 +391,10 @@
 								is the single source of video distribution among all participants. If
 								that user leaves, the marked user to join after them becomes the source.</para>
 							</enum>
+							<enum name="sfu">
+								<para>Selective Forwarding Unit - Sets multi-stream
+								operation for a multi-party video conference.</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
