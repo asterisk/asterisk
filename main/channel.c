@@ -10843,22 +10843,29 @@ enum ast_channel_error ast_channel_errno(void)
 int ast_channel_request_stream_topology_change(struct ast_channel *chan,
 		struct ast_stream_topology *topology, void *change_source)
 {
+	int res;
+
 	ast_assert(chan != NULL);
 	ast_assert(topology != NULL);
 
+	ast_channel_lock(chan);
 	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
+		ast_channel_unlock(chan);
 		return -1;
 	}
 
 	if (ast_stream_topology_equal(ast_channel_get_stream_topology(chan), topology)) {
 		ast_debug(3, "Topology of %s already matches what is requested so ignoring topology change request\n",
 				ast_channel_name(chan));
+		ast_channel_unlock(chan);
 		return 0;
 	}
 
 	ast_channel_internal_set_stream_topology_change_source(chan, change_source);
 
-	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, topology, sizeof(topology));
+	res = ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, topology, sizeof(topology));
+	ast_channel_unlock(chan);
+	return res;
 }
 
 int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_stream_topology *topology)

@@ -1768,7 +1768,9 @@ AST_TEST_DEFINE(stream_topology_change_request_from_application_non_multistream)
 	ast_test_validate_cleanup(test, change_res == -1, res, done);
 	ast_test_validate_cleanup(test, !pvt->indicated_change_request, res, done);
 
+	ast_channel_lock(mock_channel);
 	change_res = ast_channel_stream_topology_changed(mock_channel, topology);
+	ast_channel_unlock(mock_channel);
 
 	ast_test_validate_cleanup(test, change_res == -1, res, done);
 	ast_test_validate_cleanup(test, !pvt->indicated_changed, res, done);
@@ -1876,7 +1878,9 @@ AST_TEST_DEFINE(stream_topology_change_request_from_application)
 	ast_test_validate_cleanup(test, !change_res, res, done);
 	ast_test_validate_cleanup(test, pvt->indicated_change_request, res, done);
 
+	ast_channel_lock(mock_channel);
 	change_res = ast_channel_stream_topology_changed(mock_channel, topology);
+	ast_channel_unlock(mock_channel);
 
 	ast_test_validate_cleanup(test, !change_res, res, done);
 	ast_test_validate_cleanup(test, pvt->indicated_changed, res, done);
