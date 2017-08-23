@@ -4934,7 +4934,7 @@ int ast_channel_is_multistream(struct ast_channel *chan);
  * \param topology The new stream topology
  * \param change_source The source that initiated the change
  *
- * \pre chan is locked
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
  *
  * \retval 0 request has been accepted to be attempted
  * \retval -1 request could not be attempted
@@ -4956,7 +4956,7 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan,
  * \param chan The channel to provide notice to
  * \param topology The new stream topology
  *
- * \pre chan is locked
+ * \pre chan is locked  Absolutely _NO_ other channels can be locked.
  *
  * \retval 0 success
  * \retval -1 failure
