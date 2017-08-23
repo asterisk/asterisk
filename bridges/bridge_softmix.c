@@ -1686,7 +1686,8 @@ static void map_source_to_destinations(const char *source_stream_name, const cha
 	}
 }
 
-/*\brief stream_topology_changed callback
+/*!
+ * \brief stream_topology_changed callback
  *
  * For most video modes, nothing beyond the ordinary is required.
  * For the SFU case, though, we need to completely remap the streams
@@ -1724,34 +1725,52 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 
 	/* Second traversal: Map specific video channels from their source to their destinations.
 	 *
-	 * This is similar to what is done in ast_stream_topology_map(), except that
-	 * video channels are handled differently. Each video source has it's own
-	 * unique index on the bridge. this way, a particular channel's source video
-	 * can be distributed to the appropriate destination streams on the other
-	 * channels
+	 * This is similar to what is done in ast_stream_topology_map(),
+	 * except that video channels are handled differently.  Each video
+	 * source has it's own unique index on the bridge.  This way, a
+	 * particular channel's source video can be distributed to the
+	 * appropriate destination streams on the other channels.
 	 */
 	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
 		int i;
 		struct ast_stream_topology *topology;
 
+		ast_bridge_channel_lock(participant);
 		ast_channel_lock(participant->chan);
 
 		topology = ast_channel_get_stream_topology(participant->chan);
+		if (topology) {
+			/*
+			 * Sigh.  We have to clone to avoid deadlock in
+			 * map_source_to_destinations() because topology
+			 * is not an ao2 object.
+			 */
+			topology = ast_stream_topology_clone(topology);
+		}
+		if (!topology) {
+			/* Oh, my, we are in trouble. */
+			ast_channel_unlock(participant->chan);
+			ast_bridge_channel_unlock(participant);
+			continue;
+		}
 
 		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
 			struct ast_stream *stream = ast_stream_topology_get_stream(topology, i);
-			ast_bridge_channel_lock(participant);
+
 			if (is_video_source(stream)) {
 				AST_VECTOR_APPEND(&media_types, AST_MEDIA_TYPE_VIDEO);
 				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, AST_VECTOR_SIZE(&media_types) - 1);
 				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, AST_VECTOR_SIZE(&media_types) - 1, -1);
-				/* Unlock the participant to prevent potential deadlock
-				 * in map_source_to_destinations
+				/*
+				 * Unlock the channel and participant to prevent
+				 * potential deadlock in map_source_to_destinations().
 				 */
+				ast_channel_unlock(participant->chan);
 				ast_bridge_channel_unlock(participant);
 				map_source_to_destinations(ast_stream_get_name(stream), ast_channel_name(participant->chan),
 					AST_VECTOR_SIZE(&media_types) - 1, &bridge->channels);
 				ast_bridge_channel_lock(participant);
+				ast_channel_lock(participant->chan);
 			} else if (is_video_dest(stream, NULL, NULL)) {
 				/* We expect to never read media from video destination channels, but just
 				 * in case, we should set their to_bridge value to -1.
@@ -1773,10 +1792,12 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, index);
 				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, index, i);
 			}
-			ast_bridge_channel_unlock(participant);
 		}
 
+		ast_stream_topology_free(topology);
+
 		ast_channel_unlock(participant->chan);
+		ast_bridge_channel_unlock(participant);
 	}
 }
 

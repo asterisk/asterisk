@@ -626,11 +626,11 @@ void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int caus
 
 /*!
  * \internal
- * \brief Write an \ref ast_frame onto the bridge channel
+ * \brief Write an \ref ast_frame into the bridge
  * \since 12.0.0
  *
- * \param bridge_channel Which channel to queue the frame onto.
- * \param frame The frame to write onto the bridge_channel
+ * \param bridge_channel Which channel is queueing the frame.
+ * \param frame The frame to write into the bridge
  *
  * \retval 0 on success.
  * \retval -1 on error.
@@ -638,11 +638,58 @@ void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int caus
 static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	const struct ast_control_t38_parameters *t38_parameters;
+	int unmapped_stream_num;
 	int deferred;
 
 	ast_assert(frame->frametype != AST_FRAME_BRIDGE_ACTION_SYNC);
 
 	ast_bridge_channel_lock_bridge(bridge_channel);
+
+	/* Map the frame to the bridge. */
+	if (ast_channel_is_multistream(bridge_channel->chan)) {
+		unmapped_stream_num = frame->stream_num;
+		switch (frame->frametype) {
+		case AST_FRAME_VOICE:
+		case AST_FRAME_VIDEO:
+		case AST_FRAME_TEXT:
+		case AST_FRAME_IMAGE:
+			/* Media frames need to be mapped to an appropriate write stream */
+			if (frame->stream_num < 0) {
+				/* Map to default stream */
+				frame->stream_num = -1;
+				break;
+			}
+			ast_bridge_channel_lock(bridge_channel);
+			if (frame->stream_num < (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_bridge)) {
+				frame->stream_num = AST_VECTOR_GET(
+					&bridge_channel->stream_map.to_bridge, frame->stream_num);
+				if (0 <= frame->stream_num) {
+					ast_bridge_channel_unlock(bridge_channel);
+					break;
+				}
+			}
+			ast_bridge_channel_unlock(bridge_channel);
+			ast_bridge_unlock(bridge_channel->bridge);
+			/*
+			 * Ignore frame because we don't know how to map the frame
+			 * or the bridge is not expecting any media from that
+			 * stream.
+			 */
+			return 0;
+		case AST_FRAME_DTMF_BEGIN:
+		case AST_FRAME_DTMF_END:
+			/*
+			 * XXX It makes sense that DTMF could be on any audio stream.
+			 * For now we will only put it on the default audio stream.
+			 */
+		default:
+			frame->stream_num = -1;
+			break;
+		}
+	} else {
+		unmapped_stream_num = -1;
+		frame->stream_num = -1;
+	}
 
 	deferred = bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
 	if (deferred) {
@@ -650,7 +697,14 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 
 		dup = ast_frdup(frame);
 		if (dup) {
+			/*
+			 * We have to unmap the deferred frame so it comes back
+			 * in like a new frame.
+			 */
+			dup->stream_num = unmapped_stream_num;
+			ast_bridge_channel_lock(bridge_channel);
 			AST_LIST_INSERT_HEAD(&bridge_channel->deferred_queue, dup, frame_list);
+			ast_bridge_channel_unlock(bridge_channel);
 		}
 	}
 
@@ -760,12 +814,14 @@ void bridge_channel_queue_deferred_frames(struct ast_bridge_channel *bridge_chan
 {
 	struct ast_frame *frame;
 
+	ast_bridge_channel_lock(bridge_channel);
 	ast_channel_lock(bridge_channel->chan);
 	while ((frame = AST_LIST_REMOVE_HEAD(&bridge_channel->deferred_queue, frame_list))) {
 		ast_queue_frame_head(bridge_channel->chan, frame);
 		ast_frfree(frame);
 	}
 	ast_channel_unlock(bridge_channel->chan);
+	ast_bridge_channel_unlock(bridge_channel);
 }
 
 /*!
@@ -2434,6 +2490,7 @@ static const char *controls[] = {
 static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_frame *frame;
+	int blocked;
 
 	if (!ast_strlen_zero(ast_channel_call_forward(bridge_channel->chan))) {
 		/* TODO If early bridging is ever used by anything other than ARI,
@@ -2457,13 +2514,8 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 		return;
 	}
 
-	if (ast_channel_is_multistream(bridge_channel->chan) &&
-	    (frame->frametype == AST_FRAME_IMAGE || frame->frametype == AST_FRAME_TEXT ||
-	     frame->frametype == AST_FRAME_VIDEO || frame->frametype == AST_FRAME_VOICE)) {
-		/* Media frames need to be mapped to an appropriate write stream */
-		frame->stream_num = AST_VECTOR_GET(
-			&bridge_channel->stream_map.to_bridge, frame->stream_num);
-	} else {
+	if (!ast_channel_is_multistream(bridge_channel->chan)) {
+		/* This may not be initialized by non-multistream channel drivers */
 		frame->stream_num = -1;
 	}
 
@@ -2485,10 +2537,16 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			ast_channel_publish_dial(NULL, bridge_channel->chan, NULL, controls[frame->subclass.integer]);
 			break;
 		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
-			if (bridge_channel->bridge->technology->stream_topology_request_change &&
-			    bridge_channel->bridge->technology->stream_topology_request_change(
-				    bridge_channel->bridge, bridge_channel)) {
-				/* Topology change was denied so drop frame */
+			ast_bridge_channel_lock_bridge(bridge_channel);
+			blocked = bridge_channel->bridge->technology->stream_topology_request_change
+				&& bridge_channel->bridge->technology->stream_topology_request_change(
+					bridge_channel->bridge, bridge_channel);
+			ast_bridge_unlock(bridge_channel->bridge);
+			if (blocked) {
+				/*
+				 * Topology change was intercepted by the bridge technology
+				 * so drop frame.
+				 */
 				bridge_frame_free(frame);
 				return;
 			}
@@ -2498,12 +2556,14 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			 * If a stream topology has changed then the bridge_channel's
 			 * media mapping needs to be updated.
 			 */
+			ast_bridge_channel_lock_bridge(bridge_channel);
 			if (bridge_channel->bridge->technology->stream_topology_changed) {
 				bridge_channel->bridge->technology->stream_topology_changed(
 					bridge_channel->bridge, bridge_channel);
 			} else {
 				ast_bridge_channel_stream_map(bridge_channel);
 			}
+			ast_bridge_unlock(bridge_channel->bridge);
 			break;
 		default:
 			break;
@@ -2990,9 +3050,11 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 
 void ast_bridge_channel_stream_map(struct ast_bridge_channel *bridge_channel)
 {
+	ast_bridge_channel_lock(bridge_channel);
 	ast_channel_lock(bridge_channel->chan);
 	ast_stream_topology_map(ast_channel_get_stream_topology(bridge_channel->chan),
 		&bridge_channel->bridge->media_types, &bridge_channel->stream_map.to_bridge,
 		&bridge_channel->stream_map.to_channel);
 	ast_channel_unlock(bridge_channel->chan);
+	ast_bridge_channel_unlock(bridge_channel);
 }
