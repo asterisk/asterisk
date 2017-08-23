@@ -784,12 +784,11 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		 * we remove it as a result of the stream limit being reached.
 		 */
 		if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
-			/* This stream is no longer being used so release any resources the handler
-			 * may have on it.
+			/*
+			 * Defer removing the handler until we are ready to activate
+			 * the new topology.  The channel's thread may still be using
+			 * the stream and we could crash before we are ready.
 			 */
-			if (session_media->handler) {
-				session_media_set_handler(session_media, NULL);
-			}
 			continue;
 		}
 
@@ -800,6 +799,32 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	/* Apply the pending media state to the channel and make it active */
 	ast_channel_lock(session->channel);
+
+	/* Now update the stream handler for any declined/removed streams */
+	for (i = 0; i < local->media_count; ++i) {
+		struct ast_sip_session_media *session_media;
+		struct ast_stream *stream;
+
+		if (!remote->media[i]) {
+			continue;
+		}
+
+		ast_assert(i < AST_VECTOR_SIZE(&session->pending_media_state->sessions));
+		ast_assert(i < ast_stream_topology_get_count(session->pending_media_state->topology));
+
+		session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, i);
+		stream = ast_stream_topology_get_stream(session->pending_media_state->topology, i);
+
+		if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED
+			&& session_media->handler) {
+			/*
+			 * This stream is no longer being used and the channel's thread
+			 * is held off because we have the channel lock so release any
+			 * resources the handler may have on it.
+			 */
+			session_media_set_handler(session_media, NULL);
+		}
+	}
 
 	/* Update the topology on the channel to match the accepted one */
 	topology = ast_stream_topology_clone(session->pending_media_state->topology);
@@ -814,8 +839,9 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	/* Add all the file descriptors from the pending media state */
 	for (i = 0; i < AST_VECTOR_SIZE(&session->pending_media_state->read_callbacks); ++i) {
-		struct ast_sip_session_media_read_callback_state *callback_state = AST_VECTOR_GET_ADDR(&session->pending_media_state->read_callbacks, i);
+		struct ast_sip_session_media_read_callback_state *callback_state;
 
+		callback_state = AST_VECTOR_GET_ADDR(&session->pending_media_state->read_callbacks, i);
 		ast_channel_internal_fd_set(session->channel, i + AST_EXTENDED_FDS, callback_state->fd);
 	}
 
