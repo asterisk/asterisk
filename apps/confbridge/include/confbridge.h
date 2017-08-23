@@ -30,11 +30,11 @@
 #include "asterisk/bridge_features.h"
 #include "conf_state.h"
 
-/* Maximum length of a conference bridge name */
+/*! Maximum length of a conference bridge name */
 #define MAX_CONF_NAME AST_MAX_EXTENSION
-/* Maximum length of a conference pin */
+/*! Maximum length of a conference pin */
 #define MAX_PIN     80
-/* Maximum length of bridge/user/menu profile names */
+/*! Maximum length of bridge/user/menu profile names */
 #define MAX_PROFILE_NAME 128
 
 #define DEFAULT_USER_PROFILE "default_user"
@@ -70,9 +70,9 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED = (1 << 2), /*!< Set if conference should feed video of first marked user to all participants. */
 	BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER = (1 << 3), /*!< Set if conference set the video feed to follow the loudest talker.  */
 	BRIDGE_OPT_RECORD_FILE_APPEND = (1 << 4), /*!< Set if the record file should be appended to between start/stops.  */
-	BRIDGE_OPT_RECORD_FILE_TIMESTAMP = (1 << 5), /*< Set if the record file should have a timestamp appended */
-	BRIDGE_OPT_BINAURAL_ACTIVE = (1 << 6), /*< Set if binaural convolution is activated */
-	BRIDGE_OPT_VIDEO_SRC_SFU = (1 << 7), /*< Selective forwarding unit */
+	BRIDGE_OPT_RECORD_FILE_TIMESTAMP = (1 << 5), /*!< Set if the record file should have a timestamp appended */
+	BRIDGE_OPT_BINAURAL_ACTIVE = (1 << 6), /*!< Set if binaural convolution is activated */
+	BRIDGE_OPT_VIDEO_SRC_SFU = (1 << 7), /*!< Selective forwarding unit */
 };
 
 enum conf_menu_action_id {
