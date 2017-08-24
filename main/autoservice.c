@@ -58,6 +58,7 @@ struct asent {
 	 *  it gets stopped for the last time. */
 	unsigned int use_count;
 	unsigned int orig_end_dtmf_flag:1;
+	unsigned int video_update:1;
 	unsigned int ignore_frame_types;
 	/*! Frames go on at the head of deferred_frames, so we have the frames
 	 *  from newest to oldest.  As we put them at the head of the readq, we'll
@@ -161,6 +162,17 @@ static void *autoservice_run(void *ign)
 					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
 				}
 			} else {
+				if (defer_frame->frametype == AST_FRAME_CONTROL &&
+					defer_frame->subclass.integer == AST_CONTROL_VIDUPDATE) {
+
+					/* If a video update is already queued don't needlessly queue another */
+					if (ents[i]->video_update) {
+						ast_frfree(defer_frame);
+						break;
+					}
+
+					ents[i]->video_update = 1;
+				}
 				if ((dup_f = ast_frisolate(defer_frame))) {
 					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
 				}
