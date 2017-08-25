@@ -6490,6 +6490,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int ausemacro = 0;
 	int ousemacro = 0;
 	int ouseexten = 0;
+	int greeting_only = 0;
 	char tmpdur[16];
 	char priority[16];
 	char origtime[16];
@@ -6549,6 +6550,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_free(tmp);
 		return res;
 	}
+
+	/* If maxmsg is zero, act as a "greetings only" voicemail: Exit successfully without recording */
+	if (vmu->maxmsg == 0) {
+		greeting_only = 1;
+		ast_set_flag(options, OPT_SILENT);
+	}
+
 	/* Setup pre-file if appropriate */
 	if (strcmp(vmu->context, "default"))
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
@@ -6673,12 +6681,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_set_flag(options, OPT_SILENT);
 		res = 0;
 	}
-	/* If maxmsg is zero, act as a "greetings only" voicemail: Exit successfully without recording */
-	if (vmu->maxmsg == 0) {
-		ast_debug(3, "Greetings only VM (maxmsg=0), Skipping voicemail recording\n");
-		pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
-		goto leave_vm_out;
-	}
 	if (!res && !ast_test_flag(options, OPT_SILENT)) {
 		res = ast_stream_and_wait(chan, INTRO, ecodes);
 		if (res == '#') {
@@ -6732,6 +6734,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_free(tmp);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		return res;
+	}
+
+	if (greeting_only) {
+		ast_debug(3, "Greetings only VM (maxmsg=0), Skipping voicemail recording\n");
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
+		res = 0;
+		goto leave_vm_out;
 	}
 
 	if (res < 0) {
