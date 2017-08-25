@@ -5070,6 +5070,11 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		return &ast_null_frame;
 	}
 
+	/* If the version is not what we expected by this point then just drop the packet */
+	if (version != 2) {
+		return &ast_null_frame;
+	}
+
 	/* If strict RTP protection is enabled see if we need to learn the remote address or if we need to drop the packet */
 	if (rtp->strict_rtp_state == STRICT_RTP_LEARN) {
 		if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
@@ -5114,11 +5119,6 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s\n",
 					  ast_sockaddr_stringify(&remote_address));
 		}
-	}
-
-	/* If the version is not what we expected by this point then just drop the packet */
-	if (version != 2) {
-		return &ast_null_frame;
 	}
 
 	/* Pull out the various other fields we will need */
