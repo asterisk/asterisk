@@ -72,6 +72,10 @@ app_queue
 ------------------
  * Add priority to callers in AMI QueueStatus response.
 
+AMI
+------------------
+ * Added a new CancelAtxfer action that cancels an attended transfer.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.5.0 to Asterisk 14.6.0 ------------
 ------------------------------------------------------------------------------
