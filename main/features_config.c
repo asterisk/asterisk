@@ -1173,6 +1173,21 @@ char *ast_get_chan_features_xferfailsound(struct ast_channel *chan)
 	return res;
 }
 
+char *ast_get_chan_features_atxferabort(struct ast_channel *chan)
+{
+	char *res;
+	struct ast_features_xfer_config *cfg = ast_get_chan_features_xfer_config(chan);
+
+	if (!cfg) {
+		return NULL;
+	}
+
+	res = ast_strdup(cfg->atxferabort);
+	ao2_ref(cfg, -1);
+
+	return res;
+}
+
 struct ast_features_pickup_config *ast_get_chan_features_pickup_config(struct ast_channel *chan)
 {
 	RAII_VAR(struct features_config *, cfg, NULL, ao2_cleanup);
