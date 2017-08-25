@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"	/* use dsp routines for silence detection */
 #include "asterisk/format_cache.h"
+#include "asterisk/paths.h"
 
 /*** DOCUMENTATION
 	<application name="Record" language="en_US">
@@ -104,7 +105,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			If the user hangs up during a recording, all data will be lost and the application will terminate.</para>
 			<variablelist>
 				<variable name="RECORDED_FILE">
-					<para>Will be set to the final filename of the recording.</para>
+					<para>Will be set to the final filename of the recording, without an extension.</para>
 				</variable>
 				<variable name="RECORD_STATUS">
 					<para>This is the final status of the command</para>
@@ -133,10 +134,9 @@ enum {
 	OPTION_STAR_TERMINATE = (1 << 4),
 	OPTION_IGNORE_TERMINATE = (1 << 5),
 	OPTION_KEEP = (1 << 6),
-	FLAG_HAS_PERCENT = (1 << 7),
-	OPTION_ANY_TERMINATE = (1 << 8),
-	OPTION_OPERATOR_EXIT = (1 << 9),
-	OPTION_NO_TRUNCATE = (1 << 10),
+	OPTION_ANY_TERMINATE = (1 << 7),
+	OPTION_OPERATOR_EXIT = (1 << 8),
+	OPTION_NO_TRUNCATE = (1 << 9),
 };
 
 AST_APP_OPTIONS(app_opts,{
@@ -182,14 +182,47 @@ static int record_dtmf_response(struct ast_channel *chan, struct ast_flags *flag
 	return 0;
 }
 
+static int create_destination_directory(const char *path)
+{
+	int res;
+	char directory[PATH_MAX], *file_sep;
+
+	if (!(file_sep = strrchr(path, '/'))) {
+		/* No directory to create */
+		return 0;
+	}
+
+	/* Overwrite temporarily */
+	*file_sep = '\0';
+
+	/* Absolute path? */
+	if (path[0] == '/') {
+		res = ast_mkdir(path, 0777);
+		*file_sep = '/';
+		return res;
+	}
+
+	/* Relative path */
+	res = snprintf(directory, sizeof(directory), "%s/sounds/%s",
+				   ast_config_AST_DATA_DIR, path);
+
+	*file_sep = '/';
+
+	if (res >= sizeof(directory)) {
+		/* We truncated, so we fail */
+		return -1;
+	}
+
+	return ast_mkdir(directory, 0777);
+}
+
 static int record_exec(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
-	int count = 0;
 	char *ext = NULL, *opts[0];
-	char *parse, *dir, *file;
+	char *parse;
 	int i = 0;
-	char tmp[256];
+	char tmp[PATH_MAX];
 
 	struct ast_filestream *s = NULL;
 	struct ast_frame *f = NULL;
@@ -229,8 +262,6 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(app_opts, &flags, opts, args.options);
 
 	if (!ast_strlen_zero(args.filename)) {
-		if (strstr(args.filename, "%d"))
-			ast_set_flag(&flags, FLAG_HAS_PERCENT);
 		ext = strrchr(args.filename, '.'); /* to support filename with a . in the filename, not format */
 		if (!ext)
 			ext = strchr(args.filename, ':');
@@ -268,38 +299,31 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&flags, OPTION_IGNORE_TERMINATE))
 		terminator = '\0';
 
-	/* done parsing */
+	/*
+	  If a '%d' is specified as part of the filename, we replace that token with
+	  sequentially incrementing numbers until we find a unique filename.
+	*/
+	if (strchr(args.filename, '%')) {
+		size_t src, dst, count = 0;
+		size_t src_len = strlen(args.filename);
+		size_t dst_len = sizeof(tmp) - 1;
 
-	/* these are to allow the use of the %d in the config file for a wild card of sort to
-	  create a new file with the inputed name scheme */
-	if (ast_test_flag(&flags, FLAG_HAS_PERCENT)) {
-		AST_DECLARE_APP_ARGS(fname,
-			AST_APP_ARG(piece)[100];
-		);
-		char *tmp2 = ast_strdupa(args.filename);
-		char countstring[15];
-		int idx;
-
-		/* Separate each piece out by the format specifier */
-		AST_NONSTANDARD_APP_ARGS(fname, tmp2, '%');
 		do {
-			int tmplen;
-			/* First piece has no leading percent, so it's copied verbatim */
-			ast_copy_string(tmp, fname.piece[0], sizeof(tmp));
-			tmplen = strlen(tmp);
-			for (idx = 1; idx < fname.argc; idx++) {
-				if (fname.piece[idx][0] == 'd') {
-					/* Substitute the count */
-					snprintf(countstring, sizeof(countstring), "%d", count);
-					ast_copy_string(tmp + tmplen, countstring, sizeof(tmp) - tmplen);
-					tmplen += strlen(countstring);
-				} else if (tmplen + 2 < sizeof(tmp)) {
-					/* Unknown format specifier - just copy it verbatim */
-					tmp[tmplen++] = '%';
-					tmp[tmplen++] = fname.piece[idx][0];
+			for (src = 0, dst = 0; src < src_len && dst < dst_len; src++) {
+				if (!strncmp(&args.filename[src], "%d", 2)) {
+					int s = snprintf(&tmp[dst], PATH_MAX - dst, "%zu", count);
+					if (s >= PATH_MAX - dst) {
+						/* We truncated, so we need to bail */
+						ast_log(LOG_WARNING, "Failed to create unique filename from template: %s\n", args.filename);
+						pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+						return -1;
+					}
+					dst += s;
+					src++;
+				} else {
+					tmp[dst] = args.filename[src];
+					tmp[++dst] = '\0';
 				}
-				/* Copy the remaining portion of the piece */
-				ast_copy_string(tmp + tmplen, &(fname.piece[idx][1]), sizeof(tmp) - tmplen);
 			}
 			count++;
 		} while (ast_fileexists(tmp, ext, ast_channel_language(chan)) > 0);
@@ -307,7 +331,6 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_copy_string(tmp, args.filename, sizeof(tmp));
 
 	pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
-	/* end of routine mentioned */
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, OPTION_SKIP)) {
@@ -356,11 +379,11 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 	} 
 
-	/* Create the directory if it does not exist. */
-	dir = ast_strdupa(tmp);
-	if ((file = strrchr(dir, '/')))
-		*file++ = '\0';
-	ast_mkdir (dir, 0777);
+	if (create_destination_directory(tmp)) {
+		ast_log(LOG_WARNING, "Could not create directory for file %s\n", args.filename);
+		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+		goto out;
+	}
 
 	ioflags = ast_test_flag(&flags, OPTION_APPEND) ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
 	s = ast_writefile(tmp, ext, NULL, ioflags, 0, AST_FILE_MODE);
