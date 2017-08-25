@@ -124,7 +124,9 @@ enum strict_rtp_state {
 	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
 };
 
-#define DEFAULT_STRICT_RTP STRICT_RTP_CLOSED
+#define STRICT_RTP_LEARN_TIMEOUT	1500	/*!< milliseconds */
+
+#define DEFAULT_STRICT_RTP -1	/*!< Enabled */
 #define DEFAULT_ICESUPPORT 1
 
 extern struct ast_srtp_res *res_srtp;
@@ -225,9 +227,11 @@ static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
 
 /*! \brief RTP learning mode tracking information */
 struct rtp_learning_info {
-	int max_seq;	 /*!< The highest sequence number received */
-	int packets;	 /*!< The number of remaining packets before the source is accepted */
+	struct ast_sockaddr proposed_address;	/*!< Proposed remote address for strict RTP */
+	struct timeval start;	/*!< The time learning mode was started */
 	struct timeval received; /*!< The time of the last received packet */
+	int max_seq;	/*!< The highest sequence number received */
+	int packets;	/*!< The number of remaining packets before the source is accepted */
 };
 
 #ifdef HAVE_OPENSSL_SRTP
@@ -256,7 +260,7 @@ struct ast_rtp {
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
 	unsigned int themssrc;		/*!< Their SSRC */
-	unsigned int rxssrc;
+	unsigned int themssrc_valid;	/*!< True if their SSRC is available. */
 	unsigned int lastts;
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
@@ -1991,7 +1995,7 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 #endif
 
 #ifdef HAVE_PJPROJECT
-static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq);
+static void rtp_learning_start(struct ast_rtp *rtp);
 
 /* PJPROJECT ICE callback */
 static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
@@ -2030,8 +2034,8 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 		return;
 	}
 
-	rtp->strict_rtp_state = STRICT_RTP_LEARN;
-	rtp_learning_seq_init(&rtp->rtp_source_learn, (uint16_t)rtp->seqno);
+	ast_verb(4, "%p -- Strict RTP learning after ICE completion\n", rtp);
+	rtp_learning_start(rtp);
 	ao2_unlock(instance);
 }
 
@@ -2760,7 +2764,7 @@ static int create_new_socket(const char *type, int af)
  */
 static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq)
 {
-	info->max_seq = seq - 1;
+	info->max_seq = seq;
 	info->packets = learning_min_sequential;
 	memset(&info->received, 0, sizeof(info->received));
 }
@@ -2777,14 +2781,17 @@ static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq)
  */
 static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t seq)
 {
+	/*
+	 * During the learning mode the minimum amount of media we'll accept is
+	 * 10ms so give a reasonable 5ms buffer just in case we get it sporadically.
+	 */
 	if (!ast_tvzero(info->received) && ast_tvdiff_ms(ast_tvnow(), info->received) < 5) {
-		/* During the probation period the minimum amount of media we'll accept is
-		 * 10ms so give a reasonable 5ms buffer just in case we get it sporadically.
+		/*
+		 * Reject a flood of packets as acceptable for learning.
+		 * Reset the needed packets.
 		 */
-		return 1;
-	}
-
-	if (seq == info->max_seq + 1) {
+		info->packets = learning_min_sequential - 1;
+	} else if (seq == (uint16_t) (info->max_seq + 1)) {
 		/* packet is in sequence */
 		info->packets--;
 	} else {
@@ -2794,7 +2801,23 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 	info->max_seq = seq;
 	info->received = ast_tvnow();
 
-	return (info->packets == 0);
+	return info->packets;
+}
+
+/*!
+ * \brief Start the strictrtp learning mode.
+ *
+ * \param rtp RTP session description
+ *
+ * \return Nothing
+ */
+static void rtp_learning_start(struct ast_rtp *rtp)
+{
+	rtp->strict_rtp_state = STRICT_RTP_LEARN;
+	memset(&rtp->rtp_source_learn.proposed_address, 0,
+		sizeof(rtp->rtp_source_learn.proposed_address));
+	rtp->rtp_source_learn.start = ast_tvnow();
+	rtp_learning_seq_init(&rtp->rtp_source_learn, (uint16_t) rtp->lastrxseqno);
 }
 
 #ifdef HAVE_PJPROJECT
@@ -3068,9 +3091,6 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	rtp->ssrc = ast_random();
 	rtp->seqno = ast_random() & 0x7fff;
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_CLOSED : STRICT_RTP_OPEN);
-	if (strictrtp) {
-		rtp_learning_seq_init(&rtp->rtp_source_learn, (uint16_t)rtp->seqno);
-	}
 
 	/* Create a new socket for us to listen on and use */
 	if ((rtp->s =
@@ -3644,7 +3664,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	struct ast_sockaddr remote_address = { { 0, } };
 	struct ast_rtp_rtcp_report_block *report_block = NULL;
 	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-			ast_rtp_rtcp_report_alloc(rtp->themssrc ? 1 : 0),
+			ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
 			ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
@@ -3664,7 +3684,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	calculate_lost_packet_statistics(rtp, &lost_packets, &fraction_lost);
 
 	gettimeofday(&now, NULL);
-	rtcp_report->reception_report_count = rtp->themssrc ? 1 : 0;
+	rtcp_report->reception_report_count = rtp->themssrc_valid ? 1 : 0;
 	rtcp_report->ssrc = rtp->ssrc;
 	rtcp_report->type = sr ? RTCP_PT_SR : RTCP_PT_RR;
 	if (sr) {
@@ -3674,7 +3694,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		rtcp_report->sender_information.octet_count = rtp->txoctetcount;
 	}
 
-	if (rtp->themssrc) {
+	if (rtp->themssrc_valid) {
 		report_block = ast_calloc(1, sizeof(*report_block));
 		if (!report_block) {
 			return 1;
@@ -4017,6 +4037,10 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			/*
 			 * RTCP was stopped.
 			 */
+			return 0;
+		}
+		if (!rtp->themssrc_valid) {
+			/* We don't know their SSRC value so we don't know who to update. */
 			return 0;
 		}
 
@@ -4597,75 +4621,265 @@ static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 	rtp->rtcp->reported_normdev_lost = reported_normdev_lost_current;
 }
 
+static const char *rtcp_payload_type2str(unsigned int pt)
+{
+	const char *str;
+
+	switch (pt) {
+	case RTCP_PT_SR:
+		str = "Sender Report";
+		break;
+	case RTCP_PT_RR:
+		str = "Receiver Report";
+		break;
+	case RTCP_PT_FUR:
+		/* Full INTRA-frame Request / Fast Update Request */
+		str = "H.261 FUR";
+		break;
+	case RTCP_PT_PSFB:
+		/* Payload Specific Feed Back */
+		str = "PSFB";
+		break;
+	case RTCP_PT_SDES:
+		str = "Source Description";
+		break;
+	case RTCP_PT_BYE:
+		str = "BYE";
+		break;
+	default:
+		str = "Unknown";
+		break;
+	}
+	return str;
+}
+
+/*
+ * Unshifted RTCP header bit field masks
+ */
+#define RTCP_LENGTH_MASK			0xFFFF
+#define RTCP_PAYLOAD_TYPE_MASK		0xFF
+#define RTCP_REPORT_COUNT_MASK		0x1F
+#define RTCP_PADDING_MASK			0x01
+#define RTCP_VERSION_MASK			0x03
+
+/*
+ * RTCP header bit field shift offsets
+ */
+#define RTCP_LENGTH_SHIFT			0
+#define RTCP_PAYLOAD_TYPE_SHIFT		16
+#define RTCP_REPORT_COUNT_SHIFT		24
+#define RTCP_PADDING_SHIFT			29
+#define RTCP_VERSION_SHIFT			30
+
+#define RTCP_VERSION				2U
+#define RTCP_VERSION_SHIFTED		(RTCP_VERSION << RTCP_VERSION_SHIFT)
+#define RTCP_VERSION_MASK_SHIFTED	(RTCP_VERSION_MASK << RTCP_VERSION_SHIFT)
+
+/*
+ * RTCP first packet record validity header mask and value.
+ *
+ * RFC3550 intentionally defines the encoding of RTCP_PT_SR and RTCP_PT_RR
+ * such that they differ in the least significant bit.  Either of these two
+ * payload types MUST be the first RTCP packet record in a compound packet.
+ *
+ * RFC3550 checks the padding bit in the algorithm they use to check the
+ * RTCP packet for validity.  However, we aren't masking the padding bit
+ * to check since we don't know if it is a compound RTCP packet or not.
+ */
+#define RTCP_VALID_MASK (RTCP_VERSION_MASK_SHIFTED | (((RTCP_PAYLOAD_TYPE_MASK & ~0x1)) << RTCP_PAYLOAD_TYPE_SHIFT))
+#define RTCP_VALID_VALUE (RTCP_VERSION_SHIFTED | (RTCP_PT_SR << RTCP_PAYLOAD_TYPE_SHIFT))
+
+#define RTCP_SR_BLOCK_WORD_LENGTH 5
+#define RTCP_RR_BLOCK_WORD_LENGTH 6
+#define RTCP_HEADER_SSRC_LENGTH   2
+
 static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, const unsigned char *rtcpdata, size_t size, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	unsigned int *rtcpheader = (unsigned int *)(rtcpdata);
-	int packetwords, position = 0;
+	unsigned int packetwords;
+	unsigned int position;
+	unsigned int first_word;
+	/*! True if we have seen an acceptable SSRC to learn the remote RTCP address */
+	unsigned int ssrc_seen;
 	int report_counter = 0;
 	struct ast_rtp_rtcp_report_block *report_block;
 	struct ast_frame *f = &ast_null_frame;
 
 	packetwords = size / 4;
 
-	ast_debug(1, "Got RTCP report of %zu bytes\n", size);
+	ast_debug(1, "Got RTCP report of %zu bytes from %s\n",
+		size, ast_sockaddr_stringify(addr));
 
+	/*
+	 * Validate the RTCP packet according to an adapted and slightly
+	 * modified RFC3550 validation algorithm.
+	 */
+	if (packetwords < RTCP_HEADER_SSRC_LENGTH) {
+		ast_debug(1, "%p -- RTCP from %s: Frame size (%u words) is too short\n",
+			rtp, ast_sockaddr_stringify(addr), packetwords);
+		return &ast_null_frame;
+	}
+	position = 0;
+	first_word = ntohl(rtcpheader[position]);
+	if ((first_word & RTCP_VALID_MASK) != RTCP_VALID_VALUE) {
+		ast_debug(1, "%p -- RTCP from %s: Failed first packet validity check\n",
+			rtp, ast_sockaddr_stringify(addr));
+		return &ast_null_frame;
+	}
+	do {
+		position += ((first_word >> RTCP_LENGTH_SHIFT) & RTCP_LENGTH_MASK) + 1;
+		if (packetwords <= position) {
+			break;
+		}
+		first_word = ntohl(rtcpheader[position]);
+	} while ((first_word & RTCP_VERSION_MASK_SHIFTED) == RTCP_VERSION_SHIFTED);
+	if (position != packetwords) {
+		ast_debug(1, "%p -- RTCP from %s: Failed packet version or length check\n",
+			rtp, ast_sockaddr_stringify(addr));
+		return &ast_null_frame;
+	}
+
+	/*
+	 * Note: RFC3605 points out that true NAT (vs NAPT) can cause RTCP
+	 * to have a different IP address and port than RTP.  Otherwise, when
+	 * strictrtp is enabled we could reject RTCP packets not coming from
+	 * the learned RTP IP address if it is available.
+	 */
+
+	/*
+	 * strictrtp safety needs SSRC to match before we use the
+	 * sender's address for symmetrical RTP to send our RTCP
+	 * reports.
+	 *
+	 * If strictrtp is not enabled then claim to have already seen
+	 * a matching SSRC so we'll accept this packet's address for
+	 * symmetrical RTP.
+	 */
+	ssrc_seen = rtp->strict_rtp_state == STRICT_RTP_OPEN;
+
+	position = 0;
 	while (position < packetwords) {
-		int i, pt, rc;
+		unsigned int i;
+		unsigned int pt;
+		unsigned int rc;
+		unsigned int ssrc;
+		/*! True if the ssrc value we have is valid and not garbage because it doesn't exist. */
+		unsigned int ssrc_valid;
 		unsigned int length;
+		unsigned int min_length;
+
 		struct ast_json *message_blob;
 		RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 		i = position;
-		length = ntohl(rtcpheader[i]);
-		pt = (length & 0xff0000) >> 16;
-		rc = (length & 0x1f000000) >> 24;
-		length &= 0xffff;
+		first_word = ntohl(rtcpheader[i]);
+		pt = (first_word >> RTCP_PAYLOAD_TYPE_SHIFT) & RTCP_PAYLOAD_TYPE_MASK;
+		rc = (first_word >> RTCP_REPORT_COUNT_SHIFT) & RTCP_REPORT_COUNT_MASK;
+		/* RFC3550 says 'length' is the number of words in the packet - 1 */
+		length = ((first_word >> RTCP_LENGTH_SHIFT) & RTCP_LENGTH_MASK) + 1;
 
-		rtcp_report = ast_rtp_rtcp_report_alloc(rc);
-		if (!rtcp_report) {
-			return &ast_null_frame;
-		}
-		rtcp_report->reception_report_count = rc;
-		rtcp_report->ssrc = ntohl(rtcpheader[i + 1]);
-
-		if ((i + length) > packetwords) {
-			if (rtpdebug) {
-				ast_debug(1, "RTCP Read too short\n");
+		/* Check expected RTCP packet record length */
+		min_length = RTCP_HEADER_SSRC_LENGTH;
+		switch (pt) {
+		case RTCP_PT_SR:
+			min_length += RTCP_SR_BLOCK_WORD_LENGTH;
+			/* fall through */
+		case RTCP_PT_RR:
+			min_length += (rc * RTCP_RR_BLOCK_WORD_LENGTH);
+			break;
+		case RTCP_PT_FUR:
+		case RTCP_PT_PSFB:
+			break;
+		case RTCP_PT_SDES:
+		case RTCP_PT_BYE:
+			/*
+			 * There may not be a SSRC/CSRC present.  The packet is
+			 * useless but still valid if it isn't present.
+			 *
+			 * We don't know what min_length should be so disable the check
+			 */
+			min_length = length;
+			break;
+		default:
+			ast_debug(1, "%p -- RTCP from %s: %u(%s) skipping record\n",
+				rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt));
+			if (rtcp_debug_test_addr(addr)) {
+				ast_verbose("\n");
+				ast_verbose("RTCP from %s: %u(%s) skipping record\n",
+					ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt));
 			}
-			return &ast_null_frame;
-		}
-
-		if ((rtp->strict_rtp_state != STRICT_RTP_OPEN) && (rtcp_report->ssrc != rtp->themssrc)) {
-			/* Skip over this RTCP record as it does not contain the correct SSRC */
-			position += (length + 1);
-			ast_debug(1, "%p -- Received RTCP report from %s, dropping due to strict RTP protection. Received SSRC '%u' but expected '%u'\n",
-				rtp, ast_sockaddr_stringify(addr), rtcp_report->ssrc, rtp->themssrc);
+			position += length;
 			continue;
 		}
+		if (length < min_length) {
+			ast_debug(1, "%p -- RTCP from %s: %u(%s) length field less than expected minimum.  Min:%u Got:%u\n",
+				rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt),
+				min_length - 1, length - 1);
+			return &ast_null_frame;
+		}
 
-		if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
+		/* Get the RTCP record SSRC if defined for the record */
+		ssrc_valid = 1;
+		switch (pt) {
+		case RTCP_PT_SR:
+		case RTCP_PT_RR:
+			rtcp_report = ast_rtp_rtcp_report_alloc(rc);
+			if (!rtcp_report) {
+				return &ast_null_frame;
+			}
+			rtcp_report->reception_report_count = rc;
+
+			ssrc = ntohl(rtcpheader[i + 1]);
+			rtcp_report->ssrc = ssrc;
+			break;
+		case RTCP_PT_FUR:
+		case RTCP_PT_PSFB:
+			ssrc = ntohl(rtcpheader[i + 1]);
+			break;
+		case RTCP_PT_SDES:
+		case RTCP_PT_BYE:
+		default:
+			ssrc = 0;
+			ssrc_valid = 0;
+			break;
+		}
+
+		if (rtcp_debug_test_addr(addr)) {
+			ast_verbose("\n");
+			ast_verbose("RTCP from %s\n", ast_sockaddr_stringify(addr));
+			ast_verbose("PT: %u(%s)\n", pt, rtcp_payload_type2str(pt));
+			ast_verbose("Reception reports: %u\n", rc);
+			ast_verbose("SSRC of sender: %u\n", ssrc);
+		}
+
+		if (ssrc_valid && rtp->themssrc_valid) {
+			if (ssrc != rtp->themssrc) {
+				/*
+				 * Skip over this RTCP record as it does not contain the
+				 * correct SSRC.  We should not act upon RTCP records
+				 * for a different stream.
+				 */
+				position += length;
+				ast_debug(1, "%p -- RTCP from %s: Skipping record, received SSRC '%u' != expected '%u'\n",
+					rtp, ast_sockaddr_stringify(addr), ssrc, rtp->themssrc);
+				continue;
+			}
+			ssrc_seen = 1;
+		}
+
+		if (ssrc_seen && ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
 			/* Send to whoever sent to us */
 			if (ast_sockaddr_cmp(&rtp->rtcp->them, addr)) {
 				ast_sockaddr_copy(&rtp->rtcp->them, addr);
 				if (rtpdebug) {
 					ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
-						ast_sockaddr_stringify(&rtp->rtcp->them));
+						ast_sockaddr_stringify(addr));
 				}
 			}
 		}
 
-		if (rtcp_debug_test_addr(addr)) {
-			ast_verbose("\n\nGot RTCP from %s\n",
-				    ast_sockaddr_stringify(addr));
-			ast_verbose("PT: %d(%s)\n", pt, (pt == RTCP_PT_SR) ? "Sender Report" :
-							(pt == RTCP_PT_RR) ? "Receiver Report" :
-							(pt == RTCP_PT_FUR) ? "H.261 FUR" : "Unknown");
-			ast_verbose("Reception reports: %d\n", rc);
-			ast_verbose("SSRC of sender: %u\n", rtcp_report->ssrc);
-		}
-
-		i += 2; /* Advance past header and ssrc */
+		i += RTCP_HEADER_SSRC_LENGTH; /* Advance past header and ssrc */
 		switch (pt) {
 		case RTCP_PT_SR:
 			gettimeofday(&rtp->rtcp->rxlsr, NULL);
@@ -4689,7 +4903,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 						rtcp_report->sender_information.packet_count,
 						rtcp_report->sender_information.octet_count);
 			}
-			i += 5;
+			i += RTCP_SR_BLOCK_WORD_LENGTH;
 			/* Intentional fall through */
 		case RTCP_PT_RR:
 			if (rtcp_report->type != RTCP_PT_SR) {
@@ -4746,9 +4960,9 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 			 */
 
 			message_blob = ast_json_pack("{s: s, s: s, s: f}",
-					"from", ast_sockaddr_stringify(&rtp->rtcp->them),
-					"to", rtp->rtcp->local_addr_str,
-					"rtt", rtp->rtcp->rtt);
+				"from", ast_sockaddr_stringify(addr),
+				"to", rtp->rtcp->local_addr_str,
+				"rtt", rtp->rtcp->rtt);
 			ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_received_type(),
 					rtcp_report,
 					message_blob);
@@ -4771,26 +4985,23 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 		case RTCP_PT_SDES:
 			if (rtcp_debug_test_addr(addr)) {
 				ast_verbose("Received an SDES from %s\n",
-					    ast_sockaddr_stringify(&rtp->rtcp->them));
+					ast_sockaddr_stringify(addr));
 			}
 			break;
 		case RTCP_PT_BYE:
 			if (rtcp_debug_test_addr(addr)) {
 				ast_verbose("Received a BYE from %s\n",
-					    ast_sockaddr_stringify(&rtp->rtcp->them));
+					ast_sockaddr_stringify(addr));
 			}
 			break;
 		default:
-			ast_debug(1, "Unknown RTCP packet (pt=%d) received from %s\n",
-				  pt, ast_sockaddr_stringify(&rtp->rtcp->them));
 			break;
 		}
-		position += (length + 1);
+		position += length;
 	}
 	rtp->rtcp->rtcp_info = 1;
 
 	return f;
-
 }
 
 /*! \pre instance is locked */
@@ -5082,31 +5293,133 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	/* If strict RTP protection is enabled see if we need to learn the remote address or if we need to drop the packet */
-	if (rtp->strict_rtp_state == STRICT_RTP_LEARN) {
-		if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
-			/* We are learning a new address but have received traffic from the existing address,
-			 * accept it but reset the current learning for the new source so it only takes over
-			 * once sufficient traffic has been received. */
-			rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
-		} else {
-			/* Start trying to learn from the new address. If we pass a probationary period with
-			 * it, that means we've stopped getting RTP from the original source and we should
-			 * switch to it.
-			 */
-			if (rtp_learning_rtp_seq_update(&rtp->rtp_source_learn, seqno)) {
-				ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection. Will switch to it in %d packets\n",
-					rtp, ast_sockaddr_stringify(&addr), rtp->rtp_source_learn.packets);
-				return &ast_null_frame;
-			}
-			ast_sockaddr_copy(&rtp->strict_rtp_address, &addr);
-
-			ast_verb(4, "%p -- Probation passed - setting RTP source address to %s\n", rtp, ast_sockaddr_stringify(&addr));
+	switch (rtp->strict_rtp_state) {
+	case STRICT_RTP_LEARN:
+		/*
+		 * Scenario setup:
+		 * PartyA -- Ast1 -- Ast2 -- PartyB
+		 *
+		 * The learning timeout is necessary for Ast1 to handle the above
+		 * setup where PartyA calls PartyB and Ast2 initiates direct media
+		 * between Ast1 and PartyB.  Ast1 may lock onto the Ast2 stream and
+		 * never learn the PartyB stream when it starts.  The timeout makes
+		 * Ast1 stay in the learning state long enough to see and learn the
+		 * RTP stream from PartyB.
+		 *
+		 * To mitigate against attack, the learning state cannot switch
+		 * streams while there are competing streams.  The competing streams
+		 * interfere with each other's qualification.  Once we accept a
+		 * stream and reach the timeout, an attacker cannot interfere
+		 * anymore.
+		 *
+		 * Here are a few scenarios and each one assumes that the streams
+		 * are continuous:
+		 *
+		 * 1) We already have a known stream source address and the known
+		 * stream wants to change to a new source address.  An attacking
+		 * stream will block learning the new stream source.  After the
+		 * timeout we re-lock onto the original stream source address which
+		 * likely went away.  The result is one way audio.
+		 *
+		 * 2) We already have a known stream source address and the known
+		 * stream doesn't want to change source addresses.  An attacking
+		 * stream will not be able to replace the known stream.  After the
+		 * timeout we re-lock onto the known stream.  The call is not
+		 * affected.
+		 *
+		 * 3) We don't have a known stream source address.  This presumably
+		 * is the start of a call.  Competing streams will result in staying
+		 * in learning mode until a stream becomes the victor and we reach
+		 * the timeout.  We cannot exit learning if we have no known stream
+		 * to lock onto.  The result is one way audio until there is a victor.
+		 *
+		 * If we learn a stream source address before the timeout we will be
+		 * in scenario 1) or 2) when a competing stream starts.
+		 */
+		if (!ast_sockaddr_isnull(&rtp->strict_rtp_address)
+			&& STRICT_RTP_LEARN_TIMEOUT < ast_tvdiff_ms(ast_tvnow(), rtp->rtp_source_learn.start)) {
+			ast_verb(4, "%p -- Strict RTP learning complete - Locking on source address %s\n",
+				rtp, ast_sockaddr_stringify(&rtp->strict_rtp_address));
 			rtp->strict_rtp_state = STRICT_RTP_CLOSED;
+		} else {
+			struct ast_sockaddr target_address;
+
+			if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
+				/*
+				 * We are open to learning a new address but have received
+				 * traffic from the current address, accept it and reset
+				 * the learning counts for a new source.  When no more
+				 * current source packets arrive a new source can take over
+				 * once sufficient traffic is received.
+				 */
+				rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
+				break;
+			}
+
+			/*
+			 * We give preferential treatment to the requested target address
+			 * (negotiated SDP address) where we are to send our RTP.  However,
+			 * the other end has no obligation to send from that address even
+			 * though it is practically a requirement when NAT is involved.
+			 */
+			ast_rtp_instance_get_requested_target_address(instance, &target_address);
+			if (!ast_sockaddr_cmp(&target_address, &addr)) {
+				/* Accept the negotiated target RTP stream as the source */
+				ast_verb(4, "%p -- Strict RTP switching to RTP target address %s as source\n",
+					rtp, ast_sockaddr_stringify(&addr));
+				ast_sockaddr_copy(&rtp->strict_rtp_address, &addr);
+				rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
+				break;
+			}
+
+			/*
+			 * Trying to learn a new address.  If we pass a probationary period
+			 * with it, that means we've stopped getting RTP from the original
+			 * source and we should switch to it.
+			 */
+			if (!ast_sockaddr_cmp(&rtp->rtp_source_learn.proposed_address, &addr)) {
+				if (!rtp_learning_rtp_seq_update(&rtp->rtp_source_learn, seqno)) {
+					/* Accept the new RTP stream */
+					ast_verb(4, "%p -- Strict RTP switching source address to %s\n",
+						rtp, ast_sockaddr_stringify(&addr));
+					ast_sockaddr_copy(&rtp->strict_rtp_address, &addr);
+					rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
+					break;
+				}
+				/* Not ready to accept the RTP stream candidate */
+				ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection. Will switch to it in %d packets.\n",
+					rtp, ast_sockaddr_stringify(&addr), rtp->rtp_source_learn.packets);
+			} else {
+				/*
+				 * This is either an attacking stream or
+				 * the start of the expected new stream.
+				 */
+				ast_sockaddr_copy(&rtp->rtp_source_learn.proposed_address, &addr);
+				rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
+				ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection. Qualifying new stream.\n",
+					rtp, ast_sockaddr_stringify(&addr));
+			}
+			return &ast_null_frame;
 		}
-	} else if (rtp->strict_rtp_state == STRICT_RTP_CLOSED && ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
+		/* Fall through */
+	case STRICT_RTP_CLOSED:
+		/*
+		 * We should not allow a stream address change if the SSRC matches
+		 * once strictrtp learning is closed.  Any kind of address change
+		 * like this should have happened while we were in the learning
+		 * state.  We do not want to allow the possibility of an attacker
+		 * interfering with the RTP stream after the learning period.
+		 * An attacker could manage to get an RTCP packet redirected to
+		 * them which can contain the SSRC value.
+		 */
+		if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
+			break;
+		}
 		ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection.\n",
 			rtp, ast_sockaddr_stringify(&addr));
 		return &ast_null_frame;
+	case STRICT_RTP_OPEN:
+		break;
 	}
 
 	/* If symmetric RTP is enabled see if the remote side is not what we expected and change where we are sending audio */
@@ -5139,7 +5452,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
 	/* Force a marker bit and change SSRC if the SSRC changes */
-	if (rtp->rxssrc && rtp->rxssrc != ssrc) {
+	if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
 		struct ast_frame *f, srcupdate = {
 			AST_FRAME_CONTROL,
 			.subclass.integer = AST_CONTROL_SRCCHANGE,
@@ -5167,8 +5480,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			rtp->rtcp->received_prior = 0;
 		}
 	}
-
-	rtp->rxssrc = ssrc;
+	rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
+	rtp->themssrc_valid = 1;
 
 	/* Remove any padding bytes that may be present */
 	if (padding) {
@@ -5221,10 +5534,6 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	prev_seqno = rtp->lastrxseqno;
 	rtp->lastrxseqno = seqno;
-
-	if (!rtp->themssrc) {
-		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
-	}
 
 
 	/* If we are directly bridged to another instance send the audio directly out,
@@ -5624,13 +5933,14 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 
 	rtp->rxseqno = 0;
 
-	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN && !ast_sockaddr_isnull(addr) &&
-		ast_sockaddr_cmp(addr, &rtp->strict_rtp_address)) {
+	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN
+		&& !ast_sockaddr_isnull(addr) && ast_sockaddr_cmp(addr, &rtp->strict_rtp_address)) {
 		/* We only need to learn a new strict source address if we've been told the source is
 		 * changing to something different.
 		 */
-		rtp->strict_rtp_state = STRICT_RTP_LEARN;
-		rtp_learning_seq_init(&rtp->rtp_source_learn, rtp->seqno);
+		ast_verb(4, "%p -- Strict RTP learning after remote address set to: %s\n",
+			rtp, ast_sockaddr_stringify(addr));
+		rtp_learning_start(rtp);
 	}
 }
 
