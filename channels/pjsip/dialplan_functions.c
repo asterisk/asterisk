@@ -393,8 +393,14 @@
 					<enum name="local_uri">
 						<para>The local URI.</para>
 					</enum>
+					<enum name="local_tag">
+						<para>Tag in From header</para>
+					</enum>
 					<enum name="remote_uri">
 						<para>The remote URI.</para>
+					</enum>
+					<enum name="remote_tag">
+						<para>Tag in To header</para>
 					</enum>
 					<enum name="t38state">
 						<para>The current state of any T.38 fax on this channel.</para>
@@ -690,8 +696,16 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri, buf, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
+	} else if (!strcmp(type, "local_tag")) {
+		ast_copy_pj_str(buf, &dlg->local.info->tag, buflen);
+		buf_copy = ast_strdupa(buf);
+		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "remote_uri")) {
 		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->remote.info->uri, buf, buflen);
+		buf_copy = ast_strdupa(buf);
+		ast_escape_quoted(buf_copy, buf, buflen);
+	} else if (!strcmp(type, "remote_tag")) {
+		ast_copy_pj_str(buf, &dlg->remote.info->tag, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "t38state")) {
