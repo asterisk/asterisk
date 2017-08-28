@@ -1113,10 +1113,13 @@ static int dtmf_mode_refresh_cb(void *obj)
 	struct refresh_data *data = obj;
 
 	if (data->session->inv_session->state == PJSIP_INV_STATE_CONFIRMED) {
-		ast_debug(3, "Changing DTMF mode on channel %s after OFFER/ANSER completion. Sending session refresh\n", ast_channel_name(data->session->channel));
+		ast_debug(3, "Changing DTMF mode on channel %s after OFFER/ANSWER completion. Sending session refresh\n", ast_channel_name(data->session->channel));
 
 		ast_sip_session_refresh(data->session, NULL, NULL,
 			sip_session_response_cb, data->method, 1);
+	} else if (data->session->inv_session->state == PJSIP_INV_STATE_INCOMING) {
+		ast_debug(3, "Changing DTMF mode on channel %s during OFFER/ANSWER exchange. Updating SDP answer\n", ast_channel_name(data->session->channel));
+		ast_sip_session_regenerate_answer(data->session, NULL);
 	}
 
 	return 0;

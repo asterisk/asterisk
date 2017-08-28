@@ -14,6 +14,7 @@
 		LINKER_SYMBOL_PREFIXast_sip_session_remove_datastore;
 		LINKER_SYMBOL_PREFIXast_sip_session_get_identity;
 		LINKER_SYMBOL_PREFIXast_sip_session_refresh;
+		LINKER_SYMBOL_PREFIXast_sip_session_regenerate_answer;
 		LINKER_SYMBOL_PREFIXast_sip_session_send_response;
 		LINKER_SYMBOL_PREFIXast_sip_session_send_request;
 		LINKER_SYMBOL_PREFIXast_sip_session_create_invite;
