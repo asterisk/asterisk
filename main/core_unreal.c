@@ -330,7 +330,8 @@ int ast_unreal_write(struct ast_channel *ast, struct ast_frame *f)
 		if (!ast_channel_get_default_stream(ast, AST_MEDIA_TYPE_AUDIO)) {
 			return 0;
 		}
-	} else if (f->frametype == AST_FRAME_VIDEO) {
+	} else if (f->frametype == AST_FRAME_VIDEO ||
+		(f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_VIDUPDATE)) {
 		if (!ast_channel_get_default_stream(ast, AST_MEDIA_TYPE_VIDEO)) {
 			return 0;
 		}
