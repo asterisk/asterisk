@@ -1234,6 +1234,8 @@ static const char *ast_str_quote(struct ast_str **buf, ssize_t maxlen, const cha
  * \brief Send voicemail with audio file as an attachment */
 static int sendmail(struct minivm_template *template, struct minivm_account *vmu, char *cidnum, char *cidname, const char *filename, char *format, int duration, int attach_user_voicemail, enum mvm_messagetype type, const char *counter)
 {
+	RAII_VAR(struct ast_str *, str1, ast_str_create(16), ast_free);
+	RAII_VAR(struct ast_str *, str2, ast_str_create(16), ast_free);
 	FILE *p = NULL;
 	int pfd;
 	char email[256] = "";
@@ -1243,20 +1245,18 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	char fname[PATH_MAX];
 	char dur[PATH_MAX];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
-	char tmp2[PATH_MAX];
-	char newtmp[PATH_MAX]; /* Only used with volgain */
+	char mail_cmd_buffer[PATH_MAX];
+	char sox_gain_tmpdir[PATH_MAX] = ""; /* Only used with volgain */
+	char *file_to_delete = NULL, *dir_to_delete = NULL;
 	struct timeval now;
 	struct ast_tm tm;
 	struct minivm_zone *the_zone = NULL;
-	struct ast_channel *ast;
-	char *finalfilename = "";
-	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
+	struct ast_channel *chan = NULL;
 	char *fromaddress;
 	char *fromemail;
+	int res;
 
 	if (!str1 || !str2) {
-		ast_free(str1);
-		ast_free(str2);
 		return -1;
 	}
 
@@ -1271,9 +1271,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 	if (ast_strlen_zero(email)) {
 		ast_log(LOG_WARNING, "No address to send message to.\n");
-		ast_free(str1);
-		ast_free(str2);
-		return -1;	
+		return -1;
 	}
 
 	ast_debug(3, "Sending mail to %s@%s - Using template %s\n", vmu->username, vmu->domain, template->name);
@@ -1281,35 +1279,30 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
 
-
 	/* If we have a gain option, process it now with sox */
 	if (type == MVM_MESSAGE_EMAIL && (vmu->volgain < -.001 || vmu->volgain > .001) ) {
-		char tmpcmd[PATH_MAX];
-		int tmpfd;
+		char sox_gain_cmd[PATH_MAX];
 
-		ast_copy_string(newtmp, "/tmp/XXXXXX", sizeof(newtmp));
-		ast_debug(3, "newtmp: %s\n", newtmp);
-		tmpfd = mkstemp(newtmp);
-		if (tmpfd < 0) {
-			ast_log(LOG_WARNING, "Failed to create temporary file for volgain: %d\n", errno);
-			ast_free(str1);
-			ast_free(str2);
+		ast_copy_string(sox_gain_tmpdir, "/tmp/minivm-gain-XXXXXX", sizeof(sox_gain_tmpdir));
+		ast_debug(3, "sox_gain_tmpdir: %s\n", sox_gain_tmpdir);
+		if (!mkdtemp(sox_gain_tmpdir)) {
+			ast_log(LOG_WARNING, "Failed to create temporary directory for volgain: %d\n", errno);
 			return -1;
 		}
-		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
-		ast_safe_system(tmpcmd);
-		close(tmpfd);
-		finalfilename = newtmp;
+		snprintf(fname, sizeof(fname), "%s/output.%s", sox_gain_tmpdir, format);
+		snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s %s", vmu->volgain, filename, format, fname);
+		ast_safe_system(sox_gain_cmd);
 		ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
+
+		/* Mark some things for deletion */
+		file_to_delete = fname;
+		dir_to_delete = sox_gain_tmpdir;
 	} else {
-		finalfilename = ast_strdupa(filename);
+		snprintf(fname, sizeof(fname), "%s.%s", filename, format);
 	}
 
-	/* Create file name */
-	snprintf(fname, sizeof(fname), "%s.%s", finalfilename, format);
-
 	if (template->attachment)
-		ast_debug(1, "Attaching file '%s', format '%s', uservm is '%d'\n", finalfilename, format, attach_user_voicemail);
+		ast_debug(1, "Attaching file '%s', format '%s', uservm is '%d'\n", fname, format, attach_user_voicemail);
 
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
@@ -1324,16 +1317,12 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to open temporary file '%s'\n", tmp);
-		ast_free(str1);
-		ast_free(str2);
-		return -1;
+		goto out;
 	}
 	/* Allocate channel used for chanvar substitution */
-	ast = ast_dummy_channel_alloc();
-	if (!ast) {
-		ast_free(str1);
-		ast_free(str2);
-		return -1;
+	chan = ast_dummy_channel_alloc();
+	if (!chan) {
+		goto out;
 	}
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
@@ -1361,9 +1350,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	/* Set date format for voicemail mail */
 	ast_strftime(date, sizeof(date), template->dateformat, &tm);
 
-
 	/* Populate channel with channel variables for substitution */
-	prep_email_sub_vars(ast, vmu, cidnum, cidname, dur, date, counter);
+	prep_email_sub_vars(chan, vmu, cidnum, cidname, dur, date, counter);
 
 	/* Find email address to use */
 	/* If there's a server e-mail address in the account, use that, othterwise template */
@@ -1388,7 +1376,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 	} else {
 		ast_debug(4, "Fromaddress template: %s\n", fromaddress);
-		ast_str_substitute_variables(&str1, 0, ast, fromaddress);
+		ast_str_substitute_variables(&str1, 0, chan, fromaddress);
 		if (check_mime(ast_str_buffer(str1))) {
 			int first_line = 1;
 			char *ptr;
@@ -1431,7 +1419,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 
 	if (!ast_strlen_zero(template->subject)) {
-		ast_str_substitute_variables(&str1, 0, ast, template->subject);
+		ast_str_substitute_variables(&str1, 0, chan, template->subject);
 		if (check_mime(ast_str_buffer(str1))) {
 			int first_line = 1;
 			char *ptr;
@@ -1464,7 +1452,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	fprintf(p, "--%s\n", bound);
 	fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", template->charset);
 	if (!ast_strlen_zero(template->body)) {
-		ast_str_substitute_variables(&str1, 0, ast, template->body);
+		ast_str_substitute_variables(&str1, 0, chan, template->body);
 		ast_debug(3, "Message now: %s\n-----\n", ast_str_buffer(str1));
 		fprintf(p, "%s\n", ast_str_buffer(str1));
 	} else {
@@ -1491,14 +1479,45 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		fprintf(p, "\n\n--%s--\n.\n", bound);
 	}
 	fclose(p);
-	snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", global_mailcmd, tmp, tmp);
-	ast_safe_system(tmp2);
-	ast_debug(1, "Sent message to %s with command '%s' - %s\n", vmu->email, global_mailcmd, template->attachment ? "(media attachment)" : "");
-	ast_debug(3, "Actual command used: %s\n", tmp2);
-	ast = ast_channel_unref(ast);
-	ast_free(str1);
-	ast_free(str2);
-	return 0;
+
+	chan = ast_channel_unref(chan);
+
+	if (file_to_delete && dir_to_delete) {
+		/* We can't delete these files ourselves because the mail command will execute in
+		   the background and we'll end up deleting them out from under it. */
+		res = snprintf(mail_cmd_buffer, sizeof(mail_cmd_buffer),
+					   "( %s < %s ; rm -f %s %s ; rmdir %s ) &",
+					   global_mailcmd, tmp, tmp, file_to_delete, dir_to_delete);
+	} else {
+		res = snprintf(mail_cmd_buffer, sizeof(mail_cmd_buffer),
+					   "( %s < %s ; rm -f %s ) &",
+					   global_mailcmd, tmp, tmp);
+	}
+
+	if (res < sizeof(mail_cmd_buffer)) {
+		file_to_delete = dir_to_delete = NULL;
+	} else {
+		ast_log(LOG_ERROR, "Could not send message, command line too long\n");
+		res = -1;
+		goto out;
+	}
+
+	ast_safe_system(mail_cmd_buffer);
+	ast_debug(1, "Sent message to %s with command '%s'%s\n", vmu->email, global_mailcmd, template->attachment ? " - (media attachment)" : "");
+	ast_debug(3, "Actual command used: %s\n", mail_cmd_buffer);
+
+	res = 0;
+
+out:
+	if (file_to_delete) {
+		unlink(file_to_delete);
+	}
+
+	if (dir_to_delete) {
+		rmdir(dir_to_delete);
+	}
+
+	return res;
 }
 
 /*!\internal
