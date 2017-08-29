@@ -2326,7 +2326,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (!quiet &&
 		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE) ||
 		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW)))) {
-		conf_rec_name(&user, args.conf_name);
+		if (conf_rec_name(&user, args.conf_name)) {
+			pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
+			res = -1; /* Hangup during name recording */
+			goto confbridge_cleanup;
+		}
 	}
 
 	/* menu name */
