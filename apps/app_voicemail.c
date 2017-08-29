@@ -5370,55 +5370,95 @@ plain_message:
 
 static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum)
 {
-	char tmpdir[256], newtmp[256];
-	char fname[256];
-	char tmpcmd[256];
-	int tmpfd = -1;
-	int soxstatus = 0;
+	char fname[PATH_MAX] = "";
+	char *file_to_delete = NULL, *dir_to_delete = NULL;
+	int res;
 
 	/* Eww. We want formats to tell us their own MIME type */
-	char *ctype = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
+	char *mime_type = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
 
-	if (vmu->volgain < -.001 || vmu->volgain > .001) {
+	/* This 'while' loop will only execute once. We use it so that we can 'break' */
+	while (vmu->volgain < -.001 || vmu->volgain > .001) {
+		char tmpdir[PATH_MAX];
+		char sox_gain_tmpdir[PATH_MAX];
+
 		create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
-		snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
-		tmpfd = mkstemp(newtmp);
-		chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
-		ast_debug(3, "newtmp: %s\n", newtmp);
-		if (tmpfd > -1) {
-			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
-			if ((soxstatus = ast_safe_system(tmpcmd)) == 0) {
-				attach = newtmp;
-				ast_debug(3, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+
+		res = snprintf(sox_gain_tmpdir, sizeof(sox_gain_tmpdir), "%s/vm-gain-XXXXXX", tmpdir);
+		if (res >= sizeof(sox_gain_tmpdir)) {
+			ast_log(LOG_ERROR, "Failed to create temporary directory path %s: Out of buffer space\n", tmpdir);
+			break;
+		}
+
+		if (mkdtemp(sox_gain_tmpdir)) {
+			int soxstatus = 0;
+			char sox_gain_cmd[PATH_MAX];
+
+			ast_debug(3, "sox_gain_tmpdir: %s\n", sox_gain_tmpdir);
+
+			/* Save for later */
+			dir_to_delete = sox_gain_tmpdir;
+
+			res = snprintf(fname, sizeof(fname), "%s/output.%s", sox_gain_tmpdir, format);
+			if (res >= sizeof(fname)) {
+				ast_log(LOG_ERROR, "Failed to create filename buffer for %s/output.%s: Too long\n", sox_gain_tmpdir, format);
+				break;
+			}
+
+			res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s %s",
+						   vmu->volgain, attach, format, fname);
+			if (res >= sizeof(sox_gain_cmd)) {
+				ast_log(LOG_ERROR, "Failed to generate sox command, out of buffer space\n");
+				break;
+			}
+
+			soxstatus = ast_safe_system(sox_gain_cmd);
+			if (!soxstatus) {
+				/* Save for later */
+				file_to_delete = fname;
+				ast_debug(3, "VOLGAIN: Stored at: %s - Level: %.4f - Mailbox: %s\n", fname, vmu->volgain, mailbox);
 			} else {
-				ast_log(LOG_WARNING, "Sox failed to re-encode %s.%s: %s (have you installed support for all sox file formats?)\n", attach, format,
-					soxstatus == 1 ? "Problem with command line options" : "An error occurred during file processing");
+				ast_log(LOG_WARNING, "Sox failed to re-encode %s: %s (have you installed support for all sox file formats?)\n",
+						fname,
+						soxstatus == 1 ? "Problem with command line options" : "An error occurred during file processing");
 				ast_log(LOG_WARNING, "Voicemail attachment will have no volume gain.\n");
 			}
 		}
+
+		break;
 	}
+
+	if (!file_to_delete) {
+		res = snprintf(fname, sizeof(fname), "%s.%s", attach, format);
+		if (res >= sizeof(fname)) {
+			ast_log(LOG_ERROR, "Failed to create filename buffer for %s.%s: Too long\n", attach, format);
+			return -1;
+		}
+	}
+
 	fprintf(p, "--%s" ENDL, bound);
 	if (msgnum > -1)
-		fprintf(p, "Content-Type: %s%s; name=\"%s\"" ENDL, ctype, format, filename);
+		fprintf(p, "Content-Type: %s%s; name=\"%s\"" ENDL, mime_type, format, filename);
 	else
-		fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, ctype, format, greeting_attachment, format);
+		fprintf(p, "Content-Type: %s%s; name=\"%s.%s\"" ENDL, mime_type, format, greeting_attachment, format);
 	fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
 	fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
 	if (msgnum > -1)
 		fprintf(p, "Content-Disposition: attachment; filename=\"%s\"" ENDL ENDL, filename);
 	else
 		fprintf(p, "Content-Disposition: attachment; filename=\"%s.%s\"" ENDL ENDL, greeting_attachment, format);
-	snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 	base_encode(fname, p);
 	if (last)
 		fprintf(p, ENDL ENDL "--%s--" ENDL "." ENDL, bound);
-	if (tmpfd > -1) {
-		if (soxstatus == 0) {
-			unlink(fname);
-		}
-		close(tmpfd);
-		unlink(newtmp);
+
+	if (file_to_delete) {
+		unlink(file_to_delete);
 	}
+
+	if (dir_to_delete) {
+		rmdir(dir_to_delete);
+	}
+
 	return 0;
 }
 
