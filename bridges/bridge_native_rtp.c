@@ -539,10 +539,12 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 static struct ast_frame *native_rtp_framehook(struct ast_channel *chan,
 	struct ast_frame *f, enum ast_framehook_event event, void *data)
 {
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	struct ast_bridge *bridge;
 	struct native_rtp_framehook_data *native_data = data;
 
-	if (!f || (event != AST_FRAMEHOOK_EVENT_WRITE)) {
+	if (!f
+		|| f->frametype != AST_FRAME_CONTROL
+		|| event != AST_FRAMEHOOK_EVENT_WRITE) {
 		return f;
 	}
 
@@ -561,14 +563,20 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan,
 		ast_channel_unlock(chan);
 		ast_bridge_lock(bridge);
 		if (!native_data->detached) {
-			if (f->subclass.integer == AST_CONTROL_HOLD) {
+			switch (f->subclass.integer) {
+			case AST_CONTROL_HOLD:
 				native_rtp_bridge_stop(bridge, chan);
-			} else if ((f->subclass.integer == AST_CONTROL_UNHOLD) ||
-				(f->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
+				break;
+			case AST_CONTROL_UNHOLD:
+			case AST_CONTROL_UPDATE_RTP_PEER:
 				native_rtp_bridge_start(bridge, chan);
+				break;
+			default:
+				break;
 			}
 		}
 		ast_bridge_unlock(bridge);
+		ao2_ref(bridge, -1);
 		ast_channel_lock(chan);
 	}
 
