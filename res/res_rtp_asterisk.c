@@ -6173,8 +6173,33 @@ static void ast_rtp_set_remote_ssrc(struct ast_rtp_instance *instance, unsigned 
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (rtp->themssrc) {
+	if (rtp->themssrc == ssrc) {
 		return;
+	}
+
+	/* If this is bundled we need to update the SSRC mapping */
+	if (rtp->bundled) {
+		struct ast_rtp *bundled_rtp;
+		int index;
+
+		ao2_unlock(instance);
+
+		/* The child lock can't be held while accessing the parent */
+		ao2_lock(rtp->bundled);
+		bundled_rtp = ast_rtp_instance_get_data(rtp->bundled);
+
+		for (index = 0; index < AST_VECTOR_SIZE(&bundled_rtp->ssrc_mapping); ++index) {
+			struct rtp_ssrc_mapping *mapping = AST_VECTOR_GET_ADDR(&bundled_rtp->ssrc_mapping, index);
+
+			if (mapping->ssrc == rtp->themssrc) {
+				mapping->ssrc = ssrc;
+				break;
+			}
+		}
+
+		ao2_unlock(rtp->bundled);
+
+		ao2_lock(instance);
 	}
 
 	rtp->themssrc = ssrc;
