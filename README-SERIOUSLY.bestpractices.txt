@@ -94,6 +94,13 @@ your ITSP in a place where you didn't expect to allow it. There are a couple of
 ways in which you can mitigate this impact: stricter pattern matching, or using
 the FILTER() dialplan function.
 
+The CALLERID(num) and CALLERID(name) values are other commonly used values that
+are sources of data potentially supplied by outside sources.  If you use these
+values as parameters to the System(), MixMonitor(), or Monitor() applications
+or the SHELL() dialplan function, you can allow injection of arbitrary operating
+system command execution.  The FILTER() dialplan function is available to remove
+dangerous characters from untrusted strings to block the command injection.
+
 Strict Pattern Matching
 -----------------------
 
