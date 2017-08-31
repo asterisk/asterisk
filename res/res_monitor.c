@@ -62,17 +62,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="file_format" argsep=":">
 				<argument name="file_format" required="true">
-					<para>optional, if not set, defaults to <literal>wav</literal></para>
+					<para>Optional.  If not set, defaults to <literal>wav</literal></para>
 				</argument>
 				<argument name="urlbase" />
 			</parameter>
 			<parameter name="fname_base">
-				<para>if set, changes the filename used to the one specified.</para>
+				<para>If set, changes the filename used to the one specified.</para>
 			</parameter>
 			<parameter name="options">
 				<optionlist>
 					<option name="m">
-						<para>when the recording ends mix the two leg files into one and
+						<para>When the recording ends mix the two leg files into one and
 						delete the two leg files. If the variable <variable>MONITOR_EXEC</variable>
 						is set, the application referenced in it will be executed instead of
 						soxmix/sox and the raw leg files will NOT be deleted automatically.
@@ -83,6 +83,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						will be passed on as additional arguments to <variable>MONITOR_EXEC</variable>.
 						Both <variable>MONITOR_EXEC</variable> and the Mix flag can be set from the
 						administrator interface.</para>
+						<warning><para>Do not use untrusted strings such as
+						<variable>CALLERID(num)</variable> or <variable>CALLERID(name)</variable>
+						as part of <variable>MONITOR_EXEC</variable> or
+						<variable>MONITOR_EXEC_ARGS</variable>.  You risk a command injection
+						attack executing arbitrary commands if the untrusted strings aren't
+						filtered to remove dangerous characters.  See function
+						<variable>FILTER()</variable>.</para></warning>
 					</option>
 					<option name="b">
 						<para>Don't begin recording unless a call is bridged to another channel.</para>
