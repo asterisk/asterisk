@@ -1757,21 +1757,35 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 /*! \brief Run external notification for voicemail message */
 static void run_externnotify(struct ast_channel *chan, struct minivm_account *vmu)
 {
-	char arguments[BUFSIZ];
+	char fquser[AST_MAX_CONTEXT * 2];
+	char *argv[5] = { NULL };
+	struct ast_party_caller *caller;
+	char *cid;
+	int idx;
 
-	if (ast_strlen_zero(vmu->externnotify) && ast_strlen_zero(global_externnotify))
+	if (ast_strlen_zero(vmu->externnotify) && ast_strlen_zero(global_externnotify)) {
 		return;
+	}
 
-	snprintf(arguments, sizeof(arguments), "%s %s@%s %s %s&", 
-		ast_strlen_zero(vmu->externnotify) ? global_externnotify : vmu->externnotify, 
-		vmu->username, vmu->domain,
-		(ast_channel_caller(chan)->id.name.valid && ast_channel_caller(chan)->id.name.str)
-			? ast_channel_caller(chan)->id.name.str : "",
-		(ast_channel_caller(chan)->id.number.valid && ast_channel_caller(chan)->id.number.str)
-			? ast_channel_caller(chan)->id.number.str : "");
+	snprintf(fquser, sizeof(fquser), "%s@%s", vmu->username, vmu->domain);
 
-	ast_debug(1, "Executing: %s\n", arguments);
-	ast_safe_system(arguments);
+	caller = ast_channel_caller(chan);
+	idx = 0;
+	argv[idx++] = ast_strlen_zero(vmu->externnotify) ? global_externnotify : vmu->externnotify;
+	argv[idx++] = fquser;
+	cid = S_COR(caller->id.name.valid, caller->id.name.str, NULL);
+	if (cid) {
+		argv[idx++] = cid;
+	}
+	cid = S_COR(caller->id.number.valid, caller->id.number.str, NULL);
+	if (cid) {
+		argv[idx++] = cid;
+	}
+	argv[idx] = NULL;
+
+	ast_debug(1, "Executing: %s %s %s %s\n",
+		argv[0], argv[1], argv[2] ?: "", argv[3] ?: "");
+	ast_safe_execvp(1, argv[0], argv);
 }
 
 /*!\internal
