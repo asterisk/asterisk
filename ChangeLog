@@ -1,3 +1,187 @@
+2017-08-31 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert5 Released.
+
+2017-07-01 19:24 +0000 [7ca7306012]  Corey Farrell <git@cfware.com>
+
+	* AST-2017-006: Fix app_minivm application MinivmNotify command injection
+
+	  An admin can configure app_minivm with an externnotify program to be run
+	  when a voicemail is received.  The app_minivm application MinivmNotify
+	  uses ast_safe_system() for this purpose which is vulnerable to command
+	  injection since the Caller-ID name and number values given to externnotify
+	  can come from an external untrusted source.
+
+	  * Add ast_safe_execvp() function.  This gives modules the ability to run
+	  external commands with greater safety compared to ast_safe_system().
+	  Specifically when some parameters are filled by untrusted sources the new
+	  function does not allow malicious input to break argument encoding.  This
+	  may be of particular concern where CALLERID(name) or CALLERID(num) may be
+	  used as a parameter to a script run by ast_safe_system() which could
+	  potentially allow arbitrary command execution.
+
+	  * Changed app_minivm.c:run_externnotify() to use the new ast_safe_execvp()
+	  instead of ast_safe_system() to avoid command injection.
+
+	  * Document code injection potential from untrusted data sources for other
+	  shell commands that are under user control.
+
+	  ASTERISK-27103
+
+	  Change-Id: I7552472247a84cde24e1358aaf64af160107aef1
+
+2017-05-22 10:36 +0000 [1724a8c98f]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Only learn a new source in learn state.
+
+	  This change moves the logic which learns a new source address
+	  for RTP so it only occurs in the learning state. The learning
+	  state is entered on initial allocation of RTP or if we are
+	  told that the remote address for the media has changed. While
+	  in the learning state if we continue to receive media from
+	  the original source we restart the learning process. It is
+	  only once we receive a sufficient number of RTP packets from
+	  the new source that we will switch to it. Once this is done
+	  the closed state is entered where all packets that do not
+	  originate from the expected source are dropped.
+
+	  The learning process has also been improved to take into
+	  account the time between received packets so a flood of them
+	  while in the learning state does not cause media to be switched.
+
+	  Finally RTCP now drops packets which are not for the learned
+	  SSRC if strict RTP is enabled.
+
+	  ASTERISK-27013
+
+	  Change-Id: I56a96e993700906355e79bc880ad9d4ad3ab129c
+
+2017-07-11 07:26 +0000 [b189f8c5cf]  George Joseph <gjoseph@digium.com>
+
+	* res_musiconhold:  Add kill_escalation_delay, kill_method to class
+
+	  By default, when res_musiconhold reloads or unloads, it sends a HUP
+	  signal to custom applications (and all descendants), waits 100ms,
+	  then sends a TERM signal, waits 100ms, then finally sends a KILL
+	  signal.  An application which is interacting with an external
+	  device and/or spawns children of its own may not be able to exit
+	  cleanly in the default times, expecially if sent a KILL signal, or
+	  if it's children are getting signals directly from
+	  res_musiconhoild.
+
+	  * To allow extra time, the 'kill_escalation_delay'
+	    class option can be used to set the number of milliseconds
+	    res_musiconhold waits before escalating kill signals, with the
+	    default being the current 100ms.
+
+	  * To control to whom the signals are sent, the "kill_method" class
+	    option can be set to "process_group" (the default, existing
+	    behavior), which sends signals to the application and its
+	    descendants directly, or "process" which sends signals only to the
+	    application itself.
+
+	  Change-Id: Iff70a1a9405685a9021a68416830c0db5158603b
+
+2017-06-29 18:27 +0000 [aa10dd31d0]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjsip_distributor.c: Fix deadlock with TCP type transports.
+
+	  When a SIP message comes in on a transport, pjproject obtains the lock on
+	  the transport and pulls the data out of the socket.  Unlike UDP, the TCP
+	  transport does not allow concurrent access.  Without concurrency the
+	  transport lock is not released when the transport's message complete
+	  callback is called.  The processing continues and eventually Asterisk
+	  starts processing the SIP message.  The first thing Asterisk tries to do
+	  is determine the associated dialog of the message to determine the
+	  associated serializer.  To get the associated serializer safely requires
+	  us to get the dialog lock.
+
+	  To send a request or response message for a dialog, pjproject obtains the
+	  dialog lock and then obtains the transport lock.  Deadlock can result
+	  because of the opposite order the locks are obtained.
+
+	  * Fix the deadlock by obtaining the serializer associated with the dialog
+	  another way that doesn't involve obtaining the dialog lock.  In this case,
+	  we use an ao2 container to hold the associated endpoint and serializer.
+	  The new locks are held a brief time and won't overlap other existing lock
+	  times.
+
+	  ASTERISK-27090 #close
+
+	  Change-Id: I9ed63f4da9649e9db6ed4be29c360968917a89bd
+
+2017-06-29 14:50 +0000 [ef4a035371]  George Joseph <gjoseph@digium.com>
+
+	* chan_pjsip:  Fix ability to send UPDATE on COLP
+
+	  When connected_line_method is "invite", we're supposed to determine
+	  if the client can support UPDATE and if it can, send UPDATE instead
+	  of INVITE to avoid the SDP renegotiation.  Not only was pjproject
+	  not setting the PJSIP_INV_SUPPORT_UPDATE flag, we were testing
+	  that invite_tsx wasn't NULL which isn't always the case.
+
+	  * Updated chan_pjsip/update_connected_line_information to drop the
+	    requirement that invite_tsx isn't NULL.
+	  * Submitted patch to pjproject sip_inv.c that sets the
+	    PJSIP_INV_SUPPORT_UPDATE flag correctly.
+	  * Updated pjsip.conf.sample to clarify what happens when "invite"
+	    is specified.
+
+	  ASTERISK-27095
+
+	  Change-Id: Ic2381b3567b8052c616d96fbe79564c530e81560
+
+2017-06-20 15:41 +0000 [89aabfe10b]  Kevin Harwell <kharwell@digium.com>
+
+	* core_local: local channel data not being properly unref'ed and unlocked
+
+	  In an earlier version of Asterisk a local channel [un]lock all functions were
+	  added in order to keep a crash from occurring when a channel hung up too early
+	  during an attended transfer. Unfortunately, when a transfer failure occurs and
+	  depending on the timing, the local channels sometime do not get properly
+	  unlocked and deref'ed after being locked and ref'ed. This happens because the
+	  underlying local channel structure gets NULLed out before unlocking.
+
+	  This patch reworks those [un]lock functions and makes sure the values that get
+	  locked and ref'ed later get unlocked and deref'ed.
+
+	  ASTERISK-27074 #close
+
+	  Change-Id: Ice96653e29bd9d6674ed5f95feb6b448ab148b09
+
+2017-06-20 16:01 +0000 [9dcac3b7e3]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge: stuck channel(s) after failed attended transfer
+
+	  If an attended transfer failed it was possible for some of the channels
+	  involved to get "stuck" because Asterisk was not hanging up the transfer target.
+
+	  This patch ensures Asterisk hangs up the transfer target when an attended
+	  transfer failure occurs.
+
+	  ASTERISK-27075 #close
+
+	  Change-Id: I98a6ecd92d3461ab98c36f0d9451d23adaf3e5f9
+
+2017-06-13 14:17 +0000 [adfdfdee61]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_refer/session: Calls dropped during transfer
+
+	  When doing an attended transfer it's possible for the transferer, after
+	  receiving an accepted response from Asterisk, to send a BYE to Asterisk,
+	  which can then be processed before Asterisk has time to start and/or
+	  complete the transfer process. This of course causes the transfer to not
+	  complete successfully, thus dropping the call.
+
+	  This patch makes it so any BYEs received from the transferer, after the REFER,
+	  that initiate a session end are deferred until the transfer is complete. This
+	  allows the channel that would have otherwise been hung up by Asterisk to
+	  remain available throughout the transfer process.
+
+	  ASTERISK-27053 #close
+
+	  Change-Id: I43586db79079457d92d71f1fd993be9a3b409d5a
+
 2017-05-19 20:45 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert4 Released.
