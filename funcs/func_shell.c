@@ -84,6 +84,11 @@ static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 		<syntax>
 			<parameter name="command" required="true">
 				<para>The command that the shell should execute.</para>
+				<warning><para>Do not use untrusted strings such as <variable>CALLERID(num)</variable>
+				or <variable>CALLERID(name)</variable> as part of the command parameters.  You
+				risk a command injection attack executing arbitrary commands if the untrusted
+				strings aren't filtered to remove dangerous characters.  See function
+				<variable>FILTER()</variable>.</para></warning>
 			</parameter>
 		</syntax>
 		<description>

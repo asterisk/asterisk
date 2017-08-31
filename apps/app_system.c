@@ -48,6 +48,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="command" required="true">
 				<para>Command to execute</para>
+				<warning><para>Do not use untrusted strings such as <variable>CALLERID(num)</variable>
+				or <variable>CALLERID(name)</variable> as part of the command parameters.  You
+				risk a command injection attack executing arbitrary commands if the untrusted
+				strings aren't filtered to remove dangerous characters.  See function
+				<variable>FILTER()</variable>.</para></warning>
 			</parameter>
 		</syntax>
 		<description>
@@ -73,6 +78,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<parameter name="command" required="true">
 				<para>Command to execute</para>
+				<warning><para>Do not use untrusted strings such as <variable>CALLERID(num)</variable>
+				or <variable>CALLERID(name)</variable> as part of the command parameters.  You
+				risk a command injection attack executing arbitrary commands if the untrusted
+				strings aren't filtered to remove dangerous characters.  See function
+				<variable>FILTER()</variable>.</para></warning>
 			</parameter>
 		</syntax>
 		<description>
