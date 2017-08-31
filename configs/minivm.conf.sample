@@ -51,7 +51,7 @@ silencethreshold=128
 ; If you need to have an external program, i.e. /usr/bin/myapp called when a
 ; voicemail is received by the server. The arguments are
 ;
-; 	<app> <username@domain> <callerid-number> <callerid-name>
+; 	<app> <username@domain> <callerid-name> <callerid-number>
 ;
 ;externnotify=/usr/bin/myapp
 ; The character set for voicemail messages can be specified here
