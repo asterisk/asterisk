@@ -1,3 +1,78 @@
+2017-08-31 15:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.17.1 Released.
+
+2017-07-24 10:48 +0000 [0e5b7743d9]  George Joseph <gjoseph@digium.com>
+
+	* pjsip_message_ip_updater:  Fix issue handling "tel" URIs
+
+	  sanitize_tdata was assuming all URIs were SIP URIs so when a non
+	  SIP uri was in the From, To or Contact headers, the unconditional
+	  cast of a non-pjsip_sip_uri structure to pjsip_sip_uri caused
+	  a segfault when trying to access uri->other_param.
+
+	  * Added PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri)
+	    checks before attempting to cast or use the returned uri.
+
+	  ASTERISK-27152
+	  Reported-by: Ross Beer
+
+	  Change-Id: Id380df790e6622c8058a96035f8b8f4aa0b8551f
+
+2017-07-01 19:24 +0000 [707892089d]  Corey Farrell <git@cfware.com>
+
+	* AST-2017-006: Fix app_minivm application MinivmNotify command injection
+
+	  An admin can configure app_minivm with an externnotify program to be run
+	  when a voicemail is received.  The app_minivm application MinivmNotify
+	  uses ast_safe_system() for this purpose which is vulnerable to command
+	  injection since the Caller-ID name and number values given to externnotify
+	  can come from an external untrusted source.
+
+	  * Add ast_safe_execvp() function.  This gives modules the ability to run
+	  external commands with greater safety compared to ast_safe_system().
+	  Specifically when some parameters are filled by untrusted sources the new
+	  function does not allow malicious input to break argument encoding.  This
+	  may be of particular concern where CALLERID(name) or CALLERID(num) may be
+	  used as a parameter to a script run by ast_safe_system() which could
+	  potentially allow arbitrary command execution.
+
+	  * Changed app_minivm.c:run_externnotify() to use the new ast_safe_execvp()
+	  instead of ast_safe_system() to avoid command injection.
+
+	  * Document code injection potential from untrusted data sources for other
+	  shell commands that are under user control.
+
+	  ASTERISK-27103
+
+	  Change-Id: I7552472247a84cde24e1358aaf64af160107aef1
+
+2017-05-22 10:36 +0000 [3ee5c6dcbe]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Only learn a new source in learn state.
+
+	  This change moves the logic which learns a new source address
+	  for RTP so it only occurs in the learning state. The learning
+	  state is entered on initial allocation of RTP or if we are
+	  told that the remote address for the media has changed. While
+	  in the learning state if we continue to receive media from
+	  the original source we restart the learning process. It is
+	  only once we receive a sufficient number of RTP packets from
+	  the new source that we will switch to it. Once this is done
+	  the closed state is entered where all packets that do not
+	  originate from the expected source are dropped.
+
+	  The learning process has also been improved to take into
+	  account the time between received packets so a flood of them
+	  while in the learning state does not cause media to be switched.
+
+	  Finally RTCP now drops packets which are not for the learned
+	  SSRC if strict RTP is enabled.
+
+	  ASTERISK-27013
+
+	  Change-Id: I56a96e993700906355e79bc880ad9d4ad3ab129c
+
 2017-07-12 11:12 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.17.0 Released.
