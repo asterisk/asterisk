@@ -153,7 +153,16 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
-static void sanitize_tdata(pjsip_tx_data *tdata)
+#define is_sip_uri(uri) \
+	(PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri))
+
+#ifdef AST_DEVMODE
+#define FUNC_ATTRS __attribute__ ((noinline))
+#else
+#define FUNC_ATTRS
+#endif
+
+static void FUNC_ATTRS sanitize_tdata(pjsip_tx_data *tdata)
 {
 	static const pj_str_t x_name = { AST_SIP_X_AST_TXP, AST_SIP_X_AST_TXP_LEN };
 	pjsip_param *x_transport;
@@ -161,29 +170,50 @@ static void sanitize_tdata(pjsip_tx_data *tdata)
 	pjsip_fromto_hdr *fromto;
 	pjsip_contact_hdr *contact;
 	pjsip_hdr *hdr;
+#ifdef AST_DEVMODE
+	char hdrbuf[512];
+	int hdrbuf_len;
+#endif
 
 	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
-		uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
-		x_transport = pjsip_param_find(&uri->other_param, &x_name);
-		if (x_transport) {
-			pj_list_erase(x_transport);
+		if (is_sip_uri(tdata->msg->line.req.uri)) {
+			uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
+#ifdef AST_DEVMODE
+			hdrbuf_len = pjsip_uri_print(PJSIP_URI_IN_REQ_URI, uri, hdrbuf, 512);
+			ast_debug(2, "Sanitizing Request: %s\n", hdrbuf);
+#endif
+			while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
+				pj_list_erase(x_transport);
+			}
 		}
 	}
 
 	for (hdr = tdata->msg->hdr.next; hdr != &tdata->msg->hdr; hdr = hdr->next) {
 		if (hdr->type == PJSIP_H_TO || hdr->type == PJSIP_H_FROM) {
 			fromto = (pjsip_fromto_hdr *) hdr;
-			uri = pjsip_uri_get_uri(fromto->uri);
-			x_transport = pjsip_param_find(&uri->other_param, &x_name);
-			if (x_transport) {
-				pj_list_erase(x_transport);
+			if (is_sip_uri(fromto->uri)) {
+				uri = pjsip_uri_get_uri(fromto->uri);
+#ifdef AST_DEVMODE
+				hdrbuf_len = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, uri, hdrbuf, 512);
+				hdrbuf[hdrbuf_len] = '\0';
+				ast_debug(2, "Sanitizing From/To: %s\n", hdrbuf);
+#endif
+				while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
+					pj_list_erase(x_transport);
+				}
 			}
 		} else if (hdr->type == PJSIP_H_CONTACT) {
 			contact = (pjsip_contact_hdr *) hdr;
-			uri = pjsip_uri_get_uri(contact->uri);
-			x_transport = pjsip_param_find(&uri->other_param, &x_name);
-			if (x_transport) {
-				pj_list_erase(x_transport);
+			if (is_sip_uri(contact->uri)) {
+				uri = pjsip_uri_get_uri(contact->uri);
+#ifdef AST_DEVMODE
+				hdrbuf_len = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, uri, hdrbuf, 512);
+				hdrbuf[hdrbuf_len] = '\0';
+				ast_debug(2, "Sanitizing Contact: %s\n", hdrbuf);
+#endif
+				while ((x_transport = pjsip_param_find(&uri->other_param, &x_name))) {
+					pj_list_erase(x_transport);
+				}
 			}
 		}
 	}
