@@ -1,3 +1,335 @@
+2017-09-01 19:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.0.0-rc1 Released.
+
+2017-07-24 10:48 +0000 [35c8fb1590]  George Joseph <gjoseph@digium.com>
+
+	* pjsip_message_ip_updater:  Fix issue handling "tel" URIs
+
+	  sanitize_tdata was assuming all URIs were SIP URIs so when a non
+	  SIP uri was in the From, To or Contact headers, the unconditional
+	  cast of a non-pjsip_sip_uri structure to pjsip_sip_uri caused
+	  a segfault when trying to access uri->other_param.
+
+	  * Added PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri)
+	    checks before attempting to cast or use the returned uri.
+
+	  ASTERISK-27152
+	  Reported-by: Ross Beer
+
+	  Change-Id: Id380df790e6622c8058a96035f8b8f4aa0b8551f
+
+2017-07-01 19:24 +0000 [231ee5e6c6]  Corey Farrell <git@cfware.com>
+
+	* AST-2017-006: Fix app_minivm application MinivmNotify command injection
+
+	  An admin can configure app_minivm with an externnotify program to be run
+	  when a voicemail is received.  The app_minivm application MinivmNotify
+	  uses ast_safe_system() for this purpose which is vulnerable to command
+	  injection since the Caller-ID name and number values given to externnotify
+	  can come from an external untrusted source.
+
+	  * Add ast_safe_execvp() function.  This gives modules the ability to run
+	  external commands with greater safety compared to ast_safe_system().
+	  Specifically when some parameters are filled by untrusted sources the new
+	  function does not allow malicious input to break argument encoding.  This
+	  may be of particular concern where CALLERID(name) or CALLERID(num) may be
+	  used as a parameter to a script run by ast_safe_system() which could
+	  potentially allow arbitrary command execution.
+
+	  * Changed app_minivm.c:run_externnotify() to use the new ast_safe_execvp()
+	  instead of ast_safe_system() to avoid command injection.
+
+	  * Document code injection potential from untrusted data sources for other
+	  shell commands that are under user control.
+
+	  ASTERISK-27103
+
+	  Change-Id: I7552472247a84cde24e1358aaf64af160107aef1
+
+2017-05-22 10:36 +0000 [ba2c8f1458]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Only learn a new source in learn state.
+
+	  This change moves the logic which learns a new source address
+	  for RTP so it only occurs in the learning state. The learning
+	  state is entered on initial allocation of RTP or if we are
+	  told that the remote address for the media has changed. While
+	  in the learning state if we continue to receive media from
+	  the original source we restart the learning process. It is
+	  only once we receive a sufficient number of RTP packets from
+	  the new source that we will switch to it. Once this is done
+	  the closed state is entered where all packets that do not
+	  originate from the expected source are dropped.
+
+	  The learning process has also been improved to take into
+	  account the time between received packets so a flood of them
+	  while in the learning state does not cause media to be switched.
+
+	  Finally RTCP now drops packets which are not for the learned
+	  SSRC if strict RTP is enabled.
+
+	  ASTERISK-27013
+
+	  Change-Id: I56a96e993700906355e79bc880ad9d4ad3ab129c
+
+2017-08-30 07:28 +0000 [663fe3e31f]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Allow remote SSRC to change on an RTP instance.
+
+	  When SDP renegotiation occurs it is possible for an RTP
+	  instance to be reused for a new stream, resulting in the remote
+	  SSRC changing if it is part of a bundle group. This change
+	  allows this and updates its mapping in the current bundle
+	  group.
+
+	  ASTERISK-27231
+
+	  Change-Id: I6e3703974f236bc024c5dbe9bd43adae0c6fb490
+
+2017-08-24 11:45 +0000 [dab0389e24]  Joshua Colp <jcolp@digium.com>
+
+	* core: Reduce video update queueing.
+
+	  A video update frame is used to indicate that a channel
+	  with video negotiated should provide a full frame so the
+	  decoder decoding the stream is able to do so. In situations
+	  where a queue is used to store frames it makes no sense
+	  for the queue to contain multiple video update frames. One
+	  is sufficient to have a full frame be sent.
+
+	  ASTERISK-27222
+
+	  Change-Id: Id3f40a6f51b740ae4704003a1800185c0c658ee7
+
+2017-08-14 12:20 +0000 [0a0ef8a1b1]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_pjsip.c: Fix topology refresh response code accuracy.
+
+	  There are other 1xx and 2xx codes than 100 and 200 respectively.
+
+	  Change-Id: I680db0997343256add1478714f5bf5b5569aee17
+
+2017-08-18 17:37 +0000 [00b10fa1e1]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_session.c: Fix crash when declining an active stream.
+
+	  If a previously active stream is declined we could crash because the
+	  channel's thread is still using the stream while we are updating the
+	  topology in the serializer thread.
+
+	  * Defer removing any declined stream's handler until we have blocked the
+	  channel's thread with the channel lock.
+
+	  ASTERISK-27212
+
+	  Change-Id: I50e1d3ef26f8e41948f4c411ee329aa3b960a420
+
+2017-08-16 17:50 +0000 [6acc945533]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge_channel.c: Fix FRACK when mapping frames to the bridge.
+
+	  * Add protection checks when mapping streams to the bridge.  The channel
+	  and bridge may be in the process of updating the stream mapping when a
+	  media frame comes in so we may not be able to map the frame at the time.
+
+	  * We need to map the streams to the bridge's stream numbers right before
+	  they are written into the bridge.  That way we don't have to keep
+	  locking/unlocking the bridge and we won't have any synchronization
+	  problems before the frames actually go into the bridge.
+
+	  * Protect the deferred queue with the bridge_channel lock.
+
+	  ASTERISK-27212
+
+	  Change-Id: Id6860dd61b594b90c8395f6e2c0150219094c21a
+
+2017-08-11 16:31 +0000 [efbf0aa8df]  Richard Mudgett <rmudgett@digium.com>
+
+	* channel: Fix topology API locking.
+
+	  * ast_channel_request_stream_topology_change() must not be called with any
+	  channel locks held.
+
+	  * ast_channel_stream_topology_changed() must be called with only the
+	  passed channel lock held.
+
+	  ASTERISK-27212
+
+	  Change-Id: I843de7956d9f1cc7cc02025aea3463d8fe19c691
+
+2017-08-16 15:22 +0000 [6bad253669]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge: Fix softmix bridge deadlock.
+
+	  * Fix deadlock in
+	  bridge_softmix.c:softmix_bridge_stream_topology_changed() between
+	  bridge_channel and channel locks.
+
+	  * The new bridge technology topology change callbacks must be called with
+	  the bridge locked.  The callback references the bridge channel list, the
+	  bridge technology could change, and the bridge stream mapping is updated.
+
+	  ASTERISK-27212
+
+	  Change-Id: Ide4360ab853607e738ad471721af3f561ddd83be
+
+2017-08-17 17:07 +0000 [40faa22ce8]  Richard Mudgett <rmudgett@digium.com>
+
+	* app_confbridge: Document sfu video_mode value.
+
+	  Change-Id: I26e17df2c93f3933b23f78070603adbcc84ba204
+
+2017-08-16 15:43 +0000 [e52f9b041a]  George Joseph <gjoseph@digium.com>
+
+	* Fix downloader not working with curl
+
+	  The codec/dpma downloader wasn't handling curl correctly.  The logic
+	  that transforms makeopts into a bash-sourceable file wasn't
+	  handling the make 'or' command in DOWNLOAD_TIMEOUT so bash was
+	  looking for an 'or' command.
+
+	  That logic has been eliminated.  Instead of trying to transform
+	  and source makeopts, the downloader now calls a make scriptlet
+	  to print the value of a specific variable.  This way, make handles
+	  the ors (or any other make construct that happens to creep into
+	  that file).
+
+	  ASTERISK-27202
+	  Reported by: Sean McCord
+
+	  Change-Id: Iadfb6693528e4d4da7b8bb201fa66da2c71c7f99
+
+2017-08-15 13:12 +0000 [d7b04f22de]  Kevin Harwell <kharwell@digium.com>
+
+	* manager: hook event is not being raised
+
+	  When the iostream code went in it introduced a conditional that made it so the
+	  hook event was not being raised even if a hook is present. This patch adds a
+	  check to see if a hook is present in astman_append. If so then call into the
+	  send_string function, which in turn raises the even for specified hook.
+
+	  Also updated the ami hooks unit test, so the test could be automated.
+
+	  ASTERISK-27200 #close
+
+	  Change-Id: Iff37f02f9708195d8f23e68f959d6eab720e1e36
+
+2017-08-15 15:15 +0000 [44d316ef4a]  Richard Mudgett <rmudgett@digium.com>
+
+	* configure: Check cache for valid pjproject tarball before downloading.
+
+	  On a fresh Asterisk source directory, the bundled pjproject tarball is
+	  unconditionally downloaded even if the tarball is already in a specified
+	  cache directory.
+
+	  * Made check if the pjproject tarball is valid in the cache directory
+	  before downloading the tarball on a fresh source directory.
+
+	  Change-Id: Ic7ec842d3c97ecd8dafbad6f056b7fdbce41cae5
+
+2017-08-09 15:24 +0000 [012391920c]  Richard Mudgett <rmudgett@digium.com>
+
+	* UPGRADE notes: Fixup for the 15 branch
+
+	  Change-Id: I4ca2f07ed62d77f1fdd10c3b216f6a28dd75720c
+
+2017-08-04 16:47 +0000 [4d3e66eabc]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_session/_sdp_rtp: Handling of 'msid' is incorrect
+
+	  Currently, the handling of the msid attribute is not quite right. According to
+	  the spec the msid's between the offer/answer are not dependent upon one another.
+	  Meaning the same msid's given in an offer do not have to be returned in the
+	  answer for a given stream. And they probably shouldn't be (copied/reused) since
+	  this can potentially cause some browser side confusion.
+
+	  This patch generates new msids when both an offer and answer are sent from
+	  Asterisk. However, Asterisk does reuse the original msid it sent out for a
+	  reinvite. Also audio+video streams are paired together by sharing the same
+	  stream id, but a different track id.
+
+	  ASTERISK-27179 #close
+
+	  Change-Id: Ifaec06dc7e65ad841633a24ebec8c8a9302d6643
+
+2017-08-06 11:15 +0000 [71d0424ed5]  Joshua Colp <jcolp@digium.com>
+
+	* bridge: Fix stream topology/participant locking and video misrouting.
+
+	  This change fixes a few locking issues and some video misrouting.
+
+	  1. When accessing the stream topology of a channel the channel lock
+	  must be held to guarantee the topology remains valid.
+
+	  2. When a channel was joined to a bridge the bridge specific
+	  implementation for stream mapping was not invoked, causing video
+	  to be misrouted for a brief period of time.
+
+	  ASTERISK-27182
+
+	  Change-Id: I5d2f779248b84d41c5bb3896bf22ba324b336b03
+	  (cherry picked from commit 0e352ec5100331c6a32008acc88d69d0fc58ccdd)
+
+2017-08-08 13:33 +0000 [84600e2682]  George Joseph <gjoseph@digium.com>
+
+	* Make --with-pjproject-bundled the default for Asterisk 15
+
+	  '--with-pjproject-bundled' is now the default when running
+	  ./configure. It can be disabled with '--without-pjproject-bundled'.
+
+	  To make building without an internet connection easier, a new
+	  ./configure option '--with-download-cache' was added that sets
+	  the cache for externals (like pjproject, the codecs and the DPMA),
+	  AND the sounds files.  It can also be specified as an environment
+	  variable named "AST_DOWNLOAD_CACHE".  The existing
+	  '--with-sounds-cache' option / SOUNDS_CACHE_DIR env variable and
+	  '--with-externals-cache' option / EXTERNALS_CACHE_DIR env variable
+	  remain and if specified, will override '--with-downloads-cache'.
+
+	  ASTERISK-27189
+
+	  Change-Id: Ifa9783fddf44aafadb060c9feba713dfa81d38ce
+
+2017-08-05 14:43 +0000 [afd7875e82]  Corey Farrell <git@cfware.com>
+
+	* channel: Fix leak on successful call to chan->tech->requester.
+
+	  joint_cap needs to be released unconditionally as chan->tech->requester
+	  does not steal the reference even on success.
+
+	  ASTERISK-27180 #close
+
+	  Change-Id: I647728992559bdb0a9c7357c20be1b36400d68b6
+	  (cherry picked from commit 3dbb1b9f48b0fa23cec2d8e3f94173004da320a4)
+
+2017-08-02 14:16 +0000 [53bba12340]  Corey Farrell <git@cfware.com>
+
+	* Fix compile error for old versions of GCC.
+
+	  Use -Wno-format-truncation only if supported by compiler.
+
+	  ASTERISK-27171 #close
+
+	  Change-Id: Iac0aed7a5bcaa16c21b7d62c4e4678d244c4ccb6
+	  (cherry picked from commit cd79a15b2f9411c6e77f0f6594ff0c46f0ece080)
+
+2017-08-02 09:43 +0000 [c042ad8343]  Kevin Harwell <kharwell@digium.com>
+
+	* alembic/res_pjsip: Add "webrtc" configuration option
+
+	  When the "webrtc" option was added in res_pjsip it was not added to the alembic
+	  scripts. This patch adds the option for alembic.
+
+	  Also, changed the sorcery configuration type to an OPT_YESNO_T value instead of
+	  an OPT_BOOL_T so if this field is ever written to a database it will write out
+	  the correct value.
+
+	  ASTERISK-27119 #close
+
+	  Change-Id: I3e199f060aea25e193c439fc5cf96be4d3ed1c7b
+	  (cherry picked from commit b0c016cf6e0bcbe743f4f8286fb9b5ded830ccf7)
+
 2017-08-02 11:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.0.0-beta1 Released.

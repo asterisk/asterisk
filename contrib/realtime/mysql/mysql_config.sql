@@ -1098,3 +1098,9 @@ ALTER TABLE ps_endpoints MODIFY dtmf_mode ENUM('rfc4733','inband','info','auto',
 
 UPDATE alembic_version SET version_num='164abbd708c' WHERE alembic_version.version_num = '39959b9c2566';
 
+-- Running upgrade 164abbd708c -> 44ccced114ce
+
+ALTER TABLE ps_endpoints ADD COLUMN webrtc ENUM('yes','no');
+
+UPDATE alembic_version SET version_num='44ccced114ce' WHERE alembic_version.version_num = '164abbd708c';
+

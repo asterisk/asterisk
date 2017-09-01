@@ -1178,5 +1178,11 @@ DROP TYPE pjsip_dtmf_mode_values_v2;
 
 UPDATE alembic_version SET version_num='164abbd708c' WHERE alembic_version.version_num = '39959b9c2566';
 
+-- Running upgrade 164abbd708c -> 44ccced114ce
+
+ALTER TABLE ps_endpoints ADD COLUMN webrtc yesno_values;
+
+UPDATE alembic_version SET version_num='44ccced114ce' WHERE alembic_version.version_num = '164abbd708c';
+
 COMMIT;
 

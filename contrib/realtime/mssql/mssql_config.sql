@@ -1813,6 +1813,20 @@ UPDATE alembic_version SET version_num='164abbd708c' WHERE alembic_version.versi
 
 GO
 
+-- Running upgrade 164abbd708c -> 44ccced114ce
+
+ALTER TABLE ps_endpoints ADD webrtc VARCHAR(3) NULL;
+
+GO
+
+ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (webrtc IN ('yes', 'no'));
+
+GO
+
+UPDATE alembic_version SET version_num='44ccced114ce' WHERE alembic_version.version_num = '164abbd708c';
+
+GO
+
 COMMIT;
 
 GO
