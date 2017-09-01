@@ -1758,12 +1758,13 @@ join_exit:;
 static void *bridge_channel_depart_thread(void *data)
 {
 	struct ast_bridge_channel *bridge_channel = data;
+	int res = 0;
 
 	if (bridge_channel->callid) {
 		ast_callid_threadassoc_add(bridge_channel->callid);
 	}
 
-	bridge_channel_internal_join(bridge_channel);
+	res = bridge_channel_internal_join(bridge_channel);
 
 	/*
 	 * cleanup
@@ -1775,7 +1776,8 @@ static void *bridge_channel_depart_thread(void *data)
 	ast_bridge_features_destroy(bridge_channel->features);
 	bridge_channel->features = NULL;
 
-	ast_bridge_discard_after_callback(bridge_channel->chan, AST_BRIDGE_AFTER_CB_REASON_DEPART);
+	ast_bridge_discard_after_callback(bridge_channel->chan,
+		res ? AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED : AST_BRIDGE_AFTER_CB_REASON_DEPART);
 	/* If join failed there will be impart threads waiting. */
 	bridge_channel_impart_signal(bridge_channel->chan);
 	ast_bridge_discard_after_goto(bridge_channel->chan);
