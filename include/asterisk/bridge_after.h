@@ -45,6 +45,8 @@ enum ast_bridge_after_cb_reason {
 	AST_BRIDGE_AFTER_CB_REASON_DEPART,
 	/*! Was explicitly removed by external code. */
 	AST_BRIDGE_AFTER_CB_REASON_REMOVED,
+	/*! The channel failed to enter the bridge. */
+	AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED,
 };
 
 /*!
