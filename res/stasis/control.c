@@ -985,14 +985,21 @@ static int bridge_channel_depart(struct stasis_app_control *control,
 	return 0;
 }
 
-static void bridge_after_cb(struct ast_channel *chan, void *data)
+static void internal_bridge_after_cb(struct ast_channel *chan, void *data,
+	enum ast_bridge_after_cb_reason reason)
 {
 	struct stasis_app_control *control = data;
 	SCOPED_AO2LOCK(lock, control);
 	struct ast_bridge_channel *bridge_channel;
 
-	ast_debug(3, "%s, %s: Channel leaving bridge\n",
-		ast_channel_uniqueid(chan), control->bridge->uniqueid);
+	ast_debug(3, "%s, %s: %s\n",
+		ast_channel_uniqueid(chan), control->bridge ? control->bridge->uniqueid : "unknown",
+			ast_bridge_after_cb_reason_string(reason));
+
+	if (reason == AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED) {
+		/* The impart actually failed so control->bridge isn't valid. */
+		control->bridge = NULL;
+	}
 
 	ast_assert(chan == control->channel);
 
@@ -1000,18 +1007,21 @@ static void bridge_after_cb(struct ast_channel *chan, void *data)
 	ast_channel_pbx_set(control->channel, control->pbx);
 	control->pbx = NULL;
 
-	app_unsubscribe_bridge(control->app, control->bridge);
+	if (control->bridge) {
+		app_unsubscribe_bridge(control->app, control->bridge);
 
-	/* No longer in the bridge */
-	control->bridge = NULL;
+		/* No longer in the bridge */
+		control->bridge = NULL;
 
-	/* Get the bridge channel so we don't depart from the wrong bridge */
-	ast_channel_lock(chan);
-	bridge_channel = ast_channel_get_bridge_channel(chan);
-	ast_channel_unlock(chan);
+		/* Get the bridge channel so we don't depart from the wrong bridge */
+		ast_channel_lock(chan);
+		bridge_channel = ast_channel_get_bridge_channel(chan);
+		ast_channel_unlock(chan);
 
-	/* Depart this channel from the bridge using the command queue if possible */
-	stasis_app_send_command_async(control, bridge_channel_depart, bridge_channel, __ao2_cleanup);
+		/* Depart this channel from the bridge using the command queue if possible */
+		stasis_app_send_command_async(control, bridge_channel_depart, bridge_channel, __ao2_cleanup);
+	}
+
 	if (stasis_app_channel_is_stasis_end_published(chan)) {
 		/* The channel has had a StasisEnd published on it, but until now had remained in
 		 * the bridging system. This means that the channel moved from a Stasis bridge to a
@@ -1029,12 +1039,19 @@ static void bridge_after_cb(struct ast_channel *chan, void *data)
 	}
 }
 
+static void bridge_after_cb(struct ast_channel *chan, void *data)
+{
+	struct stasis_app_control *control = data;
+
+	internal_bridge_after_cb(control->channel, data, AST_BRIDGE_AFTER_CB_REASON_DEPART);
+}
+
 static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 	void *data)
 {
 	struct stasis_app_control *control = data;
 
-	bridge_after_cb(control->channel, data);
+	internal_bridge_after_cb(control->channel, data, reason);
 
 	ast_debug(3, "  reason: %s\n",
 		ast_bridge_after_cb_reason_string(reason));
@@ -1173,46 +1190,57 @@ int control_swap_channel_in_bridge(struct stasis_app_control *control, struct as
 		return -1;
 	}
 
-	{
-		/* pbx and bridge are modified by the bridging impart thread.
-		 * It shouldn't happen concurrently, but we still need to lock
-		 * for the memory fence.
+	ao2_lock(control);
+
+	/* Ensure the controlling application is subscribed early enough
+	 * to receive the ChannelEnteredBridge message. This works in concert
+	 * with the subscription handled in the Stasis application execution
+	 * loop */
+	app_subscribe_bridge(control->app, bridge);
+
+	/* Save off the channel's PBX */
+	ast_assert(control->pbx == NULL);
+	if (!control->pbx) {
+		control->pbx = ast_channel_pbx(chan);
+		ast_channel_pbx_set(chan, NULL);
+	}
+
+	ast_assert(stasis_app_get_bridge(control) == NULL);
+	/* We need to set control->bridge here since bridge_after_cb may be run
+	 * before ast_bridge_impart returns.  bridge_after_cb gets a reason
+	 * code so it can tell if the bridge is actually valid or not.
+	 */
+	control->bridge = bridge;
+
+	/* We can't be holding the control lock while impart is running
+	 * or we could create a deadlock with bridge_after_cb which also
+	 * tries to lock control.
+	 */
+	ao2_unlock(control);
+	res = ast_bridge_impart(bridge,
+		chan,
+		swap,
+		NULL, /* features */
+		AST_BRIDGE_IMPART_CHAN_DEPARTABLE);
+	if (res != 0) {
+		/* ast_bridge_impart failed before it could spawn the depart
+		 * thread.  The callbacks aren't called in this case.
+		 * The impart could still fail even if ast_bridge_impart returned
+		 * ok but that's handled by bridge_after_cb.
 		 */
-		SCOPED_AO2LOCK(lock, control);
-
-		/* Ensure the controlling application is subscribed early enough
-		 * to receive the ChannelEnteredBridge message. This works in concert
-		 * with the subscription handled in the Stasis application execution
-		 * loop */
-		app_subscribe_bridge(control->app, bridge);
-
-		/* Save off the channel's PBX */
-		ast_assert(control->pbx == NULL);
-		if (!control->pbx) {
-			control->pbx = ast_channel_pbx(chan);
-			ast_channel_pbx_set(chan, NULL);
-		}
-
-		res = ast_bridge_impart(bridge,
-			chan,
-			swap,
-			NULL, /* features */
-			AST_BRIDGE_IMPART_CHAN_DEPARTABLE);
-		if (res != 0) {
-			ast_log(LOG_ERROR, "Error adding channel to bridge\n");
-			ast_channel_pbx_set(chan, control->pbx);
-			control->pbx = NULL;
-			return -1;
-		}
-
-		ast_assert(stasis_app_get_bridge(control) == NULL);
-		control->bridge = bridge;
-
+		ast_log(LOG_ERROR, "Error adding channel to bridge\n");
+		ao2_lock(control);
+		ast_channel_pbx_set(chan, control->pbx);
+		control->pbx = NULL;
+		control->bridge = NULL;
+		ao2_unlock(control);
+	} else {
 		ast_channel_lock(chan);
 		set_interval_hook(chan);
 		ast_channel_unlock(chan);
 	}
-	return 0;
+
+	return res;
 }
 
 int control_add_channel_to_bridge(struct stasis_app_control *control, struct ast_channel *chan, void *data)

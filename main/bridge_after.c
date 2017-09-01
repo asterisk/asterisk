@@ -295,23 +295,23 @@ int ast_bridge_set_after_callback(struct ast_channel *chan, ast_bridge_after_cb 
 	return 0;
 }
 
-const char *reason_strings[] = {
-	[AST_BRIDGE_AFTER_CB_REASON_DESTROY] = "Channel destroyed (hungup)",
-	[AST_BRIDGE_AFTER_CB_REASON_REPLACED] = "Callback was replaced",
-	[AST_BRIDGE_AFTER_CB_REASON_MASQUERADE] = "Channel masqueraded",
-	[AST_BRIDGE_AFTER_CB_REASON_DEPART] = "Channel was departed from bridge",
-	[AST_BRIDGE_AFTER_CB_REASON_REMOVED] = "Callback was removed",
-};
-
 const char *ast_bridge_after_cb_reason_string(enum ast_bridge_after_cb_reason reason)
 {
-	if (reason < AST_BRIDGE_AFTER_CB_REASON_DESTROY
-		|| AST_BRIDGE_AFTER_CB_REASON_REMOVED < reason
-		|| !reason_strings[reason]) {
-		return "Unknown";
+	switch (reason) {
+	case AST_BRIDGE_AFTER_CB_REASON_DESTROY:
+		return "Channel destroyed (hungup)";
+	case AST_BRIDGE_AFTER_CB_REASON_REPLACED:
+		return "Callback was replaced";
+	case AST_BRIDGE_AFTER_CB_REASON_MASQUERADE:
+		return "Channel masqueraded";
+	case AST_BRIDGE_AFTER_CB_REASON_DEPART:
+		return "Channel was departed from bridge";
+	case AST_BRIDGE_AFTER_CB_REASON_REMOVED:
+		return "Callback was removed";
+	case AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED:
+		return "Channel failed joining the bridge";
 	}
-
-	return reason_strings[reason];
+	return "Unknown";
 }
 
 struct after_bridge_goto_ds {
