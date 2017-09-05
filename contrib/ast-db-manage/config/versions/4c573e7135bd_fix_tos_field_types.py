@@ -29,7 +29,7 @@ def upgrade():
     op.alter_column('ps_transports', 'tos', type_=sa.String(10))
 
     # Can't cast YENO_VALUES to Integers, so dropping and adding is required
-    op.drop_column('ps_transports', 'cos')
+    op.drop_column('ps_transports', 'cos', schema=None, mssql_drop_check=True)
     op.add_column('ps_transports', sa.Column('cos', sa.Integer))
 
 def downgrade():
@@ -46,6 +46,8 @@ def downgrade():
     op.add_column('ps_endpoints', sa.Column('cos_audio', yesno_values))
     op.add_column('ps_endpoints', sa.Column('cos_video', yesno_values))
 
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_transports_tos_yesno_values', 'ps_transports')
     op.drop_column('ps_transports', 'tos')
     op.add_column('ps_transports', sa.Column('tos', yesno_values))
     # Can't cast integers to YESNO_VALUES, so dropping and adding is required
