@@ -511,6 +511,11 @@ static struct ast_config *realtime_directory(char *context)
 		const char *mailbox = ast_variable_retrieve(rtdata, category, "mailbox");
 		const char *ctx = ast_variable_retrieve(rtdata, category, "context");
 
+		if (ast_strlen_zero(mailbox)) {
+			ast_debug(3, "Skipping result with missing or empty mailbox\n");
+			continue;
+		}
+
 		fullname = ast_variable_retrieve(rtdata, category, "fullname");
 		hidefromdir = ast_variable_retrieve(rtdata, category, "hidefromdir");
 		if (ast_true(hidefromdir)) {
@@ -531,7 +536,7 @@ static struct ast_config *realtime_directory(char *context)
 
 		/* Does the context exist within the config file? If not, make one */
 		if (!(cat = ast_category_get(cfg, ctx, NULL))) {
-			if (!(cat = ast_category_new(ctx, "", 99999))) {
+			if (!(cat = ast_category_new_dynamic(ctx))) {
 				ast_log(LOG_WARNING, "Out of memory\n");
 				ast_config_destroy(cfg);
 				if (rtdata) {
