@@ -28,5 +28,8 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('media_use_received_transport', yesno_values))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_force_avp_yesno_values', 'ps_endpoints')
+        op.drop_constraint('ck_ps_endpoints_media_use_received_transport_yesno_values', 'ps_endpoints')
     op.drop_column('ps_endpoints', 'force_avp')
     op.drop_column('ps_endpoints', 'media_use_received_transport')

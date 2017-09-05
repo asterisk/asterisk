@@ -28,4 +28,6 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_rtcp_mux_yesno_values','ps_endpoints')
     op.drop_column('ps_endpoints', 'rtcp_mux')

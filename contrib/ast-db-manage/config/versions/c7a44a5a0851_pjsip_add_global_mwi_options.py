@@ -32,4 +32,6 @@ def upgrade():
 def downgrade():
     op.drop_column('ps_globals', 'mwi_tps_queue_high')
     op.drop_column('ps_globals', 'mwi_tps_queue_low')
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_globals_mwi_disable_initial_unsolicited_yesno_values','ps_globals')
     op.drop_column('ps_globals', 'mwi_disable_initial_unsolicited')
