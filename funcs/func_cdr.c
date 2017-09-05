@@ -282,7 +282,7 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 
 	if (ast_strlen_zero(ast_channel_name(payload->chan))) {
 		/* Format request on a dummy channel */
-		ast_cdr_format_var(ast_channel_cdr(payload->chan), args.variable, &value, tempbuf, sizeof(tempbuf), 0);
+		ast_cdr_format_var(ast_channel_cdr(payload->chan), args.variable, &value, tempbuf, sizeof(tempbuf), ast_test_flag(&flags, OPT_UNPARSED));
 		if (ast_strlen_zero(value)) {
 			return;
 		}
