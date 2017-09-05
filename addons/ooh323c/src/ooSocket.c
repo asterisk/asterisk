@@ -386,7 +386,7 @@ int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket,
    if (*pNewSocket <= 0) return ASN_E_INVSOCKET;
 
    if (destAddr != 0) {
-      if ((host = ast_sockaddr_stringify_addr(&addr)) != NULL);
+      if ((host = ast_sockaddr_stringify_addr(&addr)) != NULL)
       	strncpy(destAddr, host, strlen(host));
    }
    if (destPort != 0)
