@@ -588,7 +588,14 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			stream = ast_stream_topology_get_stream(session->pending_media_state->topology, i);
 		}
 		if (!stream) {
-			stream = ast_stream_alloc(ast_codec_media_type2str(type), type);
+			struct ast_stream *existing_stream = NULL;
+
+			if (session->active_media_state->topology &&
+				(i < ast_stream_topology_get_count(session->active_media_state->topology))) {
+				existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, i);
+			}
+
+			stream = ast_stream_alloc(existing_stream ? ast_stream_get_name(existing_stream) : ast_codec_media_type2str(type), type);
 			if (!stream) {
 				return -1;
 			}
@@ -1626,6 +1633,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		char media[20];
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
+		struct ast_stream *existing_stream = NULL;
 		struct ast_stream *stream;
 		enum ast_media_type type;
 		struct ast_sip_session_media *session_media = NULL;
@@ -1634,8 +1642,13 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
 
+		if (session->active_media_state->topology &&
+			(i < ast_stream_topology_get_count(session->active_media_state->topology))) {
+			existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, i);
+		}
+
 		type = ast_media_type_from_str(media);
-		stream = ast_stream_alloc(ast_codec_media_type2str(type), type);
+		stream = ast_stream_alloc(existing_stream ? ast_stream_get_name(existing_stream) : ast_codec_media_type2str(type), type);
 		if (!stream) {
 			return -1;
 		}
