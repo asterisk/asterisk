@@ -28,4 +28,6 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoint_id_ips_srv_lookups_yesno_values','ps_endpoint_id_ips')
     op.drop_column('ps_endpoint_id_ips', 'srv_lookups')

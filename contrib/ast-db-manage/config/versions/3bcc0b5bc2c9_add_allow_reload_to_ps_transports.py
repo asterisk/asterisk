@@ -22,4 +22,6 @@ def upgrade():
     op.add_column('ps_transports', sa.Column('allow_reload', yesno_values))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_transports_allow_reload_yesno_values','ps_transports')
     op.drop_column('ps_transports', 'allow_reload')

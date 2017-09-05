@@ -27,4 +27,6 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('user_eq_phone', yesno_values))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_user_eq_phone_yesno_values','ps_endpoints')
     op.drop_column('ps_endpoints', 'user_eq_phone')

@@ -31,6 +31,8 @@ def upgrade():
 def downgrade():
     context = op.get_context()
 
+    if context.bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_dtls_fingerprint_sha_hash_values', 'ps_endpoints')
     op.drop_column('ps_endpoints', 'dtls_fingerprint')
 
     if context.bind.dialect.name == 'postgresql':
