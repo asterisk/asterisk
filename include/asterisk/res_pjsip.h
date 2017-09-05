@@ -98,7 +98,10 @@ struct ast_sip_transport_state {
 	 */
 	pj_ssl_cipher ciphers[SIP_TLS_MAX_CIPHERS];
 	/*!
-	 * Optional local network information, used for NAT purposes
+	 * Optional local network information, used for NAT purposes.
+	 * "deny" (set) means that it's in the local network. Use the
+	 * ast_sip_transport_is_nonlocal and ast_sip_transport_is_local
+	 * macro's.
 	 * \since 13.8.0
 	 */
 	struct ast_ha *localnet;
@@ -123,6 +126,12 @@ struct ast_sip_transport_state {
 	 */
 	struct ast_sockaddr external_media_address;
 };
+
+#define ast_sip_transport_is_nonlocal(transport_state, addr) \
+	(!transport_state->localnet || ast_apply_ha(transport_state->localnet, addr) == AST_SENSE_ALLOW)
+
+#define ast_sip_transport_is_local(transport_state, addr) \
+	(transport_state->localnet && ast_apply_ha(transport_state->localnet, addr) != AST_SENSE_ALLOW)
 
 /*
  * \brief Transport to bind to
