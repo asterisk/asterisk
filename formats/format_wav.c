@@ -371,7 +371,7 @@ static void wav_close(struct ast_filestream *s)
 
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
-	int res;
+	size_t res;
 	int samples;	/* actual samples read */
 #if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
@@ -393,16 +393,11 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 /* 	ast_debug(1, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, bytes);
 
-	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
-		if (feof(s->f)) {
-			if (res) {
-				ast_debug(3, "Incomplete frame data at end of %s file "
-						  "(expected %d bytes, read %d)\n",
-						  ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res);
-			}
-		} else {
-			ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
-					ast_format_get_name(s->fr.subclass.format), strerror(errno));
+	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) == 0) {
+		if (res) {
+			ast_log(LOG_WARNING, "Short read of %s data (expected %d bytes, read %zu): %s\n",
+					ast_format_get_name(s->fr.subclass.format), s->fr.datalen, res,
+					strerror(errno));
 		}
 		return NULL;
 	}
