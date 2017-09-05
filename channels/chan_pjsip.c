@@ -845,6 +845,8 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 		break;
 	case AST_FRAME_MODEM:
 		break;
+	case AST_FRAME_CNG:
+		break;
 	default:
 		ast_log(LOG_WARNING, "Can't send %u type frames with PJSIP\n", frame->frametype);
 		break;
