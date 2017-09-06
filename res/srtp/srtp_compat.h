@@ -5,7 +5,11 @@
 
 #define crypto_policy_t srtp_crypto_policy_t
 
+#if defined(SRTP_AES_ICM_128)
+#define AES_128_ICM SRTP_AES_ICM_128
+#else
 #define AES_128_ICM SRTP_AES_ICM
+#endif
 #define HMAC_SHA1 SRTP_HMAC_SHA1
 
 #define err_status_t srtp_err_status_t
