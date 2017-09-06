@@ -16,9 +16,6 @@
 #define crypto_policy_set_aes_gcm_128_8_auth srtp_crypto_policy_set_aes_gcm_128_8_auth
 #define crypto_policy_set_aes_gcm_256_8_auth srtp_crypto_policy_set_aes_gcm_256_8_auth
 
-#define AES_128_ICM SRTP_AES_ICM
-#define HMAC_SHA1 SRTP_HMAC_SHA1
-
 #define err_status_t srtp_err_status_t
 #define err_status_ok srtp_err_status_ok
 #define err_status_fail srtp_err_status_fail
