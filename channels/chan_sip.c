@@ -18568,6 +18568,11 @@ static int get_sip_pvt_from_replaces(const char *callid, const char *totag,
 		}
 	}
 
+	if (!sip_pvt_ptr) {
+		/* return error if sip_pvt was not found */
+		return -1;
+	}
+
 	/* If we're here sip_pvt_ptr has been copied to *out_pvt, prevent RAII_VAR cleanup */
 	sip_pvt_ptr = NULL;
 
