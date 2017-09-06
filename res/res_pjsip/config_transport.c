@@ -1127,7 +1127,9 @@ static int transport_localnet_handler(const struct aco_option *opt, struct ast_v
 		return 0;
 	}
 
-	if (!(state->localnet = ast_append_ha("d", var->value, state->localnet, &error))) {
+	/* We use only the ast_apply_ha() which defaults to ALLOW
+	 * ("permit"), so we add DENY rules. */
+	if (!(state->localnet = ast_append_ha("deny", var->value, state->localnet, &error))) {
 		return -1;
 	}
 

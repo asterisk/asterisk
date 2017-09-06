@@ -1818,8 +1818,7 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
 
 	/* Is the address within the SDP inside the same network? */
-	if (transport_state->localnet
-		&& ast_apply_ha(transport_state->localnet, &addr) == AST_SENSE_ALLOW) {
+	if (ast_sip_transport_is_local(transport_state, &addr)) {
 		return;
 	}
 	ast_debug(5, "Setting media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
