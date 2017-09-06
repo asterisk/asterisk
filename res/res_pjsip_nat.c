@@ -267,7 +267,7 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		ast_sockaddr_set_port(&addr, tdata->tp_info.dst_port);
 
 		/* See if where we are sending this request is local or not, and if not that we can get a Contact URI to modify */
-		if (ast_apply_ha(transport_state->localnet, &addr) != AST_SENSE_ALLOW) {
+		if (ast_sip_transport_is_local(transport_state, &addr)) {
 			ast_debug(5, "Request is being sent to local address, skipping NAT manipulation\n");
 			return PJ_SUCCESS;
 		}

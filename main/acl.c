@@ -739,8 +739,8 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
 		/* DEBUG */
-		ast_copy_string(iabuf, ast_inet_ntoa(sin->sin_addr), sizeof(iabuf));
-		ast_copy_string(iabuf2, ast_inet_ntoa(ha->netaddr), sizeof(iabuf2));
+		ast_copy_string(iabuf, ast_sockaddr_stringify(addr), sizeof(iabuf));
+		ast_copy_string(iabuf2, ast_sockaddr_stringify(&current_ha->addr), sizeof(iabuf2));
 		ast_debug(1, "##### Testing %s with %s\n", iabuf, iabuf2);
 #endif
 		if (ast_sockaddr_is_ipv4(&current_ha->addr)) {
