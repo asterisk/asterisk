@@ -12,7 +12,10 @@ down_revision = '44ccced114ce'
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 
+YESNO_NAME = 'yesno_values'
+YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
     ############################# Enums ##############################
