@@ -14,10 +14,25 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM
 
+SHA_HASH_NAME = 'sha_hash_values'
 SHA_HASH_VALUES = ['SHA-1', 'SHA-256']
 
 def upgrade():
-    op.add_column('ps_endpoints', sa.Column('dtls_fingerprint', sa.Enum(*SHA_HASH_VALUES, name='sha_hash_values')))
+    context = op.get_context()
+
+    if context.bind.dialect.name == 'postgresql':
+        enum = ENUM(*SHA_HASH_VALUES, name=SHA_HASH_NAME)
+        enum.create(op.get_bind(), checkfirst=False)
+
+    op.add_column('ps_endpoints',
+             sa.Column('dtls_fingerprint', ENUM(*SHA_HASH_VALUES,
+                 name=SHA_HASH_NAME, create_type=False)))
 
 def downgrade():
+    context = op.get_context()
+
     op.drop_column('ps_endpoints', 'dtls_fingerprint')
+
+    if context.bind.dialect.name == 'postgresql':
+        enum = ENUM(*SHA_HASH_VALUES, name=SHA_HASH_NAME)
+        enum.drop(op.get_bind(), checkfirst=False)
