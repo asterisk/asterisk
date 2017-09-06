@@ -421,18 +421,13 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	} else {
 		/* read and convert */
 		unsigned char msdata[MSGSM_FRAME_SIZE];
-		int res;
-		
+		size_t res;
+
 		if ((res = fread(msdata, 1, MSGSM_FRAME_SIZE, s->f)) != MSGSM_FRAME_SIZE) {
-			if (feof(s->f)) {
-				if (res) {
-					ast_debug(3, "Incomplete frame data at end of %s file "
-							  "(expected %d bytes, read %d)\n",
-							  ast_format_get_name(s->fr.subclass.format), MSGSM_FRAME_SIZE, res);
-				}
-			} else {
-				ast_log(LOG_ERROR, "Error while reading %s file: %s\n",
-						ast_format_get_name(s->fr.subclass.format), strerror(errno));
+			if (res && res != 1) {
+				ast_log(LOG_WARNING, "Short read of %s data (expected %d bytes, read %zu): %s\n",
+						ast_format_get_name(s->fr.subclass.format), MSGSM_FRAME_SIZE, res,
+						strerror(errno));
 			}
 			return NULL;
 		}
