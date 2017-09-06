@@ -302,9 +302,9 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 	}
 
 	state = t38_state_get_or_alloc(session);
-	if (!state) {
+	if (!session->channel || !state) {
 		ast_log(LOG_WARNING, "Received response to T.38 re-invite on '%s' but state unavailable\n",
-			ast_channel_name(session->channel));
+			session->channel ? ast_channel_name(session->channel) : "unknown channel");
 		return 0;
 	}
 
