@@ -13526,12 +13526,13 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 	get_our_media_address(p, needvideo, needtext, &addr, &vaddr, &taddr, &dest, &vdest, &tdest);
 
+	/* We don't use dest here but p->ourip because address in o= field must not change in reINVITE */
 	snprintf(owner, sizeof(owner), "o=%s %d %d IN %s %s\r\n",
 		 ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner,
 		 p->sessionid, p->sessionversion,
-		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
+		 (ast_sockaddr_is_ipv6(&p->ourip) && !ast_sockaddr_is_ipv4_mapped(&p->ourip)) ?
 			"IP6" : "IP4",
-		 ast_sockaddr_stringify_addr_remote(&dest));
+		 ast_sockaddr_stringify_addr_remote(&p->ourip));
 
 	snprintf(connection, sizeof(connection), "c=IN %s %s\r\n",
 		 (ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
