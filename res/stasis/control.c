@@ -1152,10 +1152,12 @@ static void set_interval_hook(struct ast_channel *chan)
 
 	if (ast_bridge_interval_hook(bridge_channel->features, 0, ms > 0 ? ms : 1,
 			bridge_timeout, NULL, NULL, 0)) {
+		ao2_ref(bridge_channel, -1);
 		return;
 	}
 
 	ast_queue_frame(bridge_channel->chan, &ast_null_frame);
+	ao2_ref(bridge_channel, -1);
 }
 
 int control_swap_channel_in_bridge(struct stasis_app_control *control, struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap)
