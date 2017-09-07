@@ -598,7 +598,8 @@ static int native_rtp_framehook_consume(void *data, enum ast_frame_type type)
  */
 static int native_rtp_bridge_capable(struct ast_channel *chan)
 {
-	return !ast_channel_has_hook_requiring_audio(chan);
+	return !ast_channel_has_hook_requiring_audio(chan)
+			&& ast_channel_state(chan) == AST_STATE_UP;
 }
 
 /*!
