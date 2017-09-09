@@ -89,13 +89,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define TURN_STATE_WAIT_TIME 2000
 
+/*! Full INTRA-frame Request / Fast Update Request (From RFC2032) */
 #define RTCP_PT_FUR     192
+/*! Sender Report (From RFC3550) */
 #define RTCP_PT_SR      AST_RTP_RTCP_SR
+/*! Receiver Report (From RFC3550) */
 #define RTCP_PT_RR      AST_RTP_RTCP_RR
+/*! Source Description (From RFC3550) */
 #define RTCP_PT_SDES    202
+/*! Goodbye (To remove SSRC's from tables) (From RFC3550) */
 #define RTCP_PT_BYE     203
+/*! Application defined (From RFC3550) */
 #define RTCP_PT_APP     204
 /* VP8: RTCP Feedback */
+/*! Payload Specific Feed Back (From RFC4585 also RFC5104) */
 #define RTCP_PT_PSFB    206
 
 #define RTP_MTU		1200
