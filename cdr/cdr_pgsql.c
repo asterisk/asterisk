@@ -59,6 +59,8 @@
 
 #define DATE_FORMAT "'%Y-%m-%d %T'"
 
+#define PGSQL_MIN_VERSION_SCHEMA 70300
+
 static const char name[] = "pgsql";
 static const char config[] = "cdr_pgsql.conf";
 
@@ -677,7 +679,7 @@ static int config_module(int reload)
 		}
 		version = PQserverVersion(conn);
 
-		if (version >= 70300) {
+		if (version >= PGSQL_MIN_VERSION_SCHEMA) {
 			char *schemaname, *tablename, *tmp_schemaname, *tmp_tablename;
 			if (strchr(table, '.')) {
 				tmp_schemaname = ast_strdupa(table);
