@@ -3190,12 +3190,16 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 
 	if (sdp->conn) {
 		char host[NI_MAXHOST];
-		struct ast_sockaddr addr = { { 0, } };
+		struct ast_sockaddr our_sdp_addr = { { 0, } };
 
 		ast_copy_pj_str(host, &sdp->conn->addr, sizeof(host));
-		ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
+		ast_sockaddr_parse(&our_sdp_addr, host, PARSE_PORT_FORBID);
 
-		if (ast_sip_transport_is_nonlocal(transport_state, &addr)) {
+		/* Reversed check here. We don't check the remote
+		 * endpoint being in our local net, but whether our
+		 * outgoing session IP is local. If it is, we'll do
+		 * rewriting. No localnet configured? Always rewrite. */
+		if (ast_sip_transport_is_local(transport_state, &our_sdp_addr) || !transport_state->localnet) {
 			ast_debug(5, "Setting external media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
 			pj_strdup2(tdata->pool, &sdp->conn->addr, ast_sockaddr_stringify_host(&transport_state->external_media_address));
 		}
