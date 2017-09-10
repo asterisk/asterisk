@@ -952,7 +952,7 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 {
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(ast_sorcery_object_get_id(transport)), ao2_cleanup);
 	char host[NI_MAXHOST];
-	struct ast_sockaddr addr = { { 0, } };
+	struct ast_sockaddr our_sdp_addr = { { 0, } };
 
 	/* If the stream has been rejected there will be no connection line */
 	if (!stream->conn || !transport_state) {
@@ -960,10 +960,13 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	}
 
 	ast_copy_pj_str(host, &stream->conn->addr, sizeof(host));
-	ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
+	ast_sockaddr_parse(&our_sdp_addr, host, PARSE_PORT_FORBID);
 
-	/* Is the address within the SDP inside the same network? */
-	if (ast_sip_transport_is_local(transport_state, &addr)) {
+	/* Reversed check here. We don't check the remote endpoint being
+	 * in our local net, but whether our outgoing session IP is
+	 * local. If it is not, we won't do rewriting. No localnet
+	 * configured? Always rewrite. */
+	if (ast_sip_transport_is_nonlocal(transport_state, &our_sdp_addr) && transport_state->localnet) {
 		return;
 	}
 	ast_debug(5, "Setting media address to %s\n", ast_sockaddr_stringify_host(&transport_state->external_media_address));
