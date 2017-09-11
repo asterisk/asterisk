@@ -985,6 +985,14 @@
 						on Ringing when already INUSE.
 					</para></description>
 				</configOption>
+				<configOption name="incoming_mwi_mailbox">
+					<synopsis>Mailbox name to use when incoming MWI NOTIFYs are received</synopsis>
+					<description><para>
+						If an MWI NOTIFY is received <emphasis>from</emphasis> this endpoint,
+						this mailbox will be used when notifying other modules of MWI status
+						changes.  If not set, incoming MWI NOTIFYs are ignored.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

@@ -371,4 +371,23 @@ equals:
 	return 0;
 }
 
+char *ast_read_line_from_buffer(char **buffer)
+{
+	char *start = *buffer;
 
+	if (!buffer || !*buffer || *(*buffer) == '\0') {
+		return NULL;
+	}
+
+	while (*(*buffer) && *(*buffer) != '\n' ) {
+		(*buffer)++;
+	}
+
+	*(*buffer) = '\0';
+	if (*(*buffer - 1) == '\r') {
+		*(*buffer - 1) = '\0';
+	}
+	(*buffer)++;
+
+	return start;
+}
