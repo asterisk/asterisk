@@ -29,4 +29,6 @@ def upgrade():
 
 def downgrade():
     op.drop_column('ps_subscription_persistence', 'contact_uri')
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_transports_symmetric_transport_yesno_values','ps_transports')
     op.drop_column('ps_transports', 'symmetric_transport')
