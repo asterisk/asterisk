@@ -798,6 +798,12 @@
          ;     dtls_setup=actpass
          ; A dtls_cert_file and a dtls_ca_file still need to be specified.
          ; Default for this option is "no"
+;incoming_mwi_mailbox = ; Mailbox name to use when incoming MWI NOTIFYs are
+                        ; received.
+                        ; If an MWI NOTIFY is received FROM this endpoint,
+                        ; this mailbox will be used when notifying other modules
+                        ; of MWI status changes.  If not set, incoming MWI
+                        ; NOTIFYs are ignored.
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
