@@ -2,7 +2,8 @@ from __future__ import with_statement
 from alembic import context
 from alembic.script import ScriptDirectory
 from alembic.operations import Operations
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, MetaData
+from sqlalchemy.ext.declarative import declarative_base
 from logging.config import fileConfig
 import logging
 
@@ -17,12 +18,24 @@ try:
 except:
     pass
 
+## below block is needed for mssql
+meta = MetaData(naming_convention = {
+	"ix": 'ix_%(column_0_label)s',
+	"uq": "uq_%(table_name)s_%(column_0_name)s",
+	"ck": "ck_%(table_name)s_%(column_0_name)s_%(constraint_name)s",
+	"fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+	"pk": "pk_%(table_name)s"
+})
+Base = declarative_base(metadata=meta)
+
 logger = logging.getLogger('alembic.runtime.setup')
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = None
+#Comment above line and uncomment below line for mssql
+#target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -42,7 +55,7 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url)
+    context.configure(url=url,target_metadata=target_metadata)
 
     with context.begin_transaction():
         context.run_migrations()

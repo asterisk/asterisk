@@ -16,6 +16,8 @@ import sqlalchemy as sa
 
 def enum_update(table_name, column_name, enum_name, enum_values):
     if op.get_context().bind.dialect.name != 'postgresql':
+        if op.get_context().bind.dialect.name == 'mssql':
+            op.drop_constraint('ck_ps_endpoints_identify_by_pjsip_identify_by_values', 'ps_endpoints')
         op.alter_column(table_name, column_name,
                         type_=sa.Enum(*enum_values, name=enum_name))
         return
