@@ -792,6 +792,8 @@ struct ast_sip_endpoint {
 	unsigned int refer_blind_progress;
 	/*! Whether to notifies dialog-info 'early' on INUSE && RINGING state */
 	unsigned int notify_early_inuse_ringing;
+	/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
+	AST_STRING_FIELD_EXTENDED(incoming_mwi_mailbox);
 };
 
 /*! URI parameter for symmetric transport */

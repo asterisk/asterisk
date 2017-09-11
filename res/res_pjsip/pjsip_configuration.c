@@ -1958,6 +1958,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_overlap", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allow_overlap));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "refer_blind_progress", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, refer_blind_progress));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "notify_early_inuse_ringing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, notify_early_inuse_ringing));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "incoming_mwi_mailbox", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, incoming_mwi_mailbox));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2121,6 +2122,9 @@ void *ast_sip_endpoint_alloc(const char *name)
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
+
+	ast_string_field_init_extended(endpoint, incoming_mwi_mailbox);
+
 	if (!(endpoint->media.codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_cleanup(endpoint);
 		return NULL;
