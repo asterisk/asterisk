@@ -29,6 +29,9 @@ def upgrade():
     op.add_column('ps_registrations', sa.Column('endpoint', sa.String(40)))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_systems_disable_tcp_switch_yesno_values','ps_systems')
+        op.drop_constraint('ck_ps_registrations_line_yesno_values','ps_registrations')
     op.drop_column('ps_systems', 'disable_tcp_switch')
     op.drop_column('ps_registrations', 'line')
     op.drop_column('ps_registrations', 'endpoint')

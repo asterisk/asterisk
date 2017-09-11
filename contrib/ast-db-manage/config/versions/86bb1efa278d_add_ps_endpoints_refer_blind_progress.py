@@ -27,4 +27,6 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('refer_blind_progress', yesno_values))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_refer_blind_progress_yesno_values','ps_endpoints')
     op.drop_column('ps_endpoints', 'refer_blind_progress')
