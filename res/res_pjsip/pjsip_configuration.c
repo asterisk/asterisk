@@ -1995,6 +1995,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "max_video_streams", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.max_video_streams));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bundle", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.bundle));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "webrtc", "no", OPT_YESNO_T, 1, FLDSET(struct ast_sip_endpoint, media.webrtc));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "incoming_mwi_mailbox", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, incoming_mwi_mailbox));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2159,6 +2160,9 @@ void *ast_sip_endpoint_alloc(const char *name)
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
+
+	ast_string_field_init_extended(endpoint, incoming_mwi_mailbox);
+
 	if (!(endpoint->media.codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_cleanup(endpoint);
 		return NULL;

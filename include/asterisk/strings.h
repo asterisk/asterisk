@@ -1383,4 +1383,24 @@ char *ast_generate_random_string(char *buf, size_t size);
  */
 int ast_strings_match(const char *left, const char *op, const char *right);
 
+/*!
+ * \brief Read lines from a string buffer
+ * \since 13.18.0
+ *
+ * \param buffer [IN/OUT] A pointer to a char * string with either Unix or Windows line endings
+ *
+ * \return The "next" line
+ *
+ * \warning The original string and *buffer will be modified.
+ *
+ * \details
+ * Both '\n' and '\r\n' are treated as single delimiters but consecutive occurrances of
+ * the delimiters are NOT considered to be a single delimiter.  This preserves blank
+ * lines in the input.
+ *
+ * MacOS line endings ('\r') are not supported at this time.
+ *
+ */
+char *ast_read_line_from_buffer(char **buffer);
+
 #endif /* _ASTERISK_STRINGS_H */
