@@ -27,5 +27,7 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('moh_passthrough', yesno_values))
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_moh_passthrough_yesno_values','ps_endpoints')
     with op.batch_alter_table('ps_endpoints') as batch_op:
         batch_op.drop_column('moh_passthrough')

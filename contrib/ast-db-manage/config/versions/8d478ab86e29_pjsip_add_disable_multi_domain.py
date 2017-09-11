@@ -28,4 +28,6 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_globals_disable_multi_domain_yesno_values','ps_globals')
     op.drop_column('ps_globals', 'disable_multi_domain')

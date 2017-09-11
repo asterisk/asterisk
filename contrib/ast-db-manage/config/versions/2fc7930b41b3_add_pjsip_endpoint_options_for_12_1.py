@@ -142,6 +142,8 @@ def upgrade():
 def downgrade():
     ########################## drop columns ##########################
 
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_aors_support_path_yesno_values', 'ps_aors')
     op.drop_column('ps_aors', 'support_path')
     op.drop_column('ps_aors', 'outbound_proxy')
     op.drop_column('ps_aors', 'maximum_expiration')
@@ -153,6 +155,8 @@ def downgrade():
         new_column_name='mwi_fromuser', existing_type=sa.String(40))
 
     op.drop_column('ps_endpoints', 'set_var')
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('ck_ps_endpoints_redirect_method_pjsip_redirect_method_values', 'ps_endpoints')
     op.drop_column('ps_endpoints', 'redirect_method')
     op.drop_column('ps_endpoints', 'media_address')
 

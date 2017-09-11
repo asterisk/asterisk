@@ -27,7 +27,11 @@ def upgrade():
     op.create_index('ps_contacts_qualifyfreq_exp', 'ps_contacts', ['qualify_frequency', 'expiration_time'])
     op.create_index('ps_aors_qualifyfreq_contact', 'ps_aors', ['qualify_frequency', 'contact'])
 def downgrade():
-    op.drop_index('ps_aors_qualifyfreq_contact')
-    op.drop_index('ps_contacts_qualifyfreq_exp')
+    if op.get_context().bind.dialect.name != 'mssql':
+        op.drop_index('ps_aors_qualifyfreq_contact')
+        op.drop_index('ps_contacts_qualifyfreq_exp')
+    else:
+        op.drop_index('ps_aors_qualifyfreq_contact', table_name='ps_aors')
+        op.drop_index('ps_contacts_qualifyfreq_exp', table_name='ps_contacts')
     op.drop_column('ps_contacts', 'endpoint')
     op.alter_column('ps_contacts', 'expiration_time', type_=sa.String(40))

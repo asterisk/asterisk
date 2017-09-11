@@ -39,7 +39,7 @@ def upgrade():
     op.drop_column('queue_members', 'uniqueid')
     op.add_column('queue_members', sa.Column(name='uniqueid', type_=sa.Integer,
                                              nullable=False, unique=True))
-    # The postgres backend does not like the autoincrement needed for
+    # The postgres and mssql backends do not like the autoincrement needed for
     # mysql here.  It is just the backend that is giving a warning and
     # not the database itself.
     op.alter_column(table_name='queue_members', column_name='uniqueid',
@@ -50,5 +50,7 @@ def upgrade():
 def downgrade():
     # Was unable to find a way to use op.alter_column() to remove the
     # unique index property.
+    if op.get_context().bind.dialect.name == 'mssql':
+        op.drop_constraint('uq_queue_members_uniqueid', 'queue_members')
     op.drop_column('queue_members', 'uniqueid')
     op.add_column('queue_members', sa.Column(name='uniqueid', type_=sa.String(80), nullable=False))
