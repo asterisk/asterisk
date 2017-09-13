@@ -158,6 +158,7 @@ static struct ast_str *caldav_request(struct caldav_pvt *pvt, const char *method
 	ne_add_response_body_reader(req, debug_response_handler, fetch_response_reader, &response);
 	ne_set_request_body_buffer(req, ast_str_buffer(req_body), ast_str_strlen(req_body));
 	ne_add_request_header(req, "Content-type", ast_strlen_zero(content_type) ? "text/xml" : content_type);
+	ne_add_request_header(req, "Depth", "1");
 
 	ret = ne_request_dispatch(req);
 	ne_request_destroy(req);
@@ -478,17 +479,26 @@ struct xmlstate {
 	time_t end;
 };
 
-static void handle_start_element(void *data, const xmlChar *fullname, const xmlChar **atts)
+static const xmlChar *caldav_node_localname = BAD_CAST "calendar-data";
+static const xmlChar *caldav_node_nsuri     = BAD_CAST "urn:ietf:params:xml:ns:caldav";
+
+static void handle_start_element(void *data,
+								 const xmlChar *localname, const xmlChar *prefix, const xmlChar *uri,
+								 int nb_namespaces, const xmlChar **namespaces,
+								 int nb_attributes, int nb_defaulted, const xmlChar **attributes)
 {
 	struct xmlstate *state = data;
 
-	if (!xmlStrcasecmp(fullname, BAD_CAST "C:calendar-data") || !xmlStrcasecmp(fullname, BAD_CAST "caldav:calendar-data")) {
-		state->in_caldata = 1;
-		ast_str_reset(state->cdata);
+	if (xmlStrcmp(localname, caldav_node_localname) || xmlStrcmp(uri, caldav_node_nsuri)) {
+		return;
 	}
+
+	state->in_caldata = 1;
+	ast_str_reset(state->cdata);
 }
 
-static void handle_end_element(void *data, const xmlChar *name)
+static void handle_end_element(void *data,
+							   const xmlChar *localname, const xmlChar *prefix, const xmlChar *uri)
 {
 	struct xmlstate *state = data;
 	struct icaltimetype start, end;
@@ -496,7 +506,7 @@ static void handle_end_element(void *data, const xmlChar *name)
 	icalcomponent *iter;
 	icalcomponent *comp;
 
-	if (xmlStrcasecmp(name, BAD_CAST "C:calendar-data") && xmlStrcasecmp(name, BAD_CAST "caldav:calendar-data")) {
+	if (xmlStrcmp(localname, caldav_node_localname) || xmlStrcmp(uri, caldav_node_nsuri)) {
 		return;
 	}
 
@@ -559,9 +569,23 @@ static int update_caldav(struct caldav_pvt *pvt)
 	state.start = start;
 	state.end = end;
 
+	/*
+	 * We want SAX2, so you assume that we want to call xmlSAXVersion() here, and
+	 * that certainly seems like the right thing to do, but the default SAX
+	 * handling functions assume that the 'data' pointer is going to be a
+	 * xmlParserCtxtPtr, not a user data pointer, so we have to make sure that we
+	 * are only calling the handlers that we control.
+	 *
+	 * So instead we hack things up a bit, clearing the struct and then assigning
+	 * the magic number manually.
+	 *
+	 * There may be a cleaner way to do this, but frankly the libxml2 docs are
+	 * pretty sparse.
+	 */
 	memset(&saxHandler, 0, sizeof(saxHandler));
-	saxHandler.startElement = handle_start_element;
-	saxHandler.endElement = handle_end_element;
+	saxHandler.initialized = XML_SAX2_MAGIC;
+	saxHandler.startElementNs = handle_start_element;
+	saxHandler.endElementNs = handle_end_element;
 	saxHandler.characters = handle_characters;
 
 	xmlSAXUserParseMemory(&saxHandler, &state, ast_str_buffer(response), ast_str_strlen(response));
