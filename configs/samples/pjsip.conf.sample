@@ -1117,7 +1117,7 @@
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_outbound_publish
-;======================OUTBOUND_PUBLISHEN SECTION OPTIONS=====================
+;======================OUTBOUND_PUBLISH SECTION OPTIONS=====================
 ; See https://wiki.asterisk.org/wiki/display/AST/Publishing+Extension+State
 ; for more information.
 ;[outbound-publish]

@@ -1429,7 +1429,7 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 			ast_sorcery_object_get_id(applied));
 		return -1;
 	} else if (ast_sip_validate_uri_length(applied->server_uri)) {
-			ast_log(LOG_ERROR, "Server URI or hostname length exceeds pjpropject limit '%s'\n",
+			ast_log(LOG_ERROR, "Server URI or hostname length exceeds pjproject limit or is not a sip(s) uri: '%s'\n",
 				ast_sorcery_object_get_id(applied));
 			return -1;
 	} else if (ast_strlen_zero(applied->client_uri)) {
@@ -1437,7 +1437,7 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 			ast_sorcery_object_get_id(applied));
 		return -1;
 	} else if (ast_sip_validate_uri_length(applied->client_uri)) {
-			ast_log(LOG_ERROR, "Client URI or hostname length exceeds pjpropject limit '%s'\n",
+			ast_log(LOG_ERROR, "Client URI or hostname length exceeds pjproject limit or is not a sip(s) uri: '%s'\n",
 				ast_sorcery_object_get_id(applied));
 			return -1;
 	} else if (applied->line && ast_strlen_zero(applied->endpoint)) {

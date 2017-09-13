@@ -620,7 +620,7 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 		}
 
 		if (ast_sip_validate_uri_length(contact_uri)) {
-			ast_log(LOG_ERROR, "Contact uri or hostname length exceeds pjproject limit: %s\n", contact_uri);
+			ast_log(LOG_ERROR, "Contact uri or hostname length exceeds pjproject limit or is not a sip(s) uri: %s\n", contact_uri);
 			return -1;
 		}
 
