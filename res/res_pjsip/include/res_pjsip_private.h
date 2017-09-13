@@ -212,7 +212,7 @@ int ast_res_pjsip_init_options_handling(int reload);
  * \retval 0 on success
  * \retval other on failure
  */
-int ast_res_pjsip_init_message_ip_updater(void);
+int ast_res_pjsip_init_message_filter(void);
 
 /*!
  * \internal
@@ -269,7 +269,7 @@ void ast_res_pjsip_cleanup_options_handling(void);
  * \internal
  * \brief Clean up res_pjsip message ip updating handling
  */
-void ast_res_pjsip_cleanup_message_ip_updater(void);
+void ast_res_pjsip_cleanup_message_filter(void);
 
 /*!
  * \internal
