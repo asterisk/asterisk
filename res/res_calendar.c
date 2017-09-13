@@ -341,10 +341,7 @@ static void calendar_destructor(void *obj)
 	}
 	ast_calendar_clear_events(cal);
 	ast_string_field_free_memory(cal);
-	if (cal->vars) {
-		ast_variables_destroy(cal->vars);
-		cal->vars = NULL;
-	}
+	ast_variables_destroy(cal->vars);
 	ao2_ref(cal->events, -1);
 	ao2_unlock(cal);
 }
@@ -406,28 +403,22 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 {
 	struct ast_calendar *cal;
 	struct ast_variable *v, *last = NULL;
-	int new_calendar = 0;
 
-	if (!(cal = find_calendar(cat))) {
-		new_calendar = 1;
-		if (!(cal = ao2_alloc(sizeof(*cal), calendar_destructor))) {
-			ast_log(LOG_ERROR, "Could not allocate calendar structure. Stopping.\n");
-			return NULL;
-		}
+	if (!(cal = ao2_alloc(sizeof(*cal), calendar_destructor))) {
+		ast_log(LOG_ERROR, "Could not allocate calendar structure. Stopping.\n");
+		return NULL;
+	}
 
-		if (!(cal->events = ao2_container_alloc(CALENDAR_BUCKETS, event_hash_fn, event_cmp_fn))) {
-			ast_log(LOG_ERROR, "Could not allocate events container for %s\n", cat);
-			cal = unref_calendar(cal);
-			return NULL;
-		}
+	if (!(cal->events = ao2_container_alloc(CALENDAR_BUCKETS, event_hash_fn, event_cmp_fn))) {
+		ast_log(LOG_ERROR, "Could not allocate events container for %s\n", cat);
+		cal = unref_calendar(cal);
+		return NULL;
+	}
 
-		if (ast_string_field_init(cal, 32)) {
-			ast_log(LOG_ERROR, "Couldn't create string fields for %s\n", cat);
-			cal = unref_calendar(cal);
-			return NULL;
-		}
-	} else {
-		cal->pending_deletion = 0;
+	if (ast_string_field_init(cal, 32)) {
+		ast_log(LOG_ERROR, "Couldn't create string fields for %s\n", cat);
+		cal = unref_calendar(cal);
+		return NULL;
 	}
 
 	ast_string_field_set(cal, name, cat);
@@ -489,17 +480,15 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 				cal->name);
 	}
 
-	if (new_calendar) {
-		cal->thread = AST_PTHREADT_NULL;
-		ast_cond_init(&cal->unload, NULL);
-		ao2_link(calendars, cal);
-		if (ast_pthread_create(&cal->thread, NULL, cal->tech->load_calendar, cal)) {
-			/* If we start failing to create threads, go ahead and return NULL
-			 * and the tech module will be unregistered
-			 */
-			ao2_unlink(calendars, cal);
-			cal = unref_calendar(cal);
-		}
+	cal->thread = AST_PTHREADT_NULL;
+	ast_cond_init(&cal->unload, NULL);
+	ao2_link(calendars, cal);
+	if (ast_pthread_create(&cal->thread, NULL, cal->tech->load_calendar, cal)) {
+		/* If we start failing to create threads, go ahead and return NULL
+		 * and the tech module will be unregistered
+		 */
+		ao2_unlink(calendars, cal);
+		cal = unref_calendar(cal);
 	}
 
 	return cal;
@@ -1770,30 +1759,16 @@ static struct ast_custom_function calendar_event_function = {
 	.read = calendar_event_read,
 };
 
-static int cb_pending_deletion(void *user_data, void *arg, int flags)
-{
-	struct ast_calendar *cal = user_data;
-
-	cal->pending_deletion = 1;
-
-	return CMP_MATCH;
-}
-
-static int cb_rm_pending_deletion(void *user_data, void *arg, int flags)
-{
-	struct ast_calendar *cal = user_data;
-
-	return cal->pending_deletion ? CMP_MATCH : 0;
-}
-
 static int reload(void)
 {
 	struct ast_calendar_tech *iter;
 
 	ast_mutex_lock(&reloadlock);
 
-	/* Mark existing calendars for deletion */
-	ao2_callback(calendars, OBJ_NODATA | OBJ_MULTIPLE, cb_pending_deletion, NULL);
+	/* Delete all of the calendars */
+	ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+
+	/* Load configuration */
 	load_config(1);
 
 	AST_LIST_LOCK(&techs);
@@ -1803,9 +1778,6 @@ static int reload(void)
 		}
 	}
 	AST_LIST_UNLOCK(&techs);
-
-	/* Delete calendars that no longer show up in the config */
-	ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, cb_rm_pending_deletion, NULL);
 
 	ast_mutex_unlock(&reloadlock);
 
