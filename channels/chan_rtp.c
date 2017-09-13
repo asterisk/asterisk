@@ -117,6 +117,22 @@ static int rtp_hangup(struct ast_channel *ast)
 	return 0;
 }
 
+static struct ast_format *derive_format_from_cap(struct ast_format_cap *cap)
+{
+	struct ast_format *fmt = ast_format_cap_get_format(cap, 0);
+
+	if (ast_format_cap_count(cap) == 1 && fmt == ast_format_slin) {
+		/*
+		 * Because we have no SDP, we must use one of the static RTP payload
+		 * assignments. Signed linear @ 8kHz does not map, so if that is our
+		 * only capability, we force μ-law instead.
+		 */
+		fmt = ast_format_ulaw;
+	}
+
+	return fmt;
+}
+
 /*! \brief Function called when we should prepare to call the multicast destination */
 static struct ast_channel *multicast_rtp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
@@ -171,7 +187,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 
 	fmt = ast_multicast_rtp_options_get_format(mcast_options);
 	if (!fmt) {
-		fmt = ast_format_cap_get_format(cap, 0);
+		fmt = derive_format_from_cap(cap);
 	}
 	if (!fmt) {
 		ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
@@ -298,7 +314,7 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 			goto failure;
 		}
 	} else {
-		fmt = ast_format_cap_get_format(cap, 0);
+		fmt = derive_format_from_cap(cap);
 		if (!fmt) {
 			ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
 				args.destination);
