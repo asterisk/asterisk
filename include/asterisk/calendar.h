@@ -133,7 +133,7 @@ struct ast_calendar {
 	pthread_t thread;    /*!< The thread that the calendar is loaded/updated in */
 	ast_cond_t unload;
 	int unloading:1;
-	int pending_deletion:1;
+	int pending_deletion:1; /*!< No longer used */
 	struct ao2_container *events;  /*!< The events that are known at this time */
 };
 
