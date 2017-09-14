@@ -30,6 +30,10 @@ res_pjsip
    when dnsmgr refreshes are enabled will be automatically updated with the new
    IP address of a given hostname.
 
+ * A new endpoint parameter "incoming_mwi_mailbox" allows Asterisk to receive
+   unsolicited MWI NOTIFY requests and make them available to other modules via
+   the stasis message bus.
+
 res_musiconhold
 ------------------
  * By default, when res_musiconhold reloads or unloads, it sends a HUP signal

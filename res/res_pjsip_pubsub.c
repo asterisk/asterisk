@@ -31,6 +31,7 @@
 #include <pjsip_simple.h>
 #include <pjlib.h>
 
+#include "asterisk/app.h"
 #include "asterisk/res_pjsip_pubsub.h"
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
@@ -3462,12 +3463,144 @@ end:
 	return res;
 }
 
+struct simple_message_summary {
+	int messages_waiting;
+	int voice_messages_new;
+	int voice_messages_old;
+	int voice_messages_urgent_new;
+	int voice_messages_urgent_old;
+	char message_account[PJSIP_MAX_URL_SIZE];
+};
+
+static int parse_simple_message_summary(char *body,
+	struct simple_message_summary *summary)
+{
+	char *line;
+	char *buffer;
+	int found_counts = 0;
+
+	if (ast_strlen_zero(body) || !summary) {
+		return -1;
+	}
+
+	buffer = ast_strdupa(body);
+	memset(summary, 0, sizeof(*summary));
+
+	while ((line = ast_read_line_from_buffer(&buffer))) {
+		line = ast_str_to_lower(line);
+
+		if (sscanf(line, "voice-message: %d/%d (%d/%d)",
+			&summary->voice_messages_new, &summary->voice_messages_old,
+			&summary->voice_messages_urgent_new, &summary->voice_messages_urgent_old)) {
+			found_counts = 1;
+		} else {
+			sscanf(line, "message-account: %s", summary->message_account);
+		}
+	}
+
+	return !found_counts;
+}
+
+static pj_bool_t pubsub_on_rx_mwi_notify_request(pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	struct simple_message_summary summary;
+	const char *endpoint_name;
+	char *atsign;
+	char *context;
+	char *body;
+	char *mailbox;
+	int rc;
+
+	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+	if (!endpoint) {
+		ast_debug(1, "Incoming MWI: Endpoint not found in rdata (%p)\n", rdata);
+		rc = 404;
+		goto error;
+	}
+
+	endpoint_name = ast_sorcery_object_get_id(endpoint);
+	ast_debug(1, "Incoming MWI: Found endpoint: %s\n", endpoint_name);
+	if (ast_strlen_zero(endpoint->incoming_mwi_mailbox)) {
+		ast_debug(1, "Incoming MWI: No incoming mailbox specified for endpoint '%s'\n", endpoint_name);
+		ast_test_suite_event_notify("PUBSUB_NO_INCOMING_MWI_MAILBOX",
+			"Endpoint: %s", endpoint_name);
+		rc = 404;
+		goto error;
+	}
+
+	mailbox = ast_strdupa(endpoint->incoming_mwi_mailbox);
+	atsign = strchr(mailbox, '@');
+	if (!atsign) {
+		ast_debug(1, "Incoming MWI: No '@' found in endpoint %s's incoming mailbox '%s'.  Can't parse context\n",
+			endpoint_name, endpoint->incoming_mwi_mailbox);
+		rc = 404;
+		goto error;
+	}
+
+	*atsign = '\0';
+	context = atsign + 1;
+
+	body = ast_alloca(rdata->msg_info.msg->body->len + 1);
+	rdata->msg_info.msg->body->print_body(rdata->msg_info.msg->body, body,
+		rdata->msg_info.msg->body->len + 1);
+
+	if (parse_simple_message_summary(body, &summary) != 0) {
+		ast_debug(1, "Incoming MWI: Endpoint: '%s' There was an issue getting message info from body '%s'\n",
+			ast_sorcery_object_get_id(endpoint), body);
+		rc = 404;
+		goto error;
+	}
+
+	if (ast_publish_mwi_state(mailbox, context,
+		summary.voice_messages_new, summary.voice_messages_old)) {
+		ast_log(LOG_ERROR, "Incoming MWI: Endpoint: '%s' Could not publish MWI to stasis.  "
+			"Mailbox: %s Message-Account: %s Voice-Messages: %d/%d (%d/%d)\n",
+			endpoint_name, endpoint->incoming_mwi_mailbox, summary.message_account,
+			summary.voice_messages_new, summary.voice_messages_old,
+			summary.voice_messages_urgent_new, summary.voice_messages_urgent_old);
+		rc = 404;
+	} else {
+		ast_debug(1, "Incoming MWI: Endpoint: '%s' Mailbox: %s Message-Account: %s Voice-Messages: %d/%d (%d/%d)\n",
+			endpoint_name, endpoint->incoming_mwi_mailbox, summary.message_account,
+			summary.voice_messages_new, summary.voice_messages_old,
+			summary.voice_messages_urgent_new, summary.voice_messages_urgent_old);
+		ast_test_suite_event_notify("PUBSUB_INCOMING_MWI_PUBLISH",
+			"Endpoint: %s\r\n"
+			"Mailbox: %s\r\n"
+			"MessageAccount: %s\r\n"
+			"VoiceMessagesNew: %d\r\n"
+			"VoiceMessagesOld: %d\r\n"
+			"VoiceMessagesUrgentNew: %d\r\n"
+			"VoiceMessagesUrgentOld: %d",
+				endpoint_name, endpoint->incoming_mwi_mailbox, summary.message_account,
+				summary.voice_messages_new, summary.voice_messages_old,
+				summary.voice_messages_urgent_new, summary.voice_messages_urgent_old);
+		rc = 200;
+	}
+
+error:
+	pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, rc, NULL, NULL, NULL);
+	return PJ_TRUE;
+}
+
+static pj_bool_t pubsub_on_rx_notify_request(pjsip_rx_data *rdata)
+{
+	if (pj_stricmp2(&rdata->msg_info.msg->body->content_type.type, "application") == 0 &&
+		pj_stricmp2(&rdata->msg_info.msg->body->content_type.subtype, "simple-message-summary") == 0) {
+		return pubsub_on_rx_mwi_notify_request(rdata);
+	}
+	return PJ_FALSE;
+}
+
 static pj_bool_t pubsub_on_rx_request(pjsip_rx_data *rdata)
 {
 	if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, pjsip_get_subscribe_method())) {
 		return pubsub_on_rx_subscribe_request(rdata);
 	} else if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_publish_method)) {
 		return pubsub_on_rx_publish_request(rdata);
+	} else if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_notify_method)) {
+		return pubsub_on_rx_notify_request(rdata);
 	}
 
 	return PJ_FALSE;
