@@ -777,7 +777,7 @@ void ast_tcptls_close_session_file(struct ast_tcptls_session_instance *tcptls_se
 		ast_iostream_close(tcptls_session->stream);
 		tcptls_session->stream = NULL;
 	} else {
-		ast_log(LOG_ERROR, "ast_tcptls_close_session_file invoked on session instance without file or file descriptor\n");
+		ast_debug(1, "ast_tcptls_close_session_file invoked on session instance without file or file descriptor\n");
 	}
 }
 
