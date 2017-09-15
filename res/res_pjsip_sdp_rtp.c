@@ -1338,7 +1338,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		media->desc.port = 0;
 		media->desc.port_count = 1;
 
-		if (remote) {
+		if (remote && remote->media[ast_stream_get_position(stream)]) {
 			pjmedia_sdp_media *remote_media = remote->media[ast_stream_get_position(stream)];
 			int index;
 
