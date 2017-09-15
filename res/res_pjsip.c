@@ -4589,7 +4589,7 @@ static int unload_pjsip(void *data)
 	if (ast_pjsip_endpoint && serializer_pool[0]) {
 		ast_res_pjsip_cleanup_options_handling();
 		internal_sip_destroy_outbound_authentication();
-		ast_res_pjsip_cleanup_message_ip_updater();
+		ast_res_pjsip_cleanup_message_filter();
 		ast_sip_destroy_distributor();
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_system();
@@ -4770,7 +4770,7 @@ static int load_module(void)
 
 	ast_res_pjsip_init_options_handling(0);
 
-	if (ast_res_pjsip_init_message_ip_updater()) {
+	if (ast_res_pjsip_init_message_filter()) {
 		ast_log(LOG_ERROR, "Failed to initialize message IP updating. Aborting load\n");
 		goto error;
 	}
