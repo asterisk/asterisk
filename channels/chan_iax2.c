@@ -1433,6 +1433,7 @@ static int iax2_is_control_frame_allowed(int subtype)
 		/* Intended only for internal stream topology manipulation. */
 	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
 		/* Intended only for internal stream topology change notification. */
+	case AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED:
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
 	case AST_CONTROL_STREAM_RESTART:
