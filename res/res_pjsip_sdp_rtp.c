@@ -1022,6 +1022,19 @@ static void process_ssrc_attributes(struct ast_sip_session *session, struct ast_
 			continue;
 		}
 
+		/* If we are currently negotiating as a result of the remote side renegotiating then
+		 * determine if the source for this stream has changed.
+		 */
+		if (pjmedia_sdp_neg_get_state(session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER &&
+			session->active_media_state) {
+			struct ast_rtp_instance_stats stats = { 0, };
+
+			if (!ast_rtp_instance_get_stats(session_media->rtp, &stats, AST_RTP_INSTANCE_STAT_REMOTE_SSRC) &&
+				stats.remote_ssrc != ssrc) {
+				session_media->changed = 1;
+			}
+		}
+
 		ast_rtp_instance_set_remote_ssrc(session_media->rtp, ssrc);
 	}
 }
