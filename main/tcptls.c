@@ -636,7 +636,6 @@ static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, c
 
 	return ret;
 }
-
 #endif
 
 /*! \brief
