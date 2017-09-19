@@ -65,7 +65,7 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	if (!capabilities) {
 		return NULL;
 	}
-	ast_format_cap_append_by_type(capabilities, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_by_type(capabilities, AST_MEDIA_TYPE_AUDIO);
 
 	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
 		"CBRec/%s-%08x",
