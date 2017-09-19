@@ -250,6 +250,8 @@ struct ice_wrap {
 struct rtp_ssrc_mapping {
 	/*! \brief The received SSRC */
 	unsigned int ssrc;
+	/*! True if the SSRC is available.  Otherwise, this is a placeholder mapping until the SSRC is set. */
+	unsigned int ssrc_valid;
 	/*! \brief The RTP instance this SSRC belongs to*/
 	struct ast_rtp_instance *instance;
 };
@@ -3336,7 +3338,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
  * \return 0 if element does not match.
  * \return Non-zero if element matches.
  */
-#define SSRC_MAPPING_ELEM_CMP(elem, value) (elem.instance == value)
+#define SSRC_MAPPING_ELEM_CMP(elem, value) ((elem).instance == (value))
 
 /*! \pre instance is locked */
 static int ast_rtp_destroy(struct ast_rtp_instance *instance)
@@ -4780,18 +4782,26 @@ static struct ast_rtp_instance *rtp_find_instance_by_ssrc(struct ast_rtp_instanc
 	struct ast_rtp *rtp, unsigned int ssrc)
 {
 	int index;
-	struct ast_rtp_instance *found = instance;
 
+	if (!AST_VECTOR_SIZE(&rtp->ssrc_mapping)) {
+		/* This instance is not bundled */
+		return instance;
+	}
+
+	/* Find the bundled child instance */
 	for (index = 0; index < AST_VECTOR_SIZE(&rtp->ssrc_mapping); ++index) {
 		struct rtp_ssrc_mapping *mapping = AST_VECTOR_GET_ADDR(&rtp->ssrc_mapping, index);
 
-		if (mapping->ssrc == ssrc) {
-			found = mapping->instance;
-			break;
+		if (mapping->ssrc_valid && mapping->ssrc == ssrc) {
+			return mapping->instance;
 		}
 	}
 
-	return found;
+	/* Does the SSRC match the bundled parent? */
+	if (rtp->themssrc_valid && rtp->themssrc == ssrc) {
+		return instance;
+	}
+	return NULL;
 }
 
 static const char *rtcp_payload_type2str(unsigned int pt)
@@ -5032,7 +5042,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 		/* Determine the appropriate instance for this */
 		if (ssrc_valid) {
 			child = rtp_find_instance_by_ssrc(transport, transport_rtp, ssrc);
-			if (child != transport) {
+			if (child && child != transport) {
 				/*
 				 * It is safe to hold the child lock while holding the parent lock.
 				 * We guarantee that the locking order is always parent->child or
@@ -5529,6 +5539,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* Determine the appropriate instance for this */
 	child = rtp_find_instance_by_ssrc(instance, rtp, ssrc);
+	if (!child) {
+		/* Neither the bundled parent nor any child has this SSRC */
+		return &ast_null_frame;
+	}
 	if (child != instance) {
 		/* It is safe to hold the child lock while holding the parent lock, we guarantee that the locking order
 		 * is always parent->child or that the child lock is not held when acquiring the parent lock.
@@ -5711,39 +5725,42 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	timestamp = ntohl(rtpheader[1]);
 
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
-	/* Force a marker bit and change SSRC if the SSRC changes */
-	if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
-		struct ast_frame *f, srcupdate = {
-			AST_FRAME_CONTROL,
-			.subclass.integer = AST_CONTROL_SRCCHANGE,
-		};
 
-		if (!mark) {
-			if (rtpdebug) {
-				ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
+	/* Only non-bundled instances can change/learn the remote's SSRC implicitly. */
+	if (!child && !AST_VECTOR_SIZE(&rtp->ssrc_mapping)) {
+		/* Force a marker bit and change SSRC if the SSRC changes */
+		if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
+			struct ast_frame *f, srcupdate = {
+				AST_FRAME_CONTROL,
+				.subclass.integer = AST_CONTROL_SRCCHANGE,
+			};
+
+			if (!mark) {
+				if (rtpdebug) {
+					ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
+				}
+				mark = 1;
 			}
-			mark = 1;
+
+			f = ast_frisolate(&srcupdate);
+			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+
+			rtp->seedrxseqno = 0;
+			rtp->rxcount = 0;
+			rtp->rxoctetcount = 0;
+			rtp->cycles = 0;
+			rtp->lastrxseqno = 0;
+			rtp->last_seqno = 0;
+			rtp->last_end_timestamp = 0;
+			if (rtp->rtcp) {
+				rtp->rtcp->expected_prior = 0;
+				rtp->rtcp->received_prior = 0;
+			}
 		}
 
-		f = ast_frisolate(&srcupdate);
-		AST_LIST_INSERT_TAIL(&frames, f, frame_list);
-
-		rtp->seedrxseqno = 0;
-		rtp->rxcount = 0;
-		rtp->rxoctetcount = 0;
-		rtp->cycles = 0;
-		rtp->lastrxseqno = 0;
-		rtp->last_seqno = 0;
-		rtp->last_end_timestamp = 0;
-		if (rtp->rtcp) {
-			rtp->rtcp->expected_prior = 0;
-			rtp->rtcp->received_prior = 0;
-		}
+		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
+		rtp->themssrc_valid = 1;
 	}
-	/* Bundled children cannot change/learn their SSRC implicitly. */
-	ast_assert(!child || (rtp->themssrc_valid && rtp->themssrc == ssrc));
-	rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
-	rtp->themssrc_valid = 1;
 
 	/* Remove any padding bytes that may be present */
 	if (padding) {
@@ -6481,12 +6498,13 @@ static void ast_rtp_set_remote_ssrc(struct ast_rtp_instance *instance, unsigned 
 		return;
 	}
 
+	rtp->themssrc = ssrc;
+	rtp->themssrc_valid = 1;
+
 	/* If this is bundled we need to update the SSRC mapping */
 	if (rtp->bundled) {
 		struct ast_rtp *bundled_rtp;
 		int index;
-
-		ast_assert(rtp->themssrc_valid);
 
 		ao2_unlock(instance);
 
@@ -6497,8 +6515,9 @@ static void ast_rtp_set_remote_ssrc(struct ast_rtp_instance *instance, unsigned 
 		for (index = 0; index < AST_VECTOR_SIZE(&bundled_rtp->ssrc_mapping); ++index) {
 			struct rtp_ssrc_mapping *mapping = AST_VECTOR_GET_ADDR(&bundled_rtp->ssrc_mapping, index);
 
-			if (mapping->ssrc == rtp->themssrc) {
+			if (mapping->instance == instance) {
 				mapping->ssrc = ssrc;
+				mapping->ssrc_valid = 1;
 				break;
 			}
 		}
@@ -6507,9 +6526,6 @@ static void ast_rtp_set_remote_ssrc(struct ast_rtp_instance *instance, unsigned 
 
 		ao2_lock(instance);
 	}
-
-	rtp->themssrc = ssrc;
-	rtp->themssrc_valid = 1;
 }
 
 static void ast_rtp_set_stream_num(struct ast_rtp_instance *instance, int stream_num)
@@ -6562,8 +6578,8 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 	/* Children maintain a reference to the parent to guarantee that the transport doesn't go away on them */
 	child_rtp->bundled = ao2_bump(parent);
 
-	ast_assert(child_rtp->themssrc_valid);
 	mapping.ssrc = child_rtp->themssrc;
+	mapping.ssrc_valid = child_rtp->themssrc_valid;
 	mapping.instance = child;
 
 	ao2_unlock(child);
