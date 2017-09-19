@@ -260,9 +260,7 @@ db_reconnect:
 			/* Need the type and value to determine if we want the raw value or not */
 			if (entry->staticvalue) {
 				value = ast_strdupa(entry->staticvalue);
-			} else if ((!strcmp(cdrname, "answer") ||
-				 !strcmp(cdrname, "end") ||
-				 !strcmp(cdrname, "disposition") ||
+			} else if ((!strcmp(cdrname, "disposition") ||
 				 !strcmp(cdrname, "amaflags")) &&
 				(strstr(entry->type, "int") ||
 				 strstr(entry->type, "dec") ||
@@ -272,7 +270,8 @@ db_reconnect:
 				 strstr(entry->type, "numeric") ||
 				 strstr(entry->type, "fixed"))) {
 				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 1);
-			} else if (!strcmp(cdrname, "start")) {
+			} else if (!strcmp(cdrname, "start") || !strcmp(cdrname, "answer") ||
+				 !strcmp(cdrname, "end")) {
 				struct ast_tm tm;
 				char timestr[128];
 				ast_localtime(&cdr->start, &tm, ast_str_strlen(cdrzone) ? ast_str_buffer(cdrzone) : NULL);
@@ -366,7 +365,7 @@ static void free_strings(void)
 }
 
 static int my_unload_module(int reload)
-{ 
+{
 	struct column *entry;
 
 	ast_cli_unregister_multiple(cdr_mysql_status_cli, sizeof(cdr_mysql_status_cli) / sizeof(struct ast_cli_entry));
