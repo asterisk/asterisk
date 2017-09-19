@@ -1,3 +1,70 @@
+2017-09-19 16:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert6 Released.
+
+2017-08-25 17:05 +0000 [88c8e8a11c]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2017-008: Improve RTP and RTCP packet processing.
+
+	  Validate RTCP packets before processing them.
+
+	  * Validate that the received packet is of a minimum length and apply the
+	  RFC3550 RTCP packet validation checks.
+
+	  * Fixed potentially reading garbage beyond the received RTCP record data.
+
+	  * Fixed rtp->themssrc only being set once when the remote could change
+	  the SSRC.  We would effectively stop handling the RTCP statistic records.
+
+	  * Fixed rtp->themssrc to not treat a zero value as special by adding
+	  rtp->themssrc_valid to indicate if rtp->themssrc is available.
+
+	  ASTERISK-27274
+
+	  Make strict RTP learning more flexible.
+
+	  Direct media can cause strict RTP to attempt to learn a remote address
+	  again before it has had a chance to learn the remote address the first
+	  time.  Because of the rapid relearn requests, strict RTP could latch onto
+	  the first remote address and fail to latch onto the direct media remote
+	  address.  As a result, you have one way audio until the call is placed on
+	  and off hold.
+
+	  The new algorithm learns remote addresses for a set time (1.5 seconds)
+	  before locking the remote address.  In addition, we must see a configured
+	  number of remote packets from the same address in a row before switching.
+
+	  * Fixed strict RTP learning from always accepting the first new address
+	  packet as the new stream.
+
+	  * Fixed strict RTP to initialize the expected sequence number with the
+	  last received sequence number instead of the last transmitted sequence
+	  number.
+
+	  * Fixed the predicted next sequence number calculation in
+	  rtp_learning_rtp_seq_update() to handle overflow.
+
+	  ASTERISK-27252
+
+	  Change-Id: Ia2d3aa6e0f22906c25971e74f10027d96525f31c
+
+2017-09-01 05:17 +0000 [67b1b028a1]  George Joseph <gjoseph@digium.com>
+
+	* stasis/control:  Fix possible deadlock with swap channel
+
+	  If an error occurs during a bridge impart it's possible that
+	  the "bridge_after" callback might try to run before
+	  control_swap_channel_in_bridge has been signalled to continue.
+	  Since control_swap_channel_in_bridge is holding the control lock
+	  and the callback needs it, a deadlock will occur.
+
+	  * control_swap_channel_in_bridge now only holds the control
+	    lock while it's actually modifying the control structure and
+	    releases it while the bridge impart is running.
+	  * bridge_after_cb is now tolerant of impart failures.
+
+	  Change-Id: Ifd239aa93955b3eb475521f61e284fcb0da2c3b3
+
 2017-08-31 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert5 Released.

@@ -1,0 +1,24 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.13-cert6</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.13-cert6</h3><h3 align="center">Date: 2017-09-19</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2017-008.html">AST-2017-008</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.13-cert5.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">1 Richard Mudgett <rmudgett@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/></td><td width="33%"><td width="33%">1 Richard Mudgett <rmudgett@digium.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27274">ASTERISK-27274</a>: RTCP needs better packet validation to resist port scans.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=88c8e8a11c7db789897779178a4c452de09b8fac">[88c8e8a11c]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27252">ASTERISK-27252</a>: RTP: One way audio with direct media and strictrtp=yes.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=88c8e8a11c7db789897779178a4c452de09b8fac">[88c8e8a11c]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=67b1b028a149f98f451bd32f4fc78d6840ccade9">67b1b028a1</a></td><td>George Joseph</td><td>stasis/control:  Fix possible deadlock with swap channel</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>include/asterisk/bridge_after.h |    2
+main/bridge.c                   |    6
+main/bridge_after.c             |   30 +-
+res/res_rtp_asterisk.c          |  508 ++++++++++++++++++++++++++++++++--------
+res/stasis/control.c            |  113 +++++---
+5 files changed, 500 insertions(+), 159 deletions(-)</pre><br></html>
