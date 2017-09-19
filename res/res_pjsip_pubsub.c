@@ -3584,10 +3584,12 @@ error:
 	return PJ_TRUE;
 }
 
+static pjsip_media_type simple_message_summary;
+
 static pj_bool_t pubsub_on_rx_notify_request(pjsip_rx_data *rdata)
 {
-	if (pj_stricmp2(&rdata->msg_info.msg->body->content_type.type, "application") == 0 &&
-		pj_stricmp2(&rdata->msg_info.msg->body->content_type.subtype, "simple-message-summary") == 0) {
+	if (rdata->msg_info.msg->body &&
+		pjsip_media_type_cmp(&rdata->msg_info.msg->body->content_type, &simple_message_summary, 0) == 0) {
 		return pubsub_on_rx_mwi_notify_request(rdata);
 	}
 	return PJ_FALSE;
@@ -5422,6 +5424,8 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Could not create scheduler for publication expiration\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	pjsip_media_type_init2(&simple_message_summary, "application", "simple-message-summary");
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for publication expiration\n");
