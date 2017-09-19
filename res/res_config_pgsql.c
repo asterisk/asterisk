@@ -54,6 +54,7 @@ AST_THREADSTORAGE(semibuf_buf);
 static PGconn *pgsqlConn = NULL;
 static int version;
 #define has_schema_support	(version > 70300 ? 1 : 0)
+#define USE_BACKSLASH_AS_STRING	(version >= 90100 ? 1 : 0)
 
 #define MAX_DB_OPTION_SIZE 64
 
@@ -419,7 +420,7 @@ static struct columns *find_column(struct tables *t, const char *colname)
 }
 
 #define IS_SQL_LIKE_CLAUSE(x) ((x) && ast_ends_with(x, " LIKE"))
-static char *ESCAPE_CLAUSE = " ESCAPE '\\'";
+#define ESCAPE_CLAUSE (USE_BACKSLASH_AS_STRING ? " ESCAPE '\\'" : " ESCAPE '\\\\'")
 
 static struct ast_variable *realtime_pgsql(const char *database, const char *tablename, const struct ast_variable *fields)
 {
