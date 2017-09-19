@@ -41,6 +41,9 @@
 		<enum name="uri">
 			<para>R/O Get the URI from the Contact: header.</para>
 		</enum>
+		<enum name="ruri">
+			<para>R/O Get the Request-URI from the INVITE header.</para>
+		</enum>
 		<enum name="useragent">
 			<para>R/O Get the useragent.</para>
 		</enum>
@@ -162,6 +165,9 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		ast_copy_string(buf, p->from, buflen);
 	} else if (!strcasecmp(args.param, "uri")) {
 		ast_copy_string(buf, p->uri, buflen);
+	} else if (!strcasecmp(args.param, "ruri")) {
+		char *tmpruri = REQ_OFFSET_TO_STR(&p->initreq, rlpart2);
+		ast_copy_string(buf, tmpruri, buflen);
 	} else if (!strcasecmp(args.param, "useragent")) {
 		ast_copy_string(buf, p->useragent, buflen);
 	} else if (!strcasecmp(args.param, "peername")) {
