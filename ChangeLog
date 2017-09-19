@@ -1,3 +1,53 @@
+2017-09-19 16:03 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.25.3 Released.
+
+2017-09-13 12:07 +0000 [fe2ba2f3ca]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2017-008: Improve RTP and RTCP packet processing.
+
+	  Validate RTCP packets before processing them.
+
+	  * Validate that the received packet is of a minimum length and apply the
+	  RFC3550 RTCP packet validation checks.
+
+	  * Fixed potentially reading garbage beyond the received RTCP record data.
+
+	  * Fixed rtp->themssrc only being set once when the remote could change
+	  the SSRC.  We would effectively stop handling the RTCP statistic records.
+
+	  * Fixed rtp->themssrc to not treat a zero value as special by adding
+	  rtp->themssrc_valid to indicate if rtp->themssrc is available.
+
+	  ASTERISK-27274
+
+	  Make strict RTP learning more flexible.
+
+	  Direct media can cause strict RTP to attempt to learn a remote address
+	  again before it has had a chance to learn the remote address the first
+	  time.  Because of the rapid relearn requests, strict RTP could latch onto
+	  the first remote address and fail to latch onto the direct media remote
+	  address.  As a result, you have one way audio until the call is placed on
+	  and off hold.
+
+	  The new algorithm learns remote addresses for a set time (1.5 seconds)
+	  before locking the remote address.  In addition, we must see a configured
+	  number of remote packets from the same address in a row before switching.
+
+	  * Fixed strict RTP learning from always accepting the first new address
+	  packet as the new stream.
+
+	  * Fixed strict RTP to initialize the expected sequence number with the
+	  last received sequence number instead of the last transmitted sequence
+	  number.
+
+	  * Fixed the predicted next sequence number calculation in
+	  rtp_learning_rtp_seq_update() to handle overflow.
+
+	  ASTERISK-27252
+
+	  Change-Id: Ia2d3aa6e0f22906c25971e74f10027d96525f31c
+
 2017-08-31 14:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.25.2 Released.
