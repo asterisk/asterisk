@@ -1729,6 +1729,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		topology = data;
 		res = handle_topology_request_change(channel->session, topology);
 		break;
+	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
+		break;
 	case -1:
 		res = -1;
 		break;
