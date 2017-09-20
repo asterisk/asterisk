@@ -9,6 +9,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 15.0.0 to Asterisk 15.1.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The "remove_existing" option now allows a registration to succeed by
+   displacing any existing contacts that now exceed the "max_contacts" count.
+   Any removed contacts are the next to expire.  The behaviour change is
+   beneficial when "rewrite_contact" is enabled and "max_contacts" is greater
+   than one.  The removed contact is likely the old contact created by
+   "rewrite_contact" that the device is refreshing.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
