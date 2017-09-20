@@ -277,7 +277,11 @@ int ast_sip_session_is_pending_stream_default(const struct ast_sip_session *sess
 {
 	int index;
 
-	ast_assert(session->pending_media_state->topology != NULL);
+	if (!session->pending_media_state->topology) {
+		ast_log(LOG_WARNING, "Pending topology was NULL for channel '%s'\n",
+			session->channel ? ast_channel_name(session->channel) : "unknown");
+		return 0;
+	}
 
 	if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
 		return 0;
@@ -766,6 +770,30 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	int i;
 	struct ast_stream_topology *topology;
 
+	/* This situation can legitimately happen when an SDP is received in a
+	 * 183 Session Progress message.  In that case, everything's been done
+	 * by the time this function is called and there are no more pending
+	 * streams.
+	 */
+	if (!session->pending_media_state->topology) {
+		ast_debug(1, "Pending topology was NULL for channel '%s'\n",
+			session->channel ? ast_channel_name(session->channel) : "unknown");
+		return 0;
+	}
+
+	/* If we're handling negotiated streams, then we should already have set
+	 * up session media instances (and Asterisk streams) that correspond to
+	 * the local SDP, and there should be the same number of session medias
+	 * and streams as there are local SDP streams
+	 */
+	if (ast_stream_topology_get_count(session->pending_media_state->topology) != local->media_count
+		|| AST_VECTOR_SIZE(&session->pending_media_state->sessions) != local->media_count) {
+		ast_log(LOG_WARNING, "Local SDP for channel '%s' contains %d media streams while we expected it to contain %u\n",
+			session->channel ? ast_channel_name(session->channel) : "unknown",
+			ast_stream_topology_get_count(session->pending_media_state->topology), local->media_count);
+		return -1;
+	}
+
 	for (i = 0; i < local->media_count; ++i) {
 		struct ast_sip_session_media *session_media;
 		struct ast_stream *stream;
@@ -773,14 +801,6 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		if (!remote->media[i]) {
 			continue;
 		}
-
-		/* If we're handling negotiated streams, then we should already have set
-		 * up session media instances (and Asterisk streams) that correspond to
-		 * the local SDP, and there should be the same number of session medias
-		 * and streams as there are local SDP streams
-		 */
-		ast_assert(i < AST_VECTOR_SIZE(&session->pending_media_state->sessions));
-		ast_assert(i < ast_stream_topology_get_count(session->pending_media_state->topology));
 
 		session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, i);
 		stream = ast_stream_topology_get_stream(session->pending_media_state->topology, i);
@@ -815,9 +835,6 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		if (!remote->media[i]) {
 			continue;
 		}
-
-		ast_assert(i < AST_VECTOR_SIZE(&session->pending_media_state->sessions));
-		ast_assert(i < ast_stream_topology_get_count(session->pending_media_state->topology));
 
 		session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, i);
 		stream = ast_stream_topology_get_stream(session->pending_media_state->topology, i);
