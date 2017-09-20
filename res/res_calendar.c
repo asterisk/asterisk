@@ -339,10 +339,7 @@ static void calendar_destructor(void *obj)
 	}
 	ast_calendar_clear_events(cal);
 	ast_string_field_free_memory(cal);
-	if (cal->vars) {
-		ast_variables_destroy(cal->vars);
-		cal->vars = NULL;
-	}
+	ast_variables_destroy(cal->vars);
 	ao2_ref(cal->events, -1);
 	ao2_unlock(cal);
 }
