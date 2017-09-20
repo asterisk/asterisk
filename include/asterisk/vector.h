@@ -548,6 +548,14 @@ AST_VECTOR(ast_vector_int, int);
 #define AST_VECTOR_SIZE(vec) (vec)->current
 
 /*!
+ * \brief Get the maximum number of elements the vector can currently hold.
+ *
+ * \param vec Vector to query.
+ * \return Maximum number of elements the vector can currently hold.
+ */
+#define AST_VECTOR_MAX_SIZE(vec) (vec)->max
+
+/*!
  * \brief Reset vector.
  *
  * \param vec Vector to reset.

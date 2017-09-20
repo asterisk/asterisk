@@ -902,7 +902,13 @@
 ;max_contacts=0 ; Maximum number of contacts that can bind to an AoR (default:
                 ; "0")
 ;minimum_expiration=60  ; Minimum keep alive time for an AoR (default: "60")
-;remove_existing=no     ; Determines whether new contacts replace existing ones
+;remove_existing=no     ; Allow a registration to succeed by displacing any existing
+                        ; contacts that now exceed the max_contacts count.  Any
+                        ; removed contacts are the next to expire.  The behaviour is
+                        ; beneficial when rewrite_contact is enabled and max_contacts
+                        ; is greater than one.  The removed contact is likely the old
+                        ; contact created by rewrite_contact that the device is
+                        ; refreshing.
                         ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
 ;qualify_frequency=0    ; Interval at which to qualify an AoR (default: "0")
@@ -1141,7 +1147,7 @@
 
 ;outbound_auth=            ; Authentication object(s) to be used for outbound
                            ; publishes.
-                           ; This is a comma-delimited list of auth	sections
+                           ; This is a comma-delimited list of auth sections
                            ; defined in pjsip.conf used to respond to outbound
                            ; authentication challenges.
                            ; Using the same auth section for inbound and
