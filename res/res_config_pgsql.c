@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2016, Digium, Inc.
+ * Copyright (C) 1999 - 2017, Digium, Inc.
  *
  * Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
@@ -1035,7 +1035,7 @@ static int store_pgsql(const char *database, const char *table, const struct ast
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
 
-	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s.", table);
+	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s.\n", table);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
