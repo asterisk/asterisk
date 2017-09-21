@@ -1455,6 +1455,10 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 					continue;
 				}
 
+				/* No need to do anything with stream if it's media state is removed */
+				if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+					continue;
+				}
 
 				/* Enforce the configured allowed codecs on audio and video streams */
 				if (ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) {
@@ -1465,14 +1469,12 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 						ast_sip_session_media_state_free(media_state);
 						return 0;
 					}
-
 					ast_format_cap_get_compatible(ast_stream_get_formats(stream), session->endpoint->media.codecs, joint_cap);
 					if (!ast_format_cap_count(joint_cap)) {
 						ao2_ref(joint_cap, -1);
-						ast_sip_session_media_state_free(media_state);
-						return 0;
+						ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+						continue;
 					}
-
 					ast_stream_set_formats(stream, joint_cap);
 				}
 
