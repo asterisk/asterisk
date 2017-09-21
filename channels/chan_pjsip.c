@@ -1731,6 +1731,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		break;
 	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
 		break;
+	case AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED:
+		break;
 	case -1:
 		res = -1;
 		break;
