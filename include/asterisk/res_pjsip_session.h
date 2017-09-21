@@ -109,6 +109,8 @@ struct ast_sip_session_media {
 	char mslabel[AST_UUID_STR_LEN];
 	/*! \brief Track label */
 	char label[AST_UUID_STR_LEN];
+	/*! \brief The underlying session has been changed in some fashion */
+	unsigned int changed;
 };
 
 /*!
