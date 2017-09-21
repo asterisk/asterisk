@@ -2258,6 +2258,10 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 	case AST_CONTROL_ANSWER:
 		if (ast_channel_state(chan) != AST_STATE_UP) {
 			ast_answer(chan);
+			ast_bridge_channel_lock_bridge(bridge_channel);
+			bridge_channel->bridge->reconfigured = 1;
+			bridge_reconfigured(bridge_channel->bridge, 0);
+			ast_bridge_unlock(bridge_channel->bridge);
 		} else {
 			ast_indicate(chan, -1);
 		}
