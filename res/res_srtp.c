@@ -448,11 +448,25 @@ tryagain:
 	}
 
 	if (res != err_status_ok && res != err_status_replay_fail ) {
-		if ((srtp->warned >= 10) && !((srtp->warned - 10) % 100)) {
-			ast_log(AST_LOG_WARNING, "SRTP unprotect failed with: %s %d\n", srtp_errstr(res), srtp->warned);
-			srtp->warned = 11;
+		/*
+		 * Authentication failures happen when an active attacker tries to
+		 * insert malicious RTP packets. Furthermore, authentication failures
+		 * happen, when the other party encrypts the sRTP data in an unexpected
+		 * way. This happens quite often with RTCP. Therefore, when you see
+		 * authentication failures, try to identify the implementation
+		 * (author and product name) used by your other party. Try to investigate
+		 * whether they use a custom library or an outdated version of libSRTP.
+		 */
+		if (rtcp) {
+			ast_verb(2, "SRTCP unprotect failed because of %s\n", srtp_errstr(res));
 		} else {
-			srtp->warned++;
+			if ((srtp->warned >= 10) && !((srtp->warned - 10) % 150)) {
+				ast_verb(2, "SRTP unprotect failed because of %s %d\n",
+					srtp_errstr(res), srtp->warned);
+				srtp->warned = 11;
+			} else {
+				srtp->warned++;
+			}
 		}
 		errno = EAGAIN;
 		return -1;
