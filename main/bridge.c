@@ -1741,7 +1741,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 
 	ao2_ref(bridge_channel, -1);
 
-join_exit:;
+join_exit:
 	ast_bridge_run_after_callback(chan);
 	bridge_channel_impart_signal(chan);
 	if (!(ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO)
