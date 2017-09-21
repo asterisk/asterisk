@@ -765,6 +765,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 {
 	int i;
 	struct ast_stream_topology *topology;
+	unsigned int changed = 0;
 
 	for (i = 0; i < local->media_count; ++i) {
 		struct ast_sip_session_media *session_media;
@@ -802,6 +803,9 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		if (handle_negotiated_sdp_session_media(session_media, session, local, remote, i, stream)) {
 			return -1;
 		}
+
+		changed |= session_media->changed;
+		session_media->changed = 0;
 	}
 
 	/* Apply the pending media state to the channel and make it active */
@@ -858,7 +862,13 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	ast_channel_unlock(session->channel);
 
-	ast_queue_frame(session->channel, &ast_null_frame);
+	if (changed) {
+		struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED };
+
+		ast_queue_frame(session->channel, &f);
+	} else {
+		ast_queue_frame(session->channel, &ast_null_frame);
+	}
 
 	return 0;
 }
