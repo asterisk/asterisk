@@ -553,6 +553,16 @@ static int set_mid_and_bundle_group(struct ast_sip_session *session,
 	return 0;
 }
 
+static void remove_stream_from_bundle(struct ast_sip_session_media *session_media,
+	struct ast_stream *stream)
+{
+	ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+	ast_free(session_media->mid);
+	session_media->mid = NULL;
+	session_media->bundle_group = -1;
+	session_media->bundled = 0;
+}
+
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
@@ -615,9 +625,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		if (!remote_stream->desc.port || is_stream_limitation_reached(type, session->endpoint, type_streams)) {
 			ast_debug(1, "Declining incoming SDP media stream '%s' at position '%d'\n",
 				ast_codec_media_type2str(type), i);
-			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
-			session_media->bundle_group = -1;
-			session_media->bundled = 0;
+			remove_stream_from_bundle(session_media, stream);
 			continue;
 		}
 
@@ -632,6 +640,11 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			if (res < 0) {
 				/* Catastrophic failure. Abort! */
 				return -1;
+			} else if (res == 0) {
+				ast_debug(1, "Declining incoming SDP media stream '%s' at position '%d'\n",
+					ast_codec_media_type2str(type), i);
+				remove_stream_from_bundle(session_media, stream);
+				continue;
 			} else if (res > 0) {
 				ast_debug(1, "Media stream '%s' handled by %s\n",
 					ast_codec_media_type2str(session_media->type),
@@ -659,8 +672,12 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			if (res < 0) {
 				/* Catastrophic failure. Abort! */
 				return -1;
-			}
-			if (res > 0) {
+			} else if (res == 0) {
+				ast_debug(1, "Declining incoming SDP media stream '%s' at position '%d'\n",
+					ast_codec_media_type2str(type), i);
+				remove_stream_from_bundle(session_media, stream);
+				continue;
+			} else if (res > 0) {
 				ast_debug(1, "Media stream '%s' handled by %s\n",
 					ast_codec_media_type2str(session_media->type),
 					handler->id);
