@@ -1482,7 +1482,14 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 			 * are configurable on the endpoint.
 			 */
 			for (index = 0; index < ast_stream_topology_get_count(media_state->topology); ++index) {
+				struct ast_stream *existing_stream = NULL;
+
 				stream = ast_stream_topology_get_stream(media_state->topology, index);
+
+				if (session->active_media_state->topology &&
+					index < ast_stream_topology_get_count(session->active_media_state->topology)) {
+					existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, index);
+				}
 
 				if (is_stream_limitation_reached(ast_stream_get_type(stream), session->endpoint, type_streams)) {
 					if (index < AST_VECTOR_SIZE(&media_state->sessions)) {
@@ -1516,8 +1523,28 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 					ast_format_cap_get_compatible(ast_stream_get_formats(stream), session->endpoint->media.codecs, joint_cap);
 					if (!ast_format_cap_count(joint_cap)) {
 						ao2_ref(joint_cap, -1);
-						ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
-						continue;
+
+						if (!existing_stream) {
+							/* If there is no existing stream we can just not have this stream in the topology
+							 * at all.
+							 */
+							ast_stream_topology_del_stream(media_state->topology, index);
+							index -= 1;
+							continue;
+						} else if (ast_stream_get_state(stream) != ast_stream_get_state(existing_stream) ||
+								strcmp(ast_stream_get_name(stream), ast_stream_get_name(existing_stream))) {
+							/* If the underlying stream is a different type or different name then we have to
+							 * mark it as removed, as it is replacing an existing stream. We do this so order
+							 * is preserved.
+							 */
+							ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+							continue;
+						} else {
+							/* However if the stream is otherwise remaining the same we can keep the formats
+							 * that exist on it already which allows media to continue to flow.
+							 */
+							joint_cap = ao2_bump(ast_stream_get_formats(existing_stream));
+						}
 					}
 					ast_stream_set_formats(stream, joint_cap);
 				}
