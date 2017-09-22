@@ -69,8 +69,8 @@ static enum pjsip_status_code check_content_type(const pjsip_rx_data *rdata)
 			&rdata->msg_info.msg->body->content_type, "text", "plain");
 	} else {
 		res = rdata->msg_info.ctype &&
-			!pj_strcmp2(&rdata->msg_info.ctype->media.type, "text") &&
-			!pj_strcmp2(&rdata->msg_info.ctype->media.subtype, "plain");
+			ast_sip_is_content_type(
+				&rdata->msg_info.ctype->media, "text", "plain");
 	}
 
 	return res ? PJSIP_SC_OK : PJSIP_SC_UNSUPPORTED_MEDIA_TYPE;

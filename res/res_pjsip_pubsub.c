@@ -516,6 +516,8 @@ AST_RWLIST_HEAD_STATIC(subscriptions, sip_subscription_tree);
 AST_RWLIST_HEAD_STATIC(body_generators, ast_sip_pubsub_body_generator);
 AST_RWLIST_HEAD_STATIC(body_supplements, ast_sip_pubsub_body_supplement);
 
+static pjsip_media_type rlmi_media_type;
+
 static void pubsub_on_evsub_state(pjsip_evsub *sub, pjsip_event *event);
 static void pubsub_on_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata,
 		int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
@@ -2044,8 +2046,6 @@ static void *rlmi_clone_data(pj_pool_t *pool, const void *data, unsigned len)
 static pjsip_multipart_part *build_rlmi_body(pj_pool_t *pool, struct ast_sip_subscription *sub,
 		struct body_part_list *body_parts, unsigned int full_state)
 {
-	static const pj_str_t rlmi_type = { "application", 11 };
-	static const pj_str_t rlmi_subtype = { "rlmi+xml", 8 };
 	pj_xml_node *rlmi;
 	pj_xml_node *name;
 	pjsip_multipart_part *rlmi_part;
@@ -2076,9 +2076,7 @@ static pjsip_multipart_part *build_rlmi_body(pj_pool_t *pool, struct ast_sip_sub
 	rlmi_part = pjsip_multipart_create_part(pool);
 
 	rlmi_part->body = PJ_POOL_ZALLOC_T(pool, pjsip_msg_body);
-	pj_strdup(pool, &rlmi_part->body->content_type.type, &rlmi_type);
-	pj_strdup(pool, &rlmi_part->body->content_type.subtype, &rlmi_subtype);
-	pj_list_init(&rlmi_part->body->content_type.param);
+	pjsip_media_type_cp(pool, &rlmi_part->body->content_type, &rlmi_media_type);
 
 	rlmi_part->body->data = pj_xml_clone(pool, rlmi);
 	rlmi_part->body->clone_data = rlmi_clone_data;
@@ -3584,12 +3582,11 @@ error:
 	return PJ_TRUE;
 }
 
-static pjsip_media_type simple_message_summary;
-
 static pj_bool_t pubsub_on_rx_notify_request(pjsip_rx_data *rdata)
 {
 	if (rdata->msg_info.msg->body &&
-		pjsip_media_type_cmp(&rdata->msg_info.msg->body->content_type, &simple_message_summary, 0) == 0) {
+		ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
+								"application", "simple-message-summary")) {
 		return pubsub_on_rx_mwi_notify_request(rdata);
 	}
 	return PJ_FALSE;
@@ -5425,7 +5422,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	pjsip_media_type_init2(&simple_message_summary, "application", "simple-message-summary");
+	pjsip_media_type_init2(&rlmi_media_type, "application", "rlmi+xml");
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for publication expiration\n");
