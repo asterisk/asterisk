@@ -4013,8 +4013,9 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	int stream;
 
 	/* SDP produced by us directly will never be multipart */
-	if (!transport_state || hook || !tdata->msg->body || pj_stricmp2(&tdata->msg->body->content_type.type, "application") ||
-		pj_stricmp2(&tdata->msg->body->content_type.subtype, "sdp") || ast_strlen_zero(transport->external_media_address)) {
+	if (!transport_state || hook || !tdata->msg->body ||
+		!ast_sip_is_content_type(&tdata->msg->body->content_type, "application", "sdp") ||
+		ast_strlen_zero(transport->external_media_address)) {
 		return;
 	}
 
