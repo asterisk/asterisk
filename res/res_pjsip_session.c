@@ -3485,8 +3485,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 							ast_sip_session_send_request_with_cb(session, tdata, cb);
 							return;
 						}
-						if (tsx->status_code != 488) {
-							/* Other reinvite failures (except 488) result in destroying the session. */
+						if (tsx->status_code != 488 && tsx->status_code != 500) {
+							/* Other reinvite failures (except 488 and 500) result in destroying the session. */
 							if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS
 								&& tdata) {
 								ast_sip_session_send_request(session, tdata);
