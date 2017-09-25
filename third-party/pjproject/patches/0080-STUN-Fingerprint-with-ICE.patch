@@ -1,0 +1,35 @@
+From 28490e9ddee0937516f9edcaf95d274fe5ceaf4c Mon Sep 17 00:00:00 2001
+From: Sean Bright <sean.bright@gmail.com>
+Date: Mon, 25 Sep 2017 14:06:53 -0400
+Subject: [PATCH] ICE: Use STUN FINGERPRINT attribute when sending keepalives
+
+Per RFC 5245 Section 10:
+
+   If STUN is being used for keepalives, a STUN Binding Indication is
+   used [RFC5389].  The Indication MUST NOT utilize any authentication
+   mechanism.  It SHOULD contain the FINGERPRINT attribute to aid in
+   demultiplexing, but SHOULD NOT contain any other attributes.
+---
+ pjnath/src/pjnath/ice_session.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
+index 159d7b1..f90005a 100644
+--- a/pjnath/src/pjnath/ice_session.c
++++ b/pjnath/src/pjnath/ice_session.c
+@@ -1217,10 +1217,8 @@ static void ice_keep_alive(pj_ice_sess *ice, pj_bool_t send_now)
+ 	msg_data = PJ_POOL_ZALLOC_T(tdata->pool, pj_ice_msg_data);
+ 	msg_data->transport_id = the_check->lcand->transport_id;
+ 
+-	/* Temporarily disable FINGERPRINT. The Binding Indication 
+-	 * SHOULD NOT contain any attributes.
+-	 */
+-	saved = pj_stun_session_use_fingerprint(comp->stun_sess, PJ_FALSE);
++	/* Make sure that the FINGERPRINT attribute is used per RFC 5245 Section 10 */
++	saved = pj_stun_session_use_fingerprint(comp->stun_sess, PJ_TRUE);
+ 
+ 	/* Send to session */
+ 	addr_len = pj_sockaddr_get_len(&the_check->rcand->addr);
+-- 
+2.7.4
+
