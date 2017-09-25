@@ -249,6 +249,11 @@ static struct ast_stream_topology *stream_echo_topology_alloc(
 			continue;
 		}
 
+		if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+			/* Don't copy removed/declined streams */
+			continue;
+		}
+
 		do {
 			stream = ast_stream_clone(stream, NULL);
 
