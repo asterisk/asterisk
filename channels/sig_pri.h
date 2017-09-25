@@ -300,7 +300,7 @@ struct sig_pri_chan {
 	char cid_name[AST_MAX_EXTENSION];
 	char cid_ani[AST_MAX_EXTENSION];
 	/*! \brief User tag for party id's sent from this device driver. */
-	char user_tag[AST_MAX_EXTENSION];
+	char user_tag[AST_MAX_EXTENSION * 2];
 	char exten[AST_MAX_EXTENSION];
 
 	/* Internal variables -- Don't touch */

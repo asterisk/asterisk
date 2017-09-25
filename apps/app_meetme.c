@@ -2254,20 +2254,23 @@ static char *sla_show_stations(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			if (trunk_ref->ring_timeout) {
 				snprintf(ring_timeout, sizeof(ring_timeout),
 					"%u", trunk_ref->ring_timeout);
-			} else
+			} else {
 				strcpy(ring_timeout, "(none)");
+			}
 			if (trunk_ref->ring_delay) {
 				snprintf(ring_delay, sizeof(ring_delay),
 					"%u", trunk_ref->ring_delay);
-			} else
+			} else {
 				strcpy(ring_delay, "(none)");
-				ast_cli(a->fd, "===    ==> Trunk Name: %s\n"
-			            "===       ==> State:       %s\n"
-			            "===       ==> RingTimeout: %s\n"
-			            "===       ==> RingDelay:   %s\n",
-			            trunk_ref->trunk->name,
-			            trunkstate2str(trunk_ref->state),
-			            ring_timeout, ring_delay);
+			}
+
+			ast_cli(a->fd, "===    ==> Trunk Name: %s\n"
+	            "===       ==> State:       %s\n"
+	            "===       ==> RingTimeout: %s\n"
+	            "===       ==> RingDelay:   %s\n",
+	            trunk_ref->trunk->name,
+	            trunkstate2str(trunk_ref->state),
+	            ring_timeout, ring_delay);
 		}
 		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
 		            "===\n");
@@ -3202,7 +3205,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	const char *agifiledefault = "conf-background.agi", *tmpvar;
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
-	char recordingtmp[AST_MAX_EXTENSION] = "";
+	char recordingtmp[AST_MAX_EXTENSION * 2] = "";
 	char members[10] = "";
 	int dtmf = 0, opt_waitmarked_timeout = 0;
 	time_t timeout = 0;
@@ -4520,7 +4523,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		char currenttime[32] = "";
 		char eatime[32] = "";
 		char bookid[51] = "";
-		char recordingtmp[AST_MAX_EXTENSION] = "";
+		char recordingtmp[AST_MAX_EXTENSION * 2] = "";
 		char useropts[OPTIONS_LEN + 1] = ""; /* Used for RealTime conferences */
 		char adminopts[OPTIONS_LEN + 1] = "";
 		struct ast_tm tm, etm;
