@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 #include <sys/stat.h>
 #include <math.h>
+#include <sys/sysmacros.h>
 
 #include "sig_analog.h"
 /* Analog signaling is currently still present in chan_dahdi for use with
@@ -14320,7 +14321,7 @@ static char *handle_pri_service_generic(struct ast_cli_entry *e, int cmd, struct
 	int trunkgroup;
 	int x, y, fd = a->fd;
 	int interfaceid = 0;
-	char db_chan_name[20], db_answer[5];
+	char db_chan_name[20], db_answer[15];
 	struct dahdi_pvt *tmp;
 	struct dahdi_pri *pri;
 
