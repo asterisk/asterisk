@@ -4724,7 +4724,7 @@ static void update_connected_line_from_peer(struct ast_channel *chan, struct ast
  *
  * \todo eventually all call forward logic should be intergerated into and replaced by ast_call_forward()
  */
-static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed, int ringing)
+static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callattempt *outgoing, int *to, char *digit, int prebusies, int caller_disconnect, int forwardsallowed)
 {
 	const char *queue = qe->parent->name;
 	struct callattempt *o, *start = NULL, *prev = NULL;
@@ -5242,16 +5242,6 @@ skip_frame:;
 			ast_frfree(f);
 		}
 	}
-
-	/* Make a position announcement, if enabled */
- 	if (qe->parent->announcefrequency && qe->parent->announce_to_first_user) {
-		say_position(qe, ringing);
-	}
-
- 	/* Make a periodic announcement, if enabled */
- 	if (qe->parent->periodicannouncefrequency && qe->parent->announce_to_first_user) {
- 		say_periodic_announcement(qe, ringing);
- 	}
 
 	if (!*to) {
 		for (o = start; o; o = o->call_next) {
@@ -6659,7 +6649,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	ring_one(qe, outgoing, &numbusies);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies,
 		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
-		forwardsallowed, ringing);
+		forwardsallowed);
 
 	ao2_lock(qe->parent);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED) {
@@ -8072,14 +8062,14 @@ check_turns:
 
 		if (makeannouncement) {
 			/* Make a position announcement, if enabled */
-			if (qe.parent->announcefrequency)
+			if (qe.parent->announcefrequency && qe.parent->announce_to_first_user)
 				if ((res = say_position(&qe,ringing)))
 					goto stop;
 		}
 		makeannouncement = 1;
 
 		/* Make a periodic announcement, if enabled */
-		if (qe.parent->periodicannouncefrequency) {
+		if (qe.parent->periodicannouncefrequency && qe.parent->announce_to_first_user) {
 			if ((res = say_periodic_announcement(&qe,ringing))) {
 				goto stop;
 			}
