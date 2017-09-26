@@ -1363,10 +1363,9 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		endpoint->media.rtp.dtls_cfg.default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
 		endpoint->media.rtp.dtls_cfg.verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
 
-		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile) ||
-			(ast_strlen_zero(endpoint->media.rtp.dtls_cfg.cafile))) {
+		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile)) {
 			ast_log(LOG_ERROR, "WebRTC can't be enabled on endpoint '%s' - a DTLS cert "
-				"or ca file has not been specified", ast_sorcery_object_get_id(endpoint));
+				"has not been specified", ast_sorcery_object_get_id(endpoint));
 			return -1;
 		}
 	}
