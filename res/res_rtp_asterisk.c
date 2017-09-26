@@ -3763,6 +3763,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	RAII_VAR(struct ast_json *, message_blob, NULL, ast_json_unref);
 	int res;
 	int len = 0;
+	uint16_t sdes_packet_len_bytes, sdes_packet_len_rounded;
 	struct timeval now;
 	unsigned int now_lsw;
 	unsigned int now_msw;
@@ -3770,7 +3771,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	unsigned int lost_packets;
 	int fraction_lost;
 	struct timeval dlsr = { 0, };
-	unsigned char bdata[512] = "";
+	unsigned char bdata[AST_UUID_STR_LEN + 128] = ""; /* More than enough */
 	int rate = rtp_get_rate(rtp->f.subclass.format);
 	int ice;
 	struct ast_sockaddr remote_address = { { 0, } };
@@ -3850,12 +3851,35 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	put_unaligned_uint32(rtcpheader, htonl((2 << 30) | (rtcp_report->reception_report_count << 24)
 					| ((sr ? RTCP_PT_SR : RTCP_PT_RR) << 16) | ((len/4)-1)));
 
-	put_unaligned_uint32(rtcpheader + len, htonl((2 << 30) | (1 << 24) | (RTCP_PT_SDES << 16) | (2 + (AST_UUID_STR_LEN / 4))));
+	sdes_packet_len_bytes =
+		4 + /* RTCP Header */
+		4 + /* SSRC */
+		1 + /* Type (CNAME) */
+		1 + /* Text Length */
+		AST_UUID_STR_LEN /* Text and NULL terminator */
+		;
+
+	/* Round to 32 bit boundary */
+	sdes_packet_len_rounded = (sdes_packet_len_bytes + 3) & ~0x3;
+
+	put_unaligned_uint32(rtcpheader + len, htonl((2 << 30) | (1 << 24) | (RTCP_PT_SDES << 16) | ((sdes_packet_len_rounded / 4) - 1)));
 	put_unaligned_uint32(rtcpheader + len + 4, htonl(rtcp_report->ssrc));
-	put_unaligned_uint16(rtcpheader + len + 8, htonl(0x01 << 24));
-	put_unaligned_uint16(rtcpheader + len + 9, htonl(AST_UUID_STR_LEN << 24));
+	rtcpheader[len + 8] = 0x01; /* CNAME */
+	rtcpheader[len + 9] = AST_UUID_STR_LEN - 1; /* Number of bytes of text */
 	memcpy(rtcpheader + len + 10, rtp->cname, AST_UUID_STR_LEN);
-	len += 12 + AST_UUID_STR_LEN;
+	len += 10 + AST_UUID_STR_LEN;
+
+	/* Padding - Note that we don't set the padded bit on the packet. From
+	 * RFC 3550 Section 6.5:
+	 *
+	 *    No length octet follows the null item type octet, but additional null
+	 *    octets MUST be included if needed to pad until the next 32-bit
+	 *    boundary.  Note that this padding is separate from that indicated by
+	 *    the P bit in the RTCP header.
+	 *
+	 * These bytes will already be zeroed out during array initialization.
+	 */
+	len += (sdes_packet_len_rounded - sdes_packet_len_bytes);
 
 	if (rtp->bundled) {
 		ast_rtp_instance_get_remote_address(instance, &remote_address);
