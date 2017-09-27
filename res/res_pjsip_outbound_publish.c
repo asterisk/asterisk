@@ -986,7 +986,7 @@ static int sip_outbound_publisher_init(void *data)
 
 	pj_cstr(&event, publish->event);
 	if (pjsip_publishc_init(publisher->client, &event, &server_uri, &from_uri, &to_uri,
-				publish->expiration != PJ_SUCCESS)) {
+			publish->expiration) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to initialize publishing client on outbound publish '%s'\n",
 			ast_sorcery_object_get_id(publish));
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
