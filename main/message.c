@@ -1350,6 +1350,148 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 	return res;
 }
 
+/*!
+ * \brief Structure used to transport a message through the frame core
+ * \since 13.22.0
+ * \since 15.5.0
+ */
+struct ast_msg_data {
+	/*! The length of this structure plus the actual length of the allocated buffer */
+	size_t length;
+	enum ast_msg_data_source_type source;
+	/*! These are indices into the buffer where teh attribute starts */
+	int attribute_value_offsets[__AST_MSG_DATA_ATTR_LAST];
+	/*! The buffer containing the NULL separated attributes */
+	char buf[0];
+};
+
+#define ATTRIBUTE_UNSET -1
+
+struct ast_msg_data *ast_msg_data_alloc(enum ast_msg_data_source_type source,
+	struct ast_msg_data_attribute attributes[], size_t count)
+{
+	struct ast_msg_data *msg;
+	size_t len = sizeof(*msg);
+	size_t i;
+	size_t current_offset = 0;
+	enum ast_msg_data_attribute_type attr_type;
+
+	if (!attributes) {
+		ast_assert(attributes != NULL);
+		return NULL;
+	}
+
+	if (!count) {
+		ast_assert(count > 0);
+		return NULL;
+	}
+
+	/* Calculate the length required for the buffer */
+	for (i=0; i < count; i++) {
+		if (!attributes[i].value) {
+			ast_assert(attributes[i].value != NULL);
+			return NULL;
+		}
+		len += (strlen(attributes[i].value) + 1);
+	}
+
+	msg = ast_calloc(1, len);
+	if (!msg) {
+		return NULL;
+	}
+	msg->source = source;
+	msg->length = len;
+
+	/* Mark all of the attributes as unset */
+	for (attr_type = 0; attr_type < __AST_MSG_DATA_ATTR_LAST; attr_type++) {
+		msg->attribute_value_offsets[attr_type] = ATTRIBUTE_UNSET;
+	}
+
+	/* Set the ones we have and increment the offset */
+	for (i=0; i < count; i++) {
+		len = (strlen(attributes[i].value) + 1);
+		strcpy(msg->buf + current_offset, attributes[i].value); /* Safe */
+		msg->attribute_value_offsets[attributes[i].type] = current_offset;
+		current_offset += len;
+	}
+
+	return msg;
+}
+
+struct ast_msg_data *ast_msg_data_dup(struct ast_msg_data *msg)
+{
+	struct ast_msg_data *dest;
+
+	if (!msg) {
+		ast_assert(msg != NULL);
+		return NULL;
+	}
+
+	dest = ast_malloc(msg->length);
+	if (!dest) {
+		return NULL;
+	}
+	memcpy(dest, msg, msg->length);
+
+	return dest;
+}
+
+size_t ast_msg_data_get_length(struct ast_msg_data *msg)
+{
+	if (!msg) {
+		ast_assert(msg != NULL);
+		return 0;
+	}
+
+	return msg->length;
+}
+
+enum ast_msg_data_source_type ast_msg_data_get_source_type(struct ast_msg_data *msg)
+{
+	if (!msg) {
+		ast_assert(msg != NULL);
+		return AST_MSG_DATA_SOURCE_TYPE_UNKNOWN;
+	}
+
+	return msg->source;
+}
+
+const char *ast_msg_data_get_attribute(struct ast_msg_data *msg,
+	enum ast_msg_data_attribute_type attribute_type)
+{
+	if (!msg) {
+		ast_assert(msg != NULL);
+		return "";
+	}
+
+	if (msg->attribute_value_offsets[attribute_type] > ATTRIBUTE_UNSET) {
+		return msg->buf + msg->attribute_value_offsets[attribute_type];
+	}
+
+	return "";
+}
+
+int ast_msg_data_queue_frame(struct ast_channel *channel, struct ast_msg_data *msg)
+{
+	struct ast_frame f;
+
+	if (!channel) {
+		ast_assert(channel != NULL);
+		return -1;
+	}
+
+	if (!msg) {
+		ast_assert(msg != NULL);
+		return -1;
+	}
+
+	memset(&f, 0, sizeof(f));
+	f.frametype = AST_FRAME_TEXT_DATA;
+	f.data.ptr = msg;
+	f.datalen = msg->length;
+	return ast_queue_frame(channel, &f);
+}
+
 int ast_msg_tech_register(const struct ast_msg_tech *tech)
 {
 	const struct ast_msg_tech *match;

@@ -9,6 +9,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.21.0 to Asterisk 13.22.0 ----------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * Core bridging and, more specifically, bridge_softmix have been enhanced to
+   relay received frames of type TEXT or TEXT_DATA to all participants in a
+   softmix bridge.  res_pjsip_messaging and chan_pjsip have been enhanced to
+   take advantage of this so when res_pjsip_messaging receives an in-dialog
+   MESSAGE message from a user in a conference call, it's relayed to all
+   other participants in the call.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.20.0 to Asterisk 13.21.0 ----------
 ------------------------------------------------------------------------------
 
