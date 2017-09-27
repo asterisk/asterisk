@@ -61,6 +61,7 @@
 #include "asterisk/features_config.h"
 #include "asterisk/pickup.h"
 #include "asterisk/test.h"
+#include "asterisk/message.h"
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -86,6 +87,7 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *type,
 	struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids,
 	const struct ast_channel *requestor, const char *data, int *cause);
+static int chan_pjsip_sendtext_data(struct ast_channel *ast, struct ast_msg_data *msg);
 static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text);
 static int chan_pjsip_digit_begin(struct ast_channel *ast, char digit);
 static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -109,6 +111,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.requester = chan_pjsip_request,
 	.requester_with_stream_topology = chan_pjsip_request_with_stream_topology,
 	.send_text = chan_pjsip_sendtext,
+	.send_text_data = chan_pjsip_sendtext_data,
 	.send_digit_begin = chan_pjsip_digit_begin,
 	.send_digit_end = chan_pjsip_digit_end,
 	.call = chan_pjsip_call,
@@ -125,7 +128,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.queryoption = chan_pjsip_queryoption,
 	.func_channel_read = pjsip_acf_channel_read,
 	.get_pvt_uniqueid = chan_pjsip_get_uniqueid,
-	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
+	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER | AST_CHAN_TP_SEND_TEXT_DATA
 };
 
 /*! \brief SIP session interaction functions */
@@ -2539,50 +2542,99 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 
 struct sendtext_data {
 	struct ast_sip_session *session;
-	char text[0];
+	struct ast_msg_data *msg;
 };
 
 static void sendtext_data_destroy(void *obj)
 {
 	struct sendtext_data *data = obj;
-	ao2_ref(data->session, -1);
+	ao2_cleanup(data->session);
+	ast_free(data->msg);
 }
 
-static struct sendtext_data* sendtext_data_create(struct ast_sip_session *session, const char *text)
+static struct sendtext_data* sendtext_data_create(struct ast_channel *chan,
+	struct ast_msg_data *msg)
 {
-	int size = strlen(text) + 1;
-	struct sendtext_data *data = ao2_alloc(sizeof(*data)+size, sendtext_data_destroy);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct sendtext_data *data = ao2_alloc(sizeof(*data), sendtext_data_destroy);
 
 	if (!data) {
 		return NULL;
 	}
 
-	data->session = session;
+	data->msg = ast_msg_data_dup(msg);
+	if (!data->msg) {
+		ao2_cleanup(data);
+		return NULL;
+	}
+	data->session = channel->session;
 	ao2_ref(data->session, +1);
-	ast_copy_string(data->text, text, size);
+
 	return data;
 }
 
 static int sendtext(void *obj)
 {
-	RAII_VAR(struct sendtext_data *, data, obj, ao2_cleanup);
+	struct sendtext_data *data = obj;
 	pjsip_tx_data *tdata;
-
-	const struct ast_sip_body body = {
+	const char *body_text = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_BODY);
+	const char *content_type = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
+	char *sep;
+	struct ast_sip_body body = {
 		.type = "text",
 		.subtype = "plain",
-		.body_text = data->text
+		.body_text = body_text,
 	};
+
+	if (!ast_strlen_zero(content_type)) {
+		sep = strchr(content_type, '/');
+		if (sep) {
+			*sep = '\0';
+			body.type = content_type;
+			body.subtype = ++sep;
+		}
+	}
 
 	if (data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
 		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
 			data->session->inv_session->cause,
 			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
 	} else {
-		ast_debug(3, "Sending in dialog SIP message\n");
+		pjsip_from_hdr *hdr;
+		pjsip_name_addr *name_addr;
+		const char *from = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_FROM);
+		const char *to = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_TO);
+		int invalidate_tdata = 0;
 
 		ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
 		ast_sip_add_body(tdata, &body);
+
+		/*
+		 * If we have a 'from' in the msg, set the display name in the From
+		 * header to it.
+		 */
+		if (!ast_strlen_zero(from)) {
+			hdr = PJSIP_MSG_FROM_HDR(tdata->msg);
+			name_addr = (pjsip_name_addr *) hdr->uri;
+			pj_strdup2(tdata->pool, &name_addr->display, from);
+			invalidate_tdata = 1;
+		}
+
+		/*
+		 * If we have a 'to' in the msg, set the display name in the To
+		 * header to it.
+		 */
+		if (!ast_strlen_zero(to)) {
+			hdr = PJSIP_MSG_TO_HDR(tdata->msg);
+			name_addr = (pjsip_name_addr *) hdr->uri;
+			pj_strdup2(tdata->pool, &name_addr->display, to);
+			invalidate_tdata = 1;
+		}
+
+		if (invalidate_tdata) {
+			pjsip_tx_data_invalidate_msg(tdata);
+		}
+
 		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 	}
 
@@ -2590,14 +2642,22 @@ static int sendtext(void *obj)
 	pjsip_inv_dec_ref(data->session->inv_session);
 #endif
 
+	ao2_cleanup(data);
+
 	return 0;
 }
 
 /*! \brief Function called by core to send text on PJSIP session */
-static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
+static int chan_pjsip_sendtext_data(struct ast_channel *ast, struct ast_msg_data *msg)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct sendtext_data *data = sendtext_data_create(channel->session, text);
+	struct sendtext_data *data = sendtext_data_create(ast, msg);
+
+	ast_debug(1, "Sending MESSAGE from '%s' to '%s:%s': %s\n",
+		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM),
+		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_TO),
+		ast_channel_name(ast),
+		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
 
 	if (!data) {
 		return -1;
@@ -2619,6 +2679,28 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 		return -1;
 	}
 	return 0;
+}
+
+static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
+{
+	struct ast_msg_data *msg;
+	int rc;
+	struct ast_msg_data_attribute attrs[] =
+	{
+		{
+			.type = AST_MSG_DATA_ATTR_BODY,
+			.value = (char *)text,
+		}
+	};
+
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	if (!msg) {
+		return -1;
+	}
+	rc = chan_pjsip_sendtext_data(ast, msg);
+	ast_free(msg);
+
+	return rc;
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
