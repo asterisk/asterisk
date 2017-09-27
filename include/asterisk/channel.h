@@ -590,6 +590,11 @@ struct ast_assigned_ids {
 };
 
 /*!
+ * \brief Forward declaration
+ */
+struct ast_msg_data;
+
+/*!
  * \brief
  * Structure to describe a channel "technology", ie a channel driver
  * See for examples:
@@ -756,6 +761,9 @@ struct ast_channel_tech {
 	 * \retval -1 on error.
 	 */
 	int (*pre_call)(struct ast_channel *chan, const char *sub_args);
+
+	/*! \brief Display or transmit text with data*/
+	int (* const send_text_data)(struct ast_channel *chan, struct ast_msg_data *data);
 };
 
 /*! Kill the channel channel driver technology descriptor. */
@@ -883,6 +891,10 @@ enum {
 	 * world
 	 */
 	AST_CHAN_TP_INTERNAL = (1 << 2),
+	/*!
+	 * \brief Channels have this property if they implement send_text_data
+	 */
+	AST_CHAN_TP_SEND_TEXT_DATA = (1 << 3),
 };
 
 /*! \brief ast_channel flags */
@@ -2066,6 +2078,26 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
  * \retval -1 on failure
  */
 int ast_sendtext(struct ast_channel *chan, const char *text);
+
+/*!
+ * \brief Sends text to a channel in an ast_msg_data structure wrapper with ast_sendtext as fallback
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param chan channel to act upon
+ * \param msg ast_msg_data structure
+ *
+ * \details
+ * Write text to a display on a channel.  If the channel driver doesn't support the
+ * send_text_data callback. then the original send_text callback will be used if
+ * available.
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg);
 
 /*!
  * \brief Receives a text character from a channel
