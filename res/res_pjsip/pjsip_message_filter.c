@@ -36,13 +36,19 @@ struct filter_message_restrictions {
 	unsigned int disallow_from_domain_modification;
 };
 
-static pjsip_module filter_module = {
-	.name = { "Message Filtering", 17 },
+static pjsip_module filter_module_transport = {
+	.name = { "Message Filtering Transport", 27 },
 	.id = -1,
 	.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER,
+	.on_rx_request = filter_on_rx_message,
+};
+
+static pjsip_module filter_module_tsx = {
+	.name = { "Message Filtering TSX", 21 },
+	.id = -1,
+	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 1,
 	.on_tx_request = filter_on_tx_message,
 	.on_tx_response = filter_on_tx_message,
-	.on_rx_request = filter_on_rx_message,
 };
 
 /*! \brief Helper function to get (or allocate if not already present) restrictions on a message */
@@ -50,13 +56,13 @@ static struct filter_message_restrictions *get_restrictions(pjsip_tx_data *tdata
 {
 	struct filter_message_restrictions *restrictions;
 
-	restrictions = ast_sip_mod_data_get(tdata->mod_data, filter_module.id, MOD_DATA_RESTRICTIONS);
+	restrictions = ast_sip_mod_data_get(tdata->mod_data, filter_module_tsx.id, MOD_DATA_RESTRICTIONS);
 	if (restrictions) {
 		return restrictions;
 	}
 
 	restrictions = PJ_POOL_ALLOC_T(tdata->pool, struct filter_message_restrictions);
-	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, filter_module.id, MOD_DATA_RESTRICTIONS, restrictions);
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, filter_module_tsx.id, MOD_DATA_RESTRICTIONS, restrictions);
 
 	return restrictions;
 }
@@ -217,7 +223,8 @@ static void FUNC_ATTRS sanitize_tdata(pjsip_tx_data *tdata)
 
 static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 {
-	struct filter_message_restrictions *restrictions = ast_sip_mod_data_get(tdata->mod_data, filter_module.id, MOD_DATA_RESTRICTIONS);
+	struct filter_message_restrictions *restrictions =
+		ast_sip_mod_data_get(tdata->mod_data, filter_module_transport.id, MOD_DATA_RESTRICTIONS);
 	pjsip_tpmgr_fla2_param prm;
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
@@ -277,7 +284,7 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 			/* prm.ret_addr is allocated from the tdata pool OR the transport so it is perfectly fine to just do an assignment like this */
 			pj_strassign(&uri->host, &prm.ret_addr);
 			uri->port = prm.ret_port;
-			ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
+			ast_debug(5, "Re-wrote Contact URI host/port to %.*s:%d (this may be re-written again later)\n",
 				(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
 
 			if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
@@ -498,7 +505,8 @@ static pj_bool_t filter_on_rx_message(pjsip_rx_data *rdata)
 
 void ast_res_pjsip_cleanup_message_filter(void)
 {
-	ast_sip_unregister_service(&filter_module);
+	ast_sip_unregister_service(&filter_module_tsx);
+	ast_sip_unregister_service(&filter_module_transport);
 	ast_sip_unregister_supplement(&filter_supplement);
 	ast_sip_session_unregister_supplement(&filter_session_supplement);
 }
@@ -516,7 +524,13 @@ int ast_res_pjsip_init_message_filter(void)
 		return -1;
 	}
 
-	if (ast_sip_register_service(&filter_module)) {
+	if (ast_sip_register_service(&filter_module_transport)) {
+		ast_log(LOG_ERROR, "Could not register message filter module for incoming and outgoing requests\n");
+		ast_res_pjsip_cleanup_message_filter();
+		return -1;
+	}
+
+	if (ast_sip_register_service(&filter_module_tsx)) {
 		ast_log(LOG_ERROR, "Could not register message filter module for incoming and outgoing requests\n");
 		ast_res_pjsip_cleanup_message_filter();
 		return -1;
