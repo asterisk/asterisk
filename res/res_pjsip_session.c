@@ -2486,6 +2486,16 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 				continue;
 			}
 
+			if (ast_stream_get_type(req_stream) == AST_MEDIA_TYPE_AUDIO) {
+				/*
+				 * By appending codecs from the endpoint after compatible ones this
+				 * guarantees that priority is given to those while also allowing
+				 * translation to occur for non-compatible.
+				 */
+				ast_format_cap_append_from_cap(joint_cap,
+					endpoint->media.codecs, AST_MEDIA_TYPE_AUDIO);
+			}
+
 			ast_stream_set_formats(clone_stream, joint_cap);
 			ao2_ref(joint_cap, -1);
 
