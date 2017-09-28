@@ -766,6 +766,7 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
 		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
+	enum ast_bridge_video_mode_type video_mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
 
 	if (invisible) {
 		flags |= AST_BRIDGE_FLAG_INVISIBLE;
@@ -782,7 +783,15 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 		} else if (!strcmp(requested_type, "dtmf_events") ||
 			!strcmp(requested_type, "proxy_media")) {
 			capabilities &= ~AST_BRIDGE_CAPABILITY_NATIVE;
+		} else if (!strcmp(requested_type, "video_sfu")) {
+			video_mode = AST_BRIDGE_VIDEO_MODE_SFU;
 		}
+	}
+
+	/* For an SFU video bridge we ensure it always remains in multimix for the best experience. */
+	if (video_mode == AST_BRIDGE_VIDEO_MODE_SFU) {
+		capabilities = AST_BRIDGE_CAPABILITY_MULTIMIX;
+		flags &= ~AST_BRIDGE_FLAG_SMART;
 	}
 
 	if (!capabilities
@@ -794,7 +803,15 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 
 	bridge = bridge_stasis_new(capabilities, flags, name, id);
 	if (bridge) {
-		ast_bridge_set_talker_src_video_mode(bridge);
+		if (video_mode == AST_BRIDGE_VIDEO_MODE_SFU) {
+			ast_bridge_set_sfu_video_mode(bridge);
+			/* We require a minimum 5 seconds between video updates to stop floods from clients,
+			 * this should rarely be changed but should become configurable in the future.
+			 */
+			ast_bridge_set_video_update_discard(bridge, 5);
+		} else {
+			ast_bridge_set_talker_src_video_mode(bridge);
+		}
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);
 			bridge = NULL;
