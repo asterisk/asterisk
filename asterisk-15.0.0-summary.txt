@@ -55,7 +55,7 @@
    40 Corey Farrell          1 tootai          24 Alexander Traud             
    40 Mark Michelson         1 Aaron An        20 Corey Farrell               
    37 Alexander Traud                          20 Kevin Harwell               
-   34 Kevin Harwell                            15 Richard Mudgett             
+   35 Kevin Harwell                            15 Richard Mudgett             
    32 Matt Jordan                              14 Etienne Lessard             
    20 Alexei Gradinari                         13 Tzafrir Cohen               
    18 Tzafrir Cohen                            11 Alexei Gradinari            
@@ -1066,6 +1066,11 @@
    Reported by: John Kiniston
      * [e03364c40a] snuffy -- Fix issue with CLI not returning to prompt
        after running "features show"
+   ASTERISK-26396: chan_pjsip: HANGUPCAUSE return the wrong code when dialed
+   channel answer.
+   Reported by: Aaron An
+     * [18a8ca06eb] Aaron An -- channels/chan_pjsip: fix HANGUPCAUSE function
+       bug.
    ASTERISK-26306: channel: Hang-up crashes, chan_pjsip not cleaning up
    properly
    Reported by: Alexander Traud
@@ -2587,6 +2592,11 @@
    Reported by: nappsoft
      * [28b2aeba0b] Mark Michelson -- res_pjsip: Do not crash on ACKs from
        unknown endpoints.
+   ASTERISK-26319: [patch] res_pjsip: qualify/unqualify added/deleted
+   realtime endpoints
+   Reported by: Alexei Gradinari
+     * [faf9bdebb7] Alexei Gradinari -- res_pjsip: qualify/unqualify
+       added/deleted realtime endpoints
    ASTERISK-26269: res_pjsip: Wrong state for aors without registered
    contacts after startup
    Reported by: nappsoft
@@ -3452,6 +3462,11 @@
    Reported by: Alexei Gradinari
      * [0cef7b9d4e] Alexei Gradinari -- app_voicemail: IMAP connection
        control
+   ASTERISK-26229: [patch] app_voicemail: Add taskprocessor alert level
+   options.
+   Reported by: Alexei Gradinari
+     * [9042ad40f2] Alexei Gradinari -- app_voicemail: Add taskprocessor
+       alert level options.
 
     Category: Bridges/bridge_softmix
 
@@ -3821,14 +3836,6 @@
      * [9c4f63263c] Joshua Colp -- manager: Clear the flag on the other
        channel.
 
-    Category: Channels/chan_pjsip
-
-   ASTERISK-26396: chan_pjsip: HANGUPCAUSE return the wrong code when dialed
-   channel answer.
-   Reported by: Aaron An
-     * [18a8ca06eb] Aaron An -- channels/chan_pjsip: fix HANGUPCAUSE function
-       bug.
-
     Category: Channels/chan_sip/CodecHandling
 
    ASTERISK-26221: chan_sip: iLBC does not include correct mode
@@ -3888,24 +3895,6 @@
      * [008e25def9] Kevin Harwell -- res_rtp_asterisk: Clearing the remote
        RTCP address causes RTCP failures
 
-    Category: Resources/res_pjsip
-
-   ASTERISK-26319: [patch] res_pjsip: qualify/unqualify added/deleted
-   realtime endpoints
-   Reported by: Alexei Gradinari
-     * [faf9bdebb7] Alexei Gradinari -- res_pjsip: qualify/unqualify
-       added/deleted realtime endpoints
-
-  Improvement
-
-    Category: Applications/app_voicemail/IMAP
-
-   ASTERISK-26229: [patch] app_voicemail: Add taskprocessor alert level
-   options.
-   Reported by: Alexei Gradinari
-     * [9042ad40f2] Alexei Gradinari -- app_voicemail: Add taskprocessor
-       alert level options.
-
      ----------------------------------------------------------------------
 
                       Commits Not Associated with an Issue
@@ -3917,6 +3906,8 @@
 
    +------------------------------------------------------------------------+
    |Revision  |Author       |Summary                                        |
+   |----------+-------------+-----------------------------------------------|
+   |a3b4f624ae|Kevin Harwell|Update for 15.0.0                              |
    |----------+-------------+-----------------------------------------------|
    |5c3700a58b|Joshua Colp  |res_stasis: Add 'video_sfu' as a requested     |
    |          |             |bridge type.                                   |
@@ -4849,7 +4840,7 @@
  asterisk-14.0.0-summary.txt                                                                      |10112 -
  b/.version                                                                                       |    2
  b/CHANGES                                                                                        |  550
- b/ChangeLog                                                                                      |13047 ++
+ b/ChangeLog                                                                                      |13051 ++
  b/Makefile                                                                                       |  141
  b/Makefile.moddir_rules                                                                          |   55
  b/Makefile.rules                                                                                 |   12
@@ -4953,8 +4944,8 @@
  b/apps/confbridge/conf_state_multi_marked.c                                                      |    9
  b/apps/confbridge/confbridge_manager.c                                                           |    4
  b/apps/confbridge/include/confbridge.h                                                           |   51
- b/asterisk-15.0.0-rc1-summary.html                                                               | 2572
- b/asterisk-15.0.0-rc1-summary.txt                                                                | 5619 +
+ b/asterisk-15.0.0-summary.html                                                                   | 2619
+ b/asterisk-15.0.0-summary.txt                                                                    | 5800 +
  b/autoconf/ast_ext_lib.m4                                                                        |   36
  b/bootstrap.sh                                                                                   |    2
  b/bridges/Makefile                                                                               |    8
@@ -5128,10 +5119,10 @@
  b/contrib/ast-db-manage/config/versions/f638dbe2eb23_symmetric_transport.py                      |   32
  b/contrib/ast-db-manage/env.py                                                                   |  140
  b/contrib/ast-db-manage/voicemail/env.py                                                         |    1
- b/contrib/realtime/mssql/mssql_config.sql                                                        |  308
- b/contrib/realtime/mysql/mysql_config.sql                                                        |  164
- b/contrib/realtime/oracle/oracle_config.sql                                                      |  308
- b/contrib/realtime/postgresql/postgresql_config.sql                                              |  168
+ b/contrib/realtime/mssql/mssql_config.sql                                                        |  336
+ b/contrib/realtime/mysql/mysql_config.sql                                                        |  176
+ b/contrib/realtime/oracle/oracle_config.sql                                                      |  336
+ b/contrib/realtime/postgresql/postgresql_config.sql                                              |  182
  b/contrib/scripts/ast_coredumper                                                                 |  533
  b/contrib/scripts/ast_logescalator                                                               |  399
  b/contrib/scripts/ast_loggrabber                                                                 |  255
@@ -5788,7 +5779,7 @@
  b/utils/conf2ael.c                                                                               |   16
  b/utils/conf_bridge_binaural_hrir_importer.c                                                     |  147
  b/utils/conf_bridge_binaural_hrir_importer.h                                                     |   46
- b/utils/extconf.c                                                                                |   59
+ b/utils/extconf.c                                                                                |   49
  build_tools/embed_modules.xml                                                                    |   46
  contrib/ast-db-manage/cdr/env.py                                                                 |   74
  contrib/ast-db-manage/config/env.py                                                              |   74
@@ -5797,4 +5788,4 @@
  main/data.c                                                                                      | 3348
  res/res_pjsip_multihomed.c                                                                       |  225
  third-party/pjproject/patches/0002-Fix-1946-Avoid-deinitialization-of-uninitialized-cli.patch    |   56
- 952 files changed, 125327 insertions(+), 36108 deletions(-)
+ 952 files changed, 125636 insertions(+), 36103 deletions(-)
