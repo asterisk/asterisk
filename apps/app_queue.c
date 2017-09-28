@@ -8229,7 +8229,7 @@ check_turns:
 		goto stop;
 	}
 
-	makeannouncement = 0;
+	makeannouncement = qe.parent->announce_to_first_user;
 
 	for (;;) {
 		/* This is the wait loop for the head caller*/
@@ -8249,15 +8249,17 @@ check_turns:
 
 		if (makeannouncement) {
 			/* Make a position announcement, if enabled */
-			if (qe.parent->announcefrequency && qe.parent->announce_to_first_user)
-				if ((res = say_position(&qe,ringing)))
+			if (qe.parent->announcefrequency) {
+				if ((res = say_position(&qe, ringing))) {
 					goto stop;
+				}
+			}
 		}
 		makeannouncement = 1;
 
 		/* Make a periodic announcement, if enabled */
-		if (qe.parent->periodicannouncefrequency && qe.parent->announce_to_first_user) {
-			if ((res = say_periodic_announcement(&qe,ringing))) {
+		if (qe.parent->periodicannouncefrequency) {
+			if ((res = say_periodic_announcement(&qe, ringing))) {
 				goto stop;
 			}
 		}
