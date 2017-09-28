@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-15.0.0-rc1
+                                asterisk-15.0.0
 
-                                Date: 2017-09-01
+                                Date: 2017-09-28
 
                            <asteriskteam@digium.com>
 
@@ -47,222 +47,294 @@
    issues that they reported that were affected by commits that went into
    this release.
 
-   Coders                      Testers           Reporters                    
-   165 Richard Mudgett         3 AaronAn         49 Joshua Colp               
-   118 George Joseph           2 Alexander Traud 40 Richard Mudgett           
-   97 Joshua Colp              1 Matt Jordan     30 George Joseph             
-   86 Sean Bright              1 tootai          27 Matt Jordan               
-   40 Corey Farrell            1 Aaron An        24 Alexander Traud           
-   40 Mark Michelson           1 Dmitry Melekhov 20 Corey Farrell             
-   37 Alexander Traud                            20 Kevin Harwell             
-   32 Matt Jordan                                14 Etienne Lessard           
-   32 Kevin Harwell                              13 Tzafrir Cohen             
-   20 Alexei Gradinari                           11 Alexei Gradinari          
-   18 Tzafrir Cohen                              9 Mark Michelson             
-   12 Torrey Searle                              9 Sebastian Gutierrez        
-   9 Walter Doekes                               8 Ross Beer                  
-   9 Badalyan Vyacheslav                         7 Dennis Guse                
-   6 Frank Haase                                 6 Badalian Vyacheslav        
-   6 Rodrigo Ramirez                             6 Dan Jenkins                
-   Norambuena                                    6 Michael Maier              
-   6 Sebastian Gutierrez                         6 Morten Tryfoss             
-   6 David M. Lee                                6 Torrey Searle              
-   5 Michael Kuron                               5 Walter Doekes              
-   5 Daniel Journo                               5 Richard Begg               
-   4 Rusty Newton                                5 Rusty Newton               
-   4 Martin Tomec                                4 Michael Walton             
-   4 Joshua Elson                                4 Andrew Nagy                
-   4 Aaron An                                    4 Aaron An                   
-   4 Timo TerACURs                               4 David Brillert             
-   3 Sergej Kasumovic                            4 Marek Cervenka             
-   3 snuffy                                      4 JA,rgen H                  
-   3 Alexander Anikin                            3 Sergej Kasumovic           
-   3 Benjamin Keith Ford                         3 Jean Aunis - Prescom       
-   3 Guido Falsi                                 3 Tom Pawelek                
-   3 Jean Aunis - Prescom                        3 Joshua Elson               
-   3 Etienne Lessard                             3 Michael Kuron              
-   3 Richard Begg                                3 snuffy                     
-   3 JA,rgen H                                   3 Guido Falsi                
-   2 Ivan Poddubny                               3 Louis Jocelyn Paquet       
-   2 Steve Davies                                3 Nic Colledge               
-   2 Igor Goncharovsky                           3 Frankie Chin               
-   2 Matthew Fredrickson                         3 nappsoft                   
-   2 Dennis Guse                                 3 Jonathan Harris            
-   2 Kirill Katsnelson                           3 Anthony Messina            
-   2 Robert Mordec                               3 Sandro Gauci               
-   2 Michael Walton                              2 Scott Griepentrog          
-   1 Eugene                                      2 Kirill Katsnelson          
-   1 Michael L. Young                            2 Matthias Urlichs           
-   1 Yasin CANER                                 2 Frederic LE FOLL           
-   1 jassim mishal                               2 Florian Loyau              
-   1 dkerr                                       2 Gabriele Giacone           
-   1 Troy Bowman                                 <1o5g4r8o@gmail.com>         
-   1 Matt Krokosz                                2 Sean Bright                
-   1 Niklas Larsson                              2 AaronAn                    
-   1 C.J. Collier                                2 Dmitry Melekhov            
-   1 Jan Friesse                                 2 Olle Johansson             
-   1 twisted                                     2 Ove Aursand                
-   1 Moises Silva                                2 twisted                    
-   1 Leandro Dardini                             2 Dmitry Wagin               
-   1 Grachev Sergey                              2 Niklas Larsson             
-   1 Jonathan R. Rose                            2 Ian Gilmour                
-   1 Thierry MAGNIEN                             2 Robert Mordec              
-   1 Eduardo Scudeller Libardi                   2 Aaron Hamstra              
-   1 Pascal Cadotte Michaud                      2 Michael L. Young           
-   1 Ryan Rittgarn                               2 Jens BA 1/4rger            
-   1 Norbert Varga                               2 Jeremy Kister              
-   1 Vitezslav Novy                              2 abelbeck                   
-   1 SA(c)bastien Duthil                         2 Zach R                     
-   1 chris de rock                               1 Abraham Liebsch            
-   1 Ludovic Gasc (Eyepea)                       1 Tim Morgan                 
-   1 Holger Hans Peter                           1 tootai                     
-   Freyther                                      1 Martin Tomec               
-   1 Frederic LE FOLL                            1 Ustinov Artem              
-   1 Lorenzo Miniero                             1 Jacek Konieczny            
-   1 gestoip2                                    1 Steve Davies               
-   1 Sebastien Duthil                            1 dkerr                      
-   1 Evgeniy Tsybra                              1 Troy Bowman                
-                                                 1 Adrian Vargas              
-                                                 1 Daniele Pallastrelli       
-                                                 1 effie mouzeli              
-                                                 1 Anthony Critelli           
-                                                 1 Michael Keuter             
-                                                 1 Vitaly K                   
-                                                 1 Marcello Ceschia           
-                                                 1 Lorenzo Miniero            
-                                                 1 Ksenia                     
-                                                 1 Peter Racz                 
-                                                 1 Nicolas Riendeau           
-                                                 1 Jacek                      
-                                                 1 Dmitriy                    
-                                                 1 SA(c)bastien Couture       
-                                                 1 Smirnov Aleksey            
-                                                 1 Ira Emus                   
-                                                 1 Eduardo S. Libardi         
-                                                 1 Matthias Binder            
-                                                 1 SeA!n C. McCord            
-                                                 1 Marcelo Terres             
-                                                 1 Nir Simionovich            
-                                                 (GreenfieldTech - Israel)    
-                                                 1 Evers Lab                  
-                                                 1 Richard Kenner             
-                                                 1 Holger Hans Peter Freyther 
-                                                 1 Vinod Dharashive           
-                                                 1 Sergey Grachev             
-                                                 1 dcarr                      
-                                                 1 Ludovic Gasc (Eyepea)      
-                                                 1 Michel R. Vaillancourt     
-                                                 1 Michelle Dupuis            
-                                                 1 Leandro Dardini            
-                                                 1 badelson                   
-                                                 1 Max Norba                  
-                                                 1 Dave Olszewski             
-                                                 1 Benoit Duverger            
-                                                 1 Bill Brigden               
-                                                 1 Dafi Ni                    
-                                                 1 Andreas KrA 1/4ger         
-                                                 1 Hans van Eijsden           
-                                                 1 Juris Breicis              
-                                                 1 Ivan Myalkin               
-                                                 1 John Harris                
-                                                 1 Tony Mountifield           
-                                                 1 'alex'                     
-                                                 1 Lorne Gaetz                
-                                                 1 Nasir Iqbal                
-                                                 1 Jonathan R. Rose           
-                                                 1 Eric Maheu                 
-                                                 1 Ali Ghavidel               
-                                                 1 Ryan Rittgarn              
-                                                 1 Alex VillacAs Lasso        
-                                                 1 Kirsty Tyerman             
-                                                 1 Ian Gilmore                
-                                                 1 Sean Darcy                 
-                                                 1 chris de rock              
-                                                 1 John Kiniston              
-                                                 1 Jason                      
-                                                 1 Roman Bedros               
-                                                 1 Ronald Raikes              
-                                                 1 Matt Krokosz               
-                                                 1 wushumasters               
-                                                 1 Aaron Meriwether           
-                                                 1 Timo TerACURs              
-                                                 1 Olivier Krief              
-                                                 1 Adagio                     
-                                                 1 Etienne Allovon            
-                                                 1 Yaacov Akiba Slama         
-                                                 1 Stepan                     
-                                                 1 Norbert Varga              
-                                                 1 SA(c)bastien Duthil        
-                                                 1 Ben Smithurst              
-                                                 1 Barry Flanagan             
-                                                 1 CGI.NET                    
-                                                 1 JA^3zsef DudA!s            
-                                                 1 Sean McCord                
-                                                 1 HZMI8gkCvPpom0tM           
-                                                 1 Igor Goncharovsky          
-                                                 1 Chris Howard               
-                                                 1 mdu113                     
-                                                 1 Joerg Sonnenberger         
-                                                 1 Andrew Nowrot              
-                                                 1 Brian                      
-                                                 1 JoshE                      
-                                                 1 var                        
-                                                 1 Michael Balen              
-                                                 1 John Fawcett               
-                                                 1 OpenBSD ports              
-                                                 1 Igor Gamayunov             
-                                                 1 Doug Lytle                 
-                                                 1 Joel Vandal                
-                                                 1 Hector Royo Concepcion     
-                                                 1 Eduardo Scudeller Libardi  
-                                                 1 David Woolley              
-                                                 1 Christopher van de Sande   
-                                                 1 Jatin Jain                 
-                                                 1 Antoine Pitrou             
-                                                 1 Jonathan Rose              
-                                                 1 Peter Sokolov              
-                                                 1 Filip Jenicek              
-                                                 1 John Covert                
-                                                 1 Eugene                     
-                                                 1 alex                       
-                                                 1 Mark Scholten              
-                                                 1 Humberto Figuera           
-                                                 1 Roman S.                   
-                                                 1 Morton Tryfoss             
-                                                 1 James Terhune              
-                                                 1 Matthew Fredrickson        
-                                                 1 Andreas Wetzel             
-                                                 1 Yasin CANER                
-                                                 1 Kinsey Moore               
-                                                 1 Jeppe Ryskov Larsen        
-                                                 1 Bob Ham                    
-                                                 1 Javier Riveros             
-                                                 1 C.J. Collier               
-                                                 1 Jonas Kellens              
-                                                 1 Ben Merrills               
-                                                 1 Mikheili Dautashvili       
-                                                 1 Xavier Hienne              
-                                                 1 Harley Peters              
-                                                 1 Roman Shubovich            
-                                                 1 Gergely DAP:msAP:di        
-                                                 1 Maxim Vasilev              
-                                                 1 gkloepfer                  
-                                                 1 Kayode                     
-                                                 1 Krzysztof Trempala         
-                                                 1 Andrew Green               
-                                                 1 Carl Fortin                
-                                                 1 Stefan EngstrAP:m          
-                                                 1 David Woolley              
-                                                 1 xrobau                     
-                                                 1 Alex                       
-                                                 1 Jacek Kowalski             
-                                                 1 Ryan Smith                 
-                                                 1 Nicholas John Koch         
-                                                 1 Henning Holtschneider      
-                                                 1 Charlie Smurthwaite        
-                                                 1 Carlos Chavez              
-                                                 1 cervajs, Inaki Baz         
-                                                 Castillo                     
+   Coders                    Testers           Reporters                      
+   167 Richard Mudgett       3 AaronAn         50 Joshua Colp                 
+   125 George Joseph         2 Alexander Traud 41 Richard Mudgett             
+   103 Joshua Colp           1 Dmitry Melekhov 30 George Joseph               
+   91 Sean Bright            1 Matt Jordan     27 Matt Jordan                 
+   40 Corey Farrell          1 tootai          24 Alexander Traud             
+   40 Mark Michelson         1 Aaron An        20 Corey Farrell               
+   37 Alexander Traud                          20 Kevin Harwell               
+   34 Kevin Harwell                            15 Richard Mudgett             
+   32 Matt Jordan                              14 Etienne Lessard             
+   20 Alexei Gradinari                         13 Tzafrir Cohen               
+   18 Tzafrir Cohen                            11 Alexei Gradinari            
+   12 Torrey Searle                            9 Mark Michelson               
+   9 Badalyan Vyacheslav                       9 Sebastian Gutierrez          
+   9 Walter Doekes                             8 Ross Beer                    
+   7 Rodrigo RamArez                           7 Dennis Guse                  
+   Norambuena                                  6 Badalian Vyacheslav          
+   6 Sebastian Gutierrez                       6 Dan Jenkins                  
+   6 frahaase                                  6 Michael Maier                
+   6 David M. Lee                              6 Morten Tryfoss               
+   5 Daniel Journo                             6 Mark Michelson               
+   5 Michael Kuron                             6 Torrey Searle                
+   4 Martin Tomec                              5 Walter Doekes                
+   4 Joshua Elson                              5 Richard Begg                 
+   4 Aaron An                                  5 Rusty Newton                 
+   4 Rusty Newton                              5 Etienne Lessard              
+   4 Timo TerACURs                             4 Michael Walton               
+   3 Matthew Fredrickson                       4 Andrew Nagy                  
+   3 snuffy                                    4 Aaron An                     
+   3 Jean Aunis                                4 David Brillert               
+   3 Etienne Lessard                           4 Marek Cervenka               
+   3 Richard Begg                              4 JA,rgen H                    
+   3 Benjamin Keith Ford                       3 Sergej Kasumovic             
+   3 Sergej Kasumovic                          3 Jean Aunis - Prescom         
+   3 JA,rgen H                                 3 Tom Pawelek                  
+   3 Guido Falsi                               3 Tzafrir Cohen                
+   3 Alexander Anikin                          3 Joshua Elson                 
+   2 Michael Walton                            3 Michael Kuron                
+   2 Dennis Guse                               3 snuffy                       
+   2 Robert Mordec                             3 Guido Falsi                  
+   2 Ivan Poddubny                             3 Louis Jocelyn Paquet         
+   2 Kirill Katsnelson                         3 Nic Colledge                 
+   2 Florian Floimair                          3 Frankie Chin                 
+   2 Sebastien Duthil                          3 Ross Beer                    
+   2 Steve Davies                              3 Sandro Gauci                 
+   1 Eugene                                    3 nappsoft                     
+   1 gestoip2                                  3 Jonathan Harris              
+   1 David Kerr                                3 Anthony Messina              
+   1 Ludovic Gasc (GMLudo)                     2 Scott Griepentrog            
+   1 Frederic LE FOLL                          2 Kirill Katsnelson            
+   1 Josh Roberson                             2 Matthias Urlichs             
+   1 Matt Krokosz                              2 Frederic LE FOLL             
+   1 Michael L. Young                          2 Florian Loyau                
+   1 Yasin CANER                               2 Gabriele Giacone             
+   1 chris de rock                             <1o5g4r8o@gmail.com>           
+   1 Lorenzo Miniero                           2 Sean Bright                  
+   1 Mikheili Dautashvili                      2 Kevin Harwell                
+   1 Norbert Varga                             2 AaronAn                      
+   1 Moises Silva                              2 Dmitry Melekhov              
+   1 Grachev Sergey                            2 Daniel Heckl                 
+   1 Igor Goncharovsky                         2 Olle Johansson               
+   1 Eduardo S. Libardi                        2 Jeremy Kister                
+   1 Ryan Rittgarn                             2 Florian Floimair             
+   1 Jan Friesse                               2 Ove Aursand                  
+   1 Igor Goncharovskiy                        2 Aaron An                     
+   1 Thierry Magnien                           2 twisted                      
+   1 Holger Hans Peter                         2 Dmitry Wagin                 
+   Freyther                                    2 Niklas Larsson               
+   1 Leandro Dardini                           2 Daniel Heckl                 
+   1 Troy Bowman                               2 Ian Gilmour                  
+   1 Vitezslav Novy                            2 Robert Mordec                
+   1 C.J. Collier                              2 Aaron Hamstra                
+   1 Ben Ford                                  2 Michael L. Young             
+   1 Niklas Larsson                            2 Andrew Nagy                  
+   1 Jonathan R. Rose                          2 Jens BA 1/4rger              
+   1 Evgeniy Tsybra                            2 Jeremy Kister                
+   1 Pascal Cadotte Michaud                    2 Matthias Urlichs             
+                                               2 abelbeck                     
+                                               2 Zach R                       
+                                               2 Joshua Colp                  
+                                               1 Abraham Liebsch              
+                                               1 Tim Morgan                   
+                                               1 tootai                       
+                                               1 Martin Tomec                 
+                                               1 Ustinov Artem                
+                                               1 Jacek Konieczny              
+                                               1 John Harris                  
+                                               1 Dmitriy                      
+                                               1 dkerr                        
+                                               1 Troy Bowman                  
+                                               1 Daniele Pallastrelli         
+                                               1 effie mouzeli                
+                                               1 Dmitry Melekhov              
+                                               1 Anthony Critelli             
+                                               1 Michael L. Young             
+                                               1 Michael Keuter               
+                                               1 Marcello Ceschia             
+                                               1 Vitaly K                     
+                                               1 Ove Aursand                  
+                                               1 Marcello Ceschia             
+                                               1 Anthony Critelli             
+                                               1 Ksenia                       
+                                               1 Peter Racz                   
+                                               1 Aaron Meriwether             
+                                               1 Nicolas Riendeau             
+                                               1 Jacek                        
+                                               1 Nicholas John Koch           
+                                               1 Nicholas John Koch           
+                                               1 SA(c)bastien Couture         
+                                               1 Smirnov Aleksey              
+                                               1 Jens T.                      
+                                               1 Ira Emus                     
+                                               1 Eduardo S. Libardi           
+                                               1 Jeppe Ryskov Larsen          
+                                               1 Sergey Grachev               
+                                               1 Matthias Binder              
+                                               1 SeA!n C. McCord              
+                                               1 Timo TerACURs                
+                                               1 Marcelo Terres               
+                                               1 Nasir Iqbal                  
+                                               1 Nir Simionovich              
+                                               (GreenfieldTech - Israel)      
+                                               1 Evers Lab                    
+                                               1 Richard Kenner               
+                                               1 Holger Hans Peter Freyther   
+                                               1 Vinod Dharashive             
+                                               1 Ustinov Artem                
+                                               1 Kinsey Moore                 
+                                               1 Lorenzo Miniero              
+                                               1 dcarr                        
+                                               1 Ludovic Gasc (Eyepea)        
+                                               1 Michel R. Vaillancourt       
+                                               1 Michelle Dupuis              
+                                               1 Jonathan R. Rose             
+                                               1 Leandro Dardini              
+                                               1 Michael Walton               
+                                               1 gkloepfer                    
+                                               1 David Woolley                
+                                               1 Kayode                       
+                                               1 Max Norba                    
+                                               1 Dave Olszewski               
+                                               1 Benoit Duverger              
+                                               1 Roman S.                     
+                                               1 Andreas KrA 1/4ger           
+                                               1 Hans van Eijsden             
+                                               1 Filip Jenicek                
+                                               1 John Covert                  
+                                               1 Ksenia                       
+                                               1 Filip Jenicek                
+                                               1 Juris Breicis                
+                                               1 Tony Mountifield             
+                                               1 'alex'                       
+                                               1 Lorne Gaetz                  
+                                               1 Sandro Gauci                 
+                                               1 Scott Griepentrog            
+                                               1 Sean Darcy                   
+                                               1 Dave Olszewski               
+                                               1 Jonathan R. Rose             
+                                               1 Ali Ghavidel                 
+                                               1 Harley Peters                
+                                               1 Frankie Chin                 
+                                               1 Ryan Rittgarn                
+                                               1 Alex VillacAs Lasso          
+                                               1 Kirsty Tyerman               
+                                               1 scgm11                       
+                                               1 Humberto Figuera             
+                                               1 Ian Gilmore                  
+                                               1 Jeppe Ryskov Larsen          
+                                               1 John Kiniston                
+                                               1 Nasir Iqbal                  
+                                               1 Abraham Liebsch              
+                                               1 Roman Bedros                 
+                                               1 Ronald Raikes                
+                                               1 Maxim Vasilev                
+                                               1 Matt Krokosz                 
+                                               1 wushumasters                 
+                                               1 Aaron Meriwether             
+                                               1 Ivan Myalkin                 
+                                               1 Olivier Krief                
+                                               1 Adagio                       
+                                               1 Yasin CANER                  
+                                               1 Carlos Chavez                
+                                               1 Steve Davies                 
+                                               1 Xavier Hienne                
+                                               1 Etienne Allovon              
+                                               1 Ian Gilmour                  
+                                               1 Stepan                       
+                                               1 Norbert Varga                
+                                               1 HZMI8gkCvPpom0tM             
+                                               1 Igor Gamayunov               
+                                               1 SA(c)bastien Duthil          
+                                               1 Ben Smithurst                
+                                               1 Barry Flanagan               
+                                               1 Hector Royo Concepcion       
+                                               1 Rodrigo Ramirez Norambuena   
+                                               1 Andrew Nowrot                
+                                               1 CGI.NET                      
+                                               1 Yaacov Akiba Slama           
+                                               1 Sean Darcy                   
+                                               1 Walter Doekes                
+                                               1 Sean McCord                  
+                                               1 HZMI8gkCvPpom0tM             
+                                               1 Igor Goncharovsky            
+                                               1 Chris Howard                 
+                                               1 mdu113                       
+                                               1 Joerg Sonnenberger           
+                                               1 Andrew Nowrot                
+                                               1 Brian                        
+                                               1 JoshE                        
+                                               1 var                          
+                                               1 Michael Balen                
+                                               1 John Fawcett                 
+                                               1 OpenBSD ports                
+                                               1 Igor Gamayunov               
+                                               1 Vinod Dharashive             
+                                               1 Doug Lytle                   
+                                               1 Bill Brigden                 
+                                               1 Hector Royo Concepcion       
+                                               1 Jason                        
+                                               1 Eduardo Scudeller Libardi    
+                                               1 JA^3zsef DudA!s              
+                                               1 David Woolley                
+                                               1 Christopher van de Sande     
+                                               1 Jatin Jain                   
+                                               1 Antoine Pitrou               
+                                               1 Jonathan Rose                
+                                               1 Ben Merrills                 
+                                               1 Peter Sokolov                
+                                               1 Dan Jenkins                  
+                                               1 Christopher van de Sande     
+                                               1 Olle Johansson               
+                                               1 John Covert                  
+                                               1 Eugene                       
+                                               1 Dafi Ni                      
+                                               1 Vitaly K                     
+                                               1 Jens BA 1/4rger              
+                                               1 Mark Scholten                
+                                               1 lvl                          
+                                               1 Humberto Figuera             
+                                               1 Roman S.                     
+                                               1 Morton Tryfoss               
+                                               1 James Terhune                
+                                               1 Matthew Fredrickson          
+                                               1 Andreas Wetzel               
+                                               1 Peter Racz                   
+                                               1 alex                         
+                                               1 Joel Vandal                  
+                                               1 Frederic LE FOLL             
+                                               1 Bob Ham                      
+                                               1 Brian Rel                    
+                                               1 Carlos Chavez                
+                                               1 Javier Riveros               
+                                               1 Jens T.                      
+                                               1 C.J. Collier                 
+                                               1 Dmitry Wagin                 
+                                               1 Roman Bedros                 
+                                               1 Jonas Kellens                
+                                               1 CGI.NET                      
+                                               1 Ben Merrills                 
+                                               1 Mikheili Dautashvili         
+                                               1 Nicolas Riendeau             
+                                               1 Anthony Messina              
+                                               1 Xavier Hienne                
+                                               1 Charlie Smurthwaite          
+                                               1 Roman Shubovich              
+                                               1 Ronald Raikes                
+                                               1 Gergely DAP:msAP:di          
+                                               1 Maxim Vasilev                
+                                               1 Henning Holtschneider        
+                                               1 Ivan Myalkin                 
+                                               1 chris de rock                
+                                               1 Marek Cervenka               
+                                               1 Krzysztof Trempala           
+                                               1 Andrew Green                 
+                                               1 Carl Fortin                  
+                                               1 Stefan EngstrAP:m            
+                                               1 Tim Morgan                   
+                                               1 xrobau                       
+                                               1 Alex                         
+                                               1 Jacek Kowalski               
+                                               1 Ryan Smith                   
+                                               1 Roman Shubovich              
+                                               1 Henning Holtschneider        
+                                               1 Charlie Smurthwaite          
+                                               1 Kirsty Tyerman               
+                                               1 cervajs, Inaki Baz Castillo  
+                                               1 Dafi Ni                      
+                                               1 Ryan Smith                   
 
      ----------------------------------------------------------------------
 
@@ -597,6 +669,10 @@
 
     Category: Applications/app_queue
 
+   ASTERISK-27232: When in queue on g722 with interruptions, music on hold
+   can get stuck and no longer play
+   Reported by: Jens T.
+     * [77548fe859] Sean Bright -- formats: Restore previous fread() behavior
    ASTERISK-27073: manager: AMI "queues" action outputs freeform text that
    doesn't follow the AMI spec
    Reported by: Brian
@@ -797,6 +873,10 @@
 
     Category: Bridges/bridge_softmix
 
+   ASTERISK-27277: bridge: Renegotiate if source stream changes.
+   Reported by: Joshua Colp
+     * [5efb0f2063] Joshua Colp -- bridge: Change participant SFU streams
+       when source streams change.
    ASTERISK-27143: bridge_softmix / res_rtp_asterisk: Fix packet loss and
    renegotiation issues.
    Reported by: Joshua Colp
@@ -920,6 +1000,11 @@
 
     Category: Channels/chan_pjsip
 
+   ASTERISK-27259: chan_pjsip: Outgoing leg does not use all configured
+   codecs, but subset based on caller
+   Reported by: lvl
+     * [a04b6ff0fd] Kevin Harwell -- res_pjsip_session: outgoing call did not
+       offer all configured codecs
    ASTERISK-27095: chan_pjsip: When connected_line_method is set to invite,
    we're not trying UPDATE
    Reported by: George Joseph
@@ -1256,6 +1341,13 @@
    Reported by: Michael L. Young
      * [66a35e2451] Michael L. Young -- build_tools: Fix download_externals
        to allow the use of curl or wget
+
+    Category: Codecs/codec_g722
+
+   ASTERISK-27232: When in queue on g722 with interruptions, music on hold
+   can get stuck and no longer play
+   Reported by: Jens T.
+     * [77548fe859] Sean Bright -- formats: Restore previous fread() behavior
 
     Category: Codecs/codec_opus
 
@@ -1917,6 +2009,11 @@
 
     Category: General
 
+   ASTERISK-27260: [pjsip] chan_pjsip_indicate: Don't know how to indicate
+   condition 36
+   Reported by: Daniel Heckl
+     * [7c1a88f498] George Joseph -- chan_pjsip: Ignore
+       AST_CONTROL_STREAM_TOPOLOGY_CHANGED for now
    ASTERISK-27152: Sending a "tel" uri in a From or To header in an
    unauthenticated message causes asterisk to crash
    Reported by: Ross Beer
@@ -2152,6 +2249,10 @@
 
     Category: Resources/res_config_pgsql
 
+   ASTERISK-27283: Realtime config fail with PostgreSQL version before 9.1
+   Reported by: Rodrigo Ramirez Norambuena
+     * [1a2cae670a] Rodrigo RamArez Norambuena -- res_config_pgsql: Fix
+       removed support to previous for versions PostgreSQL 9.1
    ASTERISK-25628: res_config_pgsql: should match the behavior of other
    drivers so that queue_log can disable adaptive logging
    Reported by: Dmitry Wagin
@@ -2288,6 +2389,10 @@
 
     Category: Resources/res_musiconhold
 
+   ASTERISK-27232: When in queue on g722 with interruptions, music on hold
+   can get stuck and no longer play
+   Reported by: Jens T.
+     * [77548fe859] Sean Bright -- formats: Restore previous fread() behavior
    ASTERISK-25974: Unused realtime MOH classes not purged on 'moh reload'
    Reported by: SA(c)bastien Couture
      * [6c3ae397cb] Daniel Journo -- Unused realtime MOH classes not purged
@@ -2336,6 +2441,15 @@
 
     Category: Resources/res_pjsip
 
+   ASTERISK-27168: alembic: PJSIP scripts are missing column dtls_fingerprint
+   in ps_endpoints table
+   Reported by: Florian Floimair
+     * [478bef49ea] Florian Floimair -- alembic: Add dtls_fingerprint column
+       in ps_endpoints table
+   ASTERISK-27254: alembic: prune_on_boot fix erroneous
+   Reported by: Florian Floimair
+     * [cf8bf2e7e9] Florian Floimair -- alembic: fix erroneous commit for
+       add_prune_on_boot
    ASTERISK-27119: res_pjsip: parse/add msid attribute when webrtc is enabled
    Reported by: Kevin Harwell
      * [c042ad8343] Kevin Harwell -- alembic/res_pjsip: Add "webrtc"
@@ -2792,6 +2906,11 @@
 
     Category: Resources/res_pjsip_session
 
+   ASTERISK-27264: res_pjsip_session: Crashes after sending PRACK and
+   receiving 200 OK
+   Reported by: Daniel Heckl
+     * [115d79652d] George Joseph -- res_pjsip_session: Change some asserts
+       to warning/debug messages
    ASTERISK-27179: res_pjsip_session: Handling of 'msid' is incorrect
    Reported by: Kevin Harwell
      * [4d3e66eabc] Kevin Harwell -- res_pjsip_session/_sdp_rtp: Handling of
@@ -2869,6 +2988,14 @@
 
     Category: Resources/res_rtp_asterisk
 
+   ASTERISK-27274: RTCP needs better packet validation to resist port scans.
+   Reported by: Richard Mudgett
+     * [1ec778a002] Richard Mudgett -- AST-2017-008: Improve RTP and RTCP
+       packet processing.
+   ASTERISK-27252: RTP: One way audio with direct media and strictrtp=yes.
+   Reported by: Richard Mudgett
+     * [1ec778a002] Richard Mudgett -- AST-2017-008: Improve RTP and RTCP
+       packet processing.
    ASTERISK-27013: res_rtp_asterisk: Media can be hijacked even with strict
    RTP enabled
    Reported by: Joshua Colp
@@ -3791,6 +3918,55 @@
    +------------------------------------------------------------------------+
    |Revision  |Author       |Summary                                        |
    |----------+-------------+-----------------------------------------------|
+   |5c3700a58b|Joshua Colp  |res_stasis: Add 'video_sfu' as a requested     |
+   |          |             |bridge type.                                   |
+   |----------+-------------+-----------------------------------------------|
+   |172a595d00|Sean Bright  |res_rtp_asterisk: Trim trailing byte off of    |
+   |          |             |SDES packet                                    |
+   |----------+-------------+-----------------------------------------------|
+   |08598782a8|Sean Bright  |webrtc: Allow 'webrtc' to be set on endpoints  |
+   |          |             |without dtls_ca_file                           |
+   |----------+-------------+-----------------------------------------------|
+   |7e574d8dac|Sean Bright  |pjproject: Patch to correct STUN FINGERPRINT   |
+   |          |             |usage                                          |
+   |----------+-------------+-----------------------------------------------|
+   |ef7c07bb68|George Joseph|build: A few gcc 7 error fixes                 |
+   |----------+-------------+-----------------------------------------------|
+   |d8106b3882|Sean Bright  |app_stream_echo: Don't echo declined streams   |
+   |----------+-------------+-----------------------------------------------|
+   |74856bf400|Joshua Colp  |res_pjsip_session: Reduce (and improve) SDP    |
+   |          |             |renegotiation.                                 |
+   |----------+-------------+-----------------------------------------------|
+   |b3b0750f43|Kevin Harwell|res_pjsip_session: Don't end session when      |
+   |          |             |receiving a 500 on a reinvite                  |
+   |----------+-------------+-----------------------------------------------|
+   |4124c5dfca|George Joseph|res_pjsip_session/BUNDLE: Handle no audio      |
+   |          |             |codecs on endpoint                             |
+   |----------+-------------+-----------------------------------------------|
+   |b8c3dc1ce6|Richard      |res_rtp_asterisk.c: Fix bundled SSRC handling. |
+   |          |Mudgett      |                                               |
+   |----------+-------------+-----------------------------------------------|
+   |36afc58278|Ben Ford     |res_pjsip_session: Check for removed stream    |
+   |          |             |state.                                         |
+   |----------+-------------+-----------------------------------------------|
+   |806dfba068|Joshua Colp  |app_confbridge: Only create a channel that     |
+   |          |             |records audio.                                 |
+   |----------+-------------+-----------------------------------------------|
+   |e166b43684|Joshua Colp  |tcptls: Change error message to debug.         |
+   |----------+-------------+-----------------------------------------------|
+   |e0b264cbe4|George Joseph|alembic: Fix enum creation for dtls_fingerprint|
+   |----------+-------------+-----------------------------------------------|
+   |ef742aa280|George Joseph|Add prune contacts alembic script to 15.0      |
+   |----------+-------------+-----------------------------------------------|
+   |215e2f3c4a|Joshua Colp  |res_pjsip_session: Preserve stream name during |
+   |          |             |renegotiation.                                 |
+   |----------+-------------+-----------------------------------------------|
+   |24a97d6c63|George Joseph|res_calendar*, res_smdi: Move to "extended"    |
+   |          |             |support                                        |
+   |----------+-------------+-----------------------------------------------|
+   |479db70a28|Matthew      |Update for 15.0.0-rc1                          |
+   |          |Fredrickson  |                                               |
+   |----------+-------------+-----------------------------------------------|
    |0a0ef8a1b1|Richard      |chan_pjsip.c: Fix topology refresh response    |
    |          |Mudgett      |code accuracy.                                 |
    |----------+-------------+-----------------------------------------------|
@@ -4673,7 +4849,7 @@
  asterisk-14.0.0-summary.txt                                                                      |10112 -
  b/.version                                                                                       |    2
  b/CHANGES                                                                                        |  550
- b/ChangeLog                                                                                      |12715 ++
+ b/ChangeLog                                                                                      |13047 ++
  b/Makefile                                                                                       |  141
  b/Makefile.moddir_rules                                                                          |   55
  b/Makefile.rules                                                                                 |   12
@@ -4728,7 +4904,7 @@
  b/apps/app_ivrdemo.c                                                                             |    2
  b/apps/app_jack.c                                                                                |    2
  b/apps/app_macro.c                                                                               |   38
- b/apps/app_meetme.c                                                                              |  195
+ b/apps/app_meetme.c                                                                              |  220
  b/apps/app_milliwatt.c                                                                           |    2
  b/apps/app_minivm.c                                                                              |   70
  b/apps/app_mixmonitor.c                                                                          |   38
@@ -4757,7 +4933,7 @@
  b/apps/app_stack.c                                                                               |    2
  b/apps/app_stasis.c                                                                              |    2
  b/apps/app_statsd.c                                                                              |    2
- b/apps/app_stream_echo.c                                                                         |  340
+ b/apps/app_stream_echo.c                                                                         |  345
  b/apps/app_system.c                                                                              |   12
  b/apps/app_talkdetect.c                                                                          |    2
  b/apps/app_test.c                                                                                |    2
@@ -4772,13 +4948,13 @@
  b/apps/app_while.c                                                                               |    2
  b/apps/app_zapateller.c                                                                          |    4
  b/apps/confbridge/conf_chan_announce.c                                                           |   32
- b/apps/confbridge/conf_chan_record.c                                                             |    2
+ b/apps/confbridge/conf_chan_record.c                                                             |    4
  b/apps/confbridge/conf_config_parser.c                                                           |   78
  b/apps/confbridge/conf_state_multi_marked.c                                                      |    9
  b/apps/confbridge/confbridge_manager.c                                                           |    4
  b/apps/confbridge/include/confbridge.h                                                           |   51
- b/asterisk-15.0.0-beta1-summary.html                                                             | 2524
- b/asterisk-15.0.0-beta1-summary.txt                                                              | 5532 +
+ b/asterisk-15.0.0-rc1-summary.html                                                               | 2572
+ b/asterisk-15.0.0-rc1-summary.txt                                                                | 5619 +
  b/autoconf/ast_ext_lib.m4                                                                        |   36
  b/bootstrap.sh                                                                                   |    2
  b/bridges/Makefile                                                                               |    8
@@ -4787,7 +4963,7 @@
  b/bridges/bridge_holding.c                                                                       |    2
  b/bridges/bridge_native_rtp.c                                                                    |  732
  b/bridges/bridge_simple.c                                                                        |   75
- b/bridges/bridge_softmix.c                                                                       | 1121
+ b/bridges/bridge_softmix.c                                                                       | 1242
  b/bridges/bridge_softmix/bridge_softmix_binaural.c                                               |  579
  b/bridges/bridge_softmix/include/bridge_softmix_internal.h                                       |  427
  b/bridges/bridge_softmix/include/hrirs.h                                                         |50730 ++++++++++
@@ -4824,15 +5000,15 @@
  b/channels/chan_alsa.c                                                                           |   68
  b/channels/chan_bridge_media.c                                                                   |    2
  b/channels/chan_console.c                                                                        |    2
- b/channels/chan_dahdi.c                                                                          |  389
- b/channels/chan_iax2.c                                                                           |  420
+ b/channels/chan_dahdi.c                                                                          |  392
+ b/channels/chan_iax2.c                                                                           |  421
  b/channels/chan_mgcp.c                                                                           |   12
  b/channels/chan_misdn.c                                                                          |    2
  b/channels/chan_motif.c                                                                          |    6
  b/channels/chan_nbs.c                                                                            |    6
  b/channels/chan_oss.c                                                                            |   61
  b/channels/chan_phone.c                                                                          |    8
- b/channels/chan_pjsip.c                                                                          |  933
+ b/channels/chan_pjsip.c                                                                          |  937
  b/channels/chan_rtp.c                                                                            |   11
  b/channels/chan_sip.c                                                                            |  913
  b/channels/chan_skinny.c                                                                         |  179
@@ -4851,6 +5027,8 @@
  b/channels/pjsip/dialplan_functions.c                                                            |  576
  b/channels/pjsip/include/chan_pjsip.h                                                            |   13
  b/channels/pjsip/include/dialplan_functions.h                                                    |   37
+ b/channels/sig_pri.c                                                                             |    8
+ b/channels/sig_pri.h                                                                             |    2
  b/channels/sip/config_parser.c                                                                   |    2
  b/channels/sip/dialplan_functions.c                                                              |   84
  b/channels/sip/include/sip.h                                                                     |   12
@@ -4943,15 +5121,17 @@
  b/contrib/ast-db-manage/config/versions/86bb1efa278d_add_ps_endpoints_refer_blind_progress.py    |   30
  b/contrib/ast-db-manage/config/versions/8fce4c573e15_add_pjsip_allow_overlap.py                  |   31
  b/contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py    |   32
+ b/contrib/ast-db-manage/config/versions/b83645976fdd_add_dtls_fingerprint_to_ps_endpoints.py     |   38
  b/contrib/ast-db-manage/config/versions/c7a44a5a0851_pjsip_add_global_mwi_options.py             |   35
  b/contrib/ast-db-manage/config/versions/d7983954dd96_add_ps_endpoints_notify_early_inuse_.py     |   30
+ b/contrib/ast-db-manage/config/versions/f3d1c5d38b56_add_prune_on_boot.py                        |   31
  b/contrib/ast-db-manage/config/versions/f638dbe2eb23_symmetric_transport.py                      |   32
  b/contrib/ast-db-manage/env.py                                                                   |  140
  b/contrib/ast-db-manage/voicemail/env.py                                                         |    1
- b/contrib/realtime/mssql/mssql_config.sql                                                        |  294
- b/contrib/realtime/mysql/mysql_config.sql                                                        |  158
- b/contrib/realtime/oracle/oracle_config.sql                                                      |  294
- b/contrib/realtime/postgresql/postgresql_config.sql                                              |  162
+ b/contrib/realtime/mssql/mssql_config.sql                                                        |  308
+ b/contrib/realtime/mysql/mysql_config.sql                                                        |  164
+ b/contrib/realtime/oracle/oracle_config.sql                                                      |  308
+ b/contrib/realtime/postgresql/postgresql_config.sql                                              |  168
  b/contrib/scripts/ast_coredumper                                                                 |  533
  b/contrib/scripts/ast_logescalator                                                               |  399
  b/contrib/scripts/ast_loggrabber                                                                 |  255
@@ -4970,24 +5150,24 @@
  b/contrib/systemd/asterisk.socket                                                                |   26
  b/doc/appdocsxml.dtd                                                                             |    2
  b/doc/appdocsxml.xslt                                                                            |   25
- b/formats/format_g719.c                                                                          |   14
- b/formats/format_g723.c                                                                          |   17
- b/formats/format_g726.c                                                                          |   37
- b/formats/format_g729.c                                                                          |   18
- b/formats/format_gsm.c                                                                           |   20
- b/formats/format_h263.c                                                                          |   20
- b/formats/format_h264.c                                                                          |   20
- b/formats/format_ilbc.c                                                                          |   16
+ b/formats/format_g719.c                                                                          |   13
+ b/formats/format_g723.c                                                                          |   14
+ b/formats/format_g726.c                                                                          |   34
+ b/formats/format_g729.c                                                                          |   16
+ b/formats/format_gsm.c                                                                           |   17
+ b/formats/format_h263.c                                                                          |   17
+ b/formats/format_h264.c                                                                          |   17
+ b/formats/format_ilbc.c                                                                          |   14
  b/formats/format_jpeg.c                                                                          |    4
  b/formats/format_ogg_speex.c                                                                     |   23
  b/formats/format_ogg_vorbis.c                                                                    |   22
- b/formats/format_pcm.c                                                                           |  103
- b/formats/format_siren14.c                                                                       |   14
- b/formats/format_siren7.c                                                                        |   14
- b/formats/format_sln.c                                                                           |   45
- b/formats/format_vox.c                                                                           |   18
- b/formats/format_wav.c                                                                           |   67
- b/formats/format_wav_gsm.c                                                                       |   18
+ b/formats/format_pcm.c                                                                           |  101
+ b/formats/format_siren14.c                                                                       |   13
+ b/formats/format_siren7.c                                                                        |   13
+ b/formats/format_sln.c                                                                           |   42
+ b/formats/format_vox.c                                                                           |   13
+ b/formats/format_wav.c                                                                           |   64
+ b/formats/format_wav_gsm.c                                                                       |   17
  b/funcs/func_aes.c                                                                               |    2
  b/funcs/func_base64.c                                                                            |    2
  b/funcs/func_blacklist.c                                                                         |    2
@@ -5005,7 +5185,7 @@
  b/funcs/func_enum.c                                                                              |    2
  b/funcs/func_env.c                                                                               |    2
  b/funcs/func_extstate.c                                                                          |    2
- b/funcs/func_frame_trace.c                                                                       |   11
+ b/funcs/func_frame_trace.c                                                                       |   14
  b/funcs/func_global.c                                                                            |    2
  b/funcs/func_groupcount.c                                                                        |    2
  b/funcs/func_hangupcause.c                                                                       |    2
@@ -5068,7 +5248,7 @@
  b/include/asterisk/file.h                                                                        |   28
  b/include/asterisk/format.h                                                                      |   33
  b/include/asterisk/format_cache.h                                                                |   15
- b/include/asterisk/frame.h                                                                       |   10
+ b/include/asterisk/frame.h                                                                       |   11
  b/include/asterisk/hashtab.h                                                                     |   14
  b/include/asterisk/heap.h                                                                        |    4
  b/include/asterisk/http.h                                                                        |    1
@@ -5092,7 +5272,7 @@
  b/include/asterisk/res_hep.h                                                                     |    2
  b/include/asterisk/res_pjsip.h                                                                   |  305
  b/include/asterisk/res_pjsip_presence_xml.h                                                      |    3
- b/include/asterisk/res_pjsip_session.h                                                           |  253
+ b/include/asterisk/res_pjsip_session.h                                                           |  255
  b/include/asterisk/rtp_engine.h                                                                  |  113
  b/include/asterisk/sdp.h                                                                         |  713
  b/include/asterisk/sdp_options.h                                                                 |  550
@@ -5136,7 +5316,7 @@
  b/main/autochan.c                                                                                |   18
  b/main/autoservice.c                                                                             |   16
  b/main/backtrace.c                                                                               |    1
- b/main/bridge.c                                                                                  |  121
+ b/main/bridge.c                                                                                  |  123
  b/main/bridge_after.c                                                                            |    4
  b/main/bridge_basic.c                                                                            |    4
  b/main/bridge_channel.c                                                                          |  273
@@ -5146,7 +5326,7 @@
  b/main/ccss.c                                                                                    |   17
  b/main/cdr.c                                                                                     |   28
  b/main/cel.c                                                                                     |    6
- b/main/channel.c                                                                                 | 1222
+ b/main/channel.c                                                                                 | 1224
  b/main/channel_internal_api.c                                                                    |  505
  b/main/chanvars.c                                                                                |    6
  b/main/cli.c                                                                                     |   72
@@ -5265,7 +5445,7 @@
  b/main/stun.c                                                                                    |   13
  b/main/syslog.c                                                                                  |    2
  b/main/taskprocessor.c                                                                           |   43
- b/main/tcptls.c                                                                                  |  871
+ b/main/tcptls.c                                                                                  |  873
  b/main/tdd.c                                                                                     |    2
  b/main/term.c                                                                                    |    2
  b/main/test.c                                                                                    |    6
@@ -5337,18 +5517,18 @@
  b/res/res_ari_playbacks.c                                                                        |   55
  b/res/res_ari_recordings.c                                                                       |   96
  b/res/res_ari_sounds.c                                                                           |   50
- b/res/res_calendar.c                                                                             |   20
- b/res/res_calendar_caldav.c                                                                      |    6
- b/res/res_calendar_ews.c                                                                         |    2
- b/res/res_calendar_exchange.c                                                                    |    2
- b/res/res_calendar_icalendar.c                                                                   |    2
+ b/res/res_calendar.c                                                                             |   24
+ b/res/res_calendar_caldav.c                                                                      |   10
+ b/res/res_calendar_ews.c                                                                         |    6
+ b/res/res_calendar_exchange.c                                                                    |    6
+ b/res/res_calendar_icalendar.c                                                                   |    6
  b/res/res_chan_stats.c                                                                           |   25
  b/res/res_clialiases.c                                                                           |    2
  b/res/res_clioriginate.c                                                                         |   10
  b/res/res_config_curl.c                                                                          |    9
  b/res/res_config_ldap.c                                                                          |  758
  b/res/res_config_odbc.c                                                                          |  182
- b/res/res_config_pgsql.c                                                                         |  197
+ b/res/res_config_pgsql.c                                                                         |  198
  b/res/res_config_sqlite.c                                                                        |   25
  b/res/res_config_sqlite3.c                                                                       |  249
  b/res/res_convert.c                                                                              |    2
@@ -5391,7 +5571,7 @@
  b/res/res_pjsip/include/res_pjsip_private.h                                                      |   14
  b/res/res_pjsip/location.c                                                                       |  221
  b/res/res_pjsip/pjsip_cli.c                                                                      |    2
- b/res/res_pjsip/pjsip_configuration.c                                                            |  196
+ b/res/res_pjsip/pjsip_configuration.c                                                            |  195
  b/res/res_pjsip/pjsip_distributor.c                                                              |  356
  b/res/res_pjsip/pjsip_global_headers.c                                                           |    8
  b/res/res_pjsip/pjsip_message_ip_updater.c                                                       |  418
@@ -5427,9 +5607,9 @@
  b/res/res_pjsip_refer.c                                                                          |   57
  b/res/res_pjsip_registrar.c                                                                      |  104
  b/res/res_pjsip_registrar_expire.c                                                               |    6
- b/res/res_pjsip_sdp_rtp.c                                                                        |  860
+ b/res/res_pjsip_sdp_rtp.c                                                                        |  873
  b/res/res_pjsip_send_to_voicemail.c                                                              |    2
- b/res/res_pjsip_session.c                                                                        | 1687
+ b/res/res_pjsip_session.c                                                                        | 1791
  b/res/res_pjsip_session.exports.in                                                               |   21
  b/res/res_pjsip_t38.c                                                                            |  299
  b/res/res_pjsip_transport_websocket.c                                                            |   74
@@ -5437,11 +5617,11 @@
  b/res/res_pktccops.c                                                                             |    2
  b/res/res_realtime.c                                                                             |    2
  b/res/res_resolver_unbound.c                                                                     |   18
- b/res/res_rtp_asterisk.c                                                                         | 2535
+ b/res/res_rtp_asterisk.c                                                                         | 3047
  b/res/res_rtp_multicast.c                                                                        |  152
  b/res/res_sdp_translator_pjmedia.c                                                               |  603
  b/res/res_security_log.c                                                                         |    2
- b/res/res_smdi.c                                                                                 |    6
+ b/res/res_smdi.c                                                                                 |   10
  b/res/res_snmp.c                                                                                 |    2
  b/res/res_sorcery_astdb.c                                                                        |    2
  b/res/res_sorcery_config.c                                                                       |   46
@@ -5450,7 +5630,7 @@
  b/res/res_sorcery_realtime.c                                                                     |    2
  b/res/res_speech.c                                                                               |    2
  b/res/res_srtp.c                                                                                 |   22
- b/res/res_stasis.c                                                                               |   55
+ b/res/res_stasis.c                                                                               |   72
  b/res/res_stasis_answer.c                                                                        |    2
  b/res/res_stasis_device_state.c                                                                  |   50
  b/res/res_stasis_mailbox.c                                                                       |    2
@@ -5483,7 +5663,7 @@
  b/rest-api-templates/transform.py                                                                |    1
  b/rest-api/api-docs/applications.json                                                            |    2
  b/rest-api/api-docs/asterisk.json                                                                |    2
- b/rest-api/api-docs/bridges.json                                                                 |   84
+ b/rest-api/api-docs/bridges.json                                                                 |   88
  b/rest-api/api-docs/channels.json                                                                |   24
  b/rest-api/api-docs/deviceStates.json                                                            |    2
  b/rest-api/api-docs/endpoints.json                                                               |    2
@@ -5593,6 +5773,7 @@
  b/third-party/pjproject/patches/0059-Ensure-2543-transaction-key-buffer-is-large-enough.patch    |   29
  b/third-party/pjproject/patches/0070-Set-PJSIP_INV_SUPPORT_UPDATE-correctly-in-pjsip_inv_.patch  |   29
  b/third-party/pjproject/patches/0075-Fixed-2030-Improve-error-handling-in-OpenSSL-socket.patch   |  247
+ b/third-party/pjproject/patches/0080-STUN-Fingerprint-with-ICE.patch                             |   35
  b/third-party/pjproject/patches/README                                                           |    7
  b/third-party/pjproject/patches/asterisk_malloc_debug.c                                          |   72
  b/third-party/pjproject/patches/asterisk_malloc_debug.h                                          |   78
@@ -5607,7 +5788,7 @@
  b/utils/conf2ael.c                                                                               |   16
  b/utils/conf_bridge_binaural_hrir_importer.c                                                     |  147
  b/utils/conf_bridge_binaural_hrir_importer.h                                                     |   46
- b/utils/extconf.c                                                                                |   58
+ b/utils/extconf.c                                                                                |   59
  build_tools/embed_modules.xml                                                                    |   46
  contrib/ast-db-manage/cdr/env.py                                                                 |   74
  contrib/ast-db-manage/config/env.py                                                              |   74
@@ -5616,4 +5797,4 @@
  main/data.c                                                                                      | 3348
  res/res_pjsip_multihomed.c                                                                       |  225
  third-party/pjproject/patches/0002-Fix-1946-Avoid-deinitialization-of-uninitialized-cli.patch    |   56
- 947 files changed, 124025 insertions(+), 35977 deletions(-)
+ 952 files changed, 125327 insertions(+), 36108 deletions(-)

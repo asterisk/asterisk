@@ -1825,3 +1825,31 @@ UPDATE alembic_version SET version_num='44ccced114ce' WHERE alembic_version.vers
 
 /
 
+-- Running upgrade 44ccced114ce -> f3d1c5d38b56
+
+ALTER TABLE ps_contacts ADD prune_on_boot VARCHAR(3 CHAR)
+
+/
+
+ALTER TABLE ps_contacts ADD CONSTRAINT yesno_values CHECK (prune_on_boot IN ('yes', 'no'))
+
+/
+
+UPDATE alembic_version SET version_num='f3d1c5d38b56' WHERE alembic_version.version_num = '44ccced114ce'
+
+/
+
+-- Running upgrade f3d1c5d38b56 -> b83645976fdd
+
+ALTER TABLE ps_endpoints ADD dtls_fingerprint VARCHAR(7 CHAR)
+
+/
+
+ALTER TABLE ps_endpoints ADD CONSTRAINT sha_hash_values CHECK (dtls_fingerprint IN ('SHA-1', 'SHA-256'))
+
+/
+
+UPDATE alembic_version SET version_num='b83645976fdd' WHERE alembic_version.version_num = 'f3d1c5d38b56'
+
+/
+

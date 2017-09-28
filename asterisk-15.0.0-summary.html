@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-15.0.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-15.0.0-rc1</h3><h3 align="center">Date: 2017-09-01</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-15.0.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-15.0.0</h3><h3 align="center">Date: 2017-09-28</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,7 +7,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is the first release of a major new version of Asterisk. For a list of new features that have been included with this release, please see the CHANGES file inside the source package. Since this is a new major release, users are encouraged to do extended testing before upgrading to this version in a production environment.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-14.0.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">165 Richard Mudgett <rmudgett@digium.com><br/>118 George Joseph <gjoseph@digium.com><br/>97 Joshua Colp <jcolp@digium.com><br/>86 Sean Bright <sean.bright@gmail.com><br/>40 Corey Farrell <git@cfware.com><br/>40 Mark Michelson <mmichelson@digium.com><br/>37 Alexander Traud <pabstraud@compuserve.com><br/>32 Matt Jordan <mjordan@digium.com><br/>32 Kevin Harwell <kharwell@digium.com><br/>20 Alexei Gradinari <alex2grad@gmail.com><br/>18 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>12 Torrey Searle <tsearle@gmail.com><br/>9 Walter Doekes <walter+asterisk@wjd.nu><br/>9 Badalyan Vyacheslav <v.badalyan@open-bs.ru><br/>6 Frank Haase <fra.haase@googlemail.com><br/>6 Rodrigo Ramirez Norambuena <a@rodrigoramirez.com><br/>6 Sebastian Gutierrez <scgm11@gmail.com><br/>6 David M. Lee <dlee@digium.com><br/>5 Michael Kuron <m.kuron@gmx.de><br/>5 Daniel Journo <dan@keshercommunications.com><br/>4 Rusty Newton <rnewton@digium.com><br/>4 Martin Tomec <tomec.martin@gmail.com><br/>4 Joshua Elson <josh@fluentstream.com><br/>4 Aaron An <anjb@ti-net.com.cn><br/>4 Timo Teräs <timo.teras@iki.fi><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 snuffy <snuffy22@gmail.com><br/>3 Alexander Anikin <may213@yandex.ru><br/>3 Benjamin Keith Ford <bford@digium.com><br/>3 Guido Falsi <madpilot@freebsd.org><br/>3 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>3 Etienne Lessard <elessard97@gmail.com><br/>3 Richard Begg <asterisk@meric.id.au><br/>3 Jørgen H <asterisk.org@hovland.cx><br/>2 Ivan Poddubny <ivan.poddubny@gmail.com><br/>2 Steve Davies <steve@one47.co.uk><br/>2 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>2 Matthew Fredrickson <creslin@digium.com><br/>2 Dennis Guse <dennis.guse@alumni.tu-berlin.de><br/>2 Kirill Katsnelson <kkm@smartaction.com><br/>2 Robert Mordec <r.mordec@slican.pl><br/>2 Michael Walton <mike@farsouthnet.com><br/>1 Eugene <varnavruz@gmail.com><br/>1 Michael L. Young <elgueromexicano@gmail.com><br/>1 Yasin CANER <yasin.caner@netgsm.com.tr><br/>1 jassim mishal <jmishal@yahoo.com><br/>1 dkerr <david@kerr.net><br/>1 Troy Bowman <troy@lump.net><br/>1 Matt Krokosz <mkrokosz@vonage.com><br/>1 Niklas Larsson <niklas@tese.se><br/>1 C.J. Collier <cjcollier@linuxfoundation.org><br/>1 Jan Friesse <jfriesse@redhat.com><br/>1 twisted <josh@asteriasgi.com><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Leandro Dardini <ldardini@gmail.com><br/>1 Grachev Sergey <grachev@mcn.ru><br/>1 Jonathan R. Rose <jonathan.rose@motorolasolutions.com><br/>1 Thierry MAGNIEN <thierry.magnien@gmail.com><br/>1 Eduardo Scudeller Libardi <eslibardi@gmail.com><br/>1 Pascal Cadotte Michaud <pcadottemichaud@proformatique.com><br/>1 Ryan Rittgarn <rrittgarn@techpro.com><br/>1 Norbert Varga <vnorbix@gmail.com><br/>1 Vitezslav Novy <a1@vnovy.net><br/>1 Sébastien Duthil <sduthil@proformatique.com><br/>1 chris de rock <chris@derock.de><br/>1 Ludovic Gasc (Eyepea) <gmludo@gmail.com><br/>1 Holger Hans Peter Freyther <automatic@freyther.de><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Lorenzo Miniero <lorenzo.miniero@unina.it><br/>1 gestoip2 <gestoip2@ull.edu.es><br/>1 Sebastien Duthil <sduthil@wazo.community><br/>1 Evgeniy Tsybra <cjack@yandex.ru><br/></td><td width="33%">3 AaronAn<br/>2 Alexander Traud <pabstraud@compuserve.com><br/>1 Matt Jordan <mjordan@digium.com><br/>1 tootai <admin@tootai.net><br/>1 Aaron An <anjb@ti-net.com.cn><br/>1 Dmitry Melekhov <dm@belkam.com><br/></td><td width="33%">49 Joshua Colp <jcolp@digium.com><br/>40 Richard Mudgett <rmudgett@digium.com><br/>30 George Joseph <gjoseph@digium.com><br/>27 Matt Jordan <mjordan@digium.com><br/>24 Alexander Traud <pabstraud@compuserve.com><br/>20 Corey Farrell <git@cfware.com><br/>20 Kevin Harwell <kharwell@digium.com><br/>14 Etienne Lessard <elessard97@gmail.com><br/>13 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>11 Alexei Gradinari <alex2grad@gmail.com><br/>9 Mark Michelson <mmichelson@digium.com><br/>9 Sebastian Gutierrez <scgm11@gmail.com><br/>8 Ross Beer <ross.beer@voicehost.co.uk><br/>7 Dennis Guse <dennis.guse@alumni.tu-berlin.de><br/>6 Badalian Vyacheslav <slavon.net@gmail.com><br/>6 Dan Jenkins <dan@nimbleape.com><br/>6 Michael Maier <m1278468@mailbox.org><br/>6 Morten Tryfoss <morten@tryfoss.no><br/>6 Torrey Searle <tsearle@gmail.com><br/>5 Walter Doekes <walter+asterisk@wjd.nu><br/>5 Richard Begg <asterisk@meric.id.au><br/>5 Rusty Newton <rnewton@digium.com><br/>4 Michael Walton <mike@farsouthnet.com><br/>4 Andrew Nagy <andrew.nagy@the159.com><br/>4 Aaron An <anjb@ti-net.com.cn><br/>4 David Brillert <david_brillert@scopserv.com><br/>4 Marek Cervenka <marek.cervenka@gmail.com><br/>4 Jørgen H <asterisk.org@hovland.cx><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>3 Tom Pawelek <tompaw@tompaw.net><br/>3 Joshua Elson <joshelson@gmail.com><br/>3 Michael Kuron <m.kuron@gmx.de><br/>3 snuffy <snuffy22@gmail.com><br/>3 Guido Falsi <madpilot@freebsd.org><br/>3 Louis Jocelyn Paquet <ljpaquet@quebecinternet.net><br/>3 Nic Colledge <nic@njcolledge.net><br/>3 Frankie Chin <fchin@biamp.com><br/>3 nappsoft <infos@nappsoft.ch><br/>3 Jonathan Harris <lardconcepts@gmail.com><br/>3 Anthony Messina <amessina@messinet.com><br/>3 Sandro Gauci <sandro@enablesecurity.com><br/>2 Scott Griepentrog <sgriepentrog@digium.com><br/>2 Kirill Katsnelson <kkm@smartaction.com><br/>2 Matthias Urlichs <smurf@smurf.noris.de><br/>2 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>2 Florian Loyau <florian.loyau@astrium-eu-projects.eu><br/>2 Gabriele Giacone <1o5g4r8o@gmail.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 AaronAn<br/>2 Dmitry Melekhov <dm@belkam.com><br/>2 Olle Johansson <oej@edvina.net><br/>2 Ove Aursand <oveaurs@gmail.com><br/>2 twisted <josh@asteriasgi.com><br/>2 Dmitry Wagin <dmitry2004@yandex.ru><br/>2 Niklas Larsson <niklas@tese.se><br/>2 Ian Gilmour <ian.gilmour.x@gmail.com><br/>2 Robert Mordec <r.mordec@slican.pl><br/>2 Aaron Hamstra <ahamstra@carnegietechnologies.com><br/>2 Michael L. Young <elgueromexicano@gmail.com><br/>2 Jens Bürger <jbuerger@arcor.de><br/>2 Jeremy Kister <asterisk.org@jeremykister.com><br/>2 abelbeck <lonnie@abelbeck.com><br/>2 Zach R <zrothy@monmouth.com><br/>1 Abraham Liebsch <aliebsch@river-run.com><br/>1 Tim Morgan <morganuci@gmail.com><br/>1 tootai <admin@tootai.net><br/>1 Martin Tomec <tomec.martin@gmail.com><br/>1 Ustinov Artem <artem198315@gmail.com><br/>1 Jacek Konieczny <jkonieczny@eggsoft.pl><br/>1 Steve Davies <steve@one47.co.uk><br/>1 dkerr <david@kerr.net><br/>1 Troy Bowman <troy@lump.net><br/>1 Adrian Vargas  <adrianvargasvillanueva@gmail.com><br/>1 Daniele Pallastrelli <daniele.pallastrelli@sadel.it><br/>1 effie mouzeli <manjiki@gmail.com><br/>1 Anthony Critelli <aac3771@rit.edu><br/>1 Michael Keuter <lists@mksolutions.info><br/>1 Vitaly K <bg111@ngs.ru><br/>1 Marcello Ceschia <marcello.ceschia@gmx.net><br/>1 Lorenzo Miniero <lorenzo.miniero@unina.it><br/>1 Ksenia <ksyblast@gmail.com><br/>1 Peter Racz <peter.racz@ruag.com><br/>1 Nicolas Riendeau <asterisk@riendeau.org><br/>1 Jacek <asterisk_J1R4@jacekk.info><br/>1 Dmitriy <codeworld@bk.ru><br/>1 Sébastien Couture <scouture@ubity.com><br/>1 Smirnov Aleksey <limpsobaka@yandex.ru><br/>1 Ira Emus <ira@extrasensory.com><br/>1 Eduardo S. Libardi<br/>1 Matthias Binder <it@mitterhuemer.at><br/>1 Seán C. McCord <ulexus@gmail.com><br/>1 Marcelo Terres <mhterres@gmail.com><br/>1 Nir Simionovich (GreenfieldTech - Israel) <info-nospam@greenfieldtech.net><br/>1 Evers Lab <everslab@gmail.com><br/>1 Richard Kenner <kenner@gnat.com><br/>1 Holger Hans Peter Freyther <automatic@freyther.de><br/>1 Vinod Dharashive <vdharashive@gmail.com><br/>1 Sergey Grachev <FreeSS@live.ru><br/>1 dcarr <dac1@drgutah.com><br/>1 Ludovic Gasc (Eyepea) <gmludo@gmail.com><br/>1 Michel R. Vaillancourt <michel@jkl5group.com><br/>1 Michelle Dupuis <support@generationd.com><br/>1 Leandro Dardini <ldardini@gmail.com><br/>1 badelson <brian@voicenet.com><br/>1 Max Norba <max.miralin@yandex.ru><br/>1 Dave Olszewski <cxreg@pobox.com><br/>1 Benoit Duverger <bduverger@ubity.com><br/>1 Bill Brigden <bill@brigden.me><br/>1 Dafi Ni <zbyszek.wieczorek@gmail.com><br/>1 Andreas Krüger <ak@patientsky.com><br/>1 Hans van Eijsden <info@hansvaneijsden.nl><br/>1 Juris Breicis <juris.breicis@gmail.com><br/>1 Ivan Myalkin <thereisnomorefreelogins@gmail.com><br/>1 John Harris <john.harris@certus-tech.com><br/>1 Tony Mountifield <tony@softins.co.uk><br/>1 'alex'<br/>1 Lorne Gaetz <lgaetz@gmail.com><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/>1 Jonathan R. Rose <jonathan.rose@motorolasolutions.com><br/>1 Eric Maheu <ericm@tradecomedia.com><br/>1 Ali Ghavidel <aghavidel@sangoma.com><br/>1 Ryan Rittgarn <rrittgarn@techpro.com><br/>1 Alex Villacís Lasso <a_villacis@palosanto.com><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 Ian Gilmore<br/>1 Sean Darcy <seandarcy@hotmail.com><br/>1 chris de rock <chris@derock.de><br/>1 John Kiniston <johnkiniston@gmail.com><br/>1 Jason <asterisk@srpl.com><br/>1 Roman Bedros <roman.bedros@gmail.com><br/>1 Ronald Raikes <reraikes@avweb.com><br/>1 Matt Krokosz <mkrokosz@vonage.com><br/>1 wushumasters <wushumasters@gmail.com><br/>1 Aaron Meriwether <ameriwether@livevox.com><br/>1 Timo Teräs <timo.teras@iki.fi><br/>1 Olivier Krief <olivier.krief@gmail.com><br/>1 Adagio <dan@studio-adagio.com><br/>1 Etienne Allovon <eallovon@avencall.com><br/>1 Yaacov Akiba Slama <yaslama@gmail.com><br/>1 Stepan <st.shishkin@gmail.com><br/>1 Norbert Varga <vnorbix@gmail.com><br/>1 Sébastien Duthil <sduthil@proformatique.com><br/>1 Ben Smithurst <ben.smithurst@gradwell.com><br/>1 Barry Flanagan <barry@flanagan.ie><br/>1 CGI.NET <loveme1314@gmail.com><br/>1 József Dudás <j.dudas@manifone.com><br/>1 Sean McCord<br/>1 HZMI8gkCvPpom0tM <fuxfwgc4a2i1gr@gmail.com><br/>1 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>1 Chris Howard <choward@digium.com><br/>1 mdu113 <mulitskiy@acedsl.com><br/>1 Joerg Sonnenberger <joerg@bec.de><br/>1 Andrew Nowrot <andrew.nowrot@gmail.com><br/>1 Brian <mscdex@mscdex.net><br/>1 JoshE <josh@fluentstream.com><br/>1 var <cbrunker@appenbutlerhill.com><br/>1 Michael Balen <mb@2lss.de><br/>1 John Fawcett <john@voipsupport.it><br/>1 OpenBSD ports<br/>1 Igor Gamayunov <igor@giisystems.com><br/>1 Doug Lytle <support@drdos.info><br/>1 Joel Vandal <joel@scopserv.com><br/>1 Hector Royo Concepcion <hectorroyo92@gmail.com><br/>1 Eduardo Scudeller Libardi <eslibardi@gmail.com><br/>1 David Woolley <david.woolley@bts.co.uk><br/>1 Christopher van de Sande <cvandesande@opendmz.com><br/>1 Jatin Jain <jatinjain@drishti-soft.com><br/>1 Antoine Pitrou <pitrou@free.fr><br/>1 Jonathan Rose <jrose@digium.com><br/>1 Peter Sokolov <newsletter@fab-online.com><br/>1 Filip Jenicek <phill@janevim.cz><br/>1 John Covert <john.digiumbugs@covert.org><br/>1 Eugene <varnavruz@gmail.com><br/>1 alex <asterisk@maximum.guru><br/>1 Mark Scholten <mark@streamservice.nl><br/>1 Humberto Figuera <hfiguera@gmail.com><br/>1 Roman S. <roman.sokolovskiy@gmail.com><br/>1 Morton Tryfoss<br/>1 James Terhune <james@indosoft.com><br/>1 Matthew Fredrickson <creslin@digium.com><br/>1 Andreas Wetzel <mickey242@gmx.net><br/>1 Yasin CANER <yasin.caner@netgsm.com.tr><br/>1 Kinsey Moore <kmoore@digium.com><br/>1 Jeppe Ryskov Larsen <jrl@patientsky.com><br/>1 Bob Ham <rah-asterisk@settrans.net><br/>1 Javier Riveros  <goseeped@gmail.com><br/>1 C.J. Collier <cjcollier@linuxfoundation.org><br/>1 Jonas Kellens <jonas.kellens@telenet.be><br/>1 Ben Merrills <ben@xdev.net><br/>1 Mikheili Dautashvili <mishadaut@gmail.com><br/>1 Xavier Hienne <xhienne@celya.fr><br/>1 Harley Peters <harley@thepetersclan.com><br/>1 Roman Shubovich <r.shubovich@gmail.com><br/>1 Gergely Dömsödi <doome@uhusystems.com><br/>1 Maxim Vasilev <aldan@list.ru><br/>1 gkloepfer <asterisk@kloepfer.org><br/>1 Kayode <kayode.olajide@gltd.net><br/>1 Krzysztof Trempala <k.trempala@slican.pl><br/>1 Andrew Green <me@andrewgreen.ca><br/>1 Carl Fortin <cfortin2@cegepgarneau.ca><br/>1 Stefan Engström <stefanen@kth.se><br/>1 David Woolley <forums@david-woolley.me.uk><br/>1 xrobau <rob@wpm4L.com><br/>1 Alex <metsys@gmx.com><br/>1 Jacek Kowalski<br/>1 Ryan Smith <ryan.smith@tekara.co.uk><br/>1 Nicholas John Koch <koch@njk-it.de><br/>1 Henning Holtschneider <henning@loca.net><br/>1 Charlie Smurthwaite <charlie@atechmedia.com><br/>1 Carlos Chavez <cursor@telecomabmex.com><br/>1 cervajs, Inaki Baz Castillo<br/></td></tr>
+<tr valign="top"><td width="33%">167 Richard Mudgett <rmudgett@digium.com><br/>125 George Joseph <gjoseph@digium.com><br/>103 Joshua Colp <jcolp@digium.com><br/>91 Sean Bright <sean.bright@gmail.com><br/>40 Corey Farrell <git@cfware.com><br/>40 Mark Michelson <mmichelson@digium.com><br/>37 Alexander Traud <pabstraud@compuserve.com><br/>34 Kevin Harwell <kharwell@digium.com><br/>32 Matt Jordan <mjordan@digium.com><br/>20 Alexei Gradinari <alex2grad@gmail.com><br/>18 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>12 Torrey Searle <torrey@voxbone.com><br/>9 Badalyan Vyacheslav <v.badalyan@open-bs.ru><br/>9 Walter Doekes <walter+github@wjd.nu><br/>7 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>6 Sebastian Gutierrez <sgutierrez@integraccs.com><br/>6 frahaase <fra.haase@googlemail.com><br/>6 David M. Lee <dlee@respoke.io><br/>5 Daniel Journo <dan@keshercommunications.com><br/>5 Michael Kuron <m.kuron@gmx.de><br/>4 Martin Tomec <tomec.martin@gmail.com><br/>4 Joshua Elson <joshelson@gmail.com><br/>4 Aaron An <anjb@ti-net.com.cn><br/>4 Rusty Newton <rnewton@digium.com><br/>4 Timo Teräs <timo.teras@iki.fi><br/>3 Matthew Fredrickson <creslin@digium.com><br/>3 snuffy <snuffy22@gmail.com><br/>3 Jean Aunis <jean.aunis@prescom.fr><br/>3 Etienne Lessard <elessard@proformatique.com><br/>3 Richard Begg <asterisk@meric.id.au><br/>3 Benjamin Keith Ford <bford@digium.com><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 Jørgen H <asterisk.org@hovland.cx><br/>3 Guido Falsi <madpilot@freebsd.org><br/>3 Alexander Anikin <may213@yandex.ru><br/>2 Michael Walton <mike@farsouthnet.com><br/>2 Dennis Guse <dennis.guse@alumni.tu-berlin.de><br/>2 Robert Mordec <r.mordec@slican.pl><br/>2 Ivan Poddubny <ivan.poddubny@gmail.com><br/>2 Kirill Katsnelson <kkm@smartaction.com><br/>2 Florian Floimair <f.floimair@commend.com><br/>2 Sebastien Duthil <sduthil@wazo.community><br/>2 Steve Davies <steve@one47.co.uk><br/>1 Eugene <varnavruz@gmail.com><br/>1 gestoip2 <gestoip2@ull.edu.es><br/>1 David Kerr <david@kerr.net><br/>1 Ludovic Gasc (GMLudo) <gmludo@gmail.com><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Josh Roberson <josh@asteriasgi.com><br/>1 Matt Krokosz <mkrokosz@vonage.com><br/>1 Michael L. Young <elgueromexicano@gmail.com><br/>1 Yasin CANER <yasin.caner@netgsm.com.tr><br/>1 chris de rock <chris@derock.de><br/>1 Lorenzo Miniero <lminiero@gmail.com><br/>1 Mikheili Dautashvili <mishadaut@gmail.com><br/>1 Norbert Varga <vnorbix@gmail.com><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Grachev Sergey <grachev@mcn.ru><br/>1 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>1 Eduardo S. Libardi <eslibardi@gmail.com><br/>1 Ryan Rittgarn <rrittgarn@techpro.com><br/>1 Jan Friesse <jfriesse@redhat.com><br/>1 Igor Goncharovskiy <igor.goncharovsky@gmail.com><br/>1 Thierry Magnien <thierry.magnien@gmail.com><br/>1 Holger Hans Peter Freyther <holger@moiji-mobile.com><br/>1 Leandro Dardini <ldardini@gmail.com><br/>1 Troy Bowman <troy@lump.net><br/>1 Vitezslav Novy <a1@vnovy.net><br/>1 C.J. Collier <cjcollier@linuxfoundation.org><br/>1 Ben Ford <bford@digium.com><br/>1 Niklas Larsson <niklas@tese.se><br/>1 Jonathan R. Rose <jonathan.rose@motorolasolutions.com><br/>1 Evgeniy Tsybra <cjack@yandex.ru><br/>1 Pascal Cadotte Michaud <pcadotte@proformatique.com><br/></td><td width="33%">3 AaronAn<br/>2 Alexander Traud<br/>1 Dmitry Melekhov<br/>1 Matt Jordan <mjordan@digium.com><br/>1 tootai <admin@tootai.net><br/>1 Aaron An<br/></td><td width="33%">50 Joshua Colp <jcolp@digium.com><br/>41 Richard Mudgett <rmudgett@digium.com><br/>30 George Joseph <gjoseph@digium.com><br/>27 Matt Jordan <mjordan@digium.com><br/>24 Alexander Traud <pabstraud@compuserve.com><br/>20 Corey Farrell <git@cfware.com><br/>20 Kevin Harwell <kharwell@digium.com><br/>15 Richard Mudgett<br/>14 Etienne Lessard <elessard97@gmail.com><br/>13 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>11 Alexei Gradinari <alex2grad@gmail.com><br/>9 Mark Michelson <mmichelson@digium.com><br/>9 Sebastian Gutierrez <scgm11@gmail.com><br/>8 Ross Beer <ross.beer@voicehost.co.uk><br/>7 Dennis Guse <dennis.guse@alumni.tu-berlin.de><br/>6 Badalian Vyacheslav <slavon.net@gmail.com><br/>6 Dan Jenkins <dan@nimbleape.com><br/>6 Michael Maier <m1278468@mailbox.org><br/>6 Morten Tryfoss <morten@tryfoss.no><br/>6 Mark Michelson<br/>6 Torrey Searle <tsearle@gmail.com><br/>5 Walter Doekes <walter+asterisk@wjd.nu><br/>5 Richard Begg <asterisk@meric.id.au><br/>5 Rusty Newton <rnewton@digium.com><br/>5 Etienne Lessard<br/>4 Michael Walton <mike@farsouthnet.com><br/>4 Andrew Nagy <andrew.nagy@the159.com><br/>4 Aaron An <anjb@ti-net.com.cn><br/>4 David Brillert <david_brillert@scopserv.com><br/>4 Marek Cervenka <marek.cervenka@gmail.com><br/>4 Jørgen H <asterisk.org@hovland.cx><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>3 Tom Pawelek <tompaw@tompaw.net><br/>3 Tzafrir Cohen<br/>3 Joshua Elson <joshelson@gmail.com><br/>3 Michael Kuron <m.kuron@gmx.de><br/>3 snuffy <snuffy22@gmail.com><br/>3 Guido Falsi <madpilot@freebsd.org><br/>3 Louis Jocelyn Paquet <ljpaquet@quebecinternet.net><br/>3 Nic Colledge <nic@njcolledge.net><br/>3 Frankie Chin <fchin@biamp.com><br/>3 Ross Beer<br/>3 Sandro Gauci <sandro@enablesecurity.com><br/>3 nappsoft <infos@nappsoft.ch><br/>3 Jonathan Harris <lardconcepts@gmail.com><br/>3 Anthony Messina <amessina@messinet.com><br/>2 Scott Griepentrog <sgriepentrog@digium.com><br/>2 Kirill Katsnelson <kkm@smartaction.com><br/>2 Matthias Urlichs <smurf@smurf.noris.de><br/>2 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>2 Florian Loyau <florian.loyau@astrium-eu-projects.eu><br/>2 Gabriele Giacone <1o5g4r8o@gmail.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 Kevin Harwell<br/>2 AaronAn<br/>2 Dmitry Melekhov <dm@belkam.com><br/>2 Daniel Heckl <daniel.heckl@gmail.com><br/>2 Olle Johansson <oej@edvina.net><br/>2 Jeremy Kister<br/>2 Florian Floimair <f.floimair@commend.com><br/>2 Ove Aursand <oveaurs@gmail.com><br/>2 Aaron An<br/>2 twisted <josh@asteriasgi.com><br/>2 Dmitry Wagin <dmitry2004@yandex.ru><br/>2 Niklas Larsson <niklas@tese.se><br/>2 Daniel Heckl<br/>2 Ian Gilmour <ian.gilmour.x@gmail.com><br/>2 Robert Mordec <r.mordec@slican.pl><br/>2 Aaron Hamstra <ahamstra@carnegietechnologies.com><br/>2 Michael L. Young <elgueromexicano@gmail.com><br/>2 Andrew Nagy<br/>2 Jens Bürger <jbuerger@arcor.de><br/>2 Jeremy Kister <asterisk.org@jeremykister.com><br/>2 Matthias Urlichs<br/>2 abelbeck <lonnie@abelbeck.com><br/>2 Zach R <zrothy@monmouth.com><br/>2 Joshua Colp<br/>1 Abraham Liebsch <aliebsch@river-run.com><br/>1 Tim Morgan <morganuci@gmail.com><br/>1 tootai <admin@tootai.net><br/>1 Martin Tomec <tomec.martin@gmail.com><br/>1 Ustinov Artem <artem198315@gmail.com><br/>1 Jacek Konieczny <jkonieczny@eggsoft.pl><br/>1 John Harris <john.harris@certus-tech.com><br/>1 Dmitriy <codeworld@bk.ru><br/>1 dkerr <david@kerr.net><br/>1 Troy Bowman <troy@lump.net><br/>1 Daniele Pallastrelli <daniele.pallastrelli@sadel.it><br/>1 effie mouzeli <manjiki@gmail.com><br/>1 Dmitry Melekhov<br/>1 Anthony Critelli <aac3771@rit.edu><br/>1 Michael L. Young<br/>1 Michael Keuter <lists@mksolutions.info><br/>1 Marcello Ceschia<br/>1 Vitaly K <bg111@ngs.ru><br/>1 Ove Aursand<br/>1 Marcello Ceschia <marcello.ceschia@gmx.net><br/>1 Anthony Critelli<br/>1 Ksenia <ksyblast@gmail.com><br/>1 Peter Racz <peter.racz@ruag.com><br/>1 Aaron Meriwether<br/>1 Nicolas Riendeau <asterisk@riendeau.org><br/>1 Jacek <asterisk_J1R4@jacekk.info><br/>1 Nicholas John Koch<br/>1 Nicholas John Koch <koch@njk-it.de><br/>1 Sébastien Couture <scouture@ubity.com><br/>1 Smirnov Aleksey <limpsobaka@yandex.ru><br/>1 Jens T. <shogun@tausys.de><br/>1 Ira Emus <ira@extrasensory.com><br/>1 Eduardo S. Libardi<br/>1 Jeppe Ryskov Larsen <jrl@patientsky.com><br/>1 Sergey Grachev <FreeSS@live.ru><br/>1 Matthias Binder <it@mitterhuemer.at><br/>1 Seán C. McCord <ulexus@gmail.com><br/>1 Timo Teräs <timo.teras@iki.fi><br/>1 Marcelo Terres <mhterres@gmail.com><br/>1 Nasir Iqbal<br/>1 Nir Simionovich (GreenfieldTech - Israel) <info-nospam@greenfieldtech.net><br/>1 Evers Lab <everslab@gmail.com><br/>1 Richard Kenner <kenner@gnat.com><br/>1 Holger Hans Peter Freyther <automatic@freyther.de><br/>1 Vinod Dharashive <vdharashive@gmail.com><br/>1 Ustinov Artem<br/>1 Kinsey Moore<br/>1 Lorenzo Miniero <lorenzo.miniero@unina.it><br/>1 dcarr <dac1@drgutah.com><br/>1 Ludovic Gasc (Eyepea) <gmludo@gmail.com><br/>1 Michel R. Vaillancourt <michel@jkl5group.com><br/>1 Michelle Dupuis <support@generationd.com><br/>1 Jonathan R. Rose<br/>1 Leandro Dardini <ldardini@gmail.com><br/>1 Michael Walton<br/>1 gkloepfer <asterisk@kloepfer.org><br/>1 David Woolley<br/>1 Kayode <kayode.olajide@gltd.net><br/>1 Max Norba <max.miralin@yandex.ru><br/>1 Dave Olszewski <cxreg@pobox.com><br/>1 Benoit Duverger <bduverger@ubity.com><br/>1 Roman S.<br/>1 Andreas Krüger <ak@patientsky.com><br/>1 Hans van Eijsden <info@hansvaneijsden.nl><br/>1 Filip Jenicek<br/>1 John Covert<br/>1 Ksenia<br/>1 Filip Jenicek <phill@janevim.cz><br/>1 Juris Breicis <juris.breicis@gmail.com><br/>1 Tony Mountifield <tony@softins.co.uk><br/>1 'alex'<br/>1 Lorne Gaetz <lgaetz@gmail.com><br/>1 Sandro Gauci<br/>1 Scott Griepentrog<br/>1 Sean Darcy<br/>1 Dave Olszewski<br/>1 Jonathan R. Rose <jonathan.rose@motorolasolutions.com><br/>1 Ali Ghavidel <aghavidel@sangoma.com><br/>1 Harley Peters <harley@thepetersclan.com><br/>1 Frankie Chin<br/>1 Ryan Rittgarn <rrittgarn@techpro.com><br/>1 Alex Villacís Lasso <a_villacis@palosanto.com><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 scgm11<br/>1 Humberto Figuera<br/>1 Ian Gilmore<br/>1 Jeppe Ryskov Larsen<br/>1 John Kiniston <johnkiniston@gmail.com><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/>1 Abraham Liebsch<br/>1 Roman Bedros <roman.bedros@gmail.com><br/>1 Ronald Raikes <reraikes@avweb.com><br/>1 Maxim Vasilev<br/>1 Matt Krokosz <mkrokosz@vonage.com><br/>1 wushumasters <wushumasters@gmail.com><br/>1 Aaron Meriwether <ameriwether@livevox.com><br/>1 Ivan Myalkin <thereisnomorefreelogins@gmail.com><br/>1 Olivier Krief <olivier.krief@gmail.com><br/>1 Adagio <dan@studio-adagio.com><br/>1 Yasin CANER <yasin.caner@netgsm.com.tr><br/>1 Carlos Chavez<br/>1 Steve Davies <steve@one47.co.uk><br/>1 Xavier Hienne<br/>1 Etienne Allovon <eallovon@avencall.com><br/>1 Ian Gilmour<br/>1 Stepan <st.shishkin@gmail.com><br/>1 Norbert Varga <vnorbix@gmail.com><br/>1 HZMI8gkCvPpom0tM<br/>1 Igor Gamayunov<br/>1 Sébastien Duthil <sduthil@proformatique.com><br/>1 Ben Smithurst <ben.smithurst@gradwell.com><br/>1 Barry Flanagan <barry@flanagan.ie><br/>1 Hector Royo Concepcion<br/>1 Rodrigo Ramirez Norambuena <a@rodrigoramirez.com><br/>1 Andrew Nowrot<br/>1 CGI.NET <loveme1314@gmail.com><br/>1 Yaacov Akiba Slama <yaslama@gmail.com><br/>1 Sean Darcy <seandarcy@hotmail.com><br/>1 Walter Doekes<br/>1 Sean McCord<br/>1 HZMI8gkCvPpom0tM <fuxfwgc4a2i1gr@gmail.com><br/>1 Igor Goncharovsky <igor.goncharovsky@gmail.com><br/>1 Chris Howard <choward@digium.com><br/>1 mdu113 <mulitskiy@acedsl.com><br/>1 Joerg Sonnenberger <joerg@bec.de><br/>1 Andrew Nowrot <andrew.nowrot@gmail.com><br/>1 Brian <mscdex@mscdex.net><br/>1 JoshE <josh@fluentstream.com><br/>1 var <cbrunker@appenbutlerhill.com><br/>1 Michael Balen <mb@2lss.de><br/>1 John Fawcett <john@voipsupport.it><br/>1 OpenBSD ports<br/>1 Igor Gamayunov <igor@giisystems.com><br/>1 Vinod Dharashive<br/>1 Doug Lytle <support@drdos.info><br/>1 Bill Brigden <bill@brigden.me><br/>1 Hector Royo Concepcion <hectorroyo92@gmail.com><br/>1 Jason <asterisk@srpl.com><br/>1 Eduardo Scudeller Libardi <eslibardi@gmail.com><br/>1 József Dudás <j.dudas@manifone.com><br/>1 David Woolley <david.woolley@bts.co.uk><br/>1 Christopher van de Sande <cvandesande@opendmz.com><br/>1 Jatin Jain <jatinjain@drishti-soft.com><br/>1 Antoine Pitrou <pitrou@free.fr><br/>1 Jonathan Rose <jrose@digium.com><br/>1 Ben Merrills<br/>1 Peter Sokolov <newsletter@fab-online.com><br/>1 Dan Jenkins<br/>1 Christopher van de Sande<br/>1 Olle Johansson<br/>1 John Covert <john.digiumbugs@covert.org><br/>1 Eugene <varnavruz@gmail.com><br/>1 Dafi Ni <zbyszek.wieczorek@gmail.com><br/>1 Vitaly K<br/>1 Jens Bürger<br/>1 Mark Scholten <mark@streamservice.nl><br/>1 lvl <laszlo@talkto.nl><br/>1 Humberto Figuera <hfiguera@gmail.com><br/>1 Roman S. <roman.sokolovskiy@gmail.com><br/>1 Morton Tryfoss<br/>1 James Terhune <james@indosoft.com><br/>1 Matthew Fredrickson <creslin@digium.com><br/>1 Andreas Wetzel <mickey242@gmx.net><br/>1 Peter Racz<br/>1 alex <asterisk@maximum.guru><br/>1 Joel Vandal <joel@scopserv.com><br/>1 Frederic LE FOLL<br/>1 Bob Ham <rah-asterisk@settrans.net><br/>1 Brian Rel <brel.astersik100129@copperproductions.co.uk><br/>1 Carlos Chavez <cursor@telecomabmex.com><br/>1 Javier Riveros  <goseeped@gmail.com><br/>1 Jens T.<br/>1 C.J. Collier <cjcollier@linuxfoundation.org><br/>1 Dmitry Wagin<br/>1 Roman Bedros<br/>1 Jonas Kellens <jonas.kellens@telenet.be><br/>1 CGI.NET<br/>1 Ben Merrills <ben@xdev.net><br/>1 Mikheili Dautashvili <mishadaut@gmail.com><br/>1 Nicolas Riendeau<br/>1 Anthony Messina<br/>1 Xavier Hienne <xhienne@celya.fr><br/>1 Charlie Smurthwaite<br/>1 Roman Shubovich <r.shubovich@gmail.com><br/>1 Ronald Raikes<br/>1 Gergely Dömsödi <doome@uhusystems.com><br/>1 Maxim Vasilev <aldan@list.ru><br/>1 Henning Holtschneider<br/>1 Ivan Myalkin<br/>1 chris de rock <chris@derock.de><br/>1 Marek Cervenka<br/>1 Krzysztof Trempala <k.trempala@slican.pl><br/>1 Andrew Green <me@andrewgreen.ca><br/>1 Carl Fortin <cfortin2@cegepgarneau.ca><br/>1 Stefan Engström <stefanen@kth.se><br/>1 Tim Morgan<br/>1 xrobau <rob@wpm4L.com><br/>1 Alex <metsys@gmx.com><br/>1 Jacek Kowalski<br/>1 Ryan Smith <ryan.smith@tekara.co.uk><br/>1 Roman Shubovich<br/>1 Henning Holtschneider <henning@loca.net><br/>1 Charlie Smurthwaite <charlie@atechmedia.com><br/>1 Kirsty Tyerman<br/>1 cervajs, Inaki Baz Castillo<br/>1 Dafi Ni<br/>1 Ryan Smith<br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Applications/app_originate</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26587">ASTERISK-26587</a>: app_originate: Add option to execute gosub prior to dial<br/>Reported by: dkerr<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ddc951060ad748c31fb5c37b82d258ef6bfaa7f2">[ddc951060a]</a> David Kerr -- app_originate: Add option to execute gosub prior to dial</li>
 </ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26995">ASTERISK-26995</a>: Add QUEUE_FLOAT_PENALTY to app_queue<br/>Reported by: Steve Davies<ul>
@@ -109,7 +109,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b54eb167b4062ab73f4fd2dfd29dbc75a4ec9ed5">[b54eb167b4]</a> Holger Hans Peter Freyther -- app_playback.c: Use the timezonename parameter</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26774">ASTERISK-26774</a>: core: Playback URL fails after some time<br/>Reported by: Igor Gamayunov<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=60e9e4fcc0ac340c0bfde1e1ade30e07951e9351">[60e9e4fcc0]</a> Sean Bright -- media_cache: Mark cache entry stale if cache file is removed</li>
-</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27073">ASTERISK-27073</a>: manager: AMI "queues" action outputs freeform text that doesn't follow the AMI spec<br/>Reported by: Brian<ul>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=77548fe859161523d013686866a5cdd77a34883c">[77548fe859]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27073">ASTERISK-27073</a>: manager: AMI "queues" action outputs freeform text that doesn't follow the AMI spec<br/>Reported by: Brian<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5d86da61a66989507e91bed4930a39faba97638a">[5d86da61a6]</a> Benjamin Keith Ford -- manager: Remove AMI "Queues" action.</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25665">ASTERISK-25665</a>: Duplicate logging in queue log for EXITEMPTY events<br/>Reported by: Ove Aursand<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=78277555703ba3b58ab925040211a272011a9a12">[7827755570]</a> Ivan Poddubny -- app_queue: Fix returning to dialplan when a queue is empty</li>
@@ -185,7 +187,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d8802a6a0faa5c983dc93d022475994cd8dbb3c8">[d8802a6a0f]</a> Kevin Harwell -- channel: ast_write frame wrongly freed after call to audiohooks</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26966">ASTERISK-26966</a>: bridge_simple: Add support for streams<br/>Reported by: Kevin Harwell<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7b0e3b92fd49e5fbe406ef74336e164eb3f31b6e">[7b0e3b92fd]</a> Kevin Harwell -- bridge_simple: Added support for streams</li>
-</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27143">ASTERISK-27143</a>: bridge_softmix / res_rtp_asterisk: Fix packet loss and renegotiation issues.<br/>Reported by: Joshua Colp<ul>
+</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27277">ASTERISK-27277</a>: bridge: Renegotiate if source stream changes.<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5efb0f20637590c72b39a2f8332413619d727850">[5efb0f2063]</a> Joshua Colp -- bridge: Change participant SFU streams when source streams change.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27143">ASTERISK-27143</a>: bridge_softmix / res_rtp_asterisk: Fix packet loss and renegotiation issues.<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=451d86d62e440545e6ab2026ce142d3130b5ac5f">[451d86d62e]</a> Joshua Colp -- bridge_softmix / res_rtp_asterisk: Fix packet loss and renegotiation issues.</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27136">ASTERISK-27136</a>: bridge_softmix: Don't reorder SFU streams<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bcd3f65174ace4993c2f76095166b7a2110916a9">[bcd3f65174]</a> Joshua Colp -- bridge_softmix: Don't reorder streams on participant leaving.</li>
@@ -229,7 +233,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2e03c252d128d43fdbfe5906e238e8e0f90c0ab">[d2e03c252d]</a> Eugene -- chan_iax2: Set plaintext auth to deprecated as per ASTERISK-22820</li>
 </ul><br><h4>Category: Channels/chan_multicast_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26439">ASTERISK-26439</a>: chan_rtp: Crash when originating<br/>Reported by: Kayode<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2b030170223a1532a4440e1dee9138384702449d">[2b03017022]</a> Moises Silva -- chan_rtp: Set a sane default rtp engine for unicast.</li>
-</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27095">ASTERISK-27095</a>: chan_pjsip: When connected_line_method is set to invite, we're not trying UPDATE<br/>Reported by: George Joseph<ul>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27259">ASTERISK-27259</a>: chan_pjsip: Outgoing leg does not use all configured codecs, but subset based on caller<br/>Reported by: lvl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a04b6ff0fdb5c44a0bb26679ca80ec6cebb37f88">[a04b6ff0fd]</a> Kevin Harwell -- res_pjsip_session: outgoing call did not offer all configured codecs</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27095">ASTERISK-27095</a>: chan_pjsip: When connected_line_method is set to invite, we're not trying UPDATE<br/>Reported by: George Joseph<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c0c99c7618f480656b2c2436b31ddcb6e3d9db95">[c0c99c7618]</a> George Joseph -- chan_pjsip:  Fix ability to send UPDATE on COLP</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27076">ASTERISK-27076</a>: chan_pjsip: Add support for multiple streams<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=45df25a579edd5423c9d319758d109a74fe8ef33">[45df25a579]</a> Mark Michelson -- chan_pjsip: Add support for multiple streams of the same type.</li>
@@ -361,6 +367,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7a16524a83f5955624151d69bf1f9fe2b2211a9a">[7a16524a83]</a> Sean Bright -- res_rtp_asterisk:  Swap byte-order when sending signed linear</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26812">ASTERISK-26812</a>: [patch] Fix download_externals To Allow The Use Of curl Or wget<br/>Reported by: Michael L. Young<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=66a35e24519d44fae92965739f4ffc874718d6fb">[66a35e2451]</a> Michael L. Young -- build_tools:  Fix download_externals to allow the use of curl or wget</li>
+</ul><br><h4>Category: Codecs/codec_g722</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=77548fe859161523d013686866a5cdd77a34883c">[77548fe859]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
 </ul><br><h4>Category: Codecs/codec_opus</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27202">ASTERISK-27202</a>: If wget is not installed and "or" is not available, external components (excluding pjsip) are not installed<br/>Reported by: Seán C. McCord<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e52f9b041ab3222683aa7a2909ca9f4f011e5a30">[e52f9b041a]</a> George Joseph -- Fix downloader not working with curl</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26520">ASTERISK-26520</a>: codec_opus: Generated fmtp line has no content<br/>Reported by: Sebastian Gutierrez<ul>
@@ -617,7 +625,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=231ee5e6c634555258ca2432e7355ca56ed7fbc0">[231ee5e6c6]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
 </ul><br><h4>Category: Functions/func_speex</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26926">ASTERISK-26926</a>: func_speex: Crash caused by frame with no datalen<br/>Reported by: Richard Kenner<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=985a5fd7aac7a39cf9f9502f9e8e06ef216e1d35">[985a5fd7aa]</a> Joshua Colp -- frame: Better handle interpolated frames.</li>
-</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27152">ASTERISK-27152</a>: Sending a "tel" uri in a From or To header in an unauthenticated message causes asterisk to crash<br/>Reported by: Ross Beer<ul>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27260">ASTERISK-27260</a>: [pjsip] chan_pjsip_indicate: Don't know how to indicate condition 36<br/>Reported by: Daniel Heckl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7c1a88f498d0051f4d7eba843dfb3dc1c2917d8c">[7c1a88f498]</a> George Joseph -- chan_pjsip: Ignore AST_CONTROL_STREAM_TOPOLOGY_CHANGED for now</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27152">ASTERISK-27152</a>: Sending a "tel" uri in a From or To header in an unauthenticated message causes asterisk to crash<br/>Reported by: Ross Beer<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=35c8fb1590052cd8e71414d718e21fac5d511567">[35c8fb1590]</a> George Joseph -- pjsip_message_ip_updater:  Fix issue handling "tel" URIs</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27212">ASTERISK-27212</a>: bridge_softmix: Quickly joining/leaving may cause video stream to remain in SFU<br/>Reported by: Richard Mudgett<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=00b10fa1e1ef065a3d2c6725f9de7c2878e6a76e">[00b10fa1e1]</a> Richard Mudgett -- res_pjsip_session.c: Fix crash when declining an active stream.</li>
@@ -712,7 +722,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d6d86f1c09f041ef00c1d106d924cf918172974a">[d6d86f1c09]</a> Sean Bright -- res_config_ldap: Fix erroneous LDAP_MOD_REPLACE in LDAP modify</li>
 </ul><br><h4>Category: Resources/res_config_odbc</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26263">ASTERISK-26263</a>: SQL error when using realtime and registering extension / inserting into ps_contacts<br/>Reported by: Jeppe Ryskov Larsen<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2820b13393bcabfa0b9d2e59c26805e1011920af">[2820b13393]</a> Richard Mudgett -- res_config_odbc.c: Fix buffer size limitation creating invalid SQL.</li>
-</ul><br><h4>Category: Resources/res_config_pgsql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25628">ASTERISK-25628</a>: res_config_pgsql: should match the behavior of other drivers so that queue_log can disable adaptive logging<br/>Reported by: Dmitry Wagin<ul>
+</ul><br><h4>Category: Resources/res_config_pgsql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27283">ASTERISK-27283</a>: Realtime config fail with PostgreSQL version before 9.1<br/>Reported by: Rodrigo Ramirez Norambuena<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a2cae670abf8955f0e5adeb2426ada59399eff2">[1a2cae670a]</a> Rodrigo Ramírez Norambuena -- res_config_pgsql: Fix removed support to previous for versions PostgreSQL 9.1</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25628">ASTERISK-25628</a>: res_config_pgsql: should match the behavior of other drivers so that queue_log can disable adaptive logging<br/>Reported by: Dmitry Wagin<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1dacf317f3a9e6a2ae0c33ecf97c6ae1acf3cb62">[1dacf317f3]</a> Sean Bright -- res_config_pgsql: Make 'require' return consistent with other backends</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-15858">ASTERISK-15858</a>: [patch] Fix query with double backslash in string literals and stop log warnings<br/>Reported by: Humberto Figuera<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e93f2a5142d1056dc223c37872c25b2a0d2c6778">[e93f2a5142]</a> Sean Bright -- realtime: Fix LIKE escaping in SQL backends</li>
@@ -757,7 +769,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a9555f0363e9cdf94144084e6ba6fc64d6fe2f9">[1a9555f036]</a> Alexander Traud -- sip.conf: tlsclientmethod is using sslv23 as default.</li>
 </ul><br><h4>Category: Resources/res_monitor</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=231ee5e6c634555258ca2432e7355ca56ed7fbc0">[231ee5e6c6]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
-</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25974">ASTERISK-25974</a>: Unused realtime MOH classes not purged on 'moh reload'<br/>Reported by: Sébastien Couture<ul>
+</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=77548fe859161523d013686866a5cdd77a34883c">[77548fe859]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25974">ASTERISK-25974</a>: Unused realtime MOH classes not purged on 'moh reload'<br/>Reported by: Sébastien Couture<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c3ae397cbd8c5655e553e3ae7684bedbdfef178">[6c3ae397cb]</a> Daniel Journo -- Unused realtime MOH classes not purged on 'moh reload'</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26086">ASTERISK-26086</a>: res_musiconhold: format option is not documented adequately<br/>Reported by: Jens Bürger<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fd204d5c657138885ca5ba34ffa98804becc25fb">[fd204d5c65]</a> Sean Bright -- res_musiconhold: Document the 'format' option</li>
@@ -774,7 +788,11 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c7ffd6111d59fd8dd48b7c0e9ba67641c6a565f2">[c7ffd6111d]</a> George Joseph -- res_odbc:  Correct the dependency relationship with res_odbc_transaction</li>
 </ul><br><h4>Category: Resources/res_parking</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26399">ASTERISK-26399</a>: app_queue: Agent not called when caller is parked<br/>Reported by: wushumasters<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=faab0580145940f7be8ab72980aa8e69dad376fb">[faab058014]</a> Joshua Colp -- app_queue: Fix members showing as being in call when not.</li>
-</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27119">ASTERISK-27119</a>: res_pjsip: parse/add msid attribute when webrtc is enabled<br/>Reported by: Kevin Harwell<ul>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27168">ASTERISK-27168</a>: alembic: PJSIP scripts are missing column dtls_fingerprint in ps_endpoints table<br/>Reported by: Florian Floimair<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=478bef49ea703fc94e6111d9f5793b6077c6f903">[478bef49ea]</a> Florian Floimair -- alembic: Add dtls_fingerprint column in ps_endpoints table</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27254">ASTERISK-27254</a>: alembic: prune_on_boot fix erroneous<br/>Reported by: Florian Floimair<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cf8bf2e7e9705a455e510d1368f12fd26fbe2ab4">[cf8bf2e7e9]</a> Florian Floimair -- alembic: fix erroneous commit for add_prune_on_boot</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27119">ASTERISK-27119</a>: res_pjsip: parse/add msid attribute when webrtc is enabled<br/>Reported by: Kevin Harwell<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c042ad8343bf977f392e7434a88f71588a28be12">[c042ad8343]</a> Kevin Harwell -- alembic/res_pjsip: Add "webrtc" configuration option</li>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7da6ddda30ab9291ec810fa88d4219145616bae8">[7da6ddda30]</a> Kevin Harwell -- res_pjsip: Add "webrtc" configuration option</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27090">ASTERISK-27090</a>: PJSIP: Deadlock using TCP transport<br/>Reported by: Richard Mudgett<ul>
@@ -955,7 +973,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=12752c64cc59f8b2d86499bd34a7de3372200af9">[12752c64cc]</a> Alexander Traud -- pjproject_bundled: Allow IPv4/IPv6 (Dual Stack) configurations.</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26228">ASTERISK-26228</a>: res_pjsip_sdp_rtp: G729A does not include annexb=no attribute.<br/>Reported by: Ali Ghavidel<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53a2f7dc88037152de88d016051ea1166323ed02">[53a2f7dc88]</a> Kevin Harwell -- res_format_attr_g729: Add annexb=no format parameter to SDPs</li>
-</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27179">ASTERISK-27179</a>: res_pjsip_session: Handling of 'msid' is incorrect<br/>Reported by: Kevin Harwell<ul>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27264">ASTERISK-27264</a>: res_pjsip_session: Crashes after sending PRACK and receiving 200 OK<br/>Reported by: Daniel Heckl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=115d79652d413f38e029779fcd5898016aad248c">[115d79652d]</a> George Joseph -- res_pjsip_session:  Change some asserts to warning/debug messages</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27179">ASTERISK-27179</a>: res_pjsip_session: Handling of 'msid' is incorrect<br/>Reported by: Kevin Harwell<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4d3e66eabc3c297e6e18ba612883015aca08cf04">[4d3e66eabc]</a> Kevin Harwell -- res_pjsip_session/_sdp_rtp: Handling of 'msid' is incorrect</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27143">ASTERISK-27143</a>: bridge_softmix / res_rtp_asterisk: Fix packet loss and renegotiation issues.<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=451d86d62e440545e6ab2026ce142d3130b5ac5f">[451d86d62e]</a> Joshua Colp -- bridge_softmix / res_rtp_asterisk: Fix packet loss and renegotiation issues.</li>
@@ -985,7 +1005,11 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8d1f54b92e5946de8297a26aa196edc778f0d4eb">[8d1f54b92e]</a> Jørgen H -- res_pjsip_transport_websocket: Add NULL check in get_write_timeout</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26796">ASTERISK-26796</a>: res_pjsip_transport_websocket: Via header is 'WS' when it should be 'WSS'<br/>Reported by: Jørgen H<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7922f26cb0377b0d36ead20178bf1d3bf06db784">[7922f26cb0]</a> Jørgen H -- res_pjsip WebRTC/websockets: Fix usage of WS vs WSS.</li>
-</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27013">ASTERISK-27013</a>: res_rtp_asterisk: Media can be hijacked even with strict RTP enabled<br/>Reported by: Joshua Colp<ul>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27274">ASTERISK-27274</a>: RTCP needs better packet validation to resist port scans.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1ec778a002044bf95939a4192e4d31f4c6ea0a72">[1ec778a002]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27252">ASTERISK-27252</a>: RTP: One way audio with direct media and strictrtp=yes.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1ec778a002044bf95939a4192e4d31f4c6ea0a72">[1ec778a002]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27013">ASTERISK-27013</a>: res_rtp_asterisk: Media can be hijacked even with strict RTP enabled<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ba2c8f145870a2c4e064994f976d150c08ce6e5e">[ba2c8f1458]</a> Joshua Colp -- res_rtp_asterisk: Only learn a new source in learn state.</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27231">ASTERISK-27231</a>: res_rtp_asterisk: Allow remote SSRC to change due to renegotiation<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=663fe3e31fbbcc2ad3f126665cc6ff9d5698fcdc">[663fe3e31f]</a> Joshua Colp -- res_rtp_asterisk: Allow remote SSRC to change on an RTP instance.</li>
@@ -1313,6 +1337,24 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9042ad40f2a56d6cfd4117897cbc9943253d4e09">[9042ad40f2]</a> Alexei Gradinari -- app_voicemail: Add taskprocessor alert level options.</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5c3700a58b3b467104e35c8c16931910041392a2">5c3700a58b</a></td><td>Joshua Colp</td><td>res_stasis: Add 'video_sfu' as a requested bridge type.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=172a595d00f7b20b26eb9d98d60b1f8ce0cbb83e">172a595d00</a></td><td>Sean Bright</td><td>res_rtp_asterisk: Trim trailing byte off of SDES packet</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=08598782a80c2669ba13f93a7206f8b533efb526">08598782a8</a></td><td>Sean Bright</td><td>webrtc: Allow 'webrtc' to be set on endpoints without dtls_ca_file</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7e574d8dac5c2a6476963764db121e716d27a498">7e574d8dac</a></td><td>Sean Bright</td><td>pjproject: Patch to correct STUN FINGERPRINT usage</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ef7c07bb68e6746c0cedbba75e2ab5eccf21f4f5">ef7c07bb68</a></td><td>George Joseph</td><td>build:  A few gcc 7 error fixes</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d8106b3882402c668b2a740345b5890503aedbfb">d8106b3882</a></td><td>Sean Bright</td><td>app_stream_echo: Don't echo declined streams</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=74856bf40093aecb51ce12982a5760e1a4311156">74856bf400</a></td><td>Joshua Colp</td><td>res_pjsip_session: Reduce (and improve) SDP renegotiation.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b3b0750f437c9ad026870589146c17d679832298">b3b0750f43</a></td><td>Kevin Harwell</td><td>res_pjsip_session: Don't end session when receiving a 500 on a reinvite</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4124c5dfca9c2035669f2e33cf839151820c1b27">4124c5dfca</a></td><td>George Joseph</td><td>res_pjsip_session/BUNDLE:  Handle no audio codecs on endpoint</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b8c3dc1ce60170bad115177b49effa64b8f066b4">b8c3dc1ce6</a></td><td>Richard Mudgett</td><td>res_rtp_asterisk.c: Fix bundled SSRC handling.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=36afc582787b146da2bc1f81e5215c0a5ab085e8">36afc58278</a></td><td>Ben Ford</td><td>res_pjsip_session: Check for removed stream state.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=806dfba06834aa8b88a8617dfd7dbf85a1defd73">806dfba068</a></td><td>Joshua Colp</td><td>app_confbridge: Only create a channel that records audio.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e166b436848beea585e83b610093d1151394cba3">e166b43684</a></td><td>Joshua Colp</td><td>tcptls: Change error message to debug.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e0b264cbe41effb45995bcbac641f0e45717992b">e0b264cbe4</a></td><td>George Joseph</td><td>alembic: Fix enum creation for dtls_fingerprint</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ef742aa280f698d1a3e5c49b1e8745ac31ab2e44">ef742aa280</a></td><td>George Joseph</td><td>Add prune contacts alembic script to 15.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=215e2f3c4a9b0fbf1ebe716becf97b409f45bbe5">215e2f3c4a</a></td><td>Joshua Colp</td><td>res_pjsip_session: Preserve stream name during renegotiation.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=24a97d6c63d89d555b59a9b1dfb253f35f262038">24a97d6c63</a></td><td>George Joseph</td><td>res_calendar*, res_smdi: Move to "extended" support</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=479db70a28adb96d8d0466a654a5fcaa0f4e7df5">479db70a28</a></td><td>Matthew Fredrickson</td><td>Update for 15.0.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0a0ef8a1b1d143bb81a8d6d56f730f2bbe6541cf">0a0ef8a1b1</a></td><td>Richard Mudgett</td><td>chan_pjsip.c: Fix topology refresh response code accuracy.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=40faa22ce8c147d9d43d8ca3ac726924c5083edd">40faa22ce8</a></td><td>Richard Mudgett</td><td>app_confbridge: Document sfu video_mode value.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=44d316ef4afc02a477c128ffe50c9dbb6e5b82d5">44d316ef4a</a></td><td>Richard Mudgett</td><td>configure: Check cache for valid pjproject tarball before downloading.</td></tr>
@@ -1626,7 +1668,7 @@
 asterisk-14.0.0-summary.txt                                                                      |10112 -
 b/.version                                                                                       |    2
 b/CHANGES                                                                                        |  550
-b/ChangeLog                                                                                      |12715 ++
+b/ChangeLog                                                                                      |13047 ++
 b/Makefile                                                                                       |  141
 b/Makefile.moddir_rules                                                                          |   55
 b/Makefile.rules                                                                                 |   12
@@ -1681,7 +1723,7 @@ b/apps/app_image.c                                                              
 b/apps/app_ivrdemo.c                                                                             |    2
 b/apps/app_jack.c                                                                                |    2
 b/apps/app_macro.c                                                                               |   38
-b/apps/app_meetme.c                                                                              |  195
+b/apps/app_meetme.c                                                                              |  220
 b/apps/app_milliwatt.c                                                                           |    2
 b/apps/app_minivm.c                                                                              |   70
 b/apps/app_mixmonitor.c                                                                          |   38
@@ -1710,7 +1752,7 @@ b/apps/app_speech_utils.c                                                       
 b/apps/app_stack.c                                                                               |    2
 b/apps/app_stasis.c                                                                              |    2
 b/apps/app_statsd.c                                                                              |    2
-b/apps/app_stream_echo.c                                                                         |  340
+b/apps/app_stream_echo.c                                                                         |  345
 b/apps/app_system.c                                                                              |   12
 b/apps/app_talkdetect.c                                                                          |    2
 b/apps/app_test.c                                                                                |    2
@@ -1725,13 +1767,13 @@ b/apps/app_waituntil.c                                                          
 b/apps/app_while.c                                                                               |    2
 b/apps/app_zapateller.c                                                                          |    4
 b/apps/confbridge/conf_chan_announce.c                                                           |   32
-b/apps/confbridge/conf_chan_record.c                                                             |    2
+b/apps/confbridge/conf_chan_record.c                                                             |    4
 b/apps/confbridge/conf_config_parser.c                                                           |   78
 b/apps/confbridge/conf_state_multi_marked.c                                                      |    9
 b/apps/confbridge/confbridge_manager.c                                                           |    4
 b/apps/confbridge/include/confbridge.h                                                           |   51
-b/asterisk-15.0.0-beta1-summary.html                                                             | 2524
-b/asterisk-15.0.0-beta1-summary.txt                                                              | 5532 +
+b/asterisk-15.0.0-rc1-summary.html                                                               | 2572
+b/asterisk-15.0.0-rc1-summary.txt                                                                | 5619 +
 b/autoconf/ast_ext_lib.m4                                                                        |   36
 b/bootstrap.sh                                                                                   |    2
 b/bridges/Makefile                                                                               |    8
@@ -1740,7 +1782,7 @@ b/bridges/bridge_builtin_interval_features.c                                    
 b/bridges/bridge_holding.c                                                                       |    2
 b/bridges/bridge_native_rtp.c                                                                    |  732
 b/bridges/bridge_simple.c                                                                        |   75
-b/bridges/bridge_softmix.c                                                                       | 1121
+b/bridges/bridge_softmix.c                                                                       | 1242
 b/bridges/bridge_softmix/bridge_softmix_binaural.c                                               |  579
 b/bridges/bridge_softmix/include/bridge_softmix_internal.h                                       |  427
 b/bridges/bridge_softmix/include/hrirs.h                                                         |50730 ++++++++++
@@ -1777,15 +1819,15 @@ b/channels/Makefile                                                             
 b/channels/chan_alsa.c                                                                           |   68
 b/channels/chan_bridge_media.c                                                                   |    2
 b/channels/chan_console.c                                                                        |    2
-b/channels/chan_dahdi.c                                                                          |  389
-b/channels/chan_iax2.c                                                                           |  420
+b/channels/chan_dahdi.c                                                                          |  392
+b/channels/chan_iax2.c                                                                           |  421
 b/channels/chan_mgcp.c                                                                           |   12
 b/channels/chan_misdn.c                                                                          |    2
 b/channels/chan_motif.c                                                                          |    6
 b/channels/chan_nbs.c                                                                            |    6
 b/channels/chan_oss.c                                                                            |   61
 b/channels/chan_phone.c                                                                          |    8
-b/channels/chan_pjsip.c                                                                          |  933
+b/channels/chan_pjsip.c                                                                          |  937
 b/channels/chan_rtp.c                                                                            |   11
 b/channels/chan_sip.c                                                                            |  913
 b/channels/chan_skinny.c                                                                         |  179
@@ -1804,6 +1846,8 @@ b/channels/pjsip/cli_commands.c                                                 
 b/channels/pjsip/dialplan_functions.c                                                            |  576
 b/channels/pjsip/include/chan_pjsip.h                                                            |   13
 b/channels/pjsip/include/dialplan_functions.h                                                    |   37
+b/channels/sig_pri.c                                                                             |    8
+b/channels/sig_pri.h                                                                             |    2
 b/channels/sip/config_parser.c                                                                   |    2
 b/channels/sip/dialplan_functions.c                                                              |   84
 b/channels/sip/include/sip.h                                                                     |   12
@@ -1896,15 +1940,17 @@ b/contrib/ast-db-manage/config/versions/7f3e21abe318_add_preferred_codec_only_op
 b/contrib/ast-db-manage/config/versions/86bb1efa278d_add_ps_endpoints_refer_blind_progress.py    |   30
 b/contrib/ast-db-manage/config/versions/8fce4c573e15_add_pjsip_allow_overlap.py                  |   31
 b/contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py    |   32
+b/contrib/ast-db-manage/config/versions/b83645976fdd_add_dtls_fingerprint_to_ps_endpoints.py     |   38
 b/contrib/ast-db-manage/config/versions/c7a44a5a0851_pjsip_add_global_mwi_options.py             |   35
 b/contrib/ast-db-manage/config/versions/d7983954dd96_add_ps_endpoints_notify_early_inuse_.py     |   30
+b/contrib/ast-db-manage/config/versions/f3d1c5d38b56_add_prune_on_boot.py                        |   31
 b/contrib/ast-db-manage/config/versions/f638dbe2eb23_symmetric_transport.py                      |   32
 b/contrib/ast-db-manage/env.py                                                                   |  140
 b/contrib/ast-db-manage/voicemail/env.py                                                         |    1
-b/contrib/realtime/mssql/mssql_config.sql                                                        |  294
-b/contrib/realtime/mysql/mysql_config.sql                                                        |  158
-b/contrib/realtime/oracle/oracle_config.sql                                                      |  294
-b/contrib/realtime/postgresql/postgresql_config.sql                                              |  162
+b/contrib/realtime/mssql/mssql_config.sql                                                        |  308
+b/contrib/realtime/mysql/mysql_config.sql                                                        |  164
+b/contrib/realtime/oracle/oracle_config.sql                                                      |  308
+b/contrib/realtime/postgresql/postgresql_config.sql                                              |  168
 b/contrib/scripts/ast_coredumper                                                                 |  533
 b/contrib/scripts/ast_logescalator                                                               |  399
 b/contrib/scripts/ast_loggrabber                                                                 |  255
@@ -1923,24 +1969,24 @@ b/contrib/systemd/asterisk.service                                              
 b/contrib/systemd/asterisk.socket                                                                |   26
 b/doc/appdocsxml.dtd                                                                             |    2
 b/doc/appdocsxml.xslt                                                                            |   25
-b/formats/format_g719.c                                                                          |   14
-b/formats/format_g723.c                                                                          |   17
-b/formats/format_g726.c                                                                          |   37
-b/formats/format_g729.c                                                                          |   18
-b/formats/format_gsm.c                                                                           |   20
-b/formats/format_h263.c                                                                          |   20
-b/formats/format_h264.c                                                                          |   20
-b/formats/format_ilbc.c                                                                          |   16
+b/formats/format_g719.c                                                                          |   13
+b/formats/format_g723.c                                                                          |   14
+b/formats/format_g726.c                                                                          |   34
+b/formats/format_g729.c                                                                          |   16
+b/formats/format_gsm.c                                                                           |   17
+b/formats/format_h263.c                                                                          |   17
+b/formats/format_h264.c                                                                          |   17
+b/formats/format_ilbc.c                                                                          |   14
 b/formats/format_jpeg.c                                                                          |    4
 b/formats/format_ogg_speex.c                                                                     |   23
 b/formats/format_ogg_vorbis.c                                                                    |   22
-b/formats/format_pcm.c                                                                           |  103
-b/formats/format_siren14.c                                                                       |   14
-b/formats/format_siren7.c                                                                        |   14
-b/formats/format_sln.c                                                                           |   45
-b/formats/format_vox.c                                                                           |   18
-b/formats/format_wav.c                                                                           |   67
-b/formats/format_wav_gsm.c                                                                       |   18
+b/formats/format_pcm.c                                                                           |  101
+b/formats/format_siren14.c                                                                       |   13
+b/formats/format_siren7.c                                                                        |   13
+b/formats/format_sln.c                                                                           |   42
+b/formats/format_vox.c                                                                           |   13
+b/formats/format_wav.c                                                                           |   64
+b/formats/format_wav_gsm.c                                                                       |   17
 b/funcs/func_aes.c                                                                               |    2
 b/funcs/func_base64.c                                                                            |    2
 b/funcs/func_blacklist.c                                                                         |    2
@@ -1958,7 +2004,7 @@ b/funcs/func_dialplan.c                                                         
 b/funcs/func_enum.c                                                                              |    2
 b/funcs/func_env.c                                                                               |    2
 b/funcs/func_extstate.c                                                                          |    2
-b/funcs/func_frame_trace.c                                                                       |   11
+b/funcs/func_frame_trace.c                                                                       |   14
 b/funcs/func_global.c                                                                            |    2
 b/funcs/func_groupcount.c                                                                        |    2
 b/funcs/func_hangupcause.c                                                                       |    2
@@ -2021,7 +2067,7 @@ b/include/asterisk/core_local.h                                                 
 b/include/asterisk/file.h                                                                        |   28
 b/include/asterisk/format.h                                                                      |   33
 b/include/asterisk/format_cache.h                                                                |   15
-b/include/asterisk/frame.h                                                                       |   10
+b/include/asterisk/frame.h                                                                       |   11
 b/include/asterisk/hashtab.h                                                                     |   14
 b/include/asterisk/heap.h                                                                        |    4
 b/include/asterisk/http.h                                                                        |    1
@@ -2045,7 +2091,7 @@ b/include/asterisk/res_fax.h                                                    
 b/include/asterisk/res_hep.h                                                                     |    2
 b/include/asterisk/res_pjsip.h                                                                   |  305
 b/include/asterisk/res_pjsip_presence_xml.h                                                      |    3
-b/include/asterisk/res_pjsip_session.h                                                           |  253
+b/include/asterisk/res_pjsip_session.h                                                           |  255
 b/include/asterisk/rtp_engine.h                                                                  |  113
 b/include/asterisk/sdp.h                                                                         |  713
 b/include/asterisk/sdp_options.h                                                                 |  550
@@ -2089,7 +2135,7 @@ b/main/audiohook.c                                                              
 b/main/autochan.c                                                                                |   18
 b/main/autoservice.c                                                                             |   16
 b/main/backtrace.c                                                                               |    1
-b/main/bridge.c                                                                                  |  121
+b/main/bridge.c                                                                                  |  123
 b/main/bridge_after.c                                                                            |    4
 b/main/bridge_basic.c                                                                            |    4
 b/main/bridge_channel.c                                                                          |  273
@@ -2099,7 +2145,7 @@ b/main/callerid.c                                                               
 b/main/ccss.c                                                                                    |   17
 b/main/cdr.c                                                                                     |   28
 b/main/cel.c                                                                                     |    6
-b/main/channel.c                                                                                 | 1222
+b/main/channel.c                                                                                 | 1224
 b/main/channel_internal_api.c                                                                    |  505
 b/main/chanvars.c                                                                                |    6
 b/main/cli.c                                                                                     |   72
@@ -2218,7 +2264,7 @@ b/main/strings.c                                                                
 b/main/stun.c                                                                                    |   13
 b/main/syslog.c                                                                                  |    2
 b/main/taskprocessor.c                                                                           |   43
-b/main/tcptls.c                                                                                  |  871
+b/main/tcptls.c                                                                                  |  873
 b/main/tdd.c                                                                                     |    2
 b/main/term.c                                                                                    |    2
 b/main/test.c                                                                                    |    6
@@ -2290,18 +2336,18 @@ b/res/res_ari_model.c                                                           
 b/res/res_ari_playbacks.c                                                                        |   55
 b/res/res_ari_recordings.c                                                                       |   96
 b/res/res_ari_sounds.c                                                                           |   50
-b/res/res_calendar.c                                                                             |   20
-b/res/res_calendar_caldav.c                                                                      |    6
-b/res/res_calendar_ews.c                                                                         |    2
-b/res/res_calendar_exchange.c                                                                    |    2
-b/res/res_calendar_icalendar.c                                                                   |    2
+b/res/res_calendar.c                                                                             |   24
+b/res/res_calendar_caldav.c                                                                      |   10
+b/res/res_calendar_ews.c                                                                         |    6
+b/res/res_calendar_exchange.c                                                                    |    6
+b/res/res_calendar_icalendar.c                                                                   |    6
 b/res/res_chan_stats.c                                                                           |   25
 b/res/res_clialiases.c                                                                           |    2
 b/res/res_clioriginate.c                                                                         |   10
 b/res/res_config_curl.c                                                                          |    9
 b/res/res_config_ldap.c                                                                          |  758
 b/res/res_config_odbc.c                                                                          |  182
-b/res/res_config_pgsql.c                                                                         |  197
+b/res/res_config_pgsql.c                                                                         |  198
 b/res/res_config_sqlite.c                                                                        |   25
 b/res/res_config_sqlite3.c                                                                       |  249
 b/res/res_convert.c                                                                              |    2
@@ -2344,7 +2390,7 @@ b/res/res_pjsip/config_transport.c                                              
 b/res/res_pjsip/include/res_pjsip_private.h                                                      |   14
 b/res/res_pjsip/location.c                                                                       |  221
 b/res/res_pjsip/pjsip_cli.c                                                                      |    2
-b/res/res_pjsip/pjsip_configuration.c                                                            |  196
+b/res/res_pjsip/pjsip_configuration.c                                                            |  195
 b/res/res_pjsip/pjsip_distributor.c                                                              |  356
 b/res/res_pjsip/pjsip_global_headers.c                                                           |    8
 b/res/res_pjsip/pjsip_message_ip_updater.c                                                       |  418
@@ -2380,9 +2426,9 @@ b/res/res_pjsip_pubsub.c                                                        
 b/res/res_pjsip_refer.c                                                                          |   57
 b/res/res_pjsip_registrar.c                                                                      |  104
 b/res/res_pjsip_registrar_expire.c                                                               |    6
-b/res/res_pjsip_sdp_rtp.c                                                                        |  860
+b/res/res_pjsip_sdp_rtp.c                                                                        |  873
 b/res/res_pjsip_send_to_voicemail.c                                                              |    2
-b/res/res_pjsip_session.c                                                                        | 1687
+b/res/res_pjsip_session.c                                                                        | 1791
 b/res/res_pjsip_session.exports.in                                                               |   21
 b/res/res_pjsip_t38.c                                                                            |  299
 b/res/res_pjsip_transport_websocket.c                                                            |   74
@@ -2390,11 +2436,11 @@ b/res/res_pjsip_xpidf_body_generator.c                                          
 b/res/res_pktccops.c                                                                             |    2
 b/res/res_realtime.c                                                                             |    2
 b/res/res_resolver_unbound.c                                                                     |   18
-b/res/res_rtp_asterisk.c                                                                         | 2535
+b/res/res_rtp_asterisk.c                                                                         | 3047
 b/res/res_rtp_multicast.c                                                                        |  152
 b/res/res_sdp_translator_pjmedia.c                                                               |  603
 b/res/res_security_log.c                                                                         |    2
-b/res/res_smdi.c                                                                                 |    6
+b/res/res_smdi.c                                                                                 |   10
 b/res/res_snmp.c                                                                                 |    2
 b/res/res_sorcery_astdb.c                                                                        |    2
 b/res/res_sorcery_config.c                                                                       |   46
@@ -2403,7 +2449,7 @@ b/res/res_sorcery_memory_cache.c                                                
 b/res/res_sorcery_realtime.c                                                                     |    2
 b/res/res_speech.c                                                                               |    2
 b/res/res_srtp.c                                                                                 |   22
-b/res/res_stasis.c                                                                               |   55
+b/res/res_stasis.c                                                                               |   72
 b/res/res_stasis_answer.c                                                                        |    2
 b/res/res_stasis_device_state.c                                                                  |   50
 b/res/res_stasis_mailbox.c                                                                       |    2
@@ -2436,7 +2482,7 @@ b/rest-api-templates/swagger_model.py                                           
 b/rest-api-templates/transform.py                                                                |    1
 b/rest-api/api-docs/applications.json                                                            |    2
 b/rest-api/api-docs/asterisk.json                                                                |    2
-b/rest-api/api-docs/bridges.json                                                                 |   84
+b/rest-api/api-docs/bridges.json                                                                 |   88
 b/rest-api/api-docs/channels.json                                                                |   24
 b/rest-api/api-docs/deviceStates.json                                                            |    2
 b/rest-api/api-docs/endpoints.json                                                               |    2
@@ -2546,6 +2592,7 @@ b/third-party/pjproject/patches/0058-Parse-zero-length-multipart-body-parts-corr
 b/third-party/pjproject/patches/0059-Ensure-2543-transaction-key-buffer-is-large-enough.patch    |   29
 b/third-party/pjproject/patches/0070-Set-PJSIP_INV_SUPPORT_UPDATE-correctly-in-pjsip_inv_.patch  |   29
 b/third-party/pjproject/patches/0075-Fixed-2030-Improve-error-handling-in-OpenSSL-socket.patch   |  247
+b/third-party/pjproject/patches/0080-STUN-Fingerprint-with-ICE.patch                             |   35
 b/third-party/pjproject/patches/README                                                           |    7
 b/third-party/pjproject/patches/asterisk_malloc_debug.c                                          |   72
 b/third-party/pjproject/patches/asterisk_malloc_debug.h                                          |   78
@@ -2560,7 +2607,7 @@ b/utils/check_expr.c                                                            
 b/utils/conf2ael.c                                                                               |   16
 b/utils/conf_bridge_binaural_hrir_importer.c                                                     |  147
 b/utils/conf_bridge_binaural_hrir_importer.h                                                     |   46
-b/utils/extconf.c                                                                                |   58
+b/utils/extconf.c                                                                                |   59
 build_tools/embed_modules.xml                                                                    |   46
 contrib/ast-db-manage/cdr/env.py                                                                 |   74
 contrib/ast-db-manage/config/env.py                                                              |   74
@@ -2569,4 +2616,4 @@ include/asterisk/data.h                                                         
 main/data.c                                                                                      | 3348
 res/res_pjsip_multihomed.c                                                                       |  225
 third-party/pjproject/patches/0002-Fix-1946-Avoid-deinitialization-of-uninitialized-cli.patch    |   56
-947 files changed, 124025 insertions(+), 35977 deletions(-)</pre><br></html>
+952 files changed, 125327 insertions(+), 36108 deletions(-)</pre><br></html>
