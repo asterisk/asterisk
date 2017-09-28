@@ -177,7 +177,7 @@ static time_t icalfloat_to_timet(icaltimetype time)
 }
 
 /* span->start & span->end may be dates or floating times which have no timezone,
- * which would mean that they should apply to the local timezone for all recepients.
+ * which would mean that they should apply to the local timezone for all recipients.
  * For example, if a meeting was set for 1PM-2PM floating time, people in different time
  * zones would not be scheduled at the same local times.  Dates are often treated as
  * floating times, so all day events will need to be converted--so we can trust the
@@ -249,7 +249,42 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 		}
 	}
 
-	/* Get the attendees */
+	/*
+	 * If comp has an RRULE and/or RDATE property, we need to check whether
+	 * another vevent component supercedes this span. Such a component would
+	 * have two characteristics:
+	 *  - its UID is the same as comp
+	 *  - its RECURRENCE-ID property is the same time as span->start
+	 */
+	if (icalcomponent_get_first_property(comp, ICAL_RRULE_PROPERTY)
+	   || icalcomponent_get_first_property(comp, ICAL_RDATE_PROPERTY)) {
+		icalcompiter comp_iter;
+		icaltimetype span_start = icaltime_from_timet_with_zone(
+			event->start, icaltime_is_date(start), icaltime_get_timezone(start));
+
+		icaltime_set_timezone(&span_start, icaltime_get_timezone(start));
+		for (comp_iter = icalcomponent_begin_component(pvt->data, ICAL_VEVENT_COMPONENT);
+			 icalcompiter_deref(&comp_iter);
+			 icalcompiter_next(&comp_iter)) {
+			icalcomponent *vevent = icalcompiter_deref(&comp_iter);
+			icalproperty *uid = icalcomponent_get_first_property(vevent, ICAL_UID_PROPERTY);
+
+			if (uid && !strcmp(icalproperty_get_value_as_string(uid), event->uid)) {
+				icaltimetype recurrence_id = icalcomponent_get_recurrenceid(vevent);
+
+				/* Set the same timezone that we want to compare against */
+				icaltime_set_timezone(&recurrence_id, icaltime_get_timezone(start));
+
+				if (!icaltime_compare(recurrence_id, span_start)
+				   && icaltime_is_date(span_start) == icaltime_is_date(recurrence_id)) {
+					event = ast_calendar_unref_event(event);
+					return;
+				}
+			}
+		}
+	}
+
+    /* Get the attendees */
 	for (prop = icalcomponent_get_first_property(comp, ICAL_ATTENDEE_PROPERTY);
 			prop; prop = icalcomponent_get_next_property(comp, ICAL_ATTENDEE_PROPERTY)) {
 		struct ast_calendar_attendee *attendee;
