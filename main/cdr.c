@@ -220,7 +220,7 @@ static int cdr_toggle_runtime_options(void);
 
 /*! \brief The configuration settings for this module */
 struct module_config {
-	struct ast_cdr_config *general;		/*< CDR global settings */
+	struct ast_cdr_config *general;		/*!< CDR global settings */
 };
 
 /*! \brief The container for the module configuration */
@@ -1458,7 +1458,8 @@ static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked
 
 /* SINGLE STATE */
 
-static void single_state_init_function(struct cdr_object *cdr) {
+static void single_state_init_function(struct cdr_object *cdr)
+{
 	cdr->start = ast_tvnow();
 	cdr_object_check_party_a_answer(cdr);
 }
@@ -2023,6 +2024,7 @@ static int cdr_object_finalize_party_b(void *obj, void *arg, int flags)
 	struct cdr_object *cdr = obj;
 	struct ast_channel_snapshot *party_b = arg;
 	struct cdr_object *it_cdr;
+
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (it_cdr->party_b.snapshot
 			&& !strcasecmp(it_cdr->party_b.snapshot->name, party_b->name)) {
@@ -2040,6 +2042,7 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 	struct cdr_object *cdr = obj;
 	struct ast_channel_snapshot *party_b = arg;
 	struct cdr_object *it_cdr;
+
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (!it_cdr->fn_table->process_party_b) {
 			continue;
@@ -2912,7 +2915,7 @@ void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char 
 	}
 }
 
-/*
+/*!
  * \internal
  * \brief Callback that finds all CDRs that reference a particular channel by name
  */
@@ -2928,7 +2931,7 @@ static int cdr_object_select_all_by_name_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*
+/*!
  * \internal
  * \brief Callback that finds a CDR by channel name
  */
@@ -3165,8 +3168,9 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		if (++x > 1)
+		if (++x > 1) {
 			ast_str_append(buf, 0, "\n");
+		}
 
 		AST_LIST_TRAVERSE(&it_cdr->party_a.variables, variable, entries) {
 			if (!(var = ast_var_name(variable))) {
@@ -3249,6 +3253,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, int flag
 	struct cdr_object *cdr = obj;
 	struct party_b_userfield_update *info = arg;
 	struct cdr_object *it_cdr;
+
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 			continue;
@@ -3830,6 +3835,7 @@ static void cli_show_channel(struct ast_cli_args *a)
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		struct timeval end;
+
 		if (snapshot_is_dialed(it_cdr->party_a.snapshot)) {
 			continue;
 		}
@@ -4320,5 +4326,3 @@ int ast_cdr_engine_reload(void)
 
 	return cdr_toggle_runtime_options();
 }
-
-
