@@ -508,6 +508,7 @@ struct ast_rtp_dtls_cfg {
 	char *cipher;                          /*!< Cipher to use */
 	char *cafile;                          /*!< Certificate authority file */
 	char *capath;                          /*!< Path to certificate authority */
+	unsigned int ephemeral_cert:1;         /*!< Whether to not to generate an ephemeral certificate - defaults to 0 (off) */
 };
 
 /*! \brief Structure that represents the optional DTLS SRTP support within an RTP engine */
@@ -2348,6 +2349,16 @@ struct ast_rtp_engine_dtls *ast_rtp_instance_get_dtls(struct ast_rtp_instance *i
  * \retval -1 if not handled
  */
 int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, const char *value);
+
+/*!
+ * \brief Validates DTLS related configuration options
+ *
+ * \param dtls_cfg a DTLS configuration structure
+ *
+ * \retval 0 if valid
+ * \retval -1 if invalid
+ */
+int ast_rtp_dtls_cfg_validate(struct ast_rtp_dtls_cfg *dtls_cfg);
 
 /*!
  * \brief Copy contents of a DTLS configuration structure

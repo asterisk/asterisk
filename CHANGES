@@ -12,6 +12,14 @@
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
 
+res_rtp_asterisk
+------------------
+ * The X.509 certificate used for DTLS negotation can now be automatically
+   generated. This is supported by res_pjsip by specifying
+   "dtls_auto_generate_cert = yes" on a PJSIP endpoint. For chan_sip, you
+   would set "dtlsautogeneratecert = yes" either in the [general] section of
+   sip.conf or on a specific peer.
+
 res_pjsip
 ------------------
  * The "identify_by" on endpoints can now be set to "ip" to restrict an endpoint
