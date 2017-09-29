@@ -217,19 +217,19 @@
 
 /*! \brief CDR engine settings */
 enum ast_cdr_settings {
-	CDR_ENABLED = 1 << 0,               /*< Enable CDRs */
-	CDR_BATCHMODE = 1 << 1,             /*< Whether or not we should dispatch CDRs in batches */
-	CDR_UNANSWERED = 1 << 2,            /*< Log unanswered CDRs */
-	CDR_CONGESTION = 1 << 3,            /*< Treat congestion as if it were a failed call */
-	CDR_END_BEFORE_H_EXTEN = 1 << 4,    /*< End the CDR before the 'h' extension runs */
-	CDR_INITIATED_SECONDS = 1 << 5,     /*< Include microseconds into the billing time */
-	CDR_DEBUG = 1 << 6,                 /*< Enables extra debug statements */
+	CDR_ENABLED = 1 << 0,               /*!< Enable CDRs */
+	CDR_BATCHMODE = 1 << 1,             /*!< Whether or not we should dispatch CDRs in batches */
+	CDR_UNANSWERED = 1 << 2,            /*!< Log unanswered CDRs */
+	CDR_CONGESTION = 1 << 3,            /*!< Treat congestion as if it were a failed call */
+	CDR_END_BEFORE_H_EXTEN = 1 << 4,    /*!< End the CDR before the 'h' extension runs */
+	CDR_INITIATED_SECONDS = 1 << 5,     /*!< Include microseconds into the billing time */
+	CDR_DEBUG = 1 << 6,                 /*!< Enables extra debug statements */
 };
 
 /*! \brief CDR Batch Mode settings */
 enum ast_cdr_batch_mode_settings {
-	BATCH_MODE_SCHEDULER_ONLY = 1 << 0, /*< Don't spawn a thread to handle the batches - do it on the scheduler */
-	BATCH_MODE_SAFE_SHUTDOWN = 1 << 1,  /*< During safe shutdown, submit the batched CDRs */
+	BATCH_MODE_SCHEDULER_ONLY = 1 << 0, /*!< Don't spawn a thread to handle the batches - do it on the scheduler */
+	BATCH_MODE_SAFE_SHUTDOWN = 1 << 1,  /*!< During safe shutdown, submit the batched CDRs */
 };
 
 /*!
@@ -237,14 +237,14 @@ enum ast_cdr_batch_mode_settings {
  * state of a CDR object based on these flags.
  */
 enum ast_cdr_options {
-	AST_CDR_FLAG_KEEP_VARS = (1 << 0),   /*< Copy variables during the operation */
-	AST_CDR_FLAG_DISABLE = (1 << 1),     /*< Disable the current CDR */
-	AST_CDR_FLAG_DISABLE_ALL = (3 << 1), /*< Disable the CDR and all future CDRs */
-	AST_CDR_FLAG_PARTY_A = (1 << 3),     /*< Set the channel as party A */
-	AST_CDR_FLAG_FINALIZE = (1 << 4),    /*< Finalize the current CDRs */
-	AST_CDR_FLAG_SET_ANSWER = (1 << 5),  /*< If the channel is answered, set the answer time to now */
-	AST_CDR_FLAG_RESET = (1 << 6),       /*< If set, set the start and answer time to now */
-	AST_CDR_LOCK_APP = (1 << 7),         /*< Prevent any further changes to the application field/data field for this CDR */
+	AST_CDR_FLAG_KEEP_VARS = (1 << 0),   /*!< Copy variables during the operation */
+	AST_CDR_FLAG_DISABLE = (1 << 1),     /*!< Disable the current CDR */
+	AST_CDR_FLAG_DISABLE_ALL = (3 << 1), /*!< Disable the CDR and all future CDRs */
+	AST_CDR_FLAG_PARTY_A = (1 << 3),     /*!< Set the channel as party A */
+	AST_CDR_FLAG_FINALIZE = (1 << 4),    /*!< Finalize the current CDRs */
+	AST_CDR_FLAG_SET_ANSWER = (1 << 5),  /*!< If the channel is answered, set the answer time to now */
+	AST_CDR_FLAG_RESET = (1 << 6),       /*!< If set, set the start and answer time to now */
+	AST_CDR_LOCK_APP = (1 << 7),         /*!< Prevent any further changes to the application field/data field for this CDR */
 };
 
 /*!
@@ -262,11 +262,11 @@ enum ast_cdr_disposition {
 
 /*! \brief The global options available for CDRs */
 struct ast_cdr_config {
-	struct ast_flags settings;			/*< CDR settings */
+	struct ast_flags settings;			/*!< CDR settings */
 	struct batch_settings {
-		unsigned int time;				/*< Time between batches */
-		unsigned int size;				/*< Size to trigger a batch */
-		struct ast_flags settings;		/*< Settings for batches */
+		unsigned int time;				/*!< Time between batches */
+		unsigned int size;				/*!< Size to trigger a batch */
+		struct ast_flags settings;		/*!< Settings for batches */
 	} batch_settings;
 };
 
@@ -312,7 +312,7 @@ struct ast_cdr {
 	unsigned int flags;
 	/*! Unique Channel Identifier */
 	char uniqueid[AST_MAX_UNIQUEID];
-	/* Linked group Identifier */
+	/*! Linked group Identifier */
 	char linkedid[AST_MAX_UNIQUEID];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
