@@ -991,6 +991,13 @@ static int dtlsrekey_to_str(const void *obj, const intptr_t *args, char **buf)
 		buf, "%u", endpoint->media.rtp.dtls_cfg.rekey) >=0 ? 0 : -1;
 }
 
+static int dtlsautogeneratecert_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	*buf = ast_strdup(AST_YESNO(endpoint->media.rtp.dtls_cfg.ephemeral_cert));
+	return 0;
+}
+
 static int dtlscertfile_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
@@ -1353,6 +1360,10 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
+	if (ast_rtp_dtls_cfg_validate(&endpoint->media.rtp.dtls_cfg)) {
+		return -1;
+	}
+
 	endpoint->media.topology = ast_stream_topology_create_from_format_cap(endpoint->media.codecs);
 	if (!endpoint->media.topology) {
 		return -1;
@@ -1377,9 +1388,8 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		endpoint->media.rtp.dtls_cfg.verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
 
 		if (ast_strlen_zero(endpoint->media.rtp.dtls_cfg.certfile)) {
-			ast_log(LOG_ERROR, "WebRTC can't be enabled on endpoint '%s' - a DTLS cert "
-				"has not been specified", ast_sorcery_object_get_id(endpoint));
-			return -1;
+			/* If no certificate has been specified, try to automatically create one */
+			endpoint->media.rtp.dtls_cfg.ephemeral_cert = 1;
 		}
 	}
 
@@ -1967,6 +1977,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_engine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.rtp.engine));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_verify", "no", dtls_handler, dtlsverify_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_rekey", "0", dtls_handler, dtlsrekey_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_auto_generate_cert", "no", dtls_handler, dtlsautogeneratecert_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_cert_file", "", dtls_handler, dtlscertfile_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_private_key", "", dtls_handler, dtlsprivatekey_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_cipher", "", dtls_handler, dtlscipher_to_str, NULL, 0, 0);

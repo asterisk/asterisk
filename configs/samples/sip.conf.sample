@@ -1340,6 +1340,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; encryption
 ; description		; Used to provide a description of the peer in console output
 ; dtlsenable
+; dtlsautogeneratecert
 ; dtlsverify
 ; dtlsrekey
 ; dtlscertfile
@@ -1369,6 +1370,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;				     ; A value of 'certificate' will perform ONLY certficiate verification
 ; dtlsrekey = 60                     ; Interval at which to renegotiate the TLS session and rekey the SRTP session
 ;                                    ; If this is not set or the value provided is 0 rekeying will be disabled
+; dtlsautogeneratecert = yes         ; Enable ephemeral DTLS certificate generation. The default is 'no.'
 ; dtlscertfile = file                ; Path to certificate file to present
 ; dtlsprivatekey = file              ; Path to private key for certificate file
 ; dtlscipher = <SSL cipher string>   ; Cipher to use for TLS negotiation

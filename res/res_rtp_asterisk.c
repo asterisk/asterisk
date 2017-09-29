@@ -1593,14 +1593,282 @@ static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
 	return dtls_details_initialize(&rtp->rtcp->dtls, rtp->ssl_ctx, rtp->dtls.dtls_setup);
 }
 
+static const SSL_METHOD *get_dtls_method(void)
+{
+#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
+	return DTLSv1_method();
+#else
+	return DTLS_method();
+#endif
+}
+
+struct dtls_cert_info {
+	EVP_PKEY *private_key;
+	X509 *certificate;
+};
+
+#ifdef HAVE_OPENSSL_EC
+
+static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+	EC_KEY *ecdh;
+
+	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
+		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
+		if (bio) {
+			DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+			if (dh) {
+				if (SSL_CTX_set_tmp_dh(rtp->ssl_ctx, dh)) {
+					long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
+						SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
+					options = SSL_CTX_set_options(rtp->ssl_ctx, options);
+					ast_verb(2, "DTLS DH initialized, PFS enabled\n");
+				}
+				DH_free(dh);
+			}
+			BIO_free(bio);
+		}
+	}
+
+	/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
+	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+	if (ecdh) {
+		if (SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx, ecdh)) {
+			#ifndef SSL_CTRL_SET_ECDH_AUTO
+				#define SSL_CTRL_SET_ECDH_AUTO 94
+			#endif
+			/* SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, on); requires OpenSSL 1.0.2 which wraps: */
+			if (SSL_CTX_ctrl(rtp->ssl_ctx, SSL_CTRL_SET_ECDH_AUTO, 1, NULL)) {
+				ast_verb(2, "DTLS ECDH initialized (automatic), faster PFS enabled\n");
+			} else {
+				ast_verb(2, "DTLS ECDH initialized (secp256r1), faster PFS enabled\n");
+			}
+		}
+		EC_KEY_free(ecdh);
+	}
+}
+
+static int create_ephemeral_ec_keypair(EVP_PKEY **keypair)
+{
+	EC_KEY *eckey = NULL;
+	EC_GROUP *group = NULL;
+
+	group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+	if (!group) {
+		goto error;
+	}
+
+	EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+	EC_GROUP_set_point_conversion_form(group, POINT_CONVERSION_UNCOMPRESSED);
+
+	eckey = EC_KEY_new();
+	if (!eckey) {
+		goto error;
+	}
+
+	if (!EC_KEY_set_group(eckey, group)) {
+		goto error;
+	}
+
+	if (!EC_KEY_generate_key(eckey)) {
+		goto error;
+	}
+
+	*keypair = EVP_PKEY_new();
+	if (!*keypair) {
+		goto error;
+	}
+
+	EVP_PKEY_assign_EC_KEY(*keypair, eckey);
+	EC_GROUP_free(group);
+
+	return 0;
+
+error:
+	EC_KEY_free(eckey);
+	EC_GROUP_free(group);
+
+	return -1;
+}
+
+/* From OpenSSL's x509 command */
+#define SERIAL_RAND_BITS 159
+
+static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
+{
+	X509 *cert = NULL;
+	BIGNUM *serial = NULL;
+	X509_NAME *name = NULL;
+
+	cert = X509_new();
+	if (!cert) {
+		goto error;
+	}
+
+	if (!X509_set_version(cert, 2)) {
+		goto error;
+	}
+
+	/* Set the public key */
+	X509_set_pubkey(cert, keypair);
+
+	/* Generate a random serial number */
+	if (!(serial = BN_new())
+	   || !BN_rand(serial, SERIAL_RAND_BITS, -1, 0)
+	   || !BN_to_ASN1_INTEGER(serial, X509_get_serialNumber(cert))) {
+		goto error;
+	}
+
+	/*
+	 * Validity period - Current Chrome & Firefox make it 31 days starting
+	 * with yesterday at the current time, so we will do the same.
+	 */
+	if (!X509_time_adj_ex(X509_get_notBefore(cert), -1, 0, NULL)
+	   || !X509_time_adj_ex(X509_get_notAfter(cert), 30, 0, NULL)) {
+		goto error;
+	}
+
+	/* Set the name and issuer */
+	if (!(name = X509_get_subject_name(cert))
+	   || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC,
+									  (unsigned char *) "asterisk", -1, -1, 0)
+	   || !X509_set_issuer_name(cert, name)) {
+		goto error;
+	}
+
+	/* Sign it */
+	if (!X509_sign(cert, keypair, EVP_sha256())) {
+		goto error;
+	}
+
+	*certificate = cert;
+
+	return 0;
+
+error:
+	BN_free(serial);
+	X509_free(cert);
+
+	return -1;
+}
+
+static int create_certificate_ephemeral(struct ast_rtp_instance *instance,
+										const struct ast_rtp_dtls_cfg *dtls_cfg,
+										struct dtls_cert_info *cert_info)
+{
+	/* Make sure these are initialized */
+	cert_info->private_key = NULL;
+	cert_info->certificate = NULL;
+
+	if (create_ephemeral_ec_keypair(&cert_info->private_key)) {
+		ast_log(LOG_ERROR, "Failed to create ephemeral ECDSA keypair\n");
+		goto error;
+	}
+
+	if (create_ephemeral_certificate(cert_info->private_key, &cert_info->certificate)) {
+		ast_log(LOG_ERROR, "Failed to create ephemeral X509 certificate\n");
+		goto error;
+	}
+
+	return 0;
+
+  error:
+	X509_free(cert_info->certificate);
+	EVP_PKEY_free(cert_info->private_key);
+
+	return -1;
+}
+
+#else
+
+static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+}
+
+static int create_certificate_ephemeral(struct ast_rtp_instance *instance,
+										const struct ast_rtp_dtls_cfg *dtls_cfg,
+										struct dtls_cert_info *cert_info)
+{
+	ast_log(LOG_ERROR, "Your version of OpenSSL does not support ECDSA keys\n");
+	return -1;
+}
+
+#endif /* HAVE_OPENSSL_EC */
+
+static int create_certificate_from_file(struct ast_rtp_instance *instance,
+										const struct ast_rtp_dtls_cfg *dtls_cfg,
+										struct dtls_cert_info *cert_info)
+{
+	FILE *fp;
+	BIO *certbio = NULL;
+	EVP_PKEY *private_key = NULL;
+	X509 *cert = NULL;
+	char *private_key_file = ast_strlen_zero(dtls_cfg->pvtfile) ? dtls_cfg->certfile : dtls_cfg->pvtfile;
+
+	fp = fopen(private_key_file, "r");
+	if (!fp) {
+		ast_log(LOG_ERROR, "Failed to read private key from file '%s': %s\n", private_key_file, strerror(errno));
+		goto error;
+	}
+
+	if (!PEM_read_PrivateKey(fp, &private_key, NULL, NULL)) {
+		ast_log(LOG_ERROR, "Failed to read private key from PEM file '%s'\n", private_key_file);
+		fclose(fp);
+		goto error;
+	}
+
+	if (fclose(fp)) {
+		ast_log(LOG_ERROR, "Failed to close private key file '%s': %s\n", private_key_file, strerror(errno));
+		goto error;
+	}
+
+	certbio = BIO_new(BIO_s_file());
+	if (!certbio) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
+				instance);
+		goto error;
+	}
+
+	if (!BIO_read_filename(certbio, dtls_cfg->certfile)
+	   || !(cert = PEM_read_bio_X509(certbio, NULL, 0, NULL))) {
+		ast_log(LOG_ERROR, "Failed to read certificate from file '%s'\n", dtls_cfg->certfile);
+		goto error;
+	}
+
+	cert_info->private_key = private_key;
+	cert_info->certificate = cert;
+
+	BIO_free_all(certbio);
+
+	return 0;
+
+error:
+	X509_free(cert);
+	BIO_free_all(certbio);
+	EVP_PKEY_free(private_key);
+
+	return -1;
+}
+
+static int load_dtls_certificate(struct ast_rtp_instance *instance,
+								 const struct ast_rtp_dtls_cfg *dtls_cfg,
+								 struct dtls_cert_info *cert_info)
+{
+	if (dtls_cfg->ephemeral_cert) {
+		return create_certificate_ephemeral(instance, dtls_cfg, cert_info);
+	} else if (!ast_strlen_zero(dtls_cfg->certfile)) {
+		return create_certificate_from_file(instance, dtls_cfg, cert_info);
+	} else {
+		return -1;
+	}
+}
+
 /*! \pre instance is locked */
 static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct dtls_cert_info cert_info = { 0 };
 	int res;
-#ifdef HAVE_OPENSSL_EC
-	EC_KEY *ecdh;
-#endif
 
 	if (!dtls_cfg->enabled) {
 		return 0;
@@ -1615,53 +1883,14 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return 0;
 	}
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
-	rtp->ssl_ctx = SSL_CTX_new(DTLSv1_method());
-#else
-	rtp->ssl_ctx = SSL_CTX_new(DTLS_method());
-#endif
+	rtp->ssl_ctx = SSL_CTX_new(get_dtls_method());
 	if (!rtp->ssl_ctx) {
 		return -1;
 	}
 
 	SSL_CTX_set_read_ahead(rtp->ssl_ctx, 1);
 
-#ifdef HAVE_OPENSSL_EC
-
-	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
-		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
-		if (bio != NULL) {
-			DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-			if (dh != NULL) {
-				if (SSL_CTX_set_tmp_dh(rtp->ssl_ctx, dh)) {
-					long options = SSL_OP_CIPHER_SERVER_PREFERENCE |
-						SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
-					options = SSL_CTX_set_options(rtp->ssl_ctx, options);
-					ast_verb(2, "DTLS DH initialized, PFS enabled\n");
-				}
-				DH_free(dh);
-			}
-			BIO_free(bio);
-		}
-	}
-	/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
-	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-	if (ecdh != NULL) {
-		if (SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx, ecdh)) {
-			#ifndef SSL_CTRL_SET_ECDH_AUTO
-				#define SSL_CTRL_SET_ECDH_AUTO 94
-			#endif
-			/* SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, on); requires OpenSSL 1.0.2 which wraps: */
-			if (SSL_CTX_ctrl(rtp->ssl_ctx, SSL_CTRL_SET_ECDH_AUTO, 1, NULL)) {
-				ast_verb(2, "DTLS ECDH initialized (automatic), faster PFS enabled\n");
-			} else {
-				ast_verb(2, "DTLS ECDH initialized (secp256r1), faster PFS enabled\n");
-			}
-		}
-		EC_KEY_free(ecdh);
-	}
-
-#endif /* #ifdef HAVE_OPENSSL_EC */
+	configure_dhparams(rtp, dtls_cfg);
 
 	rtp->dtls_verify = dtls_cfg->verify;
 
@@ -1680,25 +1909,22 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 
 	rtp->local_hash = dtls_cfg->hash;
 
-	if (!ast_strlen_zero(dtls_cfg->certfile)) {
-		char *private = ast_strlen_zero(dtls_cfg->pvtfile) ? dtls_cfg->certfile : dtls_cfg->pvtfile;
-		BIO *certbio;
-		X509 *cert = NULL;
+	if (!load_dtls_certificate(instance, dtls_cfg, &cert_info)) {
 		const EVP_MD *type;
 		unsigned int size, i;
 		unsigned char fingerprint[EVP_MAX_MD_SIZE];
 		char *local_fingerprint = rtp->local_fingerprint;
 
-		if (!SSL_CTX_use_certificate_file(rtp->ssl_ctx, dtls_cfg->certfile, SSL_FILETYPE_PEM)) {
-			ast_log(LOG_ERROR, "Specified certificate file '%s' for RTP instance '%p' could not be used\n",
-				dtls_cfg->certfile, instance);
+		if (!SSL_CTX_use_certificate(rtp->ssl_ctx, cert_info.certificate)) {
+			ast_log(LOG_ERROR, "Specified certificate for RTP instance '%p' could not be used\n",
+					instance);
 			return -1;
 		}
 
-		if (!SSL_CTX_use_PrivateKey_file(rtp->ssl_ctx, private, SSL_FILETYPE_PEM) ||
-		    !SSL_CTX_check_private_key(rtp->ssl_ctx)) {
-			ast_log(LOG_ERROR, "Specified private key file '%s' for RTP instance '%p' could not be used\n",
-				private, instance);
+		if (!SSL_CTX_use_PrivateKey(rtp->ssl_ctx, cert_info.private_key)
+		    || !SSL_CTX_check_private_key(rtp->ssl_ctx)) {
+			ast_log(LOG_ERROR, "Specified private key for RTP instance '%p' could not be used\n",
+					instance);
 			return -1;
 		}
 
@@ -1712,22 +1938,9 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 			return -1;
 		}
 
-		if (!(certbio = BIO_new(BIO_s_file()))) {
-			ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
-				instance);
-			return -1;
-		}
-
-		if (!BIO_read_filename(certbio, dtls_cfg->certfile) ||
-		    !(cert = PEM_read_bio_X509(certbio, NULL, 0, NULL)) ||
-		    !X509_digest(cert, type, fingerprint, &size) ||
-		    !size) {
-			ast_log(LOG_ERROR, "Could not produce fingerprint from certificate '%s' for RTP instance '%p'\n",
-				dtls_cfg->certfile, instance);
-			BIO_free_all(certbio);
-			if (cert) {
-				X509_free(cert);
-			}
+		if (!X509_digest(cert_info.certificate, type, fingerprint, &size) || !size) {
+			ast_log(LOG_ERROR, "Could not produce fingerprint from certificate for RTP instance '%p'\n",
+					instance);
 			return -1;
 		}
 
@@ -1736,10 +1949,10 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 			local_fingerprint += 3;
 		}
 
-		*(local_fingerprint-1) = 0;
+		*(local_fingerprint - 1) = 0;
 
-		BIO_free_all(certbio);
-		X509_free(cert);
+		EVP_PKEY_free(cert_info.private_key);
+		X509_free(cert_info.certificate);
 	}
 
 	if (!ast_strlen_zero(dtls_cfg->cipher)) {

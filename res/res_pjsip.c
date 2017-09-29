@@ -772,6 +772,18 @@
 						If this is not set or the value provided is 0 rekeying will be disabled.
 					</para></description>
 				</configOption>
+				<configOption name="dtls_auto_generate_cert" default="no">
+					<synopsis>Whether or not to automatically generate an ephemeral X.509 certificate</synopsis>
+					<description>
+						<para>
+							If enabled, Asterisk will generate an X.509 certificate for each DTLS session.
+							This option only applies if <replaceable>media_encryption</replaceable> is set
+							to <literal>dtls</literal>. This option will be automatically enabled if
+							<literal>webrtc</literal> is enabled and <literal>dtls_cert_file</literal> is
+							not specified.
+						</para>
+					</description>
+				</configOption>
 				<configOption name="dtls_cert_file">
 					<synopsis>Path to certificate file to present to peer</synopsis>
 					<description><para>
@@ -1028,6 +1040,7 @@
 						use_received_transport. The following configuration settings also get defaulted
 						as follows:</para>
 						<para>media_encryption=dtls</para>
+						<para>dtls_auto_generate_cert=yes (if dtls_cert_file is not set)</para>
 						<para>dtls_verify=fingerprint</para>
 						<para>dtls_setup=actpass</para>
 					</description>
