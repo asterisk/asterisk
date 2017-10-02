@@ -18127,7 +18127,7 @@ static int get_pai(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	ast_copy_string(privacy, sip_get_header(req, "Privacy"), sizeof(privacy));
-	if (!ast_strlen_zero(privacy) && !strncmp(privacy, "id", 2)) {
+	if (!ast_strlen_zero(privacy) && strcasecmp(privacy, "none")) {
 		callingpres = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 	}
 	if (!cid_name) {
