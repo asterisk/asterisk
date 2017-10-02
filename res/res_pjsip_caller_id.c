@@ -149,12 +149,12 @@ static int set_id_from_pai(pjsip_rx_data *rdata, struct ast_party_id *id)
 	}
 
 	privacy = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &privacy_str, NULL);
-	if (privacy && !pj_stricmp2(&privacy->hvalue, "id")) {
-		id->number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
-		id->name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
-	} else {
+	if (!privacy || !pj_stricmp2(&privacy->hvalue, "none")) {
 		id->number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 		id->name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+	} else {
+		id->number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+		id->name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 	}
 
 	return 0;
