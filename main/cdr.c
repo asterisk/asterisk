@@ -3384,7 +3384,8 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, void *da
 		ast_assert(cdr->party_b.snapshot
 			&& !strcasecmp(cdr->party_b.snapshot->name, info->channel_name));
 
-		strcpy(cdr->party_b.userfield, info->userfield);
+		ast_copy_string(cdr->party_b.userfield, info->userfield,
+			sizeof(cdr->party_b.userfield));
 	}
 
 	return 0;
@@ -3407,7 +3408,8 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 			if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 				continue;
 			}
-			ast_copy_string(it_cdr->party_a.userfield, userfield, AST_MAX_USER_FIELD);
+			ast_copy_string(it_cdr->party_a.userfield, userfield,
+				sizeof(it_cdr->party_a.userfield));
 		}
 		ao2_unlock(cdr);
 	}
