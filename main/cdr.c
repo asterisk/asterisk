@@ -1623,11 +1623,9 @@ static int single_state_process_parking_bridge_enter(struct cdr_object *cdr, str
 static void dial_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
 	ast_assert(snapshot != NULL);
+	ast_assert(cdr->party_b.snapshot
+		&& !strcasecmp(cdr->party_b.snapshot->name, snapshot->name));
 
-	if (!cdr->party_b.snapshot
-		|| strcasecmp(cdr->party_b.snapshot->name, snapshot->name)) {
-		return;
-	}
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
 
 	/* If party B hangs up, finalize this CDR */
@@ -1823,10 +1821,9 @@ static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struc
 
 static void bridge_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	if (!cdr->party_b.snapshot
-		|| strcasecmp(cdr->party_b.snapshot->name, snapshot->name)) {
-		return;
-	}
+	ast_assert(cdr->party_b.snapshot
+		&& !strcasecmp(cdr->party_b.snapshot->name, snapshot->name));
+
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
 
 	/* If party B hangs up, finalize this CDR */
