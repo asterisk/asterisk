@@ -116,6 +116,27 @@ def set_dtmfmode(key, val, section, pjsip, nmapped):
         set_value(key, 'none', section, pjsip, nmapped)
 
 
+def setup_udptl(section, pjsip, nmapped):
+    """Sets values from udptl into the appropriate pjsip.conf options."""
+    try:
+        val = sip.get(section, 't38pt_udptl')[0]
+    except LookupError:
+        try:
+             val = sip.get('general', 't38pt_udptl')[0]
+        except LookupError:
+	     return
+
+    ec = 'none'
+    if 'yes' in val:
+        set_value('t38_udptl', 'yes', section, pjsip, nmapped)
+    if 'no' in val:
+        set_value('t38_udptl', 'no', section, pjsip, nmapped)
+    if 'redundancy' in val:
+        ec = 'redundancy'
+    if 'fec' in val:
+        ec = 'fec'
+    set_value('t38_udptl_ec', ec, section, pjsip, nmapped)
+
 def from_nat(key, val, section, pjsip, nmapped):
     """Sets values from nat into the appropriate pjsip.conf options."""
     # nat from sip.conf can be comma separated list of values:
@@ -387,6 +408,7 @@ peer_map = [
     ['allow',              merge_value],
     ['nat',                from_nat],            # rtp_symmetric, force_rport,
                                                  # rewrite_contact
+    ['rtptimeout',         set_value('rtp_timeout')],
     ['icesupport',         set_value('ice_support')],
     ['autoframing',        set_value('use_ptime')],
     ['outboundproxy',      set_value('outbound_proxy')],
@@ -1068,6 +1090,7 @@ def map_peer(sip, section, pjsip, nmapped):
         except LookupError:
             pass  # key not found in sip.conf
 
+    setup_udptl(section, pjsip, nmapped)
 
 def find_non_mapped(sections, nmapped):
     """
@@ -1098,6 +1121,13 @@ def map_system(sip, pjsip, nmapped):
     try:
         user_agent = sip.get('general', 'useragent')[0]
         set_value('user_agent', user_agent, 'global', pjsip, nmapped, 'global')
+    except LookupError:
+        pass
+
+
+    try:
+        sipdebug = sip.get('general', 'sipdebug')[0]
+        set_value('debug', sipdebug, 'global', pjsip, nmapped, 'global')
     except LookupError:
         pass
 
