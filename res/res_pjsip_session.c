@@ -907,59 +907,6 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	return 0;
 }
 
-AST_RWLIST_HEAD_STATIC(session_supplements, ast_sip_session_supplement);
-
-int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
-{
-	struct ast_sip_session_supplement *iter;
-	int inserted = 0;
-	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-
-	if (!supplement->response_priority) {
-		supplement->response_priority = AST_SIP_SESSION_BEFORE_MEDIA;
-	}
-
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&session_supplements, iter, next) {
-		if (iter->priority > supplement->priority) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(supplement, next);
-			inserted = 1;
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-
-	if (!inserted) {
-		AST_RWLIST_INSERT_TAIL(&session_supplements, supplement, next);
-	}
-	ast_module_ref(ast_module_info->self);
-	return 0;
-}
-
-void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement)
-{
-	struct ast_sip_session_supplement *iter;
-	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&session_supplements, iter, next) {
-		if (supplement == iter) {
-			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-}
-
-static struct ast_sip_session_supplement *supplement_dup(const struct ast_sip_session_supplement *src)
-{
-	struct ast_sip_session_supplement *dst = ast_calloc(1, sizeof(*dst));
-	if (!dst) {
-		return NULL;
-	}
-	/* Will need to revisit if shallow copy becomes an issue */
-	*dst = *src;
-	return dst;
-}
-
 #define DATASTORE_BUCKETS 53
 #define MEDIA_BUCKETS 7
 
@@ -2045,21 +1992,6 @@ static void session_destructor(void *obj)
 	ast_test_suite_event_notify("SESSION_DESTROYED", "Endpoint: %s", endpoint_name);
 }
 
-static int add_supplements(struct ast_sip_session *session)
-{
-	struct ast_sip_session_supplement *iter;
-	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
-
-	AST_RWLIST_TRAVERSE(&session_supplements, iter, next) {
-		struct ast_sip_session_supplement *copy = supplement_dup(iter);
-		if (!copy) {
-			return -1;
-		}
-		AST_LIST_INSERT_TAIL(&session->supplements, copy, next);
-	}
-	return 0;
-}
-
 /*! \brief Destructor for SIP channel */
 static void sip_channel_destroy(void *obj)
 {
@@ -2166,7 +2098,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 
 	session->dtmf = endpoint->dtmf;
 
-	if (add_supplements(session)) {
+	if (ast_sip_session_add_supplements(session)) {
 		/* Release the ref held by session->inv_session */
 		ao2_ref(session, -1);
 		return NULL;
