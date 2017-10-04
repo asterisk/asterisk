@@ -56,10 +56,11 @@ void internal_sip_session_register_supplement(struct ast_sip_session_supplement 
 	}
 }
 
-int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
+int __ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement,
+	const char *file, int line, const char *func)
 {
 	internal_sip_session_register_supplement(supplement);
-	ast_module_ref(AST_MODULE_SELF);
+	__ast_module_ref(AST_MODULE_SELF, file, line, func);
 
 	return 0;
 }
@@ -82,10 +83,11 @@ int internal_sip_session_unregister_supplement(struct ast_sip_session_supplement
 	return res;
 }
 
-void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement)
+void __ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement,
+	const char *file, int line, const char *func)
 {
 	if (!internal_sip_session_unregister_supplement(supplement)) {
-		ast_module_unref(AST_MODULE_SELF);
+		__ast_module_unref(AST_MODULE_SELF, file, line, func);
 	}
 }
 

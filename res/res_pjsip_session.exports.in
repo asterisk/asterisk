@@ -1,6 +1,7 @@
 {
 	global:
 		LINKER_SYMBOL_PREFIXast_sip_session_*;
+		LINKER_SYMBOL_PREFIX__ast_sip_session_*;
 		LINKER_SYMBOL_PREFIXast_sip_dialog_get_session;
 		LINKER_SYMBOL_PREFIXast_sip_channel_pvt_alloc;
 	local:

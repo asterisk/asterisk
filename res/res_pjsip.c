@@ -2422,25 +2422,20 @@ static int register_service_noref(void *data)
 	return 0;
 }
 
-static int register_service(void *data)
-{
-	int res;
-
-	if (!(res = register_service_noref(data))) {
-		ast_module_ref(ast_module_info->self);
-	}
-
-	return res;
-}
-
 int internal_sip_register_service(pjsip_module *module)
 {
 	return ast_sip_push_task_synchronous(NULL, register_service_noref, &module);
 }
 
-int ast_sip_register_service(pjsip_module *module)
+int __ast_sip_register_service(pjsip_module *module, const char *file, int line, const char *func)
 {
-	return ast_sip_push_task_synchronous(NULL, register_service, &module);
+	int res;
+
+	if (!(res = ast_sip_push_task_synchronous(NULL, register_service_noref, &module))) {
+		__ast_module_ref(ast_module_info->self, file, line, func);
+	}
+
+	return res;
 }
 
 static int unregister_service_noref(void *data)
@@ -2454,25 +2449,16 @@ static int unregister_service_noref(void *data)
 	return 0;
 }
 
-static int unregister_service(void *data)
-{
-	int res;
-
-	if (!(res = unregister_service_noref(data))) {
-		ast_module_unref(ast_module_info->self);
-	}
-
-	return res;
-}
-
 int internal_sip_unregister_service(pjsip_module *module)
 {
 	return ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module);
 }
 
-void ast_sip_unregister_service(pjsip_module *module)
+void __ast_sip_unregister_service(pjsip_module *module, const char *file, int line, const char *func)
 {
-	ast_sip_push_task_synchronous(NULL, unregister_service, &module);
+	if (!ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module)) {
+		__ast_module_unref(ast_module_info->self, file, line, func);
+	}
 }
 
 static struct ast_sip_authenticator *registered_authenticator;
@@ -3536,10 +3522,11 @@ void internal_sip_register_supplement(struct ast_sip_supplement *supplement)
 	}
 }
 
-int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
+int __ast_sip_register_supplement(struct ast_sip_supplement *supplement,
+	const char *file, int line, const char *func)
 {
 	internal_sip_register_supplement(supplement);
-	ast_module_ref(ast_module_info->self);
+	__ast_module_ref(ast_module_info->self, file, line, func);
 
 	return 0;
 }
@@ -3562,10 +3549,11 @@ int internal_sip_unregister_supplement(struct ast_sip_supplement *supplement)
 	return res;
 }
 
-void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
+void __ast_sip_unregister_supplement(struct ast_sip_supplement *supplement,
+	const char *file, int line, const char *func)
 {
 	if (!internal_sip_unregister_supplement(supplement)) {
-		ast_module_unref(ast_module_info->self);
+		__ast_module_unref(ast_module_info->self, file, line, func);
 	}
 }
 

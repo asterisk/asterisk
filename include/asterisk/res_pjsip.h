@@ -925,7 +925,9 @@ enum ast_sip_contact_filter {
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_register_service(pjsip_module *module);
+#define ast_sip_register_service(module) \
+	__ast_sip_register_service(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_sip_register_service(pjsip_module *module, const char *file, int line, const char *func);
 
 /*!
  * This is the opposite of ast_sip_register_service().  Unregistering a
@@ -934,7 +936,9 @@ int ast_sip_register_service(pjsip_module *module);
  *
  * \param module The PJSIP module to unregister
  */
-void ast_sip_unregister_service(pjsip_module *module);
+#define ast_sip_unregister_service(module) \
+	__ast_sip_unregister_service(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void __ast_sip_unregister_service(pjsip_module *module, const char *file, int line, const char *func);
 
 /*!
  * \brief Register a SIP authenticator
@@ -2615,14 +2619,20 @@ struct ast_sip_supplement {
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_register_supplement(struct ast_sip_supplement *supplement);
+#define ast_sip_register_supplement(supplement) \
+	__ast_sip_register_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_sip_register_supplement(struct ast_sip_supplement *supplement,
+	const char *file, int line, const char *func);
 
 /*!
  * \brief Unregister a an supplement to SIP out of dialog processing
  *
  * \param supplement The supplement to unregister
  */
-void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
+#define ast_sip_unregister_supplement(supplement) \
+	__ast_sip_unregister_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void __ast_sip_unregister_supplement(struct ast_sip_supplement *supplement,
+	const char *file, int line, const char *func);
 
 /*!
  * \brief Retrieve the global MWI taskprocessor high water alert trigger level.
