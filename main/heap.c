@@ -146,9 +146,9 @@ struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_f
 
 	if (!(h->heap =
 #ifdef __AST_DEBUG_MALLOC
-			__ast_calloc(1, h->avail_len * sizeof(void *), file, lineno, func)
+			__ast_malloc(h->avail_len * sizeof(void *), file, lineno, func)
 #else
-			ast_calloc(1, h->avail_len * sizeof(void *))
+			ast_malloc(h->avail_len * sizeof(void *))
 #endif
 		)) {
 		ast_free(h);
