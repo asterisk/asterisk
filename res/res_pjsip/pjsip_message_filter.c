@@ -505,32 +505,24 @@ static pj_bool_t filter_on_rx_message(pjsip_rx_data *rdata)
 
 void ast_res_pjsip_cleanup_message_filter(void)
 {
-	ast_sip_unregister_service(&filter_module_tsx);
-	ast_sip_unregister_service(&filter_module_transport);
-	ast_sip_unregister_supplement(&filter_supplement);
-	ast_sip_session_unregister_supplement(&filter_session_supplement);
+	internal_sip_unregister_service(&filter_module_tsx);
+	internal_sip_unregister_service(&filter_module_transport);
+	internal_sip_unregister_supplement(&filter_supplement);
+	internal_sip_session_unregister_supplement(&filter_session_supplement);
 }
 
 int ast_res_pjsip_init_message_filter(void)
 {
-	if (ast_sip_session_register_supplement(&filter_session_supplement)) {
-		ast_log(LOG_ERROR, "Could not register message filter session supplement for outgoing requests\n");
-		return -1;
-	}
+	internal_sip_session_register_supplement(&filter_session_supplement);
+	internal_sip_register_supplement(&filter_supplement);
 
-	if (ast_sip_register_supplement(&filter_supplement)) {
-		ast_log(LOG_ERROR, "Could not register message filter supplement for outgoing requests\n");
-		ast_res_pjsip_cleanup_message_filter();
-		return -1;
-	}
-
-	if (ast_sip_register_service(&filter_module_transport)) {
+	if (internal_sip_register_service(&filter_module_transport)) {
 		ast_log(LOG_ERROR, "Could not register message filter module for incoming and outgoing requests\n");
 		ast_res_pjsip_cleanup_message_filter();
 		return -1;
 	}
 
-	if (ast_sip_register_service(&filter_module_tsx)) {
+	if (internal_sip_register_service(&filter_module_tsx)) {
 		ast_log(LOG_ERROR, "Could not register message filter module for incoming and outgoing requests\n");
 		ast_res_pjsip_cleanup_message_filter();
 		return -1;
