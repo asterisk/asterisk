@@ -3480,7 +3480,7 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 
 AST_RWLIST_HEAD_STATIC(supplements, ast_sip_supplement);
 
-int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
+void internal_sip_register_supplement(struct ast_sip_supplement *supplement)
 {
 	struct ast_sip_supplement *iter;
 	int inserted = 0;
@@ -3498,22 +3498,39 @@ int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
 	if (!inserted) {
 		AST_RWLIST_INSERT_TAIL(&supplements, supplement, next);
 	}
+}
+
+int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
+{
+	internal_sip_register_supplement(supplement);
 	ast_module_ref(ast_module_info->self);
+
 	return 0;
 }
 
-void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
+int internal_sip_unregister_supplement(struct ast_sip_supplement *supplement)
 {
 	struct ast_sip_supplement *iter;
 	SCOPED_LOCK(lock, &supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	int res = -1;
+
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&supplements, iter, next) {
 		if (supplement == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
+			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	return res;
+}
+
+void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
+{
+	if (!internal_sip_unregister_supplement(supplement)) {
+		ast_module_unref(ast_module_info->self);
+	}
 }
 
 static int send_in_dialog_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg)
@@ -4578,6 +4595,16 @@ static int reload_configuration_task(void *obj)
 	ast_res_pjsip_init_options_handling(1);
 	ast_sip_initialize_dns();
 	return 0;
+}
+
+void internal_res_pjsip_ref(void)
+{
+	ast_module_ref(ast_module_info->self);
+}
+
+void internal_res_pjsip_unref(void)
+{
+	ast_module_unref(ast_module_info->self);
 }
 
 static int unload_pjsip(void *data)
