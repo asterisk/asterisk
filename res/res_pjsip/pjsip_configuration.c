@@ -1315,6 +1315,14 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_OFFLINE);
 
 		ao2_link_flags(persistent_endpoints, persistent, OBJ_NOLOCK);
+	} else if (strcmp(persistent->aors, endpoint->aors)) {
+		char *new_aors = ast_strdup(endpoint->aors);
+
+		/* make sure we don't NULL persistent->aors if allocation fails. */
+		if (new_aors) {
+			ast_free(persistent->aors);
+			persistent->aors = new_aors;
+		}
 	}
 
 	ao2_ref(persistent->endpoint, +1);
@@ -1821,20 +1829,12 @@ static struct ast_cli_entry cli_commands[] = {
 struct ast_sip_cli_formatter_entry *channel_formatter;
 struct ast_sip_cli_formatter_entry *endpoint_formatter;
 
-static int on_load_endpoint(void *obj, void *arg, int flags)
-{
-	return sip_endpoint_apply_handler(sip_sorcery, obj);
-}
-
 static void load_all_endpoints(void)
 {
 	struct ao2_container *endpoints;
 
 	endpoints = ast_sorcery_retrieve_by_fields(sip_sorcery, "endpoint", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	if (endpoints) {
-		ao2_callback(endpoints, OBJ_NODATA, on_load_endpoint, NULL);
-		ao2_ref(endpoints, -1);
-	}
+	ao2_cleanup(endpoints);
 }
 
 int ast_res_pjsip_initialize_configuration(void)
