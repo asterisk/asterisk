@@ -1378,8 +1378,12 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	 */
 	if (!ast_test_flag(&snapshot->flags, AST_FLAG_SUBROUTINE_EXEC)
 		|| ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
-		ast_string_field_set(cdr, context, snapshot->context);
-		ast_string_field_set(cdr, exten, snapshot->exten);
+		if (strcmp(cdr->context, snapshot->context)) {
+			ast_string_field_set(cdr, context, snapshot->context);
+		}
+		if (strcmp(cdr->exten, snapshot->exten)) {
+			ast_string_field_set(cdr, exten, snapshot->exten);
+		}
 	}
 
 	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
@@ -1389,11 +1393,15 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	 * of "AppDialX". Prevent that, and any other application changes we might not want
 	 * here.
 	 */
-	if (!ast_strlen_zero(snapshot->appl)
-			&& (strncasecmp(snapshot->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))
-			&& !ast_test_flag(&cdr->flags, AST_CDR_LOCK_APP)) {
-		ast_string_field_set(cdr, appl, snapshot->appl);
-		ast_string_field_set(cdr, data, snapshot->data);
+	if (!ast_test_flag(&cdr->flags, AST_CDR_LOCK_APP)
+		&& !ast_strlen_zero(snapshot->appl)
+		&& (strncasecmp(snapshot->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))) {
+		if (strcmp(cdr->appl, snapshot->appl)) {
+			ast_string_field_set(cdr, appl, snapshot->appl);
+		}
+		if (strcmp(cdr->data, snapshot->data)) {
+			ast_string_field_set(cdr, data, snapshot->data);
+		}
 
 		/* Dial (app_dial) is a special case. Because pre-dial handlers, which
 		 * execute before the dial begins, will alter the application/data to
@@ -1405,7 +1413,9 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 		}
 	}
 
-	ast_string_field_set(cdr, linkedid, snapshot->linkedid);
+	if (strcmp(cdr->linkedid, snapshot->linkedid)) {
+		ast_string_field_set(cdr, linkedid, snapshot->linkedid);
+	}
 	cdr_object_check_party_a_answer(cdr);
 	cdr_object_check_party_a_hangup(cdr);
 
