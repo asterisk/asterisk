@@ -3073,6 +3073,11 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 		return;
 	}
 
+	if (pjsip_param_find(&sip_uri->other_param, &STR_USER)) {
+		/* Don't add it if it's already there */
+		return;
+	}
+
 	param = PJ_POOL_ALLOC_T(pool, pjsip_param);
 	param->name = STR_USER;
 	param->value = STR_PHONE;
