@@ -2696,6 +2696,7 @@ static void init_queue(struct call_queue *q)
 	}
 	q->found = 1;
 
+	ast_string_field_set(q, moh, "");
 	ast_string_field_set(q, sound_next, "queue-youarenext");
 	ast_string_field_set(q, sound_thereare, "queue-thereare");
 	ast_string_field_set(q, sound_calls, "queue-callswaiting");
