@@ -1132,9 +1132,9 @@ static void global_loaded(const char *object_type)
 		fake_auth = alloc_artificial_auth(default_realm);
 		if (fake_auth) {
 			ao2_global_obj_replace_unref(artificial_auth, fake_auth);
-			ao2_ref(fake_auth, -1);
 		}
 	}
+	ao2_cleanup(fake_auth);
 
 	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
 
