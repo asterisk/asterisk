@@ -314,7 +314,7 @@ regex:
 	}
 
 equals:
-	scan_numeric = (sscanf(left, "%lf", &left_num) && sscanf(internal_right, "%lf", &right_num));
+	scan_numeric = (sscanf(left, "%lf", &left_num) > 0 && sscanf(internal_right, "%lf", &right_num) > 0);
 
 	if (internal_op[0] == '=') {
 		if (ast_strlen_zero(left) && ast_strlen_zero(internal_right)) {
