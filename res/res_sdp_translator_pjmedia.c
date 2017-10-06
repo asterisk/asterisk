@@ -585,7 +585,7 @@ static int unload_module(void)
 	ast_sdp_unregister_translator(&pjmedia_translator);
 	pj_caching_pool_destroy(&sdp_caching_pool);
 	AST_TEST_UNREGISTER(pjmedia_to_sdp_test);
-	AST_TEST_REGISTER(sdp_to_pjmedia_test);
+	AST_TEST_UNREGISTER(sdp_to_pjmedia_test);
 	return 0;
 }
 
