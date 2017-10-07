@@ -793,6 +793,38 @@ int stasis_app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge);
 
 /*!
+ * \brief Initialize bridge features into a channel control
+ *
+ * \note Bridge features on a control are destroyed after each bridge session,
+ *       so new features need to be initialized before each bridge add.
+ *
+ * \param control Control in which to store the features
+ *
+ * \return non-zero on failure
+ * \return zero on success
+ */
+int stasis_app_control_bridge_features_init(
+	struct stasis_app_control *control);
+
+/*!
+ * \brief Set whether DTMF from the channel is absorbed instead of passing through to the bridge
+ *
+ * \param control Control whose channel should have its DTMF absorbed when bridged
+ * \param absorb Whether DTMF should be absorbed (1) instead of passed through (0).
+ */
+void stasis_app_control_absorb_dtmf_in_bridge(
+	struct stasis_app_control *control, int absorb);
+
+/*!
+ * \brief Set whether audio from the channel is muted instead of passing through to the bridge
+ *
+ * \param control Control whose channel should have its audio muted when bridged
+ * \param mute Whether audio should be muted (1) instead of passed through (0).
+ */
+void stasis_app_control_mute_in_bridge(
+	struct stasis_app_control *control, int mute);
+
+/*!
  * \since 12
  * \brief Gets the bridge currently associated with a control object.
  *

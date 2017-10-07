@@ -169,6 +169,24 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "absorbDTMF",
+							"description": "Absorb DTMF coming from this channel, preventing it to pass through to the bridge",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
+						},
+						{
+							"name": "mute",
+							"description": "Mute audio from this channel, preventing it to pass through to the bridge",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
 						}
 					],
 					"errorResponses": [

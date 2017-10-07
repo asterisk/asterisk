@@ -150,6 +150,10 @@ struct ast_ari_bridges_add_channel_args {
 	char *channel_parse;
 	/*! Channel's role in the bridge */
 	const char *role;
+	/*! Absorb DTMF coming from this channel, preventing it to pass through to the bridge */
+	int absorb_dtmf;
+	/*! Mute audio from this channel, preventing it to pass through to the bridge */
+	int mute;
 };
 /*!
  * \brief Body parsing function for /bridges/{bridgeId}/addChannel.
