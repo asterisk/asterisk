@@ -304,27 +304,31 @@ AST_VECTOR(ast_vector_int, int);
  * \brief Add an element into a sorted vector
  *
  * \param vec Sorted vector to add to.
- * \param elem Element to insert.
+ * \param elem Element to insert. Must not be an array type.
  * \param cmp A strcmp compatible compare function.
  *
  * \return 0 on success.
  * \return Non-zero on failure.
  *
  * \warning Use of this macro on an unsorted vector will produce unpredictable results
+ * \warning 'elem' must not be an array type so passing 'x' where 'x' is defined as
+ *          'char x[4]' will fail to compile. However casting 'x' as 'char *' does
+ *          result in a value that CAN be used.
  */
 #define AST_VECTOR_ADD_SORTED(vec, elem, cmp) ({ \
 	int res = 0; \
 	size_t __idx = (vec)->current; \
+	typeof(elem) __elem = (elem); \
 	do { \
 		if (__make_room((vec)->current, vec) != 0) { \
 			res = -1; \
 			break; \
 		} \
-		while (__idx > 0 && (cmp((vec)->elems[__idx - 1], elem) > 0)) { \
+		while (__idx > 0 && (cmp((vec)->elems[__idx - 1], __elem) > 0)) { \
 			(vec)->elems[__idx] = (vec)->elems[__idx - 1]; \
 			__idx--; \
 		} \
-		(vec)->elems[__idx] = elem; \
+		(vec)->elems[__idx] = __elem; \
 		(vec)->current++; \
 	} while (0); \
 	res; \

@@ -210,7 +210,7 @@ AST_TEST_DEFINE(basic_ops)
 	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, ZZZ, strcmp) == 0, rc, cleanup);
 	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, CCC, strcmp) == 0, rc, cleanup);
 	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, AAA, strcmp) == 0, rc, cleanup);
-	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, CCC2, strcmp) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, (char*)CCC2, strcmp) == 0, rc, cleanup);
 
 	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
 	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
