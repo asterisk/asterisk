@@ -251,7 +251,7 @@ ast_hashtab_create
 #else
 	if (!(ht->array = ast_calloc(initial_buckets, sizeof(*(ht->array))))) {
 #endif
-		free(ht);
+		ast_free(ht);
 		return NULL;
 	}
 
@@ -293,7 +293,7 @@ struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_fun
 		ast_calloc(tab->hash_tab_size, sizeof(*(ht->array)))
 #endif
 		)) {
-		free(ht);
+		ast_free(ht);
 		return NULL;
 	}
 
@@ -409,20 +409,20 @@ void ast_hashtab_destroy(struct ast_hashtab *tab, void (*objdestroyfunc)(void *o
 				}
 
 				tlist_del_item(&(tab->tlist), tab->tlist);
-				free(t);
+				ast_free(t);
 			}
 
 			for (i = 0; i < tab->hash_tab_size; i++) {
 				/* Not totally necessary, but best to destroy old pointers */
 				tab->array[i] = NULL;
 			}
-			free(tab->array);
+			ast_free(tab->array);
 		}
 		if (tab->do_locking) {
 			ast_rwlock_unlock(&tab->lock);
 			ast_rwlock_destroy(&tab->lock);
 		}
-		free(tab);
+		ast_free(tab);
 	}
 }
 
@@ -657,7 +657,7 @@ static void ast_hashtab_resize(struct ast_hashtab *tab)
 											why leave ptrs laying around */
 		tab->array[i] = 0; /* erase old ptrs */
 	}
-	free(tab->array);
+	ast_free(tab->array);
 	if (!(tab->array =
 #ifdef __AST_DEBUG_MALLOC
 		__ast_calloc(newsize, sizeof(*(tab->array)), file, lineno, func)
@@ -749,7 +749,7 @@ void ast_hashtab_end_traversal(struct ast_hashtab_iter *it)
 		return;
 	if (it->tab->do_locking)
 		ast_rwlock_unlock(&it->tab->lock);
-	free(it);
+	ast_free(it);
 }
 
 void *ast_hashtab_next(struct ast_hashtab_iter *it)
@@ -782,7 +782,7 @@ static void *ast_hashtab_remove_object_internal(struct ast_hashtab *tab, struct 
 
 	obj2 = b->object;
 	b->object = b->next = (void*)2;
-	free(b); /* free up the hashbucket */
+	ast_free(b); /* free up the hashbucket */
 	tab->hash_tab_elements--;
 #ifdef DEBUG
 	{
