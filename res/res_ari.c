@@ -886,7 +886,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
 	struct ast_variable *var;
 	const char *app_name = NULL;
-	RAII_VAR(struct ast_json *, body, ast_json_null(), ast_json_free);
+	RAII_VAR(struct ast_json *, body, ast_json_null(), ast_json_unref);
 	int debug_app = 0;
 
 	if (!response_body) {
