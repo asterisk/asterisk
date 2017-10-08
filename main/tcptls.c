@@ -1147,7 +1147,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 
 	/* if a local address was specified, bind to it so the connection will
 	   originate from the desired address */
-	if (!ast_sockaddr_isnull(&desc->local_address)) {
+	if (!ast_sockaddr_isnull(&desc->local_address) &&
+	    !ast_sockaddr_is_any(&desc->local_address)) {
 		setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 		if (ast_bind(desc->accept_fd, &desc->local_address)) {
 			ast_log(LOG_ERROR, "Unable to bind %s to %s: %s\n",
