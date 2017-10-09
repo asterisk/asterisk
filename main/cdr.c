@@ -781,11 +781,11 @@ static int cdr_object_channel_hash_fn(const void *obj, const int flags)
 	const struct cdr_object *cdr;
 	const char *key;
 
-	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-	case OBJ_KEY:
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
 		key = obj;
 		break;
-	case OBJ_POINTER:
+	case OBJ_SEARCH_OBJECT:
 		cdr = obj;
 		key = cdr->uniqueid;
 		break;
@@ -806,14 +806,14 @@ static int cdr_object_channel_cmp_fn(void *obj, void *arg, int flags)
     const char *right_key = arg;
     int cmp;
 
-    switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-    case OBJ_POINTER:
+    switch (flags & OBJ_SEARCH_MASK) {
+    case OBJ_SEARCH_OBJECT:
         right_key = right->uniqueid;
         /* Fall through */
-    case OBJ_KEY:
+    case OBJ_SEARCH_KEY:
         cmp = strcmp(left->uniqueid, right_key);
         break;
-    case OBJ_PARTIAL_KEY:
+    case OBJ_SEARCH_PARTIAL_KEY:
         /*
          * We could also use a partial key struct containing a length
          * so strlen() does not get called for every comparison instead.
@@ -1564,7 +1564,7 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 		!success && (channel_id = ao2_iterator_next(&it_cdrs));
 		ao2_ref(channel_id, -1)) {
 		RAII_VAR(struct cdr_object *, cand_cdr_master,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
 			ao2_cleanup);
 		struct cdr_object *cand_cdr;
 
@@ -1714,7 +1714,7 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 		!success && (channel_id = ao2_iterator_next(&it_cdrs));
 		ao2_ref(channel_id, -1)) {
 		RAII_VAR(struct cdr_object *, cand_cdr_master,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
 			ao2_cleanup);
 		struct cdr_object *cand_cdr;
 
@@ -1955,9 +1955,9 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	/* Figure out who is running this show */
 	if (caller) {
-		cdr = ao2_find(active_cdrs_by_channel, caller->uniqueid, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, caller->uniqueid, OBJ_SEARCH_KEY);
 	} else {
-		cdr = ao2_find(active_cdrs_by_channel, peer->uniqueid, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, peer->uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	if (!cdr) {
@@ -2111,7 +2111,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 
 	/* Handle Party A */
 	if (!cdr) {
-		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_SEARCH_KEY);
 	}
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
@@ -2217,7 +2217,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY),
 			ao2_cleanup);
 	struct cdr_object *it_cdr;
 	struct bridge_leave_data leave_data = {
@@ -2374,7 +2374,7 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
 	it_channels = ao2_iterator_init(bridge->channels, 0);
 	while ((channel_id = ao2_iterator_next(&it_channels))) {
 		RAII_VAR(struct cdr_object *, cand_cdr,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
 			ao2_cleanup);
 
 		if (!cand_cdr) {
@@ -2520,7 +2520,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	struct ast_bridge_snapshot *bridge = update->bridge;
 	struct ast_channel_snapshot *channel = update->channel;
 	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY),
 			ao2_cleanup);
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
@@ -2588,7 +2588,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY);
+	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -4238,8 +4238,8 @@ int ast_cdr_engine_init(void)
 	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
 	stasis_message_router_add(stasis_router, cdr_sync_message_type(), handle_cdr_sync_message, NULL);
 
-	active_cdrs_by_channel = ao2_container_alloc(NUM_CDR_BUCKETS,
-		cdr_object_channel_hash_fn, cdr_object_channel_cmp_fn);
+	active_cdrs_by_channel = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_CDR_BUCKETS, cdr_object_channel_hash_fn, NULL, cdr_object_channel_cmp_fn);
 	if (!active_cdrs_by_channel) {
 		return -1;
 	}
