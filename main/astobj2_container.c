@@ -439,6 +439,48 @@ void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags fla
 	return __ao2_callback(c, flags, c->cmp_fn, arged, tag, file, line, func);
 }
 
+void *__ao2_weakproxy_find(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, const char *file, int line, const char *func)
+{
+	void *proxy;
+	void *obj = NULL;
+	enum ao2_lock_req orig_lock;
+
+	ast_assert(!!c);
+	ast_assert(flags & OBJ_SEARCH_MASK);
+	ast_assert(!(flags & ~(OBJ_SEARCH_MASK | OBJ_NOLOCK)));
+
+	if (flags & OBJ_NOLOCK) {
+		orig_lock = __adjust_lock(c, AO2_LOCK_REQ_RDLOCK, 1);
+	} else {
+		orig_lock = AO2_LOCK_REQ_RDLOCK;
+		ao2_rdlock(c);
+	}
+
+	while ((proxy = ao2_find(c, arg, flags | OBJ_NOLOCK))) {
+		obj = __ao2_weakproxy_get_object(proxy, 0, tag ?: __PRETTY_FUNCTION__, file, line, func);
+
+		if (obj) {
+			ao2_ref(proxy, -1);
+			break;
+		}
+
+		/* Upgrade to a write lock */
+		__adjust_lock(c, AO2_LOCK_REQ_WRLOCK, 1);
+		ao2_unlink_flags(c, proxy, OBJ_NOLOCK);
+		ao2_ref(proxy, -1);
+	}
+
+	if (flags & OBJ_NOLOCK) {
+		/* We'll keep any upgraded lock */
+		__adjust_lock(c, orig_lock, 1);
+	} else {
+		ao2_unlock(c);
+	}
+
+	return obj;
+}
+
 /*!
  * initialize an iterator so we start from the first object
  */
