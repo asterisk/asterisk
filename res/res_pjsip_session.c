@@ -1547,6 +1547,7 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 						}
 					}
 					ast_stream_set_formats(stream, joint_cap);
+					ao2_cleanup(joint_cap);
 				}
 
 				++type_streams[ast_stream_get_type(stream)];
