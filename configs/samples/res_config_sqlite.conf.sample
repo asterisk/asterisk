@@ -8,4 +8,4 @@ dbfile => /var/lib/asterisk/sqlite.db
 ; extconfig.conf, the value given here is used. If cdr_table is omitted, CDR
 ; support is simply disabled.
 config_table => ast_config
-cdr_table => ast_cdr
+; cdr_table => ast_cdr
