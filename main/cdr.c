@@ -751,11 +751,7 @@ static void free_variables(struct varshead *headp)
  */
 static void cdr_object_snapshot_copy(struct cdr_object_snapshot *dst, struct cdr_object_snapshot *src)
 {
-	if (dst->snapshot) {
-		ao2_t_ref(dst->snapshot, -1, "release old snapshot during copy");
-	}
-	dst->snapshot = src->snapshot;
-	ao2_t_ref(dst->snapshot, +1, "bump new snapshot during copy");
+	ao2_t_replace(dst->snapshot, src->snapshot, "CDR snapshot copy");
 	strcpy(dst->userfield, src->userfield);
 	dst->flags = src->flags;
 	copy_variables(&dst->variables, &src->variables);
@@ -1358,11 +1354,7 @@ static void cdr_object_swap_snapshot(struct cdr_object_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
 	cdr_object_update_cid(old_snapshot, new_snapshot);
-	if (old_snapshot->snapshot) {
-		ao2_t_ref(old_snapshot->snapshot, -1, "Drop ref for swap");
-	}
-	ao2_t_ref(new_snapshot, +1, "Bump ref for swap");
-	old_snapshot->snapshot = new_snapshot;
+	ao2_t_replace(old_snapshot->snapshot, new_snapshot, "Swap CDR shapshot");
 }
 
 /* BASE METHOD IMPLEMENTATIONS */
