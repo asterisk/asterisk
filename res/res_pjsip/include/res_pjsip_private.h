@@ -340,6 +340,18 @@ int internal_sip_unregister_service(pjsip_module *module);
 
 /*!
  * \internal
+ * \brief Used by res_pjsip.so to register a supplement without adding a self reference
+ */
+void internal_sip_register_supplement(struct ast_sip_supplement *supplement);
+
+/*!
+ * \internal
+ * \brief Used by res_pjsip.so to unregister a supplement without removing a self reference
+ */
+int internal_sip_unregister_supplement(struct ast_sip_supplement *supplement);
+
+/*!
+ * \internal
  * \brief Used by res_pjsip.so to register an endpoint formatter without adding a self reference
  */
 void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
@@ -349,6 +361,20 @@ void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter 
  * \brief Used by res_pjsip.so to unregister a endpoint formatter without removing a self reference
  */
 int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
+
+struct ast_sip_session_supplement;
+
+/*!
+ * \internal
+ * \brief Used by res_pjsip.so to register a session supplement without adding a self reference
+ */
+void internal_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
+
+/*!
+ * \internal
+ * \brief Used by res_pjsip.so to unregister a session supplement without removing a self reference
+ */
+int internal_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
 
 /*!
  * \internal
@@ -380,5 +406,17 @@ int ast_sip_initialize_scheduler(void);
  * \retval 0 success
  */
 int ast_sip_destroy_scheduler(void);
+
+/*!
+ * \internal
+ * \brief Add a reference to the res_pjsip module
+ */
+void internal_res_pjsip_ref(void);
+
+/*!
+ * \internal
+ * \brief Remove a reference from the res_pjsip module
+ */
+void internal_res_pjsip_unref(void);
 
 #endif /* RES_PJSIP_PRIVATE_H_ */

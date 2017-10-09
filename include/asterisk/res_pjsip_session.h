@@ -542,6 +542,13 @@ int ast_sip_session_register_supplement(struct ast_sip_session_supplement *suppl
 void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
 
 /*!
+ * \brief Add supplements to a SIP session
+ *
+ * \param session The session to initialize
+ */
+int ast_sip_session_add_supplements(struct ast_sip_session *session);
+
+/*!
  * \brief Alternative for ast_datastore_alloc()
  *
  * There are two major differences between this and ast_datastore_alloc()
