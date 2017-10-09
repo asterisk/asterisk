@@ -1775,6 +1775,17 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
 	const char *tag, const char *file, int line, const char *func);
 
+/*!
+ * \brief Perform an ao2_find on a container with ao2_weakproxy objects, returning the real object.
+ *
+ * \note Only OBJ_SEARCH_* and OBJ_NOLOCK flags are supported by this function.
+ * \see ao2_callback for description of arguments.
+ */
+#define ao2_weakproxy_find(c, arg, flags, tag) \
+	__ao2_weakproxy_find(c, arg, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void *__ao2_weakproxy_find(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, const char *file, int line, const char *func);
+
 /*! \brief
  *
  *
