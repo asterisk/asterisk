@@ -29,6 +29,7 @@
  */
 
 /*** MODULEINFO
+	<use type="external">openssl</use>
 	<use type="external">pjproject</use>
 	<support_level>core</support_level>
  ***/
