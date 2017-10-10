@@ -84,8 +84,6 @@ struct ao2_weakproxy_notification {
 	AST_LIST_ENTRY(ao2_weakproxy_notification) list;
 };
 
-static void weakproxy_run_callbacks(struct ao2_weakproxy *weakproxy);
-
 struct ao2_lock_priv {
 	ast_mutex_t lock;
 };
@@ -471,7 +469,7 @@ int __ao2_ref(void *user_data, int delta,
 	struct astobj2_lockobj *obj_lockobj;
 	int current_value;
 	int ret;
-	void *weakproxy = NULL;
+	struct ao2_weakproxy *weakproxy = NULL;
 
 	if (obj == NULL) {
 		if (ref_log && user_data) {
@@ -500,6 +498,8 @@ int __ao2_ref(void *user_data, int delta,
 #endif
 
 	if (weakproxy) {
+		struct ao2_weakproxy cbs;
+
 		if (current_value == 1) {
 			/* The only remaining reference is the one owned by the weak object */
 			struct astobj2 *internal_weakproxy;
@@ -510,8 +510,9 @@ int __ao2_ref(void *user_data, int delta,
 			internal_weakproxy->priv_data.weakptr = NULL;
 			obj->priv_data.weakptr = NULL;
 
-			/* Notify the subscribers that weakproxy now points to NULL. */
-			weakproxy_run_callbacks(weakproxy);
+			/* transfer list to local copy so callbacks are run with weakproxy unlocked. */
+			cbs.destroyed_cb = weakproxy->destroyed_cb;
+			AST_LIST_HEAD_INIT_NOLOCK(&weakproxy->destroyed_cb);
 
 			/* weak is already unlinked from obj so this won't recurse */
 			ao2_ref(user_data, -1);
@@ -520,6 +521,14 @@ int __ao2_ref(void *user_data, int delta,
 		ao2_unlock(weakproxy);
 
 		if (current_value == 1) {
+			struct ao2_weakproxy_notification *destroyed_cb;
+
+			/* Notify the subscribers that weakproxy now points to NULL. */
+			while ((destroyed_cb = AST_LIST_REMOVE_HEAD(&cbs.destroyed_cb, list))) {
+				destroyed_cb->cb(weakproxy, destroyed_cb->data);
+				ast_free(destroyed_cb);
+			}
+
 			ao2_ref(weakproxy, -1);
 		}
 	}
@@ -820,16 +829,6 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 }
 
 
-static void weakproxy_run_callbacks(struct ao2_weakproxy *weakproxy)
-{
-	struct ao2_weakproxy_notification *destroyed_cb;
-
-	while ((destroyed_cb = AST_LIST_REMOVE_HEAD(&weakproxy->destroyed_cb, list))) {
-		destroyed_cb->cb(weakproxy, destroyed_cb->data);
-		ast_free(destroyed_cb);
-	}
-}
-
 void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
 	const char *tag, const char *file, int line, const char *func)
 {
@@ -975,6 +974,7 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
 {
 	struct astobj2 *weakproxy_internal = INTERNAL_OBJ_CHECK(weakproxy);
 	int ret = -1;
+	int hasobj;
 
 	if (!weakproxy_internal || weakproxy_internal->priv_data.magic != AO2_WEAK) {
 		return -1;
@@ -984,7 +984,8 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
 		ao2_lock(weakproxy);
 	}
 
-	if (weakproxy_internal->priv_data.weakptr) {
+	hasobj = weakproxy_internal->priv_data.weakptr != NULL;
+	if (hasobj) {
 		struct ao2_weakproxy *weak = weakproxy;
 		struct ao2_weakproxy_notification *sub = ast_calloc(1, sizeof(*sub));
 
@@ -994,13 +995,15 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
 			AST_LIST_INSERT_HEAD(&weak->destroyed_cb, sub, list);
 			ret = 0;
 		}
-	} else {
-		cb(weakproxy, data);
-		ret = 0;
 	}
 
 	if (!(flags & OBJ_NOLOCK)) {
 		ao2_unlock(weakproxy);
+	}
+
+	if (!hasobj) {
+		cb(weakproxy, data);
+		ret = 0;
 	}
 
 	return ret;
