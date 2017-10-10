@@ -578,14 +578,20 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
+#define ast_sip_session_register_supplement(supplement) \
+	__ast_sip_session_register_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement,
+	const char *file, int line, const char *func);
 
 /*!
  * \brief Unregister a an supplement to SIP session processing
  *
  * \param supplement The supplement to unregister
  */
-void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
+#define ast_sip_session_unregister_supplement(supplement) \
+	__ast_sip_session_unregister_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void __ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement,
+	const char *file, int line, const char *func);
 
 /*!
  * \brief Add supplements to a SIP session
