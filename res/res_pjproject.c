@@ -546,7 +546,7 @@ static int unload_module(void)
 	pj_log_set_log_func(log_cb_orig);
 	pj_log_set_decor(decor_orig);
 
-	AST_VECTOR_REMOVE_CMP_UNORDERED(&buildopts, NULL, NOT_EQUALS, ast_free);
+	AST_VECTOR_CALLBACK_VOID(&buildopts, ast_free);
 	AST_VECTOR_FREE(&buildopts);
 
 	ast_debug(3, "Stopped PJPROJECT logging to Asterisk logger\n");
