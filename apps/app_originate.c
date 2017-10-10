@@ -155,6 +155,7 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	char *parse;
 	char *chantech, *chandata;
 	int res = -1;
+	int continue_in_dialplan = 0;
 	int outgoing_status = 0;
 	unsigned int timeout = 30;
 	static const char default_exten[] = "s";
@@ -223,6 +224,12 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		predial_callee = opt_args[OPT_ARG_PREDIAL_CALLEE];
 	}
 
+	if (strcasecmp(args.type, "exten") && strcasecmp(args.type, "app")) {
+		ast_log(LOG_ERROR, "Incorrect type, it should be 'exten' or 'app': %s\n",
+				args.type);
+		goto return_cleanup;
+	}
+
 	if (!strcasecmp(args.type, "exten")) {
 		int priority = 1; /* Initialized in case priority not specified */
 		const char *exten = args.arg2;
@@ -241,25 +248,32 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to extension %s,%s,%d\n",
 				chantech, chandata, args.arg1, exten, priority);
 
-		ast_pbx_outgoing_exten_predial(chantech, cap_slin, chandata,
+		res = ast_pbx_outgoing_exten_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, exten, priority, &outgoing_status,
 				AST_OUTGOING_WAIT, NULL, NULL, NULL, NULL, NULL, 0, NULL,
 				predial_callee);
-	} else if (!strcasecmp(args.type, "app")) {
+	} else {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
-		ast_pbx_outgoing_app_predial(chantech, cap_slin, chandata,
+		res = ast_pbx_outgoing_app_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, args.arg2, &outgoing_status,
 				AST_OUTGOING_WAIT, NULL, NULL, NULL, NULL, NULL, NULL,
 				predial_callee);
-	} else {
-		ast_log(LOG_ERROR, "Incorrect type, it should be 'exten' or 'app': %s\n",
-				args.type);
-		goto return_cleanup;
 	}
 
-	res = 0;
+	/*
+	 * Getting here means that we have passed the various validation checks and
+	 * have at least attempted the dial. If we have a reason (outgoing_status),
+	 * we clear our error indicator so that we ultimately report the right thing
+	 * to the caller.
+	 */
+	if (res && outgoing_status) {
+		res = 0;
+	}
+
+	/* We need to exit cleanly if we've gotten this far */
+	continue_in_dialplan = 1;
 
 return_cleanup:
 	if (res) {
@@ -292,7 +306,7 @@ return_cleanup:
 	ao2_cleanup(cap_slin);
 	ast_autoservice_stop(chan);
 
-	return res;
+	return continue_in_dialplan ? 0 : -1;
 }
 
 static int unload_module(void)
