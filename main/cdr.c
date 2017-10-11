@@ -1568,11 +1568,10 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 	for (it_cdrs = ao2_iterator_init(bridge->channels, 0);
 		!success && (channel_id = ao2_iterator_next(&it_cdrs));
 		ao2_ref(channel_id, -1)) {
-		RAII_VAR(struct cdr_object *, cand_cdr_master,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
-			ao2_cleanup);
+		struct cdr_object *cand_cdr_master;
 		struct cdr_object *cand_cdr;
 
+		cand_cdr_master = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
 		if (!cand_cdr_master) {
 			continue;
 		}
@@ -1594,6 +1593,7 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 			break;
 		}
 		ao2_unlock(cand_cdr_master);
+		ao2_cleanup(cand_cdr_master);
 	}
 	ao2_iterator_destroy(&it_cdrs);
 
@@ -1716,11 +1716,10 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 	for (it_cdrs = ao2_iterator_init(bridge->channels, 0);
 		!success && (channel_id = ao2_iterator_next(&it_cdrs));
 		ao2_ref(channel_id, -1)) {
-		RAII_VAR(struct cdr_object *, cand_cdr_master,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
-			ao2_cleanup);
+		struct cdr_object *cand_cdr_master;
 		struct cdr_object *cand_cdr;
 
+		cand_cdr_master = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
 		if (!cand_cdr_master) {
 			continue;
 		}
@@ -1755,6 +1754,7 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 			break;
 		}
 		ao2_unlock(cand_cdr_master);
+		ao2_cleanup(cand_cdr_master);
 	}
 	ao2_iterator_destroy(&it_cdrs);
 
@@ -1918,7 +1918,7 @@ static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapsho
 static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
+	struct cdr_object *cdr;
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *caller;
 	struct ast_channel_snapshot *peer;
@@ -1954,7 +1954,6 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 	} else {
 		cdr = ao2_find(active_cdrs_by_channel, peer->uniqueid, OBJ_SEARCH_KEY);
 	}
-
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->name : peer->name);
 		ast_assert(0);
@@ -1994,15 +1993,12 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 		struct cdr_object *new_cdr;
 
 		new_cdr = cdr_object_create_and_append(cdr);
-		if (!new_cdr) {
-			ao2_unlock(cdr);
-			return;
+		if (new_cdr) {
+			new_cdr->fn_table->process_dial_begin(new_cdr, caller, peer);
 		}
-		new_cdr->fn_table->process_dial_begin(new_cdr,
-				caller,
-				peer);
 	}
 	ao2_unlock(cdr);
+	ao2_cleanup(cdr);
 }
 
 static int cdr_object_finalize_party_b(void *obj, void *arg, int flags)
@@ -2076,7 +2072,7 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
  */
 static void handle_channel_cache_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
-	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
+	struct cdr_object *cdr;
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 	struct stasis_cache_update *update = stasis_message_data(message);
 	struct ast_channel_snapshot *old_snapshot;
@@ -2104,12 +2100,11 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 		}
 		cdr->is_root = 1;
 		ao2_link(active_cdrs_by_channel, cdr);
+	} else {
+		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	/* Handle Party A */
-	if (!cdr) {
-		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_SEARCH_KEY);
-	}
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
 		ast_assert(0);
@@ -2117,6 +2112,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 		ao2_lock(cdr);
 		if (new_snapshot) {
 			int all_reject = 1;
+
 			for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 				if (!it_cdr->fn_table->process_party_a) {
 					continue;
@@ -2126,6 +2122,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 			if (all_reject && check_new_cdr_needed(old_snapshot, new_snapshot)) {
 				/* We're not hung up and we have a new snapshot - we need a new CDR */
 				struct cdr_object *new_cdr;
+
 				new_cdr = cdr_object_create_and_append(cdr);
 				if (new_cdr) {
 					new_cdr->fn_table->process_party_a(new_cdr, new_snapshot);
@@ -2151,6 +2148,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 			old_snapshot);
 	}
 
+	ao2_cleanup(cdr);
 }
 
 struct bridge_leave_data {
@@ -2213,9 +2211,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	struct ast_channel_snapshot *channel = update->channel;
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY),
-			ao2_cleanup);
+	struct cdr_object *cdr;
 	struct cdr_object *it_cdr;
 	struct bridge_leave_data leave_data = {
 		.bridge = bridge,
@@ -2236,6 +2232,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
+	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -2256,16 +2253,16 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 		}
 	}
 	ao2_unlock(cdr);
-	if (!left_bridge) {
-		return;
+
+	/* Party B */
+	if (left_bridge
+		&& strcmp(bridge->subclass, "parking")) {
+		ao2_callback(active_cdrs_by_channel, OBJ_NODATA,
+			cdr_object_party_b_left_bridge_cb,
+			&leave_data);
 	}
 
-	if (strcmp(bridge->subclass, "parking")) {
-		/* Party B */
-		ao2_callback(active_cdrs_by_channel, OBJ_NODATA,
-				cdr_object_party_b_left_bridge_cb,
-				&leave_data);
-	}
+	ao2_cleanup(cdr);
 }
 
 /*!
@@ -2370,16 +2367,13 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
 
 	it_channels = ao2_iterator_init(bridge->channels, 0);
 	while ((channel_id = ao2_iterator_next(&it_channels))) {
-		RAII_VAR(struct cdr_object *, cand_cdr,
-			ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY),
-			ao2_cleanup);
+		struct cdr_object *cand_cdr;
 
-		if (!cand_cdr) {
-			ao2_ref(channel_id, -1);
-			continue;
+		cand_cdr = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
+		if (cand_cdr) {
+			bridge_candidate_process(cdr, cand_cdr);
+			ao2_ref(cand_cdr, -1);
 		}
-
-		bridge_candidate_process(cdr, cand_cdr);
 
 		ao2_ref(channel_id, -1);
 	}
@@ -2516,9 +2510,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	struct ast_bridge_blob *update = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = update->bridge;
 	struct ast_channel_snapshot *channel = update->channel;
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY),
-			ao2_cleanup);
+	struct cdr_object *cdr;
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 
@@ -2535,6 +2527,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
+	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -2546,6 +2539,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	} else {
 		handle_standard_bridge_enter_message(cdr, bridge, channel);
 	}
+	ao2_cleanup(cdr);
 }
 
 /*!
@@ -2560,7 +2554,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 {
 	struct ast_parked_call_payload *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *channel = payload->parkee;
-	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
+	struct cdr_object *cdr;
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 	int unhandled = 1;
@@ -2602,7 +2596,9 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 
 	if (unhandled) {
 		/* Nothing handled the messgae - we need a new one! */
-		struct cdr_object *new_cdr = cdr_object_create_and_append(cdr);
+		struct cdr_object *new_cdr;
+
+		new_cdr = cdr_object_create_and_append(cdr);
 		if (new_cdr) {
 			/* As the new CDR is created in the single state, it is guaranteed
 			 * to have a function for the parked call message and will handle
@@ -2613,6 +2609,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 
 	ao2_unlock(cdr);
 
+	ao2_cleanup(cdr);
 }
 
 /*!
@@ -3085,15 +3082,16 @@ static struct cdr_object *cdr_object_get_by_name(const char *name)
 
 int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size_t length)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct cdr_object *cdr_obj;
 
-	if (!cdr) {
-		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
+	if (ast_strlen_zero(name)) {
 		return 1;
 	}
 
-	if (ast_strlen_zero(name)) {
+	cdr = cdr_object_get_by_name(channel_name);
+	if (!cdr) {
+		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
 		return 1;
 	}
 
@@ -3107,18 +3105,20 @@ int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size
 
 	ao2_unlock(cdr);
 
+	ao2_cleanup(cdr);
 	return 0;
 }
 
 int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, char delim, char sep)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct cdr_object *it_cdr;
 	struct ast_var_t *variable;
 	const char *var;
 	char workspace[256];
 	int total = 0, x = 0, i;
 
+	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
 		RAII_VAR(struct module_config *, mod_cfg,
 			 ao2_global_obj_ref(module_configs), ao2_cleanup);
@@ -3167,6 +3167,7 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 		}
 	}
 	ao2_unlock(cdr);
+	ao2_cleanup(cdr);
 	return total;
 }
 
@@ -3234,7 +3235,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, int flag
 
 void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct party_b_userfield_update party_b_info = {
 			.channel_name = channel_name,
 			.userfield = userfield,
@@ -3242,6 +3243,7 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 	struct cdr_object *it_cdr;
 
 	/* Handle Party A */
+	cdr = cdr_object_get_by_name(channel_name);
 	if (cdr) {
 		ao2_lock(cdr);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
@@ -3258,6 +3260,7 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 			cdr_object_update_party_b_userfield_cb,
 			&party_b_info);
 
+	ao2_cleanup(cdr);
 }
 
 static void post_cdr(struct ast_cdr *cdr)
@@ -3289,9 +3292,10 @@ static void post_cdr(struct ast_cdr *cdr)
 
 int ast_cdr_set_property(const char *channel_name, enum ast_cdr_options option)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct cdr_object *it_cdr;
 
+	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
 		return -1;
 	}
@@ -3309,14 +3313,16 @@ int ast_cdr_set_property(const char *channel_name, enum ast_cdr_options option)
 	}
 	ao2_unlock(cdr);
 
+	ao2_cleanup(cdr);
 	return 0;
 }
 
 int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct cdr_object *it_cdr;
 
+	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
 		return -1;
 	}
@@ -3330,15 +3336,17 @@ int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option
 	}
 	ao2_unlock(cdr);
 
+	ao2_cleanup(cdr);
 	return 0;
 }
 
 int ast_cdr_reset(const char *channel_name, int keep_variables)
 {
-	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
+	struct cdr_object *cdr;
 	struct ast_var_t *vardata;
 	struct cdr_object *it_cdr;
 
+	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
 		return -1;
 	}
@@ -3366,6 +3374,7 @@ int ast_cdr_reset(const char *channel_name, int keep_variables)
 	}
 	ao2_unlock(cdr);
 
+	ao2_cleanup(cdr);
 	return 0;
 }
 
@@ -3775,7 +3784,7 @@ static void cli_show_channel(struct ast_cli_args *a)
 	char answer_time_buffer[64];
 	char end_time_buffer[64];
 	const char *channel_name = a->argv[3];
-	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
+	struct cdr_object *cdr;
 
 #define TITLE_STRING "%-10.10s %-20.20s %-25.25s %-15.15s %-15.15s %-8.8s %-8.8s %-8.8s %-8.8s %-8.8s\n"
 #define FORMAT_STRING "%-10.10s %-20.20s %-25.25s %-15.15s %-15.15s %-8.8s %-8.8s %-8.8s %-8.8ld %-8.8ld\n"
@@ -3820,6 +3829,9 @@ static void cli_show_channel(struct ast_cli_args *a)
 				(long)ast_tvdiff_ms(end, it_cdr->start) / 1000);
 	}
 	ao2_unlock(cdr);
+
+	ao2_cleanup(cdr);
+
 #undef FORMAT_STRING
 #undef TITLE_STRING
 }
@@ -4234,8 +4246,6 @@ int ast_cdr_engine_init(void)
 void ast_cdr_engine_term(void)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(void *, payload, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	/* Since this is called explicitly during process shutdown, we might not have ever
 	 * been initialized. If so, the config object will be NULL.
@@ -4245,9 +4255,16 @@ void ast_cdr_engine_term(void)
 	}
 
 	if (cdr_sync_message_type()) {
+		void *payload;
+		struct stasis_message *message;
+
+		if (!stasis_router) {
+			return;
+		}
+
 		/* Make sure we have the needed items */
 		payload = ao2_alloc(sizeof(*payload), NULL);
-		if (!stasis_router || !payload) {
+		if (!payload) {
 			return;
 		}
 
@@ -4257,6 +4274,8 @@ void ast_cdr_engine_term(void)
 		if (message) {
 			stasis_message_router_publish_sync(stasis_router, message);
 		}
+		ao2_cleanup(message);
+		ao2_cleanup(payload);
 	}
 
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
