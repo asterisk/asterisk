@@ -34,6 +34,13 @@ res_pjsip
    unsolicited MWI NOTIFY requests and make them available to other modules via
    the stasis message bus.
 
+ * The "remove_existing" option now allows a registration to succeed by
+   displacing any existing contacts that now exceed the "max_contacts" count.
+   Any removed contacts are the next to expire.  The behaviour change is
+   beneficial when "rewrite_contact" is enabled and "max_contacts" is greater
+   than one.  The removed contact is likely the old contact created by
+   "rewrite_contact" that the device is refreshing.
+
 res_musiconhold
 ------------------
  * By default, when res_musiconhold reloads or unloads, it sends a HUP signal
