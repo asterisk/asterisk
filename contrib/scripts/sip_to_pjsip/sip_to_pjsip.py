@@ -77,6 +77,46 @@ def merge_value(key=None, val=None, section=None, pjsip=None,
                   section_to if section_to else section,
                   pjsip, nmapped, type)
 
+def merge_codec_value(key=None, val=None, section=None, pjsip=None,
+                nmapped=None, type='endpoint', section_to=None,
+                key_to=None):
+    """Merge values from allow/deny with those from the default. Special treatment for all"""
+    def _merge_codec_value(k, v, s, r, n):
+        merge_codec_value(key if key else k, v, s, r, n, type, section_to, key_to)
+
+    # if no value or section return the merge_codec_value
+    # function with the enclosed key and type
+    if not val and not section:
+        return _merge_codec_value
+
+    if key == 'allow':
+	    try:
+		disallow = sip.get(section, 'disallow')[0]
+		if disallow == 'all':
+		    #don't inherit
+                    for i in sip.get(section, 'allow'):
+		        set_value(key, i, section, pjsip, nmapped, type)
+	        else:
+		    merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
+	    except LookupError:
+	        print "lookup error"
+		merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
+		return
+    elif key == 'disallow':
+	    try:
+		allow = sip.get(section, 'allow')[0]
+		if allow == 'all':
+		    #don't inherit
+                    for i in sip.get(section, 'disallow'):
+		        set_value(key, i, section, pjsip, nmapped, type)
+	        else:
+		    merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
+	    except LookupError:
+		merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
+		return
+    else:
+	merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
+
 
 def non_mapped(nmapped):
     """Write non-mapped sip.conf values to the non-mapped object"""
@@ -404,8 +444,8 @@ peer_map = [
     ###########################################################################
     ['context',            set_value],
     ['dtmfmode',           set_dtmfmode],
-    ['disallow',           merge_value],
-    ['allow',              merge_value],
+    ['disallow',           merge_codec_value],
+    ['allow',              merge_codec_value],
     ['nat',                from_nat],            # rtp_symmetric, force_rport,
                                                  # rewrite_contact
     ['rtptimeout',         set_value('rtp_timeout')],
