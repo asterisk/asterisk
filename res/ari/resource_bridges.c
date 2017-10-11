@@ -218,6 +218,12 @@ void ast_ari_bridges_add_channel(struct ast_variable *headers,
 				return;
 			}
 		}
+
+		/* Apply bridge features to each of the channel controls */
+		if (!stasis_app_control_bridge_features_init(list->controls[i])) {
+			stasis_app_control_absorb_dtmf_in_bridge(list->controls[i], args->absorb_dtmf);
+			stasis_app_control_mute_in_bridge(list->controls[i], args->mute);
+		}
 	}
 
 	for (i = 0; i < list->count; ++i) {
