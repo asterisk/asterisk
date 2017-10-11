@@ -1448,6 +1448,18 @@
 						It only limits contacts added through external interaction, such as
 						registration.
 						</para>
+						<note><para>The <replaceable>rewrite_contact</replaceable> option
+						registers the source address as the contact address to help with
+						NAT and reusing connection oriented transports such as TCP and
+						TLS.  Unfortunately, refreshing a registration may register a
+						different contact address and exceed
+						<replaceable>max_contacts</replaceable>.  The
+						<replaceable>remove_existing</replaceable> option can help by
+						removing the soonest to expire contact(s) over
+						<replaceable>max_contacts</replaceable> which is likely the
+						old <replaceable>rewrite_contact</replaceable> contact source
+						address being refreshed.
+						</para></note>
 						<note><para>This should be set to <literal>1</literal> and
 						<replaceable>remove_existing</replaceable> set to <literal>yes</literal> if you
 						wish to stick with the older <literal>chan_sip</literal> behaviour.
@@ -1457,15 +1469,29 @@
 				<configOption name="minimum_expiration" default="60">
 					<synopsis>Minimum keep alive time for an AoR</synopsis>
 					<description><para>
-						Minimum time to keep a peer with an explict expiration. Time in seconds.
+						Minimum time to keep a peer with an explicit expiration. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="remove_existing" default="no">
 					<synopsis>Determines whether new contacts replace existing ones.</synopsis>
 					<description><para>
-						On receiving a new registration to the AoR should it remove
-						the existing contact that was registered against it?
+						On receiving a new registration to the AoR should it remove enough
+						existing contacts not added or updated by the registration to
+						satisfy <replaceable>max_contacts</replaceable>?  Any removed
+						contacts will expire the soonest.
 						</para>
+						<note><para>The <replaceable>rewrite_contact</replaceable> option
+						registers the source address as the contact address to help with
+						NAT and reusing connection oriented transports such as TCP and
+						TLS.  Unfortunately, refreshing a registration may register a
+						different contact address and exceed
+						<replaceable>max_contacts</replaceable>.  The
+						<replaceable>remove_existing</replaceable> option can help by
+						removing the soonest to expire contact(s) over
+						<replaceable>max_contacts</replaceable> which is likely the
+						old <replaceable>rewrite_contact</replaceable> contact source
+						address being refreshed.
+						</para></note>
 						<note><para>This should be set to <literal>yes</literal> and
 						<replaceable>max_contacts</replaceable> set to <literal>1</literal> if you
 						wish to stick with the older <literal>chan_sip</literal> behaviour.
