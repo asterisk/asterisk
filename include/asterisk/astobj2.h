@@ -671,6 +671,10 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
  *       of the cb / data pair.  If it was subscribed multiple times it must be
  *       unsubscribed as many times.  The OBJ_MULTIPLE flag can be used to remove
  *       matching subscriptions.
+ *
+ * \note When it's time to run callbacks they are copied to a temporary list so the
+ *       weakproxy can be unlocked before running.  That means it's possible for
+ *       this function to find nothing before the callback is run in another thread.
  */
 int ao2_weakproxy_unsubscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, void *data, int flags);
 
