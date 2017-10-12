@@ -510,7 +510,6 @@ static int my_load_module(int reload)
 	} else {
 		calldate_compat = 0;
 	}
-	ast_free(compat);
 
 	if (res < 0) {
 		if (reload) {
