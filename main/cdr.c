@@ -1935,6 +1935,10 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 	if (!peer && !caller) {
 		return;
 	}
+	if (filter_channel_snapshot(peer) || (caller && filter_channel_snapshot(caller))) {
+		return;
+	}
+
 	dial_status_blob = ast_json_object_get(ast_multi_channel_blob_get_json(payload), "dialstatus");
 	if (dial_status_blob) {
 		dial_status = ast_json_string_get(dial_status_blob);
@@ -1946,10 +1950,6 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			peer ? peer->name : "(none)",
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
-
-	if (filter_channel_snapshot(peer) || (caller && filter_channel_snapshot(caller))) {
-		return;
-	}
 
 	/* Figure out who is running this show */
 	if (caller) {
@@ -2080,8 +2080,6 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	struct stasis_cache_update *update = stasis_message_data(message);
 	struct ast_channel_snapshot *old_snapshot;
 	struct ast_channel_snapshot *new_snapshot;
-	const char *uniqueid;
-	const char *name;
 	struct cdr_object *it_cdr;
 
 	ast_assert(update != NULL);
@@ -2089,8 +2087,6 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
-	uniqueid = new_snapshot ? new_snapshot->uniqueid : old_snapshot->uniqueid;
-	name = new_snapshot ? new_snapshot->name : old_snapshot->name;
 
 	if (filter_channel_cache_message(old_snapshot, new_snapshot)) {
 		return;
@@ -2104,11 +2100,17 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 		cdr->is_root = 1;
 		ao2_link(active_cdrs_by_channel, cdr);
 	} else {
+		const char *uniqueid;
+
+		uniqueid = new_snapshot ? new_snapshot->uniqueid : old_snapshot->uniqueid;
 		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	/* Handle Party A */
 	if (!cdr) {
+		const char *name;
+
+		name = new_snapshot ? new_snapshot->name : old_snapshot->name;
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
 		ast_assert(0);
 	} else {
@@ -4318,7 +4320,7 @@ int ast_cdr_engine_reload(void)
 	RAII_VAR(struct module_config *, old_mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 	RAII_VAR(struct module_config *, mod_cfg, NULL, ao2_cleanup);
 
-	if (process_config(1)) {
+	if (!old_mod_cfg || process_config(1)) {
 		return -1;
 	}
 
