@@ -392,9 +392,9 @@ int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface);
  * \retval non-NULL success
  * \retval NULL if allocation failed
  */
-struct ast_sorcery *__ast_sorcery_open(const char *module);
+struct ast_sorcery *__ast_sorcery_open(const char *module, const char *file, int line, const char *func);
 
-#define ast_sorcery_open() __ast_sorcery_open(AST_MODULE)
+#define ast_sorcery_open() __ast_sorcery_open(AST_MODULE, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Retrieves an existing sorcery instance by module name
@@ -1280,8 +1280,13 @@ int ast_sorcery_is_stale(const struct ast_sorcery *sorcery, void *object);
  * \brief Decrease the reference count of a sorcery structure
  *
  * \param sorcery Pointer to a sorcery structure
+ *
+ * \note Prior to 16.0.0 this was a function which had to be used.
+ *       Now you can use any variant of ao2_cleanup or ao2_ref to
+ *       release a reference.
  */
-void ast_sorcery_unref(struct ast_sorcery *sorcery);
+#define ast_sorcery_unref(sorcery) \
+	ao2_cleanup(sorcery)
 
 /*!
  * \brief Get the unique identifier of a sorcery object
