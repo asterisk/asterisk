@@ -802,10 +802,9 @@ static void set_from_header(struct ast_sip_session *session)
 		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
 	}
 
-	ast_sip_add_usereqphone(session->endpoint, dlg_pool, dlg_info->uri);
-
 	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
 	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
+	ast_sip_add_usereqphone(session->endpoint, dlg_pool, session->saved_from_hdr->uri);
 
 	/* In chan_sip, fromuser and fromdomain trump restricted so we only
 	 * anonymize if they're not set.
@@ -821,7 +820,9 @@ static void set_from_header(struct ast_sip_session *session)
 		if (ast_strlen_zero(session->endpoint->fromdomain)) {
 			pj_strdup2(dlg_pool, &dlg_info_uri->host, "anonymous.invalid");
 		}
-	}
+	} else {
+		ast_sip_add_usereqphone(session->endpoint, dlg_pool, dlg_info->uri);
+    }
 }
 
 int ast_sip_session_refresh(struct ast_sip_session *session,
