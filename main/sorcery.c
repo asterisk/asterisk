@@ -209,6 +209,13 @@ struct ast_sorcery_object_field {
 	intptr_t args[];
 };
 
+/*! \brief Proxy object for sorcery */
+struct sorcery_proxy {
+	AO2_WEAKPROXY();
+	/*! \brief The name of the module owning this sorcery instance */
+	char module_name[0];
+};
+
 /*! \brief Full structure for sorcery */
 struct ast_sorcery {
 	/*! \brief Container for known object types */
@@ -217,8 +224,8 @@ struct ast_sorcery {
 	/*! \brief Observers */
 	struct ao2_container *observers;
 
-	/*! \brief The name of the module owning this sorcery instance */
-	char module_name[0];
+	/*! \brief Pointer to module_name in the associated sorcery_proxy. */
+	char *module_name;
 };
 
 /*! \brief Structure for passing load/reload details */
@@ -451,8 +458,8 @@ static void sorcery_cleanup(void)
 /*! \brief Compare function for sorcery instances */
 static int sorcery_instance_cmp(void *obj, void *arg, int flags)
 {
-	const struct ast_sorcery *object_left = obj;
-	const struct ast_sorcery *object_right = arg;
+	const struct sorcery_proxy *object_left = obj;
+	const struct sorcery_proxy *object_right = arg;
 	const char *right_key = arg;
 	int cmp;
 
@@ -479,7 +486,7 @@ static int sorcery_instance_cmp(void *obj, void *arg, int flags)
 /*! \brief Hashing function for sorcery instances */
 static int sorcery_instance_hash(const void *obj, const int flags)
 {
-	const struct ast_sorcery *object;
+	const struct sorcery_proxy *object;
 	const char *key;
 
 	switch (flags & OBJ_SEARCH_MASK) {
@@ -754,55 +761,83 @@ static int sorcery_type_cmp(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+static void sorcery_proxy_cb(void *weakproxy, void *data)
+{
+	ao2_unlink(instances, weakproxy);
+}
+
 struct ast_sorcery *__ast_sorcery_open(const char *module_name)
 {
+	struct sorcery_proxy *proxy;
 	struct ast_sorcery *sorcery;
 
 	ast_assert(module_name != NULL);
 
 	ao2_wrlock(instances);
-	if ((sorcery = ao2_find(instances, module_name, OBJ_SEARCH_KEY | OBJ_NOLOCK))) {
-		goto done;
+	sorcery = ao2_weakproxy_find(instances, module_name, OBJ_SEARCH_KEY | OBJ_NOLOCK,
+		__PRETTY_FUNCTION__);
+	if (sorcery) {
+		ao2_unlock(instances);
+
+		return sorcery;
 	}
 
-	if (!(sorcery = ao2_alloc(sizeof(*sorcery) + strlen(module_name) + 1, sorcery_destructor))) {
-		goto done;
+	proxy = ao2_t_weakproxy_alloc(sizeof(*proxy) + strlen(module_name) + 1, NULL, module_name);
+	if (!proxy) {
+		goto failure_cleanup;
+	}
+	strcpy(proxy->module_name, module_name); /* Safe */
+
+	sorcery = ao2_t_alloc(sizeof(*sorcery), sorcery_destructor, module_name);
+	if (!sorcery) {
+		goto failure_cleanup;
+	}
+
+	sorcery->module_name = proxy->module_name;
+
+	/* We have exclusive access to proxy and sorcery, no need for locking here. */
+	if (ao2_t_weakproxy_set_object(proxy, sorcery, OBJ_NOLOCK, "weakproxy link")) {
+		goto failure_cleanup;
+	}
+
+	if (ao2_weakproxy_subscribe(proxy, sorcery_proxy_cb, NULL, OBJ_NOLOCK)) {
+		goto failure_cleanup;
 	}
 
 	if (!(sorcery->types = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, TYPE_BUCKETS, sorcery_type_hash, sorcery_type_cmp))) {
-		ao2_ref(sorcery, -1);
-		sorcery = NULL;
-		goto done;
+		goto failure_cleanup;
 	}
 
 	if (!(sorcery->observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL))) {
-		ao2_ref(sorcery, -1);
-		sorcery = NULL;
-		goto done;
+		goto failure_cleanup;
 	}
-
-	strcpy(sorcery->module_name, module_name); /* Safe */
 
 	if (__ast_sorcery_apply_config(sorcery, module_name, module_name) == AST_SORCERY_APPLY_FAIL) {
 		ast_log(LOG_ERROR, "Error attempting to apply configuration %s to sorcery.\n", module_name);
-		ao2_cleanup(sorcery);
-		sorcery = NULL;
-		goto done;
+		goto failure_cleanup;
 	}
 
-	ao2_link_flags(instances, sorcery, OBJ_NOLOCK);
+	ao2_link_flags(instances, proxy, OBJ_NOLOCK);
+	ao2_ref(proxy, -1);
 
 	NOTIFY_GLOBAL_OBSERVERS(observers, instance_created, module_name, sorcery);
 
-done:
 	ao2_unlock(instances);
 	return sorcery;
+
+failure_cleanup:
+	/* cleanup of sorcery may result in locking instances, so make sure we unlock first. */
+	ao2_unlock(instances);
+	ao2_cleanup(sorcery);
+	ao2_cleanup(proxy);
+
+	return NULL;
 }
 
 /*! \brief Search function for sorcery instances */
 struct ast_sorcery *ast_sorcery_retrieve_by_module_name(const char *module_name)
 {
-	return ao2_find(instances, module_name, OBJ_SEARCH_KEY);
+	return ao2_weakproxy_find(instances, module_name, OBJ_SEARCH_KEY, "");
 }
 
 /*! \brief Destructor function for object types */
@@ -2297,14 +2332,7 @@ int ast_sorcery_is_stale(const struct ast_sorcery *sorcery, void *object)
 
 void ast_sorcery_unref(struct ast_sorcery *sorcery)
 {
-	if (sorcery) {
-		/* One ref for what we just released, the other for the instances container. */
-		ao2_wrlock(instances);
-		if (ao2_ref(sorcery, -1) == 2) {
-			ao2_unlink_flags(instances, sorcery, OBJ_NOLOCK);
-		}
-		ao2_unlock(instances);
-	}
+	ao2_cleanup(sorcery);
 }
 
 const char *ast_sorcery_object_get_id(const void *object)
