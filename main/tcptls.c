@@ -500,7 +500,7 @@ int ast_ssl_setup(struct ast_tls_config *cfg)
 void ast_ssl_teardown(struct ast_tls_config *cfg)
 {
 #ifdef DO_SSL
-	if (cfg->ssl_ctx) {
+	if (cfg && cfg->ssl_ctx) {
 		SSL_CTX_free(cfg->ssl_ctx);
 		cfg->ssl_ctx = NULL;
 	}
