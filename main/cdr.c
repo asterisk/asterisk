@@ -1333,13 +1333,13 @@ static void cdr_object_update_cid(struct cdr_object_snapshot *old_snapshot, stru
 		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->dialed_subaddr);
 		return;
 	}
-	if (!strcmp(old_snapshot->snapshot->caller_dnid, new_snapshot->caller_dnid)) {
+	if (strcmp(old_snapshot->snapshot->caller_dnid, new_snapshot->caller_dnid)) {
 		set_variable(&old_snapshot->variables, "dnid", new_snapshot->caller_dnid);
 	}
-	if (!strcmp(old_snapshot->snapshot->caller_subaddr, new_snapshot->caller_subaddr)) {
+	if (strcmp(old_snapshot->snapshot->caller_subaddr, new_snapshot->caller_subaddr)) {
 		set_variable(&old_snapshot->variables, "callingsubaddr", new_snapshot->caller_subaddr);
 	}
-	if (!strcmp(old_snapshot->snapshot->dialed_subaddr, new_snapshot->dialed_subaddr)) {
+	if (strcmp(old_snapshot->snapshot->dialed_subaddr, new_snapshot->dialed_subaddr)) {
 		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->dialed_subaddr);
 	}
 }
