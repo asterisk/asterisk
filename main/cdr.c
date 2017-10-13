@@ -950,6 +950,28 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
 }
 
 /*!
+ * \internal
+ * \brief Determine if CDR flag is configured.
+ *
+ * \param cdr_flag The configured CDR flag to check.
+ *
+ * \retval 0 if the CDR flag is not configured.
+ * \retval non-zero if the CDR flag is configured.
+ *
+ * \return Nothing
+ */
+static int is_cdr_flag_set(unsigned int cdr_flag)
+{
+	struct module_config *mod_cfg;
+	int flag_set;
+
+	mod_cfg = ao2_global_obj_ref(module_configs);
+	flag_set = mod_cfg && ast_test_flag(&mod_cfg->general->settings, cdr_flag);
+	ao2_cleanup(mod_cfg);
+	return flag_set;
+}
+
+/*!
  * \brief Return whether or not a channel has changed its state in the dialplan, subject
  * to endbeforehexten logic
  *
@@ -962,12 +984,9 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
 static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	/* If we ignore hangup logic, don't indicate that we're executing anything new */
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)
-		&& ast_test_flag(&new_snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
+	if (ast_test_flag(&new_snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
+		&& is_cdr_flag_set(CDR_END_BEFORE_H_EXTEN)) {
 		return 0;
 	}
 
@@ -975,10 +994,11 @@ static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 	 * will attempt to clear the application and restore the dummy originate application
 	 * of "AppDialX". Ignore application changes to AppDialX as a result.
 	 */
-	if (strcmp(new_snapshot->appl, old_snapshot->appl) && strncasecmp(new_snapshot->appl, "appdial", 7)
+	if (strcmp(new_snapshot->appl, old_snapshot->appl)
+		&& strncasecmp(new_snapshot->appl, "appdial", 7)
 		&& (strcmp(new_snapshot->context, old_snapshot->context)
-		|| strcmp(new_snapshot->exten, old_snapshot->exten)
-		|| new_snapshot->priority != old_snapshot->priority)) {
+			|| strcmp(new_snapshot->exten, old_snapshot->exten)
+			|| new_snapshot->priority != old_snapshot->priority)) {
 		return 1;
 	}
 
@@ -1050,15 +1070,15 @@ static long cdr_object_get_duration(struct cdr_object *cdr)
  */
 static long cdr_object_get_billsec(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 	long int ms;
 
 	if (ast_tvzero(cdr->answer)) {
 		return 0;
 	}
+
 	ms = ast_tvdiff_ms(ast_tvzero(cdr->end) ? ast_tvnow() : cdr->end, cdr->answer);
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_INITIATED_SECONDS)
-		&& (ms % 1000 >= 500)) {
+	if (ms % 1000 >= 500
+		&& is_cdr_flag_set(CDR_INITIATED_SECONDS)) {
 		ms = (ms / 1000) + 1;
 	} else {
 		ms = ms / 1000;
@@ -1219,16 +1239,13 @@ static void cdr_object_dispatch(struct cdr_object *cdr)
  */
 static void cdr_object_set_disposition(struct cdr_object *cdr, int hangupcause)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	/* Change the disposition based on the hang up cause */
 	switch (hangupcause) {
 	case AST_CAUSE_BUSY:
 		cdr->disposition = AST_CDR_BUSY;
 		break;
 	case AST_CAUSE_CONGESTION:
-		if (!ast_test_flag(&mod_cfg->general->settings, CDR_CONGESTION)) {
+		if (!is_cdr_flag_set(CDR_CONGESTION)) {
 			cdr->disposition = AST_CDR_FAILED;
 		} else {
 			cdr->disposition = AST_CDR_CONGESTION;
@@ -1295,10 +1312,8 @@ static void cdr_object_finalize(struct cdr_object *cdr)
  */
 static void cdr_object_check_party_a_hangup(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)
-		&& ast_test_flag(&cdr->party_a.snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
+	if (ast_test_flag(&cdr->party_a.snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
+		&& is_cdr_flag_set(CDR_END_BEFORE_H_EXTEN)) {
 		cdr_object_finalize(cdr);
 	}
 
@@ -1361,13 +1376,11 @@ static void cdr_object_swap_snapshot(struct cdr_object_snapshot *old_snapshot,
 
 static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
 
 	/* Finalize the CDR if we're in hangup logic and we're set to do so */
 	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
-		&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
+		&& is_cdr_flag_set(CDR_END_BEFORE_H_EXTEN)) {
 		cdr_object_finalize(cdr);
 		return 0;
 	}
@@ -1655,9 +1668,6 @@ static int dial_state_process_dial_begin(struct cdr_object *cdr, struct ast_chan
  */
 static enum ast_cdr_disposition dial_status_to_disposition(const char *dial_status)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	if (!strcmp(dial_status, "ANSWER")) {
 		return AST_CDR_ANSWERED;
 	} else if (!strcmp(dial_status, "BUSY")) {
@@ -1665,7 +1675,7 @@ static enum ast_cdr_disposition dial_status_to_disposition(const char *dial_stat
 	} else if (!strcmp(dial_status, "CANCEL") || !strcmp(dial_status, "NOANSWER")) {
 		return AST_CDR_NOANSWER;
 	} else if (!strcmp(dial_status, "CONGESTION")) {
-		if (!ast_test_flag(&mod_cfg->general->settings, CDR_CONGESTION)) {
+		if (!is_cdr_flag_set(CDR_CONGESTION)) {
 			return AST_CDR_FAILED;
 		} else {
 			return AST_CDR_CONGESTION;
@@ -1875,11 +1885,8 @@ static void finalized_state_init_function(struct cdr_object *cdr)
 
 static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
-			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
+		&& is_cdr_flag_set(CDR_END_BEFORE_H_EXTEN)) {
 		return 0;
 	}
 
@@ -2051,13 +2058,10 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	/* If we're dead, we don't need a new CDR */
 	if (!new_snapshot
 		|| (ast_test_flag(&new_snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
-			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN))) {
+			&& is_cdr_flag_set(CDR_END_BEFORE_H_EXTEN))) {
 		return 0;
 	}
 
@@ -2657,8 +2661,7 @@ void ast_cdr_set_config(struct ast_cdr_config *config)
 
 int ast_cdr_is_enabled(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	return ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED);
+	return is_cdr_flag_set(CDR_ENABLED);
 }
 
 int ast_cdr_backend_suspend(const char *name)
@@ -3132,13 +3135,9 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 
 	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
-		RAII_VAR(struct module_config *, mod_cfg,
-			 ao2_global_obj_ref(module_configs), ao2_cleanup);
-
-		if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
+		if (is_cdr_flag_set(CDR_ENABLED)) {
 			ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
 		}
-
 		return 0;
 	}
 
