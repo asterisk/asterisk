@@ -21,6 +21,10 @@ res_pjsip
    than one.  The removed contact is likely the old contact created by
    "rewrite_contact" that the device is refreshing.
 
+AMI
+------------------
+ * Added a new CancelAtxfer action that cancels an attended transfer.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
