@@ -622,6 +622,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="managerEvent">AttendedTransfer</ref>
 		</see-also>
 	</manager>
+	<manager name="CancelAtxfer" language="en_US">
+		<synopsis>
+			Cancel an attended transfer.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Channel" required="true">
+				<para>The transferer channel.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Cancel an attended transfer. Note, this uses the configured cancel attended transfer
+			feature option (atxferabort) to cancel the transfer. If not available this action will fail.
+			</para>
+		</description>
+		<see-also>
+			<ref type="managerEvent">AttendedTransfer</ref>
+		</see-also>
+	</manager>
 	<manager name="Originate" language="en_US">
 		<synopsis>
 			Originate a call.
@@ -4930,6 +4949,47 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int action_cancel_atxfer(struct mansession *s, const struct message *m)
+{
+	const char *name = astman_get_header(m, "Channel");
+	struct ast_channel *chan = NULL;
+	char *feature_code;
+	const char *digit;
+
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+
+	if (!(chan = ast_channel_get_by_name(name))) {
+		astman_send_error(s, m, "Channel specified does not exist");
+		return 0;
+	}
+
+	ast_channel_lock(chan);
+	feature_code = ast_get_chan_features_atxferabort(chan);
+	ast_channel_unlock(chan);
+
+	if (!feature_code) {
+		astman_send_error(s, m, "No disconnect feature code found");
+		ast_channel_unref(chan);
+		return 0;
+	}
+
+	for (digit = feature_code; *digit; ++digit) {
+		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *digit };
+		ast_queue_frame(chan, &f);
+	}
+	ast_free(feature_code);
+
+	chan = ast_channel_unref(chan);
+
+	astman_send_ack(s, m, "CancelAtxfer successfully queued");
+
+	return 0;
+}
+
+
 static int check_blacklist(const char *cmd)
 {
 	char *cmd_copy, *cur_cmd;
@@ -8665,6 +8725,7 @@ static void manager_shutdown(void)
 	ast_manager_unregister("ListCategories");
 	ast_manager_unregister("Redirect");
 	ast_manager_unregister("Atxfer");
+	ast_manager_unregister("CancelAtxfer");
 	ast_manager_unregister("Originate");
 	ast_manager_unregister("Command");
 	ast_manager_unregister("ExtensionState");
@@ -8880,6 +8941,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("ListCategories", EVENT_FLAG_CONFIG, action_listcategories);
 		ast_manager_register_xml_core("Redirect", EVENT_FLAG_CALL, action_redirect);
 		ast_manager_register_xml_core("Atxfer", EVENT_FLAG_CALL, action_atxfer);
+		ast_manager_register_xml_core("CancelAtxfer", EVENT_FLAG_CALL, action_cancel_atxfer);
 		ast_manager_register_xml_core("Originate", EVENT_FLAG_ORIGINATE, action_originate);
 		ast_manager_register_xml_core("Command", EVENT_FLAG_COMMAND, action_command);
 		ast_manager_register_xml_core("ExtensionState", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstate);
