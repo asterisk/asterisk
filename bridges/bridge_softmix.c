@@ -573,27 +573,24 @@ static int append_all_streams(struct ast_stream_topology *dest,
  */
 static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast_bridge_channels_list *participants)
 {
-	struct ast_stream_topology *joiner_topology = NULL;
 	struct ast_stream_topology *joiner_video = NULL;
-	struct ast_stream_topology *existing_video = NULL;
 	struct ast_bridge_channel *participant;
 	int res;
+	struct softmix_channel *sc;
 
 	joiner_video = ast_stream_topology_alloc();
 	if (!joiner_video) {
 		return;
 	}
 
+	sc = joiner->tech_pvt;
+
 	ast_channel_lock(joiner->chan);
 	res = append_source_streams(joiner_video, ast_channel_name(joiner->chan), ast_channel_get_stream_topology(joiner->chan));
+	sc->topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
 	ast_channel_unlock(joiner->chan);
 
-	if (res) {
-		goto cleanup;
-	}
-
-	existing_video = ast_stream_topology_alloc();
-	if (!existing_video) {
+	if (res || !sc->topology) {
 		goto cleanup;
 	}
 
@@ -602,7 +599,7 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 			continue;
 		}
 		ast_channel_lock(participant->chan);
-		res = append_source_streams(existing_video, ast_channel_name(participant->chan),
+		res = append_source_streams(sc->topology, ast_channel_name(participant->chan),
 				ast_channel_get_stream_topology(participant->chan));
 		ast_channel_unlock(participant->chan);
 		if (res) {
@@ -610,41 +607,22 @@ static void sfu_topologies_on_join(struct ast_bridge_channel *joiner, struct ast
 		}
 	}
 
-	ast_channel_lock(joiner->chan);
-	joiner_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(joiner->chan));
-	ast_channel_unlock(joiner->chan);
-	if (!joiner_topology) {
-		goto cleanup;
-	}
-	if (append_all_streams(joiner_topology, existing_video)) {
-		goto cleanup;
-	}
-	ast_channel_request_stream_topology_change(joiner->chan, joiner_topology, NULL);
+	ast_channel_request_stream_topology_change(joiner->chan, sc->topology, NULL);
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
-		struct ast_stream_topology *participant_topology;
-
 		if (participant == joiner) {
 			continue;
 		}
-		ast_channel_lock(participant->chan);
-		participant_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(participant->chan));
-		ast_channel_unlock(participant->chan);
-		if (!participant_topology) {
+
+		sc = participant->tech_pvt;
+		if (append_all_streams(sc->topology, joiner_video)) {
 			goto cleanup;
 		}
-		if (append_all_streams(participant_topology, joiner_video)) {
-			ast_stream_topology_free(participant_topology);
-			goto cleanup;
-		}
-		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
-		ast_stream_topology_free(participant_topology);
+		ast_channel_request_stream_topology_change(participant->chan, sc->topology, NULL);
 	}
 
 cleanup:
 	ast_stream_topology_free(joiner_video);
-	ast_stream_topology_free(existing_video);
-	ast_stream_topology_free(joiner_topology);
 }
 
 /*! \brief Function called when a channel is joined into the bridge */
@@ -718,65 +696,36 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	return 0;
 }
 
-static int remove_destination_streams(struct ast_stream_topology *dest,
-	const char *channel_name,
-	const struct ast_stream_topology *source)
+static void remove_destination_streams(struct ast_stream_topology *topology,
+	const char *channel_name)
 {
 	int i;
 
-	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
+	for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
 		struct ast_stream *stream;
-		struct ast_stream *stream_clone;
 
-		stream = ast_stream_topology_get_stream(source, i);
-
-		stream_clone = ast_stream_clone(stream, NULL);
-		if (!stream_clone) {
-			continue;
-		}
+		stream = ast_stream_topology_get_stream(topology, i);
 
 		if (is_video_dest(stream, channel_name, NULL)) {
-			ast_stream_set_state(stream_clone, AST_STREAM_STATE_REMOVED);
-		}
-
-		if (ast_stream_topology_append_stream(dest, stream_clone) < 0) {
-			ast_stream_free(stream_clone);
+			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
 		}
 	}
-
-	return 0;
 }
 
 static int sfu_topologies_on_leave(struct ast_bridge_channel *leaver, struct ast_bridge_channels_list *participants)
 {
-	struct ast_stream_topology *leaver_topology;
 	struct ast_bridge_channel *participant;
-
-	leaver_topology = ast_stream_topology_alloc();
-	if (!leaver_topology) {
-		return -1;
-	}
+	struct softmix_channel *sc;
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
-		struct ast_stream_topology *participant_topology;
-
-		participant_topology = ast_stream_topology_alloc();
-		if (!participant_topology) {
-			continue;
-		}
-
-		ast_channel_lock(participant->chan);
-		remove_destination_streams(participant_topology, ast_channel_name(leaver->chan), ast_channel_get_stream_topology(participant->chan));
-		ast_channel_unlock(participant->chan);
-		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
-		ast_stream_topology_free(participant_topology);
+		sc = participant->tech_pvt;
+		remove_destination_streams(sc->topology, ast_channel_name(leaver->chan));
+		ast_channel_request_stream_topology_change(participant->chan, sc->topology, NULL);
 	}
 
-	ast_channel_lock(leaver->chan);
-	remove_destination_streams(leaver_topology, "", ast_channel_get_stream_topology(leaver->chan));
-	ast_channel_unlock(leaver->chan);
-	ast_channel_request_stream_topology_change(leaver->chan, leaver_topology, NULL);
-	ast_stream_topology_free(leaver_topology);
+	sc = leaver->tech_pvt;
+	remove_destination_streams(sc->topology, "");
+	ast_channel_request_stream_topology_change(leaver->chan, sc->topology, NULL);
 
 	return 0;
 }
@@ -805,6 +754,8 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 	}
 
 	bridge_channel->tech_pvt = NULL;
+
+	ast_stream_topology_free(sc->topology);
 
 	/* Drop mutex lock */
 	ast_mutex_destroy(&sc->lock);
@@ -1055,30 +1006,23 @@ static void sfu_topologies_on_source_change(struct ast_bridge_channel *source, s
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
 		struct ast_stream_topology *original_topology;
-		struct ast_stream_topology *participant_topology;
+		struct softmix_channel *sc;
 
 		if (participant == source) {
 			continue;
 		}
 
-		ast_channel_lock(participant->chan);
-		original_topology = ast_stream_topology_clone(ast_channel_get_stream_topology(participant->chan));
-		ast_channel_unlock(participant->chan);
-		if (!original_topology) {
-			goto cleanup;
-		}
+		sc = participant->tech_pvt;
 
-		participant_topology = ast_stream_topology_clone(original_topology);
-		if (!participant_topology) {
-			ast_stream_topology_free(original_topology);
+		original_topology = ast_stream_topology_clone(sc->topology);
+		if (!original_topology) {
 			goto cleanup;
 		}
 
 		/* We add all the source streams back in, if any removed streams are already present they will
 		 * get used first followed by appending new ones.
 		 */
-		if (append_all_streams(participant_topology, source_video)) {
-			ast_stream_topology_free(participant_topology);
+		if (append_all_streams(sc->topology, source_video)) {
 			ast_stream_topology_free(original_topology);
 			goto cleanup;
 		}
@@ -1086,14 +1030,12 @@ static void sfu_topologies_on_source_change(struct ast_bridge_channel *source, s
 		/* And the original existing streams get marked as removed. This causes the remote side to see
 		 * a new stream for the source streams.
 		 */
-		if (remove_all_original_streams(participant_topology, source_video, original_topology)) {
-			ast_stream_topology_free(participant_topology);
+		if (remove_all_original_streams(sc->topology, source_video, original_topology)) {
 			ast_stream_topology_free(original_topology);
 			goto cleanup;
 		}
 
-		ast_channel_request_stream_topology_change(participant->chan, participant_topology, NULL);
-		ast_stream_topology_free(participant_topology);
+		ast_channel_request_stream_topology_change(participant->chan, sc->topology, NULL);
 		ast_stream_topology_free(original_topology);
 	}
 
@@ -2144,7 +2086,6 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 		{ "", 4, { 0, 1, 2, 3 }, },
 	};
 	struct ast_stream_topology *orig = NULL;
-	struct ast_stream_topology *result = NULL;
 	int i;
 
 	switch (cmd) {
@@ -2168,20 +2109,11 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 	for (i = 0; i < ARRAY_LEN(removal_results); ++i) {
 		int j;
 
-		result = ast_stream_topology_alloc();
-		if (!result) {
-			ast_test_status_update(test, "Unable to allocate result stream topology\n");
-			goto end;
-		}
+		remove_destination_streams(orig, removal_results[i].channel_name);
 
-		if (remove_destination_streams(result, removal_results[i].channel_name, orig)) {
-			ast_test_status_update(test, "Failure while attempting to remove video streams\n");
-			goto end;
-		}
-
-		if (ast_stream_topology_get_count(result) != removal_results[i].num_streams) {
+		if (ast_stream_topology_get_count(orig) != removal_results[i].num_streams) {
 			ast_test_status_update(test, "Resulting topology has %d streams, when %d are expected\n",
-				ast_stream_topology_get_count(result), removal_results[i].num_streams);
+				ast_stream_topology_get_count(orig), removal_results[i].num_streams);
 			goto end;
 		}
 
@@ -2190,7 +2122,7 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 			struct ast_stream *expected;
 			int orig_index;
 
-			actual = ast_stream_topology_get_stream(result, j);
+			actual = ast_stream_topology_get_stream(orig, j);
 
 			orig_index = removal_results[i].params_index[j];
 			expected = ast_stream_topology_get_stream(orig, orig_index);
@@ -2221,7 +2153,6 @@ AST_TEST_DEFINE(sfu_remove_destination_streams)
 
 end:
 	ast_stream_topology_free(orig);
-	ast_stream_topology_free(result);
 	return res;
 }
 
