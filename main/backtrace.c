@@ -172,6 +172,7 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 		if (bfdobj) {
 			bfd_close(bfdobj);
 			ast_std_free(syms);
+			syms = NULL;
 		}
 
 		/* Default output, if we cannot find the information within BFD */
