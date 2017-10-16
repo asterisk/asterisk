@@ -115,6 +115,9 @@
    attribute. */
 #undef HAVE_ATTRIBUTE_warn_unused_result
 
+/* Define to 1 if you have the Beanstalk Job Queue library. */
+#undef HAVE_BEANSTALK
+
 /* Define to 1 if you have the Debug symbol decoding library. */
 #undef HAVE_BFD
 
