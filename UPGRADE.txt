@@ -26,6 +26,11 @@
 
 New in 16.0.0:
 
+app_macro:
+ - The app_macro module is now deprecated and by default it is no longer
+   built.  Users should migrate to app_stack (Gosub).  A warning is logged
+   the first time any Macro is used.
+
 New in 15.0.0:
 
 Build System:
