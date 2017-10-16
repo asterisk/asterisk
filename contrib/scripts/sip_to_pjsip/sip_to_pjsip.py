@@ -1203,7 +1203,7 @@ def convert(sip, filename, non_mappings, include):
     map specific sections from sip.conf into it.
     Returns the new pjsip.conf object once completed
     """
-    pjsip = astconfigparser.MultiOrderedConfigParser()
+    pjsip = sip.__class__()
     non_mappings[filename] = astdicts.MultiOrderedDict()
     nmapped = non_mapped(non_mappings[filename])
     if not include:
