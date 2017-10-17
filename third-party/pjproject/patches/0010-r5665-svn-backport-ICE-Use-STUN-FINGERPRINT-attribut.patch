@@ -1,7 +1,10 @@
-From 28490e9ddee0937516f9edcaf95d274fe5ceaf4c Mon Sep 17 00:00:00 2001
-From: Sean Bright <sean.bright@gmail.com>
-Date: Mon, 25 Sep 2017 14:06:53 -0400
-Subject: [PATCH] ICE: Use STUN FINGERPRINT attribute when sending keepalives
+From 06bc834969a34d2c60e05beed3051b4a6d34c125 Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Thu, 28 Sep 2017 10:57:23 -0500
+Subject: [PATCH 3/3] r5665 svn backport ICE: Use STUN FINGERPRINT attribute
+ when sending keepalives
+
+Fixed #2046: ICE: Use STUN FINGERPRINT attribute when sending keepalives
 
 Per RFC 5245 Section 10:
 
@@ -10,22 +13,25 @@ Per RFC 5245 Section 10:
    mechanism.  It SHOULD contain the FINGERPRINT attribute to aid in
    demultiplexing, but SHOULD NOT contain any other attributes.
 ---
- pjnath/src/pjnath/ice_session.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ pjnath/src/pjnath/ice_session.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
 diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
-index 159d7b1..f90005a 100644
+index 27a2950..63a0d1c 100644
 --- a/pjnath/src/pjnath/ice_session.c
 +++ b/pjnath/src/pjnath/ice_session.c
-@@ -1217,10 +1217,8 @@ static void ice_keep_alive(pj_ice_sess *ice, pj_bool_t send_now)
+@@ -1217,10 +1217,12 @@ static void ice_keep_alive(pj_ice_sess *ice, pj_bool_t send_now)
  	msg_data = PJ_POOL_ZALLOC_T(tdata->pool, pj_ice_msg_data);
  	msg_data->transport_id = the_check->lcand->transport_id;
  
 -	/* Temporarily disable FINGERPRINT. The Binding Indication 
 -	 * SHOULD NOT contain any attributes.
--	 */
++	/* RFC 5245 Section 10:
++	 * The Binding Indication SHOULD contain the FINGERPRINT attribute
++	 * to aid in demultiplexing, but SHOULD NOT contain any other
++	 * attributes.
+ 	 */
 -	saved = pj_stun_session_use_fingerprint(comp->stun_sess, PJ_FALSE);
-+	/* Make sure that the FINGERPRINT attribute is used per RFC 5245 Section 10 */
 +	saved = pj_stun_session_use_fingerprint(comp->stun_sess, PJ_TRUE);
  
  	/* Send to session */
