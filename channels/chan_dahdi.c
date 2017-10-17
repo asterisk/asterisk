@@ -56,11 +56,12 @@
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #include <pthread.h>
+#else
+#include <sys/sysmacros.h>
 #endif
 #include <signal.h>
 #include <sys/stat.h>
 #include <math.h>
-#include <sys/sysmacros.h>
 
 #include "sig_analog.h"
 /* Analog signaling is currently still present in chan_dahdi for use with
