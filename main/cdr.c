@@ -348,8 +348,8 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
-/*! \brief A container of the active CDRs indexed by Party A channel id */
-static struct ao2_container *active_cdrs_by_channel;
+/*! \brief A container of the active master CDRs indexed by Party A channel uniqueid */
+static struct ao2_container *active_cdrs_master;
 
 /*! \brief A container of all active CDRs indexed by Party B channel name */
 static struct ao2_container *active_cdrs_all;
@@ -709,7 +709,7 @@ struct cdr_object {
 	struct ast_flags flags;                 /*!< Flags on the CDR */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(linkedid);         /*!< Linked ID. Cached here as it may change out from party A, which must be immutable */
-		AST_STRING_FIELD(uniqueid);			/*!< Unique id of party A. Cached here as it is the primary key of this CDR */
+		AST_STRING_FIELD(uniqueid);			/*!< Unique id of party A. Cached here as it is the master CDR container key */
 		AST_STRING_FIELD(name);             /*!< Channel name of party A. Cached here as the party A address may change */
 		AST_STRING_FIELD(bridge);           /*!< The bridge the party A happens to be in. */
 		AST_STRING_FIELD(appl);             /*!< The last accepted application party A was in */
@@ -797,9 +797,12 @@ static void cdr_object_transition_state(struct cdr_object *cdr, struct cdr_objec
 		cdr->fn_table->init_function(cdr);
 	}
 }
-/*! \internal
- * \brief Hash function for containers of CDRs indexing by Party A uniqueid */
-static int cdr_object_channel_hash_fn(const void *obj, const int flags)
+
+/*!
+ * \internal
+ * \brief Hash function for master CDR container indexed by Party A uniqueid.
+ */
+static int cdr_master_hash_fn(const void *obj, const int flags)
 {
 	const struct cdr_object *cdr;
 	const char *key;
@@ -819,10 +822,11 @@ static int cdr_object_channel_hash_fn(const void *obj, const int flags)
 	return ast_str_case_hash(key);
 }
 
-/*! \internal
- * \brief Comparison function for containers of CDRs indexing by Party A uniqueid
+/*!
+ * \internal
+ * \brief Comparison function for master CDR container indexed by Party A uniqueid.
  */
-static int cdr_object_channel_cmp_fn(void *obj, void *arg, int flags)
+static int cdr_master_cmp_fn(void *obj, void *arg, int flags)
 {
     struct cdr_object *left = obj;
     struct cdr_object *right = arg;
@@ -1713,7 +1717,7 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 		struct cdr_object *cand_cdr_master;
 		struct cdr_object *cand_cdr;
 
-		cand_cdr_master = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
+		cand_cdr_master = ao2_find(active_cdrs_master, channel_id, OBJ_SEARCH_KEY);
 		if (!cand_cdr_master) {
 			continue;
 		}
@@ -1861,7 +1865,7 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 			struct cdr_object *cand_cdr_master;
 			struct cdr_object *cand_cdr;
 
-			cand_cdr_master = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
+			cand_cdr_master = ao2_find(active_cdrs_master, channel_id, OBJ_SEARCH_KEY);
 			if (!cand_cdr_master) {
 				continue;
 			}
@@ -2091,9 +2095,9 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	/* Figure out who is running this show */
 	if (caller) {
-		cdr = ao2_find(active_cdrs_by_channel, caller->uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, caller->uniqueid, OBJ_SEARCH_KEY);
 	} else {
-		cdr = ao2_find(active_cdrs_by_channel, peer->uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, peer->uniqueid, OBJ_SEARCH_KEY);
 	}
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->name : peer->name);
@@ -2248,12 +2252,12 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 			return;
 		}
 		cdr->is_root = 1;
-		ao2_link(active_cdrs_by_channel, cdr);
+		ao2_link(active_cdrs_master, cdr);
 	} else {
 		const char *uniqueid;
 
 		uniqueid = new_snapshot ? new_snapshot->uniqueid : old_snapshot->uniqueid;
-		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	/* Handle Party A */
@@ -2293,7 +2297,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 		ao2_unlock(cdr);
 
 		cdr_all_unlink(cdr);
-		ao2_unlink(active_cdrs_by_channel, cdr);
+		ao2_unlink(active_cdrs_master, cdr);
 	}
 
 	/* Handle Party B */
@@ -2383,7 +2387,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -2518,7 +2522,7 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
 	while ((channel_id = ao2_iterator_next(&it_channels))) {
 		struct cdr_object *cand_cdr;
 
-		cand_cdr = ao2_find(active_cdrs_by_channel, channel_id, OBJ_SEARCH_KEY);
+		cand_cdr = ao2_find(active_cdrs_master, channel_id, OBJ_SEARCH_KEY);
 		if (cand_cdr) {
 			bridge_candidate_process(cdr, cand_cdr);
 			ao2_ref(cand_cdr, -1);
@@ -2670,7 +2674,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -2720,7 +2724,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		ast_assert(0);
@@ -2903,7 +2907,7 @@ static int ast_cdr_generic_unregister(struct be_list *generic_list, const char *
 		return 0;
 	}
 
-	active_count = ao2_container_count(active_cdrs_by_channel);
+	active_count = ao2_container_count(active_cdrs_master);
 
 	if (!match->suspended && active_count != 0) {
 		AST_RWLIST_UNLOCK(generic_list);
@@ -3126,7 +3130,7 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 		}
 	}
 
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE, cdr_object_select_all_by_name_cb, arg);
+	it_cdrs = ao2_callback(active_cdrs_master, OBJ_MULTIPLE, cdr_object_select_all_by_name_cb, arg);
 	if (!it_cdrs) {
 		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
 		return -1;
@@ -3254,7 +3258,7 @@ static struct cdr_object *cdr_object_get_by_name(const char *name)
 	}
 
 	param = ast_strdupa(name);
-	return ao2_callback(active_cdrs_by_channel, 0, cdr_object_get_by_name_cb, param);
+	return ao2_callback(active_cdrs_master, 0, cdr_object_get_by_name_cb, param);
 }
 
 int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size_t length)
@@ -3907,7 +3911,7 @@ static char *cli_complete_show(struct ast_cli_args *a)
 	struct ao2_iterator it_cdrs;
 	struct cdr_object *cdr;
 
-	it_cdrs = ao2_iterator_init(active_cdrs_by_channel, 0);
+	it_cdrs = ao2_iterator_init(active_cdrs_master, 0);
 	while ((cdr = ao2_iterator_next(&it_cdrs))) {
 		if (!strncasecmp(a->word, cdr->party_a.snapshot->name, wordlen) &&
 			(++which > a->n)) {
@@ -3939,7 +3943,7 @@ static void cli_show_channels(struct ast_cli_args *a)
 	ast_cli(a->fd, "--------------------------------------------------\n");
 	ast_cli(a->fd, TITLE_STRING, "Channel", "Dst. Channel", "LastApp", "Start", "Answer", "End", "Billsec", "Duration");
 
-	it_cdrs = ao2_iterator_init(active_cdrs_by_channel, 0);
+	it_cdrs = ao2_iterator_init(active_cdrs_master, 0);
 	for (; (cdr = ao2_iterator_next(&it_cdrs)); ao2_cleanup(cdr)) {
 		struct cdr_object *it_cdr;
 		struct timeval start_time = { 0, };
@@ -4332,7 +4336,7 @@ static void cdr_engine_shutdown(void)
 
 	STASIS_MESSAGE_TYPE_CLEANUP(cdr_sync_message_type);
 
-	ao2_callback(active_cdrs_by_channel, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK,
+	ao2_callback(active_cdrs_master, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK,
 		cdr_object_dispatch_all_cb, NULL);
 	finalize_batch_mode();
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
@@ -4344,9 +4348,9 @@ static void cdr_engine_shutdown(void)
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(module_configs);
 
-	ao2_container_unregister("cdrs_by_channel");
-	ao2_cleanup(active_cdrs_by_channel);
-	active_cdrs_by_channel = NULL;
+	ao2_container_unregister("cdrs_master");
+	ao2_cleanup(active_cdrs_master);
+	active_cdrs_master = NULL;
 
 	ao2_container_unregister("cdrs_all");
 	ao2_cleanup(active_cdrs_all);
@@ -4375,25 +4379,28 @@ static void cdr_enable_batch_mode(struct ast_cdr_config *config)
 
 /*!
  * \internal
- * \brief Print channel object key (name).
+ * \brief Print master CDR container object.
  * \since 12.0.0
  *
- * \param v_obj A pointer to the object we want the key printed.
+ * \param v_obj A pointer to the object we want printed.
  * \param where User data needed by prnt to determine where to put output.
  * \param prnt Print output callback function to use.
  *
  * \return Nothing
  */
-static void cdr_container_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
+static void cdr_master_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {
 	struct cdr_object *cdr = v_obj;
 	struct cdr_object *it_cdr;
+
 	if (!cdr) {
 		return;
 	}
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		prnt(where, "Party A: %s; Party B: %s; Bridge %s\n", it_cdr->party_a.snapshot->name, it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->name : "<unknown>",
-				it_cdr->bridge);
+		prnt(where, "Party A: %s; Party B: %s; Bridge %s\n",
+			it_cdr->party_a.snapshot->name,
+			it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->name : "<unknown>",
+			it_cdr->bridge);
 	}
 }
 
@@ -4480,12 +4487,12 @@ int ast_cdr_engine_init(void)
 	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
 	stasis_message_router_add(stasis_router, cdr_sync_message_type(), handle_cdr_sync_message, NULL);
 
-	active_cdrs_by_channel = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		NUM_CDR_BUCKETS, cdr_object_channel_hash_fn, NULL, cdr_object_channel_cmp_fn);
-	if (!active_cdrs_by_channel) {
+	active_cdrs_master = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_CDR_BUCKETS, cdr_master_hash_fn, NULL, cdr_master_cmp_fn);
+	if (!active_cdrs_master) {
 		return -1;
 	}
-	ao2_container_register("cdrs_by_channel", active_cdrs_by_channel, cdr_container_print_fn);
+	ao2_container_register("cdrs_master", active_cdrs_master, cdr_master_print_fn);
 
 	active_cdrs_all = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		NUM_CDR_BUCKETS, cdr_all_hash_fn, NULL, cdr_all_cmp_fn);
