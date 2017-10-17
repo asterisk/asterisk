@@ -113,6 +113,58 @@ static struct ast_bridge_technology simple_bridge = {
 	.stream_topology_changed = simple_bridge_stream_topology_changed,
 };
 
+static void simple_bridge_request_stream_topology_change(struct ast_channel *chan,
+	struct ast_stream_topology *requested_topology)
+{
+	struct ast_stream_topology *existing_topology = ast_channel_get_stream_topology(chan);
+	struct ast_stream *stream;
+	struct ast_format_cap *audio_formats = NULL;
+	struct ast_stream_topology *new_topology;
+	int i;
+
+	/* We find an existing stream with negotiated audio formats that we can place into
+	 * any audio streams in the new topology to ensure that negotiation succeeds. Some
+	 * endpoints incorrectly terminate the call if SDP negotiation fails.
+	 */
+	for (i = 0; i < ast_stream_topology_get_count(existing_topology); ++i) {
+		stream = ast_stream_topology_get_stream(existing_topology, i);
+
+		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+			continue;
+		}
+
+		audio_formats = ast_stream_get_formats(stream);
+		break;
+	}
+
+	if (!audio_formats) {
+		ast_channel_request_stream_topology_change(chan, requested_topology, &simple_bridge);
+		return;
+	}
+
+	new_topology = ast_stream_topology_clone(requested_topology);
+	if (!new_topology) {
+		ast_channel_request_stream_topology_change(chan, requested_topology, &simple_bridge);
+		return;
+	}
+
+	for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
+		stream = ast_stream_topology_get_stream(new_topology, i);
+
+		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+			continue;
+		}
+
+		ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats, AST_MEDIA_TYPE_AUDIO);
+	}
+
+	ast_channel_request_stream_topology_change(chan, new_topology, &simple_bridge);
+
+	ast_stream_topology_free(new_topology);
+}
+
 static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
 		struct ast_bridge_channel *bridge_channel)
 {
@@ -135,9 +187,9 @@ static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
 
 	/* Align topologies according to size or first channel to join */
 	if (ast_stream_topology_get_count(t0) < ast_stream_topology_get_count(t1)) {
-		ast_channel_request_stream_topology_change(c0, t1, &simple_bridge);
+		simple_bridge_request_stream_topology_change(c0, t1);
 	} else {
-		ast_channel_request_stream_topology_change(c1, t0, &simple_bridge);
+		simple_bridge_request_stream_topology_change(c1, t0);
 	}
 }
 
