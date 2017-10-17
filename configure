@@ -31953,7 +31953,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcpg ${pbxlibdir} -lcpg $LIBS"
+LIBS="-lcpg ${pbxlibdir} -lcpg -lcfg $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -31995,7 +31995,7 @@ fi
 
    # now check for the header.
    if test "${AST_COROSYNC_FOUND}" = "yes"; then
-      COROSYNC_LIB="${pbxlibdir} -lcpg -lcpg"
+      COROSYNC_LIB="${pbxlibdir} -lcpg -lcpg -lcfg"
       # if --with-COROSYNC=DIR has been specified, use it.
       if test "x${COROSYNC_DIR}" != "x"; then
          COROSYNC_INCLUDE="-I${COROSYNC_DIR}/include"
