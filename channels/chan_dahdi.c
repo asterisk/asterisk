@@ -61,10 +61,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #else
 #include <sys/signal.h>
+#include <sys/sysmacros.h>
 #endif
 #include <sys/stat.h>
 #include <math.h>
-#include <sys/sysmacros.h>
 
 #include "sig_analog.h"
 /* Analog signaling is currently still present in chan_dahdi for use with
