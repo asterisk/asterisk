@@ -5415,25 +5415,13 @@ static int load_module(void)
 
 	sorcery = ast_sip_get_sorcery();
 
-	pjsip_evsub_init_module(ast_sip_get_pjsip_endpoint());
-
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Could not create scheduler for publication expiration\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	pjsip_media_type_init2(&rlmi_media_type, "application", "rlmi+xml");
-
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for publication expiration\n");
-		ast_sched_context_destroy(sched);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &str_PUBLISH);
-
-	if (ast_sip_register_service(&pubsub_module)) {
-		ast_log(LOG_ERROR, "Could not register pubsub service\n");
 		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -5443,7 +5431,6 @@ static int load_module(void)
 	if (ast_sorcery_object_register(sorcery, "subscription_persistence", subscription_persistence_alloc,
 		NULL, NULL)) {
 		ast_log(LOG_ERROR, "Could not register subscription persistence object support\n");
-		ast_sip_unregister_service(&pubsub_module);
 		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -5471,7 +5458,6 @@ static int load_module(void)
 		CHARFLDSET(struct subscription_persistence, contact_uri));
 
 	if (apply_list_configuration(sorcery)) {
-		ast_sip_unregister_service(&pubsub_module);
 		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -5480,7 +5466,6 @@ static int load_module(void)
 	if (ast_sorcery_object_register(sorcery, "inbound-publication", publication_resource_alloc,
 		NULL, NULL)) {
 		ast_log(LOG_ERROR, "Could not register subscription persistence object support\n");
-		ast_sip_unregister_service(&pubsub_module);
 		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -5489,6 +5474,27 @@ static int load_module(void)
 		resource_endpoint_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_fields_register(sorcery, "inbound-publication", "^event_", resource_event_handler, NULL);
 	ast_sorcery_reload_object(sorcery, "inbound-publication");
+
+	if (ast_sip_register_service(&pubsub_module)) {
+		ast_log(LOG_ERROR, "Could not register pubsub service\n");
+		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (pjsip_evsub_init_module(ast_sip_get_pjsip_endpoint()) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Could not initialize pjsip evsub module.\n");
+		ast_sip_unregister_service(&pubsub_module);
+		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* Once pjsip_evsub_init_module succeeds we cannot unload.
+	 * Keep all module_load errors above this point. */
+	ast_module_shutdown_ref(ast_module_info->self);
+
+	pjsip_media_type_init2(&rlmi_media_type, "application", "rlmi+xml");
+
+	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &str_PUBLISH);
 
 	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 		ast_sip_push_task(NULL, subscription_persistence_load, NULL);
