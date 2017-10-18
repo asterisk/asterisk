@@ -33793,6 +33793,110 @@ fi
 
 
 
+if test "x${PBX_SRTP_192}" != "x1" -a "${USE_SRTP_192}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_192=DIR has been specified, use it.
+   if test "x${SRTP_192_DIR}" != "x"; then
+      if test -d ${SRTP_192_DIR}/lib; then
+         pbxlibdir="-L${SRTP_192_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_192_DIR}"
+      fi
+   fi
+   pbxfuncname="srtp_crypto_policy_set_aes_cm_192_hmac_sha1_80"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SRTP_192_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_srtp2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsrtp2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsrtp2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SRTP_192_FOUND=yes
+else
+  AST_SRTP_192_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SRTP_192_FOUND}" = "yes"; then
+      SRTP_192_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP_192=DIR has been specified, use it.
+      if test "x${SRTP_192_DIR}" != "x"; then
+         SRTP_192_INCLUDE="-I${SRTP_192_DIR}/include"
+      fi
+      SRTP_192_INCLUDE="${SRTP_192_INCLUDE} "
+      if test "x" = "x" ; then	# no header, assume found
+         SRTP_192_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_192_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "" "ac_cv_header_" "$ac_includes_default"
+if test "x$ac_cv_header_" = xyes; then :
+  SRTP_192_HEADER_FOUND=1
+else
+  SRTP_192_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SRTP_192_HEADER_FOUND}" = "x0" ; then
+         SRTP_192_LIB=""
+         SRTP_192_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SRTP_192_LIB=""
+         fi
+         PBX_SRTP_192=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_192 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
 if test "x${PBX_SRTP_GCM}" != "x1" -a "${USE_SRTP_GCM}" != "no"; then
    pbxlibdir=""
    # if --with-SRTP_GCM=DIR has been specified, use it.

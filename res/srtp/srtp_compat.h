@@ -16,6 +16,18 @@
 #define crypto_policy_set_aes_gcm_128_8_auth srtp_crypto_policy_set_aes_gcm_128_8_auth
 #define crypto_policy_set_aes_gcm_256_8_auth srtp_crypto_policy_set_aes_gcm_256_8_auth
 
+#if defined(SRTP_AES_GCM_128_KEY_LEN_WSALT)
+#define AES_128_GCM_KEYSIZE_WSALT SRTP_AES_GCM_128_KEY_LEN_WSALT
+#else
+#define AES_128_GCM_KEYSIZE_WSALT SRTP_AES_128_GCM_KEYSIZE_WSALT
+#endif
+
+#if defined(SRTP_AES_GCM_256_KEY_LEN_WSALT)
+#define AES_256_GCM_KEYSIZE_WSALT SRTP_AES_GCM_256_KEY_LEN_WSALT
+#else
+#define AES_256_GCM_KEYSIZE_WSALT SRTP_AES_256_GCM_KEYSIZE_WSALT
+#endif
+
 #define err_status_t srtp_err_status_t
 #define err_status_ok srtp_err_status_ok
 #define err_status_fail srtp_err_status_fail

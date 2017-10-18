@@ -2520,6 +2520,7 @@ AST_EXT_LIB_CHECK_SHARED([SRTP], [srtp2], [srtp_init], [srtp2/srtp.h], [], [], [
 if test "x$PBX_SRTP" = x1;
 then
     AST_EXT_LIB_CHECK([SRTP_256], [srtp2], [srtp_crypto_policy_set_aes_cm_256_hmac_sha1_80])
+    AST_EXT_LIB_CHECK([SRTP_192], [srtp2], [srtp_crypto_policy_set_aes_cm_192_hmac_sha1_80])
     AST_EXT_LIB_CHECK([SRTP_GCM], [srtp2], [srtp_crypto_policy_set_aes_gcm_128_8_auth])
     AST_EXT_LIB_CHECK([SRTP_SHUTDOWN], [srtp2], [srtp_shutdown], [srtp2/srtp.h])
 
