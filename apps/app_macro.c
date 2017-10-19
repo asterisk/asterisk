@@ -26,7 +26,8 @@
  */
 
 /*** MODULEINFO
-	<support_level>core</support_level>
+	<defaultenabled>no</defaultenabled>
+	<support_level>deprecated</support_level>
 	<replacement>app_stack (GoSub)</replacement>
  ***/
 
@@ -250,10 +251,17 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	char *save_macro_offset;
 	int save_in_subroutine;
 	struct ast_datastore *macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
+	static int deprecation_notice = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"core show application macro\" for help.\n");
 		return -1;
+	}
+
+	if (!deprecation_notice) {
+		deprecation_notice = 1;
+		ast_log(LOG_WARNING, "Macro() is deprecated and will be removed from a future version of Asterisk.\n");
+		ast_log(LOG_WARNING, "Dialplan should be updated to use Gosub instead.\n");
 	}
 
 	do {
@@ -665,4 +673,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Macros");
+AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Extension Macros");

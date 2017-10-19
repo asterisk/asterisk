@@ -235,6 +235,9 @@
 			</parameter>
 			<parameter name="macro">
 				<para>Will run a macro on the called party's channel (the queue member) once the parties are connected.</para>
+				<note>
+					<para>Macros are deprecated, GoSub should be used instead.</para>
+				</note>
 			</parameter>
 			<parameter name="gosub">
 				<para>Will run a gosub on the called party's channel (the queue member) once the parties are connected.</para>

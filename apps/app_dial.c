@@ -324,6 +324,10 @@
 					<warning><para>Be aware of the limitations that macros have, specifically with regards to use of
 					the <literal>WaitExten</literal> application. For more information, see the documentation for
 					<literal>Macro()</literal>.</para></warning>
+					<note>
+						<para>Macros are deprecated, GoSub should be used instead,
+						see the <literal>U</literal> option.</para>
+					</note>
 				</option>
 				<option name="n">
 					<argument name="delete">

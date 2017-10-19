@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 15 to Asterisk 16 --------------------
 ------------------------------------------------------------------------------
 
+app_macro
+------------------
+ * The app_macro module is now deprecated and by default it is no longer
+   built.  Users should migrate to app_stack (Gosub).  A warning is logged
+   the first time any Macro is used.
+
 chan_sip
 ------------------
  * New function SIP_HEADERS() enumerates all headers in the incoming INVITE.
