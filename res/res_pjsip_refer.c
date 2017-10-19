@@ -1211,6 +1211,8 @@ static int load_module(void)
 	ast_sip_register_service(&refer_progress_module);
 	ast_sip_session_register_supplement(&refer_supplement);
 
+	ast_module_shutdown_ref(ast_module_info->self);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
