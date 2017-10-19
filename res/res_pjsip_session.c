@@ -2654,6 +2654,36 @@ static void session_inv_on_new_session(pjsip_inv_session *inv, pjsip_event *e)
 	/* XXX STUB */
 }
 
+static int session_end_if_disconnected(int id, pjsip_inv_session *inv)
+{
+	struct ast_sip_session *session;
+
+	if (inv->state != PJSIP_INV_STATE_DISCONNECTED) {
+		return 0;
+	}
+
+	/*
+	 * We are locking because ast_sip_dialog_get_session() needs
+	 * the dialog locked to get the session by other threads.
+	 */
+	pjsip_dlg_inc_lock(inv->dlg);
+	session = inv->mod_data[id];
+	inv->mod_data[id] = NULL;
+	pjsip_dlg_dec_lock(inv->dlg);
+
+	/*
+	 * Pass the session ref held by session->inv_session to
+	 * session_end_completion().
+	 */
+	if (session
+		&& ast_sip_push_task(session->serializer, session_end_completion, session)) {
+		/* Do it anyway even though this is not the right thread. */
+		session_end_completion(session);
+	}
+
+	return 1;
+}
+
 static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
 {
 	ast_sip_session_response_cb cb;
@@ -2678,6 +2708,17 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		/* The session has ended.  Ignore the transaction change. */
 		return;
 	}
+
+	/*
+	 * If the session is disconnected really nothing else to do unless currently transacting
+	 * a BYE. If a BYE then hold off destruction until the transaction timeout occurs. This
+	 * has to be done for BYEs because sometimes the dialog can be in a disconnected
+	 * state but the BYE request transaction has not yet completed.
+	 */
+	if (tsx->method.id != PJSIP_BYE_METHOD && session_end_if_disconnected(id, inv)) {
+		return;
+	}
+
 	switch (e->body.tsx_state.type) {
 	case PJSIP_EVENT_TX_MSG:
 		/* When we create an outgoing request, we do not have access to the transaction that
@@ -2800,49 +2841,12 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		}
 		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
-		if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
-			/*
-			 * Clear the module data now to block session_inv_on_state_changed()
-			 * from calling session_end() if it hasn't already done so.
-			 */
-			inv->mod_data[id] = NULL;
-
-			/*
-			 * Pass the session ref held by session->inv_session to
-			 * session_end_completion().
-			 */
-			if (session
-				&& ast_sip_push_task(session->serializer, session_end_completion, session)) {
-				/* Do it anyway even though this is not the right thread. */
-				session_end_completion(session);
-			}
-			return;
-		}
-		break;
 	case PJSIP_EVENT_TIMER:
 		/*
 		 * The timer event is run by the pjsip monitor thread and not
 		 * by the session serializer.
 		 */
-		if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
-			/*
-			 * We are locking because ast_sip_dialog_get_session() needs
-			 * the dialog locked to get the session by other threads.
-			 */
-			pjsip_dlg_inc_lock(inv->dlg);
-			session = inv->mod_data[id];
-			inv->mod_data[id] = NULL;
-			pjsip_dlg_dec_lock(inv->dlg);
-
-			/*
-			 * Pass the session ref held by session->inv_session to
-			 * session_end_completion().
-			 */
-			if (session
-				&& ast_sip_push_task(session->serializer, session_end_completion, session)) {
-				/* Do it anyway even though this is not the right thread. */
-				session_end_completion(session);
-			}
+		if (session_end_if_disconnected(id, inv)) {
 			return;
 		}
 		break;
