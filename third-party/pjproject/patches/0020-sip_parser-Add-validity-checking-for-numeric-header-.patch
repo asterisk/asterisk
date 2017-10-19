@@ -1,0 +1,973 @@
+From b21042956dc4d3526052d5030953e5c565bb0895 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Thu, 2 Nov 2017 08:23:00 -0600
+Subject: [PATCH] sip_parser: Add validity checking for numeric header values
+
+Parsing the numeric header fields like cseq, ttl, port, etc. all
+had the potential to overflow, either causing unintended values to
+be captured or, if the values were subsequently converted back to
+strings, a buffer overrun.  To address this, new "strto" functions
+have been created that do range checking and those functions are
+used wherever possible in the parser.
+
+ * Created pjlib/include/limits.h and pjlib/include/compat/limits.h
+   to either include the system limits.h or define common numeric
+   limits if there is no system limits.h.
+
+ * Created strto*_validate functions in sip_parser that take bounds
+   and on failure call the on_str_parse_error function which prints
+   an error message and calls PJ_THROW.
+
+ * Updated sip_parser to validate the numeric fields.
+
+ * Fixed an issue in sip_transport that prevented error messages
+   from being properly displayed.
+
+ * Added "volatile" to some variables referenced in PJ_CATCH blocks
+   as the optimizer was sometimes optimizing them away.
+
+ * Fixed length calculation in sip_transaction/create_tsx_key_2543
+   to account for signed ints being 11 characters, not 9.
+
+Reported by: Youngsung Kim at LINE Corporation
+---
+ pjlib/build/pjlib.vcproj           |  14 +++-
+ pjlib/build/pjlib.vcxproj          |   4 +-
+ pjlib/build/pjlib.vcxproj.filters  |   6 ++
+ pjlib/include/pj/compat/limits.h   |  65 +++++++++++++++
+ pjlib/include/pj/compat/os_win32.h |   1 +
+ pjlib/include/pj/limits.h          |  51 ++++++++++++
+ pjlib/include/pj/string.h          |  46 +++++++++-
+ pjlib/include/pj/types.h           |   3 -
+ pjlib/src/pj/string.c              | 119 +++++++++++++++++++++++++-
+ pjlib/src/pj/timer.c               |   1 +
+ pjsip/include/pjsip/sip_parser.h   |  25 ++++++
+ pjsip/src/pjsip/sip_parser.c       | 166 +++++++++++++++++++++++++++++--------
+ pjsip/src/pjsip/sip_transaction.c  |   4 +-
+ pjsip/src/pjsip/sip_transport.c    |   7 +-
+ 14 files changed, 463 insertions(+), 49 deletions(-)
+ create mode 100644 pjlib/include/pj/compat/limits.h
+ create mode 100644 pjlib/include/pj/limits.h
+
+diff --git a/pjlib/build/pjlib.vcproj b/pjlib/build/pjlib.vcproj
+index 6a217a0b7..12592ef94 100644
+--- a/pjlib/build/pjlib.vcproj
++++ b/pjlib/build/pjlib.vcproj
+@@ -14967,7 +14967,11 @@
+ 			</File>
+ 			<File
+ 				RelativePath="..\include\pj\ip_helper.h"
+-				>
++				>
++			</File>
++			<File
++				RelativePath="..\include\pj\limits.h"
++				>
+ 			</File>
+ 			<File
+ 				RelativePath="..\include\pj\list.h"
+@@ -15070,8 +15074,12 @@
+ 				</File>
+ 				<File
+ 					RelativePath="..\include\pj\compat\high_precision.h"
+-					>
+-				</File>
++					>
++				</File>
++				<File
++					RelativePath="..\include\pj\compat\limits.h"
++					>
++				</File>
+ 				<File
+ 					RelativePath="..\include\pj\compat\m_alpha.h"
+ 					>
+diff --git a/pjlib/build/pjlib.vcxproj b/pjlib/build/pjlib.vcxproj
+index abf09ec44..e41731e3c 100644
+--- a/pjlib/build/pjlib.vcxproj
++++ b/pjlib/build/pjlib.vcxproj
+@@ -494,7 +494,7 @@
+       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">true</ExcludedFromBuild>
+       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+     </ClCompile>
+-    <ClCompile Include="..\src\pj\file_io_win32.c" />    
++    <ClCompile Include="..\src\pj\file_io_win32.c" />
+     <ClCompile Include="..\src\pj\guid.c" />
+     <ClCompile Include="..\src\pj\guid_simple.c">
+       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug-Dynamic|Win32'">true</ExcludedFromBuild>
+@@ -890,6 +890,7 @@
+     <ClInclude Include="..\include\pj\compat\ctype.h" />
+     <ClInclude Include="..\include\pj\compat\errno.h" />
+     <ClInclude Include="..\include\pj\compat\high_precision.h" />
++    <ClInclude Include="..\include\pj\compat\limits.h" />
+     <ClInclude Include="..\include\pj\compat\malloc.h" />
+     <ClInclude Include="..\include\pj\compat\m_alpha.h" />
+     <ClInclude Include="..\include\pj\compat\m_i386.h" />
+@@ -925,6 +926,7 @@
+     <ClInclude Include="..\include\pj\hash.h" />
+     <ClInclude Include="..\include\pj\ioqueue.h" />
+     <ClInclude Include="..\include\pj\ip_helper.h" />
++    <ClInclude Include="..\include\pj\limits.h" />
+     <ClInclude Include="..\include\pj\list.h" />
+     <ClInclude Include="..\include\pj\list_i.h" />
+     <ClInclude Include="..\include\pj\lock.h" />
+diff --git a/pjlib/build/pjlib.vcxproj.filters b/pjlib/build/pjlib.vcxproj.filters
+index 0b5cbf109..6f343b019 100644
+--- a/pjlib/build/pjlib.vcxproj.filters
++++ b/pjlib/build/pjlib.vcxproj.filters
+@@ -439,5 +439,11 @@
+     <ClInclude Include="..\include\pj\compat\os_winuwp.h">
+       <Filter>Header Files\compat</Filter>
+     </ClInclude>
++    <ClInclude Include="..\include\pj\limits.h">
++      <Filter>Header Files</Filter>
++    </ClInclude>
++    <ClInclude Include="..\include\pj\compat\limits.h">
++      <Filter>Header Files\compat</Filter>
++    </ClInclude>
+   </ItemGroup>
+ </Project>
+\ No newline at end of file
+diff --git a/pjlib/include/pj/compat/limits.h b/pjlib/include/pj/compat/limits.h
+new file mode 100644
+index 000000000..fba0625df
+--- /dev/null
++++ b/pjlib/include/pj/compat/limits.h
+@@ -0,0 +1,65 @@
++/* $Id$ */
++/*
++ * Copyright (C) 2017 Teluu Inc. (http://www.teluu.com)
++ * Copyright (C) 2017 George Joseph <gjoseph@digium.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
++ */
++#ifndef __PJ_COMPAT_LIMITS_H__
++#define __PJ_COMPAT_LIMITS_H__
++
++/**
++ * @file limits.h
++ * @brief Provides integer limits normally found in limits.h.
++ */
++
++#if defined(PJ_HAS_LIMITS_H) && PJ_HAS_LIMITS_H != 0
++#  include <limits.h>
++#else
++
++#  ifdef _MSC_VER
++#  pragma message("limits.h is not found or not supported. LONG_MIN and "\
++		 "LONG_MAX will be defined by the library in "\
++		 "pj/compats/limits.h and overridable in config_site.h")
++#  else
++#  warning "limits.h is not found or not supported. LONG_MIN and LONG_MAX " \
++           "will be defined by the library in pj/compats/limits.h and "\
++           "overridable in config_site.h"
++#  endif
++
++/* Minimum and maximum values a `signed long int' can hold.  */
++#  ifndef LONG_MAX
++#    if __WORDSIZE == 64
++#      define LONG_MAX     9223372036854775807L
++#    else
++#      define LONG_MAX     2147483647L
++#    endif
++#  endif
++
++#  ifndef LONG_MIN
++#    define LONG_MIN      (-LONG_MAX - 1L)
++#  endif
++
++/* Maximum value an `unsigned long int' can hold.  (Minimum is 0.)  */
++#  ifndef ULONG_MAX
++#    if __WORDSIZE == 64
++#      define ULONG_MAX    18446744073709551615UL
++#    else    
++#      define ULONG_MAX    4294967295UL
++#    endif
++#  endif
++#endif
++
++#endif  /* __PJ_COMPAT_LIMITS_H__ */
+diff --git a/pjlib/include/pj/compat/os_win32.h b/pjlib/include/pj/compat/os_win32.h
+index 4fa8b21ea..9b18e4eb1 100644
+--- a/pjlib/include/pj/compat/os_win32.h
++++ b/pjlib/include/pj/compat/os_win32.h
+@@ -57,6 +57,7 @@
+ #define PJ_HAS_SYS_TYPES_H	    1
+ #define PJ_HAS_TIME_H		    1
+ #define PJ_HAS_UNISTD_H		    0
++#define PJ_HAS_LIMITS_H		    1
+ 
+ #define PJ_HAS_MSWSOCK_H	    1
+ #define PJ_HAS_WINSOCK_H	    0
+diff --git a/pjlib/include/pj/limits.h b/pjlib/include/pj/limits.h
+new file mode 100644
+index 000000000..8b00ae52a
+--- /dev/null
++++ b/pjlib/include/pj/limits.h
+@@ -0,0 +1,51 @@
++/* $Id$ */
++/*
++ * Copyright (C) 2017 Teluu Inc. (http://www.teluu.com)
++ * Copyright (C) 2017 George Joseph <gjoseph@digium.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
++ */
++#ifndef __PJ_LIMITS_H__
++#define __PJ_LIMITS_H__
++
++/**
++ * @file limits.h
++ * @brief Common min and max values
++ */
++
++#include <pj/compat/limits.h>
++
++/** Maximum value for signed 32-bit integer. */
++#define PJ_MAXINT32	0x7fffffff
++
++/** Minimum value for signed 32-bit integer. */
++#define PJ_MININT32	0x80000000
++
++/** Maximum value for unsigned 16-bit integer. */
++#define PJ_MAXUINT16	0xffff
++
++/** Maximum value for unsigned char. */
++#define PJ_MAXUINT8	0xff
++
++/** Maximum value for long. */
++#define PJ_MAXLONG	LONG_MAX
++
++/** Minimum value for long. */
++#define PJ_MINLONG	LONG_MIN
++
++/** Minimum value for unsigned long. */
++#define PJ_MAXULONG	ULONG_MAX
++
++#endif  /* __PJ_LIMITS_H__ */
+diff --git a/pjlib/include/pj/string.h b/pjlib/include/pj/string.h
+index 70a1d6c8c..5de236a65 100644
+--- a/pjlib/include/pj/string.h
++++ b/pjlib/include/pj/string.h
+@@ -28,7 +28,6 @@
+ #include <pj/types.h>
+ #include <pj/compat/string.h>
+ 
+-
+ PJ_BEGIN_DECL
+ 
+ /**
+@@ -636,6 +635,29 @@ PJ_DECL(char*) pj_create_random_string(char *str, pj_size_t length);
+ PJ_DECL(long) pj_strtol(const pj_str_t *str);
+ 
+ /**
++ * Convert string to signed long integer. The conversion will stop as
++ * soon as non-digit character is found or all the characters have
++ * been processed.
++ *
++ * @param str   the string.
++ * @param value Pointer to a long to receive the value.
++ *
++ * @return PJ_SUCCESS if successful.  Otherwise:
++ *         PJ_ETOOSMALL if the value was an impossibly long negative number.
++ *         In this case *value will be set to LONG_MIN.
++ *         \n
++ *         PJ_ETOOBIG if the value was an impossibly long positive number.
++ *         In this case, *value will be set to LONG_MAX.
++ *         \n
++ *         PJ_EINVAL if the input string was NULL, the value pointer was NULL 
++ *         or the input string could not be parsed at all such as starting with
++ *         a character other than a '+', '-' or not in the '0' - '9' range.
++ *         In this case, *value will be left untouched.
++ */
++PJ_DECL(pj_status_t) pj_strtol2(const pj_str_t *str, long *value);
++
++
++/**
+  * Convert string to unsigned integer. The conversion will stop as
+  * soon as non-digit character is found or all the characters have
+  * been processed.
+@@ -664,6 +686,27 @@ PJ_DECL(unsigned long) pj_strtoul2(const pj_str_t *str, pj_str_t *endptr,
+ 				   unsigned base);
+ 
+ /**
++ * Convert string to unsigned long integer. The conversion will stop as
++ * soon as non-digit character is found or all the characters have
++ * been processed.
++ *
++ * @param str       The input string.
++ * @param value     Pointer to an unsigned long to receive the value.
++ * @param base	    Number base to use.
++ *
++ * @return PJ_SUCCESS if successful.  Otherwise:
++ *         PJ_ETOOBIG if the value was an impossibly long positive number.
++ *         In this case, *value will be set to ULONG_MAX.
++ *         \n
++ *         PJ_EINVAL if the input string was NULL, the value pointer was NULL 
++ *         or the input string could not be parsed at all such as starting 
++ *         with a character outside the base character range.  In this case,
++ *         *value will be left untouched.
++ */
++PJ_DECL(pj_status_t) pj_strtoul3(const pj_str_t *str, unsigned long *value,
++				 unsigned base);
++
++/**
+  * Convert string to float.
+  *
+  * @param str	the string.
+@@ -786,7 +829,6 @@ PJ_INLINE(void*) pj_memchr(const void *buf, int c, pj_size_t size)
+     return (void*)memchr((void*)buf, c, size);
+ }
+ 
+-
+ /**
+  * @}
+  */
+diff --git a/pjlib/include/pj/types.h b/pjlib/include/pj/types.h
+index 0e0e2d9a7..8c9f78238 100644
+--- a/pjlib/include/pj/types.h
++++ b/pjlib/include/pj/types.h
+@@ -280,9 +280,6 @@ typedef int pj_exception_id_t;
+ /** Utility macro to compute the number of elements in static array. */
+ #define PJ_ARRAY_SIZE(a)    (sizeof(a)/sizeof(a[0]))
+ 
+-/** Maximum value for signed 32-bit integer. */
+-#define PJ_MAXINT32  0x7FFFFFFFL
+-
+ /**
+  * Length of object names.
+  */
+diff --git a/pjlib/src/pj/string.c b/pjlib/src/pj/string.c
+index 307cfb47e..b95f141be 100644
+--- a/pjlib/src/pj/string.c
++++ b/pjlib/src/pj/string.c
+@@ -23,11 +23,14 @@
+ #include <pj/ctype.h>
+ #include <pj/rand.h>
+ #include <pj/os.h>
++#include <pj/errno.h>
++#include <pj/limits.h>
+ 
+ #if PJ_FUNCTIONS_ARE_INLINED==0
+ #  include <pj/string_i.h>
+ #endif
+ 
++
+ PJ_DEF(pj_ssize_t) pj_strspn(const pj_str_t *str, const pj_str_t *set_char)
+ {
+     pj_ssize_t i, j, count = 0;
+@@ -230,6 +233,55 @@ PJ_DEF(long) pj_strtol(const pj_str_t *str)
+         return pj_strtoul(str);
+ }
+ 
++
++PJ_DEF(pj_status_t) pj_strtol2(const pj_str_t *str, long *value)
++{
++    pj_str_t s;
++    unsigned long retval = 0;
++    pj_bool_t is_negative = PJ_FALSE;
++    int rc = 0;
++
++    PJ_CHECK_STACK();
++
++    if (!str || !value) {
++        return PJ_EINVAL;
++    }
++
++    s = *str;
++    pj_strltrim(&s);
++
++    if (s.slen == 0)
++        return PJ_EINVAL;
++
++    if (s.ptr[0] == '+' || s.ptr[0] == '-') {
++        is_negative = (s.ptr[0] == '-');
++        s.ptr += 1;
++        s.slen -= 1;
++    }
++
++    rc = pj_strtoul3(&s, &retval, 10);
++    if (rc == PJ_EINVAL) {
++        return rc;
++    } else if (rc != PJ_SUCCESS) {
++        *value = is_negative ? PJ_MINLONG : PJ_MAXLONG;
++        return is_negative ? PJ_ETOOSMALL : PJ_ETOOBIG;
++    }
++
++    if (retval > PJ_MAXLONG && !is_negative) {
++        *value = PJ_MAXLONG;
++        return PJ_ETOOBIG;
++    }
++
++    if (retval > (PJ_MAXLONG + 1UL) && is_negative) {
++        *value = PJ_MINLONG;
++        return PJ_ETOOSMALL;
++    }
++
++    *value = is_negative ? -(long)retval : retval;
++
++    return PJ_SUCCESS;
++}
++
+ PJ_DEF(unsigned long) pj_strtoul(const pj_str_t *str)
+ {
+     unsigned long value;
+@@ -282,6 +334,71 @@ PJ_DEF(unsigned long) pj_strtoul2(const pj_str_t *str, pj_str_t *endptr,
+     return value;
+ }
+ 
++PJ_DEF(pj_status_t) pj_strtoul3(const pj_str_t *str, unsigned long *value,
++				unsigned base)
++{
++    pj_str_t s;
++    unsigned i;
++
++    PJ_CHECK_STACK();
++
++    if (!str || !value) {
++        return PJ_EINVAL;
++    }
++
++    s = *str;
++    pj_strltrim(&s);
++
++    if (s.slen == 0 || s.ptr[0] < '0' ||
++	(base <= 10 && (unsigned)s.ptr[0] > ('0' - 1) + base) ||
++	(base == 16 && !pj_isxdigit(s.ptr[0])))
++    {
++        return PJ_EINVAL;
++    }
++
++    *value = 0;
++    if (base <= 10) {
++	for (i=0; i<(unsigned)s.slen; ++i) {
++	    unsigned c = s.ptr[i] - '0';
++	    if (s.ptr[i] < '0' || (unsigned)s.ptr[i] > ('0' - 1) + base) {
++		break;
++	    }
++	    if (*value > PJ_MAXULONG / base) {
++		*value = PJ_MAXULONG;
++		return PJ_ETOOBIG;
++	    }
++
++	    *value *= base;
++	    if ((PJ_MAXULONG - *value) < c) {
++		*value = PJ_MAXULONG;
++		return PJ_ETOOBIG;
++	    }
++	    *value += c;
++	}
++    } else if (base == 16) {
++	for (i=0; i<(unsigned)s.slen; ++i) {
++	    unsigned c = pj_hex_digit_to_val(s.ptr[i]);
++	    if (!pj_isxdigit(s.ptr[i]))
++		break;
++
++	    if (*value > PJ_MAXULONG / base) {
++		*value = PJ_MAXULONG;
++		return PJ_ETOOBIG;
++	    }
++	    *value *= base;
++	    if ((PJ_MAXULONG - *value) < c) {
++		*value = PJ_MAXULONG;
++		return PJ_ETOOBIG;
++	    }
++	    *value += c;
++	}
++    } else {
++	pj_assert(!"Unsupported base");
++	return PJ_EINVAL;
++    }
++    return PJ_SUCCESS;
++}
++
+ PJ_DEF(float) pj_strtof(const pj_str_t *str)
+ {
+     pj_str_t part;
+@@ -356,5 +473,3 @@ PJ_DEF(int) pj_utoa_pad( unsigned long val, char *buf, int min_dig, int pad)
+ 
+     return len;
+ }
+-
+-
+diff --git a/pjlib/src/pj/timer.c b/pjlib/src/pj/timer.c
+index 225be4498..399e114a8 100644
+--- a/pjlib/src/pj/timer.c
++++ b/pjlib/src/pj/timer.c
+@@ -36,6 +36,7 @@
+ #include <pj/lock.h>
+ #include <pj/log.h>
+ #include <pj/rand.h>
++#include <pj/limits.h>
+ 
+ #define THIS_FILE	"timer.c"
+ 
+diff --git a/pjsip/include/pjsip/sip_parser.h b/pjsip/include/pjsip/sip_parser.h
+index 0d767f0ad..5691fed3a 100644
+--- a/pjsip/include/pjsip/sip_parser.h
++++ b/pjsip/include/pjsip/sip_parser.h
+@@ -39,6 +39,26 @@ PJ_BEGIN_DECL
+  */
+ 
+ /**
++ * Contants for limit checks
++ */
++#define PJSIP_MIN_CONTENT_LENGTH    0
++#define PJSIP_MAX_CONTENT_LENGTH    PJ_MAXINT32
++#define PJSIP_MIN_PORT		    0
++#define PJSIP_MAX_PORT		    PJ_MAXUINT16
++#define PJSIP_MIN_TTL		    0
++#define PJSIP_MAX_TTL		    PJ_MAXUINT8
++#define PJSIP_MIN_STATUS_CODE	    100
++#define PJSIP_MAX_STATUS_CODE	    999
++#define PJSIP_MIN_Q1000		    0
++#define PJSIP_MAX_Q1000		    PJ_MAXINT32 / 1000
++#define PJSIP_MIN_EXPIRES	    0
++#define PJSIP_MAX_EXPIRES	    PJ_MAXINT32
++#define PJSIP_MIN_CSEQ		    0
++#define PJSIP_MAX_CSEQ		    PJ_MAXINT32
++#define PJSIP_MIN_RETRY_AFTER	    0
++#define PJSIP_MAX_RETRY_AFTER	    PJ_MAXINT32
++
++/**
+  * URI Parsing options.
+  */
+ enum
+@@ -64,6 +84,11 @@ enum
+ extern int PJSIP_SYN_ERR_EXCEPTION;
+ 
+ /**
++ * Invalid value error exception value.
++ */
++extern int PJSIP_EINVAL_ERR_EXCEPTION;
++
++/**
+  * This structure is used to get error reporting from parser.
+  */
+ typedef struct pjsip_parser_err_report
+diff --git a/pjsip/src/pjsip/sip_parser.c b/pjsip/src/pjsip/sip_parser.c
+index cf3b879f6..f9a0e65b5 100644
+--- a/pjsip/src/pjsip/sip_parser.c
++++ b/pjsip/src/pjsip/sip_parser.c
+@@ -34,6 +34,7 @@
+ #include <pj/string.h>
+ #include <pj/ctype.h>
+ #include <pj/assert.h>
++#include <pj/limits.h>
+ 
+ #define THIS_FILE	    "sip_parser.c"
+ 
+@@ -93,6 +94,7 @@ static unsigned uri_handler_count;
+  * Global vars (also extern).
+  */
+ int PJSIP_SYN_ERR_EXCEPTION = -1;
++int PJSIP_EINVAL_ERR_EXCEPTION = -2;
+ 
+ /* Parser constants */
+ static pjsip_parser_const_t pconst =
+@@ -205,7 +207,6 @@ static unsigned long pj_strtoul_mindigit(const pj_str_t *str,
+ /* Case insensitive comparison */
+ #define parser_stricmp(s1, s2)  (s1.slen!=s2.slen || pj_stricmp_alnum(&s1, &s2))
+ 
+-
+ /* Get a token and unescape */
+ PJ_INLINE(void) parser_get_and_unescape(pj_scanner *scanner, pj_pool_t *pool,
+ 					const pj_cis_t *spec, 
+@@ -223,8 +224,6 @@ PJ_INLINE(void) parser_get_and_unescape(pj_scanner *scanner, pj_pool_t *pool,
+ #endif
+ }
+ 
+-
+-
+ /* Syntax error handler for parser. */
+ static void on_syntax_error(pj_scanner *scanner)
+ {
+@@ -232,6 +231,60 @@ static void on_syntax_error(pj_scanner *scanner)
+     PJ_THROW(PJSIP_SYN_ERR_EXCEPTION);
+ }
+ 
++/* Syntax error handler for parser. */
++static void on_str_parse_error(const pj_str_t *str, int rc)
++{
++    char *s;
++
++    switch(rc) {
++    case PJ_EINVAL:
++        s = "NULL input string, invalid input string, or NULL return "\
++	    "value pointer";
++        break;
++    case PJ_ETOOSMALL:
++        s = "String value was less than the minimum allowed value.";
++        break;
++    case PJ_ETOOBIG:
++        s = "String value was greater than the maximum allowed value.";
++        break;
++    default:
++        s = "Unknown error";
++    }
++
++    if (str) {
++        PJ_LOG(1, (THIS_FILE, "Error parsing '%.*s': %s",
++                   (int)str->slen, str->ptr, s));
++    } else {
++        PJ_LOG(1, (THIS_FILE, "Can't parse input string: %s", s));
++    }
++    PJ_THROW(PJSIP_EINVAL_ERR_EXCEPTION);
++}
++
++static void strtoi_validate(const pj_str_t *str, int min_val,
++			    int max_val, int *value)
++{ 
++    long retval;
++    pj_status_t status;
++
++    if (!str || !value) {
++        on_str_parse_error(str, PJ_EINVAL);
++    }
++    status = pj_strtol2(str, &retval);
++    if (status != PJ_EINVAL) {
++	if (min_val > retval) {
++	    *value = min_val;
++	    status = PJ_ETOOSMALL;
++	} else if (retval > max_val) {
++	    *value = max_val;
++	    status = PJ_ETOOBIG;
++	} else
++	    *value = (int)retval;
++    }
++
++    if (status != PJ_SUCCESS)
++	on_str_parse_error(str, status);
++}
++
+ /* Get parser constants. */
+ PJ_DEF(const pjsip_parser_const_t*) pjsip_parser_const(void)
+ {
+@@ -285,6 +338,14 @@ static pj_status_t init_parser()
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+ 
+     /*
++     * Invalid value exception.
++     */
++    pj_assert (PJSIP_EINVAL_ERR_EXCEPTION == -2);
++    status = pj_exception_id_alloc("PJSIP invalid value error", 
++				   &PJSIP_EINVAL_ERR_EXCEPTION);
++    PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
++
++    /*
+      * Init character input spec (cis)
+      */
+ 
+@@ -502,6 +563,9 @@ void deinit_sip_parser(void)
+ 	/* Deregister exception ID */
+ 	pj_exception_id_free(PJSIP_SYN_ERR_EXCEPTION);
+ 	PJSIP_SYN_ERR_EXCEPTION = -1;
++
++	pj_exception_id_free(PJSIP_EINVAL_ERR_EXCEPTION);
++	PJSIP_EINVAL_ERR_EXCEPTION = -2;
+     }
+     pj_leave_critical_section();
+ }
+@@ -766,7 +830,7 @@ PJ_DEF(pjsip_msg *) pjsip_parse_rdata( char *buf, pj_size_t size,
+ }
+ 
+ /* Determine if a message has been received. */
+-PJ_DEF(pj_bool_t) pjsip_find_msg( const char *buf, pj_size_t size, 
++PJ_DEF(pj_status_t) pjsip_find_msg( const char *buf, pj_size_t size, 
+ 				  pj_bool_t is_datagram, pj_size_t *msg_size)
+ {
+ #if PJ_HAS_TCP
+@@ -776,6 +840,7 @@ PJ_DEF(pj_bool_t) pjsip_find_msg( const char *buf, pj_size_t size,
+     const char *line;
+     int content_length = -1;
+     pj_str_t cur_msg;
++    pj_status_t status = PJ_SUCCESS;
+     const pj_str_t end_hdr = { "\n\r\n", 3};
+ 
+     *msg_size = size;
+@@ -836,9 +901,16 @@ PJ_DEF(pj_bool_t) pjsip_find_msg( const char *buf, pj_size_t size,
+ 		pj_scan_get_newline(&scanner);
+ 
+ 		/* Found a valid Content-Length header. */
+-		content_length = pj_strtoul(&str_clen);
++		strtoi_validate(&str_clen, PJSIP_MIN_CONTENT_LENGTH,
++				PJSIP_MAX_CONTENT_LENGTH, &content_length);
+ 	    }
+ 	    PJ_CATCH_ANY {
++		int eid = PJ_GET_EXCEPTION();
++		if (eid == PJSIP_SYN_ERR_EXCEPTION) {
++		    status = PJSIP_EMISSINGHDR;
++		} else if (eid == PJSIP_EINVAL_ERR_EXCEPTION) {
++		    status = PJSIP_EINVALIDHDR;
++		}
+ 		content_length = -1;
+ 	    }
+ 	    PJ_END
+@@ -858,7 +930,7 @@ PJ_DEF(pj_bool_t) pjsip_find_msg( const char *buf, pj_size_t size,
+ 
+     /* Found Content-Length? */
+     if (content_length == -1) {
+-	return PJSIP_EMISSINGHDR;
++	return status;
+     }
+ 
+     /* Enough packet received? */
+@@ -938,10 +1010,14 @@ static pj_bool_t is_next_sip_version(pj_scanner *scanner)
+ static pjsip_msg *int_parse_msg( pjsip_parse_ctx *ctx,
+ 				 pjsip_parser_err_report *err_list)
+ {
+-    pj_bool_t parsing_headers;
+-    pjsip_msg *msg = NULL;
++    /* These variables require "volatile" so their values get
++     * preserved when re-entering the PJ_TRY block after an error.
++     */
++    volatile pj_bool_t parsing_headers;
++    pjsip_msg *volatile msg = NULL;
++    pjsip_ctype_hdr *volatile ctype_hdr = NULL;
++
+     pj_str_t hname;
+-    pjsip_ctype_hdr *ctype_hdr = NULL;
+     pj_scanner *scanner = ctx->scanner;
+     pj_pool_t *pool = ctx->pool;
+     PJ_USE_EXCEPTION;
+@@ -1023,7 +1099,6 @@ parse_headers:
+ 		hdr->name = hdr->sname = hname;
+ 	    }
+ 	    
+-	
+ 	    /* Single parse of header line can produce multiple headers.
+ 	     * For example, if one Contact: header contains Contact list
+ 	     * separated by comma, then these Contacts will be split into
+@@ -1267,7 +1342,7 @@ static void int_parse_uri_host_port( pj_scanner *scanner,
+ 	pj_str_t port;
+ 	pj_scan_get_char(scanner);
+ 	pj_scan_get(scanner, &pconst.pjsip_DIGIT_SPEC, &port);
+-	*p_port = pj_strtoul(&port);
++	strtoi_validate(&port, PJSIP_MIN_PORT, PJSIP_MAX_PORT, p_port);
+     } else {
+ 	*p_port = 0;
+     }
+@@ -1458,8 +1533,8 @@ static void* int_parse_sip_url( pj_scanner *scanner,
+ 	    url->transport_param = pvalue;
+ 
+ 	} else if (!parser_stricmp(pname, pconst.pjsip_TTL_STR) && pvalue.slen) {
+-	    url->ttl_param = pj_strtoul(&pvalue);
+-
++	    strtoi_validate(&pvalue, PJSIP_MIN_TTL, PJSIP_MAX_TTL,
++			    &url->ttl_param);
+ 	} else if (!parser_stricmp(pname, pconst.pjsip_MADDR_STR) && pvalue.slen) {
+ 	    url->maddr_param = pvalue;
+ 
+@@ -1595,7 +1670,8 @@ static void int_parse_status_line( pj_scanner *scanner,
+ 
+     parse_sip_version(scanner);
+     pj_scan_get( scanner, &pconst.pjsip_DIGIT_SPEC, &token);
+-    status_line->code = pj_strtoul(&token);
++    strtoi_validate(&token, PJSIP_MIN_STATUS_CODE, PJSIP_MAX_STATUS_CODE,
++                    &status_line->code);
+     if (*scanner->curptr != '\r' && *scanner->curptr != '\n')
+ 	pj_scan_get( scanner, &pconst.pjsip_NOT_NEWLINE, &status_line->reason);
+     else
+@@ -1780,20 +1856,34 @@ static void int_parse_contact_param( pjsip_contact_hdr *hdr,
+ 	if (!parser_stricmp(pname, pconst.pjsip_Q_STR) && pvalue.slen) {
+ 	    char *dot_pos = (char*) pj_memchr(pvalue.ptr, '.', pvalue.slen);
+ 	    if (!dot_pos) {
+-		hdr->q1000 = pj_strtoul(&pvalue) * 1000;
++		strtoi_validate(&pvalue, PJSIP_MIN_Q1000, PJSIP_MAX_Q1000,
++                                &hdr->q1000);
++		hdr->q1000 *= 1000;
+ 	    } else {
+ 		pj_str_t tmp = pvalue;
++		unsigned long qval_frac;
+ 
+ 		tmp.slen = dot_pos - pvalue.ptr;
+-		hdr->q1000 = pj_strtoul(&tmp) * 1000;
++		strtoi_validate(&tmp, PJSIP_MIN_Q1000, PJSIP_MAX_Q1000,
++                                &hdr->q1000);
++                hdr->q1000 *= 1000;
+ 
+ 		pvalue.slen = (pvalue.ptr+pvalue.slen) - (dot_pos+1);
+ 		pvalue.ptr = dot_pos + 1;
+-		hdr->q1000 += pj_strtoul_mindigit(&pvalue, 3);
++		if (pvalue.slen > 3) {
++		    pvalue.slen = 3;
++		}
++		qval_frac = pj_strtoul_mindigit(&pvalue, 3);
++		if ((unsigned)hdr->q1000 > (PJ_MAXINT32 - qval_frac)) {
++		    PJ_THROW(PJSIP_SYN_ERR_EXCEPTION);
++		}
++		hdr->q1000 += qval_frac;
+ 	    }    
+-	} else if (!parser_stricmp(pname, pconst.pjsip_EXPIRES_STR) && pvalue.slen) {
+-	    hdr->expires = pj_strtoul(&pvalue);
+-
++	} else if (!parser_stricmp(pname, pconst.pjsip_EXPIRES_STR) && 
++                   pvalue.slen) 
++        {
++	    strtoi_validate(&pvalue, PJSIP_MIN_EXPIRES, PJSIP_MAX_EXPIRES,
++                            &hdr->expires);
+ 	} else {
+ 	    pjsip_param *p = PJ_POOL_ALLOC_T(pool, pjsip_param);
+ 	    p->name = pname;
+@@ -1890,19 +1980,22 @@ static pjsip_hdr* parse_hdr_content_type( pjsip_parse_ctx *ctx )
+ static pjsip_hdr* parse_hdr_cseq( pjsip_parse_ctx *ctx )
+ {
+     pj_str_t cseq, method;
+-    pjsip_cseq_hdr *hdr;
++    pjsip_cseq_hdr *hdr = NULL;
++    int cseq_val = 0;
+ 
+-    hdr = pjsip_cseq_hdr_create(ctx->pool);
+     pj_scan_get( ctx->scanner, &pconst.pjsip_DIGIT_SPEC, &cseq);
+-    hdr->cseq = pj_strtoul(&cseq);
++    strtoi_validate(&cseq, PJSIP_MIN_CSEQ, PJSIP_MAX_CSEQ, &cseq_val);
+ 
+-    pj_scan_get( ctx->scanner, &pconst.pjsip_TOKEN_SPEC, &method);
+-    pjsip_method_init_np(&hdr->method, &method);
++    hdr = pjsip_cseq_hdr_create(ctx->pool);
++    hdr->cseq = cseq_val;
+ 
++    pj_scan_get( ctx->scanner, &pconst.pjsip_TOKEN_SPEC, &method);
+     parse_hdr_end( ctx->scanner );
+ 
+-    if (ctx->rdata)
++    pjsip_method_init_np(&hdr->method, &method);
++    if (ctx->rdata) {
+         ctx->rdata->msg_info.cseq = hdr;
++    }
+ 
+     return (pjsip_hdr*)hdr;
+ }
+@@ -1984,7 +2077,8 @@ static pjsip_hdr* parse_hdr_retry_after(pjsip_parse_ctx *ctx)
+     hdr = pjsip_retry_after_hdr_create(ctx->pool, 0);
+     
+     pj_scan_get(scanner, &pconst.pjsip_DIGIT_SPEC, &tmp);
+-    hdr->ivalue = pj_strtoul(&tmp);
++    strtoi_validate(&tmp, PJSIP_MIN_RETRY_AFTER, PJSIP_MAX_RETRY_AFTER,
++                    &hdr->ivalue);
+ 
+     while (!pj_scan_is_eof(scanner) && *scanner->curptr!='\r' &&
+ 	   *scanner->curptr!='\n')
+@@ -2073,7 +2167,8 @@ static void int_parse_via_param( pjsip_via_hdr *hdr, pj_scanner *scanner,
+ 	    hdr->branch_param = pvalue;
+ 
+ 	} else if (!parser_stricmp(pname, pconst.pjsip_TTL_STR) && pvalue.slen) {
+-	    hdr->ttl_param = pj_strtoul(&pvalue);
++	    strtoi_validate(&pvalue, PJSIP_MIN_TTL, PJSIP_MAX_TTL,
++                            &hdr->ttl_param);
+ 	    
+ 	} else if (!parser_stricmp(pname, pconst.pjsip_MADDR_STR) && pvalue.slen) {
+ 	    hdr->maddr_param = pvalue;
+@@ -2082,9 +2177,10 @@ static void int_parse_via_param( pjsip_via_hdr *hdr, pj_scanner *scanner,
+ 	    hdr->recvd_param = pvalue;
+ 
+ 	} else if (!parser_stricmp(pname, pconst.pjsip_RPORT_STR)) {
+-	    if (pvalue.slen)
+-		hdr->rport_param = pj_strtoul(&pvalue);
+-	    else
++	    if (pvalue.slen) {
++		strtoi_validate(&pvalue, PJSIP_MIN_PORT, PJSIP_MAX_PORT,
++			        &hdr->rport_param);
++            } else
+ 		hdr->rport_param = 0;
+ 	} else {
+ 	    pjsip_param *p = PJ_POOL_ALLOC_T(pool, pjsip_param);
+@@ -2213,7 +2309,8 @@ static pjsip_hdr* parse_hdr_via( pjsip_parse_ctx *ctx )
+ 	    pj_str_t digit;
+ 	    pj_scan_get_char(scanner);
+ 	    pj_scan_get(scanner, &pconst.pjsip_DIGIT_SPEC, &digit);
+-	    hdr->sent_by.port = pj_strtoul(&digit);
++	    strtoi_validate(&digit, PJSIP_MIN_PORT, PJSIP_MAX_PORT,
++                            &hdr->sent_by.port);
+ 	}
+ 	
+ 	int_parse_via_param(hdr, scanner, ctx->pool);
+@@ -2298,9 +2395,10 @@ PJ_DEF(pj_status_t) pjsip_parse_headers( pj_pool_t *pool, char *input,
+ 				         unsigned options)
+ {
+     enum { STOP_ON_ERROR = 1 };
++    pj_str_t hname;
+     pj_scanner scanner;
+     pjsip_parse_ctx ctx;
+-    pj_str_t hname;
++
+     PJ_USE_EXCEPTION;
+ 
+     pj_scan_init(&scanner, input, size, PJ_SCAN_AUTOSKIP_WS_HEADER,
+@@ -2323,7 +2421,7 @@ retry_parse:
+ 	     */
+ 	    hname.slen = 0;
+ 
+-	    /* Get hname. */
++	    /* Get hname. */            
+ 	    pj_scan_get( &scanner, &pconst.pjsip_TOKEN_SPEC, &hname);
+ 	    if (pj_scan_get_char( &scanner ) != ':') {
+ 		PJ_THROW(PJSIP_SYN_ERR_EXCEPTION);
+diff --git a/pjsip/src/pjsip/sip_transaction.c b/pjsip/src/pjsip/sip_transaction.c
+index f3be93beb..7ac3d1b76 100644
+--- a/pjsip/src/pjsip/sip_transaction.c
++++ b/pjsip/src/pjsip/sip_transaction.c
+@@ -289,11 +289,11 @@ static pj_status_t create_tsx_key_2543( pj_pool_t *pool,
+ 
+     /* Calculate length required. */
+     len_required = method->name.slen +      /* Method */
+-                   9 +			    /* CSeq number */
++                   11 +			    /* CSeq number */
+ 		   rdata->msg_info.from->tag.slen +   /* From tag. */
+ 		   rdata->msg_info.cid->id.slen +    /* Call-ID */
+ 		   host->slen +		    /* Via host. */
+-		   9 +			    /* Via port. */
++		   11 +			    /* Via port. */
+ 		   16;			    /* Separator+Allowance. */
+     key = p = (char*) pj_pool_alloc(pool, len_required);
+ 
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index 0c338e8fd..b24cbb411 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -1848,7 +1848,7 @@ PJ_DEF(pj_ssize_t) pjsip_tpmgr_receive_packet( pjsip_tpmgr *mgr,
+ 	/* Check for parsing syntax error */
+ 	if (msg==NULL || !pj_list_empty(&rdata->msg_info.parse_err)) {
+ 	    pjsip_parser_err_report *err;
+-	    char buf[128];
++	    char buf[256];
+ 	    pj_str_t tmp;
+ 
+ 	    /* Gather syntax error information */
+@@ -1862,7 +1862,10 @@ PJ_DEF(pj_ssize_t) pjsip_tpmgr_receive_packet( pjsip_tpmgr *mgr,
+ 				       pj_exception_id_name(err->except_code),
+ 				       (int)err->hname.slen, err->hname.ptr,
+ 				       err->line, err->col);
+-		if (len > 0 && len < (int) (sizeof(buf)-tmp.slen)) {
++		if (len >= (int)sizeof(buf)-tmp.slen) {
++		    len = (int)sizeof(buf)-tmp.slen;
++		}
++		if (len > 0) {
+ 		    tmp.slen += len;
+ 		}
+ 		err = err->next;
+-- 
+2.13.6
+
