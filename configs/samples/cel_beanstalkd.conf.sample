@@ -1,0 +1,21 @@
+;
+; Beanstalkd Job Queue Server CEL Backend
+;
+[general]
+
+; Backend Activation
+;
+; Use the 'enabled' keyword to turn CEL logging
+; on or off.
+;
+; Accepted values: yes and no
+; Default value:   no
+;enabled = yes
+
+;host = 127.0.0.1    ; Specify the remote IP address of the Beanstalkd server
+;port = 11300        ; Specify the remote PORT of the the Beanstalkd server
+;tube = asterisk-cel ; Specify the default CDR job queue to use
+;priority = 99       ; Specify the default job priority for the queue. This parameter is useful when building
+                     ; platform with multiple Asterisk servers, that are used for different functions. For example,
+                     ; none billable CDR records can be inserted with a priority of 99, while billable ones be
+                     ; inserted with a priority of 1
