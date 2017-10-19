@@ -22635,7 +22635,12 @@ static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		} else if (!strcasecmp(what, "off")) {
 			sipdebug &= ~sip_debug_console;
 			sipdebug_text = 0;
-			ast_cli(a->fd, "SIP Debugging Disabled\n");
+			if (sipdebug == sip_debug_none) {
+				ast_cli(a->fd, "SIP Debugging Disabled\n");
+			} else {
+				ast_cli(a->fd, "SIP Debugging still enabled due to configuration.\n");
+				ast_cli(a->fd, "Set sipdebug=no in sip.conf and reload to actually disable.\n");
+			}
 			return CLI_SUCCESS;
 		}
 	} else if (a->argc == e->args + 1) { /* ip/peer */
