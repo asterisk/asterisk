@@ -3652,13 +3652,6 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 		return -1;
 	}
 
-	if (!ast_strlen_zero(clientcfg->refresh_token)) {
-		ast_debug(2, "Obtaining OAuth access token for client '%s'\n", client->name);
-		if (fetch_access_token(clientcfg)) {
-			return -1;
-		}
-	}
-
 	ast_xmpp_client_disconnect(client);
 
 	client->timeout = 50;
@@ -3667,6 +3660,13 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 	if (!client->filter && !(client->filter = iks_filter_new())) {
 		ast_log(LOG_ERROR, "Could not create IKS filter for client connection '%s'\n", client->name);
 		return -1;
+	}
+
+	if (!ast_strlen_zero(clientcfg->refresh_token)) {
+		ast_debug(2, "Obtaining OAuth access token for client '%s'\n", client->name);
+		if (fetch_access_token(clientcfg)) {
+			return -1;
+		}
 	}
 
 	/* If it's a component connect to user otherwise connect to server */
