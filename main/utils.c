@@ -722,13 +722,8 @@ static void lock_info_destroy(void *data)
 AST_THREADSTORAGE_CUSTOM(thread_lock_info, NULL, lock_info_destroy);
 #endif /* ! LOW_MEMORY */
 
-#ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt)
-#else
-void ast_store_lock_info(enum ast_lock_type type, const char *filename,
-	int line_num, const char *func, const char *lock_name, void *lock_addr)
-#endif
 {
 #if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
@@ -910,11 +905,7 @@ void ast_restore_lock_info(void *lock_addr)
 }
 
 
-#ifdef HAVE_BKTR
 void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
-#else
-void ast_remove_lock_info(void *lock_addr)
-#endif
 {
 #if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
