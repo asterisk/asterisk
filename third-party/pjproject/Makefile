@@ -61,6 +61,9 @@ ifeq ($(SPECIAL_TARGETS),)
                 TARGETS += source/pjsip-apps/src/python/_pjsua.so
             endif
         endif
+        ifeq ($(AST_DEVMODE),yes)
+            CF += -DPJPROJECT_BUNDLED_ASSERTIONS=yes
+        endif
         ifeq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),MALLOC_DEBUG)
             CF += -DMALLOC_DEBUG
             MALLOC_DEBUG_LIBS = source/pjsip-apps/lib/libasterisk_malloc_debug.a

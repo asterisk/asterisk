@@ -27,7 +27,10 @@
 #define PJMEDIA_HAS_WEBRTC_AEC 0
 
 #define PJ_HAS_IPV6 1
+#if !defined(AST_DEVMODE) && !defined(PJPROJECT_BUNDLED_ASSERTIONS)
 #define NDEBUG 1
+#endif
+
 #define PJ_MAX_HOSTNAME (256)
 #define PJSIP_MAX_URL_SIZE (512)
 #ifdef PJ_HAS_LINUX_EPOLL
