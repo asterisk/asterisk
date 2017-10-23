@@ -1335,6 +1335,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	enum ast_media_type media_type = session_media->type;
 	struct ast_sip_session_media *session_media_transport;
+	pj_sockaddr ip;
 
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		ast_format_cap_count(session->direct_media_cap);
@@ -1447,13 +1448,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		media->conn->addr_type = STR_IP4;
 		pj_strdup2(pool, &media->conn->addr, hostip);
 
-		if (!ast_strlen_zero(session->endpoint->media.address)) {
-			pj_sockaddr ip;
-
-			if ((pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &media->conn->addr, &ip) == PJ_SUCCESS) &&
-				(ip.addr.sa_family == pj_AF_INET6())) {
-				media->conn->addr_type = STR_IP6;
-			}
+		if ((pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &media->conn->addr, &ip) == PJ_SUCCESS) &&
+			(ip.addr.sa_family == pj_AF_INET6())) {
+			media->conn->addr_type = STR_IP6;
 		}
 
 		/* Add ICE attributes and candidates */
