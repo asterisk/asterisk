@@ -81,7 +81,7 @@
 				<enum name = "INVALID"><para>The specified agent is invalid.</para></enum>
 				<enum name = "ALREADY_LOGGED_IN"><para>The agent is already logged in.</para></enum>
 			</enumlist>
-			<note><para>The Agents:<replaceable>AgentId</replaceable> device state is
+			<note><para>The Agent:<replaceable>AgentId</replaceable> device state is
 			available to monitor the status of the agent.</para></note>
 		</description>
 		<see-also>
