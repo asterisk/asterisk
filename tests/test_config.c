@@ -959,7 +959,8 @@ AST_TEST_DEFINE(config_hook)
 {
 	enum ast_test_result_state res = AST_TEST_FAIL;
 	enum config_hook_flags hook_flags = { 0, };
-	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_flags config_flags = { 0 };
+	struct ast_flags reload_flags = { CONFIG_FLAG_FILEUNCHANGED };
 	struct ast_config *cfg;
 
 	switch (cmd) {
@@ -1027,7 +1028,7 @@ AST_TEST_DEFINE(config_hook)
 	 * Hook should not run
 	 */
 	hook_run = 0;
-	cfg = ast_config_load(CONFIG_FILE, config_flags);
+	cfg = ast_config_load(CONFIG_FILE, reload_flags);
 	/* Only destroy this cfg conditionally. Otherwise a crash happens. */
 	if (cfg != CONFIG_STATUS_FILEUNCHANGED) {
 		ast_config_destroy(cfg);
