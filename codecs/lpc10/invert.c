@@ -93,7 +93,8 @@ extern int invert_(integer *order, real *phi, real *psi, real *rc);
 /* Subroutine */ int invert_(integer *order, real *phi, real *psi, real *rc)
 {
     /* System generated locals */
-    integer phi_dim1, phi_offset, i__1, i__2, i__3;
+    unsigned i__2;
+    integer phi_dim1, phi_offset, i__1, i__3;
     real r__1, r__2;
 
     /* Local variables */
