@@ -13806,11 +13806,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			case SDP_AUDIO:
 				if (needaudio) {
 					add_content(resp, ast_str_buffer(m_audio));
-					add_content(resp, ast_str_buffer(a_audio));
-					add_content(resp, hold);
 					if (a_crypto) {
 						add_content(resp, a_crypto);
 					}
+					add_content(resp, ast_str_buffer(a_audio));
+					add_content(resp, hold);
 				} else {
 					add_content(resp, offer->decline_m_line);
 				}
@@ -13856,11 +13856,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* generate new SDP from scratch, no offers */
 		if (needaudio) {
 			add_content(resp, ast_str_buffer(m_audio));
-			add_content(resp, ast_str_buffer(a_audio));
-			add_content(resp, hold);
 			if (a_crypto) {
 				add_content(resp, a_crypto);
 			}
+			add_content(resp, ast_str_buffer(a_audio));
+			add_content(resp, hold);
 		}
 		if (needvideo) { /* only if video response is appropriate */
 			add_content(resp, ast_str_buffer(m_video));
