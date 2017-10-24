@@ -1,3 +1,14 @@
+From 34f25c67f17be80814ddb16edc6c76d30213ca1b Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Thu, 23 Feb 2017 17:11:00 -0600
+Subject: [PATCH 2/3] 0000-set_apps_initial_log_level.patch
+
+---
+ pjsip-apps/src/pjsua/main.c             | 2 ++
+ pjsip-apps/src/pjsystest/main_console.c | 2 ++
+ pjsip-apps/src/python/_pjsua.c          | 3 ++-
+ 3 files changed, 6 insertions(+), 1 deletion(-)
+
 diff --git a/pjsip-apps/src/pjsua/main.c b/pjsip-apps/src/pjsua/main.c
 index 2baaf82..11831f2 100644
 --- a/pjsip-apps/src/pjsua/main.c
@@ -37,3 +48,6 @@ index fb80e23..c9b21d8 100644
      PyEval_InitThreads();
  
      if (PyType_Ready(&PyTyp_pjsua_callback) < 0)
+-- 
+2.7.4
+
