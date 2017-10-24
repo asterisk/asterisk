@@ -268,15 +268,17 @@
 				<configOption name="ice_support" default="no">
 					<synopsis>Enable the ICE mechanism to help traverse NAT</synopsis>
 				</configOption>
-				<configOption name="identify_by" default="username,location">
+				<configOption name="identify_by" default="username,ip">
 					<synopsis>Way(s) for Endpoint to be identified</synopsis>
 					<description><para>
 						Endpoints and aors can be identified in multiple ways. Currently, the supported
 						options are <literal>username</literal>, which matches the endpoint or aor id based on
-						the username and domain in the From header (or To header for aors), and
+						the username and domain in the From header (or To header for aors),
 						<literal>auth_username</literal>, which matches the endpoint or aor id based on the
-						username and realm in the Authentication header.  In all cases, if an exact match
-						on both username and domain/realm fails, the match will be retried with just the username.
+						username and realm in the Authentication header, and <literal>ip</literal> which matches
+						an endpoint based on the source IP address.  In the <literal>username</literal> and
+						<literal>auth_username</literal> cases, if an exact match on both username and
+						domain/realm fails, the match will be retried with just the username.
 						</para>
 						<note><para>
 						Identification by auth_username has some security considerations because an
@@ -292,14 +294,19 @@
 						configuration object.
 						</para></note>
 						<note><para>Endpoints can also be identified by IP address; however, that method
-						of identification is not handled by this configuration option. See the documentation
-						for the <literal>identify</literal> configuration section for more details on that
-						method of endpoint identification. If this option is set and an <literal>identify</literal>
-						configuration section exists for the endpoint, then the endpoint can be identified in
-						multiple ways.</para></note>
+						of identification is not configured but simply allowed by this configuration option.
+						See the documentation for the <literal>identify</literal> configuration section for
+						more details on that method of endpoint identification.</para></note>
+						<note><para>
+						This option controls both how an endpoint is matched for incoming traffic and also how
+						an AoR is determined if a registration occurs. If <literal>ip</literal> is set alone
+						then incoming registration will not find an AoR and the registration attempt will fail.
+						If you want to allow incoming registrations to succeed you must set a second identify
+						method such as <literal>username</literal> in this case.</para></note>
 						<enumlist>
 							<enum name="username" />
 							<enum name="auth_username" />
+							<enum name="ip" />
 						</enumlist>
 					</description>
 				</configOption>
