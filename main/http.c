@@ -451,9 +451,12 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
 	char timebuf[80];
+	char buf[256];
+	int len;
 	int content_length = 0;
 	int close_connection;
 	struct ast_str *server_header_field = ast_str_create(MAX_SERVER_NAME_LENGTH);
+	int send_content;
 
 	if (!ser || !ser->f || !server_header_field) {
 		/* The connection is not open. */
@@ -504,6 +507,8 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		lseek(fd, 0, SEEK_SET);
 	}
 
+	send_content = method != AST_HTTP_HEAD || status_code >= 400;
+
 	/* send http header */
 	if (fprintf(ser->f,
 		"HTTP/1.1 %d %s\r\n"
@@ -513,46 +518,30 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		"%s"
 		"%s"
 		"Content-Length: %d\r\n"
-		"\r\n",
+		"\r\n"
+		"%s",
 		status_code, status_title ? status_title : "OK",
 		ast_str_buffer(server_header_field),
 		timebuf,
 		close_connection ? "Connection: close\r\n" : "",
 		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
 		http_header ? ast_str_buffer(http_header) : "",
-		content_length
+		content_length,
+		send_content && out && ast_str_strlen(out) ? ast_str_buffer(out) : ""
 		) <= 0) {
 		ast_debug(1, "fprintf() failed: %s\n", strerror(errno));
 		close_connection = 1;
-	}
-
-	/* send content */
-	if (!close_connection && (method != AST_HTTP_HEAD || status_code >= 400)) {
-		if (out && ast_str_strlen(out)) {
+	} else if (send_content && fd) {
+		/* send file content */
+		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			/*
 			 * NOTE: Because ser->f is a non-standard FILE *, fwrite() will probably not
 			 * behave exactly as documented.
 			 */
-			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
+			if (fwrite(buf, len, 1, ser->f) != 1) {
 				ast_debug(1, "fwrite() failed: %s\n", strerror(errno));
 				close_connection = 1;
-			}
-		}
-
-		if (fd) {
-			char buf[256];
-			int len;
-
-			while ((len = read(fd, buf, sizeof(buf))) > 0) {
-				/*
-				 * NOTE: Because ser->f is a non-standard FILE *, fwrite() will probably not
-				 * behave exactly as documented.
-				 */
-				if (fwrite(buf, len, 1, ser->f) != 1) {
-					ast_debug(1, "fwrite() failed: %s\n", strerror(errno));
-					close_connection = 1;
-					break;
-				}
+				break;
 			}
 		}
 	}
