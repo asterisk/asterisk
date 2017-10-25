@@ -1,3 +1,11 @@
+# We switched download locations so Asterisk users don't bombard the Teluu
+# site with download requests.
+#
+# For future reference when upgrading bundled PJPROJECT the next time
+# PJPROJECT is released.
+# Teluu's download URL.
+# PJPROJECT_URL ?= http://www.pjsip.org/release/$(PJPROJECT_VERSION)
+
 PJPROJECT_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/pjproject/$(PJPROJECT_VERSION)
 
 # PJPROJECT_CONFIGURE_OPTS could come from the command line or could be
