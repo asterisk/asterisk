@@ -399,6 +399,7 @@ static void session_media_dtor(void *obj)
 	}
 
 	ast_free(session_media->mid);
+	ast_free(session_media->remote_mslabel);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
@@ -553,6 +554,70 @@ static int set_mid_and_bundle_group(struct ast_sip_session *session,
 	return 0;
 }
 
+static void set_remote_mslabel_and_stream_group(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media,
+	const pjmedia_sdp_session *sdp,
+	const struct pjmedia_sdp_media *stream,
+	struct ast_stream *asterisk_stream)
+{
+	int index;
+
+	ast_free(session_media->remote_mslabel);
+	session_media->remote_mslabel = NULL;
+
+	for (index = 0; index < stream->attr_count; ++index) {
+		pjmedia_sdp_attr *attr = stream->attr[index];
+		char attr_value[pj_strlen(&attr->value) + 1];
+		char *ssrc_attribute_name, *ssrc_attribute_value = NULL;
+		char *msid, *tmp = attr_value;
+		static const pj_str_t STR_msid = { "msid", 4 };
+		static const pj_str_t STR_ssrc = { "ssrc", 4 };
+
+		if (!pj_strcmp(&attr->name, &STR_msid)) {
+			ast_copy_pj_str(attr_value, &attr->value, sizeof(attr_value));
+			msid = strsep(&tmp, " ");
+			session_media->remote_mslabel = ast_strdup(msid);
+			break;
+		} else if (!pj_strcmp(&attr->name, &STR_ssrc)) {
+			ast_copy_pj_str(attr_value, &attr->value, sizeof(attr_value));
+
+			if ((ssrc_attribute_name = strchr(attr_value, ' '))) {
+				/* This has an actual attribute */
+				*ssrc_attribute_name++ = '\0';
+				ssrc_attribute_value = strchr(ssrc_attribute_name, ':');
+				if (ssrc_attribute_value) {
+					/* Values are actually optional according to the spec */
+					*ssrc_attribute_value++ = '\0';
+				}
+
+				if (!strcasecmp(ssrc_attribute_name, "mslabel") && !ast_strlen_zero(ssrc_attribute_value)) {
+					session_media->remote_mslabel = ast_strdup(ssrc_attribute_value);
+					break;
+				}
+			}
+		}
+	}
+
+	if (ast_strlen_zero(session_media->remote_mslabel)) {
+		return;
+	}
+
+	/* Iterate through the existing streams looking for a match and if so then group this with it */
+	for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {
+		struct ast_sip_session_media *group_session_media;
+
+		group_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
+
+		if (ast_strlen_zero(group_session_media->remote_mslabel) ||
+			strcmp(group_session_media->remote_mslabel, session_media->remote_mslabel)) {
+			continue;
+		}
+
+		ast_stream_set_group(asterisk_stream, index);
+		break;
+	}
+}
+
 static void remove_stream_from_bundle(struct ast_sip_session_media *session_media,
 	struct ast_stream *stream)
 {
@@ -630,6 +695,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		}
 
 		set_mid_and_bundle_group(session, session_media, sdp, remote_stream);
+		set_remote_mslabel_and_stream_group(session, session_media, sdp, remote_stream, stream);
 
 		if (session_media->handler) {
 			handler = session_media->handler;
@@ -730,6 +796,7 @@ static int handle_negotiated_sdp_session_media(struct ast_sip_session_media *ses
 	ast_copy_pj_str(media, &local->media[index]->desc.media, sizeof(media));
 
 	set_mid_and_bundle_group(session, session_media, remote, remote->media[index]);
+	set_remote_mslabel_and_stream_group(session, session_media, remote, remote->media[index], asterisk_stream);
 
 	handler = session_media->handler;
 	if (handler) {

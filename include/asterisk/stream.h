@@ -476,4 +476,25 @@ struct ast_stream *ast_stream_topology_get_first_stream_by_type(
 void ast_stream_topology_map(const struct ast_stream_topology *topology,
 	struct ast_vector_int *types, struct ast_vector_int *v0, struct ast_vector_int *v1);
 
+/*!
+ * \brief Get the stream group that a stream is part of
+ *
+ * \param stream The stream
+ *
+ * \return the numerical stream group (-1 if not in a group)
+ *
+ * \since 15.2.0
+ */
+int ast_stream_get_group(const struct ast_stream *stream);
+
+/*!
+ * \brief Set the stream group for a stream
+ *
+ * \param stream The stream
+ * \param group The group the stream is part of
+ *
+ * \since 15.2.0
+ */
+void ast_stream_set_group(struct ast_stream *stream, int group);
+
 #endif /* _AST_STREAM_H */
