@@ -1690,10 +1690,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			"Name: %s\n"
 			"    Type: %s\n"
 			"    State: %s\n"
+			"    Group: %d\n"
 			"    Formats: %s\n",
 			ast_stream_get_name(stream),
 			ast_codec_media_type2str(ast_stream_get_type(stream)),
 			ast_stream_state2str(ast_stream_get_state(stream)),
+			ast_stream_get_group(stream),
 			ast_format_cap_get_names(ast_stream_get_formats(stream), &codec_buf)
 			);
 	}
