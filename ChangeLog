@@ -1,3 +1,38 @@
+2017-10-25 20:05 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.7.0-rc2 Released.
+
+2017-10-22 17:32 +0000 [578028dfa6]  Joshua Colp <jcolp@digium.com>
+
+	* res_xmpp: Ensure the connection filter is available.
+
+	  Users of the API that res_xmpp provides expect that a
+	  filter be available on the client at all times. When
+	  OAuth authentication support was added this requirement
+	  was not maintained.
+
+	  This change merely moves the OAuth authentication to
+	  after the filter is created, ensuring users of res_xmpp
+	  can add things to the filter as needed.
+
+	  ASTERISK-27346
+
+	  Change-Id: I4ac474afe220e833288ff574e32e2b9a23394886
+	  (cherry picked from commit 07e17fd04ffcf204400898660a4c118666596d5d)
+
+2017-10-23 13:42 +0000 [d82bd19ed1]  Ben Ford <bford@digium.com>
+
+	* http.c: Fix http header send content.
+
+	  Currently ast_http_send barricades a portion of the content that
+	  needs to be sent in order to establish a connection for things
+	  like the ARI client. The conditional and contents have been changed
+	  to ensure that everything that needs to be sent, will be sent.
+
+	  ASTERISK-27372
+
+	  Change-Id: I8816d2d8f80f4fefc6dcae4b5fdfc97f1e46496d
+
 2017-10-13 18:05 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.7.0-rc1 Released.
