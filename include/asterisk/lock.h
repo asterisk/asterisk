@@ -240,13 +240,8 @@ enum ast_lock_type {
  * lock info struct.  The lock is marked as pending as the thread is waiting
  * on the lock.  ast_mark_lock_acquired() will mark it as held by this thread.
  */
-#ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt);
-#else
-void ast_store_lock_info(enum ast_lock_type type, const char *filename,
-	int line_num, const char *func, const char *lock_name, void *lock_addr);
-#endif /* HAVE_BKTR */
 
 /*!
  * \brief Mark the last lock as acquired
@@ -264,11 +259,7 @@ void ast_mark_lock_failed(void *lock_addr);
  * this gets called by ast_mutex_unlock so that information on the lock can
  * be removed from the current thread's lock info struct.
  */
-#ifdef HAVE_BKTR
 void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt);
-#else
-void ast_remove_lock_info(void *lock_addr);
-#endif /* HAVE_BKTR */
 void ast_suspend_lock_info(void *lock_addr);
 void ast_restore_lock_info(void *lock_addr);
 
