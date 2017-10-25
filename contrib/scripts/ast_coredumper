@@ -63,9 +63,15 @@ DESCRIPTION
 		from the existing coredumps.
 
 	--tarball-coredumps
-		Creates a gzipped tarball of all coredumps processed.
-		The tarball name will be:
-		/tmp/asterisk.<timestamp>.coredumps.tar.gz
+		Creates a gzipped tarball of coredumps processed, their
+		results txt files and copies of /etc/os-release,
+		/usr/sbin/asterisk, /usr/lib(64)/libasterisk* and
+		/usr/lib(64)/asterisk as those files are needed to properly
+		examine the coredump.  The file will be named
+		/tmp/asterisk.<timestamp>.coredumps.tar.gz or
+		/tmp/asterisk-<uniqueid>.coredumps.tar.gz if
+		--tarball-uniqueid was specified.
+		WARNING:  This file could 1gb in size!
 
 	--delete-coredumps-after
 		Deletes all processed coredumps regardless of whether
@@ -377,12 +383,25 @@ for i in ${!COREDUMPS[@]} ; do
 done
 
 if $tarball_coredumps ; then
-	tf=/tmp/asterisk-$df.coredumps.tar
-	echo "Creating $tf.gz"
+	tf=/tmp/asterisk-$df.coredumps.tar.gz
+	echo "Creating $tf"
+	dest=/tmp/asterisk-$df
+	rm -rf $dest 2>/dev/null || :
+	libdir=usr/lib
+	[ -d /usr/lib64 ] && libdir+=64
+	mkdir -p $dest/tmp $dest/$libdir/asterisk $dest/etc $dest/usr/sbin
 	for i in ${!COREDUMPS[@]} ; do
-		tar -uvf $tf "${COREDUMPS[@]}" 2>/dev/null
+		ln -s "${COREDUMPS[@]}" $dest/"${COREDUMPS[@]}"
+		cp "${COREDUMPS[@]}"*.txt $dest/tmp/
 	done
-	gzip $tf
+	cp /etc/os-release $dest/etc/
+	cp -a /$libdir/libasterisk* $dest/$libdir/
+	cp -a /$libdir/asterisk/* $dest/$libdir/asterisk/
+	cp -a /usr/sbin/asterisk $dest/usr/sbin
+	rm -rf $tf
+	tar -chzf $tf --transform="s/^[.]/$df/" -C $dest .
+	rm -rf $dest
+	echo "Created $tf"
 fi
 
 if $delete_coredumps_after ; then
@@ -431,21 +450,29 @@ class DumpAsteriskCommand(gdb.Command):
             pass
         print("!@!@!@! thread1.txt !@!@!@!\n")
         try:
+            gdb.execute("p $_siginfo", from_tty)
+            gdb.execute("info signal $_siginfo.si_signo")
             gdb.execute("thread apply 1 bt full", from_tty)
         except:
             pass
         print("!@!@!@! brief.txt !@!@!@!\n")
         try:
+            gdb.execute("p $_siginfo", from_tty)
+            gdb.execute("info signal $_siginfo.si_signo")
             gdb.execute("thread apply all bt", from_tty)
         except:
             pass
         print("!@!@!@! full.txt !@!@!@!\n")
         try:
+            gdb.execute("p $_siginfo", from_tty)
+            gdb.execute("info signal $_siginfo.si_signo")
             gdb.execute("thread apply all bt full", from_tty)
         except:
             pass
         print("!@!@!@! locks.txt !@!@!@!\n")
         try:
+            gdb.execute("p $_siginfo", from_tty)
+            gdb.execute("info signal $_siginfo.si_signo")
             gdb.execute("show_locks", from_tty)
         except:
             pass
