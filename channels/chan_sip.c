@@ -28460,7 +28460,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		p->lastinvite = seqno;
 	}
 	if (!p->needdestroy) {
-		p->expiry = atoi(sip_get_header(req, "Expires"));
+		const char *expires_str = sip_get_header(req, "Expires");
+
+		if (ast_strlen_zero(expires_str)) {
+			p->expiry = default_expiry;
+		} else {
+			p->expiry = atoi(expires_str);
+		}
 
 		/* check if the requested expiry-time is within the approved limits from sip.conf */
 		if (p->expiry > max_subexpiry) {
