@@ -529,10 +529,8 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		) <= 0) {
 		ast_debug(1, "ast_iostream_printf() failed: %s\n", strerror(errno));
 		close_connection = 1;
-	}
-
-	/* send content */
-	if (!close_connection && send_content && fd) {
+	} else if (send_content && fd) {
+		/* send file content */
 		while ((len = read(fd, buf, sizeof(buf))) > 0) {
 			if (ast_iostream_write(ser->stream, buf, len) != len) {
 				ast_debug(1, "ast_iostream_write() failed: %s\n", strerror(errno));
