@@ -142,12 +142,6 @@ endif
 ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
 cdr.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
-testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
-	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
-	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2.c
-	$(CC) -g -o testexpr2 ast_expr2f.o ast_expr2.o -lm
-	rm ast_expr2.o ast_expr2f.o
-
 ifneq ($(LIBEDIT_INTERNAL),no)
 LIBEDIT_OBJ=editline/libedit.a
 LIBEDIT_INCLUDE=-I. -Ieditline
