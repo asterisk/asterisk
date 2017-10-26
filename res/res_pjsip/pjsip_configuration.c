@@ -584,8 +584,10 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 
 		if (!strcasecmp(val, "username")) {
 			method = AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
-		} else	if (!strcasecmp(val, "auth_username")) {
+		} else if (!strcasecmp(val, "auth_username")) {
 			method = AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME;
+		} else if (!strcasecmp(val, "ip")) {
+			method = AST_SIP_ENDPOINT_IDENTIFY_BY_IP;
 		} else {
 			ast_log(LOG_ERROR, "Unrecognized identification method %s specified for endpoint %s\n",
 					val, ast_sorcery_object_get_id(endpoint));
@@ -629,6 +631,9 @@ static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 			break;
 		case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME :
 			method = "auth_username";
+			break;
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_IP :
+			method = "ip";
 			break;
 		default:
 			continue;
@@ -1873,7 +1878,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aors", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, aors));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.address));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "bind_rtp_to_media_address", "no", OPT_BOOL_T, 1, STRFLDSET(struct ast_sip_endpoint, media.bind_rtp_to_media_address));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username", ident_handler, ident_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username,ip", ident_handler, ident_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.enabled));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_method", "invite", direct_media_method_handler, direct_media_method_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "connected_line_method", "invite", connected_line_method_handler, connected_line_method_to_str, NULL, 0, 0);
