@@ -27,6 +27,16 @@ chan_sip
    dialplan in the hash TRANSFER_DATA.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The "identify_by" on endpoints can now be set to "ip" to restrict an endpoint
+   being matched based only on IP address. To ensure no behavior change the
+   default has been changed to "username,ip".
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.0.0 to Asterisk 15.1.0 ------------
 ------------------------------------------------------------------------------
 

@@ -634,9 +634,11 @@
                         ; identified.
                         ; "username": Identify by the From or To username and domain
                         ; "auth_username": Identify by the Authorization username and realm
-                        ; In all cases, if an exact match on username and domain/realm fails,
-                        ; the match will be retried with just the username.
-                        ; (default: "username")
+                        ; "ip": Identify by the source IP address
+                        ; In username and auth_username cases, if an exact match on
+                        ; username and domain/realm fails, the match will be retried
+                        ; with just the username.
+                        ; (default: "username,ip")
 ;redirect_method=user   ; How redirects received from an endpoint are handled
                         ; (default: "user")
 ;mailboxes=     ; NOTIFY the endpoint when state changes for any of the specified mailboxes.

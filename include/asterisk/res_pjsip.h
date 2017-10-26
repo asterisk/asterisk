@@ -437,6 +437,8 @@ enum ast_sip_endpoint_identifier_type {
 	AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME = (1 << 0),
 	/*! Identify based on user name in Auth header first, then From header */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME = (1 << 1),
+	/*! Identify based on source IP address */
+	AST_SIP_ENDPOINT_IDENTIFY_BY_IP = (1 << 2),
 };
 AST_VECTOR(ast_sip_identify_by_vector, enum ast_sip_endpoint_identifier_type);
 
