@@ -8922,7 +8922,7 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 {
 	char *file, *filename;
 	char *attachment;
-	char arg[10];
+	char arg[11];
 	int i;
 	BODY* body;
 	int curr_mbox;
@@ -8958,7 +8958,7 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 		}
 		filename = strsep(&attachment, ".");
 		if (!strcmp(filename, file)) {
-			sprintf(arg, "%d", i + 1);
+			snprintf(arg, sizeof(arg), "%d", i + 1);
 			mail_setflag(vms->mailstream, arg, "\\DELETED");
 		}
 	}
