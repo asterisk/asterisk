@@ -406,6 +406,11 @@ unsigned int ast_codec_samples_count(struct ast_frame *frame)
 
 	if (codec->samples_count) {
 		samples = codec->samples_count(frame);
+		if ((int) samples < 0) {
+			ast_log(LOG_WARNING, "Codec %s returned invalid number of samples.\n",
+				ast_format_get_name(frame->subclass.format));
+			samples = 0;
+		}
 	} else {
 		ast_log(LOG_WARNING, "Unable to calculate samples for codec %s\n",
 			ast_format_get_name(frame->subclass.format));
