@@ -1089,7 +1089,7 @@ static void remove_subscription(struct sip_subscription_tree *obj)
 static void destroy_subscription(struct ast_sip_subscription *sub)
 {
 	ast_debug(3, "Destroying SIP subscription from '%s->%s'\n",
-		sub->tree->endpoint ? ast_sorcery_object_get_id(sub->tree->endpoint) : "Unknown",
+		sub->tree && sub->tree->endpoint ? ast_sorcery_object_get_id(sub->tree->endpoint) : "Unknown",
 		sub->resource);
 
 	ast_free(sub->body_text);
