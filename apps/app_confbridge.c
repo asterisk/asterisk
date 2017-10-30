@@ -2377,21 +2377,12 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		user.tech_args.drop_silence = 1;
 	}
 
-	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER)) {
-		char *func_jb;
-		if ((func_jb = ast_module_helper("", "func_jitterbuffer", 0, 0, 0, 0))) {
-			ast_free(func_jb);
-			ast_func_write(chan, "JITTERBUFFER(adaptive)", "default");
-		}
+	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER) && ast_module_check("func_jitterbuffer.so")) {
+		ast_func_write(chan, "JITTERBUFFER(adaptive)", "default");
 	}
 
-	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE)) {
-		char *mod_speex;
-		/* Reduce background noise from each participant */
-		if ((mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
-			ast_free(mod_speex);
-			ast_func_write(chan, "DENOISE(rx)", "on");
-		}
+	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE) && ast_module_check("codec_speex.so")) {
+		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
 	/* if this user has a intro, play it before entering */
