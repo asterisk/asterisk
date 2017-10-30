@@ -1,0 +1,437 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-15.1.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-15.1.0</h3><h3 align="center">Date: 2017-10-30</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-15.0.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">38 Richard Mudgett <rmudgett@digium.com><br/>24 Sean Bright <sean.bright@gmail.com><br/>20 George Joseph <gjoseph@digium.com><br/>18 Corey Farrell <git@cfware.com><br/>14 Joshua Colp <jcolp@digium.com><br/>8 Kevin Harwell <kharwell@digium.com><br/>5 Torrey Searle <torrey@voxbone.com><br/>3 Daniel Tryba <daniel@tryba.nl><br/>3 Alexander Traud <pabstraud@compuserve.com><br/>3 Florian Floimair <f.floimair@commend.com><br/>3 Ben Ford <bford@digium.com><br/>2 Walter Doekes <walter+asterisk@wjd.nu><br/>2 Scott Griepentrog <scott@griepentrog.com><br/>2 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>1 David Hajek <david.hajek@daktela.com><br/>1 Thomas Sevestre <thomassevestre@free.fr><br/>1 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>1 David J. Pryke <david+extra.asterisk@pryke.us><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 Benoît Dereck-Tricot <benoit.dereck-tricot@eyepea.eu><br/>1 Andrey Egorov <andr06@gmail.com><br/>1 Michael Kuron <m.kuron@gmx.de><br/>1 Jacek Konieczny <j.konieczny@eggsoft.pl><br/>1 Andre Nazario <samoied@users.sourceforge.net><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Stefan Engström <stefanen@kth.se><br/>1 Sungtae Kim <pchero21@gmail.com><br/>1 alex <alexandr.revin@gmail.com><br/>1 Vitezslav Novy <a1@vnovy.net><br/></td><td width="33%">1 David Hajek<br/>1 Stefan Engström<br/>1 David J. Pryke<br/>1 Andrey Egorov<br/></td><td width="33%">12 Corey Farrell <git@cfware.com><br/>6 Richard Mudgett <rmudgett@digium.com><br/>5 Joshua Colp <jcolp@digium.com><br/>5 George Joseph <gjoseph@digium.com><br/>4 Ross Beer <ross.beer@voicehost.co.uk><br/>4 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>3 Walter Doekes <walter+asterisk@wjd.nu><br/>3 dtryba <daniel@tryba.nl><br/>3 Matt Jordan <mjordan@digium.com><br/>3 Ross Beer<br/>3 Florian Floimair <f.floimair@commend.com><br/>3 Kevin Harwell <kharwell@digium.com><br/>3 Torrey Searle <tsearle@gmail.com><br/>2 Daniel Heckl <daniel.heckl@gmail.com><br/>2 Jesper <jpl@ipnordic.dk><br/>2 Tzafrir Cohen<br/>2 Alexander Traud <pabstraud@compuserve.com><br/>2 Daniel Heckl<br/>2 Stefan Engström <stefanen@kth.se><br/>1 M vd S<br/>1 James Terhune <james@indosoft.com><br/>1 klaus3000 <ramon@pernau.at><br/>1 Ian Gilmour<br/>1 Abraham Liebsch <aliebsch@river-run.com><br/>1 David Hajek <david.hajek@daktela.com><br/>1 Jacek Konieczny <jkonieczny@eggsoft.pl><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Michael Kuron <m.kuron@gmx.de><br/>1 David Moore<br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 David J. Pryke<br/>1 Stefan Gofferje<br/>1 Andrey <andr06@gmail.com><br/>1 Sean Bright <sean.bright@gmail.com><br/>1 Benoît Dereck-Tricot <benoit.dereck-tricot@eyepea.eu><br/>1 Rodrigo Ramirez Norambuena <a@rodrigoramirez.com><br/>1 Benjamin Keith Ford <bford@digium.com><br/>1 Stefan Gofferje <stefan.gofferje@gmx.de><br/>1 Jesper<br/>1 Jens T.<br/>1 Walter Doekes<br/>1 Stefan Engström<br/>1 Jim Van Meggelen <jim.vanmeggelen@clearlycore.com><br/>1 Ksenia <ksyblast@gmail.com><br/>1 Thomas Sevestre <thomassevestre@free.fr><br/>1 Andrey Egorov<br/>1 Bryan Walters<br/>1 Huangyx <huangyx@ti-net.com.cn><br/>1 David Hajek<br/>1 Jens T. <shogun@tausys.de><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 saghul <saghul@gmail.com><br/>1 Ira Emus <ira@extrasensory.com><br/>1 David J. Pryke <david+extra.asterisk@pryke.us><br/>1 Jim Van Meggelen<br/>1 sungtae kim <pchero21@gmail.com><br/>1 Benoît Dereck-Tricot<br/>1 Seán C. McCord <ulexus@gmail.com><br/>1 Christopher van de Sande <cvandesande@opendmz.com><br/>1 Marcello Ceschia <marcello.ceschia@gmx.net><br/>1 Bryan Walters <secretop@gmail.com><br/>1 Eelco Brolman<br/>1 Cyrille Demaret <cyrille@omail.be><br/>1 Andre Nazario <samoied@users.sourceforge.net><br/>1 David Moore <dmoore@techpro.com><br/>1 Sean McCord<br/>1 Richard Kenner<br/>1 Abraham Liebsch<br/>1 Richard Kenner <kenner@gnat.com><br/>1 Ronald Raikes <reraikes@avweb.com><br/>1 Mark Thompson <mtthompsonusa@gmail.com><br/>1 Mark Thompson<br/>1 Ian Gilmour <ian.gilmour.x@gmail.com><br/>1 Allen Ford <allen@cyfordtechnologies.com><br/>1 Sean Bright<br/>1 James Terhune<br/>1 Eelco Brolman <e.brolman@telecats.nl><br/>1 lvl <laszlo@talkto.nl><br/>1 Allen Ford<br/>1 Jesse Ross <jesse@gbtel.ca><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Improvement</h3><h4>Category: Channels/chan_motif</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27169">ASTERISK-27169</a>: Google OAuth 2.0 support for XMPP / Motif<br/>Reported by: Andrey<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4e11c2192fafaa572b8a984eef2212addf907f78">[4e11c2192f]</a> Andrey Egorov -- res_xmpp: Google OAuth 2.0 protocol support for XMPP / Motif</li>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27220">ASTERISK-27220</a>: Enable CHANNEL function to get from and to tag from SIP Headers<br/>Reported by: Andre Nazario<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=033087ba1cb668db3d41f002be97abc6892c278d">[033087ba1c]</a> Andre Nazario -- chan_pjsip: Add tag info in CHANNEL function</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27085">ASTERISK-27085</a>: [patch] chan_pjsip: Port SIPDtmfMode to chan_pjsip<br/>Reported by: Torrey Searle<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c24cdbf4ae677fd3980c91e60a027efad899b63d">[c24cdbf4ae]</a> Torrey Searle -- chan_pjsip: add a new function PJSIP_DTMF_MODE</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27278">ASTERISK-27278</a>: [patch] chan_sip: Provide access to read the full SIP Request-URI from INVITE<br/>Reported by: David J. Pryke<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9644f686276003d698b3b8abb2beb1693afe4718">[9644f68627]</a> David J. Pryke -- chan_sip: Expose read-only access to the full SIP INVITE Request-URI</li>
+</ul><br><h4>Category: Contrib/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27255">ASTERISK-27255</a>: alembic: Add support for Microsoft SQL server<br/>Reported by: Florian Floimair<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9620a2bd20f6604f352e7bd9a9f3baf47a4eb546">[9620a2bd20]</a> Florian Floimair -- alembic: Add support for MS-SQL</li>
+</ul><br><h4>Category: Core/HTTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27173">ASTERISK-27173</a>: Support for GMIME 3.0<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0cbfb95b7f8f7b0bc5c1ff6475f52750b936bef1">[0cbfb95b7f]</a> Tzafrir Cohen -- Support GMIME 3.0</li>
+</ul><br><h4>Category: Resources/res_srtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27253">ASTERISK-27253</a>: [patch] libsrtp-2.1.x support<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3a418b7ca2cee850132a469d0fffac92fb1da3c7">[3a418b7ca2]</a> Alexander Traud -- res_srtp: Add support for libsrtp2.1.</li>
+</ul><br><h4>Category: Resources/res_xmpp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27169">ASTERISK-27169</a>: Google OAuth 2.0 support for XMPP / Motif<br/>Reported by: Andrey<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4e11c2192fafaa572b8a984eef2212addf907f78">[4e11c2192f]</a> Andrey Egorov -- res_xmpp: Google OAuth 2.0 protocol support for XMPP / Motif</li>
+</ul><br><h3>Bug</h3><h4>Category: Addons/cdr_mysql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27270">ASTERISK-27270</a>: cdr_mysql: various crashes at second module reload if cdr_mysql.conf is configured<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=21e981982f65773c6051caf1f941bc9e6d8aba11">[21e981982f]</a> Tzafrir Cohen -- cdr_mysql: avoid releasing a config string</li>
+</ul><br><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26994">ASTERISK-26994</a>: Confbridge: CBAnn channels intermittently become stuck when caller hangs up before recording name<br/>Reported by: James Terhune<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9af11c6acd7df573f1ac9c6093385ee104e4c943">[9af11c6acd]</a> Sean Bright -- confbridge: Handle user hangup during name recording</li>
+</ul><br><h4>Category: Applications/app_directory</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27241">ASTERISK-27241</a>: libc segfault upon entry into app_directory<br/>Reported by: David Moore<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2872cdfce6c1047fb28d620cf064aac969c2390b">[2872cdfce6]</a> Sean Bright -- app_directory: Handle a NULL mailbox without crashing</li>
+</ul><br><h4>Category: Applications/app_minivm</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20858">ASTERISK-20858</a>: app_minivm fails to clean up mkstemp files<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=66388de98c33ef3726c15ef2ed028909eeb73623">[66388de98c]</a> Sean Bright -- voicemail: Fix various abuses of mkstemp</li>
+</ul><br><h4>Category: Applications/app_mixmonitor</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><br><h4>Category: Applications/app_originate</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25266">ASTERISK-25266</a>: Application Originate returns SUCCESS to ORIGINATE_STATUS upon failure to originate<br/>Reported by: Allen Ford<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9acfcefbd32ad96a80cc46b77c28961f18ecae0d">[9acfcefbd3]</a> Sean Bright -- app_originate: Set ORIGINATE_STATUS correctly on failure</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27301">ASTERISK-27301</a>: [patch] app_queue: Music On Hold for real-time queues is not reset to default<br/>Reported by: Nathan Bruning<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bc419d2a9ccb77990dffc6ceaa363bf11973d4f1">[bc419d2a9c]</a> Nathan Bruning -- app_queue.c: clear moh field in init_queue</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27216">ASTERISK-27216</a>: app_queue: does its check-makeannouncement-logic twice each head-caller-loop<br/>Reported by: Stefan Engström<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3344fe4ff9fc6920fe3580c397e4cc1d808ce86e">[3344fe4ff9]</a> Richard Mudgett -- app_queue.c: Fix announcements when announce-to-first-user not enabled.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0d4b139fcc19469ce170e223ac79e249c0d3c22">[d0d4b139fc]</a> Stefan Engström -- app_queue: Only do announcement logic between ringing cycles</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46bd1290a09d0af253d623641367829c92460bc1">[46bd1290a0]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19103">ASTERISK-19103</a>: When using realtime queues, function QUEUE_MEMBER_LIST() will return an error if no other app/function has loaded the queues first. This problem does not exist if queues.conf is used.<br/>Reported by: Jim Van Meggelen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6d5e5d0520d47b6ce8138526da67af097e0ee777">[6d5e5d0520]</a> Sean Bright -- app_queue: Evaluate realtime queues when running dialplan functions</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27204">ASTERISK-27204</a>: [patch] app_queue: Wrong queue stat calculation<br/>Reported by: sungtae kim<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=069ed905b4e5da49f138d73392fdcb476b1e863a">[069ed905b4]</a> Sungtae Kim -- app_queue: Fix initial hold time queue statistic</li>
+</ul><br><h4>Category: Applications/app_record</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16777">ASTERISK-16777</a>: several filename bugs in Record() application<br/>Reported by: klaus3000<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ffb2a781f6b646a124b529a62a7b4947d30a899d">[ffb2a781f6]</a> Sean Bright -- app_record: Resolve some absolute vs. relative filename bugs</li>
+</ul><br><h4>Category: Applications/app_system</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-21241">ASTERISK-21241</a>: When using voicemail as announce only (maxmsg=0), the star dtmf to enter the voicemail is not honored<br/>Reported by: Eelco Brolman<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f18f81cac7f6cc6e467116d7b1c688aad8bc2088">[f18f81cac7]</a> Sean Bright -- app_voicemail: Honor escape digits in "greeting only" mode</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27171">ASTERISK-27171</a>: Asterisk 15.0.0-Beta1 does not compile<br/>Reported by: Ira Emus<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cd79a15b2f9411c6e77f0f6594ff0c46f0ece080">[cd79a15b2f]</a> Corey Farrell -- Fix compile error for old versions of GCC.</li>
+</ul><br><h4>Category: Bridges/bridge_native_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27257">ASTERISK-27257</a>: bridge_native_rtp: half-way direct media when using early bridging<br/>Reported by: Jean Aunis - Prescom<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=47b41bd3ae200d546a6664352f35eb34579e4bf9">[47b41bd3ae]</a> Jean Aunis -- bridge : Fix one-way direct-media when early bridging with native_rtp</li>
+</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27277">ASTERISK-27277</a>: bridge: Renegotiate if source stream changes.<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=693c06f8a3d668289ef0178647ef67c6a24d664c">[693c06f8a3]</a> Joshua Colp -- bridge: Change participant SFU streams when source streams change.</li>
+</ul><br><h4>Category: CDR/cdr_custom</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27165">ASTERISK-27165</a>: CDR: CDR(start,u) function won't work in cdr_custom config<br/>Reported by: Jacek Konieczny<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=64f8445c0b17f19f7429f427f3ebda2bf428bca8">[64f8445c0b]</a> Jacek Konieczny -- func_cdr: honour 'u' flag on dummy channel</li>
+</ul><br><h4>Category: Channels/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27289">ASTERISK-27289</a>: A codeblock that maintains a bug,but maybe the codeblock will never run<br/>Reported by: Huangyx<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1728e439e84087e2e6cf9cb3e2fb0899ef6696f9">[1728e439e8]</a> Richard Mudgett -- channel.c: Fix invalid reference in conditionaled out code.</li>
+</ul><br><h4>Category: Channels/chan_dahdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27259">ASTERISK-27259</a>: chan_pjsip: Outgoing leg does not use all configured codecs, but subset based on caller<br/>Reported by: lvl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3d658e3be4de12f2594ade2572c19554f26ee82e">[3d658e3be4]</a> Kevin Harwell -- res_pjsip_session: outgoing call did not offer all configured codecs</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27248">ASTERISK-27248</a>: [patch]external_media_address and external_signaling_address don't always honor localnet<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1d2e58705ed9e5fb5de906a97dc9b9202997670d">[1d2e58705e]</a> Walter Doekes -- res/res_pjsip: Fix localnet checks in pjsip, part 2.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=329e11194712b3effe92c8bdfc47acb565be371a">[329e111947]</a> Walter Doekes -- res/res_pjsip: Standardize/fix localnet checks across pjsip.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27236">ASTERISK-27236</a>: Segfault ast_channel_name (chan=0x0) at channel_internal_api.c:478 during T.38 Fax Receive<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9cc46203767172eaa713212cfe2fce5cca106577">[9cc4620376]</a> George Joseph -- res_pjsip_t38:  Make t38_reinvite_response_cb tolerant of NULL channel</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26922">ASTERISK-26922</a>: chan_sip: tcpbind uses wrong source address<br/>Reported by: Ksenia<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3240ba93364a7ecdda87fe057785f0980b853df5">[3240ba9336]</a> Alexander Traud -- tcptls: Do not re-bind to wildcard on client creation.</li>
+</ul><br><h4>Category: Channels/chan_sip/Interoperability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17540">ASTERISK-17540</a>: SDP origin attribute modified when issuing re-INVITE because of directmedia=yes<br/>Reported by: saghul<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=07e62b4e0e704d8c3df409ff3a9b3d9fcec7fb3b">[07e62b4e0e]</a> Vitezslav Novy -- chan_sip: Do not change IP address in SDP origin line (o=) in SIP reINVITE</li>
+</ul><br><h4>Category: Channels/chan_sip/SRTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16898">ASTERISK-16898</a>: SRTP unprotect: authentication failure when RTP sequence number switches from 65535 -> 0<br/>Reported by: Marcello Ceschia<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f5ef14597b55628d90705f2c5e8adb692a7729fe">[f5ef14597b]</a> Alexander Traud -- res_srtp: lower log level of auth failures</li>
+</ul><br><h4>Category: Channels/chan_sip/Subscriptions</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27217">ASTERISK-27217</a>: chan_sip: Asterisk crashing when subscription doesn't get set<br/>Reported by: Bryan Walters<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6dd4ee8926991647026a4e12028cfb0f91b8b47a">[6dd4ee8926]</a> Scott Griepentrog -- chan_sip: when getting sip pvt return failure if not found</li>
+</ul><br><h4>Category: Channels/chan_sip/TCP-TLS</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27324">ASTERISK-27324</a>: [patch] Dual-Stack server cannot be used as IPv4 client via TCP/TLS<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3240ba93364a7ecdda87fe057785f0980b853df5">[3240ba9336]</a> Alexander Traud -- tcptls: Do not re-bind to wildcard on client creation.</li>
+</ul><br><h4>Category: Codecs/codec_g722</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46bd1290a09d0af253d623641367829c92460bc1">[46bd1290a0]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
+</ul><br><h4>Category: Codecs/codec_opus</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27202">ASTERISK-27202</a>: If wget is not installed and "or" is not available, external components (excluding pjsip) are not installed<br/>Reported by: Seán C. McCord<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=44f23dcae093db63f69ad12eb288fe072e06da4e">[44f23dcae0]</a> George Joseph -- Fix downloader not working with curl</li>
+</ul><br><h4>Category: Codecs/codec_siren7</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27202">ASTERISK-27202</a>: If wget is not installed and "or" is not available, external components (excluding pjsip) are not installed<br/>Reported by: Seán C. McCord<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=44f23dcae093db63f69ad12eb288fe072e06da4e">[44f23dcae0]</a> George Joseph -- Fix downloader not working with curl</li>
+</ul><br><h4>Category: Core/Bridging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27182">ASTERISK-27182</a>: bridge: Crash when mapping streams<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0e352ec5100331c6a32008acc88d69d0fc58ccdd">[0e352ec510]</a> Joshua Colp -- bridge: Fix stream topology/participant locking and video misrouting.</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27189">ASTERISK-27189</a>: Make --with-pjproject-bundled the default for Asterisk 15<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=82f8c19a583d72cc3040e0d79085eaf23ae9969f">[82f8c19a58]</a> George Joseph -- Make --with-pjproject-bundled the default for Asterisk 15</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27156">ASTERISK-27156</a>: Asterisk won't compile on Fedora 26 with devmode enabled.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7c3cdc81f7c7397b545322e0215f3e93526469ca">[7c3cdc81f7]</a> Corey Farrell -- Fix compiler warnings on Fedora 26 / GCC 7.</li>
+</ul><br><h4>Category: Core/Channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27180">ASTERISK-27180</a>: channel: requester leaks joint_cap on success.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3dbb1b9f48b0fa23cec2d8e3f94173004da320a4">[3dbb1b9f48]</a> Corey Farrell -- channel: Fix leak on successful call to chan->tech->requester.</li>
+</ul><br><h4>Category: Core/Configuration</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27318">ASTERISK-27318</a>: res_pjsip_mwi: uninitialized value from ast_strings_match<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=622a1de0f064882ad70aeaf33434b0d2186c87ef">[622a1de0f0]</a> Corey Farrell -- main/strings: Fix uninitialized value.</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27317">ASTERISK-27317</a>: vector: multiple evaluation of elem in AST_VECTOR_ADD_SORTED.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=baf331f4bccbdd02e65b78db4788a8543117731d">[baf331f4bc]</a> Corey Farrell -- vector: multiple evaluation of elem in AST_VECTOR_ADD_SORTED.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27222">ASTERISK-27222</a>: core: Don't queue up multiple video update frames.<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6baf2c26f38ccbfda9c2f09285349d9b59bbbb43">[6baf2c26f3]</a> Joshua Colp -- core: Reduce video update queueing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26745">ASTERISK-26745</a>: Asymmetric codecs when asymmetric_rtp_codec=no<br/>Reported by: Jesse Ross<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=be8cb75dd2e95f73f47d0bf2c1ef50a84d0d4226">[be8cb75dd2]</a> Torrey Searle -- res_rtp_asterisk:  Make P2P bridge Asymmetric codec aware</li>
+</ul><br><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27200">ASTERISK-27200</a>: manager: hook event is not being raised<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f919adac8d65ed2b54776259128b1252ffd461e6">[f919adac8d]</a> Kevin Harwell -- manager: hook event is not being raised</li>
+</ul><br><h4>Category: Core/RTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27225">ASTERISK-27225</a>: Crash when freeing dtls_cfg->cafile<br/>Reported by: Richard Kenner<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1d33757aa0a5441b2d0676754932465bb632c723">[1d33757aa0]</a> Sean Bright -- rtp_engine: Prevent possible double free with DTLS config</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25523">ASTERISK-25523</a>: res_calendar: Warning about invalid channel value (for notification) occurs even when event has no notification configured.<br/>Reported by: Jesper<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31370dc0bd8449ffb52837ed79d20d6e2447c974">[31370dc0bd]</a> Sean Bright -- res_calendar: Various fixes</li>
+</ul><br><h4>Category: Functions/func_shell</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27305">ASTERISK-27305</a>: res_ari: Memory leaks in ARI when using Content-Type: application/json<br/>Reported by: David Hajek<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=335c46185a4278fed6c43fe5fcbc3f2935de4430">[335c46185a]</a> David Hajek -- res/res_ari.c Fix: Memory leaks in ARI when using Content-Type: application/json</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27295">ASTERISK-27295</a>: Contact is improperly translated after d178f497<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ab154815535d5e993f0cd4cd89efc09bdd7a6755">[ab15481553]</a> George Joseph -- pjsip_message_filter: Fix regression causing bad contact address</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27260">ASTERISK-27260</a>: [pjsip] chan_pjsip_indicate: Don't know how to indicate condition 36<br/>Reported by: Daniel Heckl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=86b897f877d729f8350d15341f098a53d8172aa8">[86b897f877]</a> George Joseph -- chan_pjsip: Ignore AST_CONTROL_STREAM_TOPOLOGY_CHANGED for now</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27177">ASTERISK-27177</a>: ooh323c: misleading indentation in addons/ooh323c/src/ooSocket.c<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a4c58d1d9436bc8198f319297f6a4b7cce52b46">[1a4c58d1d9]</a> Sean Bright -- chan_ooh323: Fix confusing indentation warning</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27152">ASTERISK-27152</a>: Sending a "tel" uri in a From or To header in an unauthenticated message causes asterisk to crash<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5180e2ba275de0311f0a32fab1c4917eae5c1b80">[5180e2ba27]</a> George Joseph -- pjsip_message_ip_updater:  Fix issue handling "tel" URIs</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27212">ASTERISK-27212</a>: bridge_softmix: Quickly joining/leaving may cause video stream to remain in SFU<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=02044e6470682a2ebe790c3181af7d82ee369c8f">[02044e6470]</a> Richard Mudgett -- res_pjsip_session.c: Fix crash when declining an active stream.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3e9cd53b5cfd41cd1d5e14d4e5a690c3633e2bd3">[3e9cd53b5c]</a> Richard Mudgett -- bridge_channel.c: Fix FRACK when mapping frames to the bridge.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c555891eb429512ae98925fc9bbd12f0b516d8c">[6c555891eb]</a> Richard Mudgett -- channel: Fix topology API locking.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=efa62628147c2607033e77f8854fd47bd51d3928">[efa6262814]</a> Richard Mudgett -- bridge: Fix softmix bridge deadlock.</li>
+</ul><br><h4>Category: Resources/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-21399">ASTERISK-21399</a>: RTP Multicast of L16 (type 10): Asterisk and wireshark disagree<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cca5deb2e5641390f187a6466cd0fb79a21c7e57">[cca5deb2e5]</a> Sean Bright -- chan_rtp: Use μ-law by default instead of signed linear</li>
+</ul><br><h4>Category: Resources/res_ari</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27372">ASTERISK-27372</a>: ARI: Node ARI client broken in latest versions of 13 and 14<br/>Reported by: Benjamin Keith Ford<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f534b40813e7e55d39e98552bc4574affe46ebac">[f534b40813]</a> Ben Ford -- http.c: Fix http header send content.</li>
+</ul><br><h4>Category: Resources/res_calendar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25524">ASTERISK-25524</a>: module reload res_calendar.so does not reload everything in calendar.conf<br/>Reported by: Jesper<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=855746fb75d5852eb4ee2bd4c99b2debbfa045e0">[855746fb75]</a> Sean Bright -- res_calendar: Plug memory leak and micro-optimization</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25523">ASTERISK-25523</a>: res_calendar: Warning about invalid channel value (for notification) occurs even when event has no notification configured.<br/>Reported by: Jesper<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31370dc0bd8449ffb52837ed79d20d6e2447c974">[31370dc0bd]</a> Sean Bright -- res_calendar: Various fixes</li>
+</ul><br><h4>Category: Resources/res_calendar_caldav</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24588">ASTERISK-24588</a>: res_calendar does not process CalDAV from Owncloud [fix included]<br/>Reported by: Stefan Gofferje<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31370dc0bd8449ffb52837ed79d20d6e2447c974">[31370dc0bd]</a> Sean Bright -- res_calendar: Various fixes</li>
+</ul><br><h4>Category: Resources/res_calendar_icalendar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27296">ASTERISK-27296</a>: [patch] False positive busy checks when icalendar's recurrence-id mechanism is involved<br/>Reported by: Benoît Dereck-Tricot<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e1424363a100852e228d5b056cd83b4d433dbda">[2e1424363a]</a> Benoît Dereck-Tricot -- res_calendar_icalendar: Filter out occurrences superceded by another VEVENT</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27174">ASTERISK-27174</a>: res_calendar_icalendar: Recurring events not being loaded from Google calendar using ical<br/>Reported by: Mark Thompson<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=07c3608c6ca8cc9d1d7ad0f5600dcfe28c2a08df">[07c3608c6c]</a> Sean Bright -- res_calendar_icalendar: Properly handle recurring events</li>
+</ul><br><h4>Category: Resources/res_config_pgsql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27283">ASTERISK-27283</a>: Realtime config fail with PostgreSQL version before 9.1<br/>Reported by: Rodrigo Ramirez Norambuena<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=365003a444b1b8c710b991d5dfec6fb6f49dc7c5">[365003a444]</a> Rodrigo Ramírez Norambuena -- res_config_pgsql: Fix removed support to previous for versions PostgreSQL 9.1</li>
+</ul><br><h4>Category: Resources/res_fax</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27236">ASTERISK-27236</a>: Segfault ast_channel_name (chan=0x0) at channel_internal_api.c:478 during T.38 Fax Receive<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9cc46203767172eaa713212cfe2fce5cca106577">[9cc4620376]</a> George Joseph -- res_pjsip_t38:  Make t38_reinvite_response_cb tolerant of NULL channel</li>
+</ul><br><h4>Category: Resources/res_monitor</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27103">ASTERISK-27103</a>: core: ast_safe_system command injection possible.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0372157a4875bb8e76da9aecbe84a64307ffafe7">[0372157a48]</a> Corey Farrell -- AST-2017-006: Fix app_minivm application MinivmNotify command injection</li>
+</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27232">ASTERISK-27232</a>: When in queue on g722 with interruptions, music on hold can get stuck and no longer play<br/>Reported by: Jens T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46bd1290a09d0af253d623641367829c92460bc1">[46bd1290a0]</a> Sean Bright -- formats: Restore previous fread() behavior</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27047">ASTERISK-27047</a>: res_pjsip: user=phone added to Anonymous caller-id when it shouldn't be.<br/>Reported by: dtryba<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a7d977d986f3d5221ad5658b58c3725c06954617">[a7d977d986]</a> Daniel Tryba -- res_pjsip_session: Prevent user=phone being added to anonimized URIs.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27254">ASTERISK-27254</a>: alembic: prune_on_boot fix erroneous<br/>Reported by: Florian Floimair<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e5985c9abeb1b48dec5661d34cd50fd728ab565c">[e5985c9abe]</a> Florian Floimair -- alembic: fix erroneous commit for add_prune_on_boot</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26879">ASTERISK-26879</a>: PJSIP external_media_address ignored if no local_net options are provided<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=329e11194712b3effe92c8bdfc47acb565be371a">[329e111947]</a> Walter Doekes -- res/res_pjsip: Standardize/fix localnet checks across pjsip.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27168">ASTERISK-27168</a>: alembic: PJSIP scripts are missing column dtls_fingerprint in ps_endpoints table<br/>Reported by: Florian Floimair<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5b91992c27487689ab461a6abcfe4d4dc3c62c07">[5b91992c27]</a> Florian Floimair -- alembic: Add dtls_fingerprint column in ps_endpoints table</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27147">ASTERISK-27147</a>: Either asterisk or pjproject isn't re-using tcp connections (again)<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0f6892dff6bf8d8ccf958c44c7be24bb1e1a6c5">[d0f6892dff]</a> Richard Mudgett -- res_pjsip: Fix prune_on_boot to remove only contacts for the host.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aef38f07d3ca1399ec0e751fc3917a4d74f048df">[aef38f07d3]</a> Richard Mudgett -- res_pjsip_outbound_registration.c: Re-REGISTER on transport shutdown.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b9f6697f06ac9003dc7a6514e13db7cf9d459444">[b9f6697f06]</a> Richard Mudgett -- res_pjsip: Remove ephemeral registered contacts on transport shutdown.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0de033c9c6ebd42ef82adf036721d138cd7294f0">[0de033c9c6]</a> Richard Mudgett -- res_pjsip: PJSIP Transport state monitor refactor.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27119">ASTERISK-27119</a>: res_pjsip: parse/add msid attribute when webrtc is enabled<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b0c016cf6e0bcbe743f4f8286fb9b5ded830ccf7">[b0c016cf6e]</a> Kevin Harwell -- alembic/res_pjsip: Add "webrtc" configuration option</li>
+</ul><br><h4>Category: Resources/res_pjsip_caller_id</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27284">ASTERISK-27284</a>: Status of RFC 3323 and PJSIP<br/>Reported by: dtryba<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ba37dd65d3784196279c3dfe6ed22ed41fa85342">[ba37dd65d3]</a> Daniel Tryba -- res_pjsip_caller_id chan_sip: Comply to RFC 3323 values for privacy</li>
+</ul><br><h4>Category: Resources/res_pjsip_messaging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27193">ASTERISK-27193</a>: IPv6 receive address in message doesn't include brackets<br/>Reported by: Scott Griepentrog<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9d2844fd24ace635b2d5ee011d40d0f418df519a">[9d2844fd24]</a> Scott Griepentrog -- res_pjsip_messaging: IPv6 receive address needs brackets</li>
+</ul><br><h4>Category: Resources/res_pjsip_outbound_publish</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27298">ASTERISK-27298</a>: Problem with expires on pjsip / outbound-publish<br/>Reported by: Cyrille Demaret<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7192cacfea1b44920b0c9b336475fc909850df46">[7192cacfea]</a> Richard Mudgett -- res_pjsip_outbound_publish.c: Fix misplaced parenthesis.</li>
+</ul><br><h4>Category: Resources/res_pjsip_pidf_eyebeam_body_supplement</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26659">ASTERISK-26659</a>: res_pjsip: PJSIP presence - missing braces around the status element in XML<br/>Reported by: Abraham Liebsch<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ef399981693bce338c3ae5e197e70d6e23381b39">[ef39998169]</a> Sean Bright -- res_pjsip_pidf_eyebeam_body_supplement: Correct status presentation</li>
+</ul><br><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27279">ASTERISK-27279</a>: Crash in pubsub_on_rx_request NULL pointer - Possible PJSIP Vulnerability<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fbbc4d2433ee7a5c99ff36ae66b0d4543fa94c6c">[fbbc4d2433]</a> George Joseph -- res_pjsip_pubsub:  Check for Content-Type header in rx_notify_request</li>
+</ul><br><h4>Category: Resources/res_pjsip_registrar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27192">ASTERISK-27192</a>: res_pjsip: Loss of SIP registrations causing unavailable endpoints<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6014a8743d40fc6625b22d81d4ae3fd0c4e75e19">[6014a8743d]</a> Richard Mudgett -- res_pjsip_registrar.c: Update remove_existing AOR contact handling.</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27179">ASTERISK-27179</a>: res_pjsip_session: Handling of 'msid' is incorrect<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=09995fae5376a5ab6184a916076108f4af0640b5">[09995fae53]</a> Kevin Harwell -- res_pjsip_session/_sdp_rtp: Handling of 'msid' is incorrect</li>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26988">ASTERISK-26988</a>: res_pjsip_session: user_eq_phone adds double user=phone parameters to URIs<br/>Reported by: dtryba<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3a692949b7f2ee12bb8e9e105148bace1e646dd2">[3a692949b7]</a> Daniel Tryba -- res_pjsip: Prevent "user=phone" being added multiple times to header</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27264">ASTERISK-27264</a>: res_pjsip_session: Crashes after sending PRACK and receiving 200 OK<br/>Reported by: Daniel Heckl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=40de3a12e0caddec0be31aa4ad996c22fc716be5">[40de3a12e0]</a> George Joseph -- res_pjsip_session:  Change some asserts to warning/debug messages</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27024">ASTERISK-27024</a>: nat/external_media settings ignored in 14.4.1<br/>Reported by: Christopher van de Sande<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=329e11194712b3effe92c8bdfc47acb565be371a">[329e111947]</a> Walter Doekes -- res/res_pjsip: Standardize/fix localnet checks across pjsip.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27209">ASTERISK-27209</a>: Incorrect SDP in 200 OK when PJSIP_DTMF_MODE is used<br/>Reported by: Torrey Searle<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c5b89a390c092586cc2e2265afe49c6ca88bd57b">[c5b89a390c]</a> Torrey Searle -- res/res_pjsip_session: allow SDP answer to be regenerated</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27110">ASTERISK-27110</a>: RTP session is not fully destroyed on channel hangup<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9685a704a6d7a73cccd78f517b168d8a71d82e56">[9685a704a6]</a> Joshua Colp -- res_pjsip_session: Release media resources on session end quicker.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8f51443a08e00335fbf83584d150edbac35c4a17">[8f51443a08]</a> Joshua Colp -- res_pjsip_session: Release media resources on session end quicker.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27179">ASTERISK-27179</a>: res_pjsip_session: Handling of 'msid' is incorrect<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=09995fae5376a5ab6184a916076108f4af0640b5">[09995fae53]</a> Kevin Harwell -- res_pjsip_session/_sdp_rtp: Handling of 'msid' is incorrect</li>
+</ul><br><h4>Category: Resources/res_pjsip_t38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27236">ASTERISK-27236</a>: Segfault ast_channel_name (chan=0x0) at channel_internal_api.c:478 during T.38 Fax Receive<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9cc46203767172eaa713212cfe2fce5cca106577">[9cc4620376]</a> George Joseph -- res_pjsip_t38:  Make t38_reinvite_response_cb tolerant of NULL channel</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27292">ASTERISK-27292</a>: Multiple RTP Stream Created Breaking RFC2833 (SSRC Changes)<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1eb84bdb8a4b08c9e9c15315c59e92e8dfcdc284">[1eb84bdb8a]</a> Richard Mudgett -- res_rtp_asterisk.c: Fix bridge_p2p_rtp_write() reentrancy potential.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27274">ASTERISK-27274</a>: RTCP needs better packet validation to resist port scans.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9d6a55ffb400ca35da5b91345cd5db003535d49">[a9d6a55ffb]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27252">ASTERISK-27252</a>: RTP: One way audio with direct media and strictrtp=yes.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9d6a55ffb400ca35da5b91345cd5db003535d49">[a9d6a55ffb]</a> Richard Mudgett -- AST-2017-008: Improve RTP and RTCP packet processing.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27013">ASTERISK-27013</a>: res_rtp_asterisk: Media can be hijacked even with strict RTP enabled<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=222d655a2e2ea5f9f4db9c52ee5a5c47afc2abc0">[222d655a2e]</a> Joshua Colp -- res_rtp_asterisk: Only learn a new source in learn state.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27231">ASTERISK-27231</a>: res_rtp_asterisk: Allow remote SSRC to change due to renegotiation<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c2c74492d808ea697702ad549b323b98b47141e">[6c2c74492d]</a> Joshua Colp -- res_rtp_asterisk: Allow remote SSRC to change on an RTP instance.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27158">ASTERISK-27158</a>: [patch] res_rtp_asterisk: RTCP statistics are not available when native bridge is used<br/>Reported by: Torrey Searle<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4873e5ff337fd1dbd13936ce7b86f33738129aa8">[4873e5ff33]</a> Torrey Searle -- res_rtp_asterisk: enable rtcp & QOS stats on native bridge</li>
+</ul><br><h4>Category: Resources/res_rtp_multicast</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-21399">ASTERISK-21399</a>: RTP Multicast of L16 (type 10): Asterisk and wireshark disagree<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cca5deb2e5641390f187a6466cd0fb79a21c7e57">[cca5deb2e5]</a> Sean Bright -- chan_rtp: Use μ-law by default instead of signed linear</li>
+</ul><br><h4>Category: Resources/res_smdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24066">ASTERISK-24066</a>: res_smdi: convert to astobj2<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4418fae58b708736df5e62a89fef2f5453a643c3">[4418fae58b]</a> Sean Bright -- app_waitforsilence: Cleanup & don't treat missing frames as 'noise'</li>
+</ul><br><h4>Category: Resources/res_xmpp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27346">ASTERISK-27346</a>: res_xmpp: Crash if OAuth 2.0 is used before curl is loaded<br/>Reported by: Ronald Raikes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4a9525a52b9d96b37ae9cb7857bdaeae2dbaa81d">[4a9525a52b]</a> Joshua Colp -- res_xmpp: Ensure the connection filter is available.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27207">ASTERISK-27207</a>: XMPP OAuth not working due to inverted logic<br/>Reported by: Michael Kuron<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ac6a905bb2ddc461a16b3c17ef3b2daf9756820b">[ac6a905bb2]</a> Michael Kuron -- res_xmpp: fix inverted return code check in OAuth</li>
+</ul><br><h3>New Feature</h3><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27215">ASTERISK-27215</a>: [patch]AMI : Add CancelAtxfer Action<br/>Reported by: Thomas Sevestre<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=eadea6f55b5780f53d3bcf981358612be45b1651">[eadea6f55b]</a> Thomas Sevestre -- features, manager : Add CancelAtxfer AMI action</li>
+</ul><br><h4>Category: Features</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27215">ASTERISK-27215</a>: [patch]AMI : Add CancelAtxfer Action<br/>Reported by: Thomas Sevestre<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=eadea6f55b5780f53d3bcf981358612be45b1651">[eadea6f55b]</a> Thomas Sevestre -- features, manager : Add CancelAtxfer AMI action</li>
+</ul><br><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>Bug</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27306">ASTERISK-27306</a>: chan_pjsip: Cannot be tested for memory leaks.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d106e63258ca74e81c02897ae2a6f84e17566157">[d106e63258]</a> Corey Farrell -- res_pjproject: Fix cleanup of buildopts vector.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=10d0ffb0e0d908e8255963f8f48fda02f0353511">[10d0ffb0e0]</a> Corey Farrell -- res_pjsip_session: Fix format_cap leak.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0c0f6da48278a80fc9ed9f9d96a635573819ebea">[0c0f6da482]</a> Corey Farrell -- res_pjsip: Fix leak of persistent endpoint references.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=70efaf8f3e3f34bb7f446f29a2f335a5fa52e4aa">[70efaf8f3e]</a> Corey Farrell -- res_sdp_translator_pjmedia: Fix test unregistration.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4ad9ddfc75defb36e9a405295d57a8e0a05e0d6f">[4ad9ddfc75]</a> Corey Farrell -- res_pjsip: Fix leak of fake_auth references.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9293d85f7030707b914cc40f4ef903d3332b0655">[9293d85f70]</a> Corey Farrell -- res_pjsip: Fix issues that prevented shutdown of modules.</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27001">ASTERISK-27001</a>: res_pjsip: TLS connection not stable<br/>Reported by: Ian Gilmour<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=63224d5d9ceef0c97b72127751029b59094c2334">[63224d5d9c]</a> George Joseph -- bundled_pjproject:  Improve SSL/TLS error handling</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=75a97ab9cd6059408973b74ae4977f24b1f63306">75a97ab9cd</a></td><td>Kevin Harwell</td><td>Update for 15.1.0-rc2</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=620d45dbf27746fadb1307e60122e04d4f9eec09">620d45dbf2</a></td><td>Kevin Harwell</td><td>Update for 15.1.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f1b646805e6041cf36ea668c5e43af06728d2adf">f1b646805e</a></td><td>Kevin Harwell</td><td>AMI: Increase version number</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f8da683a162453b45db6c1d82013e6a1c6d6b08d">f8da683a16</a></td><td>Richard Mudgett</td><td>cdr.c: Defer misc checks.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4d518dd74893e76f785dcb1cbe29d9e70ae3078d">4d518dd748</a></td><td>George Joseph</td><td>chan_vpb:  Fix a gcc 7 out-of-bounds complaint</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cd521f166fc92a612f9c057a36b0b11da86c51de">cd521f166f</a></td><td>Corey Farrell</td><td>sorcery: Use ao2_weakproxy to hold list of instances.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0a49d84ac570541a1b9f8465871b3696fe4aad3">d0a49d84ac</a></td><td>Corey Farrell</td><td>named_locks: Use ao2_weakproxy_find.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e54238388de65410b0321a321cb2796946f71113">e54238388d</a></td><td>Corey Farrell</td><td>astobj2: Add ao2_weakproxy_find function.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0727a8e5242f4493ff3d7375e6996924cd00cbea">0727a8e524</a></td><td>Corey Farrell</td><td>astobj2: Run weakproxy callbacks outside of lock.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7155055b9fda5128d1d7b3b2e163e808873f3800">7155055b9f</a></td><td>Torrey Searle</td><td>contrib/thirdparty/sip_to_pjsip: add additional flag mappings</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a22ac5eee19c748922517beb792f08f39c2e26d7">a22ac5eee1</a></td><td>Richard Mudgett</td><td>cdr.c: Eliminated simple RAII_VAR usages.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=038759c320408d504de5f782620c8acf6284fef0">038759c320</a></td><td>Richard Mudgett</td><td>cdr.c: Replace redundant check with an ast_assert()</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b48eeff44c87c28698d47fccb03173e32ef9aae6">b48eeff44c</a></td><td>Richard Mudgett</td><td>cdr.c: Replace inlined code with ao2_t_replace()</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=58c898aa3f9920cfdef51553e615f759875ab0e4">58c898aa3f</a></td><td>Richard Mudgett</td><td>cdr.c: Use current ao2 flag names</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4ad4c5679b137655cf5a3ed04f4211d36ff4fb4f">4ad4c5679b</a></td><td>Richard Mudgett</td><td>cdr.h: Fix doxygen comments.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=737624316de4c75ed5e15584dd9943ff7b18a0e2">737624316d</a></td><td>Sean Bright</td><td>res_config_sqlite: Don't enable SQLite CDRs when running 'make samples'</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ade7253c9db0df50aaf6cb82e11805ad73137a66">ade7253c9d</a></td><td>Richard Mudgett</td><td>heap.c: No need to calloc heap pointer array.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d7e47c88b20b825f086658c5790ca3915c4d9bcd">d7e47c88b2</a></td><td>George Joseph</td><td>logger:  Bring back ability to  turn debug on by source file</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ce08a5b3f642a95fc7608e5690e44e103930dba0">ce08a5b3f6</a></td><td>Joshua Colp</td><td>res_stasis: Add 'video_sfu' as a requested bridge type.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a3583cabbd7e995643e009ee170f07a90151cf89">a3583cabbd</a></td><td>Sean Bright</td><td>res_rtp_asterisk: Trim trailing byte off of SDES packet</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a89f14f2d6bf8c37f795b75c8c315136fffcccf5">a89f14f2d6</a></td><td>Sean Bright</td><td>webrtc: Allow 'webrtc' to be set on endpoints without dtls_ca_file</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c96317c13885df4dddc49de032e6560be6aedef7">c96317c138</a></td><td>Sean Bright</td><td>pjproject: Patch to correct STUN FINGERPRINT usage</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1fad858934d53cf86a1bf0b8e5f2be6b5cef3ac6">1fad858934</a></td><td>George Joseph</td><td>build:  A few gcc 7 error fixes</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f353df0326faea83ec669dc9cc47c8e106c01930">f353df0326</a></td><td>Sean Bright</td><td>app_stream_echo: Don't echo declined streams</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d80b7e16046bd6168e05bb796d85cb72a33eff2a">d80b7e1604</a></td><td>Joshua Colp</td><td>res_pjsip_session: Reduce (and improve) SDP renegotiation.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=08440df3e35984de2d19c4b70fa8a8c550e10575">08440df3e3</a></td><td>Kevin Harwell</td><td>res_pjsip_session: Don't end session when receiving a 500 on a reinvite</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9eefce503dcd8ce87150487735d6b003b2effc64">9eefce503d</a></td><td>Sean Bright</td><td>res_pjsip: Use ast_sip_is_content_type() where appropriate</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=962865d4ee58d6eb99664575cc537340d0591b29">962865d4ee</a></td><td>George Joseph</td><td>res_pjsip_session/BUNDLE:  Handle no audio codecs on endpoint</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=90b68dd54b57cc83c5fe773a012a485c12fff27b">90b68dd54b</a></td><td>Ben Ford</td><td>res_pjsip_session: Check for removed stream state.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c67ce8ae2d09efe38826a6e67747d3ed1ad3418a">c67ce8ae2d</a></td><td>Richard Mudgett</td><td>res_rtp_asterisk.c: Fix bundled SSRC handling.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2dc1b2f6d9af3bdfe0259ef395e70e81332dec07">2dc1b2f6d9</a></td><td>Joshua Colp</td><td>app_confbridge: Only create a channel that records audio.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=513e0dbb5a9317b2b7729b4f7f186a9e5ab8ad61">513e0dbb5a</a></td><td>alex</td><td>cdr_mysql.c: Apply cdrzone to start and answer</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=40722149d72f9f87049b05ec8305b0bb29f8c8f7">40722149d7</a></td><td>George Joseph</td><td>res_pjsip:  Filter out non SIP(S) requests</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7fa11842d8b886b7c9b9616c977024a86144390a">7fa11842d8</a></td><td>Joshua Colp</td><td>tcptls: Change error message to debug.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=752f0533dd408fb1e98020f87a6c6af4565b63be">752f0533dd</a></td><td>George Joseph</td><td>res_pjsip:  Add handling for incoming unsolicited MWI NOTIFY</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9b8957ed8a9c082d7681fc39325337970cc73234">9b8957ed8a</a></td><td>Richard Mudgett</td><td>res_rtp_asterisk.c: Add doxygen to RTCP payload types.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3552cb511d3972b1be6e76f44b8e9c77cf26e531">3552cb511d</a></td><td>George Joseph</td><td>alembic:  Fix typo in add_auto_info_to_endpoint_dtmf_mode</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=55b0dad30a2273acfd1956c58445fe6b47fa462e">55b0dad30a</a></td><td>Richard Mudgett</td><td>stasis/control.c: Fix set_interval_hook() ref leak.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a824fcc8e88998bca12fb4043e86bbda1feeef08">a824fcc8e8</a></td><td>George Joseph</td><td>stasis/control:  Fix possible deadlock with swap channel</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2d9aac9f28984c774d030d8a192f5d2c9b14e007">2d9aac9f28</a></td><td>George Joseph</td><td>alembic: Fix enum creation for dtls_fingerprint</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b7d4a2e32e33e84a5a7c5ecdeaff7b805d153857">b7d4a2e32e</a></td><td>Ben Ford</td><td>chan_pjsip: Suppress frame warnings.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=11d013a9dfb096329d2705f42c660ac78c1b517e">11d013a9df</a></td><td>Joshua Colp</td><td>res_pjsip_session: Preserve stream name during renegotiation.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3c8b1f40fa85cb5e2fe564ccebb977c9f0e9b0fe">3c8b1f40fa</a></td><td>George Joseph</td><td>res_calendar*, res_smdi: Move to "extended" support</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2ec26dc63508176813f482faf425b5d7bf3eb857">2ec26dc635</a></td><td>Richard Mudgett</td><td>bridge_native_rtp.c: Fixup native_rtp_framehook()</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e65b4d652573840b2a8cd4d8b35478528f0a4e01">e65b4d6525</a></td><td>Sean Bright</td><td>res_smdi: Clean up memory leak</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0f832afb0561280d2cb8bcd8ea3378e58758d30c">0f832afb05</a></td><td>Richard Mudgett</td><td>chan_pjsip.c: Fix topology refresh response code accuracy.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b5987fa191dfa7e6134a5cd537d861faaa403ab0">b5987fa191</a></td><td>Richard Mudgett</td><td>bridge_softmix.c: Restored softmix_bridge_leave() shortcut exit.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=51bcfab4c69dd6113ac47ea48714c1cf2a4bf366">51bcfab4c6</a></td><td>Richard Mudgett</td><td>app_confbridge: Document sfu video_mode value.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a689fcb39f1477dcad821ea69d9c26c05fa86f21">a689fcb39f</a></td><td>Richard Mudgett</td><td>confbridge.h: Fix doxygen comments.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8f707ba8c7afe65a945502375c2b2225cee14831">8f707ba8c7</a></td><td>Richard Mudgett</td><td>bridge_softmix.c: Remove always true test.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7d1e1287b69149c8221d65f6a425b81b54525048">7d1e1287b6</a></td><td>Richard Mudgett</td><td>configure: Check cache for valid pjproject tarball before downloading.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=89a92b1f7504db96d5f534c77c876cc9fee57f07">89a92b1f75</a></td><td>Richard Mudgett</td><td>STUN/netsock2: Fix some valgrind uninitialized memory findings.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fe630930c9f4f80d9d45d93e10bd46bc6b4e5126">fe630930c9</a></td><td>Richard Mudgett</td><td>res_pjsip_transport_management.c: Rename some variables.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0bc274f54419437d6a95bc8d5d9d9a4c2f25305">d0bc274f54</a></td><td>Richard Mudgett</td><td>UPGRADE notes: Fixup for the 15 branch</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=418e062ce5516164f264f9c95170e5b395dde445">418e062ce5</a></td><td>Corey Farrell</td><td>app_privacy: remove unused header asterisk/image.h</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a3e08326e3d2c3a82157e55e5f7f13c3d3af55a">1a3e08326e</a></td><td>Corey Farrell</td><td>Correct some leaks in unit tests.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=563264c9b5a562550133dcb24491f5fa542381be">563264c9b5</a></td><td>Richard Mudgett</td><td>res_pjsip_transport_websocket.c: Fix serializer ref leak.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=347e148aa0bc2dec9d5c6dbe71d1841b52705db7">347e148aa0</a></td><td>Richard Mudgett</td><td>res_pjsip_outbound_registration.c: Misc fixes.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=db6b88308714c57cbab8a30d950c4557ea4c1d6b">db6b883087</a></td><td>Richard Mudgett</td><td>res_pjsip_nat.c: Remove unnecessary CMP_STOP.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2cd7bec0616d6c1f265894071970fb1d6021af03">2cd7bec061</a></td><td>Richard Mudgett</td><td>res_pjsip_registrar.c: Remove unnecessary CMP_STOP.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6edefc9480dac80895eec53f19343933b5bd531e">6edefc9480</a></td><td>George Joseph</td><td>Revert "res_pjsip_session: Release media resources on session end quicker."</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=448317ddc7f372b9392f5df0f067443a78e4bd14">448317ddc7</a></td><td>Joshua Colp</td><td>res_pjsip: Add support for dnsmgr to external_media_address.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1078d4f7f6cb0e68f135f96ebb43c2ea4c0f0905">1078d4f7f6</a></td><td>Sean Bright</td><td>app_queue: Add announce-position-only-up option</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-15.0.0-summary.html                                                                    | 2620 ----
+asterisk-15.0.0-summary.txt                                                                     | 5791 ----------
+b/.version                                                                                      |    2
+b/CHANGES                                                                                       |   27
+b/ChangeLog                                                                                     | 2161 +++
+b/addons/cdr_mysql.c                                                                            |   10
+b/addons/ooh323c/src/ooSocket.c                                                                 |    2
+b/apps/app_confbridge.c                                                                         |    6
+b/apps/app_directory.c                                                                          |    7
+b/apps/app_minivm.c                                                                             |  121
+b/apps/app_originate.c                                                                          |   32
+b/apps/app_privacy.c                                                                            |    1
+b/apps/app_queue.c                                                                              |   54
+b/apps/app_record.c                                                                             |  113
+b/apps/app_voicemail.c                                                                          |  115
+b/apps/app_waitforsilence.c                                                                     |  137
+b/apps/confbridge/include/confbridge.h                                                          |   12
+b/asterisk-15.1.0-rc2-summary.html                                                              |   13
+b/asterisk-15.1.0-rc2-summary.txt                                                               |   89
+b/bridges/bridge_native_rtp.c                                                                   |   21
+b/bridges/bridge_softmix.c                                                                      |   16
+b/channels/chan_pjsip.c                                                                         |   23
+b/channels/chan_rtp.c                                                                           |   20
+b/channels/chan_sip.c                                                                           |   12
+b/channels/chan_vpb.cc                                                                          |    2
+b/channels/pjsip/dialplan_functions.c                                                           |   19
+b/channels/sip/dialplan_functions.c                                                             |    9
+b/configs/samples/pjsip.conf.sample                                                             |   18
+b/configs/samples/res_config_sqlite.conf.sample                                                 |    2
+b/configs/samples/xmpp.conf.sample                                                              |   23
+b/configure                                                                                     |    2
+b/configure.ac                                                                                  |    2
+b/contrib/ast-db-manage/config/versions/15b1430ad6f1_add_moh_passthrough_option_to_pjsip.py     |    2
+b/contrib/ast-db-manage/config/versions/15db7b91a97a_add_rtcp_mux.py                            |    2
+b/contrib/ast-db-manage/config/versions/164abbd708c_add_auto_info_to_endpoint_dtmf_mode.py      |    2
+b/contrib/ast-db-manage/config/versions/23530d604b96_add_rpid_immediate.py                      |    2
+b/contrib/ast-db-manage/config/versions/26d7f3bf0fa5_add_bind_rtp_to_media_address_to_pjsip.py  |    2
+b/contrib/ast-db-manage/config/versions/28ab27a7826d_add_srv_lookups_to_identify.py             |    2
+b/contrib/ast-db-manage/config/versions/28b8e71e541f_add_g726_non_standard.py                   |    2
+b/contrib/ast-db-manage/config/versions/2fc7930b41b3_add_pjsip_endpoint_options_for_12_1.py     |    4
+b/contrib/ast-db-manage/config/versions/371a3bf4143e_add_user_eq_phone_option_to_pjsip.py       |    2
+b/contrib/ast-db-manage/config/versions/3772f8f828da_update_identify_by.py                      |    2
+b/contrib/ast-db-manage/config/versions/3bcc0b5bc2c9_add_allow_reload_to_ps_transports.py       |    2
+b/contrib/ast-db-manage/config/versions/4468b4a91372_add_pjsip_asymmetric_rtp_codec.py          |    2
+b/contrib/ast-db-manage/config/versions/4c573e7135bd_fix_tos_field_types.py                     |    4
+b/contrib/ast-db-manage/config/versions/5139253c0423_make_q_member_uniqueid_autoinc.py          |    4
+b/contrib/ast-db-manage/config/versions/51f8cb66540e_add_further_dtls_options.py                |    3
+b/contrib/ast-db-manage/config/versions/5950038a6ead_fix_pjsip_verifiy_typo.py                  |   23
+b/contrib/ast-db-manage/config/versions/837aa67461fb_ps_contacts_add_authenticate_qualify.py    |    2
+b/contrib/ast-db-manage/config/versions/86bb1efa278d_add_ps_endpoints_refer_blind_progress.py   |    2
+b/contrib/ast-db-manage/config/versions/8d478ab86e29_pjsip_add_disable_multi_domain.py          |    2
+b/contrib/ast-db-manage/config/versions/8fce4c573e15_add_pjsip_allow_overlap.py                 |    2
+b/contrib/ast-db-manage/config/versions/945b1098bdd_add_media_encryption_optimistic_to_pjsip.py |    2
+b/contrib/ast-db-manage/config/versions/a1698e8bb9c5_add_incoming_mwi_mailbox.py                |   21
+b/contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py   |    2
+b/contrib/ast-db-manage/config/versions/b83645976fdd_add_dtls_fingerprint_to_ps_endpoints.py    |    2
+b/contrib/ast-db-manage/config/versions/c7a44a5a0851_pjsip_add_global_mwi_options.py            |    2
+b/contrib/ast-db-manage/config/versions/d7983954dd96_add_ps_endpoints_notify_early_inuse_.py    |    2
+b/contrib/ast-db-manage/config/versions/dbc44d5a908_add_missing_columns_to_sys_and_reg.py       |    3
+b/contrib/ast-db-manage/config/versions/e96a0b8071c_increase_pjsip_column_size.py               |    8
+b/contrib/ast-db-manage/config/versions/ef7efc2d3964_ps_contacts_add_endpoint_and_modify_.py    |    8
+b/contrib/ast-db-manage/config/versions/f3d1c5d38b56_add_prune_on_boot.py                       |    2
+b/contrib/ast-db-manage/config/versions/f638dbe2eb23_symmetric_transport.py                     |    2
+b/contrib/ast-db-manage/env.py                                                                  |   17
+b/contrib/realtime/mssql/mssql_config.sql                                                       |   32
+b/contrib/realtime/mysql/mysql_config.sql                                                       |    6
+b/contrib/realtime/oracle/oracle_config.sql                                                     |   10
+b/contrib/realtime/postgresql/postgresql_config.sql                                             |    6
+b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                                  |   30
+b/funcs/func_cdr.c                                                                              |    2
+b/include/asterisk/astobj2.h                                                                    |   15
+b/include/asterisk/bridge_after.h                                                               |    2
+b/include/asterisk/bridge_technology.h                                                          |    4
+b/include/asterisk/cdr.h                                                                        |   44
+b/include/asterisk/features_config.h                                                            |   15
+b/include/asterisk/logger.h                                                                     |    4
+b/include/asterisk/manager.h                                                                    |    2
+b/include/asterisk/res_pjsip.h                                                                  |  139
+b/include/asterisk/res_pjsip_session.h                                                          |   24
+b/include/asterisk/rtp_engine.h                                                                 |    2
+b/include/asterisk/strings.h                                                                    |   20
+b/include/asterisk/vector.h                                                                     |   18
+b/main/acl.c                                                                                    |    4
+b/main/astobj2.c                                                                                |   41
+b/main/astobj2_container.c                                                                      |   42
+b/main/bridge.c                                                                                 |    6
+b/main/bridge_after.c                                                                           |   30
+b/main/bridge_channel.c                                                                         |    4
+b/main/cdr.c                                                                                    |  214
+b/main/channel.c                                                                                |    4
+b/main/features_config.c                                                                        |   15
+b/main/heap.c                                                                                   |    4
+b/main/http.c                                                                                   |    6
+b/main/manager.c                                                                                |   62
+b/main/named_locks.c                                                                            |   24
+b/main/netsock2.c                                                                               |   16
+b/main/rtp_engine.c                                                                             |    8
+b/main/sorcery.c                                                                                |   90
+b/main/strings.c                                                                                |   21
+b/main/stun.c                                                                                   |    4
+b/main/tcptls.c                                                                                 |    3
+b/res/res_ari.c                                                                                 |    2
+b/res/res_calendar.c                                                                            |   28
+b/res/res_calendar_caldav.c                                                                     |   41
+b/res/res_calendar_icalendar.c                                                                  |   41
+b/res/res_http_post.c                                                                           |   19
+b/res/res_pjproject.c                                                                           |    2
+b/res/res_pjsip.c                                                                               |   95
+b/res/res_pjsip/config_transport.c                                                              |    4
+b/res/res_pjsip/include/res_pjsip_private.h                                                     |   53
+b/res/res_pjsip/location.c                                                                      |   64
+b/res/res_pjsip/pjsip_configuration.c                                                           |   24
+b/res/res_pjsip/pjsip_distributor.c                                                             |    2
+b/res/res_pjsip/pjsip_message_filter.c                                                          |  532
+b/res/res_pjsip/pjsip_session.c                                                                 |  121
+b/res/res_pjsip/pjsip_transport_events.c                                                        |  366
+b/res/res_pjsip_caller_id.c                                                                     |    8
+b/res/res_pjsip_messaging.c                                                                     |    6
+b/res/res_pjsip_nat.c                                                                           |    6
+b/res/res_pjsip_outbound_publish.c                                                              |   20
+b/res/res_pjsip_outbound_registration.c                                                         |  140
+b/res/res_pjsip_publish_asterisk.c                                                              |    6
+b/res/res_pjsip_pubsub.c                                                                        |  144
+b/res/res_pjsip_registrar.c                                                                     |  265
+b/res/res_pjsip_sdp_rtp.c                                                                       |   13
+b/res/res_pjsip_session.c                                                                       |  143
+b/res/res_pjsip_t38.c                                                                           |   16
+b/res/res_pjsip_transport_management.c                                                          |   58
+b/res/res_pjsip_transport_websocket.c                                                           |   17
+b/res/res_rtp_asterisk.c                                                                        |  110
+b/res/res_sdp_translator_pjmedia.c                                                              |    2
+b/res/res_smdi.c                                                                                |   10
+b/res/res_srtp.c                                                                                |   23
+b/res/res_xmpp.c                                                                                |   99
+b/res/srtp/srtp_compat.h                                                                        |    3
+b/res/stasis/control.c                                                                          |   99
+res/res_pjsip/pjsip_message_ip_updater.c                                                        |  418
+137 files changed, 5894 insertions(+), 9700 deletions(-)</pre><br></html>
