@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <pwd.h>
 #include <grp.h>
-#include <editline/readline.h>
 
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
@@ -226,28 +225,6 @@ static int cli_has_permissions(int uid, int gid, const char *command)
 
 static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static char *complete_fn(const char *word, int state)
-{
-	char *c, *d;
-	char filename[PATH_MAX];
-
-	if (word[0] == '/')
-		ast_copy_string(filename, word, sizeof(filename));
-	else
-		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
-
-	c = d = filename_completion_function(filename, state);
-
-	if (c && word[0] != '/')
-		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
-	if (c)
-		c = ast_strdup(c);
-
-	ast_std_free(d);
-
-	return c;
-}
-
 static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* "module load <mod>" */
@@ -260,12 +237,14 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->pos != e->args)
+		if (a->pos != e->args) {
 			return NULL;
-		return complete_fn(a->word, a->n);
+		}
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_LOAD);
 	}
-	if (a->argc != e->args + 1)
+	if (a->argc != e->args + 1) {
 		return CLI_SHOWUSAGE;
+	}
 	if (ast_load_resource(a->argv[e->args])) {
 		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
 		return CLI_FAILURE;
@@ -288,7 +267,7 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return NULL;
 
 	case CLI_GENERATE:
-		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 1);
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_RELOAD);
 	}
 	if (a->argc == e->args) {
 		ast_module_reload(NULL);
@@ -484,7 +463,7 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			}
 		} else if ((a->pos == 4 && !atleast && strcasecmp(argv3, "off") && strcasecmp(argv3, "channel"))
 			|| (a->pos == 5 && atleast)) {
-			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
+			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_RUNNING);
 		}
 		return NULL;
 	}
@@ -735,7 +714,7 @@ static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return NULL;
 
 	case CLI_GENERATE:
-		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_UNLOAD);
 	}
 	if (a->argc < e->args + 1)
 		return CLI_SHOWUSAGE;
@@ -889,10 +868,11 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->pos == e->args)
-			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
-		else
+		if (a->pos == e->args) {
+			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_LOADED);
+		} else {
 			return NULL;
+		}
 	}
 	/* all the above return, so we proceed with the handler.
 	 * we are guaranteed to have argc >= e->args
