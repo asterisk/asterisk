@@ -3200,7 +3200,7 @@ chan_agent
    has also been removed, for the same reason.
 
  * The endcall and enddtmf configuration options are removed.  Use the
-   dialplan function CHANNEL(dtmf-features) to set DTMF features on the agent
+   dialplan function CHANNEL(dtmf_features) to set DTMF features on the agent
    channel before calling AgentLogin.
 
 chan_bridge
