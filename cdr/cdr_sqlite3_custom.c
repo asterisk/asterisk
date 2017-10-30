@@ -34,6 +34,7 @@
 
 /*** MODULEINFO
 	<depend>sqlite3</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
