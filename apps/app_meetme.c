@@ -3201,7 +3201,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	struct timeval now;
 	struct ast_dsp *dsp = NULL;
 	struct ast_app *agi_app;
-	char *agifile, *mod_speex;
+	char *agifile;
 	const char *agifiledefault = "conf-background.agi", *tmpvar;
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
@@ -3591,9 +3591,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	}
 
 	/* Reduce background noise from each participant */
-	if (!ast_test_flag64(confflags, CONFFLAG_DONT_DENOISE) &&
-		(mod_speex = ast_module_helper("", "func_speex", 0, 0, 0, 0))) {
-		ast_free(mod_speex);
+	if (!ast_test_flag64(confflags, CONFFLAG_DONT_DENOISE) && ast_module_check("func_speex.so")) {
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 

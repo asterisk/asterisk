@@ -716,8 +716,9 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	int i, which=0, l = strlen(word);
 	char *ret = NULL;
 
-	if (pos != rpos)
+	if (pos != rpos) {
 		return NULL;
+	}
 
 	AST_DLLIST_LOCK(&module_list);
 	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
@@ -730,10 +731,11 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	}
 	AST_DLLIST_UNLOCK(&module_list);
 
-	if (!ret) {
+	if (!ret && needsreload) {
 		for (i=0; !ret && reload_classes[i].name; i++) {
-			if (!strncasecmp(word, reload_classes[i].name, l) && ++which > state)
+			if (!strncasecmp(word, reload_classes[i].name, l) && ++which > state) {
 				ret = ast_strdup(reload_classes[i].name);
+			}
 		}
 	}
 
