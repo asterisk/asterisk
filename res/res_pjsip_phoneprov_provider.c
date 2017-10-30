@@ -36,6 +36,7 @@
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_phoneprov</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

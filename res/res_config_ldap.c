@@ -42,6 +42,7 @@
 
 /*** MODULEINFO
 	<depend>ldap</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
