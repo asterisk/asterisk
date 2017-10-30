@@ -72,7 +72,7 @@
 			when a new call comes in for the agent.  Login failures will continue in
 			the dialplan with <variable>AGENT_STATUS</variable> set.</para>
 			<para>Before logging in, you can setup on the real agent channel the
-			CHANNEL(dtmf-features) an agent will have when talking to a caller
+			CHANNEL(dtmf_features) an agent will have when talking to a caller
 			and you can setup on the channel running this application the
 			CONNECTEDLINE() information the agent will see while waiting for a
 			caller.</para>
@@ -92,7 +92,7 @@
 			<ref type="application">PauseQueueMember</ref>
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">AGENT</ref>
-			<ref type="function">CHANNEL(dtmf-features)</ref>
+			<ref type="function">CHANNEL(dtmf_features)</ref>
 			<ref type="function">CONNECTEDLINE()</ref>
 			<ref type="filename">agents.conf</ref>
 			<ref type="filename">queues.conf</ref>
