@@ -112,6 +112,9 @@ static char buildopt_sum[33] = AST_BUILDOPT_SUM;
 
 AST_VECTOR(module_vector, struct ast_module *);
 
+/* Built-in module registrations need special handling at startup */
+static unsigned int loader_ready;
+
 /*!
  * \brief Internal flag to indicate all modules have been initially loaded.
  */
@@ -149,12 +152,21 @@ struct ast_module {
 		unsigned int declined:1;
 		/*! This module is being held open until it's time to shutdown. */
 		unsigned int keepuntilshutdown:1;
+		/*! The module is built-in. */
+		unsigned int builtin:1;
 	} flags;
 	AST_DLLIST_ENTRY(ast_module) entry;
 	char resource[0];
 };
 
 static AST_DLLIST_HEAD_STATIC(module_list, ast_module);
+
+/*
+ * module_list is cleared by its constructor possibly after
+ * we start accumulating built-in modules, so we need to
+ * use another list (without the lock) to accumulate them.
+ */
+static struct module_list builtin_module_list;
 
 static int module_vector_strcasecmp(struct ast_module *a, struct ast_module *b)
 {
@@ -444,6 +456,22 @@ static struct ast_module * volatile resource_being_loaded;
 void ast_module_register(const struct ast_module_info *info)
 {
 	struct ast_module *mod;
+
+	if (!loader_ready) {
+		mod = ast_calloc(1, sizeof(*mod) + strlen(info->name) + 1);
+		if (!mod) {
+			/* We haven't even reached main() yet, if we can't
+			 * allocate memory at this point just give up. */
+			exit(2);
+		}
+		strcpy(mod->resource, info->name); /* safe */
+		mod->info = info;
+		mod->flags.builtin = 1;
+		AST_DLLIST_INSERT_TAIL(&builtin_module_list, mod, entry);
+
+		/* ast_module_register for built-in modules is run again during module preload. */
+		return;
+	}
 
 	/*
 	 * This lock protects resource_being_loaded as well as the module
@@ -1728,6 +1756,17 @@ int load_modules(unsigned int preload_only)
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 
 	AST_DLLIST_LOCK(&module_list);
+
+	/*
+	 * All built-in modules have registered the first time, now it's time to complete
+	 * the registration and add them to the priority list.
+	 */
+	loader_ready = 1;
+
+	while ((resource_being_loaded = AST_DLLIST_REMOVE_HEAD(&builtin_module_list, entry))) {
+		/* ast_module_register doesn't finish when first run by built-in modules. */
+		ast_module_register(resource_being_loaded->info);
+	}
 
 	cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
