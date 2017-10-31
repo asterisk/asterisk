@@ -67,6 +67,11 @@ struct ast_stream {
 	ast_stream_data_free_fn data_free_fn[AST_STREAM_DATA_SLOT_MAX];
 
 	/*!
+	 * \brief The group that the stream is part of
+	 */
+	int group;
+
+	/*!
 	 * \brief Name for the stream within the context of the channel it is on
 	 */
 	char name[0];
@@ -90,6 +95,7 @@ struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 
 	stream->type = type;
 	stream->state = AST_STREAM_STATE_INACTIVE;
+	stream->group = -1;
 	strcpy(stream->name, S_OR(name, "")); /* Safe */
 
 	return stream;
@@ -115,6 +121,7 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char 
 
 	memcpy(new_stream, stream, sizeof(*new_stream));
 	strcpy(new_stream->name, stream_name); /* Safe */
+	new_stream->group = -1;
 	if (new_stream->formats) {
 		ao2_ref(new_stream->formats, +1);
 	}
@@ -288,14 +295,16 @@ struct ast_stream_topology *ast_stream_topology_clone(
 	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
-		struct ast_stream *stream =
-			ast_stream_clone(AST_VECTOR_GET(&topology->streams, i), NULL);
+		struct ast_stream *existing = AST_VECTOR_GET(&topology->streams, i);
+		struct ast_stream *stream = ast_stream_clone(existing, NULL);
 
 		if (!stream || AST_VECTOR_APPEND(&new_topology->streams, stream)) {
 			ast_stream_free(stream);
 			ast_stream_topology_free(new_topology);
 			return NULL;
 		}
+
+		ast_stream_set_group(stream, ast_stream_get_group(existing));
 	}
 
 	return new_topology;
@@ -579,4 +588,18 @@ void ast_stream_topology_map(const struct ast_stream_topology *topology,
 		AST_VECTOR_REPLACE(v0, i, index);
 		AST_VECTOR_REPLACE(v1, index, i);
 	}
+}
+
+int ast_stream_get_group(const struct ast_stream *stream)
+{
+	ast_assert(stream != NULL);
+
+	return stream->group;
+}
+
+void ast_stream_set_group(struct ast_stream *stream, int group)
+{
+	ast_assert(stream != NULL);
+
+	stream->group = group;
 }
