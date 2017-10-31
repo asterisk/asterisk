@@ -1649,8 +1649,10 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 /*! \brief list of hooks registered */
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
+#ifdef AST_XML_DOCS
 /*! \brief A container of event documentation nodes */
 static AO2_GLOBAL_OBJ_STATIC(event_docs);
+#endif
 
 static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
 	struct ao2_container *sessions,
@@ -2306,7 +2308,9 @@ static int manager_displayconnects(struct mansession_session *session)
 	return ret;
 }
 
+#ifdef AST_XML_DOCS
 static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item *instance);
+#endif
 
 static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {

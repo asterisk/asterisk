@@ -10,6 +10,9 @@
 /* Define to 1 if internal poll should be used. */
 #undef AST_POLL_COMPAT
 
+/* Define to enable XML documentation. */
+#undef AST_XML_DOCS
+
 /* Define to 1 if your system's implementation of mutexes supports comparison
    of a mutex to its initializer. */
 #undef CAN_COMPARE_MUTEX_TO_INIT_VALUE

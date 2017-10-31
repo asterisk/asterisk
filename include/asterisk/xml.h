@@ -246,10 +246,5 @@ struct ast_xml_node *ast_xml_xpath_get_first_result(struct ast_xml_xpath_results
  */
 struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char *xpath_str);
 
-/* Features using ast_xml_ */
-#ifdef HAVE_LIBXML2
-#define AST_XML_DOCS
-#endif
-
 #endif /* _ASTERISK_XML_H */
 
