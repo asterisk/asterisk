@@ -17,6 +17,7 @@ SYNOPSIS
 		[ --tarball-results ] [ --delete-results-after ]
 		[ --tarball-uniqueid="<uniqueid>" ]
 		[ --no-default-search ] [ --append-coredumps ]
+		[ --asterisk-bin="path" ]
 		[ <coredump> | <pattern> ... ]
 
 DESCRIPTION
@@ -101,6 +102,10 @@ DESCRIPTION
 	--append-coredumps
 		Append any coredumps specified on the command line to the
 		config file specified ones instead of overriding them.
+
+	--asterisk-binary
+		Path to the asterisk binary. Default: look for asterisk
+		in the PATH.
 
 	<coredump> | <pattern>
 		A list of coredumps or coredump search patterns.  Unless
@@ -267,6 +272,9 @@ for a in "$@" ; do
 	--tarball-uniqueid=*)
 		tarball_uniqueid=${a#*=}
 		;;
+	--asterisk-bin=*)
+		asterisk_bin=${a#*=}
+		;;
 	--help|-*)
 		print_help
 		;;
@@ -368,7 +376,10 @@ tail -n +${ss} $0 >/tmp/.ast_coredumper.gdbinit
 for i in ${!COREDUMPS[@]} ; do
 	cf=${COREDUMPS[$i]}
 	echo "Processing $cf"
-	${GDB} -n --batch -q --ex "source /tmp/.ast_coredumper.gdbinit" $(which asterisk) "$cf" 2>/dev/null | (
+	if [ -z "$asterisk_bin" ]; then
+		asterisk_bin=$(which asterisk)
+	fi
+	${GDB} -n --batch -q --ex "source /tmp/.ast_coredumper.gdbinit" "$asterisk_bin" "$cf" 2>/dev/null | (
 		of=/dev/null
 		while IFS= read line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
