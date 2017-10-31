@@ -196,7 +196,6 @@
 					<value name="FAILURE" />
 					<value name="LOOP" />
 					<value name="NONEXISTENT" />
-					<value name="INCOMPATIBLE" />
 				</variable>
 			</variablelist>
 		</description>
@@ -1006,6 +1005,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	const char *extension;
 	int priority;
 	int bridge_add_failed;
+	int res = -1;
 	struct ast_bridge_features chan_features;
 	struct ast_bridge_features *peer_features;
 	struct ast_bridge *bridge;
@@ -1032,6 +1032,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	if (!current_dest_chan) {
 		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exist\n",
 			args.dest_chan);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
 		return 0;
 	}
 
@@ -1039,13 +1040,13 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	if (chan == current_dest_chan) {
 		ast_channel_unref(current_dest_chan);
 		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", ast_channel_name(chan));
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "LOOP");
 		return 0;
 	}
 
 	if (ast_test_flag(&opts, OPT_DURATION_LIMIT)
 		&& !ast_strlen_zero(opt_args[OPT_ARG_DURATION_LIMIT])
 		&& ast_bridge_timelimit(chan, &bconfig, opt_args[OPT_ARG_DURATION_LIMIT], &calldurationlimit)) {
-		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "FAILURE");
 		goto done;
 	}
 
@@ -1124,14 +1125,18 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	/* Don't keep the channel ref in case it was not already in a bridge. */
 	current_dest_chan = ast_channel_unref(current_dest_chan);
 
-	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL,
+	res = ast_bridge_join(bridge, chan, NULL, &chan_features, NULL,
 		AST_BRIDGE_JOIN_PASS_REFERENCE);
 
 	ast_bridge_features_cleanup(&chan_features);
 
-	/* The bridge has ended, set BRIDGERESULT to SUCCESS. */
-	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
 done:
+	if (res == -1) {
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "FAILURE");
+	} else {
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
+	}
+
 	ast_free((char *) bconfig.warning_sound);
 	ast_free((char *) bconfig.end_sound);
 	ast_free((char *) bconfig.start_sound);
