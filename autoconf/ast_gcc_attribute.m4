@@ -7,6 +7,7 @@ AC_MSG_CHECKING(for compiler 'attribute $1' support)
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 m4_ifval([$4],$4=0)
+ax_cv_have_func_attribute_$1=0
 
 if test "x$2" = "x"
 then
@@ -15,6 +16,7 @@ AC_COMPILE_IFELSE(
 			[])],
 	AC_MSG_RESULT(yes)
 	m4_ifval([$4],$4=1)
+	ax_cv_have_func_attribute_$1=1
 	AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to 1 if your GCC C compiler supports the '$1' attribute.]),
 	AC_MSG_RESULT(no)
 )
@@ -24,6 +26,7 @@ AC_COMPILE_IFELSE(
 			[])],
 	AC_MSG_RESULT(yes)
 	m4_ifval([$4],$4=1)
+	ax_cv_have_func_attribute_$1=1
 	AC_DEFINE_UNQUOTED([HAVE_ATTRIBUTE_$1], 1, [Define to 1 if your GCC C compiler supports the '$1' attribute.]),
 	AC_MSG_RESULT(no)
 )
