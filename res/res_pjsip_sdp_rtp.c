@@ -1052,20 +1052,11 @@ static void add_msid_to_stream(struct ast_sip_session *session,
 	}
 
 	if (ast_strlen_zero(session_media->mslabel)) {
-		if (ast_sip_session_is_pending_stream_default(session, stream)) {
-			int index;
+		/* If this stream is grouped with another then use its media stream label if possible */
+		if (ast_stream_get_group(stream) != -1) {
+			struct ast_sip_session_media *group_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, ast_stream_get_group(stream));
 
-			/* If this is a default stream we group them together under the same stream, but as different tracks */
-			for (index = 0; index < AST_VECTOR_SIZE(&session->pending_media_state->sessions); ++index) {
-				struct ast_sip_session_media *other_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
-
-				if (session_media == other_session_media) {
-					continue;
-				}
-
-				ast_copy_string(session_media->mslabel, other_session_media->mslabel, sizeof(session_media->mslabel));
-				break;
-			}
+			ast_copy_string(session_media->mslabel, group_session_media->mslabel, sizeof(session_media->mslabel));
 		}
 
 		if (ast_strlen_zero(session_media->mslabel)) {
