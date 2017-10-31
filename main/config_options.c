@@ -80,7 +80,6 @@ struct aco_option {
 
 #ifdef AST_XML_DOCS
 static struct ao2_container *xmldocs;
-#endif /* AST_XML_DOCS */
 
 /*! \brief Value of the aco_option_type enum as strings */
 static char *aco_option_type_string[] = {
@@ -98,6 +97,7 @@ static char *aco_option_type_string[] = {
 	"Unsigned Integer",	/* OPT_UINT_T, */
 	"Boolean",			/* OPT_YESNO_T, */
 };
+#endif /* AST_XML_DOCS */
 
 void *aco_pending_config(struct aco_info *info)
 {
