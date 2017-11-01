@@ -99,8 +99,12 @@ static int channel_state_invalid(struct stasis_app_control *control,
 		|| snapshot->state == AST_STATE_RINGING) {
 		ast_ari_response_error(response, 412, "Precondition Failed",
 			"Channel in invalid state");
+		ao2_ref(snapshot, -1);
+
 		return -1;
 	}
+
+	ao2_ref(snapshot, -1);
 
 	return 0;
 }
