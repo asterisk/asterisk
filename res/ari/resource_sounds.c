@@ -202,6 +202,7 @@ void ast_ari_sounds_list(struct ast_variable *headers,
 
 	if (!ast_json_array_size(sounds_blob)) {
 		ast_ari_response_error(response, 404, "Not Found", "No sounds found that matched the query");
+		ast_json_unref(sounds_blob);
 		return;
 	}
 
