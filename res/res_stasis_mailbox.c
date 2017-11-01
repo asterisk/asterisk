@@ -95,6 +95,7 @@ struct ast_json *stasis_app_mailboxes_to_json()
 		}
 	}
 	ao2_iterator_destroy(&iter);
+	ao2_ref(mailboxes, -1);
 
 	return array;
 }
