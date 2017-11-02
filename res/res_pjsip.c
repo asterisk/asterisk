@@ -51,6 +51,7 @@
 	<depend>res_sorcery_config</depend>
 	<depend>res_sorcery_memory</depend>
 	<depend>res_sorcery_astdb</depend>
+	<use type="module">res_statsd</use>
 	<support_level>core</support_level>
  ***/
 
