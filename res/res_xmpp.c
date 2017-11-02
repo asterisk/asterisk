@@ -3909,8 +3909,11 @@ static int fetch_access_token(struct ast_xmpp_client_config *cfg)
 	struct ast_json_error error;
 	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 
-	ast_asprintf(&cmd, "CURL(%s,client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token)",
-		     url, cfg->oauth_clientid, cfg->oauth_secret, cfg->refresh_token);
+	if (ast_asprintf(&cmd,
+		"CURL(%s,client_id=%s&client_secret=%s&refresh_token=%s&grant_type=refresh_token)",
+		url, cfg->oauth_clientid, cfg->oauth_secret, cfg->refresh_token) < 0) {
+		return -1;
+	}
 
 	ast_debug(2, "Performing OAuth 2.0 authentication for client '%s' using command: %s\n",
 		cfg->name, cmd);
