@@ -721,7 +721,13 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
 
-	if ((res = vasprintf(ret, fmt, ap)) == -1) {
+	res = vasprintf(ret, fmt, ap);
+	if (res < 0) {
+		/*
+		 * *ret is undefined so set to NULL to ensure it is
+		 * initialized to something useful.
+		 */
+		*ret = NULL;
 		MALLOC_FAILURE_MSG;
 	}
 

@@ -818,6 +818,8 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 
 	if (ast_asprintf(datastore_id, "%p", mixmonitor_ds) == -1) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for MixMonitor ID.\n");
+		ast_free(mixmonitor_ds);
+		return -1;
 	}
 
 	ast_mutex_init(&mixmonitor_ds->lock);
