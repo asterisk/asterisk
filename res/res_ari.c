@@ -73,6 +73,7 @@
 
 /*** MODULEINFO
 	<depend type="module">res_http_websocket</depend>
+	<depend type="module">res_stasis</depend>
 	<support_level>core</support_level>
  ***/
 

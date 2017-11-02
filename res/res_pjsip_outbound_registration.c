@@ -19,6 +19,7 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
+	<use type="module">res_statsd</use>
 	<support_level>core</support_level>
  ***/
 

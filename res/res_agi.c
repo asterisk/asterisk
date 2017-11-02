@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_speech</depend>
 	<support_level>core</support_level>
  ***/
 
