@@ -1713,7 +1713,7 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 	}
 
 	for (i = 0; i < decoded->aoc_s_count; ++i) {
-		struct ast_json *rate = ast_json_object_create();
+		struct ast_json *rate;
 		RAII_VAR(struct ast_json *, type, NULL, ast_json_unref);
 		RAII_VAR(struct ast_json *, currency, NULL, ast_json_unref);
 		const char *charge_item = aoc_charged_item_str(
