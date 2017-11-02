@@ -23,6 +23,11 @@
  * \author David M. Lee, II <dlee@digium.com>
  */
 
+/*** MODULEINFO
+	<depend type="module">res_http_websocket</depend>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 #include "resource_events.h"

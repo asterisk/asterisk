@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<use type="module">func_periodic_hook</use>
 	<support_level>core</support_level>
  ***/
  
