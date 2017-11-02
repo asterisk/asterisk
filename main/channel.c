@@ -5054,7 +5054,11 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
 		if (ast_channel_tech(chan)->write_stream) {
-			res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+			if (stream) {
+				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+			} else {
+				res = 0;
+			}
 		} else if ((stream == default_stream) && ast_channel_tech(chan)->write_video) {
 			res = ast_channel_tech(chan)->write_video(chan, fr);
 		} else {
@@ -5063,7 +5067,11 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		break;
 	case AST_FRAME_MODEM:
 		if (ast_channel_tech(chan)->write_stream) {
-			res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+			if (stream) {
+				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+			} else {
+				res = 0;
+			}
 		} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
 			res = ast_channel_tech(chan)->write(chan, fr);
 		} else {
@@ -5251,7 +5259,11 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 			f = NULL;
 		} else {
 			if (ast_channel_tech(chan)->write_stream) {
-				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), f);
+				if (stream) {
+					res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), f);
+				} else {
+					res = 0;
+				}
 			} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
 				res = ast_channel_tech(chan)->write(chan, f);
 			} else {
