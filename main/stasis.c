@@ -1342,7 +1342,7 @@ static struct ast_str *multi_object_blob_to_ami(void *obj)
 
 	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
 		for (i = 0; i < AST_VECTOR_SIZE(&multi->snapshots[type]); ++i) {
-			char *name = "";
+			char *name = NULL;
 			void *snapshot = AST_VECTOR_GET(&multi->snapshots[type], i);
 			ami_snapshot = NULL;
 
@@ -1352,11 +1352,11 @@ static struct ast_str *multi_object_blob_to_ami(void *obj)
 
 			switch (type) {
 			case STASIS_UMOS_CHANNEL:
-				ami_snapshot = ast_manager_build_channel_state_string_prefix(snapshot, name);
+				ami_snapshot = ast_manager_build_channel_state_string_prefix(snapshot, name ?: "");
 				break;
 
 			case STASIS_UMOS_BRIDGE:
-				ami_snapshot = ast_manager_build_bridge_state_string_prefix(snapshot, name);
+				ami_snapshot = ast_manager_build_bridge_state_string_prefix(snapshot, name ?: "");
 				break;
 
 			case STASIS_UMOS_ENDPOINT:
@@ -1367,6 +1367,7 @@ static struct ast_str *multi_object_blob_to_ami(void *obj)
 				ast_str_append(&ami_str, 0, "%s", ast_str_buffer(ami_snapshot));
 				ast_free(ami_snapshot);
 			}
+			ast_free(name);
 		}
 	}
 

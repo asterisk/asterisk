@@ -392,7 +392,6 @@ static int ari_bridges_play_helper(const char **args_media,
 
 	if (ast_asprintf(playback_url, "/playbacks/%s",
 			stasis_app_playback_get_id(playback)) == -1) {
-		playback_url = NULL;
 		ast_ari_response_alloc_failed(response);
 		return -1;
 	}
