@@ -891,7 +891,7 @@ struct ast_json *ast_channel_snapshot_to_json(
 	const struct ast_channel_snapshot *snapshot,
 	const struct stasis_message_sanitizer *sanitize)
 {
-	RAII_VAR(struct ast_json *, json_chan, NULL, ast_json_unref);
+	struct ast_json *json_chan;
 
 	if (snapshot == NULL
 		|| (sanitize && sanitize->channel_snapshot
@@ -924,7 +924,7 @@ struct ast_json *ast_channel_snapshot_to_json(
 		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(snapshot->ari_vars));
 	}
 
-	return ast_json_ref(json_chan);
+	return json_chan;
 }
 
 int ast_channel_snapshot_cep_equal(
