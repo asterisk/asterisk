@@ -857,6 +857,8 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 	if (transfer_msg->transferee) {
 		json_transferee = ast_channel_snapshot_to_json(transfer_msg->transferee, sanitize);
 		if (!json_transferee) {
+			ast_json_unref(json_transferer2);
+			ast_json_unref(json_transferer1);
 			return NULL;
 		}
 	}
@@ -864,6 +866,9 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 	if (transfer_msg->target) {
 		json_target = ast_channel_snapshot_to_json(transfer_msg->target, sanitize);
 		if (!json_target) {
+			ast_json_unref(json_transferee);
+			ast_json_unref(json_transferer2);
+			ast_json_unref(json_transferer1);
 			return NULL;
 		}
 	}
@@ -876,9 +881,12 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 		"result", result_strs[transfer_msg->result],
 		"is_external", ast_json_boolean(transfer_msg->is_external));
 	if (!out) {
+		ast_json_unref(json_target);
+		ast_json_unref(json_transferee);
 		return NULL;
 	}
 	if (json_transferee && ast_json_object_set(out, "transferee", json_transferee)) {
+		ast_json_unref(json_target);
 		return NULL;
 	}
 	if (json_target && ast_json_object_set(out, "transfer_target", json_target)) {
