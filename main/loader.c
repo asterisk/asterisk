@@ -36,6 +36,7 @@
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_MODULE_DIR */
 #include <dirent.h>
+#include <editline/readline.h>
 
 #include "asterisk/dlinkedlists.h"
 #include "asterisk/module.h"
@@ -702,34 +703,120 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	return res;
 }
 
-char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload)
+static int module_matches_helper_type(struct ast_module *mod, enum ast_module_helper_type type)
 {
-	struct ast_module *cur;
-	int i, which=0, l = strlen(word);
+	switch (type) {
+	case AST_MODULE_HELPER_UNLOAD:
+		return !mod->usecount && mod->flags.running && !mod->flags.declined;
+
+	case AST_MODULE_HELPER_RELOAD:
+		return mod->flags.running && mod->info->reload;
+
+	case AST_MODULE_HELPER_RUNNING:
+		return mod->flags.running;
+
+	case AST_MODULE_HELPER_LOADED:
+		/* if we have a 'struct ast_module' then we're loaded. */
+		return 1;
+	default:
+		/* This function is not called for AST_MODULE_HELPER_LOAD. */
+		/* Unknown ast_module_helper_type. Assume it doesn't match. */
+		ast_assert(0);
+
+		return 0;
+	}
+}
+
+static char *module_load_helper(const char *word, int state)
+{
+	struct ast_module *mod;
+	int which = 0;
+	char *name;
+	char *ret = NULL;
+	char *editline_ret;
+	char fullpath[PATH_MAX];
+	int idx = 0;
+	/* This is needed to avoid listing modules that are already running. */
+	AST_VECTOR(, char *) running_modules;
+
+	AST_VECTOR_INIT(&running_modules, 200);
+
+	AST_DLLIST_LOCK(&module_list);
+	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
+		if (mod->flags.running) {
+			AST_VECTOR_APPEND(&running_modules, mod->resource);
+		}
+	}
+
+	if (word[0] == '/') {
+		/* BUGBUG: we should not support this. */
+		ast_copy_string(fullpath, word, sizeof(fullpath));
+	} else {
+		snprintf(fullpath, sizeof(fullpath), "%s/%s", ast_config_AST_MODULE_DIR, word);
+	}
+
+	/*
+	 * This is ugly that we keep calling filename_completion_function.
+	 * The only way to avoid this would be to make a copy of the function
+	 * that skips matches found in the running_modules vector.
+	 */
+	while (!ret && (name = editline_ret = filename_completion_function(fullpath, idx++))) {
+		if (word[0] != '/') {
+			name += (strlen(ast_config_AST_MODULE_DIR) + 1);
+		}
+
+		/* Don't list files that are already loaded! */
+		if (!AST_VECTOR_GET_CMP(&running_modules, name, !strcasecmp) && ++which > state) {
+			ret = ast_strdup(name);
+		}
+
+		ast_std_free(editline_ret);
+	}
+
+	/* Do not clean-up the elements, they belong to module_list. */
+	AST_VECTOR_FREE(&running_modules);
+	AST_DLLIST_UNLOCK(&module_list);
+
+	return ret;
+}
+
+char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, enum ast_module_helper_type type)
+{
+	struct ast_module *mod;
+	int which = 0;
+	int wordlen = strlen(word);
 	char *ret = NULL;
 
 	if (pos != rpos) {
 		return NULL;
 	}
 
+	if (type == AST_MODULE_HELPER_LOAD) {
+		return module_load_helper(word, state);
+	}
+
+	if (type == AST_MODULE_HELPER_RELOAD) {
+		int idx;
+
+		for (idx = 0; reload_classes[idx].name; idx++) {
+			if (!strncasecmp(word, reload_classes[idx].name, wordlen) && ++which > state) {
+				return ast_strdup(reload_classes[idx].name);
+			}
+		}
+	}
+
 	AST_DLLIST_LOCK(&module_list);
-	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
-		if (!strncasecmp(word, cur->resource, l) &&
-		    (cur->info->reload || !needsreload) &&
-		    ++which > state) {
-			ret = ast_strdup(cur->resource);
+	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
+		if (!module_matches_helper_type(mod, type)) {
+			continue;
+		}
+
+		if (!strncasecmp(word, mod->resource, wordlen) && ++which > state) {
+			ret = ast_strdup(mod->resource);
 			break;
 		}
 	}
 	AST_DLLIST_UNLOCK(&module_list);
-
-	if (!ret && needsreload) {
-		for (i=0; !ret && reload_classes[i].name; i++) {
-			if (!strncasecmp(word, reload_classes[i].name, l) && ++which > state) {
-				ret = ast_strdup(reload_classes[i].name);
-			}
-		}
-	}
 
 	return ret;
 }
