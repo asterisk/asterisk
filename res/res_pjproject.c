@@ -227,11 +227,16 @@ static void log_forwarder(int level, const char *data, int len)
 
 static void capture_buildopts_cb(int level, const char *data, int len)
 {
+	char *dup;
+
 	if (strstr(data, "Teluu") || strstr(data, "Dumping")) {
 		return;
 	}
 
-	AST_VECTOR_ADD_SORTED(&buildopts, ast_strdup(ast_skip_blanks(data)), strcmp);
+	dup = ast_strdup(ast_skip_blanks(data));
+	if (AST_VECTOR_ADD_SORTED(&buildopts, dup, strcmp)) {
+		ast_free(dup);
+	}
 }
 
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
