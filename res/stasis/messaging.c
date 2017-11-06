@@ -459,7 +459,11 @@ static struct message_subscription *get_or_create_subscription(struct ast_endpoi
 		ao2_link(endpoint_subscriptions, sub);
 	} else {
 		ast_rwlock_wrlock(&tech_subscriptions_lock);
-		AST_VECTOR_APPEND(&tech_subscriptions, ao2_bump(sub));
+		if (AST_VECTOR_APPEND(&tech_subscriptions, ao2_bump(sub))) {
+			/* Release the ao2_bump that was for the vector and allocation references. */
+			ao2_ref(sub, -2);
+			sub = NULL;
+		}
 		ast_rwlock_unlock(&tech_subscriptions_lock);
 	}
 
@@ -487,7 +491,11 @@ int messaging_app_subscribe_endpoint(const char *app_name, struct ast_endpoint *
 		ao2_unlock(sub);
 		return -1;
 	}
-	AST_VECTOR_APPEND(&sub->applications, tuple);
+	if (AST_VECTOR_APPEND(&sub->applications, tuple)) {
+		ao2_ref(tuple, -1);
+		ao2_unlock(sub);
+		return -1;
+	}
 	ao2_unlock(sub);
 
 	ast_debug(3, "App '%s' subscribed to messages from endpoint '%s'\n", app_name, endpoint ? ast_endpoint_get_id(endpoint) : "-- ALL --");
