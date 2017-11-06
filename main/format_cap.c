@@ -177,12 +177,15 @@ static inline int format_cap_framed_init(struct format_cap_framed *framed, struc
 	}
 	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
 
+	/* This takes the allocation reference */
+	if (AST_VECTOR_APPEND(&cap->preference_order, framed)) {
+		ao2_ref(framed, -1);
+		return -1;
+	}
+
 	/* Order doesn't matter for formats, so insert at the head for performance reasons */
 	ao2_ref(framed, +1);
 	AST_LIST_INSERT_HEAD(list, framed, entry);
-
-	/* This takes the allocation reference */
-	AST_VECTOR_APPEND(&cap->preference_order, framed);
 
 	cap->framing = MIN(cap->framing, framing ? framing : ast_format_get_default_ms(format));
 
