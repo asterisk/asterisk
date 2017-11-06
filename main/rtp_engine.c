@@ -2717,6 +2717,8 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 		if (sscanf(value, "%30u", &dtls_cfg->rekey) != 1) {
 			return -1;
 		}
+	} else if (!strcasecmp(name, "dtlsautogeneratecert")) {
+		dtls_cfg->ephemeral_cert = ast_true(value) ? 1 : 0;
 	} else if (!strcasecmp(name, "dtlscertfile")) {
 		if (!ast_strlen_zero(value) && !ast_file_is_readable(value)) {
 			ast_log(LOG_ERROR, "%s file %s does not exist or is not readable\n", name, value);
@@ -2769,6 +2771,25 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 	return 0;
 }
 
+int ast_rtp_dtls_cfg_validate(struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+	if (dtls_cfg->ephemeral_cert) {
+		if (!ast_strlen_zero(dtls_cfg->certfile)) {
+			ast_log(LOG_ERROR, "You cannot request automatically generated certificates"
+				" (dtls_auto_generate_cert) and also specify a certificate file"
+				" (dtls_cert_file) at the same time\n");
+			return -1;
+		} else if (!ast_strlen_zero(dtls_cfg->pvtfile)
+				  || !ast_strlen_zero(dtls_cfg->cafile)
+				  || !ast_strlen_zero(dtls_cfg->capath)) {
+			ast_log(LOG_NOTICE, "dtls_pvt_file, dtls_cafile, and dtls_ca_path are"
+				" ignored when dtls_auto_generate_cert is enabled\n");
+		}
+	}
+
+	return 0;
+}
+
 void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rtp_dtls_cfg *dst_cfg)
 {
 	ast_rtp_dtls_cfg_free(dst_cfg);         /* Prevent a double-call leaking memory via ast_strdup */
@@ -2778,6 +2799,7 @@ void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rt
 	dst_cfg->rekey = src_cfg->rekey;
 	dst_cfg->suite = src_cfg->suite;
 	dst_cfg->hash = src_cfg->hash;
+	dst_cfg->ephemeral_cert = src_cfg->ephemeral_cert;
 	dst_cfg->certfile = ast_strdup(src_cfg->certfile);
 	dst_cfg->pvtfile = ast_strdup(src_cfg->pvtfile);
 	dst_cfg->cipher = ast_strdup(src_cfg->cipher);
