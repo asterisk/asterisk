@@ -1003,7 +1003,10 @@ static int wizard_apply_handler(const struct ast_sorcery *sorcery, struct object
 		char *hosts = ast_strdupa(remote_hosts);
 
 		while ((host = ast_strsep(&hosts, ',', AST_STRSEP_TRIM))) {
-			AST_VECTOR_APPEND(&remote_hosts_vector, ast_strdup(host));
+			host = ast_strdup(host);
+			if (host && AST_VECTOR_APPEND(&remote_hosts_vector, host)) {
+				ast_free(host);
+			}
 		}
 	}
 
@@ -1170,15 +1173,22 @@ static void wizard_mapped_observer(const char *name, struct ast_sorcery *sorcery
 	/* We're only interested in memory wizards with the pjsip_wizard tag. */
 	if (wizard_args && !strcmp(wizard_args, "pjsip_wizard")) {
 		otw = ast_malloc(sizeof(*otw) + strlen(object_type) + 1);
+		if (!otw) {
+			return;
+		}
+
 		otw->sorcery = sorcery;
 		otw->wizard = wizard;
 		otw->wizard_data = wizard_data;
 		otw->last_config = NULL;
 		strcpy(otw->object_type, object_type); /* Safe */
 		AST_VECTOR_RW_WRLOCK(&object_type_wizards);
-		AST_VECTOR_APPEND(&object_type_wizards, otw);
+		if (AST_VECTOR_APPEND(&object_type_wizards, otw)) {
+			ast_free(otw);
+		} else {
+			ast_debug(1, "Wizard mapped for object_type '%s'\n", object_type);
+		}
 		AST_VECTOR_RW_UNLOCK(&object_type_wizards);
-		ast_debug(1, "Wizard mapped for object_type '%s'\n", object_type);
 	}
 }
 
