@@ -1241,10 +1241,9 @@ struct ast_multi_object_blob *ast_multi_object_blob_create(struct ast_json *blob
 void ast_multi_object_blob_add(struct ast_multi_object_blob *multi,
 	enum stasis_user_multi_object_snapshot_type type, void *object)
 {
-	if (!multi || !object) {
-		return;
+	if (!multi || !object || AST_VECTOR_APPEND(&multi->snapshots[type], object)) {
+		ao2_cleanup(object);
 	}
-	AST_VECTOR_APPEND(&multi->snapshots[type],object);
 }
 
 /*! \brief Publish single channel user event (for app_userevent compatibility) */
