@@ -1474,6 +1474,10 @@ static int load_module(void)
 	}
 	ast_cli_register_multiple(cli_pktccops, sizeof(cli_pktccops) / sizeof(struct ast_cli_entry));
 	restart_pktc_thread();
+
+	/* For Optional API. */
+	ast_module_shutdown_ref(ast_module_info->self);
+
 	return 0;
 }
 

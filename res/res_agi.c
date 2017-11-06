@@ -4716,6 +4716,10 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	/* For Optional API. */
+	ast_module_shutdown_ref(ast_module_info->self);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
