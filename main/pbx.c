@@ -6692,7 +6692,11 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	}
 
 	/* ... include new context into context list, unlock, return */
-	AST_VECTOR_APPEND(&con->includes, new_include);
+	if (AST_VECTOR_APPEND(&con->includes, new_include)) {
+		include_free(new_include);
+		ast_unlock_context(con);
+		return -1;
+	}
 	ast_verb(3, "Including context '%s' in context '%s'\n",
 		ast_get_include_name(new_include), ast_get_context_name(con));
 
@@ -6754,7 +6758,11 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	}
 
 	/* ... sw new context into context list, unlock, return */
-	AST_VECTOR_APPEND(&con->alts, new_sw);
+	if (AST_VECTOR_APPEND(&con->alts, new_sw)) {
+		sw_free(new_sw);
+		ast_unlock_context(con);
+		return -1;
+	}
 
 	ast_verb(3, "Including switch '%s/%s' in context '%s'\n",
 		ast_get_switch_name(new_sw), ast_get_switch_data(new_sw), ast_get_context_name(con));
@@ -6842,7 +6850,11 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 			return -1;
 		}
 	}
-	AST_VECTOR_APPEND(&con->ignorepats, ignorepat);
+	if (AST_VECTOR_APPEND(&con->ignorepats, ignorepat)) {
+		ignorepat_free(ignorepat);
+		ast_unlock_context(con);
+		return -1;
+	}
 	ast_unlock_context(con);
 
 	return 0;
