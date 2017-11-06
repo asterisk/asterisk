@@ -802,7 +802,10 @@ static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int pay
 		ao2_t_cleanup(AST_VECTOR_GET(&codecs->payload_mapping_rx, payload),
 			"cleaning up rx mapping vector element about to be replaced");
 	}
-	AST_VECTOR_REPLACE(&codecs->payload_mapping_rx, payload, new_type);
+	if (AST_VECTOR_REPLACE(&codecs->payload_mapping_rx, payload, new_type)) {
+		ao2_ref(new_type, -1);
+		return;
+	}
 
 	payload_mapping_rx_clear_primary(codecs, new_type);
 }
@@ -924,7 +927,10 @@ static void rtp_codecs_payloads_copy_tx(struct ast_rtp_codecs *src, struct ast_r
 			ao2_t_cleanup(AST_VECTOR_GET(&dest->payload_mapping_tx, idx),
 				"cleaning up tx mapping vector element about to be replaced");
 		}
-		AST_VECTOR_REPLACE(&dest->payload_mapping_tx, idx, type);
+		if (AST_VECTOR_REPLACE(&dest->payload_mapping_tx, idx, type)) {
+			ao2_ref(type, -1);
+			continue;
+		}
 
 		if (instance && instance->engine && instance->engine->payload_set) {
 			ao2_lock(instance);
@@ -1038,9 +1044,10 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 			ao2_t_cleanup(AST_VECTOR_GET(&codecs->payload_mapping_tx, payload),
 				"cleaning up replaced tx payload type");
 		}
-		AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, new_type);
 
-		if (instance && instance->engine && instance->engine->payload_set) {
+		if (AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, new_type)) {
+			ao2_ref(new_type, -1);
+		} else if (instance && instance->engine && instance->engine->payload_set) {
 			ao2_lock(instance);
 			instance->engine->payload_set(instance, payload, new_type->asterisk_format, new_type->format, new_type->rtp_code);
 			ao2_unlock(instance);
@@ -1116,9 +1123,10 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 				ao2_t_cleanup(AST_VECTOR_GET(&codecs->payload_mapping_tx, pt),
 					"cleaning up replaced tx payload type");
 			}
-			AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, pt, new_type);
 
-			if (instance && instance->engine && instance->engine->payload_set) {
+			if (AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, pt, new_type)) {
+				ao2_ref(new_type, -1);
+			} else if (instance && instance->engine && instance->engine->payload_set) {
 				ao2_lock(instance);
 				instance->engine->payload_set(instance, pt, new_type->asterisk_format, new_type->format, new_type->rtp_code);
 				ao2_unlock(instance);
@@ -1215,7 +1223,9 @@ int ast_rtp_codecs_payload_replace_format(struct ast_rtp_codecs *codecs, int pay
 		if (payload < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)) {
 			ao2_cleanup(AST_VECTOR_GET(&codecs->payload_mapping_tx, payload));
 		}
-		AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, type);
+		if (AST_VECTOR_REPLACE(&codecs->payload_mapping_tx, payload, type)) {
+			ao2_ref(type, -1);
+		}
 	} else {
 		ao2_ref(type, -1);
 	}
