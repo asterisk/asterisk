@@ -353,6 +353,9 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	/* For Optional API. */
+	ast_module_shutdown_ref(AST_MODULE_SELF);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

@@ -1405,6 +1405,10 @@ static int _unload_module(int fromload)
 	}
 
 	smdi_loaded = 0;
+
+	/* For Optional API. */
+	ast_module_shutdown_ref(AST_MODULE_SELF);
+
 	return 0;
 }
 
