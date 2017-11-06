@@ -1364,7 +1364,12 @@ int ast_msg_tech_register(const struct ast_msg_tech *tech)
 		return -1;
 	}
 
-	AST_VECTOR_APPEND(&msg_techs, tech);
+	if (AST_VECTOR_APPEND(&msg_techs, tech)) {
+		ast_log(LOG_ERROR, "Failed to register message technology for '%s'\n",
+		        tech->name);
+		ast_rwlock_unlock(&msg_techs_lock);
+		return -1;
+	}
 	ast_verb(3, "Message technology '%s' registered.\n", tech->name);
 
 	ast_rwlock_unlock(&msg_techs_lock);
@@ -1419,7 +1424,12 @@ int ast_msg_handler_register(const struct ast_msg_handler *handler)
 		return -1;
 	}
 
-	AST_VECTOR_APPEND(&msg_handlers, handler);
+	if (AST_VECTOR_APPEND(&msg_handlers, handler)) {
+		ast_log(LOG_ERROR, "Failed to register message handler for '%s'\n",
+		        handler->name);
+		ast_rwlock_unlock(&msg_handlers_lock);
+		return -1;
+	}
 	ast_verb(2, "Message handler '%s' registered.\n", handler->name);
 
 	ast_rwlock_unlock(&msg_handlers_lock);
