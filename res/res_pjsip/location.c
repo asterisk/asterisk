@@ -1226,6 +1226,11 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 	struct ast_sip_contact_status *status;
 	struct ast_sip_contact *contact = object;
 
+	if (ast_strlen_zero(contact->uri)) {
+		ast_log(LOG_ERROR, "A URI on dynamic contact '%s' is empty\n",
+			ast_sorcery_object_get_id(contact));
+		return -1;
+	}
 	status = ast_res_pjsip_find_or_create_contact_status(contact);
 	ao2_cleanup(status);
 
