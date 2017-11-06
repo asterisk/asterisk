@@ -264,6 +264,7 @@ static struct ast_json *msg_to_json(struct ast_msg *msg)
 
 	json_vars = ast_json_array_create();
 	if (!json_vars) {
+		ast_msg_var_iterator_destroy(it_vars);
 		return NULL;
 	}
 
@@ -272,7 +273,8 @@ static struct ast_json *msg_to_json(struct ast_msg *msg)
 
 		json_tuple = ast_json_pack("{s: s}", name, value);
 		if (!json_tuple) {
-			ast_json_free(json_vars);
+			ast_json_unref(json_vars);
+			ast_msg_var_iterator_destroy(it_vars);
 			return NULL;
 		}
 
