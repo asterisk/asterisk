@@ -52,7 +52,7 @@
  */
 
 /*** MODULEINFO
-	<use type="external">crypto</use>
+	<use type="module">res_crypto</use>
 	<support_level>core</support_level>
  ***/
 

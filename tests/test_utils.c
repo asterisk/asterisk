@@ -27,6 +27,8 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<use type="module">res_agi</use>
+	<use type="module">res_crypto</use>
 	<support_level>core</support_level>
  ***/
 
