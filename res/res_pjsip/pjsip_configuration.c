@@ -1137,11 +1137,11 @@ static int from_user_handler(const struct aco_option *opt,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	/* Valid non-alphanumeric characters for URI */
-	char *valid_uri_marks = "-_.!~*`()";
+	char *valid_uri_marks = "-._~%!$&'()*+,;=:";
 	const char *val;
 
 	for (val = var->value; *val; val++) {
-		if (!strchr(valid_uri_marks, *val) && !isdigit(*val) && !isalpha(*val)) {
+		if (!isalpha(*val) && !isdigit(*val) && !strchr(valid_uri_marks, *val)) {
 			ast_log(LOG_ERROR, "Error configuring endpoint '%s' - '%s' field "
 			"contains invalid character '%c'\n",
 			ast_sorcery_object_get_id(endpoint), var->name, *val);
