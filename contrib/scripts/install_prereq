@@ -165,22 +165,18 @@ install_unpackaged() {
 		/sbin/ldconfig
 	fi
 
-	# Only install libsrtp if it wasn't installed via package
+	# Only install libsrtp2 if it wasn't installed via package
 	if ! test -f /usr/include/srtp/srtp.h; then
-		echo "*** Installing libsrtp ***"
-		if [ ! -d libsrtp ]; then
-			git clone https://github.com/cisco/libsrtp.git
-			cd libsrtp
-		else
-			cd libsrtp
-			git pull
+		if ! test -f /usr/include/srtp2/srtp.h; then
+			echo "*** Installing libsrtp2 ***"
+			wget -O - http://github.com/cisco/libsrtp/archive/v2.tar.gz | zcat | tar -xf -
+			cd libsrtp-2
+			./configure --enable-openssl
+			make shared_library uninstall install
+			cd ..
+			echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+			/sbin/ldconfig
 		fi
-		git checkout "1_5_x_throttle"
-		./configure --disable-debug --disable-stdout --enable-openssl
-		make shared_library uninstall install
-		cd ..
-		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
-		/sbin/ldconfig
 	fi
 
 	# Only install pjproject if it wasn't installed via package
