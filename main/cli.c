@@ -1362,31 +1362,6 @@ static char *handle_commandnummatches(struct ast_cli_entry *e, int cmd, struct a
 	return CLI_SUCCESS;
 }
 
-static char *handle_commandcomplete(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *buf;
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "_command complete";
-		e->usage =
-			"Usage: _command complete \"<line>\" text state\n"
-			"       This function is used internally to help with command completion and should.\n"
-			"       never be called by the user directly.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (a->argc != 5)
-		return CLI_SHOWUSAGE;
-	buf = __ast_cli_generator(a->argv[2], a->argv[3], atoi(a->argv[4]), 0);
-	if (buf) {
-		ast_cli(a->fd, "%s", buf);
-		ast_free(buf);
-	} else
-		ast_cli(a->fd, "NULL\n");
-	return CLI_SUCCESS;
-}
-
 struct channel_set_debug_args {
 	int fd;
 	int is_off;
@@ -1798,8 +1773,6 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
-	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
-	AST_CLI_DEFINE(handle_commandcomplete, "Command complete"),
 	AST_CLI_DEFINE(handle_commandnummatches, "Returns number of command matches"),
 	AST_CLI_DEFINE(handle_commandmatchesarray, "Returns command matches array"),
 
