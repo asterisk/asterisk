@@ -497,7 +497,11 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 
 	    /* safe */
 		strcpy(media_uri, media[i]);
-		AST_VECTOR_APPEND(&playback->medias, media_uri);
+		if (AST_VECTOR_APPEND(&playback->medias, media_uri)) {
+			ao2_ref(playback, -1);
+			ast_free(media_uri);
+			return NULL;
+		}
 	}
 
 	if (skipms == 0) {
