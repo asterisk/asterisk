@@ -984,6 +984,10 @@ PBX_OSPTK
 OSPTK_DIR
 OSPTK_INCLUDE
 OSPTK_LIB
+PBX_OPUSFILE
+OPUSFILE_DIR
+OPUSFILE_INCLUDE
+OPUSFILE_LIB
 PBX_OPUS
 OPUS_DIR
 OPUS_INCLUDE
@@ -1331,7 +1335,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1407,6 +1410,7 @@ with_newt
 with_ogg
 with_openr2
 with_opus
+with_opusfile
 with_osptk
 with_oss
 with_postgres
@@ -1513,7 +1517,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1766,15 +1769,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1912,7 +1906,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2065,7 +2059,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2170,6 +2163,7 @@ Optional Packages:
   --with-ogg=PATH         use OGG files in PATH
   --with-openr2=PATH      use MFR2 files in PATH
   --with-opus=PATH        use Opus files in PATH
+  --with-opusfile=PATH    use Opusfile files in PATH
   --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
@@ -11298,6 +11292,38 @@ fi
 
 
 
+    OPUSFILE_DESCRIP="Opusfile"
+    OPUSFILE_OPTION="opusfile"
+    PBX_OPUSFILE=0
+
+# Check whether --with-opusfile was given.
+if test "${with_opusfile+set}" = set; then :
+  withval=$with_opusfile;
+	case ${withval} in
+	n|no)
+	USE_OPUSFILE=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_OPUSFILE=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} OPUSFILE"
+	;;
+	*)
+	OPUSFILE_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} OPUSFILE"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
     OSPTK_DESCRIP="OSP Toolkit"
     OSPTK_OPTION="osptk"
     PBX_OSPTK=0
@@ -14720,7 +14746,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14766,7 +14792,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14790,7 +14816,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14835,7 +14861,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14859,7 +14885,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -29839,6 +29865,116 @@ fi
          PBX_OPUS=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_OPUS 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+# opusfile.h includes <opus_multistream.h> so we need to make sure that
+# either $OPUS_INCLUDE or /usr/include/opus is added to the search path.
+__opus_include=${OPUS_INCLUDE}
+if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
+	__opus_include=-I/usr/include/opus
+fi
+
+if test "x${PBX_OPUSFILE}" != "x1" -a "${USE_OPUSFILE}" != "no"; then
+   pbxlibdir=""
+   # if --with-OPUSFILE=DIR has been specified, use it.
+   if test "x${OPUSFILE_DIR}" != "x"; then
+      if test -d ${OPUSFILE_DIR}/lib; then
+         pbxlibdir="-L${OPUSFILE_DIR}/lib"
+      else
+         pbxlibdir="-L${OPUSFILE_DIR}"
+      fi
+   fi
+   pbxfuncname="op_open_callbacks"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_OPUSFILE_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $__opus_include"
+      as_ac_Lib=`$as_echo "ac_cv_lib_opusfile_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lopusfile" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lopusfile... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lopusfile ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_OPUSFILE_FOUND=yes
+else
+  AST_OPUSFILE_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_OPUSFILE_FOUND}" = "yes"; then
+      OPUSFILE_LIB="${pbxlibdir} -lopusfile "
+      # if --with-OPUSFILE=DIR has been specified, use it.
+      if test "x${OPUSFILE_DIR}" != "x"; then
+         OPUSFILE_INCLUDE="-I${OPUSFILE_DIR}/include"
+      fi
+      OPUSFILE_INCLUDE="${OPUSFILE_INCLUDE} $__opus_include"
+      if test "xopus/opusfile.h" = "x" ; then	# no header, assume found
+         OPUSFILE_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${OPUSFILE_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "opus/opusfile.h" "ac_cv_header_opus_opusfile_h" "$ac_includes_default"
+if test "x$ac_cv_header_opus_opusfile_h" = xyes; then :
+  OPUSFILE_HEADER_FOUND=1
+else
+  OPUSFILE_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${OPUSFILE_HEADER_FOUND}" = "x0" ; then
+         OPUSFILE_LIB=""
+         OPUSFILE_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            OPUSFILE_LIB=""
+         fi
+         PBX_OPUSFILE=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_OPUSFILE 1
 _ACEOF
 
       fi

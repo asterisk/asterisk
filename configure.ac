@@ -503,6 +503,7 @@ AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OPENR2], [MFR2], [openr2])
 AST_EXT_LIB_SETUP([OPUS], [Opus], [opus])
+AST_EXT_LIB_SETUP([OPUSFILE], [Opusfile], [opusfile])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
@@ -2309,6 +2310,13 @@ AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_set_isup_timer], [libss7.h])
 AST_EXT_LIB_CHECK([OPENR2], [openr2], [openr2_chan_new], [openr2.h])
 
 AST_EXT_LIB_CHECK([OPUS], [opus], [opus_encoder_create], [opus/opus.h])
+# opusfile.h includes <opus_multistream.h> so we need to make sure that
+# either $OPUS_INCLUDE or /usr/include/opus is added to the search path.
+__opus_include=${OPUS_INCLUDE}
+if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
+	__opus_include=-I/usr/include/opus
+fi
+AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then

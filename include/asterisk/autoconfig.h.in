@@ -567,6 +567,9 @@
 /* Define to 1 if you have the Opus library. */
 #undef HAVE_OPUS
 
+/* Define to 1 if you have the Opusfile library. */
+#undef HAVE_OPUSFILE
+
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 
