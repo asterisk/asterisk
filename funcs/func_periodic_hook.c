@@ -488,6 +488,11 @@ static int load_module(void)
 
 	res = ast_custom_function_register_escalating(&hook_function, AST_CFE_BOTH);
 
+	if (!res) {
+		/* For Optional API. */
+		ast_module_shutdown_ref(AST_MODULE_SELF);
+	}
+
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 

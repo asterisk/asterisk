@@ -1446,6 +1446,9 @@ static int load_module(void)
 	ast_http_uri_link(&websocketuri);
 	websocket_add_protocol_internal("echo", websocket_echo_callback);
 
+	/* For Optional API. */
+	ast_module_shutdown_ref(AST_MODULE_SELF);
+
 	return 0;
 }
 

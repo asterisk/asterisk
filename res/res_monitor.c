@@ -985,6 +985,9 @@ static int load_module(void)
 	ast_manager_register_xml("PauseMonitor", EVENT_FLAG_CALL, pause_monitor_action);
 	ast_manager_register_xml("UnpauseMonitor", EVENT_FLAG_CALL, unpause_monitor_action);
 
+	/* For Optional API. */
+	ast_module_shutdown_ref(AST_MODULE_SELF);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
