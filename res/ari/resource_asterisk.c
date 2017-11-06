@@ -435,6 +435,10 @@ void ast_ari_asterisk_list_modules(struct ast_variable *headers,
 	struct ast_json *json;
 
 	json = ast_json_array_create();
+	if (!json) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
 	ast_update_module_list_data(&process_module_list, NULL, json);
 
 	ast_ari_response_ok(response, json);
@@ -507,6 +511,7 @@ void ast_ari_asterisk_get_module(struct ast_variable *headers,
 		ast_ari_response_error(
 			response, 409, "Conflict",
 			"Module information could not be retrieved");
+		ast_json_unref(json);
 		return;
 	}
 
@@ -669,10 +674,12 @@ void ast_ari_asterisk_list_log_channels(struct ast_variable *headers,
 	if (res == AST_LOGGER_FAILURE) {
 		ast_ari_response_error(response, 500, "Internal Server Error",
 			"Response body is not valid");
+		ast_json_unref(json);
 		return;
 	} else if (res == AST_LOGGER_ALLOC_ERROR) {
 		ast_ari_response_error(response, 500, "Internal Server Error",
 			"Allocation Failed");
+		ast_json_unref(json);
 		return;
 	}
 

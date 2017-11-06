@@ -983,9 +983,11 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		struct ast_str *buf = ast_str_create(512);
 		char *str = ast_json_dump_string_format(body, ast_ari_json_format());
 
-		if (!buf) {
+		if (!buf || !str) {
 			ast_http_request_close_on_completion(ser);
 			ast_http_error(ser, 500, "Server Error", "Out of memory");
+			ast_json_free(str);
+			ast_free(buf);
 			goto request_failed;
 		}
 

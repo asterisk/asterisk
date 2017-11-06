@@ -1597,6 +1597,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 	int res = 0;
 
 	if (!object_type || !json) {
+		ast_json_unref(json);
 		return NULL;
 	}
 
