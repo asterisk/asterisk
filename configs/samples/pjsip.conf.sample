@@ -746,10 +746,12 @@
                 ; "no")
 ;dtls_rekey=0   ; Interval at which to renegotiate the TLS session and rekey
                 ; the SRTP session (default: "0")
-;dtls_cert_file=        ; Path to certificate file to present to peer (default:
-                        ; "")
-;dtls_private_key=      ; Path to private key for certificate file (default:
-                        ; "")
+;dtls_auto_generate_cert= ; Enable ephemeral DTLS certificate generation (default:
+                          ; "no")
+;dtls_cert_file=          ; Path to certificate file to present to peer (default:
+                          ; "")
+;dtls_private_key=        ; Path to private key for certificate file (default:
+                          ; "")
 ;dtls_cipher=   ; Cipher to use for DTLS negotiation (default: "")
 ;dtls_ca_file=  ; Path to certificate authority certificate (default: "")
 ;dtls_ca_path=  ; Path to a directory containing certificate authority

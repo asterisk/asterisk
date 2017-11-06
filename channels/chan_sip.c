@@ -31785,6 +31785,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 			}
 		}
 
+		/* Validate DTLS configuration */
+		if (ast_rtp_dtls_cfg_validate(&peer->dtls_cfg)) {
+			sip_unref_peer(peer, "Removing peer due to bad DTLS configuration");
+			return NULL;
+		}
+
+		/* SRB */
+
 		/* Apply the encryption tag length to the DTLS configuration, in case DTLS is in use */
 		peer->dtls_cfg.suite = (ast_test_flag(&peer->flags[2], SIP_PAGE3_SRTP_TAG_32) ? AST_AES_CM_128_HMAC_SHA1_32 : AST_AES_CM_128_HMAC_SHA1_80);
 
@@ -32982,6 +32990,11 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "websocket_enabled")) {
 			sip_cfg.websocket_enabled = ast_true(v->value);
 		}
+	}
+
+	/* Validate DTLS configuration */
+	if (ast_rtp_dtls_cfg_validate(&default_dtls_cfg)) {
+		return -1;
 	}
 
 	/* Override global defaults if setting found in general section */
