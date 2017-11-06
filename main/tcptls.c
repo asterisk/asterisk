@@ -874,7 +874,10 @@ void *ast_tcptls_server_root(void *data)
 static int __ssl_setup(struct ast_tls_config *cfg, int client)
 {
 #ifndef DO_SSL
-	cfg->enabled = 0;
+	if (cfg->enabled) {
+		ast_log(LOG_NOTICE, "Configured without OpenSSL Development Headers");
+		cfg->enabled = 0;
+	}
 	return 0;
 #else
 	int disable_ssl = 0;
