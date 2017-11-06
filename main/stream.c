@@ -398,8 +398,7 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	stream->position = position;
 
 	if (position == AST_VECTOR_SIZE(&topology->streams)) {
-		AST_VECTOR_APPEND(&topology->streams, stream);
-		return 0;
+		return AST_VECTOR_APPEND(&topology->streams, stream);
 	}
 
 	return AST_VECTOR_REPLACE(&topology->streams, position, stream);
