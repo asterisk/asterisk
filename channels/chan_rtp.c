@@ -28,6 +28,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_rtp_multicast</depend>
 	<support_level>core</support_level>
  ***/
 
