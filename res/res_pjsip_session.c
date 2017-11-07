@@ -174,7 +174,8 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
 	ao2_callback_data(sdp_handlers, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, remove_handler, (void *)stream_type, handler);
 }
 
-struct ast_sip_session_media_state *ast_sip_session_media_state_alloc(void)
+static struct ast_sip_session_media_state *internal_sip_session_media_state_alloc(
+	size_t sessions, size_t read_callbacks)
 {
 	struct ast_sip_session_media_state *media_state;
 
@@ -183,18 +184,24 @@ struct ast_sip_session_media_state *ast_sip_session_media_state_alloc(void)
 		return NULL;
 	}
 
-	if (AST_VECTOR_INIT(&media_state->sessions, DEFAULT_NUM_SESSION_MEDIA) < 0) {
+	if (AST_VECTOR_INIT(&media_state->sessions, sessions) < 0) {
 		ast_free(media_state);
 		return NULL;
 	}
 
-	if (AST_VECTOR_INIT(&media_state->read_callbacks, DEFAULT_NUM_SESSION_MEDIA) < 0) {
+	if (AST_VECTOR_INIT(&media_state->read_callbacks, read_callbacks) < 0) {
 		AST_VECTOR_FREE(&media_state->sessions);
 		ast_free(media_state);
 		return NULL;
 	}
 
 	return media_state;
+}
+
+struct ast_sip_session_media_state *ast_sip_session_media_state_alloc(void)
+{
+	return internal_sip_session_media_state_alloc(
+		DEFAULT_NUM_SESSION_MEDIA, DEFAULT_NUM_SESSION_MEDIA);
 }
 
 void ast_sip_session_media_state_reset(struct ast_sip_session_media_state *media_state)
@@ -225,7 +232,9 @@ struct ast_sip_session_media_state *ast_sip_session_media_state_clone(const stru
 		return NULL;
 	}
 
-	cloned = ast_sip_session_media_state_alloc();
+	cloned = internal_sip_session_media_state_alloc(
+		AST_VECTOR_SIZE(&media_state->sessions),
+		AST_VECTOR_SIZE(&media_state->read_callbacks));
 	if (!cloned) {
 		return NULL;
 	}
@@ -452,7 +461,11 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		}
 	}
 
-	AST_VECTOR_REPLACE(&media_state->sessions, position, session_media);
+	if (AST_VECTOR_REPLACE(&media_state->sessions, position, session_media)) {
+		ao2_ref(session_media, -1);
+
+		return NULL;
+	}
 
 	/* If this stream will be active in some way and it is the first of this type then consider this the default media session to match */
 	if (!media_state->default_session[type] && ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
@@ -1588,7 +1601,11 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 					}
 
 					ast_stream_set_state(cloned, AST_STREAM_STATE_REMOVED);
-					ast_stream_topology_append_stream(media_state->topology, cloned);
+					if (ast_stream_topology_append_stream(media_state->topology, cloned) < 0) {
+						ast_stream_free(cloned);
+						ast_sip_session_media_state_free(media_state);
+						return -1;
+					}
 				}
 
 				/* If the resulting media state matches the existing active state don't bother doing a session refresh */
