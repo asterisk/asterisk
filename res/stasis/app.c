@@ -874,9 +874,21 @@ int stasis_app_get_debug(struct stasis_app *app)
 
 int stasis_app_get_debug_by_name(const char *app_name)
 {
-	RAII_VAR(struct stasis_app *, app, stasis_app_get_by_name(app_name), ao2_cleanup);
+	int debug_enabled = 0;
 
-	return (app ? app->debug : 0) || global_debug;
+	if (global_debug) {
+		debug_enabled = 1;
+	} else {
+		struct stasis_app *app = stasis_app_get_by_name(app_name);
+
+		if (app) {
+			if (app->debug) {
+				debug_enabled = 1;
+			}
+			ao2_ref(app, -1);
+		}
+	}
+	return debug_enabled;
 }
 
 void stasis_app_set_global_debug(int debug)
