@@ -910,7 +910,7 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 {
 	int res;
 	size_t idx;
-	RAII_VAR(struct stasis_forward *, forward, NULL, ao2_cleanup);
+	struct stasis_forward *forward;
 
 	if (!from_topic || !to_topic) {
 		return NULL;
@@ -923,7 +923,7 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 
 	/* Forwards to ourselves are implicit. */
 	if (to_topic == from_topic) {
-		return ao2_bump(forward);
+		return forward;
 	}
 
 	forward->from_topic = ao2_bump(from_topic);
@@ -934,6 +934,7 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 	if (res != 0) {
 		ao2_unlock(from_topic);
 		ao2_unlock(to_topic);
+		ao2_ref(forward, -1);
 		return NULL;
 	}
 
@@ -943,7 +944,7 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 	ao2_unlock(from_topic);
 	ao2_unlock(to_topic);
 
-	return ao2_bump(forward);
+	return forward;
 }
 
 static void subscription_change_dtor(void *obj)
