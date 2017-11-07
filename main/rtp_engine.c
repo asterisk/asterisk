@@ -728,10 +728,11 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 			ao2_t_cleanup(AST_VECTOR_GET(&dest->payloads, i), "cleaning up vector element about to be replaced");
 		}
 		ast_debug(2, "Copying payload %d (%p) from %p to %p\n", i, type, src, dest);
-		ao2_bump(type);
-		AST_VECTOR_REPLACE(&dest->payloads, i, type);
 
-		if (instance && instance->engine && instance->engine->payload_set) {
+		ao2_bump(type);
+		if (AST_VECTOR_REPLACE(&dest->payloads, i, type)) {
+			ao2_cleanup(type);
+		} else if (instance && instance->engine && instance->engine->payload_set) {
 			ao2_lock(instance);
 			instance->engine->payload_set(instance, i, type->asterisk_format, type->format, type->rtp_code);
 			ao2_unlock(instance);
@@ -767,9 +768,10 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 	if (payload < AST_VECTOR_SIZE(&codecs->payloads)) {
 		ao2_t_cleanup(AST_VECTOR_GET(&codecs->payloads, payload), "cleaning up replaced payload type");
 	}
-	AST_VECTOR_REPLACE(&codecs->payloads, payload, new_type);
 
-	if (instance && instance->engine && instance->engine->payload_set) {
+	if (AST_VECTOR_REPLACE(&codecs->payloads, payload, new_type)) {
+		ao2_ref(new_type, -1);
+	} else if (instance && instance->engine && instance->engine->payload_set) {
 		ao2_lock(instance);
 		instance->engine->payload_set(instance, payload, new_type->asterisk_format, new_type->format, new_type->rtp_code);
 		ao2_unlock(instance);
@@ -837,9 +839,10 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 			/* SDP parsing automatically increases the reference count */
 			new_type->format = ast_format_parse_sdp_fmtp(new_type->format, "");
 		}
-		AST_VECTOR_REPLACE(&codecs->payloads, pt, new_type);
 
-		if (instance && instance->engine && instance->engine->payload_set) {
+		if (AST_VECTOR_REPLACE(&codecs->payloads, pt, new_type)) {
+			ao2_ref(new_type, -1);
+		} else if (instance && instance->engine && instance->engine->payload_set) {
 			ao2_lock(instance);
 			instance->engine->payload_set(instance, pt, new_type->asterisk_format, new_type->format, new_type->rtp_code);
 			ao2_unlock(instance);
@@ -929,7 +932,11 @@ int ast_rtp_codecs_payload_replace_format(struct ast_rtp_codecs *codecs, int pay
 	if (payload < AST_VECTOR_SIZE(&codecs->payloads)) {
 		ao2_cleanup(AST_VECTOR_GET(&codecs->payloads, payload));
 	}
-	AST_VECTOR_REPLACE(&codecs->payloads, payload, type);
+	if (AST_VECTOR_REPLACE(&codecs->payloads, payload, type)) {
+		ao2_ref(type, -1);
+		ast_rwlock_unlock(&codecs->codecs_lock);
+		return -1;
+	}
 	ast_rwlock_unlock(&codecs->codecs_lock);
 
 	return 0;
