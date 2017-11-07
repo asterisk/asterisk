@@ -51,6 +51,9 @@
 /*! \brief Integer vector definition */
 AST_VECTOR(ast_vector_int, int);
 
+/*! \brief String vector definition */
+AST_VECTOR(ast_vector_string, char *);
+
 /*!
  * \brief Define a vector structure with a read/write lock
  *
@@ -88,6 +91,26 @@ AST_VECTOR(ast_vector_int, int);
 		(vec)->max = 0;						\
 	}								\
 	(alloc_size == 0 || (vec)->elems != NULL) ? 0 : -1;		\
+})
+
+/*!
+ * \brief Steal the elements from a vector and reinitialize.
+ *
+ * \param vec Vector to operate on.
+ *
+ * This allows you to use vector.h to construct a list and use the
+ * data as a bare array.
+ *
+ * \note The stolen array must eventually be released using ast_free.
+ *
+ * \warning AST_VECTOR_SIZE and AST_VECTOR_MAX_SIZE are both reset
+ *          to 0.  If either are needed they must be saved to a local
+ *          variable before stealing the elements.
+ */
+#define AST_VECTOR_STEAL_ELEMENTS(vec) ({ \
+	typeof((vec)->elems) __elems = (vec)->elems; \
+	AST_VECTOR_INIT((vec), 0); \
+	(__elems); \
 })
 
 /*!
