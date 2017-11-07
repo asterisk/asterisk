@@ -1255,7 +1255,10 @@ static int sdp_merge_streams_match(
 					return -1;
 				}
 				idx = AST_VECTOR_GET(current_vect, current_idx);
-				ast_stream_topology_set_stream(merged_topology, idx, merged_stream);
+				if (ast_stream_topology_set_stream(merged_topology, idx, merged_stream)) {
+					ast_stream_free(merged_stream);
+					return -1;
+				}
 
 				/*
 				 * The current_stream cannot be considered a backfill_candidate
@@ -1400,7 +1403,10 @@ static struct ast_stream_topology *merge_local_topologies(
 		if (!merged_stream) {
 			goto fail;
 		}
-		ast_stream_topology_set_stream(merged_topology, idx, merged_stream);
+		if (ast_stream_topology_set_stream(merged_topology, idx, merged_stream)) {
+			ast_stream_free(merged_stream);
+			goto fail;
+		}
 	}
 
 	/* Backfill new update stream slots into pre-existing declined current stream slots */
@@ -1438,7 +1444,10 @@ static struct ast_stream_topology *merge_local_topologies(
 		}
 
 		/* Add the new stream into the backfill stream slot. */
-		ast_stream_topology_set_stream(merged_topology, current_idx, merged_stream);
+		if (ast_stream_topology_set_stream(merged_topology, current_idx, merged_stream)) {
+			ast_stream_free(merged_stream);
+			goto fail;
+		}
 		backfill_candidate[current_idx] = 0;
 	}
 
