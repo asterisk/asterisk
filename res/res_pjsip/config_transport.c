@@ -683,6 +683,11 @@ static int transport_tls_file_handler(const struct aco_option *opt, struct ast_v
 		return -1;
 	}
 
+	if (ast_strlen_zero(var->value)) {
+		/* Ignore empty options */
+		return 0;
+	}
+
 	if (!ast_file_is_readable(var->value)) {
 		ast_log(LOG_ERROR, "Transport: %s: %s %s is either missing or not readable\n",
 			ast_sorcery_object_get_id(obj), var->name, var->value);
