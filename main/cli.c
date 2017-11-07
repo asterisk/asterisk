@@ -2476,76 +2476,98 @@ int ast_cli_generatornummatches(const char *text, const char *word)
 	return matches;
 }
 
-static void destroy_match_list(char **match_list, int matches)
-{
-	if (match_list) {
-		int idx;
-
-		for (idx = 1; idx < matches; ++idx) {
-			ast_free(match_list[idx]);
-		}
-		ast_free(match_list);
-	}
-}
-
 char **ast_cli_completion_matches(const char *text, const char *word)
 {
-	char **match_list = NULL, *retstr, *prevstr;
-	char **new_list;
-	size_t match_list_len, max_equal, which, i;
-	int matches = 0;
+	struct ast_vector_string *vec = ast_cli_completion_vector(text, word);
+	char **match_list;
 
-	/* leave entry 0 free for the longest common substring */
-	match_list_len = 1;
-	while ((retstr = ast_cli_generator(text, word, matches)) != NULL) {
-		if (matches + 1 >= match_list_len) {
-			match_list_len <<= 1;
-			new_list = ast_realloc(match_list, match_list_len * sizeof(*match_list));
-			if (!new_list) {
-				destroy_match_list(match_list, matches);
-				return NULL;
-			}
-			match_list = new_list;
+	if (!vec) {
+		return NULL;
+	}
+
+	if (AST_VECTOR_APPEND(vec, NULL)) {
+		/* We failed to NULL terminate the elements */
+		AST_VECTOR_CALLBACK_VOID(vec, ast_free);
+		AST_VECTOR_PTR_FREE(vec);
+
+		return NULL;
+	}
+
+	match_list = AST_VECTOR_STEAL_ELEMENTS(vec);
+	AST_VECTOR_PTR_FREE(vec);
+
+	return match_list;
+}
+
+struct ast_vector_string *ast_cli_completion_vector(const char *text, const char *word)
+{
+	char *retstr, *prevstr;
+	size_t max_equal;
+	size_t which = 0;
+	struct ast_vector_string *vec = ast_calloc(1, sizeof(*vec));
+
+	if (!vec) {
+		return NULL;
+	}
+
+	while ((retstr = ast_cli_generator(text, word, which)) != NULL) {
+		if (AST_VECTOR_ADD_SORTED(vec, retstr, strcasecmp)) {
+			ast_free(retstr);
+
+			goto vector_cleanup;
 		}
-		match_list[++matches] = retstr;
+
+		++which;
 	}
 
-	if (!match_list) {
-		return match_list; /* NULL */
+	if (!AST_VECTOR_SIZE(vec)) {
+		AST_VECTOR_PTR_FREE(vec);
+
+		return NULL;
 	}
+
+	prevstr = AST_VECTOR_GET(vec, 0);
+	max_equal = strlen(prevstr);
+	which = 1;
 
 	/* Find the longest substring that is common to all results
 	 * (it is a candidate for completion), and store a copy in entry 0.
 	 */
-	prevstr = match_list[1];
-	max_equal = strlen(prevstr);
-	for (which = 2; which <= matches; which++) {
-		for (i = 0; i < max_equal && toupper(prevstr[i]) == toupper(match_list[which][i]); i++)
-			continue;
-		max_equal = i;
-	}
+	while (which < AST_VECTOR_SIZE(vec)) {
+		size_t i = 0;
 
-	retstr = ast_malloc(max_equal + 1);
-	if (!retstr) {
-		destroy_match_list(match_list, matches);
-		return NULL;
-	}
-	ast_copy_string(retstr, match_list[1], max_equal + 1);
-	match_list[0] = retstr;
-
-	/* ensure that the array is NULL terminated */
-	if (matches + 1 >= match_list_len) {
-		new_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list));
-		if (!new_list) {
+		retstr = AST_VECTOR_GET(vec, which);
+		/* Check for and remove duplicate strings. */
+		if (!strcasecmp(prevstr, retstr)) {
+			AST_VECTOR_REMOVE(vec, which, 1);
 			ast_free(retstr);
-			destroy_match_list(match_list, matches);
-			return NULL;
-		}
-		match_list = new_list;
-	}
-	match_list[matches + 1] = NULL;
 
-	return match_list;
+			continue;
+		}
+
+		while (i < max_equal && toupper(prevstr[i]) == toupper(retstr[i])) {
+			i++;
+		}
+
+		max_equal = i;
+		prevstr = retstr;
+		++which;
+	}
+
+	/* Insert longest match to position 0. */
+	retstr = ast_strndup(AST_VECTOR_GET(vec, 0), max_equal);
+	if (!retstr || AST_VECTOR_INSERT_AT(vec, 0, retstr)) {
+		ast_free(retstr);
+		goto vector_cleanup;
+	}
+
+	return vec;
+
+vector_cleanup:
+	AST_VECTOR_CALLBACK_VOID(vec, ast_free);
+	AST_VECTOR_PTR_FREE(vec);
+
+	return NULL;
 }
 
 /*! \brief returns true if there are more words to match */
