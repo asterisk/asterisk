@@ -502,7 +502,6 @@ static int append_source_streams(struct ast_stream_topology *dest,
 
 		if (ast_asprintf(&stream_clone_name, "%s_%s_%s", SOFTBRIDGE_VIDEO_DEST_PREFIX,
 			channel_name, ast_stream_get_name(stream)) < 0) {
-			ast_free(stream_clone_name);
 			return -1;
 		}
 
