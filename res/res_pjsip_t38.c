@@ -363,7 +363,11 @@ static struct ast_sip_session_media_state *t38_create_media_state(struct ast_sip
 	}
 
 	ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
-	ast_stream_topology_set_stream(media_state->topology, 0, stream);
+	if (ast_stream_topology_set_stream(media_state->topology, 0, stream)) {
+		ast_stream_free(stream);
+		ast_sip_session_media_state_free(media_state);
+		return NULL;
+	}
 
 	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!caps) {
@@ -371,9 +375,14 @@ static struct ast_sip_session_media_state *t38_create_media_state(struct ast_sip
 		return NULL;
 	}
 
-	ast_format_cap_append(caps, ast_format_t38, 0);
 	ast_stream_set_formats(stream, caps);
+	/* stream holds a reference to cap, release the local reference
+	 * now so we don't have to deal with it in the error condition. */
 	ao2_ref(caps, -1);
+	if (ast_format_cap_append(caps, ast_format_t38, 0)) {
+		ast_sip_session_media_state_free(media_state);
+		return NULL;
+	}
 
 	session_media = ast_sip_session_media_state_add(session, media_state, AST_MEDIA_TYPE_IMAGE, 0);
 	if (!session_media) {
