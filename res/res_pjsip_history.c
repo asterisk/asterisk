@@ -707,10 +707,13 @@ static pj_status_t history_on_tx_msg(pjsip_tx_data *tdata)
 	pj_sockaddr_cp(&entry->dst, &tdata->tp_info.dst_addr);
 
 	ast_mutex_lock(&history_lock);
-	AST_VECTOR_APPEND(&vector_history, entry);
+	if (AST_VECTOR_APPEND(&vector_history, entry)) {
+		ao2_ref(entry, -1);
+		entry = NULL;
+	}
 	ast_mutex_unlock(&history_lock);
 
-	if (log_level != -1) {
+	if (log_level != -1 && entry) {
 		char line[256];
 
 		sprint_list_entry(entry, line, sizeof(line));
@@ -747,10 +750,13 @@ static pj_bool_t history_on_rx_msg(pjsip_rx_data *rdata)
 	}
 
 	ast_mutex_lock(&history_lock);
-	AST_VECTOR_APPEND(&vector_history, entry);
+	if (AST_VECTOR_APPEND(&vector_history, entry)) {
+		ao2_ref(entry, -1);
+		entry = NULL;
+	}
 	ast_mutex_unlock(&history_lock);
 
-	if (log_level != -1) {
+	if (log_level != -1 && entry) {
 		char line[256];
 
 		sprint_list_entry(entry, line, sizeof(line));
@@ -961,7 +967,9 @@ static int evaluate_history_entry(struct pjsip_history_entry *entry, struct expr
 
 		/* If this is not an operator, push it to the stack */
 		if (!it_queue->op) {
-			AST_VECTOR_APPEND(&stack, it_queue);
+			if (AST_VECTOR_APPEND(&stack, it_queue)) {
+				goto error;
+			}
 			continue;
 		}
 
@@ -1037,7 +1045,11 @@ static int evaluate_history_entry(struct pjsip_history_entry *entry, struct expr
 		if (!result) {
 			goto error;
 		}
-		AST_VECTOR_APPEND(&stack, result);
+		if (AST_VECTOR_APPEND(&stack, result)) {
+			expression_token_free(result);
+
+			goto error;
+		}
 	}
 
 	/*
@@ -1058,6 +1070,7 @@ static int evaluate_history_entry(struct pjsip_history_entry *entry, struct expr
 	}
 	result = final->result;
 	ast_free(final);
+	AST_VECTOR_FREE(&stack);
 
 	return result;
 
@@ -1100,6 +1113,7 @@ static struct vector_history_t *filter_history(struct ast_cli_args *a)
 
 	queue = build_expression_queue(a);
 	if (!queue) {
+		AST_VECTOR_PTR_FREE(output);
 		return NULL;
 	}
 
@@ -1120,7 +1134,9 @@ static struct vector_history_t *filter_history(struct ast_cli_args *a)
 		} else if (!res) {
 			continue;
 		} else {
-			AST_VECTOR_APPEND(output, ao2_bump(entry));
+			if (AST_VECTOR_APPEND(output, ao2_bump(entry))) {
+				ao2_cleanup(entry);
+			}
 		}
 	}
 	ast_mutex_unlock(&history_lock);
