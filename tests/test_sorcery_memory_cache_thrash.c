@@ -218,7 +218,11 @@ static struct sorcery_memory_cache_thrash *sorcery_memory_cache_thrash_create(co
 		/* This purposely holds no ref as the main thrash structure does */
 		thread->sorcery = thrash->sorcery;
 
-		AST_VECTOR_APPEND(&thrash->threads, thread);
+		if (AST_VECTOR_APPEND(&thrash->threads, thread)) {
+			ast_free(thread);
+			ao2_ref(thrash, -1);
+			return NULL;
+		}
 	}
 
 	return thrash;
