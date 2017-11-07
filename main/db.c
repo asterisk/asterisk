@@ -191,9 +191,11 @@ static int convert_bdb_to_sqlite3(void)
 	char *cmd;
 	int res;
 
-	ast_asprintf(&cmd, "%s/astdb2sqlite3 '%s'\n", ast_config_AST_SBIN_DIR, ast_config_AST_DB);
-	res = ast_safe_system(cmd);
-	ast_free(cmd);
+	res = ast_asprintf(&cmd, "%s/astdb2sqlite3 '%s'\n", ast_config_AST_SBIN_DIR, ast_config_AST_DB);
+	if (0 <= res) {
+		res = ast_safe_system(cmd);
+		ast_free(cmd);
+	}
 
 	return res;
 }
