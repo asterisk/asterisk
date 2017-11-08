@@ -59,7 +59,9 @@
 
 #define	open(a,...)	__ast_fdleak_open(__FILE__,__LINE__,__PRETTY_FUNCTION__, a, __VA_ARGS__)
 #define pipe(a)		__ast_fdleak_pipe(a, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define socketpair(a,b,c,d)	__ast_fdleak_socketpair(a, b, c, d, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define socket(a,b,c)	__ast_fdleak_socket(a, b, c, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define accept(a,b,c)	__ast_fdleak_accept(a, b, c, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define close(a)	__ast_fdleak_close(a)
 #define	fopen(a,b)	__ast_fdleak_fopen(a, b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 #define	fclose(a)	__ast_fdleak_fclose(a)
@@ -71,7 +73,21 @@ extern "C" {
 #endif
 int __ast_fdleak_open(const char *file, int line, const char *func, const char *path, int flags, ...);
 int __ast_fdleak_pipe(int *fds, const char *file, int line, const char *func);
+int __ast_fdleak_socketpair(int domain, int type, int protocol, int sv[2],
+	const char *file, int line, const char *func);
 int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, int line, const char *func);
+int __ast_fdleak_accept(int socket, struct sockaddr *address, socklen_t *address_len,
+	const char *file, int line, const char *func);
+#if defined(HAVE_EVENTFD)
+#include <sys/eventfd.h>
+#define eventfd(a,b)	__ast_fdleak_eventfd(a,b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+int __ast_fdleak_eventfd(unsigned int initval, int flags, const char *file, int line, const char *func);
+#endif
+#if defined(HAVE_TIMERFD)
+#include <sys/timerfd.h>
+#define timerfd_create(a,b)	__ast_fdleak_timerfd_create(a,b, __FILE__,__LINE__,__PRETTY_FUNCTION__)
+int __ast_fdleak_timerfd_create(int clockid, int flags, const char *file, int line, const char *func);
+#endif
 int __ast_fdleak_close(int fd);
 FILE *__ast_fdleak_fopen(const char *path, const char *mode, const char *file, int line, const char *func);
 int __ast_fdleak_fclose(FILE *ptr);
