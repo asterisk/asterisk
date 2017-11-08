@@ -591,6 +591,7 @@ static int message_received_handler(const char *endpoint_id, struct ast_json *js
 {
 	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_json *json_endpoint;
+	struct ast_json *message;
 	struct stasis_app *app = pvt;
 	char *tech;
 	char *resource;
@@ -616,11 +617,15 @@ static int message_received_handler(const char *endpoint_id, struct ast_json *js
 		return -1;
 	}
 
-	app_send(app, ast_json_pack("{s: s, s: o, s: o, s: o}",
+	message = ast_json_pack("{s: s, s: o, s: o, s: o}",
 		"type", "TextMessageReceived",
 		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 		"endpoint", json_endpoint,
-		"message", ast_json_ref(json_msg)));
+		"message", ast_json_ref(json_msg));
+	if (message) {
+		app_send(app, message);
+		ast_json_unref(message);
+	}
 
 	return 0;
 }
