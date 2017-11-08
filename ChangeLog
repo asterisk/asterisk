@@ -1,3 +1,85 @@
+2017-11-08 16:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.18.1 Released.
+
+2017-10-19 13:53 +0000 [ed0acc1fff]  George Joseph <gjoseph@digium.com>
+
+	* AST-2017-009: pjproject: Add validation of numeric header values
+
+	  Parsing the numeric header fields like cseq, ttl, port, etc. all
+	  had the potential to overflow, either causing unintended values to
+	  be captured or, if the values were subsequently converted back to
+	  strings, a buffer overrun.  To address this, new "strto" functions
+	  have been created that do range checking and those functions are
+	  used wherever possible in the parser.
+
+	   * Created pjlib/include/limits.h and pjlib/include/compat/limits.h
+	     to either include the system limits.h or define common numeric
+	     limits if there is no system limits.h.
+
+	   * Created strto*_validate functions in sip_parser that take bounds
+	     and on failure call the on_str_parse_error function which prints
+	     an error message and calls PJ_THROW.
+
+	   * Updated sip_parser to validate the numeric fields.
+
+	   * Fixed an issue in sip_transport that prevented error messages
+	     from being properly displayed.
+
+	   * Added "volatile" to some variables referenced in PJ_CATCH blocks
+	     as the optimizer was sometimes optimizing them away.
+
+	   * Fixed length calculation in sip_transaction/create_tsx_key_2543
+	     to account for signed ints being 11 characters, not 9.
+
+	  ASTERISK-27319
+	  Reported by: Youngsung Kim at LINE Corporation
+
+	  Change-Id: I48de2e4ccf196990906304e8d7061f4ffdd772ff
+
+2017-10-19 13:35 +0000 [cd7c10c646]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2017-011 - res_pjsip_session: session leak when a call is rejected
+
+	  A previous commit made it so when an invite session transitioned into a
+	  disconnected state destruction of the Asterisk pjsip session object was
+	  postponed until either a transport error occurred or the event timer
+	  expired. However, if a call was rejected (for instance a 488) before the
+	  session was fully established the event timer may not have been initiated,
+	  or it was canceled without triggering either of the session finalizing states
+	  mentioned above.
+
+	  Really the only time destruction of the session should be delayed is when a
+	  BYE is being transacted. This is because it's possible in some cases for the
+	  session to be disconnected, but the BYE is still transacting.
+
+	  This patch makes it so the session object always gets released (no more
+	  memory leak) when the pjsip session is in a disconnected state. Except when
+	  the method is a BYE. Then it waits until a transport error occurs or an event
+	  timeout.
+
+	  ASTERISK-27345 #close
+
+	  Reported by: Corey Farrell
+
+	  Change-Id: I1e724737b758c20ac76d19d3611e3d2876ae10ed
+
+2017-10-03 16:19 +0000 [8f7073be6d]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2017-010: Fix cdr_object_update_party_b_userfield_cb() buf overrun
+
+	  cdr_object_update_party_b_userfield_cb() could overrun the fixed buffer if
+	  the supplied string is too long.  The long string could be supplied by
+	  external means using the CDR(userfield) function.
+
+	  This may seem reminiscent to AST-2017-001 (ASTERISK_26897) and it is.  The
+	  earlier patch fixed the buffer overrun for Party A's userfield while this
+	  patch fixes the same thing for Party B's userfield.
+
+	  ASTERISK-27337
+
+	  Change-Id: I0fa767f65ecec7e676ca465306ff9e0edbf3b652
+
 2017-10-30 15:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.18.0 Released.
