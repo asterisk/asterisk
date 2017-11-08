@@ -234,7 +234,7 @@ static void capture_buildopts_cb(int level, const char *data, int len)
 	}
 
 	dup = ast_strdup(ast_skip_blanks(data));
-	if (AST_VECTOR_ADD_SORTED(&buildopts, dup, strcmp)) {
+	if (dup && AST_VECTOR_ADD_SORTED(&buildopts, dup, strcmp)) {
 		ast_free(dup);
 	}
 }
