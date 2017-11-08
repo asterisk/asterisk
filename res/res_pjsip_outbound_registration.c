@@ -1385,10 +1385,10 @@ static int sip_outbound_registration_perform(void *data)
 
 	AST_VECTOR_INIT(&state->client_state->outbound_auths, AST_VECTOR_SIZE(&registration->outbound_auths));
 	for (i = 0; i < AST_VECTOR_SIZE(&registration->outbound_auths); ++i) {
-		const char *name = ast_strdup(AST_VECTOR_GET(&registration->outbound_auths, i));
+		char *name = ast_strdup(AST_VECTOR_GET(&registration->outbound_auths, i));
 
-		if (name) {
-			AST_VECTOR_APPEND(&state->client_state->outbound_auths, name);
+		if (name && AST_VECTOR_APPEND(&state->client_state->outbound_auths, name)) {
+			ast_free(name);
 		}
 	}
 	state->client_state->retry_interval = registration->retry_interval;
