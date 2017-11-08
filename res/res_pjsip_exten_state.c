@@ -729,8 +729,11 @@ static int exten_state_publisher_state_cb(const char *context, const char *exten
 		}
 
 		ao2_ref(publisher, +1);
-		AST_VECTOR_APPEND(&pub_data->pubs, publisher);
-		ast_debug(5, "'%s' will publish exten state\n", publisher->name);
+		if (AST_VECTOR_APPEND(&pub_data->pubs, publisher)) {
+			ao2_ref(publisher, -1);
+		} else {
+			ast_debug(5, "'%s' will publish exten state\n", publisher->name);
+		}
 	}
 	ao2_iterator_destroy(&publisher_iter);
 
