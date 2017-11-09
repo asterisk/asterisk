@@ -678,7 +678,10 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			if (!stream) {
 				return -1;
 			}
-			ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream);
+			if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
+				ast_stream_free(stream);
+				return -1;
+			}
 		}
 
 		session_media = ast_sip_session_media_state_add(session, session->pending_media_state, ast_media_type_from_str(media), i);
@@ -1745,7 +1748,10 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		/* As this is only called on an incoming SDP offer before processing it is not possible
 		 * for streams and their media sessions to exist.
 		 */
-		ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream);
+		if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
+			ast_stream_free(stream);
+			return -1;
+		}
 
 		session_media = ast_sip_session_media_state_add(session, session->pending_media_state, ast_media_type_from_str(media), i);
 		if (!session_media) {
