@@ -2475,18 +2475,17 @@ static char *parse_args(const char *s, int *argc, const char *argv[], int max, i
 /*! \brief Return the number of unique matches for the generator */
 int ast_cli_generatornummatches(const char *text, const char *word)
 {
-	int matches = 0, i = 0;
-	char *buf = NULL, *oldbuf = NULL;
+	int matches;
+	struct ast_vector_string *vec = ast_cli_completion_vector(text, word);
 
-	while ((buf = ast_cli_generator(text, word, i++))) {
-		if (!oldbuf || strcmp(buf,oldbuf))
-			matches++;
-		if (oldbuf)
-			ast_free(oldbuf);
-		oldbuf = buf;
+	if (!vec) {
+		return 0;
 	}
-	if (oldbuf)
-		ast_free(oldbuf);
+
+	matches = AST_VECTOR_SIZE(vec) - 1;
+	AST_VECTOR_CALLBACK_VOID(vec, ast_free);
+	AST_VECTOR_PTR_FREE(vec);
+
 	return matches;
 }
 
