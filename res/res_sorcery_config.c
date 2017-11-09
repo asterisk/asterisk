@@ -71,6 +71,12 @@ struct sorcery_config_fields_cmp_params {
 	/*! \brief Regular expression for checking object id */
 	regex_t *regex;
 
+	/*! \brief Prefix for matching object id */
+	const char *prefix;
+
+	/*! \brief Prefix length in bytes for matching object id */
+	const size_t prefix_len;
+
 	/*! \brief Optional container to put object into */
 	struct ao2_container *container;
 };
@@ -83,6 +89,7 @@ static void *sorcery_config_retrieve_fields(const struct ast_sorcery *sorcery, v
 static void sorcery_config_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
 					     const struct ast_variable *fields);
 static void sorcery_config_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
+static void sorcery_config_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *prefix, const size_t prefix_len);
 static void sorcery_config_close(void *data);
 
 static struct ast_sorcery_wizard config_object_wizard = {
@@ -94,6 +101,7 @@ static struct ast_sorcery_wizard config_object_wizard = {
 	.retrieve_fields = sorcery_config_retrieve_fields,
 	.retrieve_multiple = sorcery_config_retrieve_multiple,
 	.retrieve_regex = sorcery_config_retrieve_regex,
+	.retrieve_prefix = sorcery_config_retrieve_prefix,
 	.close = sorcery_config_close,
 };
 
@@ -115,6 +123,11 @@ static int sorcery_config_fields_cmp(void *obj, void *arg, int flags)
 	if (params->regex) {
 		/* If a regular expression has been provided see if it matches, otherwise move on */
 		if (!regexec(params->regex, ast_sorcery_object_get_id(obj), 0, NULL, 0)) {
+			ao2_link(params->container, obj);
+		}
+		return 0;
+	} else if (params->prefix) {
+		if (!strncmp(params->prefix, ast_sorcery_object_get_id(obj), params->prefix_len)) {
 			ao2_link(params->container, obj);
 		}
 		return 0;
@@ -204,6 +217,24 @@ static void sorcery_config_retrieve_regex(const struct ast_sorcery *sorcery, voi
 
 	ao2_callback(config_objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_config_fields_cmp, &params);
 	regfree(&expression);
+}
+
+static void sorcery_config_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *prefix, const size_t prefix_len)
+{
+	struct sorcery_config *config = data;
+	RAII_VAR(struct ao2_container *, config_objects, ao2_global_obj_ref(config->objects), ao2_cleanup);
+	struct sorcery_config_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.container = objects,
+		.prefix = prefix,
+		.prefix_len = prefix_len,
+	};
+
+	if (!config_objects) {
+		return;
+	}
+
+	ao2_callback(config_objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_config_fields_cmp, &params);
 }
 
 /*! \brief Internal function which determines if criteria has been met for considering an object set applicable */
