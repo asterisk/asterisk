@@ -447,11 +447,19 @@ static void remove_excess_contacts(struct ao2_container *contacts, unsigned int 
 	AST_VECTOR_FREE(&contact_vec);
 }
 
-static int register_aor_core(pjsip_rx_data *rdata,
+struct aor_core_response {
+	/*! Tx data to use for statefull response.  NULL for stateless response. */
+	pjsip_tx_data *tdata;
+	/*! SIP response code to send in stateless response */
+	int code;
+};
+
+static void register_aor_core(pjsip_rx_data *rdata,
 	struct ast_sip_endpoint *endpoint,
 	struct ast_sip_aor *aor,
 	const char *aor_name,
-	struct ao2_container *contacts)
+	struct ao2_container *contacts,
+	struct aor_core_response *response)
 {
 	static const pj_str_t USER_AGENT = { "User-Agent", 10 };
 
@@ -480,19 +488,19 @@ static int register_aor_core(pjsip_rx_data *rdata,
 
 	if (registrar_validate_contacts(rdata, contacts, aor, &added, &updated, &deleted)) {
 		/* The provided Contact headers do not conform to the specification */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
 		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
 				ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
+		response->code = 400;
+		return;
 	}
 
 	if (registrar_validate_path(rdata, aor, &path_str)) {
 		/* Ensure that intervening proxies did not make invalid modifications to the request */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 420, NULL, NULL, NULL);
 		ast_log(LOG_WARNING, "Invalid modifications made to REGISTER request from '%s' by intervening proxy\n",
 				ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
+		response->code = 420;
+		return;
 	}
 
 	if (aor->remove_existing) {
@@ -504,18 +512,18 @@ static int register_aor_core(pjsip_rx_data *rdata,
 	}
 	if (contact_count > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
 		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %u\n",
 				ast_sorcery_object_get_id(endpoint), aor_name, aor->max_contacts);
-		return PJ_TRUE;
+		response->code = 403;
+		return;
 	}
 
 	details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
 		"Contact Comparison", 256, 256);
 	if (!details.pool) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
-		return PJ_TRUE;
+		response->code = 500;
+		return;
 	}
 
 	user_agent_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &USER_AGENT, NULL);
@@ -730,8 +738,8 @@ static int register_aor_core(pjsip_rx_data *rdata,
 	/* Re-retrieve contacts.  Caller will clean up the original container. */
 	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	if (!contacts) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
-		return PJ_TRUE;
+		response->code = 500;
+		return;
 	}
 	response_contact = ao2_callback(contacts, 0, NULL, NULL);
 
@@ -739,7 +747,8 @@ static int register_aor_core(pjsip_rx_data *rdata,
 	if (ast_sip_create_response(rdata, 200, response_contact, &tdata) != PJ_SUCCESS) {
 		ao2_cleanup(response_contact);
 		ao2_cleanup(contacts);
-		return PJ_TRUE;
+		response->code = 500;
+		return;
 	}
 	ao2_cleanup(response_contact);
 
@@ -754,9 +763,7 @@ static int register_aor_core(pjsip_rx_data *rdata,
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)expires_hdr);
 	}
 
-	ast_sip_send_stateful_response(rdata, tdata, endpoint);
-
-	return PJ_TRUE;
+	response->tdata = tdata;
 }
 
 static int register_aor(pjsip_rx_data *rdata,
@@ -764,21 +771,32 @@ static int register_aor(pjsip_rx_data *rdata,
 	struct ast_sip_aor *aor,
 	const char *aor_name)
 {
-	int res;
+	struct aor_core_response response = {
+		.code = 500,
+	};
 	struct ao2_container *contacts = NULL;
 
 	ao2_lock(aor);
 	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	if (!contacts) {
 		ao2_unlock(aor);
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(),
+			rdata, response.code, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
 
-	res = register_aor_core(rdata, endpoint, aor, aor_name, contacts);
+	register_aor_core(rdata, endpoint, aor, aor_name, contacts, &response);
 	ao2_cleanup(contacts);
 	ao2_unlock(aor);
 
-	return res;
+	/* Now send the REGISTER response to the peer */
+	if (response.tdata) {
+		ast_sip_send_stateful_response(rdata, response.tdata, endpoint);
+	} else {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(),
+			rdata, response.code, NULL, NULL, NULL);
+	}
+	return PJ_TRUE;
 }
 
 static int match_aor(const char *aor_name, const char *id)
