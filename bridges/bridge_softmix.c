@@ -541,6 +541,8 @@ static int append_all_streams(struct ast_stream_topology *dest,
 			dest_index++;
 
 			if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+				/* This cannot fail because dest_index - 1 is less than the
+				 * current count in dest. */
 				ast_stream_topology_set_stream(dest, dest_index - 1, clone);
 				added = 1;
 				break;
