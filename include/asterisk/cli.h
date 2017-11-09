@@ -305,6 +305,9 @@ int ast_cli_generatornummatches(const char *, const char *);
  * Subsequent entries are all possible values, followed by a NULL.
  * All strings and the array itself are malloc'ed and must be freed
  * by the caller.
+ *
+ * \warning This function cannot be called recursively so it will always
+ *          fail if called from a CLI_GENERATE callback.
  */
 char **ast_cli_completion_matches(const char *, const char *);
 
@@ -326,8 +329,28 @@ char **ast_cli_completion_matches(const char *, const char *);
  *       by the caller.
  *
  * \note The vector is sorted and does not contain any duplicates.
+ *
+ * \warning This function cannot be called recursively so it will always
+ *          fail if called from a CLI_GENERATE callback.
  */
 struct ast_vector_string *ast_cli_completion_vector(const char *text, const char *word);
+
+/*!
+ * \brief Add a result to a request for completion options.
+ *
+ * \param value A completion option text.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * This is an alternative to returning individual values from CLI_GENERATE.  Instead
+ * of repeatedly being asked for the next match and having to start over, you can
+ * call this function repeatedly from your own stateful loop.  When all matches have
+ * been added you can return NULL from the CLI_GENERATE function.
+ *
+ * \note This function always eventually results in calling ast_free on \a value.
+ */
+int ast_cli_completion_add(char *value);
 
 /*!
  * \brief Command completion for the list of active channels.
