@@ -298,6 +298,14 @@ struct ast_sorcery_wizard {
 	/*! \brief Callback for retrieving multiple objects using a regex on their id */
 	void (*retrieve_regex)(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
 
+	/*! \brief Optional callback for retrieving multiple objects by matching their id with a prefix */
+	void (*retrieve_prefix)(const struct ast_sorcery *sorcery,
+			void *data,
+			const char *type,
+			struct ao2_container *objects,
+			const char *prefix,
+			const size_t prefix_len);
+
 	/*! \brief Optional callback for retrieving an object using fields */
 	void *(*retrieve_fields)(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields);
 
@@ -1239,6 +1247,22 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
  * \note The provided regex is treated as extended case sensitive.
  */
 struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *sorcery, const char *type, const char *regex);
+
+/*!
+ * \brief Retrieve multiple objects whose id begins with the specified prefix
+ * \since 13.19.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to retrieve
+ * \param prefix Object id prefix
+ * \param prefix_len The length of prefix in bytes
+ *
+ * \retval non-NULL if error occurs
+ * \retval NULL success
+ *
+ * \note The prefix is matched in a case sensitive manner.
+ */
+struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *sorcery, const char *type, const char *prefix, const size_t prefix_len);
 
 /*!
  * \brief Update an object
