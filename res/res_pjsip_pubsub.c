@@ -938,7 +938,9 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 				}
 				ast_debug(2, "Subscription to leaf resource %s resulted in success. Adding to parent %s\n",
 						resource, parent->resource);
-				AST_VECTOR_APPEND(&parent->children, current);
+				if (AST_VECTOR_APPEND(&parent->children, current)) {
+					tree_node_destroy(current);
+				}
 			} else {
 				ast_debug(2, "Subscription to leaf resource %s resulted in error response %d\n",
 						resource, resp);
@@ -953,7 +955,9 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 			build_node_children(endpoint, handler, child_list, current, visited);
 			if (AST_VECTOR_SIZE(&current->children) > 0) {
 				ast_debug(1, "List %s had no successful children.\n", resource);
-				AST_VECTOR_APPEND(&parent->children, current);
+				if (AST_VECTOR_APPEND(&parent->children, current)) {
+					tree_node_destroy(current);
+				}
 			} else {
 				ast_debug(2, "List %s had successful children. Adding to parent %s\n",
 						resource, parent->resource);
@@ -1194,6 +1198,10 @@ static struct ast_sip_subscription *create_virtual_subscriptions(const struct as
 		if (AST_VECTOR_APPEND(&sub->children, child)) {
 			ast_debug(1, "Child subscription to resource %s could not be appended\n",
 					child_node->resource);
+			destroy_subscription(child);
+			/* Have to release tree here too because a ref was added
+			 * to child that destroy_subscription() doesn't release. */
+			ao2_cleanup(tree);
 		}
 	}
 
@@ -2139,7 +2147,9 @@ static void build_body_part(pj_pool_t *pool, struct ast_sip_subscription *sub,
 	bp->part->body = body;
 	pj_list_insert_before(&bp->part->hdr, bp->cid);
 
-	AST_VECTOR_APPEND(parts, bp);
+	if (AST_VECTOR_APPEND(parts, bp)) {
+		ast_free(bp);
+	}
 }
 
 /*!
@@ -2200,6 +2210,7 @@ static pjsip_msg_body *generate_list_body(pj_pool_t *pool, struct ast_sip_subscr
 
 	/* This can happen if issuing partial state and no children of the list have changed state */
 	if (AST_VECTOR_SIZE(&body_parts) == 0) {
+		free_body_parts(&body_parts);
 		return NULL;
 	}
 
@@ -2207,6 +2218,7 @@ static pjsip_msg_body *generate_list_body(pj_pool_t *pool, struct ast_sip_subscr
 
 	rlmi_part = build_rlmi_body(pool, sub, &body_parts, use_full_state);
 	if (!rlmi_part) {
+		free_body_parts(&body_parts);
 		return NULL;
 	}
 	pjsip_multipart_add_part(pool, multipart, rlmi_part);
@@ -4602,7 +4614,10 @@ static int list_item_handler(const struct aco_option *opt,
 			ast_log(LOG_WARNING, "Ignoring duplicated list item '%s'\n", item);
 			continue;
 		}
-		if (AST_VECTOR_APPEND(&list->items, ast_strdup(item))) {
+
+		item = ast_strdup(item);
+		if (!item || AST_VECTOR_APPEND(&list->items, item)) {
+			ast_free(item);
 			return -1;
 		}
 	}
@@ -4738,7 +4753,10 @@ static int populate_list(struct resource_list *list, const char *event, const ch
 	ast_copy_string(list->event, event, sizeof(list->event));
 
 	for (i = 0; i < num_resources; ++i) {
-		if (AST_VECTOR_APPEND(&list->items, ast_strdup(resources[i]))) {
+		char *resource = ast_strdup(resources[i]);
+
+		if (!resource || AST_VECTOR_APPEND(&list->items, resource)) {
+			ast_free(resource);
 			return -1;
 		}
 	}
