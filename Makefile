@@ -1112,3 +1112,6 @@ check-alembic: makeopts
 
 FORCE:
 
+# This only stops targets within the root Makefile from building in parallel.
+.NOTPARALLEL:
+
