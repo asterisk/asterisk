@@ -1,3 +1,38 @@
+2017-11-10 16:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.1.2 Released.
+
+2017-11-01 11:12 +0000 [f0cebe2321]  Ben Ford <bford@digium.com>
+
+	* res_pjsip: Add to list of valid characters for from_user.
+
+	  Fixes a regression where some characters were unable to be used in
+	  the from_user field of an endpoint. Additionally, the backtick was
+	  removed from the list of valid characters, since it is not valid,
+	  and it was replaced with a single quote, which is a valid character.
+
+	  ASTERISK-27387
+
+	  Change-Id: Id80c10a644508365c87b3182e99ea49da11b0281
+	  (cherry picked from commit 5b13290522f0dc4312d5dca308bda3fdd636d613)
+
+2017-11-06 16:37 +0000 [7ebf5a9386]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_registrar.c: Fix AOR and pjproject group deadlock.
+
+	  One of the patches for ASTERISK_27147 introduced a deadlock regression.
+	  When the connection oriented transport shut down, the code attempted to
+	  remove the associated contact.  However, that same transport had just
+	  requested a registration that we hadn't responded to yet.  Depending
+	  upon timing we could deadlock.
+
+	  * Made send the REGISTER response after we completed processing the
+	  request contacts and released the AOR lock to avoid the deadlock.
+
+	  ASTERISK-27391
+
+	  Change-Id: I89a90f87cb7a02facbafb44c75d8845f93417364
+
 2017-11-08 16:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.1.1 Released.
