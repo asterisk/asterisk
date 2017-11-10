@@ -2586,16 +2586,6 @@ static char *handle_version(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
-#if 0
-static int handle_quit(int fd, int argc, char *argv[])
-{
-	if (argc != 1)
-		return RESULT_SHOWUSAGE;
-	quit_handler(0, SHUTDOWN_NORMAL, 0);
-	return RESULT_SUCCESS;
-}
-#endif
-
 static char *handle_stop_now(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
