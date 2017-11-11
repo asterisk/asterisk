@@ -66,6 +66,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_CACHE_RECORD_FILES = (1 << 13),
 	/*! Display timestamp in CLI verbose output */
 	AST_OPT_FLAG_TIMESTAMP = (1 << 14),
+	/*! Cache media frames for performance */
+	AST_OPT_FLAG_CACHE_MEDIA_FRAMES = (1 << 15),
 	/*! Reconnect */
 	AST_OPT_FLAG_RECONNECT = (1 << 16),
 	/*! Transmit Silence during Record() and DTMF Generation */
@@ -99,7 +101,7 @@ enum ast_option_flags {
 };
 
 /*! These are the options that set by default when Asterisk starts */
-#define AST_DEFAULT_OPTIONS AST_OPT_FLAG_TRANSCODE_VIA_SLIN
+#define AST_DEFAULT_OPTIONS (AST_OPT_FLAG_TRANSCODE_VIA_SLIN | AST_OPT_FLAG_CACHE_MEDIA_FRAMES)
 
 #define ast_opt_exec_includes		ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES)
 #define ast_opt_no_fork			ast_test_flag(&ast_options, AST_OPT_FLAG_NO_FORK)
@@ -116,6 +118,7 @@ enum ast_option_flags {
 #define ast_opt_stdexten_macro		ast_test_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO)
 #define ast_opt_dump_core		ast_test_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE)
 #define ast_opt_cache_record_files	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES)
+#define ast_opt_cache_media_frames	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_MEDIA_FRAMES)
 #define ast_opt_timestamp		ast_test_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP)
 #define ast_opt_reconnect		ast_test_flag(&ast_options, AST_OPT_FLAG_RECONNECT)
 #define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
