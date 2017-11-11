@@ -165,18 +165,16 @@ void ast_frame_free(struct ast_frame *frame, int cache)
 {
 	struct ast_frame *next;
 
-	for (next = AST_LIST_NEXT(frame, frame_list);
-	     frame;
-	     frame = next, next = frame ? AST_LIST_NEXT(frame, frame_list) : NULL) {
+	while (frame) {
+		next = AST_LIST_NEXT(frame, frame_list);
 		__frame_free(frame, cache);
+		frame = next;
 	}
 }
 
 void ast_frame_dtor(struct ast_frame *f)
 {
-	if (f) {
-		ast_frfree(f);
-	}
+	ast_frfree(f);
 }
 
 /*!
