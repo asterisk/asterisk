@@ -26,15 +26,6 @@
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
 
-/* Define to 1 if your GCC C compiler supports the 'weak' attribute. */
-#undef HAVE_ATTRIBUTE_weak
-
-/* Define to 1 if your GCC C compiler supports the 'weak_import' attribute. */
-#undef HAVE_ATTRIBUTE_weak_import
-
-/* Define to 1 if your GCC C compiler supports the 'weakref' attribute. */
-#undef HAVE_ATTRIBUTE_weakref
-
 /* Define to 1 if you have the curses library. */
 #undef HAVE_CURSES
 
