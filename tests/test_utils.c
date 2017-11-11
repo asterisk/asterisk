@@ -324,20 +324,6 @@ AST_TEST_DEFINE(crypto_loaded_test)
 		break;
 	}
 
-#if 0 /* Not defined on Solaris */
-	ast_test_status_update(test,
-			       "address of __stub__ast_crypto_loaded is %p\n",
-			       __stub__ast_crypto_loaded);
-#ifndef HAVE_ATTRIBUTE_weak_import
-	ast_test_status_update(test,
-			       "address of __ref__ast_crypto_loaded is %p\n",
-			       __ref__ast_crypto_loaded);
-#endif
-	ast_test_status_update(test,
-			       "pointer to ast_crypto_loaded is %p\n",
-			       ast_crypto_loaded);
-#endif
-
 	return ast_crypto_loaded() ? AST_TEST_PASS : AST_TEST_FAIL;
 }
 
@@ -387,20 +373,6 @@ AST_TEST_DEFINE(agi_loaded_test)
 	case TEST_EXECUTE:
 		break;
 	}
-
-#if 0
-	ast_test_status_update(test,
-			       "address of __stub__ast_agi_register is %p\n",
-			       __stub__ast_agi_register);
-#ifndef HAVE_ATTRIBUTE_weak_import
-	ast_test_status_update(test,
-			       "address of __ref__ast_agi_register is %p\n",
-			       __ref__ast_agi_register);
-#endif
-	ast_test_status_update(test,
-			       "pointer to ast_agi_register is %p\n",
-			       ast_agi_register);
-#endif
 
 	if (ast_agi_register(ast_module_info->self, &noop_command) == AST_OPTIONAL_API_UNAVAILABLE) {
 		ast_test_status_update(test, "Unable to register testnoop command, because res_agi is not loaded.\n");
