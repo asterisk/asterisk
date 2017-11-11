@@ -676,6 +676,9 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
+#if !defined(LOW_MEMORY)
+	ast_cli(a->fd, "  Cache media frames:          %s\n", ast_opt_cache_media_frames ? "Enabled" : "Disabled");
+#endif
 
 	if (ast_option_rtpptdynamic == AST_RTP_PT_LAST_REASSIGN) {
 		ast_cli(a->fd, "  RTP dynamic payload types:   %u,%u-%u\n",
@@ -3827,6 +3830,11 @@ static void ast_readconfig(void)
 		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_RECORD_FILES);
+#if !defined(LOW_MEMORY)
+		/* Cache media frames for performance */
+		} else if (!strcasecmp(v->name, "cache_media_frames")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_MEDIA_FRAMES);
+#endif
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
 			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
