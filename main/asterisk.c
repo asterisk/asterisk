@@ -3770,7 +3770,6 @@ static void ast_readconfig(void)
 			ast_copy_string(cfg_paths.agi_dir, v->value, sizeof(cfg_paths.agi_dir));
 		} else if (!strcasecmp(v->name, "astrundir")) {
 			snprintf(cfg_paths.pid_path, sizeof(cfg_paths.pid_path), "%s/%s", v->value, "asterisk.pid");
-			snprintf(cfg_paths.socket_path, sizeof(cfg_paths.socket_path), "%s/%s", v->value, ast_config_AST_CTL);
 			ast_copy_string(cfg_paths.run_dir, v->value, sizeof(cfg_paths.run_dir));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 			ast_copy_string(cfg_paths.module_dir, v->value, sizeof(cfg_paths.module_dir));
@@ -3778,6 +3777,10 @@ static void ast_readconfig(void)
 			ast_copy_string(cfg_paths.sbin_dir, v->value, sizeof(cfg_paths.sbin_dir));
 		}
 	}
+
+	/* Combine astrundir and astctl settings. */
+	snprintf(cfg_paths.socket_path, sizeof(cfg_paths.socket_path), "%s/%s",
+		ast_config_AST_RUN_DIR, ast_config_AST_CTL);
 
 	for (v = ast_variable_browse(cfg, "options"); v; v = v->next) {
 		/* verbose level (-v at startup) */
