@@ -2475,9 +2475,14 @@ void ast_sip_subscription_get_local_uri(struct ast_sip_subscription *sub, char *
 void ast_sip_subscription_get_remote_uri(struct ast_sip_subscription *sub, char *buf, size_t size)
 {
 	pjsip_dialog *dlg;
+	pjsip_sip_uri *uri;
 
 	dlg = sub->tree->dlg;
-	ast_copy_pj_str(buf, &dlg->remote.info_str, size);
+	uri = pjsip_uri_get_uri(dlg->remote.info->uri);
+
+	if (pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, uri, buf, size) < 0) {
+		*buf = '\0';
+	}
 }
 
 const char *ast_sip_subscription_get_resource_name(struct ast_sip_subscription *sub)
