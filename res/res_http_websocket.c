@@ -87,18 +87,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Structure definition for session */
 struct ast_websocket {
-	FILE *f;                          /*!< Pointer to the file instance used for writing and reading */
-	int fd;                           /*!< File descriptor for the session, only used for polling */
-	struct ast_sockaddr address;      /*!< Address of the remote client */
-	enum ast_websocket_opcode opcode; /*!< Cached opcode for multi-frame messages */
-	size_t payload_len;               /*!< Length of the payload */
-	char *payload;                    /*!< Pointer to the payload */
-	size_t reconstruct;               /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
-	int timeout;                      /*!< The timeout for operations on the socket */
-	unsigned int secure:1;            /*!< Bit to indicate that the transport is secure */
-	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
-	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
-	struct websocket_client *client;  /*!< Client object when connected as a client websocket */
+	FILE *f;                            /*!< Pointer to the file instance used for writing and reading */
+	int fd;                             /*!< File descriptor for the session, only used for polling */
+	struct ast_sockaddr remote_address; /*!< Address of the remote client */
+	struct ast_sockaddr local_address;  /*!< Our local address */
+	enum ast_websocket_opcode opcode;   /*!< Cached opcode for multi-frame messages */
+	size_t payload_len;                 /*!< Length of the payload */
+	char *payload;                      /*!< Pointer to the payload */
+	size_t reconstruct;                 /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
+	int timeout;                        /*!< The timeout for operations on the socket */
+	unsigned int secure:1;              /*!< Bit to indicate that the transport is secure */
+	unsigned int closing:1;             /*!< Bit to indicate that the session is in the process of being closed */
+	unsigned int close_sent:1;          /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
+	struct websocket_client *client;    /*!< Client object when connected as a client websocket */
 };
 
 /*! \brief Hashing function for protocols */
@@ -183,7 +184,7 @@ static void session_destroy_fn(void *obj)
 		if (session->f) {
 			fclose(session->f);
 			ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
-				ast_sockaddr_stringify(&session->address));
+				ast_sockaddr_stringify(&session->remote_address));
 		}
 	}
 
@@ -316,7 +317,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 		fclose(session->f);
 		session->f = NULL;
 		ast_verb(2, "WebSocket connection %s '%s' forcefully closed due to fatal write error\n",
-			session->client ? "to" : "from", ast_sockaddr_stringify(&session->address));
+			session->client ? "to" : "from", ast_sockaddr_stringify(&session->remote_address));
 	}
 
 	ao2_unlock(session);
@@ -429,7 +430,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_fd)(struct ast_websocket *session)
 
 struct ast_sockaddr * AST_OPTIONAL_API_NAME(ast_websocket_remote_address)(struct ast_websocket *session)
 {
-	return &session->address;
+	return &session->remote_address;
+}
+
+struct ast_sockaddr * AST_OPTIONAL_API_NAME(ast_websocket_local_address)(struct ast_websocket *session)
+{
+	return &session->local_address;
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_is_secure)(struct ast_websocket *session)
@@ -890,12 +896,22 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		return 0;
 	}
 
+	/* Get our local address for the connected socket */
+	if (ast_getsockname(ser->fd, &session->local_address)) {
+		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to get local address\n",
+			ast_sockaddr_stringify(&ser->remote_address));
+		websocket_bad_request(ser);
+		ao2_ref(session, -1);
+		ao2_ref(protocol_handler, -1);
+		return 0;
+	}
+
 	ast_verb(2, "WebSocket connection from '%s' for protocol '%s' accepted using version '%d'\n", ast_sockaddr_stringify(&ser->remote_address), protocol ? : "", version);
 
 	/* Populate the session with all the needed details */
 	session->f = ser->f;
 	session->fd = ser->fd;
-	ast_sockaddr_copy(&session->address, &ser->remote_address);
+	ast_sockaddr_copy(&session->remote_address, &ser->remote_address);
 	session->opcode = -1;
 	session->reconstruct = DEFAULT_RECONSTRUCTION_CEILING;
 	session->secure = ser->ssl ? 1 : 0;
@@ -1350,7 +1366,7 @@ static enum ast_websocket_result websocket_client_connect(struct ast_websocket *
 	ws->f = ws->client->ser->f;
 	ws->fd = ws->client->ser->fd;
 	ws->secure = ws->client->ser->ssl ? 1 : 0;
-	ast_sockaddr_copy(&ws->address, &ws->client->ser->remote_address);
+	ast_sockaddr_copy(&ws->remote_address, &ws->client->ser->remote_address);
 	return WS_OK;
 }
 
