@@ -1764,15 +1764,13 @@ static struct sigaction urg_handler = {
 
 static void _hup_handler(int num)
 {
-	int a = 0, save_errno = errno;
+	int save_errno = errno;
 	printf("Received HUP signal -- Reloading configs\n");
 	if (restartnow)
 		execvp(_argv[0], _argv);
 	sig_flags.need_reload = 1;
-	if (sig_alert_pipe[1] != -1) {
-		if (write(sig_alert_pipe[1], &a, sizeof(a)) < 0) {
-			fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
-		}
+	if (ast_alertpipe_write(sig_alert_pipe)) {
+		fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
 	}
 	errno = save_errno;
 }
@@ -2172,10 +2170,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		close(ast_consock);
 	if (!ast_opt_remote)
 		unlink(ast_config_AST_PID);
-	if (sig_alert_pipe[0])
-		close(sig_alert_pipe[0]);
-	if (sig_alert_pipe[1])
-		close(sig_alert_pipe[1]);
+	ast_alertpipe_close(sig_alert_pipe);
 	printf("%s", term_quit());
 	if (restart) {
 		int i;
@@ -2211,12 +2206,9 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 
 static void __quit_handler(int num)
 {
-	int a = 0;
 	sig_flags.need_quit = 1;
-	if (sig_alert_pipe[1] != -1) {
-		if (write(sig_alert_pipe[1], &a, sizeof(a)) < 0) {
-			fprintf(stderr, "quit_handler: write() failed: %s\n", strerror(errno));
-		}
+	if (ast_alertpipe_write(sig_alert_pipe)) {
+		fprintf(stderr, "quit_handler: write() failed: %s\n", strerror(errno));
 	}
 	/* There is no need to restore the signal handler here, since the app
 	 * is going to exit */
@@ -3885,7 +3877,7 @@ static void *monitor_sig_flags(void *unused)
 {
 	for (;;) {
 		struct pollfd p = { sig_alert_pipe[0], POLLIN, 0 };
-		int a;
+
 		ast_poll(&p, 1, -1);
 		if (sig_flags.need_reload) {
 			sig_flags.need_reload = 0;
@@ -3900,8 +3892,7 @@ static void *monitor_sig_flags(void *unused)
 				quit_handler(0, SHUTDOWN_NORMAL, 0);
 			}
 		}
-		if (read(sig_alert_pipe[0], &a, sizeof(a)) != sizeof(a)) {
-		}
+		ast_alertpipe_read(sig_alert_pipe);
 	}
 
 	return NULL;
@@ -4708,9 +4699,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		consolethread = pthread_self();
 	}
 
-	if (pipe(sig_alert_pipe)) {
-		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
-	}
+	ast_alertpipe_init(sig_alert_pipe);
 
 	ast_process_pending_reloads();
 
