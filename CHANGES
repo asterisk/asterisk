@@ -12,6 +12,15 @@
 --- Functionality changes from Asterisk 13.18.0 to Asterisk 13.19.0 ----------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * Added the "cache_media_frames" option to asterisk.conf.  Disabling the option
+   helps track down media frame mismanagement when using valgrind or
+   MALLOC_DEBUG.  The cache gets in the way of determining if the frame is
+   used after free and who freed it.  NOTE: This option has no effect when
+   Asterisk is compiled with the LOW_MEMORY compile time option enabled because
+   the cache code does not exist.
+
 res_pjsip
 ------------------
  * The "identify_by" on endpoints can now be set to "ip" to restrict an endpoint
