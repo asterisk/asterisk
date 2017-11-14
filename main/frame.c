@@ -120,14 +120,18 @@ static void __frame_free(struct ast_frame *fr, int cache)
 		return;
 
 #if !defined(LOW_MEMORY)
-	if (cache && fr->mallocd == AST_MALLOCD_HDR) {
+	if (fr->mallocd == AST_MALLOCD_HDR
+		&& cache
+		&& ast_opt_cache_media_frames) {
 		/* Cool, only the header is malloc'd, let's just cache those for now
 		 * to keep things simple... */
 		struct ast_frame_cache *frames;
-		if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames))) &&
-		    (frames->size < FRAME_CACHE_MAX_SIZE)) {
-			if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
-				(fr->frametype == AST_FRAME_IMAGE)) {
+
+		frames = ast_threadstorage_get(&frame_cache, sizeof(*frames));
+		if (frames && frames->size < FRAME_CACHE_MAX_SIZE) {
+			if (fr->frametype == AST_FRAME_VOICE
+				|| fr->frametype == AST_FRAME_VIDEO
+				|| fr->frametype == AST_FRAME_IMAGE) {
 				ao2_cleanup(fr->subclass.format);
 			}
 
@@ -147,8 +151,9 @@ static void __frame_free(struct ast_frame *fr, int cache)
 		ast_free((void *) fr->src);
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
-		if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
-			(fr->frametype == AST_FRAME_IMAGE)) {
+		if (fr->frametype == AST_FRAME_VOICE
+			|| fr->frametype == AST_FRAME_VIDEO
+			|| fr->frametype == AST_FRAME_IMAGE) {
 			ao2_cleanup(fr->subclass.format);
 		}
 

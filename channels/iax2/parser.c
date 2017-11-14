@@ -1296,7 +1296,9 @@ void iax_frame_free(struct iax_frame *fr)
 	ast_atomic_fetchadd_int(&frames, -1);
 
 #if !defined(LOW_MEMORY)
-	if (!fr->cacheable || !(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+	if (!fr->cacheable
+		|| !ast_opt_cache_media_frames
+		|| !(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
 		ast_free(fr);
 		return;
 	}
