@@ -65,7 +65,8 @@ ast_alert_status_t ast_alertpipe_read(int alert_pipe[2]);
  *
  * \param p a two-element array containing the alert pipe's file descriptors
  *
- * \return see write(2)
+ * \retval 0 Success
+ * \retval 1 Failure
  */
 ssize_t ast_alertpipe_write(int alert_pipe[2]);
 
