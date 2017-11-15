@@ -1,3 +1,72 @@
+2017-11-15 17:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.18-cert1-rc2 Released.
+
+2017-11-13 14:35 +0000 [705dbd0468]  Ben Ford <bford@digium.com>
+
+	* bundled_pjproject: Update to 2.7.1
+
+	  Update from 2.7 to 2.7.1 for bundled pjproject. Changed version
+	  and removed patch files included in the update.
+
+	  Change-Id: I55cea8e734b318c2df9daf86aa0802c559ec8357
+	  (cherry picked from commit e6ada55430c3df603f12cb20a56149dac61ce450)
+
+2017-11-10 10:37 +0000 [0a62d69937]  George Joseph <gjoseph@digium.com>
+
+	* bundled_pjproject: sip_parser:  Fix return code in pjsip_find_msg
+
+	  The default return code for pjsip_find_msg was PJ_SUCCESS so if
+	  a Content-Length header wasn't found at all, pjsip_find_msg was
+	  returning PJ_SUCCESS instead of PJSIP_EMISSINGHDR.
+
+	  Also added the volatile keyword to a few variables that are used
+	  both inside and outside the PJ_TRY/PJ_CATCH block.
+
+	  Partial fix for ASTERISK_27408
+
+	  Change-Id: If82ba9de921e3d57df9c68cf96ee45ccc1491f7a
+	  (cherry picked from commit b5f2779a23aa6042893c2bdf6bebfcc5150b5300)
+
+2017-11-10 07:06 +0000 [7e535a294e]  Joshua Colp <jcolp@digium.com>
+
+	* pjsip: Add patch to allow all transports to be destroyed.
+
+	  If a transport is created with the same transport type, source
+	  IP address, and source port as one that already exists the old
+	  transport is moved into a linked list called "tp_list".
+
+	  If this old transport is later shutdown it will not be destroyed
+	  as the process checks whether the transport is valid or not. This
+	  check does not look at the "tp_list" when making the determination
+	  causing the transport to not be destroyed.
+
+	  This change updates the logic to query not just the main storage
+	  method for transports but also the "tp_list".
+
+	  Upstream issue https://trac.pjsip.org/repos/ticket/2061
+
+	  ASTERISK-27411
+
+	  Change-Id: Ic5c2bb60226df0ef1c8851359ed8d4cd64469429
+
+2017-11-06 16:37 +0000 [7b4b17c843]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_registrar.c: Fix named AOR and pjproject group deadlock.
+
+	  One of the patches for ASTERISK_27147 introduced a deadlock regression.
+	  When the connection oriented transport shut down, the code attempted to
+	  remove the associated contact.  However, that same transport had just
+	  requested a registration that we hadn't responded to yet.  Depending
+	  upon timing we could deadlock.
+
+	  * Made send the REGISTER response after we completed processing the
+	  request contacts and released the named AOR lock to avoid the deadlock.
+
+	  ASTERISK-27391
+
+	  Change-Id: I89a90f87cb7a02facbafb44c75d8845f93417364
+
 2017-11-08 21:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.18-cert1-rc1 Released.

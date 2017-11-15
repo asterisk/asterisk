@@ -1,0 +1,115 @@
+                                Release Summary
+
+                       asterisk-certified/13.18-cert1-rc2
+
+                                Date: 2017-11-15
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.18-cert1-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   1 Richard Mudgett                                 1 Joshua Colp            
+   1 Joshua Colp                                     1 shaurya jain           
+   1 Benjamin Keith Ford    
+   1 George Joseph          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_pjsip/Bundling
+
+   ASTERISK-27411: pjsip: TCP connections may not be destroyed
+   Reported by: Joshua Colp
+     * [7e535a294e] Joshua Colp -- pjsip: Add patch to allow all transports
+       to be destroyed.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-27391: Regression: Deadlock between AOR named lock and pjproject
+   grp lock
+   Reported by: shaurya jain
+     * [7b4b17c843] Richard Mudgett -- res_pjsip_registrar.c: Fix named AOR
+       and pjproject group deadlock.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | 705dbd0468 | Ben Ford      | bundled_pjproject: Update to 2.7.1        |
+   |------------+---------------+-------------------------------------------|
+   | 0a62d69937 | George Joseph | bundled_pjproject: sip_parser: Fix return |
+   |            |               | code in pjsip_find_msg                    |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ b/res/res_pjsip_registrar.c                                                                     |   58
+ b/third-party/pjproject/patches/0021-sip_parser-Fix-return-code-in-pjsip_find_msg-and-add.patch |    3
+ third-party/pjproject/patches/0010-r5665-svn-backport-ICE-Use-STUN-FINGERPRINT-attribut.patch   |   41
+ third-party/pjproject/patches/0020-sip_parser-Add-validity-checking-for-numeric-header-.patch   |  973 ----------
+ 4 files changed, 42 insertions(+), 1033 deletions(-)
