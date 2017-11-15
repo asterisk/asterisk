@@ -137,6 +137,12 @@ enum {
 	OPTION_NO_TRUNCATE = (1 << 9),
 };
 
+enum dtmf_response {
+	RESPONSE_NO_MATCH = 0,
+	RESPONSE_OPERATOR,
+	RESPONSE_DTMF,
+};
+
 AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('a', OPTION_APPEND),
 	AST_APP_OPTION('k', OPTION_KEEP),
@@ -160,24 +166,22 @@ AST_APP_OPTIONS(app_opts,{
  * \param dtmf_integer the integer value of the DTMF key received
  * \param terminator key currently set to be pressed for normal termination
  *
- * \retval 0 do not exit
- * \retval -1 do exit
+ * \returns One of enum dtmf_response
  */
-static int record_dtmf_response(struct ast_channel *chan, struct ast_flags *flags, int dtmf_integer, int terminator)
+static enum dtmf_response record_dtmf_response(struct ast_channel *chan,
+	struct ast_flags *flags, int dtmf_integer, int terminator)
 {
 	if ((dtmf_integer == OPERATOR_KEY) &&
 		(ast_test_flag(flags, OPTION_OPERATOR_EXIT))) {
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "OPERATOR");
-		return -1;
+		return RESPONSE_OPERATOR;
 	}
 
 	if ((dtmf_integer == terminator) ||
 		(ast_test_flag(flags, OPTION_ANY_TERMINATE))) {
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "DTMF");
-		return -1;
+		return RESPONSE_DTMF;
 	}
 
-	return 0;
+	return RESPONSE_NO_MATCH;
 }
 
 static int create_destination_directory(const char *path)
@@ -246,6 +250,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	);
 	int ms;
 	struct timeval start;
+	const char *status_response = "ERROR";
 
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -343,7 +348,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	if (res) {
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", ast_channel_name(chan));
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+		status_response = "ERROR";
 		goto out;
 	}
 
@@ -379,7 +384,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	if (create_destination_directory(tmp)) {
 		ast_log(LOG_WARNING, "Could not create directory for file %s\n", args.filename);
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+		status_response = "ERROR";
 		goto out;
 	}
 
@@ -388,7 +393,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	if (!s) {
 		ast_log(LOG_WARNING, "Could not create file %s\n", args.filename);
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+		status_response = "ERROR";
 		goto out;
 	}
 
@@ -423,7 +428,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			if (res) {
 				ast_log(LOG_WARNING, "Problem writing frame\n");
 				ast_frfree(f);
-				pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+				status_response = "ERROR";
 				break;
 			}
 
@@ -439,7 +444,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 					/* Ended happily with silence */
 					ast_frfree(f);
 					gotsilence = 1;
-					pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "SILENCE");
+					status_response = "SILENCE";
 					break;
 				}
 			}
@@ -448,12 +453,26 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 			if (res) {
 				ast_log(LOG_WARNING, "Problem writing frame\n");
-				pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
+				status_response = "ERROR";
 				ast_frfree(f);
 				break;
 			}
 		} else if (f->frametype == AST_FRAME_DTMF) {
-			if (record_dtmf_response(chan, &flags, f->subclass.integer, terminator)) {
+			enum dtmf_response rc =
+				record_dtmf_response(chan, &flags, f->subclass.integer, terminator);
+			switch(rc) 	{
+			case RESPONSE_NO_MATCH:
+				break;
+			case RESPONSE_OPERATOR:
+				status_response = "OPERATOR";
+				ast_debug(1, "Got OPERATOR\n");
+				break;
+			case RESPONSE_DTMF:
+				status_response = "DTMF";
+				ast_debug(1, "Got DTMF\n");
+				break;
+			}
+			if (rc != RESPONSE_NO_MATCH) {
 				ast_frfree(f);
 				break;
 			}
@@ -463,13 +482,13 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	if (maxduration > 0 && !ms) {
 		gottimeout = 1;
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "TIMEOUT");
+		status_response = "TIMEOUT";
 	}
 
 	if (!f) {
 		ast_debug(1, "Got hangup\n");
 		res = -1;
-		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "HANGUP");
+		status_response = "HANGUP";
 		if (!ast_test_flag(&flags, OPTION_KEEP)) {
 			ast_filedelete(args.filename, NULL);
 		}
@@ -504,6 +523,9 @@ out:
 	if (sildet) {
 		ast_dsp_free(sildet);
 	}
+
+	pbx_builtin_setvar_helper(chan, "RECORD_STATUS", status_response);
+
 	return res;
 }
 
