@@ -947,7 +947,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	 * rely on actual media being present to do things.
 	 */
 	if (!middle_frame->data.ptr) {
-		ast_frfree(middle_frame);
+		if (middle_frame != start_frame) {
+			ast_frfree(middle_frame);
+		}
 		return start_frame;
 	}
 
