@@ -46,6 +46,7 @@ static void *sorcery_astdb_retrieve_fields(const struct ast_sorcery *sorcery, vo
 static void sorcery_astdb_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
 					     const struct ast_variable *fields);
 static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
+static void sorcery_astdb_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *prefix, const size_t prefix_len);
 static int sorcery_astdb_update(const struct ast_sorcery *sorcery, void *data, void *object);
 static int sorcery_astdb_delete(const struct ast_sorcery *sorcery, void *data, void *object);
 static void sorcery_astdb_close(void *data);
@@ -58,6 +59,7 @@ static struct ast_sorcery_wizard astdb_object_wizard = {
 	.retrieve_fields = sorcery_astdb_retrieve_fields,
 	.retrieve_multiple = sorcery_astdb_retrieve_multiple,
 	.retrieve_regex = sorcery_astdb_retrieve_regex,
+	.retrieve_prefix = sorcery_astdb_retrieve_prefix,
 	.update = sorcery_astdb_update,
 	.delete = sorcery_astdb_delete,
 	.close = sorcery_astdb_close,
@@ -327,6 +329,42 @@ static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void
 	}
 
 	regfree(&expression);
+}
+
+static void sorcery_astdb_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *prefix, const size_t prefix_len)
+{
+	const char *family_prefix = data;
+	size_t family_len = strlen(family_prefix) + strlen(type) + 1; /* +1 for slash delimiter */
+	char family[family_len + 1];
+	char tree[prefix_len + sizeof("%")];
+	RAII_VAR(struct ast_db_entry *, entries, NULL, ast_db_freetree);
+	struct ast_db_entry *entry;
+
+	snprintf(tree, sizeof(tree), "%.*s%%", (int) prefix_len, prefix);
+	snprintf(family, sizeof(family), "%s/%s", family_prefix, type);
+
+	if (!(entries = ast_db_gettree(family, tree))) {
+		return;
+	}
+
+	for (entry = entries; entry; entry = entry->next) {
+		/* The key in the entry includes the family, so we need to strip it out */
+		const char *key = entry->key + family_len + 2;
+		RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+		struct ast_json_error error;
+		RAII_VAR(void *, object, NULL, ao2_cleanup);
+		RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+
+		if (!(json = ast_json_load_string(entry->data, &error))
+		   || (ast_json_to_ast_variables(json, &objset) != AST_JSON_TO_AST_VARS_CODE_SUCCESS)
+		   || !(objset = sorcery_astdb_filter_objectset(objset, sorcery, type))
+		   || !(object = ast_sorcery_alloc(sorcery, type, key))
+		   || ast_sorcery_objectset_apply(sorcery, object, objset)) {
+			return;
+		}
+
+		ao2_link(objects, object);
+	}
 }
 
 static int sorcery_astdb_update(const struct ast_sorcery *sorcery, void *data, void *object)

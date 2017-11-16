@@ -312,6 +312,14 @@ struct ast_sorcery_wizard {
 
 	/*! \brief Callback for closing a wizard */
 	void (*close)(void *data);
+
+	/*! \brief Optional callback for retrieving multiple objects by matching their id with a prefix */
+	void (*retrieve_prefix)(const struct ast_sorcery *sorcery,
+			void *data,
+			const char *type,
+			struct ao2_container *objects,
+			const char *prefix,
+			const size_t prefix_len);
 };
 
 /*! \brief Interface for a sorcery object type observer */
@@ -364,9 +372,20 @@ int ast_sorcery_init(void);
 int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, struct ast_module *module);
 
 /*!
+ * \brief Register a sorcery wizard
+ *
+ * \param interface Pointer to a wizard interface
+ * \param module Pointer to the module implementing the interface
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int __ast_sorcery_wizard_register_with_prefix(const struct ast_sorcery_wizard *interface, struct ast_module *module);
+
+/*!
  * \brief See \ref __ast_sorcery_wizard_register()
  */
-#define ast_sorcery_wizard_register(interface) __ast_sorcery_wizard_register(interface, ast_module_info ? ast_module_info->self : NULL)
+#define ast_sorcery_wizard_register(interface) __ast_sorcery_wizard_register_with_prefix(interface, ast_module_info ? ast_module_info->self : NULL)
 
 /*!
  * \brief Unregister a sorcery wizard
@@ -1216,6 +1235,22 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
  * \note The provided regex is treated as extended case sensitive.
  */
 struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *sorcery, const char *type, const char *regex);
+
+/*!
+ * \brief Retrieve multiple objects whose id begins with the specified prefix
+ * \since 13.19.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to retrieve
+ * \param prefix Object id prefix
+ * \param prefix_len The length of prefix in bytes
+ *
+ * \retval non-NULL if error occurs
+ * \retval NULL success
+ *
+ * \note The prefix is matched in a case sensitive manner.
+ */
+struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *sorcery, const char *type, const char *prefix, const size_t prefix_len);
 
 /*!
  * \brief Update an object

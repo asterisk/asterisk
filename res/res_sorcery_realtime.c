@@ -59,6 +59,8 @@ static void *sorcery_realtime_retrieve_fields(const struct ast_sorcery *sorcery,
 static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects,
 					     const struct ast_variable *fields);
 static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex);
+static void sorcery_realtime_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type,
+					     struct ao2_container *objects, const char *prefix, const size_t prefix_len);
 static int sorcery_realtime_update(const struct ast_sorcery *sorcery, void *data, void *object);
 static int sorcery_realtime_delete(const struct ast_sorcery *sorcery, void *data, void *object);
 static void sorcery_realtime_close(void *data);
@@ -71,6 +73,7 @@ static struct ast_sorcery_wizard realtime_object_wizard = {
 	.retrieve_fields = sorcery_realtime_retrieve_fields,
 	.retrieve_multiple = sorcery_realtime_retrieve_multiple,
 	.retrieve_regex = sorcery_realtime_retrieve_regex,
+	.retrieve_prefix = sorcery_realtime_retrieve_prefix,
 	.update = sorcery_realtime_update,
 	.delete = sorcery_realtime_delete,
 	.close = sorcery_realtime_close,
@@ -254,6 +257,23 @@ static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, v
 			snprintf(value, sizeof(value), "%%%s%%", regex);
 		}
 
+		if (!(fields = ast_variable_new(field, value, ""))) {
+			return;
+		}
+	}
+
+	sorcery_realtime_retrieve_multiple(sorcery, data, type, objects, fields);
+}
+
+static void sorcery_realtime_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type,
+					     struct ao2_container *objects, const char *prefix, const size_t prefix_len)
+{
+	char field[strlen(UUID_FIELD) + 6], value[prefix_len + 2];
+	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+
+	if (prefix_len) {
+		snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
+		snprintf(value, sizeof(value), "%.*s%%", (int) prefix_len, prefix);
 		if (!(fields = ast_variable_new(field, value, ""))) {
 			return;
 		}
