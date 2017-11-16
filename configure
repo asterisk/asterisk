@@ -996,6 +996,10 @@ PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB
+PBX_BEANSTALK
+BEANSTALK_DIR
+BEANSTALK_INCLUDE
+BEANSTALK_LIB
 PBX_PGSQL
 PGSQL_DIR
 PGSQL_INCLUDE
@@ -1443,6 +1447,7 @@ with_opusfile
 with_osptk
 with_oss
 with_postgres
+with_beanstalk
 with_pjproject
 with_popt
 with_portaudio
@@ -2200,6 +2205,7 @@ Optional Packages:
   --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
+  --with-beanstalk=PATH   use Beanstalk Job Queue files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
@@ -11479,6 +11485,38 @@ if test "${with_postgres+set}" = set; then :
 	*)
 	PGSQL_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} PGSQL"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    BEANSTALK_DESCRIP="Beanstalk Job Queue"
+    BEANSTALK_OPTION="beanstalk"
+    PBX_BEANSTALK=0
+
+# Check whether --with-beanstalk was given.
+if test "${with_beanstalk+set}" = set; then :
+  withval=$with_beanstalk;
+	case ${withval} in
+	n|no)
+	USE_BEANSTALK=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_BEANSTALK=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} BEANSTALK"
+	;;
+	*)
+	BEANSTALK_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} BEANSTALK"
 	;;
 	esac
 
@@ -25177,6 +25215,111 @@ fi
          PBX_BLUETOOTH=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_BLUETOOTH 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+
+if test "x${PBX_BEANSTALK}" != "x1" -a "${USE_BEANSTALK}" != "no"; then
+   pbxlibdir=""
+   # if --with-BEANSTALK=DIR has been specified, use it.
+   if test "x${BEANSTALK_DIR}" != "x"; then
+      if test -d ${BEANSTALK_DIR}/lib; then
+         pbxlibdir="-L${BEANSTALK_DIR}/lib"
+      else
+         pbxlibdir="-L${BEANSTALK_DIR}"
+      fi
+   fi
+   pbxfuncname="bs_version"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_BEANSTALK_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_beanstalk_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lbeanstalk" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lbeanstalk... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbeanstalk ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_BEANSTALK_FOUND=yes
+else
+  AST_BEANSTALK_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_BEANSTALK_FOUND}" = "yes"; then
+      BEANSTALK_LIB="${pbxlibdir} -lbeanstalk "
+      # if --with-BEANSTALK=DIR has been specified, use it.
+      if test "x${BEANSTALK_DIR}" != "x"; then
+         BEANSTALK_INCLUDE="-I${BEANSTALK_DIR}/include"
+      fi
+      BEANSTALK_INCLUDE="${BEANSTALK_INCLUDE} "
+      if test "xbeanstalk.h" = "x" ; then	# no header, assume found
+         BEANSTALK_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${BEANSTALK_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "beanstalk.h" "ac_cv_header_beanstalk_h" "$ac_includes_default"
+if test "x$ac_cv_header_beanstalk_h" = xyes; then :
+  BEANSTALK_HEADER_FOUND=1
+else
+  BEANSTALK_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${BEANSTALK_HEADER_FOUND}" = "x0" ; then
+         BEANSTALK_LIB=""
+         BEANSTALK_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            BEANSTALK_LIB=""
+         fi
+         PBX_BEANSTALK=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_BEANSTALK 1
 _ACEOF
 
       fi

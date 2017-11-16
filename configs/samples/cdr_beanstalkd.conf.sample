@@ -1,0 +1,26 @@
+;
+; Asterisk Call Management CDR via Beanstalkd job queue
+;
+; Beanstalkd is a simple job queue server, that is highly versatile and simple to use.
+; Beanstalkd includes the capability of using multiple queues at the same time, with priorities.
+;
+; This module requires that your server has the beanstalk-client library installed. The library
+; can be downloaded from - https://github.com/deepfryed/beanstalk-client
+;
+
+[general]
+;enabled = yes
+
+;host = 127.0.0.1    ; Specify the remote IP address of the Beanstalkd server
+;port = 11300        ; Specify the remote PORT of the the Beanstalkd server
+;tube = asterisk-cdr ; Specify the default CDR job queue to use
+;priority = 99       ; Specify the default job priority for the queue. This parameter is useful when building
+                     ; platform with multiple Asterisk servers, that are used for different functions. For example,
+                     ; none billable CDR records can be inserted with a priority of 99, while billable ones be
+                     ; inserted with a priority of 1
+
+
+
+
+
+
