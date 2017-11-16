@@ -583,7 +583,19 @@ static int answer(void *data)
 	pjsip_inv_dec_ref(session->inv_session);
 #endif
 
-	return (status == PJ_SUCCESS) ? 0 : -1;
+	if (status != PJ_SUCCESS) {
+		char err[PJ_ERR_MSG_SIZE];
+
+		pj_strerror(status, err, sizeof(err));
+		ast_log(LOG_WARNING,"Cannot answer '%s': %s\n",
+			ast_channel_name(session->channel), err);
+		/*
+		 * Return this value so we can distinguish between this
+		 * failure and the threadpool synchronous push failing.
+		 */
+		return -2;
+	}
+	return 0;
 }
 
 /*! \brief Function called by core when we should answer a PJSIP session */
@@ -591,6 +603,7 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct ast_sip_session *session;
+	int res;
 
 	if (ast_channel_state(ast) == AST_STATE_UP) {
 		return 0;
@@ -611,11 +624,15 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 	   can occur between this thread and bridging (specifically when native bridging
 	   attempts to do direct media) */
 	ast_channel_unlock(ast);
-	if (ast_sip_push_task_synchronous(session->serializer, answer, session)) {
-		ast_log(LOG_WARNING, "Unable to push answer task to the threadpool. Cannot answer call\n");
+	res = ast_sip_push_task_synchronous(session->serializer, answer, session);
+	if (res) {
+		if (res == -1) {
+			ast_log(LOG_ERROR,"Cannot answer '%s': Unable to push answer task to the threadpool.\n",
+				ast_channel_name(session->channel));
 #ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(session->inv_session);
+			pjsip_inv_dec_ref(session->inv_session);
 #endif
+		}
 		ao2_ref(session, -1);
 		ast_channel_lock(ast);
 		return -1;
