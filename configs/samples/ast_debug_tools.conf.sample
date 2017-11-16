@@ -20,6 +20,12 @@
 # anyway.
 COREDUMPS=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]$(hostname)!(*.txt))
 
+# The directory to contain output files and work directories.
+# For output from existing core files, the default is the
+# directory that the core file is found in.  For core files
+# produced from a running process, the default is /tmp.
+OUTPUTDIR=/some/directory
+
 # Date command for the "running" coredump and tarballs.
 # DATEFORMAT will be executed to get the timestamp.
 # Don't put quotes around the format string or they'll be
