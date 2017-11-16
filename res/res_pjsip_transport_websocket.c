@@ -206,20 +206,16 @@ static int transport_create(void *data)
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.key.rem_addr);
 	if (newtransport->transport.key.rem_addr.addr.sa_family == pj_AF_INET6()) {
 		newtransport->transport.key.type = transport_type_wss_ipv6;
-		newtransport->transport.local_name.host.ptr = (char *)pj_pool_alloc(pool, PJ_INET6_ADDRSTRLEN);
-		pj_sockaddr_print(&newtransport->transport.key.rem_addr, newtransport->transport.local_name.host.ptr, PJ_INET6_ADDRSTRLEN, 0);
 	} else {
 		newtransport->transport.key.type = transport_type_wss;
-		newtransport->transport.local_name.host.ptr = (char *)pj_pool_alloc(pool, PJ_INET_ADDRSTRLEN);
-		pj_sockaddr_print(&newtransport->transport.key.rem_addr, newtransport->transport.local_name.host.ptr, PJ_INET_ADDRSTRLEN, 0);
 	}
 
 	newtransport->transport.addr_len = pj_sockaddr_get_len(&newtransport->transport.key.rem_addr);
 
-	pj_sockaddr_cp(&newtransport->transport.local_addr, &newtransport->transport.key.rem_addr);
-
-	newtransport->transport.local_name.host.slen = pj_ansi_strlen(newtransport->transport.local_name.host.ptr);
-	newtransport->transport.local_name.port = pj_sockaddr_get_port(&newtransport->transport.key.rem_addr);
+	ws_addr_str = ast_sockaddr_stringify(ast_websocket_local_address(newtransport->ws_session));
+	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.local_addr);
+	pj_strdup2(pool, &newtransport->transport.local_name.host, ast_sockaddr_stringify_host(ast_websocket_local_address(newtransport->ws_session)));
+	newtransport->transport.local_name.port = ast_sockaddr_port(ast_websocket_local_address(newtransport->ws_session));
 
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
 	newtransport->transport.info = (char *)pj_pool_alloc(newtransport->transport.pool, 64);
