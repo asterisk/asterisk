@@ -344,6 +344,15 @@ AST_OPTIONAL_API(int, ast_websocket_fd, (struct ast_websocket *session), { errno
 AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_remote_address, (struct ast_websocket *session), {return NULL;});
 
 /*!
+ * \brief Get the local address for a WebSocket connection session.
+ *
+ * \retval ast_sockaddr Local address
+ *
+ * \since 13.19.0
+ */
+AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_local_address, (struct ast_websocket *session), {return NULL;});
+
+/*!
  * \brief Get whether the WebSocket session is using a secure transport or not.
  *
  * \retval 0 if unsecure
