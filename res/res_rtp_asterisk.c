@@ -113,6 +113,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define ZFONE_PROFILE_ID 0x505a
 
 #define DEFAULT_LEARNING_MIN_SEQUENTIAL 4
+/*!
+ * \brief Calculate the min learning duration in ms.
+ *
+ * \details
+ * The min supported packet size represents 10 ms and we need to account
+ * for some jitter and fast clocks while learning.  Some messed up devices
+ * have very bad jitter for a small packet sample size.  Jitter can also
+ * be introduced by the network itself.
+ *
+ * So we'll allow packets to come in every 9ms on average for fast clocking
+ * with the last one coming in 5ms early for jitter.
+ */
+#define CALC_LEARNING_MIN_DURATION(count) (((count) - 1) * 9 - 5)
+#define DEFAULT_LEARNING_MIN_DURATION CALC_LEARNING_MIN_DURATION(DEFAULT_LEARNING_MIN_SEQUENTIAL)
 
 #define SRTP_MASTER_KEY_LEN 16
 #define SRTP_MASTER_SALT_LEN 14
@@ -149,6 +163,7 @@ static int nochecksums;
 #endif
 static int strictrtp = DEFAULT_STRICT_RTP; /*!< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
 static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*!< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
+static int learning_min_duration = DEFAULT_LEARNING_MIN_DURATION; /*!< Lowest acceptable timeout between the first and the last sequential RTP frame. */
 #ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
 static struct sockaddr_in stunaddr;
@@ -229,7 +244,7 @@ static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
 struct rtp_learning_info {
 	struct ast_sockaddr proposed_address;	/*!< Proposed remote address for strict RTP */
 	struct timeval start;	/*!< The time learning mode was started */
-	struct timeval received; /*!< The time of the last received packet */
+	struct timeval received; /*!< The time of the first received packet */
 	int max_seq;	/*!< The highest sequence number received */
 	int packets;	/*!< The number of remaining packets before the source is accepted */
 };
@@ -2781,25 +2796,28 @@ static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq)
  */
 static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t seq)
 {
-	/*
-	 * During the learning mode the minimum amount of media we'll accept is
-	 * 10ms so give a reasonable 5ms buffer just in case we get it sporadically.
-	 */
-	if (!ast_tvzero(info->received) && ast_tvdiff_ms(ast_tvnow(), info->received) < 5) {
-		/*
-		 * Reject a flood of packets as acceptable for learning.
-		 * Reset the needed packets.
-		 */
-		info->packets = learning_min_sequential - 1;
-	} else if (seq == (uint16_t) (info->max_seq + 1)) {
+	if (seq == (uint16_t) (info->max_seq + 1)) {
 		/* packet is in sequence */
 		info->packets--;
 	} else {
 		/* Sequence discontinuity; reset */
 		info->packets = learning_min_sequential - 1;
+		info->received = ast_tvnow();
+	}
+
+	/*
+	 * Protect against packet floods by checking that we
+	 * received the packet sequence in at least the minimum
+	 * allowed time.
+	 */
+	if (ast_tvzero(info->received)) {
+		info->received = ast_tvnow();
+	} else if (!info->packets && (ast_tvdiff_ms(ast_tvnow(), info->received) < learning_min_duration )) {
+		/* Packet flood; reset */
+		info->packets = learning_min_sequential - 1;
+		info->received = ast_tvnow();
 	}
 	info->max_seq = seq;
-	info->received = ast_tvnow();
 
 	return info->packets;
 }
@@ -6482,6 +6500,7 @@ static int rtp_reload(int reload)
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
+	learning_min_duration = DEFAULT_LEARNING_MIN_DURATION;
 
 	/** This resource is not "reloaded" so much as unloaded and loaded again.
 	 * In the case of the TURN related variables, the memory referenced by a
@@ -6546,10 +6565,12 @@ static int rtp_reload(int reload)
 		strictrtp = ast_true(s);
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "probation"))) {
-		if ((sscanf(s, "%d", &learning_min_sequential) <= 0) || learning_min_sequential <= 0) {
+		if ((sscanf(s, "%d", &learning_min_sequential) != 1) || learning_min_sequential <= 1) {
 			ast_log(LOG_WARNING, "Value for 'probation' could not be read, using default of '%d' instead\n",
 				DEFAULT_LEARNING_MIN_SEQUENTIAL);
+			learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
 		}
+		learning_min_duration = CALC_LEARNING_MIN_DURATION(learning_min_sequential);
 	}
 #ifdef HAVE_PJPROJECT
 	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
