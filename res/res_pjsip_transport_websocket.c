@@ -203,6 +203,10 @@ static int transport_create(void *data)
 	ast_debug(4, "Creating websocket transport for %s:%s\n",
 		newtransport->transport.type_name, ws_addr_str);
 
+	newtransport->transport.info = (char *) pj_pool_alloc(newtransport->transport.pool,
+		strlen(newtransport->transport.type_name) + strlen(ws_addr_str) + sizeof(" to "));
+	sprintf(newtransport->transport.info, "%s to %s", newtransport->transport.type_name, ws_addr_str);
+
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.key.rem_addr);
 	if (newtransport->transport.key.rem_addr.addr.sa_family == pj_AF_INET6()) {
 		newtransport->transport.key.type = transport_type_wss_ipv6;
@@ -218,8 +222,6 @@ static int transport_create(void *data)
 	newtransport->transport.local_name.port = ast_sockaddr_port(ast_websocket_local_address(newtransport->ws_session));
 
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
-	newtransport->transport.info = (char *)pj_pool_alloc(newtransport->transport.pool, 64);
-
 	newtransport->transport.dir = PJSIP_TP_DIR_INCOMING;
 	newtransport->transport.tpmgr = tpmgr;
 	newtransport->transport.send_msg = &ws_send_msg;
