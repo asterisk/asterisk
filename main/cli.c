@@ -959,7 +959,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
 
-	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
+	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
 	struct stasis_message *msg;
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
@@ -1073,6 +1073,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 		ast_cli(a->fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
 	}
+	ao2_ref(channels, -1);
 
 	return CLI_SUCCESS;
 
@@ -1666,7 +1667,7 @@ char *ast_cli_complete(const char *word, const char * const choices[], int state
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos)
 {
 	int wordlen = strlen(word), which = 0;
-	RAII_VAR(struct ao2_container *, cached_channels, NULL, ao2_cleanup);
+	struct ao2_container *cached_channels;
 	char *ret = NULL;
 	struct ao2_iterator iter;
 	struct stasis_message *msg;
@@ -1690,6 +1691,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		}
 	}
 	ao2_iterator_destroy(&iter);
+	ao2_ref(cached_channels, -1);
 
 	return ret;
 }
