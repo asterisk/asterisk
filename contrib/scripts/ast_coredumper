@@ -15,7 +15,7 @@ SYNOPSIS
 	$prog [ --help ] [ --running | --RUNNING ] [ --latest ]
 		[ --tarball-coredumps ] [ --delete-coredumps-after ]
 		[ --tarball-results ] [ --delete-results-after ]
-		[ --tarball-uniqueid="<uniqueid>" ]
+		[ --tarball-config ] [ --tarball-uniqueid="<uniqueid>" ]
 		[ --no-default-search ] [ --append-coredumps ]
 		[ --asterisk-bin="path" ]
 		[ <coredump> | <pattern> ... ]
@@ -51,7 +51,8 @@ DESCRIPTION
 		Create a coredump from the running asterisk instance and
 		process it along with any other coredumps found (if any).
 		WARNING: This WILL interrupt call processing.  You will be
-		asked to confirm.
+		asked to confirm.  The coredump will be written to /tmp if
+		$OUTPUTDIR is not defined.
 
 	--RUNNING
 		Same as --running but without the confirmation prompt.
@@ -69,10 +70,11 @@ DESCRIPTION
 		/usr/sbin/asterisk, /usr/lib(64)/libasterisk* and
 		/usr/lib(64)/asterisk as those files are needed to properly
 		examine the coredump.  The file will be named
-		/tmp/asterisk.<timestamp>.coredumps.tar.gz or
-		/tmp/asterisk-<uniqueid>.coredumps.tar.gz if
+		$OUTPUTDIR/asterisk.<timestamp>.coredumps.tar.gz or
+		$OUTPUTDIR/asterisk-<uniqueid>.coredumps.tar.gz if
 		--tarball-uniqueid was specified.
 		WARNING:  This file could 1gb in size!
+		Mutually exclusive with --tartball-results
 
 	--delete-coredumps-after
 		Deletes all processed coredumps regardless of whether
@@ -81,13 +83,18 @@ DESCRIPTION
 	--tarball-results
 		Creates a gzipped tarball of all result files produced.
 		The tarball name will be:
-		/tmp/asterisk.<timestamp>.results.tar.gz
+		$OUTPUTDIR/asterisk.<timestamp>.results.tar.gz
+		Mutually exclusive with --tartball-coredumps
 
 	--delete-results-after
 		Deletes all processed results regardless of whether
 		a tarball was created.  It probably doesn't make sense
 		to use this option unless you have also specified
 		--tarball-results.
+
+	--tarball-config
+		Adds the contents of /etc/asterisk to the tarball created
+		with --tarball-coredumps or --tarball-results.
 
 	--tarball-uniqueid="<uniqueid>"
 		Normally DATEFORMAT is used to make the tarballs unique
@@ -130,6 +137,10 @@ DESCRIPTION
 NOTES
 	You must be root to use $prog.
 
+	$OUTPUTDIR can be read from the current environment or from the
+	ast_debug_tools.conf file described below.  If not specified,
+	work products are placed in the same directory as the core file.
+
 	The script relies on not only bash, but also recent GNU date and
 	gdb with python support.  *BSD operating systems may require
 	installation of the 'coreutils' and 'devel/gdb' packagess and minor
@@ -165,6 +176,12 @@ FILES
 	# demonstration purposes as non-coredumps will be ignored
 	# anyway.
 	COREDUMPS=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]\$(hostname)!(*.txt))
+
+	# The directory to contain output files and work directories.
+	# For output from existing core files, the default is the
+	# directory that the core file is found in.  For core files
+	# produced from a running process, the default is /tmp.
+	OUTPUTDIR=/some/directory
 
 	# Date command for the "running" coredump and tarballs.
 	# DATEFORMAT will be executed to get the timestamp.
@@ -225,6 +242,13 @@ done
 if [ -z "$GDB" ] ; then
 	echo "No suitable gdb was found in $PATH"
 	exit 1
+fi
+
+if [ -n "$OUTPUTDIR" ] ; then
+	if [ ! -d "$OUTPUTDIR" ] ; then
+		echo "OUTPUTDIR $OUTPUTDIR doesn't exists or is not a directory"
+		exit 1
+	fi
 fi
 
 if [ ${#COREDUMPS[@]} -eq 0 ] ; then
@@ -326,6 +350,10 @@ fi
 # Timestamp to use for output files
 df=${tarball_uniqueid:-$(${DATEFORMAT})}
 
+if [ -z "$asterisk_bin" ]; then
+	asterisk_bin=$(which asterisk)
+fi
+
 if $running || $RUNNING ; then
 	# We need to go through some gyrations to find the pid of the running
 	# MAIN asterisk process and not someone or something running asterisk -r.
@@ -351,9 +379,9 @@ if $running || $RUNNING ; then
 			read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
 		fi
 		if [[ "$answer" =~ ^[Yy] ]] ; then
-			cf="/tmp/core-asterisk-running-$df"
+			cf="${OUTPUTDIR:-/tmp}/core-asterisk-running-$df"
 			echo "Dumping running asterisk process to $cf"
-			${GDB} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
+			${GDB} ${asterisk_bin} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
 			COREDUMPS+=("$cf")
 		else
 			echo "Skipping dump of running process"
@@ -370,20 +398,22 @@ fi
 # and save them to /tmp/.gdbinit
 
 ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
-tail -n +${ss} $0 >/tmp/.ast_coredumper.gdbinit
+tail -n +${ss} $0 >${OUTPUTDIR:-/tmp}/.ast_coredumper.gdbinit
 
 # Now iterate over the coredumps and dump the debugging info
 for i in ${!COREDUMPS[@]} ; do
 	cf=${COREDUMPS[$i]}
 	echo "Processing $cf"
-	if [ -z "$asterisk_bin" ]; then
-		asterisk_bin=$(which asterisk)
-	fi
-	${GDB} -n --batch -q --ex "source /tmp/.ast_coredumper.gdbinit" "$asterisk_bin" "$cf" 2>/dev/null | (
+
+	cfdir=`dirname ${cf}`
+	cfname=`basename ${cf}`
+	outputdir=${OUTPUTDIR:-${cfdir}}
+
+	${GDB} -n --batch -q --ex "source ${OUTPUTDIR:-/tmp}/.ast_coredumper.gdbinit" "$asterisk_bin" "$cf" 2>/dev/null | (
 		of=/dev/null
 		while IFS= read line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
-				of=${cf}-${BASH_REMATCH[1]}
+				of=${outputdir}/${cfname}-${BASH_REMATCH[1]}
 				of=${of//:/-}
 				rm -f "$of"
 				echo "Creating $of"
@@ -391,50 +421,58 @@ for i in ${!COREDUMPS[@]} ; do
 			echo -e $"$line" >> "$of"
 		done
 	)
-done
 
-if $tarball_coredumps ; then
-	tf=/tmp/asterisk-$df.coredumps.tar.gz
-	echo "Creating $tf"
-	dest=/tmp/asterisk-$df
-	rm -rf $dest 2>/dev/null || :
-	libdir=usr/lib
-	[ -d /usr/lib64 ] && libdir+=64
-	mkdir -p $dest/tmp $dest/$libdir/asterisk $dest/etc $dest/usr/sbin
-	for i in ${!COREDUMPS[@]} ; do
-		ln -s "${COREDUMPS[@]}" $dest/"${COREDUMPS[@]}"
-		cp "${COREDUMPS[@]}"*.txt $dest/tmp/
-	done
-	cp /etc/os-release $dest/etc/
-	cp -a /$libdir/libasterisk* $dest/$libdir/
-	cp -a /$libdir/asterisk/* $dest/$libdir/asterisk/
-	cp -a /usr/sbin/asterisk $dest/usr/sbin
-	rm -rf $tf
-	tar -chzf $tf --transform="s/^[.]/$df/" -C $dest .
-	rm -rf $dest
-	echo "Created $tf"
-fi
+	if $tarball_coredumps ; then
+		cfname=${cfname//:/-}
+		tf=${outputdir}/${cfname}.tar.gz
+		echo "Creating ${tf}"
+
+		dest=${outputdir}/${cfname}.output
+		rm -rf ${dest} 2>/dev/null || :
+
+		libdir=usr/lib
+		[ -d /usr/lib64 ] && libdir+=64
+		mkdir -p ${dest}/tmp ${dest}/${libdir}/asterisk ${dest}/etc ${dest}/usr/sbin
+
+		ln -s ${cf} ${dest}/tmp/${cfname}
+		cp ${outputdir}/${cfname}*.txt ${dest}/tmp/
+		cp /etc/os-release ${dest}/etc/
+		if $tarball_config ; then
+			cp -a /etc/asterisk ${dest}/etc/
+		fi
+		cp -a /${libdir}/libasterisk* ${dest}/${libdir}/
+		cp -a /${libdir}/asterisk/* ${dest}/${libdir}/asterisk/
+		cp -a /usr/sbin/asterisk ${dest}/usr/sbin
+		rm -rf ${tf}
+		tar -chzf ${tf} --transform="s/^[.]/${cfname}/" -C ${dest} .
+		rm -rf ${dest}
+		echo "Created $tf"
+	elif $tarball_results ; then
+		cfname=${cfname//:/-}
+		tf=${outputdir}/${cfname}.tar.gz
+		echo "Creating ${tf}"
+
+		dest=${outputdir}/${cfname}.output
+		rm -rf ${dest} 2>/dev/null || :
+		mkdir -p ${dest}
+		cp ${outputdir}/${cfname}*.txt ${dest}/
+		if $tarball_config ; then
+			mkdir -p ${dest}/etc
+			cp -a /etc/asterisk ${dest}/etc/
+		fi
+		tar -chzf ${tf} --transform="s/^[.]/${cfname}/" -C ${dest} .
+		rm -rf ${dest}
+		echo "Created $tf"
+	fi
 
 if $delete_coredumps_after ; then
-	for i in ${!COREDUMPS[@]} ; do
-		rm -rf "${COREDUMPS[$i]}"
-	done
-fi
+		rm -rf "${cf}"
+	fi
 
-if $tarball_results ; then
-	tf=/tmp/asterisk-$df-results.tar
-	echo "Creating $tf.gz"
-	for i in ${!COREDUMPS[@]} ; do
-		tar -uvf $tf "${COREDUMPS[$i]//:/-}"-{brief,full,thread1,locks}.txt 2>/dev/null
-	done
-	gzip $tf
-fi
-
-if $delete_results_after ; then
-	for i in ${!COREDUMPS[@]} ; do
-		rm -rf "${COREDUMPS[$i]//:/-}"-{brief,full,thread1,locks}.txt
-	done
-fi
+	if $delete_results_after ; then
+		rm -rf "${cf//:/-}"-{brief,full,thread1,locks}.txt
+	fi
+done
 
 exit
 
@@ -463,6 +501,9 @@ class DumpAsteriskCommand(gdb.Command):
         try:
             gdb.execute("p $_siginfo", from_tty)
             gdb.execute("info signal $_siginfo.si_signo")
+        except:
+            pass
+        try:
             gdb.execute("thread apply 1 bt full", from_tty)
         except:
             pass
@@ -470,6 +511,9 @@ class DumpAsteriskCommand(gdb.Command):
         try:
             gdb.execute("p $_siginfo", from_tty)
             gdb.execute("info signal $_siginfo.si_signo")
+        except:
+            pass
+        try:
             gdb.execute("thread apply all bt", from_tty)
         except:
             pass
@@ -477,6 +521,9 @@ class DumpAsteriskCommand(gdb.Command):
         try:
             gdb.execute("p $_siginfo", from_tty)
             gdb.execute("info signal $_siginfo.si_signo")
+        except:
+            pass
+        try:
             gdb.execute("thread apply all bt full", from_tty)
         except:
             pass
@@ -484,6 +531,9 @@ class DumpAsteriskCommand(gdb.Command):
         try:
             gdb.execute("p $_siginfo", from_tty)
             gdb.execute("info signal $_siginfo.si_signo")
+        except:
+            pass
+        try:
             gdb.execute("show_locks", from_tty)
         except:
             pass
