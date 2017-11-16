@@ -185,6 +185,10 @@ struct sorcery_memory_cache_fields_cmp_params {
 	const struct ast_variable *fields;
 	/*! \brief Regular expression for checking object id */
 	regex_t *regex;
+	/*! \brief Prefix for matching object id */
+	const char *prefix;
+	/*! \brief Prefix length in bytes for matching object id */
+	const size_t prefix_len;
 	/*! \brief Optional container to put object into */
 	struct ao2_container *container;
 };
@@ -201,6 +205,8 @@ static void sorcery_memory_cache_retrieve_multiple(const struct ast_sorcery *sor
 	struct ao2_container *objects, const struct ast_variable *fields);
 static void sorcery_memory_cache_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type,
 	struct ao2_container *objects, const char *regex);
+static void sorcery_memory_cache_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const char *prefix, const size_t prefix_len);
 static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *data, void *object);
 static void sorcery_memory_cache_close(void *data);
 
@@ -216,6 +222,7 @@ static struct ast_sorcery_wizard memory_cache_object_wizard = {
 	.retrieve_fields = sorcery_memory_cache_retrieve_fields,
 	.retrieve_multiple = sorcery_memory_cache_retrieve_multiple,
 	.retrieve_regex = sorcery_memory_cache_retrieve_regex,
+	.retrieve_prefix = sorcery_memory_cache_retrieve_prefix,
 	.close = sorcery_memory_cache_close,
 };
 
@@ -1253,6 +1260,11 @@ static int sorcery_memory_cache_fields_cmp(void *obj, void *arg, int flags)
 			ao2_link(params->container, cached->object);
 		}
 		return 0;
+	} else if (params->prefix) {
+		if (!strncmp(params->prefix, ast_sorcery_object_get_id(cached->object), params->prefix_len)) {
+			ao2_link(params->container, cached->object);
+		}
+		return 0;
 	} else if (params->fields &&
 	     (!ast_variable_lists_match(cached->objectset, params->fields, 0))) {
 		/* If we can't turn the object into an object set OR if differences exist between the fields
@@ -1370,6 +1382,40 @@ static void sorcery_memory_cache_retrieve_regex(const struct ast_sorcery *sorcer
 	memory_cache_full_update(sorcery, type, cache);
 	ao2_callback(cache->objects, 0, sorcery_memory_cache_fields_cmp, &params);
 	regfree(&expression);
+
+	if (ao2_container_count(objects)) {
+		memory_cache_stale_check(sorcery, cache);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Callback function to retrieve multiple objects whose id matches a prefix
+ *
+ * \param sorcery The sorcery instance
+ * \param data The sorcery memory cache
+ * \param type The type of the object to retrieve
+ * \param objects Container to place the objects into
+ * \param prefix Prefix to match against the object id
+ */
+static void sorcery_memory_cache_retrieve_prefix(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const char *prefix, const size_t prefix_len)
+{
+	struct sorcery_memory_cache *cache = data;
+	struct sorcery_memory_cache_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.cache = cache,
+		.container = objects,
+		.prefix = prefix,
+		.prefix_len = prefix_len,
+	};
+
+	if (is_passthru_update() || !cache->full_backend_cache) {
+		return;
+	}
+
+	memory_cache_full_update(sorcery, type, cache);
+	ao2_callback(cache->objects, 0, sorcery_memory_cache_fields_cmp, &params);
 
 	if (ao2_container_count(objects)) {
 		memory_cache_stale_check(sorcery, cache);

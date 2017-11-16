@@ -2036,6 +2036,36 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 	return objects;
 }
 
+struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *sorcery, const char *type, const char *prefix, const size_t prefix_len)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct ao2_container *objects;
+	int i;
+
+	if (!object_type || !(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+		return NULL;
+	}
+
+	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
+	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+		struct ast_sorcery_object_wizard *wizard =
+			AST_VECTOR_GET(&object_type->wizards, i);
+
+		if (!wizard->wizard->callbacks.retrieve_prefix) {
+			continue;
+		}
+
+		wizard->wizard->callbacks.retrieve_prefix(sorcery, wizard->data, object_type->name, objects, prefix, prefix_len);
+
+		if (wizard->caching && ao2_container_count(objects)) {
+			break;
+		}
+	}
+	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+
+	return objects;
+}
+
 /*! \brief Internal function which returns if the wizard has created the object */
 static int sorcery_wizard_create(const struct ast_sorcery_object_wizard *object_wizard, const struct sorcery_details *details)
 {
