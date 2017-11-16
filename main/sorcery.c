@@ -552,6 +552,28 @@ static void sorcery_internal_wizard_destructor(void *obj)
 
 int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, struct ast_module *module)
 {
+	struct ast_sorcery_wizard compat = {
+		.name = interface->name,
+		.open = interface->open,
+		.load = interface->load,
+		.reload = interface->reload,
+		.create = interface->create,
+		.retrieve_id = interface->retrieve_id,
+		.retrieve_regex = interface->retrieve_regex,
+		.retrieve_fields = interface->retrieve_fields,
+		.retrieve_multiple = interface->retrieve_multiple,
+		.update = interface->update,
+		.delete = interface->delete,
+		.close = interface->close,
+		.is_stale = interface->is_stale,
+		.retrieve_prefix = NULL,
+	};
+
+	return __ast_sorcery_wizard_register_with_prefix(&compat, module);
+}
+
+int __ast_sorcery_wizard_register_with_prefix(const struct ast_sorcery_wizard *interface, struct ast_module *module)
+{
 	struct ast_sorcery_internal_wizard *wizard;
 	int res = -1;
 
@@ -2026,6 +2048,36 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 		}
 
 		wizard->wizard->callbacks.retrieve_regex(sorcery, wizard->data, object_type->name, objects, regex);
+
+		if (wizard->caching && ao2_container_count(objects)) {
+			break;
+		}
+	}
+	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+
+	return objects;
+}
+
+struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *sorcery, const char *type, const char *prefix, const size_t prefix_len)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct ao2_container *objects;
+	int i;
+
+	if (!object_type || !(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+		return NULL;
+	}
+
+	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
+	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+		struct ast_sorcery_object_wizard *wizard =
+			AST_VECTOR_GET(&object_type->wizards, i);
+
+		if (!wizard->wizard->callbacks.retrieve_prefix) {
+			continue;
+		}
+
+		wizard->wizard->callbacks.retrieve_prefix(sorcery, wizard->data, object_type->name, objects, prefix, prefix_len);
 
 		if (wizard->caching && ao2_container_count(objects)) {
 			break;
