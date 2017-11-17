@@ -1860,7 +1860,10 @@ static void aoc_publish_blob(struct ast_channel *chan, struct stasis_message_typ
 	msg = stasis_message_create(msg_type, aoc_event);
 	ao2_ref(aoc_event, -1);
 
-	stasis_publish(ast_manager_get_topic(), msg);
+	if (msg) {
+		stasis_publish(ast_manager_get_topic(), msg);
+		ao2_ref(msg, -1);
+	}
 }
 
 static struct ast_manager_event_blob *aoc_to_ami(struct stasis_message *message,
