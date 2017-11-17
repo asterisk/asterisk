@@ -1150,7 +1150,14 @@ AST_GCC_ATTRIBUTE(sentinel)
 AST_GCC_ATTRIBUTE(warn_unused_result)
 AST_GCC_ATTRIBUTE(may_alias)
 AST_GCC_ATTRIBUTE(constructor)
+if test "$ax_cv_have_func_attribute_constructor" != "1"; then
+	AC_MSG_ERROR([*** Function constructor attribute is not supported by your compiler.])
+fi
+
 AST_GCC_ATTRIBUTE(destructor)
+if test "$ax_cv_have_func_attribute_destructor" != "1"; then
+	AC_MSG_ERROR([*** Function destructor attribute is not supported by your compiler.])
+fi
 AST_GCC_ATTRIBUTE(noreturn,noreturn)
 
 AC_MSG_CHECKING(for -fsanitize=address support)
