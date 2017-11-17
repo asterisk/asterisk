@@ -74,10 +74,12 @@ static int find_transport_state_in_use(void *obj, void *arg, int flags)
 	return 0;
 }
 
+#define DOMAIN_NAME_LEN 255
+#define USERNAME_LEN    255
+
 static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoint_name,
 	char *domain_name)
 {
-	char id[AST_UUID_STR_LEN];
 	struct ast_sip_endpoint *endpoint;
 	RAII_VAR(struct ast_sip_domain_alias *, alias, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
@@ -85,6 +87,8 @@ static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoi
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 
 	if (!ast_sip_get_disable_multi_domain()) {
+		char id[DOMAIN_NAME_LEN + USERNAME_LEN + sizeof("@")];
+
 		/* Attempt to find the endpoint given the name and domain provided */
 		snprintf(id, sizeof(id), "%s@%s", endpoint_name, domain_name);
 		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
@@ -116,8 +120,8 @@ static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoi
 
 static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 {
-	char username[64];
-	char domain[64];
+	char username[USERNAME_LEN + 1];
+	char domain[DOMAIN_NAME_LEN + 1];
 	struct ast_sip_endpoint *endpoint;
 
 	if (get_from_header(rdata, username, sizeof(username), domain, sizeof(domain))) {
@@ -149,7 +153,7 @@ static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 
 static struct ast_sip_endpoint *auth_username_identify(pjsip_rx_data *rdata)
 {
-	char username[64], realm[64];
+	char username[USERNAME_LEN + 1], realm[DOMAIN_NAME_LEN + 1];
 	struct ast_sip_endpoint *endpoint;
 	pjsip_authorization_hdr *auth_header = NULL;
 
