@@ -107,10 +107,6 @@
 
 #if defined(OPTIONAL_API)
 
-#if !defined(HAVE_ATTRIBUTE_constructor) || !defined(HAVE_ATTRIBUTE_constructor)
-#error OPTIONAL_API requires compiler constructor/destructor support
-#endif
-
 /*!
  * \internal
  * \brief Function pointer to an optional API function.
