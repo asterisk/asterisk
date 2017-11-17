@@ -18139,6 +18139,7 @@ $as_echo_n "checking for compiler 'attribute pure' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_pure=0
 
 if test "x" = "x"
 then
@@ -18157,6 +18158,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_pure=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_pure 1
@@ -18184,6 +18186,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_pure=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_pure 1
@@ -18207,6 +18210,7 @@ $as_echo_n "checking for compiler 'attribute malloc' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_malloc=0
 
 if test "x" = "x"
 then
@@ -18225,6 +18229,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_malloc=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_malloc 1
@@ -18252,6 +18257,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_malloc=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_malloc 1
@@ -18275,6 +18281,7 @@ $as_echo_n "checking for compiler 'attribute const' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_const=0
 
 if test "x" = "x"
 then
@@ -18293,6 +18300,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_const=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_const 1
@@ -18320,6 +18328,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_const=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_const 1
@@ -18343,6 +18352,7 @@ $as_echo_n "checking for compiler 'attribute unused' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_unused=0
 
 if test "x" = "x"
 then
@@ -18361,6 +18371,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_unused=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_unused 1
@@ -18388,6 +18399,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_unused=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_unused 1
@@ -18411,6 +18423,7 @@ $as_echo_n "checking for compiler 'attribute always_inline' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_always_inline=0
 
 if test "x" = "x"
 then
@@ -18429,6 +18442,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_always_inline=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_always_inline 1
@@ -18456,6 +18470,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_always_inline=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_always_inline 1
@@ -18479,6 +18494,7 @@ $as_echo_n "checking for compiler 'attribute deprecated' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_deprecated=0
 
 if test "x" = "x"
 then
@@ -18497,6 +18513,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_deprecated=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_deprecated 1
@@ -18524,6 +18541,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_deprecated=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_deprecated 1
@@ -18547,6 +18565,7 @@ $as_echo_n "checking for compiler 'attribute sentinel' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_sentinel=0
 
 if test "x" = "x"
 then
@@ -18565,6 +18584,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_sentinel=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_sentinel 1
@@ -18592,6 +18612,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_sentinel=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_sentinel 1
@@ -18615,6 +18636,7 @@ $as_echo_n "checking for compiler 'attribute warn_unused_result' support... " >&
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_warn_unused_result=0
 
 if test "x" = "x"
 then
@@ -18633,6 +18655,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_warn_unused_result=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_warn_unused_result 1
@@ -18660,6 +18683,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_warn_unused_result=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_warn_unused_result 1
@@ -18683,6 +18707,7 @@ $as_echo_n "checking for compiler 'attribute may_alias' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_may_alias=0
 
 if test "x" = "x"
 then
@@ -18701,6 +18726,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_may_alias=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_may_alias 1
@@ -18728,6 +18754,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_may_alias=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_may_alias 1
@@ -18751,6 +18778,7 @@ $as_echo_n "checking for compiler 'attribute constructor' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_constructor=0
 
 if test "x" = "x"
 then
@@ -18769,6 +18797,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_constructor=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_constructor 1
@@ -18796,6 +18825,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_constructor=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_constructor 1
@@ -18813,12 +18843,17 @@ fi
 CFLAGS="$saved_CFLAGS"
 
 
+if test "$ax_cv_have_func_attribute_constructor" != "1"; then
+	as_fn_error $? "*** Function constructor attribute is not supported by your compiler." "$LINENO" 5
+fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for compiler 'attribute destructor' support" >&5
 $as_echo_n "checking for compiler 'attribute destructor' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_destructor=0
 
 if test "x" = "x"
 then
@@ -18837,6 +18872,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_destructor=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_destructor 1
@@ -18864,6 +18900,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_destructor=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_destructor 1
@@ -18881,12 +18918,16 @@ fi
 CFLAGS="$saved_CFLAGS"
 
 
+if test "$ax_cv_have_func_attribute_destructor" != "1"; then
+	as_fn_error $? "*** Function destructor attribute is not supported by your compiler." "$LINENO" 5
+fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for compiler 'attribute noreturn' support" >&5
 $as_echo_n "checking for compiler 'attribute noreturn' support... " >&6; }
 saved_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wall -Wno-unused -Werror"
 
+ax_cv_have_func_attribute_noreturn=0
 
 if test "xnoreturn" = "x"
 then
@@ -18905,6 +18946,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_noreturn=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_noreturn 1
@@ -18932,6 +18974,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+	ax_cv_have_func_attribute_noreturn=1
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_ATTRIBUTE_noreturn 1
