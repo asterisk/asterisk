@@ -40,7 +40,7 @@ security are listed below.
         http://blogs.digium.com/2009/03/28/sip-security/
 
 * Asterisk VoIP Security (webinar):
-        http://www.asterisk.org/security/webinar/
+        https://www.asterisk.org/security/webinar/
 
 
 ==============
@@ -263,7 +263,7 @@ that contains a weak password that was forgotten prior to putting a system into
 production.
 
 Using a web search you can find several online password generators such as
-http://www.strongpasswordgenerator.com or there are several scripts that can be
+https://www.strongpasswordgenerator.com or there are several scripts that can be
 used to generate a strong password.
 
 
