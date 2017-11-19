@@ -443,7 +443,7 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 	}
 }
 
-ssize_t ast_iostream_printf(struct ast_iostream *stream, const void *fmt, ...)
+ssize_t ast_iostream_printf(struct ast_iostream *stream, const char *fmt, ...)
 {
 	char sbuf[512], *buf = sbuf;
 	int len, len2, ret = -1;
