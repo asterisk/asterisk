@@ -11345,5 +11345,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "True Call Queueing",
 	.unload = unload_module,
 	.reload = reload,
 	.load_pri = AST_MODPRI_DEVSTATE_CONSUMER,
-	.nonoptreq = "res_monitor",
+	.optional_modules = "res_monitor",
 );

@@ -304,26 +304,28 @@ enum ast_module_load_priority {
 };
 
 struct ast_module_info {
-
 	/*!
 	 * The 'self' pointer for a module; it will be set by the loader before
 	 * it calls the module's load_module() entrypoint, and used by various
 	 * other macros that need to identify the module.
 	 */
-
 	struct ast_module *self;
-	enum ast_module_load_result (*load)(void);	/*!< register stuff etc. Optional. */
-	int (*reload)(void);			/*!< config etc. Optional. */
-	int (*unload)(void);			/*!< unload. called with the module locked */
-	const char *name;			/*!< name of the module for loader reference and CLI commands */
-	const char *description;		/*!< user friendly description of the module. */
+	/*! Register stuff etc. Optional. */
+	enum ast_module_load_result (*load)(void);
+	/*! Config etc. Optional. */
+	int (*reload)(void);
+	/*! Unload. called with the module locked */
+	int (*unload)(void);
+	/*! Name of the module for loader reference and CLI commands */
+	const char *name;
+	/*! User friendly description of the module. */
+	const char *description;
 
 	/*!
 	 * This holds the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
 	 * the Asterisk license as stated in the ASTERISK_GPL_KEY.  Your module will not
 	 * load if it does not return the EXACT key string.
 	 */
-
 	const char *key;
 	unsigned int flags;
 
@@ -337,10 +339,42 @@ struct ast_module_info {
 	 *  on load. */
 	unsigned char load_pri;
 
-	/*! Modules which should be loaded first, in comma-separated string format.
-	 * These are only required for loading, when the optional_api header file
-	 * detects that the compiler does not support the optional API featureset. */
-	const char *nonoptreq;
+	/*! Modules which must always be started first, in comma-separated string format. */
+	const char *requires;
+
+	/*!
+	 * \brief Comma-separated list of optionally required modules.
+	 *
+	 * The listed modules are optional, but load order is enforced.  For example
+	 * app_voicemail optionally requires res_adsi.  This means that app_voicemail
+	 * will happily load without res_adsi, but if both are being loaded the module
+	 * loader will force res_adsi to start first.
+	 */
+	const char *optional_modules;
+
+	/*!
+	 * \brief Modules that we provide enhanced functionality for.
+	 *
+	 * This is similar to a "requires" but specifies that we add functionality to
+	 * the other modules.  Any module that requires something we "enhances" will
+	 * also require us, but only if we are dlopen'ed.
+	 *
+	 * Example:
+	 * - res_fax_spandsp has .enhances = "res_fax".
+	 * - res_my_module has .requires = "res_fax" but has no direct knowledge
+	 *   of res_fax_spandsp.
+	 *
+	 * This forces the following startup order among the 3 modules:
+	 * 1) res_fax starts.
+	 * 2) res_fax_spandsp starts, holds a reference to res_fax.
+	 * 3) res_mymod starts, holds a reference to res_fax and res_fax_spandsp.
+	 *
+	 * If res_fax_spandsp were not being loaded res_mymod would load with
+	 * res_fax only.  If res_fax_spandsp were later loaded res_mymod would
+	 * get a reference to it.
+	 */
+	const char *enhances;
+
 	/*! The support level for the given module */
 	enum ast_module_support_level support_level;
 };
@@ -410,6 +444,8 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 		flags_to_set,                                                  \
 		AST_BUILDOPT_SUM,                                              \
 		load_pri,                                                      \
+		NULL,                                                          \
+		NULL,                                                          \
 		NULL,                                                          \
 		support_level,                                                 \
 	};                                                                 \

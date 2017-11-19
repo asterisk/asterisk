@@ -5063,5 +5063,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Nu
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
-	.nonoptreq = "res_crypto",
+	.optional_modules = "res_crypto",
 );

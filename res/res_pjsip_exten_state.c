@@ -1015,4 +1015,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Extension State
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND + 5,
+	.requires = "res_pjsip,res_pjsip_pubsub,res_pjsip_outbound_publish",
 );

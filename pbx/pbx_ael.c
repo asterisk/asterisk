@@ -292,6 +292,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Extension Langu
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
+	.requires = "res_ael_share",
 );
 
 #ifdef AAL_ARGCHECK

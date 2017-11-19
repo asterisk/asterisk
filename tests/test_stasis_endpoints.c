@@ -306,5 +306,5 @@ static int load_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Endpoint stasis-related testing",
 	.load = load_module,
 	.unload = unload_module,
-	.nonoptreq = "res_stasis_test",
+	.requires = "res_stasis_test",
 );

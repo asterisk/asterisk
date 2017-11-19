@@ -1397,4 +1397,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP MWI resource",
 	.unload = unload_module,
 	.reload = reload,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND + 5,
+	.requires = "res_pjsip,res_pjsip_pubsub",
 );

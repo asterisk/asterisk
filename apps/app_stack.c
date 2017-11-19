@@ -1320,5 +1320,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT | AST_MODFLAG_LOAD_ORDER, 
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND,
-	.nonoptreq = "res_agi",
+	.optional_modules = "res_agi",
 );

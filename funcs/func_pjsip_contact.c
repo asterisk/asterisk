@@ -198,4 +198,9 @@ static int load_module(void)
 	return ast_custom_function_register(&pjsip_contact_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get information about a PJSIP contact");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Get information about a PJSIP contact",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.requires = "res_pjsip",
+);
