@@ -273,7 +273,7 @@ endif
 
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB).$(ASTPJ_SO_VERSION) $(PJ_LDFLAGS)
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" -DAST_NOT_MODULE $(PJ_CFLAGS)
-$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lpthread $(RT_LIB)
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) $(OPENSSL_LIB) $(UUID_LIB) -lm -lpthread $(RT_LIB)
 ifeq ($(GNU_LD),1)
     $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): SO_SUPPRESS_SYMBOLS=-Wl,--version-script,libasteriskpj.exports,--warn-common
 endif
@@ -298,7 +298,7 @@ ASTPJ_LIB:=libasteriskpj.dylib
 # /lib or /usr/lib
 $(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB) $(PJ_LDFLAGS)
 $(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS) -DAST_NOT_MODULE
-$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  -lssl -lcrypto -luuid -lm -lpthread $(RT_LIB)
+$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  $(OPENSSL_LIB) $(UUID_LIB) -lm -lpthread $(RT_LIB)
 $(ASTPJ_LIB): SOLINK=$(DYLINK)
 
 # Special rules for building a shared library (not a dynamically loadable module)
