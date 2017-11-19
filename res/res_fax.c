@@ -4563,12 +4563,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 					unsigned int gwtimeout;
 
 					if (sscanf(timeout, "%30u", &gwtimeout) == 1) {
-						if (gwtimeout >= 0) {
-							details->gateway_timeout = gwtimeout * 1000;
-						} else {
-							ast_log(LOG_WARNING, "%s(%s) timeout cannot be negative.  Ignoring timeout\n",
-								cmd, data);
-						}
+						details->gateway_timeout = gwtimeout * 1000;
 					} else {
 						ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n", timeout, data);
 					}
@@ -4607,13 +4602,7 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 			if (details->faxdetect_id < 0) {
 				if (timeout) {
 					if (sscanf(timeout, "%30u", &fdtimeout) == 1) {
-						if (fdtimeout >= 0) {
-							fdtimeout *= 1000;
-						} else {
-							ast_log(LOG_WARNING, "%s(%s) timeout cannot be negative.  Ignoring timeout\n",
-								cmd, data);
-							fdtimeout = 0;
-						}
+						fdtimeout *= 1000;
 					} else {
 						ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n",
 							timeout, data);
