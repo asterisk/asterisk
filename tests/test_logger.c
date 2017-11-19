@@ -192,7 +192,7 @@ static char *handle_cli_performance_test(struct ast_cli_entry *e, int cmd, struc
 
 static char *handle_cli_queue_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	unsigned int level;
+	int level;
 	int current_queue_limit;
 	unsigned int x;
 	struct timeval start, end;
@@ -222,7 +222,7 @@ static char *handle_cli_queue_test(struct ast_cli_entry *e, int cmd, struct ast_
 		ast_cli(a->fd, "Test: Failed, could not register level 'queuetest'.\n");
 		return CLI_SUCCESS;
 	}
-	ast_cli(a->fd, "Test: got level %u for 'queuetest'.\n", level);
+	ast_cli(a->fd, "Test: got level %d for 'queuetest'.\n", level);
 
 	if (ast_logger_create_channel(tmppath, "queuetest") != AST_LOGGER_SUCCESS) {
 		ast_cli(a->fd, "Test: Unable to create logger channel '%s'\n", tmppath);
