@@ -63,6 +63,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#if !defined(RONLY) && defined(NETSNMP_OLDAPI_RONLY)
+#define RONLY NETSNMP_OLDAPI_RONLY
+#endif
+
 #include "asterisk/paths.h"	/* need ast_config_AST_SOCKET */
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
