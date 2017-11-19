@@ -28,6 +28,8 @@ export SED
 export NM
 export MD5
 export CAT
+export CUT
+export GREP
 export DOWNLOAD
 export DOWNLOAD_TO_STDOUT
 export DOWNLOAD_TIMEOUT
