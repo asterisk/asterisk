@@ -39,6 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/test.h"
 
+#include <signal.h>
+
 /*!
  * If we determine that we really need
  * to be able to register more than 10
