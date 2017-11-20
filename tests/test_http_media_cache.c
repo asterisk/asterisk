@@ -692,10 +692,9 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "HTTP Media Cache Backend Tests",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "HTTP Media Cache Backend Tests",
 		.support_level = AST_MODULE_SUPPORT_CORE,
 		.load = load_module,
 		.reload = reload_module,
 		.unload = unload_module,
-		.load_pri = AST_MODPRI_DEFAULT,
 	);
