@@ -306,6 +306,27 @@ int ast_cli_generatornummatches(const char *, const char *);
 char **ast_cli_completion_matches(const char *, const char *);
 
 /*!
+ * \brief Generates a vector of strings for CLI completion.
+ *
+ * \param text Complete input being matched.
+ * \param word Current word being matched
+ *
+ * The results contain strings that both:
+ * 1) Begin with the string in \a word.
+ * 2) Are valid in a command after the string in \a text.
+ *
+ * The first entry (offset 0) of the result is the longest common substring
+ * in the results, useful to extend the string that has been completed.
+ * Subsequent entries are all possible values.
+ *
+ * \note All strings and the vector itself are malloc'ed and must be freed
+ *       by the caller.
+ *
+ * \note The vector is sorted and does not contain any duplicates.
+ */
+struct ast_vector_string *ast_cli_completion_vector(const char *text, const char *word);
+
+/*!
  * \brief Command completion for the list of active channels.
  *
  * This can be called from a CLI command completion function that wants to
