@@ -283,6 +283,12 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 
 	while (start) {
 		current = ast_duplicate_ha(start);  /* Create copy of this object */
+		if (!current) {
+			ast_free_ha(ret);
+
+			return NULL;
+		}
+
 		if (prev) {
 			prev->next = current;           /* Link previous to this object */
 		}
@@ -320,7 +326,7 @@ struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original)
 	}
 
 	if (!(clone = ast_calloc(1, sizeof(*clone)))) {
-		ast_log(LOG_WARNING, "Failed to allocate ast_acl_list struct while cloning an ACL\n");
+		ast_log(LOG_ERROR, "Failed to allocate ast_acl_list struct while cloning an ACL\n");
 		return NULL;
 	}
 	AST_LIST_HEAD_INIT(clone);
@@ -329,8 +335,10 @@ struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original)
 
 	AST_LIST_TRAVERSE(original, current_cursor, list) {
 		if ((acl_new(&current_clone, current_cursor->name))) {
-			ast_log(LOG_WARNING, "Failed to allocate ast_acl struct while cloning an ACL.");
-			continue;
+			ast_log(LOG_ERROR, "Failed to allocate ast_acl struct while cloning an ACL.\n");
+			ast_free_acl_list(clone);
+			clone = NULL;
+			break;
 		}
 
 		/* Copy data from original ACL to clone ACL */
@@ -340,6 +348,15 @@ struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original)
 		current_clone->is_realtime = current_cursor->is_realtime;
 
 		AST_LIST_INSERT_TAIL(clone, current_clone, list);
+
+		if (current_cursor->acl && !current_clone->acl) {
+			/* Deal with failure after adding to clone so we don't have to free
+			 * current_clone separately. */
+			ast_log(LOG_ERROR, "Failed to duplicate HA list while cloning ACL.\n");
+			ast_free_acl_list(clone);
+			clone = NULL;
+			break;
+		}
 	}
 
 	AST_LIST_UNLOCK(original);
@@ -450,6 +467,8 @@ void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **
 				if (error) {
 					*error = 1;
 				}
+				AST_LIST_UNLOCK(working_list);
+				return;
 			}
 			// Need to INSERT the ACL at the head here.
 			AST_LIST_INSERT_HEAD(working_list, acl, list);
@@ -479,7 +498,8 @@ void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **
 		AST_LIST_TRAVERSE(working_list, current, list) {
 			if (!strcasecmp(current->name, tmp)) { /* ACL= */
 				/* Inclusion of the same ACL multiple times isn't a catastrophic error, but it will raise the error flag and skip the entry. */
-				ast_log(LOG_ERROR, "Named ACL '%s' is already included in the ast_acl container.", tmp);
+				ast_log(LOG_ERROR, "Named ACL '%s' occurs multiple times in ACL definition. "
+				                   "Please update your ACL configuration.\n", tmp);
 				if (error) {
 					*error = 1;
 				}
@@ -538,6 +558,22 @@ int ast_acl_list_is_empty(struct ast_acl_list *acl_list)
 	return 1;
 }
 
+/*!
+ * \internal
+ * \brief Used by ast_append_ha to avoid ast_strdupa in a loop.
+ *
+ * \note This function is only called at debug level 3 and higher.
+ */
+static void debug_ha_sense_appended(struct ast_ha *ha)
+{
+	const char *parsed_mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
+
+	ast_log(LOG_DEBUG, "%s/%s sense %u appended to ACL\n",
+		ast_sockaddr_stringify(&ha->addr),
+		parsed_mask,
+		ha->sense);
+}
+
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
 {
 	struct ast_ha *ha;
@@ -547,7 +583,6 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	char *address = NULL, *mask = NULL;
 	int addr_is_v4;
 	int allowing = strncasecmp(sense, "p", 1) ? AST_SENSE_DENY : AST_SENSE_ALLOW;
-	const char *parsed_addr, *parsed_mask;
 
 	ret = path;
 	while (path) {
@@ -655,10 +690,9 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		}
 		prev = ha;
 
-		parsed_addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
-		parsed_mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
-
-		ast_debug(3, "%s/%s sense %u appended to ACL\n", parsed_addr, parsed_mask, ha->sense);
+		if (DEBUG_ATLEAST(3)) {
+			debug_ha_sense_appended(ha);
+		}
 	}
 
 	return ret;
@@ -667,10 +701,11 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 void ast_ha_join(const struct ast_ha *ha, struct ast_str **buf)
 {
 	for (; ha; ha = ha->next) {
-		const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
-		ast_str_append(buf, 0, "%s%s/%s",
-			       ha->sense == AST_SENSE_ALLOW ? "!" : "",
-			       addr, ast_sockaddr_stringify_addr(&ha->netmask));
+		ast_str_append(buf, 0, "%s%s/",
+			ha->sense == AST_SENSE_ALLOW ? "!" : "",
+			ast_sockaddr_stringify_addr(&ha->addr));
+		/* Separated to avoid duplicating stringified addresses. */
+		ast_str_append(buf, 0, "%s", ast_sockaddr_stringify_addr(&ha->netmask));
 		if (ha->next) {
 			ast_str_append(buf, 0, ",");
 		}
