@@ -368,7 +368,7 @@ static int contact_acl_to_str(const void *obj, const intptr_t *args, char **buf)
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
-	enum ast_sip_dtmf_mode dtmf = ast_sip_str_to_dtmf(var->value);
+	int dtmf = ast_sip_str_to_dtmf(var->value);
 
 	if (dtmf == -1) {
 		return -1;
