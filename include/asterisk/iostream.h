@@ -109,7 +109,8 @@ ssize_t ast_iostream_read(struct ast_iostream *stream, void *buf, size_t count);
 ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buf, size_t count);
 ssize_t ast_iostream_discard(struct ast_iostream *stream, size_t count);
 ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t count);
-ssize_t ast_iostream_printf(struct ast_iostream *stream, const void *fmt, ...);
+ssize_t __attribute__((format(printf, 2, 3))) ast_iostream_printf(
+	struct ast_iostream *stream, const char *fmt, ...);
 
 struct ast_iostream* ast_iostream_from_fd(int *fd);
 int ast_iostream_start_tls(struct ast_iostream **stream, SSL_CTX *ctx, int client);
