@@ -1254,7 +1254,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	struct ast_channel *chan = NULL;
 	char *fromaddress;
 	char *fromemail;
-	int res;
+	int res = -1;
 
 	if (!str1 || !str2) {
 		return -1;
