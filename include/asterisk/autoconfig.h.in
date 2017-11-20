@@ -628,10 +628,6 @@
 /* Define to 1 if PJPROJECT has the PJSIP EVSUB Group Lock support feature. */
 #undef HAVE_PJSIP_EVSUB_GRP_LOCK
 
-/* Define to 1 if PJPROJECT has the PJSIP EVSUB Set UAS Timeout support
-   feature. */
-#undef HAVE_PJSIP_EVSUB_SET_UAS_TIMEOUT
-
 /* Define to 1 if PJPROJECT has the PJSIP External Resolver Support feature.
    */
 #undef HAVE_PJSIP_EXTERNAL_RESOLVER
