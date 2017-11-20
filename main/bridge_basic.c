@@ -1547,6 +1547,23 @@ static void stimulate_attended_transfer(struct attended_transfer_properties *pro
 	ao2_unlock(props);
 }
 
+static void remove_attended_transfer_stimulus(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	struct stimulus_list *list;
+
+	ao2_lock(props);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&props->stimulus_queue, list, next) {
+		if (list->stimulus == stimulus) {
+			AST_LIST_REMOVE_CURRENT(next);
+			ast_free(list);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	ao2_unlock(props);
+}
+
 /*!
  * \brief Get a desired transfer party for a bridge the transferer is not in.
  *
@@ -2339,6 +2356,10 @@ static enum attended_transfer_state blond_nonfinal_exit(struct attended_transfer
 		return TRANSFER_RESUME;
 	case STIMULUS_TIMEOUT:
 		ast_softhangup(props->recall_target, AST_SOFTHANGUP_EXPLICIT);
+		/* It is possible before we hung them up that they queued up a recall target answer
+		 * so we remove it if present as it should not exist.
+		 */
+		remove_attended_transfer_stimulus(props, STIMULUS_RECALL_TARGET_ANSWER);
 	case STIMULUS_RECALL_TARGET_HANGUP:
 		props->recall_target = ast_channel_unref(props->recall_target);
 		return TRANSFER_RECALLING;
@@ -2803,7 +2824,8 @@ static struct ast_frame *transfer_target_framehook_cb(struct ast_channel *chan,
 
 	if (event == AST_FRAMEHOOK_EVENT_READ &&
 			frame && frame->frametype == AST_FRAME_CONTROL &&
-			frame->subclass.integer == AST_CONTROL_ANSWER) {
+			frame->subclass.integer == AST_CONTROL_ANSWER &&
+			!ast_check_hangup(chan)) {
 
 		ast_debug(1, "Detected an answer for recall attempt on attended transfer %p\n", props);
 		if (props->superstate == SUPERSTATE_TRANSFER) {
