@@ -40,6 +40,7 @@
 #include <regex.h>
 #include "asterisk/strings.h"
 #include "asterisk/pbx.h"
+#include "asterisk/vector.h"
 
 /*!
  * core handler for dynamic strings.
@@ -388,4 +389,45 @@ char *ast_read_line_from_buffer(char **buffer)
 	(*buffer)++;
 
 	return start;
+}
+
+int ast_vector_string_split(struct ast_vector_string *dest,
+	const char *input, const char *delim, int flags,
+	int (*excludes_cmp)(const char *s1, const char *s2))
+{
+	char *buf;
+	char *cur;
+	int no_trim = flags & AST_VECTOR_STRING_SPLIT_NO_TRIM;
+	int allow_empty = flags & AST_VECTOR_STRING_SPLIT_ALLOW_EMPTY;
+
+	ast_assert(dest != NULL);
+	ast_assert(!ast_strlen_zero(delim));
+
+	if (ast_strlen_zero(input)) {
+		return 0;
+	}
+
+	buf = ast_strdupa(input);
+	while ((cur = strsep(&buf, delim))) {
+		if (!no_trim) {
+			cur = ast_strip(cur);
+		}
+
+		if (!allow_empty && ast_strlen_zero(cur)) {
+			continue;
+		}
+
+		if (excludes_cmp && AST_VECTOR_GET_CMP(dest, cur, !excludes_cmp)) {
+			continue;
+		}
+
+		cur = ast_strdup(cur);
+		if (!cur || AST_VECTOR_APPEND(dest, cur)) {
+			ast_free(cur);
+
+			return -1;
+		}
+	}
+
+	return 0;
 }

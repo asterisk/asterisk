@@ -51,8 +51,38 @@
 /*! \brief Integer vector definition */
 AST_VECTOR(ast_vector_int, int);
 
-/*! \brief String vector definition */
+/*! \brief String vector definitions */
 AST_VECTOR(ast_vector_string, char *);
+AST_VECTOR(ast_vector_const_string, const char *);
+
+/*! Options to override default processing of ast_vector_string_split. */
+enum ast_vector_string_split_flags {
+	/*! Do not trim whitespace from values. */
+	AST_VECTOR_STRING_SPLIT_NO_TRIM = 0x01,
+	/*! Append empty strings to the vector. */
+	AST_VECTOR_STRING_SPLIT_ALLOW_EMPTY = 0x02,
+};
+
+/*!
+ * \brief Append a string vector by splitting a string.
+ *
+ * \param dest Pointer to an initialized vector.
+ * \param input String buffer to split.
+ * \param delim String delimeter passed to strsep.
+ * \param flags Processing options defined by \ref enum ast_vector_string_split_flags.
+ * \param excludes_cmp NULL or a function like strcmp to exclude duplicate strings.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note All elements added to the vector are allocated.  The caller is always
+ *       responsible for calling ast_free on each element in the vector even
+ *       after failure.  It's possible for this function to successfully add
+ *       some elements before failing.
+ */
+int ast_vector_string_split(struct ast_vector_string *dest,
+	const char *input, const char *delim, int flags,
+	int (*excludes_cmp)(const char *s1, const char *s2));
 
 /*!
  * \brief Define a vector structure with a read/write lock
