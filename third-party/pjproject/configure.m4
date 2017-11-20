@@ -80,7 +80,6 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	AC_DEFINE([HAVE_PJSIP_EVSUB_GRP_LOCK], 1, [Define if your system has PJSIP_EVSUB_GRP_LOCK])
 	AC_DEFINE([HAVE_PJSIP_INV_SESSION_REF], 1, [Define if your system has PJSIP_INV_SESSION_REF])
 	AC_DEFINE([HAVE_PJSIP_AUTH_CLT_DEINIT], 1, [Define if your system has pjsip_auth_clt_deinit declared.])
-	AC_DEFINE([HAVE_PJSIP_EVSUB_SET_UAS_TIMEOUT], 1, [Define if your system has pjsip_evsub_set_uas_timeout declared.])
 	AC_DEFINE([HAVE_PJSIP_TSX_LAYER_FIND_TSX2], 1, [Define if your system has pjsip_tsx_layer_find_tsx2 declared.])
 
 	AC_SUBST([PJPROJECT_BUNDLED])
