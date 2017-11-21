@@ -3193,8 +3193,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr.sin_addr.s_addr && count && ast_sockaddr_is_ipv4(addr)
-		&& !stun_address_is_blacklisted(addr)) {
+	if (count && stunaddr.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
+		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr))) {
 		struct sockaddr_in answer;
 		int rsp;
 
@@ -3208,27 +3208,40 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		ao2_lock(instance);
 		if (!rsp) {
 			pj_sockaddr base;
-			pj_sockaddr ext;
-			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
-			int srflx = 1;
 
-			/* Use the first local host candidate as the base */
-			pj_sockaddr_cp(&base, &address[basepos]);
-
-			pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
-
-			/* If the returned address is the same as one of our host candidates, don't send the srflx */
-			for (pos = 0; pos < count; pos++) {
-				if ((pj_sockaddr_cmp(&address[pos], &ext) == 0) && !rtp_address_is_ice_blacklisted(&address[pos])) {
-					srflx = 0;
+			/* Use the first local IPv4 host candidate as the base */
+			for (pos = basepos; pos < count; pos++) {
+				if (address[pos].addr.sa_family == PJ_AF_INET &&
+					!rtp_address_is_ice_blacklisted(&address[pos])) {
+					pj_sockaddr_cp(&base, &address[pos]);
 					break;
 				}
 			}
 
-			if (srflx) {
-				ast_rtp_ice_add_cand(instance, rtp, component, transport,
-					PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
-					pj_sockaddr_get_len(&ext));
+			if (pos < count) {
+				pj_sockaddr ext;
+				pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
+				int srflx = 1;
+
+				pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
+
+				/*
+				 * If the returned address is the same as one of our host
+				 * candidates, don't send the srflx
+				 */
+				for (pos = 0; pos < count; pos++) {
+					if (pj_sockaddr_cmp(&address[pos], &ext) == 0 &&
+						!rtp_address_is_ice_blacklisted(&address[pos])) {
+						srflx = 0;
+						break;
+					}
+				}
+
+				if (srflx) {
+					ast_rtp_ice_add_cand(instance, rtp, component, transport,
+						PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
+						pj_sockaddr_get_len(&ext));
+				}
 			}
 		}
 	}
