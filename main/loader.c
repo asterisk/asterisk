@@ -117,14 +117,20 @@ static int modules_loaded;
 
 struct ast_module {
 	const struct ast_module_info *info;
-	/* Used to get module references into refs log */
+	/*! Used to get module references into refs log */
 	void *ref_debug;
-	void *lib;					/* the shared lib, or NULL if embedded */
-	int usecount;					/* the number of 'users' currently in this module */
-	struct module_user_list users;			/* the list of users in the module */
+	/*! The shared lib. */
+	void *lib;
+	/*! Number of 'users' and other references currently holding the module. */
+	int usecount;
+	/*! List of users holding the module. */
+	struct module_user_list users;
 	struct {
+		/*! The module running and ready to accept requests. */
 		unsigned int running:1;
+		/*! The module has declined to start. */
 		unsigned int declined:1;
+		/*! This module is being held open until it's time to shutdown. */
 		unsigned int keepuntilshutdown:1;
 	} flags;
 	AST_LIST_ENTRY(ast_module) list_entry;
