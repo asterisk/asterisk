@@ -445,7 +445,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 
 	/* Create a frame log file */
 	if (ast_test_flag(jbconf, AST_JB_LOG)) {
-		RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(chan), ast_channel_cleanup);
+		struct ast_channel *bridged = ast_channel_bridge_peer(chan);
 		char safe_logfile[30] = "/tmp/logfile-XXXXXX";
 		int safe_fd;
 
@@ -481,6 +481,8 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 			jb_framelog("JB_PUT_FIRST {now=%ld}: Dropped frame with ts=%ld and len=%ld\n",
 				now, frr->ts, frr->len);
 		}
+
+		ast_channel_cleanup(bridged);
 	}
 
 	ast_verb(3, "%s jitterbuffer created on channel %s\n", jbimpl->name, ast_channel_name(chan));
