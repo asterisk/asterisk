@@ -58,12 +58,12 @@
  * \arg \ref SoundFiles included in the Asterisk distribution
  *
  * \section weblinks Web sites
- * \arg \b Main:  Asterisk Developer's website http://www.asterisk.org/developers/
+ * \arg \b Main:  Asterisk Developer's website https://www.asterisk.org/developers/
  * \arg \b Bugs: The Issue Tracker https://issues.asterisk.org
  * \arg \b Lists: List Server http://lists.digium.com
- * \arg \b Wiki: The Asterisk Wiki 	http://wiki.asterisk..org
+ * \arg \b Wiki: The Asterisk Wiki 	https://wiki.asterisk..org
  * \arg \b Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
- * \arg \b Digium: The Asterisk Company http://www.digium.com
+ * \arg \b Digium: The Asterisk Company https://www.digium.com
  */
 
 /*! 
