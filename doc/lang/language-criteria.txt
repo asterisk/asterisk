@@ -14,7 +14,7 @@ inclusion of soundfiles in multiple languages.
 Criteria for language submission:
 
 1) Creative Commons Attribution-Share Alike 3.0
-(http://creativecommons.org/licenses/by-sa/3.0/us/) for all
+(https://creativecommons.org/licenses/by-sa/3.0/us/) for all
 soundfiles, and the actual artist who performs the prompts must be the
 one who approves (in writing) the CCBYSAv3 license.  Print out the
 license, have the artist sign, and fax to Digium (+1-256-428-6217
@@ -86,9 +86,9 @@ artist as a URL and/or email address.
 Example:
  bash-3.2# more CREDITS
  Recorded by:
- Allison Smith (http://www.theivrvoice.com)
+ Allison Smith (https://www.theivrvoice.com)
  
- Financial Contributions by: Digium, Inc. (http://www.digium.com)
+ Financial Contributions by: Digium, Inc. (https://www.digium.com)
  bash-3.2#
 
 5) Create a file called "LICENSE" and include the license text (listed
@@ -107,7 +107,7 @@ import to UTF-8 format.
 7) Use "tar" to create a single file of your sounds and the three text
 files.
 
-8) Create an account on http://issues.asterisk.org/ if you do not
+8) Create an account on https://issues.asterisk.org/ if you do not
 already have one, and submit the file via that interface.  In order to
 eliminate confusion, you should also complete the license agreement on
 that system, which is an electronic license agreement.  You will
@@ -486,7 +486,7 @@ Creative Commons Notice
      time.  For the avoidance of doubt, this trademark restriction
      does not form part of this License.
 
-     Creative Commons may be contacted at http://creativecommons.org/
+     Creative Commons may be contacted at https://creativecommons.org/
 
 
  -- end printout --
