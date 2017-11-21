@@ -520,83 +520,91 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 #define MODULE_LOCAL_ONLY (void *)-1
 
-static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap)
+/*!
+ * \internal
+ * \brief Attempt to dlopen a module.
+ *
+ * \param resource_in The module name to load.
+ * \param so_ext ".so" or blank if ".so" is already part of resource_in.
+ * \param filename Passed directly to dlopen.
+ * \param flags Passed directly to dlopen.
+ * \param suppress_logging Do not log any error from dlopen.
+ *
+ * \return Pointer to opened module, NULL on error.
+ *
+ * \warning module_list must be locked before calling this function.
+ */
+static struct ast_module *load_dlopen(const char *resource_in, const char *so_ext,
+	const char *filename, int flags, unsigned int suppress_logging)
 {
-	char fn[PATH_MAX] = "";
-	void *lib = NULL;
 	struct ast_module *mod;
-	unsigned int wants_global;
-	int space;	/* room needed for the descriptor */
-	int missing_so = 0;
 
 	ast_assert(!resource_being_loaded);
 
-	space = sizeof(*resource_being_loaded) + strlen(resource_in) + 1;
-	if (strcasecmp(resource_in + strlen(resource_in) - 3, ".so")) {
-		missing_so = 1;
-		space += 3;	/* room for the extra ".so" */
+	mod = ast_calloc(1, sizeof(*mod) + strlen(resource_in) + strlen(so_ext) + 1);
+	if (!mod) {
+		return NULL;
 	}
 
-	snprintf(fn, sizeof(fn), "%s/%s%s", ast_config_AST_MODULE_DIR, resource_in, missing_so ? ".so" : "");
+	sprintf(mod->resource, "%s%s", resource_in, so_ext); /* safe */
 
-	/* make a first load of the module in 'quiet' mode... don't try to resolve
-	   any symbols, and don't export any symbols. this will allow us to peek into
-	   the module's info block (if available) to see what flags it has set */
-
-	mod = resource_being_loaded = ast_calloc(1, space);
-	if (!resource_being_loaded)
-		return NULL;
-	strcpy(resource_being_loaded->resource, resource_in);
-	if (missing_so)
-		strcat(resource_being_loaded->resource, ".so");
-
-	lib = dlopen(fn, RTLD_LAZY | RTLD_GLOBAL);
+	resource_being_loaded = mod;
+	mod->lib = dlopen(filename, flags);
 	if (resource_being_loaded) {
 		resource_being_loaded = NULL;
-		if (lib) {
+		if (mod->lib) {
 			ast_log(LOG_ERROR, "Module '%s' did not register itself during load\n", resource_in);
-			logged_dlclose(resource_in, lib);
+			logged_dlclose(resource_in, mod->lib);
 		} else if (!suppress_logging) {
 			ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
 		}
 		ast_free(mod);
+
 		return NULL;
 	}
 
-	wants_global = ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS);
+	return mod;
+}
 
-	/* if we are being asked only to load modules that provide global symbols,
-	   and this one does not, then close it and return */
-	if (global_symbols_only && !wants_global) {
-		logged_dlclose(resource_in, lib);
+static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap)
+{
+	char fn[PATH_MAX];
+	struct ast_module *mod;
+	size_t resource_in_len = strlen(resource_in);
+	int exports_globals;
+	const char *so_ext = "";
+
+	if (resource_in_len < 4 || strcasecmp(resource_in + resource_in_len - 3, ".so")) {
+		so_ext = ".so";
+	}
+
+	snprintf(fn, sizeof(fn), "%s/%s%s", ast_config_AST_MODULE_DIR, resource_in, so_ext);
+
+	/* Try loading in quiet mode first with flags to export global symbols.
+	 * If the module does not want to export globals we will close and reopen. */
+	mod = load_dlopen(resource_in, so_ext, fn,
+		global_symbols_only ? RTLD_NOW | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL,
+		suppress_logging);
+
+	if (!mod) {
+		return NULL;
+	}
+
+	exports_globals = ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS);
+	if ((global_symbols_only && exports_globals) || (!global_symbols_only && !exports_globals)) {
+		/* The first dlopen had the correct flags. */
+		return mod;
+	}
+
+	/* Close the module so we can reopen with correct flags. */
+	logged_dlclose(resource_in, mod->lib);
+	if (global_symbols_only) {
 		return MODULE_LOCAL_ONLY;
 	}
 
-	logged_dlclose(resource_in, lib);
-
-	/* start the load process again */
-	mod = resource_being_loaded = ast_calloc(1, space);
-	if (!resource_being_loaded)
-		return NULL;
-	strcpy(resource_being_loaded->resource, resource_in);
-	if (missing_so)
-		strcat(resource_being_loaded->resource, ".so");
-
-	lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL);
-	resource_being_loaded = NULL;
-	if (!lib) {
-		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
-		ast_free(mod);
-		return NULL;
-	}
-
-	/* since the module was successfully opened, and it registered itself
-	   the previous time we did that, we're going to assume it worked this
-	   time too :) */
-
-	AST_DLLIST_LAST(&module_list)->lib = lib;
-
-	return AST_DLLIST_LAST(&module_list);
+	return load_dlopen(resource_in, so_ext, fn,
+		exports_globals ? RTLD_NOW | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL,
+		0);
 }
 
 int modules_shutdown(void)
