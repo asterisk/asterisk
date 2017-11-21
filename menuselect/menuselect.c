@@ -986,8 +986,12 @@ static int match_member_relations(void)
 		}
 	}
 
-	/* If weak linking is not supported, move module uses which are other modules to the dependency list */
-#if !defined(HAVE_ATTRIBUTE_weak_import) && !defined(HAVE_ATTRIBUTE_weakref) && !defined(HAVE_ATTRIBUTE_weak)
+/*
+ * BUGBUG:
+ * This doesn't work, the only way we can fix this is to remove OPTIONAL_API
+ * toggle from menuselect and add a command-line argument to ./configure.
+ */
+#if 0
 	AST_LIST_TRAVERSE(&categories, cat, list) {
 		AST_LIST_TRAVERSE(&cat->members, mem, list) {
 			if (mem->is_separator) {
