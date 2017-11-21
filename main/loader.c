@@ -52,7 +52,7 @@
 #include "asterisk/features_config.h"
 #include "asterisk/dsp.h"
 #include "asterisk/udptl.h"
-#include "asterisk/heap.h"
+#include "asterisk/vector.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
 #include "asterisk/sounds_index.h"
@@ -110,6 +110,8 @@ static const unsigned char expected_key[] =
 
 static char buildopt_sum[33] = AST_BUILDOPT_SUM;
 
+AST_VECTOR(module_vector, struct ast_module *);
+
 /*!
  * \brief Internal flag to indicate all modules have been initially loaded.
  */
@@ -139,6 +141,23 @@ struct ast_module {
 };
 
 static AST_DLLIST_HEAD_STATIC(module_list, ast_module);
+
+static int module_vector_cmp(struct ast_module *a, struct ast_module *b)
+{
+	/* if load_pri is not set, default is 128.  Lower is better */
+	int a_pri = ast_test_flag(a->info, AST_MODFLAG_LOAD_ORDER)
+		? a->info->load_pri : AST_MODPRI_DEFAULT;
+	int b_pri = ast_test_flag(b->info, AST_MODFLAG_LOAD_ORDER)
+		? b->info->load_pri : AST_MODPRI_DEFAULT;
+
+	/*
+	 * Returns comparison values for a vector sorted by priority.
+	 * <0 a_pri < b_pri
+	 * =0 a_pri == b_pri
+	 * >0 a_pri > b_pri
+	 */
+	return a_pri - b_pri;
+}
 
 const char *ast_module_name(const struct ast_module *mod)
 {
@@ -516,8 +535,6 @@ static void unload_dynamic_module(struct ast_module *mod)
 #endif
 }
 
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap, int required);
-
 #define MODULE_LOCAL_ONLY (void *)-1
 
 /*!
@@ -566,7 +583,7 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 	return mod;
 }
 
-static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap)
+static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging)
 {
 	char fn[PATH_MAX];
 	struct ast_module *mod;
@@ -1134,13 +1151,13 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 /*! loads a resource based upon resource_name. If global_symbols_only is set
  *  only modules with global symbols will be loaded.
  *
- *  If the ast_heap is provided (not NULL) the module is found and added to the
- *  heap without running the module's load() function.  By doing this, modules
- *  added to the resource_heap can be initialized later in order by priority.
+ *  If the module_vector is provided (not NULL) the module is found and added to the
+ *  vector without running the module's load() function.  By doing this, modules
+ *  can be initialized later in order by priority and dependencies.
  *
- *  If the ast_heap is not provided, the module's load function will be executed
+ *  If the module_vector is not provided, the module's load function will be executed
  *  immediately */
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap, int required)
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct module_vector *resource_heap, int required)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
@@ -1153,7 +1170,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
 			return AST_MODULE_LOAD_SKIP;
 	} else {
-		mod = load_dynamic_module(resource_name, global_symbols_only, suppress_logging, resource_heap);
+		mod = load_dynamic_module(resource_name, global_symbols_only, suppress_logging);
 		if (mod == MODULE_LOCAL_ONLY) {
 				return AST_MODULE_LOAD_SKIP;
 		}
@@ -1166,21 +1183,26 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	}
 
 	if (inspect_module(mod)) {
-		ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
-		unload_dynamic_module(mod);
-		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+		goto prestart_error;
 	}
 
 	mod->flags.declined = 0;
 
 	if (resource_heap) {
-		ast_heap_push(resource_heap, mod);
+		if (AST_VECTOR_ADD_SORTED(resource_heap, mod, module_vector_cmp)) {
+			goto prestart_error;
+		}
 		res = AST_MODULE_LOAD_PRIORITY;
 	} else {
 		res = start_resource(mod);
 	}
 
 	return res;
+
+prestart_error:
+	ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
+	unload_dynamic_module(mod);
+	return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 }
 
 int ast_load_resource(const char *resource_name)
@@ -1228,23 +1250,6 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 	return order;
 }
 
-static int mod_load_cmp(void *a, void *b)
-{
-	struct ast_module *a_mod = (struct ast_module *) a;
-	struct ast_module *b_mod = (struct ast_module *) b;
-	/* if load_pri is not set, default is 128.  Lower is better */
-	int a_pri = ast_test_flag(a_mod->info, AST_MODFLAG_LOAD_ORDER) ? a_mod->info->load_pri : 128;
-	int b_pri = ast_test_flag(b_mod->info, AST_MODFLAG_LOAD_ORDER) ? b_mod->info->load_pri : 128;
-
-	/*
-	 * Returns comparison values for a min-heap
-	 * <0 a_pri > b_pri
-	 * =0 a_pri == b_pri
-	 * >0 a_pri < b_pri
-	 */
-	return b_pri - a_pri;
-}
-
 AST_LIST_HEAD_NOLOCK(load_retries, load_order_entry);
 
 /*! loads modules in order by load_pri, updates mod_count
@@ -1252,9 +1257,8 @@ AST_LIST_HEAD_NOLOCK(load_retries, load_order_entry);
 */
 static int load_resource_list(struct load_order *load_order, unsigned int global_symbols, int *mod_count)
 {
-	struct ast_heap *resource_heap;
+	struct module_vector resource_heap;
 	struct load_order_entry *order;
-	struct ast_module *mod;
 	struct load_retries load_retries;
 	int count = 0;
 	int res = 0;
@@ -1263,7 +1267,9 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_retries);
 
-	if(!(resource_heap = ast_heap_create(8, mod_load_cmp, -1))) {
+	if (AST_VECTOR_INIT(&resource_heap, 500)) {
+		ast_log(LOG_ERROR, "Failed to initialize module loader.\n");
+
 		return -1;
 	}
 
@@ -1272,7 +1278,7 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 		enum ast_module_load_result lres;
 
 		/* Suppress log messages unless this is the last pass */
-		lres = load_resource(order->resource, global_symbols, 1, resource_heap, order->required);
+		lres = load_resource(order->resource, global_symbols, 1, &resource_heap, order->required);
 		ast_debug(3, "PASS 0: %-46s %d %d\n", order->resource, lres, global_symbols);
 		switch (lres) {
 		case AST_MODULE_LOAD_SUCCESS:
@@ -1296,7 +1302,7 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			 */
 			break;
 		case AST_MODULE_LOAD_PRIORITY:
-			/* load_resource worked and the module was added to the priority heap */
+			/* load_resource worked and the module was added to the priority vector */
 			AST_LIST_REMOVE_CURRENT(entry);
 			ast_free(order->resource);
 			ast_free(order);
@@ -1311,7 +1317,7 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			enum ast_module_load_result lres;
 
 			/* Suppress log messages unless this is the last pass */
-			lres = load_resource(order->resource, global_symbols, (i < LOAD_RETRIES - 1), resource_heap, order->required);
+			lres = load_resource(order->resource, global_symbols, (i < LOAD_RETRIES - 1), &resource_heap, order->required);
 			ast_debug(3, "PASS %d %-46s %d %d\n", i + 1, order->resource, lres, global_symbols);
 			switch (lres) {
 			/* These are all retryable. */
@@ -1349,7 +1355,8 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 	}
 
 	/* second remove modules from heap sorted by priority */
-	while ((mod = ast_heap_pop(resource_heap))) {
+	for (i = 0; i < AST_VECTOR_SIZE(&resource_heap); i++) {
+		struct ast_module *mod = AST_VECTOR_GET(&resource_heap, i);
 		enum ast_module_load_result lres;
 
 		lres = start_resource(mod);
@@ -1379,7 +1386,7 @@ done:
 	if (mod_count) {
 		*mod_count += count;
 	}
-	ast_heap_destroy(resource_heap);
+	AST_VECTOR_FREE(&resource_heap);
 
 	return res;
 }
