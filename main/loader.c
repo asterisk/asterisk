@@ -171,19 +171,44 @@ static int do_full_reload = 0;
 
 static AST_DLLIST_HEAD_STATIC(reload_queue, reload_queue_item);
 
-/* when dynamic modules are being loaded, ast_module_register() will
-   need to know what filename the module was loaded from while it
-   is being registered
-*/
+/*!
+ * \internal
+ *
+ * This variable is set by load_dynamic_module so ast_module_register
+ * can know what pointer is being registered.
+ *
+ * This is protected by the module_list lock.
+ */
 static struct ast_module *resource_being_loaded;
 
-/* XXX: should we check for duplicate resource names here? */
-
+/*!
+ * \internal
+ * \brief Used by AST_MODULE_INFO to register with the module loader.
+ *
+ * This function is automatically called when each module is opened.
+ * It must never be used from outside AST_MODULE_INFO.
+ */
 void ast_module_register(const struct ast_module_info *info)
 {
-	struct ast_module *mod = resource_being_loaded;
+	struct ast_module *mod;
+
+	/*
+	 * This lock protects resource_being_loaded as well as the module
+	 * list.  Normally we already have a lock on module_list when we
+	 * begin the load but locking again from here prevents corruption
+	 * if an asterisk module is dlopen'ed from outside the module loader.
+	 */
+	AST_DLLIST_LOCK(&module_list);
+	mod = resource_being_loaded;
+	if (!mod) {
+		AST_DLLIST_UNLOCK(&module_list);
+		return;
+	}
 
 	ast_debug(5, "Registering module %s\n", info->name);
+
+	/* This tells load_dynamic_module that we're registered. */
+	resource_being_loaded = NULL;
 
 	mod->info = info;
 #ifdef REF_DEBUG
@@ -191,23 +216,20 @@ void ast_module_register(const struct ast_module_info *info)
 #endif
 	AST_LIST_HEAD_INIT(&mod->users);
 
-	/* during startup, before the loader has been initialized,
-	   there are no threads, so there is no need to take the lock
-	   on this list to manipulate it. it is also possible that it
-	   might be unsafe to use the list lock at that point... so
-	   let's avoid it altogether
-	*/
-	AST_DLLIST_LOCK(&module_list);
-	/* it is paramount that the new entry be placed at the tail of
-	   the list, otherwise the code that uses dlopen() to load
-	   dynamic modules won't be able to find out if the module it
-	   just opened was registered or failed to load
-	*/
 	AST_DLLIST_INSERT_TAIL(&module_list, mod, entry);
 	AST_DLLIST_UNLOCK(&module_list);
 
 	/* give the module a copy of its own handle, for later use in registrations and the like */
 	*((struct ast_module **) &(info->self)) = mod;
+}
+
+static void module_destroy(struct ast_module *mod)
+{
+	AST_LIST_HEAD_DESTROY(&mod->users);
+#ifdef REF_DEBUG
+	ao2_cleanup(mod->ref_debug);
+#endif
+	ast_free(mod);
 }
 
 void ast_module_unregister(const struct ast_module_info *info)
@@ -230,11 +252,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 
 	if (mod) {
 		ast_debug(5, "Unregistering module %s\n", info->name);
-		AST_LIST_HEAD_DESTROY(&mod->users);
-#ifdef REF_DEBUG
-		ao2_cleanup(mod->ref_debug);
-#endif
-		ast_free(mod);
+		module_destroy(mod);
 	}
 }
 
@@ -517,6 +535,8 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	int space;	/* room needed for the descriptor */
 	int missing_so = 0;
 
+	ast_assert(!resource_being_loaded);
+
 	space = sizeof(*resource_being_loaded) + strlen(resource_in) + 1;
 	if (strcasecmp(resource_in + strlen(resource_in) - 3, ".so")) {
 		missing_so = 1;
@@ -529,34 +549,23 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   any symbols, and don't export any symbols. this will allow us to peek into
 	   the module's info block (if available) to see what flags it has set */
 
-	resource_being_loaded = ast_calloc(1, space);
+	mod = resource_being_loaded = ast_calloc(1, space);
 	if (!resource_being_loaded)
 		return NULL;
 	strcpy(resource_being_loaded->resource, resource_in);
 	if (missing_so)
 		strcat(resource_being_loaded->resource, ".so");
 
-	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_GLOBAL))) {
-		if (!suppress_logging) {
+	lib = dlopen(fn, RTLD_LAZY | RTLD_GLOBAL);
+	if (resource_being_loaded) {
+		resource_being_loaded = NULL;
+		if (lib) {
+			ast_log(LOG_ERROR, "Module '%s' did not register itself during load\n", resource_in);
+			logged_dlclose(resource_in, lib);
+		} else if (!suppress_logging) {
 			ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
 		}
-		ast_free(resource_being_loaded);
-		return NULL;
-	}
-
-	/* the dlopen() succeeded, let's find out if the module
-	   registered itself */
-	/* note that this will only work properly as long as
-	   ast_module_register() (which is called by the module's
-	   constructor) places the new module at the tail of the
-	   module_list
-	*/
-	if (resource_being_loaded != (mod = AST_DLLIST_LAST(&module_list))) {
-		ast_log(LOG_WARNING, "Module '%s' did not register itself during load\n", resource_in);
-		/* no, it did not, so close it and return */
-		logged_dlclose(resource_in, lib);
-		/* note that the module's destructor will call ast_module_unregister(),
-		   which will free the structure we allocated in resource_being_loaded */
+		ast_free(mod);
 		return NULL;
 	}
 
@@ -570,19 +579,20 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	}
 
 	logged_dlclose(resource_in, lib);
-	resource_being_loaded = NULL;
 
 	/* start the load process again */
-	resource_being_loaded = ast_calloc(1, space);
+	mod = resource_being_loaded = ast_calloc(1, space);
 	if (!resource_being_loaded)
 		return NULL;
 	strcpy(resource_being_loaded->resource, resource_in);
 	if (missing_so)
 		strcat(resource_being_loaded->resource, ".so");
 
-	if (!(lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
+	lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL);
+	resource_being_loaded = NULL;
+	if (!lib) {
 		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
-		ast_free(resource_being_loaded);
+		ast_free(mod);
 		return NULL;
 	}
 
@@ -591,7 +601,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   time too :) */
 
 	AST_DLLIST_LAST(&module_list)->lib = lib;
-	resource_being_loaded = NULL;
 
 	return AST_DLLIST_LAST(&module_list);
 }
@@ -627,11 +636,7 @@ int modules_shutdown(void)
 				ast_verb(1, "Unloading %s\n", mod->resource);
 				mod->info->unload();
 			}
-			AST_LIST_HEAD_DESTROY(&mod->users);
-#ifdef REF_DEBUG
-			ao2_cleanup(mod->ref_debug);
-#endif
-			free(mod);
+			module_destroy(mod);
 			somethingchanged = 1;
 		}
 		AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_END;
