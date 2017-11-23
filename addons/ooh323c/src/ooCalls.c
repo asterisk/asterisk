@@ -29,6 +29,7 @@
 #include "ooGkClient.h"
 #include "ooh323ep.h"
 #include "ooCalls.h"
+#include "ooCmdChannel.h"
 
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
@@ -173,6 +174,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    call->msdRetries = 0;
    call->pFastStartRes = NULL;
    call->usrData = NULL;
+   ooCreateCallCmdConnection(call);
    OOTRACEINFO3("Created a new call (%s, %s)\n", call->callType, 
                  call->callToken);
    /* Add new call to calllist */
