@@ -968,13 +968,12 @@ void ast_ari_bridges_create_with_id(struct ast_variable *headers,
 
 	if (bridge) {
 		/* update */
-		if (!ast_strlen_zero(args->name)) {
-			if (!strcmp(args->name, bridge->name)) {
-				ast_ari_response_error(
-					response, 500, "Internal Error",
-					"Changing bridge name is not implemented");
-				return;
-			}
+		if (!ast_strlen_zero(args->name)
+			&& strcmp(args->name, bridge->name)) {
+			ast_ari_response_error(
+				response, 500, "Internal Error",
+				"Changing bridge name is not implemented");
+			return;
 		}
 		if (!ast_strlen_zero(args->type)) {
 			ast_ari_response_error(
