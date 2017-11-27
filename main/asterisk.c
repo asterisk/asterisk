@@ -3009,64 +3009,47 @@ static char *cli_prompt(EditLine *editline)
 	return ast_str_buffer(prompt);
 }
 
-static void destroy_match_list(char **match_list, int matches)
-{
-	if (match_list) {
-		int idx;
-
-		for (idx = 0; idx < matches; ++idx) {
-			ast_free(match_list[idx]);
-		}
-		ast_free(match_list);
-	}
-}
-
 static char **ast_el_strtoarr(char *buf)
 {
 	char *retstr;
-	char **match_list = NULL;
-	char **new_list;
-	size_t match_list_len = 1;
-	int matches = 0;
+	char **match_list;
+	struct ast_vector_string *vec = ast_calloc(1, sizeof(*vec));
+
+	if (!vec) {
+		return NULL;
+	}
 
 	while ((retstr = strsep(&buf, " "))) {
 		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF)) {
 			break;
 		}
-		if (matches + 1 >= match_list_len) {
-			match_list_len <<= 1;
-			new_list = ast_realloc(match_list, match_list_len * sizeof(char *));
-			if (!new_list) {
-				destroy_match_list(match_list, matches);
-				return NULL;
-			}
-			match_list = new_list;
-		}
 
 		retstr = ast_strdup(retstr);
-		if (!retstr) {
-			destroy_match_list(match_list, matches);
-			return NULL;
+		if (!retstr || AST_VECTOR_APPEND(vec, retstr)) {
+			ast_free(retstr);
+			goto vector_cleanup;
 		}
-		match_list[matches++] = retstr;
 	}
 
-	if (!match_list) {
-		return NULL;
+	if (!AST_VECTOR_SIZE(vec)) {
+		goto vector_cleanup;
 	}
 
-	if (matches >= match_list_len) {
-		new_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *));
-		if (!new_list) {
-			destroy_match_list(match_list, matches);
-			return NULL;
-		}
-		match_list = new_list;
+	if (AST_VECTOR_APPEND(vec, NULL)) {
+		/* We failed to NULL terminate the elements */
+		goto vector_cleanup;
 	}
 
-	match_list[matches] = NULL;
+	match_list = AST_VECTOR_STEAL_ELEMENTS(vec);
+	AST_VECTOR_PTR_FREE(vec);
 
 	return match_list;
+
+vector_cleanup:
+	AST_VECTOR_CALLBACK_VOID(vec, ast_free);
+	AST_VECTOR_PTR_FREE(vec);
+
+	return NULL;
 }
 
 static int ast_el_sort_compare(const void *i1, const void *i2)
