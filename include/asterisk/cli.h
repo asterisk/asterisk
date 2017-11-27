@@ -287,6 +287,9 @@ int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
  * Useful for readline, that's about it
  * \retval 0 on success
  * \retval -1 on failure
+ *
+ * Only call this function to proxy the CLI generator to
+ * another.
  */
 char *ast_cli_generator(const char *, const char *, int);
 
