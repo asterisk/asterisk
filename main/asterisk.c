@@ -3079,51 +3079,37 @@ static int ast_el_sort_compare(const void *i1, const void *i2)
 	return strcasecmp(s1, s2);
 }
 
-static int ast_cli_display_match_list(char **matches, int len, int max)
+static void ast_cli_display_match_list(char **matches, int len, int max)
 {
-	int i, idx, limit, count;
-	int screenwidth = 0;
-	int numoutput = 0, numoutputline = 0;
-
-	screenwidth = ast_get_termcols(STDOUT_FILENO);
-
+	int idx = 1;
 	/* find out how many entries can be put on one line, with two spaces between strings */
-	limit = screenwidth / (max + 2);
-	if (limit == 0)
+	int limit = ast_get_termcols(STDOUT_FILENO) / (max + 2);
+
+	if (limit == 0) {
 		limit = 1;
-
-	/* how many lines of output */
-	count = len / limit;
-	if (count * limit < len)
-		count++;
-
-	idx = 1;
+	}
 
 	qsort(&matches[0], (size_t)(len), sizeof(char *), ast_el_sort_compare);
 
-	for (; count > 0; count--) {
-		numoutputline = 0;
-		for (i = 0; i < limit && matches[idx]; i++, idx++) {
+	for (;;) {
+		int numoutputline;
 
+		for (numoutputline = 0; numoutputline < limit && matches[idx]; idx++) {
 			/* Don't print dupes */
 			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
-				i--;
-				ast_free(matches[idx]);
-				matches[idx] = NULL;
 				continue;
 			}
 
-			numoutput++;
 			numoutputline++;
 			fprintf(stdout, "%-*s  ", max, matches[idx]);
-			ast_free(matches[idx]);
-			matches[idx] = NULL;
 		}
-		if (numoutputline > 0)
-			fprintf(stdout, "\n");
-	}
 
-	return numoutput;
+		if (!numoutputline) {
+			break;
+		}
+
+		fprintf(stdout, "\n");
+	}
 }
 
 
