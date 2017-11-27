@@ -2500,6 +2500,44 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	return match_list;
 }
 
+AST_THREADSTORAGE_RAW(completion_storage);
+
+/*!
+ * \internal
+ * \brief Add a value to the vector.
+ *
+ * \param vec Vector to add \a value to. Must be from threadstorage.
+ * \param value The value to add.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+static int cli_completion_vector_add(struct ast_vector_string *vec, char *value)
+{
+	if (!value) {
+		return 0;
+	}
+
+	if (!vec || AST_VECTOR_ADD_SORTED(vec, value, strcasecmp)) {
+		if (vec) {
+			ast_threadstorage_set_ptr(&completion_storage, NULL);
+
+			AST_VECTOR_CALLBACK_VOID(vec, ast_free);
+			AST_VECTOR_FREE(vec);
+		}
+		ast_free(value);
+
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_cli_completion_add(char *value)
+{
+	return cli_completion_vector_add(ast_threadstorage_get_ptr(&completion_storage), value);
+}
+
 struct ast_vector_string *ast_cli_completion_vector(const char *text, const char *word)
 {
 	char *retstr, *prevstr;
@@ -2507,19 +2545,31 @@ struct ast_vector_string *ast_cli_completion_vector(const char *text, const char
 	size_t which = 0;
 	struct ast_vector_string *vec = ast_calloc(1, sizeof(*vec));
 
+	/* Recursion into this function is a coding error. */
+	ast_assert(!ast_threadstorage_get_ptr(&completion_storage));
+
 	if (!vec) {
 		return NULL;
 	}
 
+	if (ast_threadstorage_set_ptr(&completion_storage, vec)) {
+		ast_log(LOG_ERROR, "Failed to initialize threadstorage for completion.\n");
+		ast_free(vec);
+
+		return NULL;
+	}
+
 	while ((retstr = ast_cli_generator(text, word, which)) != NULL) {
-		if (AST_VECTOR_ADD_SORTED(vec, retstr, strcasecmp)) {
-			ast_free(retstr);
+		if (cli_completion_vector_add(vec, retstr)) {
+			ast_threadstorage_set_ptr(&completion_storage, NULL);
 
 			goto vector_cleanup;
 		}
 
 		++which;
 	}
+
+	ast_threadstorage_set_ptr(&completion_storage, NULL);
 
 	if (!AST_VECTOR_SIZE(vec)) {
 		AST_VECTOR_PTR_FREE(vec);
@@ -2559,6 +2609,7 @@ struct ast_vector_string *ast_cli_completion_vector(const char *text, const char
 	retstr = ast_strndup(AST_VECTOR_GET(vec, 0), max_equal);
 	if (!retstr || AST_VECTOR_INSERT_AT(vec, 0, retstr)) {
 		ast_free(retstr);
+
 		goto vector_cleanup;
 	}
 
