@@ -3062,7 +3062,7 @@ static int ast_el_sort_compare(const void *i1, const void *i2)
 	return strcasecmp(s1, s2);
 }
 
-static void ast_cli_display_match_list(char **matches, int len, int max)
+static void ast_cli_display_match_list(char **matches, int max)
 {
 	int idx = 1;
 	/* find out how many entries can be put on one line, with two spaces between strings */
@@ -3071,8 +3071,6 @@ static void ast_cli_display_match_list(char **matches, int len, int max)
 	if (limit == 0) {
 		limit = 1;
 	}
-
-	qsort(&matches[0], (size_t)(len), sizeof(char *), ast_el_sort_compare);
 
 	for (;;) {
 		int numoutputline;
@@ -3103,7 +3101,7 @@ static char *cli_complete(EditLine *editline, int ch)
 	int nummatches = 0;
 	char **matches;
 	int retval = CC_ERROR;
-	char buf[2048], savechr;
+	char savechr;
 	int res;
 
 	LineInfo *lf = (LineInfo *)el_line(editline);
@@ -3124,65 +3122,80 @@ static char *cli_complete(EditLine *editline, int ch)
 	len = lf->cursor - ptr;
 
 	if (ast_opt_remote) {
-		snprintf(buf, sizeof(buf), "_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr);
-		fdsend(ast_consock, buf);
-		if ((res = read(ast_consock, buf, sizeof(buf) - 1)) < 0) {
-			return (char*)(CC_ERROR);
-		}
-		buf[res] = '\0';
-		nummatches = atoi(buf);
+#define CMD_MATCHESARRAY "_COMMAND MATCHESARRAY \"%s\" \"%s\""
+		char *mbuf;
+		char *new_mbuf;
+		int mlen = 0, maxmbuf = 2048;
 
-		if (nummatches > 0) {
-			char *mbuf;
-			char *new_mbuf;
-			int mlen = 0, maxmbuf = 2048;
+		/* Start with a 2048 byte buffer */
+		mbuf = ast_malloc(maxmbuf);
 
-			/* Start with a 2048 byte buffer */
-			if (!(mbuf = ast_malloc(maxmbuf))) {
-				*((char *) lf->cursor) = savechr;
-				return (char *)(CC_ERROR);
-			}
-			snprintf(buf, sizeof(buf), "_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr);
-			fdsend(ast_consock, buf);
-			res = 0;
-			mbuf[0] = '\0';
-			while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
-				if (mlen + 1024 > maxmbuf) {
-					/* Every step increment buffer 1024 bytes */
-					maxmbuf += 1024;
-					new_mbuf = ast_realloc(mbuf, maxmbuf);
-					if (!new_mbuf) {
-						ast_free(mbuf);
-						*((char *) lf->cursor) = savechr;
-						return (char *)(CC_ERROR);
-					}
-					mbuf = new_mbuf;
-				}
-				/* Only read 1024 bytes at a time */
-				res = read(ast_consock, mbuf + mlen, 1024);
-				if (res > 0)
-					mlen += res;
-			}
-			mbuf[mlen] = '\0';
-
-			matches = ast_el_strtoarr(mbuf);
+		/* This will run snprintf twice at most. */
+		while (mbuf && (mlen = snprintf(mbuf, maxmbuf, CMD_MATCHESARRAY, lf->buffer, ptr)) > maxmbuf) {
+			/* Return value does not include space for NULL terminator. */
+			maxmbuf = mlen + 1;
 			ast_free(mbuf);
-		} else
-			matches = (char **) NULL;
-	} else {
-		char **p, *oldbuf=NULL;
-		nummatches = 0;
-		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
-		for (p = matches; p && *p; p++) {
-			if (!oldbuf || strcmp(*p,oldbuf))
-				nummatches++;
-			oldbuf = *p;
+			mbuf = ast_malloc(maxmbuf);
 		}
+
+		if (!mbuf) {
+			*((char *) lf->cursor) = savechr;
+
+			return (char *)(CC_ERROR);
+		}
+
+		fdsend(ast_consock, mbuf);
+		res = 0;
+		mlen = 0;
+		mbuf[0] = '\0';
+
+		while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
+			if (mlen + 1024 > maxmbuf) {
+				/* Expand buffer to the next 1024 byte increment. */
+				maxmbuf = mlen + 1024;
+				new_mbuf = ast_realloc(mbuf, maxmbuf);
+				if (!new_mbuf) {
+					ast_free(mbuf);
+					*((char *) lf->cursor) = savechr;
+
+					return (char *)(CC_ERROR);
+				}
+				mbuf = new_mbuf;
+			}
+			/* Only read 1024 bytes at a time */
+			res = read(ast_consock, mbuf + mlen, 1024);
+			if (res > 0) {
+				mlen += res;
+			}
+		}
+		mbuf[mlen] = '\0';
+
+		matches = ast_el_strtoarr(mbuf);
+		ast_free(mbuf);
+	} else {
+		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
 	}
 
 	if (matches) {
 		int i;
-		int matches_num, maxlen, match_len;
+		int maxlen, match_len;
+
+		while (matches[nummatches + 1]) {
+			nummatches++;
+		}
+
+		if (ast_opt_remote && nummatches > 1) {
+			qsort(&matches[0], (size_t)(nummatches), sizeof(char *), ast_el_sort_compare);
+			nummatches = 1;
+			i = 1;
+			while (matches[i + 1]) {
+				if (strcasecmp(matches[i], matches[i + 1])) {
+					/* don't count duplicates. */
+					nummatches++;
+				}
+				i++;
+			}
+		}
 
 		if (matches[0][0] != '\0') {
 			el_deletestr(editline, (int) len);
@@ -3198,21 +3211,18 @@ static char *cli_complete(EditLine *editline, int ch)
 			/* Must be more than one match */
 			for (i = 1, maxlen = 0; matches[i]; i++) {
 				match_len = strlen(matches[i]);
-				if (match_len > maxlen)
+				if (match_len > maxlen) {
 					maxlen = match_len;
+				}
 			}
-			matches_num = i - 1;
-			if (matches_num >1) {
-				fprintf(stdout, "\n");
-				ast_cli_display_match_list(matches, nummatches, maxlen);
-				retval = CC_REDISPLAY;
-			} else {
-				el_insertstr(editline," ");
-				retval = CC_REFRESH;
-			}
+
+			fprintf(stdout, "\n");
+			ast_cli_display_match_list(matches, maxlen);
+			retval = CC_REDISPLAY;
 		}
-		for (i = 0; matches[i]; i++)
+		for (i = 0; matches[i]; i++) {
 			ast_free(matches[i]);
+		}
 		ast_free(matches);
 	}
 
