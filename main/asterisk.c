@@ -3001,10 +3001,9 @@ static char *cli_prompt(EditLine *editline)
 	return ast_str_buffer(prompt);
 }
 
-static char **ast_el_strtoarr(char *buf)
+static struct ast_vector_string *ast_el_strtoarr(char *buf)
 {
 	char *retstr;
-	char **match_list;
 	struct ast_vector_string *vec = ast_calloc(1, sizeof(*vec));
 
 	if (!vec) {
@@ -3016,8 +3015,14 @@ static char **ast_el_strtoarr(char *buf)
 			break;
 		}
 
+		/* Older daemons sent duplicates. */
+		if (AST_VECTOR_GET_CMP(vec, retstr, strcasecmp)) {
+			continue;
+		}
+
 		retstr = ast_strdup(retstr);
-		if (!retstr || AST_VECTOR_APPEND(vec, retstr)) {
+		/* Older daemons sent unsorted. */
+		if (!retstr || AST_VECTOR_ADD_SORTED(vec, retstr, strcasecmp)) {
 			ast_free(retstr);
 			goto vector_cleanup;
 		}
@@ -3027,15 +3032,7 @@ static char **ast_el_strtoarr(char *buf)
 		goto vector_cleanup;
 	}
 
-	if (AST_VECTOR_APPEND(vec, NULL)) {
-		/* We failed to NULL terminate the elements */
-		goto vector_cleanup;
-	}
-
-	match_list = AST_VECTOR_STEAL_ELEMENTS(vec);
-	AST_VECTOR_PTR_FREE(vec);
-
-	return match_list;
+	return vec;
 
 vector_cleanup:
 	AST_VECTOR_CALLBACK_VOID(vec, ast_free);
@@ -3044,17 +3041,7 @@ vector_cleanup:
 	return NULL;
 }
 
-static int ast_el_sort_compare(const void *i1, const void *i2)
-{
-	char *s1, *s2;
-
-	s1 = ((char **)i1)[0];
-	s2 = ((char **)i2)[0];
-
-	return strcasecmp(s1, s2);
-}
-
-static void ast_cli_display_match_list(char **matches, int max)
+static void ast_cli_display_match_list(struct ast_vector_string *matches, int max)
 {
 	int idx = 1;
 	/* find out how many entries can be put on one line, with two spaces between strings */
@@ -3067,14 +3054,9 @@ static void ast_cli_display_match_list(char **matches, int max)
 	for (;;) {
 		int numoutputline;
 
-		for (numoutputline = 0; numoutputline < limit && matches[idx]; idx++) {
-			/* Don't print dupes */
-			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
-				continue;
-			}
-
+		for (numoutputline = 0; numoutputline < limit && idx < AST_VECTOR_SIZE(matches); idx++) {
 			numoutputline++;
-			fprintf(stdout, "%-*s  ", max, matches[idx]);
+			fprintf(stdout, "%-*s  ", max, AST_VECTOR_GET(matches, idx));
 		}
 
 		if (!numoutputline) {
@@ -3090,8 +3072,7 @@ static char *cli_complete(EditLine *editline, int ch)
 {
 	int len = 0;
 	char *ptr;
-	int nummatches = 0;
-	char **matches;
+	struct ast_vector_string *matches;
 	int retval = CC_ERROR;
 	char savechr;
 	int res;
@@ -3165,44 +3146,28 @@ static char *cli_complete(EditLine *editline, int ch)
 		matches = ast_el_strtoarr(mbuf);
 		ast_free(mbuf);
 	} else {
-		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
+		matches = ast_cli_completion_vector((char *)lf->buffer, ptr);
 	}
 
 	if (matches) {
 		int i;
 		int maxlen, match_len;
+		const char *best_match = AST_VECTOR_GET(matches, 0);
 
-		while (matches[nummatches + 1]) {
-			nummatches++;
-		}
-
-		if (ast_opt_remote && nummatches > 1) {
-			qsort(&matches[0], (size_t)(nummatches), sizeof(char *), ast_el_sort_compare);
-			nummatches = 1;
-			i = 1;
-			while (matches[i + 1]) {
-				if (strcasecmp(matches[i], matches[i + 1])) {
-					/* don't count duplicates. */
-					nummatches++;
-				}
-				i++;
-			}
-		}
-
-		if (matches[0][0] != '\0') {
+		if (!ast_strlen_zero(best_match)) {
 			el_deletestr(editline, (int) len);
-			el_insertstr(editline, matches[0]);
+			el_insertstr(editline, best_match);
 			retval = CC_REFRESH;
 		}
 
-		if (nummatches == 1) {
+		if (AST_VECTOR_SIZE(matches) == 2) {
 			/* Found an exact match */
 			el_insertstr(editline, " ");
 			retval = CC_REFRESH;
 		} else {
 			/* Must be more than one match */
-			for (i = 1, maxlen = 0; matches[i]; i++) {
-				match_len = strlen(matches[i]);
+			for (i = 1, maxlen = 0; i < AST_VECTOR_SIZE(matches); i++) {
+				match_len = strlen(AST_VECTOR_GET(matches, i));
 				if (match_len > maxlen) {
 					maxlen = match_len;
 				}
@@ -3212,10 +3177,8 @@ static char *cli_complete(EditLine *editline, int ch)
 			ast_cli_display_match_list(matches, maxlen);
 			retval = CC_REDISPLAY;
 		}
-		for (i = 0; matches[i]; i++) {
-			ast_free(matches[i]);
-		}
-		ast_free(matches);
+		AST_VECTOR_CALLBACK_VOID(matches, ast_free);
+		AST_VECTOR_PTR_FREE(matches);
 	}
 
 	*((char *) lf->cursor) = savechr;
