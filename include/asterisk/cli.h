@@ -293,8 +293,6 @@ int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
  */
 char *ast_cli_generator(const char *, const char *, int);
 
-int ast_cli_generatornummatches(const char *, const char *);
-
 /*!
  * \brief Generates a NULL-terminated array of strings that
  * 1) begin with the string in the second parameter, and

@@ -1336,33 +1336,6 @@ static char *handle_commandmatchesarray(struct ast_cli_entry *e, int cmd, struct
 }
 
 
-
-static char *handle_commandnummatches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int matches = 0;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "_command nummatches";
-		e->usage =
-			"Usage: _command nummatches \"<line>\" text \n"
-			"       This function is used internally to help with command completion and should.\n"
-			"       never be called by the user directly.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != 4)
-		return CLI_SHOWUSAGE;
-
-	matches = ast_cli_generatornummatches(a->argv[2], a->argv[3]);
-
-	ast_cli(a->fd, "%d", matches);
-
-	return CLI_SUCCESS;
-}
-
 struct channel_set_debug_args {
 	int fd;
 	int is_off;
@@ -1794,7 +1767,6 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
-	AST_CLI_DEFINE(handle_commandnummatches, "Returns number of command matches"),
 	AST_CLI_DEFINE(handle_commandmatchesarray, "Returns command matches array"),
 
 	AST_CLI_DEFINE(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
@@ -2470,23 +2442,6 @@ static char *parse_args(const char *s, int *argc, const char *argv[], int max, i
 	*argc = x;
 	*trailingwhitespace = whitespace;
 	return duplicate;
-}
-
-/*! \brief Return the number of unique matches for the generator */
-int ast_cli_generatornummatches(const char *text, const char *word)
-{
-	int matches;
-	struct ast_vector_string *vec = ast_cli_completion_vector(text, word);
-
-	if (!vec) {
-		return 0;
-	}
-
-	matches = AST_VECTOR_SIZE(vec) - 1;
-	AST_VECTOR_CALLBACK_VOID(vec, ast_free);
-	AST_VECTOR_PTR_FREE(vec);
-
-	return matches;
 }
 
 char **ast_cli_completion_matches(const char *text, const char *word)

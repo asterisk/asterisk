@@ -3015,14 +3015,8 @@ static struct ast_vector_string *ast_el_strtoarr(char *buf)
 			break;
 		}
 
-		/* Older daemons sent duplicates. */
-		if (AST_VECTOR_GET_CMP(vec, retstr, strcasecmp)) {
-			continue;
-		}
-
 		retstr = ast_strdup(retstr);
-		/* Older daemons sent unsorted. */
-		if (!retstr || AST_VECTOR_ADD_SORTED(vec, retstr, strcasecmp)) {
+		if (!retstr || AST_VECTOR_APPEND(vec, retstr)) {
 			ast_free(retstr);
 			goto vector_cleanup;
 		}
