@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -1404,6 +1405,20 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 				ao2_replace(bestdst, dst);
 				besttablecost = matrix_get(x, y)->table_cost;
 				beststeps = matrix_get(x, y)->multistep;
+			} else if (matrix_get(x, y)->table_cost == besttablecost
+					&& matrix_get(x, y)->multistep == beststeps) {
+				int gap_selected = abs(ast_format_get_sample_rate(best)
+					- ast_format_get_sample_rate(bestdst));
+				int gap_current = abs(ast_format_get_sample_rate(src)
+					- ast_format_get_sample_rate(dst));
+
+				if (gap_current < gap_selected) {
+					/* better than what we have so far */
+					ao2_replace(best, src);
+					ao2_replace(bestdst, dst);
+					besttablecost = matrix_get(x, y)->table_cost;
+					beststeps = matrix_get(x, y)->multistep;
+				}
 			}
 		}
 	}
