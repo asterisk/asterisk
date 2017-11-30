@@ -7429,6 +7429,11 @@ static void destroy_session(struct skinnysession *s)
 	}
 	ast_mutex_unlock(&s->lock);
 	ast_mutex_destroy(&s->lock);
+
+	if (s->t != AST_PTHREADT_NULL) {
+		pthread_detach(s->t);
+	}
+
 	ast_free(s);
 }
 
@@ -7514,11 +7519,6 @@ static void *skinny_session(void *data)
 	int dlen = 0;
 	int eventmessage = 0;
 	struct pollfd fds[1];
-
-	if (!s) {
-		ast_log(LOG_WARNING, "Bad Skinny Session\n");
-		return 0;
-	}
 
 	ast_log(LOG_NOTICE, "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
@@ -7685,6 +7685,7 @@ static void *accept_thread(void *ignore)
 		s->keepalive_timeout_sched = -1;
 
 		if (ast_pthread_create(&s->t, NULL, skinny_session, s)) {
+			s->t = AST_PTHREADT_NULL;
 			destroy_session(s);
 		}
 	}
