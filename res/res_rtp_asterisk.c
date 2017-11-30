@@ -124,7 +124,14 @@ enum strict_rtp_state {
 	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
 };
 
-#define STRICT_RTP_LEARN_TIMEOUT	1500	/*!< milliseconds */
+/*!
+ * \brief Strict RTP learning timeout time in milliseconds
+ *
+ * \note Set to 5 seconds to allow reinvite chains for direct media
+ * to settle before media actually starts to arrive.  There may be a
+ * reinvite collision involved on the other leg.
+ */
+#define STRICT_RTP_LEARN_TIMEOUT	5000
 
 #define DEFAULT_STRICT_RTP -1	/*!< Enabled */
 #define DEFAULT_ICESUPPORT 1
