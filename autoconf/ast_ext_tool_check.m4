@@ -10,15 +10,13 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 		PBX_$1=0
 		AC_PATH_TOOL(CONFIG_$1, $2, No, [${$1_DIR}/bin:$PATH])
 		if test ! "x${CONFIG_$1}" = xNo; then
-			if test x"$3" = x ; then A=--cflags ; else A="$3" ; fi
-			$1_INCLUDE=$(${CONFIG_$1} $A)
+			$1_INCLUDE=$(${CONFIG_$1} m4_default([$3],[--cflags]))
 			$1_INCLUDE=$(echo ${$1_INCLUDE} | $SED -e "s|-I|-I${$1_DIR}|g")
 
-			if test x"$4" = x ; then A=--libs ; else A="$4" ; fi
-			$1_LIB=$(${CONFIG_$1} $A)
+			$1_LIB=$(${CONFIG_$1} m4_default([$4],[--libs]))
 			$1_LIB=$(echo ${$1_LIB} | $SED -e "s|-L|-L${$1_DIR}|g")
 
-			if test x"$5" != x ; then
+			m4_ifval([$5], [
 				saved_cppflags="${CPPFLAGS}"
 				CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
 
@@ -28,15 +26,15 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 				AC_LINK_IFELSE(
 					[ AC_LANG_PROGRAM( [ $5 ], [ $6; ])],
 					[ PBX_$1=1 AC_DEFINE([HAVE_$1], 1,
-						[Define if your system has the $1 headers.])],
+						[Define if your system has the $1 libraries.])],
 					[]
 				)
 				CPPFLAGS="${saved_cppflags}"
 				LIBS="${saved_libs}"
-			else
+			], [
 				PBX_$1=1
 				AC_DEFINE([HAVE_$1], 1, [Define if your system has the $1 libraries.])
-			fi
+			])
 		fi
 	fi
 ])

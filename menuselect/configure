@@ -3941,16 +3941,12 @@ if test "x${PBX_NEWT}" != "x1" -a "${USE_NEWT}" != "no"; then
          pbxlibdir="-L${NEWT_DIR}"
       fi
    fi
-   pbxfuncname="newtBell"
-   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
-      AST_NEWT_FOUND=yes
-   else
+
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      as_ac_Lib=`$as_echo "ac_cv_lib_newt_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lnewt" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lnewt... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for newtBell in -lnewt" >&5
+$as_echo_n "checking for newtBell in -lnewt... " >&6; }
+if ${ac_cv_lib_newt_newtBell+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -3964,35 +3960,34 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ${pbxfuncname} ();
+char newtBell ();
 int
 main ()
 {
-return ${pbxfuncname} ();
+return newtBell ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
+  ac_cv_lib_newt_newtBell=yes
 else
-  eval "$as_ac_Lib=no"
+  ac_cv_lib_newt_newtBell=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_newt_newtBell" >&5
+$as_echo "$ac_cv_lib_newt_newtBell" >&6; }
+if test "x$ac_cv_lib_newt_newtBell" = xyes; then :
   AST_NEWT_FOUND=yes
 else
   AST_NEWT_FOUND=no
 fi
 
       CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-   fi
+
 
    # now check for the header.
    if test "${AST_NEWT_FOUND}" = "yes"; then
@@ -4002,9 +3997,8 @@ fi
          NEWT_INCLUDE="-I${NEWT_DIR}/include"
       fi
       NEWT_INCLUDE="${NEWT_INCLUDE} "
-      if test "xnewt.h" = "x" ; then	# no header, assume found
-         NEWT_HEADER_FOUND="1"
-      else				# check for the header
+
+         # check for the header
          ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${NEWT_INCLUDE}"
          ac_fn_c_check_header_mongrel "$LINENO" "newt.h" "ac_cv_header_newt_h" "$ac_includes_default"
@@ -4016,14 +4010,12 @@ fi
 
 
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-      fi
+
       if test "x${NEWT_HEADER_FOUND}" = "x0" ; then
          NEWT_LIB=""
          NEWT_INCLUDE=""
       else
-         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
-            NEWT_LIB=""
-         fi
+
          PBX_NEWT=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_NEWT 1
@@ -4045,16 +4037,12 @@ if test "x${PBX_CURSES}" != "x1" -a "${USE_CURSES}" != "no"; then
          pbxlibdir="-L${CURSES_DIR}"
       fi
    fi
-   pbxfuncname="initscr"
-   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
-      AST_CURSES_FOUND=yes
-   else
+
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      as_ac_Lib=`$as_echo "ac_cv_lib_curses_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lcurses" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lcurses... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lcurses" >&5
+$as_echo_n "checking for initscr in -lcurses... " >&6; }
+if ${ac_cv_lib_curses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -4068,35 +4056,34 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ${pbxfuncname} ();
+char initscr ();
 int
 main ()
 {
-return ${pbxfuncname} ();
+return initscr ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
+  ac_cv_lib_curses_initscr=yes
 else
-  eval "$as_ac_Lib=no"
+  ac_cv_lib_curses_initscr=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_curses_initscr" >&5
+$as_echo "$ac_cv_lib_curses_initscr" >&6; }
+if test "x$ac_cv_lib_curses_initscr" = xyes; then :
   AST_CURSES_FOUND=yes
 else
   AST_CURSES_FOUND=no
 fi
 
       CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-   fi
+
 
    # now check for the header.
    if test "${AST_CURSES_FOUND}" = "yes"; then
@@ -4106,9 +4093,8 @@ fi
          CURSES_INCLUDE="-I${CURSES_DIR}/include"
       fi
       CURSES_INCLUDE="${CURSES_INCLUDE} "
-      if test "xcurses.h" = "x" ; then	# no header, assume found
-         CURSES_HEADER_FOUND="1"
-      else				# check for the header
+
+         # check for the header
          ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${CURSES_INCLUDE}"
          ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
@@ -4120,14 +4106,12 @@ fi
 
 
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-      fi
+
       if test "x${CURSES_HEADER_FOUND}" = "x0" ; then
          CURSES_LIB=""
          CURSES_INCLUDE=""
       else
-         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
-            CURSES_LIB=""
-         fi
+
          PBX_CURSES=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_CURSES 1
@@ -4149,16 +4133,12 @@ if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
          pbxlibdir="-L${NCURSES_DIR}"
       fi
    fi
-   pbxfuncname="initscr"
-   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
-      AST_NCURSES_FOUND=yes
-   else
+
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      as_ac_Lib=`$as_echo "ac_cv_lib_ncurses_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lncurses" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lncurses... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
+$as_echo_n "checking for initscr in -lncurses... " >&6; }
+if ${ac_cv_lib_ncurses_initscr+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -4172,35 +4152,34 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ${pbxfuncname} ();
+char initscr ();
 int
 main ()
 {
-return ${pbxfuncname} ();
+return initscr ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
+  ac_cv_lib_ncurses_initscr=yes
 else
-  eval "$as_ac_Lib=no"
+  ac_cv_lib_ncurses_initscr=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ncurses_initscr" >&5
+$as_echo "$ac_cv_lib_ncurses_initscr" >&6; }
+if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
   AST_NCURSES_FOUND=yes
 else
   AST_NCURSES_FOUND=no
 fi
 
       CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-   fi
+
 
    # now check for the header.
    if test "${AST_NCURSES_FOUND}" = "yes"; then
@@ -4210,9 +4189,8 @@ fi
          NCURSES_INCLUDE="-I${NCURSES_DIR}/include"
       fi
       NCURSES_INCLUDE="${NCURSES_INCLUDE} "
-      if test "xcurses.h" = "x" ; then	# no header, assume found
-         NCURSES_HEADER_FOUND="1"
-      else				# check for the header
+
+         # check for the header
          ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${NCURSES_INCLUDE}"
          ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
@@ -4224,14 +4202,12 @@ fi
 
 
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-      fi
+
       if test "x${NCURSES_HEADER_FOUND}" = "x0" ; then
          NCURSES_LIB=""
          NCURSES_INCLUDE=""
       else
-         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
-            NCURSES_LIB=""
-         fi
+
          PBX_NCURSES=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_NCURSES 1
@@ -4415,16 +4391,13 @@ else
 fi
 
 		if test ! "x${CONFIG_LIBXML2}" = xNo; then
-			if test x"" = x ; then A=--cflags ; else A="" ; fi
-			LIBXML2_INCLUDE=$(${CONFIG_LIBXML2} $A)
+			LIBXML2_INCLUDE=$(${CONFIG_LIBXML2} --cflags)
 			LIBXML2_INCLUDE=$(echo ${LIBXML2_INCLUDE} | $SED -e "s|-I|-I${LIBXML2_DIR}|g")
 
-			if test x"" = x ; then A=--libs ; else A="" ; fi
-			LIBXML2_LIB=$(${CONFIG_LIBXML2} $A)
+			LIBXML2_LIB=$(${CONFIG_LIBXML2} --libs)
 			LIBXML2_LIB=$(echo ${LIBXML2_LIB} | $SED -e "s|-L|-L${LIBXML2_DIR}|g")
 
-			if test x"#include <libxml/tree.h>
-        #include <libxml/parser.h>" != x ; then
+
 				saved_cppflags="${CPPFLAGS}"
 				CPPFLAGS="${CPPFLAGS} ${LIBXML2_INCLUDE}"
 
@@ -4452,12 +4425,7 @@ rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 				CPPFLAGS="${saved_cppflags}"
 				LIBS="${saved_libs}"
-			else
-				PBX_LIBXML2=1
 
-$as_echo "#define HAVE_LIBXML2 1" >>confdefs.h
-
-			fi
 		fi
 	fi
 
