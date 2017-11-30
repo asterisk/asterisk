@@ -4918,7 +4918,6 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 	unsigned int first_word;
 	/*! True if we have seen an acceptable SSRC to learn the remote RTCP address */
 	unsigned int ssrc_seen;
-	int report_counter = 0;
 	struct ast_rtp_rtcp_report_block *report_block;
 	struct ast_frame *f = &ast_null_frame;
 
@@ -5162,7 +5161,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 					}
 					return &ast_null_frame;
 				}
-				rtcp_report->report_block[report_counter] = report_block;
+				rtcp_report->report_block[0] = report_block;
 				report_block->source_ssrc = ntohl(rtcpheader[i]);
 				report_block->lost_count.packets = ntohl(rtcpheader[i + 1]) & 0x00ffffff;
 				report_block->lost_count.fraction = ((ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24);
@@ -5199,7 +5198,6 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 					ast_verbose("  DLSR: %4.4f (sec)\n",(double)report_block->dlsr / 65536.0);
 					ast_verbose("  RTT: %4.4f(sec)\n", rtp->rtcp->rtt);
 				}
-				report_counter++;
 			}
 			/* If and when we handle more than one report block, this should occur outside
 			 * this loop.
@@ -5224,9 +5222,9 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 				/* There's always a single report block stored, here */
 				struct ast_rtp_rtcp_report *rtcp_report2;
 				report_block = transport_rtp->f.data.ptr + transport_rtp->f.datalen + sizeof(struct ast_rtp_rtcp_report_block *);
-				memcpy(report_block, rtcp_report->report_block[report_counter-1], sizeof(struct ast_rtp_rtcp_report_block));
+				memcpy(report_block, rtcp_report->report_block[0], sizeof(struct ast_rtp_rtcp_report_block));
 				rtcp_report2 = (struct ast_rtp_rtcp_report *)transport_rtp->f.data.ptr;
-				rtcp_report2->report_block[report_counter-1] = report_block;
+				rtcp_report2->report_block[0] = report_block;
 				transport_rtp->f.datalen += sizeof(struct ast_rtp_rtcp_report_block);
 			}
 			transport_rtp->f.offset = AST_FRIENDLY_OFFSET;
