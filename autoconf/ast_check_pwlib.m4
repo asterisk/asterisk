@@ -191,11 +191,7 @@ fi
 ])
 
 AC_DEFUN([AST_CHECK_PWLIB_VERSION], [
-	if test "x$7" != "x"; then
-	   	VNAME="$7"
-       	else
-	   	VNAME="$2_VERSION"
-	fi
+	VNAME="m4_default([$7],[$2_VERSION])"
 
 	if test "${HAS_$2:-unset}" != "unset"; then
 		$2_VERSION=`grep "$VNAME \"" ${$2_INCDIR}/$3 | sed -e 's/[[[:space:]]]\{1,\}/ /g' | cut -f3 -d ' ' | sed -e 's/"//g'`
@@ -204,11 +200,7 @@ AC_DEFUN([AST_CHECK_PWLIB_VERSION], [
 		$2_BUILD_NUMBER=`echo ${$2_VERSION} | cut -f3 -d.`
 		$2_VER=$((${$2_MAJOR_VERSION}*10000+${$2_MINOR_VERSION}*100+${$2_BUILD_NUMBER}))
 		$2_REQ=$(($4*10000+$5*100+$6))
-		if test "x$10" = "x"; then
-			$2_MAX=9999999
-		else
-			$2_MAX=$(($8*10000+$9*100+$10))
-		fi
+		$2_MAX=m4_ifblank([$10], [9999999], [$(($8*10000+$9*100+$10))])
 
 		AC_MSG_CHECKING(if $1 version ${$2_VERSION} is compatible with chan_h323)
 		if test ${$2_VER} -lt ${$2_REQ}; then
