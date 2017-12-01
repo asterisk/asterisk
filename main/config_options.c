@@ -998,11 +998,11 @@ static int xmldoc_update_config_type(const char *module, const char *name, const
 
 	/* If we already have a syntax element, bail. This isn't an error, since we may unload a module which
 	 * has updated the docs and then load it again. */
-	if ((results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']/syntax", module, name))) {
+	if ((results = ast_xmldoc_query("/docs/configInfo[@name='%s']/configFile/configObject[@name='%s']/syntax", module, name))) {
 		return 0;
 	}
 
-	if (!(results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']", module, name))) {
+	if (!(results = ast_xmldoc_query("/docs/configInfo[@name='%s']/configFile/configObject[@name='%s']", module, name))) {
 		ast_log(LOG_WARNING, "Cannot update type '%s' in module '%s' because it has no existing documentation!\n", name, module);
 		return XMLDOC_STRICT ? -1 : 0;
 	}
@@ -1068,7 +1068,7 @@ static int xmldoc_update_config_option(struct aco_type **types, const char *modu
 		return XMLDOC_STRICT ? -1 : 0;
 	}
 
-	if (!(results = ast_xmldoc_query("//configInfo[@name='%s']/*/configObject[@name='%s']/configOption[@name='%s']", module, object_name, name))) {
+	if (!(results = ast_xmldoc_query("/docs/configInfo[@name='%s']/configFile/configObject[@name='%s']/configOption[@name='%s']", module, object_name, name))) {
 		ast_log(LOG_WARNING, "Could not find option '%s' with type '%s' in module '%s'\n", name, object_name, module);
 		return XMLDOC_STRICT ? -1 : 0;
 	}
