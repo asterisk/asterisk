@@ -122,7 +122,7 @@ void sip_report_inval_password(const struct sip_pvt *p, const char *response_cha
         ast_security_event_report(AST_SEC_EVT(&inval_password));
 }
 
-void sip_report_auth_success(const struct sip_pvt *p, uint32_t *using_password)
+void sip_report_auth_success(const struct sip_pvt *p, uint32_t using_password)
 {
         char session_id[32];
 
@@ -271,7 +271,8 @@ void sip_report_inval_transport(const struct sip_pvt *p, const char *transport)
 }
 
 int sip_report_security_event(const char *peer, struct ast_sockaddr *addr, const struct sip_pvt *p,
-			      const struct sip_request *req, const int res) {
+    const struct sip_request *req, const int res)
+{
 
 	struct sip_peer *peer_report;
 	enum check_auth_result res_report = res;
@@ -297,9 +298,9 @@ int sip_report_security_event(const char *peer, struct ast_sockaddr *addr, const
 	case AUTH_SUCCESSFUL:
 		if (peer_report) {
 			if (ast_strlen_zero(peer_report->secret) && ast_strlen_zero(peer_report->md5secret)) {
-			sip_report_auth_success(p, (uint32_t *) 0);
+				sip_report_auth_success(p, 0);
 			} else {
-				sip_report_auth_success(p, (uint32_t *) 1);
+				sip_report_auth_success(p, 1);
 			}
 		}
 		break;
