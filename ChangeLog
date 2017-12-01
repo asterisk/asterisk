@@ -1,3 +1,33 @@
+2017-12-01 19:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.1.3 Released.
+
+2017-11-30 14:38 +0000 [f79ec1ccc8]  George Joseph <gjoseph@digium.com>
+
+	* AST-2017-013: chan_skinny: Call pthread_detach when sess threads end
+
+	  chan_skinny creates a new thread for each new session.  In trying
+	  to be a good cleanup citizen, the threads are joinable and the
+	  unload_module function does a pthread_cancel() and a pthread_join()
+	  on any sessions that are active at that time.  This has an
+	  unintended side effect though. Since you can call pthread_join on a
+	  thread that's already terminated, pthreads keeps the thread's
+	  storage around until you explicitly call pthread_join (or
+	  pthread_detach()).   Since only the module_unload function was
+	  calling pthread_join, and even then only on the ones active at the
+	  tme, the storage for every thread/session ever created sticks
+	  around until asterisk exits.
+
+	  * A thread can detach itself so the session_destroy() function
+	    now calls pthread_detach() just before it frees the session
+	    memory allocation.  The module_unload function still takes care
+	    of the ones that are still active should the module be unloaded.
+
+	  ASTERISK-27452
+	  Reported by: Juan Sacco
+
+	  Change-Id: I9af7268eba14bf76960566f891320f97b974e6dd
+
 2017-11-10 16:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.1.2 Released.
