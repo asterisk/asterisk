@@ -394,7 +394,7 @@ struct ast_security_event_successful_auth {
 	 * \brief Using password - if a password was used or not
 	 * \note required, 0 = no, 1 = yes
 	 */
-	uint32_t *using_password;
+	uint32_t using_password;
 };
 
 /*!

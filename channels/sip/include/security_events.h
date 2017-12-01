@@ -32,7 +32,7 @@
 void sip_report_invalid_peer(const struct sip_pvt *p);
 void sip_report_failed_acl(const struct sip_pvt *p, const char *aclname);
 void sip_report_inval_password(const struct sip_pvt *p, const char *responsechallenge, const char *responsehash);
-void sip_report_auth_success(const struct sip_pvt *p, uint32_t *using_password);
+void sip_report_auth_success(const struct sip_pvt *p, uint32_t using_password);
 void sip_report_session_limit(const struct sip_pvt *p);
 void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *response, const char *expected_response);
 void sip_report_chal_sent(const struct sip_pvt *p);
