@@ -117,14 +117,14 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          pbxlibdir="-L${$1_DIR}"
       fi
    fi
-   m4_ifblank([$3], [
-      # empty lib, assume only headers
-      AST_$1_FOUND=yes
-   ], [
+   m4_ifval([$3], [
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} $6"
       AC_CHECK_LIB([$2], [$3], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], [${pbxlibdir} $5])
       CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   ], [
+      # empty lib, assume only headers
+      AST_$1_FOUND=yes
    ])
 
    # now check for the header.
@@ -135,21 +135,21 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          $1_INCLUDE="-I${$1_DIR}/include"
       fi
       $1_INCLUDE="${$1_INCLUDE} $6"
-      m4_ifblank([$4], [
-         # no header, assume found
-         $1_HEADER_FOUND="1"
-      ], [
+      m4_ifval([$4], [
          # check for the header
          ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
          AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      ], [
+         # no header, assume found
+         $1_HEADER_FOUND="1"
       ])
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
          $1_LIB=""
          $1_INCLUDE=""
       else
-         m4_ifblank([$3], [
+         m4_ifval([$3], [], [
             # only checking headers -> no library
             $1_LIB=""
          ])
