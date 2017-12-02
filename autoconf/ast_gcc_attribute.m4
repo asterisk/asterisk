@@ -11,9 +11,9 @@ ax_cv_have_func_attribute_$1=0
 
 AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM(
-		m4_ifblank([$2],
-			[$3 void __attribute__(($1)) *test(void *muffin, ...) {return (void *) 0;}],
-			[$3 void __attribute__(($2)) *test(void *muffin, ...) ;]))],
+		m4_ifval([$2],
+			[$3 void __attribute__(($2)) *test(void *muffin, ...) ;],
+			[$3 void __attribute__(($1)) *test(void *muffin, ...) {return (void *) 0;}]))],
 	AC_MSG_RESULT(yes)
 	m4_ifval([$4],$4=1)
 	ax_cv_have_func_attribute_$1=1

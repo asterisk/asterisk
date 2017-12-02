@@ -200,7 +200,7 @@ AC_DEFUN([AST_CHECK_PWLIB_VERSION], [
 		$2_BUILD_NUMBER=`echo ${$2_VERSION} | cut -f3 -d.`
 		$2_VER=$((${$2_MAJOR_VERSION}*10000+${$2_MINOR_VERSION}*100+${$2_BUILD_NUMBER}))
 		$2_REQ=$(($4*10000+$5*100+$6))
-		$2_MAX=m4_ifblank([$10], [9999999], [$(($8*10000+$9*100+$10))])
+		$2_MAX=m4_ifval([$10], [$(($8*10000+$9*100+$10))], [9999999])
 
 		AC_MSG_CHECKING(if $1 version ${$2_VERSION} is compatible with chan_h323)
 		if test ${$2_VER} -lt ${$2_REQ}; then
