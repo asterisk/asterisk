@@ -55,7 +55,7 @@
 #ifdef GMIME_TYPE_CONTENT_TYPE
 #define AST_GMIME_VER_24
 #endif
-#if GMIME_MAJOR_VERSION >= 3
+#if defined(GMIME_MAJOR_VERSION) && (GMIME_MAJOR_VERSION >= 3)
 #define AST_GMIME_VER_30
 #endif
 
