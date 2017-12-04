@@ -1,55 +1,38 @@
-==================
-| Best Practices |
-==================
+# Best Practices
 
 The purpose of this document is to define best practices when working with
 Asterisk in order to minimize possible security breaches and to provide tried
-examples in field deployments. This is a living document and is subject to 
+examples in field deployments. This is a living document and is subject to
 change over time as best practices are defined.
 
---------
-Sections
---------
-
-* Filtering Data: 
+* [Filtering Data]:
         How to protect yourself from redial attacks
-
-* Proper Device Naming: 
+* [Proper Device Naming]:
         Why to not use numbered extensions for devices
-
-* Secure Passwords: 
+* [Secure Passwords]:
         Secure passwords limit your risk to brute force attacks
-
-* Reducing Pattern Match Typos: 
+* [Reducing Pattern Match Typos]:
         Using the 'same' prefix, or using Goto()
-
-* Manager Class Authorizations:
+* [Manager Class Authorizations]:
         Recognizing potential issues with certain classes of authorization
-
-* Avoid Privilege Escalations:
+* [Avoid Privilege Escalations]:
         Disable the ability to execute functions that may escalate privileges
 
-----------------
-Additional Links
-----------------
+
+## Additional Links
 
 Additional links that contain useful information about best practices or
 security are listed below.
 
-* Seven Steps to Better SIP Security:
-        http://blogs.digium.com/2009/03/28/sip-security/
-
-* Asterisk VoIP Security (webinar):
-        https://www.asterisk.org/security/webinar/
+* [Seven Steps to Better SIP Security][blog-sip-security]
+* [Asterisk VoIP Security (webinar)][voip-security-webinar]
 
 
-==============
-Filtering Data
-==============
+## Filtering Data
 
-In the Asterisk dialplan, several channel variables contain data potentially 
-supplied by outside sources. This could lead to a potential security concern 
-where those outside sources may send cleverly crafted strings of data which 
+In the Asterisk dialplan, several channel variables contain data potentially
+supplied by outside sources. This could lead to a potential security concern
+where those outside sources may send cleverly crafted strings of data which
 could be utilized, e.g. to place calls to unexpected locations.
 
 An example of this can be found in the use of pattern matching and the ${EXTEN}
@@ -57,24 +40,25 @@ channel variable. Note that ${EXTEN} is not the only system created channel
 variable, so it is important to be aware of where the data you're using is
 coming from.
 
-For example, this common dialplan takes 2 or more characters of data, starting 
+For example, this common dialplan takes 2 or more characters of data, starting
 with a number 0-9, and then accepts any additional information supplied by the
 request.
 
-[NOTE: We use SIP in this example, but is not limited to SIP only; protocols
-       such as Jabber/XMPP or IAX2 are also susceptible to the same sort of
-       injection problem.]
-       
+**NOTE**:
+> We use SIP in this example, but is not limited to SIP only; protocols such as
+> Jabber/XMPP or IAX2 are also susceptible to the same sort of injection problem.
 
+```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Dial(SIP/${EXTEN})
 exten => _X.,n,Hangup()
+```
 
 This dialplan may be utilized to accept calls to extensions, which then dial a
 numbered device name configured in one of the channel configuration files (such
-as sip.conf, iax.conf, etc...) (see the section Proper Device Naming for more
-information on why this approach is flawed).
+as sip.conf, iax.conf, etc...) (see [Proper Device Naming] for more information
+on why this approach is flawed).
 
 The example we've given above looks harmless enough until you take into
 consideration that several channel technologies accept characters that could
@@ -83,11 +67,13 @@ to dial extension 500 (which in our example above would create the string
 SIP/500 and is then used by the Dial() application to place a call), someone
 could potentially send a string like "500&SIP/itsp/14165551212".
 
-The string "500&SIP/itsp/14165551212" would then be contained within the 
+The string "500&SIP/itsp/14165551212" would then be contained within the
 ${EXTEN} channel variable, which is then utilized by the Dial() application in
 our example, thereby giving you the dialplan line of:
 
+```INI
 exten => _X.,n,Dial(SIP/500&SIP/itsp/14165551212)
+```
 
 Our example above has now provided someone with a method to place calls out of
 your ITSP in a place where you didn't expect to allow it. There are a couple of
@@ -101,16 +87,18 @@ or the SHELL() dialplan function, you can allow injection of arbitrary operating
 system command execution.  The FILTER() dialplan function is available to remove
 dangerous characters from untrusted strings to block the command injection.
 
-Strict Pattern Matching
------------------------
+
+### Strict Pattern Matching
 
 The simple way to mitigate this problem is with a strict pattern match that does
-not utilize the period (.) or bang (!) characters to match on one-or-more 
+not utilize the period (.) or bang (!) characters to match on one-or-more
 characters or zero-or-more characters (respectively). To fine tune our example
 to only accept three digit extensions, we could change our pattern match to
 be:
 
+```INI
 exten => _XXX,n,Dial(SIP/${EXTEN})
+```
 
 In this way, we have minimized our impact because we're not allowing anything
 other than the numbers zero through nine. But in some cases we really do need to
@@ -118,8 +106,8 @@ handle variable pattern matches, such as when dialing international numbers
 or when we want to handle something like a SIP URI. In this case, we'll need to
 utilize the FILTER() dialplan function.
 
-Using FILTER()
---------------
+
+### Using FILTER()
 
 The FILTER() dialplan function is used to filter strings by only allowing
 characters that you have specified. This is a perfect candidate for controlling
@@ -128,14 +116,16 @@ application which will contain dynamic information passed to Asterisk from an
 external source. Lets take a look at how we can use FILTER() to control what
 data we allow.
 
-Using our previous example to accept any string length of 2 or more characters, 
-starting with a number of zero through nine, we can use FILTER() to limit what 
+Using our previous example to accept any string length of 2 or more characters,
+starting with a number of zero through nine, we can use FILTER() to limit what
 we will accept to just numbers. Our example would then change to something like:
 
+```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Dial(SIP/${FILTER(0-9,${EXTEN})})
 exten => _X.,n,Hangup()
+```
 
 Note how we've wrapped the ${EXTEN} channel variable with the FILTER() function
 which will then only pass back characters that fit into the numerical range that
@@ -146,17 +136,20 @@ Dial() application directly, we could save the value to a channel variable,
 which has a side effect of being usable in other locations of your dialplan if
 necessary, and to handle error checking in a separate location.
 
+```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
 exten => _X.,n,Dial(SIP/${SAFE_EXTEN})
 exten => _X.,n,Hangup()
+```
 
 Now we can use the ${SAFE_EXTEN} channel variable anywhere throughout the rest
 of our dialplan, knowing we've already filtered it. We could also perform an
 error check to verify that what we've received in ${EXTEN} also matches the data
 passed back by FILTER(), and to fail the call if things do not match.
 
+```INI
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _X.,n,Set(SAFE_EXTEN=${FILTER(0-9,${EXTEN})})
@@ -168,14 +161,17 @@ exten => error,1,Verbose(2,Values of EXTEN and SAFE_EXTEN did not match.)
 exten => error,n,Verbose(2,EXTEN: "${EXTEN}" -- SAFE_EXTEN: "${SAFE_EXTEN}")
 exten => error,n,Playback(silence/1&invalid)
 exten => error,n,Hangup()
+```
 
 Another example would be using FILTER() to control the characters we accept when
 we're expecting to get a SIP URI for dialing.
 
+```INI
 [incoming]
 exten => _[0-9a-zA-Z].,1,Verbose(2,Incoming call to extension ${EXTEN})
 exten => _[0-9a-zA-Z].,n,Dial(SIP/${FILTER(.@0-9a-zA-Z,${EXTEN})
 exten => _[0-9a-zA-Z].,n,Hangup()
+```
 
 Of course the FILTER() function doesn't check the formatting of the incoming
 request. There is also the REGEX() dialplan function which can be used to
@@ -188,9 +184,7 @@ by typing "core show function FILTER" and "core show function REGEX" from your
 Asterisk console.
 
 
-====================
-Proper Device Naming
-====================
+## Proper Device Naming
 
 In Asterisk, the concept of an extension number being tied to a specific device
 does not exist. Asterisk is aware of devices it can call or receive calls from,
@@ -208,10 +202,12 @@ device configurations which utilize a number, and even worse, a password that
 matches the devices name. For example, take a look at this poorly created device
 in sip.conf:
 
+```INI
 [1000]
 type=friend
 context=international_dialing
 secret=1000
+```
 
 As implied by the context, we've permitted a device named 1000 with a password
 of 1000 to place calls internationally. If your PBX system is accessible via
@@ -224,10 +220,12 @@ A more secure example for the device would be to use something like the MAC
 address of the device, along with a strong password (see the section Secure
 Passwords). The following example would be more secure:
 
+```INI
 [0004f2040001]
 type=friend
 context=international_dialing
 secret=aE3%B8*$jk^G
+```
 
 Then in your dialplan, you would reference the device via the MAC address of the
 device (or if using the softphone, a MAC address of a network interface on the
@@ -237,25 +235,25 @@ Also note that you should NOT use this password, as it will likely be one of the
 first ones added to the dictionary for brute force attacks.
 
 
-================
-Secure Passwords
-================
+## Secure Passwords
 
-Secure passwords are necessary in many (if not all) environments, and Asterisk 
+Secure passwords are necessary in many (if not all) environments, and Asterisk
 is certainly no exception, especially when it comes to expensive long distance
 calls that could potentially cost your company hundreds or thousands of dollars
 on an expensive monthly phone bill, with little to no recourse to fight the
 charges.
 
 Whenever you are positioned to add a password to your system, whether that is
-for a device configuration, a database connection, or any other secure 
+for a device configuration, a database connection, or any other secure
 connection, be sure to use a secure password. A good example of a secure
 password would be something like:
 
+```
 aE3%B8*$jk^G
+```
 
 Our password also contains 12 characters with a mixture of upper and
-lower case characters, numbers, and symbols. Because these passwords are likely 
+lower case characters, numbers, and symbols. Because these passwords are likely
 to only be entered once, or loaded via a configuration file, there is
 no need to create simple passwords, even in testing. Some of the holes found in
 production systems used for exploitations involve finding the one test extension
@@ -263,19 +261,18 @@ that contains a weak password that was forgotten prior to putting a system into
 production.
 
 Using a web search you can find several online password generators such as
-https://www.strongpasswordgenerator.com or there are several scripts that can be
+[Strong Password Generator] or there are several scripts that can be
 used to generate a strong password.
 
 
-============================
-Reducing Pattern Match Typos
-============================
+## Reducing Pattern Match Typos
 
 As of Asterisk 1.6.2, a new method for reducing the number of complex pattern
 matches you need to enter, which can reduce typos in your dialplan, has been
 implemented. Traditionally, a dialplan with a complex pattern match would look
 something like:
 
+```INI
 exten => _[3-5]XXX,1,Verbose(Incoming call to ${EXTEN})
 exten => _[3-5]XXX,n,Set(DEVICE=${DB(device/mac_address/${EXTEN})})
 exten => _[3-5]XXX,n,Set(TECHNOLOGY=${DB(device/technology/${EXTEN})})
@@ -288,12 +285,14 @@ exten => _[3-5]XXX,n,Hangup()
 exten => error,1,Verbose(2,Unable to lookup technology or device for extension)
 exten => error,n,Playback(silence/1&num-not-in-db)
 exten => error,n,Hangup()
+```
 
 Of course there exists the possibility for a typo when retyping the pattern
-match _[3-5]XXX which will match on extensions 3000 through 5999. We can
+match _\[3-5\]XXX which will match on extensions 3000 through 5999. We can
 minimize this error by utilizing the same => prefix on all lines beyond the
 first one. Our same dialplan with using same => would look like the following:
 
+```INI
 exten => _[3-5]XXX,1,Verbose(Incoming call to ${EXTEN})
 same => n,Set(DEVICE=${DB(device/mac_address/${EXTEN})})
 same => n,Set(TECHNOLOGY=${DB(device/technology/${EXTEN})})
@@ -306,11 +305,10 @@ same => n,Hangup()
 exten => error,1,Verbose(2,Unable to lookup technology or device for extension)
 same => n,Playback(silence/1&num-not-in-db)
 same => n,Hangup()
+```
 
 
-============================
-Manager Class Authorizations
-============================
+## Manager Class Authorizations
 
 Manager accounts have associated class authorizations that define what actions
 and events that account can execute/receive.  In order to run Asterisk commands
@@ -322,6 +320,7 @@ have the potential to alter or affect the system as well, even though the
 class authorization for origination commands is "originate".  Take, for example,
 the Originate manager command:
 
+```
 Action: Originate
 Channel: SIP/foo
 Exten: s
@@ -329,6 +328,7 @@ Context: default
 Priority: 1
 Application: System
 Data: echo hello world!
+```
 
 This manager command will attempt to execute an Asterisk application, System,
 which is normally associated with the "system" class authorication.  While some
@@ -336,10 +336,12 @@ checks have been put into Asterisk to take this into account, certain dialplan
 configurations and/or clever manipulation of the Originate manager action can
 circumvent these checks.  For example, take the following dialplan:
 
+```INI
 exten => s,1,Verbose(Incoming call)
 same => n,MixMonitor(foo.wav,,${EXEC_COMMAND})
 same => n,Dial(SIP/bar)
 same => n,Hangup()
+```
 
 Whatever has been defined in the variable EXEC_COMMAND will be executed after
 MixMonitor has finished recording the call.  The dialplan writer may have
@@ -354,9 +356,8 @@ same as the class authorization "system".  Good system configuration, such as
 not running Asterisk as root, can prevent serious problems from arising when
 allowing external connections to originate calls into Asterisk.
 
-===========================
-Avoid Privilege Escalations
-===========================
+
+## Avoid Privilege Escalations
 
 External control protocols, such as Manager, often have the ability to get and
 set channel variables; which allows the execution of dialplan functions.
@@ -370,7 +371,18 @@ write access to.
 
 When these functions are executed from an external protocol, that execution
 could result in a privilege escalation. Asterisk can inhibit the execution of
-these functions, if live_dangerously in the [options] section of asterisk.conf
+these functions, if live_dangerously in the \[options\] section of asterisk.conf
 is set to no.
 
 In Asterisk 12 and later, live_dangerously defaults to no.
+
+
+[voip-security-webinar]: https://www.asterisk.org/security/webinar/
+[blog-sip-security]: http://blogs.digium.com/2009/03/28/sip-security/
+[Strong Password Generator]: https://www.strongpasswordgenerator.com
+[Filtering Data]: #filtering-data
+[Proper Device Naming]: #proper-device-naming
+[Secure Passwords]: #secure-passwords
+[Reducing Pattern Match Typos]: #reducing-pattern-match-typos
+[Manager Class Authorizations]: #manager-class-authorizations
+[Avoid Privilege Escalations]: #avoid-privilege-escalations
