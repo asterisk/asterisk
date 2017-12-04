@@ -986,13 +986,15 @@ struct ast_category *ast_category_new_template(const char *name, const char *in_
 }
 
 static struct ast_category *category_get_sep(const struct ast_config *config,
-	const char *category_name, const char *filter, char sep)
+	const char *category_name, const char *filter, char sep, char pointer_match_possible)
 {
 	struct ast_category *cat;
 
-	for (cat = config->root; cat; cat = cat->next) {
-		if (cat->name == category_name && does_category_match(cat, category_name, filter, sep)) {
-			return cat;
+	if (pointer_match_possible) {
+		for (cat = config->root; cat; cat = cat->next) {
+			if (cat->name == category_name && does_category_match(cat, category_name, filter, sep)) {
+				return cat;
+			}
 		}
 	}
 
@@ -1008,7 +1010,7 @@ static struct ast_category *category_get_sep(const struct ast_config *config,
 struct ast_category *ast_category_get(const struct ast_config *config,
 	const char *category_name, const char *filter)
 {
-	return category_get_sep(config, category_name, filter, ',');
+	return category_get_sep(config, category_name, filter, ',', 1);
 }
 
 const char *ast_category_get_name(const struct ast_category *category)
@@ -1792,7 +1794,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 					if (cur[1] != ',') {
 						filter = &cur[1];
 					}
-					*cat = category_get_sep(cfg, catname, filter, '&');
+					*cat = category_get_sep(cfg, catname, filter, '&', 0);
 					if (!(*cat)) {
 						if (newcat) {
 							ast_category_destroy(newcat);
@@ -1810,7 +1812,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				} else {
 					struct ast_category *base;
 
-					base = ast_category_get(cfg, cur, "TEMPLATES=include");
+					base = category_get_sep(cfg, cur, "TEMPLATES=include", ',', 0);
 					if (!base) {
 						if (newcat) {
 							ast_category_destroy(newcat);
