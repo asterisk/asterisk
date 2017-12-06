@@ -358,7 +358,7 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 
 static void cdr_write_callback(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
-	struct cdr_func_payload *payload = stasis_message_data(message);
+	struct cdr_func_payload *payload;
 	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(variable);
@@ -369,21 +369,17 @@ static void cdr_write_callback(void *data, struct stasis_subscription *sub, stru
 	if (cdr_write_message_type() != stasis_message_type(message)) {
 		return;
 	}
-
+	payload = stasis_message_data(message);
 	if (!payload) {
 		return;
 	}
+	if (ast_strlen_zero(payload->arguments)
+		|| !payload->value) {
+		/* Sanity check.  cdr_write() could never send these bad messages */
+		ast_assert(0);
+		return;
+	}
 
-	if (ast_strlen_zero(payload->arguments)) {
-		ast_log(AST_LOG_WARNING, "%s requires a variable (%s(variable)=value)\n)",
-			payload->cmd, payload->cmd);
-		return;
-	}
-	if (ast_strlen_zero(payload->value)) {
-		ast_log(AST_LOG_WARNING, "%s requires a value (%s(variable)=value)\n)",
-			payload->cmd, payload->cmd);
-		return;
-	}
 	parse = ast_strdupa(payload->arguments);
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -391,32 +387,16 @@ static void cdr_write_callback(void *data, struct stasis_subscription *sub, stru
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
 	}
 
-	if (!strcasecmp(args.variable, "accountcode")) {
-		ast_log(AST_LOG_WARNING, "Using the CDR function to set 'accountcode' is deprecated. Please use the CHANNEL function instead.\n");
-		ast_channel_lock(payload->chan);
-		ast_channel_accountcode_set(payload->chan, payload->value);
-		ast_channel_unlock(payload->chan);
-	} else if (!strcasecmp(args.variable, "peeraccount")) {
-		ast_log(AST_LOG_WARNING, "The 'peeraccount' setting is not supported. Please set the 'accountcode' on the appropriate channel using the CHANNEL function.\n");
-	} else if (!strcasecmp(args.variable, "userfield")) {
+	/* These are already handled by cdr_write() */
+	ast_assert(strcasecmp(args.variable, "accountcode")
+		&& strcasecmp(args.variable, "peeraccount")
+		&& strcasecmp(args.variable, "amaflags"));
+
+	if (!strcasecmp(args.variable, "userfield")) {
 		ast_cdr_setuserfield(ast_channel_name(payload->chan), payload->value);
-	} else if (!strcasecmp(args.variable, "amaflags")) {
-		ast_log(AST_LOG_WARNING, "Using the CDR function to set 'amaflags' is deprecated. Please use the CHANNEL function instead.\n");
-		if (isdigit(*payload->value)) {
-			int amaflags;
-			sscanf(payload->value, "%30d", &amaflags);
-			ast_channel_lock(payload->chan);
-			ast_channel_amaflags_set(payload->chan, amaflags);
-			ast_channel_unlock(payload->chan);
-		} else {
-			ast_channel_lock(payload->chan);
-			ast_channel_amaflags_set(payload->chan, ast_channel_string2amaflag(payload->value));
-			ast_channel_unlock(payload->chan);
-		}
 	} else {
 		ast_cdr_setvar(ast_channel_name(payload->chan), args.variable, payload->value);
 	}
-	return;
 }
 
 static void cdr_prop_write_callback(void *data, struct stasis_subscription *sub, struct stasis_message *message)
@@ -525,27 +505,70 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 	return 0;
 }
 
-static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
-		     const char *value)
+static int cdr_write(struct ast_channel *chan, const char *cmd, char *arguments,
+	const char *value)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct cdr_func_payload *, payload, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message_router *, router,
-		     ast_cdr_message_router(), ao2_cleanup);
+	struct stasis_message *message;
+	struct cdr_func_payload *payload;
+	struct stasis_message_router *router;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
+	);
+	char *parse;
 
 	if (!chan) {
 		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
 		return -1;
 	}
-
-	if (!router) {
-		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",
-			ast_channel_name(chan));
+	if (ast_strlen_zero(arguments)) {
+		ast_log(LOG_WARNING, "%s requires a variable (%s(variable)=value)\n)",
+			cmd, cmd);
+		return -1;
+	}
+	if (!value) {
+		ast_log(LOG_WARNING, "%s requires a value (%s(variable)=value)\n)",
+			cmd, cmd);
 		return -1;
 	}
 
+	parse = ast_strdupa(arguments);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	/* These CDR variables are no longer supported or set directly on the channel */
+	if (!strcasecmp(args.variable, "accountcode")) {
+		ast_log(LOG_WARNING, "Using the %s function to set 'accountcode' is deprecated. Please use the CHANNEL function instead.\n",
+			cmd);
+		ast_channel_lock(chan);
+		ast_channel_accountcode_set(chan, value);
+		ast_channel_unlock(chan);
+		return 0;
+	}
+	if (!strcasecmp(args.variable, "amaflags")) {
+		int amaflags;
+
+		ast_log(LOG_WARNING, "Using the %s function to set 'amaflags' is deprecated. Please use the CHANNEL function instead.\n",
+			cmd);
+		if (isdigit(*value)) {
+			if (sscanf(value, "%30d", &amaflags) != 1) {
+				amaflags = AST_AMA_NONE;
+			}
+		} else {
+			amaflags = ast_channel_string2amaflag(value);
+		}
+		ast_channel_lock(chan);
+		ast_channel_amaflags_set(chan, amaflags);
+		ast_channel_unlock(chan);
+		return 0;
+	}
+	if (!strcasecmp(args.variable, "peeraccount")) {
+		ast_log(LOG_WARNING, "The 'peeraccount' setting is not supported. Please set the 'accountcode' on the appropriate channel using the CHANNEL function.\n");
+		return 0;
+	}
+
+	/* The remaining CDR variables are handled by CDR processing code */
 	if (!cdr_write_message_type()) {
-		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
+		ast_log(LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
 			ast_channel_name(chan));
 		return -1;
 	}
@@ -556,16 +579,26 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 	}
 	payload->chan = chan;
 	payload->cmd = cmd;
-	payload->arguments = parse;
+	payload->arguments = arguments;
 	payload->value = value;
 
 	message = stasis_message_create(cdr_write_message_type(), payload);
+	ao2_ref(payload, -1);
 	if (!message) {
-		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: unable to create message\n",
+		ast_log(LOG_WARNING, "Failed to manipulate CDR for channel %s: unable to create message\n",
 			ast_channel_name(chan));
 		return -1;
 	}
+	router = ast_cdr_message_router();
+	if (!router) {
+		ast_log(LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",
+			ast_channel_name(chan));
+		ao2_ref(message, -1);
+		return -1;
+	}
 	stasis_message_router_publish_sync(router, message);
+	ao2_ref(router, -1);
+	ao2_ref(message, -1);
 
 	return 0;
 }
@@ -588,7 +621,7 @@ static int cdr_prop_write(struct ast_channel *chan, const char *cmd, char *parse
 		return -1;
 	}
 
-	if (!cdr_write_message_type()) {
+	if (!cdr_prop_write_message_type()) {
 		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
 			ast_channel_name(chan));
 		return -1;
