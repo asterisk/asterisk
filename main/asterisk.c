@@ -4701,8 +4701,13 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(init_manager(), "Asterisk Manager Interface");
 	check_init(ast_enum_init(), "ENUM Support");
 	check_init(ast_cc_init(), "Call Completion Supplementary Services");
-	check_init(ast_sounds_index_init(), "Sounds Indexer");
 	check_init(load_modules(0), "Module");
+
+	/*
+	 * This is initialized after the dynamic modules load to avoid repeatedly
+	 * reindexing sounds for every format module load.
+	 */
+	check_init(ast_sounds_index_init(), "Sounds Indexer");
 
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
