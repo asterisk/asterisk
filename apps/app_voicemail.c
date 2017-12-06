@@ -13347,11 +13347,8 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		char dirname[256];
-#ifdef IMAP_STORAGE
 		int new, old;
-
 		inboxcount(vmu->mailbox, &new, &old);
-#endif
 		
 		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
 		astman_append(s,
@@ -13383,8 +13380,8 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			"MaxMessageCount: %d\r\n"
 			"MaxMessageLength: %d\r\n"
 			"NewMessageCount: %d\r\n"
-#ifdef IMAP_STORAGE
 			"OldMessageCount: %d\r\n"
+#ifdef IMAP_STORAGE
 			"IMAPUser: %s\r\n"
 			"IMAPServer: %s\r\n"
 			"IMAPPort: %s\r\n"
@@ -13417,14 +13414,14 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
 			vmu->maxmsg,
 			vmu->maxsecs,
+			new,
+			old
 #ifdef IMAP_STORAGE
-			new, old,
+			,
 			vmu->imapuser,
 			vmu->imapserver,
 			vmu->imapport,
 			vmu->imapflags
-#else
-			count_messages(vmu, dirname)
 #endif
 			);
 		++num_users;
