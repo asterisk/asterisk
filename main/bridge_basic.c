@@ -3219,9 +3219,9 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 		} else if (!res) {
 			/* 0 for invalid extension dialed. */
 			if (ast_strlen_zero(exten)) {
-				ast_verb(4, "%s dialed no digits.\n", ast_channel_name(chan));
+				ast_verb(3, "Channel %s: Dialed no digits.\n", ast_channel_name(chan));
 			} else {
-				ast_verb(4, "%s dialed '%s@%s' does not exist.\n",
+				ast_verb(3, "Channel %s: Dialed '%s@%s' does not exist.\n",
 					ast_channel_name(chan), exten, context);
 			}
 			if (attempts < max_attempts) {
@@ -3307,6 +3307,9 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 
 	/* Inhibit the bridge before we do anything else. */
 	bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
+
+	ast_verb(3, "Channel %s: Started DTMF attended transfer.\n",
+		ast_channel_name(bridge_channel->chan));
 
 	if (strcmp(bridge->v_table->name, "basic")) {
 		ast_log(LOG_ERROR, "Channel %s: Attended transfer attempted on unsupported bridge type '%s'.\n",
@@ -3477,6 +3480,9 @@ static int feature_blind_transfer(struct ast_bridge_channel *bridge_channel, voi
 	const char *xfer_context;
 	char *goto_on_blindxfr;
 
+	ast_verb(3, "Channel %s: Started DTMF blind transfer.\n",
+		ast_channel_name(bridge_channel->chan));
+
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
 
 	ast_channel_lock(bridge_channel->chan);
@@ -3500,7 +3506,7 @@ static int feature_blind_transfer(struct ast_bridge_channel *bridge_channel, voi
 		const char *chan_exten;
 		int chan_priority;
 
-		ast_debug(1, "After transfer, transferrer %s goes to %s\n",
+		ast_debug(1, "Channel %s: After transfer, transferrer goes to %s\n",
 			ast_channel_name(bridge_channel->chan), goto_on_blindxfr);
 
 		ast_channel_lock(bridge_channel->chan);
