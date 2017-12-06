@@ -20,12 +20,6 @@
  */
 #define PJMEDIA_HAS_SRTP 0
 
-/*
- * Defining PJMEDIA_HAS_WEBRTC_AEC to 0 does NOT disable Asterisk's ability to use
- * webrtc.  It only disables the pjmedia webrtc transport which Asterisk doesn't use.
- */
-#define PJMEDIA_HAS_WEBRTC_AEC 0
-
 #define PJ_HAS_IPV6 1
 #if !defined(AST_DEVMODE) && !defined(PJPROJECT_BUNDLED_ASSERTIONS)
 #define NDEBUG 1
