@@ -1307,7 +1307,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
-	if (found) {
+	if (found && !ast_shutting_down()) {
 		matrix_rebuild(0);
 	}
 
