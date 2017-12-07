@@ -37,6 +37,12 @@ ARI
  * The ContactInfo event's contact_status field is now set to "NonQualified"
    when a contact exists but has not been qualified.
 
+app_queue
+------------------
+ * Added the ability to set the wrapuptime in the configuration of member.
+   When set the wrapuptime on the member is used instead of the wrapuptime
+   defined for the queue itself.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
