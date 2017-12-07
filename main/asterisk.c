@@ -3012,10 +3012,17 @@ static char *cli_prompt(EditLine *editline)
 static struct ast_vector_string *ast_el_strtoarr(char *buf)
 {
 	char *retstr;
+	char *bestmatch;
 	struct ast_vector_string *vec = ast_calloc(1, sizeof(*vec));
 
 	if (!vec) {
 		return NULL;
+	}
+
+	/* bestmatch must not be deduplicated */
+	bestmatch = strsep(&buf, " ");
+	if (!bestmatch || !strcmp(bestmatch, AST_CLI_COMPLETE_EOF)) {
+		goto vector_cleanup;
 	}
 
 	while ((retstr = strsep(&buf, " "))) {
@@ -3024,7 +3031,7 @@ static struct ast_vector_string *ast_el_strtoarr(char *buf)
 		}
 
 		/* Older daemons sent duplicates. */
-		if (AST_VECTOR_GET_CMP(vec, retstr, strcasecmp)) {
+		if (AST_VECTOR_GET_CMP(vec, retstr, !strcasecmp)) {
 			continue;
 		}
 
@@ -3036,7 +3043,9 @@ static struct ast_vector_string *ast_el_strtoarr(char *buf)
 		}
 	}
 
-	if (!AST_VECTOR_SIZE(vec)) {
+	bestmatch = ast_strdup(bestmatch);
+	if (!bestmatch || AST_VECTOR_INSERT_AT(vec, 0, bestmatch)) {
+		ast_free(bestmatch);
 		goto vector_cleanup;
 	}
 
