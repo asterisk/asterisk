@@ -83,6 +83,16 @@ int ast_db_deltree(const char *family, const char *keytree);
  */
 struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree);
 
+/*!
+ * \brief Get a list of values with the given key prefix
+ *
+ * \param family The family to search under
+ * \param key_prefix The key prefix to search under
+ *
+ * \retval NULL An error occurred
+ */
+struct ast_db_entry *ast_db_gettree_by_prefix(const char *family, const char *key_prefix);
+
 /*! \brief Free structure created by ast_db_gettree() */
 void ast_db_freetree(struct ast_db_entry *entry);
 

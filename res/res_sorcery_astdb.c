@@ -334,14 +334,14 @@ static void sorcery_astdb_retrieve_prefix(const struct ast_sorcery *sorcery, voi
 	const char *family_prefix = data;
 	size_t family_len = strlen(family_prefix) + strlen(type) + 1; /* +1 for slash delimiter */
 	char family[family_len + 1];
-	char tree[prefix_len + sizeof("%")];
+	char tree[prefix_len + 1];
 	RAII_VAR(struct ast_db_entry *, entries, NULL, ast_db_freetree);
 	struct ast_db_entry *entry;
 
-	snprintf(tree, sizeof(tree), "%.*s%%", (int) prefix_len, prefix);
+	snprintf(tree, sizeof(tree), "%.*s", (int) prefix_len, prefix);
 	snprintf(family, sizeof(family), "%s/%s", family_prefix, type);
 
-	if (!(entries = ast_db_gettree(family, tree))) {
+	if (!(entries = ast_db_gettree_by_prefix(family, tree))) {
 		return;
 	}
 
