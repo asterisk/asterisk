@@ -388,7 +388,7 @@
 						</enumlist>
 					</enum>
 					<enum name="target_uri">
-						<para>The request URI of the <literal>INVITE</literal> request associated with the creation of this channel.</para>
+						<para>The contact URI where requests are sent.</para>
 					</enum>
 					<enum name="local_uri">
 						<para>The local URI.</para>
@@ -401,6 +401,10 @@
 					</enum>
 					<enum name="remote_tag">
 						<para>Tag in To header</para>
+					</enum>
+					<enum name="request_uri">
+						<para>The request URI of the incoming <literal>INVITE</literal>
+						associated with the creation of this channel.</para>
 					</enum>
 					<enum name="t38state">
 						<para>The current state of any T.38 fax on this channel.</para>
@@ -656,6 +660,27 @@ static int channel_read_rtcp(struct ast_channel *chan, const char *type, const c
 	return 0;
 }
 
+static int print_escaped_uri(struct ast_channel *chan, const char *type,
+	pjsip_uri_context_e context, const void *uri, char *buf, size_t size)
+{
+	int res;
+	char *buf_copy;
+
+	res = pjsip_uri_print(context, uri, buf, size);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "Channel %s: Unescaped %s too long for %d byte buffer\n",
+			ast_channel_name(chan), type, (int) size);
+
+		/* Empty buffer that likely is not terminated. */
+		buf[0] = '\0';
+		return -1;
+	}
+
+	buf_copy = ast_strdupa(buf);
+	ast_escape_quoted(buf_copy, buf, size);
+	return 0;
+}
+
 /*!
  * \internal \brief Handle reading signalling information
  */
@@ -664,6 +689,7 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 	char *buf_copy;
 	pjsip_dialog *dlg;
+	int res = 0;
 
 	if (!channel) {
 		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
@@ -689,25 +715,27 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 		return -1;
 #endif
 	} else if (!strcmp(type, "target_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, dlg->target, buf, buflen);
-		buf_copy = ast_strdupa(buf);
-		ast_escape_quoted(buf_copy, buf, buflen);
+		res = print_escaped_uri(chan, type, PJSIP_URI_IN_REQ_URI, dlg->target, buf,
+			buflen);
 	} else if (!strcmp(type, "local_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri, buf, buflen);
-		buf_copy = ast_strdupa(buf);
-		ast_escape_quoted(buf_copy, buf, buflen);
+		res = print_escaped_uri(chan, type, PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri,
+			buf, buflen);
 	} else if (!strcmp(type, "local_tag")) {
 		ast_copy_pj_str(buf, &dlg->local.info->tag, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "remote_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->remote.info->uri, buf, buflen);
-		buf_copy = ast_strdupa(buf);
-		ast_escape_quoted(buf_copy, buf, buflen);
+		res = print_escaped_uri(chan, type, PJSIP_URI_IN_FROMTO_HDR,
+			dlg->remote.info->uri, buf, buflen);
 	} else if (!strcmp(type, "remote_tag")) {
 		ast_copy_pj_str(buf, &dlg->remote.info->tag, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
+	} else if (!strcmp(type, "request_uri")) {
+		if (channel->session->request_uri) {
+			res = print_escaped_uri(chan, type, PJSIP_URI_IN_REQ_URI,
+				channel->session->request_uri, buf, buflen);
+		}
 	} else if (!strcmp(type, "t38state")) {
 		ast_copy_string(buf, t38state_to_string[channel->session->t38state], buflen);
 	} else if (!strcmp(type, "local_addr")) {
@@ -743,7 +771,7 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 		return -1;
 	}
 
-	return 0;
+	return res;
 }
 
 /*! \brief Struct used to push function arguments to task processor */
