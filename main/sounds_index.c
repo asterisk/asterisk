@@ -285,13 +285,15 @@ static void sounds_cleanup(void)
 static void format_update_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	ast_sounds_reindex();
+	/* Reindexing during shutdown is pointless. */
+	if (!ast_shutting_down()) {
+		ast_sounds_reindex();
+	}
 }
 
 int ast_sounds_index_init(void)
 {
 	int res = 0;
-	sounds_index = NULL;
 	if (ast_sounds_reindex()) {
 		return -1;
 	}
@@ -328,6 +330,5 @@ int ast_sounds_index_init(void)
 
 struct ast_media_index *ast_sounds_get_index(void)
 {
-	ao2_ref(sounds_index, +1);
-	return sounds_index;
+	return ao2_bump(sounds_index);
 }
