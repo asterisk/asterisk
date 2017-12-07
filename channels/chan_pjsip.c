@@ -511,6 +511,11 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	ast_party_id_copy(&ast_channel_caller(chan)->id, &session->id);
 	ast_party_id_copy(&ast_channel_caller(chan)->ani, &session->id);
 
+	if (!ast_strlen_zero(exten)) {
+		/* Set provided DNID on the new channel. */
+		ast_channel_dialed(chan)->number.str = ast_strdup(exten);
+	}
+
 	ast_channel_priority_set(chan, 1);
 
 	ast_channel_callgroup_set(chan, session->endpoint->pickup.callgroup);
