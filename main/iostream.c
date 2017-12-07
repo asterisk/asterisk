@@ -77,7 +77,7 @@ int ast_iostream_get_fd(struct ast_iostream *stream)
 
 void ast_iostream_nonblock(struct ast_iostream *stream)
 {
-	fcntl(stream->fd, F_SETFL, fcntl(stream->fd, F_GETFL) | O_NONBLOCK);
+	ast_fd_set_flags(stream->fd, O_NONBLOCK);
 }
 
 SSL *ast_iostream_get_ssl(struct ast_iostream *stream)

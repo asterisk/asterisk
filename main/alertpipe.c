@@ -55,17 +55,8 @@ int ast_alertpipe_init(int alert_pipe[2])
 		ast_log(LOG_WARNING, "Failed to create alert pipe: %s\n", strerror(errno));
 		return -1;
 	} else {
-		int flags = fcntl(alert_pipe[0], F_GETFL);
-		if (fcntl(alert_pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "Failed to set non-blocking mode on alert pipe: %s\n",
-				strerror(errno));
-			ast_alertpipe_close(alert_pipe);
-			return -1;
-		}
-		flags = fcntl(alert_pipe[1], F_GETFL);
-		if (fcntl(alert_pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "Failed to set non-blocking mode on alert pipe: %s\n",
-				strerror(errno));
+		if (ast_fd_set_flags(alert_pipe[0], O_NONBLOCK)
+		   || ast_fd_set_flags(alert_pipe[1], O_NONBLOCK)) {
 			ast_alertpipe_close(alert_pipe);
 			return -1;
 		}

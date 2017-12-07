@@ -1141,4 +1141,44 @@ int ast_compare_versions(const char *version1, const char *version2);
  */
 int ast_check_ipv6(void);
 
+enum ast_fd_flag_operation {
+	AST_FD_FLAG_SET,
+	AST_FD_FLAG_CLEAR,
+};
+
+/*
+ * \brief Set flags on the given file descriptor
+ * \since 13.19
+ *
+ * If getting or setting flags of the given file descriptor fails, logs an
+ * error message.
+ *
+ * \param fd File descriptor to set flags on
+ * \param flags The flag(s) to set
+ *
+ * \return -1 on error
+ * \return 0 if successful
+ */
+#define ast_fd_set_flags(fd, flags) \
+	__ast_fd_set_flags((fd), (flags), AST_FD_FLAG_SET, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*
+ * \brief Clear flags on the given file descriptor
+ * \since 13.19
+ *
+ * If getting or setting flags of the given file descriptor fails, logs an
+ * error message.
+ *
+ * \param fd File descriptor to clear flags on
+ * \param flags The flag(s) to clear
+ *
+ * \return -1 on error
+ * \return 0 if successful
+ */
+#define ast_fd_clear_flags(fd, flags) \
+	__ast_fd_set_flags((fd), (flags), AST_FD_FLAG_CLEAR, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
+	const char *file, int lineno, const char *function);
+
 #endif /* _ASTERISK_UTILS_H */
