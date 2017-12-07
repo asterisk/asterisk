@@ -45,10 +45,10 @@
 /*! \brief Structure to hold a list of the format variations for a media file for a specific variant */
 struct media_variant {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(variant);	/*!< The variant this media is available in */
 		AST_STRING_FIELD(description);	/*!< The description of the media */
 	);
 	struct ast_format_cap *formats;	/*!< The formats this media is available in for this variant */
+	char variant[0];				/*!< The variant this media is available in */
 };
 
 static void media_variant_destroy(void *obj)
@@ -61,20 +61,23 @@ static void media_variant_destroy(void *obj)
 
 static struct media_variant *media_variant_alloc(const char *variant_str)
 {
-	RAII_VAR(struct media_variant *, variant, ao2_alloc(sizeof(*variant), media_variant_destroy), ao2_cleanup);
+	size_t str_sz = strlen(variant_str) + 1;
+	struct media_variant *variant;
 
-	if (!variant || ast_string_field_init(variant, 8)) {
+	variant = ao2_alloc(sizeof(*variant) + str_sz, media_variant_destroy);
+	if (!variant) {
 		return NULL;
 	}
+
+	memcpy(variant->variant, variant_str, str_sz);
 
 	variant->formats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	if (!variant->formats) {
+	if (!variant->formats || ast_string_field_init(variant, 8)) {
+		ao2_ref(variant, -1);
+
 		return NULL;
 	}
 
-	ast_string_field_set(variant, variant, variant_str);
-
-	ao2_ref(variant, 1);
 	return variant;
 }
 
@@ -93,37 +96,35 @@ static int media_variant_cmp(void *obj, void *arg, int flags)
 
 /*! \brief Structure to hold information about a media file */
 struct media_info {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);		/*!< The file name of the media */
-	);
-	struct ao2_container *variants;	/*!< The variants for which this media is available */
+	struct ao2_container *variants;  /*!< The variants for which this media is available */
+	char name[0];                    /*!< The file name of the media */
 };
 
 static void media_info_destroy(void *obj)
 {
 	struct media_info *info = obj;
 
-	ast_string_field_free_memory(info);
 	ao2_cleanup(info->variants);
-	info->variants = NULL;
 }
 
 static struct media_info *media_info_alloc(const char *name)
 {
-	RAII_VAR(struct media_info *, info, ao2_alloc(sizeof(*info), media_info_destroy), ao2_cleanup);
+	size_t name_sz = strlen(name) + 1;
+	struct media_info *info = ao2_alloc(sizeof(*info) + name_sz, media_info_destroy);
 
-	if (!info || ast_string_field_init(info, 128)) {
+	if (!info) {
 		return NULL;
 	}
+
+	memcpy(info->name, name, name_sz);
 
 	info->variants = ao2_container_alloc(VARIANT_BUCKETS, media_variant_hash, media_variant_cmp);
 	if (!info->variants) {
+		ao2_ref(info, -1);
+
 		return NULL;
 	}
 
-	ast_string_field_set(info, name, name);
-
-	ao2_ref(info, 1);
 	return info;
 }
 
@@ -141,38 +142,37 @@ static int media_info_cmp(void *obj, void *arg, int flags)
 }
 
 struct ast_media_index {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(base_dir); /*!< Base directory for indexing */
-	);
 	struct ao2_container *index;            /*!< The index of media that has requested */
 	struct ao2_container *media_list_cache; /*!< Cache of filenames to prevent them from being regenerated so often */
+	char base_dir[0];                       /*!< Base directory for indexing */
 };
 
 static void media_index_dtor(void *obj)
 {
 	struct ast_media_index *index = obj;
+
 	ao2_cleanup(index->index);
-	index->index = NULL;
 	ao2_cleanup(index->media_list_cache);
-	index->media_list_cache = NULL;
-	ast_string_field_free_memory(index);
 }
 
 struct ast_media_index *ast_media_index_create(const char *base_dir)
 {
-	RAII_VAR(struct ast_media_index *, index, ao2_alloc(sizeof(*index), media_index_dtor), ao2_cleanup);
-	if (!index || ast_string_field_init(index, 64)) {
+	size_t base_dir_sz = strlen(base_dir) + 1;
+	struct ast_media_index *index = ao2_alloc(sizeof(*index) + base_dir_sz, media_index_dtor);
+
+	if (!index) {
 		return NULL;
 	}
 
-	ast_string_field_set(index, base_dir, base_dir);
+	memcpy(index->base_dir, base_dir, base_dir_sz);
 
 	index->index = ao2_container_alloc(INDEX_BUCKETS, media_info_hash, media_info_cmp);
 	if (!index->index) {
+		ao2_ref(index, -1);
+
 		return NULL;
 	}
 
-	ao2_ref(index, +1);
 	return index;
 }
 
@@ -191,8 +191,8 @@ static struct media_variant *find_variant(struct ast_media_index *index, const c
 /*! \brief create the appropriate media_variant and any necessary structures */
 static struct media_variant *alloc_variant(struct ast_media_index *index, const char *filename, const char *variant_str)
 {
-	RAII_VAR(struct media_info *, info, NULL, ao2_cleanup);
-	RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
+	struct media_info *info;
+	struct media_variant *variant = NULL;
 
 	info = ao2_find(index->index, filename, OBJ_KEY);
 	if (!info) {
@@ -204,21 +204,21 @@ static struct media_variant *alloc_variant(struct ast_media_index *index, const 
 		}
 
 		ao2_link(index->index, info);
+	} else {
+		variant = ao2_find(info->variants, variant_str, OBJ_KEY);
 	}
 
-	variant = ao2_find(info->variants, variant_str, OBJ_KEY);
 	if (!variant) {
 		/* This is the first time the index has seen this variant for
 		 * this filename, allocate and link */
 		variant = media_variant_alloc(variant_str);
-		if (!variant) {
-			return NULL;
+		if (variant) {
+			ao2_link(info->variants, variant);
 		}
-
-		ao2_link(info->variants, variant);
 	}
 
-	ao2_ref(variant, +1);
+	ao2_ref(info, -1);
+
 	return variant;
 }
 
@@ -324,15 +324,16 @@ struct ao2_container *ast_media_get_media(struct ast_media_index *index)
 /*! \brief Update an index with new format/variant information */
 static int update_file_format_info(struct ast_media_index *index, const char *filename, const char *variant_str, struct ast_format *file_format)
 {
-	RAII_VAR(struct media_variant *, variant, find_variant(index, filename, variant_str), ao2_cleanup);
+	struct media_variant *variant;
+
+	variant = alloc_variant(index, filename, variant_str);
 	if (!variant) {
-		variant = alloc_variant(index, filename, variant_str);
-		if (!variant) {
-			return -1;
-		}
+		return -1;
 	}
 
 	ast_format_cap_append(variant->formats, file_format, 0);
+	ao2_ref(variant, -1);
+
 	return 0;
 }
 
@@ -341,7 +342,8 @@ static int process_media_file(struct ast_media_index *index, const char *variant
 {
 	struct ast_format *file_format;
 	const char *file_identifier = filename_stripped;
-	RAII_VAR(struct ast_str *, file_id_str, NULL, ast_free);
+	char *file_id_str = NULL;
+	int res;
 
 	file_format = ast_get_format_for_file_ext(ext);
 	if (!file_format) {
@@ -351,19 +353,17 @@ static int process_media_file(struct ast_media_index *index, const char *variant
 
 	/* handle updating the file information */
 	if (subdir) {
-		file_id_str = ast_str_create(64);
-		if (!file_id_str) {
+		if (ast_asprintf(&file_id_str, "%s/%s", subdir, filename_stripped) == -1) {
 			return -1;
 		}
 
-		ast_str_set(&file_id_str, 0, "%s/%s", subdir, filename_stripped);
-		file_identifier = ast_str_buffer(file_id_str);
+		file_identifier = file_id_str;
 	}
 
-	if (update_file_format_info(index, file_identifier, variant, file_format)) {
-		return -1;
-	}
-	return 0;
+	res = update_file_format_info(index, file_identifier, variant, file_format);
+	ast_free(file_id_str);
+
+	return res;
 }
 
 /*!
@@ -443,20 +443,18 @@ static int process_description_file(struct ast_media_index *index,
 		} else {
 			/* if there's text in cumulative_description, archive it and start anew */
 			if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
-				RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
+				struct media_variant *variant;
 
-				variant = find_variant(index, file_id_persist, variant_str);
+				variant = alloc_variant(index, file_id_persist, variant_str);
 				if (!variant) {
-					variant = alloc_variant(index, file_id_persist, variant_str);
-					if (!variant) {
-						res = -1;
-						break;
-					}
+					res = -1;
+					break;
 				}
 
 				ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
 
 				ast_str_reset(cumulative_description);
+				ao2_ref(variant, -1);
 			}
 
 			ast_free(file_id_persist);
@@ -468,15 +466,12 @@ static int process_description_file(struct ast_media_index *index,
 
 	/* handle the last one */
 	if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
-		RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
+		struct media_variant *variant;
 
-		variant = find_variant(index, file_id_persist, variant_str);
-		if (!variant) {
-			variant = alloc_variant(index, file_id_persist, variant_str);
-		}
-
+		variant = alloc_variant(index, file_id_persist, variant_str);
 		if (variant) {
 			ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
+			ao2_ref(variant, -1);
 		} else {
 			res = -1;
 		}
