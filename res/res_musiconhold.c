@@ -924,7 +924,6 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 static struct mohdata *mohalloc(struct mohclass *cl)
 {
 	struct mohdata *moh;
-	long flags;
 
 	if (!(moh = ast_calloc(1, sizeof(*moh))))
 		return NULL;
@@ -936,10 +935,8 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	}
 
 	/* Make entirely non-blocking */
-	flags = fcntl(moh->pipe[0], F_GETFL);
-	fcntl(moh->pipe[0], F_SETFL, flags | O_NONBLOCK);
-	flags = fcntl(moh->pipe[1], F_GETFL);
-	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
+	ast_fd_set_flags(moh->pipe[0], O_NONBLOCK);
+	ast_fd_set_flags(moh->pipe[1], O_NONBLOCK);
 
 	moh->f.frametype = AST_FRAME_VOICE;
 	moh->f.subclass.format = cl->format;

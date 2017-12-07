@@ -615,7 +615,6 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, uint32_t dst_dahdi_fmt, ui
 	/* Request translation through zap if possible */
 	int fd;
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
-	int flags;
 	int tried_once = 0;
 	const char *dev_filename = "/dev/dahdi/transcode";
 
@@ -661,11 +660,7 @@ retry:
 		return -1;
 	}
 
-	flags = fcntl(fd, F_GETFL);
-	if (flags > - 1) {
-		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
-			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
-	}
+	ast_fd_set_flags(fd, O_NONBLOCK);
 
 	dahdip->fd = fd;
 

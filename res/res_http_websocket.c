@@ -445,19 +445,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_is_secure)(struct ast_websocket *session
 
 int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *session)
 {
-	int flags;
-
-	if ((flags = fcntl(session->fd, F_GETFL)) == -1) {
-		return -1;
-	}
-
-	flags |= O_NONBLOCK;
-
-	if ((flags = fcntl(session->fd, F_SETFL, flags)) == -1) {
-		return -1;
-	}
-
-	return 0;
+	return ast_fd_set_flags(session->fd, O_NONBLOCK);
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *session, int timeout)
@@ -944,17 +932,11 @@ static struct ast_http_uri websocketuri = {
 /*! \brief Simple echo implementation which echoes received text and binary frames */
 static void websocket_echo_callback(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers)
 {
-	int flags, res;
+	int res;
 
 	ast_debug(1, "Entering WebSocket echo loop\n");
 
-	if ((flags = fcntl(ast_websocket_fd(session), F_GETFL)) == -1) {
-		goto end;
-	}
-
-	flags |= O_NONBLOCK;
-
-	if (fcntl(ast_websocket_fd(session), F_SETFL, flags) == -1) {
+	if (ast_fd_set_flags(ast_websocket_fd(session), O_NONBLOCK)) {
 		goto end;
 	}
 
