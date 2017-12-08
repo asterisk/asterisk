@@ -1157,7 +1157,24 @@ static int qualify_and_schedule_cb_with_aor(void *obj, void *arg, int flags)
 
 static int qualify_and_schedule_cb_without_aor(void *obj, void *arg, int flags)
 {
-	qualify_and_schedule_contact((struct ast_sip_contact *) obj);
+	/*
+	 * These are really dynamic contacts. We need to retrieve the aor associated
+	 * with the contact since it's possible some of the aor's fields were updated
+	 * since last load.
+	 */
+	struct ast_sip_contact *contact = obj;
+	struct ast_sip_aor *aor = ast_sip_location_retrieve_aor(contact->aor);
+
+	if (aor) {
+		qualify_and_schedule_cb_with_aor(obj, aor, flags);
+		ao2_ref(aor, -1);
+	} else {
+		ast_log(LOG_WARNING, "Unable to locate AOR for contact '%s'. Keeping old "
+			"associated settings: frequency=%d, timeout=%f, authenticate=%s\n",
+			contact->uri, contact->qualify_frequency, contact->qualify_timeout,
+			contact->authenticate_qualify ? "yes" : "no");
+		qualify_and_schedule_contact(contact);
+	}
 
 	return 0;
 }
