@@ -304,25 +304,23 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 static char *complete_channeltypes(struct ast_cli_args *a)
 {
 	struct chanlist *cl;
-	int which = 0;
 	int wordlen;
-	char *ret = NULL;
 
-	if (a->pos != 3)
+	if (a->pos != 3) {
 		return NULL;
+	}
 
 	wordlen = strlen(a->word);
 
 	AST_RWLIST_RDLOCK(&backends);
 	AST_RWLIST_TRAVERSE(&backends, cl, list) {
-		if (!strncasecmp(a->word, cl->tech->type, wordlen) && ++which > a->n) {
-			ret = ast_strdup(cl->tech->type);
-			break;
+		if (!strncasecmp(a->word, cl->tech->type, wordlen)) {
+			ast_cli_completion_add(ast_strdup(cl->tech->type));
 		}
 	}
 	AST_RWLIST_UNLOCK(&backends);
 
-	return ret;
+	return NULL;
 }
 
 /*! \brief Show details about a channel driver - CLI command */
