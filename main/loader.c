@@ -1421,7 +1421,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the module_vector is not provided, the module's load function will be executed
  *  immediately */
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int suppress_logging, struct module_vector *resource_heap, int required)
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int suppress_logging, struct module_vector *module_priorities, int required)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
@@ -1455,8 +1455,8 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 	mod->flags.declined = 0;
 
-	if (resource_heap) {
-		if (AST_VECTOR_ADD_SORTED(resource_heap, mod, module_vector_cmp)) {
+	if (module_priorities) {
+		if (AST_VECTOR_ADD_SORTED(module_priorities, mod, module_vector_cmp)) {
 			goto prestart_error;
 		}
 		res = AST_MODULE_LOAD_PRIORITY;
@@ -1635,115 +1635,77 @@ static int start_resource_list(struct module_vector *resources, int *mod_count)
 */
 static int load_resource_list(struct load_order *load_order, int *mod_count)
 {
-	struct module_vector resource_heap;
+	struct module_vector module_priorities;
 	struct load_order_entry *order;
-	struct load_retries load_retries;
+	int attempt = 0;
 	int count = 0;
 	int res = 0;
-	int i = 0;
-#define LOAD_RETRIES 4
+	int didwork;
+	int lasttry = 0;
 
-	AST_LIST_HEAD_INIT_NOLOCK(&load_retries);
-
-	if (AST_VECTOR_INIT(&resource_heap, 500)) {
+	if (AST_VECTOR_INIT(&module_priorities, 500)) {
 		ast_log(LOG_ERROR, "Failed to initialize module loader.\n");
 
 		return -1;
 	}
 
-	/* first, add find and add modules to heap */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
-		enum ast_module_load_result lres;
+	while (!res) {
+		didwork = 0;
 
-		/* Suppress log messages unless this is the last pass */
-		lres = load_resource(order->resource, 1, &resource_heap, order->required);
-		ast_debug(3, "PASS 0: %-46s %d\n", order->resource, lres);
-		switch (lres) {
-		case AST_MODULE_LOAD_SUCCESS:
-			/* We're supplying a heap so SUCCESS isn't possible but we still have to test for it. */
-			break;
-		case AST_MODULE_LOAD_FAILURE:
-		case AST_MODULE_LOAD_DECLINE:
-			/*
-			 * DECLINE or FAILURE means there was an issue with dlopen or module_register
-			 * which might be retryable.  LOAD_FAILURE only happens for required modules
-			 * but we're still going to retry.  We need to remove the entry from the
-			 * load_order list and add it to the load_retries list.
-			 */
-			AST_LIST_REMOVE_CURRENT(entry);
-			AST_LIST_INSERT_TAIL(&load_retries, order, entry);
-			break;
-		case AST_MODULE_LOAD_SKIP:
-			/*
-			 * SKIP means that dlopen worked but global_symbols was set and this module doesn't qualify.
-			 * Leave it in load_order for the next call of load_resource_list.
-			 */
-			break;
-		case AST_MODULE_LOAD_PRIORITY:
-			/* load_resource worked and the module was added to the priority vector */
-			AST_LIST_REMOVE_CURRENT(entry);
-			ast_free(order->resource);
-			ast_free(order);
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	/* Retry the failures until the list is empty or we reach LOAD_RETRIES */
-	for (i = 0; !AST_LIST_EMPTY(&load_retries) && i < LOAD_RETRIES; i++) {
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_retries, order, entry) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
 			enum ast_module_load_result lres;
 
 			/* Suppress log messages unless this is the last pass */
-			lres = load_resource(order->resource, (i < LOAD_RETRIES - 1), &resource_heap, order->required);
-			ast_debug(3, "PASS %d %-46s %d\n", i + 1, order->resource, lres);
+			lres = load_resource(order->resource, !lasttry, &module_priorities, order->required);
+			ast_debug(3, "PASS %d: %-46s %d\n", attempt, order->resource, lres);
 			switch (lres) {
-			/* These are all retryable. */
 			case AST_MODULE_LOAD_SUCCESS:
+			case AST_MODULE_LOAD_SKIP:
+				/* We're supplying module_priorities so SUCCESS isn't possible but we
+				 * still have to test for it.  SKIP is only used when we try to start a
+				 * module that is missing dependencies. */
+				break;
 			case AST_MODULE_LOAD_DECLINE:
 				break;
 			case AST_MODULE_LOAD_FAILURE:
 				/* LOAD_FAILURE only happens for required modules */
-				if (i == LOAD_RETRIES - 1) {
-					/* This was the last chance to load a required module*/
+				if (lasttry) {
+					/* This run is just to print errors. */
 					ast_log(LOG_ERROR, "*** Failed to load module %s - Required\n", order->resource);
 					fprintf(stderr, "*** Failed to load module %s - Required\n", order->resource);
 					res =  -2;
-					goto done;
 				}
-				break;;
-			case AST_MODULE_LOAD_SKIP:
-				/*
-				 * SKIP means that dlopen worked but global_symbols was set and this module
-				 * doesn't qualify.  Put it back in load_order for the next call of
-				 * load_resource_list.
-				 */
-				AST_LIST_REMOVE_CURRENT(entry);
-				AST_LIST_INSERT_TAIL(load_order, order, entry);
 				break;
 			case AST_MODULE_LOAD_PRIORITY:
-				/* load_resource worked and the module was added to the priority heap */
+				/* load_resource worked and the module was added to module_priorities */
 				AST_LIST_REMOVE_CURRENT(entry);
 				ast_free(order->resource);
 				ast_free(order);
+				didwork = 1;
 				break;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+
+		if (!didwork) {
+			if (lasttry) {
+				break;
+			}
+			/* We know the next try is going to fail, it's only being performed
+			 * so we can print errors. */
+			lasttry = 1;
+		}
+		attempt++;
 	}
 
-	res = start_resource_list(&resource_heap, &count);
-
-done:
-	while ((order = AST_LIST_REMOVE_HEAD(&load_retries, entry))) {
-		ast_free(order->resource);
-		ast_free(order);
+	if (!res) {
+		res = start_resource_list(&module_priorities, &count);
 	}
 
 	if (mod_count) {
 		*mod_count += count;
 	}
-	AST_VECTOR_FREE(&resource_heap);
+	AST_VECTOR_FREE(&module_priorities);
 
 	return res;
 }
