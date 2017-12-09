@@ -798,8 +798,6 @@ static void unload_dynamic_module(struct ast_module *mod)
 #endif
 }
 
-#define MODULE_LOCAL_ONLY (void *)-1
-
 /*!
  * \internal
  * \brief Attempt to dlopen a module.
@@ -846,12 +844,11 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 	return mod;
 }
 
-static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging)
+static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int suppress_logging)
 {
 	char fn[PATH_MAX];
 	struct ast_module *mod;
 	size_t resource_in_len = strlen(resource_in);
-	int exports_globals;
 	const char *so_ext = "";
 
 	if (resource_in_len < 4 || strcasecmp(resource_in + resource_in_len - 3, ".so")) {
@@ -860,31 +857,18 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 	snprintf(fn, sizeof(fn), "%s/%s%s", ast_config_AST_MODULE_DIR, resource_in, so_ext);
 
-	/* Try loading in quiet mode first with flags to export global symbols.
-	 * If the module does not want to export globals we will close and reopen. */
-	mod = load_dlopen(resource_in, so_ext, fn,
-		global_symbols_only ? RTLD_NOW | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL,
-		suppress_logging);
+	/* Try loading in quiet mode first with RTLD_LOCAL.  The majority of modules do not
+	 * export symbols so this allows the least number of calls to dlopen. */
+	mod = load_dlopen(resource_in, so_ext, fn, RTLD_NOW | RTLD_LOCAL, suppress_logging);
 
-	if (!mod) {
-		return NULL;
-	}
-
-	exports_globals = ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS);
-	if ((global_symbols_only && exports_globals) || (!global_symbols_only && !exports_globals)) {
-		/* The first dlopen had the correct flags. */
+	if (!mod || !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS)) {
 		return mod;
 	}
 
 	/* Close the module so we can reopen with correct flags. */
 	logged_dlclose(resource_in, mod->lib);
-	if (global_symbols_only) {
-		return MODULE_LOCAL_ONLY;
-	}
 
-	return load_dlopen(resource_in, so_ext, fn,
-		exports_globals ? RTLD_NOW | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL,
-		0);
+	return load_dlopen(resource_in, so_ext, fn, RTLD_NOW | RTLD_GLOBAL, 0);
 }
 
 int modules_shutdown(void)
@@ -1437,7 +1421,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the module_vector is not provided, the module's load function will be executed
  *  immediately */
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct module_vector *resource_heap, int required)
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int suppress_logging, struct module_vector *resource_heap, int required)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
@@ -1447,17 +1431,9 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			ast_log(LOG_WARNING, "Module '%s' already exists.\n", resource_name);
 			return AST_MODULE_LOAD_DECLINE;
 		}
-		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
-			return AST_MODULE_LOAD_SKIP;
 	} else {
-		mod = load_dynamic_module(resource_name, global_symbols_only, suppress_logging);
-		if (mod == MODULE_LOCAL_ONLY) {
-				return AST_MODULE_LOAD_SKIP;
-		}
+		mod = load_dynamic_module(resource_name, suppress_logging);
 		if (!mod) {
-			if (!global_symbols_only) {
-				ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
-			}
 			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 		}
 
@@ -1500,7 +1476,7 @@ int ast_load_resource(const char *resource_name)
 {
 	int res;
 	AST_DLLIST_LOCK(&module_list);
-	res = load_resource(resource_name, 0, 0, NULL, 0);
+	res = load_resource(resource_name, 0, NULL, 0);
 	if (!res) {
 		ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
 	}
@@ -1657,7 +1633,7 @@ static int start_resource_list(struct module_vector *resources, int *mod_count)
 /*! loads modules in order by load_pri, updates mod_count
 	\return -1 on failure to load module, -2 on failure to load required module, otherwise 0
 */
-static int load_resource_list(struct load_order *load_order, unsigned int global_symbols, int *mod_count)
+static int load_resource_list(struct load_order *load_order, int *mod_count)
 {
 	struct module_vector resource_heap;
 	struct load_order_entry *order;
@@ -1680,8 +1656,8 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 		enum ast_module_load_result lres;
 
 		/* Suppress log messages unless this is the last pass */
-		lres = load_resource(order->resource, global_symbols, 1, &resource_heap, order->required);
-		ast_debug(3, "PASS 0: %-46s %d %d\n", order->resource, lres, global_symbols);
+		lres = load_resource(order->resource, 1, &resource_heap, order->required);
+		ast_debug(3, "PASS 0: %-46s %d\n", order->resource, lres);
 		switch (lres) {
 		case AST_MODULE_LOAD_SUCCESS:
 			/* We're supplying a heap so SUCCESS isn't possible but we still have to test for it. */
@@ -1719,8 +1695,8 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 			enum ast_module_load_result lres;
 
 			/* Suppress log messages unless this is the last pass */
-			lres = load_resource(order->resource, global_symbols, (i < LOAD_RETRIES - 1), &resource_heap, order->required);
-			ast_debug(3, "PASS %d %-46s %d %d\n", i + 1, order->resource, lres, global_symbols);
+			lres = load_resource(order->resource, (i < LOAD_RETRIES - 1), &resource_heap, order->required);
+			ast_debug(3, "PASS %d %-46s %d\n", i + 1, order->resource, lres);
 			switch (lres) {
 			/* These are all retryable. */
 			case AST_MODULE_LOAD_SUCCESS:
@@ -1873,15 +1849,7 @@ int load_modules(unsigned int preload_only)
 	if (load_count)
 		ast_log(LOG_NOTICE, "%u modules will be loaded.\n", load_count);
 
-	/* first, load only modules that provide global symbols */
-	if ((res = load_resource_list(&load_order, 1, &modulecount)) < 0) {
-		goto done;
-	}
-
-	/* now load everything else */
-	if ((res = load_resource_list(&load_order, 0, &modulecount)) < 0) {
-		goto done;
-	}
+	res = load_resource_list(&load_order, &modulecount);
 
 done:
 	while ((order = AST_LIST_REMOVE_HEAD(&load_order, entry))) {
