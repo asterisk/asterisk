@@ -1955,9 +1955,7 @@ static void *httpd_helper_thread(void *data)
 	}
 
 	/* make sure socket is non-blocking */
-	flags = fcntl(ser->fd, F_GETFL);
-	flags |= O_NONBLOCK;
-	fcntl(ser->fd, F_SETFL, flags);
+	ast_fd_set_flags(ser->fd, O_NONBLOCK);
 
 	/* Setup HTTP worker private data to keep track of request body reading. */
 	ao2_cleanup(ser->private_data);

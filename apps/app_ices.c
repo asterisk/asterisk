@@ -115,7 +115,6 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
-	int flags;
 	struct ast_format *oreadformat;
 	struct ast_frame *f;
 	char filename[256]="";
@@ -130,8 +129,7 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
 		return -1;
 	}
-	flags = fcntl(fds[1], F_GETFL);
-	fcntl(fds[1], F_SETFL, flags | O_NONBLOCK);
+	ast_fd_set_flags(fds[1], O_NONBLOCK);
 	
 	ast_stopstream(chan);
 

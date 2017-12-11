@@ -1014,7 +1014,6 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 	int x;
 	int startplace;
 	int i;
-	long int flags;
 	RAII_VAR(struct udptl_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 
 	if (!cfg || !cfg->general) {
@@ -1045,8 +1044,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
-	flags = fcntl(udptl->fd, F_GETFL);
-	fcntl(udptl->fd, F_SETFL, flags | O_NONBLOCK);
+	ast_fd_set_flags(udptl->fd, O_NONBLOCK);
 
 #ifdef SO_NO_CHECK
 	if (cfg->general->nochecksums)

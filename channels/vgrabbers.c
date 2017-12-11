@@ -227,12 +227,8 @@ static void *grab_v4l1_open(const char *dev, struct fbuf_t *geom, int fps)
 	v->b = *geom;
 	b = &v->b;	/* shorthand */
 
-	i = fcntl(fd, F_GETFL);
-	if (-1 == fcntl(fd, F_SETFL, i | O_NONBLOCK)) {
-		/* non fatal, just emit a warning */
-		ast_log(LOG_WARNING, "error F_SETFL for %s [%s]\n",
-			dev, strerror(errno));
-	}
+	ast_fd_set_flags(fd, O_NONBLOCK);
+
 	/* set format for the camera.
 	 * In principle we could retry with a different format if the
 	 * one we are asking for is not supported.

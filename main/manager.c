@@ -6684,9 +6684,7 @@ static void *session_do(void *data)
 	}
 
 	/* make sure socket is non-blocking */
-	flags = fcntl(ser->fd, F_GETFL);
-	flags |= O_NONBLOCK;
-	fcntl(ser->fd, F_SETFL, flags);
+	ast_fd_set_flags(ser->fd, O_NONBLOCK);
 
 	ao2_lock(session);
 	/* Hook to the tail of the event queue */
