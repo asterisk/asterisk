@@ -135,12 +135,16 @@ struct ast_module {
 		/*! This module is being held open until it's time to shutdown. */
 		unsigned int keepuntilshutdown:1;
 	} flags;
-	AST_LIST_ENTRY(ast_module) list_entry;
 	AST_DLLIST_ENTRY(ast_module) entry;
 	char resource[0];
 };
 
 static AST_DLLIST_HEAD_STATIC(module_list, ast_module);
+
+static int module_vector_strcasecmp(struct ast_module *a, struct ast_module *b)
+{
+	return strcasecmp(a->resource, b->resource);
+}
 
 static int module_vector_cmp(struct ast_module *a, struct ast_module *b)
 {
@@ -1524,32 +1528,56 @@ void ast_update_use_count(void)
 	AST_LIST_UNLOCK(&updaters);
 }
 
+/*!
+ * \internal
+ * \brief Build an alpha sorted list of modules.
+ *
+ * \param alpha_module_list Pointer to uninitialized module_vector.
+ *
+ * This function always initializes alpha_module_list.
+ *
+ * \pre module_list must be locked.
+ */
+static int alpha_module_list_create(struct module_vector *alpha_module_list)
+{
+	struct ast_module *cur;
+
+	if (AST_VECTOR_INIT(alpha_module_list, 32)) {
+		return -1;
+	}
+
+	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
+		if (AST_VECTOR_ADD_SORTED(alpha_module_list, cur, module_vector_strcasecmp)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int ast_update_module_list(int (*modentry)(const char *module, const char *description,
                                            int usecnt, const char *status, const char *like,
 										   enum ast_module_support_level support_level),
                            const char *like)
 {
-	struct ast_module *cur;
-	int unlock = -1;
 	int total_mod_loaded = 0;
-	AST_LIST_HEAD_NOLOCK(, ast_module) alpha_module_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+	struct module_vector alpha_module_list;
 
-	if (AST_DLLIST_TRYLOCK(&module_list)) {
-		unlock = 0;
+	AST_DLLIST_LOCK(&module_list);
+
+	if (!alpha_module_list_create(&alpha_module_list)) {
+		int idx;
+
+		for (idx = 0; idx < AST_VECTOR_SIZE(&alpha_module_list); idx++) {
+			struct ast_module *cur = AST_VECTOR_GET(&alpha_module_list, idx);
+
+			total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
+				cur->flags.running ? "Running" : "Not Running", like, cur->info->support_level);
+		}
 	}
 
-	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
-		AST_LIST_INSERT_SORTALPHA(&alpha_module_list, cur, list_entry, resource);
-	}
-
-	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_module_list, list_entry))) {
-		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
-						cur->flags.running ? "Running" : "Not Running", like, cur->info->support_level);
-	}
-
-	if (unlock) {
-		AST_DLLIST_UNLOCK(&module_list);
-	}
+	AST_DLLIST_UNLOCK(&module_list);
+	AST_VECTOR_FREE(&alpha_module_list);
 
 	return total_mod_loaded;
 }
@@ -1560,22 +1588,24 @@ int ast_update_module_list_data(int (*modentry)(const char *module, const char *
                                                 void *data),
                                 const char *like, void *data)
 {
-	struct ast_module *cur;
 	int total_mod_loaded = 0;
-	AST_LIST_HEAD_NOLOCK(, ast_module) alpha_module_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+	struct module_vector alpha_module_list;
 
 	AST_DLLIST_LOCK(&module_list);
 
-	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
-		AST_LIST_INSERT_SORTALPHA(&alpha_module_list, cur, list_entry, resource);
-	}
+	if (!alpha_module_list_create(&alpha_module_list)) {
+		int idx;
 
-	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_module_list, list_entry))) {
-		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
-		        cur->flags.running? "Running" : "Not Running", like, cur->info->support_level, data);
+		for (idx = 0; idx < AST_VECTOR_SIZE(&alpha_module_list); idx++) {
+			struct ast_module *cur = AST_VECTOR_GET(&alpha_module_list, idx);
+
+			total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
+				cur->flags.running? "Running" : "Not Running", like, cur->info->support_level, data);
+		}
 	}
 
 	AST_DLLIST_UNLOCK(&module_list);
+	AST_VECTOR_FREE(&alpha_module_list);
 
 	return total_mod_loaded;
 }
@@ -1587,23 +1617,25 @@ int ast_update_module_list_condition(int (*modentry)(const char *module, const c
                                                      void *data, const char *condition),
                                      const char *like, void *data, const char *condition)
 {
-	struct ast_module *cur;
 	int conditions_met = 0;
-	AST_LIST_HEAD_NOLOCK(, ast_module) alpha_module_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+	struct module_vector alpha_module_list;
 
 	AST_DLLIST_LOCK(&module_list);
 
-	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
-		AST_LIST_INSERT_SORTALPHA(&alpha_module_list, cur, list_entry, resource);
-	}
+	if (!alpha_module_list_create(&alpha_module_list)) {
+		int idx;
 
-	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_module_list, list_entry))) {
-		conditions_met += modentry(cur->resource, cur->info->description, cur->usecount,
-		        cur->flags.running? "Running" : "Not Running", like, cur->info->support_level, data,
-		        condition);
+		for (idx = 0; idx < AST_VECTOR_SIZE(&alpha_module_list); idx++) {
+			struct ast_module *cur = AST_VECTOR_GET(&alpha_module_list, idx);
+
+			conditions_met += modentry(cur->resource, cur->info->description, cur->usecount,
+				cur->flags.running? "Running" : "Not Running", like, cur->info->support_level, data,
+				condition);
+		}
 	}
 
 	AST_DLLIST_UNLOCK(&module_list);
+	AST_VECTOR_FREE(&alpha_module_list);
 
 	return conditions_met;
 }
