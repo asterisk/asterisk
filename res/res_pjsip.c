@@ -2282,6 +2282,7 @@
 					<enumlist>
 						<enum name="Reachable"/>
 						<enum name="Unreachable"/>
+						<enum name="NonQualified"/>
 					</enumlist>
 				</parameter>
 				<parameter name="RoundtripUsec">

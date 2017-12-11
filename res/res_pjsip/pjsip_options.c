@@ -41,7 +41,7 @@ static const char *status_map [] = {
 	[UNAVAILABLE] = "Unreachable",
 	[AVAILABLE] = "Reachable",
 	[UNKNOWN] = "Unknown",
-	[CREATED] = "Created",
+	[CREATED] = "NonQualified",
 	[REMOVED] = "Removed",
 };
 
@@ -49,7 +49,7 @@ static const char *short_status_map [] = {
 	[UNAVAILABLE] = "Unavail",
 	[AVAILABLE] = "Avail",
 	[UNKNOWN] = "Unknown",
-	[CREATED] = "Created",
+	[CREATED] = "NonQual",
 	[REMOVED] = "Removed",
 };
 
@@ -205,24 +205,12 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 		return;
 	}
 
-	if (is_contact_refresh
-		&& status->status == CREATED) {
-		/*
-		 * The contact status hasn't been updated since creation
-		 * and we don't want to re-send a created status.
-		 */
-		if (contact->qualify_frequency
-			|| status->rtt_start.tv_sec > 0) {
-			/* Ignore, the status will change soon. */
-			return;
-		}
-
-		/*
-		 * Convert to a regular contact status update
-		 * because the status may never change.
-		 */
-		is_contact_refresh = 0;
-		value = UNKNOWN;
+	/*
+	 * If the current status is CREATED, and it's a refresh or the given value is
+	 * also CREATED then there is nothing to update as nothing needs to change.
+	 */
+	if (status->status == CREATED && (is_contact_refresh || status->status == value)) {
+		return;
 	}
 
 	update = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
@@ -595,7 +583,7 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 
 		schedule_qualify(contact, contact->qualify_frequency * 1000);
 	} else {
-		update_contact_status(contact, UNKNOWN, 0);
+		update_contact_status(contact, CREATED, 0);
 	}
 }
 
@@ -1127,7 +1115,7 @@ static void qualify_and_schedule_contact(struct ast_sip_contact *contact)
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
 	} else {
-		update_contact_status(contact, UNKNOWN, 0);
+		update_contact_status(contact, CREATED, 0);
 	}
 }
 
