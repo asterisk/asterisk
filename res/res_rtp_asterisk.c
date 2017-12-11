@@ -3048,8 +3048,7 @@ static int create_new_socket(const char *type, int af)
 		}
 		ast_log(LOG_WARNING, "Unable to allocate %s socket: %s\n", type, strerror(errno));
 	} else {
-		long flags = fcntl(sock, F_GETFL);
-		fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+		ast_fd_set_flags(sock, O_NONBLOCK);
 #ifdef SO_NO_CHECK
 		if (nochecksums) {
 			setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));

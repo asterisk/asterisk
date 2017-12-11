@@ -2046,7 +2046,7 @@ static int handle_connection(const char *agiurl, const struct ast_sockaddr addr,
 	FastAGI defaults to port 4573 */
 static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 {
-	int s = 0, flags;
+	int s = 0;
 	char *host, *script;
 	int num_addrs = 0, i = 0;
 	struct ast_sockaddr *addrs;
@@ -2076,14 +2076,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 			continue;
 		}
 
-		if ((flags = fcntl(s, F_GETFL)) < 0) {
-			ast_log(LOG_WARNING, "fcntl(F_GETFL) failed: %s\n", strerror(errno));
-			close(s);
-			continue;
-		}
-
-		if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
-			ast_log(LOG_WARNING, "fnctl(F_SETFL) failed: %s\n", strerror(errno));
+		if (ast_fd_set_flags(s, O_NONBLOCK)) {
 			close(s);
 			continue;
 		}
@@ -2249,9 +2242,8 @@ static enum agi_result launch_script(struct ast_channel *chan, char *script, int
 			close(toast[1]);
 			return AGI_RESULT_FAILURE;
 		}
-		res = fcntl(audio[1], F_GETFL);
-		if (res > -1)
-			res = fcntl(audio[1], F_SETFL, res | O_NONBLOCK);
+
+		res = ast_fd_set_flags(audio[1], O_NONBLOCK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "unable to set audio pipe parameters: %s\n", strerror(errno));
 			close(fromast[0]);

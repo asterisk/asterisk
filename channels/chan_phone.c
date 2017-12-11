@@ -1191,7 +1191,6 @@ static struct phone_pvt *mkif(const char *iface, int mode, int txgain, int rxgai
 {
 	/* Make a phone_pvt structure for this interface */
 	struct phone_pvt *tmp;
-	int flags;	
 	
 	tmp = ast_calloc(1, sizeof(*tmp));
 	if (tmp) {
@@ -1224,8 +1223,7 @@ static struct phone_pvt *mkif(const char *iface, int mode, int txgain, int rxgai
 		ioctl(tmp->fd, PHONE_VAD, tmp->silencesupression);
 #endif
 		tmp->mode = mode;
-		flags = fcntl(tmp->fd, F_GETFL);
-		fcntl(tmp->fd, F_SETFL, flags | O_NONBLOCK);
+		ast_fd_set_flags(tmp->fd, O_NONBLOCK);
 		tmp->owner = NULL;
 		ao2_cleanup(tmp->lastformat);
 		tmp->lastformat = NULL;
