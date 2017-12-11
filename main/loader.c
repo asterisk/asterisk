@@ -376,35 +376,39 @@ static int verify_key(const unsigned char *key)
 	return -1;
 }
 
-static int resource_name_match(const char *name1_in, const char *name2_in)
+static size_t resource_name_baselen(const char *name)
 {
-	char *name1 = (char *) name1_in;
-	char *name2 = (char *) name2_in;
+	size_t len = strlen(name);
 
-	/* trim off any .so extensions */
-	if (!strcasecmp(name1 + strlen(name1) - 3, ".so")) {
-		name1 = ast_strdupa(name1);
-		name1[strlen(name1) - 3] = '\0';
-	}
-	if (!strcasecmp(name2 + strlen(name2) - 3, ".so")) {
-		name2 = ast_strdupa(name2);
-		name2[strlen(name2) - 3] = '\0';
+	if (len > 3 && !strcasecmp(name + len - 3, ".so")) {
+		return len - 3;
 	}
 
-	return strcasecmp(name1, name2);
+	return len;
+}
+
+static int resource_name_match(const char *name1, size_t baselen1, const char *name2)
+{
+	if (baselen1 != resource_name_baselen(name2)) {
+		return -1;
+	}
+
+	return strncasecmp(name1, name2, baselen1);
 }
 
 static struct ast_module *find_resource(const char *resource, int do_lock)
 {
 	struct ast_module *cur;
+	size_t resource_baselen = resource_name_baselen(resource);
 
 	if (do_lock) {
 		AST_DLLIST_LOCK(&module_list);
 	}
 
 	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
-		if (!resource_name_match(resource, cur->resource))
+		if (!resource_name_match(resource, resource_baselen, cur->resource)) {
 			break;
+		}
 	}
 
 	if (do_lock) {
@@ -939,6 +943,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 	struct ast_module *cur;
 	enum ast_module_reload_result res = AST_MODULE_RELOAD_NOT_FOUND;
 	int i;
+	size_t name_baselen = name ? resource_name_baselen(name) : 0;
 
 	/* If we aren't fully booted, we just pretend we reloaded but we queue this
 	   up to run once we are booted up. */
@@ -992,8 +997,9 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
 		const struct ast_module_info *info = cur->info;
 
-		if (name && resource_name_match(name, cur->resource))
+		if (name && resource_name_match(name, name_baselen, cur->resource)) {
 			continue;
+		}
 
 		if (!cur->flags.running || cur->flags.declined) {
 			if (res == AST_MODULE_RELOAD_NOT_FOUND) {
@@ -1187,9 +1193,10 @@ AST_LIST_HEAD_NOLOCK(load_order, load_order_entry);
 static struct load_order_entry *add_to_load_order(const char *resource, struct load_order *load_order, int required)
 {
 	struct load_order_entry *order;
+	size_t resource_baselen = resource_name_baselen(resource);
 
 	AST_LIST_TRAVERSE(load_order, order, entry) {
-		if (!resource_name_match(order->resource, resource)) {
+		if (!resource_name_match(resource, resource_baselen, order->resource)) {
 			/* Make sure we have the proper setting for the required field
 			   (we might have both load= and required= lines in modules.conf) */
 			order->required |= required;
@@ -1436,11 +1443,15 @@ int load_modules(unsigned int preload_only)
 	/* now scan the config for any modules we are prohibited from loading and
 	   remove them from the load order */
 	for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-		if (strcasecmp(v->name, "noload"))
-			continue;
+		size_t baselen;
 
+		if (strcasecmp(v->name, "noload")) {
+			continue;
+		}
+
+		baselen = resource_name_baselen(v->value);
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
-			if (!resource_name_match(order->resource, v->value)) {
+			if (!resource_name_match(v->value, baselen, order->resource)) {
 				AST_LIST_REMOVE_CURRENT(entry);
 				ast_free(order->resource);
 				ast_free(order);
