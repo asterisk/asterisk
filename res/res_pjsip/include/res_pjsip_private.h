@@ -193,6 +193,15 @@ void ast_sip_destroy_global_headers(void);
 
 /*!
  * \internal
+ * \brief Pre-initialize OPTIONS request handling.
+ *
+ * \retval 0 on success
+ * \retval other on failure
+ */
+int ast_res_pjsip_preinit_options_handling(void);
+
+/*!
+ * \internal
  * \brief Initialize OPTIONS request handling.
  *
  * XXX This currently includes qualifying peers. It shouldn't.
