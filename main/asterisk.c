@@ -1569,7 +1569,6 @@ static void *listener(void *unused)
 	int s;
 	socklen_t len;
 	int x;
-	int flags;
 	struct pollfd fds[1];
 	for (;;) {
 		if (ast_socket < 0)
@@ -1607,8 +1606,7 @@ static void *listener(void *unused)
 						close(s);
 						break;
 					}
-					flags = fcntl(consoles[x].p[1], F_GETFL);
-					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
+					ast_fd_set_flags(consoles[x].p[1], O_NONBLOCK);
 					consoles[x].mute = 1; /* Default is muted, we will un-mute if necessary */
 					/* Default uid and gid to -2, so then in cli.c/cli_has_permissions() we will be able
 					   to know if the user didn't send the credentials. */

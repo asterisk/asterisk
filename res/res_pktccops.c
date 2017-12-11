@@ -648,7 +648,7 @@ static struct cops_gate *cops_gate_cmd(int cmd, struct cops_cmts *cmts,
 
 static int cops_connect(char *host, char *port)
 {
-	int s, sfd = -1, flags;
+	int s, sfd = -1;
 	struct addrinfo hints;
 	struct addrinfo *rp;
 	struct addrinfo *result;
@@ -674,8 +674,7 @@ static int cops_connect(char *host, char *port)
 		if (sfd == -1) {
 			ast_log(LOG_WARNING, "Failed socket\n");
 		}
-		flags = fcntl(sfd, F_GETFL);
-		fcntl(sfd, F_SETFL, flags | O_NONBLOCK);
+		ast_fd_set_flags(sfd, O_NONBLOCK);
 #ifdef HAVE_SO_NOSIGPIPE
 		setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &trueval, sizeof(trueval));
 #endif
