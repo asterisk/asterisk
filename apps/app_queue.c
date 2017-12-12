@@ -1500,6 +1500,7 @@ struct member {
 	char state_exten[AST_MAX_EXTENSION]; /*!< Extension to get state from (if using hint) */
 	char state_context[AST_MAX_CONTEXT]; /*!< Context to use when getting state (if using hint) */
 	char state_interface[AST_CHANNEL_NAME]; /*!< Technology/Location from which to read devicestate changes */
+	int state_id;                        /*!< Extension state callback id (if using hint) */
 	char membername[80];                 /*!< Member name to use in queue logs */
 	int penalty;                         /*!< Are we a last resort? */
 	int calls;                           /*!< Number of calls serviced by this member */
@@ -2569,12 +2570,21 @@ static int get_queue_member_status(struct member *cur)
 	return ast_strlen_zero(cur->state_exten) ? ast_device_state(cur->state_interface) : extensionstate2devicestate(ast_extension_state(NULL, cur->state_context, cur->state_exten));
 }
 
+static void destroy_queue_member_cb(void *obj)
+{
+	struct member *mem = obj;
+
+	if (mem->state_id != -1) {
+		ast_extension_state_del(mem->state_id, extension_state_cb);
+	}
+}
+
 /*! \brief allocate space for new queue member and set fields based on parameters passed */
 static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused, const char *state_interface, int ringinuse)
 {
 	struct member *cur;
 
-	if ((cur = ao2_alloc(sizeof(*cur), NULL))) {
+	if ((cur = ao2_alloc(sizeof(*cur), destroy_queue_member_cb))) {
 		cur->ringinuse = ringinuse;
 		cur->penalty = penalty;
 		cur->paused = paused;
@@ -2598,6 +2608,10 @@ static struct member *create_queue_member(const char *interface, const char *mem
 
 			ast_copy_string(cur->state_exten, exten, sizeof(cur->state_exten));
 			ast_copy_string(cur->state_context, S_OR(context, "default"), sizeof(cur->state_context));
+
+			cur->state_id = ast_extension_state_add(cur->state_context, cur->state_exten, extension_state_cb, NULL);
+		} else {
+			cur->state_id = -1;
 		}
 		cur->status = get_queue_member_status(cur);
 	}
@@ -10876,8 +10890,6 @@ static int unload_module(void)
 
 	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
 
-	ast_extension_state_del(0, extension_state_cb);
-
 	ast_unload_realtime("queue_members");
 	ao2_cleanup(queues);
 	ao2_cleanup(pending_members);
@@ -11034,8 +11046,6 @@ static int load_module(void)
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_agent_complete_type);
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_agent_dump_type);
 	err |= STASIS_MESSAGE_TYPE_INIT(queue_agent_ringnoanswer_type);
-
-	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
 
 	if (err) {
 		unload_module();
