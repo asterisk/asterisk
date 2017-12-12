@@ -1176,6 +1176,25 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 	ast_rwlock_unlock(&codecs->codecs_lock);
 }
 
+enum ast_media_type ast_rtp_codecs_get_stream_type(struct ast_rtp_codecs *codecs)
+{
+	enum ast_media_type stream_type = AST_MEDIA_TYPE_UNKNOWN;
+	int payload;
+	struct ast_rtp_payload_type *type;
+
+	ast_rwlock_rdlock(&codecs->codecs_lock);
+	for (payload = 0; payload < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++payload) {
+		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, payload);
+		if (type && type->asterisk_format) {
+			stream_type = ast_format_get_type(type->format);
+			break;
+		}
+	}
+	ast_rwlock_unlock(&codecs->codecs_lock);
+
+	return stream_type;
+}
+
 struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *codecs, int payload)
 {
 	struct ast_rtp_payload_type *type = NULL;
