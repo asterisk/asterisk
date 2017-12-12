@@ -30465,6 +30465,17 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		ast_string_field_set(p, todnid, dnid);
 	}
 
+	/* If stripping the DNID left us with nothing, bail out */
+	if (ast_strlen_zero(tmp)) {
+		dialog_unlink_all(p);
+		dialog_unref(p, "unref dialog p from bad destination");
+		*cause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+		if (callid) {
+			ast_callid_unref(callid);
+		}
+		return NULL;
+	}
+
 	/* Divvy up the items separated by slashes */
 	AST_NONSTANDARD_APP_ARGS(args, tmp, '/');
 
