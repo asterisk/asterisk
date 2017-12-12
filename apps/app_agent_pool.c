@@ -455,11 +455,17 @@ struct agents_cfg {
 	struct ao2_container *agents;
 };
 
+static const char *agent_type_blacklist[] = {
+	"general",
+	"agents",
+	NULL,
+};
+
 static struct aco_type agent_type = {
 	.type = ACO_ITEM,
 	.name = "agent-id",
-	.category_match = ACO_BLACKLIST,
-	.category = "^(general|agents)$",
+	.category_match = ACO_BLACKLIST_ARRAY,
+	.category = (const char *)agent_type_blacklist,
 	.item_alloc = agent_cfg_alloc,
 	.item_find = agent_cfg_find,
 	.item_offset = offsetof(struct agents_cfg, agents),
@@ -471,8 +477,8 @@ static struct aco_type *agent_types[] = ACO_TYPES(&agent_type);
 static struct aco_type general_type = {
 	.type = ACO_GLOBAL,
 	.name = "global",
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 static struct aco_file agents_conf = {

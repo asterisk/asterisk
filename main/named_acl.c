@@ -80,8 +80,8 @@ static void *named_acl_find(struct ao2_container *container, const char *cat);
 static struct aco_type named_acl_type = {
 	.type = ACO_ITEM,                  /*!< named_acls are items stored in containers, not individual global objects */
 	.name = "named_acl",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",           /*!< Match everything but "general" */
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",           /*!< Match everything but "general" */
 	.item_alloc = named_acl_alloc,     /*!< A callback to allocate a new named_acl based on category */
 	.item_find = named_acl_find,       /*!< A callback to find a named_acl in some container of named_acls */
 	.item_offset = offsetof(struct named_acl_config, named_acl_list), /*!< Could leave this out since 0 */

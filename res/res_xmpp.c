@@ -820,8 +820,8 @@ static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
 	.name = "global",
 	.item_offset = offsetof(struct xmpp_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 struct aco_type *global_options[] = ACO_TYPES(&global_option);
@@ -829,8 +829,8 @@ struct aco_type *global_options[] = ACO_TYPES(&global_option);
 static struct aco_type client_option = {
 	.type = ACO_ITEM,
 	.name = "client",
-	.category_match = ACO_BLACKLIST,
-	.category = "^(general)$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.item_alloc = ast_xmpp_client_config_alloc,
 	.item_find = xmpp_config_find,
 	.item_prelink = xmpp_config_prelink,
