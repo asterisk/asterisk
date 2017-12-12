@@ -242,8 +242,8 @@ static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
 	.name = "globals",
 	.item_offset = offsetof(struct skel_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 struct aco_type *global_options[] = ACO_TYPES(&global_option);
@@ -253,18 +253,24 @@ static struct aco_type sound_option = {
 	.type = ACO_GLOBAL,
 	.name = "sounds",
 	.item_offset = offsetof(struct skel_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^sounds$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "sounds",
 };
 
 struct aco_type *sound_options[] = ACO_TYPES(&sound_option);
+
+static const char *level_categories[] = {
+	"general",
+	"sounds",
+	NULL,
+};
 
 /*! \brief An aco_type structure to link the everything but the "general" and "sounds" categories to the skel_level type */
 static struct aco_type level_option = {
 	.type = ACO_ITEM,
 	.name = "level",
-	.category_match = ACO_BLACKLIST,
-	.category = "^(general|sounds)$",
+	.category_match = ACO_BLACKLIST_ARRAY,
+	.category = (const char *)level_categories,
 	.item_alloc = skel_level_alloc,
 	.item_find = skel_level_find,
 	.item_offset = offsetof(struct skel_config, levels),
