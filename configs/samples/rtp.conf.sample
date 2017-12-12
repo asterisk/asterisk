@@ -21,9 +21,17 @@ rtpend=20000
 ; rtcpinterval = 5000 	; Milliseconds between rtcp reports
 			;(min 500, max 60000, default 5000)
 ;
-; Enable strict RTP protection. This will drop RTP packets that
-; do not come from the source of the RTP stream. This option is
-; enabled by default.
+; Enable strict RTP protection.  This will drop RTP packets that do not come
+; from the recoginized source of the RTP stream.  Strict RTP qualifies RTP
+; packet stream sources before accepting them upon initial connection and
+; when the connection is renegotiated (e.g., transfers and direct media).
+; Initial connection and renegotiation starts a learning mode to qualify
+; stream source addresses.  Once Asterisk has recognized a stream it will
+; allow other streams to qualify and replace the current stream for 5
+; seconds after starting learning mode.  Once learning mode completes the
+; current stream is locked in and cannot change until the next
+; renegotiation.
+; This option is enabled by default.
 ; strictrtp=yes
 ;
 ; Number of packets containing consecutive sequence values needed
