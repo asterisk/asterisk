@@ -1436,8 +1436,8 @@ static struct aco_type threadpool_option = {
 	.type = ACO_GLOBAL,
 	.name = "threadpool",
 	.item_offset = offsetof(struct stasis_config, threadpool_options),
-	.category = "^threadpool$",
-	.category_match = ACO_WHITELIST,
+	.category = "threadpool",
+	.category_match = ACO_WHITELIST_EXACT,
 };
 
 static struct aco_type *threadpool_options[] = ACO_TYPES(&threadpool_option);
@@ -1447,8 +1447,8 @@ static struct aco_type declined_option = {
 	.type = ACO_GLOBAL,
 	.name = "declined_message_types",
 	.item_offset = offsetof(struct stasis_config, declined_message_types),
-	.category_match = ACO_WHITELIST,
-	.category = "^declined_message_types$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "declined_message_types",
 };
 
 struct aco_type *declined_options[] = ACO_TYPES(&declined_option);

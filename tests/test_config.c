@@ -1458,13 +1458,19 @@ static struct aco_type global = {
 static struct aco_type global_defaults = {
 	.type = ACO_GLOBAL,
 	.item_offset = offsetof(struct test_config, global_defaults),
-	.category_match = ACO_WHITELIST,
-	.category = "^global_defaults$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "global_defaults",
 };
+static const char *item_blacklist[] = {
+	"global",
+	"global_defaults",
+	NULL,
+};
+
 static struct aco_type item = {
 	.type = ACO_ITEM,
-	.category_match = ACO_BLACKLIST,
-	.category = "^(global|global_defaults)$",
+	.category_match = ACO_BLACKLIST_ARRAY,
+	.category = (const char *)item_blacklist,
 	.item_alloc = test_item_alloc,
 	.item_find = test_item_find,
 	.item_offset = offsetof(struct test_config, items),
