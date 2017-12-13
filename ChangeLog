@@ -1,3 +1,52 @@
+2017-12-13 14:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert9 Released.
+
+2017-11-30 10:12 +0000 [3eea735a39]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2017-012: Place single RTCP report block at beginning of report.
+
+	  When the RTCP code was transitioned over to Stasis a code change
+	  was made to keep track of how many reports are present. This count
+	  controlled where report blocks were placed in the RTCP report.
+
+	  If a compound RTCP packet was received this logic would incorrectly
+	  place a report block in the wrong location resulting in a write
+	  to an invalid location.
+
+	  This change removes this counting logic and always places the report
+	  block at the first position. If in the future multiple reports are
+	  supported the logic can be extended but for now keeping a count
+	  serves no purpose.
+
+	  ASTERISK-27382
+	  ASTERISK-27429
+
+	  Change-Id: Iad6c8a9985c4b608ef493e19c421211615485116
+
+2017-12-05 18:04 +0000 [7c0bc72972]  Richard Mudgett <rmudgett@digium.com>
+
+	* CDR: Fix deadlock setting some CDR values.
+
+	  Setting channel variables with the AMI Originate action caused a deadlock
+	  when you set CDR(amaflags) or CDR(accountcode).  This path has the channel
+	  locked when the CDR function is called.  The CDR function then
+	  synchronously passes the job to a stasis thread.  The stasis handling
+	  function then attempts to lock the channel.  Deadlock results.
+
+	  * Avoid deadlock by making the CDR function handle setting amaflags and
+	  accountcode directly on the channel rather than passing it off to the CDR
+	  processing code under a stasis thread to do it.
+
+	  * Made the CHANNEL function and the CDR function process amaflags the same
+	  way.
+
+	  * Fixed referencing the wrong message type in cdr_prop_write().
+
+	  ASTERISK-27460
+
+	  Change-Id: I5eacb47586bc0b8f8ff76a19bd92d1dc38b75e8f
+
 2017-12-01 19:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert8 Released.
