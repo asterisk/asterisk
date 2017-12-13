@@ -17,7 +17,8 @@ change over time as best practices are defined.
         Recognizing potential issues with certain classes of authorization
 * [Avoid Privilege Escalations]:
         Disable the ability to execute functions that may escalate privileges
-
+* [Important Security Considerations]:
+        More information on the Asterisk Wiki
 
 ## Additional Links
 
@@ -386,3 +387,4 @@ In Asterisk 12 and later, live_dangerously defaults to no.
 [Reducing Pattern Match Typos]: #reducing-pattern-match-typos
 [Manager Class Authorizations]: #manager-class-authorizations
 [Avoid Privilege Escalations]: #avoid-privilege-escalations
+[Important Security Considerations]: https://wiki.asterisk.org/wiki/display/AST/Important+Security+Considerations
