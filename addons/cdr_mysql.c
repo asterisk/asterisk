@@ -128,7 +128,7 @@ static char *handle_cli_cdr_mysql_status(struct ast_cli_entry *e, int cmd, struc
 		else
 			snprintf(status, 255, "Connected to %s@%s", ast_str_buffer(dbname), ast_str_buffer(hostname));
 
-		if (!ast_strlen_zero(ast_str_buffer(dbuser)))
+		if (ast_str_strlen(dbuser))
 			snprintf(status2, 99, " with username %s", ast_str_buffer(dbuser));
 		if (ast_str_strlen(dbtable))
 			snprintf(status2, 99, " using table %s", ast_str_buffer(dbtable));
@@ -150,6 +150,16 @@ static char *handle_cli_cdr_mysql_status(struct ast_cli_entry *e, int cmd, struc
 static struct ast_cli_entry cdr_mysql_status_cli[] = {
 	AST_CLI_DEFINE(handle_cli_cdr_mysql_status, "Show connection status of cdr_mysql"),
 };
+
+static void configure_connection_charset(void)
+{
+	if (ast_str_strlen(dbcharset)) {
+		const char *charset = ast_str_buffer(dbcharset);
+		if (mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, charset)) {
+			ast_log(LOG_WARNING, "Failed to set connection charset. Data inserted might be invalid.\n");
+		}
+	}
+}
 
 static int mysql_log(struct ast_cdr *cdr)
 {
@@ -183,15 +193,13 @@ db_reconnect:
 		if (ssl_ca || ssl_cert || ssl_key) {
 			mysql_ssl_set(&mysql, ssl_key ? ast_str_buffer(ssl_key) : NULL, ssl_cert ? ast_str_buffer(ssl_cert) : NULL, ssl_ca ? ast_str_buffer(ssl_ca) : NULL, NULL, NULL);
 		}
+
+		configure_connection_charset();
+
 		if (mysql_real_connect(&mysql, ast_str_buffer(hostname), ast_str_buffer(dbuser), ast_str_buffer(password), ast_str_buffer(dbname), dbport, dbsock && ast_str_strlen(dbsock) ? ast_str_buffer(dbsock) : NULL, ssl_ca ? CLIENT_SSL : 0)) {
 			connected = 1;
 			connect_time = time(NULL);
 			records = 0;
-			if (dbcharset) {
-				ast_str_set(&sql1, 0, "SET NAMES '%s'", ast_str_buffer(dbcharset));
-				mysql_real_query(&mysql, ast_str_buffer(sql1), ast_str_strlen(sql1));
-				ast_debug(1, "SQL command as follows: %s\n", ast_str_buffer(sql1));
-			}
 		} else {
 			ast_log(LOG_ERROR, "Cannot connect to database server %s: (%d) %s\n", ast_str_buffer(hostname), mysql_errno(&mysql), mysql_error(&mysql));
 			connected = 0;
@@ -493,7 +501,7 @@ static int my_load_module(int reload)
 	res |= my_load_config_string(cfg, "global", "ssl_cert", &ssl_cert, "");
 	res |= my_load_config_string(cfg, "global", "ssl_key", &ssl_key, "");
 
-	res |= my_load_config_number(cfg, "global", "port", &dbport, 0);
+	res |= my_load_config_number(cfg, "global", "port", &dbport, MYSQL_PORT);
 	res |= my_load_config_number(cfg, "global", "timeout", &timeout, 0);
 	res |= my_load_config_string(cfg, "global", "compat", &compat, "no");
 	res |= my_load_config_string(cfg, "global", "cdrzone", &cdrzone, "");
@@ -533,15 +541,16 @@ static int my_load_module(int reload)
 	ast_debug(1, "Got hostname of %s\n", ast_str_buffer(hostname));
 	ast_debug(1, "Got port of %d\n", dbport);
 	ast_debug(1, "Got a timeout of %d\n", timeout);
-	if (dbsock)
+	if (ast_str_strlen(dbsock)) {
 		ast_debug(1, "Got sock file of %s\n", ast_str_buffer(dbsock));
+	}
 	ast_debug(1, "Got user of %s\n", ast_str_buffer(dbuser));
 	ast_debug(1, "Got dbname of %s\n", ast_str_buffer(dbname));
 	ast_debug(1, "Got password of %s\n", ast_str_buffer(password));
 	ast_debug(1, "%sunning in calldate compatibility mode\n", calldate_compat ? "R" : "Not r");
 	ast_debug(1, "Dates and times are localized to %s\n", S_OR(ast_str_buffer(cdrzone), "local timezone"));
 
-	if (dbcharset) {
+	if (ast_str_strlen(dbcharset)) {
 		ast_debug(1, "Got DB charset of %s\n", ast_str_buffer(dbcharset));
 	}
 
@@ -566,6 +575,9 @@ static int my_load_module(int reload)
 			NULL, NULL);
 	}
 	temp = dbsock && ast_str_strlen(dbsock) ? ast_str_buffer(dbsock) : NULL;
+
+	configure_connection_charset();
+
 	if (!mysql_real_connect(&mysql, ast_str_buffer(hostname), ast_str_buffer(dbuser), ast_str_buffer(password), ast_str_buffer(dbname), dbport, temp, ssl_ca && ast_str_strlen(ssl_ca) ? CLIENT_SSL : 0)) {
 		ast_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", ast_str_buffer(dbname), ast_str_buffer(hostname));
 		connected = 0;
@@ -575,11 +587,6 @@ static int my_load_module(int reload)
 		connected = 1;
 		records = 0;
 		connect_time = time(NULL);
-		if (dbcharset) {
-			snprintf(sqldesc, sizeof(sqldesc), "SET NAMES '%s'", ast_str_buffer(dbcharset));
-			mysql_real_query(&mysql, sqldesc, strlen(sqldesc));
-			ast_debug(1, "SQL command as follows: %s\n", sqldesc);
-		}
 
 		/* Get table description */
 		snprintf(sqldesc, sizeof(sqldesc), "DESC %s", dbtable ? ast_str_buffer(dbtable) : "cdr");
