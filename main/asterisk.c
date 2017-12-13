@@ -733,6 +733,27 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	int totalswap = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
+#elif defined(HAVE_SYSCTL)
+	static int pageshift;
+	struct vmtotal vmtotal;
+	struct timeval	boottime;
+	time_t	now;
+	int mib[2], pagesize, usedswap = 0;
+	size_t len;
+#endif
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show sysinfo";
+		e->usage =
+			"Usage: core show sysinfo\n"
+			"       List current system information.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+#if defined(HAVE_SYSINFO)
 	sysinfo(&sys_info);
 	uptime = sys_info.uptime / 3600;
 	physmem = sys_info.totalram * sys_info.mem_unit;
@@ -741,12 +762,6 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	freeswap = (sys_info.freeswap * sys_info.mem_unit) / 1024;
 	nprocs = sys_info.procs;
 #elif defined(HAVE_SYSCTL)
-	static int pageshift;
-	struct vmtotal vmtotal;
-	struct timeval	boottime;
-	time_t	now;
-	int mib[2], pagesize, usedswap = 0;
-	size_t len;
 	/* calculate the uptime by looking at boottime */
 	time(&now);
 	mib[0] = CTL_KERN;
@@ -793,17 +808,6 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	sysctl(mib, 2, &nprocs, &len, NULL, 0);
 #endif
 #endif
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show sysinfo";
-		e->usage =
-			"Usage: core show sysinfo\n"
-			"       List current system information.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
 
 	ast_cli(a->fd, "\nSystem Statistics\n");
 	ast_cli(a->fd, "-----------------\n");
