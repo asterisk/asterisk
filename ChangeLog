@@ -1,3 +1,212 @@
+2017-12-13 19:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.18-cert1-rc3 Released.
+
+2017-11-30 10:12 +0000 [10b3d4cea8]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2017-012: Place single RTCP report block at beginning of report.
+
+	  When the RTCP code was transitioned over to Stasis a code change
+	  was made to keep track of how many reports are present. This count
+	  controlled where report blocks were placed in the RTCP report.
+
+	  If a compound RTCP packet was received this logic would incorrectly
+	  place a report block in the wrong location resulting in a write
+	  to an invalid location.
+
+	  This change removes this counting logic and always places the report
+	  block at the first position. If in the future multiple reports are
+	  supported the logic can be extended but for now keeping a count
+	  serves no purpose.
+
+	  ASTERISK-27382
+	  ASTERISK-27429
+
+	  Change-Id: Iad6c8a9985c4b608ef493e19c421211615485116
+
+2017-12-07 17:51 +0000 [f493631fc6]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_pjsip/res_pjsip: Add CHANNEL(pjsip,request_uri)
+
+	  This patch does three things associated with the initial incoming INVITE
+	  request URI.
+
+	  1) Add access to the full initial incoming INVITE request URI.
+
+	  2) We were not setting DNID on incoming PJSIP channels.  The DNID is the
+	  user portion of the initial incoming INVITE Request-URI.  The value is
+	  accessed by reading CALLERID(dnid).
+
+	  3) Fix CHANNEL(pjsip,target_uri) documentation.
+
+	  * The initial incoming INVITE request URI is now available using
+	  CHANNEL(pjsip,request_uri).
+
+	  * Set the DNID on PJSIP channel creation so CALLERID(dnid) can return the
+	  initial incoming INVITE request URI user portion.
+
+	  * CHANNEL(pjsip,target_uri) now correctly documents that the target URI is
+	  the contact URI.
+
+	  * Refactored print_escaped_uri() out of channel_read_pjsip() to handle
+	  pjsip_uri_print() error condition when the buffer is too small.
+
+	  ASTERISK-27478
+
+	  Change-Id: I512e60d1f162395c946451becb37af3333337b33
+
+2017-12-07 18:22 +0000 [733231905f]  Kevin Harwell <kharwell@digium.com>
+
+	* pjsip_options: contacts sometimes not being updated on reload
+
+	  For both dynamic and static contacts it was possible that potential AOR
+	  changes were not being applied to all contacts. This was because the qualify
+	  and schedule code was only retrieving AOR's, and contacts with frequencies
+	  greater than zero.
+
+	  For instance the following could happen: and AOR/contact has a frequency of 5,
+	  it then gets set to 0, and then a reload occurs. All scheduled OPTIONS are
+	  stopped, a list of AOR's is retrieved with frequency > 0, but none are
+	  selected since in this scenario all are 0. The contact for the one previously
+	  set to 5 though does not get updated, so it's status remains "AVAILABLE".
+
+	  This patch makes it so all contacts (static and dynamic) are selected, and
+	  appropriately updated if need be.
+
+	  ASTERISK-27467 #close
+
+	  Change-Id: I7a920170f89c683af9505d4723a44fc6841decdb
+
+2017-12-07 18:18 +0000 [3585b56792]  Kevin Harwell <kharwell@digium.com>
+
+	* pjsip_options: dynamic contact's fields not updated on reload
+
+	  Dynamic contacts were not being properly updated on reload. As a matter of
+	  fact any changes to the AOR that a dynamic contact was associated with were
+	  not being applied.
+
+	  On reload, this patch makes it so for each dynamic contact, the associated
+	  AOR is now retrieved and the AOR's fields are applied to the contact.
+
+	  ASTERISK-27467
+
+	  Change-Id: I8e3165dc6a745218c1c9db837f77fafa0516985d
+
+2017-12-05 18:04 +0000 [8640e5d819]  Richard Mudgett <rmudgett@digium.com>
+
+	* CDR: Fix deadlock setting some CDR values.
+
+	  Setting channel variables with the AMI Originate action caused a deadlock
+	  when you set CDR(amaflags) or CDR(accountcode).  This path has the channel
+	  locked when the CDR function is called.  The CDR function then
+	  synchronously passes the job to a stasis thread.  The stasis handling
+	  function then attempts to lock the channel.  Deadlock results.
+
+	  * Avoid deadlock by making the CDR function handle setting amaflags and
+	  accountcode directly on the channel rather than passing it off to the CDR
+	  processing code under a stasis thread to do it.
+
+	  * Made the CHANNEL function and the CDR function process amaflags the same
+	  way.
+
+	  * Fixed referencing the wrong message type in cdr_prop_write().
+
+	  ASTERISK-27460
+
+	  Change-Id: I5eacb47586bc0b8f8ff76a19bd92d1dc38b75e8f
+
+2017-11-16 02:47 +0000 [aa967e1eda]  Pirmin Walthert <infos@nappsoft.ch>
+
+	* res_rtp_asterisk.c: Fix rtp source address learning for broken clients
+
+	  Some clients do not send rtp packets every ptime ms. This can lead to
+	  situations in which the rtp source learning algorithm will never learn
+	  the address of the client. This has been discovered on a Mac mini with
+	  a pjsip based softphone after updating to Sierra: as soon as USB
+	  headsets are involved, the softphone will send the second packet 30ms
+	  after the first, the third 30ms after the second and the fourth 1ms
+	  after the third. So in the old implmentation the rtp source learning
+	  algorithm was repeatedly reset on the fourth packet.
+
+	  The patch changes the algorithm in a way that doesn't take the arrival
+	  time between two consecutive packets into account but the time between
+	  the first and the last packet of a learning sequence.
+
+	  The patch also fixes a second problem: when a user was using a wrong
+	  value for the probation setting there was a LOG_WARNING output stating
+	  that the value had been set to the default value instead. However
+	  the code for setting the value back to defaults was missing.
+
+	  ASTERISK-27421 #close
+
+	  Change-Id: If778fe07678a6fd2041eaca7cd78267d0ef4fc6c
+
+2017-11-30 12:50 +0000 [23fae9b147]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_rtp_asterisk.c: Increase strictrtp learning timeout time.
+
+	  More complicated direct media reinvite negotiations can result in longer
+	  delays before direct media flows.  The strictrtp learning timeout time
+	  was too short.  One log showed that the first RTP packet came in just
+	  after three seconds.
+
+	  * Increase the strictrtp learning timeout time from 1.5 to 5 seconds.
+
+	  ASTERISK-27453
+
+	  Change-Id: Ic5e711164cbb91b4d1c1e40c83697755640f138c
+
+2017-11-30 14:38 +0000 [b205f05585]  George Joseph <gjoseph@digium.com>
+
+	* AST-2017-013: chan_skinny: Call pthread_detach when sess threads end
+
+	  chan_skinny creates a new thread for each new session.  In trying
+	  to be a good cleanup citizen, the threads are joinable and the
+	  unload_module function does a pthread_cancel() and a pthread_join()
+	  on any sessions that are active at that time.  This has an
+	  unintended side effect though. Since you can call pthread_join on a
+	  thread that's already terminated, pthreads keeps the thread's
+	  storage around until you explicitly call pthread_join (or
+	  pthread_detach()).   Since only the module_unload function was
+	  calling pthread_join, and even then only on the ones active at the
+	  tme, the storage for every thread/session ever created sticks
+	  around until asterisk exits.
+
+	  * A thread can detach itself so the session_destroy() function
+	    now calls pthread_detach() just before it frees the session
+	    memory allocation.  The module_unload function still takes care
+	    of the ones that are still active should the module be unloaded.
+
+	  ASTERISK-27452
+	  Reported by: Juan Sacco
+
+	  Change-Id: I9af7268eba14bf76960566f891320f97b974e6dd
+
+2017-12-01 06:07 +0000 [4d4c76c189]  Joshua Colp <jcolp@digium.com>
+
+	* res_http_post: Not all versions of gmime have GMIME_MAJOR_VERSION.
+
+	  This change makes the presence of the GMIME_MAJOR_VERSION
+	  definition optional, as not all versions of gmime actually
+	  define it.
+
+	  ASTERISK-27454
+
+	  Change-Id: I01d99590045971ed6787899147170a5954077238
+
+2017-11-18 21:13 +0000 [86e12d7f37]  Corey Farrell <git@cfware.com>
+
+	* tests: Fix warnings found on Mac.
+
+	  test_pbx used raise without explicitly including signal.h.  On Mac for
+	  some reason nothing else includes it.
+
+	  test_logger checked if an unsigned int was negative.  Switch the
+	  variable to 'int' so that error check can be effective.
+
+	  Change-Id: Ie1db5dd1818ac25cc2ae41b644f848b5865b1362
+	  (cherry picked from commit 5fe2e7bfdcd06935594823faba67c71ead7ebcf5)
+
 2017-11-15 17:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.18-cert1-rc2 Released.
