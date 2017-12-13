@@ -2387,52 +2387,6 @@ static int remoteconsolehandler(const char *s)
 	    (s[4] == '\0' || isspace(s[4]))) {
 		quit_handler(0, SHUTDOWN_FAST, 0);
 		ret = 1;
-	} else if (s[0]) {
-		char *shrunk = ast_strdupa(s);
-		char *cur;
-		char *prev;
-
-		/*
-		 * Remove duplicate spaces from shrunk for matching purposes.
-		 *
-		 * shrunk has at least one character in it to start with or we
-		 * couldn't get here.
-		 */
-		for (prev = shrunk, cur = shrunk + 1; *cur; ++cur) {
-			if (*prev == ' ' && *cur == ' ') {
-				/* Skip repeated space delimiter. */
-				continue;
-			}
-			*++prev = *cur;
-		}
-		*++prev = '\0';
-
-		if (strncasecmp(shrunk, "core set verbose ", 17) == 0) {
-			/*
-			 * We need to still set the rasterisk option_verbose in case we are
-			 * talking to an earlier version which doesn't prefilter verbose
-			 * levels.  This is really a compromise as we should always take
-			 * whatever the server sends.
-			 */
-
-			if (!strncasecmp(shrunk + 17, "off", 3)) {
-				ast_verb_console_set(0);
-			} else {
-				int verbose_new;
-				int atleast;
-
-				atleast = 8;
-				if (strncasecmp(shrunk + 17, "atleast ", atleast)) {
-					atleast = 0;
-				}
-
-				if (sscanf(shrunk + 17 + atleast, "%30d", &verbose_new) == 1) {
-					if (!atleast || ast_verb_console_get() < verbose_new) {
-						ast_verb_console_set(verbose_new);
-					}
-				}
-			}
-		}
 	}
 
 	return ret;
@@ -2755,6 +2709,9 @@ static void send_rasterisk_connect_commands(void)
 		snprintf(buf, sizeof(buf), "core set debug atleast %d", option_debug);
 		fdsend(ast_consock, buf);
 	}
+
+	/* Leave verbose filtering to the server. */
+	option_verbose = INT_MAX;
 
 	if (!ast_opt_mute) {
 		fdsend(ast_consock, "logger mute silent");
