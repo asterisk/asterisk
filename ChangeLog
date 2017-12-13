@@ -1,3 +1,30 @@
+2017-12-13 14:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.1.4 Released.
+
+2017-11-30 10:12 +0000 [7543397f50]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2017-012: Place single RTCP report block at beginning of report.
+
+	  When the RTCP code was transitioned over to Stasis a code change
+	  was made to keep track of how many reports are present. This count
+	  controlled where report blocks were placed in the RTCP report.
+
+	  If a compound RTCP packet was received this logic would incorrectly
+	  place a report block in the wrong location resulting in a write
+	  to an invalid location.
+
+	  This change removes this counting logic and always places the report
+	  block at the first position. If in the future multiple reports are
+	  supported the logic can be extended but for now keeping a count
+	  serves no purpose.
+
+	  ASTERISK-27382
+	  ASTERISK-27429
+
+	  Change-Id: Iad6c8a9985c4b608ef493e19c421211615485116
+	  (cherry picked from commit 6b3bbba6dd04aead17472662b45c30906b439176)
+
 2017-12-01 19:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.1.3 Released.

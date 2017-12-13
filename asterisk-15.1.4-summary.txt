@@ -1,8 +1,8 @@
                                 Release Summary
 
-                                asterisk-15.1.3
+                                asterisk-15.1.4
 
-                                Date: 2017-12-01
+                                Date: 2017-12-13
 
                            <asteriskteam@digium.com>
 
@@ -30,10 +30,10 @@
 
    Security Advisories:
 
-     * AST-2017-013
+     * AST-2017-012
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-15.1.2.
+   previous release, asterisk-15.1.3.
 
      ----------------------------------------------------------------------
 
@@ -51,8 +51,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 George Joseph                                   1 Juan Sacco             
-                                                     1 George Joseph          
+   1 Joshua Colp                                     1 Tzafrir Cohen          
+                                                     1 Vitezslav Novy         
 
      ----------------------------------------------------------------------
 
@@ -65,13 +65,20 @@
 
   Bug
 
-    Category: Channels/chan_skinny
+    Category: General
 
-   ASTERISK-27452: Security: chan_skinny: Memory exhaustion if flooded with
-   unauthenticated requests
-   Reported by: George Joseph
-     * [f79ec1ccc8] George Joseph -- AST-2017-013: chan_skinny: Call
-       pthread_detach when sess threads end
+   ASTERISK-27382: crash after an invalid rtcp packet from GT48 FXS gateway
+   Reported by: Tzafrir Cohen
+     * [7543397f50] Joshua Colp -- AST-2017-012: Place single RTCP report
+       block at beginning of report.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-27429: res_rtp_asterisk: Multiple reports in an RTCP packet will
+   write past where it should
+   Reported by: Vitezslav Novy
+     * [7543397f50] Joshua Colp -- AST-2017-012: Place single RTCP report
+       block at beginning of report.
 
      ----------------------------------------------------------------------
 
