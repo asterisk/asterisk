@@ -159,6 +159,8 @@ struct ast_sip_session {
 	unsigned int ended_while_deferred:1;
 	/*! DTMF mode to use with this session, from endpoint but can change */
 	enum ast_sip_dtmf_mode dtmf;
+	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
+	pjsip_uri *request_uri;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
