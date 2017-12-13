@@ -2019,6 +2019,12 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 		ast_copy_pj_str(domain, &sip_ruri->host, size);
 		pbx_builtin_setvar_helper(session->channel, "SIPDOMAIN", domain);
 
+		/*
+		 * Save off the INVITE Request-URI in case it is
+		 * needed: CHANNEL(pjsip,request_uri)
+		 */
+		session->request_uri = pjsip_uri_clone(session->inv_session->pool, ruri);
+
 		return SIP_GET_DEST_EXTEN_FOUND;
 	}
 
