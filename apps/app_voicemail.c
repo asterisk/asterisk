@@ -463,6 +463,23 @@
 		<description>
 		</description>
 	</manager>
+	<manager name="VoicemailUserStatus" language="en_US">
+		<synopsis>
+			Show the status of given voicemail user's info.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>The context you want to check.</para>
+			</parameter>
+			<parameter name="Mailbox" required="true">
+				<para>The mailbox you want to check.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Retrieves the status of the given voicemail user.</para>
+		</description>
+	</manager>
 	<manager name="VoicemailRefresh" language="en_US">
 		<synopsis>
 			Tell Asterisk to poll mailboxes for a change
@@ -1105,6 +1122,8 @@ static int write_password_to_file(const char *secretfn, const char *password);
 static const char *substitute_escapes(const char *value);
 static int message_range_and_existence_check(struct vm_state *vms, const char *msg_ids [], size_t num_msgs, int *msg_nums, struct ast_vm_user *vmu);
 static void notify_new_state(struct ast_vm_user *vmu);
+static int append_vmu_info_astman(struct mansession *s, struct ast_vm_user *vmu, const char* event_name, const char* actionid);
+
 
 /*!
  * Place a message in the indicated folder
@@ -13222,6 +13241,105 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
+/*! \brief Append vmu info string into given astman with event_name. */
+static int append_vmu_info_astman(
+		struct mansession *s,
+		struct ast_vm_user *vmu,
+		const char* event_name,
+		const char* actionid
+		)
+{
+	int new;
+	int old;
+
+	if((s == NULL) || (vmu == NULL) || (event_name == NULL) || (actionid == NULL)) {
+		ast_log(LOG_ERROR, "Wrong input parameter.");
+		return 0;
+	}
+
+	/* get mailbox count */
+	inboxcount(vmu->mailbox, &new, &old);
+
+	astman_append(s,
+		"Event: %s\r\n"
+		"%s"
+		"VMContext: %s\r\n"
+		"VoiceMailbox: %s\r\n"
+		"Fullname: %s\r\n"
+		"Email: %s\r\n"
+		"Pager: %s\r\n"
+		"ServerEmail: %s\r\n"
+		"FromString: %s\r\n"
+		"MailCommand: %s\r\n"
+		"Language: %s\r\n"
+		"TimeZone: %s\r\n"
+		"Callback: %s\r\n"
+		"Dialout: %s\r\n"
+		"UniqueID: %s\r\n"
+		"ExitContext: %s\r\n"
+		"SayDurationMinimum: %d\r\n"
+		"SayEnvelope: %s\r\n"
+		"SayCID: %s\r\n"
+		"AttachMessage: %s\r\n"
+		"AttachmentFormat: %s\r\n"
+		"DeleteMessage: %s\r\n"
+		"VolumeGain: %.2f\r\n"
+		"CanReview: %s\r\n"
+		"CallOperator: %s\r\n"
+		"MaxMessageCount: %d\r\n"
+		"MaxMessageLength: %d\r\n"
+		"NewMessageCount: %d\r\n"
+		"OldMessageCount: %d\r\n"
+#ifdef IMAP_STORAGE
+		"IMAPUser: %s\r\n"
+		"IMAPServer: %s\r\n"
+		"IMAPPort: %s\r\n"
+		"IMAPFlags: %s\r\n"
+#endif
+		"\r\n",
+
+		event_name,
+		actionid,
+		vmu->context,
+		vmu->mailbox,
+		vmu->fullname,
+		vmu->email,
+		vmu->pager,
+		ast_strlen_zero(vmu->serveremail) ? serveremail : vmu->serveremail,
+		ast_strlen_zero(vmu->fromstring) ? fromstring : vmu->fromstring,
+		mailcmd,
+		vmu->language,
+		vmu->zonetag,
+		vmu->callback,
+		vmu->dialout,
+		vmu->uniqueid,
+		vmu->exit,
+		vmu->saydurationm,
+		ast_test_flag(vmu, VM_ENVELOPE) ? "Yes" : "No",
+		ast_test_flag(vmu, VM_SAYCID) ? "Yes" : "No",
+		ast_test_flag(vmu, VM_ATTACH) ? "Yes" : "No",
+		vmu->attachfmt,
+		ast_test_flag(vmu, VM_DELETE) ? "Yes" : "No",
+		vmu->volgain,
+		ast_test_flag(vmu, VM_REVIEW) ? "Yes" : "No",
+		ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
+		vmu->maxmsg,
+		vmu->maxsecs,
+		new,
+		old
+#ifdef IMAP_STORAGE
+		,
+		vmu->imapuser,
+		vmu->imapserver,
+		vmu->imapport,
+		vmu->imapflags
+#endif
+		);
+
+	return 1;
+
+}
+
 static int manager_voicemail_refresh(struct mansession *s, const struct message *m)
 {
 	const char *context = astman_get_header(m, "Context");
@@ -13258,6 +13376,51 @@ static int manager_voicemail_refresh(struct mansession *s, const struct message 
 	return RESULT_SUCCESS;
 }
 
+static int manager_status_voicemail_user(struct mansession *s, const struct message *m)
+{
+	struct ast_vm_user *vmu = NULL;
+	const char *id = astman_get_header(m, "ActionID");
+	char actionid[128];
+	struct ast_vm_user svm;
+	int ret;
+
+	const char *context = astman_get_header(m, "Context");
+	const char *mailbox = astman_get_header(m, "Mailbox");
+
+	if ((ast_strlen_zero(context) || ast_strlen_zero(mailbox))) {
+		astman_send_error(s, m, "Need 'Context' and 'Mailbox' parameters.");
+		return RESULT_SUCCESS;
+	}
+
+	actionid[0] = '\0';
+	if (!ast_strlen_zero(id)) {
+		snprintf(actionid, sizeof(actionid), "ActionID: %s\r\n", id);
+	}
+
+	/* find user */
+	memset(&svm, 0, sizeof(svm));
+	vmu = find_user(&svm, context, mailbox);
+	if (!vmu) {
+		/* could not find it */
+		astman_send_ack(s, m, "There is no voicemail user of the given info.");
+		return RESULT_SUCCESS;
+	}
+
+	astman_send_listack(s, m, "Voicemail user detail will follow", "start");
+
+	/* append vmu info event */
+	ret = append_vmu_info_astman(s, vmu, "VoicemailUserDetail", actionid);
+	free_user(vmu);
+	if(ret == 0) {
+		ast_log(LOG_ERROR, "Could not append voicemail user info.");
+	}
+
+	astman_send_list_complete_start(s, m, "VoicemailUserDetailComplete", 1);
+	astman_send_list_complete_end(s);
+
+	return RESULT_SUCCESS;
+}
+
 /*! \brief Manager list voicemail users command */
 static int manager_list_voicemail_users(struct mansession *s, const struct message *m)
 {
@@ -13265,6 +13428,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	const char *id = astman_get_header(m, "ActionID");
 	char actionid[128];
 	int num_users = 0;
+	int ret;
 
 	actionid[0] = '\0';
 	if (!ast_strlen_zero(id)) {
@@ -13282,86 +13446,14 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	astman_send_listack(s, m, "Voicemail user list will follow", "start");
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		char dirname[256];
-		int new, old;
-		inboxcount(vmu->mailbox, &new, &old);
-		
-		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
-		astman_append(s,
-			"Event: VoicemailUserEntry\r\n"
-			"%s"
-			"VMContext: %s\r\n"
-			"VoiceMailbox: %s\r\n"
-			"Fullname: %s\r\n"
-			"Email: %s\r\n"
-			"Pager: %s\r\n"
-			"ServerEmail: %s\r\n"
-			"FromString: %s\r\n"
-			"MailCommand: %s\r\n"
-			"Language: %s\r\n"
-			"TimeZone: %s\r\n"
-			"Callback: %s\r\n"
-			"Dialout: %s\r\n"
-			"UniqueID: %s\r\n"
-			"ExitContext: %s\r\n"
-			"SayDurationMinimum: %d\r\n"
-			"SayEnvelope: %s\r\n"
-			"SayCID: %s\r\n"
-			"AttachMessage: %s\r\n"
-			"AttachmentFormat: %s\r\n"
-			"DeleteMessage: %s\r\n"
-			"VolumeGain: %.2f\r\n"
-			"CanReview: %s\r\n"
-			"CallOperator: %s\r\n"
-			"MaxMessageCount: %d\r\n"
-			"MaxMessageLength: %d\r\n"
-			"NewMessageCount: %d\r\n"
-			"OldMessageCount: %d\r\n"
-#ifdef IMAP_STORAGE
-			"IMAPUser: %s\r\n"
-			"IMAPServer: %s\r\n"
-			"IMAPPort: %s\r\n"
-			"IMAPFlags: %s\r\n"
-#endif
-			"\r\n",
-			actionid,
-			vmu->context,
-			vmu->mailbox,
-			vmu->fullname,
-			vmu->email,
-			vmu->pager,
-			ast_strlen_zero(vmu->serveremail) ? serveremail : vmu->serveremail,
-			ast_strlen_zero(vmu->fromstring) ? fromstring : vmu->fromstring,
-			mailcmd,
-			vmu->language,
-			vmu->zonetag,
-			vmu->callback,
-			vmu->dialout,
-			vmu->uniqueid,
-			vmu->exit,
-			vmu->saydurationm,
-			ast_test_flag(vmu, VM_ENVELOPE) ? "Yes" : "No",
-			ast_test_flag(vmu, VM_SAYCID) ? "Yes" : "No",
-			ast_test_flag(vmu, VM_ATTACH) ? "Yes" : "No",
-			vmu->attachfmt,
-			ast_test_flag(vmu, VM_DELETE) ? "Yes" : "No",
-			vmu->volgain,
-			ast_test_flag(vmu, VM_REVIEW) ? "Yes" : "No",
-			ast_test_flag(vmu, VM_OPERATOR) ? "Yes" : "No",
-			vmu->maxmsg,
-			vmu->maxsecs,
-			new,
-			old
-#ifdef IMAP_STORAGE
-			,
-			vmu->imapuser,
-			vmu->imapserver,
-			vmu->imapport,
-			vmu->imapflags
-#endif
-			);
+		/* append vmu info event */
+		ret = append_vmu_info_astman(s, vmu, "VoicemailUserEntry", actionid);
+		if(ret == 0) {
+			ast_log(LOG_ERROR, "Could not append voicemail user info.");
+			continue;
+		}
 		++num_users;
-	}		
+	}
 
 	astman_send_list_complete_start(s, m, "VoicemailUserEntryComplete", num_users);
 	astman_send_list_complete_end(s);
@@ -14891,6 +14983,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
 	res |= ast_custom_function_unregister(&vm_info_acf);
 	res |= ast_manager_unregister("VoicemailUsersList");
+	res |= ast_manager_unregister("VoicemailUserStatus");
 	res |= ast_manager_unregister("VoicemailRefresh");
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
@@ -14968,6 +15061,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&mailbox_exists_acf);
 	res |= ast_custom_function_register(&vm_info_acf);
 	res |= ast_manager_register_xml("VoicemailUsersList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_list_voicemail_users);
+	res |= ast_manager_register_xml("VoicemailUserStatus", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, manager_status_voicemail_user);
 	res |= ast_manager_register_xml("VoicemailRefresh", EVENT_FLAG_USER, manager_voicemail_refresh);
 #ifdef TEST_FRAMEWORK
 	res |= AST_TEST_REGISTER(test_voicemail_vmsayname);
