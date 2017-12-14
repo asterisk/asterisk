@@ -1253,7 +1253,8 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 		/* If this is an answer we need to use our current state, if it's an offer we need to use
 		 * the configured value.
 		 */
-		if (pjmedia_sdp_neg_get_state(session->inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
+		if (session->inv_session->neg
+			&& pjmedia_sdp_neg_get_state(session->inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
 			setup = dtls->get_setup(session_media->rtp);
 		} else {
 			setup = session->endpoint->media.rtp.dtls_cfg.default_setup;
