@@ -331,6 +331,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		}
 	} else {
 		state->announcement = 0;
+		state->samples = 0;
 	}
 
 	if (!state->class->total_files) {
@@ -1922,6 +1923,9 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 		ast_cli(a->fd, "Class: %s\n", class->name);
 		ast_cli(a->fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
 		ast_cli(a->fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
+		if (ast_test_flag(class, MOH_ANNOUNCEMENT)) {
+			ast_cli(a->fd, "\tAnnouncement: %s\n", S_OR(class->announcement, "<none>"));
+		}
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			ast_cli(a->fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 			ast_cli(a->fd, "\tKill Escalation Delay: %zu ms\n", class->kill_delay / 1000);
