@@ -586,9 +586,8 @@ static void *smdi_read(void *iface_p)
 	struct ast_smdi_interface *iface = iface_p;
 	struct ast_smdi_md_message *md_msg;
 	struct ast_smdi_mwi_message *mwi_msg;
-	char c = '\0';
 	char *cp = NULL;
-	int i;
+	int i, c;
 	int start = 0;
 
 	/* read an smdi message */
@@ -616,7 +615,14 @@ static void *smdi_read(void *iface_p)
 
 			/* read the message desk number */
 			for (i = 0; i < sizeof(md_msg->mesg_desk_num) - 1; i++) {
-				md_msg->mesg_desk_num[i] = fgetc(iface->file);
+				c = fgetc(iface->file);
+				if (c == EOF) {
+					ast_log(LOG_ERROR, "Unexpected EOF while reading MD message\n");
+					ao2_ref(md_msg, -1);
+					ao2_ref(iface, -1);
+					return NULL;
+				}
+				md_msg->mesg_desk_num[i] = (char) c;
 				ast_debug(1, "Read a '%c'\n", md_msg->mesg_desk_num[i]);
 			}
 
@@ -626,7 +632,14 @@ static void *smdi_read(void *iface_p)
 
 			/* read the message desk terminal number */
 			for (i = 0; i < sizeof(md_msg->mesg_desk_term) - 1; i++) {
-				md_msg->mesg_desk_term[i] = fgetc(iface->file);
+				c = fgetc(iface->file);
+				if (c == EOF) {
+					ast_log(LOG_ERROR, "Unexpected EOF while reading SMDI message\n");
+					ao2_ref(md_msg, -1);
+					ao2_ref(iface, -1);
+					return NULL;
+				}
+				md_msg->mesg_desk_term[i] = (char) c;
 				ast_debug(1, "Read a '%c'\n", md_msg->mesg_desk_term[i]);
 			}
 
@@ -635,7 +648,14 @@ static void *smdi_read(void *iface_p)
 			ast_debug(1, "The message desk terminal is '%s'\n", md_msg->mesg_desk_term);
 
 			/* read the message type */
-			md_msg->type = fgetc(iface->file);
+			c = fgetc(iface->file);
+			if (c == EOF) {
+				ast_log(LOG_ERROR, "Unexpected EOF while reading SMDI message\n");
+				ao2_ref(md_msg, -1);
+				ao2_ref(iface, -1);
+				return NULL;
+			}
+			md_msg->type = (char) c;
 
 			ast_debug(1, "Message type is '%c'\n", md_msg->type);
 
@@ -717,7 +737,7 @@ static void *smdi_read(void *iface_p)
 
 			/* discard the 'I' (from 'MWI') */
 			fgetc(iface->file);
-			
+
 			/* read the forwarding station number (may be blank) */
 			cp = &mwi_msg->fwd_st[0];
 			for (i = 0; i < sizeof(mwi_msg->fwd_st) - 1; i++) {
@@ -740,8 +760,16 @@ static void *smdi_read(void *iface_p)
 			ast_copy_string(mwi_msg->name, mwi_msg->fwd_st, sizeof(mwi_msg->name));
 
 			/* read the mwi failure cause */
-			for (i = 0; i < sizeof(mwi_msg->cause) - 1; i++)
-				mwi_msg->cause[i] = fgetc(iface->file);
+			for (i = 0; i < sizeof(mwi_msg->cause) - 1; i++) {
+				c = fgetc(iface->file);
+				if (c == EOF) {
+					ast_log(LOG_ERROR, "Unexpected EOF while reading MWI message\n");
+					ao2_ref(mwi_msg, -1);
+					ao2_ref(iface, -1);
+					return NULL;
+				}
+				mwi_msg->cause[i] = (char) c;
+			}
 
 			mwi_msg->cause[sizeof(mwi_msg->cause) - 1] = '\0';
 
