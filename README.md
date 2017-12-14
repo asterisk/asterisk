@@ -9,10 +9,7 @@
 the security information document before you attempt to configure and run
 an Asterisk server.
 
-  If you downloaded Asterisk as a tarball, see the security section in the PDF
-version of the documentation in doc/tex/asterisk.pdf.  Alternatively, pull up
-the HTML version of the documentation in doc/tex/asterisk/index.html.  The
-source for the security document is available in doc/tex/security.tex.
+See [Important Security Considerations] for more information.
 
 ## WHAT IS ASTERISK ?
 
@@ -269,4 +266,4 @@ Asterisk is a trademark of Digium, Inc.
 [CHANGES]: CHANGES
 [configs]: configs
 [doc]: doc
-
+[Important Security Considerations]: https://wiki.asterisk.org/wiki/display/AST/Important+Security+Considerations
