@@ -3878,10 +3878,15 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 
 	if (!session->pending_media_state->topology || !ast_stream_topology_get_count(session->pending_media_state->topology)) {
 		/* We've encountered a situation where we have been told to create a local SDP but noone has given us any indication
-		 * of what kind of stream topology they would like. As a fallback we use the topology from the configured endpoint.
+		 * of what kind of stream topology they would like. We try to not alter the current state of the SDP negotiation
+		 * by using what is currently negotiated. If this is unavailable we fall back to what is configured on the endpoint.
 		 */
 		ast_stream_topology_free(session->pending_media_state->topology);
-		session->pending_media_state->topology = ast_stream_topology_clone(session->endpoint->media.topology);
+		if (session->active_media_state->topology) {
+			session->pending_media_state->topology = ast_stream_topology_clone(session->active_media_state->topology);
+		} else {
+			session->pending_media_state->topology = ast_stream_topology_clone(session->endpoint->media.topology);
+		}
 		if (!session->pending_media_state->topology) {
 			return NULL;
 		}
