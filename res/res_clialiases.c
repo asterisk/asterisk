@@ -103,7 +103,7 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 	struct cli_alias tmp = {
 		.cli_entry.command = e->command,
 	};
-	char *generator;
+	char *generator = NULL;
 	const char *line;
 
 	/* Try to find the alias based on the CLI entry */
@@ -118,14 +118,10 @@ static char *cli_alias_passthrough(struct ast_cli_entry *e, int cmd, struct ast_
 	case CLI_GENERATE:
 		line = a->line;
 		line += (strlen(alias->alias));
-		if (!strncasecmp(alias->alias, alias->real_cmd, strlen(alias->alias))) {
-			generator = NULL;
-		} else if (!ast_strlen_zero(a->word)) {
+		if (strncasecmp(alias->alias, alias->real_cmd, strlen(alias->alias))) {
 			struct ast_str *real_cmd = ast_str_alloca(strlen(alias->real_cmd) + strlen(line) + 1);
 			ast_str_append(&real_cmd, 0, "%s%s", alias->real_cmd, line);
 			generator = ast_cli_generator(ast_str_buffer(real_cmd), a->word, a->n);
-		} else {
-			generator = ast_cli_generator(alias->real_cmd, a->word, a->n);
 		}
 		ao2_ref(alias, -1);
 		return generator;
