@@ -421,7 +421,7 @@ int hepv3_is_loaded(void)
 {
 	RAII_VAR(struct module_config *, config, ao2_global_obj_ref(global_config), ao2_cleanup);
 
-	return (config != NULL) ? 1 : 0;
+	return config && config->general->enabled;
 }
 
 struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t len)
