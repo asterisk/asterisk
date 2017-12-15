@@ -1405,6 +1405,9 @@ static int load_module(void)
 	ast_custom_function_register(&smdi_msg_retrieve_function);
 	ast_custom_function_register(&smdi_msg_function);
 
+	/* For Optional API. */
+	ast_module_shutdown_ref(AST_MODULE_SELF);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -1433,9 +1436,6 @@ static int _unload_module(int fromload)
 	}
 
 	smdi_loaded = 0;
-
-	/* For Optional API. */
-	ast_module_shutdown_ref(AST_MODULE_SELF);
 
 	return 0;
 }
