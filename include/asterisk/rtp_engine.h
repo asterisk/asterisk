@@ -1383,6 +1383,16 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, int payload);
 
 /*!
+ * \brief Determine the type of RTP stream media from the codecs mapped.
+ * \since 13.19.0
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \return Media type or AST_MEDIA_TYPE_UNKNOWN if no codecs mapped.
+ */
+enum ast_media_type ast_rtp_codecs_get_stream_type(struct ast_rtp_codecs *codecs);
+
+/*!
  * \brief Retrieve rx payload mapped information by payload type
  *
  * \param codecs Codecs structure to look in

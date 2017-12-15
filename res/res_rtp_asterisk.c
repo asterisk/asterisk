@@ -256,6 +256,8 @@ struct rtp_learning_info {
 	struct timeval received; /*!< The time of the first received packet */
 	int max_seq;	/*!< The highest sequence number received */
 	int packets;	/*!< The number of remaining packets before the source is accepted */
+	/*! Type of media stream carried by the RTP instance */
+	enum ast_media_type stream_type;
 };
 
 #ifdef HAVE_OPENSSL_SRTP
@@ -3095,18 +3097,30 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 		info->received = ast_tvnow();
 	}
 
-	/*
-	 * Protect against packet floods by checking that we
-	 * received the packet sequence in at least the minimum
-	 * allowed time.
-	 */
-	if (ast_tvzero(info->received)) {
-		info->received = ast_tvnow();
-	} else if (!info->packets && (ast_tvdiff_ms(ast_tvnow(), info->received) < learning_min_duration )) {
-		/* Packet flood; reset */
-		info->packets = learning_min_sequential - 1;
-		info->received = ast_tvnow();
+	switch (info->stream_type) {
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_AUDIO:
+		/*
+		 * Protect against packet floods by checking that we
+		 * received the packet sequence in at least the minimum
+		 * allowed time.
+		 */
+		if (ast_tvzero(info->received)) {
+			info->received = ast_tvnow();
+		} else if (!info->packets
+			&& ast_tvdiff_ms(ast_tvnow(), info->received) < learning_min_duration) {
+			/* Packet flood; reset */
+			info->packets = learning_min_sequential - 1;
+			info->received = ast_tvnow();
+		}
+		break;
+	case AST_MEDIA_TYPE_VIDEO:
+	case AST_MEDIA_TYPE_IMAGE:
+	case AST_MEDIA_TYPE_TEXT:
+	case AST_MEDIA_TYPE_END:
+		break;
 	}
+
 	info->max_seq = seq;
 
 	return info->packets;
@@ -5951,6 +5965,15 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			 * source and we should switch to it.
 			 */
 			if (!ast_sockaddr_cmp(&rtp->rtp_source_learn.proposed_address, &addr)) {
+				if (rtp->rtp_source_learn.stream_type == AST_MEDIA_TYPE_UNKNOWN) {
+					struct ast_rtp_codecs *codecs;
+
+					codecs = ast_rtp_instance_get_codecs(instance);
+					rtp->rtp_source_learn.stream_type =
+						ast_rtp_codecs_get_stream_type(codecs);
+					ast_verb(4, "%p -- Strict RTP qualifying stream type: %s\n",
+						rtp, ast_codec_media_type2str(rtp->rtp_source_learn.stream_type));
+				}
 				if (!rtp_learning_rtp_seq_update(&rtp->rtp_source_learn, seqno)) {
 					/* Accept the new RTP stream */
 					ast_verb(4, "%p -- Strict RTP switching source address to %s\n",
