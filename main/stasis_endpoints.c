@@ -82,7 +82,7 @@
 						<enum name="Unknown"/>
 						<enum name="Unreachable"/>
 						<enum name="Reachable"/>
-						<enum name="Created"/>
+						<enum name="Unqualified"/>
 						<enum name="Removed"/>
 						<enum name="Updated"/>
 					</enumlist>

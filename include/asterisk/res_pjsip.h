@@ -289,9 +289,13 @@ struct ast_sip_contact {
  * \brief Status type for a contact.
  */
 enum ast_sip_contact_status_type {
+	/*! Frequency > 0, but no response from remote uri */
 	UNAVAILABLE,
+	/*! Frequency > 0, and got response from remote uri */
 	AVAILABLE,
+	/*! Default last status, and when a contact status object is not found */
 	UNKNOWN,
+	/*! Frequency == 0, has a contact, but don't know status (non-qualified) */
 	CREATED,
 	REMOVED,
 };

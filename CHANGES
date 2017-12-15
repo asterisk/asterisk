@@ -26,6 +26,17 @@ chan_sip
    headers be retrieved from the REFER message and made accessible to the
    dialplan in the hash TRANSFER_DATA.
 
+AMI
+------------------
+ * The ContactStatus and Status fields for the manager events ContactStatus
+   and ContactStatusDetail are now set to "NonQualified" when a contact exists
+   but has not been qualified.
+
+ARI
+------------------
+ * The ContactInfo event's contact_status field is now set to "NonQualified"
+   when a contact exists but has not been qualified.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
