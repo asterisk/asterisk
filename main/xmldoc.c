@@ -1411,7 +1411,7 @@ static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **b
 static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *tabs, const char *posttabs, struct ast_str **buffer)
 {
 	struct ast_xml_node *node = fixnode;
-	int ret = 0, i, count = 0;
+	int ret = 0, i;
 
 	if (!node || !ast_xml_node_get_children(node)) {
 		return ret;
@@ -1438,8 +1438,8 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 		/* parse <para> elements inside special tags. */
 		for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
 			/* first <para> just print it without tabs at the begining. */
-			if ((xmldoc_parse_para(node, (!count ? "" : tabs), posttabs, buffer) == 2)
-				|| (xmldoc_parse_info(node, (!count ? "": tabs), posttabs, buffer) == 2)) {
+			if ((xmldoc_parse_para(node, "", posttabs, buffer) == 2)
+				|| (xmldoc_parse_info(node, "", posttabs, buffer) == 2)) {
 				ret = 2;
 			}
 		}
