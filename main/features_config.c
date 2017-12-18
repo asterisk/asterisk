@@ -219,7 +219,7 @@
 					The <replaceable>DYNAMIC_FEATURES</replaceable> is a <literal>#</literal> separated list of
 					either applicationmap item names or featuregroup names.</para>
 				</description>
-				<configOption name="^.*$" regex="true">
+				<configOption name="">
 					<synopsis>A custom feature to invoke during a bridged call</synopsis>
 					<description>
 						<para>Each item listed here is a comma-separated list of parameters that determine
@@ -272,7 +272,7 @@
 					DTMF sequence used to invoke an applicationmap item to be overridden with
 					a different sequence.</para>
 				</description>
-				<configOption name="^.*$" regex="true">
+				<configOption name="">
 					<synopsis>Applicationmap item to place in the feature group</synopsis>
 					<description>
 						<para>Each item here must be a name of an item in the applicationmap. The
@@ -578,24 +578,24 @@ struct features_config {
 static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
 	.name = "globals",
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 	.item_offset = offsetof(struct features_config, global),
 };
 
 static struct aco_type featuremap_option = {
 	.type = ACO_GLOBAL,
 	.name = "featuremap",
-	.category_match = ACO_WHITELIST,
-	.category = "^featuremap$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "featuremap",
 	.item_offset = offsetof(struct features_config, featuremap),
 };
 
 static struct aco_type applicationmap_option = {
 	.type = ACO_GLOBAL,
 	.name = "applicationmap",
-	.category_match = ACO_WHITELIST,
-	.category = "^applicationmap$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "applicationmap",
 	.item_offset = offsetof(struct features_config, applicationmap),
 };
 
@@ -1851,13 +1851,13 @@ static int load_config(void)
 	aco_option_register_custom(&cfg_info, "automixmon", ACO_EXACT, featuremap_options,
 			DEFAULT_FEATUREMAP_AUTOMIXMON, featuremap_handler, 0);
 
-	aco_option_register_custom(&cfg_info, "^.*$", ACO_REGEX, applicationmap_options,
+	aco_option_register_custom(&cfg_info, "", ACO_PREFIX, applicationmap_options,
 			"", applicationmap_handler, 0);
 
-	aco_option_register_custom(&cfg_info, "^.*$", ACO_REGEX, featuregroup_options,
+	aco_option_register_custom(&cfg_info, "", ACO_PREFIX, featuregroup_options,
 			"", featuregroup_handler, 0);
 
-	aco_option_register_custom_nodoc(&cfg_info, "^.*$", ACO_REGEX, parkinglot_options,
+	aco_option_register_custom_nodoc(&cfg_info, "", ACO_PREFIX, parkinglot_options,
 			"", unsupported_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {

@@ -239,9 +239,9 @@ static int udptl_pre_apply_config(void);
 static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
 	.name = "global",
-	.category_match = ACO_WHITELIST,
+	.category_match = ACO_WHITELIST_EXACT,
 	.item_offset = offsetof(struct udptl_config, general),
-	.category = "^general$",
+	.category = "general",
 };
 
 static struct aco_type *general_options[] = ACO_TYPES(&general_option);

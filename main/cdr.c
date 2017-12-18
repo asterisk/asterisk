@@ -241,8 +241,29 @@ static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
 	.name = "general",
 	.item_offset = offsetof(struct module_config, general),
-	.category = "^general$",
-	.category_match = ACO_WHITELIST,
+	.category = "general",
+	.category_match = ACO_WHITELIST_EXACT,
+};
+
+/*! Config sections used by existing modules. Do not add to this list. */
+static const char *ignore_categories[] = {
+	"csv",
+	"custom",
+	"manager",
+	"odbc",
+	"pgsql",
+	"radius",
+	"sqlite",
+	"tds",
+	"mysql",
+	NULL,
+};
+
+static struct aco_type ignore_option = {
+	.type = ACO_IGNORE,
+	.name = "modules",
+	.category = (const char*)ignore_categories,
+	.category_match = ACO_WHITELIST_ARRAY,
 };
 
 static void *module_config_alloc(void);
@@ -252,8 +273,7 @@ static void module_config_post_apply(void);
 /*! \brief The file definition */
 static struct aco_file module_file_conf = {
 	.filename = "cdr.conf",
-	.skip_category = "(^csv$|^custom$|^manager$|^odbc$|^pgsql$|^radius$|^sqlite$|^tds$|^mysql$)",
-	.types = ACO_TYPES(&general_option),
+	.types = ACO_TYPES(&general_option, &ignore_option),
 };
 
 CONFIG_INFO_CORE("cdr", cfg_info, module_configs, module_config_alloc,

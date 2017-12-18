@@ -82,7 +82,7 @@
 					order; any other header is treated as part of the SIP
 					request.</para>
 				</description>
-				<configOption name="^.*$">
+				<configOption name="">
 					<synopsis>A key/value pair to add to a NOTIFY request.</synopsis>
 					<description>
 						<para>If the key is <literal>Content</literal>,
@@ -234,8 +234,8 @@ static void *notify_cfg_alloc(void)
 static struct aco_type notify_option = {
 	.type = ACO_ITEM,
 	.name = "notify",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.item_offset = offsetof(struct notify_cfg, notify_options),
 	.item_alloc = notify_option_alloc,
 	.item_find = notify_option_find
@@ -993,7 +993,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	aco_option_register_custom(&notify_cfg, "^.*$", ACO_REGEX, notify_options,
+	aco_option_register_custom(&notify_cfg, "", ACO_PREFIX, notify_options,
 				   "", notify_option_handler, 0);
 
 	if (aco_process_config(&notify_cfg, 0)) {

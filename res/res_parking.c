@@ -291,8 +291,8 @@ static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
 	.name = "globals",
 	.item_offset = offsetof(struct parking_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 struct aco_type *global_options[] = ACO_TYPES(&global_option);
@@ -300,8 +300,8 @@ struct aco_type *global_options[] = ACO_TYPES(&global_option);
 static struct aco_type parking_lot_type = {
 	.type = ACO_ITEM,
 	.name = "parking_lot",
-	.category_match = ACO_BLACKLIST,
-	.category = "^(general)$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.item_alloc = parking_lot_cfg_alloc,
 	.item_find = named_item_find,
 	.item_offset = offsetof(struct parking_config, parking_lots),
