@@ -2454,12 +2454,12 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
  * \param cand_cdr The \ref cdr_object that is a candidate
  *
  */
-static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *base_cand_cdr)
+static void bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *base_cand_cdr)
 {
 	struct cdr_object_snapshot *party_a;
 	struct cdr_object *cand_cdr;
 
-	SCOPED_AO2LOCK(lock, base_cand_cdr);
+	ao2_lock(base_cand_cdr);
 
 	for (cand_cdr = base_cand_cdr; cand_cdr; cand_cdr = cand_cdr->next) {
 		/* Skip any records that are not in this bridge */
@@ -2471,7 +2471,7 @@ static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *b
 		if (!strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)
 			|| (cdr->party_b.snapshot
 				&& !strcasecmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name))) {
-			return 0;
+			break;
 		}
 
 		party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
@@ -2479,7 +2479,7 @@ static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *b
 		 * Party B */
 		if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
 			bridge_candidate_add_to_cdr(cdr, &cand_cdr->party_a);
-			return 0;
+			break;
 		}
 
 		/* We're Party B. Check if we can add ourselves immediately or if we need
@@ -2499,9 +2499,11 @@ static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *b
 			 */
 			memset(&cand_cdr->end, 0, sizeof(cand_cdr->end));
 		}
-		return 0;
+
+		break;
 	}
-	return 0;
+
+	ao2_unlock(base_cand_cdr);
 }
 
 /*!
@@ -2584,6 +2586,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 
 	ao2_lock(cdr);
 
+try_again:
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (it_cdr->fn_table->process_party_a) {
 			CDR_DEBUG("%p - Updating Party A %s snapshot\n", it_cdr,
@@ -2636,7 +2639,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 			/* This is guaranteed to succeed: the new CDR is created in the single state
 			 * and will be able to handle the bridge enter message
 			 */
-			handle_standard_bridge_enter_message(cdr, bridge, channel);
+			goto try_again;
 		}
 	}
 	ao2_unlock(cdr);
