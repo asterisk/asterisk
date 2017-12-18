@@ -99,7 +99,6 @@
 #include "asterisk/localtime.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/netsock.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/astobj2.h"
@@ -122,6 +121,7 @@
 #include "iax2/include/provision.h"
 #include "iax2/include/codec_pref.h"
 #include "iax2/include/format_compatibility.h"
+#include "iax2/include/netsock.h"
 
 #include "jitterbuf.h"
 
