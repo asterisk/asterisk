@@ -131,7 +131,7 @@ static int noop_handler_fn(const struct aco_option *opt, struct ast_variable *va
 static int chararray_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj);
 
 #ifdef AST_XML_DOCS
-static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, unsigned int matches);
+static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, enum aco_category_op category_match);
 static int xmldoc_update_config_option(struct aco_type **types, const char *module, const char *name, const char *object_name, const char *default_value, unsigned int regex, enum aco_option_type type);
 #endif
 
@@ -373,6 +373,8 @@ static int find_option_cb(void *obj, void *arg, int flags)
 	switch (match->match_type) {
 	case ACO_EXACT:
 		return strcasecmp(name, match->name) ? 0 : CMP_MATCH | CMP_STOP;
+	case ACO_PREFIX:
+		return strncasecmp(name, match->name, strlen(match->name)) ? 0 : CMP_MATCH | CMP_STOP;
 	case ACO_REGEX:
 		return regexec(match->name_regex, name, 0, NULL, 0) ? 0 : CMP_MATCH | CMP_STOP;
 	}
@@ -402,6 +404,45 @@ struct ao2_container *aco_option_container_alloc(void)
 	return ao2_container_alloc(CONFIG_OPT_BUCKETS, config_opt_hash, config_opt_cmp);
 }
 
+static int internal_aco_type_category_check(struct aco_type *match, const char *category)
+{
+	const char **categories = (const char **)match->category;
+
+	switch (match->category_match) {
+	case ACO_WHITELIST:
+		return regexec(match->internal->regex, category, 0, NULL, 0);
+
+	case ACO_BLACKLIST:
+		return !regexec(match->internal->regex, category, 0, NULL, 0);
+
+	case ACO_WHITELIST_EXACT:
+		return strcasecmp(match->category, category);
+
+	case ACO_BLACKLIST_EXACT:
+		return !strcasecmp(match->category, category);
+
+	case ACO_WHITELIST_ARRAY:
+		while (*categories) {
+			if (!strcasecmp(*categories, category)) {
+				return 0;
+			}
+			categories++;
+		}
+		return -1;
+
+	case ACO_BLACKLIST_ARRAY:
+		while (*categories) {
+			if (!strcasecmp(*categories, category)) {
+				return -1;
+			}
+			categories++;
+		}
+		return 0;
+	}
+
+	return -1;
+}
+
 static struct aco_type *internal_aco_type_find(struct aco_file *file, struct ast_config *cfg, const char *category)
 {
 	size_t x;
@@ -410,7 +451,7 @@ static struct aco_type *internal_aco_type_find(struct aco_file *file, struct ast
 
 	for (x = 0, match = file->types[x]; match; match = file->types[++x]) {
 		/* First make sure we are an object that can service this category */
-		if (!regexec(match->internal->regex, category, 0, NULL, 0) == !match->category_match) {
+		if (internal_aco_type_category_check(match, category)) {
 			continue;
 		}
 
@@ -481,6 +522,10 @@ static int process_category(struct ast_config *cfg, struct aco_info *info, struc
 	if (!(type = internal_aco_type_find(file, cfg, cat))) {
 		ast_log(LOG_ERROR, "Could not find config type for category '%s' in '%s'\n", cat, file->filename);
 		return -1;
+	}
+
+	if (type->type == ACO_IGNORE) {
+		return 0;
 	}
 
 	field = info->internal->pending + type->item_offset;
@@ -630,6 +675,10 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 		/* set defaults for global objects */
 		for (i = 0, match = file->types[i]; match; match = file->types[++i]) {
 			void **field = info->internal->pending + match->item_offset;
+
+			if (match->type == ACO_IGNORE) {
+				continue;
+			}
 
 			if (match->type != ACO_GLOBAL || !*field) {
 				continue;
@@ -797,9 +846,19 @@ static int internal_type_init(struct aco_type *type)
 		return -1;
 	}
 
-	if (!(type->internal->regex = build_regex(type->category))) {
-		internal_type_destroy(type);
-		return -1;
+	switch (type->category_match) {
+	case ACO_BLACKLIST:
+	case ACO_WHITELIST:
+		if (!(type->internal->regex = build_regex(type->category))) {
+			internal_type_destroy(type);
+			return -1;
+		}
+		break;
+	case ACO_BLACKLIST_EXACT:
+	case ACO_WHITELIST_EXACT:
+	case ACO_BLACKLIST_ARRAY:
+	case ACO_WHITELIST_ARRAY:
+		break;
 	}
 
 	if (!(type->internal->opts = aco_option_container_alloc())) {
@@ -828,7 +887,8 @@ int aco_info_init(struct aco_info *info)
 #ifdef AST_XML_DOCS
 			if (!info->hidden &&
 				!type->hidden &&
-				xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
+				type->type != ACO_IGNORE &&
+				xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match)) {
 				goto error;
 			}
 #endif /* AST_XML_DOCS */
@@ -989,7 +1049,7 @@ static char *complete_config_option(const char *module, const char *option, cons
 /*! \internal
  * \brief Update the XML documentation for a config type based on its registration
  */
-static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, unsigned int matches)
+static int xmldoc_update_config_type(const char *module, const char *name, const char *category, const char *matchfield, const char *matchvalue, enum aco_category_op category_match)
 {
 	RAII_VAR(struct ast_xml_xpath_results *, results, NULL, ast_xml_xpath_results_free);
 	RAII_VAR(struct ast_xml_doc_item *, config_info, ao2_find(xmldocs, module, OBJ_KEY), ao2_cleanup);
@@ -1028,7 +1088,18 @@ static int xmldoc_update_config_type(const char *module, const char *name, const
 	}
 
 	ast_xml_set_text(tmp, category);
-	ast_xml_set_attribute(tmp, "match", matches ? "true" : "false");
+	switch (category_match) {
+	case ACO_WHITELIST:
+	case ACO_WHITELIST_EXACT:
+	case ACO_WHITELIST_ARRAY:
+		ast_xml_set_attribute(tmp, "match", "true");
+		break;
+	case ACO_BLACKLIST:
+	case ACO_BLACKLIST_EXACT:
+	case ACO_BLACKLIST_ARRAY:
+		ast_xml_set_attribute(tmp, "match", "false");
+		break;
+	}
 
 	if (!ast_strlen_zero(matchfield) && !(tmp = ast_xml_new_child(matchinfo, "field"))) {
 		ast_log(LOG_WARNING, "Could not add %s attribute for type '%s' in module '%s'\n", matchfield, name, module);

@@ -40,18 +40,30 @@ struct aco_type_internal;
 enum aco_type_t {
 	ACO_GLOBAL,
 	ACO_ITEM,
+	ACO_IGNORE,
 };
 
-/*! \brief Whether a category regex is a blackist or a whitelist */
+/*! Type of category matching to perform */
 enum aco_category_op {
+	/*! Regex based blacklist. */
 	ACO_BLACKLIST = 0,
+	/*! Regex based whitelist. */
 	ACO_WHITELIST,
+	/*! Blacklist with a single string matched with strcasecmp. */
+	ACO_BLACKLIST_EXACT,
+	/*! Whitelist with a single string matched with strcasecmp. */
+	ACO_WHITELIST_EXACT,
+	/*! Blacklist with a NULL terminated array of strings matched with strcasecmp. */
+	ACO_BLACKLIST_ARRAY,
+	/*! Whitelist with a NULL terminated array of strings matched with strcasecmp. */
+	ACO_WHITELIST_ARRAY,
 };
 
 /*! \brief What kind of matching should be done on an option name */
 enum aco_matchtype {
 	ACO_EXACT = 1,
 	ACO_REGEX,
+	ACO_PREFIX,
 };
 
 /*! Callback functions for option parsing via aco_process_config() */

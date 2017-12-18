@@ -39,8 +39,8 @@ static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
 	.name = "general",
 	.item_offset = offsetof(struct ast_ari_conf, general),
-	.category = "^general$",
-	.category_match = ACO_WHITELIST,
+	.category = "general",
+	.category_match = ACO_WHITELIST_EXACT,
 };
 
 static struct aco_type *general_options[] = ACO_TYPES(&general_option);
@@ -156,8 +156,8 @@ static void *user_find(struct ao2_container *tmp_container, const char *cat)
 static struct aco_type user_option = {
 	.type = ACO_ITEM,
 	.name = "user",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.matchfield = "type",
 	.matchvalue = "user",
 	.item_alloc = user_alloc,

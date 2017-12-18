@@ -142,8 +142,8 @@ static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
 	.name = "general",
 	.item_offset = offsetof(struct unbound_config, global),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 static struct aco_type *global_options[] = ACO_TYPES(&global_option);
