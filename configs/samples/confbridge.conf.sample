@@ -228,8 +228,8 @@ type=bridge
                 ; left the conference. This is used for user intros.
                 ; Example "_____ has left the conference"
 ;sound_kicked ; The sound played to a user who has been kicked from the conference.
-;sound_muted  ; The sound played when the mute option it toggled on.
-;sound_unmuted  ; The sound played when the mute option it toggled off.
+;sound_muted  ; The sound played when the mute option is toggled on using DTMF menu.
+;sound_unmuted  ; The sound played when the mute option is toggled off using DTMF menu.
 ;sound_only_person ; The sound played when the user is the only person in the conference.
 ;sound_only_one ; The sound played to a user when there is only one other
                 ; person is in the conference.
