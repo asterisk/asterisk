@@ -1508,16 +1508,14 @@ static int tzparse(const char *name, struct state *sp, const int lastditch)
 			}
 		} else {
 			long	theirstdoffset;
-			long	theirdstoffset;
 			long	theiroffset;
-			int	isdst;
 			int	i;
 			int	j;
 
 			if (*name != '\0')
 				return -1;
 			/*
-			** Initial values of theirstdoffset and theirdstoffset.
+			** Initial values of theirstdoffset.
 			*/
 			theirstdoffset = 0;
 			for (i = 0; i < sp->timecnt; ++i) {
@@ -1528,19 +1526,6 @@ static int tzparse(const char *name, struct state *sp, const int lastditch)
 					break;
 				}
 			}
-			theirdstoffset = 0;
-			for (i = 0; i < sp->timecnt; ++i) {
-				j = sp->types[i];
-				if (sp->ttis[j].tt_isdst) {
-					theirdstoffset =
-						-sp->ttis[j].tt_gmtoff;
-					break;
-				}
-			}
-			/*
-			** Initially we're assumed to be in standard time.
-			*/
-			isdst = FALSE;
 			theiroffset = theirstdoffset;
 			/*
 			** Now juggle transition times and types
@@ -1552,32 +1537,13 @@ static int tzparse(const char *name, struct state *sp, const int lastditch)
 				if (sp->ttis[j].tt_ttisgmt) {
 					/* No adjustment to transition time */
 				} else {
-					/*
-					** If summer time is in effect, and the
-					** transition time was not specified as
-					** standard time, add the summer time
-					** offset to the transition time;
-					** otherwise, add the standard time
-					** offset to the transition time.
-					*/
-					/*
-					** Transitions from DST to DDST
-					** will effectively disappear since
-					** POSIX provides for only one DST
-					** offset.
-					*/
-					if (isdst && !sp->ttis[j].tt_ttisstd) {
-						sp->ats[i] += dstoffset -
-							theirdstoffset;
-					} else {
-						sp->ats[i] += stdoffset -
-							theirstdoffset;
-					}
+					/* Add the standard time offset to the transition time. */
+					sp->ats[i] += stdoffset - theirstdoffset;
 				}
 				theiroffset = -sp->ttis[j].tt_gmtoff;
-				if (sp->ttis[j].tt_isdst)
-					theirdstoffset = theiroffset;
-				else	theirstdoffset = theiroffset;
+				if (!sp->ttis[j].tt_isdst) {
+					theirstdoffset = theiroffset;
+				}
 			}
 			/*
 			** Finally, fill in ttis.

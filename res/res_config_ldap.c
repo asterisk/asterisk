@@ -311,8 +311,10 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 	BerElement *ber = NULL;
 	struct ast_variable *var = NULL;
 	struct ast_variable *prev = NULL;
+#if 0
 	int is_delimited = 0;
 	int i = 0;
+#endif
 	char *ldap_attribute_name;
 	struct berval *value;
 	int pos = 0;
@@ -340,6 +342,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 					ast_debug(2, "md5: %s\n", valptr);
 				}
 				if (valptr) {
+#if 0
 					/* ok, so looping through all delimited values except the last one (not, last character is not delimited...) */
 					if (is_delimited) {
 						i = 0;
@@ -360,6 +363,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 							i++;
 						}
 					}
+#endif
 					/* for the last delimited value or if the value is not delimited: */
 					if (prev) {
 						prev->next = ast_variable_new(attribute_name, &valptr[pos], table_config->table_name);
