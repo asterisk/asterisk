@@ -541,8 +541,8 @@ static int jingle_endpoint_cmp(void *obj, void *arg, int flags)
 static struct aco_type endpoint_option = {
 	.type = ACO_ITEM,
 	.name = "endpoint",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.item_alloc = jingle_endpoint_alloc,
 	.item_find = jingle_endpoint_find,
 	.item_offset = offsetof(struct jingle_config, endpoints),

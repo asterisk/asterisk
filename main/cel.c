@@ -242,15 +242,28 @@ static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
 	.name = "general",
 	.item_offset = offsetof(struct cel_config, general),
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
+};
+
+/*! Config sections used by existing modules. Do not add to this list. */
+static const char *ignore_categories[] = {
+	"manager",
+	"radius",
+	NULL,
+};
+
+static struct aco_type ignore_option = {
+	.type = ACO_IGNORE,
+	.name = "modules",
+	.category = (const char*)ignore_categories,
+	.category_match = ACO_WHITELIST_ARRAY,
 };
 
 /*! \brief The config file to be processed for the module. */
 static struct aco_file cel_conf = {
 	.filename = "cel.conf",                  /*!< The name of the config file */
-	.types = ACO_TYPES(&general_option),     /*!< The mapping object types to be processed */
-	.skip_category = "(^manager$|^radius$)", /*!< Config sections used by existing modules. Do not add to this list. */
+	.types = ACO_TYPES(&general_option, &ignore_option),     /*!< The mapping object types to be processed */
 };
 
 static int cel_pre_apply_config(void);

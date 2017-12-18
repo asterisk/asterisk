@@ -409,7 +409,7 @@
 						regardless if this limit is reached or not.
 					</para></description>
 				</configOption>
-				<configOption name="^sound_">
+				<configOption name="sound_">
 					<synopsis>Override the various conference bridge sound files</synopsis>
 					<description><para>
 						All sounds in the conference are customizable using the bridge profile options below.
@@ -639,8 +639,8 @@ static void *bridge_profile_find(struct ao2_container *container, const char *ca
 static struct aco_type bridge_type = {
 	.type = ACO_ITEM,
 	.name = "bridge_profile",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.matchfield = "type",
 	.matchvalue = "bridge",
 	.item_alloc = bridge_profile_alloc,
@@ -676,8 +676,8 @@ static void *user_profile_find(struct ao2_container *container, const char *cate
 static struct aco_type user_type = {
 	.type = ACO_ITEM,
 	.name  = "user_profile",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.matchfield = "type",
 	.matchvalue = "user",
 	.item_alloc = user_profile_alloc,
@@ -707,8 +707,8 @@ static void *menu_find(struct ao2_container *container, const char *category)
 static struct aco_type menu_type = {
 	.type = ACO_ITEM,
 	.name = "menu",
-	.category_match = ACO_BLACKLIST,
-	.category = "^general$",
+	.category_match = ACO_BLACKLIST_EXACT,
+	.category = "general",
 	.matchfield = "type",
 	.matchvalue = "menu",
 	.item_alloc = menu_alloc,
@@ -725,8 +725,8 @@ static struct aco_type *user_types[] = ACO_TYPES(&user_type);
 static struct aco_type general_type = {
 	.type = ACO_GLOBAL,
 	.name = "global",
-	.category_match = ACO_WHITELIST,
-	.category = "^general$",
+	.category_match = ACO_WHITELIST_EXACT,
+	.category = "general",
 };
 
 static struct aco_file confbridge_conf = {
@@ -2235,7 +2235,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "record_command", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_command));
 	aco_option_register(&cfg_info, "regcontext", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, regcontext));
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
-	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
+	aco_option_register_custom(&cfg_info, "sound_", ACO_PREFIX, bridge_types, NULL, sound_option_handler, 0);
 	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
