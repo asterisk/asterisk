@@ -43,7 +43,7 @@
 #include <ifaddrs.h>
 #endif
 
-#include "asterisk/netsock.h"
+#include "include/netsock.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj.h"
