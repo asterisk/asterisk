@@ -1391,6 +1391,8 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 		} else if (a->pos == 5) {
 			return ast_cli_complete(a->word, completions_off, a->n);
 		}
+
+		return NULL;
 	}
 
 	if (cmd == (CLI_HANDLER + 1000)) {
