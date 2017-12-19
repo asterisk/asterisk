@@ -980,7 +980,7 @@ static int callerpres_write(struct ast_channel *chan, const char *cmd, char *dat
 static int callerid_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *parms;
-	struct ast_party_members member;
+	struct ast_party_members member = { 0, };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(member);	/*!< Member name */
 		AST_APP_ARG(cid);		/*!< Optional caller id to parse instead of from the channel. */
@@ -1137,8 +1137,8 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 	enum ID_FIELD_STATUS status;
 	char *val;
 	char *parms;
-	struct ast_party_func_args args;
-	struct ast_party_members member;
+	struct ast_party_func_args args = { 0, };
+	struct ast_party_members member = { 0, };
 
 	if (!value || !chan) {
 		return -1;
@@ -1293,7 +1293,7 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
  */
 static int connectedline_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_party_members member;
+	struct ast_party_members member = { 0, };
 	char *read_what;
 	enum ID_FIELD_STATUS status;
 
@@ -1361,8 +1361,8 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
 	char *val;
 	char *parms;
 	void (*set_it)(struct ast_channel *chan, const struct ast_party_connected_line *connected, const struct ast_set_party_connected_line *update);
-	struct ast_party_func_args args;
-	struct ast_party_members member;
+	struct ast_party_func_args args = { 0, };
+	struct ast_party_members member = { 0, };
 	struct ast_flags opts;
 	char *opt_args[CONNECTED_LINE_OPT_ARG_ARRAY_SIZE];
 	enum ID_FIELD_STATUS status;
@@ -1466,7 +1466,7 @@ static int connectedline_write(struct ast_channel *chan, const char *cmd, char *
  */
 static int redirecting_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_party_members member;
+	struct ast_party_members member = { 0, };
 	char *read_what;
 	const struct ast_party_redirecting *ast_redirecting;
 	enum ID_FIELD_STATUS status;
@@ -1603,8 +1603,8 @@ static int redirecting_write(struct ast_channel *chan, const char *cmd, char *da
 	char *val;
 	char *parms;
 	void (*set_it)(struct ast_channel *chan, const struct ast_party_redirecting *redirecting, const struct ast_set_party_redirecting *update);
-	struct ast_party_func_args args;
-	struct ast_party_members member;
+	struct ast_party_func_args args = { 0, };
+	struct ast_party_members member = { 0, };
 	struct ast_flags opts;
 	char *opt_args[REDIRECTING_OPT_ARG_ARRAY_SIZE];
 
