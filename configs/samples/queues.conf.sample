@@ -551,7 +551,7 @@ monitor-type = MixMonitor
 ; must also preload pbx_config.so and chan_local.so (or pbx_ael.so, pbx_lua.so,
 ; or pbx_realtime.so, depending on how your dialplan is configured).
 ;
-; syntax: member => interface,[,penalty][,membername][,state_interface][,ringinuse]
+; syntax: member => interface,[,penalty][,membername][,state_interface][,ringinuse][,wrapuptime]
 ;
 ;member => DAHDI/1
 ;member => DAHDI/2,10

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2016, Digium, Inc.
+ * Copyright (C) 1999 - 2017, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -1586,6 +1586,7 @@ struct member {
 	char reason_paused[80];              /*!< Reason of paused if member is paused */
 	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	int callcompletedinsl;               /*!< Whether the current call was completed within service level */
+	int wrapuptime;                      /*!< Wrapup Time */
 	time_t starttime;                    /*!< The time at which the member answered the current caller. */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	time_t lastpause;                    /*!< When started the last pause */
@@ -1824,6 +1825,21 @@ static int queue_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct call_queue *q = obj, *q2 = arg;
 	return !strcasecmp(q->name, q2->name) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/*!
+ * \brief Return wrapuptime
+ *
+ * This function checks if wrapuptime in member is set and return this value.
+ * Otherwise return value the wrapuptime in the queue configuration
+ * \return integer value
+ */
+static int get_wrapuptime(struct call_queue *q, struct member *member)
+{
+	if (member->wrapuptime) {
+		return member->wrapuptime;
+	}
+	return q->wrapuptime;
 }
 
 /*! \internal
@@ -2309,8 +2325,12 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 			if (member->paused && (conditions & QUEUE_EMPTY_PAUSED)) {
 				ast_debug(4, "%s is unavailable because he is paused'\n", member->membername);
 				break;
-			} else if ((conditions & QUEUE_EMPTY_WRAPUP) && member->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < member->lastcall)) {
-				ast_debug(4, "%s is unavailable because it has only been %d seconds since his last call (wrapup time is %d)\n", member->membername, (int) (time(NULL) - member->lastcall), q->wrapuptime);
+			} else if ((conditions & QUEUE_EMPTY_WRAPUP)
+				&& member->lastcall
+				&& get_wrapuptime(q, member)
+				&& (time(NULL) - get_wrapuptime(q, member) < member->lastcall)) {
+				ast_debug(4, "%s is unavailable because it has only been %d seconds since his last call (wrapup time is %d)\n",
+					member->membername, (int) (time(NULL) - member->lastcall), get_wrapuptime(q, member));
 				break;
 			} else {
 				ao2_ref(member, -1);
@@ -2436,6 +2456,7 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 static int is_member_available(struct call_queue *q, struct member *mem)
 {
 	int available = 0;
+	int wrapuptime;
 
 	switch (mem->status) {
 		case AST_DEVICE_INVALID:
@@ -2459,7 +2480,8 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 	}
 
 	/* Let wrapuptimes override device state availability */
-	if (mem->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < mem->lastcall)) {
+	wrapuptime = get_wrapuptime(q, mem);
+	if (mem->lastcall && wrapuptime && (time(NULL) - wrapuptime < mem->lastcall)) {
 		available = 0;
 	}
 	return available;
@@ -3354,6 +3376,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	int penalty = 0;
 	int paused  = 0;
 	int found = 0;
+	int wrapuptime = 0;
 	int ringinuse = q->ringinuse;
 
 	const char *config_val;
@@ -3363,6 +3386,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	const char *state_interface = S_OR(ast_variable_retrieve(member_config, category, "state_interface"), interface);
 	const char *penalty_str = ast_variable_retrieve(member_config, category, "penalty");
 	const char *paused_str = ast_variable_retrieve(member_config, category, "paused");
+	const char *wrapuptime_str = ast_variable_retrieve(member_config, category, "wrapuptime");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field uniqueid is empty for member %s\n", S_OR(membername, "NULL"));
@@ -3382,6 +3406,13 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 		paused = atoi(paused_str);
 		if (paused < 0) {
 			paused = 0;
+		}
+	}
+
+	if (wrapuptime_str) {
+		wrapuptime = atoi(wrapuptime_str);
+		if (wrapuptime < 0) {
+			wrapuptime = 0;
 		}
 	}
 
@@ -3411,6 +3442,7 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			}
 			m->penalty = penalty;
 			m->ringinuse = ringinuse;
+			m->wrapuptime = wrapuptime;
 			found = 1;
 			ao2_ref(m, -1);
 			break;
@@ -4343,6 +4375,8 @@ static int member_status_available(int status)
  */
 static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 {
+	int wrapuptime;
+
 	if (call->member->paused) {
 		ast_debug(1, "%s paused, can't receive call\n", call->interface);
 		return 0;
@@ -4353,8 +4387,12 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		return 0;
 	}
 
-	if ((call->lastqueue && call->lastqueue->wrapuptime && (time(NULL) - call->lastcall < call->lastqueue->wrapuptime))
-		|| (!call->lastqueue && qe->parent->wrapuptime && (time(NULL) - call->lastcall < qe->parent->wrapuptime))) {
+	if (call->lastqueue) {
+		wrapuptime = get_wrapuptime(call->lastqueue, call->member);
+	} else {
+		wrapuptime = get_wrapuptime(qe->parent, call->member);
+	}
+	if (wrapuptime && time(NULL) - call->lastcall < wrapuptime) {
 		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
 			(call->lastqueue ? call->lastqueue->name : qe->parent->name),
 			call->interface);
@@ -8554,7 +8592,7 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 			while ((m = ao2_iterator_next(&mem_iter))) {
 				/* Count the agents who are logged in, not paused and not wrapping up */
 				if ((m->status == AST_DEVICE_NOT_INUSE) && (!m->paused) &&
-						!(m->lastcall && q->wrapuptime && ((now - q->wrapuptime) < m->lastcall))) {
+						!(m->lastcall && get_wrapuptime(q, m) && ((now - get_wrapuptime(q, m)) < m->lastcall))) {
 					count++;
 				}
 				ao2_ref(m, -1);
@@ -9098,12 +9136,14 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 	struct member tmpmem;
 	int penalty;
 	int ringinuse;
+	int wrapuptime;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
 		AST_APP_ARG(penalty);
 		AST_APP_ARG(membername);
 		AST_APP_ARG(state_interface);
 		AST_APP_ARG(ringinuse);
+		AST_APP_ARG(wrapuptime);
 	);
 
 	if (ast_strlen_zero(memberdata)) {
@@ -9158,11 +9198,23 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 		ringinuse = q->ringinuse;
 	}
 
+	if (!ast_strlen_zero(args.wrapuptime)) {
+		tmp = args.wrapuptime;
+		ast_strip(tmp);
+		wrapuptime = atoi(tmp);
+		if (wrapuptime < 0) {
+			wrapuptime = 0;
+		}
+	} else {
+		wrapuptime = 0;
+	}
+
 	/* Find the old position in the list */
 	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 	cur = ao2_find(q->members, &tmpmem, OBJ_POINTER);
 
 	if ((newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0, state_interface, ringinuse))) {
+		newm->wrapuptime = wrapuptime;
 		if (cur) {
 			/* Round Robin Queue Position must be copied if this is replacing an existing member */
 			ao2_lock(q->members);
