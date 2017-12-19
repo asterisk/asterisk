@@ -1233,7 +1233,7 @@ static char *cli_console_active(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return CLI_SUCCESS;
 	}
 
-	if (!(pvt = find_pvt(a->argv[e->args - 1]))) {
+	if (!(pvt = find_pvt(a->argv[e->args]))) {
 		ast_cli(a->fd, "Could not find a device called '%s'.\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
