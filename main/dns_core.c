@@ -447,9 +447,13 @@ static dns_alloc_fn dns_alloc_table [] = {
 	[T_SRV] = dns_srv_alloc,
 };
 
-static struct ast_dns_record *allocate_dns_record(int rr_type, struct ast_dns_query *query, const char *data, const size_t size)
+static struct ast_dns_record *allocate_dns_record(unsigned int rr_type, struct ast_dns_query *query, const char *data, const size_t size)
 {
-	dns_alloc_fn allocator = dns_alloc_table[rr_type] ?: generic_record_alloc;
+	dns_alloc_fn allocator = generic_record_alloc;
+
+	if (rr_type < ARRAY_LEN(dns_alloc_table) && dns_alloc_table[rr_type]) {
+		allocator = dns_alloc_table[rr_type];
+	}
 
 	return allocator(query, data, size);
 }
