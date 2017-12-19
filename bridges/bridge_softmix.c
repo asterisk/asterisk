@@ -418,8 +418,9 @@ static void softmix_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridg
  */
 static int is_video_source(const struct ast_stream *stream)
 {
-	if (ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO &&
-		strncmp(ast_stream_get_name(stream), SOFTBRIDGE_VIDEO_DEST_PREFIX,
+	if (ast_stream_get_state(stream) != AST_STREAM_STATE_REMOVED
+		&& ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO
+		&& strncmp(ast_stream_get_name(stream), SOFTBRIDGE_VIDEO_DEST_PREFIX,
 			SOFTBRIDGE_VIDEO_DEST_LEN)) {
 		return 1;
 	}
@@ -448,40 +449,35 @@ static int is_video_dest(const struct ast_stream *stream, const char *source_cha
 	char *dest_video_name;
 	size_t dest_video_name_len;
 
-	if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_VIDEO) {
+	if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED
+		|| ast_stream_get_type(stream) != AST_MEDIA_TYPE_VIDEO) {
 		return 0;
 	}
 
 	dest_video_name_len = SOFTBRIDGE_VIDEO_DEST_LEN + 1;
-
 	if (!ast_strlen_zero(source_channel_name)) {
 		dest_video_name_len += strlen(source_channel_name) + 1;
 		if (!ast_strlen_zero(source_stream_name)) {
 			dest_video_name_len += strlen(source_stream_name) + 1;
 		}
-	}
-	dest_video_name = ast_alloca(dest_video_name_len);
 
-	if (!ast_strlen_zero(source_channel_name)) {
+		dest_video_name = ast_alloca(dest_video_name_len);
 		if (!ast_strlen_zero(source_stream_name)) {
+			/* We are looking for an exact stream name */
 			snprintf(dest_video_name, dest_video_name_len, "%s%c%s%c%s",
 				SOFTBRIDGE_VIDEO_DEST_PREFIX, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
 				source_channel_name, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
 				source_stream_name);
 			return !strcmp(ast_stream_get_name(stream), dest_video_name);
-		} else {
-			snprintf(dest_video_name, dest_video_name_len, "%s%c%s",
-				SOFTBRIDGE_VIDEO_DEST_PREFIX, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
-				source_channel_name);
-			return !strncmp(ast_stream_get_name(stream), dest_video_name, dest_video_name_len - 1);
 		}
+		snprintf(dest_video_name, dest_video_name_len, "%s%c%s",
+			SOFTBRIDGE_VIDEO_DEST_PREFIX, SOFTBRIDGE_VIDEO_DEST_SEPARATOR,
+			source_channel_name);
 	} else {
-		snprintf(dest_video_name, dest_video_name_len, "%s",
-			SOFTBRIDGE_VIDEO_DEST_PREFIX);
-		return !strncmp(ast_stream_get_name(stream), dest_video_name, dest_video_name_len - 1);
+		dest_video_name = SOFTBRIDGE_VIDEO_DEST_PREFIX;
 	}
 
-	return 0;
+	return !strncmp(ast_stream_get_name(stream), dest_video_name, dest_video_name_len - 1);
 }
 
 static int append_source_streams(struct ast_stream_topology *dest,
