@@ -791,6 +791,7 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_m_line *m_line,
 			rtp_codecs_free(codecs);
 			ast_stream_free(stream);
 			ao2_ref(caps, -1);
+			ast_free(codecs);
 			return NULL;
 		}
 
