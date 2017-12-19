@@ -1027,30 +1027,42 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 {
 	struct linear_state *lin;
 	char tmpf[256];
-	int res = -1;
 	int autoclose = 0;
+
 	if (fd < 0) {
 		if (ast_strlen_zero(filename)) {
 			return -1;
 		}
+
 		autoclose = 1;
+
 		if (filename[0] == '/') {
 			ast_copy_string(tmpf, filename, sizeof(tmpf));
 		} else {
 			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", ast_config_AST_DATA_DIR, "sounds", filename);
 		}
-		if ((fd = open(tmpf, O_RDONLY)) < 0) {
+
+		fd = open(tmpf, O_RDONLY);
+		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));
 			return -1;
 		}
 	}
-	if ((lin = ast_calloc(1, sizeof(*lin)))) {
-		lin->fd = fd;
-		lin->allowoverride = allowoverride;
-		lin->autoclose = autoclose;
-		res = ast_activate_generator(chan, &linearstream, lin);
+
+	lin = ast_calloc(1, sizeof(*lin));
+	if (!lin) {
+		if (autoclose) {
+			close(fd);
+		}
+
+		return -1;
 	}
-	return res;
+
+	lin->fd = fd;
+	lin->allowoverride = allowoverride;
+	lin->autoclose = autoclose;
+
+	return ast_activate_generator(chan, &linearstream, lin);
 }
 
 static int control_streamfile(struct ast_channel *chan,
@@ -1349,10 +1361,10 @@ int ast_control_tone(struct ast_channel *chan, const char *tone)
 	ts = ast_get_indication_tone(zone ? zone : ast_channel_zone(chan), tone_indication);
 
 	if (ast_playtones_start(chan, 0, ts ? ts->data : tone_indication, 0)) {
-		return -1;
+		res = -1;
 	}
 
-	for (;;) {
+	while (!res) {
 		struct ast_frame *fr;
 
 		if (ast_waitfor(chan, -1) < 0) {
