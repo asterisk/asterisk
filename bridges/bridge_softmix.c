@@ -698,10 +698,11 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	return 0;
 }
 
-static void remove_destination_streams(struct ast_stream_topology *topology,
+static int remove_destination_streams(struct ast_stream_topology *topology,
 	const char *channel_name)
 {
 	int i;
+	int stream_removed = 0;
 
 	for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
 		struct ast_stream *stream;
@@ -710,8 +711,10 @@ static void remove_destination_streams(struct ast_stream_topology *topology,
 
 		if (is_video_dest(stream, channel_name, NULL)) {
 			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+			stream_removed = 1;
 		}
 	}
+	return stream_removed;
 }
 
 static int sfu_topologies_on_leave(struct ast_bridge_channel *leaver, struct ast_bridge_channels_list *participants)
@@ -721,13 +724,16 @@ static int sfu_topologies_on_leave(struct ast_bridge_channel *leaver, struct ast
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
 		sc = participant->tech_pvt;
-		remove_destination_streams(sc->topology, ast_channel_name(leaver->chan));
+		if (!remove_destination_streams(sc->topology, ast_channel_name(leaver->chan))) {
+			continue;
+		}
 		ast_channel_request_stream_topology_change(participant->chan, sc->topology, NULL);
 	}
 
 	sc = leaver->tech_pvt;
-	remove_destination_streams(sc->topology, "");
-	ast_channel_request_stream_topology_change(leaver->chan, sc->topology, NULL);
+	if (remove_destination_streams(sc->topology, "")) {
+		ast_channel_request_stream_topology_change(leaver->chan, sc->topology, NULL);
+	}
 
 	return 0;
 }
