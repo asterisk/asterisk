@@ -2343,10 +2343,11 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		AST_RWLIST_UNLOCK(&actions);
 		return ret;
 	}
-	authority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
 	}
+
+	authority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 
 #ifdef AST_XML_DOCS
 	/* setup the titles */
@@ -2375,6 +2376,22 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					char *privilege = ast_xmldoc_printable(S_OR(auth_str, "Not available"), 1);
 					char *responses = ast_xmldoc_printable("None", 1);
+
+					if (!syntax || !synopsis || !description || !arguments
+							|| !seealso || !privilege || !responses) {
+						ast_free(syntax);
+						ast_free(synopsis);
+						ast_free(description);
+						ast_free(arguments);
+						ast_free(seealso);
+						ast_free(privilege);
+						ast_free(responses);
+						ast_cli(a->fd, "Allocation failure.\n");
+						AST_RWLIST_UNLOCK(&actions);
+
+						return CLI_FAILURE;
+					}
+
 					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s",
 						syntax_title, syntax,
 						synopsis_title, synopsis,
@@ -2402,6 +2419,14 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 						ast_cli(a->fd, "Event: %s\n", cur->final_response->name);
 						print_event_instance(a, cur->final_response);
 					}
+
+					ast_free(syntax);
+					ast_free(synopsis);
+					ast_free(description);
+					ast_free(arguments);
+					ast_free(seealso);
+					ast_free(privilege);
+					ast_free(responses);
 				} else
 #endif
 				{
