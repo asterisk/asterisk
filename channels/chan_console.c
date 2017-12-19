@@ -280,7 +280,9 @@ static void *stream_monitor(void *data)
 
 	for (;;) {
 		pthread_testcancel();
+		console_pvt_lock(pvt);
 		res = Pa_ReadStream(pvt->stream, buf, sizeof(buf) / sizeof(int16_t));
+		console_pvt_unlock(pvt);
 		pthread_testcancel();
 
 		if (!pvt->owner) {
@@ -613,7 +615,9 @@ static int console_write(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct console_pvt *pvt = ast_channel_tech_pvt(chan);
 
+	console_pvt_lock(pvt);
 	Pa_WriteStream(pvt->stream, f->data.ptr, f->samples);
+	console_pvt_unlock(pvt);
 
 	return 0;
 }
