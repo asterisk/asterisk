@@ -1496,15 +1496,18 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_FAILURE;
 	}
 
-	output = ast_str_create(8192);
-	if (!output) {
-		return CLI_FAILURE;
-	}
-
 	chan = ast_channel_get_by_name(a->argv[3]);
 	if (!chan) {
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+
 		return CLI_SUCCESS;
+	}
+
+	output = ast_str_create(8192);
+	if (!output) {
+		ast_channel_unref(chan);
+
+		return CLI_FAILURE;
 	}
 
 	now = ast_tvnow();

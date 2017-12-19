@@ -322,8 +322,10 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 				while ( (nc = ast_walk_contexts(nc)) && nc != c && !already_served)
 					already_served = lookup_ci(nc, i_name);
 
-				if (!already_served && ++which > a->n)
+				if (!already_served && ++which > a->n) {
 					res = ast_strdup(i_name);
+					break;
+				}
 			}
 			ast_unlock_context(c);
 		}
@@ -1549,17 +1551,21 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 		}
 
 		for (c = NULL; !ret && (c = ast_walk_contexts(c)); ) {
-			if (ast_rdlock_context(c))	/* fail, skip it */
+			if (ast_rdlock_context(c)) {
+				/* fail, skip it */
 				continue;
-			if (!partial_match(ast_get_context_name(c), a->word, len))
+			}
+			if (!partial_match(ast_get_context_name(c), a->word, len)) {
+				ast_unlock_context(c);
 				continue;
+			}
 			if (lookup_c_ip(c, ignorepat) && ++which > a->n)
 				ret = ast_strdup(ast_get_context_name(c));
 			ast_unlock_context(c);
 		}
 		ast_unlock_contexts();
 		ast_free(dupline);
-		return NULL;
+		return ret;
 	}
 
 	return NULL;
