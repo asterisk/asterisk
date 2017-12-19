@@ -1835,9 +1835,9 @@ void ast_cel_publish_event(struct ast_channel *chan,
 	struct ast_json *cel_blob;
 	struct stasis_message *message;
 
-	cel_blob = ast_json_pack("{s: i, s: O}",
+	cel_blob = ast_json_pack("{s: i, s: o}",
 		"event_type", event_type,
-		"event_details", blob);
+		"event_details", ast_json_ref(blob));
 
 	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), cel_generic_type(), cel_blob);
 	if (message) {
