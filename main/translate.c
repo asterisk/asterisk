@@ -497,6 +497,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n",
 				ast_format_get_name(src), ast_format_get_name(dst));
 			AST_RWLIST_UNLOCK(&translators);
+			ast_translator_free_path(head);
 			return NULL;
 		}
 		if ((t->dst_codec.sample_rate == ast_format_get_sample_rate(dst)) && (t->dst_codec.type == ast_format_get_type(dst))) {
@@ -505,9 +506,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 		if (!(cur = newpvt(t, explicit_dst))) {
 			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
 				ast_format_get_name(src), ast_format_get_name(dst));
-			if (head) {
-				ast_translator_free_path(head);
-			}
+			ast_translator_free_path(head);
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
