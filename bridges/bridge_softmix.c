@@ -672,6 +672,7 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 				ast_log(LOG_ERROR, "Bridge %s: Failed to join channel %s. "
 						"Could not allocate enough memory.\n", bridge->uniqueid,
 						ast_channel_name(bridge_channel->chan));
+				ast_free(sc);
 				return -1;
 			}
 		}
@@ -1306,6 +1307,8 @@ static int softmix_mixing_array_grow(struct softmix_mixing_array *mixing_array,
 		ast_log(LOG_NOTICE, "Failed to re-allocate softmix mixing structure.\n");
 		return -1;
 	}
+	mixing_array->buffers = tmp;
+
 	if (binaural_active) {
 		struct convolve_channel_pair **tmp2;
 		if (!(tmp2 = ast_realloc(mixing_array->chan_pairs,
@@ -1315,7 +1318,6 @@ static int softmix_mixing_array_grow(struct softmix_mixing_array *mixing_array,
 		}
 		mixing_array->chan_pairs = tmp2;
 	}
-	mixing_array->buffers = tmp;
 	return 0;
 }
 
