@@ -5390,6 +5390,7 @@ plain_message:
 static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, char *attach, char *greeting_attachment, char *mailbox, char *bound, char *filename, int last, int msgnum)
 {
 	char fname[PATH_MAX] = "";
+	char sox_gain_tmpdir[PATH_MAX];
 	char *file_to_delete = NULL, *dir_to_delete = NULL;
 	int res;
 
@@ -5399,7 +5400,6 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	/* This 'while' loop will only execute once. We use it so that we can 'break' */
 	while (vmu->volgain < -.001 || vmu->volgain > .001) {
 		char tmpdir[PATH_MAX];
-		char sox_gain_tmpdir[PATH_MAX];
 
 		create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 
@@ -13167,6 +13167,7 @@ static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 	}
 
 	if (separate_mailbox(ast_strdupa(stasis_topic_name(change->topic)), &mailbox, &context)) {
+		ast_free(mwist);
 		return;
 	}
 
