@@ -1573,17 +1573,21 @@ static void *listener(void *unused)
 	int s;
 	socklen_t len;
 	int x;
+	int poll_result;
 	struct pollfd fds[1];
+
 	for (;;) {
-		if (ast_socket < 0)
+		if (ast_socket < 0) {
 			return NULL;
+		}
 		fds[0].fd = ast_socket;
 		fds[0].events = POLLIN;
-		s = ast_poll(fds, 1, -1);
+		poll_result = ast_poll(fds, 1, -1);
 		pthread_testcancel();
-		if (s < 0) {
-			if (errno != EINTR)
+		if (poll_result < 0) {
+			if (errno != EINTR) {
 				ast_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
+			}
 			continue;
 		}
 		len = sizeof(sunaddr);
@@ -1597,6 +1601,7 @@ static void *listener(void *unused)
 			/* turn on socket credentials passing. */
 			if (setsockopt(s, SOL_SOCKET, SO_PASSCRED, &sckopt, sizeof(sckopt)) < 0) {
 				ast_log(LOG_WARNING, "Unable to turn on socket credentials passing\n");
+				close(s);
 			} else
 #endif
 			{
@@ -3074,20 +3079,10 @@ static char *cli_complete(EditLine *editline, int ch)
 #define CMD_MATCHESARRAY "_COMMAND MATCHESARRAY \"%s\" \"%s\""
 		char *mbuf;
 		char *new_mbuf;
-		int mlen = 0, maxmbuf = 2048;
+		int mlen = 0;
+		int maxmbuf = ast_asprintf(&mbuf, CMD_MATCHESARRAY, lf->buffer, ptr);
 
-		/* Start with a 2048 byte buffer */
-		mbuf = ast_malloc(maxmbuf);
-
-		/* This will run snprintf twice at most. */
-		while (mbuf && (mlen = snprintf(mbuf, maxmbuf, CMD_MATCHESARRAY, lf->buffer, ptr)) > maxmbuf) {
-			/* Return value does not include space for NULL terminator. */
-			maxmbuf = mlen + 1;
-			ast_free(mbuf);
-			mbuf = ast_malloc(maxmbuf);
-		}
-
-		if (!mbuf) {
+		if (maxmbuf == -1) {
 			*((char *) lf->cursor) = savechr;
 
 			return (char *)(CC_ERROR);
@@ -3100,9 +3095,9 @@ static char *cli_complete(EditLine *editline, int ch)
 
 		while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
 			if (mlen + 1024 > maxmbuf) {
-				/* Expand buffer to the next 1024 byte increment. */
+				/* Expand buffer to the next 1024 byte increment plus a NULL terminator. */
 				maxmbuf = mlen + 1024;
-				new_mbuf = ast_realloc(mbuf, maxmbuf);
+				new_mbuf = ast_realloc(mbuf, maxmbuf + 1);
 				if (!new_mbuf) {
 					ast_free(mbuf);
 					*((char *) lf->cursor) = savechr;
@@ -3115,6 +3110,7 @@ static char *cli_complete(EditLine *editline, int ch)
 			res = read(ast_consock, mbuf + mlen, 1024);
 			if (res > 0) {
 				mlen += res;
+				mbuf[mlen] = '\0';
 			}
 		}
 		mbuf[mlen] = '\0';
