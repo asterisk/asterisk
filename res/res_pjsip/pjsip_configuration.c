@@ -1603,7 +1603,7 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Following are Events for each object associated with the the Endpoint",
+	astman_send_listack(s, m, "Following are Events for each object associated with the Endpoint",
 		"start");
 
 	/* the endpoint detail needs to always come first so apply as such */

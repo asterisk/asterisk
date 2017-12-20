@@ -866,7 +866,7 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 		ao2_unlock(weakproxy);
 		/* It is possible for obj to be accessed now.  It's allowed
 		 * for weakproxy to already be in a container.  Another thread
-		 * could have been waiting for a lock on weakproxy to retreive
+		 * could have been waiting for a lock on weakproxy to retrieve
 		 * the object.
 		 */
 	}

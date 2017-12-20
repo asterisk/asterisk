@@ -389,7 +389,7 @@ struct mgcp_endpoint {
 	/* struct ast_channel *owner; */
 	/* struct ast_rtp *rtp; */
 	/* struct sockaddr_in tmpdest; */
-	/* message go the the endpoint and not the channel so they stay here */
+	/* message go the endpoint and not the channel so they stay here */
 	struct ast_variable *chanvars;		/*!< Variables to set for channel created by user */
 	struct mgcp_endpoint *next;
 	struct mgcp_gateway *parent;

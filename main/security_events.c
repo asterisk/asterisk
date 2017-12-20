@@ -314,7 +314,7 @@
 				<parameter name="ReceivedChallenge" required="false">
 					<para>The challenge that was received.</para>
 				</parameter>
-				<parameter name="RecievedHash" required="false">
+				<parameter name="ReceivedHash" required="false">
 					<para>The hash that was received.</para>
 				</parameter>
 			</syntax>

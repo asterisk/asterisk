@@ -59,7 +59,7 @@ AST_LIST_HEAD_NOLOCK(contactliststruct, contact);
  *   parts, user:secret.
  * - If the URI contains a port number, hostport will return with both
  *   parts, host:port.
- * - This function overwrites the the URI string.
+ * - This function overwrites the URI string.
  * 
  * \retval 0 on success
  * \retval -1 on error.

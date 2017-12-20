@@ -240,7 +240,7 @@ void ast_shrink_phone_number(char *n);
 int ast_isphonenumber(const char *n);
 
 /*!
- * \brief Check if a string consists only of digits and and + \# ( ) - .
+ * \brief Check if a string consists only of digits and + \# ( ) - .
  * (meaning it can be cleaned with ast_shrink_phone_number)
  * \param exten The extension (or URI) to be checked.
  * \retval 1 if string is valid AST shrinkable phone number
