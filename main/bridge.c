@@ -2511,6 +2511,8 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 	RAII_VAR(struct ast_bridge *, chan_bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, yanked_chan, NULL, ao2_cleanup);
 
+	ast_moh_stop(chan);
+
 	ast_channel_lock(chan);
 	chan_bridge = ast_channel_get_bridge(chan);
 	ast_channel_unlock(chan);
