@@ -719,8 +719,8 @@ EXTERN int errCopyData (ASN1ErrInfo* pSrcErrInfo,
  * associated with an error message. These parameters are maintained on an
  * internal linked list maintained within the error information structure. The
  * list memory must be freed when error processing is complete. This function
- * is called from within errPrint after teh error has been printed out. It is
- * also called in teh freeContext function.
+ * is called from within errPrint after the error has been printed out. It is
+ * also called in the freeContext function.
  *
  * @param pErrInfo     A pointer to a structure containing information on the
  *                     error to be printed. Typically, the error info
@@ -1737,7 +1737,7 @@ EXTERN int encodeOpenTypeExtBits
 
 /**
  * This function will endcode a small, non-negative whole number as specified
- * in Section 10.6 of teh X.691 standard. This is a number that is expected to
+ * in Section 10.6 of the X.691 standard. This is a number that is expected to
  * be small, but whose size is potentially unlimited due to the presence of an
  * extension marker.
  *

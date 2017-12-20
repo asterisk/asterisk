@@ -81,7 +81,7 @@ EXTERN int ooHandleH2250Message
 /**
  * This function is used to process a received Facility message.
  * @param call       Handle to the call for which message has been received.
- * @param pQ931Msg   Pointer the the received Facility message.
+ * @param pQ931Msg   Pointer the received Facility message.
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
  */

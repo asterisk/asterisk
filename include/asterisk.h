@@ -223,7 +223,7 @@ struct ast_json;
 
 #elif defined(AST_MODULE_SELF_SYM)
 
-/*! Retreive the 'struct ast_module *' for the current module. */
+/*! Retrieve the 'struct ast_module *' for the current module. */
 #define AST_MODULE_SELF AST_MODULE_SELF_SYM()
 
 struct ast_module;

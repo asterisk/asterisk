@@ -1315,7 +1315,7 @@ static void populate_defaults(struct ast_vm_user *vmu)
 }
 
 /*!
- * \brief Sets a a specific property value.
+ * \brief Sets a specific property value.
  * \param vmu The voicemail user object to work with.
  * \param var The name of the property to be set.
  * \param value The value to be set to the property.
@@ -4746,7 +4746,7 @@ static void copy_plain_file(char *frompath, char *topath)
 
 /*! 
  * \brief Removes the voicemail sound and information file.
- * \param file The path to the sound file. This will be the the folder and message index, without the extension.
+ * \param file The path to the sound file. This will be the folder and message index, without the extension.
  *
  * This is used by the DELETE macro when voicemails are stored on the file system.
  *
@@ -8168,7 +8168,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
  * 
  * When in the leave message mode (is_new_message == 1):
  *   - allow the leaving of a message for ourselves. (Will not allow us to forward a message to ourselves, when is_new_message == 0).
- *   - attempt to determine the context and and mailbox, and then invoke leave_message() function to record and store the message.
+ *   - attempt to determine the context and mailbox, and then invoke leave_message() function to record and store the message.
  *
  * When in the forward message mode (is_new_message == 0):
  *   - retrieves the current message to be forwarded
@@ -8269,7 +8269,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				old_exten = ast_strdupa(ast_channel_exten(chan));
 				old_priority = ast_channel_priority(chan);
 
-				/* call the the Directory, changes the channel */
+				/* call the Directory, changes the channel */
 				snprintf(vmcontext, sizeof(vmcontext), "%s,,v", context ? context : "default");
 				res = pbx_exec(chan, directory_app, vmcontext);
 

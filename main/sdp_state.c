@@ -431,7 +431,7 @@ static struct sdp_state_capabilities *sdp_initialize_state_capabilities(const st
  * are merged with the answer SDP to create the negotiated capabilities.
  *
  * If we are the SDP answerer, then the incoming offer SDP is merged with our
- * proposed capabilities to to create the negotiated capabilities. These negotiated
+ * proposed capabilities to create the negotiated capabilities. These negotiated
  * capabilities are what we send in our answer SDP.
  *
  * Any changes that a user of the API performs will occur on the proposed capabilities.

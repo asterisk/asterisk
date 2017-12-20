@@ -129,7 +129,7 @@ DEFINE_SQL_STATEMENT(create_astdb_stmt, "CREATE TABLE IF NOT EXISTS astdb(key VA
 
 /* This query begs an explanation:
  *
- * First, the parameter binding syntax used here is slightly different then the other
+ * First, the parameter binding syntax used here is slightly different than the other
  * queries in that we use a numbered parameter so that we can bind once and get the same
  * value substituted multiple times within the executed query.
  *

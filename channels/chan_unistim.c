@@ -4964,7 +4964,7 @@ static int unistim_hangup(struct ast_channel *ast)
 				continue;
 			}
 			if (d->ssub[i] != sub) {
-				if (d->ssub[i] != NULL) { /* Found other subchannel active other then hangup'ed one */
+				if (d->ssub[i] != NULL) { /* Found other subchannel active other than hangup'ed one */
 					end_call = 0;
 				}
 				continue;
