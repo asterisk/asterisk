@@ -2664,7 +2664,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 	unsigned char full_mac[6]  = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s <= 0) {
+	if (s < 0) {
 		ast_log(LOG_WARNING, "Unable to open socket for seeding global EID. "
 			"You will have to set it manually.\n");
 		return;
