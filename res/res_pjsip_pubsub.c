@@ -613,8 +613,12 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		expires = expires_hdr ? expires_hdr->ivalue : DEFAULT_PUBLISH_EXPIRES;
 		sub_tree->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
 
-		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, contact_hdr->uri,
-			sub_tree->persistence->contact_uri, sizeof(sub_tree->persistence->contact_uri));
+		if (contact_hdr) {
+			pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, contact_hdr->uri,
+					sub_tree->persistence->contact_uri, sizeof(sub_tree->persistence->contact_uri));
+		} else {
+			ast_log(LOG_WARNING, "Contact not updated due to missing contact header\n");
+		}
 
 		/* When receiving a packet on an streaming transport, it's possible to receive more than one SIP
 		 * message at a time into the rdata->pkt_info.packet buffer. However, the rdata->msg_info.msg_buf
