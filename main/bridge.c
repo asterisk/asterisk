@@ -3848,7 +3848,7 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 		data->average_talking_energy = talker_energy;
 	} else if ((data->average_talking_energy < talker_energy) && is_keyframe) {
 		if (data->chan_old_vsrc) {
-			ast_channel_unref(data->chan_old_vsrc);
+			data->chan_old_vsrc = ast_channel_unref(data->chan_old_vsrc);
 		}
 		if (data->chan_vsrc) {
 			data->chan_old_vsrc = data->chan_vsrc;
