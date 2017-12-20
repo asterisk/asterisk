@@ -719,7 +719,7 @@ int ast_bridge_features_limits_construct(struct ast_bridge_features_limits *limi
  * \param limits pointer to an ast_bridge_features_limits struct that needs to be destroyed
  *
  * This function does not free memory allocated to the ast_bridge_features_limits struct, it only frees elements within the struct.
- * You must still call ast_free on the the struct if you allocated it with malloc.
+ * You must still call ast_free on the struct if you allocated it with malloc.
  */
 void ast_bridge_features_limits_destroy(struct ast_bridge_features_limits *limits);
 

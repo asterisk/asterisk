@@ -164,7 +164,7 @@ each case is supposed to be a string pointer, a "tag", that should contain
 enough of an explanation, that you can pair operations that increment the
 ref count, with operations that are meant to decrement the refcount.
 
-Each of these calls will generate at least one line of output in in the refs
+Each of these calls will generate at least one line of output in the refs
 log files. These lines look like this:
 ...
 0x8756f00,+1,1234,chan_sip.c,22240,load_module,**constructor**,allocate users
@@ -977,7 +977,7 @@ enum search_flags {
 	OBJ_NODATA = (1 << 1),
 	/*!
 	 * Don't stop at the first match in ao2_callback() unless the
-	 * result of of the callback function has the CMP_STOP bit set.
+	 * result of the callback function has the CMP_STOP bit set.
 	 */
 	OBJ_MULTIPLE = (1 << 2),
 	/*!

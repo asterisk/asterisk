@@ -365,7 +365,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					'gateway' and state is 'Uninitialized'.</para>
 				</parameter>
 				<parameter name="FileName" required="false">
-					<para>Filename of the image being sent/recieved for this FAX session. This field is not
+					<para>Filename of the image being sent/received for this FAX session. This field is not
 					included if Operation isn't 'send' or 'receive'.</para>
 				</parameter>
 				<parameter name="PagesTransmitted" required="false">
@@ -377,7 +377,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					Operation is not 'send' or 'receive'. Will be 0 for 'send'.</para>
 				</parameter>
 				<parameter name="TotalBadLines" required="false">
-					<para>Total number of bad lines sent/recieved during this session. This field is not
+					<para>Total number of bad lines sent/received during this session. This field is not
 					included if Operation is not 'send' or 'received'.</para>
 				</parameter>
 			</syntax>

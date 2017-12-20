@@ -116,7 +116,7 @@ static void sdp_fmtp_get(const char *attributes, const char *name, int *attr)
 		/* Skip any preceeding blanks as some implementations separate attributes using spaces too */
 		kvp = ast_skip_blanks(kvp);
 
-		/* If we are at at the requested attribute get its value and return */
+		/* If we are at the requested attribute get its value and return */
 		if (!strncmp(kvp, name, strlen(name)) && kvp[strlen(name)] == '=') {
 			if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
 				*attr = val;

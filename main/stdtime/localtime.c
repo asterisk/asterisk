@@ -1057,7 +1057,7 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 			int	result;
 
 			/* for temporary struct state --
-			 * macro flags the the struct as a stack temp.
+			 * macro flags the struct as a stack temp.
 			 * to prevent use within add_notify()
 			 */
 			SP_STACK_INIT(ts);
@@ -1777,7 +1777,7 @@ void ast_get_dst_info(const time_t * const timep, int *dst_enabled, time_t *dst_
 		return;
 
 	/* If the desired time exceeds the bounds of the defined time transitions
-	* then give give up on determining DST info and simply look for gmt offset
+	* then give up on determining DST info and simply look for gmt offset
 	* This requires that I adjust the given time using increments of Gregorian
 	* repeats to place the time within the defined time transitions in the
 	* timezone structure.

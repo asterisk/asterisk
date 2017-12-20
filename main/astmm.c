@@ -1466,7 +1466,7 @@ static void mm_atexit_dump(void)
 	/*
 	 * Put the alloced list back into regions[].
 	 *
-	 * We have do do this because we can get called before all other
+	 * We have do this because we can get called before all other
 	 * threads have terminated.
 	 */
 	mm_atexit_hash_restore(&alloced_atexit);

@@ -359,7 +359,7 @@ AST_TEST_DEFINE(aoc_encode_decode_test)
 		goto cleanup_aoc_test;
 	}
 
-	/* Set a currency name larger than 10 characters which is the the maximum
+	/* Set a currency name larger than 10 characters which is the maximum
 	 * length allowed by the ETSI aoc standard.  The name is expected to truncate
 	 * to 10 characters. */
 	if ((ast_aoc_set_currency_info(decoded, 100, AST_AOC_MULT_ONE, "12345678901234567890")) ||

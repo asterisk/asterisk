@@ -403,7 +403,7 @@ static int publish_acl_change(const char *name)
 	return 0;
 
 publish_failure:
-	ast_log(LOG_ERROR, "Failed to to issue ACL change message for %s.\n",
+	ast_log(LOG_ERROR, "Failed to issue ACL change message for %s.\n",
 		ast_strlen_zero(name) ? "all named ACLs" : name);
 	return -1;
 }

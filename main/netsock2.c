@@ -609,7 +609,7 @@ int ast_set_qos(int sockfd, int tos, int cos, const char *desc)
 	/* If the sock address is IPv6, the TCLASS field must be set. */
 	set_tclass = !ast_getsockname(sockfd, &addr) && ast_sockaddr_is_ipv6(&addr) ? 1 : 0;
 
-	/* If the the sock address is IPv4 or (IPv6 set to any address [::]) set TOS bits */
+	/* If the sock address is IPv4 or (IPv6 set to any address [::]) set TOS bits */
 	set_tos = (!set_tclass || (set_tclass && ast_sockaddr_is_any(&addr))) ? 1 : 0;
 
 	if (set_tos) {

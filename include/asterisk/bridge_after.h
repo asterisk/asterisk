@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-/*! Reason the the after bridge callback will not be called. */
+/*! Reason the after bridge callback will not be called. */
 enum ast_bridge_after_cb_reason {
 	/*! The datastore is being destroyed.  Likely due to hangup. (Enum value must be zero.) */
 	AST_BRIDGE_AFTER_CB_REASON_DESTROY,
