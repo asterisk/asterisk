@@ -405,6 +405,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 		if (serverhost == NULL) {
 			ast_log(LOG_WARNING, "festival_client: gethostbyname failed\n");
 			ast_config_destroy(cfg);
+			close(fd);
 			return -1;
 		}
 		memmove(&serv_addr.sin_addr, serverhost->h_addr, serverhost->h_length);
@@ -416,6 +417,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
 		ast_log(LOG_WARNING, "festival_client: connect to server failed\n");
 		ast_config_destroy(cfg);
+		close(fd);
 		return -1;
 	}
 
