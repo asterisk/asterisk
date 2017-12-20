@@ -3247,7 +3247,9 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		 * entry at this point since it holds a reference to the
 		 * RTP instance while it's active.
 		 */
-		close(rtp->rtcp->s);
+		if (rtp->rtcp->s > -1 && rtp->s != rtp->rtcp->s) {
+			close(rtp->rtcp->s);
+		}
 		ast_free(rtp->rtcp->local_addr_str);
 		ast_free(rtp->rtcp);
 	}
