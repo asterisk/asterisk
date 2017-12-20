@@ -727,7 +727,9 @@ static int swapmode(int *used, int *total)
 static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	uint64_t physmem, freeram;
+#if defined(HAVE_SYSINFO) || defined(HAVE_SWAPCTL)
 	uint64_t freeswap = 0;
+#endif
 	int nprocs = 0;
 	long uptime = 0;
 	int totalswap = 0;
@@ -817,7 +819,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Buffer RAM:                %" PRIu64 " KiB\n", ((uint64_t) sys_info.bufferram * sys_info.mem_unit) / 1024);
 #endif
-#if defined(HAVE_SWAPCTL) || defined(HAVE_SYSINFO)
+#if defined(HAVE_SYSINFO) || defined(HAVE_SWAPCTL)
 	ast_cli(a->fd, "  Total Swap Space:          %d KiB\n", totalswap);
 	ast_cli(a->fd, "  Free Swap Space:           %" PRIu64 " KiB\n\n", freeswap);
 #endif
