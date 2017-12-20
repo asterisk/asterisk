@@ -3481,6 +3481,7 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 
 static void rtp_deallocate_transport(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
 {
+	int saved_rtp_s = rtp->s;
 #ifdef HAVE_PJPROJECT
 	struct timeval wait = ast_tvadd(ast_tvnow(), ast_samp2tv(TURN_STATE_WAIT_TIME, 1000));
 	struct timespec ts = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000, };
@@ -3498,7 +3499,9 @@ static void rtp_deallocate_transport(struct ast_rtp_instance *instance, struct a
 
 	/* Destroy RTCP if it was being used */
 	if (rtp->rtcp && rtp->rtcp->s > -1) {
-		close(rtp->rtcp->s);
+		if (saved_rtp_s != rtp->rtcp->s) {
+			close(rtp->rtcp->s);
+		}
 		rtp->rtcp->s = -1;
 	}
 
