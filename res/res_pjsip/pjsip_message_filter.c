@@ -429,15 +429,27 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	while ((contact =
-		(pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT,
-			contact ? contact->next : NULL))) {
+
+	contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(
+		rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+
+	if (!contact && pjsip_method_creates_dialog(&rdata->msg_info.msg->line.req.method)) {
+		/* A contact header is required for dialog creating methods */
+		static const pj_str_t missing_contact = { "Missing Contact header", 22 };
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400,
+				&missing_contact, NULL, NULL);
+		return PJ_TRUE;
+	}
+
+	while (contact) {
 		if (!contact->star && !is_sip_uri(contact->uri)) {
 			print_uri_debug(URI_TYPE_CONTACT, rdata, (pjsip_hdr *)contact);
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
 				PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
 			return PJ_TRUE;
 		}
+		contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(
+			rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next);
 	}
 
 	return PJ_FALSE;
