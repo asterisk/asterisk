@@ -1,6 +1,50 @@
-2017-12-13 19:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2017-12-21 18:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* asterisk certified/13.18-cert1-rc3 Released.
+	* asterisk certified/13.18-cert1 Released.
+
+2017-12-13 14:26 +0000 [9571a75842]  George Joseph <gjoseph@digium.com>
+
+	* README: Remove outdated references to tex docs
+
+	  Added links to the wiki to replace references to outdated
+	  tex docs.
+
+	  ASTERISK-27430
+	  Reported by: Corey Farrell
+
+	  Change-Id: I5007e732b30bc7b63d124c530ae8857c89991209
+
+2017-12-01 16:18 +0000 [ffc2b0eb91]  Corey Farrell <git@cfware.com>
+
+	* README-SERIOUSLY.bestpractices.txt: Convert to markdown
+
+	  Follow-up to conversion of README.md.
+
+	  Change-Id: I17ee7cf25bc027ece844efa2c1dfe613aff1e35b
+
+2017-11-21 09:16 +0000 [3948e9d616]  Corey Farrell <git@cfware.com>
+
+	* README: Convert to README.md.
+
+	  Convert the README file to markdown format, remove the old README.  This
+	  causes websites like github to display the README in a much nicer
+	  format with live links.  The raw file is still very readable from
+	  plain text editors and terminals.
+
+	  Change-Id: I7d13131764a9a9026e5f8a6ddb245a01bbd788e7
+
+2017-11-17 19:36 +0000 [5a204aac04]  Corey Farrell <git@cfware.com>
+
+	* README: Send people to secure websites where available.
+
+	  We should be sending people to secure web URL's where available.
+	  Update README's and docs.
+
+	  Change-Id: Id5b1e049b0b18b49a784f1254605aefa244ce19a
+
+2017-12-13 13:23 +0000 [673d7d081e]  George Joseph <gjoseph@digium.com>
+
+	* Update for certified/13.18-cert1-rc3
 
 2017-11-30 10:12 +0000 [10b3d4cea8]  Joshua Colp <jcolp@digium.com>
 
@@ -207,9 +251,9 @@
 	  Change-Id: Ie1db5dd1818ac25cc2ae41b644f848b5865b1362
 	  (cherry picked from commit 5fe2e7bfdcd06935594823faba67c71ead7ebcf5)
 
-2017-11-15 17:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2017-11-15 11:02 +0000 [b64d924e1c]  George Joseph <gjoseph@digium.com>
 
-	* asterisk certified/13.18-cert1-rc2 Released.
+	* Update for certified/13.18-cert1-rc2
 
 2017-11-13 14:35 +0000 [705dbd0468]  Ben Ford <bford@digium.com>
 
@@ -259,26 +303,9 @@
 
 	  Change-Id: Ic5c2bb60226df0ef1c8851359ed8d4cd64469429
 
-2017-11-06 16:37 +0000 [7b4b17c843]  Richard Mudgett <rmudgett@digium.com>
+2017-11-08 15:18 +0000 [3984942b13]  Kevin Harwell <kharwell@digium.com>
 
-	* res_pjsip_registrar.c: Fix named AOR and pjproject group deadlock.
-
-	  One of the patches for ASTERISK_27147 introduced a deadlock regression.
-	  When the connection oriented transport shut down, the code attempted to
-	  remove the associated contact.  However, that same transport had just
-	  requested a registration that we hadn't responded to yet.  Depending
-	  upon timing we could deadlock.
-
-	  * Made send the REGISTER response after we completed processing the
-	  request contacts and released the named AOR lock to avoid the deadlock.
-
-	  ASTERISK-27391
-
-	  Change-Id: I89a90f87cb7a02facbafb44c75d8845f93417364
-
-2017-11-08 21:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
-
-	* asterisk certified/13.18-cert1-rc1 Released.
+	* Update for certified/13.18-cert1-rc1
 
 2017-10-19 13:35 +0000 [13508b8a16]  Kevin Harwell <kharwell@digium.com>
 
@@ -357,6 +384,23 @@
 	  Reported by: Youngsung Kim at LINE Corporation
 
 	  Change-Id: I48de2e4ccf196990906304e8d7061f4ffdd772ff
+
+2017-11-06 16:37 +0000 [7b4b17c843]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_registrar.c: Fix named AOR and pjproject group deadlock.
+
+	  One of the patches for ASTERISK_27147 introduced a deadlock regression.
+	  When the connection oriented transport shut down, the code attempted to
+	  remove the associated contact.  However, that same transport had just
+	  requested a registration that we hadn't responded to yet.  Depending
+	  upon timing we could deadlock.
+
+	  * Made send the REGISTER response after we completed processing the
+	  request contacts and released the named AOR lock to avoid the deadlock.
+
+	  ASTERISK-27391
+
+	  Change-Id: I89a90f87cb7a02facbafb44c75d8845f93417364
 
 2017-11-01 11:12 +0000 [18b0be292d]  Ben Ford <bford@digium.com>
 
@@ -8355,6 +8399,107 @@
 2016-10-17 14:08 +0000 [df75b647da]  Mark Michelson <mmichelson@digium.com>
 
 	* Update for 13.12.0-rc1
+
+2017-12-13 14:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert9 Released.
+
+2017-11-30 10:12 +0000 [3eea735a39]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2017-012: Place single RTCP report block at beginning of report.
+
+	  When the RTCP code was transitioned over to Stasis a code change
+	  was made to keep track of how many reports are present. This count
+	  controlled where report blocks were placed in the RTCP report.
+
+	  If a compound RTCP packet was received this logic would incorrectly
+	  place a report block in the wrong location resulting in a write
+	  to an invalid location.
+
+	  This change removes this counting logic and always places the report
+	  block at the first position. If in the future multiple reports are
+	  supported the logic can be extended but for now keeping a count
+	  serves no purpose.
+
+	  ASTERISK-27382
+	  ASTERISK-27429
+
+	  Change-Id: Iad6c8a9985c4b608ef493e19c421211615485116
+
+2017-12-05 18:04 +0000 [7c0bc72972]  Richard Mudgett <rmudgett@digium.com>
+
+	* CDR: Fix deadlock setting some CDR values.
+
+	  Setting channel variables with the AMI Originate action caused a deadlock
+	  when you set CDR(amaflags) or CDR(accountcode).  This path has the channel
+	  locked when the CDR function is called.  The CDR function then
+	  synchronously passes the job to a stasis thread.  The stasis handling
+	  function then attempts to lock the channel.  Deadlock results.
+
+	  * Avoid deadlock by making the CDR function handle setting amaflags and
+	  accountcode directly on the channel rather than passing it off to the CDR
+	  processing code under a stasis thread to do it.
+
+	  * Made the CHANNEL function and the CDR function process amaflags the same
+	  way.
+
+	  * Fixed referencing the wrong message type in cdr_prop_write().
+
+	  ASTERISK-27460
+
+	  Change-Id: I5eacb47586bc0b8f8ff76a19bd92d1dc38b75e8f
+
+2017-12-01 19:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert8 Released.
+
+2017-11-30 14:38 +0000 [efeb9da0e7]  George Joseph <gjoseph@digium.com>
+
+	* AST-2017-013: chan_skinny: Call pthread_detach when sess threads end
+
+	  chan_skinny creates a new thread for each new session.  In trying
+	  to be a good cleanup citizen, the threads are joinable and the
+	  unload_module function does a pthread_cancel() and a pthread_join()
+	  on any sessions that are active at that time.  This has an
+	  unintended side effect though. Since you can call pthread_join on a
+	  thread that's already terminated, pthreads keeps the thread's
+	  storage around until you explicitly call pthread_join (or
+	  pthread_detach()).   Since only the module_unload function was
+	  calling pthread_join, and even then only on the ones active at the
+	  tme, the storage for every thread/session ever created sticks
+	  around until asterisk exits.
+
+	  * A thread can detach itself so the session_destroy() function
+	    now calls pthread_detach() just before it frees the session
+	    memory allocation.  The module_unload function still takes care
+	    of the ones that are still active should the module be unloaded.
+
+	  ASTERISK-27452
+	  Reported by: Juan Sacco
+
+	  Change-Id: I9af7268eba14bf76960566f891320f97b974e6dd
+
+2017-11-10 07:06 +0000 [191190a982]  Joshua Colp <jcolp@digium.com>
+
+	* pjsip: Add patch to allow all transports to be destroyed.
+
+	  If a transport is created with the same transport type, source
+	  IP address, and source port as one that already exists the old
+	  transport is moved into a linked list called "tp_list".
+
+	  If this old transport is later shutdown it will not be destroyed
+	  as the process checks whether the transport is valid or not. This
+	  check does not look at the "tp_list" when making the determination
+	  causing the transport to not be destroyed.
+
+	  This change updates the logic to query not just the main storage
+	  method for transports but also the "tp_list".
+
+	  Upstream issue https://trac.pjsip.org/repos/ticket/2061
+
+	  ASTERISK-27411
+
+	  Change-Id: Ic5c2bb60226df0ef1c8851359ed8d4cd64469429
 
 2017-11-08 16:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
