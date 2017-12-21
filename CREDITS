@@ -22,7 +22,7 @@
 	* John Todd, TalkPlus, Inc.  and JR Richardson, Ntegrated Solutions. 
 		for funding the development of SIP Session Timers support.
 
-	* Omnitor AB, Gunnar Hellstr�m, for funding work with videocaps, 
+	* Omnitor AB, Gunnar Hellström, for funding work with videocaps, 
 		T.140 RED, originate with video/text and many more 
 		contributions.
 
@@ -252,7 +252,7 @@
 		cdr_tds rewrite, countless other improvements, fixes, and good
 		ideas. sean(AT)malleable.com
 
-	* Jan Kal�b - Calendaring support for Exchange Server 2007+ via 
+	* Jan Kaláb - Calendaring support for Exchange Server 2007+ via 
 		Exchange Web Services.
 
 	* University of Oslo (uio.no), Norway - SIP Max-Forwards setting 
