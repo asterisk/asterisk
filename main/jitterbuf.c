@@ -358,7 +358,7 @@ static int queue_put(jitterbuf *jb, void *data, const enum jb_frame_type type, l
 	frame->type = type;
 
 	/*
-	 * frames are a circular list, jb-frames points to to the lowest ts,
+	 * frames are a circular list, jb-frames points to the lowest ts,
 	 * jb->frames->prev points to the highest ts
 	 */
 

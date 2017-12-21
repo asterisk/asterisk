@@ -702,7 +702,7 @@ static int kill_threads(void *obj, void *arg, int flags)
 /*!
  * \brief ao2 callback to zombify a set number of threads.
  *
- * Threads will be zombified as long as as the counter has not reached
+ * Threads will be zombified as long as the counter has not reached
  * zero. The counter is decremented with each thread that is zombified.
  *
  * Zombifying a thread involves removing it from its current container,

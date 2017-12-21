@@ -135,7 +135,7 @@ struct parking_lot_cfg *parking_lot_cfg_create(const char *cat);
  * \param dynamic non-zero if creating a dynamic parking lot with this. Don't replace existing parking lots. Ever.
  *
  * \retval A reference to the new parking lot
- * \retval NULL if it was not found and could not be be allocated
+ * \retval NULL if it was not found and could not be allocated
  *
  * \note The parking lot will need to be unreffed if it ever falls out of scope
  * \note The parking lot will automatically be added to the parking lot container if needed as part of this process

@@ -1171,7 +1171,7 @@ static int realtime_sqlite3_require(const char *database, const char *table, va_
 	struct realtime_sqlite3_db *db;
 
 	/* SQLite3 columns are dynamically typed, with type affinity. Built-in functions will
-	 * return the results as char * anyway. The only field that that cannot contain text
+	 * return the results as char * anyway. The only field that cannot contain text
 	 * data is an INTEGER PRIMARY KEY, which must be a 64-bit signed integer. So, for
 	 * the purposes here we really only care whether the column exists and not what its
 	 * type or length is. */

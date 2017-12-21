@@ -173,7 +173,7 @@ struct skel_level_state {
 };
 
 /*! \brief Object to hold level config information.
- * \note This object should hold a reference to an an object that holds state across reloads.
+ * \note This object should hold a reference to an object that holds state across reloads.
  * The other fields are just examples of the kind of data that might be stored in an level.
  */
 struct skel_level {
@@ -193,7 +193,7 @@ struct skel_level {
  * the running game.
  */
 struct skel_current_game {
-	uint32_t total_games;          /*! The total number of games for this call to to the app */
+	uint32_t total_games;          /*! The total number of games for this call to the app */
 	uint32_t games_left;           /*! How many games are left to play in this set */
 	uint32_t cheat;                /*! Whether or not cheating was enabled for the game */
 	struct skel_level *level_info; /*! The level information for the running game */

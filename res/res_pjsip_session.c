@@ -473,7 +473,7 @@ enum delayed_method {
 
 /*!
  * \internal
- * \brief Convert delayed method enum value to to a string.
+ * \brief Convert delayed method enum value to a string.
  * \since 13.3.0
  *
  * \param method Delayed method enum value to convert to a string.
@@ -1507,7 +1507,7 @@ static int sip_session_suspend_task(void *data)
 	suspender->suspended = 1;
 	ast_cond_signal(&suspender->cond_suspended);
 
-	/* Wait for the the serializer suspension to be completed. */
+	/* Wait for the serializer suspension to be completed. */
 	while (!suspender->complete) {
 		ast_cond_wait(&suspender->cond_complete, ao2_object_get_lockaddr(suspender));
 	}

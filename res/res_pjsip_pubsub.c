@@ -895,7 +895,7 @@ static int have_visited(const char *resource, struct resources *visited)
  * This iterates through the items on a resource list and creates tree nodes for each one. The
  * tree nodes created are children of the supplied parent node. If an item in the resource
  * list is itself a list, then this function is called recursively to provide children for
- * the the new node.
+ * the new node.
  *
  * If an item in a resource list is not a list, then the supplied subscription handler is
  * called into as if a new SUBSCRIBE for the list item were presented. The handler's response

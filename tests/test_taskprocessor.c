@@ -652,7 +652,7 @@ AST_TEST_DEFINE(taskprocessor_shutdown)
 	/* Wait for shutdown to complete */
 	pthread_join(shutdown_thread, NULL);
 
-	/* Should have also also completed task2 */
+	/* Should have also completed task2 */
 	wait_res = shutdown_has_completed(task2);
 	if (!wait_res) {
 		ast_test_status_update(test, "Task2 didn't finish\n");

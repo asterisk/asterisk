@@ -316,7 +316,7 @@ int ast_http_response_status_line(const char *buf, const char *version, int code
  * \param name out parameter pointing to the header name
  * \param value out parameter pointing to header value
  * \return -1 if buf is empty
- * \return 0 if buf could be separated into into name and value
+ * \return 0 if buf could be separated into name and value
  * \return 1 if name or value portion don't exist
  * \since 13
  */
