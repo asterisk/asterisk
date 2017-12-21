@@ -256,7 +256,7 @@ enum ast_strsep_flags {
 
 /*!
   \brief Act like strsep but ignore separators inside quotes.
-  \param s Pointer to address of the the string to be processed.
+  \param s Pointer to address of the string to be processed.
   Will be modified and can't be constant.
   \param sep A single character delimiter.
   \param flags Controls post-processing of the result.

@@ -145,7 +145,7 @@ An interface to help debug refcounting is provided
 in this package. It is dependent on the refdebug being enabled in
 asterisk.conf.
 
-Each of the reference manipulations will generate one line of output in in the refs
+Each of the reference manipulations will generate one line of output in the refs
 log file. These lines look like this:
 ...
 0x8756f00,+1,1234,chan_sip.c,22240,load_module,**constructor**,allocate users
@@ -682,7 +682,7 @@ int ao2_weakproxy_unsubscribe(void *weakproxy, ao2_weakproxy_notification_cb cb,
  * \since 14.0.0
  * \brief Get the weakproxy attached to obj
  *
- * \param obj The object to retreive a weakproxy from
+ * \param obj The object to retrieve a weakproxy from
  *
  * \return The weakproxy object
  */
@@ -1057,7 +1057,7 @@ enum search_flags {
 	OBJ_NODATA = (1 << 1),
 	/*!
 	 * Don't stop at the first match in ao2_callback() unless the
-	 * result of of the callback function has the CMP_STOP bit set.
+	 * result of the callback function has the CMP_STOP bit set.
 	 */
 	OBJ_MULTIPLE = (1 << 2),
 	/*!

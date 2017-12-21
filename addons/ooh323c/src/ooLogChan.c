@@ -290,7 +290,7 @@ int ooClearAllLogicalChannels(OOH323CallData *call)
       prev = temp;
       temp = temp->next;
       ooClearLogicalChannel(call, prev->channelNo);/* TODO: efficiency - This causes re-search 
-                                                      of of logical channel in the list. Can be
+                                                      of logical channel in the list. Can be
                                                       easily improved.*/
    }
    call->logicalChans = NULL;

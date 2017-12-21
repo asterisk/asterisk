@@ -1108,7 +1108,7 @@ int ast_rdlock_context(struct ast_context *con);
 int ast_unlock_context(struct ast_context *con);
 
 /*!
- * \brief locks the macrolock in the given given context
+ * \brief locks the macrolock in the given context
  *
  * \param macrocontext name of the macro-context to lock
  *
