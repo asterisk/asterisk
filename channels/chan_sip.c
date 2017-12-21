@@ -9286,7 +9286,7 @@ static enum match_req_res match_req_to_dialog(struct sip_pvt *sip_pvt_ptr, struc
 }
 
 /*! \brief This function creates a dialog to handle a forked request.  This dialog
- * exists only to properly terminiate the the forked request immediately.
+ * exists only to properly terminiate the forked request immediately.
  */
 static void forked_invite_init(struct sip_request *req, const char *new_theirtag, struct sip_pvt *original, struct ast_sockaddr *addr)
 {
@@ -15808,7 +15808,7 @@ static int sip_reregister(const void *data)
 	if (r->call && r->call->do_history) {
 		append_history(r->call, "RegistryRenew", "Account: %s@%s", r->username, r->hostname);
 	}
-	/* Since registry's are only added/removed by the the monitor thread, this
+	/* Since registry's are only added/removed by the monitor thread, this
 	   may be overkill to reference/dereference at all here */
 	if (sipdebug) {
 		ast_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
@@ -26347,7 +26347,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 		if (p->owner) {
 			ast_debug(3, "INVITE w Replaces on existing call? Refusing action. [%s]\n", p->callid);
-			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not accept the transfer */
 			check_via(p, req);
 			copy_request(&p->initreq, req);
 			/* Do not destroy existing call */
@@ -26435,7 +26435,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 		if (replaces_pvt == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
-			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
+			transmit_response_reliable(p, "400 Bad request", req);	/* The best way to not accept the transfer */
 			error = 1;
 		}
 
@@ -34386,7 +34386,7 @@ static int peer_cmp_cb(void *obj, void *arg, int flags)
 }
 
 /*!
- * Hash function based on the the peer's ip address.  For IPv6, we use the end
+ * Hash function based on the peer's ip address.  For IPv6, we use the end
  * of the address.
  * \todo Find a better hashing function
  */

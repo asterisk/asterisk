@@ -858,7 +858,7 @@ AST_MUTEX_DEFINE_STATIC(dial_bridge_lock);
  * they are finished with it.
  *
  * \retval NULL Unable to find/create the dial bridge
- * \retval non-NULL A reference to teh dial bridge
+ * \retval non-NULL A reference to the dial bridge
  */
 static struct ast_bridge *get_dial_bridge(void)
 {

@@ -2877,7 +2877,7 @@ void check_pval(pval *item, struct argapp *apps, int in_globals)
 	   3. Does the number of macro args match the definition?
 	   4. Is a macro call missing its & at the front?
 	   5. Application calls-- we could check syntax for existing applications,
-	      but I need some some sort of universal description bnf for a general
+	      but I need some sort of universal description bnf for a general
 		  sort of method for checking arguments, in number, maybe even type, at least. 
 		  Don't want to hand code checks for hundreds of applications.
 	*/

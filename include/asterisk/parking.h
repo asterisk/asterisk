@@ -164,7 +164,7 @@ struct ast_parking_bridge_feature_fn_table {
 	 * \param parker The \ref bridge_channel object that is initiating the parking
 	 * \param context The context to blind transfer to
 	 * \param exten The extension to blind transfer to
-	 * \param parked_channel_cb Execute the following function on the the channel that gets parked
+	 * \param parked_channel_cb Execute the following function on the channel that gets parked
 	 * \param parked_channel_data Data for the parked_channel_cb
 	 *
 	 * \note If the bridge \ref parker is in has more than one other occupant, the entire
@@ -236,7 +236,7 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
  * \param context The context to blind transfer to
  * \param exten The extension to blind transfer to
  * \param exten The extension to blind transfer to
- * \param parked_channel_cb Execute the following function on the the channel that gets parked
+ * \param parked_channel_cb Execute the following function on the channel that gets parked
  * \param parked_channel_data Data for the parked_channel_cb
  *
  * \note If the bridge \ref parker is in has more than one other occupant, the entire

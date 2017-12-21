@@ -319,7 +319,7 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 	else if (!strcasecmp(page, "COMM"))
 		cmd = 0x80;
 	else {
-		ast_log(LOG_WARNING, "Expecting either 'INFO' or 'COMM' page, got got '%s' at line %d of %s\n", page, lineno, script);
+		ast_log(LOG_WARNING, "Expecting either 'INFO' or 'COMM' page, got '%s' at line %d of %s\n", page, lineno, script);
 		return 0;
 	}
 
