@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Implementation of Inter-Asterisk eXchange
- * 
+ *
  * Copyright (C) 2003, Digium
  *
  * Mark Spencer <markster@digium.com>
@@ -14,7 +14,7 @@
 /*!\file
  * \brief Implementation of the IAX2 protocol
  */
- 
+
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H
 

@@ -15,7 +15,7 @@
 #include 	"proto.h"
 
 /*	4.2.0 .. 4.2.3	PREPROCESSING SECTION
- *  
+ *
  *  	After A-law to linear conversion (or directly from the
  *   	Ato D converter) the following scaling is assumed for
  * 	input to the RPE-LTP algorithm:
@@ -26,7 +26,7 @@
  *	Where S is the sign bit, v a valid bit, and * a "don't care" bit.
  * 	The original signal is called sop[..]
  *
- *      out:   0.1................... 12 
+ *      out:   0.1................... 12
  *	     S.S.v.v.v.v.v.v.v.v.v.v.v.v.0.0
  */
 
@@ -59,7 +59,7 @@ void Gsm_Preprocess P3((S, s, so),
 
 
 	/*  4.2.2   Offset compensation
-	 * 
+	 *
 	 *  This part implements a high-pass filter and requires extended
 	 *  arithmetic precision for the recursive part of this filter.
 	 *  The input of this procedure is the array so[0...159] and the
@@ -82,15 +82,15 @@ void Gsm_Preprocess P3((S, s, so),
 		 */
 		{
 		word		msp;
-#ifndef __GNUC__ 
+#ifndef __GNUC__
 		word		lsp;
 #endif
 		longword L_s2;
 		longword L_temp;
-		
+
 		L_s2 = s1;
 		L_s2 <<= 15;
-#ifndef __GNUC__ 
+#ifndef __GNUC__
 		msp = (word)SASR( L_z2, 15 );
 		lsp = (word)(L_z2 & 0x7fff); /* gsm_L_sub(L_z2,(msp<<15)); */
 

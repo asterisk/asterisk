@@ -427,12 +427,12 @@ Parking:
  - Configuration is found in res_parking.conf. It is no longer supported in
    features.conf
 
- - The arguments for the Park, ParkedCall, and ParkAndAnnounce applications 
-   have been modified significantly. See the application documents for 
+ - The arguments for the Park, ParkedCall, and ParkAndAnnounce applications
+   have been modified significantly. See the application documents for
    specific details.
 
  - Numerous changes to Parking related applications, AMI and CLI commands and
-   internal inter-workings  have been made. Please read the CHANGES file for 
+   internal inter-workings  have been made. Please read the CHANGES file for
    the detailed list.
 
 Security Events Framework:

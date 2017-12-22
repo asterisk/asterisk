@@ -40,4 +40,3 @@
 ;successive number hits/misses of 12.75ms before a digit/nodigit is considered valid
 ;dtmf_hits_to_begin=2
 ;dtmf_misses_to_end=3
-

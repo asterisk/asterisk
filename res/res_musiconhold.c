@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Routines implementing music on hold
- * 
+ *
  * \author Mark Spencer <markster@digium.com>
  */
 
@@ -27,7 +27,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page musiconhold.conf musiconhold.conf
  * \verbinclude musiconhold.conf.sample
  */
@@ -314,7 +314,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 	state->class = mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 }
 
-static int ast_moh_files_next(struct ast_channel *chan) 
+static int ast_moh_files_next(struct ast_channel *chan)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	int tries;
@@ -561,7 +561,7 @@ static int spawn_mp3(struct mohclass *class)
 	DIR *dir = NULL;
 	struct dirent *de;
 
-	
+
 	if (!strcasecmp(class->dir, "nodir")) {
 		files = 1;
 	} else {
@@ -579,19 +579,19 @@ static int spawn_mp3(struct mohclass *class)
 		argv[argc++] = "--mono";
 		argv[argc++] = "-r";
 		argv[argc++] = "8000";
-		
+
 		if (!ast_test_flag(class, MOH_SINGLE)) {
 			argv[argc++] = "-b";
 			argv[argc++] = "2048";
 		}
-		
+
 		argv[argc++] = "-f";
-		
+
 		if (ast_test_flag(class, MOH_QUIET))
 			argv[argc++] = "4096";
 		else
 			argv[argc++] = "8192";
-		
+
 		/* Look for extra arguments and add them to the list */
 		ast_copy_string(xargs, class->args, sizeof(xargs));
 		argptr = xargs;
@@ -615,9 +615,9 @@ static int spawn_mp3(struct mohclass *class)
 		files++;
 	} else if (dir) {
 		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
-			if ((strlen(de->d_name) > 3) && 
-			    ((ast_test_flag(class, MOH_CUSTOM) && 
-			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
+			if ((strlen(de->d_name) > 3) &&
+			    ((ast_test_flag(class, MOH_CUSTOM) &&
+			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") ||
 			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
 			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
 				ast_copy_string(fns[files], de->d_name, sizeof(fns[files]));
@@ -630,7 +630,7 @@ static int spawn_mp3(struct mohclass *class)
 	if (dir) {
 		closedir(dir);
 	}
-	if (pipe(fds)) {	
+	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Pipe failed\n");
 		return -1;
 	}
@@ -886,7 +886,7 @@ static int start_moh_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	class = S_OR(args.class, NULL);
-	if (ast_moh_start(chan, class, NULL)) 
+	if (ast_moh_start(chan, class, NULL))
 		ast_log(LOG_WARNING, "Unable to start music on hold class '%s' on channel %s\n", class, ast_channel_name(chan));
 
 	return 0;
@@ -946,7 +946,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	ao2_lock(cl);
 	AST_LIST_INSERT_HEAD(&cl->members, moh, list);
 	ao2_unlock(cl);
-	
+
 	return moh;
 }
 
@@ -957,9 +957,9 @@ static void moh_release(struct ast_channel *chan, void *data)
 	struct ast_format *oldwfmt;
 
 	ao2_lock(class);
-	AST_LIST_REMOVE(&moh->parent->members, moh, list);	
+	AST_LIST_REMOVE(&moh->parent->members, moh, list);
 	ao2_unlock(class);
-	
+
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 
@@ -1329,8 +1329,8 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 			}
 			return -1;
 		}
-	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") || 
-			!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") || 
+	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") ||
+			!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") ||
 			!strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
 		if (init_app_class(moh)) {
 			if (unref) {
@@ -1649,7 +1649,7 @@ static void moh_class_destructor(void *obj)
 		stime = time(NULL) + 2;
 		killpid(class->pid, class->kill_delay, class->kill_method);
 
-		while ((ast_wait_for_input(class->srcfd, 100) > 0) && 
+		while ((ast_wait_for_input(class->srcfd, 100) > 0) &&
 				(bytes = read(class->srcfd, buff, 8192)) && time(NULL) < stime) {
 			tbytes = tbytes + bytes;
 		}
@@ -1834,7 +1834,7 @@ static int load_moh_classes(int reload)
 
 	ast_config_destroy(cfg);
 
-	ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, 
+	ao2_t_callback(mohclasses, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
 			moh_classes_delete_marked, NULL, "Purge marked classes");
 
 	return numclasses;
@@ -1981,8 +1981,8 @@ static int moh_class_cmp(void *obj, void *arg, int flags)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

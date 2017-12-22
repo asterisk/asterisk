@@ -221,7 +221,7 @@ static void dump_byte(char *output, int maxlen, void *value, int len)
 }
 
 static char *proto2str(int proto, char *buf, int bufsiz)
-{	
+{
 	switch(proto) {
 	case DUNDI_PROTO_NONE:
 		strncpy(buf, "None", bufsiz - 1);
@@ -304,10 +304,10 @@ static void dump_answer(char *output, int maxlen, void *value, int len)
 	tmp[datalen] = '\0';
 
 	ast_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
-	snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]", 
-		dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)), 
+	snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]",
+		dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)),
 		ntohs(answer->weight),
-		proto2str(answer->protocol, proto, sizeof(proto)), 
+		proto2str(answer->protocol, proto, sizeof(proto)),
 			tmp, eid_str);
 }
 
@@ -464,12 +464,12 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	}
 	snprintf(subclass2, (int)sizeof(subclass2), "%02hhx", (unsigned char)fhi->cmdflags);
 	subclass = subclass2;
-	snprintf(tmp, (int)sizeof(tmp), 
+	snprintf(tmp, (int)sizeof(tmp),
 		"%s-Frame -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",
 		pref[rx],
 		fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
 	outputf(tmp);
-	snprintf(tmp, (int)sizeof(tmp), 
+	snprintf(tmp, (int)sizeof(tmp),
 		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
 		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
 		ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
@@ -585,14 +585,14 @@ int dundi_ie_append_addr(struct dundi_ie_data *ied, unsigned char ie, struct soc
 	return dundi_ie_append_raw(ied, ie, sin, (int)sizeof(struct sockaddr_in));
 }
 
-int dundi_ie_append_int(struct dundi_ie_data *ied, unsigned char ie, unsigned int value) 
+int dundi_ie_append_int(struct dundi_ie_data *ied, unsigned char ie, unsigned int value)
 {
 	unsigned int newval;
 	newval = htonl(value);
 	return dundi_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int dundi_ie_append_short(struct dundi_ie_data *ied, unsigned char ie, unsigned short value) 
+int dundi_ie_append_short(struct dundi_ie_data *ied, unsigned char ie, unsigned short value)
 {
 	unsigned short newval;
 	newval = htons(value);
@@ -614,7 +614,7 @@ int dundi_ie_append_byte(struct dundi_ie_data *ied, unsigned char ie, unsigned c
 	return dundi_ie_append_raw(ied, ie, &dat, 1);
 }
 
-int dundi_ie_append(struct dundi_ie_data *ied, unsigned char ie) 
+int dundi_ie_append(struct dundi_ie_data *ied, unsigned char ie)
 {
 	return dundi_ie_append_raw(ied, ie, NULL, 0);
 }
@@ -678,7 +678,7 @@ int dundi_parse_ies(struct dundi_ies *ies, unsigned char *data, int datalen)
 			} else {
 				if (ies->anscount < DUNDI_MAX_ANSWERS)
 					ies->answers[ies->anscount++]= (struct dundi_answer *)(data + 2);
-				else 
+				else
 					errorf("Ignoring extra answers!\n");
 			}
 			break;

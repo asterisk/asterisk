@@ -718,4 +718,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MySQL CDR Backend",
 	.unload = unload_module,
 	.reload = reload,
 );
-

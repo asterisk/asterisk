@@ -4030,7 +4030,7 @@ int ast_say_date_is(struct ast_channel *chan, time_t t, const char *ints, const 
 				if (!res) {
 					res = wait_file(chan, ints, "digits/hundred", lang);
 					if (!res && year % 100 != 0) {
-						res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
+						res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);
 					}
 				}
 			}
@@ -4795,7 +4795,7 @@ int ast_say_date_with_format_is(struct ast_channel *chan, time_t t, const char *
 				{
 					int year = tm.tm_year + 1900;
 					if (year > 1999) {	/* year 2000 and later */
-						res = ast_say_number(chan, year, ints, lang, (char *) NULL);	
+						res = ast_say_number(chan, year, ints, lang, (char *) NULL);
 					} else {
 						if (year < 1100) {
 							/* I'm not going to handle 1100 and prior */
@@ -4808,7 +4808,7 @@ int ast_say_date_with_format_is(struct ast_channel *chan, time_t t, const char *
 							if (!res) {
 								res = wait_file(chan, ints, "digits/hundred", lang);
 								if (!res && year % 100 != 0) {
-									res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);	
+									res = ast_say_number(chan, (year % 100), ints, lang, (char *) NULL);
 								}
 							}
 						}

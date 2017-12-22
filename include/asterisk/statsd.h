@@ -147,4 +147,3 @@ AST_OPTIONAL_API(void, ast_statsd_log_sample, (const char *metric_name,
 
 
 #endif /* _ASTERISK_STATSD_H */
-

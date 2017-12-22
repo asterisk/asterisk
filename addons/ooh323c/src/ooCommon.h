@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the LICENSE.txt file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the LICENSE.txt file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
-/** 
- * @file ooCommon.h 
+/**
+ * @file ooCommon.h
  * Common runtime constant and type definitions.
  */
 #ifndef _OOCOMMON_H_
@@ -43,7 +43,7 @@
 #endif
 #include <semaphore.h>
 
-/** 
+/**
  * @ingroup cruntime C Runtime Common Constant and Type Definitions.
  * @{
  */
@@ -119,7 +119,7 @@ typedef struct _OOMsgBuf {
 #endif /* _DLL */
 #endif /* EXTERN */
 
-/** 
- * @} 
+/**
+ * @}
  */
 #endif /* _OOCOMMON_H_ */

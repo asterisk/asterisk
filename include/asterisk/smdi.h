@@ -17,7 +17,7 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \brief SMDI support for Asterisk.
  * \author Matthew A. Nicholson <mnicholson@digium.com>
@@ -46,7 +46,7 @@
  *
  * The ast_smdi_mwi_message structure contains the parsed out parts of an smdi
  * message.  Each ast_smdi_interface structure has a message queue consisting
- * ast_smdi_mwi_message structures. 
+ * ast_smdi_mwi_message structures.
  */
 struct ast_smdi_mwi_message {
 	char name[SMDI_MESG_NAME_LEN];
@@ -60,7 +60,7 @@ struct ast_smdi_mwi_message {
  *
  * The ast_smdi_md_message structure contains the parsed out parts of an smdi
  * message.  Each ast_smdi_interface structure has a message queue consisting
- * ast_smdi_md_message structures. 
+ * ast_smdi_md_message structures.
  */
 struct ast_smdi_md_message {
 	char name[SMDI_MESG_NAME_LEN];
@@ -72,7 +72,7 @@ struct ast_smdi_md_message {
 	struct timeval timestamp;				/* a timestamp for the message */
 };
 
-/*! 
+/*!
  * \brief SMDI interface structure.
  *
  * The ast_smdi_interface structure holds information on a serial port that
@@ -81,7 +81,7 @@ struct ast_smdi_md_message {
  */
 struct ast_smdi_interface;
 
-/*! 
+/*!
  * \brief Get the next SMDI message from the queue.
  * \param iface a pointer to the interface to use.
  *
@@ -164,7 +164,7 @@ AST_OPTIONAL_API(int, ast_smdi_mwi_set,
 		 (struct ast_smdi_interface *iface, const char *mailbox),
 		 { return -1; });
 
-/*! 
+/*!
  * \brief Unset the MWI indicator for a mailbox.
  * \param iface the interface to use.
  * \param mailbox the mailbox to use.

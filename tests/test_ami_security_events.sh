@@ -44,4 +44,3 @@ printf "Action: Challenge\r\nUsername: russell\r\nAuthType: MD5\r\n\r\nAction: L
 # Session Limit
 printf "Action: Login\r\nUsername: russell\r\nSecret: blah123\r\n\r\n" | nc -w 5 localhost 5038 &
 printf "Action: Login\r\nUsername: russell\r\nSecret: blah123\r\n\r\n" | nc -w 1 localhost 5038
-

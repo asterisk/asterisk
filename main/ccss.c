@@ -2853,7 +2853,7 @@ static void *generic_recall(void *data)
 		return NULL;
 	}
 	ao2_ref(tmp_cap, -1);
-	
+
 	/* We have a channel. It's time now to set up the datastore of recalled CC interfaces.
 	 * This will be a common task for all recall functions. If it were possible, I'd have
 	 * the core do it automatically, but alas I cannot. Instead, I will provide a public

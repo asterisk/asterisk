@@ -36,4 +36,3 @@ misdn_config.o: _ASTCFLAGS+=-Imisdn
 misdn/isdn_lib.o: _ASTCFLAGS+=-Wno-strict-aliasing
 
 $(call MOD_ADD_C,chan_oss,console_video.c vgrabbers.c console_board.c)
-

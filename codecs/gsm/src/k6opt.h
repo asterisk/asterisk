@@ -1,7 +1,7 @@
 /* k6opt.h  vector functions optimized for MMX extensions to x86
  *
  * Copyright (C) 1999 by Stanley J. Brooks <stabro@megsinet.net>
- * 
+ *
  * Any use of this software is permitted provided that this notice is not
  * removed and that neither the authors nor the Technische Universitaet Berlin
  * are deemed to have made any representations as to the suitability of this
@@ -9,7 +9,7 @@
  * this software.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE;
  * not even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE.
- * 
+ *
  * Chicago, 03.12.1999
  * Stanley J. Brooks
  */
@@ -22,7 +22,7 @@ extern void Weighting_filter P2((e, x),
 
 extern longword k6maxcc P3((wt,dp,Nc_out),
 	const word *wt,
-	const word *dp, 
+	const word *dp,
 	word		* Nc_out	/* 		OUT	*/
 )
 ;
@@ -34,7 +34,7 @@ extern longword k6maxcc P3((wt,dp,Nc_out),
  */
 extern longword k6maxmin P3((p,n,out),
 	const word *p,
-	int n, 
+	int n,
 	word *out	/* 		out[0] is max, out[1] is min */
 )
 ;
@@ -53,7 +53,7 @@ extern longword k6iprod P3((p,q,n),
  */
 extern void k6vsraw P3((p,n,bits),
 	const word *p,
-	int n, 
+	int n,
 	int bits
 )
 ;
@@ -65,7 +65,7 @@ extern void k6vsraw P3((p,n,bits),
  */
 extern void k6vsllw P3((p,n,bits),
 	const word *p,
-	int n, 
+	int n,
 	int bits
 )
 ;

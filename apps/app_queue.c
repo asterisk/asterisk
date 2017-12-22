@@ -4781,7 +4781,7 @@ static void record_abandoned(struct queue_ent *qe)
 	if (callabandonedinsl) {
 		qe->parent->callsabandonedinsl++;
 	}
-	
+
 	qe->parent->callsabandoned++;
 	ao2_unlock(qe->parent);
 
@@ -11347,4 +11347,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "True Call Queueing",
 	.load_pri = AST_MODPRI_DEVSTATE_CONSUMER,
 	.nonoptreq = "res_monitor",
 );
-

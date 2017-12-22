@@ -14,4 +14,3 @@ AC_DEFUN([AST_PKG_CONFIG_CHECK],
       )
    fi
 ])
-

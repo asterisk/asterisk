@@ -33,7 +33,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page res_config_sqlite3.conf res_config_sqlite3.conf
  * \verbinclude res_config_sqlite3.conf.sample
  */
@@ -1361,8 +1361,8 @@ static void discover_sqlite3_caps(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

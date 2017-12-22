@@ -120,4 +120,3 @@ int ast_sip_session_add_supplements(struct ast_sip_session *session)
 
 	return 0;
 }
-

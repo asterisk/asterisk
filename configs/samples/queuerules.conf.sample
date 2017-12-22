@@ -45,4 +45,3 @@
 ; penaltychange => 60,10,5 ; 60 seconds into the call increase the QUEUE_MAX_PENALTY to 10 and increase the QUEUE_MIN_PENALTY to 5
 ; penaltychange => 75,,7   ; 75 seconds into the call keep the QUEUE_MAX_PENALTY the same and increase the QUEUE_MIN_PENALTY to 7
 ; penaltychange => 90,,,20 ; 90 seconds into the call leave QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY untouched and set QUEUE_RAISE_PENALTY to 20
-

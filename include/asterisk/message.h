@@ -283,7 +283,7 @@ const char *ast_msg_get_var(struct ast_msg *msg, const char *name);
 /*!
  * \brief Get the body of a message.
  * \note The return value is valid only as long as the ast_message is valid. Hold a reference
- *       to the message if you plan on storing the return value. 
+ *       to the message if you plan on storing the return value.
  *
  * \return The body of the messsage, encoded in UTF-8.
  */

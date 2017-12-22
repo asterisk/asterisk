@@ -4817,5 +4817,3 @@ void misdn_lib_reinit_nt_stack(int port)
 			misdn_lib_get_l1_up(stack);
 	}
 }
-
-

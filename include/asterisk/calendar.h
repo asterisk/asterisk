@@ -177,7 +177,7 @@ struct ao2_container *ast_calendar_event_container_alloc(void);
  */
 void ast_calendar_merge_events(struct ast_calendar *cal, struct ao2_container *new_events);
 
-/*! \brief Unreference an ast_calendar_event 
+/*! \brief Unreference an ast_calendar_event
  *
  * \param event event to unref
  *
@@ -185,7 +185,7 @@ void ast_calendar_merge_events(struct ast_calendar *cal, struct ao2_container *n
  */
 struct ast_calendar_event *ast_calendar_unref_event(struct ast_calendar_event *event);
 
-/*! \brief Remove all events from calendar 
+/*! \brief Remove all events from calendar
  *
  * \param cal calendar whose events need to be cleared
  */

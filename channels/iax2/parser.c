@@ -20,7 +20,7 @@
  *
  * \brief Implementation of Inter-Asterisk eXchange Protocol, v 2
  *
- * \author Mark Spencer <markster@digium.com> 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 /*** MODULEINFO
@@ -136,7 +136,7 @@ static void dump_prefs(char *output, int maxlen, void *value, int len)
 
 	strncpy(output, value, maxlen);
 	output[maxlen] = '\0';
-	
+
 	iax2_codec_pref_convert(&pref, output, total_len, 0);
 	memset(output,0,total_len);
 	iax2_codec_pref_string(&pref, output, total_len);
@@ -147,7 +147,7 @@ static void dump_int(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned int))
 		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(get_unaligned_uint32(value)));
 	else
-		ast_copy_string(output, "Invalid INT", maxlen);	
+		ast_copy_string(output, "Invalid INT", maxlen);
 }
 
 static void dump_short(char *output, int maxlen, void *value, int len)
@@ -177,7 +177,7 @@ static void dump_datetime(char *output, int maxlen, void *value, int len)
 		tm.tm_mday = (val >> 16) & 0x1f;
 		tm.tm_mon  = ((val >> 21) & 0x0f) - 1;
 		tm.tm_year = ((val >> 25) & 0x7f) + 100;
-		ast_strftime(output, maxlen, "%Y-%m-%d  %T", &tm); 
+		ast_strftime(output, maxlen, "%Y-%m-%d  %T", &tm);
 	} else
 		ast_copy_string(output, "Invalid DATETIME format!", maxlen);
 }
@@ -366,7 +366,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 	char tmp[256];
 	if (len < 2)
 		return;
-	strcpy(output, "\n"); 
+	strcpy(output, "\n");
 	maxlen -= strlen(output); output += strlen(output);
 	while(len > 2) {
 		ie = iedata[0];
@@ -748,14 +748,14 @@ int iax_ie_append_versioned_uint64(struct iax_ie_data *ied, unsigned char ie, un
 	return iax_ie_append_raw(ied, ie, &newval, (int) sizeof(newval));
 }
 
-int iax_ie_append_int(struct iax_ie_data *ied, unsigned char ie, unsigned int value) 
+int iax_ie_append_int(struct iax_ie_data *ied, unsigned char ie, unsigned int value)
 {
 	unsigned int newval;
 	newval = htonl(value);
 	return iax_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned short value) 
+int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned short value)
 {
 	unsigned short newval;
 	newval = htons(value);
@@ -772,7 +772,7 @@ int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigned char 
 	return iax_ie_append_raw(ied, ie, &dat, 1);
 }
 
-int iax_ie_append(struct iax_ie_data *ied, unsigned char ie) 
+int iax_ie_append(struct iax_ie_data *ied, unsigned char ie)
 {
 	return iax_ie_append_raw(ied, ie, NULL, 0);
 }
@@ -978,7 +978,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				snprintf(tmp, (int)sizeof(tmp), "Expecting msgcount to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
 				errorf(tmp);
 			} else
-				ies->msgcount = ntohs(get_unaligned_uint16(data + 2));	
+				ies->msgcount = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_AUTOANSWER:
 			ies->autoanswer = 1;
@@ -1005,7 +1005,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				snprintf(tmp, (int)sizeof(tmp), "Expecting firmwarever to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
 				errorf(tmp);
 			} else
-				ies->firmwarever = ntohs(get_unaligned_uint16(data + 2));	
+				ies->firmwarever = ntohs(get_unaligned_uint16(data + 2));
 			break;
 		case IAX_IE_DEVICETYPE:
 			ies->devicetype = (char *)data + 2;
@@ -1058,7 +1058,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				snprintf(tmp, (int)sizeof(tmp), "Expecting callingtns to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
 				errorf(tmp);
 			} else
-				ies->calling_tns = ntohs(get_unaligned_uint16(data + 2));	
+				ies->calling_tns = ntohs(get_unaligned_uint16(data + 2));
 			break;
                case IAX_IE_RR_JITTER:
                        if (len != (int)sizeof(unsigned int)) {
@@ -1267,12 +1267,12 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 	fr->direction = direction;
 	fr->retrans = -1;
-	
+
 	if (fr->direction == DIRECTION_INGRESS)
 		ast_atomic_fetchadd_int(&iframes, 1);
 	else
 		ast_atomic_fetchadd_int(&oframes, 1);
-	
+
 	ast_atomic_fetchadd_int(&frames, 1);
 
 	return fr;

@@ -6,17 +6,17 @@ Test Programs:
 	All test programs which need key/data pairs expect them entered
 	with key and data on separate lines
 
-	tcreat3.c	
-		Takes 
-			bucketsize (bsize), 
+	tcreat3.c
+		Takes
+			bucketsize (bsize),
 			fill factor (ffactor), and
-			initial number of elements (nelem).  
-		Creates a hash table named hashtest containing the 
+			initial number of elements (nelem).
+		Creates a hash table named hashtest containing the
 		keys/data pairs entered from standard in.
 	thash4.c
 		Takes
-			bucketsize (bsize), 
-			fill factor (ffactor), 
+			bucketsize (bsize),
+			fill factor (ffactor),
 			initial number of elements (nelem)
 			bytes of cache (ncached), and
 			file from which to read data  (fname)
@@ -45,7 +45,7 @@ Test Programs:
 NOTES:
 
 The file search.h is provided for using the hsearch compatible interface
-on BSD systems.  On System V derived systems, search.h should appear in 
+on BSD systems.  On System V derived systems, search.h should appear in
 /usr/include.
 
 The man page ../man/db.3 explains the interface to the hashing system.
@@ -63,7 +63,7 @@ file, you may lose updates since the package buffers all writes.  Also,
 the db interface only creates a single database file.  To avoid overwriting
 the user's original file, the suffix ".db" is appended to the file name
 passed to dbm_open.  Additionally, if your code "knows" about the historic
-.dir and .pag files, it will break.  
+.dir and .pag files, it will break.
 
 There is a fundamental difference between this package and the old hsearch.
 Hsearch requires the user to maintain the keys and data in the application's

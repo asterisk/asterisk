@@ -131,8 +131,8 @@ static real c_b2 = 1.f;
 
 /* This subroutine has no local state. */
 
-/* Subroutine */ int vparms_(integer *vwin, real *inbuf, real *lpbuf, integer 
-	*buflim, integer *half, real *dither, integer *mintau, integer *zc, 
+/* Subroutine */ int vparms_(integer *vwin, real *inbuf, real *lpbuf, integer
+	*buflim, integer *half, real *dither, integer *mintau, integer *zc,
 	integer *lbe, integer *fbe, real *qs, real *rc1, real *ar_b__, real *
 	ar_f__)
 {
@@ -252,4 +252,3 @@ is)*/
     *fbe = min(i__1,32767);
     return 0;
 } /* vparms_ */
-

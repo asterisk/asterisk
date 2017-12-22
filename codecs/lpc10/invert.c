@@ -191,4 +191,3 @@ L100:
 /* 	END DO */
     return 0;
 } /* invert_ */
-

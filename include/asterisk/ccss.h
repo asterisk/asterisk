@@ -1556,7 +1556,7 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
  * ready, and then based on set flags, creates the proper frame type. For chan_dahdi, we
  * provide this function. It provides us the data we need, and we'll make its frame for it.
  *
- * \param chan A channel involved in the call. What we want is on a datastore on both incoming 
+ * \param chan A channel involved in the call. What we want is on a datastore on both incoming
  * and outgoing so either may be provided
  * \param cc_params The CC configuration parameters for the outbound target
  * \param monitor_type The type of monitor to use when CC is requested
@@ -1567,7 +1567,7 @@ void ast_cc_busy_interface(struct ast_channel *inbound, struct ast_cc_config_par
  * data has been allocated, then this parameter should contain a pointer to that data. If using a generic
  * monitor, this parameter should remain NULL. Note that if this function should fail at some point,
  * it is the responsibility of the caller to free the private data upon return.
- * \param[out] frame The frame we will be returning to the caller. It is vital that ast_frame_free be 
+ * \param[out] frame The frame we will be returning to the caller. It is vital that ast_frame_free be
  * called on this frame since the payload will be allocated on the heap.
  * \retval -1 Failure. At some point there was a failure. Do not attempt to use the frame in this case.
  * \retval 0 Success

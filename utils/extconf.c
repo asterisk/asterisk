@@ -5936,4 +5936,3 @@ struct timeval ast_tvnow(void)
 	gettimeofday(&t, NULL);
 	return t;
 }
-

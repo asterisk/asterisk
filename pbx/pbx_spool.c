@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Full-featured outgoing call spool support
- * 
+ *
  */
 
 /*** MODULEINFO
@@ -56,7 +56,7 @@
 
 /*
  * pbx_spool is similar in spirit to qcall, but with substantially enhanced functionality...
- * The spool file contains a header 
+ * The spool file contains a header
  */
 
 enum {

@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005-2006, Digium, Inc.
  * Copyright (C) 2005, Olle E. Johansson, Edvina.net
- * Copyright (C) 2005, Russell Bryant <russelb@clemson.edu> 
+ * Copyright (C) 2005, Russell Bryant <russelb@clemson.edu>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief MD5 digest related dialplan functions
- * 
+ *
  * \author Olle E. Johansson <oej@edvina.net>
  * \author Russell Bryant <russelb@clemson.edu>
  *

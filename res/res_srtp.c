@@ -198,7 +198,7 @@ static struct ast_srtp *res_srtp_new(void)
 		ast_free(srtp);
 		return NULL;
 	}
-	
+
 	srtp->warned = 1;
 
 	return srtp;
@@ -482,7 +482,7 @@ static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtc
 	if ((*len + SRTP_MAX_TRAILER_LEN) > sizeof(srtp->buf)) {
 		return -1;
 	}
-	
+
 	localbuf = rtcp ? srtp->rtcpbuf : srtp->buf;
 
 	memcpy(localbuf, *buf, *len);

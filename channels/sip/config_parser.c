@@ -924,4 +924,3 @@ void sip_config_parser_unregister_tests(void)
 	AST_TEST_UNREGISTER(sip_parse_host_line_test);
 	AST_TEST_UNREGISTER(sip_parse_nat_test);
 }
-

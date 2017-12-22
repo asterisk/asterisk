@@ -75,4 +75,3 @@ extension=s
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ; ----------------------------------------------------------------------------------
-

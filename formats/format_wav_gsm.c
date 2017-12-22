@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Save GSM in the proprietary Microsoft format.
- * 
+ *
  * Microsoft WAV format (Proprietary GSM)
  * \arg File name extension: WAV,wav49  (Upper case WAV, lower case is another format)
  * This format can be played on Windows systems, used for
@@ -30,7 +30,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 #include "asterisk/mod_format.h"

@@ -49,14 +49,14 @@
 .ds f2\"
 .ds f3\"
 .ds f4\"
-'\" t 
-.ta 8n 16n 24n 32n 40n 48n 56n 64n 72n  
+'\" t
+.ta 8n 16n 24n 32n 40n 48n 56n 64n 72n
 .TH ASTMAN 1 "Jun 12th, 2005" "astman" "Linux Programmer's Manual"
 .SH NAME
 .B astman
 -- a client to asterisk's manager interface
 .SH SYNOPSIS
-.PP 
+.PP
 .B astman
 .I hostname
 
@@ -68,23 +68,23 @@ interface.
 .SH OPTIONS
 .B hostname
 
-The host name or IP address to connect to (TCP port 5038). If astman 
+The host name or IP address to connect to (TCP port 5038). If astman
 fails to connect it will exit immidiately.
 
 .SH USAGE
-If \fBastman\fR has successfully cunnected to the manager port it will 
-prompt the user for a username and a secret (password) for the manager 
-interface on the remote Asterisk manager interface. It will then be able 
-to report existing channels (calls). You will then be able to redirect 
+If \fBastman\fR has successfully cunnected to the manager port it will
+prompt the user for a username and a secret (password) for the manager
+interface on the remote Asterisk manager interface. It will then be able
+to report existing channels (calls). You will then be able to redirect
 calls to or terminate them.
 
-.SH "SEE ALSO" 
+.SH "SEE ALSO"
 asterisk(8)
 
 http://www.voip-info.org/wiki-Asterisk+astman
 
 .SH BUGS
-The hostname does not default to localhost.  
+The hostname does not default to localhost.
 
 Impossible to use a port other than 5038.
 
@@ -92,11 +92,11 @@ The username and password cannot be defined from the command-line.
 
 I mean, what's the point in a man page if the syntax is so simple?
 
-.SH "AUTHOR" 
-This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com> 
-Permission is granted to copy, distribute and/or modify this document under 
-the terms of the GNU General Public License, Version 2 any  
-later version published by the Free Software Foundation. 
+.SH "AUTHOR"
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU General Public License, Version 2 any
+later version published by the Free Software Foundation.
 
-On Debian systems, the complete text of the GNU General Public 
-License can be found in /usr/share/common-licenses/GPL. 
+On Debian systems, the complete text of the GNU General Public
+License can be found in /usr/share/common-licenses/GPL.

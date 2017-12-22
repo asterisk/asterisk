@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the LICENSE.txt file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the LICENSE.txt file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -29,13 +29,13 @@
 #endif
 
 /**
- * This is a timer list used by test application chansetup only. 
+ * This is a timer list used by test application chansetup only.
  */
 
 DList g_TimerList;
 
-OOTimer* ooTimerCreate 
-(OOCTXT* pctxt, DList *pList, OOTimerCbFunc cb, OOUINT32 deltaSecs, void *data, 
+OOTimer* ooTimerCreate
+(OOCTXT* pctxt, DList *pList, OOTimerCbFunc cb, OOUINT32 deltaSecs, void *data,
  OOBOOL reRegister)
 {
    OOTimer* pTimer = (OOTimer*) memAlloc (pctxt, sizeof(OOTimer));
@@ -108,7 +108,7 @@ void ooTimerFireExpired (OOCTXT* pctxt, DList *pList)
       if (ooTimerExpired (pTimer)) {
          /*
           * Re-register before calling callback function in case it is
-          * a long duration callback.                                   
+          * a long duration callback.
           */
          if (pTimer->reRegister) ooTimerReset (pctxt, pList, pTimer);
 
@@ -150,8 +150,8 @@ struct timeval* ooTimerNextTimeout (DList *pList, struct timeval* ptimeout)
 
    ooGetTimeOfDay (&tvstr, 0);
 
-   ptimeout->tv_sec = 
-      OOMAX ((int) 0, (int) (ptimer->expireTime.tv_sec - tvstr.tv_sec));   
+   ptimeout->tv_sec =
+      OOMAX ((int) 0, (int) (ptimer->expireTime.tv_sec - tvstr.tv_sec));
 
    ptimeout->tv_usec = ptimer->expireTime.tv_usec - tvstr.tv_usec;
 
@@ -166,7 +166,7 @@ struct timeval* ooTimerNextTimeout (DList *pList, struct timeval* ptimeout)
    return (ptimeout);
 }
 
-/* 
+/*
  * Reregister a timer entry.  This function is responsible for moving
  * the current pointer in the timer list to the next element to be
  * processed..

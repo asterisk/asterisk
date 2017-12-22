@@ -327,4 +327,3 @@ static int unload_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "MP3 format [Any rate but 8000hz mono is optimal]");
-

@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 
 /**
- * @file ooports.h 
- * This file contains functions to manage ports used by the stack. 
+ * @file ooports.h
+ * This file contains functions to manage ports used by the stack.
  */
 
 #ifndef _OOPORTS_H_
@@ -43,7 +43,7 @@ extern "C" {
 
 /**
  * Get the next port of type TCP/UDP/RTP from the corresponding range.
- * When max value for the range is reached, it starts again from the 
+ * When max value for the range is reached, it starts again from the
  * first port number of the range.
  *
  * @param ep         Reference to the H323 Endpoint structure.
@@ -69,7 +69,7 @@ EXTERN int ooGetNextPort (OOH323PortType type);
 EXTERN int ooBindPort (OOH323PortType type, OOSOCKET socket, char *ip);
 
 /**
- * This function is supported for windows version only. 
+ * This function is supported for windows version only.
  *  Windows sockets have problem in reusing the addresses even after
  *  setting SO_REUSEADDR, hence in windows we just allow os to bind
  *  to any random port.
@@ -80,7 +80,7 @@ EXTERN int ooBindPort (OOH323PortType type, OOSOCKET socket, char *ip);
  *                  socket is bound and in case of failure just returns
  *                  a negative value.
  */
-#ifdef _WIN32        
+#ifdef _WIN32
 EXTERN int ooBindOSAllocatedPort(OOSOCKET socket, char *ip);
 #endif
 

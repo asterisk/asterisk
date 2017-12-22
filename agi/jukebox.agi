@@ -265,12 +265,12 @@ MYCONTINUE:
 					my $cmdr = `ln -s $mp3 $link`;
 					chomp($cmdr);
 					print "Failed to create symlink to mp3: $cmdr\n" if $cmdr ne '';
-					
+
 					print "EXEC MP3Player \"$link\"\n";
 					my $result = <STDIN>; &check_result($result);
 
 					`rm $link`;
-					
+
 					if (!$MENUAFTERSONG) {
 						print "EXEC Playback \"$FESTIVALCACHE/jukebox_thankyou\"\n";
 						my $result = <STDIN>; &check_result($result);

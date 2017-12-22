@@ -1649,4 +1649,3 @@ int stasis_init(void)
 
 	return 0;
 }
-

@@ -205,4 +205,3 @@ keepalive=120
 ;speeddial => 112@hints,Bob Peterson ; When a context is specified, the speeddial watches a dialplan hint.
 ;addon => 7914
 ;addon => 7914
-

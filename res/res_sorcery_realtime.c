@@ -95,7 +95,7 @@ static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data
 	return (ast_store_realtime_fields(config->family, fields) <= 0) ? -1 : 0;
 }
 
-/*! \brief Internal helper function which returns a filtered objectset. 
+/*! \brief Internal helper function which returns a filtered objectset.
  *
  * The following are filtered out of the objectset:
  * \li The id field. This is returned to the caller in an out parameter.

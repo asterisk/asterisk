@@ -210,4 +210,3 @@ struct stasis_topic *stasis_cp_single_topic_cached(
 	}
 	return stasis_caching_get_topic(one->topic_cached);
 }
-

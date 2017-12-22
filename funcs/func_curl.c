@@ -18,18 +18,18 @@
  */
 
 /*! \file
- * 
+ *
  * \brief Curl - Load a URL
  *
  * \author Tilghman Lesher <curl-20050919@the-tilghman.com>
  *
- * \note Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option) 
+ * \note Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option)
  *
  * \extref Depends on the CURL library  - http://curl.haxx.se/
- * 
+ *
  * \ingroup functions
  */
- 
+
 /*** MODULEINFO
 	<depend>curl</depend>
 	<support_level>core</support_level>
@@ -941,4 +941,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Load external URL",
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_REALTIME_DEPEND2,
 );
-

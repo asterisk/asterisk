@@ -21,14 +21,14 @@
  * \brief Silly application to play an NBScat file -- uses nbscat8k
  *
  * \author Mark Spencer <markster@digium.com>
- *  
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 #include <fcntl.h>
@@ -105,7 +105,7 @@ static int timed_read(int fd, void *data, int datalen)
 		return -1;
 	}
 	return read(fd, data, datalen);
-	
+
 }
 
 static int NBScat_exec(struct ast_channel *chan, const char *data)
@@ -127,7 +127,7 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "Unable to create socketpair\n");
 		return -1;
 	}
-	
+
 	ast_stopstream(chan);
 
 	owriteformat = ao2_bump(ast_channel_writeformat(chan));
@@ -146,7 +146,7 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	myf.f.delivery.tv_sec = 0;
 	myf.f.delivery.tv_usec = 0;
 	myf.f.data.ptr = myf.frdata;
-	
+
 	res = NBScatplay(fds[1]);
 	/* Wait 1000 ms first */
 	next = ast_tvnow();
@@ -193,14 +193,14 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 						break;
 					}
 					ast_frfree(f);
-				} 
+				}
 			}
 		}
 	}
 	close(fds[0]);
 	close(fds[1]);
 	ast_frfree(&myf.f);
-	
+
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
@@ -221,4 +221,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Silly NBS Stream Application");
-

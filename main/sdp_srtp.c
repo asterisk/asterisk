@@ -135,4 +135,3 @@ void ast_sdp_crypto_unregister(struct ast_sdp_crypto_api *api)
 		sdp_crypto_api = NULL;
 	}
 }
-

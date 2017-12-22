@@ -3662,4 +3662,3 @@ void ast_bridging_init_basic(void)
 	ast_bridge_features_register(AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, feature_attended_transfer, NULL);
 	ast_bridge_features_register(AST_BRIDGE_BUILTIN_BLINDTRANSFER, feature_blind_transfer, NULL);
 }
-

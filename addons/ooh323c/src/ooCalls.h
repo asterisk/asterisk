@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooCalls.h 
- * This file contains call management functions. 
+ * @file ooCalls.h
+ * This file contains call management functions.
  */
 #ifndef _OOCALLS_H_
 #define _OOCALLS_H_
@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 
-/** 
+/**
  * @defgroup callmgmt  Call Management
  * @{
  */
@@ -60,7 +60,7 @@ extern "C" {
 #define OO_M_DATASESSION	ASN1UINTCNT(0x00000200)
 #define OO_M_T38SUPPORTED	ASN1UINTCNT(0x00000400)
 
-/** 
+/**
  * Call states.
  */
 typedef enum {
@@ -76,20 +76,20 @@ typedef enum {
    OO_CALL_REMOVED		  /* call removed */
 } OOCallState;
 
-/** 
+/**
  * H.245 session states.
  */
 typedef enum {
    OO_H245SESSION_IDLE,
    OO_H245SESSION_PAUSED,
    OO_H245SESSION_ACTIVE,
-   OO_H245SESSION_ENDSENT, 
+   OO_H245SESSION_ENDSENT,
    OO_H245SESSION_ENDRECVD,
    OO_H245SESSION_CLOSED
 } OOH245SessionState;
 
 /**
- * Structure to store local and remote media endpoint info for a 
+ * Structure to store local and remote media endpoint info for a
  * given media type.
  */
 typedef struct OOMediaInfo{
@@ -115,10 +115,10 @@ typedef struct OOCallFwdData {
    int port;
    struct OOAliases *aliases;
    OOBOOL fwdedByRemote; /*Set when we are being fwded by remote*/
-} OOCallFwdData;      
+} OOCallFwdData;
 
 /**
- * Structure to store information on an H.323 channel (H.225 or H.245) for 
+ * Structure to store information on an H.323 channel (H.225 or H.245) for
  * a particular call.
  */
 typedef struct OOH323Channel {
@@ -128,7 +128,7 @@ typedef struct OOH323Channel {
 } OOH323Channel;
 
 /**
- * Structure to store information on fast start response (H.225) to 
+ * Structure to store information on fast start response (H.225) to
  * reply same answer in CALL PROCEEDING, ALERTING & CONNECT.
  */
 typedef struct EXTERN FastStartResponse {
@@ -144,8 +144,8 @@ typedef struct OOH323Regex {
 
 
 /**
- * This structure is used to maintain all information on an active call. 
- * A list of these structures is maintained within the global endpoint 
+ * This structure is used to maintain all information on an active call.
+ * A list of these structures is maintained within the global endpoint
  * structure.
  */
 typedef struct OOH323CallData {
@@ -166,10 +166,10 @@ typedef struct OOH323CallData {
    int			transfercap;
    ASN1USINT            callReference;
    char                 ourCallerId[256];
-   H225CallIdentifier   callIdentifier;/* The call identifier for the active 
+   H225CallIdentifier   callIdentifier;/* The call identifier for the active
                                           call. */
    char                 *callingPartyNumber;
-   char                 *calledPartyNumber; 
+   char                 *calledPartyNumber;
    H225ConferenceIdentifier confIdentifier;
    ASN1UINT             flags;
    OOCallState          callState;
@@ -207,8 +207,8 @@ typedef struct OOH323CallData {
    DList                remoteFastStartOLCs;
    ASN1UINT8            remoteTermCapSeqNo;
    ASN1UINT8            localTermCapSeqNo;
-   OOCapPrefs           capPrefs;   
-   OOLogicalChannel*    logicalChans; 
+   OOCapPrefs           capPrefs;
+   OOLogicalChannel*    logicalChans;
    int                  noOfLogicalChannels;
    int                  logicalChanNoBase;
    int                  logicalChanNoMax;
@@ -237,7 +237,7 @@ typedef struct OOH323CallData {
 #define ooCallData OOH323CallData
 
 /**
- * This callback function is triggered when a new call structure is 
+ * This callback function is triggered when a new call structure is
  * created inside the stack for an incoming or outgoing call.
  *
  * @param call H.323 call data structure
@@ -246,8 +246,8 @@ typedef struct OOH323CallData {
 typedef int (*cb_OnNewCallCreated)(OOH323CallData* call);
 
 /**
- * This callback function is triggered when a Q.931 alerting message is 
- * received for an outgoing call or when a Q.931 alerting message is sent 
+ * This callback function is triggered when a Q.931 alerting message is
+ * received for an outgoing call or when a Q.931 alerting message is sent
  * for an incoming call.
  *
  * @param call H.323 call data structure
@@ -256,8 +256,8 @@ typedef int (*cb_OnNewCallCreated)(OOH323CallData* call);
 typedef int (*cb_OnAlerting)(OOH323CallData * call);
 
 /**
- * This callback function is triggered when there is an incoming call. 
- * In the case where a gatekeeper is in use, the call must first be 
+ * This callback function is triggered when there is an incoming call.
+ * In the case where a gatekeeper is in use, the call must first be
  * admitted by the gatekeeper before this callback is triggered.
  *
  * @param call H.323 call data structure
@@ -266,7 +266,7 @@ typedef int (*cb_OnAlerting)(OOH323CallData * call);
 typedef int (*cb_OnIncomingCall)(OOH323CallData* call );
 
 /**
- * This callback function is triggered after a Q.931 setup message 
+ * This callback function is triggered after a Q.931 setup message
  * is sent for an outgoing call.
  *
  * @param call H.323 call data structure
@@ -275,10 +275,10 @@ typedef int (*cb_OnIncomingCall)(OOH323CallData* call );
 typedef int (*cb_OnOutgoingCall)(OOH323CallData* call );
 
 /**
- * This callback function is triggered when a Q.931 connect message is 
- * sent in case of incoming call.  In case of outgoing call, this is invoked 
- * when a Q.931 connect message is received. It is not invoked until after 
- * fast start and H.245 tunneling messages within the connect message are 
+ * This callback function is triggered when a Q.931 connect message is
+ * sent in case of incoming call.  In case of outgoing call, this is invoked
+ * when a Q.931 connect message is received. It is not invoked until after
+ * fast start and H.245 tunneling messages within the connect message are
  * processed.
  *
  * @param call H.323 call data structure
@@ -295,8 +295,8 @@ typedef int (*cb_OnCallEstablished)(struct OOH323CallData* call);
 typedef int (*cb_OnCallCleared)(struct OOH323CallData* call);
 
 /**
- * This callback function is triggered when master-slave determination 
- * and capabilities negotiation procedures are successfully completed 
+ * This callback function is triggered when master-slave determination
+ * and capabilities negotiation procedures are successfully completed
  * for a call.
  *
  * @param call H.323 call data structure
@@ -332,7 +332,7 @@ typedef void (*cb_OnMediaChanged)
    (struct OOH323CallData *call, char* remoteIP, int remotePort);
 
 /**
- * This structure holds all of the H.323 signaling callback function 
+ * This structure holds all of the H.323 signaling callback function
  * addresses.
  * @see ooH323EpSetH323Callbacks
  */
@@ -428,7 +428,7 @@ EXTERN int ooCallSetCalledPartyNumber
 EXTERN int ooCallClearAliases(OOH323CallData *call);
 
 /**
- * This function is used to add an H323ID alias to be used by local endpoint 
+ * This function is used to add an H323ID alias to be used by local endpoint
  * for a particular call.
  * @param call          Handle to the call
  * @param h323id        H323ID to add for the local endpoint for the call.
@@ -438,7 +438,7 @@ EXTERN int ooCallClearAliases(OOH323CallData *call);
 EXTERN int ooCallAddAliasH323ID(OOH323CallData *call, const char* h323id);
 
 /**
- * This function is used to add an dialedDigits alias to be used by local 
+ * This function is used to add an dialedDigits alias to be used by local
  * endpoint for a particular call.
  * @param call          Handle to the call
  * @param dialedDigits  DialedDigits to add for the local endpoint for call.
@@ -449,7 +449,7 @@ EXTERN int ooCallAddAliasDialedDigits
                              (OOH323CallData *call, const char* dialedDigits);
 
 /**
- * This function is used to add an email-id alias to be used by local 
+ * This function is used to add an email-id alias to be used by local
  * endpoint for a particular call.
  * @param call          Handle to the call
  * @param email         Email-id to add for the local endpoint for call.
@@ -460,7 +460,7 @@ EXTERN int ooCallAddAliasEmailID(OOH323CallData *call, const char* email);
 
 
 /**
- * This function is used to add an email-id alias to be used by local 
+ * This function is used to add an email-id alias to be used by local
  * endpoint for a particular call.
  * @param call          Handle to the call
  * @param url           URL-id to add for the local endpoint for call.
@@ -471,8 +471,8 @@ EXTERN int ooCallAddAliasURLID(OOH323CallData *call, const char* url);
 
 
 /**
- * This is a helper function used by other call related add aliases functions 
- * to add a particular alias. This function is not supposed to be called 
+ * This is a helper function used by other call related add aliases functions
+ * to add a particular alias. This function is not supposed to be called
  * directly.
  * @param call          Handle to the call
  * @param aliasType     Type of alias being added
@@ -486,7 +486,7 @@ int ooCallAddAlias
 
 
 /**
- * This function is used to add an dialed digits alias for the remote endpoint 
+ * This function is used to add an dialed digits alias for the remote endpoint
  * involved in a particular call.
  * @param call          Handle to the call
  * @param dialedDigits  dialedDigits alias to add for the remote endpoint.
@@ -497,7 +497,7 @@ EXTERN int ooCallAddRemoteAliasDialedDigits
    (OOH323CallData *call, const char* dialedDigits);
 
 /**
- * This function is used to add an H323ID alias for the remote endpoint 
+ * This function is used to add an H323ID alias for the remote endpoint
  * involved in a particular call.
  * @param call          Handle to the call
  * @param h323id        H323ID to add for the remote endpoint.
@@ -508,12 +508,12 @@ EXTERN int ooCallAddRemoteAliasH323ID(OOH323CallData *call, const char* h323id);
 
 
 /**
- * This function is used to add G7231 capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add G7231 capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param silenceSuppression   Indicates support for silenceSuppression.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
@@ -522,9 +522,9 @@ EXTERN int ooCallAddRemoteAliasH323ID(OOH323CallData *call, const char* h323id);
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes, 
+EXTERN int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -532,12 +532,12 @@ EXTERN int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel);
 
 /**
- * This function is used to add G728 capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add G728 capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -545,9 +545,9 @@ EXTERN int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes, 
+EXTERN int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -555,12 +555,12 @@ EXTERN int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel);
 
 /**
- * This function is used to add G729 capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add G729 capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -568,9 +568,9 @@ EXTERN int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes, 
+EXTERN int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -578,12 +578,12 @@ EXTERN int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel);
 
 /**
- * This function is used to add G711 capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add G711 capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -591,9 +591,9 @@ EXTERN int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes, 
+EXTERN int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -602,13 +602,13 @@ EXTERN int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes,
 
 
 /**
- * This function is used to add GSM capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add GSM capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Type of GSM capability to be added.
- * @param framesPerPkt         Number of GSM frames pre packet. 
- * @param comfortNoise         Comfort noise spec for the capability. 
+ * @param framesPerPkt         Number of GSM frames pre packet.
+ * @param comfortNoise         Comfort noise spec for the capability.
  * @param scrambled            Scrambled enabled/disabled for the capability.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -616,10 +616,10 @@ EXTERN int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddGSMCapability(OOH323CallData* call, int cap, 
-                                  ASN1USINT framesPerPkt, OOBOOL comfortNoise, 
+EXTERN int ooCallAddGSMCapability(OOH323CallData* call, int cap,
+                                  ASN1USINT framesPerPkt, OOBOOL comfortNoise,
                                   OOBOOL scrambled, int dir,
                                   cb_StartReceiveChannel startReceiveChannel,
                                   cb_StartTransmitChannel startTransmitChannel,
@@ -630,23 +630,23 @@ EXTERN int ooCallAddGSMCapability(OOH323CallData* call, int cap,
 
 
 /**
- * This function is used to add H263 video capability for the call. The 
- * "ooCallAdd...Capability" functions allow to override the global endpoint 
+ * This function is used to add H263 video capability for the call. The
+ * "ooCallAdd...Capability" functions allow to override the global endpoint
  * capabilities and use specific capabilities for specific calls.
  * @param call                 Call for which capability has to be added.
  * @param cap                  Capability type - OO_H263VIDEO
- * @param sqcifMPI             Minimum picture interval for encoding/decoding 
+ * @param sqcifMPI             Minimum picture interval for encoding/decoding
  *                             of SQCIF pictures.
- * @param qcifMPI              Minimum picture interval for encoding/decoding 
+ * @param qcifMPI              Minimum picture interval for encoding/decoding
  *                             of QCIF pictures.
- * @param cifMPI               Minimum picture interval for encoding/decoding 
+ * @param cifMPI               Minimum picture interval for encoding/decoding
  *                             of CIF pictures.
- * @param cif4MPI              Minimum picture interval for encoding/decoding 
+ * @param cif4MPI              Minimum picture interval for encoding/decoding
  *                             of CIF4 pictures.
- * @param cif16MPI             Minimum picture interval for encoding/decoding 
+ * @param cif16MPI             Minimum picture interval for encoding/decoding
  *                             of CIF16 pictures.
  * @param maxBitRate           Maximum bit rate in units of 100 bits/s at
- *                             which a transmitter can transmit video or a 
+ *                             which a transmitter can transmit video or a
  *                             receiver can receive video.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -654,13 +654,13 @@ EXTERN int ooCallAddGSMCapability(OOH323CallData* call, int cap,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCallAddH263VideoCapability(OOH323CallData *call, int cap, 
-                                 unsigned sqcifMPI, unsigned qcifMPI, 
-                                 unsigned cifMPI, unsigned cif4MPI, 
-                                 unsigned cif16MPI, unsigned maxBitRate, 
-                                 int dir, 
+EXTERN int ooCallAddH263VideoCapability(OOH323CallData *call, int cap,
+                                 unsigned sqcifMPI, unsigned qcifMPI,
+                                 unsigned cifMPI, unsigned cif4MPI,
+                                 unsigned cif16MPI, unsigned maxBitRate,
+                                 int dir,
                                  cb_StartReceiveChannel startReceiveChannel,
                                  cb_StartTransmitChannel startTransmitChannel,
                                  cb_StopReceiveChannel stopReceiveChannel,
@@ -682,9 +682,9 @@ EXTERN int ooCallEnableDTMFRFC2833
 
 
 /**
- * This function is used to disable rfc 2833 capability for the call. 
- * By default the stack uses the dtmf settings for the endpoint. But if you 
- * want to enable/disable dtmf for a specific call, then you can override 
+ * This function is used to disable rfc 2833 capability for the call.
+ * By default the stack uses the dtmf settings for the endpoint. But if you
+ * want to enable/disable dtmf for a specific call, then you can override
  * end-point settings using this function
  * @param call                  Call for which rfc2833 has to be disabled.
  *
@@ -694,9 +694,9 @@ EXTERN int ooCallDisableDTMFRFC2833(OOH323CallData *call);
 
 
 /**
- * This function is used to enable H.245(alphanumeric) dtmf support for the 
- * call. By default the stack uses the dtmf settings for the endpoint. But if 
- * you want to enable H.245(alphanumeric) dtmf for a specific call, then you 
+ * This function is used to enable H.245(alphanumeric) dtmf support for the
+ * call. By default the stack uses the dtmf settings for the endpoint. But if
+ * you want to enable H.245(alphanumeric) dtmf for a specific call, then you
  * can override end-point settings using this function
  * @param call                  Call for which H.245(alphanumeric) dtmf support
  *                              has to be enabled.
@@ -706,9 +706,9 @@ EXTERN int ooCallDisableDTMFRFC2833(OOH323CallData *call);
 EXTERN int ooCallEnableDTMFH245Alphanumeric(OOH323CallData *call);
 
 /**
- * This function is used to disable H.245(alphanumeric) dtmf support for the 
- * call. By default the stack uses the dtmf settings for the endpoint. But if 
- * you want to disable H.245(alphanumeric) dtmf for a specific call, then you 
+ * This function is used to disable H.245(alphanumeric) dtmf support for the
+ * call. By default the stack uses the dtmf settings for the endpoint. But if
+ * you want to disable H.245(alphanumeric) dtmf for a specific call, then you
  * can override end-point settings using this function
  * @param call                  Call for which H.245(alphanumeric) dtmf support
  *                              has to be disabled.
@@ -718,8 +718,8 @@ EXTERN int ooCallEnableDTMFH245Alphanumeric(OOH323CallData *call);
 EXTERN int ooCallDisableDTMFH245Alphanumeric(OOH323CallData *call);
 
 /**
- * This function is used to enable H.245(signal) dtmf support for the call. 
- * By default the stack uses the dtmf settings for the endpoint. But if you 
+ * This function is used to enable H.245(signal) dtmf support for the call.
+ * By default the stack uses the dtmf settings for the endpoint. But if you
  * want to enable H.245(signal) dtmf for a specific call, then you can override
  * end-point settings using this function
  * @param call                  Call for which H.245(signal) dtmf support
@@ -731,9 +731,9 @@ EXTERN int ooCallEnableDTMFH245Signal(OOH323CallData *call);
 
 
 /**
- * This function is used to disable H.245(signal) dtmf support for the call. 
- * By default the stack uses the dtmf settings for the endpoint. But if you 
- * want to disable H.245(signal) dtmf for a specific call, then you can 
+ * This function is used to disable H.245(signal) dtmf support for the call.
+ * By default the stack uses the dtmf settings for the endpoint. But if you
+ * want to disable H.245(signal) dtmf for a specific call, then you can
  * override end-point settings using this function
  * @param call                  Call for which H.245(signal) dtmf support
  *                              has to be disabled.
@@ -745,7 +745,7 @@ EXTERN int ooCallDisableDTMFH245Signal(OOH323CallData *call);
 
 /**
  * This function is used to enable Q.931(keypad) dtmf support for the call.
- * By default the stack uses the dtmf settings for the endpoint. But if you 
+ * By default the stack uses the dtmf settings for the endpoint. But if you
  * want to enable Q.931(keypad) dtmf support for a specific call, then you can
  * override end-point settings using this function
  * @param call                  Call for which Q.931(keypad) dtmf support
@@ -757,7 +757,7 @@ EXTERN int ooCallEnableDTMFQ931Keypad(OOH323CallData *call);
 
 /**
  * This function is used to disable Q.931(keypad) dtmf support for the call.
- * By default the stack uses the dtmf settings for the endpoint. But if you 
+ * By default the stack uses the dtmf settings for the endpoint. But if you
  * want to disable Q.931(keypad) dtmf support for a specific call, then you can
  * override end-point settings using this function
  * @param call                  Call for which Q.931(keypad) dtmf support
@@ -787,14 +787,14 @@ EXTERN int ooEndCall(OOH323CallData *call);
 
 /**
  * This function is used to remove a call from the list of existing calls.
- * 
+ *
  * @param call          Pointer to the call to be removed.
  * @return              OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooRemoveCallFromList (OOH323CallData *call);
 
 /**
- * This function is used to clean up a call. It closes all associated sockets, 
+ * This function is used to clean up a call. It closes all associated sockets,
  * removes the call from the global list and frees up associated memory.
  *
  * @param call          Pointer to the call to be cleared.
@@ -803,25 +803,25 @@ EXTERN int ooRemoveCallFromList (OOH323CallData *call);
 EXTERN int ooCleanCall(OOH323CallData *call);
 
 /**
- * This function is used to check whether a specified session in specified 
+ * This function is used to check whether a specified session in specified
  * direction is active for the call.
  * @param call       Handle to call for which session has to be queried.
- * @param sessionID  Session id to identify the type of session(1 for audio, 
+ * @param sessionID  Session id to identify the type of session(1 for audio,
  *                   2 for voice and 3 for data)
  * @param dir        Direction of the session(transmit/receive)
  *
- * @return           1, if session active. 0, otherwise. 
+ * @return           1, if session active. 0, otherwise.
  */
 EXTERN ASN1BOOL ooIsSessionEstablished
 (OOH323CallData *call, int sessionID, char* dir);
 
 /**
- * This function can be used by an application to specify media endpoint 
+ * This function can be used by an application to specify media endpoint
  * information for different types of media. The stack by default uses local IP
- * and port for media. An application can provide mediainfo if it wants to 
+ * and port for media. An application can provide mediainfo if it wants to
  * override default.
  * @param call      Handle to the call
- * @param mediaInfo Structure which defines the media endpoint to be 
+ * @param mediaInfo Structure which defines the media endpoint to be
  *                  used.
  *
  * @return          OO_OK, on success. OO_FAILED, on failure.
@@ -829,7 +829,7 @@ EXTERN ASN1BOOL ooIsSessionEstablished
 EXTERN int ooAddMediaInfo(OOH323CallData *call, OOMediaInfo mediaInfo);
 
 /**
- * This function is used to generate a media session id for the new media 
+ * This function is used to generate a media session id for the new media
  * session for the call.
  * @param call       Handle to the call.
  * @param type       Type of media session.
@@ -841,7 +841,7 @@ EXTERN unsigned ooCallGenerateSessionID
                     (OOH323CallData *call, OOCapType type, char *dir);
 
 /**
- * This is an handler for H245 connection retry timer. When remote end is not 
+ * This is an handler for H245 connection retry timer. When remote end is not
  * yet listening for H245 connections, this timer provides a wait and retry
  * mechanism to establish H245 connection.
  * @param data      Timer callback data.
@@ -868,8 +868,8 @@ EXTERN const char* ooGetReasonCodeText (OOUINT32 code);
  */
 EXTERN const char* ooGetCallStateText (OOCallState callState);
 
-/** 
- * @} 
+/**
+ * @}
  */
 
 int isRunning(char *callToken);

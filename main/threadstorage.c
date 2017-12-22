@@ -165,7 +165,7 @@ static char *handle_cli_threadstorage_show_allocations(struct ast_cli_entry *e, 
 	pthread_mutex_unlock(&threadstoragelock);
 
 	ast_cli(a->fd, "%10d bytes allocated in %d allocation%s\n", (int) len, count, count > 1 ? "s" : "");
-	
+
 	return CLI_SUCCESS;
 }
 
@@ -224,7 +224,7 @@ static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int 
 	}
 
 	pthread_mutex_unlock(&threadstoragelock);
-	
+
 	AST_LIST_TRAVERSE(&file_summary, file, entry) {
 		len += file->len;
 		count += file->count;
@@ -260,4 +260,3 @@ void threadstorage_init(void)
 }
 
 #endif /* !defined(DEBUG_THREADLOCALS) */
-

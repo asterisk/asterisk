@@ -105,7 +105,7 @@ void ast_cli(int fd, const char *fmt, ...)
 	char *new_setdebug(const struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 	...
-	// this is how we create the entry to register 
+	// this is how we create the entry to register
 	AST_CLI_DEFINE(new_setdebug, "short description")
 	...
 
@@ -132,7 +132,7 @@ static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
                         return NULL;
         	return ast_cli_complete(a->word, choices, a->n);
 
-        default:        
+        default:
                 // we are guaranteed to be called with argc >= e->args;
                 if (a->argc > e->args + 1) // we accept one extra argument
                         return CLI_SHOWUSAGE;
@@ -142,10 +142,10 @@ static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 }
 
 \endcode
- 
+
  */
 
-/*! \brief calling arguments for new-style handlers. 
+/*! \brief calling arguments for new-style handlers.
 * \arg \ref CLI_command_API
 */
 enum ast_cli_command {
@@ -165,7 +165,7 @@ struct ast_cli_args {
 	const int n;		/* the iteration count (n-th entry we generate) */
 };
 
-/*! \brief descriptor for a cli entry. 
+/*! \brief descriptor for a cli entry.
  * \arg \ref CLI_command_API
  */
 struct ast_cli_entry {
@@ -215,7 +215,7 @@ struct ast_cli_entry {
  */
 char *ast_cli_complete(const char *word, const char * const choices[], int pos);
 
-/*! 
+/*!
  * \brief Interprets a command
  * Interpret a command s, sending output to fd if uid:gid has permissions
  * to run this command. uid = CLI_NO_PERMS to avoid checking user permissions
@@ -229,9 +229,9 @@ char *ast_cli_complete(const char *word, const char * const choices[], int pos);
  */
 int ast_cli_command_full(int uid, int gid, int fd, const char *s);
 
-#define ast_cli_command(fd,s) ast_cli_command_full(CLI_NO_PERMS, CLI_NO_PERMS, fd, s) 
+#define ast_cli_command(fd,s) ast_cli_command_full(CLI_NO_PERMS, CLI_NO_PERMS, fd, s)
 
-/*! 
+/*!
  * \brief Executes multiple CLI commands
  * Interpret strings separated by NULL and execute each one, sending output to fd
  * if uid has permissions, uid = CLI_NO_PERMS to avoid checking users permissions.
@@ -267,7 +267,7 @@ int __ast_cli_register(struct ast_cli_entry *e, struct ast_module *mod);
 
 int __ast_cli_register_multiple(struct ast_cli_entry *e, int len, struct ast_module *mod);
 
-/*! 
+/*!
  * \brief Unregisters a command or an array of commands
  * \param e which cli entry to unregister
  * Unregister your own command.  You must pass a completed ast_cli_entry structure
@@ -282,7 +282,7 @@ int ast_cli_unregister(struct ast_cli_entry *e);
  */
 int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
-/*! 
+/*!
  * \brief Readline madness
  * Useful for readline, that's about it
  * \retval 0 on success

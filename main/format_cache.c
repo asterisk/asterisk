@@ -547,4 +547,3 @@ int ast_format_cache_is_slinear(struct ast_format *format)
 
 	return 0;
 }
-

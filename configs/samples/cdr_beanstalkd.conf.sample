@@ -18,9 +18,3 @@
                      ; platform with multiple Asterisk servers, that are used for different functions. For example,
                      ; none billable CDR records can be inserted with a priority of 99, while billable ones be
                      ; inserted with a priority of 1
-
-
-
-
-
-

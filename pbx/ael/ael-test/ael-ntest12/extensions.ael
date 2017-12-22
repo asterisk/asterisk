@@ -1,8 +1,8 @@
 context test1
 {
         771 => {
-                for(	i=0; 
-			${i} <= 3; 
+                for(	i=0;
+			${i} <= 3;
 			i = ${i} + 1 )
                         NoOp(i is '${i}');
         }

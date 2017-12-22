@@ -74,7 +74,7 @@ struct ast_tone_zone_sound {
 struct ast_tone_zone {
 	/*! \brief Country code that this set of tones is for */
 	char country[MAX_TONEZONE_COUNTRY];
-	/*! 
+	/*!
 	 * \brief Text description of the given country.
 	 *
 	 * This is for nothing more than friendly display to a human.
@@ -82,7 +82,7 @@ struct ast_tone_zone {
 	char description[40];
 	/*! \brief Number of ring cadence elements in the ringcadence array */
 	unsigned int  nrringcadence;
-	/*! 
+	/*!
 	 * \brief Array of ring cadence parts
 	 *
 	 * Each element is an amount of time in milliseconds.  The first element

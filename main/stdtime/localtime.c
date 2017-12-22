@@ -2551,4 +2551,3 @@ char *ast_strptime(const char *s, const char *format, struct ast_tm *tm)
 {
 	return ast_strptime_locale(s, format, tm, NULL);
 }
-

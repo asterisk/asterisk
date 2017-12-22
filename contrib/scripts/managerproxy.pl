@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w 
+#!/usr/bin/perl -w
 #
 #  Simple Asterisk Manager Proxy, Version 1.01
 #  2004-09-26
@@ -132,7 +132,7 @@ while (1)
             {
                 log_debug("** New client connection", 16);
                 my $C = $m->accept;
-                $proxy_clients{$C} = \$C;                
+                $proxy_clients{$C} = \$C;
                 print "New Connection: $C\n" if $debug;
                 $O->add($C);
             } else {
@@ -239,4 +239,3 @@ sub list_clients()
    }
    print "$cnt clients.\n\n";
 }
-

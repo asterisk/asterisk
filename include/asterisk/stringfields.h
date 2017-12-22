@@ -27,7 +27,7 @@
 
   Using this functionality is quite simple. An example structure
   with three fields is defined like this:
-  
+
   \code
   struct sample_fields {
 	  int x1;
@@ -39,14 +39,14 @@
 	  long x2;
   };
   \endcode
-  
+
   When an instance of this structure is allocated (either statically or
   dynamically), the fields and the pool of storage for them must be
   initialized:
-  
+
   \code
   struct sample_fields *x;
-  
+
   x = ast_calloc(1, sizeof(*x));
   if (x == NULL || ast_string_field_init(x, 252)) {
 	if (x)
@@ -62,7 +62,7 @@
 
   ast_string_field_init(x, 0) will reset fields to the
   initial value while keeping the pool allocated.
-  
+
   Reading the fields is much like using 'const char * const' fields in the
   structure: you cannot write to the field or to the memory it points to.
 
@@ -88,7 +88,7 @@
 
   When the structure instance is no longer needed, the fields
   and their storage pool must be freed:
-  
+
   \code
   ast_string_field_free_memory(x);
   ast_free(x);

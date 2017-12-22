@@ -203,7 +203,7 @@ static integer c__1 = 1;
 /* This entry has no local state.  It accesses a "constant" array */
 /* declared in ANALYS. */
 
-/* Subroutine */ int analys_(real *speech, integer *voice, integer 
+/* Subroutine */ int analys_(real *speech, integer *voice, integer
 	*pitch, real *rms, real *rc, struct lpc10_encoder_state *st)
 {
     /* Initialized data */
@@ -243,8 +243,8 @@ static integer c__1 = 1;
     extern int dcbias_(integer *, real *, real *);
     integer ipitch;
     integer *obound;
-    extern /* Subroutine */ int preemp_(real *, real *, integer *, real *, 
-	    real *), voicin_(integer *, real *, real *, integer *, integer *, 
+    extern /* Subroutine */ int preemp_(real *, real *, integer *, real *,
+	    real *), voicin_(integer *, real *, real *, integer *, integer *,
 	    real *, real *, integer *, real *, integer *, integer *, integer *,
 	    struct lpc10_encoder_state *);
     integer *voibuf;
@@ -252,10 +252,10 @@ static integer c__1 = 1;
     real *rmsbuf;
     extern /* Subroutine */ int lpfilt_(real *, real *, integer *, integer *),
 	     ivfilt_(real *, real *, integer *, integer *, real *), energy_(
-	    integer *, real *, real *), invert_(integer *, real *, real *, 
+	    integer *, real *, real *), invert_(integer *, real *, real *,
 	    real *);
     integer minptr, maxptr;
-    extern /* Subroutine */ int dyptrk_(real *, integer *, integer *, integer 
+    extern /* Subroutine */ int dyptrk_(real *, integer *, integer *, integer
 	    *, integer *, integer *, struct lpc10_encoder_state *);
     real phi[100]	/* was [10][10] */, psi[10];
 
@@ -355,13 +355,13 @@ static integer c__1 = 1;
 /*    Error correction */
 /* Subroutine SETUP is the only place where order is assigned a value, */
 /* and that value is 10.  It could increase efficiency 1% or so to */
-/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as 
+/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as
 */
 /* a variable in a COMMON block, since it is used in many places in the */
-/* core of the coding and decoding routines.  Actually, I take that back. 
+/* core of the coding and decoding routines.  Actually, I take that back.
 */
 /* At least when compiling with f2c, the upper bound of DO loops is */
-/* stored in a local variable before the DO loop begins, and then that is 
+/* stored in a local variable before the DO loop begins, and then that is
 */
 /* compared against on each iteration. */
 /* Similarly for lframe, which is given a value of MAXFRM in SETUP. */
@@ -371,35 +371,35 @@ static integer c__1 = 1;
 /* nbits is similar to quant, and is given a value of 54 in SETUP. */
 /* corrp is given a value of .TRUE. in SETUP, and is only used in the */
 /* subroutines ENCODE and DECODE.  It doesn't affect the speed of the */
-/* coder significantly whether it is .TRUE. or .FALSE., or whether it is 
+/* coder significantly whether it is .TRUE. or .FALSE., or whether it is
 */
 /* a constant or a variable, since it is only examined once per frame. */
 /* Leaving it as a variable that is set to .TRUE.  seems like a good */
 /* idea, since it does enable some error-correction capability for */
-/* unvoiced frames, with no change in the coding rate, and no noticeable 
+/* unvoiced frames, with no change in the coding rate, and no noticeable
 */
 /* quality difference in the decoded speech. */
 /* 	integer quant, nbits */
-/* *** Read/write: variables for debugging, not needed for LPC algorithm 
+/* *** Read/write: variables for debugging, not needed for LPC algorithm
 */
 
-/*  Current frame, Unstable frames, Output clip count, Max onset buffer, 
+/*  Current frame, Unstable frames, Output clip count, Max onset buffer,
 */
 /*    Debug listing detail level, Line count on listing page */
 
 /* nframe is not needed for an embedded LPC10 at all. */
 /* nunsfm is initialized to 0 in SETUP, and incremented in subroutine */
 /* ERROR, which is only called from RCCHK.  When LPC10 is embedded into */
-/* an application, I would recommend removing the call to ERROR in RCCHK, 
+/* an application, I would recommend removing the call to ERROR in RCCHK,
 */
 /* and remove ERROR and nunsfm completely. */
-/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in 
+/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in
 */
 /* sread.f.  When LPC10 is embedded into an application, one might want */
 /* to cause it to be incremented in a routine that takes the output of */
 /* SYNTHS and sends it to an audio device.  It could be optionally */
 /* displayed, for those that might want to know what it is. */
-/* maxosp is never initialized to 0 in SETUP, although it probably should 
+/* maxosp is never initialized to 0 in SETUP, although it probably should
 */
 /* be, and it is updated in subroutine ANALYS.  I doubt that its value */
 /* would be of much interest to an application in which LPC10 is */
@@ -426,7 +426,7 @@ static integer c__1 = 1;
 /*       The tables TAU and BUFLIM, and the variable PRECOEF, are not */
 /*       Fortran PARAMETER's, but they are initialized with DATA */
 /*       statements, and never modified.  Thus, they need not have SAVE */
-/*       statements for them to keep their values from one invocation to 
+/*       statements for them to keep their values from one invocation to
 */
 /*       the next. */
 /*       Local variables that need not be saved */
@@ -512,13 +512,13 @@ static integer c__1 = 1;
 	vwin[(i__ << 1) - 1] = vwin[((i__ + 1) << 1) - 1] - contrl_1.lframe;
 	awin[(i__ << 1) - 2] = awin[((i__ + 1) << 1) - 2] - contrl_1.lframe;
 	awin[(i__ << 1) - 1] = awin[((i__ + 1) << 1) - 1] - contrl_1.lframe;
-/*       EWIN(*,J) is unused for J .NE. AF, so the following shift is 
+/*       EWIN(*,J) is unused for J .NE. AF, so the following shift is
 */
 /*       unnecessary.  It also causes error messages when the C versio
 n */
-/*       of the code created from this by f2c is run with Purify.  It 
+/*       of the code created from this by f2c is run with Purify.  It
 */
-/*       correctly complains that uninitialized memory is being read. 
+/*       correctly complains that uninitialized memory is being read.
 */
 /* 	   EWIN(1,I) = EWIN(1,I+1) - LFRAME */
 /* 	   EWIN(2,I) = EWIN(2,I+1) - LFRAME */
@@ -533,17 +533,17 @@ n */
     }
 /*   Copy input speech, scale to sign+12 bit integers */
 /*   Remove long term DC bias. */
-/*       If the average value in the frame was over 1/4096 (after current 
+/*       If the average value in the frame was over 1/4096 (after current
 */
 /*       BIAS correction), then subtract that much more from samples in */
 /*       next frame.  If the average value in the frame was under */
-/*       -1/4096, add 1/4096 more to samples in next frame.  In all other 
+/*       -1/4096, add 1/4096 more to samples in next frame.  In all other
 */
 /*       cases, keep BIAS the same. */
     temp = 0.f;
     i__1 = contrl_1.lframe;
     for (i__ = 1; i__ <= i__1; ++i__) {
-	inbuf[720 - contrl_1.lframe + i__ - 181] = speech[i__] * 4096.f - 
+	inbuf[720 - contrl_1.lframe + i__ - 181] = speech[i__] * 4096.f -
 		(*bias);
 	temp += inbuf[720 - contrl_1.lframe + i__ - 181];
     }
@@ -555,7 +555,7 @@ n */
     }
 /*   Place Voicing Window */
     i__ = 721 - contrl_1.lframe;
-    preemp_(&inbuf[i__ - 181], &pebuf[i__ - 181], &contrl_1.lframe, &precoef, 
+    preemp_(&inbuf[i__ - 181], &pebuf[i__ - 181], &contrl_1.lframe, &precoef,
 	    zpre);
     onset_(pebuf, osbuf, osptr, &c__10, &c__181, &c__720, &contrl_1.lframe, st);
 
@@ -563,39 +563,39 @@ n */
 
 /* 	MAXOSP = MAX( MAXOSP, OSPTR ) */
 
-    placev_(osbuf, osptr, &c__10, &obound[2], vwin, &c__3, &contrl_1.lframe, 
+    placev_(osbuf, osptr, &c__10, &obound[2], vwin, &c__3, &contrl_1.lframe,
 	    &c__90, &c__156, &c__307, &c__462);
-/*        The Pitch Extraction algorithm estimates the pitch for a frame 
+/*        The Pitch Extraction algorithm estimates the pitch for a frame
 */
 /*   of speech by locating the minimum of the average magnitude difference
  */
 /*   function (AMDF).  The AMDF operates on low-pass, inverse filtered */
-/*   speech.  (The low-pass filter is an 800 Hz, 19 tap, equiripple, FIR 
+/*   speech.  (The low-pass filter is an 800 Hz, 19 tap, equiripple, FIR
 */
-/*   filter and the inverse filter is a 2nd-order LPC filter.)  The pitch 
+/*   filter and the inverse filter is a 2nd-order LPC filter.)  The pitch
 */
-/*   estimate is later refined by dynamic programming (DYPTRK).  However, 
+/*   estimate is later refined by dynamic programming (DYPTRK).  However,
 */
 /*   since some of DYPTRK's parameters are a function of the voicing */
 /*  decisions, a voicing decision must precede the final pitch estimation.
 */
 /*   See subroutines LPFILT, IVFILT, and TBDM. */
 /*       LPFILT reads indices LBUFH-LFRAME-29 = 511 through LBUFH = 720 */
-/*       of INBUF, and writes indices LBUFH+1-LFRAME = 541 through LBUFH 
+/*       of INBUF, and writes indices LBUFH+1-LFRAME = 541 through LBUFH
 */
 /*       = 720 of LPBUF. */
     lpfilt_(&inbuf[228], &lpbuf[384], &c__312, &contrl_1.lframe);
-/*       IVFILT reads indices (PWINH-LFRAME-7) = 353 through PWINH = 540 
+/*       IVFILT reads indices (PWINH-LFRAME-7) = 353 through PWINH = 540
 */
 /*       of LPBUF, and writes indices (PWINH-LFRAME+1) = 361 through */
 /*       PWINH = 540 of IVBUF. */
     ivfilt_(&lpbuf[204], ivbuf, &c__312, &contrl_1.lframe, ivrc);
 /*       TBDM reads indices PWINL = 229 through */
-/*       (PWINL-1)+MAXWIN+(TAU(LTAU)-TAU(1))/2 = 452 of IVBUF, and writes 
+/*       (PWINL-1)+MAXWIN+(TAU(LTAU)-TAU(1))/2 = 452 of IVBUF, and writes
 */
 /*       indices 1 through LTAU = 60 of AMDF. */
     tbdm_(ivbuf, &c__156, tau, &c__60, amdf, &minptr, &maxptr, &mintau);
-/*        Voicing decisions are made for each half frame of input speech. 
+/*        Voicing decisions are made for each half frame of input speech.
 */
 /*   An initial voicing classification is made for each half of the */
 /*   analysis frame, and the voicing decisions for the present frame */
@@ -605,9 +605,9 @@ n */
 /*   maximum-to-minimum ratio, the zero crossing rate, energy measures, */
 /*   reflection coefficients, and prediction gains. */
 /*        The pitch and voicing rules apply smoothing and isolated */
-/*   corrections to the pitch and voicing estimates and, in the process, 
+/*   corrections to the pitch and voicing estimates and, in the process,
 */
-/*   introduce two frames of delay into the corrected pitch estimates and 
+/*   introduce two frames of delay into the corrected pitch estimates and
 */
 /*   voicing decisions. */
     for (half = 1; half <= 2; ++half) {

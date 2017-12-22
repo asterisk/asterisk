@@ -75,7 +75,7 @@ struct odbc_cache_tables {
 
 /* functions */
 
-/*! 
+/*!
  * \brief Executes a prepared statement handle
  * \param obj The non-NULL result of odbc_request_obj()
  * \param stmt The prepared statement handle
@@ -120,13 +120,13 @@ struct odbc_obj *_ast_odbc_request_obj(const char *name, int check, const char *
 #define ast_odbc_request_obj2(a, b)	_ast_odbc_request_obj2(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #define ast_odbc_request_obj(a, b)	_ast_odbc_request_obj(a, b, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 
-/*! 
+/*!
  * \brief Releases an ODBC object previously allocated by ast_odbc_request_obj()
  * \param obj The ODBC object
  */
 void ast_odbc_release_obj(struct odbc_obj *obj);
 
-/*! 
+/*!
  * \brief Checks an ODBC object to ensure it is still connected
  * \param obj The ODBC object
  * \retval 0 if connected
@@ -150,12 +150,12 @@ int ast_odbc_backslash_is_escape(struct odbc_obj *obj);
  */
 SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data);
 
-/*! 
+/*!
  * \brief Prepares, executes, and returns the resulting statement handle.
  * \param obj The ODBC object
  * \param prepare_cb A function callback, which, when called, should return a statement handle prepared, with any necessary parameters or result columns bound.
  * \param data A parameter to be passed to the prepare_cb parameter function, indicating which statement handle is to be prepared.
- * \retval a statement handle 
+ * \retval a statement handle
  * \retval NULL on error
  */
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);

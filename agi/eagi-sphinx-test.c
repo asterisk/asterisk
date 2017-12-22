@@ -101,7 +101,7 @@ static int read_environment(void)
 
 		/* Load into normal environment */
 		setenv(buf, val, 1);
-		
+
 	}
 	/* Never reached */
 	return 0;
@@ -163,7 +163,7 @@ static char *wait_result(void)
 			}
 		}
 	}
-		
+
 }
 
 static char *run_command(char *command)

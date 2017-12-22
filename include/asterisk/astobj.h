@@ -72,13 +72,13 @@
  *    found_obj = ASTOBJ_CONTAINER_FIND(&super_container, "obj1");
  *
  *    if(found_obj) {
- *       printf("Found object: %s", found_obj->name); 
+ *       printf("Found object: %s", found_obj->name);
  *       ASTOBJ_UNREF(found_obj,sample_object_destroy);
  *    }
  *
  *    ASTOBJ_CONTAINER_DESTROYALL(&super_container,sample_object_destroy);
  *    ASTOBJ_CONTAINER_DESTROY(&super_container);
- * 
+ *
  *    return 0;
  * }
  * \endcode
@@ -110,13 +110,13 @@ extern "C" {
 /*! \brief Unlock a locked object. */
 #define ASTOBJ_UNLOCK(object) ast_mutex_unlock(&(object)->_lock)
 
-#ifdef ASTOBJ_CONTAINER_HASHMODEL 
+#ifdef ASTOBJ_CONTAINER_HASHMODEL
 #define __ASTOBJ_HASH(type,hashes) \
-	type *next[hashes] 
-#else 
+	type *next[hashes]
+#else
 #define __ASTOBJ_HASH(type,hashes) \
-	type *next[1] 
-#endif	
+	type *next[1]
+#endif
 
 /*! \brief Add ASTOBJ components to a struct (without locking support).
  *
@@ -140,14 +140,14 @@ extern "C" {
 	unsigned int refcount; \
 	unsigned int objflags; \
 	__ASTOBJ_HASH(type,hashes)
-	
+
 /*! \brief Add ASTOBJ components to a struct (without locking support).
  *
  * \param type The datatype of the object.
  *
  * This macro works like #ASTOBJ_COMPONENTS_NOLOCK_FULL() except it only accepts a
  * type and uses default values for namelen and hashes.
- * 
+ *
  * <b>Sample Usage:</b>
  * \code
  * struct sample_struct_componets {
@@ -174,8 +174,8 @@ extern "C" {
  */
 #define ASTOBJ_COMPONENTS(type) \
 	ASTOBJ_COMPONENTS_NOLOCK(type); \
-	ast_mutex_t _lock; 
-	
+	ast_mutex_t _lock;
+
 /*! \brief Add ASTOBJ components to a struct (with locking support).
  *
  * \param type The datatype of the object.
@@ -194,7 +194,7 @@ extern "C" {
  */
 #define ASTOBJ_COMPONENTS_FULL(type,namelen,hashes) \
 	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes); \
-	ast_mutex_t _lock; 
+	ast_mutex_t _lock;
 
 /*! \brief Increment an object reference count.
  * \param object A pointer to the object to operate on.
@@ -207,7 +207,7 @@ extern "C" {
 		ASTOBJ_UNLOCK(object); \
 		(object); \
 	})
-	
+
 /*! \brief Decrement the reference count on an object.
  *
  * \param object A pointer the object to operate on.
@@ -233,12 +233,12 @@ extern "C" {
 		(object) = NULL; \
 	} while(0)
 
-/*! \brief Mark an ASTOBJ by adding the #ASTOBJ_FLAG_MARKED flag to its objflags mask. 
+/*! \brief Mark an ASTOBJ by adding the #ASTOBJ_FLAG_MARKED flag to its objflags mask.
  * \param object A pointer to the object to operate on.
  *
  * This macro "marks" an object.  Marked objects can later be unlinked from a container using
  * #ASTOBJ_CONTAINER_PRUNE_MARKED().
- * 
+ *
  */
 #define ASTOBJ_MARK(object) \
 	do { \
@@ -246,7 +246,7 @@ extern "C" {
 		(object)->objflags |= ASTOBJ_FLAG_MARKED; \
 		ASTOBJ_UNLOCK(object); \
 	} while(0)
-	
+
 /*! \brief Unmark an ASTOBJ by subtracting the #ASTOBJ_FLAG_MARKED flag from its objflags mask.
  * \param object A pointer to the object to operate on.
  */
@@ -277,7 +277,7 @@ extern "C" {
  */
 #define ASTOBJ_CONTAINER_RDLOCK(container) ast_mutex_lock(&(container)->_lock)
 
-/*! \brief Lock an ASTOBJ_CONTAINER for writing. 
+/*! \brief Lock an ASTOBJ_CONTAINER for writing.
  */
 #define ASTOBJ_CONTAINER_WRLOCK(container) ast_mutex_lock(&(container)->_lock)
 
@@ -316,7 +316,7 @@ extern "C" {
  *
  * This macro initializes a container.  It should only be used on containers
  * that support locking.
- * 
+ *
  * <b>Sample Usage:</b>
  * \code
  * struct sample_struct_container {
@@ -333,7 +333,7 @@ extern "C" {
 	do { \
 		ast_mutex_init(&(container)->_lock); \
 	} while(0)
-	
+
 /*! \brief Destroy a container.
  *
  * \param container A pointer to the container to destroy.
@@ -411,7 +411,7 @@ extern "C" {
 	})
 
 /*! \brief Find an object in a container.
- * 
+ *
  * \param container A pointer to the container to search.
  * \param data The data to search for.
  * \param field The field/member of the container's objects to search.
@@ -421,7 +421,7 @@ extern "C" {
  *
  * This macro iterates through a container passing the specified field and data
  * elements to the specified comparefunc.  The function should return 0 when a match is found.
- * 
+ *
  * \note When the returned object is no longer in use, #ASTOBJ_UNREF() should
  * be used to free the additional reference created by this macro.
  *
@@ -498,7 +498,7 @@ extern "C" {
 	})
 
 /*! \brief Find and remove an object from a container.
- * 
+ *
  * \param container A pointer to the container to operate on.
  * \param namestr The name of the object to remove.
  *
@@ -532,7 +532,7 @@ extern "C" {
 	})
 
 /*! \brief Find and remove an object in a container.
- * 
+ *
  * \param container A pointer to the container to search.
  * \param data The data to search for.
  * \param field The field/member of the container's objects to search.
@@ -542,7 +542,7 @@ extern "C" {
  *
  * This macro iterates through a container passing the specified field and data
  * elements to the specified comparefunc.  The function should return 0 when a match is found.
- * If a match is found it is removed from the list. 
+ * If a match is found it is removed from the list.
  *
  * \note This macro does not destroy any objects, it simply unlinks
  * them.  No destructors are called.
@@ -646,7 +646,7 @@ extern "C" {
  *
  * \param container A pointer to the container to prune.
  * \param destructor A destructor function to call on each marked object.
- * 
+ *
  * This macro iterates through the specfied container and prunes any marked
  * objects executing the specfied destructor if necessary.
  */
@@ -738,7 +738,7 @@ extern "C" {
  *
  * This macro initializes a container.  It should only be used on containers
  * that support locking.
- * 
+ *
  * <b>Sample Usage:</b>
  * \code
  * struct sample_struct_container {

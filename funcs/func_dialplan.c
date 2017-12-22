@@ -20,7 +20,7 @@
  *
  * \author Gregory Nietsky AKA irroot <gregory@networksentry.co.za>
  * \author Russell Bryant <russell@digium.com>
- * 
+ *
  * \ingroup functions
  */
 

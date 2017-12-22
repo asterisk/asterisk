@@ -24,7 +24,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 #include "asterisk/mod_format.h"

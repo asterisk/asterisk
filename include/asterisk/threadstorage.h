@@ -82,9 +82,9 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
  * \endcode
  */
 #define AST_THREADSTORAGE(name) \
-	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, ast_free_ptr, static) 
+	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, ast_free_ptr, static)
 #define AST_THREADSTORAGE_PUBLIC(name) \
-	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, ast_free_ptr,) 
+	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, ast_free_ptr,)
 #define AST_THREADSTORAGE_EXTERNAL(name) \
 	extern struct ast_threadstorage name
 #define AST_THREADSTORAGE_RAW(name) \
@@ -149,7 +149,7 @@ static void __init_##name(void)                 \
  * \brief Retrieve thread storage
  *
  * \param ts This is a pointer to the thread storage structure declared by using
- *      the AST_THREADSTORAGE macro.  If declared with 
+ *      the AST_THREADSTORAGE macro.  If declared with
  *      AST_THREADSTORAGE(my_buf), then this argument would be (&my_buf).
  * \param init_size This is the amount of space to be allocated the first time
  *      this thread requests its data. Thus, this should be the size that the

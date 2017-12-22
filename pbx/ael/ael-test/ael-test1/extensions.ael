@@ -66,7 +66,7 @@ context testloop {
         includes {
                 other|16:00-23:59|m0n-fri|*|*;
         };
-	
+
     1 => {
          for (x=0; ${x} < 3; x=${x} + 1) {
               Verbose(x is ${x} !);
@@ -93,9 +93,9 @@ context testloop {
 			return;
               y=${y}-1;
          };
-    }; 
+    };
     regexten hint(nasty/Thingy&nasty/Thingamabob) 3 => {
-        for (x=0; ${x} < 3; x=${x} + 1) 
+        for (x=0; ${x} < 3; x=${x} + 1)
 		{
             	Verbose(x is ${x} !);
 		if( ${x} = 4 )
@@ -106,7 +106,7 @@ context testloop {
 			return;
 
         	y=10;
-	        while (${y} >= 0) 
+	        while (${y} >= 0)
 			{
             			Verbose(y is ${y} !);
 				if( ${y} = 4 )
@@ -118,10 +118,10 @@ context testloop {
 	   		         y=${y}-1;
 			};
         };
-    }; 
+    };
     4 => {
        	y=10;
-        while (${y} >= 0) 
+        while (${y} >= 0)
 	{
             	Verbose(y is ${y} !);
 		if( ${y} = 4 )
@@ -130,7 +130,7 @@ context testloop {
 			continue;
 		if( ${y} = 6 )
 			return;
-       		for (x=0; ${x} < 3; x=${x} + 1) 
+       		for (x=0; ${x} < 3; x=${x} + 1)
 		{
             		Verbose(x is ${x} !);
 			if( ${x} = 4 )
@@ -139,7 +139,7 @@ context testloop {
 				continue;
 			if( ${x} = 6 )
 				return;
-		        for (z=0; ${z} < 17; z=${z} + 1) 
+		        for (z=0; ${z} < 17; z=${z} + 1)
 			{
               			Verbose(z is ${z} !);
               			Verbose(z is ${z} !);
@@ -152,11 +152,11 @@ context testloop {
               			Verbose(z is ${z} !);
               			Verbose(z is ${z} !);
          		};
-				
+
 		};
 	        y=${y}-1;
         };
-    }; 
+    };
     5 => {
 		&exten-gen(axel,brain);
     };

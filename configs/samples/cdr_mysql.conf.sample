@@ -4,17 +4,17 @@
 ; setting hostname=localhost
 ;
 ; port and sock are both optional parameters.  If hostname is specified
-; and is not "localhost" (you can use address 127.0.0.1 instead), then 
-; cdr_mysql will attempt to connect to the port specified or use the 
-; default port.  If hostname is not specified or if hostname is 
-; "localhost", then cdr_mysql will attempt to connect to the socket file 
+; and is not "localhost" (you can use address 127.0.0.1 instead), then
+; cdr_mysql will attempt to connect to the port specified or use the
+; default port.  If hostname is not specified or if hostname is
+; "localhost", then cdr_mysql will attempt to connect to the socket file
 ; specified by sock or otherwise use the default socket file.
 ;
 ;[global]
 ;hostname=database.host.name
 ;dbname=asteriskcdrdb
 ;table=cdr
-;password=password 
+;password=password
 ;user=asteriskcdruser
 ;port=3306
 ;sock=/tmp/mysql.sock
@@ -60,4 +60,3 @@ alias start => calldate
 ;alias accountcode => <a_field_not_named_accountcode>
 ;alias userfield => <a_field_not_named_userfield>
 ;alias uniqueid => <a_field_not_named_uniqueid>
-

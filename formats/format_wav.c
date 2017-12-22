@@ -23,7 +23,7 @@
  * \arg File name extension: wav (lower case)
  * \ingroup formats
  */
- 
+
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
@@ -166,9 +166,9 @@ static int check_header(FILE *f, int hz)
 	}
 	/* Skip any facts and get the first data block */
 	for(;;)
-	{ 
+	{
 		char buf[4];
-		
+
 		/* Begin data chunk */
 		if (fread(&buf, 1, 4, f) != 4) {
 			ast_log(LOG_WARNING, "Read failed (block header format)\n");
@@ -187,7 +187,7 @@ static int check_header(FILE *f, int hz)
 				return -1;
 			continue;
 		}
-		if(memcmp(buf, "data", 4) == 0 ) 
+		if(memcmp(buf, "data", 4) == 0 )
 			break;
 		ast_log(LOG_DEBUG, "Skipping unknown block '%.4s'\n", buf);
 		if (fseek(f,data,SEEK_CUR) == -1 ) {
@@ -200,7 +200,7 @@ static int check_header(FILE *f, int hz)
 	truelength = lseek(fd, 0, SEEK_END);
 	lseek(fd, curpos, SEEK_SET);
 	truelength -= curpos;
-#endif	
+#endif
 	return data;
 }
 
@@ -208,7 +208,7 @@ static int update_header(FILE *f)
 {
 	off_t cur,end;
 	int datalen,filelen,bytes;
-	
+
 	cur = ftello(f);
 	fseek(f, 0, SEEK_END);
 	end = ftello(f);
@@ -217,7 +217,7 @@ static int update_header(FILE *f)
 	datalen = htoll(bytes);
 	/* chunk size is bytes of data plus 36 bytes of header */
 	filelen = htoll(36 + bytes);
-	
+
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
@@ -432,7 +432,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		return -1;
 	}
 	tmpi = f->data.ptr;
-	for (x=0; x < f->datalen/2; x++) 
+	for (x=0; x < f->datalen/2; x++)
 		tmp[x] = (tmpi[x] << 8) | ((tmpi[x] & 0xff00) >> 8);
 
 	if ((res = fwrite(tmp, 1, f->datalen, fs->f)) != f->datalen ) {
@@ -445,7 +445,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	}
 
 	s->bytes += f->datalen;
-		
+
 	return 0;
 
 }

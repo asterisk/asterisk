@@ -168,7 +168,7 @@ char *ast_trim_blanks(char *str),
 
 	if (work) {
 		work += strlen(work) - 1;
-		/* It's tempting to only want to erase after we exit this loop, 
+		/* It's tempting to only want to erase after we exit this loop,
 		   but since ast_trim_blanks *could* receive a constant string
 		   (which we presumably wouldn't have to touch), we shouldn't
 		   actually set anything unless we must, and it's easier just
@@ -198,7 +198,7 @@ char * attribute_pure ast_skip_nonblanks(const char *str),
 	return (char *) str;
 }
 )
-  
+
 /*!
   \brief Strip leading/trailing whitespace from a string.
   \param s The string to be stripped (will be modified).
@@ -215,7 +215,7 @@ char *ast_strip(char *s),
 		ast_trim_blanks(s);
 	}
 	return s;
-} 
+}
 )
 
 /*!
@@ -305,7 +305,7 @@ enum ast_strsep_flags {
 char *ast_strsep(char **s, const char sep, uint32_t flags);
 
 /*!
-  \brief Strip backslash for "escaped" semicolons, 
+  \brief Strip backslash for "escaped" semicolons,
 	the string to be stripped (will be modified).
   \return The stripped string.
  */
@@ -402,7 +402,7 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
-  
+
   \note This method is not recommended. New code should use ast_str_*() instead.
 
   This is a wrapper for snprintf, that properly handles the buffer pointer
@@ -418,7 +418,7 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
-  
+
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
@@ -442,11 +442,11 @@ int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list a
  */
 int attribute_pure ast_true(const char *val);
 
-/*! 
+/*!
  * \brief Make sure something is false.
  * Determine if a string containing a boolean value is "false".
- * This function checks to see whether a string passed to it is an indication of an "false" value.  
- * It checks to see if the string is "no", "false", "n", "f", "off" or "0".  
+ * This function checks to see whether a string passed to it is an indication of an "false" value.
+ * It checks to see if the string is "no", "false", "n", "f", "off" or "0".
  *
  * \retval 0 if val is a NULL pointer.
  * \retval -1 if "true".
@@ -754,7 +754,7 @@ char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 	return buf->__AST_STR_STR;
 }
 )
-	
+
 /*
  * AST_INLINE_API() is a macro that takes a block of code as an argument.
  * Using preprocessor #directives in the argument is not supported by all
@@ -778,7 +778,7 @@ int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, 
 {
 	struct ast_str *old_buf = *buf;
 
-	if (new_len <= (*buf)->__AST_STR_LEN) 
+	if (new_len <= (*buf)->__AST_STR_LEN)
 		return 0;	/* success */
 	if ((*buf)->__AST_STR_TS == DS_ALLOCA || (*buf)->__AST_STR_TS == DS_STATIC)
 		return -1;	/* cannot extend */
@@ -803,7 +803,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
 	struct ast_str *old_buf = *buf;
 
-	if (new_len <= (*buf)->__AST_STR_LEN) 
+	if (new_len <= (*buf)->__AST_STR_LEN)
 		return 0;	/* success */
 	if ((*buf)->__AST_STR_TS == DS_ALLOCA || (*buf)->__AST_STR_TS == DS_STATIC)
 		return -1;	/* cannot extend */
@@ -855,8 +855,8 @@ int ast_str_copy_string(struct ast_str **dst, struct ast_str *src),
  * \brief Retrieve a thread locally stored dynamic string
  *
  * \param ts This is a pointer to the thread storage structure declared by using
- *      the AST_THREADSTORAGE macro.  If declared with 
- *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
+ *      the AST_THREADSTORAGE macro.  If declared with
+ *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be
  *      (&my_buf).
  * \param init_len This is the initial length of the thread's dynamic string. The
  *      current length may be bigger if previous operations in this thread have
@@ -1008,7 +1008,7 @@ char *__ast_str_helper2(struct ast_str **buf, ssize_t max_len,
  *      va_start(fmt, ap);
  *      ast_str_set_va(&buf, 0, fmt, ap);
  *      va_end(ap);
- * 
+ *
  *      printf("This is the string we just built: %s\n", buf->str);
  *      ...
  * }

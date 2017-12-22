@@ -269,4 +269,3 @@ struct ast_format *ast_format_compatibility_bitfield2format(uint64_t bitfield)
 	}
 	return NULL;
 }
-

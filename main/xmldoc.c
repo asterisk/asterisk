@@ -2948,5 +2948,3 @@ int ast_xmldoc_load_documentation(void)
 }
 
 #endif /* AST_XML_DOCS */
-
-

@@ -245,7 +245,7 @@ pagerdateformat=%A, %B %d, %Y at %r
 ; overridden in the per-mailbox settings, unless listed otherwise.
 ;
 ; tz=central 		; Timezone from zonemessages below. Irrelevant if envelope=no.
-; locale=de_DE.UTF-8	; set the locale for generation of the date/time strings (make 
+; locale=de_DE.UTF-8	; set the locale for generation of the date/time strings (make
 			; sure the locales are installed in your operating system; e.g
 			; on Debian Linux you can use "dpkg-reconfigure locales").
 			; If you use UTF-8 locales, make sure to set the "charset" option
@@ -259,8 +259,8 @@ pagerdateformat=%A, %B %d, %Y at %r
 			; Useful if Windows users want wav49, but Linux users want gsm.
 			; [per-mailbox only]
 ; saycid=yes 		; Say the caller id information before the message. If not described,
-			;     or set to no, it will be in the envelope. When enabled, if a recorded file 
-			;     with the same name as the caller id exists in 
+			;     or set to no, it will be in the envelope. When enabled, if a recorded file
+			;     with the same name as the caller id exists in
 			;     <astspooldir>/recordings/callerids, then that file will be played as a name
 			;     rather than saying each digit as a phone number.
 ; cidinternalcontexts=intern	; Internal Context for Name Playback instead of

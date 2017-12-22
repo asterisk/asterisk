@@ -63,7 +63,7 @@ pval *linku1(pval *head, pval *tail);
 void ael2_print(char *fname, pval *tree);
 struct pval *ael2_parse(char *fname, int *errs);	/* in ael.flex */
 void destroy_pval(pval *item);
- 
+
 extern char *prev_word;	/* in ael.flex */
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T
@@ -80,7 +80,7 @@ struct parse_io
 };
 
 /* for CODE GENERATION */
-	
+
 typedef enum { AEL_APPCALL, AEL_CONTROL1, AEL_FOR_CONTROL, AEL_IF_CONTROL, AEL_IFTIME_CONTROL, AEL_RAND_CONTROL, AEL_LABEL, AEL_RETURN } ael_priority_type;
 
 
@@ -88,13 +88,13 @@ struct ael_priority
 {
 	int priority_num;
 	ael_priority_type type;
-	
+
 	char *app;
 	char *appargs;
-	
+
 	struct pval *origin;
 	struct ael_extension *exten;
-	
+
 	struct ael_priority *goto_true;
 	struct ael_priority *goto_false;
 	struct ael_priority *next;
@@ -109,9 +109,9 @@ struct ael_extension
 	int is_switch;
 	int has_switch; /* set if a switch exists in the extension */
 	int checked_switch; /* set if we checked for a switch in the extension -- so we don't have to do it again */
-	
+
 	struct ast_context *context;
-	
+
 	struct ael_priority *plist;
 	struct ael_priority *plist_last;
 	struct ael_extension *next_exten;

@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file eventHandler.h 
- * C event handler structure.  This structure holds event handler function 
+ * @file eventHandler.h
+ * C event handler structure.  This structure holds event handler function
  * callbacks for use by the generated code.
  */
 /**
@@ -44,8 +44,8 @@ extern "C" {
 
 
 /**
- * This is a function pointer for a callback function which is invoked 
- * from within a decode function when an element of a SEQUENCE, SET, 
+ * This is a function pointer for a callback function which is invoked
+ * from within a decode function when an element of a SEQUENCE, SET,
  * SEQUENCE OF, SET OF, or CHOICE construct is parsed.
  *
  * @param name         For SEQUENCE, SET, or CHOICE, this is the name of the
@@ -63,8 +63,8 @@ typedef void (*StartElement) (const char* name, int index) ;
 
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function when parsing is complete on an element of a 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function when parsing is complete on an element of a
  * SEQUENCE, SET, SEQUENCE OF, SET OF, or CHOICE construct.
  *
  * @param name         For SEQUENCE, SET, or CHOICE, this is the name of the
@@ -82,7 +82,7 @@ typedef void (*EndElement) (const char* name, int index) ;
 
 
 /**
- * This is a function pointer for a callback function which is invoked from 
+ * This is a function pointer for a callback function which is invoked from
  * within a decode function when a value of the BOOLEAN ASN.1 type is parsed.
  *
  * @param value        Parsed value.
@@ -91,7 +91,7 @@ typedef void (*EndElement) (const char* name, int index) ;
 typedef void (*BoolValue) (ASN1BOOL value);
 
 /**
- * This is a function pointer for a callback function which is invoked from 
+ * This is a function pointer for a callback function which is invoked from
  * within a decode function when a value of the INTERGER ASN.1 type is parsed.
  *
  * @param value        Parsed value.
@@ -100,9 +100,9 @@ typedef void (*BoolValue) (ASN1BOOL value);
 typedef void (*IntValue) (ASN1INT value);
 
 /**
- * This is a function pointer for a callback function which is invoked 
- * from within a decode function when a value of the INTEGER ASN.1 type 
- * is parsed. In this case, constraints on the integer value forced the 
+ * This is a function pointer for a callback function which is invoked
+ * from within a decode function when a value of the INTEGER ASN.1 type
+ * is parsed. In this case, constraints on the integer value forced the
  * use of unsigned integer C type to represent the value.
  *
  * @param value        Parsed value.
@@ -111,19 +111,19 @@ typedef void (*IntValue) (ASN1INT value);
 typedef void (*UIntValue) (ASN1UINT value);
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function when a value of the BIT STRING ASN.1 type is 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function when a value of the BIT STRING ASN.1 type is
  * parsed.
  *
- * @param numbits      - Number of bits in the parsed value. 
- * @param data         - Pointer to a byte array that contains the bit 
+ * @param numbits      - Number of bits in the parsed value.
+ * @param data         - Pointer to a byte array that contains the bit
  *                         string data.
  * @return             - none
- */ 
+ */
 typedef void (*BitStrValue) (ASN1UINT numbits, const ASN1OCTET* data);
 
 /**
- * This is a function pointer for a callback function which is invoked from 
+ * This is a function pointer for a callback function which is invoked from
  * within a decode function when a value of one of the OCTET STRING ASN.1 type
  * is parsed.
  *
@@ -135,8 +135,8 @@ typedef void (*BitStrValue) (ASN1UINT numbits, const ASN1OCTET* data);
 typedef void (*OctStrValue) (ASN1UINT numocts, const ASN1OCTET* data) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function when a value of one of the 8-bit ASN.1 character 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function when a value of one of the 8-bit ASN.1 character
  * string types is parsed.
  *
  * @param value        Null terminated character string value.
@@ -145,8 +145,8 @@ typedef void (*OctStrValue) (ASN1UINT numocts, const ASN1OCTET* data) ;
 typedef void (*CharStrValue) (const char* value) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function when a value of one of the 16-bit ASN.1 character 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function when a value of one of the 16-bit ASN.1 character
  * string types is parsed.
  *
  * This is used for the ASN.1 BmpString type.
@@ -160,7 +160,7 @@ typedef void (*CharStrValue) (const char* value) ;
 typedef void (*CharStrValue16Bit) (ASN1UINT nchars, ASN116BITCHAR* data) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
+ * This is a function pointer for a callback function which is invoked from
  * within a decode function when a value of the NULL ASN.1 type is parsed.
  *
  * @param             - none
@@ -169,8 +169,8 @@ typedef void (*CharStrValue16Bit) (ASN1UINT nchars, ASN116BITCHAR* data) ;
 typedef void (*NullValue) (void) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function whn a value the OBJECT IDENTIFIER ASN.1 type is 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function whn a value the OBJECT IDENTIFIER ASN.1 type is
  * parsed.
  *
  * @param numSubIds    Number of subidentifiers in the object identifier.
@@ -180,8 +180,8 @@ typedef void (*NullValue) (void) ;
 typedef void (*OidValue) (ASN1UINT numSubIds, ASN1UINT* pSubIds) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
- * within a decode function when a value of the ENUMERATED ASN.1 type is 
+ * This is a function pointer for a callback function which is invoked from
+ * within a decode function when a value of the ENUMERATED ASN.1 type is
  * parsed.
  *
  * @param value        - Parsed enumerated value
@@ -190,7 +190,7 @@ typedef void (*OidValue) (ASN1UINT numSubIds, ASN1UINT* pSubIds) ;
 typedef void (*EnumValue) (ASN1UINT value) ;
 
 /**
- * This is a function pointer for a callback function which is invoked from 
+ * This is a function pointer for a callback function which is invoked from
  * within a decode function when an ASN.1 open type is parsed.
  *
  * @param numocts      Number of octets in the parsed value.
@@ -223,7 +223,7 @@ typedef struct EventHandler {
 
 
 /**
- * This function sets the event handler object within the context.  It 
+ * This function sets the event handler object within the context.  It
  * will overwrite the definition of any handler that was set previously.
  *
  * @param pctxt       Context to which event handler has to be added.
@@ -233,8 +233,8 @@ typedef struct EventHandler {
 EXTERN void setEventHandler (OOCTXT* pctxt, EventHandler* pHandler);
 
 /**
- * This function is called to remove the event handler current defined 
- * in the context.  This is done by setting the event handler object 
+ * This function is called to remove the event handler current defined
+ * in the context.  This is done by setting the event handler object
  * pointer to NULL.
  *
  * @param pctxt       Context from which event handler has to be removed.
@@ -243,7 +243,7 @@ EXTERN void setEventHandler (OOCTXT* pctxt, EventHandler* pHandler);
 EXTERN void removeEventHandler (OOCTXT* pctxt);
 
 /**
- * The following functions are invoked from within the generated 
+ * The following functions are invoked from within the generated
  * code to call the various user-defined event handler methods ..
  */
 EXTERN void invokeStartElement (OOCTXT* pctxt, const char* name, int index);
@@ -252,33 +252,33 @@ EXTERN void invokeBoolValue (OOCTXT* pctxt, ASN1BOOL value);
 EXTERN void invokeIntValue (OOCTXT* pctxt, ASN1INT value);
 EXTERN void invokeUIntValue (OOCTXT* pctxt, ASN1UINT value);
 
-EXTERN void invokeBitStrValue 
+EXTERN void invokeBitStrValue
 (OOCTXT* pctxt, ASN1UINT numbits, const ASN1OCTET* data);
 
-EXTERN void invokeOctStrValue 
+EXTERN void invokeOctStrValue
 (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data);
 
 EXTERN void invokeCharStrValue (OOCTXT* pctxt, const char* value);
 
-EXTERN void invokeCharStr16BitValue 
+EXTERN void invokeCharStr16BitValue
 (OOCTXT* pctxt, ASN1UINT nchars, ASN116BITCHAR* data);
 
 EXTERN void invokeNullValue (OOCTXT* pctxt);
 
-EXTERN void invokeOidValue 
+EXTERN void invokeOidValue
 (OOCTXT* pctxt, ASN1UINT numSubIds, ASN1UINT* pSubIds);
 
 EXTERN void invokeEnumValue (OOCTXT* pctxt, ASN1UINT value);
 
-EXTERN void invokeOpenTypeValue 
+EXTERN void invokeOpenTypeValue
 (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data);
 
-/** 
- * @} 
+/**
+ * @}
  */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif 
+#endif

@@ -1026,4 +1026,3 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 	ast_sockaddr_set_port(ourip, port);
 	return res;
 }
-

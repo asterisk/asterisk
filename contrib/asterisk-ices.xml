@@ -70,7 +70,7 @@
                 and samplerate given in the parameters to the oss input
                 module above or the remsaple/downmix section below.  -->
 
-            <encode>  
+            <encode>
                 <quality>0</quality>
                 <samplerate>8000</samplerate>
                 <channels>1</channels>
@@ -80,9 +80,9 @@
             <downmix>0</downmix>
 
             <!-- resampling.
-            
+
                 Set to the frequency (in Hz) you wish to resample to, -->
-             
+
             <!-- <resample>
                 <in-rate>44100</in-rate>
                 <out-rate>22050</out-rate>

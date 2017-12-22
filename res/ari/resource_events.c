@@ -438,7 +438,7 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 		if (register_handler(app, stasis_app_message_handler, session)) {
 			ast_log(LOG_WARNING, "Stasis registration failed for application: '%s'\n", app);
 			return event_session_allocation_error_handler(
-				session, ERROR_TYPE_STASIS_REGISTRATION, ser);			
+				session, ERROR_TYPE_STASIS_REGISTRATION, ser);
 		}
 	}
 

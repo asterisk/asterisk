@@ -17,11 +17,11 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  *
  * \brief Resample slinear audio
- * 
+ *
  * \ingroup codecs
  */
 

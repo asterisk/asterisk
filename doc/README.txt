@@ -1,6 +1,6 @@
 The vast majority of the Asterisk project documentation has been moved to the
 project wiki:
-    
+
     https://wiki.asterisk.org/
 
 Asterisk release tarballs contain an export of the wiki in PDF and plain text

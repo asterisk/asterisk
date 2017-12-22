@@ -16,12 +16,12 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \brief Skeleton Test
  *
  * \author\verbatim <Your Name Here> <<Your Email Here>> \endverbatim
- * 
+ *
  * This is a skeleton for development of an Asterisk test module
  * \ingroup tests
  */

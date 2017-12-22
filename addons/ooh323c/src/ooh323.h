@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 
 /**
- * @file ooh323.h 
- * This file contains functions to support H.225 messages. 
+ * @file ooh323.h
+ * This file contains functions to support H.225 messages.
  */
 #ifndef _OOH323HDR_H_
 #define _OOH323HDR_H_
@@ -95,7 +95,7 @@ EXTERN int ooOnReceivedFacility
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooHandleTunneledH245Messages(struct OOH323CallData *call, 
+EXTERN int ooHandleTunneledH245Messages(struct OOH323CallData *call,
                                         H225H323_UU_PDU * pH323UUPdu);
 
 /**
@@ -103,7 +103,7 @@ EXTERN int ooHandleTunneledH245Messages(struct OOH323CallData *call,
  * @param call       Handle to the call
  * @param facility   Pointer to the facility message.
  */
-EXTERN int ooHandleStartH245FacilityMessage(struct OOH323CallData *call, 
+EXTERN int ooHandleStartH245FacilityMessage(struct OOH323CallData *call,
                                             H225Facility_UUIE *facility);
 
 /**
@@ -112,13 +112,13 @@ EXTERN int ooHandleStartH245FacilityMessage(struct OOH323CallData *call,
  * @param call       Handle to the call.Null when retrieving registered
  *                   aliases.
  * @param pAddresses Pointer to the sequence of alias addresses.
- * @param aliasList  Handle to alias list to be populated with retrieved 
+ * @param aliasList  Handle to alias list to be populated with retrieved
  *                   aliases.
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323RetrieveAliases
-   (struct OOH323CallData *call, H225_SeqOfH225AliasAddress *pAddresses, 
+   (struct OOH323CallData *call, H225_SeqOfH225AliasAddress *pAddresses,
     OOAliases **aliasList);
 
 /**
@@ -133,16 +133,16 @@ EXTERN int ooPopulatePrefixList(OOCTXT *pctxt, OOAliases *pAliases,
  * @param pAliases   Pointer to aliases to be used for populating list.
  * @param pAliasList Pointer to alias list to be populated.
  *
- * @return           OO_OK, on success. OO_FAILED, otherwise. 
+ * @return           OO_OK, on success. OO_FAILED, otherwise.
  */
 EXTERN int ooPopulateAliasList(OOCTXT *pctxt, OOAliases *pAliases,
-                               H225_SeqOfH225AliasAddress *pAliasList, int pAliasType); 
+                               H225_SeqOfH225AliasAddress *pAliasList, int pAliasType);
 
 /**
  * This function is used to search a particular alias in the alias list. The
  * search can be on the basis of alias type or value or both.
  * @param aliasList Handle to the alias list to be searched.
- * @param type      Type of the alias, if search has to consider type as 
+ * @param type      Type of the alias, if search has to consider type as
  *                  criterion, otherwise 0.
  * @param value     Value of the alias, if the search has to consider value as
  *                  criterion, NULL otherwise.
@@ -153,7 +153,7 @@ EXTERN OOAliases* ooH323GetAliasFromList
 /**
  * This function is used to add a new alias to alias list.
  * @param pAliasList    Pointer to Alias list.
- * @param pctxt         Pointer to OOCTXT structure to be used for memory 
+ * @param pctxt         Pointer to OOCTXT structure to be used for memory
  *                      allocation.
  * @param pAliasAddress New alias address to be added.
  *
@@ -169,12 +169,12 @@ EXTERN OOAliases* ooH323AddAliasToList
  * @param h225Address   Pointer to H225TransportAddress structure
  * @param ip            Pointer to the buffer in which dotted ip address will
  *                      be returned.
- * @param port          Pointer to the integer in which port value will be 
+ * @param port          Pointer to the integer in which port value will be
  *                      returned.
  *
  * @return              OO_OK, on success; OO_FAILED, on failure.
  */
-int ooH323GetIpPortFromH225TransportAddress(struct OOH323CallData *call, 
+int ooH323GetIpPortFromH225TransportAddress(struct OOH323CallData *call,
    H225TransportAddress *h225Address, char *ip, int *port);
 /**
  * @}
@@ -184,4 +184,3 @@ int ooH323GetIpPortFromH225TransportAddress(struct OOH323CallData *call,
 #endif
 
 #endif
-

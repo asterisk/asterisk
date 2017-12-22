@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -62,7 +62,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    {
       OOTRACEERR1("ERROR:Memory - ooCreateCall - call\n");
       return NULL;
-   } 
+   }
    memset(call, 0, sizeof(OOH323CallData));
    ast_cond_init(&call->gkWait, NULL);
    ast_mutex_init(&call->GkLock);
@@ -80,7 +80,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    else {
       call->ourCallerId[0] = '\0';
    }
-   
+
    memset(&call->callIdentifier, 0, sizeof(H225CallIdentifier));
    memset(&call->confIdentifier, 0, sizeof(H225ConferenceIdentifier));
 
@@ -107,7 +107,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
 // May 20090713. Fix it for Video session
 
    OO_SETFLAG(call->flags, OO_M_AUDIOSESSION);
-   
+
    call->callState = OO_CALL_CREATED;
    call->callEndReason = OO_REASON_UNKNOWN;
    call->pCallFwdData = NULL;
@@ -116,13 +116,13 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    {
       call->callingPartyNumber = NULL;
    }
-   else{      
+   else{
       if(ooUtilsIsStrEmpty(gH323ep.callingPartyNumber))
       {
          call->callingPartyNumber = NULL;
       }
       else{
-         call->callingPartyNumber = (char*) memAlloc(call->pctxt, 
+         call->callingPartyNumber = (char*) memAlloc(call->pctxt,
                                          strlen(gH323ep.callingPartyNumber)+1);
          if(call->callingPartyNumber)
          {
@@ -156,14 +156,14 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    call->masterSlaveState = OO_MasterSlave_Idle;
    call->statusDeterminationNumber = 0;
    call->localTermCapState = OO_LocalTermCapExchange_Idle;
-   call->remoteTermCapState = OO_RemoteTermCapExchange_Idle; 
+   call->remoteTermCapState = OO_RemoteTermCapExchange_Idle;
    call->ourCaps = NULL;
    call->remoteCaps = NULL;
    call->jointCaps = NULL;
    dListInit(&call->remoteFastStartOLCs);
    call->remoteTermCapSeqNo =0;
    call->localTermCapSeqNo = 0;
-   memcpy(&call->capPrefs, &gH323ep.capPrefs, sizeof(OOCapPrefs));    
+   memcpy(&call->capPrefs, &gH323ep.capPrefs, sizeof(OOCapPrefs));
    call->logicalChans = NULL;
    call->noOfLogicalChannels = 0;
    call->logicalChanNoBase = 1001;
@@ -175,7 +175,7 @@ OOH323CallData* ooCreateCall(char* type, char*callToken)
    call->pFastStartRes = NULL;
    call->usrData = NULL;
    ooCreateCallCmdConnection(call);
-   OOTRACEINFO3("Created a new call (%s, %s)\n", call->callType, 
+   OOTRACEINFO3("Created a new call (%s, %s)\n", call->callType,
                  call->callToken);
    /* Add new call to calllist */
    ooAddCallToList (call);
@@ -209,8 +209,8 @@ int ooAddCallToList(OOH323CallData *call)
 
 int ooEndCall(OOH323CallData *call)
 {
-   OOTRACEDBGA4("In ooEndCall call state is - %s (%s, %s)\n", 
-                 ooGetCallStateText(call->callState), call->callType, 
+   OOTRACEDBGA4("In ooEndCall call state is - %s (%s, %s)\n",
+                 ooGetCallStateText(call->callState), call->callType,
                  call->callToken);
 
    if(call->callState == OO_CALL_REMOVED) {
@@ -229,7 +229,7 @@ int ooEndCall(OOH323CallData *call)
    if(call->callState == OO_CALL_CLEARED || ((strcmp(call->callType, "incoming")) &&
      call->callState == OO_CALL_CLEAR_RELEASESENT))
    {
-      ooCleanCall(call); 
+      ooCleanCall(call);
       call->callState = OO_CALL_REMOVED;
       return OO_OK;
    }
@@ -252,16 +252,16 @@ int ooEndCall(OOH323CallData *call)
    }
 
 
-   if(!OO_TESTFLAG(call->flags, OO_M_RELEASE_BUILT))   
+   if(!OO_TESTFLAG(call->flags, OO_M_RELEASE_BUILT))
    {
-     if(call->callState == OO_CALL_CLEAR || 
+     if(call->callState == OO_CALL_CLEAR ||
         call->callState == OO_CALL_CLEAR_RELEASERECVD)
      {
         ooSendReleaseComplete(call);
         OO_SETFLAG(call->flags, OO_M_RELEASE_BUILT);
      }
    }
-      
+
    return OO_OK;
 }
 
@@ -300,8 +300,8 @@ int ooCleanCall(OOH323CallData *call)
 {
    OOCTXT *pctxt;
 
-   OOTRACEWARN4 ("Cleaning Call (%s, %s)- reason:%s\n", 
-                 call->callType, call->callToken, 
+   OOTRACEWARN4 ("Cleaning Call (%s, %s)- reason:%s\n",
+                 call->callType, call->callToken,
                  ooGetReasonCodeText (call->callEndReason));
 
    /* First clean all the logical channels, if not already cleaned. */
@@ -324,7 +324,7 @@ int ooCleanCall(OOH323CallData *call)
    {
       ooCloseH245Listener(call);
    }
-   
+
    /* Close H225 connection, if not already closed. */
    if (0 != call->pH225Channel && 0 != call->pH225Channel->sock)
    {
@@ -343,7 +343,7 @@ int ooCleanCall(OOH323CallData *call)
    }
 
    ooRemoveCallFromList (call);
-   OOTRACEINFO3("Removed call (%s, %s) from list\n", call->callType, 
+   OOTRACEINFO3("Removed call (%s, %s) from list\n", call->callType,
                  call->callToken);
 
    if(call->pCallFwdData && call->pCallFwdData->fwdedByRemote)
@@ -396,7 +396,7 @@ int ooCallSetCallerId(OOH323CallData* call, const char* callerid)
 
 int ooCallSetCallingPartyNumber(OOH323CallData *call, const char *number)
 {
-   if(call->callingPartyNumber) 
+   if(call->callingPartyNumber)
       memFreePtr(call->pctxt, call->callingPartyNumber);
 
    call->callingPartyNumber = (char*) memAlloc(call->pctxt, strlen(number)+1);
@@ -406,7 +406,7 @@ int ooCallSetCallingPartyNumber(OOH323CallData *call, const char *number)
    }
    else{
       OOTRACEERR3("Error:Memory - ooCallSetCallingPartyNumber - "
-                  "callingPartyNumber.(%s, %s)\n", call->callType, 
+                  "callingPartyNumber.(%s, %s)\n", call->callType,
                   call->callToken);
       return OO_FAILED;
    }
@@ -428,14 +428,14 @@ int ooCallGetCallingPartyNumber(OOH323CallData *call, char *buffer, int len)
          return OO_OK;
       }
    }
-   
+
    return OO_FAILED;
 }
 
 
 int ooCallSetCalledPartyNumber(OOH323CallData *call, const char *number)
 {
-   if(call->calledPartyNumber) 
+   if(call->calledPartyNumber)
       memFreePtr(call->pctxt, call->calledPartyNumber);
 
    call->calledPartyNumber = (char*) memAlloc(call->pctxt, strlen(number)+1);
@@ -445,7 +445,7 @@ int ooCallSetCalledPartyNumber(OOH323CallData *call, const char *number)
    }
    else{
       OOTRACEERR3("Error:Memory - ooCallSetCalledPartyNumber - "
-                  "calledPartyNumber.(%s, %s)\n", call->callType, 
+                  "calledPartyNumber.(%s, %s)\n", call->callType,
                   call->callToken);
       return OO_FAILED;
    }
@@ -462,7 +462,7 @@ int ooCallGetCalledPartyNumber(OOH323CallData *call, char *buffer, int len)
          return OO_OK;
       }
    }
-   
+
    return OO_FAILED;
 }
 
@@ -507,7 +507,7 @@ int ooCallAddAlias
      call->remoteAliases = psNewAlias;
    }
 
-   OOTRACEDBGC5("Added %s alias %s to call. (%s, %s)\n", 
+   OOTRACEDBGC5("Added %s alias %s to call. (%s, %s)\n",
               local?"local":"remote", value, call->callType, call->callToken);
    return OO_OK;
 }
@@ -534,8 +534,8 @@ int ooCallAddAliasEmailID(OOH323CallData *call, const char* email)
 int ooCallAddAliasURLID(OOH323CallData *call, const char* url)
 {
    return ooCallAddAlias(call, T_H225AliasAddress_url_ID, url, TRUE);
-} 
- 
+}
+
 
 int ooCallAddRemoteAliasH323ID(OOH323CallData *call, const char* h323id)
 {
@@ -551,63 +551,63 @@ int ooCallAddRemoteAliasDialedDigits
 
 
 
-/* Used to override global end point capabilities and add call specific 
+/* Used to override global end point capabilities and add call specific
    capabilities */
 
-int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
                             cb_StopReceiveChannel stopReceiveChannel,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
-                                silenceSuppression, dir, startReceiveChannel, 
-                                startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes,
+                                silenceSuppression, dir, startReceiveChannel,
+                                startTransmitChannel, stopReceiveChannel,
                                 stopTransmitChannel, FALSE);
 }
-int ooCallAddAMRNBCapability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddAMRNBCapability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
                             cb_StopReceiveChannel stopReceiveChannel,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
-                                silenceSuppression, dir, startReceiveChannel, 
-                                startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes,
+                                silenceSuppression, dir, startReceiveChannel,
+                                startTransmitChannel, stopReceiveChannel,
                                 stopTransmitChannel, FALSE);
 }
 
-int ooCallAddSpeexCapability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddSpeexCapability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
                             cb_StopReceiveChannel stopReceiveChannel,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
-                                silenceSuppression, dir, startReceiveChannel, 
-                                startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes,
+                                silenceSuppression, dir, startReceiveChannel,
+                                startTransmitChannel, stopReceiveChannel,
                                 stopTransmitChannel, FALSE);
 }
 
-int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG7231Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, OOBOOL silenceSuppression, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
                             cb_StopReceiveChannel stopReceiveChannel,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, 
-                                silenceSuppression, dir, startReceiveChannel, 
-                                startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes,
+                                silenceSuppression, dir, startReceiveChannel,
+                                startTransmitChannel, stopReceiveChannel,
                                 stopTransmitChannel, FALSE);
 }
 
 
 
-int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -615,12 +615,12 @@ int ooCallAddG729Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, FALSE,
-                          dir, startReceiveChannel, startTransmitChannel, 
+                          dir, startReceiveChannel, startTransmitChannel,
                           stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
 /*
-int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -628,12 +628,12 @@ int ooCallAddG726Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, FALSE,
-                          dir, startReceiveChannel, startTransmitChannel, 
+                          dir, startReceiveChannel, startTransmitChannel,
                           stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 */
 
-int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -641,11 +641,11 @@ int ooCallAddG728Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, FALSE,
-                          dir, startReceiveChannel, startTransmitChannel, 
+                          dir, startReceiveChannel, startTransmitChannel,
                           stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
-int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes, 
+int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes,
                             int rxframes, int dir,
                             cb_StartReceiveChannel startReceiveChannel,
                             cb_StartTransmitChannel startTransmitChannel,
@@ -653,28 +653,28 @@ int ooCallAddG711Capability(OOH323CallData *call, int cap, int txframes,
                             cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(call, cap, txframes, rxframes, FALSE,
-                            dir, startReceiveChannel, startTransmitChannel, 
+                            dir, startReceiveChannel, startTransmitChannel,
                             stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
 int ooCallAddGSMCapability
-   (OOH323CallData* call, int cap, ASN1USINT framesPerPkt, 
+   (OOH323CallData* call, int cap, ASN1USINT framesPerPkt,
     OOBOOL comfortNoise, OOBOOL scrambled, int dir,
     cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
     cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddGSMCapability(call, cap, framesPerPkt, comfortNoise, 
-                                     scrambled, dir, startReceiveChannel, 
+   return ooCapabilityAddGSMCapability(call, cap, framesPerPkt, comfortNoise,
+                                     scrambled, dir, startReceiveChannel,
                                      startTransmitChannel, stopReceiveChannel,
                                      stopTransmitChannel, FALSE);
 }
 
 
 int ooCallAddH263VideoCapability
-   (OOH323CallData *call, int cap, unsigned sqcifMPI, unsigned qcifMPI, 
-    unsigned cifMPI, unsigned cif4MPI, unsigned cif16MPI, unsigned maxBitRate, 
+   (OOH323CallData *call, int cap, unsigned sqcifMPI, unsigned qcifMPI,
+    unsigned cifMPI, unsigned cif4MPI, unsigned cif16MPI, unsigned maxBitRate,
     int dir, cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
@@ -684,7 +684,7 @@ int ooCallAddH263VideoCapability
    return ooCapabilityAddH263VideoCapability(call, sqcifMPI, qcifMPI, cifMPI,
                                      cif4MPI, cif16MPI, maxBitRate,dir,
                                      startReceiveChannel, startTransmitChannel,
-                                     stopReceiveChannel, stopTransmitChannel, 
+                                     stopReceiveChannel, stopTransmitChannel,
                                      FALSE);
 
 }
@@ -766,7 +766,7 @@ OOH323CallData* ooFindCallByToken(const char *callToken)
       else
          call = call->next;
    }
-   
+
    if(!call)
    {
       OOTRACEERR2("ERROR:Call with token %s not found\n", callToken);
@@ -791,7 +791,7 @@ ASN1BOOL ooIsSessionEstablished(OOH323CallData *call, int sessionID, char* dir)
    while(temp)
    {
       if(temp->sessionID == sessionID              &&
-         temp->state == OO_LOGICALCHAN_ESTABLISHED && 
+         temp->state == OO_LOGICALCHAN_ESTABLISHED &&
          !strcmp(temp->dir, dir)                     )
          return TRUE;
       temp = temp->next;
@@ -819,7 +819,7 @@ int ooAddMediaInfo(OOH323CallData *call, OOMediaInfo mediaInfo)
 
    memcpy (newMediaInfo, &mediaInfo, sizeof(OOMediaInfo));
 
-   OOTRACEDBGC4("Configured mediainfo for cap %s (%s, %s)\n", 
+   OOTRACEDBGC4("Configured mediainfo for cap %s (%s, %s)\n",
                 ooGetCapTypeText(mediaInfo.cap),
                 call->callType, call->callToken);
    if(!call->mediaInfo) {
@@ -849,7 +849,7 @@ unsigned ooCallGenerateSessionID
             sessionID = call->nextSessionID++;
          else{
             OOTRACEDBGC4("Session id for %s channel of type audio has to be "
-                        "provided by remote.(%s, %s)\n", dir, call->callType, 
+                        "provided by remote.(%s, %s)\n", dir, call->callType,
                          call->callToken);
             sessionID = 0; /* Will be assigned by remote */
          }
@@ -868,7 +868,7 @@ unsigned ooCallGenerateSessionID
          else{
             sessionID = 0; /* Will be assigned by remote */
             OOTRACEDBGC4("Session id for %s channel of type video has to be "
-                        "provided by remote.(%s, %s)\n", dir, call->callType, 
+                        "provided by remote.(%s, %s)\n", dir, call->callType,
                          call->callToken);
          }
       }
@@ -885,7 +885,7 @@ unsigned ooCallGenerateSessionID
          else{
             sessionID = 0; /* Will be assigned by remote */
             OOTRACEDBGC4("Session id for %s channel of type data has to be "
-                        "provided by remote.(%s, %s)\n", dir, call->callType, 
+                        "provided by remote.(%s, %s)\n", dir, call->callType,
                          call->callToken);
          }
       }
@@ -900,8 +900,8 @@ int ooCallH245ConnectionRetryTimerExpired(void *data)
    ooTimerCallback *cbData = (ooTimerCallback*) data;
    OOH323CallData *call = cbData->call;
 
-   OOTRACEINFO3("H245 connection retry timer expired. (%s, %s)\n", 
-                                            call->callType, call->callToken); 
+   OOTRACEINFO3("H245 connection retry timer expired. (%s, %s)\n",
+                                            call->callType, call->callToken);
    memFreePtr(call->pctxt, cbData);
 
    call->h245ConnectionAttempts++;
@@ -914,9 +914,9 @@ int ooCallH245ConnectionRetryTimerExpired(void *data)
 const char* ooGetReasonCodeText (OOUINT32 code)
 {
    static const char* reasonCodeText[] = {
-      "OO_REASON_UNKNOWN", 
+      "OO_REASON_UNKNOWN",
       "OO_REASON_INVALIDMESSAGE",
-      "OO_REASON_TRANSPORTFAILURE", 
+      "OO_REASON_TRANSPORTFAILURE",
       "OO_REASON_NOROUTE",
       "OO_REASON_NOUSER",
       "OO_REASON_NOBW",
@@ -926,10 +926,10 @@ const char* ooGetReasonCodeText (OOUINT32 code)
       "OO_REASON_GK_UNREACHABLE",
       "OO_REASON_GK_CLEARED",
       "OO_REASON_NOCOMMON_CAPABILITIES",
-      "OO_REASON_REMOTE_FWDED",   
+      "OO_REASON_REMOTE_FWDED",
       "OO_REASON_LOCAL_FWDED",
-      "OO_REASON_REMOTE_CLEARED", 
-      "OO_REASON_LOCAL_CLEARED", 
+      "OO_REASON_REMOTE_CLEARED",
+      "OO_REASON_LOCAL_CLEARED",
       "OO_REASON_REMOTE_BUSY",
       "OO_REASON_LOCAL_BUSY",
       "OO_REASON_REMOTE_NOANSWER",
@@ -957,4 +957,3 @@ const char* ooGetCallStateText (OOCallState callState)
    };
    return ooUtilsGetText (callState, callStateText, OONUMBEROF(callStateText));
 }
-

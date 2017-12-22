@@ -149,7 +149,7 @@ struct gen_state {
 	int sample_queue;
 };
 
-static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
+static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	struct ast_iostream *eivr_events,
 	struct ast_iostream *eivr_commands,
 	struct ast_iostream *eivr_errors,
@@ -309,7 +309,7 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 	char *inbuf, *variable;
 	const char *value;
 	int j;
-	struct ast_str *newstring = ast_str_alloca(outbuflen); 
+	struct ast_str *newstring = ast_str_alloca(outbuflen);
 
 	outbuf[0] = '\0';
 
@@ -322,7 +322,7 @@ static void ast_eivr_getvariable(struct ast_channel *chan, char *data, char *out
 			}
 			break;
 		}
-		
+
 		ast_channel_lock(chan);
 		if (!(value = pbx_builtin_getvar_helper(chan, variable))) {
 			value = "";
@@ -414,7 +414,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 	char *buf;
 	int j;
-	char *s, **app_args, *e; 
+	char *s, **app_args, *e;
 	struct ast_str *comma_delim_args = ast_str_alloca(100);
 
 	AST_DECLARE_APP_ARGS(eivr_args,
@@ -476,7 +476,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&flags, run_dead)) {
 		ast_verb(4, "run_dead is set\n");
 	}
-	
+
 	if (!(ast_test_flag(&flags, noanswer))) {
 		ast_verb(3, "Answering channel and starting generator\n");
 		if (ast_channel_state(chan) != AST_STATE_UP) {
@@ -545,18 +545,18 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			ast_chan_log(LOG_ERROR, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
 			goto exit;
 		}
-	
+
 		pid = ast_safe_fork(0);
 		if (pid < 0) {
 			ast_log(LOG_ERROR, "Failed to fork(): %s\n", strerror(errno));
 			goto exit;
 		}
-	
+
 		if (!pid) {
 			/* child process */
 			if (ast_opt_high_priority)
 				ast_set_priority(0);
-	
+
 			dup2(child_stdin[0], STDIN_FILENO);
 			dup2(child_stdout[1], STDOUT_FILENO);
 			dup2(child_stderr[1], STDERR_FILENO);
@@ -621,7 +621,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
+static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 				struct ast_iostream *eivr_events,
 				struct ast_iostream *eivr_commands,
 				struct ast_iostream *eivr_errors,
@@ -658,14 +658,14 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
 	 			break;
 			}
  		}
- 
+
  		ready_fd = 0;
  		ms = 100;
  		errno = 0;
  		exception = 0;
- 
+
 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors) ? 2 : 1, &exception, &ready_fd, &ms);
- 
+
  		if (ast_channel_state(chan) == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
  			AST_LIST_LOCK(&u->finishlist);
  			while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
@@ -674,7 +674,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  			}
  			AST_LIST_UNLOCK(&u->finishlist);
  		}
- 
+
  		if (ast_channel_state(chan) == AST_STATE_UP && !(ast_check_hangup(chan)) && rchan) {
  			/* the channel has something */
  			f = ast_read(chan);
@@ -717,7 +717,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
   				break;
   			}
-  
+
 			r = ast_iostream_gets(eivr_commands, input, sizeof(input));
 			if (r <= 0) {
 				if (r == 0) {
@@ -874,7 +874,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
  				break;
  			}
- 
+
  			r = ast_iostream_gets(eivr_errors, input, sizeof(input));
  			if (r > 0) {
  				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", ast_strip(input));
@@ -882,15 +882,15 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
  				break;
 			}
- 		} else if ((ready_fd < 0) && ms) { 
+ 		} else if ((ready_fd < 0) && ms) {
  			if (errno == 0 || errno == EINTR)
  				continue;
- 
+
  			ast_chan_log(LOG_ERROR, chan, "Wait failed (%s)\n", strerror(errno));
  			break;
  		}
  	}
- 
+
 	return res;
 }
 
@@ -905,4 +905,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "External IVR Interface Application");
-

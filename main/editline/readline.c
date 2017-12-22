@@ -250,7 +250,7 @@ rl_initialize(void)
 			break;
 		}
 	}
-		
+
 	/* read settings from configuration file */
 	el_source(e, NULL);
 
@@ -1531,7 +1531,7 @@ rl_complete_internal(int what_to_do)
 					maxlen = match_len;
 			}
 			matches_num = i - 1;
-				
+
 			/* newline to get on next line from command line */
 			fprintf(e->el_outfile, "\n");
 

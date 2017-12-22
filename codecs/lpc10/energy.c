@@ -100,4 +100,3 @@ extern int energy_(integer *len, real *speech, real *rms);
     *rms = (real)sqrt(*rms / *len);
     return 0;
 } /* energy_ */
-

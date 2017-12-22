@@ -234,11 +234,11 @@ AC_DEFUN([AST_CHECK_PWLIB_BUILD], [
 
 	   AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM([$4],[$5])],
-		[	AC_MSG_RESULT(yes) 
-			ac_cv_lib_$2="yes" 
+		[	AC_MSG_RESULT(yes)
+			ac_cv_lib_$2="yes"
 		],
-		[	AC_MSG_RESULT(no) 
-			ac_cv_lib_$2="no" 
+		[	AC_MSG_RESULT(no)
+			ac_cv_lib_$2="no"
 		]
 		)
 

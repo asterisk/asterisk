@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
- * \brief Call Event Logging API 
+ * \brief Call Event Logging API
  *
  * \todo TODO: There some event types that have been defined here, but are not
  *       yet used anywhere in the code. It would be really awesome if someone

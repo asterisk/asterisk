@@ -31,4 +31,3 @@ for patchfile in "$patchdir"/*.patch ; do
 done
 
 exit 0
-
