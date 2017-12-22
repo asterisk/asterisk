@@ -4647,49 +4647,56 @@ static int copy(char *infile, char *outfile)
 {
 	int ifd;
 	int ofd;
-	int res;
+	int res = -1;
 	int len;
 	char buf[4096];
 
 #ifdef HARDLINK_WHEN_POSSIBLE
 	/* Hard link if possible; saves disk space & is faster */
-	if (link(infile, outfile)) {
-#endif
-		if ((ifd = open(infile, O_RDONLY)) < 0) {
-			ast_log(AST_LOG_WARNING, "Unable to open %s in read-only mode: %s\n", infile, strerror(errno));
-			return -1;
-		}
-		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, VOICEMAIL_FILE_MODE)) < 0) {
-			ast_log(AST_LOG_WARNING, "Unable to open %s in write-only mode: %s\n", outfile, strerror(errno));
-			close(ifd);
-			return -1;
-		}
-		do {
-			len = read(ifd, buf, sizeof(buf));
-			if (len < 0) {
-				ast_log(AST_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
-				close(ifd);
-				close(ofd);
-				unlink(outfile);
-			} else if (len) {
-				res = write(ofd, buf, len);
-				if (errno == ENOMEM || errno == ENOSPC || res != len) {
-					ast_log(AST_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
-					close(ifd);
-					close(ofd);
-					unlink(outfile);
-				}
-			}
-		} while (len);
-		close(ifd);
-		close(ofd);
-		return 0;
-#ifdef HARDLINK_WHEN_POSSIBLE
-	} else {
-		/* Hard link succeeded */
+	if (!link(infile, outfile)) {
 		return 0;
 	}
 #endif
+
+	if ((ifd = open(infile, O_RDONLY)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to open %s in read-only mode: %s\n", infile, strerror(errno));
+		return -1;
+	}
+
+	if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, VOICEMAIL_FILE_MODE)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to open %s in write-only mode: %s\n", outfile, strerror(errno));
+		close(ifd);
+		return -1;
+	}
+
+	for (;;) {
+		int wrlen;
+
+		len = read(ifd, buf, sizeof(buf));
+		if (!len) {
+			res = 0;
+			break;
+		}
+
+		if (len < 0) {
+			ast_log(AST_LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+			break;
+		}
+
+		wrlen = write(ofd, buf, len);
+		if (errno == ENOMEM || errno == ENOSPC || wrlen != len) {
+			ast_log(AST_LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, wrlen, len, strerror(errno));
+			break;
+		}
+	}
+
+	close(ifd);
+	close(ofd);
+	if (res) {
+		unlink(outfile);
+	}
+
+	return res;
 }
 
 /*!
