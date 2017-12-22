@@ -28,4 +28,3 @@
 ; penaltychange => 30,+3   ; 30 seconds into the call increase the QUEUE_MAX_PENALTY by 3, no change to QUEUE_MIN_PENALTY
 ; penaltychange => 60,10,5 ; 60 seconds into the call increase the QUEUE_MAX_PENALTY to 10 and increase the QUEUE_MIN_PENALTY to 5
 ; penaltychange => 75,,7   ; 75 seconds into the call keep the QUEUE_MAX_PENALTY the same and increase the QUEUE_MIN_PENALTY to 7
-

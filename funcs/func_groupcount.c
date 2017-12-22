@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief Channel group related dialplan functions
- * 
+ *
  * \ingroup functions
  */
 
@@ -81,7 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para><replaceable>category</replaceable> can be employed for more fine grained group management. Each channel 
+			<para><replaceable>category</replaceable> can be employed for more fine grained group management. Each channel
 			can only be member of exactly one group per <replaceable>category</replaceable>.</para>
 		</description>
 	</function>
@@ -195,14 +195,14 @@ static int group_function_read(struct ast_channel *chan, const char *cmd,
 		if (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, data))
 			break;
 	}
-	
+
 	if (gi) {
 		ast_copy_string(buf, gi->group, len);
 		ret = 0;
 	}
-	
+
 	ast_app_group_list_unlock();
-	
+
 	return ret;
 }
 
@@ -267,7 +267,7 @@ static int group_list_function_read(struct ast_channel *chan, const char *cmd,
 				snprintf(tmp1, sizeof(tmp1), "%s", gi->group);
 		}
 	}
-	
+
 	ast_app_group_list_unlock();
 
 	ast_copy_string(buf, tmp1, len);

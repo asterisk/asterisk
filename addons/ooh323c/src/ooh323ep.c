@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -36,7 +36,7 @@ extern DList g_TimerList;
 int ooH323EpInitialize
    (enum OOCallMode callMode, const char* tracefile)
 {
-   
+
    memset(&gH323ep, 0, sizeof(ooEndPoint));
 
    initContext(&(gH323ep.ctxt));
@@ -46,25 +46,25 @@ int ooH323EpInitialize
    {
       if(strlen(tracefile)>= MAXFILENAME)
       {
-         printf("Error:File name longer than allowed maximum %d\n", 
+         printf("Error:File name longer than allowed maximum %d\n",
                  MAXFILENAME-1);
          return OO_FAILED;
       }
       strcpy(gH323ep.traceFile, tracefile);
    }
    else{
-      strcpy(gH323ep.traceFile, DEFAULT_TRACEFILE);      
+      strcpy(gH323ep.traceFile, DEFAULT_TRACEFILE);
    }
 
    gH323ep.fptraceFile = fopen(gH323ep.traceFile, "a");
    if(gH323ep.fptraceFile == NULL)
    {
-      printf("Error:Failed to open trace file %s for write.\n", 
+      printf("Error:Failed to open trace file %s for write.\n",
                   gH323ep.traceFile);
       return OO_FAILED;
    }
 
-   /* Initialize default port ranges that will be used by stack. 
+   /* Initialize default port ranges that will be used by stack.
       Apps can override these by explicitely setting port ranges
    */
 
@@ -79,12 +79,12 @@ int ooH323EpInitialize
    gH323ep.rtpPorts.start = RTPPORTSSTART;
    gH323ep.rtpPorts.max = RTPPORTSEND;
    gH323ep.rtpPorts.current = RTPPORTSSTART;
-   
+
    OO_SETFLAG(gH323ep.flags, OO_M_FASTSTART);
    OO_SETFLAG(gH323ep.flags, OO_M_TUNNELING);
    OO_SETFLAG(gH323ep.flags, OO_M_AUTOANSWER);
    OO_CLRFLAG(gH323ep.flags, OO_M_GKROUTED);
-   
+
    gH323ep.aliases = NULL;
 
    gH323ep.termType = DEFAULT_TERMTYPE;
@@ -107,7 +107,7 @@ int ooH323EpInitialize
 
    ooH323EpSetCallerID(DEFAULT_CALLERID);
 
-   
+
    gH323ep.myCaps = NULL;
    gH323ep.noOfCaps = 0;
    gH323ep.callList = NULL;
@@ -116,7 +116,7 @@ int ooH323EpInitialize
    ast_mutex_init(&newCallLock);
    ast_mutex_init(&bindPortLock);
    gH323ep.dtmfmode = 0;
-   gH323ep.callingPartyNumber[0]='\0';     
+   gH323ep.callingPartyNumber[0]='\0';
    gH323ep.callMode = callMode;
    gH323ep.isGateway = FALSE;
 
@@ -164,7 +164,7 @@ int ooH323EpSetLocalAddress(const char* localip, int listenport)
       strcpy(gH323ep.signallingIP, localip);
       OOTRACEINFO2("Signalling IP address is set to %s\n", localip);
    }
-   
+
    if(listenport)
    {
       gH323ep.listenPort = listenport;
@@ -332,7 +332,7 @@ int ooH323EpSetH225MsgCallbacks(OOH225MsgCallbacks h225Callbacks)
 
    return OO_OK;
 }
-    
+
 int ooH323EpSetH323Callbacks(OOH323CALLBACKS h323Callbacks)
 {
    gH323ep.h323Callbacks.onNewCallCreated = h323Callbacks.onNewCallCreated;
@@ -376,10 +376,10 @@ int ooH323EpDestroy(void)
       if(gH323ep.listener)
       {
          ooSocketClose(*(gH323ep.listener));
-         gH323ep.listener = NULL;   
+         gH323ep.listener = NULL;
       }
 
-	  ooGkClientDestroy();  
+	  ooGkClientDestroy();
 
       if(gH323ep.fptraceFile)
       {
@@ -461,7 +461,7 @@ int ooH323EpEnableH245Tunneling(void)
    OO_SETFLAG(gH323ep.flags, OO_M_TUNNELING);
    return OO_OK;
 }
- 
+
 int ooH323EpDisableH245Tunneling(void)
 {
    OO_CLRFLAG(gH323ep.flags, OO_M_TUNNELING);
@@ -527,7 +527,7 @@ int ooH323EpSetCallingPartyNumber(const char* number)
    int ret=OO_OK;
    if(number)
    {
-      strncpy(gH323ep.callingPartyNumber, number, 
+      strncpy(gH323ep.callingPartyNumber, number,
                                         sizeof(gH323ep.callingPartyNumber)-1);
       ret = ooH323EpAddAliasDialedDigits((char*)number);
       return ret;
@@ -544,7 +544,7 @@ int ooH323EpSetTraceLevel(int traceLevel)
 void ooH323EpPrintConfig(void)
 {
    OOTRACEINFO1("H.323 Endpoint Configuration is as follows:\n");
-   
+
    OOTRACEINFO2("\tTrace File: %s\n", gH323ep.traceFile);
 
    if(!OO_TESTFLAG(gH323ep.flags, OO_M_FASTSTART))
@@ -575,7 +575,7 @@ void ooH323EpPrintConfig(void)
       OOTRACEINFO1("\tAutoAnswer - enabled\n");
    else
       OOTRACEINFO1("\tAutoAnswer - disabled\n");
-     
+
    OOTRACEINFO2("\tTerminal Type - %d\n", gH323ep.termType);
 
    OOTRACEINFO2("\tT35 CountryCode - %d\n", gH323ep.t35CountryCode);
@@ -585,7 +585,7 @@ void ooH323EpPrintConfig(void)
    OOTRACEINFO2("\tManufacturer Code - %d\n", gH323ep.manufacturerCode);
 
    OOTRACEINFO2("\tProductID - %s\n", gH323ep.productID);
-   
+
    OOTRACEINFO2("\tVersionID - %s\n", gH323ep.versionID);
 
    OOTRACEINFO2("\tLocal signalling IP address - %s\n", gH323ep.signallingIP);
@@ -595,8 +595,8 @@ void ooH323EpPrintConfig(void)
    OOTRACEINFO2("\tCallerID - %s\n", gH323ep.callerid);
 
 
-   OOTRACEINFO2("\tCall Establishment Timeout - %d seconds\n", 
-                                          gH323ep.callEstablishmentTimeout);   
+   OOTRACEINFO2("\tCall Establishment Timeout - %d seconds\n",
+                                          gH323ep.callEstablishmentTimeout);
 
    OOTRACEINFO2("\tMasterSlaveDetermination Timeout - %d seconds\n",
                    gH323ep.msdTimeout);
@@ -609,7 +609,7 @@ void ooH323EpPrintConfig(void)
 
    OOTRACEINFO2("\tSession Timeout - %d seconds\n", gH323ep.sessionTimeout);
 
-   return;   
+   return;
 }
 
 
@@ -620,7 +620,7 @@ int ooH323EpAddG711Capability(int cap, int txframes, int rxframes, int dir,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, FALSE,
-                            dir, startReceiveChannel, startTransmitChannel, 
+                            dir, startReceiveChannel, startTransmitChannel,
                             stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
@@ -631,7 +631,7 @@ int ooH323EpAddG728Capability(int cap, int txframes, int rxframes, int dir,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, FALSE,
-                               dir, startReceiveChannel, startTransmitChannel, 
+                               dir, startReceiveChannel, startTransmitChannel,
                                stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
@@ -642,89 +642,89 @@ int ooH323EpAddG729Capability(int cap, int txframes, int rxframes, int dir,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
    return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, FALSE,
-                               dir, startReceiveChannel, startTransmitChannel, 
+                               dir, startReceiveChannel, startTransmitChannel,
                                stopReceiveChannel, stopTransmitChannel, FALSE);
 }
 
 
-int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes, 
+int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes,
                               OOBOOL silenceSuppression, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
                               cb_StopReceiveChannel stopReceiveChannel,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
-                             silenceSuppression, dir, startReceiveChannel, 
-                             startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes,
+                             silenceSuppression, dir, startReceiveChannel,
+                             startTransmitChannel, stopReceiveChannel,
                              stopTransmitChannel, FALSE);
 }
 
-int ooH323EpAddG726Capability(int cap, int txframes, int rxframes, 
+int ooH323EpAddG726Capability(int cap, int txframes, int rxframes,
                               OOBOOL silenceSuppression, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
                               cb_StopReceiveChannel stopReceiveChannel,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
-                             silenceSuppression, dir, startReceiveChannel, 
-                             startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes,
+                             silenceSuppression, dir, startReceiveChannel,
+                             startTransmitChannel, stopReceiveChannel,
                              stopTransmitChannel, FALSE);
 }
-int ooH323EpAddAMRNBCapability(int cap, int txframes, int rxframes, 
+int ooH323EpAddAMRNBCapability(int cap, int txframes, int rxframes,
                               OOBOOL silenceSuppression, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
                               cb_StopReceiveChannel stopReceiveChannel,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
-                             silenceSuppression, dir, startReceiveChannel, 
-                             startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes,
+                             silenceSuppression, dir, startReceiveChannel,
+                             startTransmitChannel, stopReceiveChannel,
                              stopTransmitChannel, FALSE);
 }
-int ooH323EpAddSpeexCapability(int cap, int txframes, int rxframes, 
+int ooH323EpAddSpeexCapability(int cap, int txframes, int rxframes,
                               OOBOOL silenceSuppression, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
                               cb_StopReceiveChannel stopReceiveChannel,
                               cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes, 
-                             silenceSuppression, dir, startReceiveChannel, 
-                             startTransmitChannel, stopReceiveChannel, 
+   return ooCapabilityAddSimpleCapability(NULL, cap, txframes, rxframes,
+                             silenceSuppression, dir, startReceiveChannel,
+                             startTransmitChannel, stopReceiveChannel,
                              stopTransmitChannel, FALSE);
 }
 
-int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt, 
+int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt,
                              OOBOOL comfortNoise, OOBOOL scrambled, int dir,
                              cb_StartReceiveChannel startReceiveChannel,
                              cb_StartTransmitChannel startTransmitChannel,
                              cb_StopReceiveChannel stopReceiveChannel,
                              cb_StopTransmitChannel stopTransmitChannel)
 {
-   return ooCapabilityAddGSMCapability(NULL, cap, framesPerPkt, comfortNoise, 
-                                     scrambled, dir, startReceiveChannel, 
+   return ooCapabilityAddGSMCapability(NULL, cap, framesPerPkt, comfortNoise,
+                                     scrambled, dir, startReceiveChannel,
                                      startTransmitChannel, stopReceiveChannel,
                                      stopTransmitChannel, FALSE);
 }
 
 
-int ooH323EpAddH263VideoCapability(int cap, unsigned sqcifMPI, 
-                                 unsigned qcifMPI, unsigned cifMPI, 
-                                 unsigned cif4MPI, unsigned cif16MPI, 
-                                 unsigned maxBitRate, int dir, 
+int ooH323EpAddH263VideoCapability(int cap, unsigned sqcifMPI,
+                                 unsigned qcifMPI, unsigned cifMPI,
+                                 unsigned cif4MPI, unsigned cif16MPI,
+                                 unsigned maxBitRate, int dir,
                                  cb_StartReceiveChannel startReceiveChannel,
                                  cb_StartTransmitChannel startTransmitChannel,
                                  cb_StopReceiveChannel stopReceiveChannel,
                                  cb_StopTransmitChannel stopTransmitChannel)
 {
 
-   return ooCapabilityAddH263VideoCapability(NULL, sqcifMPI, qcifMPI, cifMPI, 
+   return ooCapabilityAddH263VideoCapability(NULL, sqcifMPI, qcifMPI, cifMPI,
                                      cif4MPI, cif16MPI, maxBitRate,dir,
                                      startReceiveChannel, startTransmitChannel,
-                                     stopReceiveChannel, stopTransmitChannel, 
+                                     stopReceiveChannel, stopTransmitChannel,
                                      FALSE);
 
 }
@@ -805,7 +805,7 @@ int ooH323EpSetTCPPortRange(int base, int max)
       gH323ep.tcpPorts.start = base;
    if(max > 65500)
       gH323ep.tcpPorts.max = 65500;
-   else 
+   else
       gH323ep.tcpPorts.max = max;
 
    if(gH323ep.tcpPorts.max<gH323ep.tcpPorts.start)
@@ -815,7 +815,7 @@ int ooH323EpSetTCPPortRange(int base, int max)
       return OO_FAILED;
    }
    gH323ep.tcpPorts.current = gH323ep.tcpPorts.start;
-        
+
    OOTRACEINFO1("TCP port range initialize - successful\n");
    return OO_OK;
 }
@@ -828,18 +828,18 @@ int ooH323EpSetUDPPortRange(int base, int max)
       gH323ep.udpPorts.start = base;
    if(max > 65500)
       gH323ep.udpPorts.max = 65500;
-   else 
+   else
       gH323ep.udpPorts.max = max;
-        
+
    if(gH323ep.udpPorts.max<gH323ep.udpPorts.start)
    {
       OOTRACEERR1("Error: Failed to set udp ports- Max port number"
                   " less than Start port number\n");
       return OO_FAILED;
    }
-        
+
    gH323ep.udpPorts.current = gH323ep.udpPorts.start;
-        
+
    OOTRACEINFO1("UDP port range initialize - successful\n");
 
    return OO_OK;
@@ -853,18 +853,17 @@ int ooH323EpSetRTPPortRange(int base, int max)
       gH323ep.rtpPorts.start = base;
    if(max > 65500)
       gH323ep.rtpPorts.max = 65500;
-   else 
+   else
       gH323ep.rtpPorts.max = max;
-        
+
    if(gH323ep.rtpPorts.max<gH323ep.rtpPorts.start)
    {
       OOTRACEERR1("Error: Failed to set rtp ports- Max port number"
                   " less than Start port number\n");
       return OO_FAILED;
    }
-        
+
    gH323ep.rtpPorts.current = gH323ep.rtpPorts.start;
    OOTRACEINFO1("RTP port range initialize - successful\n");
    return OO_OK;
 }
-

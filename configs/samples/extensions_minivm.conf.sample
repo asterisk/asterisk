@@ -156,4 +156,3 @@ exten => sendvmcleanup,n(done),wait(0.5)
 exten => sendvmcleanup,n,hangup
 
 exten => h,1,gotoif($[${MINIVM_RECORD_STATUS} = SUCCESS]?sendvmcleanup,1))
-

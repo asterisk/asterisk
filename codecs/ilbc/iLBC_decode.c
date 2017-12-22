@@ -648,4 +648,3 @@
            iLBCdec_inst->prev_enh_pl=1;
        }
    }
-

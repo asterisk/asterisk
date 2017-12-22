@@ -66,7 +66,7 @@ typedef struct {
 	} while (0)
 #endif /* HAVE_VARIABLE_FDSET */
 
-/*! \brief Waits for activity on a group of channels 
+/*! \brief Waits for activity on a group of channels
  * \param nfds the maximum number of file descriptors in the sets
  * \param rfds file descriptors to check for read availability
  * \param wfds file descriptors to check for write availability

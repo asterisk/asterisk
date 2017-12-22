@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -90,7 +90,7 @@ int ooBindPort (OOH323PortType type, OOSOCKET socket, char *ip)
    }
 }
 
-#ifdef _WIN32        
+#ifdef _WIN32
 int ooBindOSAllocatedPort(OOSOCKET socket, char *ip)
 {
    OOIPADDR ipAddrs;
@@ -98,14 +98,14 @@ int ooBindOSAllocatedPort(OOSOCKET socket, char *ip)
    struct sockaddr_in name;
    size = sizeof(struct sockaddr_in);
    ret= ooSocketStrToAddr (ip, &ipAddrs);
-   if((ret=ooSocketBind(socket, ipAddrs, 
+   if((ret=ooSocketBind(socket, ipAddrs,
                      0))==ASN_OK)
    {
       ret = ooSocketGetSockName(socket, &name, &size);
       if(ret == ASN_OK)
       {
          return name.sin_port;
-         
+
       }
    }
 

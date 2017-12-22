@@ -102,7 +102,7 @@ if ($action eq '-' || !defined $action || $action eq '') {
 		while (defined($_ = $term->readline($prompt))) {
 			(logoff() and exit) if $_ =~ /exit|quit/; # Give them a way to exit the "terminal"
 			print send_command($_) if $_ !~ m/^\s*$/;
-		}	
+		}
 	} else {
 		while (<>) {
 			chomp;
@@ -159,9 +159,8 @@ sub tab_completion {
 	foreach my $item (split /\s+/, $res) {
 		$items{$item}++ unless ($item eq '_EOF_' or $item eq '' or $item eq $lastword);
 	}
-		
+
 	#print STDERR "\nword=\"$word\" buffer=\"$buffer\" offset=\"$offset\" res=\"$res\"\n";
 
 	return sort keys %items;
 }
-

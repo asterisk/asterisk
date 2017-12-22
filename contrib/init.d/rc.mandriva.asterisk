@@ -1,14 +1,14 @@
 #!/bin/sh
-# 
+#
 # asterisk:		Starts the asterisk service
-# 
+#
 # Version:		@(#) /etc/rc.d/init.d/asterisk 1.0
-# 
+#
 # chkconfig: 2345 95 10
 # description:	Starts the asterisk service
-# 
+#
 # processname:	asterisk
-# 
+#
 
 ### BEGIN INIT INFO
 # Provides:		asterisk
@@ -75,7 +75,7 @@ if [ "$TTY" != "" ]; then
 		ASTARGS="${ASTARGS} -c"
 	fi
 fi
-if [ ! -w ${DUMPDROP} ]; then	
+if [ ! -w ${DUMPDROP} ]; then
 	echo "Cannot write to ${DUMPDROP}" >&2
 	exit 1
 fi
@@ -93,7 +93,7 @@ SIGMSG=("None", "Hangup" "Interrupt" "Quit" "Illegal instruction" "Trace trap" "
 
 run_asterisk()
 {
-	while :; do 
+	while :; do
 
 		if [ "$TTY" != "" ]; then
 			cd /tmp
@@ -204,4 +204,3 @@ case "$1" in
 esac
 
 exit 0
-

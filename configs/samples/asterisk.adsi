@@ -156,4 +156,3 @@ SUB "stableCall" IS
 		SHOWDISPLAY "callended" AT 2
 	ENDIF
 ENDSUB
-

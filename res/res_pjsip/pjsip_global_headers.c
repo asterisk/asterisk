@@ -55,7 +55,7 @@ struct header {
 static struct header *alloc_header(const char *name, const char *value)
 {
 	struct header *alloc;
-	
+
 	alloc = ast_calloc_with_stringfields(1, struct header, 32);
 
 	if (!alloc) {
@@ -139,7 +139,7 @@ static int add_header(struct header_list *headers, const char *name, const char 
 	}
 
 	AST_RWLIST_WRLOCK(headers);
-	if (replace) { 
+	if (replace) {
 		remove_header(headers, name);
 	}
 	if (to_add) {

@@ -21,7 +21,7 @@
  * \brief App to transmit an image
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -29,7 +29,7 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -93,7 +93,7 @@ static int sendimage_exec(struct ast_channel *chan, const char *data)
 	} else {
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "FAILURE");
 	}
-	
+
 	return 0;
 }
 
@@ -108,4 +108,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Image Transmission Application");
-

@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -57,14 +57,14 @@ int isRunning(char *callToken) {
   return 0;
 }
 
-OOStkCmdStat ooMakeCall 
+OOStkCmdStat ooMakeCall
    (const char* dest, char* callToken, size_t bufsiz, ooCallOptions *opts)
 {
    OOStackCommand cmd;
 
    if(!callToken)
       return OO_STKCMD_INVALIDPARAM;
-  
+
 
    /* Generate call token*/
    if (ooGenerateOutgoingCallToken (callToken, bufsiz) != OO_OK){
@@ -86,14 +86,14 @@ OOStkCmdStat ooMakeCall
    }
    strcpy((char*)cmd.param1, dest);
 
-  
+
    cmd.param2 = (void*) malloc(strlen(callToken)+1);
    if(!cmd.param2)
    {
       free(cmd.param1);
       return OO_STKCMD_MEMERR;
    }
-   
+
    strcpy((char*)cmd.param2, callToken);
 
    if(!opts)
@@ -122,7 +122,7 @@ OOStkCmdStat ooMakeCall
    return OO_STKCMD_SUCCESS;
 }
 
-OOStkCmdStat ooRunCall 
+OOStkCmdStat ooRunCall
    (const char* dest, char* callToken, size_t bufsiz, ooCallOptions *opts)
 {
    OOStackCommand cmd;
@@ -145,7 +145,7 @@ OOStkCmdStat ooRunCall
 
    if(!callToken)
       return OO_STKCMD_INVALIDPARAM;
-  
+
 
    memset(&cmd, 0, sizeof(OOStackCommand));
    cmd.type = OO_CMD_MAKECALL;
@@ -157,14 +157,14 @@ OOStkCmdStat ooRunCall
    strcpy((char*)cmd.param1, dest);
    cmd.plen1 = strlen(dest);
 
-  
+
    cmd.param2 = (void*) malloc(strlen(callToken)+1);
    if(!cmd.param2)
    {
       free(cmd.param1);
       return OO_STKCMD_MEMERR;
    }
-   
+
    strcpy((char*)cmd.param2, callToken);
    cmd.plen2 = strlen(callToken);
 
@@ -230,7 +230,7 @@ OOStkCmdStat ooManualRingback(const char *callToken)
    }
    strcpy((char*)cmd.param1, callToken);
    cmd.plen1 = strlen(callToken);
-   
+
    if(ooWriteCallStackCommand(call,&cmd) != OO_OK)
    {
       free(cmd.param1);
@@ -274,7 +274,7 @@ OOStkCmdStat ooManualProgress(const char *callToken)
    }
    strcpy((char*)cmd.param1, callToken);
    cmd.plen1 = strlen(callToken);
-   
+
    if(ooWriteCallStackCommand(call, &cmd) != OO_OK)
    {
       free(cmd.param1);
@@ -315,7 +315,7 @@ OOStkCmdStat ooAnswerCall(const char *callToken)
       return OO_STKCMD_MEMERR;
    }
    strcpy((char*)cmd.param1, callToken);
-   cmd.plen1 = strlen(callToken);   
+   cmd.plen1 = strlen(callToken);
 
    if(ooWriteCallStackCommand(call, &cmd) != OO_OK)
    {
@@ -426,7 +426,7 @@ OOStkCmdStat ooHangCall(const char* callToken, OOCallClearReason reason, int q93
    free(cmd.param1);
    free(cmd.param2);
    free(cmd.param3);
-   
+
    return OO_STKCMD_SUCCESS;
 }
 
@@ -443,7 +443,7 @@ OOStkCmdStat ooStopMonitor()
 
    memset(&cmd, 0, sizeof(OOStackCommand));
    cmd.type = OO_CMD_STOPMONITOR;
-   
+
    if(ooWriteStackCommand(&cmd) != OO_OK)
       return OO_STKCMD_WRITEERR;
 
@@ -485,7 +485,7 @@ OOStkCmdStat ooSendDTMFDigit(const char *callToken, const char* dtmf)
    cmd.plen1 = strlen(callToken);
    strcpy((char*)cmd.param2, dtmf);
    cmd.plen2 = strlen(dtmf);
-   
+
    if(ooWriteCallStackCommand(call,&cmd) != OO_OK)
    {
       free(cmd.param1);
@@ -533,7 +533,7 @@ OOStkCmdStat ooSetANI(const char *callToken, const char* ani)
    cmd.plen1 = strlen(callToken);
    strcpy((char*)cmd.param2, ani);
    cmd.plen2 = strlen(ani);
-   
+
    if(ooWriteCallStackCommand(call,&cmd) != OO_OK)
    {
       free(cmd.param1);
@@ -643,7 +643,7 @@ OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode)
    cmd.plen1 = strlen(callToken);
    *((int *) cmd.param2) = isT38Mode;
    cmd.plen2 = sizeof(int);
-   
+
    if(ooWriteCallStackCommand(call,&cmd) != OO_OK)
    {
       free(cmd.param1);
@@ -672,11 +672,10 @@ const char* ooGetStkCmdStatusCodeTxt(OOStkCmdStat stat)
       case OO_STKCMD_WRITEERR:
          return "Stack command - write error";
 
-      case OO_STKCMD_CONNECTIONERR: 
+      case OO_STKCMD_CONNECTIONERR:
          return "Stack command - Failed to create command channel";
 
       default:
          return "Invalid status code";
    }
 }
-

@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief PacketCable COPS
- * 
+ *
  * \author Attila Domjan <attila.domjan.hu@gmail.com>
  */
 

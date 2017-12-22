@@ -56,8 +56,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="result-id" required="true" />
 		</syntax>
 		<description>
-			<para>For queries which are marked as mode=multirow, the original 
-			query returns a <replaceable>result-id</replaceable> from which results 
+			<para>For queries which are marked as mode=multirow, the original
+			query returns a <replaceable>result-id</replaceable> from which results
 			may be fetched.  This function implements the actual fetch of the results.</para>
 			<para>This also sets <variable>ODBC_FETCH_STATUS</variable>.</para>
 			<variablelist>
@@ -80,7 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="result-id" required="true" />
 		</syntax>
 		<description>
-			<para>For queries which are marked as mode=multirow, this will clear 
+			<para>For queries which are marked as mode=multirow, this will clear
 			any remaining rows of the specified resultset.</para>
 		</description>
 	</application>
@@ -92,7 +92,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Used in SQL templates to escape data which may contain single ticks 
+			<para>Used in SQL templates to escape data which may contain single ticks
 			<literal>'</literal> which are otherwise used to delimit data.</para>
 			<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
 		</description>
@@ -1919,4 +1919,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
 		.unload = unload_module,
 		.reload = reload,
 	       );
-

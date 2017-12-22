@@ -110,10 +110,10 @@ static integer c__10 = 10;
 {
     integer irms, voice[2], pitch, ipitv;
     real rc[10];
-    extern /* Subroutine */ int encode_(integer *, integer *, real *, real *, 
-	    integer *, integer *, integer *), chanwr_(integer *, integer *, 
+    extern /* Subroutine */ int encode_(integer *, integer *, real *, real *,
+	    integer *, integer *, integer *), chanwr_(integer *, integer *,
 	    integer *, integer *, integer *, struct lpc10_encoder_state *),
-            analys_(real *, integer *, 
+            analys_(real *, integer *,
 	    integer *, real *, real *, struct lpc10_encoder_state *),
             prepro_(real *, integer *, struct lpc10_encoder_state *);
     integer irc[10];
@@ -126,7 +126,7 @@ static integer c__10 = 10;
  *
  * Revision 1.14  2003/02/12 13:59:15  matteo
  * mer feb 12 14:56:57 CET 2003
- * 
+ *
  * Revision 1.1.1.1  2003/02/12 13:59:15  matteo
  * mer feb 12 14:56:57 CET 2003
  *

@@ -140,4 +140,3 @@ setvar => CUSTOM_CONFIG=/var/lib/asterisk/phoneprov/configs/custom.cfg  ; Custom
 
 ;snom 300, 320, 360, 370, 820, 821, 870 support
 snom-${MAC}.xml => snom-mac.xml
-

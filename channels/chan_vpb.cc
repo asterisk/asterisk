@@ -6,7 +6,7 @@
  * Copyright (C) 2004 - 2005, Ben Kramer
  * Ben Kramer <ben@voicetronix.com.au>
  *
- * Daniel Bichara <daniel@bichara.com.br> - Brazilian CallerID detection (c)2004 
+ * Daniel Bichara <daniel@bichara.com.br> - Brazilian CallerID detection (c)2004
  *
  * Welber Silveira - welberms@magiclink.com.br - (c)2004
  * Copying CLID string to propper structure after detection
@@ -25,7 +25,7 @@
 /*! \file
  *
  * \brief VoiceTronix Interface driver
- * 
+ *
  * \ingroup channel_drivers
  */
 
@@ -89,8 +89,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DEFAULT_GAIN 0
 #define DEFAULT_ECHO_CANCEL 1
-  
-#define VPB_SAMPLES 160 
+
+#define VPB_SAMPLES 160
 #define VPB_MAX_BUF VPB_SAMPLES*4 + AST_FRIENDLY_OFFSET
 
 #define VPB_NULL_EVENT 200
@@ -100,7 +100,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_VPB_GAIN 12.0
 #define MIN_VPB_GAIN -12.0
 
-#define DTMF_CALLERID  
+#define DTMF_CALLERID
 #define DTMF_CID_START 'D'
 #define DTMF_CID_STOP 'C'
 
@@ -138,9 +138,9 @@ static int mthreadactive = -1; /* Flag for monitoring monitorthread.*/
 
 static int restart_monitor(void);
 
-/* The private structures of the VPB channels are 
+/* The private structures of the VPB channels are
    linked for selecting outgoing channels */
-   
+
 #define MODE_DIALTONE 	1
 #define MODE_IMMEDIATE	2
 #define MODE_FXO	3
@@ -200,7 +200,7 @@ static int dtmf_idd = 3000;
 #define TIMER_PERIOD_BUSY 700
 #define TIMER_PERIOD_RING 4000
 static int timer_period_ring = TIMER_PERIOD_RING;
-	  
+
 #define VPB_EVENTS_ALL (VPB_MRING|VPB_MDIGIT|VPB_MDTMF|VPB_MTONEDETECT|VPB_MTIMEREXP \
 			|VPB_MSTATION_OFFHOOK|VPB_MSTATION_ONHOOK \
 			|VPB_MRING_OFF|VPB_MDROP|VPB_MSTATION_FLASH)
@@ -262,7 +262,7 @@ static int max_bridges = MAX_BRIDGES_V4PCI;
 AST_MUTEX_DEFINE_STATIC(bridge_lock);
 
 typedef enum {
-	vpb_model_unknown = 0, 
+	vpb_model_unknown = 0,
 	vpb_model_v4pci,
 	vpb_model_v12pci
 } vpb_model_t;
@@ -422,7 +422,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 };
 
 #if defined(VPB_NATIVE_BRIDGING)
-/* Can't get ast_vpb_bridge() working on v4pci without either a horrible 
+/* Can't get ast_vpb_bridge() working on v4pci without either a horrible
 *  high pitched feedback noise or bad hiss noise depending on gain settings
 *  Get asterisk to do the bridging
 */
@@ -463,7 +463,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	/* Bridge channels, check if we can.  I believe we always can, so find a slot.*/
 
 	ast_mutex_lock(&bridge_lock);
-	for (i = 0; i < max_bridges; i++) 
+	for (i = 0; i < max_bridges; i++)
 		if (!bridges[i].inuse)
 			break;
 	if (i < max_bridges) {
@@ -474,8 +474,8 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 		bridges[i].fo = fo;
 		bridges[i].c0 = c0;
 		bridges[i].c1 = c1;
-	} 	       
-	ast_mutex_unlock(&bridge_lock); 
+	}
+	ast_mutex_unlock(&bridge_lock);
 
 	if (i == max_bridges) {
 		ast_log(LOG_WARNING, "%s: vpb_bridge: Failed to bridge %s and %s!\n", p0->dev, ast_channel_name(c0), ast_channel_name(c1));
@@ -556,18 +556,18 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 			}
 			f = ast_read(who);
 			if (!f || ((f->frametype == AST_FRAME_DTMF) &&
-					   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
+					   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) ||
 				       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
 				*fo = f;
 				*rc = who;
 				ast_debug(1, "%s: vpb_bridge: Got a [%s]\n", p0->dev, f ? "digit" : "hangup");
 #if 0
 				if ((c0->tech_pvt == pvt0) && (!ast_check_hangup(c0))) {
-					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
+					if (pr0->set_rtp_peer(c0, NULL, NULL, 0))
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 				}
 				if ((c1->tech_pvt == pvt1) && (!ast_check_hangup(c1))) {
-					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
+					if (pr1->set_rtp_peer(c1, NULL, NULL, 0))
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 				}
 				/* That's all we needed */
@@ -580,9 +580,9 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 					break;
 				}
 			} else {
-				if ((f->frametype == AST_FRAME_DTMF) || 
-					(f->frametype == AST_FRAME_VOICE) || 
-					(f->frametype == AST_FRAME_VIDEO)) 
+				if ((f->frametype == AST_FRAME_DTMF) ||
+					(f->frametype == AST_FRAME_VOICE) ||
+					(f->frametype == AST_FRAME_VIDEO))
 					{
 					/* Forward voice or DTMF frames if they happen upon us */
 					/* Actually I dont think we want to forward on any frames!
@@ -600,14 +600,14 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 			cs[0] = cs[1];
 			cs[1] = cs[2];
 		};
-		vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_OFF); 
+		vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_OFF);
 	}
 
 	#endif
 
 	ast_mutex_lock(&bridge_lock);
 	bridges[i].inuse = 0;
-	ast_mutex_unlock(&bridge_lock); 
+	ast_mutex_unlock(&bridge_lock);
 
 	p0->bridge = NULL;
 	p1->bridge = NULL;
@@ -638,7 +638,7 @@ static void get_callerid(struct vpb_pvt *p)
 	int rc;
 	struct ast_channel *owner = p->owner;
 /*
-	char callerid[AST_MAX_EXTENSION] = ""; 
+	char callerid[AST_MAX_EXTENSION] = "";
 */
 #ifdef ANALYSE_CID
 	void * ws;
@@ -693,7 +693,7 @@ static void get_callerid(struct vpb_pvt *p)
 				ast_free(owner->cid.cid_name);
 			owner->cid.cid_name=NULL;
 			*/
-			
+
 			if (cli_struct->ra_cldn[0] == '\0') {
 				/*
 				owner->cid.cid_num = ast_strdup(cli_struct->cldn);
@@ -719,7 +719,7 @@ static void get_callerid(struct vpb_pvt *p)
 		}
 		delete cli_struct;
 
-	} else 
+	} else
 		ast_log(LOG_ERROR, "CID record - Failed to set record mode for caller id on %s\n", p->dev);
 }
 
@@ -761,9 +761,9 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	cs = callerid_new(which_cid);
 	if (cs) {
 #ifdef ANALYSE_CID
-		vpb_wave_open_write(&ws, file, VPB_MULAW); 
-		vpb_record_set_gain(p->handle, 3.0); 
-		vpb_record_set_hw_gain(p->handle, 12.0); 
+		vpb_wave_open_write(&ws, file, VPB_MULAW);
+		vpb_record_set_gain(p->handle, 3.0);
+		vpb_record_set_hw_gain(p->handle, 12.0);
 #endif
 		vpb_record_buf_start(p->handle, VPB_MULAW);
 		while ((rc == 0) && (sam_count < 8000 * 3)) {
@@ -772,7 +772,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 				ast_log(LOG_ERROR, "%s: Caller ID couldn't read audio buffer!\n", p->dev);
 			rc = callerid_feed(cs, (unsigned char *)buf, sizeof(buf), ast_format_ulaw);
 #ifdef ANALYSE_CID
-			vpb_wave_write(ws, (char *)buf, sizeof(buf)); 
+			vpb_wave_write(ws, (char *)buf, sizeof(buf));
 #endif
 			sam_count += sizeof(buf);
 			ast_verb(4, "Collecting Caller ID samples [%d][%d]...\n", sam_count, rc);
@@ -880,7 +880,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				vpb_timer_stop(p->ring_timer);
 				f.frametype = AST_FRAME_NULL;
 			}
-				
+
 		} else {
 				f.frametype = AST_FRAME_NULL; /* Ignore. */
 		}
@@ -932,7 +932,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				/* Nothing heard on line for a very long time
 				 * Timeout connection */
 				ast_verb(3, "grunt timeout\n");
-				ast_log(LOG_NOTICE, "%s: Line hangup due of lack of conversation\n", p->dev); 
+				ast_log(LOG_NOTICE, "%s: Line hangup due of lack of conversation\n", p->dev);
 				f.subclass.integer = AST_CONTROL_HANGUP;
 			} else {
 				p->lastgrunt = ast_tvnow();
@@ -955,7 +955,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			f.subclass.integer = AST_CONTROL_HANGUP;
 		}
 		#else
-		ast_log(LOG_NOTICE, "%s: Got call progress callback but blind dialing \n", p->dev); 
+		ast_log(LOG_NOTICE, "%s: Got call progress callback but blind dialing \n", p->dev);
 		f.frametype = AST_FRAME_NULL;
 		#endif
 		break;
@@ -1017,15 +1017,15 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 /*
 	ast_verb(4, "%s: LOCKING in handle_owned [%d]\n", p->dev,res);
-	res = ast_mutex_lock(&p->lock); 
+	res = ast_mutex_lock(&p->lock);
 	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	if (p->bridge) { /* Check what happened, see if we need to report it. */
 		switch (f.frametype) {
 		case AST_FRAME_DTMF:
-			if (	!(p->bridge->c0 == p->owner && 
+			if (	!(p->bridge->c0 == p->owner &&
 					(p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_0) ) &&
-					!(p->bridge->c1 == p->owner && 
+					!(p->bridge->c1 == p->owner &&
 					(p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_1) )) {
 				/* Kill bridge, this is interesting. */
 				endbridge = 1;
@@ -1052,8 +1052,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			ast_mutex_lock(&p->bridge->lock);
 			p->bridge->endbridge = 1;
 			ast_cond_signal(&p->bridge->cond);
-			ast_mutex_unlock(&p->bridge->lock); 	       		   
-		}	  
+			ast_mutex_unlock(&p->bridge->lock);
+		}
 	}
 
 	if (endbridge) {
@@ -1164,7 +1164,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			else if (p->state == VPB_STATE_PLAYBUSY) {
 				playtone(p->handle, &Busytone);
 				p->wantdtmf = 1;
-				p->ext[0] = 0;	
+				p->ext[0] = 0;
 			} else if (p->state == VPB_STATE_PLAYRING) {
 				playtone(p->handle, &Ringbacktone);
 				p->wantdtmf = 1;
@@ -1200,7 +1200,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				 /* No owner any more, Assume caller has hung up */
 				vpb_timer_stop(p->ring_timer);
 			}
-		} 
+		}
 		break;
 
 	case VPB_DTMF:
@@ -1253,7 +1253,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			if (ast_pickup_call(c)) {
 				/* Call pickup wasnt possible */
 			}
-		} else 
+		} else
 		#endif
 		if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)) {
 			if (ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)) {
@@ -1348,15 +1348,15 @@ static void *do_monitor(void *unused)
 			}
 		}
 
-		ast_mutex_unlock(&monlock); 
+		ast_mutex_unlock(&monlock);
 
 		if (!p) {
 			if (e.type != VPB_NULL_EVENT) {
-				ast_log(LOG_WARNING, "Got event [%s][%d], no matching iface!\n", str, e.type);    
+				ast_log(LOG_WARNING, "Got event [%s][%d], no matching iface!\n", str, e.type);
 				ast_verb(4, "vpb/ERR: No interface for Event [%d=>%s] \n", e.type, str);
 			}
 			continue;
-		} 
+		}
 
 		/* flush the event from the channel event Q */
 		vpb_get_event_ch_async(e.handle, &je);
@@ -1426,7 +1426,7 @@ static int restart_monitor(void)
 			vpb_put_event(&e);
 		} else {
 			/* Start a new monitor */
-			int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
+			int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL);
 			ast_verb(4, "Created new monitor thread %d\n", pid);
 			if (pid < 0) {
 				ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
@@ -1496,13 +1496,13 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 
 	tmp->handle = vpb_open(board, channel);
 
-	if (tmp->handle < 0) {	  
-		ast_log(LOG_WARNING, "Unable to create channel vpb/%d-%d: %s\n", 
+	if (tmp->handle < 0) {
+		ast_log(LOG_WARNING, "Unable to create channel vpb/%d-%d: %s\n",
 					board, channel, strerror(errno));
 		ast_free(tmp);
 		return NULL;
 	}
-	       
+
 	snprintf(tmp->dev, sizeof(tmp->dev), "vpb/%d-%d", board, channel);
 
 	tmp->mode = mode;
@@ -1518,7 +1518,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	ast_copy_string(tmp->context, context, sizeof(tmp->context));
 
 	tmp->callerid_type = 0;
-	if (callerid) { 
+	if (callerid) {
 		if (strcasecmp(callerid, "on") == 0) {
 			tmp->callerid_type = 1;
 			ast_copy_string(tmp->callerid, "unknown", sizeof(tmp->callerid));
@@ -1555,7 +1555,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 		} else {
 			tmp->txgain = txgain;
 		}
-		
+
 		ast_log(LOG_NOTICE, "VPB setting Tx Hw gain to [%f]\n", tmp->txgain);
 		vpb_play_set_hw_gain(tmp->handle, tmp->txgain);
 	}
@@ -1601,7 +1601,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 
 	/* set default read state */
 	tmp->read_state = 0;
-	
+
 	tmp->golock = 0;
 
 	tmp->busy_timer_id = vpb_timer_get_unique_timer_id();
@@ -1612,10 +1612,10 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 
 	tmp->ring_timer_id = vpb_timer_get_unique_timer_id();
 	vpb_timer_open(&tmp->ring_timer, tmp->handle, tmp->ring_timer_id, timer_period_ring);
-	      
+
 	tmp->dtmfidd_timer_id = vpb_timer_get_unique_timer_id();
 	vpb_timer_open(&tmp->dtmfidd_timer, tmp->handle, tmp->dtmfidd_timer_id, dtmf_idd);
-	      
+
 	if (mode == MODE_FXO){
 		if (use_ast_dtmfdet)
 			vpb_set_event_mask(tmp->handle, VPB_EVENTS_NODTMF);
@@ -1683,8 +1683,8 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 		if (ast_channel_state(ast) == AST_STATE_UP) {
 			playtone(p->handle, &Busytone);
 			p->state = VPB_STATE_PLAYBUSY;
-			vpb_timer_stop(p->busy_timer); 
-			vpb_timer_start(p->busy_timer); 
+			vpb_timer_stop(p->busy_timer);
+			vpb_timer_start(p->busy_timer);
 		}
 		break;
 	case AST_CONTROL_RINGING:
@@ -1696,7 +1696,7 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 			vpb_timer_stop(p->ringback_timer);
 			vpb_timer_start(p->ringback_timer);
 		}
-		break;	    
+		break;
 	case AST_CONTROL_ANSWER:
 	case -1: /* -1 means stop playing? */
 		vpb_timer_stop(p->ringback_timer);
@@ -1854,7 +1854,7 @@ static int vpb_call(struct ast_channel *ast, const char *dest, int timeout)
 				call.answer_timeout);
 		for (j = 0; !call.tone_map[j].terminate; j++) {
 			ast_verb(2, "%s: Dial parms for %s tone %d->%d\n", p->dev,
-					ast_channel_name(ast), call.tone_map[j].tone_id, call.tone_map[j].call_id); 
+					ast_channel_name(ast), call.tone_map[j].tone_id, call.tone_map[j].call_id);
 		}
 
 		ast_verb(4, "%s: Disabling Loop Drop detection\n", p->dev);
@@ -1924,7 +1924,7 @@ static int vpb_hangup(struct ast_channel *ast)
 	/* Stop record */
 	p->stopreads = 1;
 	if (p->readthread) {
-		pthread_join(p->readthread, NULL); 
+		pthread_join(p->readthread, NULL);
 		ast_verb(4, "%s: stopped record thread \n", ast_channel_name(ast));
 	}
 
@@ -1953,7 +1953,7 @@ static int vpb_hangup(struct ast_channel *ast)
 		vpb_ring_station_async(p->handle, 0);
 		if (p->state != VPB_STATE_ONHOOK) {
 			/* This is causing a "dial end" "play tone" loop
-			playtone(p->handle, &Busytone); 
+			playtone(p->handle, &Busytone);
 			p->state = VPB_STATE_PLAYBUSY;
 			ast_verb(5, "%s: Station offhook[%d], playing busy tone\n",
 								ast->name,p->state);
@@ -2058,8 +2058,8 @@ static int vpb_answer(struct ast_channel *ast)
 
 static struct ast_frame *vpb_read(struct ast_channel *ast)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast_channel_tech_pvt(ast); 
-	static struct ast_frame f = { AST_FRAME_NULL }; 
+	struct vpb_pvt *p = (struct vpb_pvt *)ast_channel_tech_pvt(ast);
+	static struct ast_frame f = { AST_FRAME_NULL };
 
 	f.src = "vpb";
 	ast_log(LOG_NOTICE, "%s: vpb_read: should never be called!\n", p->dev);
@@ -2109,7 +2109,7 @@ static inline int astformatbits(struct ast_format *format)
 	}
 }
 
-int a_gain_vector(float g, short *v, int n) 
+int a_gain_vector(float g, short *v, int n)
 {
 	int i;
 	float tmp;
@@ -2119,15 +2119,15 @@ int a_gain_vector(float g, short *v, int n)
 			tmp = 32767.0;
 		if (tmp < -32768.0)
 			tmp = -32768.0;
-		v[i] = (short)tmp;	
-	}  
+		v[i] = (short)tmp;
+	}
 	return i;
 }
 
 /* Writes a frame of voice data to a VPB channel */
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast_channel_tech_pvt(ast); 
+	struct vpb_pvt *p = (struct vpb_pvt *)ast_channel_tech_pvt(ast);
 	int res = 0;
 	AudioCompress fmt = VPB_RAW;
 	struct timeval play_buf_time_start;
@@ -2158,20 +2158,20 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	tdiff = ast_tvdiff_ms(ast_tvnow(), p->lastplay);
-	ast_debug(1, "%s: vpb_write: time since last play(%d) \n", p->dev, tdiff); 
+	ast_debug(1, "%s: vpb_write: time since last play(%d) \n", p->dev, tdiff);
 	if (tdiff < (VPB_SAMPLES / 8 - 1)) {
-		ast_debug(1, "%s: vpb_write: Asked to play too often (%d) (%d)\n", p->dev, tdiff, frame->datalen); 
+		ast_debug(1, "%s: vpb_write: Asked to play too often (%d) (%d)\n", p->dev, tdiff, frame->datalen);
 /*		return 0; */
 	}
 	p->lastplay = ast_tvnow();
 /*
-	ast_debug(1, "%s: vpb_write: Checked frame format..\n", p->dev); 
+	ast_debug(1, "%s: vpb_write: Checked frame format..\n", p->dev);
 */
 
 	ast_mutex_lock(&p->play_lock);
 
 /*
-	ast_debug(1, "%s: vpb_write: Got play lock..\n", p->dev); 
+	ast_debug(1, "%s: vpb_write: Got play lock..\n", p->dev);
 */
 
 	/* Check if we have set up the play_buf */
@@ -2245,7 +2245,7 @@ static void *do_chanreads(void *pvt)
 	ast_verb(3, "%s: chanreads: starting thread\n", p->dev);
 	ast_mutex_lock(&p->record_lock);
 
-	p->stopreads = 0; 
+	p->stopreads = 0;
 	p->read_state = 1;
 	while (!p->stopreads && p->owner) {
 
@@ -2285,7 +2285,7 @@ static void *do_chanreads(void *pvt)
 		}
 		p->last_ignore_dtmf = ignore_dtmf;
 
-		/* Play DTMF digits here to avoid problem you get if playing a digit during 
+		/* Play DTMF digits here to avoid problem you get if playing a digit during
 		 * a record operation
 		 */
 		ast_verb(6, "%s: chanreads: Checking dtmf's \n", p->dev);
@@ -2305,7 +2305,7 @@ static void *do_chanreads(void *pvt)
 			p->play_dtmf[0] = '\0';
 			ast_mutex_unlock(&p->play_dtmf_lock);
 			vpb_sleep(700); /* Long enough to miss echo and DTMF event */
-			if( !ignore_dtmf) 
+			if( !ignore_dtmf)
 				vpb_set_event_mask(p->handle, VPB_EVENTS_ALL);
 			continue;
 		}
@@ -2417,13 +2417,13 @@ static void *do_chanreads(void *pvt)
 	ast_mutex_unlock(&p->record_lock);
 
 	ast_verb(2, "%s: Ending record mode (%d/%s)\n",
-			 p->dev, p->stopreads, p->owner ? "yes" : "no");     
+			 p->dev, p->stopreads, p->owner ? "yes" : "no");
 	return NULL;
 }
 
 static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state state, const char *context, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
-	struct ast_channel *tmp; 
+	struct ast_channel *tmp;
 	char cid_num[256];
 	char cid_name[256];
 
@@ -2443,7 +2443,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 
 		ast_channel_callgroup_set(tmp, me->callgroup);
 		ast_channel_pickupgroup_set(tmp, me->pickupgroup);
-	       
+
 		/* Linear is the preferred format. Although Voicetronix supports other formats
 		 * they are all converted to/from linear in the vpb code. Best for us to use
 		 * linear since we can then adjust volume in this modules.
@@ -2459,7 +2459,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 			ast_set_callerid(tmp, cid_num, cid_name, cid_num);
 		}
 		ast_channel_tech_pvt_set(tmp, me);
-		
+
 		ast_channel_context_set(tmp, context);
 		if (!ast_strlen_zero(me->ext))
 			ast_channel_exten_set(tmp, me->ext);
@@ -2478,7 +2478,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		me->readthread = 0;
 		me->play_dtmf[0] = '\0';
 		me->faxhandled = 0;
-		
+
 		me->lastgrunt = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 		me->lastplay = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 
@@ -2497,7 +2497,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	return tmp;
 }
 
-static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause) 
+static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct vpb_pvt *p;
 	struct ast_channel *tmp = NULL;
@@ -2606,7 +2606,7 @@ static int unload_module(void)
 	/* Destroy all the interfaces and free their memory */
 
 	while (iflist) {
-		p = iflist;		    
+		p = iflist;
 		ast_mutex_destroy(&p->lock);
 		pthread_cancel(p->readthread);
 		ast_mutex_destroy(&p->owner_lock);
@@ -2648,8 +2648,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static enum ast_module_load_result load_module()
@@ -2662,14 +2662,14 @@ static enum ast_module_load_result load_module()
 	ast_group_t	callgroup = 0;
 	ast_group_t	pickupgroup = 0;
 	int mode = MODE_IMMEDIATE;
-	float txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; 
-	float txswgain = 0, rxswgain = 0; 
+	float txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN;
+	float txswgain = 0, rxswgain = 0;
 	int got_gain=0;
 	int first_channel = 1;
 	int echo_cancel = DEFAULT_ECHO_CANCEL;
 	enum ast_module_load_result error = AST_MODULE_LOAD_SUCCESS; /* Error flag */
 	int bal1 = -1; /* Special value - means do not set */
-	int bal2 = -1; 
+	int bal2 = -1;
 	int bal3 = -1;
 	char * callerid = NULL;
 	int num_cards = 0;
@@ -2701,7 +2701,7 @@ static enum ast_module_load_result load_module()
 	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return AST_MODULE_LOAD_DECLINE;
-	}  
+	}
 
 	ast_mutex_lock(&iflock);
 	v = ast_variable_browse(cfg, "general");
@@ -2737,7 +2737,7 @@ static enum ast_module_load_result load_module()
 		}
 		v = v->next;
 	}
-	
+
 	v = ast_variable_browse(cfg, "interfaces");
 	while (v) {
 		/* Create the interface list */
@@ -2858,7 +2858,7 @@ static enum ast_module_load_result load_module()
 
 	if (error != AST_MODULE_LOAD_SUCCESS)
 		unload_module();
-	else 
+	else
 		restart_monitor(); /* And start the monitor for the first time */
 
 	return error;

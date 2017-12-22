@@ -2097,4 +2097,3 @@ struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_option
 		tag, file, line, func, ref_debug);
 	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
 }
-

@@ -29,7 +29,7 @@ static void Weighting_filter P2((e, x),
  *  The coefficients of the weighting filter are stored in a table
  *  (see table 4.4).  The following scaling is used:
  *
- *	H[0..10] = integer( real_H[ 0..10] * 8192 ); 
+ *	H[0..10] = integer( real_H[ 0..10] * 8192 );
  */
 {
 	/* word			wt[ 50 ]; */
@@ -50,7 +50,7 @@ static void Weighting_filter P2((e, x),
 	e -= 5;
 
 	/*  Compute the signal x[0..39]
-	 */ 
+	 */
 	for (k = 0; k <= 39; k++) {
 
 		L_result = 8192 >> 1;
@@ -65,7 +65,7 @@ static void Weighting_filter P2((e, x),
 #define	STEP( i, H )	(e[ k + i ] * (longword)H)
 
 		/*  Every one of these multiplications is done twice --
-		 *  but I don't see an elegant way to optimize this. 
+		 *  but I don't see an elegant way to optimize this.
 		 *  Do you?
 		 */
 
@@ -83,16 +83,16 @@ static void Weighting_filter P2((e, x),
 		L_result += STEP(	10, 	-134 ) ;
 #else
 		L_result +=
-		  STEP(	0, 	-134 ) 
-		+ STEP(	1, 	-374 ) 
+		  STEP(	0, 	-134 )
+		+ STEP(	1, 	-374 )
 	     /* + STEP(	2, 	0    )  */
-		+ STEP(	3, 	2054 ) 
-		+ STEP(	4, 	5741 ) 
-		+ STEP(	5, 	8192 ) 
-		+ STEP(	6, 	5741 ) 
-		+ STEP(	7, 	2054 ) 
+		+ STEP(	3, 	2054 )
+		+ STEP(	4, 	5741 )
+		+ STEP(	5, 	8192 )
+		+ STEP(	6, 	5741 )
+		+ STEP(	7, 	2054 )
 	     /* + STEP(	8, 	0    )  */
-		+ STEP(	9, 	-374 ) 
+		+ STEP(	9, 	-374 )
 		+ STEP(10, 	-134 )
 		;
 #endif
@@ -117,7 +117,7 @@ static void Weighting_filter P2((e, x),
 /* 4.2.14 */
 
 static void RPE_grid_selection P3((x,xM,Mc_out),
-	word		* x,		/* [0..39]		IN  */ 
+	word		* x,		/* [0..39]		IN  */
 	word		* xM,		/* [0..12]		OUT */
 	word		* Mc_out	/*			OUT */
 )
@@ -150,7 +150,7 @@ static void RPE_grid_selection P3((x,xM,Mc_out),
 	 *		L_temp   = GSM_L_MULT( temp1, temp1 );
 	 *		L_result = GSM_L_ADD( L_temp, L_result );
 	 *	}
-	 * 
+	 *
 	 *	if (L_result > EM) {
 	 *		Mc = m;
 	 *		EM = L_result;
@@ -313,7 +313,7 @@ static void APCM_quantization P5((xM,xMc,mant_out,exp_out,xmaxc_out),
 	 *  can be calculated by using the exponent and the mantissa part of
 	 *  xmaxc (logarithmic table).
 	 *  So, this method avoids any division and uses only a scaling
-	 *  of the RPE samples by a function of the exponent.  A direct 
+	 *  of the RPE samples by a function of the exponent.  A direct
 	 *  multiplication by the inverse of the mantissa (NRFAC[0..7]
 	 *  found in table 4.5) gives the 3 bit coded version xMc[0..12]
 	 *  of the RPE samples.
@@ -324,7 +324,7 @@ static void APCM_quantization P5((xM,xMc,mant_out,exp_out,xmaxc_out),
 	 */
 
 	assert( exp <= 4096 && exp >= -4096);
-	assert( mant >= 0 && mant <= 7 ); 
+	assert( mant >= 0 && mant <= 7 );
 
 	temp1 = 6 - exp;		/* normalization by the exponent */
 	temp2 = gsm_NRFAC[ mant ];  	/* inverse mantissa 		 */
@@ -354,7 +354,7 @@ static void APCM_inverse_quantization P4((xMc,mant,exp,xMp),
 	word		mant,
 	word		exp,
 	register word	* xMp)	/* [0..12]			OUT 	*/
-/* 
+/*
  *  This part is for decoding the RPE sequence of coded xMc[0..12]
  *  samples to obtain the xMp[0..12] array.  Table 4.6 is used to get
  *  the mantissa of xmaxc (FAC[0..7]).
@@ -363,7 +363,7 @@ static void APCM_inverse_quantization P4((xMc,mant,exp,xMp),
 	int	i;
 	word	temp, temp1, temp2, temp3;
 
-	assert( mant >= 0 && mant <= 7 ); 
+	assert( mant >= 0 && mant <= 7 );
 
 	temp1 = gsm_FAC[ mant ];	/* see 4.2-15 for mant */
 	temp2 = gsm_sub( 6, exp );	/* see 4.2-15 for exp  */
@@ -440,7 +440,7 @@ void Gsm_Update_of_reconstructed_short_time_residual_signal P3((dpp, ep, dp),
 {
 	int 		k;
 
-	for (k = 0; k <= 79; k++) 
+	for (k = 0; k <= 79; k++)
 		dp[ -120 + k ] = dp[ -80 + k ];
 
 	for (k = 0; k <= 39; k++)

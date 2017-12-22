@@ -4486,7 +4486,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (!memcmp(buf + SIZE_HEADER, packet_recv_expansion_pressed_key, sizeof(packet_recv_expansion_pressed_key))) {
 		char keycode = buf[13];
-		
+
 		if (unistimdebug) {
 			ast_verb(0, "Expansion key pressed: keycode = 0x%02hhx - current state: %s\n", (unsigned char)keycode,
 						ptestate_tostr(pte->state));
@@ -6438,7 +6438,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		}
 		ast_mutex_init(&d->lock);
 		ast_copy_string(d->name, cat, sizeof(d->name));
-		
+
 		ast_copy_string(d->context, DEFAULTCONTEXT, sizeof(d->context));
 		d->contrast = -1;
 		d->output = OUTPUT_HANDSET;
@@ -7026,7 +7026,7 @@ static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instanc
 	if (!rtp) {
 		return 0;
 	}
-	
+
 	sub = (struct unistim_subchannel *) ast_channel_tech_pvt(chan);
 	if (!sub) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
@@ -7039,9 +7039,9 @@ static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instanc
 		ast_rtp_instance_get_local_address(rtp, &tmp);
 		ast_sockaddr_to_sin(&tmp, &us);
 	}
-	
+
 	/* TODO: Set rtp on phone in case of direct rtp (not implemented) */
-	
+
 	return 0;
 }
 

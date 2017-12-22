@@ -110,12 +110,12 @@ extern int preemp_(real *inbuf, real *pebuf, integer *nsamp, real *coef, real *z
 /*       Could it be more efficient to apply multiple filters */
 /*       simultaneously, by combining them into one equivalent filter? */
 
-/*       Are there ever cases when "factoring" one high-order filter into 
+/*       Are there ever cases when "factoring" one high-order filter into
 */
 /*       multiple smaller-order filter actually reduces the number of */
 /*       arithmetic operations needed to perform them? */
 /*       When I first read this subroutine, I didn't understand why the */
-/*       variable temp was used.  It seemed that the statements in the do 
+/*       variable temp was used.  It seemed that the statements in the do
 */
 /*       loop could be replaced with the following: */
 
@@ -141,4 +141,3 @@ extern int preemp_(real *inbuf, real *pebuf, integer *nsamp, real *coef, real *z
     }
     return 0;
 } /* preemp_ */
-

@@ -252,4 +252,3 @@ struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char 
 #endif
 
 #endif /* _ASTERISK_XML_H */
-

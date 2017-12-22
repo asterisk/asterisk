@@ -150,4 +150,3 @@
 ; to add video support, uncomment this and remember to install
 ; the keypad and keypad_font files to the right place
 ; [general](+,my_video,skin2)
-

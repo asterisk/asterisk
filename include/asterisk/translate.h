@@ -107,7 +107,7 @@ enum ast_trans_cost_table {
 };
 
 /*! \brief
- * Descriptor of a translator. 
+ * Descriptor of a translator.
  *
  * Name, callbacks, and various options
  * related to run-time operation (size of buffers, auxiliary
@@ -148,19 +148,19 @@ struct ast_translator {
 	                                        *   on computation time. This cost value is computed based
 											*   on the time required to translate sample data. */
 
-	int (*newpvt)(struct ast_trans_pvt *); /*!< initialize private data 
+	int (*newpvt)(struct ast_trans_pvt *); /*!< initialize private data
                                             *   associated with the translator */
 
 	int (*framein)(struct ast_trans_pvt *pvt, struct ast_frame *in);
-	                                       /*!< Input frame callback. Store 
+	                                       /*!< Input frame callback. Store
 	                                        *   (and possibly convert) input frame. */
 
 	struct ast_frame * (*frameout)(struct ast_trans_pvt *pvt);
-	                                       /*!< Output frame callback. Generate a frame 
+	                                       /*!< Output frame callback. Generate a frame
 	                                        *   with outbuf content. */
 
 	void (*destroy)(struct ast_trans_pvt *pvt);
-	                                       /*!< cleanup private data, if needed 
+	                                       /*!< cleanup private data, if needed
 	                                        *   (often unnecessary). */
 
 	struct ast_frame * (*sample)(void);    /*!< Generate an example frame */
@@ -296,9 +296,9 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	struct ast_format **dst_fmt_out,
 	struct ast_format **src_fmt_out);
 
-/*! 
+/*!
  * \brief Builds a translator path
- * Build a path (possibly NULL) from source to dest 
+ * Build a path (possibly NULL) from source to dest
  * \param dst dest destination format
  * \param src source source format
  * \return ast_trans_pvt on success, NULL on failure

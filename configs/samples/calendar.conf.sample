@@ -41,7 +41,7 @@
 ;setvar = CALLERID(name)=${CALENDAR_EVENT(summary)}
 
 ;[calendar2]
-; Note: Support for Exchange Server 2003 
+; Note: Support for Exchange Server 2003
 ;
 ;type = exchange          ;  type of calendar--currently supported: ical, caldav, exchange, or ews
 ;url = https://example.com/exchange/jdoe   ; URL to MS Exchange OWA for user (usually includes exchange/user)

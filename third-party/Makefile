@@ -18,4 +18,3 @@ install uninstall: $(TP_INSTALL_SUBDIRS)
 
 $(TP_SUBDIRS):
 	+$(CMD_PREFIX) $(SUBMAKE) -C $@ $(MAKECMDGOALS)
-

@@ -357,4 +357,3 @@ int sip_report_security_event(const char *peer, struct ast_sockaddr *addr, const
 
 	return result;
 }
-

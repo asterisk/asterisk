@@ -87,5 +87,3 @@ status_prompt=>followme/status
 sorry_prompt=>followme/sorry
 ; The 'I'm sorry, but we were unable to locate your party' message prompt. Default
 ; is the global default.
-
-

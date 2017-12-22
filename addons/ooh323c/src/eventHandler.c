@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -64,7 +64,7 @@ void invokeUIntValue (OOCTXT* pctxt, ASN1UINT value)
    }
 }
 
-void invokeBitStrValue (OOCTXT* pctxt, ASN1UINT numbits, 
+void invokeBitStrValue (OOCTXT* pctxt, ASN1UINT numbits,
                         const ASN1OCTET* data)
 {
    if (0 != pctxt->pEventHandler) {
@@ -72,7 +72,7 @@ void invokeBitStrValue (OOCTXT* pctxt, ASN1UINT numbits,
    }
 }
 
-void invokeOctStrValue (OOCTXT* pctxt, ASN1UINT numocts, 
+void invokeOctStrValue (OOCTXT* pctxt, ASN1UINT numocts,
                         const ASN1OCTET* data)
 {
    if (0 != pctxt->pEventHandler) {
@@ -87,7 +87,7 @@ void invokeCharStrValue (OOCTXT* pctxt, const char* value)
    }
 }
 
-void invokeCharStr16BitValue (OOCTXT* pctxt, ASN1UINT nchars, 
+void invokeCharStr16BitValue (OOCTXT* pctxt, ASN1UINT nchars,
                               ASN116BITCHAR* data)
 {
    if (0 != pctxt->pEventHandler) {
@@ -116,7 +116,7 @@ void invokeEnumValue (OOCTXT* pctxt, ASN1UINT value)
    }
 }
 
-void invokeOpenTypeValue (OOCTXT* pctxt, ASN1UINT numocts, 
+void invokeOpenTypeValue (OOCTXT* pctxt, ASN1UINT numocts,
                           const ASN1OCTET* data)
 {
    if (0 != pctxt->pEventHandler) {

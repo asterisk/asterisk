@@ -154,7 +154,7 @@ static void check_h261(struct fbuf_t *b)
 {
 	struct bitbuf a = bitbuf_init(b->data, b->used * 8, 0);
 	uint32_t x, y;
-	
+
 	x = getbits(&a, 20);	/* PSC, 0000 0000 0000 0001 0000 */
 	if (x != 0x10) {
 		ast_log(LOG_WARNING, "bad PSC 0x%x\n", x);
@@ -386,7 +386,7 @@ static struct ast_frame *h263p_encap(struct fbuf_t *b, int mtu,
 			ast_log(LOG_WARNING, "--- frame error l %d\n", l);
 			break;
 		}
-		
+
 		if (d[0] == 0 && d[1] == 0) { /* we start with a psc */
 			h = 0;
 		} else { /* no psc, create a header */
@@ -568,8 +568,8 @@ static int h263_enc_init(AVCodecContext *enc_ctx)
  *	TR:8   .... ....			temporal reference
  *      PTYPE:13 or more 			ptype...
  * If we don't fragment a GOB SBIT and EBIT = 0.
- * reference, 8 bit) 
- * 
+ * reference, 8 bit)
+ *
  * The assumption below is that we start with a PSC.
  */
 static struct ast_frame *h263_encap(struct fbuf_t *b, int mtu,
@@ -695,7 +695,7 @@ static struct video_codec_desc h263_codec = {
 	.dec_init = NULL,
 	.dec_decap = h263_decap,
 	.dec_run = ffmpeg_decode
-						
+
 };
 
 /*---- h261 support -----*/
@@ -947,7 +947,7 @@ static int h264_dec_init(AVCodecContext *dec_ctx)
  * - 0..n 0-byte(s), unused, optional. one zero-byte is always present
  *   in the first NAL before the start code prefix.
  * - start code prefix (3 bytes): 0x000001
- *   (the first bytestream has a 
+ *   (the first bytestream has a
  *   like these 0x00000001!)
  * - NAL header byte ( F[1] | NRI[2] | Type[5] ) where type != 0
  * - byte-stream
@@ -1127,7 +1127,7 @@ static const struct _cm video_formats[] = {
         { AST_FORMAT_MP4_VIDEO, CODEC_ID_MPEG4, CM_RDWR },
         { 0,                    0, 0 },
 };
-                
+
 
 /*! \brief map an asterisk format into an ffmpeg one */
 static enum CodecID map_video_format(uint32_t ast_format, int rw)

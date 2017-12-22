@@ -267,18 +267,18 @@ extern integer i_nint(real *x);
 
 #endif
 #ifdef P_R_O_T_O_T_Y_P_E_S
-extern int bsynz_(real *coef, integer *ip, integer *iv, 
+extern int bsynz_(real *coef, integer *ip, integer *iv,
                   real *sout, real *rms, real *ratio, real *g2pass,
                   struct lpc10_decoder_state *st);
 extern int chanwr_(integer *order, integer *ipitv, integer *irms,
                    integer *irc, integer *ibits, struct lpc10_encoder_state *st);
 extern int chanrd_(integer *order, integer *ipitv, integer *irms,
                    integer *irc, integer *ibits);
-extern int chanwr_0_(int n__, integer *order, integer *ipitv, 
+extern int chanwr_0_(int n__, integer *order, integer *ipitv,
                      integer *irms, integer *irc, integer *ibits,
                      struct lpc10_encoder_state *st);
 extern int dcbias_(integer *len, real *speech, real *sigout);
-extern int decode_(integer *ipitv, integer *irms, integer *irc, 
+extern int decode_(integer *ipitv, integer *irms, integer *irc,
                    integer *voice, integer *pitch, real *rms,
                    real *rc, struct lpc10_decoder_state *st);
 extern int deemp_(real *x, integer *n, struct lpc10_decoder_state *st);

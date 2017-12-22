@@ -98,7 +98,7 @@ struct name {								\
 struct {								\
 	struct type *next;						\
 }
- 
+
 /*!
   \brief Returns the first entry contained in a list.
   \param head This is a pointer to the list head structure

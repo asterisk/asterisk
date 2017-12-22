@@ -63,7 +63,7 @@ macro checkanddial(prov,proto,ext,arg1,arg2,arg3,arg4) {
 
 	if(${DB_EXISTS(Provider/${prov}/used)})
 		Set(MINUTES_USED=${DB_RESULT});
-	
+
 	country_c = 0;
 	switch(${LEN(${ext})}) {	//assuming all international numbers are 11 digits long.
 	case 10:			//NXXNXXXXXX
@@ -76,7 +76,7 @@ macro checkanddial(prov,proto,ext,arg1,arg2,arg3,arg4) {
 		country_c = ${ext:3:1};
 		break;
 	};
-		
+
 	if("${prov}" = "${TRUNK}" & ${country_c} != 1) {	// SunRocket international calls
 		Set(MINUTES_LIMIT=${DB(Provider/${prov}/limit)});
 		&announce_minutes($[${MINUTES_LIMIT} - ${MINUTES_USED}]);
@@ -258,7 +258,7 @@ context outbound {
 	_012. => {	//fwdOUT
 		Set(CALLERID(name)=Central NJ);
 		Dial(IAX2/14301@fwdOUT/q${EXTEN:3},60,T);
-	};                     
+	};
 	_013X. => {	//NECC
 		Dial(${PSTNPROTO}/011${EXTEN:3}@${PSTN},60,T);
 	};
@@ -339,7 +339,7 @@ context tario.net-in {
 		} else if("${SIP_HEADER(To)}" = "<sip:2271653@sipnet.ru>") {
 			jump 1@default;
 		} else
-			jump 2@default;                                                     
+			jump 2@default;
 	};
 };
 
@@ -457,4 +457,3 @@ instructions:
 	t => jump #;
 	i => Playback(invalid);
 };
-

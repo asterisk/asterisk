@@ -362,4 +362,3 @@ int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 	}
 	return bytes;
 }
-

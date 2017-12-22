@@ -102,7 +102,7 @@ extern int rcchk_(integer *order, real *rc1f, real *rc2f);
 	}
     }
     return 0;
-/*       Note: In version embedded in other software, all calls to ERROR 
+/*       Note: In version embedded in other software, all calls to ERROR
 */
 /*       should probably be removed. */
 L10:
@@ -116,4 +116,3 @@ L10:
     }
     return 0;
 } /* rcchk_ */
-

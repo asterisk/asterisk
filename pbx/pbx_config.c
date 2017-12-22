@@ -20,7 +20,7 @@
  *
  * \brief Populate and remember extensions from static config file
  *
- * 
+ *
  */
 
 /*** MODULEINFO
@@ -345,7 +345,7 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 		return res;
 	} else if (a->pos == 5) { /* "dialplan remove include CTX from _X_" */
 		/*
-		 * Context from which we removing include ... 
+		 * Context from which we removing include ...
 		 */
 		char *context, *dupline, *from;
 		const char *s = skip_words(a->line, 3); /* skip 'dialplan' 'remove' 'include' */
@@ -376,7 +376,7 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 			const char *c_name = ast_get_context_name(c);
 			if (!partial_match(c_name, a->word, len))	/* not a good target */
 				continue;
-			/* walk through all includes and check if it is our context */	
+			/* walk through all includes and check if it is our context */
 			if (lookup_ci(c, context) && ++which > a->n)
 				res = strdup(c_name);
 		}
@@ -464,7 +464,7 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 		else
 			ast_cli(a->fd, "Extension %s@%s with priority %d removed\n",
 				exten, context, removing_priority);
-			
+
 		ret = CLI_SUCCESS;
 	} else {
 		if (cid) {
@@ -644,7 +644,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 	error3:
 		free(exten);
 	}
-	return ret; 
+	return ret;
 }
 
 /*!
@@ -894,7 +894,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	}
 
 	ast_config_destroy(cfg);
-	
+
 #define PUT_CTX_HDR	do { \
 	if (!context_header_written) {	\
 		fprintf(output, "[%s]\n", ast_get_context_name(c));	\
@@ -910,7 +910,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		struct ast_ignorepat *ip;
 		struct ast_sw *sw;
 
-		/* try to lock context and fireout all info */	
+		/* try to lock context and fireout all info */
 		if (ast_rdlock_context(c)) { /* lock failure */
 			incomplete = 1;
 			continue;
@@ -930,14 +930,14 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 			while ( (p = ast_walk_extension_priorities(ext, p)) ) {
 				if (strcmp(ast_get_extension_registrar(p), registrar) != 0) /* not this source */
 					continue;
-		
-				/* make empty line between different extensions */	
+
+				/* make empty line between different extensions */
 				if (last_written_e != NULL &&
 					    strcmp(ast_get_extension_name(last_written_e),
 						    ast_get_extension_name(p)))
 					fprintf(output, "\n");
 				last_written_e = p;
-			
+
 				PUT_CTX_HDR;
 
 				if (ast_get_extension_priority(p) == PRIORITY_HINT) { /* easy */
@@ -1014,7 +1014,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		}
 
 		ast_unlock_context(c);
-	}	
+	}
 
 	ast_unlock_contexts();
 	ast_mutex_unlock(&save_dialplan_lock);
@@ -1476,7 +1476,7 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 
 			if (ast_rdlock_context(c))	/* error, skip it */
 				continue;
-			
+
 			for (ip = NULL; !ret && (ip = ast_walk_context_ignorepats(c, ip));) {
 				if (partial_match(ast_get_ignorepat_name(ip), a->word, len) && ++which > a->n) {
 					/* n-th match */
@@ -1682,7 +1682,7 @@ static int pbx_load_config(const char *config_file)
 	}
 
 	ast_copy_string(userscontext, ast_variable_retrieve(cfg, "general", "userscontext") ?: "default", sizeof(userscontext));
-								    
+
 	for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
 		pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 		pbx_builtin_setvar_helper(NULL, v->name, realvalue);
@@ -1887,7 +1887,7 @@ process_extension:
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *appl, *data;
 				stringp = realvalue;
-				
+
 				if (!strcasecmp(v->name, "switch")) {
 					pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				} else {
@@ -1938,7 +1938,7 @@ static void pbx_load_users(void)
 	int start, finish, x;
 	struct ast_context *con = NULL;
 	struct ast_flags config_flags = { 0 };
-	
+
 	cfg = ast_config_load("users.conf", config_flags);
 	if (!cfg)
 		return;
@@ -2046,7 +2046,7 @@ static int pbx_load_module(void)
 		ast_mutex_unlock(&reload_lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	
+
 	pbx_load_users();
 
 	ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);

@@ -151,7 +151,7 @@ int console_video_formats = 0;
 #else /* defined(HAVE_FFMPEG) && defined(HAVE_SDL) */
 
 /*! The list of video formats we support. */
-int console_video_formats = 
+int console_video_formats =
 	AST_FORMAT_H263_PLUS | AST_FORMAT_H263 |
 	AST_FORMAT_MP4_VIDEO | AST_FORMAT_H264 | AST_FORMAT_H261 ;
 
@@ -187,7 +187,7 @@ struct video_codec_desc;	/* forward declaration */
  *  + the encoding and RTP info, including timestamps to generate
  *    frames at the correct rate;
  *  + source-specific info, i.e. fd for /dev/video, dpy-image for x11, etc,
- *    filled in by grabber_open, part of source_specific information are in 
+ *    filled in by grabber_open, part of source_specific information are in
  *    the device table (devices member), others are shared;
  * NOTE: loc_src.data == NULL means the rest of the struct is invalid, and
  *	the video source is not available.
@@ -214,18 +214,18 @@ struct video_out_desc {
 	AVFrame		*enc_in_frame;	/* enc_in mapped into avcodec format. */
 					/* The initial part of AVFrame is an AVPicture */
 	int		mtu;
-	
+
 	/* Table of devices specified with "videodevice=" in oss.conf.
 	 * Static size as we have a limited number of entries.
 	 */
-	struct video_device	devices[MAX_VIDEO_SOURCES]; 
+	struct video_device	devices[MAX_VIDEO_SOURCES];
 	int 			device_num; /*number of devices in table*/
 	int			device_primary; /*index of the actual primary device in the table*/
 	int			device_secondary; /*index of the actual secondary device in the table*/
 
 	int 			picture_in_picture; /*Is the PiP mode activated? 0 = NO | 1 = YES*/
 
-	/* these are the coordinates of the picture inside the picture (visible if PiP mode is active) 
+	/* these are the coordinates of the picture inside the picture (visible if PiP mode is active)
 	these coordinates are valid considering the containing buffer with cif geometry*/
 	int 			pip_x;
 	int			pip_y;
@@ -308,7 +308,7 @@ used_mem(const char *msg)
 	return 0;
 }
 #endif
-	
+
 #include "vcodecs.c"
 #include "console_gui.c"
 
@@ -322,7 +322,7 @@ used_mem(const char *msg)
  *
  * \param v = video out environment descriptor
  *
- * returns 0 on success, 1 on error 
+ * returns 0 on success, 1 on error
 */
 static int grabber_open(struct video_out_desc *v)
 {
@@ -348,7 +348,7 @@ static int grabber_open(struct video_out_desc *v)
 	}
 	/* the first working device is selected as the primary one and the secondary one */
 	for (i = 0; i < v->device_num; i++) {
-		if (!v->devices[i].grabber) 
+		if (!v->devices[i].grabber)
 			continue;
 		v->device_primary = i;
 		v->device_secondary = i;
@@ -374,7 +374,7 @@ static struct fbuf_t *grabber_read(struct video_device *dev, int fps)
 
 	if (dev->grabber == NULL) /* not initialized */
 		return NULL;
-	
+
 	/* the last_frame field in this row of the device table (dev)
 	is always initialized, it is set during the parsing of the config
 	file, and never unset, function fill_device_table(). */
@@ -422,7 +422,7 @@ static int video_out_uninit(struct video_desc *env)
 {
 	struct video_out_desc *v = &env->out;
 	int i; /* integer variable used as iterator */
-	
+
 	/* XXX this should be a codec callback */
 	if (v->enc_ctx) {
 		AVCodecContext *enc_ctx = (AVCodecContext *)v->enc_ctx;
@@ -590,7 +590,7 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 	int len = b->w;		/* Y linesize, bytes */
 	int luv = b->w/2;	/* U/V linesize, bytes */
 	int sample_size = 1;
-	
+
 	memset(p, '\0', sizeof(*p));
 	switch (b->pix_fmt) {
 	case PIX_FMT_RGB555:
@@ -608,7 +608,7 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 		break;
 	}
 	len *= sample_size;
-	
+
 	p->data[0] = b->data;
 	p->linesize[0] = len;
 	/* these are only valid for component images */
@@ -616,11 +616,11 @@ static AVPicture *fill_pict(struct fbuf_t *b, AVPicture *p)
 	p->data[2] = luv ? b->data + 5*l4 : b->data+len;
 	p->linesize[1] = luv;
 	p->linesize[2] = luv;
-	
-	/* add the offsets to the pointers previously calculated, 
+
+	/* add the offsets to the pointers previously calculated,
 	it is necessary for the picture in picture mode */
 	p->data[0] += len*b->win_y + b->win_x*sample_size;
-	if (luv) { 
+	if (luv) {
 		p->data[1] += luv*(b->win_y/2) + (b->win_x/2) * sample_size;
 		p->data[2] += luv*(b->win_y/2) + (b->win_x/2) * sample_size;
 	}
@@ -833,7 +833,7 @@ static struct ast_frame *get_video_frames(struct video_desc *env, struct ast_fra
 		}
 	}
 	show_frame(env, WIN_LOCAL); /* local rendering */
-	for (i = 0; i < env->out.device_num; i++) 
+	for (i = 0; i < env->out.device_num; i++)
 		show_frame(env, i+WIN_SRC1); /* rendering of every source device in thumbnails */
 	if (tail == NULL)
 		tail = &dummy;
@@ -927,7 +927,7 @@ static void *video_thread(void *arg)
 
 		/* manage keypad events */
 		/* XXX here we should always check for events,
-		* otherwise the drag will not work */ 
+		* otherwise the drag will not work */
 		if (env->gui)
 			eventhandler(env, caption);
 
@@ -1255,7 +1255,7 @@ int console_video_config(struct video_desc **penv,
 		if (env == NULL) {
 			ast_log(LOG_WARNING, "fail to allocate video_desc\n");
 			return 1;	/* error */
-		
+
 		}
 		/* set default values - 0's are already there */
 		env->out.device_primary = 0;

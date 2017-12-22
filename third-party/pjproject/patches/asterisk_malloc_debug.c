@@ -68,5 +68,3 @@ int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *fil
 {
 	return vasprintf(strp, format, ap);
 }
-
-

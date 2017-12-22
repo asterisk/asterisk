@@ -62,4 +62,3 @@
 					; "default" will be used.
 ;forceoldssl=no     ; Force the use of old-style SSL.
 ;keepalive=
-

@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -109,7 +109,7 @@ int ooWriteStackCommand(OOStackCommand *cmd)
 		return OO_FAILED;
 	}
 	ast_mutex_unlock(&gCmdChanLock);
-   
+
    	return OO_OK;
 }
 int ooWriteCallStackCommand(OOH323CallData* call, OOStackCommand *cmd)
@@ -144,14 +144,14 @@ int ooWriteCallStackCommand(OOH323CallData* call, OOStackCommand *cmd)
 		return OO_FAILED;
 	}
 	ast_mutex_unlock(call->CmdChanLock);
-   
+
    	return OO_OK;
 }
 
 
 int ooReadAndProcessStackCommand()
 {
-   OOH323CallData *pCall = NULL;   
+   OOH323CallData *pCall = NULL;
    unsigned char buffer[MAXMSGLEN];
    int i, recvLen = 0;
    OOStackCommand cmd;
@@ -174,10 +174,10 @@ int ooReadAndProcessStackCommand()
 
       else {
          switch(cmd.type) {
-            case OO_CMD_MAKECALL: 
-               OOTRACEINFO2("Processing MakeCall command %s\n", 
+            case OO_CMD_MAKECALL:
+               OOTRACEINFO2("Processing MakeCall command %s\n",
                                     (char*)cmd.param2);
- 
+
                ooH323NewCall ((char*)cmd.param2);
                break;
 
@@ -210,7 +210,7 @@ int ooReadAndProcessStackCommand()
                   }
                }
                break;
- 
+
             case OO_CMD_ANSCALL:
                pCall = ooFindCallByToken((char*)cmd.param1);
                if(!pCall) {
@@ -231,13 +231,13 @@ int ooReadAndProcessStackCommand()
                ooH323ForwardCall((char*)cmd.param1, (char*)cmd.param2);
                break;
 
-            case OO_CMD_HANGCALL: 
-               OOTRACEINFO3("Processing Hang call command %s with q931 cause %d\n", 
+            case OO_CMD_HANGCALL:
+               OOTRACEINFO3("Processing Hang call command %s with q931 cause %d\n",
                              (char*)cmd.param1, *(int *) cmd.param3);
-               ooH323HangCall((char*)cmd.param1, 
+               ooH323HangCall((char*)cmd.param1,
                               *(OOCallClearReason*)cmd.param2, *(int *) cmd.param3);
                break;
-          
+
             case OO_CMD_SENDDIGIT:
                pCall = ooFindCallByToken((char*)cmd.param1);
                if(!pCall) {
@@ -259,7 +259,7 @@ int ooReadAndProcessStackCommand()
 
                break;
 
-            case OO_CMD_STOPMONITOR: 
+            case OO_CMD_STOPMONITOR:
                OOTRACEINFO1("Processing StopMonitor command\n");
                ooStopMonitorCalls();
                break;
@@ -303,7 +303,7 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 
       if (cmd.plen1 > 0) {
 	cmd.param1 = malloc(cmd.plen1 + 1);
-	if (!cmd.param1) 
+	if (!cmd.param1)
 		return OO_FAILED;
 	memset(cmd.param1, 0, cmd.plen1 + 1);
 	memcpy(cmd.param1, bPoint, cmd.plen1);
@@ -312,7 +312,7 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 
       if (cmd.plen2 > 0) {
 	cmd.param2 = malloc(cmd.plen2 + 1);
-	if (!cmd.param2) 
+	if (!cmd.param2)
 		return OO_FAILED;
 	memset(cmd.param2, 0, cmd.plen2 + 1);
 	memcpy(cmd.param2, bPoint, cmd.plen2);
@@ -321,7 +321,7 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 
       if (cmd.plen3 > 0) {
 	cmd.param3 = malloc(cmd.plen3 + 1);
-	if (!cmd.param3) 
+	if (!cmd.param3)
 		return OO_FAILED;
 	memset(cmd.param3, 0, cmd.plen3 + 1);
 	memcpy(cmd.param3, bPoint, cmd.plen3);
@@ -333,11 +333,11 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 
       else {
          switch(cmd.type) {
-            case OO_CMD_MAKECALL: 
-               OOTRACEINFO2("Processing MakeCall command %s\n", 
+            case OO_CMD_MAKECALL:
+               OOTRACEINFO2("Processing MakeCall command %s\n",
                                     (char*)cmd.param2);
- 
-               ooH323MakeCall ((char*)cmd.param1, (char*)cmd.param2, 
+
+               ooH323MakeCall ((char*)cmd.param1, (char*)cmd.param2,
                                (ooCallOptions*)cmd.param3);
                break;
 
@@ -354,7 +354,7 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
                  }
                }
                break;
- 
+
             case OO_CMD_ANSCALL:
                   ooSendConnect(call);
                break;
@@ -365,13 +365,13 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
                ooH323ForwardCall((char*)cmd.param1, (char*)cmd.param2);
                break;
 
-            case OO_CMD_HANGCALL: 
-               OOTRACEINFO2("Processing Hang call command %s with q931 cause %d\n", 
+            case OO_CMD_HANGCALL:
+               OOTRACEINFO2("Processing Hang call command %s with q931 cause %d\n",
                              (char*)cmd.param1);
-               ooH323HangCall((char*)cmd.param1, 
+               ooH323HangCall((char*)cmd.param1,
                               *(OOCallClearReason*)cmd.param2, *(int *) cmd.param3);
                break;
-          
+
             case OO_CMD_SENDDIGIT:
                if(call->jointDtmfMode & OO_CAP_DTMF_H245_alphanumeric) {
                   ooSendH245UserInputIndication_alphanumeric(
@@ -427,4 +427,3 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
 
    return OO_OK;
 }
-   

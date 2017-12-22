@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Resource limits
- * 
+ *
  * Copyright (c) 2006 Tilghman Lesher.  All rights reserved.
  *
  * Tilghman Lesher <res_limit_200607@the-tilghman.com>
@@ -215,4 +215,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Resource limits");
-

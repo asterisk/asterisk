@@ -23,7 +23,7 @@
 /*! \file
  *
  * \brief Common implementation-independent jitterbuffer stuff.
- * 
+ *
  * \author Slav Klenov <slav@securax.org>
  */
 

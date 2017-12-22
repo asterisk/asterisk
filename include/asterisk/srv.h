@@ -54,7 +54,7 @@ extern int ast_srv_lookup(struct srv_context **context, const char *service, con
  */
 void ast_srv_cleanup(struct srv_context **context);
 
-/*! \brief Lookup entry in SRV records Returns 1 if found, 0 if not found, -1 on hangup 
+/*! \brief Lookup entry in SRV records Returns 1 if found, 0 if not found, -1 on hangup
  *
  * Only do SRV record lookup if you get a domain without a port. If you get a port #, it's a DNS host name.
  *
@@ -97,7 +97,7 @@ unsigned int ast_srv_get_record_count(struct srv_context *context);
  * \param[out] priority The priority portion of the record
  * \param[out] weight The weight portion of the record
  *
- * \retval -1 Failed to retrieve information. 
+ * \retval -1 Failed to retrieve information.
  * 	Likely due to an out of range record_num
  * \retval 0 Success
  */

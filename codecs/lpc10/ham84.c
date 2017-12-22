@@ -123,4 +123,3 @@ extern int ham84_(integer *input, integer *output, integer *errcnt);
     }
     return 0;
 } /* ham84_ */
-

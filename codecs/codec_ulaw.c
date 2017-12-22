@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief codec_ulaw.c - translate between signed linear and ulaw
- * 
+ *
  * \ingroup codecs
  */
 

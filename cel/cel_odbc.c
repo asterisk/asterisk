@@ -823,7 +823,7 @@ static int unload_module(void)
 	free_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
 	AST_RWLIST_HEAD_DESTROY(&odbc_tables);
-        
+
 	return 0;
 }
 
@@ -865,4 +865,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, ODBC_BACKEND_NAME,
 	.reload = reload,
 	.load_pri = AST_MODPRI_CDR_DRIVER,
 );
-

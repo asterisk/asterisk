@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile rules
 #
 # Copyright (C) 2006-2010, Digium, Inc.
@@ -55,7 +55,7 @@ ifeq ($(NOISY_BUILD),)
     ECHO_PREFIX=@
     CMD_PREFIX=@
 else
-    ECHO_PREFIX=@\# 
+    ECHO_PREFIX=@\#
     CMD_PREFIX=
 endif
 

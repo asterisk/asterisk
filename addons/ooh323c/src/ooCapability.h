@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooCapability.h 
- * This file contains Capability management functions. 
+ * @file ooCapability.h
+ * This file contains Capability management functions.
  */
 #ifndef OO_CAPABILITY_H_
 #define OO_CAPABILITY_H_
@@ -29,7 +29,7 @@
 #define OOTX      (1<<1)
 #define OORXANDTX (1<<2)
 #define OORXTX    (1<<3) /* For symmetric capabilities */
-/* Various types of caps. Note that not all 
+/* Various types of caps. Note that not all
    supported */
 typedef enum OOCapabilities{
    OO_CAP_AUDIO_BASE      = 0,
@@ -89,7 +89,7 @@ typedef enum OOCapabilities{
 
 /**
  * This structure defines the preference order for capabilities.
- * 
+ *
  */
 typedef struct OOCapPrefs {
   int order[20];
@@ -99,11 +99,11 @@ typedef struct OOCapPrefs {
 typedef struct OOCapParams {
    int txframes;  /*!< Number of frames per packet for transmission */
    int rxframes;  /*!< Number of frames per packet for reception */
-   OOBOOL silenceSuppression; 
+   OOBOOL silenceSuppression;
 } OOCapParams;
 
 typedef struct OOGSMCapParams {
-   unsigned txframes; 
+   unsigned txframes;
    unsigned rxframes;
    OOBOOL scrambled;
    OOBOOL comfortNoise;
@@ -130,7 +130,7 @@ struct OOLogicalChannel;
 extern "C" {
 #endif
 
-/** 
+/**
  * This callback is used for starting media receive channel. This callback
  * function is triggered when receive media channel has to be started.
  * @param call     Call for which receive media channel has to be started.
@@ -143,7 +143,7 @@ typedef int (*cb_StartReceiveChannel)
      (struct OOH323CallData *call, struct OOLogicalChannel *pChannel);
 
 
-/** 
+/**
  * This callback is used for starting media transmit channel. This callback
  * function is triggered when transmit media channel has to be started.
  * @param call     Call for which transmit media channel has to be started.
@@ -155,7 +155,7 @@ typedef int (*cb_StartReceiveChannel)
 typedef int (*cb_StartTransmitChannel)
      (struct OOH323CallData *call, struct OOLogicalChannel *pChannel);
 
-/** 
+/**
  * This callback is used for stopping media receive channel. This callback
  * function is triggered when receive media channel has to be stopped.
  * @param call     Call for which receive media channel has to be stopped.
@@ -167,7 +167,7 @@ typedef int (*cb_StartTransmitChannel)
 typedef int (*cb_StopReceiveChannel)
      (struct OOH323CallData *call, struct OOLogicalChannel *pChannel);
 
-/** 
+/**
  * This callback is used for stopping media transmit channel. This callback
  * function is triggered when transmit media channel has to be stopped.
  * @param call     Call for which transmit media channel has to be stopped.
@@ -190,7 +190,7 @@ typedef enum OOCapType {
  * capability
  */
 typedef struct ooH323EpCapability {
-   int dir; 
+   int dir;
    int cap;
    OOCapType capType;
    void *params;
@@ -212,14 +212,14 @@ typedef struct ooH323EpCapability {
 #endif /* MAKE_DLL */
 #endif /* EXTERN */
 
-/** 
+/**
  * @defgroup capmgmt  Capability Management
  * @{
  */
 
 /**
  * This function is used to add rfc2833 based dtmf detection capability
- * @param call                   Call if enabling for call, else null for 
+ * @param call                   Call if enabling for call, else null for
  *                               endpoint.
  * @param dynamicRTPPayloadType  dynamicRTPPayloadType to be used.
  * @return                       OO_OK, on success. OO_FAILED, on failure.
@@ -237,7 +237,7 @@ EXTERN int ooCapabilityDisableDTMFRFC2833(struct OOH323CallData *call);
 
 
 /**
- * This function is used to enable support for H.245 based alphanumeric dtmf 
+ * This function is used to enable support for H.245 based alphanumeric dtmf
  * capability.
  * @param call             Handle to call, if enabling for the call, else NULL
  *                         for end-point.
@@ -246,7 +246,7 @@ EXTERN int ooCapabilityDisableDTMFRFC2833(struct OOH323CallData *call);
 EXTERN int ooCapabilityEnableDTMFH245Alphanumeric(struct OOH323CallData *call);
 
 /**
- * This function is used to disable support for H.245 based alphanumeric dtmf 
+ * This function is used to disable support for H.245 based alphanumeric dtmf
  * capability.
  * @param call             Handle to call, if disabling for the call, else NULL
  *                         for end-point.
@@ -256,7 +256,7 @@ EXTERN int ooCapabilityDisableDTMFH245Alphanumeric
                                              (struct OOH323CallData *call);
 
 /**
- * This function is used to enable support for H.245 based signal dtmf 
+ * This function is used to enable support for H.245 based signal dtmf
  * capability.
  * @param call             Handle to call, if enabling for the call, else NULL
  *                         for end-point.
@@ -265,7 +265,7 @@ EXTERN int ooCapabilityDisableDTMFH245Alphanumeric
 EXTERN int ooCapabilityEnableDTMFH245Signal(struct OOH323CallData *call);
 
 /**
- * This function is used to disable support for H.245 based signal dtmf 
+ * This function is used to disable support for H.245 based signal dtmf
  * capability.
  * @param call             Handle to call, if disabling for the call, else NULL
  *                         for end-point.
@@ -291,14 +291,14 @@ EXTERN int ooCapabilityDisableDTMFQ931Keypad(struct OOH323CallData *call);
 
 /**
  * This function is used to add simple capabilities which have only rxframes
- * and txframes parameters to the endpoint or call.(ex. G711, G728, G723.1, 
+ * and txframes parameters to the endpoint or call.(ex. G711, G728, G723.1,
  * G729)
- * @param call                 Handle to a call. If this is not Null, then 
- *                             capability is added to call's remote enpoint 
- *                             capability list, else it is added to local H323 
+ * @param call                 Handle to a call. If this is not Null, then
+ *                             capability is added to call's remote enpoint
+ *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param cap                  Type of G711 capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param silenceSuppression   Indicates support for silence suppression.
  *                             Used only in case of g7231, otherwise ignored.
@@ -312,8 +312,8 @@ EXTERN int ooCapabilityDisableDTMFQ931Keypad(struct OOH323CallData *call);
  * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooCapabilityAddSimpleCapability
-   (struct OOH323CallData *call, int cap, int txframes, int rxframes, 
-    OOBOOL silenceSuppression, int dir, 
+   (struct OOH323CallData *call, int cap, int txframes, int rxframes,
+    OOBOOL silenceSuppression, int dir,
     cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
@@ -325,13 +325,13 @@ EXTERN int ooCapabilityAddSimpleCapability
  * This is an internal helper function which is used to add a GSM capability
  * to local endpoints capability list or to remote endpoints capability list or
  * to a call's capability list.
- * @param call                 Handle to a call. If this is not Null, then 
- *                             capability is added to call's remote enpoint 
- *                             capability list, else it is added to local H323 
+ * @param call                 Handle to a call. If this is not Null, then
+ *                             capability is added to call's remote enpoint
+ *                             capability list, else it is added to local H323
  *                             endpoint list.
  * @param cap                  Type of GSM capability to be added.
- * @param framesPerPkt         Number of GSM frames per packet. 
- * @param comfortNoise         Comfort noise spec for the capability. 
+ * @param framesPerPkt         Number of GSM frames per packet.
+ * @param comfortNoise         Comfort noise spec for the capability.
  * @param scrambled            Scrambled enabled/disabled for the capability.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -340,38 +340,38 @@ EXTERN int ooCapabilityAddSimpleCapability
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  * @param remote               TRUE, if adding call's remote capabilities.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-int ooCapabilityAddGSMCapability(struct OOH323CallData *call, int cap, 
+int ooCapabilityAddGSMCapability(struct OOH323CallData *call, int cap,
                                 unsigned framesPerPkt, OOBOOL comfortNoise,
-                                OOBOOL scrambled, int dir, 
+                                OOBOOL scrambled, int dir,
                                 cb_StartReceiveChannel startReceiveChannel,
                                 cb_StartTransmitChannel startTransmitChannel,
                                 cb_StopReceiveChannel stopReceiveChannel,
-                                cb_StopTransmitChannel stopTransmitChannel, 
+                                cb_StopTransmitChannel stopTransmitChannel,
                                 OOBOOL remote);
 
 
 /**
- * This function is used to add H263 video capability to local endpoints 
- * capability list or to remote endpoints capability list or to a call's 
+ * This function is used to add H263 video capability to local endpoints
+ * capability list or to remote endpoints capability list or to a call's
  * capability list.
- * @param call                 Handle to a call. If this is not Null, then 
- *                             capability is added to call's remote enpoint 
- *                             capability list, else it is added to local H323 
+ * @param call                 Handle to a call. If this is not Null, then
+ *                             capability is added to call's remote enpoint
+ *                             capability list, else it is added to local H323
  *                             endpoint list.
- * @param sqcifMPI             Minimum picture interval for encoding/decoding 
+ * @param sqcifMPI             Minimum picture interval for encoding/decoding
  *                             of SQCIF pictures.
- * @param qcifMPI              Minimum picture interval for encoding/decoding 
+ * @param qcifMPI              Minimum picture interval for encoding/decoding
  *                             of QCIF pictures.
- * @param cifMPI               Minimum picture interval for encoding/decoding 
+ * @param cifMPI               Minimum picture interval for encoding/decoding
  *                             of CIF pictures.
- * @param cif4MPI              Minimum picture interval for encoding/decoding 
+ * @param cif4MPI              Minimum picture interval for encoding/decoding
  *                             of CIF4 pictures.
- * @param cif16MPI             Minimum picture interval for encoding/decoding 
+ * @param cif16MPI             Minimum picture interval for encoding/decoding
  *                             of CIF16 pictures.
  * @param maxBitRate           Maximum bit rate in units of 100 bits/s at
- *                             which a transmitter can transmit video or a 
+ *                             which a transmitter can transmit video or a
  *                             receiver can receive video.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -380,37 +380,37 @@ int ooCapabilityAddGSMCapability(struct OOH323CallData *call, int cap,
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  * @param remote               TRUE, if adding call's remote capabilities.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooCapabilityAddH263VideoCapability(struct OOH323CallData *call, 
-                               unsigned sqcifMPI, unsigned qcifMPI, 
-                               unsigned cifMPI, unsigned cif4MPI, 
+EXTERN int ooCapabilityAddH263VideoCapability(struct OOH323CallData *call,
+                               unsigned sqcifMPI, unsigned qcifMPI,
+                               unsigned cifMPI, unsigned cif4MPI,
                                unsigned cif16MPI, unsigned maxBitRate, int dir,
                                cb_StartReceiveChannel startReceiveChannel,
                                cb_StartTransmitChannel startTransmitChannel,
                                cb_StopReceiveChannel stopReceiveChannel,
-                               cb_StopTransmitChannel stopTransmitChannel, 
+                               cb_StopTransmitChannel stopTransmitChannel,
                                OOBOOL remote);
 
 
 /**
  * This function is an helper function to ooCapabilityAddH263VideoCapability.
- * @param call                 Handle to a call. If this is not Null, then 
- *                             capability is added to call's remote enpoint 
- *                             capability list, else it is added to local H323 
+ * @param call                 Handle to a call. If this is not Null, then
+ *                             capability is added to call's remote enpoint
+ *                             capability list, else it is added to local H323
  *                             endpoint list.
- * @param sqcifMPI             Minimum picture interval for encoding/decoding 
+ * @param sqcifMPI             Minimum picture interval for encoding/decoding
  *                             of SQCIF pictures.
- * @param qcifMPI              Minimum picture interval for encoding/decoding 
+ * @param qcifMPI              Minimum picture interval for encoding/decoding
  *                             of QCIF pictures.
- * @param cifMPI               Minimum picture interval for encoding/decoding 
+ * @param cifMPI               Minimum picture interval for encoding/decoding
  *                             of CIF pictures.
- * @param cif4MPI              Minimum picture interval for encoding/decoding 
+ * @param cif4MPI              Minimum picture interval for encoding/decoding
  *                             of CIF4 pictures.
- * @param cif16MPI             Minimum picture interval for encoding/decoding 
+ * @param cif16MPI             Minimum picture interval for encoding/decoding
  *                             of CIF16 pictures.
  * @param maxBitRate           Maximum bit rate in units of 100 bits/s at
- *                             which a transmitter can transmit video or a 
+ *                             which a transmitter can transmit video or a
  *                             receiver can receive video.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -419,24 +419,24 @@ EXTERN int ooCapabilityAddH263VideoCapability(struct OOH323CallData *call,
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  * @param remote               TRUE, if adding call's remote capabilities.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-int ooCapabilityAddH263VideoCapability_helper(struct OOH323CallData *call, 
-                              unsigned sqcifMPI, unsigned qcifMPI, 
-                              unsigned cifMPI, unsigned cif4MPI, 
-                              unsigned cif16MPI, unsigned maxBitRate, int dir, 
+int ooCapabilityAddH263VideoCapability_helper(struct OOH323CallData *call,
+                              unsigned sqcifMPI, unsigned qcifMPI,
+                              unsigned cifMPI, unsigned cif4MPI,
+                              unsigned cif16MPI, unsigned maxBitRate, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
                               cb_StopReceiveChannel stopReceiveChannel,
-                              cb_StopTransmitChannel stopTransmitChannel, 
+                              cb_StopTransmitChannel stopTransmitChannel,
                               OOBOOL remote);
 
 /**
- * This function is used to add a audio capability to calls remote  
+ * This function is used to add a audio capability to calls remote
  * capability list.
  * @param call                Handle to the call.
  * @param audioCap            Handle to the remote endpoint's audio capability.
- * @param dir                 Direction in which capability is supported by 
+ * @param dir                 Direction in which capability is supported by
  *                            remote endpoint.
  *
  * @return                    OO_OK, on success. OO_FAILED, otherwise.
@@ -458,12 +458,12 @@ int ooAddRemoteCapability(struct OOH323CallData *call, H245Capability *cap);
 /**
  * This function is used to update joint capabilities for call. It checks
  * whether remote capability can be supported by local capabilities for the
- * call and if supported makes entry into the joint capability list for the 
+ * call and if supported makes entry into the joint capability list for the
  * call.
  * @param call           Handle to the call
  * @param cap            Remote cap which will be tested for compatibility.
  *
- * @return               returns OO_OK, if updated else OO_FAILED;  
+ * @return               returns OO_OK, if updated else OO_FAILED;
  */
 EXTERN int ooCapabilityUpdateJointCapabilities
    (struct OOH323CallData* call, H245Capability *cap);
@@ -472,50 +472,50 @@ EXTERN int ooCapabilityUpdateJointCapabilities
 /**
  * This function is used to update joint video capabilities for call. It checks
  * whether remote capability can be supported by local capabilities for the
- * call and if supported makes entry into the joint capability list for the 
+ * call and if supported makes entry into the joint capability list for the
  * call.
  * @param call           Handle to the call
- * @param videoCap       Remote video capability which will be tested for 
+ * @param videoCap       Remote video capability which will be tested for
  *                       compatibility.
  * @param dir            Direction of the capability
  *
- * @return               returns OO_OK, if updated else OO_FAILED;  
+ * @return               returns OO_OK, if updated else OO_FAILED;
  */
 EXTERN int ooCapabilityUpdateJointCapabilitiesVideo
    (struct OOH323CallData *call, H245VideoCapability *videoCap, int dir);
 
 
 /**
- * This function is used to update joint video H263 capabilities for call. It 
- * checks whether remote capability can be supported by local capabilities for 
+ * This function is used to update joint video H263 capabilities for call. It
+ * checks whether remote capability can be supported by local capabilities for
  * the call and if supported makes entry into the joint capability list for the
  * call.
  * @param call           Handle to the call
- * @param pH263Cap       Remote H263 video capability which will be tested for 
+ * @param pH263Cap       Remote H263 video capability which will be tested for
  *                       compatibility.
  * @param dir            Direction of the H263 capability
  *
- * @return               returns OO_OK, if updated else OO_FAILED;  
+ * @return               returns OO_OK, if updated else OO_FAILED;
  */
 EXTERN int ooCapabilityUpdateJointCapabilitiesVideoH263
    (struct OOH323CallData *call, H245H263VideoCapability *pH263Cap, int dir);
 
 
 /**
- * This function is used to test whether the endpoint capability in the 
+ * This function is used to test whether the endpoint capability in the
  * specified direction can be supported by the audio capability.
  * @param call               Handle to the call.
  * @param epCap              Endpoint capability.
- * @param dataType           Data type with which compatibility has to 
+ * @param dataType           Data type with which compatibility has to
  *                           be tested.
  * @param dir                Direction indicating whether endpoint capability
  *                           will be used for transmission or reception.
  *
- * @return                   TRUE, if compatible. FALSE, otherwise. 
+ * @return                   TRUE, if compatible. FALSE, otherwise.
  */
 
-ASN1BOOL ooCapabilityCheckCompatibility(struct OOH323CallData *call, 
-                                        ooH323EpCapability *epCap, 
+ASN1BOOL ooCapabilityCheckCompatibility(struct OOH323CallData *call,
+                                        ooH323EpCapability *epCap,
                                         H245DataType *dataType, int dir);
 
 
@@ -523,27 +523,27 @@ ASN1BOOL ooCapabilityCheckCompatibility(struct OOH323CallData *call,
  * This function is used to create a audio capability structure using the
  * capability type.
  * @param epCap       Capability.
- * @param pctxt       Handle to OOCTXT which will be used to allocate memory 
+ * @param pctxt       Handle to OOCTXT which will be used to allocate memory
  *                    for new audio capability.
- * @param dir         Direction in which the newly created capability will be 
+ * @param dir         Direction in which the newly created capability will be
  *                    used.
  *
- * @return            Newly created audio capability on success, NULL on 
+ * @return            Newly created audio capability on success, NULL on
  *                    failure.
  */
-struct H245AudioCapability* ooCapabilityCreateAudioCapability 
+struct H245AudioCapability* ooCapabilityCreateAudioCapability
 (ooH323EpCapability* epCap, OOCTXT *pctxt, int dir);
 
 /**
  * This function is used to create a video capability structure using the
  * capability type.
  * @param epCap       Capability.
- * @param pctxt       Handle to OOCTXT which will be used to allocate memory 
+ * @param pctxt       Handle to OOCTXT which will be used to allocate memory
  *                    for new video capability.
- * @param dir         Direction in which the newly created capability will be 
+ * @param dir         Direction in which the newly created capability will be
  *                    used.
  *
- * @return            Newly created video capability on success, NULL on 
+ * @return            Newly created video capability on success, NULL on
  *                    failure.
  */
 struct H245VideoCapability* ooCapabilityCreateVideoCapability
@@ -554,7 +554,7 @@ struct H245VideoCapability* ooCapabilityCreateVideoCapability
  * This function is used to create a dtmf capability which can be added to
  * a TCS message.
  * @param cap         Type of dtmf capability to be created.
- * @param pctxt       Pointer to OOCTXT structure to be used for memory 
+ * @param pctxt       Pointer to OOCTXT structure to be used for memory
  *                    allocation.
  *
  * @return            Pointer to the created DTMF capability, NULL in case of
@@ -570,23 +570,23 @@ void * ooCapabilityCreateDTMFCapability(int cap, int dtmfcodec, OOCTXT *pctxt);
  *                    for new audio capability.
  * @param dir         Direction for the newly created capability.
  *
- * @return            Newly created audio capability on success, NULL on 
+ * @return            Newly created audio capability on success, NULL on
  *                    failure.
  */
 struct H245AudioCapability* ooCapabilityCreateGSMFullRateCapability
    (ooH323EpCapability *epCap, OOCTXT* pctxt, int dir);
 
 /**
- * This function is used to create a simple(g711, g728, g723.1, g729) audio 
+ * This function is used to create a simple(g711, g728, g723.1, g729) audio
  * capability structure.
  *
  * @param epCap       Handle to the endpoint capability
- * @param pctxt       Handle to OOCTXT which will be used to allocate memory 
+ * @param pctxt       Handle to OOCTXT which will be used to allocate memory
  *                    for new audio capability.
- * @param dir         Direction in which the newly created capability will be 
+ * @param dir         Direction in which the newly created capability will be
  *                    used.
  *
- * @return            Newly created audio capability on success, NULL on 
+ * @return            Newly created audio capability on success, NULL on
  *                    failure.
  */
 struct H245AudioCapability* ooCapabilityCreateSimpleCapability
@@ -596,15 +596,15 @@ struct H245AudioCapability* ooCapabilityCreateNonStandardCapability
 
 
 /**
- * This function is used to create a H263 video capability 
+ * This function is used to create a H263 video capability
  * structure.
  * @param epCap       Handle to the endpoint capability
- * @param pctxt       Handle to OOCTXT which will be used to allocate memory 
+ * @param pctxt       Handle to OOCTXT which will be used to allocate memory
  *                    for new video capability.
- * @param dir         Direction in which the newly created capability will be 
+ * @param dir         Direction in which the newly created capability will be
  *                    used.
  *
- * @return            Newly created video capability on success, NULL on 
+ * @return            Newly created video capability on success, NULL on
  *                    failure.
  */
 struct H245VideoCapability* ooCapabilityCreateH263VideoCapability
@@ -616,9 +616,9 @@ struct H245VideoCapability* ooCapabilityCreateH263VideoCapability
  * can be supported by the endpoint.
  * @param call       Handle to the call.
  * @param audioCap   Handle to the audio capability.
- * @param dir        Direction in which support is desired. 
+ * @param dir        Direction in which support is desired.
  *
- * @return          Handle to the copyof capability which supports audioCap, 
+ * @return          Handle to the copyof capability which supports audioCap,
  *                  Null if none found
  */
 ooH323EpCapability* ooIsAudioDataTypeSupported
@@ -629,9 +629,9 @@ ooH323EpCapability* ooIsAudioDataTypeSupported
  * can be supported by the endpoint.
  * @param call       Handle to the call.
  * @param pVideoCap  Handle to the  video capability.
- * @param dir        Direction in which support is desired. 
+ * @param dir        Direction in which support is desired.
  *
- * @return          Handle to the copy of capability which supports video 
+ * @return          Handle to the copy of capability which supports video
  *                  capability, Null if none found
  */
 ooH323EpCapability* ooIsVideoDataTypeSupported
@@ -642,14 +642,14 @@ ooH323EpCapability* ooIsVideoDataTypeSupported
  * can be supported by the endpoint.
  * @param call       Handle to the call.
  * @param pH263Cap   Handle to the H263 video capability.
- * @param dir        Direction in which support is desired. 
+ * @param dir        Direction in which support is desired.
  * @param picFormat  Picture type(cif, qcif etc.)
  *
- * @return          Handle to the copy of capability which supports H263 
+ * @return          Handle to the copy of capability which supports H263
  *                  capability, Null if none found
  */
 ooH323EpCapability* ooIsVideoDataTypeH263Supported
-   (struct OOH323CallData *call, H245H263VideoCapability* pH263Cap, int dir, 
+   (struct OOH323CallData *call, H245H263VideoCapability* pH263Cap, int dir,
     OOPictureFormat picFormat);
 
 /**
@@ -657,9 +657,9 @@ ooH323EpCapability* ooIsVideoDataTypeH263Supported
  * can be supported by the endpoint.
  * @param call       Handle to the call.
  * @param data       Handle to the capability type.
- * @param dir        Direction in which support is desired. 
+ * @param dir        Direction in which support is desired.
  *
- * @return          Handle to the copy of capability which supports specified 
+ * @return          Handle to the copy of capability which supports specified
  *                  capability type, Null if none found
  */
 ooH323EpCapability* ooIsDataTypeSupported
@@ -705,7 +705,7 @@ EXTERN  int ooRemoveCapFromCapPrefs(struct OOH323CallData *call, int cap);
 EXTERN int ooAppendCapToCapPrefs(struct OOH323CallData *call, int cap);
 
 /**
- * This function is used to change preference order of a particular capability 
+ * This function is used to change preference order of a particular capability
  * in the preference list.
  * @param call     Handle to call, if call's preference list has to be modified
  *                 else NULL, to modify endpoint's preference list.
@@ -786,13 +786,11 @@ int ooCapabilityAddT38Capability
 /**/
 
 
-/** 
- * @} 
+/**
+ * @}
  */
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-
-

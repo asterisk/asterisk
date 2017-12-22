@@ -87,7 +87,7 @@ Example:
  bash-3.2# more CREDITS
  Recorded by:
  Allison Smith (https://www.theivrvoice.com)
- 
+
  Financial Contributions by: Digium, Inc. (https://www.digium.com)
  bash-3.2#
 

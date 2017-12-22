@@ -26,7 +26,7 @@
  *
  * TLS/SSL support is basically implemented by reading from a config file
  * (currently manager.conf, http.conf and sip.conf) the names of the certificate
- * files and cipher to use, and then run ssl_setup() to create an appropriate 
+ * files and cipher to use, and then run ssl_setup() to create an appropriate
  * data structure named ssl_ctx.
  *
  * If we support multiple domains, presumably we need to read multiple
@@ -44,7 +44,7 @@
  * and their setup should be moved to a more central place, e.g. asterisk.conf
  * and the source files that processes it. Similarly, ssl_setup() should
  * be run earlier in the startup process so modules have it available.
- * 
+ *
  * \ref AstTlsOverview
  *
  * \todo For SIP, the SubjectAltNames should be checked on verification
@@ -246,7 +246,7 @@ struct ast_tcptls_session_instance {
 #define LEN_T size_t
 #endif
 
-/*! 
+/*!
   * \brief attempts to connect and start tcptls session, on error the tcptls_session's
   * ref count is decremented, fd and file are closed, and NULL is returned.
   */

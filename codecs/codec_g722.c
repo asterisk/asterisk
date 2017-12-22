@@ -111,7 +111,7 @@ static int g722tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* g722_decode expects the samples to be in the invalid samples / 2 format */
 	in_samples = f->samples / 2;
 
-	out_samples = g722_decode(&tmp->g722, &pvt->outbuf.i16[pvt->samples * sizeof(int16_t)], 
+	out_samples = g722_decode(&tmp->g722, &pvt->outbuf.i16[pvt->samples * sizeof(int16_t)],
 		(uint8_t *) f->data.ptr, in_samples);
 
 	pvt->samples += out_samples;
@@ -126,7 +126,7 @@ static int lintog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	struct g722_encoder_pvt *tmp = pvt->pvt;
 	int outlen;
 
-	outlen = g722_encode(&tmp->g722, (&pvt->outbuf.ui8[pvt->datalen]), 
+	outlen = g722_encode(&tmp->g722, (&pvt->outbuf.ui8[pvt->datalen]),
 		(int16_t *) f->data.ptr, f->samples);
 
 	pvt->samples += outlen * 2;
@@ -244,7 +244,7 @@ static int load_module(void)
 	if (res) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
-	}	
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

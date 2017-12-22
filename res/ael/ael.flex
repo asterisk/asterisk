@@ -269,11 +269,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 [ ]+		{ my_col += yyleng; }
 [\t]+		{ my_col += (yyleng*8)-(my_col%8); }
 
-({KEYWORD}?[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]]|{HIBIT}|(\\.)|(\$\{)|(\$\[)) { 
-      /* boy did I open a can of worms when I changed the lexical token "word". 
+({KEYWORD}?[-a-zA-Z0-9'"_/.\<\>\*\+!$#\[\]]|{HIBIT}|(\\.)|(\$\{)|(\$\[)) {
+      /* boy did I open a can of worms when I changed the lexical token "word".
   	  	 all the above keywords can be used as a beginning to a "word".-
-		 before, a "word" would match a longer sequence than the above	 
-	     keywords, and all would be well. But now "word" is a single char		
+		 before, a "word" would match a longer sequence than the above
+	     keywords, and all would be well. But now "word" is a single char
 	     and feeds into a statemachine sort of sequence from there on. So...
 		 I added the {KEYWORD}? to the beginning of the word match sequence */
 
@@ -344,7 +344,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<curlystate>{NOPARENS}[\(\[\{]	{ 
+<curlystate>{NOPARENS}[\(\[\{]	{
 		char c = yytext[yyleng-1];
 		if (c == '{')
 			parencount2++;
@@ -352,7 +352,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<curlystate>{NOPARENS}[\]\)]	{ 
+<curlystate>{NOPARENS}[\]\)]	{
 		char c = yytext[yyleng-1];
 		if ( pbcpop2(c))  { /* error */
 			STORE_LOC;
@@ -387,7 +387,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		}
 	}
 
-<brackstate>{NOPARENS}[\(\[\{]	{ 
+<brackstate>{NOPARENS}[\(\[\{]	{
 		char c = yytext[yyleng-1];
 		if (c == '[')
 			parencount3++;
@@ -395,7 +395,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		yymore();
 	}
 
-<brackstate>{NOPARENS}[\}\)]	{ 
+<brackstate>{NOPARENS}[\}\)]	{
 		char c = yytext[yyleng-1];
 		if ( pbcpop3(c))  { /* error */
 			STORE_LOC;
@@ -580,7 +580,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		glob_t globbuf;        /* the current globbuf */
 		int globbuf_pos = -1;   /* where we are in the current globbuf */
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-		
+
 		p1 = strchr(yytext,'"');
 		p2 = strrchr(yytext,'"');
 		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
@@ -625,8 +625,8 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			yy_delete_buffer( YY_CURRENT_BUFFER, yyscanner );
 			include_stack[include_stack_index-1].globbuf_pos++;
 			setup_filestack(fnamebuf, sizeof(fnamebuf), &include_stack[include_stack_index-1].globbuf, include_stack[include_stack_index-1].globbuf_pos, yyscanner, 0);
-			/* finish this */			
-			
+			/* finish this */
+
 		} else {
 			if (include_stack[include_stack_index].fname) {
 				free(include_stack[include_stack_index].fname);
@@ -641,7 +641,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			} else {
 				globfree(&include_stack[include_stack_index].globbuf);
 				include_stack[include_stack_index].globbuf_pos = -1;
-				
+
 				yy_delete_buffer( YY_CURRENT_BUFFER, yyscanner );
 				yy_switch_to_buffer(include_stack[include_stack_index].bufstate, yyscanner );
 				my_lineno = include_stack[include_stack_index].lineno;
@@ -811,7 +811,7 @@ struct pval *ael2_parse(char *filename, int *errors)
 	buffer = (char*)malloc(stats.st_size+2);
 	if (fread(buffer, 1, stats.st_size, fin) != stats.st_size) {
 		ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
-	}			
+	}
 	buffer[stats.st_size]=0;
 	fclose(fin);
 
@@ -883,7 +883,7 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 			buffer = (char*)malloc(stats.st_size+1);
 			if (fread(buffer, 1, stats.st_size, in1) != stats.st_size) {
 				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
-			}			
+			}
 			buffer[stats.st_size] = 0;
 			ast_debug(1, "  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
 			fclose(in1);

@@ -221,7 +221,7 @@ static int controlplayback_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
-	
+
 	tmp = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, tmp);
 

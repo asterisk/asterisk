@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax />
 		<description>
-			<para>Echos back any media or DTMF frames read from the calling 
+			<para>Echos back any media or DTMF frames read from the calling
 			channel back to itself. This will not echo CONTROL, MODEM, or NULL
 			frames. Note: If '#' detected application exits.</para>
 			<para>This application does not automatically answer and should be

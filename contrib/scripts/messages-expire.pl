@@ -2,7 +2,7 @@
 #
 # Script to expire voicemail after a specified number of days
 # by Steve Creel <screel@turbs.com>
-# 
+#
 
 # Directory housing the voicemail spool for asterisk
 $dir = "/var/spool/asterisk/voicemail";
@@ -19,7 +19,7 @@ $unheardage = $age;
 
 
 # Delete all files older than $age and $unheardage
-# (named msg????.??? to get the audio and txt files, 
+# (named msg????.??? to get the audio and txt files,
 # but we don't delete greetings or the user's name)
 
 if($age==$unheardage) {
@@ -50,7 +50,7 @@ $fnbase = sprintf "msg%04d", $start;
 # Make $dir include the context too
 $dir.="/".$context;
 
-( -d $dir ) || die "Can't read list of mailboxes ($dir): $!\n"; 
+( -d $dir ) || die "Can't read list of mailboxes ($dir): $!\n";
 @mailboxes = `ls -A1 $dir`;
 chomp(@mailboxes);
 

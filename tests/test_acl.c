@@ -122,7 +122,7 @@ struct acl {
 #define TACL_A AST_SENSE_ALLOW
 #define TACL_D AST_SENSE_DENY
 
-static int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name, int *err, struct ast_test *test, enum ast_test_result_state *res) 
+static int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name, int *err, struct ast_test *test, enum ast_test_result_state *res)
 {
 	size_t i;
 

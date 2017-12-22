@@ -148,4 +148,3 @@ extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pas
     }
     return 0;
 } /* irc2pc_ */
-

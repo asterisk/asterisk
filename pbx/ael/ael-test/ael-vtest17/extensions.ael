@@ -1,12 +1,12 @@
 context dialextens
 {
-	/* 
+	/*
 		101 thru 123, 149 thru 152
         */
 	_10X => Dial(Zap/${EXTEN:2},30,tw);
 	_1ZX => Dial(Zap/${EXTEN:1},30,tw);
 }
-/* 
+/*
     Due to extenal wiring:
 
   dialing 125 will ring 101
@@ -90,7 +90,7 @@ context extension
 			Verbose(Finished 100000 levels deep call!);
 		}
 	83 => {
-		switch (${EXTEN}) 
+		switch (${EXTEN})
 		{
 		pattern 8X:
     			Verbose(do something to prepare it);

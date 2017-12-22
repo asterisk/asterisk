@@ -28,4 +28,3 @@ def downgrade():
     ########################## drop tables ###########################
 
     op.drop_table('queue_rules')
-

@@ -132,4 +132,3 @@ int main(int argc, char *argv[])
 	/* Exit when the parent dies */
 	return 0;
 }
-

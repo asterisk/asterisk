@@ -1,6 +1,6 @@
 /*
  * Asterisk -- An open source telephony toolkit.
- * 
+ *
  * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -205,7 +205,7 @@ typedef unsigned int	uint;
 typedef unsigned long long uint64_t;
 #endif
 
-/* glob compat stuff */ 
+/* glob compat stuff */
 #if defined(__Darwin__) || defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
 #endif

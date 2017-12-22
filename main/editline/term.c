@@ -640,7 +640,7 @@ mc_again:
 						    (el->el_cursor.h & 0370);
 						    i < (where & 0370);
 						    i += 8)
-							term__putc('\t');	
+							term__putc('\t');
 							/* then tab over */
 						el->el_cursor.h = where & 0370;
 					}

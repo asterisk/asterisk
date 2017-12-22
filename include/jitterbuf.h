@@ -14,7 +14,7 @@
  */
 
 /*! \file
- * \brief 
+ * \brief
  * jitterbuf: an application-independent jitterbuffer
  * \ref jitterbuf.c
  */
@@ -30,14 +30,14 @@ extern "C" {
 /*! \name configuration constants */
 /*@{ */
 	/*! Number of historical timestamps to use in calculating jitter and drift */
-#define JB_HISTORY_SZ		500	
+#define JB_HISTORY_SZ		500
 	/*! what percentage of timestamps should we drop from the history when we examine it;
 	 * this might eventually be something made configurable */
 #define JB_HISTORY_DROPPCT	3
 	/*! the maximum droppct we can handle (say it was configurable). */
 #define JB_HISTORY_DROPPCT_MAX	4
 	/*! the size of the buffer we use to keep the top and botton timestamps for dropping */
-#define JB_HISTORY_MAXBUF_SZ	JB_HISTORY_SZ * JB_HISTORY_DROPPCT_MAX / 100 
+#define JB_HISTORY_MAXBUF_SZ	JB_HISTORY_SZ * JB_HISTORY_DROPPCT_MAX / 100
 	/*! amount of additional jitterbuffer adjustment  */
 #define JB_TARGET_EXTRA 40
 	/*! ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
@@ -131,10 +131,10 @@ void			jb_destroy(jitterbuf *jb);
  * you will leak queued frames, and some internal structures */
 void			jb_reset(jitterbuf *jb);
 
-/*!\brief  queue a frame 
- * 
- * data=frame data, timings (in ms): ms=length of frame (for voice), ts=ts (sender's time) 
- * now=now (in receiver's time) return value is one of 
+/*!\brief  queue a frame
+ *
+ * data=frame data, timings (in ms): ms=length of frame (for voice), ts=ts (sender's time)
+ * now=now (in receiver's time) return value is one of
  * JB_OK: Frame added. Last call to jb_next() still valid
  * JB_DROP: Drop this frame immediately
  * JB_SCHED: Frame added. Call jb_next() to get a new time for the next frame
@@ -145,7 +145,7 @@ enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type t
  * JB_OK:  You've got frame!
  * JB_DROP: Here's an audio frame you should just drop.  Ask me again for this time..
  * JB_NOFRAME: There's no frame scheduled for this time.
- * JB_INTERP: Please interpolate an interpl-length frame for this time (either we need to grow, or there was a lost frame) 
+ * JB_INTERP: Please interpolate an interpl-length frame for this time (either we need to grow, or there was a lost frame)
  * JB_EMPTY: The jb is empty.
  */
 enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frame, long now, long interpl);
@@ -153,7 +153,7 @@ enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frame, long now, long interp
 /*! \brief unconditionally get frames from jitterbuf until empty */
 enum jb_return_code jb_getall(jitterbuf *jb, jb_frame *frameout);
 
-/*! \brief when is the next frame due out, in receiver's time (0=EMPTY) 
+/*! \brief when is the next frame due out, in receiver's time (0=EMPTY)
  * This value may change as frames are added (esp non-audio frames) */
 long	jb_next(jitterbuf *jb);
 

@@ -119,7 +119,7 @@ extern struct {
 /* reinitialize its state for any other reason, call the ENTRY */
 /* INITBSYNZ. */
 
-/* Subroutine */ int bsynz_(real *coef, integer *ip, integer *iv, 
+/* Subroutine */ int bsynz_(real *coef, integer *ip, integer *iv,
 	real *sout, real *rms, real *ratio, real *g2pass,
 			    struct lpc10_decoder_state *st)
 {
@@ -245,13 +245,13 @@ extern struct {
 /*    Error correction */
 /* Subroutine SETUP is the only place where order is assigned a value, */
 /* and that value is 10.  It could increase efficiency 1% or so to */
-/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as 
+/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as
 */
 /* a variable in a COMMON block, since it is used in many places in the */
-/* core of the coding and decoding routines.  Actually, I take that back. 
+/* core of the coding and decoding routines.  Actually, I take that back.
 */
 /* At least when compiling with f2c, the upper bound of DO loops is */
-/* stored in a local variable before the DO loop begins, and then that is 
+/* stored in a local variable before the DO loop begins, and then that is
 */
 /* compared against on each iteration. */
 /* Similarly for lframe, which is given a value of MAXFRM in SETUP. */
@@ -261,35 +261,35 @@ extern struct {
 /* nbits is similar to quant, and is given a value of 54 in SETUP. */
 /* corrp is given a value of .TRUE. in SETUP, and is only used in the */
 /* subroutines ENCODE and DECODE.  It doesn't affect the speed of the */
-/* coder significantly whether it is .TRUE. or .FALSE., or whether it is 
+/* coder significantly whether it is .TRUE. or .FALSE., or whether it is
 */
 /* a constant or a variable, since it is only examined once per frame. */
 /* Leaving it as a variable that is set to .TRUE.  seems like a good */
 /* idea, since it does enable some error-correction capability for */
-/* unvoiced frames, with no change in the coding rate, and no noticeable 
+/* unvoiced frames, with no change in the coding rate, and no noticeable
 */
 /* quality difference in the decoded speech. */
 /* 	integer quant, nbits */
-/* *** Read/write: variables for debugging, not needed for LPC algorithm 
+/* *** Read/write: variables for debugging, not needed for LPC algorithm
 */
 
-/*  Current frame, Unstable frames, Output clip count, Max onset buffer, 
+/*  Current frame, Unstable frames, Output clip count, Max onset buffer,
 */
 /*    Debug listing detail level, Line count on listing page */
 
 /* nframe is not needed for an embedded LPC10 at all. */
 /* nunsfm is initialized to 0 in SETUP, and incremented in subroutine */
 /* ERROR, which is only called from RCCHK.  When LPC10 is embedded into */
-/* an application, I would recommend removing the call to ERROR in RCCHK, 
+/* an application, I would recommend removing the call to ERROR in RCCHK,
 */
 /* and remove ERROR and nunsfm completely. */
-/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in 
+/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in
 */
 /* sread.f.  When LPC10 is embedded into an application, one might want */
 /* to cause it to be incremented in a routine that takes the output of */
 /* SYNTHS and sends it to an audio device.  It could be optionally */
 /* displayed, for those that might want to know what it is. */
-/* maxosp is never initialized to 0 in SETUP, although it probably should 
+/* maxosp is never initialized to 0 in SETUP, although it probably should
 */
 /* be, and it is updated in subroutine ANALYS.  I doubt that its value */
 /* would be of much interest to an application in which LPC10 is */
@@ -301,11 +301,11 @@ extern struct {
 /* 	common /contrl/ nframe, nunsfm, iclip, maxosp, listl, lincnt */
 /*       Function return value definitions */
 /* 	Parameters/constants */
-/*       KEXC is not a Fortran PARAMETER, but it is an array initialized 
+/*       KEXC is not a Fortran PARAMETER, but it is an array initialized
 */
 /*       with a DATA statement that is never modified. */
 /*       Local variables that need not be saved */
-/*       NOISE is declared with range (1:MAXPIT+MAXORD), but only indices 
+/*       NOISE is declared with range (1:MAXPIT+MAXORD), but only indices
 */
 /*       ORDER+1 through ORDER+IP are ever used, and I think that IP */
 /*       .LE. MAXPIT.  Why not declare it to be in the range (1:MAXPIT) */
@@ -357,7 +357,7 @@ extern struct {
 /*  Impulse doublet excitation for plosives */
 /*       (RANDOM()+32768) is in the range 0 to 2**16-1.  Therefore the
  */
-/*       following expression should be evaluated using integers with 
+/*       following expression should be evaluated using integers with
 at */
 /*       least 32 bits (16 isn't enough), and PX should be in the rang
 e */

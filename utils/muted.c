@@ -5,7 +5,7 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * Updated for Mac OSX CoreAudio 
+ * Updated for Mac OSX CoreAudio
  * by Josh Roberson <josh@asteriasgi.com>
  *
  * See http://www.asterisk.org for more information about
@@ -25,7 +25,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
- * Updated for Mac OSX CoreAudio 
+ * Updated for Mac OSX CoreAudio
  * \arg Josh Roberson <josh@asteriasgi.com>
  *
  * \note Specially written for Malcolm Davenport, but I think I'll use it too
@@ -52,7 +52,7 @@
 #include "asterisk/autoconfig.h"
 
 #ifdef __Darwin__
-#include <CoreAudio/AudioHardware.h> 
+#include <CoreAudio/AudioHardware.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <sys/stat.h>
@@ -118,7 +118,7 @@ static void add_channel(char *tech, char *location)
 		chan->next = channels;
 		channels = chan;
 	}
-	
+
 }
 
 static int load_config(void)
@@ -177,7 +177,7 @@ static int load_config(void)
 			} else if (!strcasecmp(buf, "mutelevel")) {
 				if (val && (sscanf(val, "%3d", &x) == 1) && (x > -1) && (x < 101)) {
 					mutelevel = x;
-				} else 
+				} else
 					fprintf(stderr, "mutelevel must be a number from 0 (most muted) to 100 (no mute) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "channel")) {
 				if (val && strlen(val)) {
@@ -200,7 +200,7 @@ static int load_config(void)
 		fprintf(stderr, "no 'host' specification in config file\n");
 	else if (!strlen(user))
 		fprintf(stderr, "no 'user' specification in config file\n");
-	else if (!channels) 
+	else if (!channels)
 		fprintf(stderr, "no 'channel' specifications in config file\n");
 	else
 		return 0;
@@ -287,7 +287,7 @@ static int login_asterisk(void)
 		fprintf(stderr, "disconnected (1)\n");
 		return -1;
 	}
-	fprintf(astf, 
+	fprintf(astf,
 		"Action: Login\r\n"
 		"Username: %s\r\n"
 		"Secret: %s\r\n\r\n", user, pass);
@@ -305,7 +305,7 @@ static int login_asterisk(void)
 		fprintf(stderr, "disconnected (3)\n");
 		return -1;
 	}
-	fprintf(astf, 
+	fprintf(astf,
 		"Action: Status\r\n\r\n");
 	if (!(welcome = get_line())) {
 		fprintf(stderr, "disconnected (4)\n");
@@ -405,7 +405,7 @@ static int setvol(float vol)
 {
 #ifndef __Darwin__
 	if (ioctl(mixfd, MIXER_WRITE(mixchan), &vol)) {
-#else	
+#else
 	float volumeL = vol;
 	float volumeR = vol;
 	OSStatus err;
@@ -463,7 +463,7 @@ static float mutedlevel(float orig, float level)
 	master = level * master / 100.0;
 	return master;
 #endif
-	
+
 }
 
 static void mute(void)
@@ -480,7 +480,7 @@ static void mute(void)
 	vol = getvol();
 	oldvol = vol;
 	if (smoothfade)
-#ifdef __Darwin__ 
+#ifdef __Darwin__
 		start = mutelevel;
 #else
 		start = 100;
@@ -588,7 +588,7 @@ static void append_sub(struct channel *chan, char *name)
 	struct subchannel *sub;
 	sub = chan->subs;
 	while(sub) {
-		if (!strcasecmp(sub->name, name)) 
+		if (!strcasecmp(sub->name, name))
 			return;
 		sub = sub->next;
 	}
@@ -651,7 +651,7 @@ static int wait_event(void)
 				strncpy(oldname, resp + strlen("Oldname: "), sizeof(oldname) - 1);
 		}
 		if (strlen(channel)) {
-			if (!strcasecmp(event, "Hangup")) 
+			if (!strcasecmp(event, "Hangup"))
 				hangup_chan(channel);
 			else
 				offhook_chan(channel);
@@ -712,7 +712,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (login_asterisk()) {
-#ifndef __Darwin__		
+#ifndef __Darwin__
 		close(mixfd);
 #endif
 		fclose(astf);

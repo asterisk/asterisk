@@ -28,4 +28,3 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ; When set to plain, the password is in plaintext.
 ;
 ;password_format = plain
-

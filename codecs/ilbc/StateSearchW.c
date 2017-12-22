@@ -198,14 +198,3 @@
        AbsQuantW(iLBCenc_inst, fout,syntDenum,
            weightDenum,idxVec, len, state_first);
    }
-
-
-
-
-
-
-
-
-
-
-

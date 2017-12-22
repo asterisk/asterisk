@@ -1093,7 +1093,7 @@ static void worker_active(struct worker_thread *worker)
 {
 	int alive;
 
-	/* The following is equivalent to 
+	/* The following is equivalent to
 	 *
 	 * while (threadpool_execute(worker->pool));
 	 *

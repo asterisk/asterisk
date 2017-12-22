@@ -28,7 +28,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -226,7 +226,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	struct ast_filestream *s = NULL;
 	struct ast_frame *f = NULL;
-	
+
 	struct ast_dsp *sildet = NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
@@ -377,7 +377,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
-	} 
+	}
 
 	if (create_destination_directory(tmp)) {
 		ast_log(LOG_WARNING, "Could not create directory for file %s\n", args.filename);

@@ -26,7 +26,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -158,4 +158,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ITU G.719",
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND
 );
-
