@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -20,7 +20,7 @@
 
 #include "ooasn1.h"
 
-static int encode16BitConstrainedString 
+static int encode16BitConstrainedString
 (OOCTXT* pctxt, Asn116BitCharString value, Asn116BitCharSet* pCharSet);
 
 static int encode2sCompBinInt (OOCTXT* pctxt, ASN1INT value);
@@ -34,7 +34,7 @@ int encodeIdent (OOCTXT* pctxt, ASN1UINT ident);
 
 
 int encodeBit (OOCTXT* pctxt, ASN1BOOL value)
-{ 
+{
    int stat = ASN_OK;
 
    /* If start of new byte, init to zero */
@@ -58,7 +58,7 @@ int encodeBit (OOCTXT* pctxt, ASN1BOOL value)
    /* Set single-bit value */
 
    if (value) {
-      pctxt->buffer.data[pctxt->buffer.byteIndex] |= 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] |=
          ( 1 << pctxt->buffer.bitOffset );
    }
 
@@ -74,7 +74,7 @@ int encodeBit (OOCTXT* pctxt, ASN1BOOL value)
 }
 
 int encodeBits (OOCTXT* pctxt, ASN1UINT value, ASN1UINT nbits)
-{ 
+{
    int nbytes = (nbits + 7)/ 8, stat = ASN_OK;
 
    if (nbits == 0) return stat;
@@ -94,7 +94,7 @@ int encodeBits (OOCTXT* pctxt, ASN1UINT value, ASN1UINT nbits)
 
    if (nbits < (unsigned)pctxt->buffer.bitOffset) {
       pctxt->buffer.bitOffset -= nbits;
-      pctxt->buffer.data[pctxt->buffer.byteIndex] |= 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] |=
          ( value << pctxt->buffer.bitOffset );
       return stat;
    }
@@ -108,22 +108,22 @@ int encodeBits (OOCTXT* pctxt, ASN1UINT value, ASN1UINT nbits)
    /* to set bits in subsequent bytes..                         */
 
    nbits -= pctxt->buffer.bitOffset;
-   pctxt->buffer.data[pctxt->buffer.byteIndex++] |= 
+   pctxt->buffer.data[pctxt->buffer.byteIndex++] |=
       (ASN1OCTET)( value >> nbits );
-   pctxt->buffer.data[pctxt->buffer.byteIndex] = 0; 
+   pctxt->buffer.data[pctxt->buffer.byteIndex] = 0;
 
    while (nbits >= 8) {
       nbits -= 8;
-      pctxt->buffer.data[pctxt->buffer.byteIndex++] = 
+      pctxt->buffer.data[pctxt->buffer.byteIndex++] =
          (ASN1OCTET)( value >> nbits );
-      pctxt->buffer.data[pctxt->buffer.byteIndex] = 0; 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] = 0;
    }
 
    /* copy final partial byte */
 
    pctxt->buffer.bitOffset = 8 - nbits;
    if (nbits > 0) {
-      pctxt->buffer.data[pctxt->buffer.byteIndex] = 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] =
          (ASN1OCTET)((value & ((1 << nbits)-1)) << pctxt->buffer.bitOffset);
    }
    else
@@ -133,11 +133,11 @@ int encodeBits (OOCTXT* pctxt, ASN1UINT value, ASN1UINT nbits)
 }
 
 int encodeBitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
-{ 
+{
    int lshift = pctxt->buffer.bitOffset;
    int rshift = 8 - pctxt->buffer.bitOffset;
    int stat = ASN_OK;
-   ASN1OCTET mask = 0x0; 
+   ASN1OCTET mask = 0x0;
 
    if (nbits == 0) return ASN_OK;
 
@@ -173,14 +173,14 @@ int encodeBitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
    /* possibly some bits in the following octet..               */
 
    else {
-      pctxt->buffer.data[pctxt->buffer.byteIndex] |= 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] |=
          (ASN1OCTET)(value >> rshift);
 
       pctxt->buffer.bitOffset -= nbits;
 
       if (pctxt->buffer.bitOffset < 0) {
          pctxt->buffer.byteIndex++;
-         pctxt->buffer.data[pctxt->buffer.byteIndex] = 
+         pctxt->buffer.data[pctxt->buffer.byteIndex] =
             (ASN1OCTET)(value << lshift);
          pctxt->buffer.bitOffset += 8;
       }
@@ -202,7 +202,7 @@ int encodeBitString (OOCTXT* pctxt, ASN1UINT numbits, const ASN1OCTET* data)
       if (enclen > 0) {
          ASN1BOOL doAlign;
 
-         stat = bitAndOctetStringAlignmentTest 
+         stat = bitAndOctetStringAlignmentTest
             (pSizeList, numbits, TRUE, &doAlign);
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
@@ -225,7 +225,7 @@ int encodeBitString (OOCTXT* pctxt, ASN1UINT numbits, const ASN1OCTET* data)
    return ASN_OK;
 }
 
-int encodeBMPString 
+int encodeBMPString
 (OOCTXT* pctxt, ASN1BMPString value, Asn116BitCharSet* permCharSet)
 {
    Asn116BitCharSet charSet;
@@ -278,9 +278,9 @@ int encodeCheckBuffer (OOCTXT* pctxt, ASN1UINT nbytes)
    return (stat);
 }
 
-int encodeConsInteger 
+int encodeConsInteger
 (OOCTXT* pctxt, ASN1INT value, ASN1INT lower, ASN1INT upper)
-{ 
+{
    ASN1UINT range_value;
    ASN1UINT adjusted_value;
    int stat;
@@ -301,7 +301,7 @@ int encodeConsInteger
    else {
       range_value = upper + abs(lower);
       adjusted_value = value + abs(lower);
-   }      
+   }
 
    if (range_value != ASN1UINT_MAX) { range_value += 1; }
 
@@ -316,9 +316,9 @@ int encodeConsInteger
    return stat;
 }
 
-int encodeConsUnsigned 
+int encodeConsUnsigned
 (OOCTXT* pctxt, ASN1UINT value, ASN1UINT lower, ASN1UINT upper)
-{ 
+{
    ASN1UINT range_value;
    ASN1UINT adjusted_value;
    int stat;
@@ -340,9 +340,9 @@ int encodeConsUnsigned
    return stat;
 }
 
-int encodeConsWholeNumber 
+int encodeConsWholeNumber
 (OOCTXT* pctxt, ASN1UINT adjusted_value, ASN1UINT range_value)
-{ 
+{
    ASN1UINT nocts, range_bitcnt = getUIntBitCount (range_value - 1);
    int stat;
 
@@ -396,8 +396,8 @@ int encodeConsWholeNumber
    }
 }
 
-int encodeConstrainedStringEx (OOCTXT* pctxt, 
-                            const char* string, 
+int encodeConstrainedStringEx (OOCTXT* pctxt,
+                            const char* string,
                             const char* charSet,
                             ASN1UINT abits,  /* aligned char bits */
                             ASN1UINT ubits,  /* unaligned char bits */
@@ -460,7 +460,7 @@ int encodeExpandBuffer (OOCTXT* pctxt, ASN1UINT nbytes)
 
       pctxt->buffer.data = (ASN1OCTET*) memHeapRealloc
          (&pctxt->pMsgMemHeap, pctxt->buffer.data, pctxt->buffer.size);
-      
+
       if (!pctxt->buffer.data) return (ASN_E_NOMEM);
 
       return (ASN_OK);
@@ -481,7 +481,7 @@ ASN1OCTET* encodeGetMsgPtr (OOCTXT* pctxt, int* pLength)
    return pctxt->buffer.data;
 }
 
-int encodeIdent (OOCTXT* pctxt, ASN1UINT ident) 
+int encodeIdent (OOCTXT* pctxt, ASN1UINT ident)
 {
    ASN1UINT mask;
    int nshifts = 0, stat;
@@ -508,9 +508,9 @@ int encodeIdent (OOCTXT* pctxt, ASN1UINT ident)
 }
 
 int encodeLength (OOCTXT* pctxt, ASN1UINT value)
-{ 
+{
    ASN1BOOL extendable;
-   Asn1SizeCnst* pSize = 
+   Asn1SizeCnst* pSize =
       checkSize (pctxt->pSizeConstraint, value, &extendable);
    ASN1UINT lower = (pSize) ? pSize->lower : 0;
    ASN1UINT upper = (pSize) ? pSize->upper : ASN1UINT_MAX;
@@ -520,7 +520,7 @@ int encodeLength (OOCTXT* pctxt, ASN1UINT value)
    /* within the range of any of them, signal constraint violation      */
    /* error..                                                           */
 
-   if (pctxt->pSizeConstraint && !pSize) 
+   if (pctxt->pSizeConstraint && !pSize)
       return LOG_ASN1ERR (pctxt, ASN_E_CONSVIO);
 
    /* Reset the size constraint in the context block structure */
@@ -578,11 +578,11 @@ int encodeObjectIdentifier (OOCTXT* pctxt, ASN1OBJID* pvalue)
    if (0 == pvalue) return LOG_ASN1ERR (pctxt, ASN_E_INVOBJID);
    if (numids < 2) return LOG_ASN1ERR (pctxt, ASN_E_INVOBJID);
    if (pvalue->subid[0] > 2) return LOG_ASN1ERR (pctxt, ASN_E_INVOBJID);
-   if (pvalue->subid[0] != 2 && pvalue->subid[1] > 39) 
+   if (pvalue->subid[0] != 2 && pvalue->subid[1] > 39)
       return LOG_ASN1ERR (pctxt, ASN_E_INVOBJID);
 
    /* Passed checks, encode object identifier */
-   
+
    /* Munge first two sub ID's and encode */
 
    temp = ((pvalue->subid[0] * 40) + pvalue->subid[1]);
@@ -600,7 +600,7 @@ int encodeObjectIdentifier (OOCTXT* pctxt, ASN1OBJID* pvalue)
 }
 
 int encodebitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
-{ 
+{
    int lshift = pctxt->buffer.bitOffset;
    int rshift = 8 - pctxt->buffer.bitOffset;
    int stat = ASN_OK;
@@ -640,14 +640,14 @@ int encodebitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
    /* possibly some bits in the following octet..               */
 
    else {
-      pctxt->buffer.data[pctxt->buffer.byteIndex] |= 
+      pctxt->buffer.data[pctxt->buffer.byteIndex] |=
          (ASN1OCTET)(value >> rshift);
 
       pctxt->buffer.bitOffset -= nbits;
 
       if (pctxt->buffer.bitOffset < 0) {
          pctxt->buffer.byteIndex++;
-         pctxt->buffer.data[pctxt->buffer.byteIndex] = 
+         pctxt->buffer.data[pctxt->buffer.byteIndex] =
             (ASN1OCTET)(value << lshift);
          pctxt->buffer.bitOffset += 8;
       }
@@ -657,7 +657,7 @@ int encodebitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits)
 }
 
 int encodeOctets (OOCTXT* pctxt, const ASN1OCTET* pvalue, ASN1UINT nbits)
-{ 
+{
    int i = 0, stat;
    int numFullOcts = nbits / 8;
 
@@ -675,7 +675,7 @@ int encodeOctets (OOCTXT* pctxt, const ASN1OCTET* pvalue, ASN1UINT nbits)
       /* encode buffer..                                           */
 
       if (pctxt->buffer.bitOffset == 8) {
-         memcpy (&pctxt->buffer.data[pctxt->buffer.byteIndex], pvalue, 
+         memcpy (&pctxt->buffer.data[pctxt->buffer.byteIndex], pvalue,
                  numFullOcts);
          pctxt->buffer.byteIndex += numFullOcts;
          pctxt->buffer.data[pctxt->buffer.byteIndex] = 0;
@@ -714,7 +714,7 @@ int encodeOctetString (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data)
       if (enclen > 0) {
          ASN1BOOL doAlign;
 
-         stat = bitAndOctetStringAlignmentTest 
+         stat = bitAndOctetStringAlignmentTest
             (pSizeList, numocts, FALSE, &doAlign);
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
@@ -793,7 +793,7 @@ int encodeOpenTypeExt (OOCTXT* pctxt, DList* pElemList)
                stat = encodeByteAlign (pctxt);
                if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
-               stat = encodeOpenType 
+               stat = encodeOpenType
                   (pctxt, pOpenType->numocts, pOpenType->data);
 
                if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
@@ -833,7 +833,7 @@ int encodeSemiConsInteger (OOCTXT* pctxt, ASN1INT value, ASN1INT lower)
 
    if (lower > ASN1INT_MIN)
       value -= lower;
-   
+
    /* Calculate signed number value length */
 
    for ( ; shift > 0; shift -= 8) {
@@ -889,10 +889,10 @@ int encodeSemiConsUnsigned (OOCTXT* pctxt, ASN1UINT value, ASN1UINT lower)
    if ((stat = encodeLength (pctxt, nbytes)) < 0) {
       return stat;
    }
-   
+
    if ((stat = encodeByteAlign (pctxt)) != ASN_OK)
       return stat;
-   
+
    /* Encode additional zero byte if necessary */
 
    if (nbytes > sizeof(value)) {
@@ -908,7 +908,7 @@ int encodeSemiConsUnsigned (OOCTXT* pctxt, ASN1UINT value, ASN1UINT lower)
 }
 
 int encodeSmallNonNegWholeNumber (OOCTXT* pctxt, ASN1UINT value)
-{ 
+{
    int stat;
 
    if (value < 64) {
@@ -964,7 +964,7 @@ int encodeVarWidthCharString (OOCTXT* pctxt, const char* value)
    return ASN_OK;
 }
 
-static int encode16BitConstrainedString 
+static int encode16BitConstrainedString
 (OOCTXT* pctxt, Asn116BitCharString value, Asn116BitCharSet* pCharSet)
 {
    ASN1UINT i, pos;
@@ -985,7 +985,7 @@ static int encode16BitConstrainedString
 
    for (i = 0; i < value.nchars; i++) {
       if (pCharSet->charSet.data == 0) {
-         stat = encodeBits 
+         stat = encodeBits
             (pctxt, value.data[i] - pCharSet->firstChar, nbits);
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
       }
@@ -1051,7 +1051,7 @@ static int encodeNonNegBinInt (OOCTXT* pctxt, ASN1UINT value)
    /* multiple of 8 bits and also satisifies the condition that the     */
    /* leading eight bits of the field shall not be zero unless the      */
    /* field is precisely 8 bits long.                                   */
- 
+
    ASN1UINT bitcnt = (value == 0) ? 1 : getUIntBitCount (value);
 
    /* round-up to nearest 8-bit boundary */
@@ -1093,7 +1093,7 @@ static int encodeUnconsLength (OOCTXT* pctxt, ASN1UINT value)
    return enclen;
 }
 
-static int getIdentByteCount (ASN1UINT ident) 
+static int getIdentByteCount (ASN1UINT ident)
 {
    if (ident < (1u << 7)) {         /* 7 */
       return 1;

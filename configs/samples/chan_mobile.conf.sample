@@ -4,7 +4,7 @@
 ;
 
 [general]
-interval=30		; Number of seconds between trying to connect to devices. 
+interval=30		; Number of seconds between trying to connect to devices.
 
 ; The following is a list of adapters we use.
 ; id must be unique and address is the bdaddr of the adapter from hciconfig.
@@ -24,7 +24,7 @@ id=dlink
 address=00:80:C8:35:52:78
 
 ; The following is a list of the devices we deal with.
-; Every device listed below will be available for calls in and out of Asterisk. 
+; Every device listed below will be available for calls in and out of Asterisk.
 ; Each device needs an adapter=xxxx entry which determines which bluetooth adapter is used.
 ; Use the CLI command 'mobile search' to discover devices.
 ; Use the CLI command 'mobile show devices' to see device status.

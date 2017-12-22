@@ -222,4 +222,3 @@ void ast_smoother_free(struct ast_smoother *s)
 	ao2_cleanup(s->format);
 	ast_free(s);
 }
-

@@ -47,7 +47,7 @@
 
 #include <ctype.h>		/* isalnum() used here */
 #include <math.h>
-#include <sys/ioctl.h>		
+#include <sys/ioctl.h>
 
 #ifdef __linux
 #include <linux/soundcard.h>
@@ -580,7 +580,7 @@ static int oss_digit_begin(struct ast_channel *c, char digit)
 static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration)
 {
 	/* no better use for received digits than print them */
-	ast_verbose(" << Console Received digit %c of duration %u ms >> \n", 
+	ast_verbose(" << Console Received digit %c of duration %u ms >> \n",
 		digit, duration);
 	return 0;
 }
@@ -890,7 +890,7 @@ static char *console_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = CONSOLE_VIDEO_CMDS;
-		e->usage = 
+		e->usage =
 			"Usage: " CONSOLE_VIDEO_CMDS "...\n"
 			"       Generic handler for console commands.\n";
 		return NULL;
@@ -1142,7 +1142,7 @@ static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	struct chan_oss_pvt *o = find_desc(oss_active);
 	const char *s;
 	int toggle = 0;
-	
+
 	if (cmd == CLI_INIT) {
 		e->command = "console {mute|unmute} [toggle]";
 		e->usage =
@@ -1292,7 +1292,7 @@ static struct ast_cli_entry cli_oss[] = {
 	AST_CLI_DEFINE(console_flash, "Flash a call on the console"),
 	AST_CLI_DEFINE(console_dial, "Dial an extension on the console"),
 	AST_CLI_DEFINE(console_mute, "Disable/Enable mic input"),
-	AST_CLI_DEFINE(console_transfer, "Transfer a call to a different extension"),	
+	AST_CLI_DEFINE(console_transfer, "Transfer a call to a different extension"),
 	AST_CLI_DEFINE(console_cmd, "Generic console command"),
 	AST_CLI_DEFINE(console_sendtext, "Send text to the remote device"),
 	AST_CLI_DEFINE(console_autoanswer, "Sets/displays autoanswer"),
@@ -1466,8 +1466,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
@@ -1520,4 +1520,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "OSS Console Channel Driver");
-

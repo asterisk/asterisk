@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -23,7 +23,7 @@
 ASN1BOOL isExtendableSize (Asn1SizeCnst* pSizeList);
 static ASN1BOOL isFixedSize (Asn1SizeCnst* pSizeList);
 
-ASN1BOOL alignCharStr 
+ASN1BOOL alignCharStr
 (OOCTXT* pctxt, ASN1UINT len, ASN1UINT nbits, Asn1SizeCnst* pSize)
 {
    if (TRUE) {
@@ -59,16 +59,16 @@ ASN1BOOL alignCharStr
       return FALSE;
 }
 
-int bitAndOctetStringAlignmentTest (Asn1SizeCnst* pSizeList, 
-                                    ASN1UINT itemCount, 
+int bitAndOctetStringAlignmentTest (Asn1SizeCnst* pSizeList,
+                                    ASN1UINT itemCount,
                                     ASN1BOOL bitStrFlag,
                                     ASN1BOOL* pAlignFlag)
 {
    ASN1UINT threshold = (bitStrFlag) ? 16 : 2;
 
-   if (pSizeList == 0 || itemCount > threshold) 
+   if (pSizeList == 0 || itemCount > threshold)
       *pAlignFlag = TRUE;
-   else if (isFixedSize(pSizeList)) 
+   else if (isFixedSize(pSizeList))
       *pAlignFlag = FALSE;
    else {
 
@@ -91,8 +91,8 @@ int bitAndOctetStringAlignmentTest (Asn1SizeCnst* pSizeList,
    return (ASN_OK);
 }
 
-Asn1SizeCnst* checkSize (Asn1SizeCnst* pSizeList, 
-                         ASN1UINT value, 
+Asn1SizeCnst* checkSize (Asn1SizeCnst* pSizeList,
+                         ASN1UINT value,
                          ASN1BOOL* pExtendable)
 {
    Asn1SizeCnst* lpSize = pSizeList;
@@ -132,7 +132,7 @@ int addSizeConstraint (OOCTXT* pctxt, Asn1SizeCnst* pSize)
       lpSize = pSize;
       while (lpSize) {
          if (pctxt->pSizeConstraint->lower <= lpSize->lower ||
-             pctxt->pSizeConstraint->upper >= lpSize->upper) 
+             pctxt->pSizeConstraint->upper >= lpSize->upper)
          {
             /* Set the extension flag to the value of the size          */
             /* constraint structure that the item falls within..        */
@@ -196,32 +196,32 @@ int checkSizeConstraint(OOCTXT* pctxt, int size)
 }
 
 ASN1UINT getUIntBitCount (ASN1UINT value)
-{ 
+{
    /* Binary search - decision tree (5 tests, rarely 6) */
    return
       ((value < 1<<15) ?
        ((value < 1<<7) ?
         ((value < 1<<3) ?
-         ((value < 1<<1) ? ((value < 1<<0) ? 0 : 1) : 
+         ((value < 1<<1) ? ((value < 1<<0) ? 0 : 1) :
           ((value < 1<<2) ? 2 : 3)) :
-         ((value < 1<<5) ? ((value < 1<<4) ? 4 : 5) : 
+         ((value < 1<<5) ? ((value < 1<<4) ? 4 : 5) :
           ((value < 1<<6) ? 6 : 7))) :
         ((value < 1<<11) ?
-         ((value < 1<<9) ? ((value < 1<<8) ? 8 : 9) : 
+         ((value < 1<<9) ? ((value < 1<<8) ? 8 : 9) :
           ((value < 1<<10) ? 10 : 11)) :
-         ((value < 1<<13) ? ((value < 1<<12) ? 12 : 13) : 
+         ((value < 1<<13) ? ((value < 1<<12) ? 12 : 13) :
           ((value < 1<<14) ? 14 : 15)))) :
        ((value < 1<<23) ?
         ((value < 1<<19) ?
-         ((value < 1<<17) ? ((value < 1<<16) ? 16 : 17) : 
+         ((value < 1<<17) ? ((value < 1<<16) ? 16 : 17) :
           ((value < 1<<18) ? 18 : 19)) :
-         ((value < 1<<21) ? ((value < 1<<20) ? 20 : 21) : 
+         ((value < 1<<21) ? ((value < 1<<20) ? 20 : 21) :
           ((value < 1<<22) ? 22 : 23))) :
         ((value < 1<<27) ?
-         ((value < 1<<25) ? ((value < 1<<24) ? 24 : 25) : 
+         ((value < 1<<25) ? ((value < 1<<24) ? 24 : 25) :
           ((value < 1<<26) ? 26 : 27)) :
-         ((value < 1<<29) ? ((value < 1<<28) ? 28 : 29) : 
-          ((value < 1<<30) ? 30 : 
+         ((value < 1<<29) ? ((value < 1<<28) ? 28 : 29) :
+          ((value < 1<<30) ? 30 :
            ((value < 1UL<<31) ? 31 : 32))))));
 }
 
@@ -257,7 +257,7 @@ static ASN1BOOL isFixedSize (Asn1SizeCnst* pSizeList)
    return FALSE;
 }
 
-void set16BitCharSet 
+void set16BitCharSet
 (OOCTXT* pctxt, Asn116BitCharSet* pCharSet, Asn116BitCharSet* pAlphabet)
 {
    /* Permitted alphabet range can either be specified as a range of    */
@@ -267,7 +267,7 @@ void set16BitCharSet
       int nocts = pAlphabet->charSet.nchars * 2;
       pCharSet->charSet.nchars = pAlphabet->charSet.nchars;
 
-      pCharSet->charSet.data = 
+      pCharSet->charSet.data =
          (ASN116BITCHAR*) ASN1MALLOC (pctxt, nocts);
 
       if (pCharSet->charSet.data != NULL)
@@ -286,4 +286,3 @@ void set16BitCharSet
       pCharSet->alignedBits <<= 1;
 
 }
-

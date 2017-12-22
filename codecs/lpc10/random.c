@@ -122,4 +122,3 @@ integer random_(struct lpc10_decoder_state *st)
     }
     return ret_val;
 } /* random_ */
-

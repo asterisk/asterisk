@@ -40,7 +40,7 @@
  * \arg <b>Website</b>: http://www.openssl.org
  * \arg <b>Used by</b>: Asterisk core (TLS for manager and HTTP), res_crypto
  * \arg <b>License</b>: Apache 2.0
- * \arg <b>Note</b>:    An exception has been granted to allow linking of 
+ * \arg <b>Note</b>:    An exception has been granted to allow linking of
  *                      OpenSSL with Asterisk.
  *
  * \subsection curl_lib Curl

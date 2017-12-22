@@ -78,4 +78,3 @@ flags=register,heartbeat
 ;  USE A '*' PROVISIONING ENTRY UNLESS YOU KNOW WHAT YOU'RE DOING.
 ;
 ;template=default
-

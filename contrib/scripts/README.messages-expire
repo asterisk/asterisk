@@ -1,10 +1,10 @@
 messages-expire.pl
 
-messages-expire finds messages more than X days old and deletes them. 
+messages-expire finds messages more than X days old and deletes them.
 Because the older messages will be the lower numbers in the folder (msg0000
-will be older than msg0005), just deleting msg0000 will not work. 
+will be older than msg0005), just deleting msg0000 will not work.
 expire-messages then runs a routine that goes into every folder in every
-mailbox to reorganize.  If the folder contains msg0000, no action is taken. 
+mailbox to reorganize.  If the folder contains msg0000, no action is taken.
 If the folder does not, the rename routine takes the oldest message and
 names it msg0000, the next oldest message and names it msg0001 and so on.
 

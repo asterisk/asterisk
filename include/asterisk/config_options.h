@@ -784,11 +784,11 @@ intptr_t aco_option_get_argument(const struct aco_option *option, unsigned int p
  * VA_NARGS(one, two, three) ->                    v
  * VA_NARGS1(one, two, three,  8,  7,  6,  5,  4,  3,  2,  1,  0) ->
  * VA_NARGS1( _1,  _2,    _3, _4, _5, _6, _7, _8,  N, ...       ) N -> 3
- * 
+ *
  * Note that VA_NARGS *does not* work when there are no arguments passed. Pasting an empty
  * __VA_ARGS__ with a comma like ", ##__VA_ARGS__" will delete the leading comma, but it
  * does not work when __VA_ARGS__ is the first argument. Instead, 1 is returned instead of 0:
- * 
+ *
  * VA_NARGS() ->                              v
  * VA_NARGS1(  ,  8,  7,  6,  5,  4,  3,  2,  1,  0) ->
  * VA_NARGS1(_1, _2, _3, _4, _5, _6, _7, _8,  N) -> 1

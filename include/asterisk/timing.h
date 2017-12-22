@@ -88,7 +88,7 @@ struct ast_timing_interface {
  * \param i An instance of the \c ast_timing_interfaces structure with pointers
  *        to the functions provided by the timing implementation.
  *
- * \retval NULL failure 
+ * \retval NULL failure
  * \retval non-Null handle to be passed to ast_unregister_timing_interface() on success
  * \since 1.6.1
  */

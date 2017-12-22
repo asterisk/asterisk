@@ -64,17 +64,3 @@
        memcpy(mem, &Out[len-LPC_FILTERORDER],
            LPC_FILTERORDER*sizeof(float));
    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

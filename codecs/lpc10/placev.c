@@ -109,8 +109,8 @@ extern int placev_(integer *osbuf, integer *osptr, integer *oslen, integer *obou
 
 /* This subroutine has no local state. */
 
-/* Subroutine */ int placev_(integer *osbuf, integer *osptr, integer *oslen, 
-	integer *obound, integer *vwin, integer *af, integer *lframe, integer 
+/* Subroutine */ int placev_(integer *osbuf, integer *osptr, integer *oslen,
+	integer *obound, integer *vwin, integer *af, integer *lframe, integer
 	*minwin, integer *maxwin, integer *dvwinl, integer *dvwinh)
 {
     /* System generated locals */
@@ -146,15 +146,15 @@ extern int placev_(integer *osbuf, integer *osptr, integer *oslen, integer *obou
 /*   given in the LPC-10e phase 1 report. */
 
 /*   1.  If there are no onsets in this range, then the voicing window */
-/*   is centered in the pitch window.  If such a placement is not within 
+/*   is centered in the pitch window.  If such a placement is not within
 */
-/*   the window's placement range, then the window is placed in the left- 
+/*   the window's placement range, then the window is placed in the left-
 */
 /*   most portion of the placement range.  Its length is always MAXWIN. */
 
 /*   2.  If the first onset is in 2F and there is sufficient room to place
  */
-/*   the window immediately before this onset, then the window is placed 
+/*   the window immediately before this onset, then the window is placed
 */
 /*   there, and its length is set to the maximum possible under these */
 /*   constraints. */
@@ -177,7 +177,7 @@ ing*/
 /*   Note that the values of MINWIN and LFRAME must be chosen such */
 /*   that case 2 = false implies case 3 = true.   This means that */
 /*   MINWIN <= LFRAME/2.  If this were not the case, then a fourth case */
-/*   would have to be added for when the window cannot fit either before 
+/*   would have to be added for when the window cannot fit either before
 */
 /*   or after the onset. */
 
@@ -185,11 +185,11 @@ ing*/
  */
 /*  time, due to the filter delays in computing onsets.  The result is tha
 t*/
-/*   occasionally a voicing window will overlap that onset.  The only way 
+/*   occasionally a voicing window will overlap that onset.  The only way
 */
-/*   to circumvent this problem is to add more delay in processing input 
+/*   to circumvent this problem is to add more delay in processing input
 */
-/*   speech.  In the trade-off between delay and window-placement, window 
+/*   speech.  In the trade-off between delay and window-placement, window
 */
 /*   placement lost. */
 /* Compute the placement range */
@@ -272,4 +272,3 @@ L120:
     }
     return 0;
 } /* placev_ */
-

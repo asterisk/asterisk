@@ -29,7 +29,7 @@
 struct tdd_state;
 typedef struct tdd_state TDDSTATE;
 
-/*! CallerID Initialization 
+/*! CallerID Initialization
  * Initializes the TDD system.  Mostly stuff for inverse FFT
  */
 void tdd_init(void);
@@ -43,7 +43,7 @@ void tdd_init(void);
 */
 int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *string);
 
-/*! Create a TDD state machine 
+/*! Create a TDD state machine
  * This function returns a malloc'd instance of the tdd_state data structure.
  * Returns a pointer to a malloc'd tdd_state structure, or NULL on error.
  */
@@ -60,13 +60,13 @@ struct tdd_state *tdd_new(void);
  */
 int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int samples);
 
-/*! Free a TDD state machine 
+/*! Free a TDD state machine
  * \param tdd This is the tdd_state state machine to free
  * This function frees tdd_state tdd.
  */
 void tdd_free(struct tdd_state *tdd);
 
-/*! Generate Echo Canceller disable tone (2100HZ) 
+/*! Generate Echo Canceller disable tone (2100HZ)
  * \param outbuf This is the buffer to receive the tone data
  * \param len This is the length (in samples) of the tone data to generate
  * Returns 0 if no error, and -1 if error.
@@ -74,7 +74,7 @@ void tdd_free(struct tdd_state *tdd);
 int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
 
 
-/*! Generate hold tone 
+/*! Generate hold tone
  * \param outbuf This is the buffer to receive the tone data
 */
 int tdd_gen_holdtone(unsigned char* outbuf);

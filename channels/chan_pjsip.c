@@ -791,7 +791,7 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 }
 
 /*!
- * \brief Function called by core to read any waiting frames 
+ * \brief Function called by core to read any waiting frames
  *
  * \note The channel is already locked.
  */

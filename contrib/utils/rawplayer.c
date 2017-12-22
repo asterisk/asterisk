@@ -27,9 +27,9 @@ static int deliver_file(char *path, int fdout) {
 		}
 		if(fd)
 			close(fd);
-	} else 
+	} else
 		return -1;
-	
+
 	return error;
 }
 
@@ -43,4 +43,3 @@ int main(int argc, char *argv[]) {
 				exit(1);
 		}
 }
-

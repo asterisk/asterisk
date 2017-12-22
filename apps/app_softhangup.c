@@ -21,7 +21,7 @@
  * \brief SoftHangup application
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -52,9 +52,9 @@
 					</option>
 				</optionlist>
 			</parameter>
-		</syntax>	
+		</syntax>
 		<description>
-			<para>Hangs up the requested channel.  If there are no channels to 
+			<para>Hangs up the requested channel.  If there are no channels to
 			hangup, the application will report it.</para>
 		</description>
 	</application>
@@ -83,7 +83,7 @@ static int softhangup_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 	struct ast_channel_iterator *iter;
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
@@ -104,7 +104,7 @@ static int softhangup_exec(struct ast_channel *chan, const char *data)
 		ast_channel_lock(c);
 		ast_copy_string(name, ast_channel_name(c), sizeof(name));
 		if (ast_test_flag(&flags, OPTION_ALL)) {
-			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
+			/* CAPI is set up like CAPI[foo/bar]/clcnt */
 			if (!strcmp(ast_channel_tech(c)->type, "CAPI")) {
 				cut = strrchr(name, '/');
 			/* Basically everything else is Foo/Bar-Z */

@@ -8,7 +8,7 @@
 .TH "asterisk " 8 2011-02-08 "asterisk Trunk" ""
 .SH NAME
 asterisk
-\- All-purpose telephony server. 
+\- All-purpose telephony server.
 .SH SYNOPSIS
 'nh
 .fi
@@ -43,7 +43,7 @@ asterisk
 .SH DESCRIPTION
 \fBasterisk\fR is a full-featured telephony server which
 provides Private Branch eXchange (PBX), Interactive Voice Response (IVR),
-Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
+Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying,
 Conferencing, and a plethora of other telephony applications to a broad
 range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny,
 H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM
@@ -69,26 +69,26 @@ Running Asterisk starts the asterisk daemon (optionally running it
 in the foreground). However running it with \*(T<\fB\-r\fR\*(T> or
 \*(T<\fB\-R\fR\*(T> connects to an existing Asterisk instance through
 a remote console.
-.TP 
+.TP
 \-B
 Force the background of the terminal to be black, in order for
 terminal colors to show up properly. Equivalent to
 \*(T<\fBforceblackbackground = yes\fR\*(T> in
 \*(T<\fIasterisk.conf\fR\*(T>. See also
 \*(T<\fB\-n\fR\*(T> and \*(T<\fB\-W\fR\*(T>.
-.TP 
+.TP
 \-C \fIfile\fR
 Use \*(T<\fIfile\fR\*(T> as master configuration file
 instead of the default, /etc/asterisk/asterisk.conf
-.TP 
+.TP
 \-c
 Provide a control console on the calling terminal. The
 console is similar to the remote console provided by
-\*(T<\fB\-r\fR\*(T>. Specifying this option implies 
-\fB\-f\fR and will cause asterisk to no longer 
-fork or detach from the controlling terminal. Equivalent 
+\*(T<\fB\-r\fR\*(T>. Specifying this option implies
+\fB\-f\fR and will cause asterisk to no longer
+fork or detach from the controlling terminal. Equivalent
 to \*(T<\fBconsole = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
-.TP 
+.TP
 \-d
 Enable extra debugging statements. This parameter may be used several
 times, and each increases the debug level. Equivalent to \*(T<\fBdebug = \fR\*(T>\fInum\fR
@@ -97,68 +97,68 @@ level to \fInum\fR. When given at startup, this
 option also implies \*(T<\fB\-f\fR\*(T> (no forking). However when
 connecting to an existing Asterisk instance (\*(T<\fB\-r\fR\*(T> or
 \*(T<\fB\-R\fR\*(T>), it may only increase the debug level.
-.TP 
+.TP
 \-e \fImemory\fR
-Limit the generation of new channels when the amount of free memory 
+Limit the generation of new channels when the amount of free memory
 has decreased to under \fImemory\fR megabytes.
 Equivalent to \*(T<\fBminmemfree = \fR\*(T>\fImemory\fR in
 \*(T<\fIasterisk.conf\fR\*(T>.
-.TP 
+.TP
 \-f
 Do not fork or detach from controlling terminal. Overrides any
 preceding specification of \fB\-F\fR on the command line.
 Equivalent to \*(T<\fBnofork = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
 See also \*(T<\fB\-c\fR\*(T>.
-.TP 
+.TP
 \-F
 Always fork and detach from controlling terminal. Overrides any
 preceding specification of \fB\-f\fR on the command line.
 May also be used to prevent \*(T<\fB\-d\fR\*(T> and \*(T<\fB\-v\fR\*(T> to imply
 no forking. Equivalent to \*(T<\fBalwaysfork = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
-.TP 
+.TP
 \-g
 Remove resource limit on core size, thus forcing Asterisk to dump
 core in the unlikely event of a segmentation fault or abort signal.
 \fBNOTE:\fR in some cases this may be incompatible
 with the \fB\-U\fR or \fB\-G\fR flags.
-.TP 
+.TP
 \-G \fIgroup\fR
 Run as group \fIgroup\fR instead of the
 calling group. \fBNOTE:\fR this requires substantial work
 to be sure that Asterisk's environment has permission to write
 the files required for its operation, including logs, its comm
 socket, the asterisk database, etc.
-.TP 
+.TP
 \-h
 Provide brief summary of command line arguments and terminate.
-.TP 
+.TP
 \-i
 Prompt user to intialize any encrypted private keys for IAX2
 secure authentication during startup.
-.TP 
+.TP
 \-I
 Enable internal timing if DAHDI timing is available.
 The default behaviour is that outbound packets are phase locked
 to inbound packets. Enabling this switch causes them to be
 locked to the internal DAHDI timer instead.
-.TP 
+.TP
 \-L \fIloadaverage\fR
 Limits the maximum load average before rejecting new calls. This can
 be useful to prevent a system from being brought down by terminating
 too many simultaneous calls.
-.TP 
+.TP
 \-m
 Temporarily mutes output to the console and logs. To return to normal,
 use \fBlogger mute\fR.
-.TP 
+.TP
 \-M \fIvalue\fR
 Limits the maximum number of calls to the specified value. This can
 be useful to prevent a system from being brought down by terminating
 too many simultaneous calls.
-.TP 
+.TP
 \-n
 Disable ANSI colors even on terminals capable of displaying them.
-.TP 
+.TP
 \-p
 If supported by the operating system (and executing as root),
 attempt to run with realtime priority for increased performance and
@@ -169,41 +169,41 @@ Note: \fBastcanary\fR will run concurrently with
 \fBasterisk\fR. If \fBastcanary\fR stops
 running or is killed, \fBasterisk\fR will slow down to
 normal process priority, to avoid locking up the machine.
-.TP 
+.TP
 \-q
 Reduce default console output when running in conjunction with
 console mode (\fB\-c\fR).
-.TP 
+.TP
 \-r
 Instead of running a new Asterisk process, attempt to connect
 to a running Asterisk process and provide a console interface
 for controlling it.
-.TP 
+.TP
 \-R
 Much like \fB\-r\fR. Instead of running a new Asterisk process, attempt to connect
 to a running Asterisk process and provide a console interface
-for controlling it. Additionally, if connection to the Asterisk 
+for controlling it. Additionally, if connection to the Asterisk
 process is lost, attempt to reconnect for as long as 30 seconds.
-.TP 
+.TP
 \-s \fIsocket file name\fR
 In combination with \fB\-r\fR, connect directly to a specified
 Asterisk server socket.
-.TP 
+.TP
 \-t
-When recording files, write them first into a temporary holding directory, 
+When recording files, write them first into a temporary holding directory,
 then move them into the final location when done.
-.TP 
+.TP
 \-T
 Add timestamp to all non-command related output going to the console
 when running with verbose and/or logging to the console.
-.TP 
+.TP
 \-U \fIuser\fR
 Run as user \fIuser\fR instead of the
 calling user. \fBNOTE:\fR this requires substantial work
 to be sure that Asterisk's environment has permission to write
 the files required for its operation, including logs, its comm
 socket, the asterisk database, etc.
-.TP 
+.TP
 \-v
 Increase the level of verboseness on the console. The more times
 \fB\-v\fR is specified, the more verbose the output is.
@@ -215,22 +215,22 @@ and \fB\-R\fR.
 Note: This always sets the verbose level in the asterisk process,
 even if it is running in the background. This will affect the size
 of your log files.
-.TP 
+.TP
 \-V
 Display version information and exit immediately.
-.TP 
+.TP
 \-W
 Display colored terminal text as if the background were white
 or otherwise light in color. Normally, terminal text is displayed
 as if the background were black or otherwise dark in color.
-.TP 
+.TP
 \-x \fIcommand\fR
 Connect to a running Asterisk process and execute a command on
 a command line, passing any output through to standard out and
 then terminating when the command execution completes. Implies
 \fB\-r\fR when \fB\-R\fR is not explicitly
 supplied.
-.TP 
+.TP
 \-X
 Enables executing of includes via \fB#exec\fR directive inside
 \*(T<\fIasterisk.conf\fR\*(T>.

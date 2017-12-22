@@ -21,4 +21,3 @@
 ;                          ; debug is output.
 ;ta_file = /etc/asterisk/dnssec_keys ; Full path to a trusted anchors key file. These keys are
 ;                                    ; used to verify DNSSEC signed results.
-

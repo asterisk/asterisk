@@ -144,7 +144,7 @@ struct ast_fax_session_details {
 	unsigned int pages_transferred;
 	/*! session details flags for options */
 	union {
-		/*! dontuse dummy variable - do not ever use */	
+		/*! dontuse dummy variable - do not ever use */
 		uint32_t dontuse;
 		struct {
 			/*! flag to send debug manager events */

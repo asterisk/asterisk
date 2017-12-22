@@ -102,4 +102,3 @@ void sw_free(struct ast_sw *sw)
 {
 	ast_free(sw);
 }
-

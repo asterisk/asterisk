@@ -35,7 +35,7 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 /*!
  * \brief parses a config line for a host with a transport
  *
- * An example input would be: 
+ * An example input would be:
  *     <code>tls://www.google.com:8056</code>
  *
  * \retval 0 on success

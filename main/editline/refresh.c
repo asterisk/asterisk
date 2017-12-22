@@ -166,7 +166,7 @@ re_putc(EditLine *el, int c, int shift)
 			for(i=1; i < lins; i++)
 				el->el_vdisplay[i-1] = el->el_vdisplay[i];
 
-			firstline[0] = '\0';		/* empty the string */	
+			firstline[0] = '\0';		/* empty the string */
 			el->el_vdisplay[i-1] = firstline;
 		} else
 			el->el_refresh.r_cursor.v++;
@@ -1002,7 +1002,7 @@ re_fastputc(EditLine *el, int c)
 		if (el->el_cursor.v + 1 >= el->el_term.t_size.v) {
 			int i, lins = el->el_term.t_size.v;
 			char *firstline = el->el_display[0];
-	
+
 			for(i=1; i < lins; i++)
 				el->el_display[i-1] = el->el_display[i];
 

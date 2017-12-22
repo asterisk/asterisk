@@ -1,6 +1,6 @@
-dnl 
+dnl
 dnl Process this file with autoconf to produce a configure script.
-dnl 
+dnl
 AC_INIT(Makefile.in)
 
 dnl If CFLAGS isn't defined and using gcc, set CFLAGS to something reasonable.
@@ -36,15 +36,15 @@ case "${host}" in
 	if echo ${host} | grep -q cygwin ; then \
 		echo "cygwin detected"; \
 		S_CFLAGS=""; \
-		echo "/* cygdef.h. Generated automatically by configure. */ 
+		echo "/* cygdef.h. Generated automatically by configure. */
 #ifndef _CYGDEF_H_
 #define _CYGDEF_H_ 1
 #include <sys/ioctl.h>
 #define __linux__ 1
- 
+
 
 typedef void (*sig_t)(int);
- 
+
 
 #endif /* _CYGDEF_H_ */" > cygdef.h; \
 	echo "
@@ -155,10 +155,10 @@ else
 fi
 
 
-dnl 
+dnl
 dnl File lists.  This is done here instead of in the Makefile in order to avoid
 dnl the need for conditionals.
-dnl 
+dnl
 
 dnl .c files.
 ACSRCS="common.c emacs.c vi.c"
@@ -275,4 +275,3 @@ AC_SUBST(TCSRCS)
 
 AC_CONFIG_HEADER(config.h)
 AC_OUTPUT([Makefile makelist])
-

@@ -99,7 +99,7 @@
 					<option name="e">
 						<argument name="ext" required="true" />
 						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
-						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited
 						list.</para>
 					</option>
 					<option name="E">
@@ -111,7 +111,7 @@
 							listed in <replaceable>grp</replaceable> matches one or more groups from the
 							<variable>SPYGROUP</variable> variable set on the channel to be spied upon.</para>
 						</argument>
-						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain 
+						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain
 						either a single group or a colon-delimited list of groups, such
 						as <literal>sales:support:accounting</literal>.</para></note>
 					</option>
@@ -137,7 +137,7 @@
 						selected channel name.</para>
 					</option>
 					<option name="r">
-						<para>Record the session to the monitor spool directory. An optional base for the filename 
+						<para>Record the session to the monitor spool directory. An optional base for the filename
 						may be specified. The default is <literal>chanspy</literal>.</para>
 						<argument name="basename" />
 					</option>
@@ -154,7 +154,7 @@
 					</option>
 					<option name="v">
 						<argument name="value" />
-						<para>Adjust the initial volume in the range from <literal>-4</literal> 
+						<para>Adjust the initial volume in the range from <literal>-4</literal>
 						to <literal>4</literal>. A negative value refers to a quieter setting.</para>
 					</option>
 					<option name="w">
@@ -179,11 +179,11 @@
 						name of the last channel that was spied on will be stored
 						in the <variable>SPY_CHANNEL</variable> variable.</para>
 					</option>
-				</optionlist>		
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This application is used to listen to the audio from an Asterisk channel. This includes the audio 
+			<para>This application is used to listen to the audio from an Asterisk channel. This includes the audio
 			coming in and out of the channel being spied on. If the <literal>chanprefix</literal> parameter is specified,
 			only channels beginning with this string will be spied upon.</para>
 			<para>While spying, the following actions may be performed:</para>
@@ -248,7 +248,7 @@
 					<option name="e">
 						<argument name="ext" required="true" />
 						<para>Enable <emphasis>enforced</emphasis> mode, so the spying channel can
-						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited 
+						only monitor extensions whose name is in the <replaceable>ext</replaceable> : delimited
 						list.</para>
 					</option>
 					<option name="E">
@@ -260,7 +260,7 @@
 							listed in <replaceable>grp</replaceable> matches one or more groups from the
 							<variable>SPYGROUP</variable> variable set on the channel to be spied upon.</para>
 						</argument>
-						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain 
+						<note><para>both <replaceable>grp</replaceable> and <variable>SPYGROUP</variable> can contain
 						either a single group or a colon-delimited list of groups, such
 						as <literal>sales:support:accounting</literal>.</para></note>
 					</option>
@@ -286,7 +286,7 @@
 						selected channel name.</para>
 					</option>
 					<option name="r">
-						<para>Record the session to the monitor spool directory. An optional base for the filename 
+						<para>Record the session to the monitor spool directory. An optional base for the filename
 						may be specified. The default is <literal>chanspy</literal>.</para>
 						<argument name="basename" />
 					</option>
@@ -299,7 +299,7 @@
 					</option>
 					<option name="v">
 						<argument name="value" />
-						<para>Adjust the initial volume in the range from <literal>-4</literal> 
+						<para>Adjust the initial volume in the range from <literal>-4</literal>
 						to <literal>4</literal>. A negative value refers to a quieter setting.</para>
 					</option>
 					<option name="w">
@@ -324,13 +324,13 @@
 						name of the last channel that was spied on will be stored
 						in the <variable>SPY_CHANNEL</variable> variable.</para>
 					</option>
-				</optionlist>	
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This application is used to listen to the audio from an Asterisk channel. This includes 
+			<para>This application is used to listen to the audio from an Asterisk channel. This includes
 			the audio coming in and out of the channel being spied on. Only channels created by outgoing calls for the
-			specified extension will be selected for spying. If the optional context is not supplied, 
+			specified extension will be selected for spying. If the optional context is not supplied,
 			the current channel's context will be used.</para>
 			<para>While spying, the following actions may be performed:</para>
 			<para> - Dialing <literal>#</literal> cycles the volume level.</para>
@@ -1039,7 +1039,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				num_mygroups = ast_app_separate_args(dup_mygroup, ':', mygroups,
 					ARRAY_LEN(mygroups));
 
-				/* Before dahdi scan was part of chanspy, it would use the "GROUP" variable 
+				/* Before dahdi scan was part of chanspy, it would use the "GROUP" variable
 				 * rather than "SPYGROUP", this check is done to preserve expected behavior */
 				ast_autochan_channel_lock(autochan);
 				if (ast_test_flag(flags, OPTION_DAHDI_SCAN)) {

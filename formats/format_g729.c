@@ -22,14 +22,14 @@
  * \note This is not an encoder/decoder. The codec for g729 is only
  * available with a commercial license from Digium, due to patent
  * restrictions. Check http://www.digium.com for information.
- * \arg Extensions: g729 
+ * \arg Extensions: g729
  * \ingroup formats
  */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 #include "asterisk/mod_format.h"
@@ -86,7 +86,7 @@ static int g729_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	cur = ftello(fs->f);
 	fseeko(fs->f, 0, SEEK_END);
 	max = ftello(fs->f);
-	
+
 	bytes = BUF_SIZE * (sample_offset / G729A_SAMPLES);
 	if (whence == SEEK_SET)
 		offset = bytes;

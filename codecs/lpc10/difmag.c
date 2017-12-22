@@ -87,7 +87,7 @@ extern int difmag_(real *speech, integer *lpita, integer *tau, integer *ltau, in
 
 /* This subroutine has no local state. */
 
-/* Subroutine */ int difmag_(real *speech, integer *lpita, integer *tau, 
+/* Subroutine */ int difmag_(real *speech, integer *lpita, integer *tau,
 	integer *ltau, integer *maxlag, real *amdf, integer *minptr, integer *
 	maxptr)
 {
@@ -130,4 +130,3 @@ extern int difmag_(real *speech, integer *lpita, integer *tau, integer *ltau, in
     }
     return 0;
 } /* difmag_ */
-

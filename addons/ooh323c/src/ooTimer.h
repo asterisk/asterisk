@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the LICENSE.txt file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the LICENSE.txt file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
-/** 
- * @file ooTimer.h 
+/**
+ * @file ooTimer.h
  * Timer structures and functions.
  */
 #ifndef _OOTIMER_H_
@@ -41,7 +41,7 @@ extern "C" {
 #endif
 
 /**
- * This function computes the relative expiration time from the current 
+ * This function computes the relative expiration time from the current
  * time for the given timer object.
  *
  * @param pTimer       Pointer to timer object.
@@ -59,7 +59,7 @@ EXTERN void ooTimerComputeExpireTime (OOTimer* pTimer);
  * @param reRegister   Should timer be re-registered after it expires?
  * @return             Pointer to created timer object.
  */
-EXTERN OOTimer* ooTimerCreate 
+EXTERN OOTimer* ooTimerCreate
 (OOCTXT* pctxt, DList *pList, OOTimerCbFunc cb, OOUINT32 deltaSecs, void *data,
  OOBOOL reRegister);
 
@@ -80,13 +80,13 @@ EXTERN void ooTimerDelete (OOCTXT* pctxt, DList* pList, OOTimer* pTimer);
 EXTERN OOBOOL ooTimerExpired (OOTimer* pTimer);
 
 /**
- * This function loops through the global timer list and fires all 
+ * This function loops through the global timer list and fires all
  * expired timers by calling the registered callback functions.
  */
 EXTERN void ooTimerFireExpired (OOCTXT* pctxt, DList* pList);
 
 /**
- * This function inserts the given timer object into the correct 
+ * This function inserts the given timer object into the correct
  * chronological position in the global timer list.
  * @param pctxt        Pointer to OOCTXT structure used for memory allocation.
  * @param pList        List in which timer has to be inserted.
@@ -96,7 +96,7 @@ EXTERN void ooTimerFireExpired (OOCTXT* pctxt, DList* pList);
 EXTERN int ooTimerInsertEntry (OOCTXT* pctxt, DList* pList, OOTimer* pTimer);
 
 /**
- * This function calculates the relative time from the current time 
+ * This function calculates the relative time from the current time
  * that the first timer in global timer list will expire.
  * @param pList         Handle to timer list
  * @param ptimeout      timeval structure to receive timeout value.
@@ -105,7 +105,7 @@ EXTERN int ooTimerInsertEntry (OOCTXT* pctxt, DList* pList, OOTimer* pTimer);
 EXTERN struct timeval* ooTimerNextTimeout (DList* pList, struct timeval* ptimeout);
 
 /**
- * This function resets the given timer object if its reregister flag 
+ * This function resets the given timer object if its reregister flag
  * is set.  Otherwise, it is deleted.
  * @param pctxt        Pointer to OOCTXT structre used for memory allocation.
  * @param pList        Pointer to timer list.

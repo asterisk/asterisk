@@ -86,4 +86,3 @@ integer median_(integer *d1, integer *d2, integer *d3)
     }
     return ret_val;
 } /* median_ */
-

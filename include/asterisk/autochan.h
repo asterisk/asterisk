@@ -35,7 +35,7 @@ struct ast_autochan {
 	ast_mutex_t lock;
 };
 
-/*! 
+/*!
  * \par Just what the $!@# is an autochan?
  *
  * An ast_autochan is a structure which contains an ast_channel. The pointer

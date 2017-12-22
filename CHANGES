@@ -1608,7 +1608,7 @@ res_pjsip_endpoint_identifer_ip
 ------------------
  * New CLI commands have been added: "pjsip show identif(y|ies)", which lists
    all configured PJSIP identify objects
-   
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------

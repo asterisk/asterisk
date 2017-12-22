@@ -23,7 +23,7 @@
  * \author Tilghman Lesher <res_config_curl_v1@the-tilghman.com>
  *
  * Depends on the CURL library - http://curl.haxx.se/
- * 
+ *
  */
 
 /*** MODULEINFO

@@ -2052,4 +2052,3 @@ struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, uns
 		tag ?: __PRETTY_FUNCTION__, file, line, func);
 	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
 }
-

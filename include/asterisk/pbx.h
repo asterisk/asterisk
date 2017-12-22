@@ -85,7 +85,7 @@ struct ast_exten;
 struct ast_include;
 struct ast_ignorepat;
 struct ast_sw;
- 
+
 enum ast_state_cb_update_reason {
 	/*! The extension state update is a result of a device state changing on the extension. */
 	AST_HINT_UPDATE_DEVICE = 1,

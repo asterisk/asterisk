@@ -525,7 +525,7 @@ static void pubsub_on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_s
 		pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
 static void pubsub_on_client_refresh(pjsip_evsub *sub);
 static void pubsub_on_server_timeout(pjsip_evsub *sub);
- 
+
 static pjsip_evsub_user pubsub_cb = {
 	.on_evsub_state = pubsub_on_evsub_state,
 	.on_rx_refresh = pubsub_on_rx_refresh,

@@ -32,4 +32,3 @@ dbpass=password
 
 # For most databases, this is fine.  Set to 'no' for Sybase or MS SQL Server.
 backslash_is_escape=yes
-

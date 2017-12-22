@@ -200,7 +200,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 						samples += ffactor;
 						ast_seekstream(fs, samples, SEEK_SET);
 						break;
-						
+
 					default:
 						got = 0;
 					}
@@ -256,7 +256,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 						break;
 					}
 				}
-				
+
 			} else if (f->frametype == AST_FRAME_VOICE) {
 				switch(mode) {
 					struct ast_frame *fr;
@@ -328,7 +328,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 					}
 					break;
 				}
-				
+
 			}
 
 			ast_frfree(f);
@@ -354,4 +354,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Virtual Dictation Machine");
-

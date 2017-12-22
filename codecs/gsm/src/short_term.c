@@ -77,7 +77,7 @@ static void Decoding_of_the_coded_Log_Area_Ratios P2((LARc,LARpp),
 }
 
 /* 4.2.9 */
-/* Computation of the quantized reflection coefficients 
+/* Computation of the quantized reflection coefficients
  */
 
 /* 4.2.9.1  Interpolation of the LARpp[1..8] to get the LARp[1..8]
@@ -401,7 +401,7 @@ void Gsm_Short_Term_Analysis_Filter P3((S,LARc,s),
 	Coefficients_40_159( LARpp_j, LARp);
 	LARp_to_rp( LARp );
 	FILTER( S->u, LARp, 120, s + 40);
-	
+
 }
 
 void Gsm_Short_Term_Synthesis_Filter P4((S, LARcr, wt, s),

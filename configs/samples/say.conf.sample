@@ -271,7 +271,7 @@ mode=old	; method for playing numbers and dates
     _[n]um:1XX => digits/hundred, num:${SAY:1}
     _[n]um:[2-9]00 => num:${SAY:0:1}, digits/hundred
     _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
-    
+
     _[n]um:1000 => digits/thousand
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
     _[n]um:[2-9]000 => num:${SAY:0:1}, digits/thousand
@@ -280,7 +280,7 @@ mode=old	; method for playing numbers and dates
     _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
     _[n]um:XXX000 => num:${SAY:0:3}, digits/thousand
     _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
-    
+
     _[n]um:1000000 => num:${SAY:0:1}, digits/million
     _[n]um:1XXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
     _[n]um:[2-9]000000 => num:${SAY:0:1}, digits/million
@@ -289,11 +289,11 @@ mode=old	; method for playing numbers and dates
     _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
     _[n]um:XXX000000 => num:${SAY:0:3}, digits/million
     _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
-    
-    _datetime::. => date:AdBY 'digits/at' H 'hours' M 'perc':${SAY}  
+
+    _datetime::. => date:AdBY 'digits/at' H 'hours' M 'perc':${SAY}
     _date::. => date:AdBY:${SAY}
     _time::. => date:H 'hours' M 'perc':${SAY}
-    
+
     _pho[n]e:XXXX => num:${SAY:0:2}, num:${SAY:2:2}
     _pho[n]e:0[1-9]XXXXXXXX => num:${SAY:0:1}, num:${SAY:1:1}, num:${SAY:2:2}, num:${SAY:4:2}, num:${SAY:6:2}, num:${SAY:8:2}
     _pho[n]e:. => digit:${SAY}

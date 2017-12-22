@@ -5,4 +5,3 @@ context interesting {
         }
 	13 => NoOp(LuckyNumber!);
 }
-

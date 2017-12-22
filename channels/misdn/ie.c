@@ -1412,4 +1412,3 @@ static void enc_ie_restart_ind(unsigned char **ntmode, msg_t *msg, unsigned char
 	p[2] = rind;
 
 }
-

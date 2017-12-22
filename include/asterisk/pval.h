@@ -3,7 +3,7 @@
 
 /* whatever includes this, better include asterisk/lock.h and asterisk/hashtab.h */
 
-typedef enum 
+typedef enum
 {
 	PV_WORD, /* an ident, string, name, label, etc. A user-supplied string. */ /* 0 */
 	PV_MACRO,             /* 1 */
@@ -53,7 +53,7 @@ struct pval
 	int startcol;
 	int endcol;
 	char *filename;
-	
+
 	union
 	{
 		char *str; /* wow, used almost everywhere! */
@@ -62,7 +62,7 @@ struct pval
 		char *for_init;  /* used in FOR */
 	} u1;
 	struct pval *u1_last; /* to build in-order lists -- looks like we only need one */
-	
+
 	union
 	{
 		struct pval *arglist; /* used in macro_call, application_call, MACRO def, also attached to PWORD, the 4 timevals for includes  */
@@ -71,7 +71,7 @@ struct pval
 		char *for_test; /* used in FOR */
 		struct pval *goto_target;  /* used in GOTO */
 	} u2;
-	
+
 	union
 	{
 		char *for_inc; /* used in FOR */
@@ -83,16 +83,16 @@ struct pval
 		struct ael_extension *compiled_label;
 		struct pval *extend; /* to link extended contexts to the 'original' */
 	} u3;
-	
+
 	union
 	{
 		struct pval *for_statements; /* used in PV_FOR */
 		int regexten;                /* used in EXTENSION */
 	} u4;
-	
-	struct pval *next; /* the pval at the end of this ptr will ALWAYS be of the same type as this one! 
+
+	struct pval *next; /* the pval at the end of this ptr will ALWAYS be of the same type as this one!
 						  EXCEPT for objects of the different types, that are in the same list, like contexts & macros, etc */
-	
+
 	struct pval *dad; /* the 'container' of this struct instance */
 	struct pval *prev; /* the opposite of the 'next' pointer */
 } ;
@@ -102,8 +102,8 @@ typedef struct pval pval;
 
 #ifndef AAL_ARGCHECK
 /* for the time being, short circuit all the AAL related structures
-   without permanently removing the code; after/during the AAL 
-   development, this code can be properly re-instated 
+   without permanently removing the code; after/during the AAL
+   development, this code can be properly re-instated
 */
 
 /* null definitions for structs passed down the infrastructure */

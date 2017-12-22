@@ -17,14 +17,14 @@ SASR	= -DSASR
 
 # LTP_CUT	= -DLTP_CUT
 LTP_CUT	=
-######### Define to enable the GSM library's long-term correlation 
+######### Define to enable the GSM library's long-term correlation
 ######### approximation option---faster, but worse; works for
 ######### both integer and floating point multiplications.
 ######### This flag is still in the experimental stage.
 
 WAV49	= -DWAV49
 #WAV49	=
-######### Define to enable the GSM library's option to pack GSM frames 
+######### Define to enable the GSM library's option to pack GSM frames
 ######### in the style used by the WAV #49 format.  If you want to write
 ######### a tool that produces .WAV files which contain GSM-encoded data,
 ######### define this, and read about the GSM_OPT_WAV49 option in the
@@ -35,7 +35,7 @@ WAV49	= -DWAV49
 ######### Define to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
-######### probably require gcc. 
+######### probably require gcc.
 
 # Due to the gsm codec beeing broken when compiled with gcc version 4.2
 # and optimization higher than -O2 we are checking for that version and
@@ -48,7 +48,7 @@ endif
 PG =
 #PG = -g -pg
 ######### Profiling flags.  If you don't know what that means, leave it blank.
- 
+
 # Choose a compiler.  The code works both with ANSI and K&R-C.
 # Use -DNeedFunctionPrototypes to compile with, -UNeedFunctionPrototypes to
 # compile without, function prototypes in the header files.
@@ -119,13 +119,13 @@ ARFLAGS		= cr
 RMFLAGS		= -f
 FIND		= find
 COMPRESS 	= compress
-COMPRESSFLAGS 	= 
+COMPRESSFLAGS 	=
 # RANLIB 	= true
 RANLIB	 	= ranlib
 
 #
 #    You shouldn't have to configure below this line if you're porting.
-# 
+#
 
 
 # Local Directories
@@ -484,7 +484,7 @@ $(ADDTST)/add:	$(ADDTST)/add_test.o
 # format used by the tests we ran (.cod).  We paid for the test data,
 # so I guess we can't just provide them with this package.  Still,
 # if you happen to have them lying around, here's the code.
-# 
+#
 # You can use gsm2cod | cod2txt independently to look at what's
 # coded inside the compressed frames, although this shouldn't be
 # hard to roll on your own using the gsm_print() function from
@@ -492,7 +492,7 @@ $(ADDTST)/add:	$(ADDTST)/add_test.o
 
 
 $(TST)/test-result:	$(TST)/lin2cod $(TST)/cod2lin $(TOAST) $(TST)/run
-			( cd $(TST); ./run ) 
+			( cd $(TST); ./run )
 
 $(TST)/lin2txt:		$(TST)/lin2txt.o $(LIBGSM)
 			$(LD) $(LFLAGS) -o $(TST)/lin2txt \

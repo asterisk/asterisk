@@ -216,4 +216,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get a field from a sorcery object");
-

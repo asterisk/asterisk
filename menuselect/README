@@ -35,7 +35,7 @@ MENUSELECT DEPENDENCIES
 libncurses -- This is needed for the curses frontend.
 libnewt -- This is needed for the newt frontend (optional).
 libxml2 -- This library, the XML C parser and toolkit of Gnome, is used for
-           XML parsing. 
+           XML parsing.
            (http://xmlsoft.org/)
 
 ENVIRONMENT SETUP
@@ -116,7 +116,7 @@ Category Attributes:
    name="MENUSELECT_APPS"
    The name attribute is required. This is the name of the variable that will
    be in the output from menuselect.
-	
+
    displayname="Applications"
    If this is specfied, this is what will be shown in the menu to the user.
 
@@ -125,7 +125,7 @@ Category Attributes:
    that are *not* selected. This is because it is often convenient to be able
    to define a full list in the Makefile and then filter out the results from
    menuselect. Using GNU make, an example of this would be:
-   APPS:=$(filter-out $(MENUSELECT_APPS),$(APPS)) 
+   APPS:=$(filter-out $(MENUSELECT_APPS),$(APPS))
 
    remove_on_change=".lastclean"
    This attribute can contain a space delimited list of files to be deleted
@@ -139,10 +139,10 @@ Members:
 
 Member Attributes:
    name="app_meetme"
-   The name attribute is required. This is the value that will be added to the 
+   The name attribute is required. This is the value that will be added to the
    variable specified by the category when selected (or not selected) depending
    on the setting of the positive_output attribute of the category.
-	
+
    displayname="Call Conferencing Application"
    If this is specified, this will be provided as a description of this member
    when the cursor is on it in the menu.
@@ -159,7 +159,7 @@ Dependencies:
    example of specifying a dependency for a member:
       <member name="app_meetme">
          <depend>zaptel</depend>
-      </member>   
+      </member>
 
 Conflicts:
    A conflict for a <member> is specified using a <conflict> tag. The name of

@@ -41,4 +41,3 @@ def upgrade():
 
 def downgrade():
     op.alter_column('voicemail_messages', 'recording', type_=sa.LargeBinary)
-

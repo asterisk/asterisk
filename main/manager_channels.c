@@ -1332,4 +1332,3 @@ int manager_channels_init(void)
 
 	return 0;
 }
-

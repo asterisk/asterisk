@@ -249,7 +249,7 @@ static void smdi_interface_destroy(void *obj)
 	ast_module_unref(ast_module_info->self);
 }
 
-/*! 
+/*!
  * \internal
  * \brief Push an SMDI message to the back of an interface's message queue.
  * \param iface a pointer to the interface to use.
@@ -324,10 +324,10 @@ static inline int lock_msg_q(struct ast_smdi_interface *iface, enum smdi_message
 	switch (type) {
 	case SMDI_MWI:
 		return ast_mutex_lock(&iface->mwi_q_lock);
-	case SMDI_MD:	
+	case SMDI_MD:
 		return ast_mutex_lock(&iface->md_q_lock);
 	}
-	
+
 	return -1;
 }
 
@@ -375,7 +375,7 @@ static void purge_old_messages(struct ast_smdi_interface *iface, enum smdi_messa
 	struct timeval now = ast_tvnow();
 	long elapsed = 0;
 	void *msg;
-	
+
 	lock_msg_q(iface, type);
 	msg = unlink_from_msg_q(iface, type);
 	unlock_msg_q(iface, type);
@@ -389,7 +389,7 @@ static void purge_old_messages(struct ast_smdi_interface *iface, enum smdi_messa
 			ao2_ref(msg, -1);
 			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI %s message queue.  "
 				"Message was %ld milliseconds too old.\n",
-				iface->name, (type == SMDI_MD) ? "MD" : "MWI", 
+				iface->name, (type == SMDI_MD) ? "MD" : "MWI",
 				elapsed - iface->msg_expiry);
 
 			lock_msg_q(iface, type);
@@ -473,7 +473,7 @@ static void *smdi_msg_find(struct ast_smdi_interface *iface,
 	return msg;
 }
 
-static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout, 
+static void *smdi_message_wait(struct ast_smdi_interface *iface, int timeout,
 	enum smdi_message_type type, const char *search_key, struct ast_flags options)
 {
 	struct timeval start;
@@ -572,7 +572,7 @@ struct ast_smdi_interface * AST_OPTIONAL_API_NAME(ast_smdi_interface_find)(const
 	return iface;
 }
 
-/*! 
+/*!
  * \internal
  * \brief Read an SMDI message.
  *
@@ -969,7 +969,7 @@ static int smdi_load(int reload)
 	tcflag_t paritybit = PARENB;   /* even parity checking */
 	tcflag_t charsize = CS7;       /* seven bit characters */
 	int stopbits = 0;              /* One stop bit */
-	
+
 	int msdstrip = 0;              /* strip zero digits */
 	long msg_expiry = SMDI_MSG_EXPIRY_TIME;
 
@@ -1052,7 +1052,7 @@ static int smdi_load(int reload)
 					continue;
 				}
 			}
-			
+
 			if (!(iface = alloc_smdi_interface()))
 				continue;
 
@@ -1080,19 +1080,19 @@ static int smdi_load(int reload)
 				ast_log(LOG_ERROR, "Error setting baud rate on %s (%s)\n", iface->name, strerror(errno));
 				continue;
 			}
-			
+
 			/* set the stop bits */
 			if (stopbits)
 				iface->mode.c_cflag = iface->mode.c_cflag | CSTOPB;   /* set two stop bits */
 			else
 				iface->mode.c_cflag = iface->mode.c_cflag & ~CSTOPB;  /* set one stop bit */
-			
+
 			/* set the parity */
 			iface->mode.c_cflag = (iface->mode.c_cflag & ~PARENB & ~PARODD) | paritybit;
-			
+
 			/* set the character size */
 			iface->mode.c_cflag = (iface->mode.c_cflag & ~CSIZE) | charsize;
-			
+
 			/* commit the desired attributes */
 			if (tcsetattr(iface->fd, TCSAFLUSH, &iface->mode)) {
 				ast_log(LOG_ERROR, "Error setting attributes on %s (%s)\n", iface->name, strerror(errno));
@@ -1158,7 +1158,7 @@ static int smdi_load(int reload)
 	if (ao2_container_count(new_ifaces)) {
 		res = 1;
 	}
-	
+
 	return res;
 }
 
@@ -1329,7 +1329,7 @@ static int smdi_msg_read(struct ast_channel *chan, const char *cmd, char *data, 
 	ast_channel_lock(chan);
 	datastore = ast_channel_datastore_find(chan, &smdi_msg_datastore_info, args.id);
 	ast_channel_unlock(chan);
-	
+
 	if (!datastore) {
 		ast_log(LOG_WARNING, "No SMDI message found for message ID '%s'\n", args.id);
 		goto return_error;
@@ -1379,8 +1379,8 @@ static int _unload_module(int fromload);
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

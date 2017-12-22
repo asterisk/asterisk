@@ -18,7 +18,7 @@
 
 /*! \file
  * \brief print libtonozone data as Asterisk indications.conf
- */ 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 
 #define PROGRAM "zones2indication"
 
-void print_tone_zone_sound(struct ind_tone_zone *zone_data, const char* name, 
+void print_tone_zone_sound(struct ind_tone_zone *zone_data, const char* name,
     int toneid) {
   int i;
   for (i=0; i<DAHDI_TONE_MAX; i++) {
@@ -40,7 +40,7 @@ void print_tone_zone_sound(struct ind_tone_zone *zone_data, const char* name,
 
 void print_indications(struct ind_tone_zone *zone_data) {
   int i;
-  
+
   printf (
     "[%s]\n"
     "; Source: libtonezone.\n"
@@ -48,8 +48,8 @@ void print_indications(struct ind_tone_zone *zone_data) {
     "\n",
     zone_data->country, zone_data->description
   );
-  
-  printf(  
+
+  printf(
     "ringcadence = "
   );
   for(i=0; ; i++) {
@@ -60,7 +60,7 @@ void print_indications(struct ind_tone_zone *zone_data) {
     printf("%d",zone_data->ringcadence[i]);
   }
   putchar('\n');
-  
+
   print_tone_zone_sound(zone_data, "dial",        DAHDI_TONE_DIALTONE);
   print_tone_zone_sound(zone_data, "busy",        DAHDI_TONE_BUSY);
   print_tone_zone_sound(zone_data, "ring",        DAHDI_TONE_RINGTONE);
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]){
   int opt_print_all = 0;
   int opt;
   char* endptr = NULL;
-  
+
   while((opt = getopt(argc, argv, "ac:hn:")) != -1) {
     switch(opt) {
       case 'a':
@@ -146,7 +146,7 @@ int main(int argc, char* argv[]){
         break;
     }
   }
-  
+
   /* If we got here, the user selected no option */
   usage();
   return 2;

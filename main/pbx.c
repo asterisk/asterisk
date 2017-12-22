@@ -5298,8 +5298,8 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "%-20.20s: %-20.20s  State:%-15.15s Presence:%-15.15s Watchers %2d\n",
 				buf,
 				ast_get_extension_app(hint->exten),
-				ast_extension_state2str(hint->laststate), 
-				ast_presence_state2str(hint->last_presence_state), 
+				ast_extension_state2str(hint->laststate),
+				ast_presence_state2str(hint->last_presence_state),
 				watchers);
 			num++;
 		}

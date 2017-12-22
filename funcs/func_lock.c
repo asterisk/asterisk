@@ -23,7 +23,7 @@
  * \author Tilghman Lesher <func_lock_2007@the-tilghman.com>
  *
  * \ingroup functions
- * 
+ *
  */
 
 /*** MODULEINFO
@@ -73,7 +73,7 @@
 		</syntax>
 		<description>
 			<para>Attempts to grab a named lock exclusively, and prevents other channels
-			from obtaining the same lock.  Returns <literal>1</literal> if the lock was 
+			from obtaining the same lock.  Returns <literal>1</literal> if the lock was
 			available or <literal>0</literal> otherwise.</para>
 			<note>
 				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
@@ -90,9 +90,9 @@
 			<parameter name="lockname" required="true" />
 		</syntax>
 		<description>
-			<para>Unlocks a previously locked mutex. Returns <literal>1</literal> if the channel 
+			<para>Unlocks a previously locked mutex. Returns <literal>1</literal> if the channel
 			had a lock or <literal>0</literal> otherwise.</para>
-			<note><para>It is generally unnecessary to unlock in a hangup routine, as any locks 
+			<note><para>It is generally unnecessary to unlock in a hangup routine, as any locks
 			held are automatically freed when the channel is destroyed.</para></note>
 			<note>
 				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>

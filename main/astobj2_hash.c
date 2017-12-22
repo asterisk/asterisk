@@ -1100,4 +1100,3 @@ struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
 	return __ao2_container_alloc_hash(ao2_options, container_options, 1, NULL,
 		sort_fn, cmp_fn, tag, file, line, func);
 }
-

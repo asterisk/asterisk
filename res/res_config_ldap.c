@@ -35,7 +35,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page res_ldap.conf res_ldap.conf
  * \verbinclude res_ldap.conf.sample
  */
@@ -90,7 +90,7 @@ struct category_and_metric {
 	int var_metric; /*!< For organizing variables (particularly includes and switch statments) within a context */
 };
 
-/*! \brief Table configuration 
+/*! \brief Table configuration
  */
 struct ldap_table_config {
 	char *table_name;		 /*!< table name */
@@ -101,7 +101,7 @@ struct ldap_table_config {
 	/* TODO: Make proxies work */
 };
 
-/*! \brief Should be locked before using it 
+/*! \brief Should be locked before using it
  */
 static AST_LIST_HEAD_NOLOCK_STATIC(table_configs, ldap_table_config);
 static struct ldap_table_config *base_table_config;
@@ -132,7 +132,7 @@ static struct ldap_table_config *table_config_new(const char *table_name)
 
 /*! \brief Find a table_config
  *
- * Should be locked before using it 
+ * Should be locked before using it
  *
  *  \note This function assumes ldap_lock to be locked.
  */
@@ -178,7 +178,7 @@ static int semicolon_count_str(const char *somestr)
 }
 
 /* \brief Count semicolons in variables
- *  
+ *
  * takes a linked list of \a ast_variable variables, finds the one with the name variable_value
  * and returns the number of semicolons in the value for that \a ast_variable
  */
@@ -271,7 +271,7 @@ static const char *convert_attribute_name_to_ldap(struct ldap_table_config *tabl
 	return attribute_name;
 }
 
-/*! \brief Convert ldap attribute name to variable name 
+/*! \brief Convert ldap attribute name to variable name
  *
  * \note Should be locked before using it
  */
@@ -299,7 +299,7 @@ static const char *convert_attribute_name_from_ldap(struct ldap_table_config *ta
 	return attribute_name;
 }
 
-/*! \brief Get variables from ldap entry attributes 
+/*! \brief Get variables from ldap entry attributes
  * \note Should be locked before using it
  * \return a linked list of ast_variable variables.
  */
@@ -386,7 +386,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 /*! \brief Get variables from ldap entry attributes - Should be locked before using it
  *
  * The results are freed outside this function so is the \a vars array.
- *	
+ *
  * \return \a vars - an array of ast_variable variables terminated with a null.
  */
 static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_config *table_config,
@@ -409,7 +409,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	 */
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
-	for (tot_count = 0; ldap_entry; tot_count++) { 
+	for (tot_count = 0; ldap_entry; tot_count++) {
 		struct ast_variable *tmp = realtime_ldap_entry_to_var(table_config, ldap_entry);
 		tot_count += semicolon_count_var(tmp);
 		ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
@@ -584,7 +584,7 @@ static int is_ldap_connect_error(int err)
 
 /*! \brief Get LDAP entry by dn and return attributes as variables
  *
- * Should be locked before using it 
+ * Should be locked before using it
  *
  * This is used for setting the default values of an object
  * i.e., with accountBaseDN
@@ -706,7 +706,7 @@ static char *cleaned_basedn(struct ast_channel *channel, const char *basedn)
 	return cbasedn;
 }
 
-/*! \brief Replace \<search\> by \<by\> in string. 
+/*! \brief Replace \<search\> by \<by\> in string.
  * \note No check is done on string allocated size !
  */
 static int replace_string_in_string(char *string, const char *search, const char *by)
@@ -731,7 +731,7 @@ static int replace_string_in_string(char *string, const char *search, const char
 	return replaced;
 }
 
-/*! \brief Append a name=value filter string. The filter string can grow. 
+/*! \brief Append a name=value filter string. The filter string can grow.
  */
 static void append_var_and_value_to_filter(struct ast_str **filter,
 	struct ldap_table_config *table_config,
@@ -799,7 +799,7 @@ static struct ast_str *create_lookup_filter(struct ldap_table_config *config, co
 	return filter;
 }
 
-/*! \brief LDAP base function 
+/*! \brief LDAP base function
  * \return a null terminated array of ast_variable (one per entry) or NULL if no entry is found or if an error occured
  * caller should free the returned array and ast_variables
  * \param entries_count_ptr is a pointer to found entries count (can be NULL)
@@ -823,7 +823,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		ast_log(LOG_ERROR, "No table_name specified.\n");
 		ast_free(clean_basedn);
 		return NULL;
-	} 
+	}
 
 	if (!field) {
 		ast_log(LOG_ERROR, "Realtime retrieval requires at least 1 parameter"
@@ -880,7 +880,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(result));
 		ast_log(LOG_WARNING, "Query: %s\n", ast_str_buffer(filter));
 	} else {
-		/* this is where we create the variables from the search result 
+		/* this is where we create the variables from the search result
 		 * freeing this \a vars outside this function */
 		if (ldap_count_entries(ldapConn, ldap_result_msg) > 0) {
 			/* is this a static var or some other? they are handled different for delimited values */
@@ -902,7 +902,7 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 					if (strcasecmp(tmp->name, "accountBaseDN") == 0) {
 						/* Get the variable to compare with for the defaults */
 						struct ast_variable *base_var = ldap_loadentry(table_config, tmp->value);
-						
+
 						while (base_var) {
 							struct ast_variable *next = base_var->next;
 							struct ast_variable *test_var = *p;
@@ -1105,7 +1105,7 @@ static int compare_categories(const void *a, const void *b)
 		return 1;
 	} else if (as->metric == bs->metric && strcmp(as->name, bs->name) != 0) {
 		return strcmp(as->name, bs->name);
-	} 
+	}
 	/* if the metric and the category name is the same, we check the variable metric */
 	if (as->var_metric < bs->var_metric) {
 		return -1;
@@ -1119,7 +1119,7 @@ static int compare_categories(const void *a, const void *b)
 /*! \brief See Asterisk Realtime Documentation
  *
  * This is for Static Realtime
- *	
+ *
  * load the configuration stuff for the .conf files
  * called on a reload
  */
@@ -1705,8 +1705,8 @@ static struct ast_config_engine ldap_engine = {
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  *
  * \todo Don't error or warn on a default install. If the config is
@@ -1774,7 +1774,7 @@ static int reload(void)
 		ast_log(LOG_NOTICE, "Cannot reload LDAP RealTime driver.\n");
 		ast_mutex_unlock(&ldap_lock);
 		return 0;
-	}		
+	}
 
 	if (!ldap_reconnect())  {
 		ast_log(LOG_WARNING, "Couldn't establish connection to your directory server. Check debug.\n");
@@ -1861,7 +1861,7 @@ static int parse_config(void)
 	if (!(s = ast_variable_retrieve(config, "_general", "basedn"))) {
 		ast_log(LOG_ERROR, "No LDAP base dn found, using '%s' as default.\n", RES_CONFIG_LDAP_DEFAULT_BASEDN);
 		ast_copy_string(base_distinguished_name, RES_CONFIG_LDAP_DEFAULT_BASEDN, sizeof(base_distinguished_name));
-	} else 
+	} else
 		ast_copy_string(base_distinguished_name, s, sizeof(base_distinguished_name));
 
 	if (!(s = ast_variable_retrieve(config, "_general", "version")) && !(s = ast_variable_retrieve(config, "_general", "protocol"))) {
@@ -1877,7 +1877,7 @@ static int parse_config(void)
 		int is_general = (strcasecmp(category_name, "_general") == 0);
 		int is_config = (strcasecmp(category_name, "config") == 0); /*!< using the [config] context for Static RealTime */
 		struct ast_variable *var = ast_variable_browse(config, category_name);
-		
+
 		if (var) {
 			struct ldap_table_config *table_config =
 				table_config_for_table_name(category_name);
@@ -1978,7 +1978,7 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (!ldapConn)
 		return CLI_FAILURE;
 
-	if (!ast_strlen_zero(url)) 
+	if (!ast_strlen_zero(url))
 		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, base_distinguished_name);
 
 	if (!ast_strlen_zero(user))

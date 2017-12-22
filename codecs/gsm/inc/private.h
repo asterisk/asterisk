@@ -82,10 +82,10 @@ extern longword gsm_L_asr  	P((longword a, int n));
 extern word	gsm_asr  	P((word a, int n));
 
 /*
- *  Inlined functions from add.h 
+ *  Inlined functions from add.h
  */
 
-/* 
+/*
  * #define GSM_MULT_R(a, b) (* word a, word b, !(a == b == MIN_WORD) *)	\
  *	(0x0FFFF & SASR(((longword)(a) * (longword)(b) + 16384), 15))
  */
@@ -103,7 +103,7 @@ extern word	gsm_asr  	P((word a, int n));
 static __inline__ int GSM_L_ADD(int a, int b)
 {
 	__asm__ __volatile__(
-	
+
 			"addl %2,%0; jno 0f; movl $0x7fffffff,%0; adcl $0,%0; 0:"
 			: "=&r" (a)
 			: "0" (a), "ir" (b)
@@ -139,7 +139,7 @@ static __inline__ short GSM_SUB(short a, short b)
 #ifdef WIN32
 #define inline __inline
 #define __inline__ __inline
-#endif 
+#endif
 
 # define GSM_L_ADD(a, b)	\
 	( (a) <  0 ? ( (b) >= 0 ? (a) + (b)	\
@@ -214,10 +214,10 @@ extern void Gsm_Preprocess P((
 
 extern void Gsm_Encoding P((
 		struct gsm_state * S,
-		word	* e,	
-		word	* ep,	
+		word	* e,
+		word	* ep,
 		word	* xmaxc,
-		word	* Mc,	
+		word	* Mc,
 		word	* xMc));
 
 extern void Gsm_Short_Term_Analysis_Filter P((

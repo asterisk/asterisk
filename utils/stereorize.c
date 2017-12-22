@@ -109,7 +109,7 @@ int main( int argcount, char *args[])
    channels = 2;   /* Output files are stereo */
    if (wavout)
      {
-       if ((strcmp(outfilename,"<stdout>")!=0) && (fseek( out, 0, SEEK_SET) != 0)) 
+       if ((strcmp(outfilename,"<stdout>")!=0) && (fseek( out, 0, SEEK_SET) != 0))
     	 fatalerror("Couldn't navigate output file '%s': %s\n",outfilename, strerror(errno));
        makewavheader();
      }

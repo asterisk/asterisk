@@ -85,4 +85,3 @@ int manager_endpoints_init(void)
 
 	return 0;
 }
-

@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief UserEvent application -- send manager event
- * 
+ *
  * \ingroup applications
  */
 

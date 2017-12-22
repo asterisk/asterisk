@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \brief Open Settlement Protocol (OSP)
  */

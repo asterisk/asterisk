@@ -107,4 +107,3 @@ synopsis=Check if a specified callerid is contained in the ex-gf database
 dsn=mysql1
 readsql=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
 writesql=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
-

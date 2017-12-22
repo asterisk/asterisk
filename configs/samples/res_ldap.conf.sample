@@ -4,7 +4,7 @@
 
 ; Realtime configuration
 ; ----------------------
-; In order to use this module, you start 
+; In order to use this module, you start
 ; in extconfig.conf with a configuration like this:
 ;
 ; 	sippeers = ldap,"dc=myDomain,dc=myDomainExt",sip
@@ -19,13 +19,13 @@
 ; TLS support
 ; -----------
 ; Note that you can configure an ldaps: url here to get TLS support.
-; Detailed configuration of certificates and supported CAs is done in your 
+; Detailed configuration of certificates and supported CAs is done in your
 ; ldap.conf file for OpenLDAP clients on your system.
 ; This requires that you have OpenLDAP libraries compiled with TLS support
 
 ; *********************************************************************************
 ; NOTE: res_ldap.conf should be chmod 600 because it contains the plain-text LDAP
-;       password to an account with WRITE access to the asterisk configuration. 
+;       password to an account with WRITE access to the asterisk configuration.
 ; *********************************************************************************
 
 [_general]
@@ -196,4 +196,3 @@ regcontext = AstAccountRegistrationContext
 regexten = AstAccountRegistrationExten
 CanCallForward = AstAccountCanCallForward
 additionalFilter=(objectClass=AstAccount)
-

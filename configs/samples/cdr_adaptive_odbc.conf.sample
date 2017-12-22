@@ -60,4 +60,3 @@
 ;
 ; Add quoted indentifiers for table and columns names.
 ;quoted_identifiers=" ; Default to null
-

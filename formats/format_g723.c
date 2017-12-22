@@ -16,11 +16,11 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  *
  * \brief Old-style G.723.1 frame/timestamp format.
- * 
+ *
  * \arg Extensions: g723, g723sf
  * \ingroup formats
  */
@@ -28,7 +28,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 #include "asterisk/mod_format.h"
@@ -44,7 +44,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	int delay;
 	/* Read the delay for the next packet, and schedule again if necessary */
 	/* XXX is this ignored ? */
-	if (fread(&delay, 1, 4, s->f) == 4) 
+	if (fread(&delay, 1, 4, s->f) == 4)
 		delay = ntohl(delay);
 	else
 		delay = -1;
@@ -58,7 +58,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s, int *whennext)
 	if (size > G723_MAX_SIZE) {
 		ast_log(LOG_WARNING, "Size %d is invalid\n", size);
 		/* The file is apparently no longer any good, as we
-		   shouldn't ever get frames even close to this 
+		   shouldn't ever get frames even close to this
 		   size.  */
 		return NULL;
 	}
@@ -99,7 +99,7 @@ static int g723_write(struct ast_filestream *s, struct ast_frame *f)
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
 		return -1;
-	}	
+	}
 	return 0;
 }
 

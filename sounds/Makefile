@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile for sound files
 #
 # Copyright (C) 2006, Digium, Inc.

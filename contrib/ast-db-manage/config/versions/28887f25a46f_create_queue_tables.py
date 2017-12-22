@@ -138,4 +138,3 @@ def downgrade():
 
     sa.Enum(name=QUEUE_STRATEGY_NAME).drop(op.get_bind(), checkfirst=False)
     sa.Enum(name=QUEUE_AUTOPAUSE_NAME).drop(op.get_bind(), checkfirst=False)
-

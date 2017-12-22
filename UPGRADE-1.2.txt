@@ -37,9 +37,9 @@ Dialplan Expressions:
 
 Agents:
 
-* The default for ackcall has been changed to "no" instead of "yes" 
+* The default for ackcall has been changed to "no" instead of "yes"
   because of a bug which caused the "yes" behavior to generally act like
-  "no".  You may need to adjust the value if your agents behave 
+  "no".  You may need to adjust the value if your agents behave
   differently than you expect with respect to acknowledgement.
 
 * The AgentCallBackLogin application now requires a second '|' before
@@ -56,16 +56,16 @@ Parking:
 
 Dialing:
 
-* The Caller*ID of the outbound leg is now the extension that was 
-  called, rather than the Caller*ID of the inbound leg of the call.  The 
-  "o" flag for Dial can be used to restore the original behavior if 
+* The Caller*ID of the outbound leg is now the extension that was
+  called, rather than the Caller*ID of the inbound leg of the call.  The
+  "o" flag for Dial can be used to restore the original behavior if
   desired.  Note that if you are looking for the originating callerid
-  from the manager event, there is a new manager event "Dial" which 
+  from the manager event, there is a new manager event "Dial" which
   provides the source and destination channels and callerid.
 
-IAX: 
+IAX:
 
-* The naming convention for IAX channels has changed in two ways: 
+* The naming convention for IAX channels has changed in two ways:
    1. The call number follows a "-" rather than a "/" character.
    2. The name of the channel has been simplified to IAX2/peer-callno,
    rather than IAX2/peer@peer-callno or even IAX2/peer@peer/callno.
@@ -77,7 +77,7 @@ SIP:
   the other channel drivers and to avoid confusion with the "port"
   option for users/peers.
 
-* The "Registry" event now uses "Username" rather than "User" for 
+* The "Registry" event now uses "Username" rather than "User" for
   consistency with IAX.
 
 Applications:
@@ -85,7 +85,7 @@ Applications:
 * With the addition of dialplan functions (which operate similarly
   to variables), the SetVar application has been renamed to Set.
 
-* The CallerPres application has been removed.  Use SetCallerPres 
+* The CallerPres application has been removed.  Use SetCallerPres
   instead.  It accepts both numeric and symbolic names.
 
 * The applications GetGroupCount, GetGroupMatchCount, SetGroup, and
@@ -145,7 +145,7 @@ Applications:
   moved to option 5.
 
 * The application VoiceMailMain now only matches the 'default' context if
-  none is specified in the arguments.  (This was the previously 
+  none is specified in the arguments.  (This was the previously
   documented behavior, however, we didn't follow that behavior.)  The old
   behavior can be restored by setting searchcontexts=yes in voicemail.conf.
 
@@ -153,7 +153,7 @@ Queues:
 
 * A queue is now considered empty not only if there are no members but if
   none of the members are available (e.g. agents not logged on).  To
-  restore the original behavior, use "leavewhenempty=strict" or 
+  restore the original behavior, use "leavewhenempty=strict" or
   "joinwhenempty=strict" instead of "=yes" for those options.
 
 * It is now possible to use multi-digit extensions in the exit context
@@ -165,8 +165,8 @@ Queues:
 Extensions:
 
 * By default, there is a new option called "autofallthrough" in
-  extensions.conf that is set to yes.  Asterisk 1.0 (and earlier) 
-  behavior was to wait for an extension to be dialed after there were no 
+  extensions.conf that is set to yes.  Asterisk 1.0 (and earlier)
+  behavior was to wait for an extension to be dialed after there were no
   more extensions to execute.  "autofallthrough" changes this behavior
   so that the call will immediately be terminated with BUSY,
   CONGESTION, or HANGUP based on Asterisk's best guess.  If you are
@@ -175,9 +175,9 @@ Extensions:
 
 AGI:
 
-* AGI scripts did not always get SIGHUP at the end, previously.  That 
-  behavior has been fixed.  If you do not want your script to terminate 
-  at the end of AGI being called (e.g. on a hangup) then set SIGHUP to 
+* AGI scripts did not always get SIGHUP at the end, previously.  That
+  behavior has been fixed.  If you do not want your script to terminate
+  at the end of AGI being called (e.g. on a hangup) then set SIGHUP to
   be ignored within your application.
 
 * CallerID is reported with agi_callerid and agi_calleridname instead
@@ -199,13 +199,13 @@ chan_modem:
 MeetMe:
 
 * The conference application now allows users to increase/decrease their
-  speaking volume and listening volume (independently of each other and 
-  other users); the 'admin' and 'user' menus have changed, and new sound 
-  files are included with this release. However, if a user calling in 
-  over a Zaptel channel that does NOT have hardware DTMF detection 
-  increases their speaking volume, it is likely they will no longer be 
-  able to enter/exit the menu or make any further adjustments, as the  
-  software DTMF detector will not be able to recognize the DTMF coming 
+  speaking volume and listening volume (independently of each other and
+  other users); the 'admin' and 'user' menus have changed, and new sound
+  files are included with this release. However, if a user calling in
+  over a Zaptel channel that does NOT have hardware DTMF detection
+  increases their speaking volume, it is likely they will no longer be
+  able to enter/exit the menu or make any further adjustments, as the
+  software DTMF detector will not be able to recognize the DTMF coming
   from their device.
 
 GetVar Manager Action:
