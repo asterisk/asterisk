@@ -39,4 +39,3 @@ extern struct ast_channel_tech sip_tech;
 extern struct ast_channel_tech sip_tech_info;
 
 #endif /* !defined(SIP_GLOBALS_H) */
-

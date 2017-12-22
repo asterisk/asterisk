@@ -267,4 +267,3 @@
        memcpy(iLBCdec_inst->prevResidual, PLCresidual,
            iLBCdec_inst->blockl*sizeof(float));
    }
-

@@ -13,7 +13,7 @@
 
 ; --------------------- DIGIT TIMEOUTS ----------------------------
 firstdigittimeout = 30000 ; default 16000 = 16s
-gendigittimeout = 10000   ; default  8000 = 8s 
+gendigittimeout = 10000   ; default  8000 = 8s
 matchdigittimeout = 5000  ; defaults 3000 = 3s
 
 ; ----------------------------- JITTER BUFFER CONFIGURATION --------------------------
@@ -59,27 +59,27 @@ matchdigittimeout = 5000  ; defaults 3000 = 3s
 
 ;; The MGCP channel supports the following service codes:
 ;; # - Transfer
-;; *67 - Calling Number Delivery Blocking 
-;; *70 - Cancel Call Waiting 
-;; *72 - Call Forwarding Activation 
-;; *73 - Call Forwarding Deactivation 
-;; *78 - Do Not Disturb Activation 
-;; *79 - Do Not Disturb Deactivation 
+;; *67 - Calling Number Delivery Blocking
+;; *70 - Cancel Call Waiting
+;; *72 - Call Forwarding Activation
+;; *73 - Call Forwarding Deactivation
+;; *78 - Do Not Disturb Activation
+;; *79 - Do Not Disturb Deactivation
 ;; *8 - Call pick-up
 ;
-; known to work with Swissvoice IP10s 
-;[192.168.1.20] 
-;context=local 
-;host=192.168.1.20 
-;callerid = "John Doe" <123> 
+; known to work with Swissvoice IP10s
+;[192.168.1.20]
+;context=local
+;host=192.168.1.20
+;callerid = "John Doe" <123>
 ;callgroup=0      ; in the range from 0 to 63
 ;pickupgroup=0    ; in the range from 0 to 63
-;nat=no 
-;threewaycalling=yes 
+;nat=no
+;threewaycalling=yes
 ;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to transfer
 ;callwaiting=yes  ; this might be a cause of trouble for ip10s
-;cancallforward=yes 
-;line => aaln/1 
+;cancallforward=yes
+;line => aaln/1
 ;
 
 ;[dph100]
@@ -102,7 +102,7 @@ matchdigittimeout = 5000  ; defaults 3000 = 3s
 				; 'documentation', or 'omit'
 ;context	= local
 ;host		= 192.168.1.20
-;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' 
+;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*'
 				; another common format is '*'
 ;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
 ;callwaiting	= no

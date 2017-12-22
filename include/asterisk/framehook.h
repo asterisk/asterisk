@@ -162,7 +162,7 @@ enum ast_framehook_event {
  * \details Two events are guaranteed to occur once the ast_framehook_attach()
  * function is called. These events are AST_FRAMEHOOK_EVENT_ATTACHED, which occurs
  * immediately after the framehook is attached to a channel, and
- * AST_FRAMEHOOK_EVENT_DETACHED, which occurs right after the framehook is 
+ * AST_FRAMEHOOK_EVENT_DETACHED, which occurs right after the framehook is
  * detached.
  *
  * It is completely valid for the frame variable to be set to NULL. Always do a NULL
@@ -276,7 +276,7 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
 /*!
  * \brief Detach an framehook from a channel.
  * \since 1.8
- * 
+ *
  * \pre The Channel must be locked during this function call.
  * If this function is never called after attaching an framehook,
  * the framehook will be detached and destroyed during channel
@@ -297,7 +297,7 @@ int ast_framehook_detach(struct ast_channel *chan, int framehook_id);
  * \since 1.8
  *
  * \pre The Channel must be locked during this function call.
- * 
+ *
  * \param chan channel containing the framehook list to destroy.
  * \retval 0 success
  * \retval -1 failure

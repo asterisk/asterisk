@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007, Digium, Inc.
  *
- * Modified from func_devstate.c by Russell Bryant <russell@digium.com> 
+ * Modified from func_devstate.c by Russell Bryant <russell@digium.com>
  * Adam Gundy <adam@starsilk.net>
 
  * See http://www.asterisk.org for more information about
@@ -21,7 +21,7 @@
  *
  * \brief Get the state of a hinted extension for dialplan control
  *
- * \author Adam Gundy <adam@starsilk.net> 
+ * \author Adam Gundy <adam@starsilk.net>
  *
  * \ingroup functions
  */
@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	<function name="EXTENSION_STATE" language="en_US">
 		<synopsis>
 			Get an extension's state.
-		</synopsis>	
+		</synopsis>
 		<syntax argsep="@">
 			<parameter name="extension" required="true" />
 			<parameter name="context">
@@ -117,7 +117,7 @@ static int extstate_read(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	ast_copy_string(buf, 
+	ast_copy_string(buf,
 		ast_extstate_str(ast_extension_state(chan, context, exten)), len);
 
 	return 0;

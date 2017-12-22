@@ -1,4 +1,4 @@
-/*  
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2007, Digium, Inc.
@@ -65,7 +65,7 @@ extern char *months[];
 
 char *config = "extensions.conf";
 
-/* 
+/*
 static char *registrar = "conf2ael";
 static char userscontext[AST_MAX_EXTENSION] = "default";
 static int static_config = 0;
@@ -98,7 +98,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 {
 	va_list vars;
 	va_start(vars,fmt);
-	
+
 	printf("LOG: lev:%d file:%s  line:%d func: %s  ",
 		   level, file, line, function);
 	vprintf(fmt, vars);
@@ -216,7 +216,7 @@ struct ast_state_cb {
 /*! \brief Structure for dial plan hints
 
   \note Hints are pointers from an extension in the dialplan to one or
-  more devices (tech/name) 
+  more devices (tech/name)
 	- See \ref AstExtState
 */
 struct ast_hint {
@@ -279,10 +279,10 @@ void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *sta
 {
 	int i;
 	int thisbit, thatbit = bit_at(word, bitsperword, totalbits-1);
-	
+
 	for (i=0; i<totalbits; i++) {
 		thisbit = bit_at(word, bitsperword, i);
-		
+
 		if (thisbit != thatbit ) {
 			if (thisbit) {
 				*start = i;
@@ -296,14 +296,14 @@ void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *sta
 
 int all_bits_set(unsigned int *word, int bitsperword, int totalbits )
 {
-	
+
 	int i, total=totalbits/bitsperword,bitmask = 0;
-	
+
 	for (i=0; i<bitsperword; i++)
 	{
 		bitmask |= (1 << i);
 	}
-	
+
 	for (i=0; i<total; i++)
 	{
 		if (word[i] != bitmask)
@@ -333,9 +333,9 @@ int main(int argc, char **argv)
 		if (strcmp(argv[i],"-d")==0)
 			localdir =1;
 	}
-	
+
 	/* 3 simple steps: */
-	/*   1. read in the extensions.conf config file 
+	/*   1. read in the extensions.conf config file
 	 *   2. traverse, and build an AEL tree
 	 *   3. Output the AEL tree into a file
 	 */
@@ -356,9 +356,9 @@ int main(int argc, char **argv)
 	if (!localdir)
 		localized_use_conf_dir();
 	localized_pbx_load_module();
-	
+
 	printf("... Done!\n");
-	
+
 	tmp = 0;
 	while ((tmp = localized_walk_contexts(tmp)) ) {
 		printf("Context: %s\n", tmp->name);
@@ -372,9 +372,9 @@ int main(int argc, char **argv)
 			tree = tmptree;
 		else
 			pvalTopLevAddObject(tree, tmptree);
-		
+
 		pvalContextSetName(tmptree, ast_strdup(tmp->name));
-		
+
 		if (tmp->includes) {
 			incl = pvalCreateNode(PV_INCLUDES);
 			pvalContextAddStatement(tmptree, incl);
@@ -387,7 +387,7 @@ int main(int argc, char **argv)
 						char domrange[10];
 						char monrange[10];
 						int startbit=0, endbit=0;
-						
+
 						if (all_bits_set(tmpi->timing.minmask, 30, 720))
 							strcpy(timerange, "*");
 						else {
@@ -404,7 +404,7 @@ int main(int argc, char **argv)
 							strcat(timerange,"-");
 							strcat(timerange,tbuf);
 						}
-						
+
 						if (all_bits_set(&tmpi->timing.dowmask, 7, 7))
 							strcpy(dowrange, "*");
 						else {
@@ -413,7 +413,7 @@ int main(int argc, char **argv)
 							strcat(dowrange,"-");
 							strcat(dowrange, days[endbit]);
 						}
-						
+
 						if (all_bits_set(&tmpi->timing.monthmask, 12, 12))
 							strcpy(monrange, "*");
 						else {
@@ -422,7 +422,7 @@ int main(int argc, char **argv)
 							strcat(monrange,"-");
 							strcat(monrange, months[endbit]);
 						}
-						
+
 						if (all_bits_set(&tmpi->timing.daymask, 31, 31))
 							strcpy(domrange, "*");
 						else {
@@ -436,7 +436,7 @@ int main(int argc, char **argv)
 						}
 						/* now all 4 fields are set; what do we do? */
 						pvalIncludesAddIncludeWithTimeConstraints(incl, strdup(tmpi->name), strdup(timerange), strdup(domrange), strdup(dowrange), strdup(monrange));
-						
+
 					} else {
 						pvalIncludesAddInclude(incl, strdup(tmpi->name));
 					}
@@ -484,23 +484,23 @@ int main(int argc, char **argv)
 			pval *exten = pvalCreateNode(PV_EXTENSION);
 			pvalContextAddStatement(tmptree, exten);
 			pvalExtenSetName(exten, ast_strdup(eroot->exten));
-		
+
 			if (eroot->peer) {
 				pval *block = pvalCreateNode(PV_STATEMENTBLOCK);
 				pvalExtenSetStatement(exten, block);
-				
+
 				e = 0;
 				while ( (e = localized_walk_extension_priorities(eroot, e)) ) {
-					
+
 					pval *statemnt = pvalCreateNode(PV_APPLICATION_CALL);
 					pval *args = pvalCreateNode(PV_WORD);
-					
+
 					/* printf("           %s(%s)\n", e->app, (char*)e->data); */
 
 					pvalAppCallSetAppName(statemnt, ast_strdup(e->app));
 					pvalWordSetString(args, ast_strdup(e->data));
 					pvalAppCallAddArg(statemnt, args);
-					
+
 					pvalStatementBlockAddStatement(block, statemnt);
 				}
 			} else if (eroot->priority == -1) {
@@ -520,13 +520,13 @@ int main(int argc, char **argv)
 
 				pval *statemnt = pvalCreateNode(PV_APPLICATION_CALL);
 				pval *args = pvalCreateNode(PV_WORD);
-	
+
 				/* printf("           %s (%s)\n", eroot->app, (char *)eroot->data); */
-				
+
 				pvalAppCallSetAppName(statemnt, ast_strdup(eroot->app));
 				pvalWordSetString(args, ast_strdup(eroot->data));
 
-				
+
 				pvalAppCallAddArg(statemnt, args);
 				pvalExtenSetStatement(exten, statemnt);
 			}
@@ -536,7 +536,7 @@ int main(int argc, char **argv)
 		if (AST_LIST_FIRST(&tmp->alts)) {
 			sws = pvalCreateNode(PV_SWITCHES);
 			pvalContextAddStatement(tmptree,sws);
-			
+
 			sw = 0;
 			while ((sw = localized_walk_context_switches(tmp,sw)) ) {
 				pvalSwitchesAddSwitch(sws, ast_strdup(sw->name));
@@ -544,9 +544,9 @@ int main(int argc, char **argv)
 		}
 	}
 	printf("Generating aelout.ael file...\n");
-	
+
 	ael2_print("aelout.ael", tree);
-	
+
 	printf("...Done!\n");
 	return 0;
 }
@@ -563,7 +563,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
 {
 	if (cp1 && *cp1)
-		strncpy(cp2,cp1,AST_MAX_EXTENSION); /* Right now, this routine is ONLY being called for 
+		strncpy(cp2,cp1,AST_MAX_EXTENSION); /* Right now, this routine is ONLY being called for
 											   a possible var substitution on extension names,
 											   so....! */
 	else
@@ -580,28 +580,28 @@ int ast_add_extension2(struct ast_context *con,
 
 int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar)
 {
-	
+
 	return localized_context_add_ignorepat2(con, value, registrar);
 }
 
 int ast_context_add_switch2(struct ast_context *con, const char *value,
 								 const char *data, int eval, const char *registrar)
 {
-	
+
 	return localized_context_add_switch2(con, value, data, eval, registrar);
 }
 
 int ast_context_add_include2(struct ast_context *con, const char *value,
 								  const char *registrar)
 {
-	
+
 	return localized_context_add_include2(con, value,registrar);
 }
 
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
 {
 	printf("find/Creating context %s, registrar=%s\n", name, registrar);
-	
+
 	return localized_context_find_or_create(extcontexts, exttable, name, registrar);
 }
 
@@ -685,21 +685,21 @@ struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw 
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass,
 									 struct pbx_find_info *q,
-									 const char *context, 
-									 const char *exten, 
+									 const char *context,
+									 const char *exten,
 									 int priority,
-									 const char *label, 
-									 const char *callerid, 
+									 const char *label,
+									 const char *callerid,
 									 enum ext_match_t action);
 
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass,
 									 struct pbx_find_info *q,
-									 const char *context, 
-									 const char *exten, 
+									 const char *context,
+									 const char *exten,
 									 int priority,
-									 const char *label, 
-									 const char *callerid, 
+									 const char *label,
+									 const char *callerid,
 									 enum ext_match_t action)
 {
 	return localized_find_extension(bypass, q, context, exten, priority, label, callerid, action);

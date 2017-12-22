@@ -56,7 +56,7 @@ Abstract
 
 
 Andersen, et al.              Experimental                      [Page 1]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -112,7 +112,7 @@ Table of Contents
 
 
 Andersen, et al.              Experimental                      [Page 2]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -168,7 +168,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 3]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -224,7 +224,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 4]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -280,7 +280,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 5]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -336,7 +336,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 6]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -392,7 +392,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 7]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -448,7 +448,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 8]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -504,7 +504,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                      [Page 9]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -560,7 +560,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 10]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -616,7 +616,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 11]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -672,7 +672,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 12]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -728,7 +728,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 13]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -784,7 +784,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 14]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -840,7 +840,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 15]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -896,7 +896,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 16]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -952,7 +952,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 17]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1008,7 +1008,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 18]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1064,7 +1064,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 19]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1120,7 +1120,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 20]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1176,7 +1176,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 21]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1232,7 +1232,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 22]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1288,7 +1288,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 23]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1344,7 +1344,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 24]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1400,7 +1400,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 25]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1456,7 +1456,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 26]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1512,7 +1512,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 27]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1568,7 +1568,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 28]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1624,7 +1624,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 29]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1680,7 +1680,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 30]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1736,7 +1736,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 31]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1792,7 +1792,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 32]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1848,7 +1848,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 33]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1904,7 +1904,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 34]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -1960,7 +1960,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 35]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2016,7 +2016,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 36]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2072,7 +2072,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 37]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2128,7 +2128,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 38]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2184,7 +2184,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 39]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2240,7 +2240,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 40]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2296,7 +2296,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 41]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2352,7 +2352,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 42]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2408,7 +2408,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 43]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2464,7 +2464,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 44]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2520,7 +2520,7 @@ APPENDIX A.  Reference Implementation
 
 
 Andersen, et al.              Experimental                     [Page 45]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2576,7 +2576,7 @@ A.1.  iLBC_test.c
 
 
 Andersen, et al.              Experimental                     [Page 46]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2632,7 +2632,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 47]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2688,7 +2688,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 48]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2744,7 +2744,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 49]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2800,7 +2800,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 50]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2856,7 +2856,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 51]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2912,7 +2912,7 @@ A.2.  iLBC_encode.h
 
 
 Andersen, et al.              Experimental                     [Page 52]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -2968,7 +2968,7 @@ A.3.  iLBC_encode.c
 
 
 Andersen, et al.              Experimental                     [Page 53]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3024,7 +3024,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 54]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3080,7 +3080,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 55]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3136,7 +3136,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 56]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3192,7 +3192,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 57]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3248,7 +3248,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 58]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3304,7 +3304,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 59]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3360,7 +3360,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 60]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3416,7 +3416,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 61]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3472,7 +3472,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 62]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3528,7 +3528,7 @@ A.4.  iLBC_decode.h
 
 
 Andersen, et al.              Experimental                     [Page 63]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3584,7 +3584,7 @@ A.5.  iLBC_decode.c
 
 
 Andersen, et al.              Experimental                     [Page 64]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3640,7 +3640,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 65]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3696,7 +3696,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 66]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3752,7 +3752,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 67]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3808,7 +3808,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 68]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3864,7 +3864,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 69]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3920,7 +3920,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 70]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -3976,7 +3976,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 71]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4032,7 +4032,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 72]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4088,7 +4088,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 73]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4144,7 +4144,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 74]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4200,7 +4200,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 75]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4256,7 +4256,7 @@ A.6.  iLBC_define.h
 
 
 Andersen, et al.              Experimental                     [Page 76]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4312,7 +4312,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 77]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4368,7 +4368,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 78]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4424,7 +4424,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 79]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4480,7 +4480,7 @@ A.7.  constants.h
 
 
 Andersen, et al.              Experimental                     [Page 80]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4536,7 +4536,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 81]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4592,7 +4592,7 @@ A.8.  constants.c
 
 
 Andersen, et al.              Experimental                     [Page 82]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4648,7 +4648,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 83]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4704,7 +4704,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 84]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4760,7 +4760,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 85]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4816,7 +4816,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 86]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4872,7 +4872,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 87]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4928,7 +4928,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 88]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -4984,7 +4984,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 89]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5040,7 +5040,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 90]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5096,7 +5096,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 91]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5152,7 +5152,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 92]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5208,7 +5208,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 93]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5264,7 +5264,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 94]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5320,7 +5320,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                     [Page 95]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5376,7 +5376,7 @@ A.9.  anaFilter.h
 
 
 Andersen, et al.              Experimental                     [Page 96]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5432,7 +5432,7 @@ A.10.  anaFilter.c
 
 
 Andersen, et al.              Experimental                     [Page 97]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5488,7 +5488,7 @@ A.11.  createCB.h
 
 
 Andersen, et al.              Experimental                     [Page 98]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5544,7 +5544,7 @@ A.12.  createCB.c
 
 
 Andersen, et al.              Experimental                     [Page 99]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5600,7 +5600,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 100]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5656,7 +5656,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 101]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5712,7 +5712,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 102]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5768,7 +5768,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 103]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5824,7 +5824,7 @@ A.14.  doCPLC.c
 
 
 Andersen, et al.              Experimental                    [Page 104]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5880,7 +5880,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 105]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5936,7 +5936,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 106]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -5992,7 +5992,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 107]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6048,7 +6048,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 108]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6104,7 +6104,7 @@ A.15.  enhancer.h
 
 
 Andersen, et al.              Experimental                    [Page 109]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6160,7 +6160,7 @@ A.16.  enhancer.c
 
 
 Andersen, et al.              Experimental                    [Page 110]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6216,7 +6216,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 111]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6272,7 +6272,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 112]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6328,7 +6328,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 113]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6384,7 +6384,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 114]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6440,7 +6440,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 115]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6496,7 +6496,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 116]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6552,7 +6552,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 117]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6608,7 +6608,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 118]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6664,7 +6664,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 119]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6720,7 +6720,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 120]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6776,7 +6776,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 121]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6832,7 +6832,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 122]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6888,7 +6888,7 @@ A.17.  filter.h
 
 
 Andersen, et al.              Experimental                    [Page 123]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -6944,7 +6944,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 124]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7000,7 +7000,7 @@ A.18.  filter.c
 
 
 Andersen, et al.              Experimental                    [Page 125]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7056,7 +7056,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 126]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7112,7 +7112,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 127]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7168,7 +7168,7 @@ A.19.  FrameClassify.h
 
 
 Andersen, et al.              Experimental                    [Page 128]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7224,7 +7224,7 @@ A.20.  FrameClassify.c
 
 
 Andersen, et al.              Experimental                    [Page 129]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7280,7 +7280,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 130]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7336,7 +7336,7 @@ A.22.  gainquant.c
 
 
 Andersen, et al.              Experimental                    [Page 131]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7392,7 +7392,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 132]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7448,7 +7448,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 133]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7504,7 +7504,7 @@ A.24.  getCBvec.c
 
 
 Andersen, et al.              Experimental                    [Page 134]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7560,7 +7560,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 135]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7616,7 +7616,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 136]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7672,7 +7672,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 137]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7728,7 +7728,7 @@ A.25.  helpfun.h
 
 
 Andersen, et al.              Experimental                    [Page 138]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7784,7 +7784,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 139]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7840,7 +7840,7 @@ A.26.  helpfun.c
 
 
 Andersen, et al.              Experimental                    [Page 140]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7896,7 +7896,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 141]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -7952,7 +7952,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 142]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8008,7 +8008,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 143]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8064,7 +8064,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 144]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8120,7 +8120,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 145]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8176,7 +8176,7 @@ A.28.  hpInput.c
 
 
 Andersen, et al.              Experimental                    [Page 146]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8232,7 +8232,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 147]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8288,7 +8288,7 @@ A.30.  hpOutput.c
 
 
 Andersen, et al.              Experimental                    [Page 148]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8344,7 +8344,7 @@ A.31.  iCBConstruct.h
 
 
 Andersen, et al.              Experimental                    [Page 149]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8400,7 +8400,7 @@ A.32.  iCBConstruct.c
 
 
 Andersen, et al.              Experimental                    [Page 150]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8456,7 +8456,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 151]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8512,7 +8512,7 @@ A.33.  iCBSearch.h
 
 
 Andersen, et al.              Experimental                    [Page 152]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8568,7 +8568,7 @@ A.34.  iCBSearch.c
 
 
 Andersen, et al.              Experimental                    [Page 153]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8624,7 +8624,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 154]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8680,7 +8680,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 155]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8736,7 +8736,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 156]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8792,7 +8792,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 157]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8848,7 +8848,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 158]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8904,7 +8904,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 159]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -8960,7 +8960,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 160]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9016,7 +9016,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 161]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9072,7 +9072,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 162]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9128,7 +9128,7 @@ A.35.  LPCdecode.h
 
 
 Andersen, et al.              Experimental                    [Page 163]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9184,7 +9184,7 @@ A.36.  LPCdecode.c
 
 
 Andersen, et al.              Experimental                    [Page 164]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9240,7 +9240,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 165]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9296,7 +9296,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 166]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9352,7 +9352,7 @@ A.38.  LPCencode.c
 
 
 Andersen, et al.              Experimental                    [Page 167]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9408,7 +9408,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 168]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9464,7 +9464,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 169]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9520,7 +9520,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 170]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9576,7 +9576,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 171]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9632,7 +9632,7 @@ A.40.  lsf.c
 
 
 Andersen, et al.              Experimental                    [Page 172]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9688,7 +9688,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 173]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9744,7 +9744,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 174]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9800,7 +9800,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 175]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9856,7 +9856,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 176]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9912,7 +9912,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 177]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -9968,7 +9968,7 @@ A.41.  packing.h
 
 
 Andersen, et al.              Experimental                    [Page 178]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10024,7 +10024,7 @@ A.42.  packing.c
 
 
 Andersen, et al.              Experimental                    [Page 179]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10080,7 +10080,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 180]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10136,7 +10136,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 181]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10192,7 +10192,7 @@ A.43.  StateConstructW.h
 
 
 Andersen, et al.              Experimental                    [Page 182]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10248,7 +10248,7 @@ A.44.  StateConstructW.c
 
 
 Andersen, et al.              Experimental                    [Page 183]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10304,7 +10304,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 184]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10360,7 +10360,7 @@ A.45.  StateSearchW.h
 
 
 Andersen, et al.              Experimental                    [Page 185]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10416,7 +10416,7 @@ A.46.  StateSearchW.c
 
 
 Andersen, et al.              Experimental                    [Page 186]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10472,7 +10472,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 187]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10528,7 +10528,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 188]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10584,7 +10584,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 189]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10640,7 +10640,7 @@ A.48.  syntFilter.c
 
 
 Andersen, et al.              Experimental                    [Page 190]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10696,7 +10696,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 191]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10752,7 +10752,7 @@ Authors' Addresses
 
 
 Andersen, et al.              Experimental                    [Page 192]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10808,7 +10808,7 @@ RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
 Andersen, et al.              Experimental                    [Page 193]
-
+
 RFC 3951              Internet Low Bit Rate Codec          December 2004
 
 
@@ -10864,4 +10864,3 @@ Acknowledgement
 
 
 Andersen, et al.              Experimental                    [Page 194]
-

@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Paths to configurable Asterisk directories
- * 
+ *
  * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>

@@ -226,4 +226,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Customizable Comma Se
 	.reload = reload,
 	.load_pri = AST_MODPRI_CDR_DRIVER,
 	);
-

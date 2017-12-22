@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 
-/** 
- * @file ooSocket.h 
+/**
+ * @file ooSocket.h
  * Common runtime constants, data structure definitions, and run-time functions
  * to support the sockets' operations.
  */
@@ -60,7 +60,7 @@ extern "C" {
 #endif /* MAKE_DLL */
 #endif /* EXTERN */
 
-/** 
+/**
  * @defgroup sockets Socket Layer
  * @{
  */
@@ -75,7 +75,7 @@ typedef int OOSOCKET;          /**< Socket's handle */
 #define OOSOCKET_INVALID ((OOSOCKET)-1)
 
 
-/** 
+/**
  * The IP address represented as unsigned long value. The most significant 8
  * bits in this unsigned long value represent the first number of the IP
  * address. The least significant 8 bits represent the last number of the IP
@@ -115,7 +115,7 @@ typedef struct OOInterface{
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket, 
+EXTERN int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket,
                              char* destAddr, int* destPort);
 
 /**
@@ -185,7 +185,7 @@ EXTERN int ooSocketConnect (OOSOCKET socket, const char* host, int port);
 EXTERN int ooSocketCreate (OOSOCKET* psocket, int family);
 
 /**
- * This function creates a UDP datagram socket. 
+ * This function creates a UDP datagram socket.
  *
  * @param psocket      The pointer to the socket's handle variable to receive
  *                     the handle of new socket.
@@ -204,7 +204,7 @@ EXTERN int ooSocketCreateUDP (OOSOCKET* psocket, int family);
 EXTERN int ooSocketsInit (void);
 
 /**
- * This function terminates use of sockets by an application. This function 
+ * This function terminates use of sockets by an application. This function
  * must be called after done with sockets.
  *
  * @return             Completion status of operation: 0 (ASN_OK) = success,
@@ -256,17 +256,17 @@ EXTERN int ooSocketRecvPeek
  * @return             If no error occurs, returns the number of bytes
  *                     received. Otherwise, the negative value is error code.
  */
-EXTERN int ooSocketRecv (OOSOCKET socket, ASN1OCTET* pbuf, 
+EXTERN int ooSocketRecv (OOSOCKET socket, ASN1OCTET* pbuf,
                            ASN1UINT bufsize);
 
 /**
  * This function receives data from a connected/unconnected socket. It is used
- * to read incoming data on sockets. It populates the remotehost and 
- * remoteport parameters with information of remote host. See description of 
+ * to read incoming data on sockets. It populates the remotehost and
+ * remoteport parameters with information of remote host. See description of
  * 'recvfrom' socket function for further details.
  *
  * @param socket       The socket's handle created by call to ooSocketCreate
- *                     
+ *
  * @param pbuf         Pointer to the buffer for the incoming data.
  * @param bufsize      Length of the buffer.
  * @param remotehost   Pointer to a buffer in which remote ip address
@@ -279,7 +279,7 @@ EXTERN int ooSocketRecv (OOSOCKET socket, ASN1OCTET* pbuf,
  *                     received. Otherwise, negative value.
  */
 EXTERN int ooSocketRecvFrom (OOSOCKET socket, ASN1OCTET* pbuf,
-                             ASN1UINT bufsize, char * remotehost, 
+                             ASN1UINT bufsize, char * remotehost,
                              ASN1UINT hostBufLen, int * remoteport);
 /**
  * This function sends data on a connected socket. It is used to write outgoing
@@ -293,47 +293,47 @@ EXTERN int ooSocketRecvFrom (OOSOCKET socket, ASN1OCTET* pbuf,
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketSend (OOSOCKET socket, const ASN1OCTET* pdata, 
+EXTERN int ooSocketSend (OOSOCKET socket, const ASN1OCTET* pdata,
                            ASN1UINT size);
 
 /**
- * This function sends data on a connected or unconnected socket. See 
+ * This function sends data on a connected or unconnected socket. See
  * description of 'sendto' socket function for further details.
  *
  * @param socket       The socket's handle created by call to ::rtSocketCreate
  *                       or ::rtSocketAccept function.
  * @param pdata        Buffer containing the data to be transmitted.
  * @param size         Length of the data in pdata.
- * @param remotehost   Remote host ip address to which data has to 
+ * @param remotehost   Remote host ip address to which data has to
  *                     be sent.
- * @param remoteport   Remote port ip address to which data has to 
+ * @param remoteport   Remote port ip address to which data has to
  *                     be sent.
  *
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata, 
+EXTERN int ooSocketSendTo(OOSOCKET socket, const ASN1OCTET* pdata,
                             ASN1UINT size, const char* remotehost,
                             int remoteport);
 
 /**
  * This function is used for synchronous monitoring of multiple sockets.
- * For more information refer to documnetation of "select" system call. 
+ * For more information refer to documnetation of "select" system call.
  *
- * @param nfds         The highest numbered descriptor to be monitored 
+ * @param nfds         The highest numbered descriptor to be monitored
  *                     plus one.
- * @param readfds      The descriptors listed in readfds will be watched for 
+ * @param readfds      The descriptors listed in readfds will be watched for
  *                     whether read would block on them.
  * @param writefds     The descriptors listed in writefds will be watched for
  *                     whether write would block on them.
  * @param exceptfds    The descriptors listed in exceptfds will be watched for
  *                     exceptions.
- * @param timeout      Upper bound on amout of time elapsed before select 
- *                     returns. 
+ * @param timeout      Upper bound on amout of time elapsed before select
+ *                     returns.
  * @return             Completion status of operation: 0 (ASN_OK) = success,
  *                     negative return value is error.
  */
-EXTERN int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds, 
+EXTERN int ooSocketSelect(int nfds, fd_set *readfds, fd_set *writefds,
                             fd_set *exceptfds, struct timeval * timeout) attribute_deprecated;
 
 EXTERN int ooSocketPoll(struct pollfd *pfds, int nfds, int timeout);
@@ -379,7 +379,7 @@ EXTERN int ooPDWrite(struct pollfd *pfds, int nfds, int fd);
 EXTERN int ooGetLocalIPAddress(char * pIPAddrs);
 
 
-EXTERN int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name, 
+EXTERN int ooSocketGetSockName(OOSOCKET socket, struct sockaddr_in *name,
                                                       socklen_t *size);
 
 
@@ -389,7 +389,7 @@ EXTERN short ooSocketHTONS(short val);
 
 /**
  * This function is used to retrieve the ip and port number used by the socket
- * passed as parameter. It internally uses getsockname system call for this 
+ * passed as parameter. It internally uses getsockname system call for this
  * purpose.
  * @param socket  Socket for which ip and port has to be determined.
  * @param ip      Buffer in which ip address will be returned.
@@ -403,12 +403,11 @@ EXTERN int ooSocketGetIpAndPort(OOSOCKET socket, char *ip, int len, int *port, i
 
 
 EXTERN int ooSocketGetInterfaceList(OOCTXT *pctxt, OOInterface **ifList);
-/** 
- * @} 
+/**
+ * @}
  */
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* _OOSOCKET_H_ */
-

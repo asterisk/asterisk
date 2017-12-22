@@ -79,10 +79,10 @@ Asterisk Database:
    convert an existing astdb to the SQLite3 version automatically at runtime.
 
 Module Support Level
- - All modules in the addons, apps, bridge, cdr, cel, channels, codecs, 
+ - All modules in the addons, apps, bridge, cdr, cel, channels, codecs,
    formats, funcs, pbx, and res have been updated to include MODULEINFO data
    that includes <support_level> tags with a value of core, extended, or deprecated.
-   More information is available on the Asterisk wiki at 
+   More information is available on the Asterisk wiki at
    https://wiki.asterisk.org/wiki/display/AST/Asterisk+Module+Support+States
 
    Deprecated modules are now marked to not build by default and must be explicitly

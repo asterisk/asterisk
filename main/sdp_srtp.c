@@ -438,4 +438,3 @@ char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance 
 		}
 	}
 }
-

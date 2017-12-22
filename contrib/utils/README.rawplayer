@@ -23,15 +23,12 @@ and set up a class in musiconhold.conf like so:
 default => custom:/var/lib/asterisk/holdmusic_raw,/usr/bin/rawplayer
 
 
-This is the most efficient way to implement moh because no cpu usage is required to 
+This is the most efficient way to implement moh because no cpu usage is required to
 explode the very compressed mp3 data then downsample the music to the 8khz mono on the fly
-instead the data is already stored on the disk in the format that asterisk needs it to be 
-and the player does little more than pick up frames from the file and hand them to right 
+instead the data is already stored on the disk in the format that asterisk needs it to be
+and the player does little more than pick up frames from the file and hand them to right
 to the asterisk pipe where the audio is shared into all the channels who require it.
 
 
 If you have cpu to spare and want a simple mp3 solution consider the format_mp3 from
 asterisk-addons and the files based moh.
-
-
-

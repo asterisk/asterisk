@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -30,7 +30,7 @@ void dListInit (DList* pList)
 
 DListNode* dListAppend (OOCTXT* pctxt, DList* pList, void* pData)
 {
-   DListNode* pListNode = (DListNode*) 
+   DListNode* pListNode = (DListNode*)
       memAlloc (pctxt, sizeof(DListNode));
 
    if (0 != pListNode) {
@@ -53,7 +53,7 @@ DListNode* dListAppend (OOCTXT* pctxt, DList* pList, void* pData)
 
 DListNode* dListAppendNode (OOCTXT* pctxt, DList* pList, void* pData)
 {
-   DListNode* pListNode = 
+   DListNode* pListNode =
       (DListNode*) (((char*)pData) - sizeof(DListNode));
 
    if (0 != pListNode) {
@@ -109,7 +109,7 @@ void dListFreeAll (OOCTXT* pctxt, DList* pList)
 
    for (pNode = pList->head; pNode != 0; pNode = pNextNode) {
       pNextNode = pNode->next;
-      
+
       memFreePtr (pctxt, pNode->data);
       memFreePtr (pctxt, pNode);
    }
@@ -148,8 +148,8 @@ void dListFindAndRemove(struct OOCTXT* pctxt, DList* pList, void *data)
       memFreePtr(pctxt, pNode);
    }
 }
-    
-DListNode* dListFindByIndex (DList* pList, int index) 
+
+DListNode* dListFindByIndex (DList* pList, int index)
 {
    DListNode* curNode;
    int i;
@@ -163,11 +163,11 @@ DListNode* dListFindByIndex (DList* pList, int index)
 
 /* Insert item before given node */
 
-DListNode* dListInsertBefore 
+DListNode* dListInsertBefore
 (OOCTXT* pctxt, DList* pList, DListNode* node, const void* pData)
 {
    DListNode* pListNode = (DListNode*) memAlloc (pctxt, sizeof(DListNode));
-  
+
    if (0 != pListNode) {
       pListNode->data = (void*)pData;
 
@@ -212,7 +212,7 @@ DListNode* dListInsertBefore
 
 /* Insert item after given node */
 
-DListNode* dListInsertAfter 
+DListNode* dListInsertAfter
 (OOCTXT* pctxt, DList* pList, DListNode* node, const void* pData)
 {
    DListNode* pListNode = (DListNode*) memAlloc (pctxt, sizeof(DListNode));
@@ -258,4 +258,3 @@ DListNode* dListInsertAfter
 
    return pListNode;
 }
-

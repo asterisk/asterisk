@@ -72,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Implements a shared variable area, in which you may share variables between
 			channels.</para>
 			<para>The variables used in this space are separate from the general namespace of
-			the channel and thus <variable>SHARED(foo)</variable> and <variable>foo</variable> 
+			the channel and thus <variable>SHARED(foo)</variable> and <variable>foo</variable>
 			represent two completely different variables, despite sharing the same name.</para>
 			<para>Finally, realize that there is an inherent race between channels operating
 			at the same time, fiddling with each others' internal variables, which is why

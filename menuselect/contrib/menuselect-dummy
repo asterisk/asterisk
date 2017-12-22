@@ -30,7 +30,7 @@
 #   By default all modules will be built (except those marked not be
 #   used by default)
 #
-#   # exclude: Don't try to build the following modules. 
+#   # exclude: Don't try to build the following modules.
 #   #exclude app_test
 #
 #   # You can have multiple items in each line, and multiple lines.
@@ -49,7 +49,7 @@
 #   # idea.
 #   #require chan_h323 app_directory
 #
-#   # random - the value for this keyword is a number between 1 and 
+#   # random - the value for this keyword is a number between 1 and
 #   # 100. The higher it is, more chances not to include each module.
 #   # Writes the list of modules that got hit to
 #   # build_tools/mods_removed_random .
@@ -72,7 +72,7 @@ my %ModInfo = ();
 my $AutoconfDepsFile = "build_tools/menuselect-deps";
 
 my $AutoconfOptsFile = "makeopts";
-my %ConfigureOpts = (); # 
+my %ConfigureOpts = (); #
 
 # configuration file to read for some directives:
 my $ConfFile = "build_tools/conf";
@@ -143,9 +143,9 @@ sub get_subdir_module_info {
 		$src =~ m|.*/([^/]*)\.c|;
 		my $mod_name = $1;
 		my %data = (
-			Type=>'module', 
-			Module=>$mod_name, 
-			Dir=> $dir, 
+			Type=>'module',
+			Module=>$mod_name,
+			Dir=> $dir,
 			Avail=>1
 		);
 
@@ -153,7 +153,7 @@ sub get_subdir_module_info {
 			next unless (m|^/\*\*\* MODULEINFO| .. m|^ *[*]+/|);
 			next unless (m|^[A-Z]| || m|^\s*<|);
 
-			# At this point we can assume we're in the module 
+			# At this point we can assume we're in the module
 			# info section.
 			chomp;
 			my ($var, $val, %attr) = extract_xml_key($_);
@@ -162,7 +162,7 @@ sub get_subdir_module_info {
 			}
 			if ($var =~ /^(Depend|Use)$/i) {
 				# use uppercase for dependency names;
-				$val = uc($val); 
+				$val = uc($val);
 			}
 			if ( ! exists $data{$var} ) {
 				$data{$var} = [$val];
@@ -183,15 +183,15 @@ sub extract_subdirs {
 	}
 }
 
-# parse a partial XML document that is included as an input 
+# parse a partial XML document that is included as an input
 # for menuselect in a few places. Naturally a full-fledged XML parsing
 # will not be done here. A line-based parsing that happens to work will
 # have to do.
 sub parse_menuselect_xml_file($) {
 	my $file_name = shift;
-	open XML,$file_name or 
+	open XML,$file_name or
 		die "Failed opening XML file $file_name: $!.\n";
-	
+
 	my $header = <XML>;
 	$header =~ /^\s*<category\s+name="MENUSELECT_([^"]+)"\s/;
 	my $category = $1;
@@ -214,7 +214,7 @@ sub parse_menuselect_xml_file($) {
 				Module => $1,
 				DisplayName => $2,
 				Defaultenabled => ['no'],
-				Avail => 1, 
+				Avail => 1,
 
 			};
 		} elsif ($tag eq '/member') {
@@ -234,13 +234,13 @@ sub parse_menuselect_xml_file($) {
 			if (! exists $member->{$key}) {
 				$member->{$key} = [];
 			}
-			
+
 			# Make sure dependencies are upper-case.
 			# FIXME: this is not the proper place for such a fix
 			$val = uc($val) if ($key =~ /Depend|Use/);
 
 			# Using "unshift' rather than 'push'.
-			# For a singleton value this makes the action an 
+			# For a singleton value this makes the action an
 			# override, as only the first value counts.
 			# For a list value, however, it means a reversed
 			# order.
@@ -248,17 +248,17 @@ sub parse_menuselect_xml_file($) {
 		}
 	}
 
-	
+
 	close XML;
 }
 
 # Dump our data structure to a file.
 sub dump_deps($) {
 	my $file = shift;
-	open OUTPUT,">$file" or 
+	open OUTPUT,">$file" or
 	die "cannot open category file $file for writing: $!\n";
 
-	foreach my $mod_name (sort keys %ModInfo) { 
+	foreach my $mod_name (sort keys %ModInfo) {
 	print OUTPUT "Key: $mod_name\n";
 		my $data = $ModInfo{$mod_name};
 		foreach my $var (sort keys %{$data} ) {
@@ -285,7 +285,7 @@ sub get_autoconf_deps() {
 		my ($lib, $avail_val) = split(/=/);
 		my ($avail, $avail_old) = split(/:/, $avail_val);
 		my $disabled = 0;
-		if ($avail == -1) { 
+		if ($avail == -1) {
 			$disabled = 1;
 			$avail = 0;
 		}
@@ -295,7 +295,7 @@ sub get_autoconf_deps() {
 		if (defined $avail_old) {
 			$ModInfo{$lib}{AvailOld} = $avail_old;
 		}
-		# FIXME: 
+		# FIXME:
 		if (($avail ne "0") && ($avail ne "1")) {
 			warning "Library $lib has invalid availability ".
 				"value <$avail> (check $AutoconfDepsFile).\n";
@@ -367,13 +367,13 @@ sub gen_makedeps() {
 		my $mod = $ModInfo{$mod_name};
 		my @deps = ();
 
-		# if we have Depend or Use, put their values into 
+		# if we have Depend or Use, put their values into
 		# @deps . If we have none, move on.
 		push @deps, @{$mod->{Depend}} if (exists $mod->{Depend});
 		push @deps, @{$mod->{Use}}    if (exists $mod->{Use});
-		next unless @deps; 
+		next unless @deps;
 
-		# TODO: don't print dependencies that are not external libs. 
+		# TODO: don't print dependencies that are not external libs.
 		# Not done yet until I figure out if this is safe.
 		my $dep = join(' ', @deps);
 		print MAKEDEPSS "MENUSELECT_DEPENDS_".$mod->{Module}."=$dep\n";
@@ -420,7 +420,7 @@ sub apply_random_drop() {
 	}
 
 	close MODS_LIST;
-	
+
 
 }
 
@@ -442,7 +442,7 @@ sub check_required_patterns() {
 	die("Missing dependencies for the following modules: $failed_str\n");
 }
 
-# Disable building for modules that were marked in the embedded module 
+# Disable building for modules that were marked in the embedded module
 # information as disabled for building by default.
 sub apply_default_enabled() {
 	foreach my $mod (keys %ModInfo) {
@@ -529,7 +529,7 @@ sub resolve_deps() {
 	}
 }
 
-# generate menuselect.makeopts. 
+# generate menuselect.makeopts.
 # The values in this file obey to different semantics:
 # 1. For modules, a module will be built unles listed here
 # 2. For XML values (sounds, CFLAGS) it will be enabled if listed here
@@ -570,7 +570,7 @@ sub check_dependencies() {
 	parse_menuselect_xml_file('build_tools/cflags.xml');
 	if ($ConfigureOpts{AST_DEVMODE} eq 'yes') {
 		parse_menuselect_xml_file('build_tools/cflags-devmode.xml');
-	} 
+	}
 	parse_menuselect_xml_file('sounds/sounds.xml');
 
 	apply_random_drop();
@@ -590,7 +590,7 @@ sub check_dependencies() {
 	gen_makeopts();
 }
 
-# 
+#
 # The main program start here
 #
 
@@ -606,7 +606,7 @@ sub read_dump() {
 			my ($var, $value) = split /: /, $_, 2;
 			$item{$var} = $value;
 		}
-		# FIXME: dependencies are a list. This should not be a 
+		# FIXME: dependencies are a list. This should not be a
 		# special case.
 		if (exists $item{Depend}) {
 			$item{Depend} = [split /\s*,\s*/,$item{Depend}];
@@ -631,7 +631,7 @@ sub fail_reason($) {
 			return "Missing dependencies";
 		}
 	} elsif ($item->{Type} eq 'module') {
-		if (exists ($item->{Defaultenabled}) && 
+		if (exists ($item->{Defaultenabled}) &&
 			$item->{Defaultenabled} =~ /^n/) {
 			return "Disabled";
 		} else {

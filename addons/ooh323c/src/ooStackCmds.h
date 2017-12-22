@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooStackCmds.h 
+ * @file ooStackCmds.h
  * This file contains stack commands which an user application can use to make
- * call, hang call etc. 
+ * call, hang call etc.
  */
 
 #ifndef OO_STACKCMDS_H
@@ -38,7 +38,7 @@ extern "C" {
 
 
 
-/** 
+/**
  * @defgroup stackcmds Stack Control Commands
  * @{
  */
@@ -70,11 +70,11 @@ typedef enum OOStackCmdID {
    OO_CMD_REQMODE,	     /*!< Request new mode */
    OO_CMD_SETANI,	     /*! <Set conncted info */
    OO_CMD_UPDLC		     /*! <Update Logical channels */
-   
+
 } OOStackCmdID;
 
 /**
- * This structure is used to queue a stack command for processing in 
+ * This structure is used to queue a stack command for processing in
  * the event handler loop.
  */
 typedef struct OOStackCommand {
@@ -99,7 +99,7 @@ typedef struct OOStackCommand {
  *
  * @return            Returns OOStkCmdStat value indication success or failure.
  */
-EXTERN OOStkCmdStat ooMakeCall 
+EXTERN OOStkCmdStat ooMakeCall
    (const char* dest, char *callToken, size_t bufsiz, ooCallOptions *opts);
 
 
@@ -108,7 +108,7 @@ EXTERN OOStkCmdStat ooMakeCall
  * This function is used to send a manual ringback message (alerting message)
  * for a call. Effective only when manual-ringback is enabled.
  * @param callToken    Unique token for the call.
- * 
+ *
  * @return            Returns OOStkCmdStat value indication success or failure.
  */
 EXTERN OOStkCmdStat ooManualRingback(const char *callToken);
@@ -117,7 +117,7 @@ EXTERN OOStkCmdStat ooManualProgress(const char *callToken);
 /**
  * This function is used to answer a call
  * @param callToken   Unique token for the call
- * 
+ *
  * @return            Returns OOStkCmdStat value indication success or failure.
  */
 EXTERN OOStkCmdStat ooAnswerCall(const char *callToken);
@@ -142,7 +142,7 @@ EXTERN OOStkCmdStat ooForwardCall(const char* callToken, char *dest);
 EXTERN OOStkCmdStat ooHangCall(const char* callToken, OOCallClearReason reason, int q931cause);
 
 /**
- * This command function can be used by an user application to send a DTMF 
+ * This command function can be used by an user application to send a DTMF
  * sequence using H.245 UserInputIndication message.
  * @param callToken  Unique token for the call
  * @param alpha      Alphanumeric string reperesenting dtmf sequence
@@ -168,8 +168,8 @@ EXTERN OOStkCmdStat ooStopMonitor(void);
  * @return           Text description corresponding to the code.
  */
 EXTERN const char* ooGetStkCmdStatusCodeTxt(OOStkCmdStat stat);
-/** 
- * @} 
+/**
+ * @}
  */
 
 EXTERN OOStkCmdStat ooRequestChangeMode(const char *callToken, int isT38Mode);

@@ -1194,4 +1194,3 @@ int ast_indications_reload(void)
 {
 	return load_indications(1);
 }
-

@@ -232,13 +232,13 @@ int run_menu(void)
 	GtkWidget *menubar;
 
 	gtk_init(&argc, &argv);
-   
+
    	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	gtk_widget_set_size_request(window, 640, 480);
 	gtk_window_set_title(GTK_WINDOW(window), "GMenuselect");
 
 	main_vbox = gtk_vbox_new(FALSE, 1);
-	gtk_container_set_border_width(GTK_CONTAINER(main_vbox), 1); 
+	gtk_container_set_border_width(GTK_CONTAINER(main_vbox), 1);
 	gtk_container_add(GTK_CONTAINER(window), main_vbox);
 
 	menubar = get_menubar_menu(window);
@@ -347,7 +347,7 @@ int run_menu(void)
 	column = gtk_tree_view_column_new_with_attributes("Conflicts With",
 				renderer, "text", COLUMN_CNFS, NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-	
+
 	renderer = gtk_cell_renderer_text_new();
 	column = gtk_tree_view_column_new_with_attributes("Description",
 				renderer, "text", COLUMN_DESC, NULL);
@@ -360,7 +360,7 @@ int run_menu(void)
 	gtk_box_pack_end(GTK_BOX(main_vbox), s_window, TRUE, TRUE, 0);
 
 	gtk_widget_show_all(window);
-   
+
 	gtk_main();
 
 	return main_res;

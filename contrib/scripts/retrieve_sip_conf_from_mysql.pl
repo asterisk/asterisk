@@ -78,16 +78,15 @@ foreach my $row ( @{ $result } ) {
 	}
 
 	my @resSet = @{$result};
-	if ( $#resSet == -1 ) {          
+	if ( $#resSet == -1 ) {
 		print "no results\n";
 		exit;
 	}
 	foreach my $row ( @{ $result } ) {
 		my @result = @{ $row };
 		print EXTEN "$result[0]=$result[1]\n";
-	}                                         	
+	}
 	print EXTEN "$additional\n";
 }
 
 exit 0;
-

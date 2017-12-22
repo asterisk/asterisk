@@ -24,14 +24,14 @@
  *
  * \note Add feature to play local M3U playlist file
  * Vincent Li <mchun.li@gmail.com>
- * 
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -83,7 +83,7 @@ static int mp3play(const char *filename, unsigned int sampling_rate, int fd)
 	char sampling_rate_str[8];
 
 	res = ast_safe_fork(0);
-	if (res < 0) 
+	if (res < 0)
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res) {
 		return res;
@@ -150,7 +150,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 		return -1;
 	}
 	return read(fd, data, datalen);
-	
+
 }
 
 static int mp3_exec(struct ast_channel *chan, const char *data)
@@ -183,7 +183,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
 		return -1;
 	}
-	
+
 	ast_stopstream(chan);
 
 	native_format = ast_format_cap_get_format(ast_channel_nativeformats(chan), 0);
@@ -205,7 +205,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	myf.f.delivery.tv_sec = 0;
 	myf.f.delivery.tv_usec = 0;
 	myf.f.data.ptr = myf.frdata;
-	
+
 	res = mp3play(data, sampling_rate, fds[1]);
 	if (!strncasecmp(data, "http://", 7)) {
 		timeout = 10000;
@@ -255,20 +255,20 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 						break;
 					}
 					ast_frfree(f);
-				} 
+				}
 			}
 		}
 	}
 	close(fds[0]);
 	close(fds[1]);
-	
+
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 
 	ast_frfree(&myf.f);
-	
+
 	return res;
 }
 
@@ -283,4 +283,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Silly MP3 Application");
-

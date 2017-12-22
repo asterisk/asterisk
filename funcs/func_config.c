@@ -23,7 +23,7 @@
  *
  * \author Russell Bryant <russell@digium.com>
  * \author Tilghman Lesher <func_config__200803@the-tilghman.com>
- * 
+ *
  * \ingroup functions
  */
 
@@ -107,7 +107,7 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 		ast_log(LOG_ERROR, "AST_CONFIG() requires a category\n");
 		return -1;
 	}
-	
+
 	if (ast_strlen_zero(args.variable)) {
 		ast_log(LOG_ERROR, "AST_CONFIG() requires a variable\n");
 		return -1;

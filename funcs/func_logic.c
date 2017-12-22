@@ -16,9 +16,9 @@
  */
 
 /*! \file
- * 
+ *
  * \brief Conditional logic dialplan functions
- * 
+ *
  * \author Anthony Minessale II
  *
  * \ingroup functions
@@ -85,7 +85,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Returns the data following <literal>?</literal> if true, else the data following <literal>:</literal></para>
-		</description>	
+		</description>
 	</function>
 	<function name="IFTIME" language="en_US">
 		<synopsis>
@@ -184,7 +184,7 @@ static int acf_if(struct ast_channel *chan, const char *cmd, char *data, char *b
 										    -- and if you mod the ast_app_separate_args func instead, you'll really
 											mess things up badly, because the rest of everything depends on null args
 											for non-specified stuff. */
-	
+
 	AST_NONSTANDARD_APP_ARGS(args1, data, '?');
 	AST_NONSTANDARD_APP_ARGS(args2, args1.remainder, ':');
 

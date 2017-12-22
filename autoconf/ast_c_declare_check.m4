@@ -23,7 +23,7 @@ AC_DEFUN([AST_C_DECLARE_CHECK],
                 AC_DEFINE([HAVE_$1], 1, [Define if your system has $2 declared.])
                 m4_ifval([$4], [AC_DEFINE([HAVE_$1_VERSION], $4, [Define $1 headers version])])
             ],
-            [   AC_MSG_RESULT(no) ] 
+            [   AC_MSG_RESULT(no) ]
         )
 
         CPPFLAGS="${saved_cppflags}"

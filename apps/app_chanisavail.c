@@ -93,7 +93,7 @@ static const char app[] = "ChanIsAvail";
 				</variable>
 				<variable name="AVAILCAUSECODE">
 				        <para>The cause code returned when requesting the channel</para>
-				</variable>	
+				</variable>
 			</variablelist>
 		</description>
 	</application>
@@ -173,7 +173,7 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 			ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
 			if ((inuse <= 1) && (tempchan = ast_request(tech, ast_channel_nativeformats(chan), NULL, chan, number, &status))) {
 					ast_str_append(&tmp_availchan, 0, "%s%s", ast_str_strlen(tmp_availchan) ? "&" : "", ast_channel_name(tempchan));
-					
+
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
 					ast_str_append(&tmp_availorig, 0, "%s%s", ast_str_strlen(tmp_availorig) ? "&" : "", tmp);
 
@@ -212,4 +212,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Check channel availability");
-

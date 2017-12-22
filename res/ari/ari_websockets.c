@@ -155,7 +155,7 @@ struct ast_json *ast_ari_websocket_session_read(
 	"{"						\
 	"  \"error\": \"InvalidMessage\","		\
 	"  \"message\": \"Message validation failed\""	\
-	"}" 
+	"}"
 
 int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 	struct ast_json *message)

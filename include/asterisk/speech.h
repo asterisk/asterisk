@@ -68,7 +68,7 @@ struct ast_speech {
 	/*! Pointer to the engine used by this speech structure */
 	struct ast_speech_engine *engine;
 };
-  
+
 /* Speech recognition engine structure */
 struct ast_speech_engine {
 	/*! Name of speech engine */

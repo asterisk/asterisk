@@ -36,7 +36,7 @@
                             ; NOTE: You can not just put any type of channel here.
                             ;       DAHDI channels can be directly used.  IP trunks
                             ;       require some indirect configuration which is
-                            ;       described in 
+                            ;       described in
                             ; https://wiki.asterisk.org/wiki/display/AST/SLA+Trunk+Configuration
 
 ;autocontext=line1          ; This supports automatic generation of the dialplan entries
@@ -148,4 +148,3 @@
 ;[station5](station)
 ;device=SIP/station5
 ; --------------------------------------
-

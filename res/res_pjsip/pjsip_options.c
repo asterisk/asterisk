@@ -1281,7 +1281,7 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	ami->count++;
-	
+
 	ast_free(buf);
 	ao2_cleanup(status);
 	return 0;

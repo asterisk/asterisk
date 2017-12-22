@@ -303,5 +303,3 @@ int ast_poll2(struct pollfd *pArray, unsigned long n_fds, struct timeval *tv)
 	return ready_descriptors;
 #endif
 }
-
-

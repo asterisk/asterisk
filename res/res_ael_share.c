@@ -21,7 +21,7 @@
  * \brief Shareable AEL code -- mainly between internal and external modules
  *
  * \author Steve Murphy <murf@digium.com>
- * 
+ *
  * \ingroup applications
  */
 

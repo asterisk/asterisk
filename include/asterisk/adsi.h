@@ -377,4 +377,3 @@ struct adsi_funcs {
 void ast_adsi_install_funcs(const struct adsi_funcs *funcs);
 
 #endif /* _ASTERISK_ADSI_H */
-

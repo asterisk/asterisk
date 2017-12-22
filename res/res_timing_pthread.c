@@ -134,7 +134,7 @@ static void *pthread_timer_open(void)
 	for (i = 0; i < ARRAY_LEN(timer->pipe); ++i) {
 		ast_fd_set_flags(timer->pipe[i], O_NONBLOCK);
 	}
-	
+
 	ao2_lock(pthread_timers);
 	if (!ao2_container_count(pthread_timers)) {
 		ast_mutex_lock(&timing_thread.lock);

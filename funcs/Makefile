@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile for dialplan functions
 #
 # Copyright (C) 2005-2006, Digium, Inc.

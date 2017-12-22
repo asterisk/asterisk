@@ -7,7 +7,7 @@
  *
  * The lpc10 code is from a library used by nautilus, modified to be a bit
  * nicer to the compiler.
- * See http://www.arl.wustl.edu/~jaf/ 
+ * See http://www.arl.wustl.edu/~jaf/
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -139,7 +139,7 @@ static int lpc10tolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		pvt->datalen += 2*LPC10_SAMPLES_PER_FRAME;
 		len += LPC10_BYTES_IN_COMPRESSED_FRAME;
 	}
-	if (len != f->datalen) 
+	if (len != f->datalen)
 		printf("Decoded %d, expected %d\n", len, f->datalen);
 	return 0;
 }

@@ -33,7 +33,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page phoneprov.conf phoneprov.conf
  * \verbinclude phoneprov.conf.sample
  */

@@ -73,9 +73,9 @@ From 1.6.2 to 1.8:
   it is set to load. If not, then any module which uses RTP (such as chan_sip)
   will not be able to send or receive calls.
 
-* The app_dahdiscan.c file has been removed, but the dialplan app DAHDIScan still 
-  remains. It now exists within app_chanspy.c and retains the exact same 
-  functionality as before. 
+* The app_dahdiscan.c file has been removed, but the dialplan app DAHDIScan still
+  remains. It now exists within app_chanspy.c and retains the exact same
+  functionality as before.
 
 * The default behavior for Set, AGI, and pbx_realtime has been changed to implement
   1.6 behavior by default, if there is no [compat] section in asterisk.conf.  In
@@ -111,7 +111,7 @@ From 1.6.2 to 1.8:
 * ExternalIVR will now send Z events for invalid or missing files, T events
   now include the interrupted file and bugs in argument parsing have been
   fixed so there may be arguments specified in incorrect ways that were
-  working that will no longer work. Please see 
+  working that will no longer work. Please see
   https://wiki.asterisk.org/wiki/display/AST/External+IVR+Interface for details.
 
 * OSP lookup application changes following variable names:
@@ -185,7 +185,7 @@ From 1.6.1 to 1.6.2:
 
 * SIP no longer sends the 183 progress message for early media by
   default.  Applications requiring early media should use the
-  progress() dialplan app to generate the progress message. 
+  progress() dialplan app to generate the progress message.
 
 * The firmware for the IAXy has been removed from Asterisk.  It can be
   downloaded from http://downloads.digium.com/pub/iaxy/.  To have Asterisk
@@ -269,8 +269,8 @@ From 1.6.1 to 1.6.2:
 * DAHDISendCallreroutingFacility() parameters are now comma-separated,
   instead of the old pipe.
 
-* res_jabber: autoprune has been disabled by default, to avoid misconfiguration 
-  that would end up being interpreted as a bug once Asterisk started removing 
+* res_jabber: autoprune has been disabled by default, to avoid misconfiguration
+  that would end up being interpreted as a bug once Asterisk started removing
   the contacts from a user list.
 
 * The cdr.conf file must exist and be configured correctly in order for CDR
@@ -341,4 +341,3 @@ From 1.6.0.x to 1.6.1:
 * If you use ODBC storage for voicemail, there is a new field called "flag"
   which should be a char(8) or larger.  This field specifies whether or not a
   message has been designated to be "Urgent", "PRIORITY", or not.
-

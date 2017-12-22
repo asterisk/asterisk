@@ -200,7 +200,7 @@ static int build_radius_record(VALUE_PAIR **tosend, struct ast_cdr *cdr)
 	}
 
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
-	 * of Acct-Unique-Session-Id on server side 
+	 * of Acct-Unique-Session-Id on server side
 	 */
 	/* Channel */
 	if (!rc_avpair_add(rh, tosend, PW_USER_NAME, &cdr->channel, strlen(cdr->channel), 0))

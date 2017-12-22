@@ -57,4 +57,3 @@
 ; for this is to allow different sections to specify different values for
 ; a certain named column, presumably separated by filters.
 ;static "Some Special Value" => identifier_code
-

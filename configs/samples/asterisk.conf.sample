@@ -73,7 +73,7 @@ astsbindir => /usr/sbin
 ;rungroup = asterisk		; The group to run as.
 ;lightbackground = yes		; If your terminal is set for a light-colored
 				; background.
-;forceblackbackground = yes     ; Force the background of the terminal to be 
+;forceblackbackground = yes     ; Force the background of the terminal to be
                                 ; black, in order for terminal colors to show
                                 ; up properly.
 ;defaultlanguage = en           ; Default language

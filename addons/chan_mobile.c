@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  * \brief Bluetooth Mobile Device channel driver
  *
@@ -1774,7 +1774,7 @@ static int rfcomm_read_command(int rsock, char **buf, size_t count, size_t *in_c
  * \verbatim
  * \r\n<result code>\r\n
  * <at command>\r
- * \r\n> 
+ * \r\n>
  * \endverbatim
  *
  * These formats correspond to AT result codes, AT commands, and the AT SMS
@@ -2256,7 +2256,7 @@ static int hfp_parse_cmti(struct hfp_pvt *hfp, char *buf)
 	int index = -1;
 
 	/* parse cmti info in the following format:
-	 * +CMTI: <mem>,<index> 
+	 * +CMTI: <mem>,<index>
 	 */
 	if (!sscanf(buf, "+CMTI: %*[^,],%d", &index)) {
 		ast_debug(2, "[%s] error parsing CMTI event '%s'\n", hfp->owner->id, buf);

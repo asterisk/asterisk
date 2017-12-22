@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright 2007, Luigi Rizzo 
+ * Copyright 2007, Luigi Rizzo
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -209,7 +209,7 @@ static void *grab_v4l1_open(const char *dev, struct fbuf_t *geom, int fps)
 	struct fbuf_t *b;
 
 	/* name should be something under /dev/ */
-	if (strncmp(dev, "/dev/", 5)) 
+	if (strncmp(dev, "/dev/", 5))
 		return NULL;
 	fd = open(dev, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {

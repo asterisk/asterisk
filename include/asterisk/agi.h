@@ -41,7 +41,7 @@ typedef struct agi_state {
 
 typedef struct agi_command {
 	const char * const cmda[AST_MAX_CMD_LEN];		/*!< Null terminated list of the words of the command */
-	/*! Handler for the command (channel, AGI state, # of arguments, argument list). 
+	/*! Handler for the command (channel, AGI state, # of arguments, argument list).
 	    Returns RESULT_SHOWUSAGE for improper arguments */
 	int (* const handler)(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[]);
 	/*! Summary of the command (< 60 characters) */

@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile for CEL backends
 #
 # Copyright (C) 1999-2008, Digium, Inc.

@@ -21,7 +21,7 @@
  * \brief Execute arbitrary system commands
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -149,14 +149,14 @@ static int system_exec_helper(struct ast_channel *chan, const char *data, int fa
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		res = failmode;
 	} else {
-		if (res < 0) 
+		if (res < 0)
 			res = 0;
 		if (res != 0)
 			pbx_builtin_setvar_helper(chan, chanvar, "APPERROR");
 		else
 			pbx_builtin_setvar_helper(chan, chanvar, "SUCCESS");
 		res = 0;
-	} 
+	}
 
 	ast_autoservice_stop(chan);
 

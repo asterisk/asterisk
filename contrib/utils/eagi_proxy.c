@@ -71,10 +71,10 @@ char window[WINSIZE];
 #define WINBUF_NUM 2400 /* number of WINSIZE windows = 1 minute */
 char* winbuf;
 char *end, *bs, *be;
-/* winbuf - start of buffer 
- * end - end of buffer  
+/* winbuf - start of buffer
+ * end - end of buffer
  * bs - start of data
- * be - end of data 
+ * be - end of data
  */
 
 int command_desc; /* command transfer descriptor */
@@ -107,7 +107,7 @@ void* readSignal(void* ptr);
 int main()
 {
 	int ret;
-	
+
 	atexit(finalize);
 
 	setlinebuf(stdin);
@@ -118,7 +118,7 @@ int main()
 	bs=be=winbuf;
 
 	speech_desc=connect_to_host("localhost",SIGNAL_PORT);
-	if(speech_desc<0) 
+	if(speech_desc<0)
 	{
 		perror("signal socket");
 		return -1;
@@ -126,7 +126,7 @@ int main()
 
 
 	command_desc=connect_to_host("localhost",COMMAND_PORT);
-	if(command_desc<0) 
+	if(command_desc<0)
 	{
 		perror("command socket");
 		return -1;
@@ -137,14 +137,14 @@ int main()
 	pthread_create(&signal_thread,NULL,readSignal,NULL);
 
 	while(connected)
-	{	
+	{
 		pthread_mutex_lock(&command_mutex);
 		ret=read_some(command_desc,buf,BUFSIZE);
 		pthread_mutex_unlock(&command_mutex);
 		if(ret>0)
 		{
 			buf[ret]=0;
-			printf("%s",buf);			
+			printf("%s",buf);
 		}
 	}
 
@@ -155,7 +155,7 @@ void finalize()
 {
 	close(command_desc);
 	close(speech_desc);
-	free(winbuf);	
+	free(winbuf);
 }
 
 void* readStdin(void* ptr)
@@ -168,7 +168,7 @@ void* readStdin(void* ptr)
 			write_buf(command_desc,buf,strlen(buf));
 			pthread_mutex_unlock(&command_mutex);
 		#endif
-		if(feof(stdin) || buf[0]=='\n') 
+		if(feof(stdin) || buf[0]=='\n')
 		{
 			break;
 		}
@@ -221,9 +221,9 @@ int connect_to_host(char* name, int port)
 	int res,desc;
 	int opts;
 	struct sockaddr_in host;
-	
 
-	/* get address */	
+
+	/* get address */
 	if(!strcmp(name,"localhost"))
 		address=htonl(2130706433); /*127.0.0.1*/
 	else
@@ -232,7 +232,7 @@ int connect_to_host(char* name, int port)
 		if(address==(in_addr_t)-1)
 		{
 			host_entity = gethostbyname(name); /* search for the host under this name */
-	
+
 			if(!host_entity)
 			{
 				fprintf(stderr,"EAGI proxy: Wrong address!\n"); /* can't find anything*/
@@ -250,11 +250,11 @@ int connect_to_host(char* name, int port)
 	}
 
 	memset((void*)&host,0,sizeof(struct sockaddr_in));
-	
+
 	host.sin_family=AF_INET;
 	host.sin_port=htons(port);
 	host.sin_addr.s_addr=address;
-	
+
 	res=connect(desc,(struct sockaddr*)&host,sizeof(host));
 	if(res<0)
 	{
@@ -292,15 +292,15 @@ int read_some(int desc, char* buffer, int size)
 			{
 				perror("Error reading");
 				connected=0;
-			}	
+			}
 			break;
 		}
-		if(res==0) 
+		if(res==0)
 		{
 			connected=0;
 			break;
 		}
-		
+
 		buffer[i]=c;
 		i++;
 	}
@@ -385,7 +385,7 @@ int write_amap(int desc, char* buf, int size)
 	ret=write(desc,buf,size);
 	if(ret<0)
 	{
-		if(errno!=EAGAIN) 
+		if(errno!=EAGAIN)
 		{
 			perror("Error writing");
 			connected=0;
@@ -402,7 +402,7 @@ int write_amap(int desc, char* buf, int size)
 void setnonblocking(int desc)
 {
 	int opts;
-	
+
 	opts = fcntl(desc,F_GETFL);
 	if(opts < 0)
 	{

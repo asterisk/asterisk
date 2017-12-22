@@ -1,7 +1,7 @@
 #!/bin/sh
 cat << END
 /*
- * defaults.h 
+ * defaults.h
  * Automatically generated from build options,
  * only used in main/asterisk.c
  */

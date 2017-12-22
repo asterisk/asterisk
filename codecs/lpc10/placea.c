@@ -114,7 +114,7 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /* This subroutine has no local state. */
 
 /* Subroutine */ int placea_(integer *ipitch, integer *voibuf, integer *
-	obound, integer *af, integer *vwin, integer *awin, integer *ewin, 
+	obound, integer *af, integer *vwin, integer *awin, integer *ewin,
 	integer *lframe, integer *maxwin)
 {
     /* System generated locals */
@@ -146,13 +146,13 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /*   Case 1:  Sustained Voiced Speech */
 /*   If the five most recent voicing decisions are */
 /*   voiced, then the window is placed phase-synchronously with the */
-/*   previous window, as close to the present voicing window if possible. 
+/*   previous window, as close to the present voicing window if possible.
 */
 /*   If onsets bound the voicing window, then preference is given to */
 /*   a phase-synchronous placement which does not overlap these onsets. */
 
 /*   Case 2:  Voiced Transition */
-/*   If at least one voicing decision in AF is voicied, and there are no 
+/*   If at least one voicing decision in AF is voicied, and there are no
 */
 /*   onsets, then the window is placed as in case 1. */
 
@@ -207,7 +207,7 @@ rd */
 	    awin[(*af << 1) + 1] -= *ipitch;
 	    awin[(*af << 1) + 2] -= *ipitch;
 	}
-/* Similarly if the placement puts the analysis window below LRANGE. 
+/* Similarly if the placement puts the analysis window below LRANGE.
 */
 	while(awin[(*af << 1) + 1] < lrange) {
 	    awin[(*af << 1) + 1] += *ipitch;
@@ -239,4 +239,3 @@ e*/
     }
     return 0;
 } /* placea_ */
-

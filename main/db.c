@@ -1029,8 +1029,8 @@ static void *db_sync_thread(void *data)
 	ast_mutex_lock(&dblock);
 	ast_db_begin_transaction();
 	for (;;) {
-		/* If dosync is set, db_sync() was called during sleep(1), 
-		 * and the pending transaction should be committed. 
+		/* If dosync is set, db_sync() was called during sleep(1),
+		 * and the pending transaction should be committed.
 		 * Otherwise, block until db_sync() is called.
 		 */
 		while (!dosync) {

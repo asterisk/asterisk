@@ -340,4 +340,3 @@ struct ao2_container *ast_dns_get_nameservers(void)
 
 	return nameservers;
 }
-

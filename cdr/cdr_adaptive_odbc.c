@@ -815,4 +815,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Adaptive ODBC CDR bac
 	.reload = reload,
 	.load_pri = AST_MODPRI_CDR_DRIVER,
 );
-

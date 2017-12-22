@@ -71,7 +71,7 @@ struct ast_format_interface {
 	enum ast_format_cmp_res (* const format_cmp)(const struct ast_format *format1,
 		const struct ast_format *format2);
 
-	/*! 
+	/*!
 	 * \brief Get a format with the joint compatible attributes of both provided formats.
 	 *
 	 * \param format1 The first format

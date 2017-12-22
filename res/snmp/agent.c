@@ -555,7 +555,7 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 	ast_variables_destroy(channel_types);
 	if (next == NULL || tech == NULL)
 		return NULL;
-	
+
 	switch (vp->magic) {
 	case ASTCHANTYPEINDEX:
 		long_ret = name[*length - 1];

@@ -38,7 +38,7 @@ ifneq ($(MODULE_PREFIX),)
     ALL_C_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.c,%,$(wildcard $(p)_*.c)))
     ALL_CC_MODS+=$(foreach p,$(MODULE_PREFIX),$(patsubst %.cc,%,$(wildcard $(p)_*.cc)))
 endif
- 
+
 C_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_C_MODS))
 CC_MODS:=$(filter-out $(MENUSELECT_$(MENUSELECT_CATEGORY)),$(ALL_CC_MODS))
 

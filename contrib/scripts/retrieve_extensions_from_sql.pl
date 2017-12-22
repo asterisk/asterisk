@@ -20,7 +20,7 @@
 #
 # Use these commands to create the appropriate SQL tables
 # If flags is 1 then the record is not included in the output extensions file
-# 
+#
 #CREATE TABLE extensions (
 #        context VARCHAR(20) DEFAULT 'default' NOT NULL,
 #        extension VARCHAR(20) NOT NULL,

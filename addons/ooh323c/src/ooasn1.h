@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
-/** 
- * @file ooasn1.h 
+/**
+ * @file ooasn1.h
  * Common ASN.1 runtime constants, data structure definitions, and run-time
- * functions to support ASN.1 PER encoding/decoding as defined in the 
+ * functions to support ASN.1 PER encoding/decoding as defined in the
  * ITU-T standards.
  */
 #ifndef _OOASN1_H_
@@ -31,8 +31,8 @@
 #include <stddef.h>
 #include "dlist.h"
 #include "ootrace.h"
-/** 
- * @defgroup cruntime C Runtime Common Functions 
+/**
+ * @defgroup cruntime C Runtime Common Functions
  * @{
  */
 
@@ -237,7 +237,7 @@ defined(_WIN32)
 
 #elif defined(__IBMC__) || defined(__GNUC__) || defined(__SUNPRO_C) || \
 defined(__SUNPRO_CC) || defined(__CC_ARM) || \
-defined(__HPUX_CC__) || defined(__HP_aCC) 
+defined(__HPUX_CC__) || defined(__HP_aCC)
 #define ASN1INT64 long long
 
 #else  /* !MSC_VER && !__IBMC__ etc */
@@ -423,7 +423,7 @@ typedef struct OOCTXT {         /* context block                        */
 #endif
 
 /**
- * @defgroup mem Memory Allocation Macros and Functions 
+ * @defgroup mem Memory Allocation Macros and Functions
  * @ingroup cruntime
  *
  * Memory allocation functions and macros handle memory management for the
@@ -570,7 +570,7 @@ decodeConstrainedStringEx (pctxt, pvalue, permCharSet, 8, 7, 7)
 /* Context management functions */
 
 /**
- * @defgroup cmfun Context Management Functions 
+ * @defgroup cmfun Context Management Functions
  * @{
  *
  * Context initialization functions handle the allocation, initialization, and
@@ -601,7 +601,7 @@ decodeConstrainedStringEx (pctxt, pvalue, permCharSet, 8, 7, 7)
  *                     - 0 (ASN_OK) = success,
  *                     - negative return value is error.
  */
-EXTERN int initContextBuffer 
+EXTERN int initContextBuffer
 (OOCTXT* pctxt, const ASN1OCTET* bufaddr, ASN1UINT bufsiz);
 
 /**
@@ -643,17 +643,17 @@ EXTERN int  initSubContext (OOCTXT* pctxt, OOCTXT* psrc);
 EXTERN void setCtxtFlag (OOCTXT* pctxt, ASN1USINT mask);
 EXTERN void clearCtxtFlag (OOCTXT* pctxt, ASN1USINT mask);
 
-EXTERN int setPERBuffer 
+EXTERN int setPERBuffer
 (OOCTXT* pctxt, ASN1OCTET* bufaddr, ASN1UINT bufsiz, ASN1BOOL aligned);
 
 EXTERN int setPERBufferUsingCtxt (OOCTXT* pTarget, OOCTXT* pSource);
 
 #define ZEROCONTEXT(pctxt) memset(pctxt,0,sizeof(OOCTXT))
-/** 
+/**
  * @} cmfun
  */
 /**
- * @defgroup errfp Error Formatting and Print Functions 
+ * @defgroup errfp Error Formatting and Print Functions
  * @{
  *
  * Error formatting and print functions allow information about the
@@ -691,7 +691,7 @@ EXTERN int errAddIntParm (ASN1ErrInfo* pErrInfo, int errParm);
  * @param errprm_p     The typed error parameter.
  * @return             The status of the operation.
  */
-EXTERN int errAddStrParm (ASN1ErrInfo* pErrInfo, 
+EXTERN int errAddStrParm (ASN1ErrInfo* pErrInfo,
                             const char* errprm_p);
 
 /**
@@ -711,7 +711,7 @@ EXTERN int errAddStrParm (ASN1ErrInfo* pErrInfo,
 EXTERN int errAddUIntParm (ASN1ErrInfo* pErrInfo, unsigned int errParm);
 
 
-EXTERN int errCopyData (ASN1ErrInfo* pSrcErrInfo, 
+EXTERN int errCopyData (ASN1ErrInfo* pSrcErrInfo,
                         ASN1ErrInfo* pDestErrInfo);
 
 /**
@@ -764,7 +764,7 @@ EXTERN void errPrint (ASN1ErrInfo* pErrInfo);
  */
 EXTERN int errReset (ASN1ErrInfo* pErrInfo);
 
-/** 
+/**
  * This function sets error information in an error information structure. The
  * information set includes status code, module name, and line number. Location
  * information (i.e. module name and line number) is pushed onto a stack within
@@ -787,7 +787,7 @@ EXTERN int errReset (ASN1ErrInfo* pErrInfo);
  *                     information and return the status value in one line of
  *                     code.
  */
-EXTERN int errSetData (ASN1ErrInfo* pErrInfo, int status, 
+EXTERN int errSetData (ASN1ErrInfo* pErrInfo, int status,
                        const char* module, int lno);
 
 #ifndef _COMPACT
@@ -802,8 +802,8 @@ errSetData(&(ctxt)->errInfo,stat,__FILE__,__LINE__)
 
 #define LOG_ASN1ERR_AND_FREE(pctxt,stat,lctxt) \
 freeContext ((lctxt)), LOG_ASN1ERR(pctxt, stat)
-/** 
- * @} 
+/**
+ * @}
  */
 
 #define RT_MH_DONTKEEPFREE 0x1
@@ -819,12 +819,12 @@ freeContext ((lctxt)), LOG_ASN1ERR(pctxt, stat)
  * @{
  */
 /**
- * Allocate memory.  This macro allocates the given number of bytes.  It is 
+ * Allocate memory.  This macro allocates the given number of bytes.  It is
  * similar to the C \c malloc run-time function.
- * 
+ *
  * @param pctxt - Pointer to a context block
  * @param nbytes - Number of bytes of memory to allocate
- * @return - Void pointer to allocated memory or NULL if insufficient memory 
+ * @return - Void pointer to allocated memory or NULL if insufficient memory
  *   was available to fulfill the request.
  */
 #define memAlloc(pctxt,nbytes) \
@@ -833,41 +833,41 @@ memHeapAlloc(&(pctxt)->pTypeMemHeap,nbytes)
 /**
  * Allocate and zero memory.  This macro allocates the given number of bytes
  * and then initializes the memory block to zero.
- * 
+ *
  * @param pctxt - Pointer to a context block
  * @param nbytes - Number of bytes of memory to allocate
- * @return - Void pointer to allocated memory or NULL if insufficient memory 
+ * @return - Void pointer to allocated memory or NULL if insufficient memory
  *   was available to fulfill the request.
  */
 #define memAllocZ(pctxt,nbytes) \
 memHeapAllocZ(&(pctxt)->pTypeMemHeap,nbytes)
 
 /**
- * Reallocate memory.  This macro reallocates a memory block (either 
- * expands or contracts) to the given number of bytes.  It is 
+ * Reallocate memory.  This macro reallocates a memory block (either
+ * expands or contracts) to the given number of bytes.  It is
  * similar to the C \c realloc run-time function.
- * 
+ *
  * @param pctxt - Pointer to a context block
- * @param mem_p - Pointer to memory block to reallocate.  This must have been 
+ * @param mem_p - Pointer to memory block to reallocate.  This must have been
  *   allocated using the memHeapAlloc macro or the memHeapAlloc function.
- * @param nbytes - Number of bytes of memory to which the block is to be 
+ * @param nbytes - Number of bytes of memory to which the block is to be
  *   resized.
- * @return - Void pointer to allocated memory or NULL if insufficient memory 
- *   was available to fulfill the request.  This may be the same as the pmem 
+ * @return - Void pointer to allocated memory or NULL if insufficient memory
+ *   was available to fulfill the request.  This may be the same as the pmem
  *   pointer that was passed in if the block did not need to be relocated.
  */
 #define memRealloc(pctxt,mem_p,nbytes) \
 memHeapRealloc(&(pctxt)->pTypeMemHeap, (void*)mem_p, nbytes)
 
 /**
- * Free memory pointer.  This macro frees memory at the given pointer.  
- * The memory must have been allocated using the memHeapAlloc (or similar) 
- * macros or the mem memory allocation macros.  This macro is 
+ * Free memory pointer.  This macro frees memory at the given pointer.
+ * The memory must have been allocated using the memHeapAlloc (or similar)
+ * macros or the mem memory allocation macros.  This macro is
  * similar to the C \c free function.
- * 
+ *
  * @param pctxt - Pointer to a context block
- * @param mem_p - Pointer to memory block to free.  This must have 
- *   been allocated using the memHeapAlloc or memAlloc macro or the 
+ * @param mem_p - Pointer to memory block to free.  This must have
+ *   been allocated using the memHeapAlloc or memAlloc macro or the
  *   memHeapAlloc function.
  */
 #define memFreePtr(pctxt,mem_p) \
@@ -875,34 +875,34 @@ if (memHeapCheckPtr (&(pctxt)->pTypeMemHeap, (void*)mem_p)) \
 memHeapFreePtr(&(pctxt)->pTypeMemHeap, (void*)mem_p)
 
 /**
- * Free memory associated with a context.  This macro frees all memory 
- * held within a context.  This is all memory allocated using the 
- * memHeapAlloc (and similar macros) and the mem memory allocation 
+ * Free memory associated with a context.  This macro frees all memory
+ * held within a context.  This is all memory allocated using the
+ * memHeapAlloc (and similar macros) and the mem memory allocation
  * functions using the given context variable.
- * 
+ *
  * @param pctxt - Pointer to a context block
  */
 #define memFree(pctxt) \
 memHeapFreeAll(&(pctxt)->pTypeMemHeap)
 
 /**
- * Reset memory associated with a context.  This macro resets all memory 
- * held within a context.  This is all memory allocated using the memHeapAlloc 
- * (and similar macros) and the mem memory allocation functions using the 
+ * Reset memory associated with a context.  This macro resets all memory
+ * held within a context.  This is all memory allocated using the memHeapAlloc
+ * (and similar macros) and the mem memory allocation functions using the
  * given context variable.
  *
- * <p>The difference between this and the ASN1MEMFREE macro is that the 
- * memory blocks held within the context are not actually freed.  Internal 
- * pointers are reset so the existing blocks can be reused.  This can 
- * provide a performace improvement for repetitive tasks such as decoding 
+ * <p>The difference between this and the ASN1MEMFREE macro is that the
+ * memory blocks held within the context are not actually freed.  Internal
+ * pointers are reset so the existing blocks can be reused.  This can
+ * provide a performace improvement for repetitive tasks such as decoding
  * messages in a loop.
- * 
+ *
  * @param pctxt - Pointer to a context block
  */
 #define memReset(pctxt) \
 memHeapReset(&(pctxt)->pTypeMemHeap)
 
-/* Alias for __cdecl modifier; if __cdecl keyword is not supported, 
+/* Alias for __cdecl modifier; if __cdecl keyword is not supported,
  * redefine it as empty macro. */
 
 #if !defined(OSCDECL)
@@ -931,10 +931,10 @@ EXTERN void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_);
 EXTERN void  memHeapRelease (void** ppvMemHeap);
 EXTERN void  memHeapReset (void** ppvMemHeap);
 
-EXTERN void* memHeapMarkSaved 
+EXTERN void* memHeapMarkSaved
 (void** ppvMemHeap, const void* mem_p, ASN1BOOL saved);
 
-EXTERN void  memHeapSetProperty 
+EXTERN void  memHeapSetProperty
 (void** ppvMemHeap, ASN1UINT propId, void* pProp);
 
 
@@ -1049,7 +1049,7 @@ csetvar.charSetAlignedBits = abits;
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeBits 
+EXTERN int decodeBits
 (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits);
 
 /**
@@ -1072,7 +1072,7 @@ EXTERN int decodeBits
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeBitString 
+EXTERN int decodeBitString
 (OOCTXT* pctxt, ASN1UINT* numbits_p, ASN1OCTET* buffer,
  ASN1UINT bufsiz);
 
@@ -1100,7 +1100,7 @@ EXTERN int decodeBitString
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeBMPString 
+EXTERN int decodeBMPString
 (OOCTXT* pctxt, ASN1BMPString* pvalue, Asn116BitCharSet* permCharSet);
 
 /**
@@ -1128,7 +1128,7 @@ EXTERN int decodeByteAlign (OOCTXT* pctxt);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeConsInteger 
+EXTERN int decodeConsInteger
 (OOCTXT* pctxt, ASN1INT* pvalue, ASN1INT lower, ASN1INT upper);
 
 /**
@@ -1144,7 +1144,7 @@ EXTERN int decodeConsInteger
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeConsUnsigned 
+EXTERN int decodeConsUnsigned
 (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT lower, ASN1UINT upper);
 
 /**
@@ -1160,7 +1160,7 @@ EXTERN int decodeConsUnsigned
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeConsUInt8 (OOCTXT* pctxt, 
+EXTERN int decodeConsUInt8 (OOCTXT* pctxt,
                             ASN1UINT8* pvalue, ASN1UINT lower, ASN1UINT upper);
 
 /**
@@ -1176,7 +1176,7 @@ EXTERN int decodeConsUInt8 (OOCTXT* pctxt,
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeConsUInt16 
+EXTERN int decodeConsUInt16
 (OOCTXT* pctxt, ASN1USINT* pvalue, ASN1UINT lower, ASN1UINT upper);
 
 /**
@@ -1196,7 +1196,7 @@ EXTERN int decodeConsUInt16
  *                             - 0 (ASN_OK) = success,
  *                             - negative return value is error.
  */
-EXTERN int decodeConsWholeNumber 
+EXTERN int decodeConsWholeNumber
 (OOCTXT* pctxt, ASN1UINT* padjusted_value, ASN1UINT range_value);
 
 /**
@@ -1218,7 +1218,7 @@ EXTERN int decodeConsWholeNumber
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeConstrainedStringEx 
+EXTERN int decodeConstrainedStringEx
 (OOCTXT* pctxt, const char** string, const char* charSet,
  ASN1UINT abits, ASN1UINT ubits, ASN1UINT canSetBits);
 
@@ -1262,7 +1262,7 @@ EXTERN int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeDynOctetString 
+EXTERN int decodeDynOctetString
 (OOCTXT* pctxt, ASN1DynOctStr* pOctStr);
 
 /**
@@ -1321,14 +1321,14 @@ EXTERN int decodeObjectIdentifier (OOCTXT* pctxt, ASN1OBJID* pvalue);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeOctetString 
+EXTERN int decodeOctetString
 (OOCTXT* pctxt, ASN1UINT* numocts_p, ASN1OCTET* buffer,
  ASN1UINT bufsiz);
 
 /**
  * This function will decode an ASN.1 open type. This used to be the ASN.1 ANY
- * type, but now is used in a variety of applications requiring an encoding 
- * that can be interpreted by a decoder without prior knowledge of the type 
+ * type, but now is used in a variety of applications requiring an encoding
+ * that can be interpreted by a decoder without prior knowledge of the type
  * of the variable.
  *
  * @param pctxt        Pointer to a context structure. This provides a storage
@@ -1342,7 +1342,7 @@ EXTERN int decodeOctetString
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeOpenType 
+EXTERN int decodeOpenType
 (OOCTXT* pctxt, const ASN1OCTET** object_p2, ASN1UINT* numocts_p);
 
 /**
@@ -1360,7 +1360,7 @@ EXTERN int decodeOpenType
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeSmallNonNegWholeNumber 
+EXTERN int decodeSmallNonNegWholeNumber
 (OOCTXT* pctxt, ASN1UINT* pvalue);
 
 /**
@@ -1374,7 +1374,7 @@ EXTERN int decodeSmallNonNegWholeNumber
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeSemiConsInteger 
+EXTERN int decodeSemiConsInteger
    (OOCTXT* pctxt, ASN1INT* pvalue, ASN1INT lower);
 
 /**
@@ -1389,7 +1389,7 @@ EXTERN int decodeSemiConsInteger
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int decodeSemiConsUnsigned 
+EXTERN int decodeSemiConsUnsigned
    (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT lower);
 
 /**
@@ -1420,7 +1420,7 @@ decodeSemiConsUnsigned(pctxt, pvalue, 0U)
 EXTERN int decodeVarWidthCharString (OOCTXT* pctxt, const char** pvalue);
 
 /**
- * This function will encode a variable of the ASN.1 BOOLEAN type in 
+ * This function will encode a variable of the ASN.1 BOOLEAN type in
  * a single bit.
  *
  * @param pctxt        Pointer to a context structure. This provides a storage
@@ -1440,7 +1440,7 @@ EXTERN int encodeBit (OOCTXT* pctxt, ASN1BOOL value);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeBits 
+EXTERN int encodeBits
 (OOCTXT* pctxt, ASN1UINT value, ASN1UINT nbits);
 
 /**
@@ -1456,7 +1456,7 @@ EXTERN int encodeBits
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeBitString 
+EXTERN int encodeBitString
 (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data);
 
 /**
@@ -1482,7 +1482,7 @@ EXTERN int encodeBitString
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeBMPString 
+EXTERN int encodeBMPString
 (OOCTXT* pctxt, ASN1BMPString value, Asn116BitCharSet* permCharSet);
 
 /**
@@ -1532,7 +1532,7 @@ EXTERN int encodeCheckBuffer (OOCTXT* pctxt, ASN1UINT nbytes);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeConstrainedStringEx 
+EXTERN int encodeConstrainedStringEx
 (OOCTXT* pctxt, const char* string, const char* charSet,
  ASN1UINT abits, ASN1UINT ubits, ASN1UINT canSetBits);
 
@@ -1548,7 +1548,7 @@ EXTERN int encodeConstrainedStringEx
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeConsInteger 
+EXTERN int encodeConsInteger
 (OOCTXT* pctxt, ASN1INT value, ASN1INT lower, ASN1INT upper);
 
 /**
@@ -1566,7 +1566,7 @@ EXTERN int encodeConsInteger
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeConsUnsigned 
+EXTERN int encodeConsUnsigned
 (OOCTXT* pctxt, ASN1UINT value, ASN1UINT lower, ASN1UINT upper);
 
 /**
@@ -1584,7 +1584,7 @@ EXTERN int encodeConsUnsigned
  *                            - 0 (ASN_OK) = success,
  *                            - negative return value is error.
  */
-EXTERN int encodeConsWholeNumber 
+EXTERN int encodeConsWholeNumber
 (OOCTXT* pctxt, ASN1UINT adjusted_value, ASN1UINT range_value);
 
 /**
@@ -1608,7 +1608,7 @@ EXTERN int encodeExpandBuffer (OOCTXT* pctxt, ASN1UINT nbytes);
  * to get the pointer and length of the message. It is normally used when
  * dynamic encoding is specified because the message pointer is not known until
  * encoding is complete. If static encoding is used, the message starts at the
- * beginning of the specified buffer adn the encodeGetMsgLen function can be 
+ * beginning of the specified buffer adn the encodeGetMsgLen function can be
  * used to obtain the lenght of the message.
  *
  * @param pctxt        Pointer to a context structure. This provides a storage
@@ -1675,7 +1675,7 @@ EXTERN int encodebitsFromOctet (OOCTXT* pctxt, ASN1OCTET value, ASN1UINT nbits);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeOctets 
+EXTERN int encodeOctets
 (OOCTXT* pctxt, const ASN1OCTET* pvalue, ASN1UINT nbits);
 
 /**
@@ -1690,7 +1690,7 @@ EXTERN int encodeOctets
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeOctetString 
+EXTERN int encodeOctetString
 (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data);
 
 /**
@@ -1708,7 +1708,7 @@ EXTERN int encodeOctetString
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeOpenType 
+EXTERN int encodeOpenType
 (OOCTXT* pctxt, ASN1UINT numocts, const ASN1OCTET* data);
 
 /**
@@ -1729,10 +1729,10 @@ EXTERN int encodeOpenType
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeOpenTypeExt 
+EXTERN int encodeOpenTypeExt
 (OOCTXT* pctxt, DList* pElemList);
 
-EXTERN int encodeOpenTypeExtBits 
+EXTERN int encodeOpenTypeExtBits
 (OOCTXT* pctxt, DList* pElemList);
 
 /**
@@ -1762,7 +1762,7 @@ EXTERN int encodeSmallNonNegWholeNumber (OOCTXT* pctxt, ASN1UINT value);
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeSemiConsInteger 
+EXTERN int encodeSemiConsInteger
    (OOCTXT* pctxt, ASN1INT value, ASN1INT lower);
 
 /**
@@ -1776,7 +1776,7 @@ EXTERN int encodeSemiConsInteger
  *                       - 0 (ASN_OK) = success,
  *                       - negative return value is error.
  */
-EXTERN int encodeSemiConsUnsigned 
+EXTERN int encodeSemiConsUnsigned
    (OOCTXT* pctxt, ASN1UINT value, ASN1UINT lower);
 
 /**
@@ -1791,15 +1791,15 @@ EXTERN int encodeSemiConsUnsigned
 #define encodeUnconsInteger(pctxt,value) \
 encodeSemiConsInteger(pctxt,value,ASN1INT_MIN)
 
-EXTERN int encodeVarWidthCharString (OOCTXT* pctxt, const char* value); 
+EXTERN int encodeVarWidthCharString (OOCTXT* pctxt, const char* value);
 
 EXTERN int addSizeConstraint (OOCTXT* pctxt, Asn1SizeCnst* pSize);
 
-EXTERN ASN1BOOL alignCharStr 
+EXTERN ASN1BOOL alignCharStr
 (OOCTXT* pctxt, ASN1UINT len, ASN1UINT nbits, Asn1SizeCnst* pSize);
 
-EXTERN int bitAndOctetStringAlignmentTest 
-(Asn1SizeCnst* pSizeList, ASN1UINT itemCount, 
+EXTERN int bitAndOctetStringAlignmentTest
+(Asn1SizeCnst* pSizeList, ASN1UINT itemCount,
  ASN1BOOL bitStrFlag, ASN1BOOL* pAlignFlag);
 
 EXTERN int getPERMsgLen (OOCTXT* pctxt);
@@ -1811,20 +1811,20 @@ EXTERN Asn1SizeCnst* getSizeConstraint (OOCTXT* pctxt, ASN1BOOL extbit);
 EXTERN int checkSizeConstraint(OOCTXT* pctxt, int size);
 EXTERN ASN1UINT getUIntBitCount (ASN1UINT value);
 
-EXTERN Asn1SizeCnst* checkSize 
+EXTERN Asn1SizeCnst* checkSize
 (Asn1SizeCnst* pSizeList, ASN1UINT value, ASN1BOOL* pExtendable);
 
-EXTERN void init16BitCharSet 
+EXTERN void init16BitCharSet
 (Asn116BitCharSet* pCharSet, ASN116BITCHAR first,
  ASN116BITCHAR last, ASN1UINT abits, ASN1UINT ubits);
 
 EXTERN ASN1BOOL isExtendableSize (Asn1SizeCnst* pSizeList);
 
-EXTERN void set16BitCharSet 
+EXTERN void set16BitCharSet
 (OOCTXT* pctxt, Asn116BitCharSet* pCharSet, Asn116BitCharSet* pAlphabet);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif 
+#endif

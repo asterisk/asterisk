@@ -204,4 +204,3 @@ packetloss_percentage=10;
 ;max_bandwidth=wide ; Maximum encoded bandwidth set to wide band (0-8000 Hz
 ;                   ; audio bandwidth at 16Khz sample rate)
 ;cbr=yes ; Force a constant bit rate (i.e don't use what's on the SDP)
-

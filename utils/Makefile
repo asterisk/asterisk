@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Various utilities
 #
 # Copyright (C) 1999-2006, Digium
@@ -22,7 +22,7 @@ ASTTOPDIR?=..
 #     the 1.2 days. The neat part is that it will actually evaluate the expressions.
 #     Users could use this to quickly check expressions in their .ael file.
 # to get check_expr2, add it to the ALL_UTILS list -- this is a program that will
-#     read in a file containing expressions (as if they were in $[ ]), one per line. 
+#     read in a file containing expressions (as if they were in $[ ]), one per line.
 #     It will, of course signal any syntax errors. Devs (like murf) should use this whenever
 #     changes are made to ast_expr2.y or ast_expr2.fl (or the corresponding .c files),
 #     as a regression test. Others (mere mortals?) need not bother, but they are
@@ -77,7 +77,7 @@ install:
 		if [ "$$x" != "none" ]; then \
 			$(INSTALL) -m 755 $$x "$(DESTDIR)$(ASTSBINDIR)/$$x"; \
 		fi; \
-	done 
+	done
 
 uninstall:
 	for x in $(ALL_UTILS); do rm -f "$(DESTDIR)$(ASTSBINDIR)/$$x"; done
@@ -178,7 +178,7 @@ check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTT
 	$(ECHO_PREFIX) echo "   [LD] ast_expr2fz.o ast_expr2z.o  -> check_expr2"
 	$(CC) -g -o check_expr2 ast_expr2fz.o ast_expr2z.o -lm
 	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
-	rm ast_expr2z.o ast_expr2fz.o 
+	rm ast_expr2z.o ast_expr2fz.o
 	./check_expr2 expr2.testinput
 
 smsq: smsq.o strcompat.o

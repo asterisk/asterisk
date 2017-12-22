@@ -27,7 +27,7 @@
 	<depend type="module">func_periodic_hook</depend>
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -273,9 +273,9 @@ AST_MUTEX_DEFINE_STATIC(monitorlock);
 
 static unsigned long seq = 0;
 
-/*! 
- * \brief Change state of monitored channel 
- * \param chan 
+/*!
+ * \brief Change state of monitored channel
+ * \param chan
  * \param state monitor state
  * \retval 0 on success.
  * \retval -1 on failure.
@@ -374,7 +374,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		} else {
 			monitor->format = ast_strdup("wav");
 		}
-		
+
 		/* open files */
 		if (stream_action & X_REC_IN) {
 			if (ast_fileexists(monitor->read_filename, NULL, NULL) > 0)
@@ -448,13 +448,13 @@ static const char *get_soxmix_format(const char *format)
 		res = "ul";
 	if (!strcasecmp(format,"alaw"))
 		res = "al";
-	
+
 	return res;
 }
 
-/*! 
- * \brief Stop monitoring channel 
- * \param chan 
+/*!
+ * \brief Stop monitoring channel
+ * \param chan
  * \param need_lock
  * Stop the recording, close any open streams, mix in/out channels if required
  * \return Always 0
@@ -514,7 +514,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 #endif
 				format = get_soxmix_format(format);
 				delfiles = 1;
-			} 
+			}
 			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
 			if (ast_strlen_zero(execute_args)) {
 				execute_args = "";
@@ -580,8 +580,8 @@ static int unpause_monitor_exec(struct ast_channel *chan, const char *data)
 	return ast_monitor_unpause(chan);
 }
 
-/*! 
- * \brief Change monitored filename of channel 
+/*!
+ * \brief Change monitored filename of channel
  * \param chan
  * \param fname_base new filename
  * \param need_lock
@@ -626,7 +626,7 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 		 * and we aren't interfering with the recording itself.
 		 */
 		ast_debug(2, "comparing tmpstring %s to filename_base %s\n", tmpstring, ast_channel_monitor(chan)->filename_base);
-		
+
 		if ((fd[0] = open(tmpstring, O_CREAT | O_WRONLY, 0644)) < 0 ||
 			(fd[1] = open(ast_channel_monitor(chan)->filename_base, O_CREAT | O_EXCL | O_WRONLY, 0644)) < 0) {
 			if (fd[0] < 0) {
@@ -710,7 +710,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(fname_base);
 		AST_APP_ARG(options);
 	);
-	
+
 	/* Parse arguments. */
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Monitor requires an argument\n");

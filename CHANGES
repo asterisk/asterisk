@@ -332,7 +332,7 @@ ARI
    hasn't registered yet.
 
  * 'ari set debug' now displays requests and responses as well as events.
- 
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.12.0 to Asterisk 13.13.0 ----------
 ------------------------------------------------------------------------------
@@ -1214,7 +1214,7 @@ res_pjsip_endpoint_identifer_ip
 ------------------
  * New CLI commands have been added: "pjsip show identif(y|ies)", which lists
    all configured PJSIP identify objects
-   
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
@@ -1482,7 +1482,7 @@ AMI
  * AMI action PJSIPNotify may now send to a URI instead of only to a PJSIP
    endpoint as long as a default outbound endpoint is set. This also applies
    to the equivalent CLI command (pjsip send notify)
- 
+
  * The AMI action PJSIPShowEndpoint now includes ContactStatusDetail sections
    that give information on Asterisk's attempts to qualify the endpoint.
 

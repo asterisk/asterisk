@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Network broadcast sound support channel driver
- * 
+ *
  * \author Mark Spencer <markster@digium.com>
  *
  * \ingroup channel_drivers
@@ -27,7 +27,7 @@
 
 /*** MODULEINFO
 	<depend>nbs</depend>
-	<support_level>extended</support_level>	
+	<support_level>extended</support_level>
  ***/
 
 #include "asterisk.h"
@@ -55,7 +55,7 @@ static char context[AST_MAX_EXTENSION] = "default";
 static const char type[] = "NBS";
 
 /* NBS creates private structures on demand */
-   
+
 struct nbs_pvt {
 	NBS *nbs;
 	struct ast_channel *owner;		/* Channel we belong to, possibly NULL */
@@ -140,7 +140,7 @@ static struct nbs_pvt *nbs_alloc(const char *data)
 				flags |= NBS_FLAG_OVERRIDE;
 		} else
 			flags = NBS_FLAG_OVERSPEAK;
-		
+
 		ast_copy_string(p->stream, stream, sizeof(p->stream));
 		p->nbs = nbs_newstream("asterisk", stream, flags);
 		if (!p->nbs) {
@@ -187,7 +187,7 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 		/* Don't try tos end audio on-hook */
 		return 0;
 	}
-	if (nbs_write(p->nbs, frame->data.ptr, frame->datalen / 2) < 0) 
+	if (nbs_write(p->nbs, frame->data.ptr, frame->datalen / 2) < 0)
 		return -1;
 	return 0;
 }
@@ -273,4 +273,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Network Broadcast Sound Support");
-

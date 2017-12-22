@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -86,7 +86,7 @@ struct ooh323_peer;
 /* Helper functions */
 struct ooh323_user *find_user(const char * name, const char *ip);
 struct ooh323_peer *find_peer(const char * name, int port);
-void ooh323_delete_peer(struct ooh323_peer *peer);   
+void ooh323_delete_peer(struct ooh323_peer *peer);
 
 int delete_users(void);
 int delete_peers(void);
@@ -96,7 +96,7 @@ int reload_config(int reload);
 int restart_monitor(void);
 
 int configure_local_rtp(struct ooh323_pvt *p, ooCallData* call);
-void setup_rtp_connection(ooCallData *call, const char *remoteIp, 
+void setup_rtp_connection(ooCallData *call, const char *remoteIp,
                           int remotePort);
 void close_rtp_connection(ooCallData *call);
 struct ast_frame *ooh323_rtp_read

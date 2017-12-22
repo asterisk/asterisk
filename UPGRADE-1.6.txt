@@ -39,7 +39,7 @@ Core:
   sound file installer in the Makefile).
 
 * The ast_expr2 stuff has been modified to handle floating-point numbers.
-  Numbers of the format D.D are now acceptable input for the expr parser, 
+  Numbers of the format D.D are now acceptable input for the expr parser,
   Where D is a string of base-10 digits. All math is now done in "long double",
   if it is available on your compiler/architecture. This was half-way between
   a bug-fix (because the MATH func returns fp by default), and an enhancement.
@@ -48,7 +48,7 @@ Core:
   of rounding/truncation, along with a set of common floating point operations,
   like sin, cos, tan, log, pow, etc. The ability to call external functions
   like CDR(), etc. was also added, without having to use the ${...} notation.
- 
+
 * The delimiter passed to applications has been changed to the comma (','), as
   that is what people are used to using within extensions.conf.  If you are
   using realtime extensions, you will need to translate your existing dialplan
@@ -190,7 +190,7 @@ Formats:
 Channel Drivers:
 
 * SIP: a small upgrade to support the "Record" button on the SNOM360,
-  which sends a sip INFO message with a "Record: on" or "Record: off" 
+  which sends a sip INFO message with a "Record: on" or "Record: off"
   header. If Asterisk is set up (via features.conf) to accept "One Touch Monitor"
   requests (by default, via '*1'), then the user-configured dialpad sequence
   is generated, and recording can be started and stopped via this button. The
@@ -204,9 +204,9 @@ Channel Drivers:
   now renamed to "counteronpeer".
 
 * SIP: The "username" option is now renamed to "defaultuser" to match "defaultip".
-  These are used only before registration to call a peer with the uri 
+  These are used only before registration to call a peer with the uri
 	sip:defaultuser@defaultip
-  The "username" setting still work, but is deprecated and will not work in 
+  The "username" setting still work, but is deprecated and will not work in
   the next version of Asterisk.
 
 * SIP: The old "insecure" options, deprecated in 1.4, have been removed.
@@ -241,7 +241,7 @@ Channel Drivers:
 Configuration:
 
 * pbx_dundi.c: tos parameter changed to use new values. Old values like lowdelay,
-  lowcost and other is not acceptable now. Look into qos.tex for description of 
+  lowcost and other is not acceptable now. Look into qos.tex for description of
   this parameter.
 
 * queues.conf: the queue-lessthan sound file option is no longer available, and the
@@ -249,7 +249,7 @@ Configuration:
 
 Manager:
 
-* Manager has been upgraded to version 1.1 with a lot of changes. 
+* Manager has been upgraded to version 1.1 with a lot of changes.
   Please check doc/manager_1_1.txt for information
 
 * The IAXpeers command output has been changed to more closely resemble the

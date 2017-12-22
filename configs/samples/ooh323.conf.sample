@@ -201,8 +201,3 @@ allow=ulaw
 e164=12345
 rtptimeout=60
 dtmfmode=rfc2833
-
-
-
-
-

@@ -41,7 +41,7 @@
 /*!
  * \brief reads next USC character from null terminated UTF-8 string and advanced pointer
  * for non valid UTF-8 sequences.
- * \return character as is Does \b NOT advance pointer for null termination 
+ * \return character as is Does \b NOT advance pointer for null termination
 */
 static int utf8decode (unsigned char **pp)
 {
@@ -92,12 +92,12 @@ static int utf8decode (unsigned char **pp)
    return *p;                   /* not sensible */
 }
 
-/*! 
+/*!
  * \brief check for any queued messages in specific queue (queue="" means any queue)
  * \param dir,queue,subaddress,channel,callerid,wait,delay,retries,concurrent
  * \retval 0 if nothing queued
  * \retval 1 if queued and outgoing set up OK
- * \retval 2 of outgoing exists 
+ * \retval 2 of outgoing exists
 */
 static char txqcheck (char *dir, char *queue, char subaddress, char *channel, char *callerid, int wait, int delay, int retries, int concurrent)
 {
@@ -193,7 +193,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    return 2;
 }
 
-/*! 
+/*!
  * \brief Process received queue entries
  * Run through a process, setting environment variables
 */

@@ -92,7 +92,7 @@ __rec_search(t, recno, op)
 		}
 
 		BT_PUSH(t, pg, index - 1);
-		
+
 		pg = r->pgno;
 		switch (op) {
 		case SDELETE:

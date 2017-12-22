@@ -67,7 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">SayPhonetic</ref>
 		</see-also>
 	</application>
- ***/	
+ ***/
 static const char app_morsecode[] = "Morsecode";
 
 static const char * const morsecode[] = {
@@ -187,4 +187,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Morse code");
-

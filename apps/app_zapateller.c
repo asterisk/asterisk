@@ -21,14 +21,14 @@
  * \brief Playback the special information tone to get rid of telemarketers
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -114,15 +114,15 @@ static int zapateller_exec(struct ast_channel *chan, const char *data)
 		return res;
 	}
 
-	if (!res) 
+	if (!res)
 		res = ast_tonepair(chan, 950, 0, 330, 0);
-	if (!res) 
+	if (!res)
 		res = ast_tonepair(chan, 1400, 0, 330, 0);
-	if (!res) 
+	if (!res)
 		res = ast_tonepair(chan, 1800, 0, 330, 0);
-	if (!res) 
+	if (!res)
 		res = ast_tonepair(chan, 0, 0, 1000, 0);
-	
+
 	pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "ZAPPED");
 	return res;
 }
@@ -138,4 +138,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");
-

@@ -36,7 +36,7 @@ function Astman() {
 	};
 	this.clickChannel = function(ev) {
 		var target = ev.target;
-		// XXX This is icky, we statically use astmanEngine to call the callback XXX 
+		// XXX This is icky, we statically use astmanEngine to call the callback XXX
 		if (me.selecttarget)
 			me.restoreTarget(me.selecttarget);
 		while(!target.id || !target.id.length)
@@ -56,7 +56,7 @@ function Astman() {
 			other = target.nextSibling.nextSibling.className;
 		}
 		if (other) {
-			if (other == "chanlisteven") 
+			if (other == "chanlisteven")
 				target.className = "chanlistodd";
 			else
 				target.className = "chanlisteven";
@@ -71,7 +71,7 @@ function Astman() {
 
 		if (!channels[channame])
 			channels[channame] = new Array();
-			
+
 		if (msg.headers.event) {
 			if (msg.headers.event == "Hangup") {
 				delete channels[channame];
@@ -184,7 +184,7 @@ function Astman() {
 		var x,y;
 		var s = t.responseText;
 		var allheaders = s.split('\r\n');
-		if (me.debug) 
+		if (me.debug)
 			me.debug.value = "\n";
 		for (x=0;x<allheaders.length;x++) {
 			if (allheaders[x].length) {

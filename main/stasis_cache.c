@@ -930,4 +930,3 @@ int stasis_cache_init(void)
 
 	return 0;
 }
-

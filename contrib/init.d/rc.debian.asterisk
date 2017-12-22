@@ -15,7 +15,7 @@
 # - Added test for safe_asterisk
 # - Changed "stop gracefully" to "stop now"
 # - Added support for -U and -G command line options
-# - Modified "reload" to call asterisk -rx 'reload' 
+# - Modified "reload" to call asterisk -rx 'reload'
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=asterisk

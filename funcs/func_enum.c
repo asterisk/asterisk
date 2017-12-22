@@ -81,7 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="resultnum" required="true">
 				<para>The number of the result that you want to retrieve.</para>
 				<para>Results start at <literal>1</literal>. If this argument is specified
-				as <literal>getnum</literal>, then it will return the total number of results 
+				as <literal>getnum</literal>, then it will return the total number of results
 				that are available or -1 on error.</para>
 			</parameter>
 		</syntax>
@@ -89,7 +89,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This function will retrieve results from a previous use
 			of the ENUMQUERY function.</para>
 		</description>
-	</function>	
+	</function>
 	<function name="ENUMLOOKUP" language="en_US">
 		<synopsis>
 			General or specific querying of NAPTR records for ENUM or ENUM-like DNS pointers.
@@ -119,10 +119,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="d">
 						<para>for a direct DNS lookup without any flipping of digits.</para>
 					</option>
-				</optionlist>	
+				</optionlist>
 			</parameter>
 			<parameter name="record#">
-				<para>If no <replaceable>record#</replaceable> is given, 
+				<para>If no <replaceable>record#</replaceable> is given,
 				defaults to <literal>1</literal>.</para>
 			</parameter>
 			<parameter name="zone-suffix">
@@ -226,7 +226,7 @@ struct enum_result_datastore {
 	unsigned int id;
 };
 
-static void erds_destroy(struct enum_result_datastore *data) 
+static void erds_destroy(struct enum_result_datastore *data)
 {
 	int k;
 
@@ -240,7 +240,7 @@ static void erds_destroy(struct enum_result_datastore *data)
 	ast_free(data);
 }
 
-static void erds_destroy_cb(void *data) 
+static void erds_destroy_cb(void *data)
 {
 	struct enum_result_datastore *erds = data;
 	erds_destroy(erds);
@@ -249,7 +249,7 @@ static void erds_destroy_cb(void *data)
 static const struct ast_datastore_info enum_result_datastore_info = {
 	.type = "ENUMQUERY",
 	.destroy = erds_destroy_cb,
-}; 
+};
 
 static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -270,7 +270,7 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 	}
 
 	parse = ast_strdupa(data);
-    
+
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!chan) {
@@ -308,9 +308,9 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 	ast_channel_lock(chan);
 	ast_channel_datastore_add(chan, datastore);
 	ast_channel_unlock(chan);
-   
+
 	res = 0;
-    
+
 finish:
 
 	return res;
@@ -323,7 +323,7 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 	char *parse, *p;
 	unsigned int num;
 	int res = -1, k;
-	AST_DECLARE_APP_ARGS(args, 
+	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(id);
 		AST_APP_ARG(resultnum);
 	);
@@ -337,7 +337,7 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 		ast_log(LOG_ERROR, "ENUMRESULT can not be used without a channel!\n");
 		goto finish;
 	}
-   
+
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -383,7 +383,7 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 			continue;
 
 		p = strchr(erds->context->naptr_rrs[k].result, ':');
-              
+
 		if (p && strcasecmp(erds->context->naptr_rrs[k].tech, "ALL"))
 			ast_copy_string(buf, p + 1, len);
 		else

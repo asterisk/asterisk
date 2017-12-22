@@ -21,7 +21,7 @@
  * \brief Locale Test
  *
  * \author\verbatim Tilghman Lesher <tlesher AT digium DOT com> \endverbatim
- * 
+ *
  * \ingroup tests
  */
 

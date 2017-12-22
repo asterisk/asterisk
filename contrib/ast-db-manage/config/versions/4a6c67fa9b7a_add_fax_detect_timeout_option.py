@@ -20,4 +20,3 @@ def upgrade():
 
 def downgrade():
     op.drop_column('ps_endpoints', 'fax_detect_timeout')
-

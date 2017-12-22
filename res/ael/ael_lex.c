@@ -36,7 +36,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+ * if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -53,7 +53,7 @@ typedef uint32_t flex_uint32_t;
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
 typedef int flex_int32_t;
-typedef unsigned char flex_uint8_t; 
+typedef unsigned char flex_uint8_t;
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
 
@@ -186,7 +186,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #define EOB_ACT_LAST_MATCH 2
 
     #define YY_LESS_LINENO(n)
-    
+
 /* Return all but the first "n" matched characters back to the input stream. */
 #define yyless(n) \
 	do \
@@ -248,7 +248,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-    
+
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -1027,9 +1027,9 @@ static int yy_init_globals (yyscan_t yyscanner );
     /* This must go here because YYSTYPE and YYLTYPE are included
      * from bison output in section 1.*/
     #    define yylval yyg->yylval_r
-    
+
     #    define yylloc yyg->yylloc_r
-    
+
 int ael_yylex_init (yyscan_t* scanner);
 
 int ael_yylex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
@@ -1068,9 +1068,9 @@ YYSTYPE * ael_yyget_lval (yyscan_t yyscanner );
 void ael_yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
        YYLTYPE *ael_yyget_lloc (yyscan_t yyscanner );
-    
+
         void ael_yyset_lloc (YYLTYPE * yylloc_param ,yyscan_t yyscanner );
-    
+
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
  */
@@ -1084,7 +1084,7 @@ extern int ael_yywrap (yyscan_t yyscanner );
 #endif
 
     static void yyunput (int c,char *buf_ptr  ,yyscan_t yyscanner);
-    
+
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int ,yyscan_t yyscanner);
 #endif
@@ -1562,11 +1562,11 @@ YY_RULE_SETUP
 case 51:
 YY_RULE_SETUP
 #line 272 "ael.flex"
-{ 
-      /* boy did I open a can of worms when I changed the lexical token "word". 
+{
+      /* boy did I open a can of worms when I changed the lexical token "word".
   	  	 all the above keywords can be used as a beginning to a "word".-
-		 before, a "word" would match a longer sequence than the above	 
-	     keywords, and all would be well. But now "word" is a single char		
+		 before, a "word" would match a longer sequence than the above
+	     keywords, and all would be well. But now "word" is a single char
 	     and feeds into a statemachine sort of sequence from there on. So...
 		 I added the {KEYWORD}? to the beginning of the word match sequence */
 
@@ -1668,7 +1668,7 @@ case 59:
 /* rule 59 can match eol */
 YY_RULE_SETUP
 #line 347 "ael.flex"
-{ 
+{
 		char c = yytext[yyleng-1];
 		if (c == '{')
 			parencount2++;
@@ -1680,7 +1680,7 @@ case 60:
 /* rule 60 can match eol */
 YY_RULE_SETUP
 #line 355 "ael.flex"
-{ 
+{
 		char c = yytext[yyleng-1];
 		if ( pbcpop2(c))  { /* error */
 			STORE_LOC;
@@ -1722,7 +1722,7 @@ case 62:
 /* rule 62 can match eol */
 YY_RULE_SETUP
 #line 390 "ael.flex"
-{ 
+{
 		char c = yytext[yyleng-1];
 		if (c == '[')
 			parencount3++;
@@ -1734,7 +1734,7 @@ case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
 #line 398 "ael.flex"
-{ 
+{
 		char c = yytext[yyleng-1];
 		if ( pbcpop3(c))  { /* error */
 			STORE_LOC;
@@ -1961,7 +1961,7 @@ YY_RULE_SETUP
 		glob_t globbuf;        /* the current globbuf */
 		int globbuf_pos = -1;   /* where we are in the current globbuf */
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-		
+
 		p1 = strchr(yytext,'"');
 		p2 = strrchr(yytext,'"');
 		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
@@ -2014,8 +2014,8 @@ case YY_STATE_EOF(brackstate):
 			ael_yy_delete_buffer(YY_CURRENT_BUFFER,yyscanner );
 			include_stack[include_stack_index-1].globbuf_pos++;
 			setup_filestack(fnamebuf, sizeof(fnamebuf), &include_stack[include_stack_index-1].globbuf, include_stack[include_stack_index-1].globbuf_pos, yyscanner, 0);
-			/* finish this */			
-			
+			/* finish this */
+
 		} else {
 			if (include_stack[include_stack_index].fname) {
 				free(include_stack[include_stack_index].fname);
@@ -2030,7 +2030,7 @@ case YY_STATE_EOF(brackstate):
 			} else {
 				globfree(&include_stack[include_stack_index].globbuf);
 				include_stack[include_stack_index].globbuf_pos = -1;
-				
+
 				ael_yy_delete_buffer(YY_CURRENT_BUFFER,yyscanner );
 				ael_yy_switch_to_buffer(include_stack[include_stack_index].bufstate,yyscanner );
 				my_lineno = include_stack[include_stack_index].lineno;
@@ -2568,7 +2568,7 @@ static void ael_yy_load_buffer_state  (yyscan_t yyscanner)
     YY_BUFFER_STATE ael_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-    
+
 	b = (YY_BUFFER_STATE) ael_yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in ael_yy_create_buffer()" );
@@ -2612,7 +2612,7 @@ static void ael_yy_load_buffer_state  (yyscan_t yyscanner)
 #ifndef __cplusplus
 extern int isatty (int );
 #endif /* __cplusplus */
-    
+
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a ael_yyrestart() or at EOF.
@@ -2638,7 +2638,7 @@ extern int isatty (int );
     }
 
         b->yy_is_interactive = file ? (isatty( fileno(file) ) > 0) : 0;
-    
+
 	errno = oerrno;
 }
 
@@ -2744,9 +2744,9 @@ static void ael_yyensure_buffer_stack (yyscan_t yyscanner)
 								, yyscanner);
 		if ( ! yyg->yy_buffer_stack )
 			YY_FATAL_ERROR( "out of dynamic memory in ael_yyensure_buffer_stack()" );
-								  
+
 		memset(yyg->yy_buffer_stack, 0, num_to_alloc * sizeof(struct yy_buffer_state*));
-				
+
 		yyg->yy_buffer_stack_max = num_to_alloc;
 		yyg->yy_buffer_stack_top = 0;
 		return;
@@ -2775,12 +2775,12 @@ static void ael_yyensure_buffer_stack (yyscan_t yyscanner)
  * @param base the character buffer
  * @param size the size in bytes of the character buffer
  * @param yyscanner The scanner object.
- * @return the newly allocated buffer state object. 
+ * @return the newly allocated buffer state object.
  */
 YY_BUFFER_STATE ael_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
-    
+
 	if ( size < 2 ||
 	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
 	     base[size-1] != YY_END_OF_BUFFER_CHAR )
@@ -2816,7 +2816,7 @@ YY_BUFFER_STATE ael_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
  */
 YY_BUFFER_STATE ael_yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
-    
+
 	return ael_yy_scan_bytes(yystr,strlen(yystr) ,yyscanner);
 }
 
@@ -2833,7 +2833,7 @@ YY_BUFFER_STATE ael_yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 	char *buf;
 	yy_size_t n;
 	int i;
-    
+
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
 	buf = (char *) ael_yyalloc(n ,yyscanner );
@@ -2901,10 +2901,10 @@ YY_EXTRA_TYPE ael_yyget_extra  (yyscan_t yyscanner)
 int ael_yyget_lineno  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    
+
         if (! YY_CURRENT_BUFFER)
             return 0;
-    
+
     return yylineno;
 }
 
@@ -2914,10 +2914,10 @@ int ael_yyget_lineno  (yyscan_t yyscanner)
 int ael_yyget_column  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    
+
         if (! YY_CURRENT_BUFFER)
             return 0;
-    
+
     return yycolumn;
 }
 
@@ -2978,8 +2978,8 @@ void ael_yyset_lineno (int  line_number , yyscan_t yyscanner)
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ael_yyset_lineno called with no buffer" , yyscanner); 
-    
+           yy_fatal_error( "ael_yyset_lineno called with no buffer" , yyscanner);
+
     yylineno = line_number;
 }
 
@@ -2993,8 +2993,8 @@ void ael_yyset_column (int  column_no , yyscan_t yyscanner)
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "ael_yyset_column called with no buffer" , yyscanner); 
-    
+           yy_fatal_error( "ael_yyset_column called with no buffer" , yyscanner);
+
     yycolumn = column_no;
 }
 
@@ -3047,13 +3047,13 @@ YYLTYPE *ael_yyget_lloc  (yyscan_t yyscanner)
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yylloc;
 }
-    
+
 void ael_yyset_lloc (YYLTYPE *  yylloc_param , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yylloc = yylloc_param;
 }
-    
+
 /* User-visible API */
 
 /* ael_yylex_init is special because it creates the scanner itself, so it is
@@ -3101,20 +3101,20 @@ int ael_yylex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals 
         errno = EINVAL;
         return 1;
     }
-	
+
     *ptr_yy_globals = (yyscan_t) ael_yyalloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
-	
+
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
         return 1;
     }
-    
+
     /* By setting to 0xAA, we expose bugs in
     yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
-    
+
     ael_yyset_extra (yy_user_defined, *ptr_yy_globals);
-    
+
     return yy_init_globals ( *ptr_yy_globals );
 }
 
@@ -3384,7 +3384,7 @@ struct pval *ael2_parse(char *filename, int *errors)
 	buffer = (char*)malloc(stats.st_size+2);
 	if (fread(buffer, 1, stats.st_size, fin) != stats.st_size) {
 		ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
-	}			
+	}
 	buffer[stats.st_size]=0;
 	fclose(fin);
 
@@ -3456,7 +3456,7 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 			buffer = (char*)malloc(stats.st_size+1);
 			if (fread(buffer, 1, stats.st_size, in1) != stats.st_size) {
 				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
-			}			
+			}
 			buffer[stats.st_size] = 0;
 			ast_debug(1, "  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
 			fclose(in1);
@@ -3486,4 +3486,3 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 		}
 	}
 }
-

@@ -1,50 +1,50 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
-/*! \mainpage 
+/*! \mainpage
  * <H1>ooH323c Stack Functions</H1>
  *
- * The <B>Objective Open H.323 for C (ooH323c)</B> protocol stack is an 
- * open source applications program interface (API) for building H.323 based 
- * applications.   The stack implements Q.931/H.225 call signaling procedures, 
- * H.245 logical channel operations, and Registration, Admission, and Status 
+ * The <B>Objective Open H.323 for C (ooH323c)</B> protocol stack is an
+ * open source applications program interface (API) for building H.323 based
+ * applications.   The stack implements Q.931/H.225 call signaling procedures,
+ * H.245 logical channel operations, and Registration, Admission, and Status
  * (RAS) messaging for Gatekeeper communications.
  *
  * The categories of user functions provided are as follows:
  * <UL>
- * <LI>Stack command functions.  These are high level functions used to 
- * initiate common H.323 telephony operations (for example, to make a 
+ * <LI>Stack command functions.  These are high level functions used to
+ * initiate common H.323 telephony operations (for example, to make a
  * call).</LI>
- * <LI>Gatekeeper functions.  These are high level functions for 
+ * <LI>Gatekeeper functions.  These are high level functions for
  * managing communications with a gatekeeper using RAS messages.</LI>
- * <LI>H.323 endpoint management functions.  These are function for 
+ * <LI>H.323 endpoint management functions.  These are function for
  * used for managing the global H.323 endpoint.</LI>
- * <LI>Call management functions.  These are functions used to manage 
+ * <LI>Call management functions.  These are functions used to manage
  * active calls within the stack.</LI>
- * <LI>Capability management functions.  These functions are used for 
+ * <LI>Capability management functions.  These functions are used for
  * negotiating capabilities between two different terminals.</LI>
- * <LI>H.225 and H.245 message handling functions.  Functions for 
+ * <LI>H.225 and H.245 message handling functions.  Functions for
  * creating and handling H.323 standard ASN.1 messages.</LI>
- * <LI>Q.931 functions.  Functions for the execution of various 
+ * <LI>Q.931 functions.  Functions for the execution of various
  * standard Q.931 operations.</LI>
- * <LI>TCP/IP and UDP socket communication functions.  Low-level 
+ * <LI>TCP/IP and UDP socket communication functions.  Low-level
  * functions for writing data to and receiving data from sockets.</LI>
  * </UL>
- */ 
+ */
 /**
- * @file ootypes.h 
+ * @file ootypes.h
  * This file contains definitions of common constants and data structures.
  */
 #ifndef _OOTYPES_H_
@@ -71,7 +71,7 @@
 #endif /* MAKE_DLL */
 #endif /* EXTERN */
 
-/** 
+/**
  * @defgroup ootypes Common type and constant definitions.
  * @{
  */
@@ -86,7 +86,7 @@
  */
 typedef enum OOMasterSlaveState {
    OO_MasterSlave_Idle,
-   OO_MasterSlave_DetermineSent, 
+   OO_MasterSlave_DetermineSent,
    OO_MasterSlave_AckReceived,
    OO_MasterSlave_Master,
    OO_MasterSlave_Slave
@@ -97,25 +97,25 @@ typedef enum OOMSAckStatus {
   OO_msAck_remoteReceived
 } OOMSAckStatus;
 
-/** 
- * States defined for the capability exchange procedure. 
+/**
+ * States defined for the capability exchange procedure.
  */
 typedef enum {
-   OO_LocalTermCapExchange_Idle, 
-   OO_LocalTermCapSetSent, 
-   OO_LocalTermCapSetAckRecvd, 
-   OO_RemoteTermCapExchange_Idle, 
-   OO_RemoteTermCapSetRecvd, 
+   OO_LocalTermCapExchange_Idle,
+   OO_LocalTermCapSetSent,
+   OO_LocalTermCapSetAckRecvd,
+   OO_RemoteTermCapExchange_Idle,
+   OO_RemoteTermCapSetRecvd,
    OO_RemoteTermCapSetAckSent
 } OOCapExchangeState;
 
-/** 
+/**
  * Call clear reason codes.
  */
 typedef enum OOCallClearReason {
-   OO_REASON_UNKNOWN=0, 
+   OO_REASON_UNKNOWN=0,
    OO_REASON_INVALIDMESSAGE,
-   OO_REASON_TRANSPORTFAILURE, 
+   OO_REASON_TRANSPORTFAILURE,
    OO_REASON_NOROUTE,
    OO_REASON_NOUSER,
    OO_REASON_NOBW,
@@ -125,10 +125,10 @@ typedef enum OOCallClearReason {
    OO_REASON_GK_UNREACHABLE,
    OO_REASON_GK_CLEARED,
    OO_REASON_NOCOMMON_CAPABILITIES,
-   OO_REASON_REMOTE_FWDED,   
+   OO_REASON_REMOTE_FWDED,
    OO_REASON_LOCAL_FWDED,
-   OO_REASON_REMOTE_CLEARED, 
-   OO_REASON_LOCAL_CLEARED, 
+   OO_REASON_REMOTE_CLEARED,
+   OO_REASON_LOCAL_CLEARED,
    OO_REASON_REMOTE_BUSY,
    OO_REASON_LOCAL_BUSY,
    OO_REASON_REMOTE_NOANSWER,
@@ -241,8 +241,8 @@ typedef enum OOCallMode {
 /*TODO: Should add caller-id, callername etc. So that they can be changed per
   call basis*/
 /**
- * This structure defines options that can be set at the level of an 
- * individual call. They override options set in the H.323 endpoint 
+ * This structure defines options that can be set at the level of an
+ * individual call. They override options set in the H.323 endpoint
  * structure.
  */
 typedef struct ooCallOptions {
@@ -252,7 +252,7 @@ typedef struct ooCallOptions {
    OOCallMode callMode; /*!< Type of channel to setup with FastStart */
    int transfercap;	/* q931 cap */
 }ooCallOptions;
- 
+
 
 struct OOH323CallData;
 
@@ -266,4 +266,3 @@ typedef struct ooTimerCallback{
  * @}
  */
 #endif
-

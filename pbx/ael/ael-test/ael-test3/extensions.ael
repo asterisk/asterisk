@@ -11,11 +11,11 @@ globals
 	FWDVMBOX=1 ;                // the VM box for this user
 }
 
-macro std-exten( ext , dev ) 
+macro std-exten( ext , dev )
 {
         Dial(${dev}/${ext},20);
 	goto privacyManagerFailed|s|begin;
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case BUSY:
                 Voicemail(b${ext});
@@ -33,11 +33,11 @@ macro std-exten( ext , dev )
         }
 }
 
-macro std-priv-exten_1( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_1( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -59,11 +59,11 @@ macro std-priv-exten_1( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_2( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_2( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -85,11 +85,11 @@ macro std-priv-exten_2( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_3( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_3( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -111,11 +111,11 @@ macro std-priv-exten_3( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_4( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_4( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -137,11 +137,11 @@ macro std-priv-exten_4( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_5( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_5( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -163,11 +163,11 @@ macro std-priv-exten_5( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_6( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_6( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -189,11 +189,11 @@ macro std-priv-exten_6( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_7( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_7( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -215,11 +215,11 @@ macro std-priv-exten_7( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_8( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_8( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -241,11 +241,11 @@ macro std-priv-exten_8( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_9( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_9( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -267,11 +267,11 @@ macro std-priv-exten_9( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_10( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_10( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -293,11 +293,11 @@ macro std-priv-exten_10( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_11( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_11( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -319,11 +319,11 @@ macro std-priv-exten_11( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_12( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_12( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -345,11 +345,11 @@ macro std-priv-exten_12( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_13( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_13( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -371,11 +371,11 @@ macro std-priv-exten_13( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_14( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_14( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -397,11 +397,11 @@ macro std-priv-exten_14( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_15( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_15( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -423,11 +423,11 @@ macro std-priv-exten_15( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_16( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_16( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -449,11 +449,11 @@ macro std-priv-exten_16( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_17( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_17( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -475,11 +475,11 @@ macro std-priv-exten_17( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_18( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_18( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -501,11 +501,11 @@ macro std-priv-exten_18( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_19( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_19( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -527,11 +527,11 @@ macro std-priv-exten_19( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_20( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_20( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -553,11 +553,11 @@ macro std-priv-exten_20( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_21( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_21( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -579,11 +579,11 @@ macro std-priv-exten_21( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_22( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_22( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -605,11 +605,11 @@ macro std-priv-exten_22( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_23( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_23( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -631,11 +631,11 @@ macro std-priv-exten_23( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_24( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_24( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -657,11 +657,11 @@ macro std-priv-exten_24( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_25( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_25( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -683,11 +683,11 @@ macro std-priv-exten_25( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_26( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_26( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -709,11 +709,11 @@ macro std-priv-exten_26( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_27( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_27( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -735,11 +735,11 @@ macro std-priv-exten_27( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_28( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_28( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -761,11 +761,11 @@ macro std-priv-exten_28( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_29( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_29( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -787,11 +787,11 @@ macro std-priv-exten_29( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_30( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_30( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -813,11 +813,11 @@ macro std-priv-exten_30( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_31( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_31( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -839,11 +839,11 @@ macro std-priv-exten_31( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_32( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_32( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -865,11 +865,11 @@ macro std-priv-exten_32( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_33( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_33( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -891,11 +891,11 @@ macro std-priv-exten_33( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_34( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_34( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -917,11 +917,11 @@ macro std-priv-exten_34( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_35( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_35( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -943,11 +943,11 @@ macro std-priv-exten_35( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_36( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_36( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -969,11 +969,11 @@ macro std-priv-exten_36( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_37( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_37( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -995,11 +995,11 @@ macro std-priv-exten_37( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_38( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_38( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1021,11 +1021,11 @@ macro std-priv-exten_38( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_39( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_39( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1047,11 +1047,11 @@ macro std-priv-exten_39( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_40( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_40( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1073,11 +1073,11 @@ macro std-priv-exten_40( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_41( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_41( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1099,11 +1099,11 @@ macro std-priv-exten_41( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_42( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_42( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1125,11 +1125,11 @@ macro std-priv-exten_42( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_43( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_43( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1151,11 +1151,11 @@ macro std-priv-exten_43( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_44( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_44( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1177,11 +1177,11 @@ macro std-priv-exten_44( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_45( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_45( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1203,11 +1203,11 @@ macro std-priv-exten_45( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_46( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_46( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1229,11 +1229,11 @@ macro std-priv-exten_46( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_47( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_47( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1255,11 +1255,11 @@ macro std-priv-exten_47( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_48( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_48( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1281,11 +1281,11 @@ macro std-priv-exten_48( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_49( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_49( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1307,11 +1307,11 @@ macro std-priv-exten_49( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_50( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_50( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1333,11 +1333,11 @@ macro std-priv-exten_50( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_51( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_51( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1359,11 +1359,11 @@ macro std-priv-exten_51( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_52( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_52( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1385,11 +1385,11 @@ macro std-priv-exten_52( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_53( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_53( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1411,11 +1411,11 @@ macro std-priv-exten_53( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_54( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_54( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1437,11 +1437,11 @@ macro std-priv-exten_54( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_55( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_55( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1463,11 +1463,11 @@ macro std-priv-exten_55( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_56( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_56( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1489,11 +1489,11 @@ macro std-priv-exten_56( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_57( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_57( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1515,11 +1515,11 @@ macro std-priv-exten_57( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_58( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_58( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1541,11 +1541,11 @@ macro std-priv-exten_58( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_59( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_59( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1567,11 +1567,11 @@ macro std-priv-exten_59( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_60( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_60( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1593,11 +1593,11 @@ macro std-priv-exten_60( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_61( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_61( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1619,11 +1619,11 @@ macro std-priv-exten_61( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_62( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_62( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1645,11 +1645,11 @@ macro std-priv-exten_62( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_63( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_63( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1671,11 +1671,11 @@ macro std-priv-exten_63( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_64( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_64( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1697,11 +1697,11 @@ macro std-priv-exten_64( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_65( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_65( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1723,11 +1723,11 @@ macro std-priv-exten_65( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_66( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_66( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1749,11 +1749,11 @@ macro std-priv-exten_66( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_67( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_67( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1775,11 +1775,11 @@ macro std-priv-exten_67( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_68( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_68( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1801,11 +1801,11 @@ macro std-priv-exten_68( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_69( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_69( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1827,11 +1827,11 @@ macro std-priv-exten_69( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_70( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_70( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1853,11 +1853,11 @@ macro std-priv-exten_70( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_71( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_71( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1879,11 +1879,11 @@ macro std-priv-exten_71( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_72( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_72( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1905,11 +1905,11 @@ macro std-priv-exten_72( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten_73( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten_73( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1931,11 +1931,11 @@ macro std-priv-exten_73( dev, ext , timeout, opts, torcont, dontcont )
 }
 
 
-macro std-priv-exten( dev, ext , timeout, opts, torcont, dontcont ) 
+macro std-priv-exten( dev, ext , timeout, opts, torcont, dontcont )
 {
         Dial(${dev},${timeout},${opts});
 	NoOp(${DIALSTATUS} was chosen);
-        switch(${DIALSTATUS}) 
+        switch(${DIALSTATUS})
 		{
         case TORTURE:
 		goto ${torcont}|s|begin;
@@ -1963,33 +1963,33 @@ macro fillcidname()
         Set(cidn=${DB(cidname/${CALLERID(num)})});
         if( "${CALLERID(name)}" != "" )
         {
-                if( ("${cidn}" = "Privacy Manager" & "${CALLERID(name)}" != "Privacy Manager") | "${cidn}" = "" ) // if the entry isn't in the database, 
+                if( ("${cidn}" = "Privacy Manager" & "${CALLERID(name)}" != "Privacy Manager") | "${cidn}" = "" ) // if the entry isn't in the database,
                                                                                 // or if an entry exists, and it's "Privacy Manager", empty, (or add other useless possibilities).
-                { 
+                {
                        Set(DB(cidname/${CALLERID(num)})=${CALLERID(name)});     // then set or override what's in the DB
                 }
         }
         // Now, we fill in the callerid info from the incoming entry, if it's stuff worth using
         // Ignore fundamentally semi-anonymous information from local cell phones
         // if the db has an entry for this number, and it's not a canned string from a cell phone company
-        if(  ( "${cidn}" != "" ) & ( "${CALLERID(name)}" = "" 
-                                                  | "${CALLERID(name)}" = "CODY,WY        "    
-                                                  | "${CALLERID(name)}" = "POWELL,WY      "    
-                                                  | "${CALLERID(name)}" = "WIRELESS CALLER"  
-                                                  | "${CALLERID(name)}" = "SUBSCRIBER,WIRE"  
-                                                  | "${CALLERID(name)}" = "CELLULAR ONE"  
-                                                  | "${CALLERID(name)}" = "Cellular One Customer"    
-                                                  | "${CALLERID(name)}" = "CELLULAR ONE   "    
-                                                  | "${CALLERID(name)}" = "Privacy Manager" 
-                                                  | "${CALLERID(name)}" = "RIVERTON,WY    "  
-                                                  | "${CALLERID(name)}" = "BASIN,WY       "  
+        if(  ( "${cidn}" != "" ) & ( "${CALLERID(name)}" = ""
+                                                  | "${CALLERID(name)}" = "CODY,WY        "
+                                                  | "${CALLERID(name)}" = "POWELL,WY      "
+                                                  | "${CALLERID(name)}" = "WIRELESS CALLER"
+                                                  | "${CALLERID(name)}" = "SUBSCRIBER,WIRE"
+                                                  | "${CALLERID(name)}" = "CELLULAR ONE"
+                                                  | "${CALLERID(name)}" = "Cellular One Customer"
+                                                  | "${CALLERID(name)}" = "CELLULAR ONE   "
+                                                  | "${CALLERID(name)}" = "Privacy Manager"
+                                                  | "${CALLERID(name)}" = "RIVERTON,WY    "
+                                                  | "${CALLERID(name)}" = "BASIN,WY       "
                                                   | "${CALLERID(name)}" = "BILLINGS,MT    "
-                                                  | "${CALLERID(name)}" = "PROVO,UT       "  
-                                                  | "${CALLERID(name)}" = "TOLL FREE      " ) )  // put stuff in the above, that the phone company tends to put in your callerid, 
+                                                  | "${CALLERID(name)}" = "PROVO,UT       "
+                                                  | "${CALLERID(name)}" = "TOLL FREE      " ) )  // put stuff in the above, that the phone company tends to put in your callerid,
                                                                                                  // that you would rather override with DB info
                                                                                                  // there's no way to guess them all, but you can get the most popular ones...
                                                                                                  // why cell phones can't do CID like everybody else, ....?
-        {    
+        {
                 Set(CALLERID(name)=${cidn});  // Override what the phone company provides with what's in the DB for this number.
         }
 }
@@ -2008,7 +2008,7 @@ macro ciddial(dialnum, lookup, waittime, dialopts, ddev)
 		if( "${DIALSTATUS}" = "CHANUNAVAIL" )
 		{
 			BackGround(try_cell);
-			CALLERID(num)=${cidnu}; // put the original number back 
+			CALLERID(num)=${cidnu}; // put the original number back
 			Dial(Zap/2/${lookup},${waittime},${dialopts});
 		}
 	}
@@ -2036,7 +2036,7 @@ macro ciddial2(dialnum, lookup, waittime, dialopts, ddev) // give priority to tc
 	Dial(SIP/1${lookup}@tctwest,${waittime},${dialopts});
 	if( "${DIALSTATUS}" = "CHANUNAVAIL" )
 	{
-		Set(CALLERID(num)=${cidnu}); // put the original number back 
+		Set(CALLERID(num)=${cidnu}); // put the original number back
 		BackGround(try_zap);
 		Dial(${ddev}/${dialnum},${waittime}|${dialopts});
 		if( "${DIALSTATUS}" = "CHANUNAVAIL" )
@@ -2050,14 +2050,14 @@ macro ciddial2(dialnum, lookup, waittime, dialopts, ddev) // give priority to tc
 macro callerid-liar()
 {
 	TrySystem(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/LIAR.gsm&);
-	Background(priv-liar);  // Script: OOOps! Sorry! I don't allow men with ski masks pulled over their 
+	Background(priv-liar);  // Script: OOOps! Sorry! I don't allow men with ski masks pulled over their
                             //         faces to get in the front door, and unidentified callers won't fair
                             //         any better. You entered *MY* phone number. That won't work.
                             //         If you are telemarketing, cross me off the list, and don't call again.
                             //         If you did this by mistake, forgive my defenses, and call again.
                            // Alternate: (priv-liar2)
 				   // Script: You have chosen to try to deceive my system and withold your CallerID,
-                                   //           by entering my own phone number as YOUR CallerID. I find this 
+                                   //           by entering my own phone number as YOUR CallerID. I find this
                                    //           offensive because you are being dishonest. I will not do business nor
                                    //           waste my time talking to anyone who is less than honest and forthcoming.
                                    //           Take me off your call list and do not call me again.
@@ -2074,7 +2074,7 @@ macro callerid-bad()
 context privacyManagerFailed {
  	s => {
 		begin:
- 		Background(PrivManInstructions);  // Script: OOps, that didn't go well. You need to enter *your* area code, and *your* 7 digit 
+ 		Background(PrivManInstructions);  // Script: OOps, that didn't go well. You need to enter *your* area code, and *your* 7 digit
                                                // phone number, for a total of 10 digits, or you'll be handed over to the monkeys. Let's
                                                // try this again, and hopefully you can get past our front-line defenses!
  		PrivacyManager();
@@ -2154,13 +2154,13 @@ context homeline {
 			}
 		}
 	loopback:
-		ifTime(*|*|20-25|dec) 
-		{ 
-			Playback(greetings/christmas); 
+		ifTime(*|*|20-25|dec)
+		{
+			Playback(greetings/christmas);
 		}
-		else ifTime(*|*|31|dec) 
-		{	 
-			Playback(greetings/newyear); 
+		else ifTime(*|*|31|dec)
+		{
+			Playback(greetings/newyear);
 		}
 		else ifTime(*|*|1|jan)
 		{
@@ -2170,15 +2170,15 @@ context homeline {
 		{
 			Playback(greetings/valentines);
 		}
-		else ifTime(*|*|17|mar) 
+		else ifTime(*|*|17|mar)
 		{
 			Playback(greetings/stPat);
 		}
-		else ifTime(*|*|31|oct) 
+		else ifTime(*|*|31|oct)
 		{
 			Playback(greetings/halloween);
 		}
-		else ifTime(*|mon|15-21|jan) 
+		else ifTime(*|mon|15-21|jan)
 		{
 			Playback(greetings/mlkDay);
 		}
@@ -2205,11 +2205,11 @@ context homeline {
 		else ifTime(*|sun|15-21|jun)
 		{
 			Playback(greetings/fathers);
-		} 
-		else 
+		}
+		else
 		{
 			Playback(greetings/hello);   // None of the above? Just a plain hello will do
-		}  
+		}
 		Background(murphy-homeline-intro1);  // Script: Hello-- Welcome to the Murphy's! If you already know what
                                                 //  option you want, you don't have to wait for this entire spiel-- just
                                                 //  have at it.
@@ -2220,7 +2220,7 @@ context homeline {
 						//  to play with your introduction, dial 5.
                                                 //  If we don't seem to be giving you the time of day, try 7.
                                                 //  Have a good day!
-		
+
 	}
 	1 => {  // Sonya
 			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
@@ -2238,7 +2238,7 @@ context homeline {
 			&std-priv-exten(Zap/6r3&Sip/murf,1,25,mpA(beep)tw,telemarket,telemarket);
 			goto s|loopback;
 	}
-	4 => {  // Voicemail 
+	4 => {  // Voicemail
 			VoicemailMain();
 			goto s|loopback;
 	}
@@ -2363,7 +2363,7 @@ context home-introduction-record {
 	begin:
 		Background(intro-record-choices);    // Script:
 				//      If you want some advice about recording your
-				// 	introduction, dial 1. 
+				// 	introduction, dial 1.
 				//      otherwise, dial 2, and introduce yourself after
 				//      the beep.
 	}
@@ -2374,10 +2374,10 @@ context home-introduction-record {
 				//	This is NOT meant to be a voice mail message, so
 				//	please, don't say anything about why you are calling.
 				//	After we are done making the recording, your introduction
-				//	will be saved for playback. 
-				//	If you are the only person that would call from this number, 
+				//	will be saved for playback.
+				//	If you are the only person that would call from this number,
 				//	please state your name.  Otherwise, state your business
-				//	or residence name instead. For instance, if you are 
+				//	or residence name instead. For instance, if you are
 				//	friend of the family, say, Olie McPherson, and both
 				//	you and your kids might call here a lot, you might
 				//	say: "This is the distinguished Olie McPherson Residence!"
@@ -2388,8 +2388,8 @@ context home-introduction-record {
 				//	"John, from the Park County Morgue. You stab 'em, we slab 'em!".
 				//	Just one caution: the kids will hear what you record every time
 				//	you call. So watch your language!
-				//	I will begin recording after the tone. 
-				//	When you are done, hit the # key. Gather your thoughts and get 
+				//	I will begin recording after the tone.
+				//	When you are done, hit the # key. Gather your thoughts and get
 				//	ready. Remember, the # key will end the recording, and play back
 				//      your intro. Good Luck, and Thank you!"
 		goto 2|begin;
@@ -2432,7 +2432,7 @@ context homeline-kids {
 			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/4/greet.wav&);
 			Voicemail(u4);
 			goto homeline|s|loopback;
-			
+
 			// SetMusicOnHold(erics);
 			// TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
 			// TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/4/greet.wav&);
@@ -2456,7 +2456,7 @@ context homeline-kids {
 			TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/7/greet.wav&);
 			&std-priv-exten(Zap/3r2&Zap/5r2,7,35,mtw,telemarket,telemarket);
 			goto homeline|s|loopback;
-			
+
 	}
 	6 => {
 			TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
@@ -2519,12 +2519,12 @@ context workline {
 	1 => {
 		TrySystem(/usr/bin/play /var/lib/asterisk/sounds/call-for.gsm);
 		TrySystem(/usr/bin/play /var/spool/asterisk/voicemail/default/1/greet.wav&);
-		
+
 		&std-priv-exten(Zap/6&Sip/murf,1,30,mtw,telemarket,telemarket);
-		goto s|loopback;		
+		goto s|loopback;
 	}
 	4 => {
-		VoicemailMain(); 
+		VoicemailMain();
 		goto s|loopback;
 	}
 	6 => {
@@ -2543,7 +2543,7 @@ context workline {
 		Hangup();
 	}
 	i => {
-		Background(invalid); 
+		Background(invalid);
 		goto s|loopback;
 	}
 	o => {
@@ -2827,7 +2827,7 @@ context homeext {
 		Wait(2);
 		Playtones(info);
 		Wait(5);
-		Hangup();	
+		Hangup();
 	}
 	790 => {
 		MeetMe(790,p);
@@ -3180,5 +3180,3 @@ context announce-all {
 // now include the telemarketer torture scripts!
 
 #include "telemarket_torture.ael2"
-
-

@@ -104,7 +104,7 @@
 
 ; ** Old configuration options **
 ; The "call-limit" configuation option is considered old is replaced
-; by new functionality. To enable callcounters, you use the new 
+; by new functionality. To enable callcounters, you use the new
 ; "callcounter" setting (for extension states in queue and subscriptions)
 ; You are encouraged to use the dialplan groupcount functionality
 ; to enforce call limits instead of using this channel-specific method.
@@ -139,7 +139,7 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
                                 ; Set this to your host name or domain name
 ;domainsasrealm=no              ; Use domains list as realms
                                 ; You can serve multiple Realms specifying several
-                                ; 'domain=...' directives (see below). 
+                                ; 'domain=...' directives (see below).
                                 ; In this case Realm will be based on request 'From'/'To' header
                                 ; and should match one of domain names.
                                 ; Otherwise default 'realm=...' will be used.
@@ -187,8 +187,8 @@ udpbindaddr=0.0.0.0             ; IP address to bind UDP listen socket to (0.0.0
 ; makes the assumption that the endpoint supports all known SIP methods.
 ; If you know that your SIP endpoint does not provide support for a specific
 ; method, then you may provide a comma-separated list of methods that your
-; endpoint does not implement in the disallowed_methods option. Note that 
-; if your endpoint is truthful with its Allow header, then there is no need 
+; endpoint does not implement in the disallowed_methods option. Note that
+; if your endpoint is truthful with its Allow header, then there is no need
 ; to set this option. This option may be set in the general section or may
 ; be set per endpoint. If this option is set both in the general section and
 ; in a peer section, then the peer setting completely overrides the general
@@ -216,7 +216,7 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
                                 ; Optionally add a port number, 192.168.1.1:5063 (default is port 5061)
                                 ; Remember that the IP address must match the common name (hostname) in the
                                 ; certificate, so you don't want to bind a TLS socket to multiple IP addresses.
-                                ; For details how to construct a certificate for SIP see 
+                                ; For details how to construct a certificate for SIP see
                                 ; http://tools.ietf.org/html/draft-ietf-sip-domain-certs
 
 ;tcpauthtimeout = 30            ; tcpauthtimeout specifies the maximum number
@@ -371,14 +371,14 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ;       but the remote party's domain will be anonymized. The way legacy
                                 ;       behaves may violate RFC-3325, but it follows historic behavior.
                                 ; This option is set to 'legacy' by default
-;prematuremedia=no              ; Some ISDN links send empty media frames before 
-                                ; the call is in ringing or progress state. The SIP 
+;prematuremedia=no              ; Some ISDN links send empty media frames before
+                                ; the call is in ringing or progress state. The SIP
                                 ; channel will then send 183 indicating early media
                                 ; which will be empty - thus users get no ring signal.
                                 ; Setting this to "yes" will stop any media before we have
                                 ; call progress (meaning the SIP channel will not send 183 Session
                                 ; Progress for early media). Default is "yes". Also make sure that
-                                ; the SIP peer is configured with progressinband=never. 
+                                ; the SIP peer is configured with progressinband=never.
                                 ;
                                 ; In order for "noanswer" applications to work, you need to run
                                 ; the progress() application in the priority before the app.
@@ -881,10 +881,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;        externaddr = 12.34.56.78          ; use this address.
 ;        externaddr = 12.34.56.78:9900     ; use this address and port.
 ;        externaddr = mynat.my.org:12600   ; Public address of my nat box.
-;        externtcpport = 9900   ; The externally mapped tcp port, when Asterisk is behind a static NAT or PAT. 
-;                               ; externtcpport will default to the externaddr or externhost port if either one is set. 
+;        externtcpport = 9900   ; The externally mapped tcp port, when Asterisk is behind a static NAT or PAT.
+;                               ; externtcpport will default to the externaddr or externhost port if either one is set.
 ;        externtlsport = 12600  ; The externally mapped tls port, when Asterisk is behind a static NAT or PAT.
-;                               ; externtlsport port will default to the RFC designated port of 5061.	
+;                               ; externtlsport port will default to the RFC designated port of 5061.
 ;
 ;   b. "externhost = hostname[:port]" is similar to "externaddr" except
 ;      that the hostname is looked up every "externrefresh" seconds
@@ -1004,7 +1004,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; It only controls Asterisk generating reINVITEs for the specific
                                 ; purpose of setting up a direct media path. If a reINVITE is
                                 ; needed to switch a media stream to inactive (when placed on
-                                ; hold) or to T.38, it will still be done, regardless of this 
+                                ; hold) or to T.38, it will still be done, regardless of this
                                 ; setting. Note that direct T.38 is not supported.
 
 ;directmedia=nonat              ; An additional option is to allow media path redirection
@@ -1031,11 +1031,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; callers INVITE. This will also fail if directmedia is enabled when
                                 ; the device is actually behind NAT.
 
-;directmediadeny=0.0.0.0/0      ; Use directmediapermit and directmediadeny to restrict 
+;directmediadeny=0.0.0.0/0      ; Use directmediapermit and directmediadeny to restrict
 ;directmediapermit=172.16.0.0/16; which peers should be able to pass directmedia to each other
                                 ; (There is no default setting, this is just an example)
                                 ; Use this if some of your phones are on IP addresses that
-                                ; can not reach each other directly. This way you can force 
+                                ; can not reach each other directly. This way you can force
                                 ; RTP to always flow through asterisk in such cases.
 ;directmediaacl=acl_example     ; Use named ACLs defined in acl.conf
 
@@ -1220,10 +1220,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;   matches rather than the IP address. Since it is also a peer, a friend entity can
 ;   be called as long as its IP is known to Asterisk. In the case of host=dynamic,
 ;   this means it is necessary for the entity to register before Asterisk can call it.
-; 
+;
 ; Use remotesecret for outbound authentication, and secret for authenticating
 ; inbound requests. For historical reasons, if no remotesecret is supplied for an
-; outbound registration or call, the secret will be used. 
+; outbound registration or call, the secret will be used.
 ;
 ; For device names, we recommend using only a-z, numerics (0-9) and underscore
 ;

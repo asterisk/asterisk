@@ -2236,7 +2236,7 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 	}
 
 	/* Make sure any previous value in ast_rtp_mime_types is cleaned up */
-	memset(&ast_rtp_mime_types[x], 0, sizeof(struct ast_rtp_mime_type));	
+	memset(&ast_rtp_mime_types[x], 0, sizeof(struct ast_rtp_mime_type));
 	if (format) {
 		ast_rtp_mime_types[x].payload_type.asterisk_format = 1;
 		ast_rtp_mime_types[x].payload_type.format = ao2_bump(format);

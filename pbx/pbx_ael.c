@@ -1,4 +1,4 @@
-/* 
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2006, Digium, Inc.
@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Compile symbolic Asterisk Extension Logic into Asterisk extensions, version 2.
- * 
+ *
  */
 
 /*** MODULEINFO
@@ -89,8 +89,8 @@ static int pbx_load_module(void);
 
 #ifndef AAL_ARGCHECK
 /* for the time being, short circuit all the AAL related structures
-   without permanently removing the code; after/during the AAL 
-   development, this code can be properly re-instated 
+   without permanently removing the code; after/during the AAL
+   development, this code can be properly re-instated
 */
 
 #endif
@@ -158,7 +158,7 @@ static int pbx_load_module(void)
 	char *rfilename;
 	struct ast_context *local_contexts=NULL, *con;
 	struct ast_hashtab *local_table=NULL;
-	
+
 	struct pval *parse_tree;
 
 	ast_debug(1, "Starting AEL load process.\n");
@@ -172,7 +172,7 @@ static int pbx_load_module(void)
 		ast_log(LOG_NOTICE, "File %s not found; AEL declining load\n", rfilename);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	
+
 	parse_tree = ael2_parse(rfilename, &errs);
 	ast_debug(1, "AEL load process: parsed config file name '%s'.\n", rfilename);
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
@@ -185,7 +185,7 @@ static int pbx_load_module(void)
 			return AST_MODULE_LOAD_DECLINE;
 		}
 		ast_debug(1, "AEL load process: compiled config file name '%s'.\n", rfilename);
-		
+
 		ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
 		local_table = NULL; /* it's the dialplan global now */
 		local_contexts = NULL;
@@ -199,7 +199,7 @@ static int pbx_load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	destroy_pval(parse_tree); /* free up the memory */
-	
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -368,11 +368,11 @@ int ael_is_funcname(char *name)
 	int s,t;
 	t = sizeof(ael_funclist)/sizeof(char*);
 	s = 0;
-	while ((s < t) && strcasecmp(name, ael_funclist[s])) 
+	while ((s < t) && strcasecmp(name, ael_funclist[s]))
 		s++;
 	if ( s < t )
 		return 1;
 	else
 		return 0;
 }
-#endif    
+#endif

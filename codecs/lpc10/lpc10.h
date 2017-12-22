@@ -87,7 +87,7 @@ struct lpc10_encoder_state {
     real z21;
     real z12;
     real z22;
-    
+
     /* State used by function analys */
     real inbuf[540], pebuf[540];
     real lpbuf[696], ivbuf[312];
@@ -242,7 +242,7 @@ struct lpc10_decoder_state {
   (indices 0 through (LPC10_BITS_IN_COMPRESSED_FRAME-1)), and the
   array speech[] is written (indices 0 through
   (LPC10_SAMPLES_PER_FRAME-1)).
-  
+
   */
 
 struct lpc10_encoder_state * create_lpc10_encoder_state (void);

@@ -1347,4 +1347,3 @@ int ast_sip_destroy_sorcery_location(void)
 
 	return 0;
 }
-

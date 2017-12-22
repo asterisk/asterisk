@@ -192,4 +192,3 @@ struct ast_presence_state_message {
 
 int ast_presence_state_engine_init(void);
 #endif
-

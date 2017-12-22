@@ -1,22 +1,22 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 
 /**
- * @file ooh245.h 
- * This file contains functions to support H245 negotiations. 
+ * @file ooh245.h
+ * This file contains functions to support H245 negotiations.
  */
 #ifndef _OOH245HDR_H_
 #define _OOH245HDR_H_
@@ -43,7 +43,7 @@ extern "C" {
 
 struct OOH323CallData;
 
-/** 
+/**
  * @defgroup h245 H.245 Message Handling
  * @{
  */
@@ -59,15 +59,15 @@ typedef struct H245Message {
 
 /**
  * Creates an outgoing H245 message of the type specified by the type
- * argument for the Application context. 
+ * argument for the Application context.
  *
- * @param msg       A pointer to pointer to message which will be assigned to 
+ * @param msg       A pointer to pointer to message which will be assigned to
  *                  allocated memory.
  * @param type      Type of the message to be created.
  *                  (Request/Response/Command/Indication)
  *
  * @return          Completion status of operation: 0 (OO_OK) = success,
- *                  negative return value is error.         
+ *                  negative return value is error.
  */
 EXTERN int ooCreateH245Message(OOH323CallData* call, H245Message **msg, int type);
 
@@ -77,7 +77,7 @@ EXTERN int ooCreateH245Message(OOH323CallData* call, H245Message **msg, int type
  * @param call      Handle to the call
  * @param pmsg      Pointer to an H245 message structure.
  *
- * @return          OO_OK, on success. OO_FAILED, on failure         
+ * @return          OO_OK, on success. OO_FAILED, on failure
  */
 EXTERN int ooFreeH245Message(struct OOH323CallData *call, H245Message *pmsg);
 
@@ -92,8 +92,8 @@ EXTERN int ooFreeH245Message(struct OOH323CallData *call, H245Message *pmsg);
 EXTERN int ooSendH245Msg(struct OOH323CallData *call, H245Message *msg);
 
 /**
- * This function is used to retrieve an H.245 message enqueued in the outgoing 
- * queue. 
+ * This function is used to retrieve an H.245 message enqueued in the outgoing
+ * queue.
  * @param call      Pointer to the call for which message has to be retrieved.
  * @param msgbuf    Pointer to a buffer in which the message will be returned.
  * @param len       Pointer to an int variable which will contain length of
@@ -103,17 +103,17 @@ EXTERN int ooSendH245Msg(struct OOH323CallData *call, H245Message *msg);
  *
  * @return          OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooGetOutgoingH245Msgbuf(struct OOH323CallData *call, 
-                                   ASN1OCTET *msgbuf, 
+EXTERN int ooGetOutgoingH245Msgbuf(struct OOH323CallData *call,
+                                   ASN1OCTET *msgbuf,
                                    int *len, int *msgType);
 
 /**
- * This function is used to send out a terminal capability set message. 
+ * This function is used to send out a terminal capability set message.
  *
  * @param call      Pointer to a call for which TerminalCapabilitySet message
  *                  will be sent.
- * 
- * @return          OO_OK, on success. OO_FAILED, on failure.  
+ *
+ * @return          OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooSendTermCapMsg(struct OOH323CallData *call);
 EXTERN int ooSendEmptyTermCapMsg(struct OOH323CallData *call);
@@ -128,10 +128,10 @@ EXTERN ASN1UINT ooGenerateStatusDeterminationNumber(void);
 
 /**
  * This fuction is used to handle received MasterSlaveDetermination procedure
- * messages. 
+ * messages.
  * @param call       Pointer to the call for which a message is received.
  * @param pmsg       Pointer to MSD message
- * @param msgType    Message type indicating whether received message is MSD, 
+ * @param msgType    Message type indicating whether received message is MSD,
  *                   MSDAck, MSDReject etc...
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
@@ -152,11 +152,11 @@ EXTERN int ooSendMasterSlaveDetermination(struct OOH323CallData *call);
  * This function is used to send a MasterSlaveDeterminationAck message.
  * @param call        Pointer to call for which MasterSlaveDeterminationAck has
  *                    to be sent.
- * @param status      Result of the determination process(Master/Slave as it 
+ * @param status      Result of the determination process(Master/Slave as it
  *                    applies to remote endpoint)
  *
  * @return            OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooSendMasterSlaveDeterminationAck
 (struct OOH323CallData* call, char * status);
 
@@ -164,19 +164,19 @@ EXTERN int ooSendMasterSlaveDeterminationAck
  * This function is used to send a MasterSlaveDeterminationReject message.
  * @param call        Pointer to call for which message is to be sent.
  * @return            OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooSendMasterSlaveDeterminationReject (struct OOH323CallData* call);
 
 
 /**
  * This function is used to handle MasterSlaveReject message. If number of
- * retries is less than max allowed, then it restarts the 
+ * retries is less than max allowed, then it restarts the
  * MasterSlaveDetermination procedure.
- * @param call        Handle to the call for which MasterSlaveReject is 
+ * @param call        Handle to the call for which MasterSlaveReject is
  *                    received.
  * @param reject      Poinetr to the received reject message.
  *
- * @return            OO_OK, on success. OO_FAILED, on failure. 
+ * @return            OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooHandleMasterSlaveReject
    (struct OOH323CallData *call, H245MasterSlaveDeterminationReject* reject);
@@ -193,13 +193,13 @@ EXTERN int ooHandleOpenLogicalChannel
                    (struct OOH323CallData* call, H245OpenLogicalChannel *olc);
 
 /**
- * This is a helper function used to handle a received OpenLogicalChannel 
+ * This is a helper function used to handle a received OpenLogicalChannel
  * message. It builds an OpenLogicalChannelAck message and sends it.
  *
  * @param call        Pointer to cll for which OLC was received.
  * @param olc         The received OpenLogicalChannel message.
- * 
- * @return            OO_OK, on success. OO_FAILED, on failure.         
+ *
+ * @return            OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooHandleOpenLogicalChannel_helper
 (struct OOH323CallData *call, H245OpenLogicalChannel*olc);
@@ -222,22 +222,22 @@ int ooSendOpenLogicalChannelReject
  *
  * @return             OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooOnReceivedOpenLogicalChannelAck(struct OOH323CallData *call, 
+EXTERN int ooOnReceivedOpenLogicalChannelAck(struct OOH323CallData *call,
                                             H245OpenLogicalChannelAck *olcAck);
 
 
 /**
- * This function is used to handle the received OpenLogicalChannelReject 
+ * This function is used to handle the received OpenLogicalChannelReject
  * message.
  * @param call         Handle to the call for which the message is received.
  * @param olcRejected  Pointer to received OpenLogicalChannelReject message.
  *
  * @return             OO_OK, on success. OO_FAILED, on failure.
  */
-int ooOnReceivedOpenLogicalChannelRejected(struct OOH323CallData *call, 
+int ooOnReceivedOpenLogicalChannelRejected(struct OOH323CallData *call,
                                     H245OpenLogicalChannelReject *olcRejected);
 /**
- * This message is used to send an EndSession command. It builds a EndSession 
+ * This message is used to send an EndSession command. It builds a EndSession
  * command message and queues it into the calls outgoing queue.
  * @param call          Pointer to call for which EndSession command has to be
  *                      sent.
@@ -246,7 +246,7 @@ int ooOnReceivedOpenLogicalChannelRejected(struct OOH323CallData *call,
 EXTERN int ooSendEndSessionCommand(struct OOH323CallData *call);
 
 /**
- * This function is used to handle a received H245Command message. 
+ * This function is used to handle a received H245Command message.
  * @param call          Pointer to call for which an H245Command is received.
  * @param command       Pointer to a command message.
  *
@@ -259,7 +259,7 @@ EXTERN int ooHandleH245Command
 /**
  * This function is used to handle a received UserInput Indication message.
  * It extracts the dtmf received through user-input message and calls endpoints
- * onReceivedDTMF callback function, if such a function is registered by the 
+ * onReceivedDTMF callback function, if such a function is registered by the
  * endpoint.
  * @param call         Handle to the call for which user-input indication
  *                     message is received.
@@ -272,7 +272,7 @@ EXTERN int ooOnReceivedUserInputIndication
 
 /**
  * This function is called on receiving a TreminalCapabilitySetAck message.
- * If the MasterSlaveDetermination process is also over, this function 
+ * If the MasterSlaveDetermination process is also over, this function
  * initiates the process of opening logical channels.
  * @param call          Pointer to call for which TCSAck is received.
  *
@@ -282,9 +282,9 @@ EXTERN int ooOnReceivedTerminalCapabilitySetAck(struct OOH323CallData* call);
 
 /**
  * This function is called to close all the open logical channels. It sends
- * CloseLogicalChannel message for all the forward channels and sends 
+ * CloseLogicalChannel message for all the forward channels and sends
  * RequestCloseLogicalChannel message for all the reverse channels.
- * @param call          Pointer to call for which logical channels have to be 
+ * @param call          Pointer to call for which logical channels have to be
  *                      closed.
  *
  * @return              OO_OK, on success. OO_FAILED, on failure.
@@ -311,10 +311,10 @@ EXTERN int ooSendCloseLogicalChannel
  * closeLogicalChannelAck message to the remote endpoint.
  * @param call           Pointer to call for which CloseLogicalChannel message is received.
  * @param clc            Pointer to received CloseLogicalChannel message.
- * 
+ *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooOnReceivedCloseLogicalChannel(struct OOH323CallData *call, 
+EXTERN int ooOnReceivedCloseLogicalChannel(struct OOH323CallData *call,
                                            H245CloseLogicalChannel* clc);
 
 /**
@@ -322,10 +322,10 @@ EXTERN int ooOnReceivedCloseLogicalChannel(struct OOH323CallData *call,
  * channel and removes it from the list of active logical channels.
  * @param call           Pointer to call for which CLCAck message is received.
  * @param clcAck         Pointer to the received CloseLogicalChannelAck message.
- * 
+ *
  * @return               OO_OK, on success. OO_FAILED, on failure
  */
-EXTERN int ooOnReceivedCloseChannelAck(struct OOH323CallData* call, 
+EXTERN int ooOnReceivedCloseChannelAck(struct OOH323CallData* call,
                                            H245CloseLogicalChannelAck* clcAck);
 
 /**
@@ -365,27 +365,27 @@ EXTERN int ooH245AcknowledgeTerminalCapabilitySet(struct OOH323CallData *call);
  * @param call            Pointer to call for which logical channels have to be opened.
  *
  * @return                OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooOpenLogicalChannels(struct OOH323CallData *call);
 
 /**
- * This function is used to send OpenLogicalChannel message for audio/video 
+ * This function is used to send OpenLogicalChannel message for audio/video
  * channel.
  * @param call            Pointer to call for which  channel has to be opened.
  * @param capType         Type of media channel.
  *
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooOpenLogicalChannel(struct OOH323CallData *call, 
+EXTERN int ooOpenLogicalChannel(struct OOH323CallData *call,
                                 enum OOCapType capType);
 
 /**
  * This function is used to build and send OpenLogicalChannel message using
  *  capability passed as parameter.
- * @param call            Pointer to call for which OpenLogicalChannel message 
+ * @param call            Pointer to call for which OpenLogicalChannel message
  *                        has to be built.
  * @param epCap           Pointer to capability
- * 
+ *
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooOpenChannel
@@ -415,7 +415,7 @@ EXTERN int ooSendH245UserInputIndication_signal
 
 /**
  * This function is used to request a remote end point to close a logical
- * channel. 
+ * channel.
  * @param call            Pointer to call for which the logical channel has to
  *                        be closed.
  * @param logicalChan     Pointer to the logical channel structure which needs
@@ -423,7 +423,7 @@ EXTERN int ooSendH245UserInputIndication_signal
  *
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooSendRequestCloseLogicalChannel(struct OOH323CallData *call, 
+EXTERN int ooSendRequestCloseLogicalChannel(struct OOH323CallData *call,
                                             ooLogicalChannel *logicalChan);
 
 /**
@@ -447,11 +447,11 @@ int ooSendRequestChannelCloseRelease
  *
  * @return                 OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooOnReceivedRequestChannelClose(struct OOH323CallData *call, 
+EXTERN int ooOnReceivedRequestChannelClose(struct OOH323CallData *call,
                                            H245RequestChannelClose *rclc);
 
 /**
- * This function is used to handle a received RequestChannelCloseReject 
+ * This function is used to handle a received RequestChannelCloseReject
  * response message.
  * @param call             Handle to the call.
  * @param rccReject        Pointer to the received reject response message.
@@ -462,7 +462,7 @@ int ooOnReceivedRequestChannelCloseReject
    (struct OOH323CallData *call, H245RequestChannelCloseReject *rccReject);
 
 /**
- * This function is used to handle a received RequestChannelCloseAck 
+ * This function is used to handle a received RequestChannelCloseAck
  * response message.
  * @param call             Handle to the call.
  * @param rccAck           Pointer to the received ack response message.
@@ -473,21 +473,21 @@ int ooOnReceivedRequestChannelCloseAck
    (struct OOH323CallData *call, H245RequestChannelCloseAck *rccAck);
 
 /**
- * Builds an OLC for faststart with an audio/video capability passed as 
+ * Builds an OLC for faststart with an audio/video capability passed as
  * parameter.
  * @param call             Handle to call for which OLC has to be built.
  * @param olc              Pointer to an OLC structure which will be populated.
- * @param epCap            Pointer to the capability which will be used to 
+ * @param epCap            Pointer to the capability which will be used to
  *                         build OLC.
- * @param pctxt            Pointer to an OOCTXT structure which will be used 
+ * @param pctxt            Pointer to an OOCTXT structure which will be used
  *                         to allocate additional memory for OLC.
  * @param dir              Direction of OLC
  *
  * @return                 OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooBuildFastStartOLC(struct OOH323CallData *call, 
-                                          H245OpenLogicalChannel *olc, 
-                                          ooH323EpCapability *epCap, 
+EXTERN int ooBuildFastStartOLC(struct OOH323CallData *call,
+                                          H245OpenLogicalChannel *olc,
+                                          ooH323EpCapability *epCap,
                                           OOCTXT*pctxt, int dir);
 
 /**
@@ -496,16 +496,16 @@ EXTERN int ooBuildFastStartOLC(struct OOH323CallData *call,
  * of the olc received in SETUP.
  * @param call             Handle to call for which OLC has to be built.
  * @param olc              Pointer to an received OLC structure.
- * @param epCap            Pointer to the capability which will be used for 
+ * @param epCap            Pointer to the capability which will be used for
  *                         this channel.
- * @param pctxt            Pointer to an OOCTXT structure which will be used 
+ * @param pctxt            Pointer to an OOCTXT structure which will be used
  *                         to allocate additional memory for OLC.
  * @param dir              Direction of channel OORX, OOTX etc.
  *
  * @return                 OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooPrepareFastStartResponseOLC
-   (OOH323CallData *call, H245OpenLogicalChannel *olc, 
+   (OOH323CallData *call, H245OpenLogicalChannel *olc,
     ooH323EpCapability *epCap, OOCTXT*pctxt, int dir);
 
 /**
@@ -533,7 +533,7 @@ int ooSendMasterSlaveDeterminationRelease(struct OOH323CallData * call);
 /**
  * This function is used to send a terminal capability set reject message
  * to the remote endpoint.
- * @param call             Handle to the call for which reject message has to 
+ * @param call             Handle to the call for which reject message has to
  *                         be sent.
  * @param seqNo            Sequence number of the TCS message to be rejected.
  * @param cause            Cause for rejecting a TCS message.
@@ -546,7 +546,7 @@ int ooSendTerminalCapabilitySetReject
 /**
  * This function is used to send a TerminalCapabilitySetRelease message after
  * capability exchange timer has expired.
- * @param call            Handle to call for which release message has to be 
+ * @param call            Handle to call for which release message has to be
  *                        sent.
  *
  * @return                OO_OK, on success; OO_FAILED, on failure.
@@ -557,26 +557,26 @@ int ooSendRequestMode(OOH323CallData* call, int isT38Mode);
 
 
 /**
- * This is an helper function used to extract ip address and port info from 
+ * This is an helper function used to extract ip address and port info from
  * H245TransportAddress structure.
  * @param call           Handle to associated call.
- * @param h245Address    Handle to H245TransportAddress structure from which 
+ * @param h245Address    Handle to H245TransportAddress structure from which
  *                       information has to be extracted.
- * @param ip             Pointer to buffer in which ip address will be 
+ * @param ip             Pointer to buffer in which ip address will be
  *                       returned. Make sure that buffer has sufficient length.
- * @param port           Pointer to integer in which port number will be 
+ * @param port           Pointer to integer in which port number will be
  *                       returned.
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 int ooGetIpPortFromH245TransportAddress
-   (OOH323CallData *call, H245TransportAddress *h245Address, char *ip, 
+   (OOH323CallData *call, H245TransportAddress *h245Address, char *ip,
     int *port);
 
 /**
- * This is a callback function for handling an expired master-slave 
+ * This is a callback function for handling an expired master-slave
  * determination timer.
- * @param data             Callback data registered at the time of creation of 
+ * @param data             Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
@@ -584,9 +584,9 @@ int ooGetIpPortFromH245TransportAddress
 int ooMSDTimerExpired(void *data);
 
 /**
- * This is a callback function for handling an expired capability exchange 
+ * This is a callback function for handling an expired capability exchange
  * timer.
- * @param data             Callback data registered at the time of creation of 
+ * @param data             Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
@@ -594,9 +594,9 @@ int ooMSDTimerExpired(void *data);
 int ooTCSTimerExpired(void *data);
 
 /**
- * This is a callback function for handling an expired OpenLogicalChannel 
+ * This is a callback function for handling an expired OpenLogicalChannel
  * timer.
- * @param pdata            Callback data registered at the time of creation of 
+ * @param pdata            Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
@@ -604,9 +604,9 @@ int ooTCSTimerExpired(void *data);
 int ooOpenLogicalChannelTimerExpired(void *pdata);
 
 /**
- * This is a callback function for handling an expired CloseLogicalChannel 
+ * This is a callback function for handling an expired CloseLogicalChannel
  * timer.
- * @param pdata            Callback data registered at the time of creation of 
+ * @param pdata            Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
@@ -614,9 +614,9 @@ int ooOpenLogicalChannelTimerExpired(void *pdata);
 int ooCloseLogicalChannelTimerExpired(void *pdata);
 
 /**
- * This is a callback function for handling an expired RequestChannelClose 
+ * This is a callback function for handling an expired RequestChannelClose
  * timer.
- * @param pdata            Callback data registered at the time of creation of 
+ * @param pdata            Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
@@ -625,14 +625,14 @@ int ooRequestChannelCloseTimerExpired(void *pdata);
 
 /**
  * This is a callback function for handling an expired EndSession timer.
- * @param pdata            Callback data registered at the time of creation of 
+ * @param pdata            Callback data registered at the time of creation of
  *                         the timer.
  *
  * @return                 OO_OK, on success. OO_FAILED, otherwise.
  */
 int ooSessionTimerExpired(void *pdata);
-/** 
- * @} 
+/**
+ * @}
  */
 int ooRTDTimerExpired(void *pdata);
 

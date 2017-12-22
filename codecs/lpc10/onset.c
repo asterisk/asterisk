@@ -203,35 +203,35 @@ static real c_b2 = 1.f;
 /*    N, D       Numerator and denominator of prediction filters */
 /*    FPC        Current prediction coefs */
 /*    L2BUF, L2SUM1, L2SUM2    State of slope filter */
-/*       The only "significant" change I've made is to change L2SUM2 out 
+/*       The only "significant" change I've made is to change L2SUM2 out
 */
 /*       of the list of local variables that need to be saved, since it */
 /*       didn't need to be. */
-/*       L2SUM1 need not be, but avoiding saving it would require a small 
+/*       L2SUM1 need not be, but avoiding saving it would require a small
 */
 /*       change to the body of the code.  See comments below for an */
-/*       example of how the code could be changed to avoid saving L2SUM1. 
+/*       example of how the code could be changed to avoid saving L2SUM1.
 */
 /*       FPC and LASTI are saved from one invocation to the next, but */
-/*       they are not given initial values.  This is acceptable, because 
+/*       they are not given initial values.  This is acceptable, because
 */
 /*       FPC will be assigned a value the first time that this function */
 /*       is called after D is initialized to 1, since the formula to */
 /*       change D will not change it to 0 in one step, and the IF (D */
-/*       .NE. 0) statement will execute its THEN part, initializing FPC. 
+/*       .NE. 0) statement will execute its THEN part, initializing FPC.
 */
 
 /*       LASTI's value will not be used until HYST is .TRUE., and */
 /*       whenever HYST is changed from its initial value of .FALSE., */
 /*       LASTI is assigned a value. */
 /*       In a C version of this coder, it would be nice if all of these */
-/*       saved things, in this and all other subroutines, could be stored 
+/*       saved things, in this and all other subroutines, could be stored
 */
-/*       in a single struct lpc10_coder_state_t, initialized with a call 
+/*       in a single struct lpc10_coder_state_t, initialized with a call
 */
-/*       to a function like lpc10_init(&lpc10_coder_state).  In this way, 
+/*       to a function like lpc10_init(&lpc10_coder_state).  In this way,
 */
-/*       a program that used these functions could conveniently alternate 
+/*       a program that used these functions could conveniently alternate
 */
 /*       coding more than one distinct audio stream. */
 
@@ -264,7 +264,7 @@ static real c_b2 = 1.f;
     }
     i__1 = *sbufh;
     for (i__ = *sbufh - *lframe + 1; i__ <= i__1; ++i__) {
-/*   Compute FPC; Use old FPC on divide by zero; Clamp FPC to +/- 1. 
+/*   Compute FPC; Use old FPC on divide by zero; Clamp FPC to +/- 1.
 */
 	*n = (pebuf[i__] * pebuf[i__ - 1] + (*n) * 63.f) / 64.f;
 /* Computing 2nd power */
@@ -278,11 +278,11 @@ static real c_b2 = 1.f;
 	    }
 	}
 /*   Filter FPC */
-/*       In order to allow L2SUM1 not to be saved from one invocation 
+/*       In order to allow L2SUM1 not to be saved from one invocation
 of */
 /*       this subroutine to the next, one could change the sequence of
  */
-/*       assignments below, up to the IF statement, to the following. 
+/*       assignments below, up to the IF statement, to the following.
  In */
 /*       addition, the initial value of L2PTR2 should be changed to */
 /*       L2WID/2 instead of L2WID/2+1. */
