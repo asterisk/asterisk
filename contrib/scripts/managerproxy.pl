@@ -5,11 +5,11 @@
 #  Copyright (c) 2004 David C. Troy <dave@popvox.com>
 #
 #  This code is based on Flash Operator Panel 'op_server.pl'
-#  by Nicolas Gudino
-#  �Copyright (C) 2004.
+#  by Nicolás Gudiño
+#  Copyright (C) 2004.
 #
 #  David C. Troy <dave@popvox.com>
-#  Nicolas Gudino <nicolas@house.com.ar>
+#  Nicolás Gudiño <nicolas@house.com.ar>
 #
 #  This program is free software, distributed under the terms of
 #  the GNU General Public License.
