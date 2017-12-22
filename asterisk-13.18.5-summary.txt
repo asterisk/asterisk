@@ -1,8 +1,8 @@
                                 Release Summary
 
-                                asterisk-13.18.4
+                                asterisk-13.18.5
 
-                                Date: 2017-12-13
+                                Date: 2017-12-22
 
                            <asteriskteam@digium.com>
 
@@ -21,19 +21,17 @@
 
                                  [Back to Top]
 
-   This release has been made to address one or more security vulnerabilities
-   that have been identified. A security advisory document has been published
-   for each vulnerability that includes additional information. Users of
-   versions of Asterisk that are affected are strongly encouraged to review
-   the advisories and determine what action they should take to protect their
-   systems from these issues.
-
-   Security Advisories:
-
-     * AST-2017-012
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-13.18.3.
+   previous release, asterisk-13.18.4.
 
      ----------------------------------------------------------------------
 
@@ -51,8 +49,7 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Joshua Colp                                     1 Tzafrir Cohen          
-                                                     1 Vitezslav Novy         
+   1 Kevin Harwell                                   1 Ross Beer              
 
      ----------------------------------------------------------------------
 
@@ -65,20 +62,13 @@
 
   Bug
 
-    Category: General
+    Category: Channels/chan_pjsip
 
-   ASTERISK-27382: crash after an invalid rtcp packet from GT48 FXS gateway
-   Reported by: Tzafrir Cohen
-     * [8052b5d76e] Joshua Colp -- AST-2017-012: Place single RTCP report
-       block at beginning of report.
-
-    Category: Resources/res_rtp_asterisk
-
-   ASTERISK-27429: res_rtp_asterisk: Multiple reports in an RTCP packet will
-   write past where it should
-   Reported by: Vitezslav Novy
-     * [8052b5d76e] Joshua Colp -- AST-2017-012: Place single RTCP report
-       block at beginning of report.
+   ASTERISK-27480: Security: Authenticated SUBSCRIBE without Contact crashes
+   asterisk
+   Reported by: Ross Beer
+     * [5b5cb3dfe8] Kevin Harwell -- AST-2017-014: res_pjsip - Missing
+       contact header can cause crash
 
      ----------------------------------------------------------------------
 
