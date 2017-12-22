@@ -1,3 +1,25 @@
+2017-12-22 22:27 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.1.5 Released.
+
+2017-12-20 16:17 +0000 [a8ed22bd18]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2017-014: res_pjsip - Missing contact header can cause crash
+
+	  Those SIP messages that create dialogs require a contact header to be present.
+	  If the contact header was missing from the message it could cause Asterisk to
+	  crash.
+
+	  This patch checks to make sure SIP messages that create a dialog contain the
+	  contact header. If the message does not and it is required Asterisk now returns
+	  a "400 Missing Contact header" response. Also added NULL checks when retrieving
+	  the contact header that were missing as a "just in case".
+
+	  ASTERISK-27480 #close
+
+	  Change-Id: I1810db87683fc637a9e3e1384a746037fec20afe
+	  (cherry picked from commit 6d994c8223561acc00da796140ec6123ca76c2e0)
+
 2017-12-13 14:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.1.4 Released.
