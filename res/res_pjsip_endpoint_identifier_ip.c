@@ -186,7 +186,7 @@ static int header_identify_match_check(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	return CMP_MATCH | CMP_STOP;
+	return CMP_MATCH;
 }
 
 /*! \brief Comparator function for matching an object by IP address */
@@ -201,7 +201,7 @@ static int ip_identify_match_check(void *obj, void *arg, int flags)
 		ast_debug(3, "Source address %s matches identify '%s'\n",
 				ast_sockaddr_stringify(addr),
 				ast_sorcery_object_get_id(identify));
-		return CMP_MATCH | CMP_STOP;
+		return CMP_MATCH;
 	} else {
 		ast_debug(3, "Source address %s does not match identify '%s'\n",
 				ast_sockaddr_stringify(addr),
@@ -210,46 +210,60 @@ static int ip_identify_match_check(void *obj, void *arg, int flags)
 	}
 }
 
-static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
+static struct ast_sip_endpoint *common_identify(ao2_callback_fn *identify_match_cb, void *arg)
 {
-	struct ast_sockaddr addr = { { 0, } };
 	RAII_VAR(struct ao2_container *, candidates, NULL, ao2_cleanup);
-	RAII_VAR(struct ip_identify_match *, match, NULL, ao2_cleanup);
+	struct ip_identify_match *match;
 	struct ast_sip_endpoint *endpoint;
 
 	/* If no possibilities exist return early to save some time */
-	if (!(candidates = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "identify", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL)) ||
-		!ao2_container_count(candidates)) {
+	candidates = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "identify",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!candidates || !ao2_container_count(candidates)) {
 		ast_debug(3, "No identify sections to match against\n");
 		return NULL;
 	}
 
+	match = ao2_callback(candidates, 0, identify_match_cb, arg);
+	if (!match) {
+		return NULL;
+	}
+
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
+		match->endpoint_name);
+	if (endpoint) {
+		ast_debug(3, "Identify '%s' SIP message matched to endpoint %s\n",
+			ast_sorcery_object_get_id(match), match->endpoint_name);
+	} else {
+		ast_log(LOG_WARNING, "Identify '%s' points to endpoint '%s' but endpoint could not be found\n",
+			ast_sorcery_object_get_id(match), match->endpoint_name);
+	}
+
+	ao2_ref(match, -1);
+	return endpoint;
+}
+
+static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
+{
+	struct ast_sockaddr addr = { { 0, } };
+
 	ast_sockaddr_parse(&addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
 	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
 
-	match = ao2_callback(candidates, 0, ip_identify_match_check, &addr);
-	if (!match) {
-		ast_debug(3, "Identify checks by IP address failed to find match: '%s' did not match any identify section rules\n",
-				ast_sockaddr_stringify(&addr));
-		match = ao2_callback(candidates, 0, header_identify_match_check, rdata);
-		if (!match) {
-			return NULL;
-		}
-	}
-
-	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
-	if (endpoint) {
-		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
-	} else {
-		ast_log(LOG_WARNING, "Identify section '%s' points to endpoint '%s' but endpoint could not be looked up\n",
-				ast_sorcery_object_get_id(match), match->endpoint_name);
-	}
-
-	return endpoint;
+	return common_identify(ip_identify_match_check, &addr);
 }
 
 static struct ast_sip_endpoint_identifier ip_identifier = {
 	.identify_endpoint = ip_identify,
+};
+
+static struct ast_sip_endpoint *header_identify(pjsip_rx_data *rdata)
+{
+	return common_identify(header_identify_match_check, rdata);
+}
+
+static struct ast_sip_endpoint_identifier header_identifier = {
+	.identify_endpoint = header_identify,
 };
 
 /*! \brief Helper function which performs a host lookup and adds result to identify match */
@@ -720,6 +734,7 @@ static int load_module(void)
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier_with_name(&ip_identifier, "ip");
+	ast_sip_register_endpoint_identifier_with_name(&header_identifier, "header");
 	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);

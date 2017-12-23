@@ -635,6 +635,7 @@
                         ; "username": Identify by the From or To username and domain
                         ; "auth_username": Identify by the Authorization username and realm
                         ; "ip": Identify by the source IP address
+                        ; "header": Identify by a configured SIP header value.
                         ; In the username and auth_username cases, if an exact match
                         ; on both username and domain/realm fails, the match is
                         ; retried with just the username.
@@ -967,11 +968,11 @@
             ; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
-            ; Currently, "ip", "username", "auth_username" and "anonymous" are valid
-            ; identifiers as registered by the res_pjsip_endpoint_identifier_* modules.
-            ; Some modules like res_pjsip_endpoint_identifier_user register more than
-            ; one identifier. Use the CLI command "pjsip show identifiers" to see the
-            ; identifiers currently available.
+            ; Currently, "ip", "header", "username", "auth_username" and "anonymous"
+            ; are valid identifiers as registered by the res_pjsip_endpoint_identifier_*
+            ; modules.  Some modules like res_pjsip_endpoint_identifier_user register
+            ; more than one identifier.  Use the CLI command "pjsip show identifiers"
+            ; to see the identifiers currently available.
             ; (default: ip,username,anonymous)
 ;max_initial_qualify_time=4 ; The maximum amount of time (in seconds) from
                             ; startup that qualifies should be attempted on all
