@@ -202,7 +202,7 @@ static AST_DLLIST_HEAD_STATIC(reload_queue, reload_queue_item);
  *
  * This is protected by the module_list lock.
  */
-static struct ast_module *resource_being_loaded;
+static struct ast_module * volatile resource_being_loaded;
 
 /*!
  * \internal
