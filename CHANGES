@@ -16,6 +16,11 @@ Core
 ------------------
  * Removed the unused and incomplete SDP processing modules.
 
+app_followme
+------------------
+ * Added a new prompt, connecting-prompt, which will be played
+   (if configured) to the "winner" callee before connecting the call.
+
 res_pjsip
 ------------------
  * Users who are matching endpoints by SIP header need to reevaluate their
