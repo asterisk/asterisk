@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 13.19.0 to Asterisk 13.20.0 ----------
 ------------------------------------------------------------------------------
 
+app_followme
+------------------
+ * Added a new prompt, connecting-prompt, which will be played
+   (if configured) to the "winner" callee before connecting the call.
+
 res_pjsip
 ------------------
  * Users who are matching endpoints by SIP header need to reevaluate their

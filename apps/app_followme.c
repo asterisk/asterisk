@@ -176,6 +176,7 @@ struct call_followme {
 	char plsholdprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char statusprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char sorryprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char connprompt[PATH_MAX];	/*!< Sound prompt name and path */
 
 	AST_LIST_HEAD_NOLOCK(numbers, number) numbers;	   /*!< Head of the list of follow-me numbers */
 	AST_LIST_HEAD_NOLOCK(blnumbers, number) blnumbers; /*!< Head of the list of black-listed numbers */
@@ -210,6 +211,7 @@ struct fm_args {
 	char plsholdprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char statusprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	char sorryprompt[PATH_MAX];	/*!< Sound prompt name and path */
+	char connprompt[PATH_MAX];	/*!< Sound prompt name and path */
 	struct ast_flags followmeflags;
 };
 
@@ -274,6 +276,7 @@ static char optionsprompt[PATH_MAX] = "followme/options";
 static char plsholdprompt[PATH_MAX] = "followme/pls-hold-while-try";
 static char statusprompt[PATH_MAX] = "followme/status";
 static char sorryprompt[PATH_MAX] = "followme/sorry";
+static char connprompt[PATH_MAX] = "";
 
 
 static AST_RWLIST_HEAD_STATIC(followmes, call_followme);
@@ -329,6 +332,7 @@ static void init_profile(struct call_followme *f, int activate)
 	ast_copy_string(f->plsholdprompt, plsholdprompt, sizeof(f->plsholdprompt));
 	ast_copy_string(f->statusprompt, statusprompt, sizeof(f->statusprompt));
 	ast_copy_string(f->sorryprompt, sorryprompt, sizeof(f->sorryprompt));
+	ast_copy_string(f->connprompt, connprompt, sizeof(f->connprompt));
 	if (activate) {
 		f->active = 1;
 	}
@@ -360,7 +364,9 @@ static void profile_set_param(struct call_followme *f, const char *param, const 
 		ast_copy_string(f->statusprompt, val, sizeof(f->statusprompt));
 	else if (!strcasecmp(param, "followme-sorry-prompt") || !strcasecmp(param, "sorry_prompt"))
 		ast_copy_string(f->sorryprompt, val, sizeof(f->sorryprompt));
-	else if (failunknown) {
+	else if (!strcasecmp(param, "followme-connecting-prompt") || !strcasecmp(param, "connecting_prompt")) {
+		ast_copy_string(f->connprompt, val, sizeof(f->connprompt));
+	} else if (failunknown) {
 		if (linenum >= 0)
 			ast_log(LOG_WARNING, "Unknown keyword in profile '%s': %s at line %d of followme.conf\n", f->name, param, linenum);
 		else
@@ -475,6 +481,13 @@ static int reload_followme(int reload)
 	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "sorry_prompt")) && !ast_strlen_zero(tmpstr)) {
 		ast_copy_string(sorryprompt, tmpstr, sizeof(sorryprompt));
 	}
+
+	if ((tmpstr = ast_variable_retrieve(cfg, "general", "connecting-prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(connprompt, tmpstr, sizeof(connprompt));
+	} else if ((tmpstr = ast_variable_retrieve(cfg, "general", "connecting_prompt")) && !ast_strlen_zero(tmpstr)) {
+		ast_copy_string(connprompt, tmpstr, sizeof(connprompt));
+	}
+
 
 	/* Chug through config file */
 	while ((cat = ast_category_browse(cfg, cat))) {
@@ -1377,6 +1390,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	ast_copy_string(targs->plsholdprompt, f->plsholdprompt, sizeof(targs->plsholdprompt));
 	ast_copy_string(targs->statusprompt, f->statusprompt, sizeof(targs->statusprompt));
 	ast_copy_string(targs->sorryprompt, f->sorryprompt, sizeof(targs->sorryprompt));
+	ast_copy_string(targs->connprompt, f->connprompt, sizeof(targs->connprompt));
 	/* Copy the numbers we're going to use into another list in case the master list should get modified
 	   (and locked) while we're trying to do a follow-me */
 	AST_LIST_HEAD_INIT_NOLOCK(&targs->cnumbers);
@@ -1464,6 +1478,14 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		res = 0;
 	} else {
 		caller = chan;
+
+		/* Play "connecting" message to the winner, if configured. */
+		if (!ast_strlen_zero(targs->connprompt)) {
+			ast_autoservice_start(caller);
+			ast_stream_and_wait(outbound, targs->connprompt, "");
+			ast_autoservice_stop(caller);
+		}
+
 		/* Bridge the two channels. */
 
 		memset(&config, 0, sizeof(config));
