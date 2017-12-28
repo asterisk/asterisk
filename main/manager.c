@@ -247,13 +247,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="DNID">
 					<para>Dialed number identifier</para>
 				</parameter>
+				<parameter name="EffectiveConnectedLineNum">
+				</parameter>
+				<parameter name="EffectiveConnectedLineName">
+				</parameter>
 				<parameter name="TimeToHangup">
 					<para>Absolute lifetime of the channel</para>
 				</parameter>
 				<parameter name="BridgeID">
 					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
-				</parameter>
-				<parameter name="Linkedid">
 				</parameter>
 				<parameter name="Application">
 					<para>Application currently executing on the channel</para>
@@ -4583,6 +4585,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		struct timeval now;
 		long elapsed_seconds;
 		struct ast_bridge *bridge;
+		struct ast_party_id effective_id;
 
 		ast_channel_lock(chan);
 
@@ -4611,10 +4614,12 @@ static int action_status(struct mansession *s, const struct message *m)
 		channels++;
 
 		bridge = ast_channel_get_bridge(chan);
+		effective_id = ast_channel_connected_effective_id(chan);
 
 		astman_append(s,
 			"Event: Status\r\n"
 			"Privilege: Call\r\n"
+			/* v-- Start channel snapshot headers */
 			"Channel: %s\r\n"
 			"ChannelState: %u\r\n"
 			"ChannelStateDesc: %s\r\n"
@@ -4627,13 +4632,14 @@ static int action_status(struct mansession *s, const struct message *m)
 			"Exten: %s\r\n"
 			"Priority: %d\r\n"
 			"Uniqueid: %s\r\n"
+			"Linkedid: %s\r\n"
+			/* ^-- End channel snapshot headers */
 			"Type: %s\r\n"
 			"DNID: %s\r\n"
 			"EffectiveConnectedLineNum: %s\r\n"
 			"EffectiveConnectedLineName: %s\r\n"
 			"TimeToHangup: %ld\r\n"
 			"BridgeID: %s\r\n"
-			"Linkedid: %s\r\n"
 			"Application: %s\r\n"
 			"Data: %s\r\n"
 			"Nativeformats: %s\r\n"
@@ -4647,6 +4653,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			"%s"
 			"%s"
 			"\r\n",
+			/* v-- Start channel snapshot headers */
 			ast_channel_name(chan),
 			ast_channel_state(chan),
 			ast_state2str(ast_channel_state(chan)),
@@ -4659,13 +4666,14 @@ static int action_status(struct mansession *s, const struct message *m)
 			ast_channel_exten(chan),
 			ast_channel_priority(chan),
 			ast_channel_uniqueid(chan),
+			ast_channel_linkedid(chan),
+			/* ^-- End channel snapshot headers */
 			ast_channel_tech(chan)->type,
 			S_OR(ast_channel_dialed(chan)->number.str, ""),
-			S_COR(ast_channel_connected_effective_id(chan).number.valid, ast_channel_connected_effective_id(chan).number.str, "<unknown>"),
-			S_COR(ast_channel_connected_effective_id(chan).name.valid, ast_channel_connected_effective_id(chan).name.str, "<unknown>"),
+			S_COR(effective_id.number.valid, effective_id.number.str, "<unknown>"),
+			S_COR(effective_id.name.valid, effective_id.name.str, "<unknown>"),
 			(long)ast_channel_whentohangup(chan)->tv_sec,
 			bridge ? bridge->uniqueid : "",
-			ast_channel_linkedid(chan),
 			ast_channel_appl(chan),
 			ast_channel_data(chan),
 			ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
