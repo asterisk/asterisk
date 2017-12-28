@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2011, Digium, Inc.
  *
- * Joshua Colp <jcolp@digium.com> 
+ * Joshua Colp <jcolp@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -20,7 +20,7 @@
  *
  * \brief Technology independent volume control
  *
- * \author Joshua Colp <jcolp@digium.com> 
+ * \author Joshua Colp <jcolp@digium.com>
  *
  * \ingroup functions
  *
@@ -126,7 +126,7 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		if (frame->frametype == AST_FRAME_DTMF) {
 			/* Only use DTMF coming from the source... not going to it */
 			if (direction != AST_AUDIOHOOK_DIRECTION_READ)
-				return 0; 
+				return 0;
 			if (frame->subclass.integer == '*') {
 				vi->tx_gain += 1;
 				vi->rx_gain += 1;
@@ -137,7 +137,7 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		}
 	}
 
-	
+
 	if (frame->frametype == AST_FRAME_VOICE) {
 		/* Based on direction of frame grab the gain, and confirm it is applicable */
 		if (!(gain = (direction == AST_AUDIOHOOK_DIRECTION_READ) ? &vi->rx_gain : &vi->tx_gain) || !*gain)
@@ -194,8 +194,8 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 		return -1;
 	}
 
-	if (!strcasecmp(args.direction, "tx")) { 
-		vi->tx_gain = atoi(value); 
+	if (!strcasecmp(args.direction, "tx")) {
+		vi->tx_gain = atoi(value);
 	} else if (!strcasecmp(args.direction, "rx")) {
 		vi->rx_gain = atoi(value);
 	} else {
@@ -211,13 +211,13 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 	}
 
 	/* Add Option data to struct */
-	
+
 	if (!ast_strlen_zero(args.options)) {
 		struct ast_flags flags = { 0 };
 		ast_app_parse_options(volume_opts, &flags, NULL, args.options);
 		vi->flags = flags.flags;
-	} else { 
-		vi->flags = 0; 
+	} else {
+		vi->flags = 0;
 	}
 
 	return 0;

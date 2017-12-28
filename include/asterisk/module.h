@@ -94,7 +94,7 @@ enum ast_module_support_level {
 	AST_MODULE_SUPPORT_DEPRECATED,
 };
 
-/*! 
+/*!
  * \brief Load a module.
  * \param resource_name The name of the module to load.
  *
@@ -106,13 +106,13 @@ enum ast_module_support_level {
  */
 enum ast_module_load_result ast_load_resource(const char *resource_name);
 
-/*! 
+/*!
  * \brief Unload a module.
  * \param resource_name The name of the module to unload.
  * \param ast_module_unload_mode The force flag. This should be set using one of the AST_FORCE flags.
  *
  * This function unloads a module.  It will only unload modules that are not in
- * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is 
+ * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is
  * specified.  Setting #AST_FORCE_FIRM or #AST_FORCE_HARD will unload the
  * module regardless of consequences (NOT RECOMMENDED).
  *
@@ -135,7 +135,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode);
  */
 enum ast_module_reload_result ast_module_reload(const char *name);
 
-/*! 
+/*!
  * \brief Notify when usecount has been changed.
  *
  * This function calulates use counts and notifies anyone trying to keep track
@@ -200,39 +200,39 @@ int ast_update_module_list_condition(int (*modentry)(const char *module, const c
 /*!
  * \brief Check if module with the name given is loaded
  * \param name Module name, like "chan_sip.so"
- * \retval 1 if true 
+ * \retval 1 if true
  * \retval 0 if false
  */
 int ast_module_check(const char *name);
 
-/*! 
+/*!
  * \brief Add a procedure to be run when modules have been updated.
  * \param updater The function to run when modules have been updated.
  *
  * This function adds the given function to a linked list of functions to be
- * run when the modules are updated. 
+ * run when the modules are updated.
  *
- * \retval 0 on success 
+ * \retval 0 on success
  * \retval -1 on failure.
  */
 int ast_loader_register(int (*updater)(void));
 
-/*! 
+/*!
  * \brief Remove a procedure to be run when modules are updated.
  * \param updater The updater function to unregister.
  *
  * This removes the given function from the updater list.
- * 
+ *
  * \retval 0 on success
  * \retval -1 on failure.
  */
 int ast_loader_unregister(int (*updater)(void));
 
-/*! 
+/*!
  * \brief Match modules names for the Asterisk cli.
  * \param line Unused by this function, but this should be the line we are
  *        matching.
- * \param word The partial name to match. 
+ * \param word The partial name to match.
  * \param pos The position the word we are completing is in.
  * \param state The possible match to return.
  * \param rpos The position we should be matching.  This should be the same as
@@ -309,7 +309,7 @@ struct ast_module_info {
 	const char *name;			/*!< name of the module for loader reference and CLI commands */
 	const char *description;		/*!< user friendly description of the module. */
 
-	/*! 
+	/*!
 	 * This holds the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
 	 * the Asterisk license as stated in the ASTERISK_GPL_KEY.  Your module will not
 	 * load if it does not return the EXACT key string.
@@ -480,37 +480,37 @@ static const __attribute__((unused)) struct ast_module_info *ast_module_info;
 
 #endif	/* plain C */
 
-/*! 
+/*!
  * \brief Register an application.
  *
  * \param app Short name of the application
  * \param execute a function callback to execute the application. It should return
  *                non-zero if the channel needs to be hung up.
  * \param synopsis a short description (one line synopsis) of the application
- * \param description long description with all of the details about the use of 
+ * \param description long description with all of the details about the use of
  *                    the application
- * 
- * This registers an application with Asterisk's internal application list. 
+ *
+ * This registers an application with Asterisk's internal application list.
  * \note The individual applications themselves are responsible for registering and unregistering
  *       and unregistering their own CLI commands.
- * 
- * \retval 0 success 
+ *
+ * \retval 0 success
  * \retval -1 failure.
  */
 #define ast_register_application(app, execute, synopsis, description) ast_register_application2(app, execute, synopsis, description, ast_module_info->self)
 
-/*! 
+/*!
  * \brief Register an application using XML documentation.
  *
  * \param app Short name of the application
  * \param execute a function callback to execute the application. It should return
  *                non-zero if the channel needs to be hung up.
- * 
- * This registers an application with Asterisk's internal application list. 
+ *
+ * This registers an application with Asterisk's internal application list.
  * \note The individual applications themselves are responsible for registering and unregistering
  *       and unregistering their own CLI commands.
- * 
- * \retval 0 success 
+ *
+ * \retval 0 success
  * \retval -1 failure.
  */
 #define ast_register_application_xml(app, execute) ast_register_application(app, execute, NULL, NULL)
@@ -537,14 +537,14 @@ static const __attribute__((unused)) struct ast_module_info *ast_module_info;
 int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *),
 				     const char *synopsis, const char *description, void *mod);
 
-/*! 
+/*!
  * \brief Unregister an application
- * 
+ *
  * \param app name of the application (does not have to be the same string as the one that was registered)
- * 
+ *
  * This unregisters an application from Asterisk's internal application list.
- * 
- * \retval 0 success 
+ *
+ * \retval 0 success
  * \retval -1 failure
  */
 int ast_unregister_application(const char *app);

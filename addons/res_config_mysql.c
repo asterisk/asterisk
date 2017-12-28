@@ -449,7 +449,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 		release_database(dbh);
 		return NULL;
 	}
-	
+
 	if (!(cfg = ast_config_new())) {
 		/* If I can't alloc memory at this point, why bother doing anything else? */
 		ast_log(LOG_WARNING, "Out of memory!\n");
@@ -751,7 +751,7 @@ static int update2_mysql(const char *database, const char *tablename, const stru
 
 	return (int)numrows;
 }
- 
+
 static int store_mysql(const char *database, const char *table, const struct ast_variable *rt_fields)
 {
 	struct mysql_conn *dbh;
@@ -875,7 +875,7 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 
 	return (int)numrows;
 }
- 
+
 static struct ast_config *config_mysql(const char *database, const char *table, const char *file, struct ast_config *cfg, struct ast_flags config_flags, const char *unused, const char *who_asked)
 {
 	struct mysql_conn *dbh;
@@ -1563,4 +1563,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MySQL RealTime Config
 		.reload = reload,
 		.load_pri = AST_MODPRI_REALTIME_DRIVER,
 		);
-

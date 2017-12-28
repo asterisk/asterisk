@@ -67,4 +67,3 @@ chan_usbradio.o: ./xpmr/xpmr.c ./xpmr/xpmr.h ./xpmr/xpmr_coef.h
 
 chan_usbradio.so: LIBS+=-lusb -lasound
 chan_usbradio.so: _ASTCFLAGS+=-DNDEBUG
-

@@ -256,8 +256,8 @@ s*/
 /* INITVOICIN. */
 
 /* Subroutine */ int voicin_(integer *vwin, real *inbuf, real *
-	lpbuf, integer *buflim, integer *half, real *minamd, real *maxamd, 
-	integer *mintau, real *ivrc, integer *obound, integer *voibuf, 
+	lpbuf, integer *buflim, integer *half, real *minamd, real *maxamd,
+	integer *mintau, real *ivrc, integer *obound, integer *voibuf,
 	integer *af, struct lpc10_encoder_state *st)
 {
     /* Initialized data */
@@ -298,8 +298,8 @@ s*/
     real *maxmin;
     integer vstate;
     real rc1;
-    extern /* Subroutine */ int vparms_(integer *, real *, real *, integer *, 
-	    integer *, real *, integer *, integer *, integer *, integer *, 
+    extern /* Subroutine */ int vparms_(integer *, real *, real *, integer *,
+	    integer *, real *, integer *, integer *, integer *, integer *,
 	    real *, real *, real *, real *);
     integer fbe, lbe;
     real *snr;
@@ -363,13 +363,13 @@ s*/
 /*    Error correction */
 /* Subroutine SETUP is the only place where order is assigned a value, */
 /* and that value is 10.  It could increase efficiency 1% or so to */
-/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as 
+/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as
 */
 /* a variable in a COMMON block, since it is used in many places in the */
-/* core of the coding and decoding routines.  Actually, I take that back. 
+/* core of the coding and decoding routines.  Actually, I take that back.
 */
 /* At least when compiling with f2c, the upper bound of DO loops is */
-/* stored in a local variable before the DO loop begins, and then that is 
+/* stored in a local variable before the DO loop begins, and then that is
 */
 /* compared against on each iteration. */
 /* Similarly for lframe, which is given a value of MAXFRM in SETUP. */
@@ -379,35 +379,35 @@ s*/
 /* nbits is similar to quant, and is given a value of 54 in SETUP. */
 /* corrp is given a value of .TRUE. in SETUP, and is only used in the */
 /* subroutines ENCODE and DECODE.  It doesn't affect the speed of the */
-/* coder significantly whether it is .TRUE. or .FALSE., or whether it is 
+/* coder significantly whether it is .TRUE. or .FALSE., or whether it is
 */
 /* a constant or a variable, since it is only examined once per frame. */
 /* Leaving it as a variable that is set to .TRUE.  seems like a good */
 /* idea, since it does enable some error-correction capability for */
-/* unvoiced frames, with no change in the coding rate, and no noticeable 
+/* unvoiced frames, with no change in the coding rate, and no noticeable
 */
 /* quality difference in the decoded speech. */
 /* 	integer quant, nbits */
-/* *** Read/write: variables for debugging, not needed for LPC algorithm 
+/* *** Read/write: variables for debugging, not needed for LPC algorithm
 */
 
-/*  Current frame, Unstable frames, Output clip count, Max onset buffer, 
+/*  Current frame, Unstable frames, Output clip count, Max onset buffer,
 */
 /*    Debug listing detail level, Line count on listing page */
 
 /* nframe is not needed for an embedded LPC10 at all. */
 /* nunsfm is initialized to 0 in SETUP, and incremented in subroutine */
 /* ERROR, which is only called from RCCHK.  When LPC10 is embedded into */
-/* an application, I would recommend removing the call to ERROR in RCCHK, 
+/* an application, I would recommend removing the call to ERROR in RCCHK,
 */
 /* and remove ERROR and nunsfm completely. */
-/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in 
+/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in
 */
 /* sread.f.  When LPC10 is embedded into an application, one might want */
 /* to cause it to be incremented in a routine that takes the output of */
 /* SYNTHS and sends it to an audio device.  It could be optionally */
 /* displayed, for those that might want to know what it is. */
-/* maxosp is never initialized to 0 in SETUP, although it probably should 
+/* maxosp is never initialized to 0 in SETUP, although it probably should
 */
 /* be, and it is updated in subroutine ANALYS.  I doubt that its value */
 /* would be of much interest to an application in which LPC10 is */
@@ -418,7 +418,7 @@ s*/
 /* 	common /contrl/ quant, nbits */
 /* 	common /contrl/ nframe, nunsfm, iclip, maxosp, listl, lincnt */
 /* 	Parameters/constants */
-/*       Voicing coefficient and Linear Discriminant Analysis variables: 
+/*       Voicing coefficient and Linear Discriminant Analysis variables:
 */
 /*       Max number of VDC's and VDC levels */
 /*       The following are not Fortran PARAMETER's, but they are */
@@ -428,15 +428,15 @@ s*/
 /*       Note: */
 
 /*       VALUE(1) through VALUE(8) are assigned values, but VALUE(9) */
-/*       never is.  Yet VALUE(9) is read in the loop that begins "DO I = 
+/*       never is.  Yet VALUE(9) is read in the loop that begins "DO I =
 */
-/*       1, 9" below.  I believe that this doesn't cause any problems in 
+/*       1, 9" below.  I believe that this doesn't cause any problems in
 */
-/*       this subroutine, because all VDC(9,*) array elements are 0, and 
+/*       this subroutine, because all VDC(9,*) array elements are 0, and
 */
-/*       this is what is multiplied by VALUE(9) in all cases.  Still, it 
+/*       this is what is multiplied by VALUE(9) in all cases.  Still, it
 */
-/*       would save a multiplication to change the loop to "DO I = 1, 8". 
+/*       would save a multiplication to change the loop to "DO I = 1, 8".
 */
 /*       Local state */
 /*       WARNING! */
@@ -450,16 +450,16 @@ s*/
 
 /*       For VOICE, note that it is "shifted" in the statement that */
 /*       begins "IF (HALF .EQ. 1) THEN" below.  Also, uninitialized */
-/*       values in the VOICE array can only affect entries in the VOIBUF 
+/*       values in the VOICE array can only affect entries in the VOIBUF
 */
-/*       array that are for the same frame, or for an older frame.  Thus 
+/*       array that are for the same frame, or for an older frame.  Thus
 */
 /*       the effects of uninitialized values in VOICE cannot linger on */
 /*       for more than 2 or 3 frame times. */
 
 /*       For SFBUE and SLBUE, the effects of uninitialized values can */
 /*       linger on for many frame times, because their previous values */
-/*       are exponentially decayed.  Thus it is more important to choose 
+/*       are exponentially decayed.  Thus it is more important to choose
 */
 /*       initial values for these variables.  I would guess that a */
 /*       reasonable initial value for SFBUE is REF/16, the same as used */
@@ -521,7 +521,7 @@ s*/
 /*       LBVE, LBUE, FBVE, FBUE, OFBUE, OLBUE */
 
 /*       MAXMIN is initialized on the first call, assuming that HALF */
-/*       .EQ. 1 on first call.  This is how ANALYS calls this subroutine. 
+/*       .EQ. 1 on first call.  This is how ANALYS calls this subroutine.
 */
 
 /*   Voicing Decision Parameter vector (* denotes zero coefficient): */
@@ -544,7 +544,7 @@ fic*/
 
 /*  The VOICE array contains the result of the linear discriminant functio
 n*/
-/*   (analog values).  The VOIBUF array contains the hard-limited binary 
+/*   (analog values).  The VOIBUF array contains the hard-limited binary
 */
 /*   voicing decisions.  The VOICE and VOIBUF arrays, according to FORTRAN
  */
@@ -564,10 +564,10 @@ n*/
 	*maxmin = *maxamd / max(*minamd,1.f);
     }
 /*   Calculate voicing parameters twice per frame: */
-    vparms_(&vwin[1], &inbuf[inbuf_offset], &lpbuf[lpbuf_offset], &buflim[1], 
+    vparms_(&vwin[1], &inbuf[inbuf_offset], &lpbuf[lpbuf_offset], &buflim[1],
 	    half, dither, mintau, &zc, &lbe, &fbe, &qs, &rc1, &ar_b__, &
 	    ar_f__);
-/*   Estimate signal-to-noise ratio to select the appropriate VDC vector. 
+/*   Estimate signal-to-noise ratio to select the appropriate VDC vector.
 */
 /*   The SNR is estimated as the running average of the ratio of the */
 /*   running average full-band voiced energy to the running average */
@@ -607,10 +607,10 @@ L69:
 	voibuf[*half + 6] = 0;
     }
 /*   Skip voicing decision smoothing in first half-frame: */
-/*     Give a value to VSTATE, so that trace statements below will print 
+/*     Give a value to VSTATE, so that trace statements below will print
 */
 /*     a consistent value from one call to the next when HALF .EQ. 1. */
-/*     The value of VSTATE is not used for any other purpose when this is 
+/*     The value of VSTATE is not used for any other purpose when this is
 */
 /*     true. */
     vstate = -1;
@@ -631,7 +631,7 @@ L69:
 .*/
 
 /*   Voicing override of transitions at onsets: */
-/* 	If a V/UV or UV/V voicing decision transition occurs within one-half 
+/* 	If a V/UV or UV/V voicing decision transition occurs within one-half
 */
 /* 	frame of an onset bounding a voicing window, then the transition is */
 /* 	moved to occur at the onset. */

@@ -1,4 +1,4 @@
-dnl 
+dnl
 dnl @synopsis AST_CHECK_OSPTK([REQ_VER_MAJOR],[REQ_VER_MINOR],[REQ_VER_BUGFIX])
 dnl
 dnl @summary check for existence of OSP Toolkit package
@@ -64,4 +64,3 @@ AC_DEFUN([AST_CHECK_OSPTK],
 		fi
 	fi
 ])
-

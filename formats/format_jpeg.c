@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief JPEG File format support.
- * 
+ *
  * \arg File name extension: jpeg, jpg
  * \ingroup formats
  */
@@ -28,7 +28,7 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Brian K. West <brian@bkw.org>
- * 
+ *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -85,7 +85,7 @@ static int ilbc_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	cur = ftello(fs->f);
 	fseeko(fs->f, 0, SEEK_END);
 	max = ftello(fs->f);
-	
+
 	bytes = ILBC_BUF_SIZE * (sample_offset / ILBC_SAMPLES);
 	if (whence == SEEK_SET)
 		offset = bytes;

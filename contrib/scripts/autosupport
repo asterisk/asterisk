@@ -208,26 +208,26 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
 fi
 
 
-for type in alerts applications firmwares lines networks phones translations; 
-do 
-	echo "------------------" >> $OUTPUT; 
-	echo "DIGIUM PHONE: $type " >> $OUTPUT; 
-	echo "------------------" >> $OUTPUT; 
-	TEMP=$(asterisk -rx "digium_phones show $type"); 
+for type in alerts applications firmwares lines networks phones translations;
+do
+	echo "------------------" >> $OUTPUT;
+	echo "DIGIUM PHONE: $type " >> $OUTPUT;
+	echo "------------------" >> $OUTPUT;
+	TEMP=$(asterisk -rx "digium_phones show $type");
 	if [ "$type" = "lines" ];
 	then
 		NUM=$(echo $TEMP | tail -n 1 | awk -F' ' '{print $(NF-4)}');
 		if [ $NUM -gt 0 ];
 		then
-			for l in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //; 
-				s/Lines \(Un-\)\?Mapped to Phones --- //g; 
-				s/ Internal//g; 
+			for l in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //;
+				s/Lines \(Un-\)\?Mapped to Phones --- //g;
+				s/ Internal//g;
 				s/---- [a-zA-Z0-9 ]\+ ----$//;
 				s/--- //g');
 			do
-				asterisk -rx "digium_phones show line $l" >> $OUTPUT;                                                                      
-				echo "--------" >> $OUTPUT;                                                                                                                         
-				echo >> $OUTPUT; 
+				asterisk -rx "digium_phones show line $l" >> $OUTPUT;
+				echo "--------" >> $OUTPUT;
+				echo >> $OUTPUT;
 			done
 		else
 			echo "No configurations of type $type..." >> $OUTPUT;
@@ -238,28 +238,28 @@ do
 		for f in $(echo $TEMP | sed 's/--- Configured Firmware Options --- //');
 		do
 			asterisk -rx "digium_phones show firmware $f" >> $OUTPUT;
-			echo "--------" >> $OUTPUT;                                                                                                                         
-			echo >> $OUTPUT; 
+			echo "--------" >> $OUTPUT;
+			echo >> $OUTPUT;
 		done
 	elif [ "$type" = "translations" ];
 	then
 		for t in $(echo $TEMP | sed 's/--- Translation tables ---//');
 		do
-			asterisk -rx "digium_phones show translation $t" 
+			asterisk -rx "digium_phones show translation $t"
 		done
 	else
-		NUM=$(echo $TEMP | tail -n 1 | awk -F' ' '{print $(NF-3)}'); 
-		if [ $NUM -gt 0 ]; 
-		then   
-			for t in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //; 
+		NUM=$(echo $TEMP | tail -n 1 | awk -F' ' '{print $(NF-3)}');
+		if [ $NUM -gt 0 ];
+		then
+			for t in $(echo $TEMP | sed 's/^--- [[:alpha:]]\+ --- //;
 																	 s/---- [a-zA-Z0-9 ]\+ ----$//
-																	 s/---- Digium Phones ---- //'); 
-			do 
-				asterisk -rx "digium_phones show $(echo $type | sed 's/s\b//') $t" >> $OUTPUT; 
-				echo "--------" >> $OUTPUT; 
-				echo >> $OUTPUT; 
-			done; 
-		else 
+																	 s/---- Digium Phones ---- //');
+			do
+				asterisk -rx "digium_phones show $(echo $type | sed 's/s\b//') $t" >> $OUTPUT;
+				echo "--------" >> $OUTPUT;
+				echo >> $OUTPUT;
+			done;
+		else
 			echo "No configurations of type $type..." >> $OUTPUT;
 			echo >> $OUTPUT;
 		fi;

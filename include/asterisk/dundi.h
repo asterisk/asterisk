@@ -21,7 +21,7 @@
  * See also \arg \ref AstDUNDi
  */
 
-#ifndef _ASTERISK_DUNDI_H 
+#ifndef _ASTERISK_DUNDI_H
 #define _ASTERISK_DUNDI_H
 
 #include "asterisk/channel.h"
@@ -131,7 +131,7 @@ enum {
 	DUNDI_CAUSE_BADENCRYPT =  7,
 };
 
-struct dundi_cause {			
+struct dundi_cause {
 	unsigned char causecode;		/*!< Numerical cause (DUNDI_CAUSE_*) */
 	char desc[0];				/*!< Textual description */
 } __attribute__((__packed__));
@@ -240,16 +240,16 @@ struct dundi_entity_info {
 	char org[80];
 	char orgunit[80];
 	char email[80];
-	char phone[80];	
+	char phone[80];
 	char ipaddr[80];
 };
 
-/*! 
+/*!
  * \brief Lookup the given number in the given dundi context.
- * Lookup number in a given dundi context (if unspecified use e164), the given callerid (if specified) 
+ * Lookup number in a given dundi context (if unspecified use e164), the given callerid (if specified)
  * and return up to maxret results in the array specified.
  * \retval the number of results found.
- * \retval -1 on a hangup of the channel. 
+ * \retval -1 on a hangup of the channel.
 */
 int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int nocache);
 

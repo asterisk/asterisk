@@ -9,4 +9,3 @@ context workext {
     		Verbose(2|${query}) ;
 	}
 }
-

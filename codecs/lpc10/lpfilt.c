@@ -122,4 +122,3 @@ extern int lpfilt_(real *inbuf, real *lpbuf, integer *len, integer *nsamp);
     }
     return 0;
 } /* lpfilt_ */
-

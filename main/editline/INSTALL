@@ -29,7 +29,7 @@ Optionally, pass any of the following (not a definitive list) arguments to
 
 --prefix=<install-root-dir>
 	Set the base directory in which to install.  For example:
-	
+
 		./configure --prefix=/usr/local
 
 	will cause files to be installed into /usr/local/bin, /usr/local/man,
@@ -51,7 +51,7 @@ CFLAGS="?"
 
 CPPFLAGS="?"
 	Pass these flags to the C preprocessor.  Note that CFLAGS is not passed
-	to 'cpp' when 'configure' is looking for include files, so you must use 
+	to 'cpp' when 'configure' is looking for include files, so you must use
 	CPPFLAGS instead if you need to help 'configure' find header files.
 
 LD_LIBRARY_PATH="?"

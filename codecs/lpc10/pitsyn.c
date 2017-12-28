@@ -129,8 +129,8 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 /*  RATIO  - Previous to present energy ratio */
 /*           Always assigned a value. */
 
-/* Subroutine */ int pitsyn_(integer *order, integer *voice, 
-	integer *pitch, real *rms, real *rc, integer *lframe, integer *ivuv, 
+/* Subroutine */ int pitsyn_(integer *order, integer *voice,
+	integer *pitch, real *rms, real *rc, integer *lframe, integer *ivuv,
 	integer *ipiti, real *rmsi, real *rci, integer *nout, real *ratio,
 			       struct lpc10_decoder_state *st)
 {
@@ -201,7 +201,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 /* Frame size, Prediction order, Pitch period */
 /*       Local variables that need not be saved */
 /*       LSAMP is initialized in the IF (FIRST) THEN clause, but it is */
-/*       not used the first time through, and it is given a value before 
+/*       not used the first time through, and it is given a value before
 */
 /*       use whenever FIRST is .FALSE., so it appears unnecessary to */
 /*       assign it a value when FIRST is .TRUE. */
@@ -214,12 +214,12 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 /* JSAMP  - If this routine is called N times with identical values of */
 /*          LFRAME, then the total length of all pitch periods returned */
-/*          is always N*LFRAME-JSAMP, and JSAMP is always in the range 0 
+/*          is always N*LFRAME-JSAMP, and JSAMP is always in the range 0
 */
 /*          to MAXPIT-1 (see below for why this is so).  Thus JSAMP is */
 /*          the number of samples "left over" from the previous call to */
 /*          PITSYN, that haven't been "used" in a pitch period returned */
-/*          from this subroutine.  Every time this subroutine is called, 
+/*          from this subroutine.  Every time this subroutine is called,
 */
 /*          it returns pitch periods with a total length of at most */
 /*          LFRAME+JSAMP. */
@@ -277,7 +277,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 	*nout = *lframe / *pitch;
 	*jsamp = *lframe - *nout * *pitch;
 
-/*          SYNTHS only calls this subroutine with PITCH in the range 
+/*          SYNTHS only calls this subroutine with PITCH in the range
 20 */
 /*          to 156.  LFRAME = MAXFRM = 180, so NOUT is somewhere in th
 e */
@@ -361,7 +361,7 @@ e */
 		vflag = 1;
 	    }
 	}
-/* Here is the value of most variables that are used below, depending 
+/* Here is the value of most variables that are used below, depending
 on */
 /* the values of IVOICO, VOICE(1), and VOICE(2).  VOICE(1) and VOICE(2
 ) */
@@ -369,11 +369,11 @@ on */
 /* previous call (see notes for the IF (NOUT .NE. 0) statement near th
 e */
 /* end).  Each of these three values is either 0 or 1.  These three */
-/* values below are given as 3-bit long strings, in the order IVOICO, 
+/* values below are given as 3-bit long strings, in the order IVOICO,
 */
 /* VOICE(1), and VOICE(2).  It appears that the code above assumes tha
 t */
-/* the bit sequences 010 and 101 never occur, but I wonder whether a 
+/* the bit sequences 010 and 101 never occur, but I wonder whether a
 */
 /* large enough number of bit errors in the channel could cause such a
  */
@@ -390,7 +390,7 @@ t */
 4, */
 /* and the 45 for NL-JSAMP is actually LFRAME-3*LFRAME/4. */
 
-/* Note that LSAMP-JSAMP is given as the variable.  This was just for 
+/* Note that LSAMP-JSAMP is given as the variable.  This was just for
 */
 /* brevity, to avoid adding "+JSAMP" to all of the column entries. */
 /* Similarly for NL-JSAMP. */
@@ -429,13 +429,13 @@ t */
 /* The only possible non-0 value of SLOPE (in column 111) is */
 /* (PITCH-IPITO)/FLOAT(LSAMP) */
 
-/* Column 101 is identical to 100.  Any good properties we can prove 
+/* Column 101 is identical to 100.  Any good properties we can prove
 */
 /* for 100 will also hold for 101.  Similarly for 010 and 011. */
 
-/* SYNTHS calls this subroutine with PITCH restricted to the range 20 
+/* SYNTHS calls this subroutine with PITCH restricted to the range 20
 to */
-/* 156.  IPITO is similarly restricted to this range, after the first 
+/* 156.  IPITO is similarly restricted to this range, after the first
 */
 /* call.  IP below is also restricted to this range, given the */
 /* definitions of IPITO, SLOPE, UVPIT, and that I is in the range ISTA
@@ -456,7 +456,7 @@ ugh */
 
 /*             (I - MAXPIT) .LE. JUSED .LE. (I-1) */
 
-/*             Note that the final value of I is LSAMP+1, so that 
+/*             Note that the final value of I is LSAMP+1, so that
 after */
 /*             the DO loop is complete, we know: */
 
@@ -474,10 +474,10 @@ after */
 
 /*                   The following check is no longer nece
 ssary, now that */
-/*                   we can prove that NOUT will never go 
+/*                   we can prove that NOUT will never go
 over 16. */
 
-/* 		    IF (NOUT .GT. 16) STOP 'PITSYN: too many epochs' 
+/* 		    IF (NOUT .GT. 16) STOP 'PITSYN: too many epochs'
 */
 
 		    ipiti[*nout] = ip;
@@ -501,7 +501,7 @@ over 16. */
 		goto L100;
 	    }
 
-/*             I want to prove what range UVPIT must lie in after 
+/*             I want to prove what range UVPIT must lie in after
 the */
 /*             assignments to it below.  To do this, I must determ
 ine */
@@ -521,7 +521,7 @@ at: */
 
 /*             ISTART is one more than this. */
 
-/*             Let newLSAMP be the value assigned to LSAMP below. 
+/*             Let newLSAMP be the value assigned to LSAMP below.
  This */
 /*             is 180+JSAMP.  Thus (newLSAMP-oldLSAMP) is either 4
 5 or */
@@ -566,7 +566,7 @@ ge. */
 L100:
 	*jsamp = lsamp - jused;
     }
-/*       Given that the maximum pitch period MAXPIT .LT. LFRAME (this is 
+/*       Given that the maximum pitch period MAXPIT .LT. LFRAME (this is
 */
 /*       currently true on every call, since SYNTHS always sets */
 /*       LFRAME=180), NOUT will always be .GE. 1 at this point. */

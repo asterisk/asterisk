@@ -91,7 +91,7 @@ extern int tbdm_(real *speech, integer *lpita, integer *tau, integer *ltau, real
 
 /* This subroutine has no local state. */
 
-/* Subroutine */ int tbdm_(real *speech, integer *lpita, integer *tau, 
+/* Subroutine */ int tbdm_(real *speech, integer *lpita, integer *tau,
 	integer *ltau, real *amdf, integer *minptr, integer *maxptr, integer *
 	mintau)
 {
@@ -101,7 +101,7 @@ extern int tbdm_(real *speech, integer *lpita, integer *tau, integer *ltau, real
     /* Local variables */
     real amdf2[6];
     integer minp2, ltau2, maxp2, i__;
-    extern /* Subroutine */ int difmag_(real *, integer *, integer *, integer 
+    extern /* Subroutine */ int difmag_(real *, integer *, integer *, integer
 	    *, integer *, real *, integer *, integer *);
     integer minamd, ptr, tau2[6];
 
@@ -118,7 +118,7 @@ extern int tbdm_(real *speech, integer *lpita, integer *tau, integer *ltau, real
     --tau;
 
     /* Function Body */
-    difmag_(&speech[1], lpita, &tau[1], ltau, &tau[*ltau], &amdf[1], minptr, 
+    difmag_(&speech[1], lpita, &tau[1], ltau, &tau[*ltau], &amdf[1], minptr,
 	    maxptr);
     *mintau = tau[*minptr];
     minamd = (integer)amdf[*minptr];
@@ -185,4 +185,3 @@ extern int tbdm_(real *speech, integer *lpita, integer *tau, integer *ltau, real
     }
     return 0;
 } /* tbdm_ */
-

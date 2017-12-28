@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1999 - 2006, Digium, Inc.
  *
- * Created by Olle E. Johansson, Edvina.net 
+ * Created by Olle E. Johansson, Edvina.net
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -21,10 +21,10 @@
  * \brief URI encoding / decoding
  *
  * \author Olle E. Johansson <oej@edvina.net>
- * 
+ *
  * \note For now this code only supports 8 bit characters, not unicode,
          which we ultimately will need to support.
- * 
+ *
  * \ingroup functions
  */
 

@@ -20,7 +20,7 @@
  *
  * \brief Flat, binary, ADPCM vox file format.
  * \arg File name extensions: vox
- * 
+ *
  * \ingroup formats
  */
 
@@ -28,7 +28,7 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -125,7 +125,7 @@ static off_t vox_tell(struct ast_filestream *fs)
 {
      off_t offset;
      offset = ftello(fs->f) << 1;
-     return offset; 
+     return offset;
 }
 
 static struct ast_format_def vox_f = {

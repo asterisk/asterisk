@@ -104,4 +104,3 @@ extern int dcbias_(integer *len, real *speech, real *sigout);
     }
     return 0;
 } /* dcbias_ */
-

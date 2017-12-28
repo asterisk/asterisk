@@ -11,4 +11,3 @@ context from-enum {
         goto ${EXTEN:3}|1;
   }
 }
-

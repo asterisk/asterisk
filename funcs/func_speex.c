@@ -4,7 +4,7 @@
  * Copyright (C) 2008, Digium, Inc.
  *
  * Brian Degenhardt <bmd@digium.com>
- * Brett Bryant <bbryant@digium.com> 
+ * Brett Bryant <bbryant@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -21,8 +21,8 @@
  *
  * \brief Noise reduction and automatic gain control (AGC)
  *
- * \author Brian Degenhardt <bmd@digium.com> 
- * \author Brett Bryant <bbryant@digium.com> 
+ * \author Brian Degenhardt <bmd@digium.com>
+ * \author Brett Bryant <bbryant@digium.com>
  *
  * \ingroup functions
  *
@@ -65,7 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			channel that it is executed on. Using <literal>rx</literal> for audio received
 			and <literal>tx</literal> for audio transmitted to the channel. When using this
 			function you set a target audio level. It is primarily intended for use with
-			analog lines, but could be useful for other channels as well. The target volume 
+			analog lines, but could be useful for other channels as well. The target volume
 			is set with a number between <literal>1-32768</literal>. The larger the number
 			the louder (more gain) the channel will receive.</para>
 			<para>Examples:</para>
@@ -79,7 +79,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="channeldirection" required="true">
-				<para>This can be either <literal>rx</literal> or <literal>tx</literal> 
+				<para>This can be either <literal>rx</literal> or <literal>tx</literal>
 				the values that can be set to this are either <literal>on</literal> and
 				<literal>off</literal></para>
 			</parameter>
@@ -110,7 +110,7 @@ struct speex_info {
 	struct speex_direction_info *tx, *rx;
 };
 
-static void destroy_callback(void *data) 
+static void destroy_callback(void *data)
 {
 	struct speex_info *si = data;
 
@@ -253,13 +253,13 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 	if (!strcasecmp(cmd, "agc")) {
 		if (!sscanf(value, "%30f", &(*sdi)->agclevel))
 			(*sdi)->agclevel = ast_true(value) ? DEFAULT_AGC_LEVEL : 0.0;
-	
+
 		if ((*sdi)->agclevel > 32768.0) {
-			ast_log(LOG_WARNING, "AGC(%s)=%.01f is greater than 32768... setting to 32768 instead\n", 
+			ast_log(LOG_WARNING, "AGC(%s)=%.01f is greater than 32768... setting to 32768 instead\n",
 					((*sdi == si->rx) ? "rx" : "tx"), (*sdi)->agclevel);
 			(*sdi)->agclevel = 32768.0;
 		}
-	
+
 		(*sdi)->agc = !!((*sdi)->agclevel);
 
 		if ((*sdi)->state) {
@@ -294,11 +294,11 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 			ast_audiohook_remove(chan, &si->audiohook);
 			ast_audiohook_detach(&si->audiohook);
 		}
-		
+
 		ast_datastore_free(datastore);
 	}
 
-	if (is_new) { 
+	if (is_new) {
 		datastore->data = si;
 		ast_channel_lock(chan);
 		ast_channel_datastore_add(chan, datastore);

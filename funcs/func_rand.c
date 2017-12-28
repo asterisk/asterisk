@@ -18,7 +18,7 @@
 /*! \file
  *
  * \brief Generate Random Number
- * 
+ *
  * \author Claude Patry <cpatry@gmail.com>
  * \author Tilghman Lesher ( http://asterisk.drunkcoder.com/ )
  * \ingroup functions
@@ -41,15 +41,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<function name="RAND" language="en_US">
 		<synopsis>
-			Choose a random number in a range.			
+			Choose a random number in a range.
 		</synopsis>
 		<syntax>
 			<parameter name="min" />
 			<parameter name="max" />
 		</syntax>
 		<description>
-			<para>Choose a random number between <replaceable>min</replaceable> and <replaceable>max</replaceable>. 
-			<replaceable>min</replaceable> defaults to <literal>0</literal>, if not specified, while <replaceable>max</replaceable> defaults 
+			<para>Choose a random number between <replaceable>min</replaceable> and <replaceable>max</replaceable>.
+			<replaceable>min</replaceable> defaults to <literal>0</literal>, if not specified, while <replaceable>max</replaceable> defaults
 			to <literal>RAND_MAX</literal> (2147483647 on many systems).</para>
 			<para>Example:  Set(junky=${RAND(1,8)});
 			Sets junky to a random number between 1 and 8, inclusive.</para>

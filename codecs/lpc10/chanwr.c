@@ -129,7 +129,7 @@ Some OSS fixes and a few lpc changes to make it actually work
 /* 	R5-1, R6-1, R7-2, R9-0,  P-5, */
 /* 	R5-2, R6-2,R10-1, R8-2,  P-6, R9-1, */
 /* 	R5-3, R6-3, R7-3, R9-2, R8-3, SYNC */
-/* Subroutine */ int chanwr_0_(int n__, integer *order, integer *ipitv, 
+/* Subroutine */ int chanwr_0_(int n__, integer *order, integer *ipitv,
 	integer *irms, integer *irc, integer *ibits,
 			       struct lpc10_encoder_state *st)
 {
@@ -150,7 +150,7 @@ Some OSS fixes and a few lpc changes to make it actually work
 /*       Arguments */
 /*       Parameters/constants */
 /*       These arrays are not Fortran PARAMETER's, but they are defined */
-/*       by DATA statements below, and their contents are never altered. 
+/*       by DATA statements below, and their contents are never altered.
 */
 /*       Local variables that need not be saved */
 /*       Local state */
@@ -220,13 +220,13 @@ L_chanrd:
     return 0;
 } /* chanwr_ */
 
-/* Subroutine */ int chanwr_(integer *order, integer *ipitv, integer *irms, 
+/* Subroutine */ int chanwr_(integer *order, integer *ipitv, integer *irms,
 	integer *irc, integer *ibits, struct lpc10_encoder_state *st)
 {
     return chanwr_0_(0, order, ipitv, irms, irc, ibits, st);
     }
 
-/* Subroutine */ int chanrd_(integer *order, integer *ipitv, integer *irms, 
+/* Subroutine */ int chanrd_(integer *order, integer *ipitv, integer *irms,
 	integer *irc, integer *ibits)
 {
     return chanwr_0_(1, order, ipitv, irms, irc, ibits, NULL);

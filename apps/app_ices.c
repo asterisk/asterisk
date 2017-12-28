@@ -21,7 +21,7 @@
  * \brief Stream to an icecast server via ICES (see contrib/asterisk-ices.xml)
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * ICES - http://www.icecast.org/ices.php
  *
  * \ingroup applications
@@ -31,7 +31,7 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -80,7 +80,7 @@ static int icesencode(char *filename, int fd)
 	int res;
 
 	res = ast_safe_fork(0);
-	if (res < 0) 
+	if (res < 0)
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res) {
 		return res;
@@ -91,8 +91,8 @@ static int icesencode(char *filename, int fd)
 	dup2(fd, STDIN_FILENO);
 	ast_close_fds_above_n(STDERR_FILENO);
 
-	/* Most commonly installed in /usr/local/bin 
-	 * But many places has it in /usr/bin 
+	/* Most commonly installed in /usr/local/bin
+	 * But many places has it in /usr/bin
 	 * As a last-ditch effort, try to use PATH
 	 */
 	execl(path_LOCAL "ices2", "ices", filename, SENTINEL);
@@ -126,19 +126,19 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}
-	
+
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
 		return -1;
 	}
 	flags = fcntl(fds[1], F_GETFL);
 	fcntl(fds[1], F_SETFL, flags | O_NONBLOCK);
-	
+
 	ast_stopstream(chan);
 
 	if (ast_channel_state(chan) != AST_STATE_UP)
 		res = ast_answer(chan);
-		
+
 	if (res) {
 		close(fds[0]);
 		close(fds[1]);
@@ -159,10 +159,10 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		ast_copy_string(filename, (char *) data, sizeof(filename));
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_CONFIG_DIR, (char *)data);
-	/* Placeholder for options */		
+	/* Placeholder for options */
 	c = strchr(filename, '|');
 	if (c)
-		*c = '\0';	
+		*c = '\0';
 	res = icesencode(filename, fds[0]);
 	if (res >= 0) {
 		pid = res;
@@ -217,4 +217,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Encode and Stream via icecast and ices");
-

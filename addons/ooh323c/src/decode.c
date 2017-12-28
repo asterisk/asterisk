@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -19,16 +19,16 @@
 
 #include "ooasn1.h"
 
-static int decode16BitConstrainedString 
+static int decode16BitConstrainedString
 (OOCTXT* pctxt, Asn116BitCharString* pString, Asn116BitCharSet* pCharSet);
 
-static int decodeOctets 
+static int decodeOctets
 (OOCTXT* pctxt, ASN1OCTET* pbuffer, ASN1UINT bufsiz, ASN1UINT nbits);
 
 static int getComponentLength (OOCTXT* pctxt, ASN1UINT itemBits);
 
 int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
-{ 
+{
    unsigned char mask;
 
    if (nbits == 0) {
@@ -47,7 +47,7 @@ int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
 
       pctxt->buffer.bitOffset -= nbits;
 
-      *pvalue = ((pctxt->buffer.data[pctxt->buffer.byteIndex]) >> 
+      *pvalue = ((pctxt->buffer.data[pctxt->buffer.byteIndex]) >>
                  pctxt->buffer.bitOffset) & ((1 << nbits) - 1);
 
       return ASN_OK;
@@ -62,7 +62,7 @@ int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
       /* Check if buffer contains number of bits requested */
 
       int nbytes = (((nbits - pctxt->buffer.bitOffset) + 7) / 8);
-      
+
       if ((pctxt->buffer.byteIndex + nbytes) >= pctxt->buffer.size) {
          return LOG_ASN1ERR (pctxt, ASN_E_ENDOFBUF);
       }
@@ -78,7 +78,7 @@ int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
 
       /* second read bytes from next byteIndex */
       while (nbits >= 8) {
-         *pvalue = (*pvalue << 8) | 
+         *pvalue = (*pvalue << 8) |
             (pctxt->buffer.data[pctxt->buffer.byteIndex]);
          pctxt->buffer.byteIndex++;
          nbits -= 8;
@@ -87,8 +87,8 @@ int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
       /* third read bits & set bitoffset of the byteIndex */
       if (nbits > 0) {
          pctxt->buffer.bitOffset = 8 - nbits;
-         *pvalue = (*pvalue << nbits) | 
-            ((pctxt->buffer.data[pctxt->buffer.byteIndex]) >> 
+         *pvalue = (*pvalue << nbits) |
+            ((pctxt->buffer.data[pctxt->buffer.byteIndex]) >>
              pctxt->buffer.bitOffset);
       }
 
@@ -96,7 +96,7 @@ int decodeBits (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT nbits)
    }
 }
 
-int decodeBitString 
+int decodeBitString
 (OOCTXT* pctxt, ASN1UINT* numbits_p, ASN1OCTET* buffer, ASN1UINT bufsiz)
 {
    ASN1UINT bitcnt;
@@ -111,7 +111,7 @@ int decodeBitString
       if (bitcnt > 0) {
          *numbits_p += bitcnt;
 
-         stat = bitAndOctetStringAlignmentTest 
+         stat = bitAndOctetStringAlignmentTest
             (pSizeList, bitcnt, TRUE, &doAlign);
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
@@ -133,7 +133,7 @@ int decodeBitString
    return ASN_OK;
 }
 
-int decodeBMPString 
+int decodeBMPString
 (OOCTXT* pctxt, ASN1BMPString* pvalue, Asn116BitCharSet* permCharSet)
 {
    Asn116BitCharSet charSet;
@@ -164,7 +164,7 @@ int decodeByteAlign (OOCTXT* pctxt)
    return ASN_OK;
 }
 
-int decodeConstrainedStringEx 
+int decodeConstrainedStringEx
 (OOCTXT* pctxt, const char** string, const char* charSet,
  ASN1UINT abits, ASN1UINT ubits, ASN1UINT canSetBits)
 {
@@ -227,9 +227,9 @@ int decodeConstrainedStringEx
    return ASN_OK;
 }
 
-int decodeConsInteger 
+int decodeConsInteger
 (OOCTXT* pctxt, ASN1INT* pvalue, ASN1INT lower, ASN1INT upper)
-{ 
+{
    ASN1UINT range_value = upper - lower;
    ASN1UINT adjusted_value;
    int stat = ASN_OK;
@@ -254,9 +254,9 @@ int decodeConsInteger
    return stat;
 }
 
-int decodeConsUInt8 
+int decodeConsUInt8
 (OOCTXT* pctxt, ASN1UINT8* pvalue, ASN1UINT lower, ASN1UINT upper)
-{ 
+{
    ASN1UINT range_value, value;
    ASN1UINT adjusted_value;
    int stat = ASN_OK;
@@ -299,9 +299,9 @@ int decodeConsUInt8
    return stat;
 }
 
-int decodeConsUInt16 
+int decodeConsUInt16
 (OOCTXT* pctxt, ASN1USINT* pvalue, ASN1UINT lower, ASN1UINT upper)
-{ 
+{
    ASN1UINT range_value, value;
    ASN1UINT adjusted_value;
    int stat = ASN_OK;
@@ -328,9 +328,9 @@ int decodeConsUInt16
    return stat;
 }
 
-int decodeConsUnsigned 
+int decodeConsUnsigned
 (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT lower, ASN1UINT upper)
-{ 
+{
    ASN1UINT range_value;
    ASN1UINT adjusted_value;
    int stat = ASN_OK;
@@ -354,9 +354,9 @@ int decodeConsUnsigned
    return stat;
 }
 
-int decodeConsWholeNumber 
+int decodeConsWholeNumber
 (OOCTXT* pctxt, ASN1UINT* padjusted_value, ASN1UINT range_value)
-{ 
+{
    ASN1UINT nocts, range_bitcnt;
    int stat;
 
@@ -419,9 +419,9 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
 
    /* If "fast copy" option is not set (ASN1FATSCOPY) or if constructed,
     * copy the bit string value into a dynamic memory buffer;
-    * otherwise, store the pointer to the value in the decode 
+    * otherwise, store the pointer to the value in the decode
     * buffer in the data pointer argument. */
-   
+
    if (pctxt->flags & ASN1FASTCOPY) {
       /* check is it possible to do optimized decoding */
 
@@ -433,7 +433,7 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
       if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
       stat = DECODEBIT (pctxt, &bit); /* read first bit of length determinant */
-      if (bit == 1 && stat == ASN_OK) 
+      if (bit == 1 && stat == ASN_OK)
          stat = DECODEBIT (pctxt, &bit); /* read second bit */
 
       pctxt->buffer.byteIndex = byteIndex;  /* restore byte index */
@@ -441,9 +441,9 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
 
       /* if either first or second bit != 0 - not fragmented */
 
-      if (bit == 0 && stat == ASN_OK) { 
+      if (bit == 0 && stat == ASN_OK) {
          ASN1UINT bitcnt;
-         
+
          stat = decodeLength (pctxt, &bitcnt);
          if (stat != 0) return LOG_ASN1ERR (pctxt, stat);
 
@@ -454,9 +454,9 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
             stat = moveBitCursor (pctxt, bitcnt);
             if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
          }
-         else 
+         else
             pBitStr->data = 0;
-   
+
          return stat;
       }
    }
@@ -470,13 +470,13 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
    }
 
    nocts = (nbits + 7) / 8;
-      
+
    /* Allocate memory for the target string */
 
    if (nocts > 0) {
       ptmp = (ASN1OCTET*) ASN1MALLOC (pctxt, nocts);
       if (0 == ptmp) return LOG_ASN1ERR (pctxt, ASN_E_NOMEM);
-      
+
       /* Call static bit string decode function */
 
       stat = decodeBitString (pctxt, &pBitStr->numbits, ptmp, nocts);
@@ -493,7 +493,7 @@ int decodeDynOctetString (OOCTXT* pctxt, ASN1DynOctStr* pOctStr)
 
    /* If "fast copy" option is not set (ASN1FASTCOPY) or if constructed,
     * copy the octet string value into a dynamic memory buffer;
-    * otherwise, store the pointer to the value in the decode 
+    * otherwise, store the pointer to the value in the decode
     * buffer in the data pointer argument. */
 
    if (pctxt->flags & ASN1FASTCOPY) {
@@ -507,7 +507,7 @@ int decodeDynOctetString (OOCTXT* pctxt, ASN1DynOctStr* pOctStr)
       if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
       stat = DECODEBIT (pctxt, &bit); /* read first bit of length determinant */
-      if (bit == 1 && stat == ASN_OK) 
+      if (bit == 1 && stat == ASN_OK)
          stat = DECODEBIT (pctxt, &bit); /* read second bit */
 
       pctxt->buffer.byteIndex = byteIndex;  /* restore byte index */
@@ -515,9 +515,9 @@ int decodeDynOctetString (OOCTXT* pctxt, ASN1DynOctStr* pOctStr)
 
       /* if either first or second bit != 0 - not fragmented */
 
-      if (bit == 0 && stat == ASN_OK) { 
+      if (bit == 0 && stat == ASN_OK) {
          ASN1UINT octcnt;
-         
+
          stat = decodeLength (pctxt, &octcnt);
          if (stat != 0) return LOG_ASN1ERR (pctxt, stat);
 
@@ -528,13 +528,13 @@ int decodeDynOctetString (OOCTXT* pctxt, ASN1DynOctStr* pOctStr)
             stat = moveBitCursor (pctxt, octcnt * 8);
             if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
          }
-         else 
+         else
             pOctStr->data = 0;
-         
+
          return stat;
       }
    }
-   
+
    nocts = getComponentLength (pctxt, 8);
 
    if (nocts < 0) return LOG_ASN1ERR (pctxt, nocts);
@@ -671,14 +671,14 @@ int decodeObjectIdentifier (OOCTXT* pctxt, ASN1OBJID* pvalue)
          if (j == 0) {
             subid = pvalue->subid[0];
             pvalue->subid[0] = ((subid / 40) >= 2) ? 2 : subid / 40;
-            pvalue->subid[1] = (pvalue->subid[0] == 2) ? 
+            pvalue->subid[1] = (pvalue->subid[0] == 2) ?
                subid - 80 : subid % 40;
             j = 2;
          }
          else j++;
       }
       else
-         stat = ASN_E_INVOBJID; 
+         stat = ASN_E_INVOBJID;
    }
 
    pvalue->numids = j;
@@ -687,9 +687,9 @@ int decodeObjectIdentifier (OOCTXT* pctxt, ASN1OBJID* pvalue)
    return (stat);
 }
 
-static int decodeOctets 
+static int decodeOctets
 (OOCTXT* pctxt, ASN1OCTET* pbuffer, ASN1UINT bufsiz, ASN1UINT nbits)
-{ 
+{
    ASN1UINT nbytes = (nbits + 7) / 8 ;
    ASN1UINT i = 0, j;
    ASN1UINT rshift = pctxt->buffer.bitOffset;
@@ -740,20 +740,20 @@ static int decodeOctets
       /* Copy last partial byte */
 
       if (nbits >= rshift) {
-         pbuffer[i] = 
+         pbuffer[i] =
             pctxt->buffer.data[pctxt->buffer.byteIndex++] << lshift;
 
          nbitsInLastOctet = nbits - rshift;
 
          if (nbitsInLastOctet > 0) {
-            pbuffer[i] |= 
+            pbuffer[i] |=
                pctxt->buffer.data[pctxt->buffer.byteIndex] >> rshift;
          }
 
          pctxt->buffer.bitOffset = 8 - nbitsInLastOctet;
       }
       else if (nbits > 0) {  /* nbits < rshift */
-         pbuffer[i] = 
+         pbuffer[i] =
             pctxt->buffer.data[pctxt->buffer.byteIndex] << lshift;
          pctxt->buffer.bitOffset = rshift - nbits;
       }
@@ -773,7 +773,7 @@ static int decodeOctets
    return ASN_OK;
 }
 
-int decodeOctetString 
+int decodeOctetString
 (OOCTXT* pctxt, ASN1UINT* numocts_p, ASN1OCTET* buffer, ASN1UINT bufsiz)
 {
    ASN1UINT octcnt;
@@ -790,7 +790,7 @@ int decodeOctetString
          if (TRUE) {
             ASN1BOOL doAlign;
 
-            stat = bitAndOctetStringAlignmentTest 
+            stat = bitAndOctetStringAlignmentTest
                (pSizeList, octcnt, FALSE, &doAlign);
             if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
@@ -800,7 +800,7 @@ int decodeOctetString
             }
          }
 
-         stat = decodeOctets (pctxt, &buffer[octidx], 
+         stat = decodeOctets (pctxt, &buffer[octidx],
                            bufsiz - octidx, (octcnt * 8));
 
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
@@ -815,7 +815,7 @@ int decodeOctetString
    return ASN_OK;
 }
 
-int decodeOpenType 
+int decodeOpenType
 (OOCTXT* pctxt, const ASN1OCTET** object_p2, ASN1UINT* numocts_p)
 {
    ASN1DynOctStr octStr;
@@ -883,7 +883,7 @@ int decodeSemiConsUnsigned (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT lower)
    stat = decodeLength (pctxt, &nbytes);
    if (stat < 0) return LOG_ASN1ERR (pctxt, stat);
 
-   
+
    if (nbytes > 0) {
       stat = decodeByteAlign (pctxt);
       if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
@@ -898,7 +898,7 @@ int decodeSemiConsUnsigned (OOCTXT* pctxt, ASN1UINT* pvalue, ASN1UINT lower)
 }
 
 int decodeSmallNonNegWholeNumber (OOCTXT* pctxt, ASN1UINT* pvalue)
-{ 
+{
    ASN1BOOL bitValue;
    ASN1UINT len;
    int ret;
@@ -959,7 +959,7 @@ int decodeVarWidthCharString (OOCTXT* pctxt, const char** pvalue)
    return ASN_OK;
 }
 
-static int decode16BitConstrainedString 
+static int decode16BitConstrainedString
 (OOCTXT* pctxt, Asn116BitCharString* pString, Asn116BitCharSet* pCharSet)
 {
    ASN1UINT i, idx, nbits = pCharSet->alignedBits;
@@ -985,7 +985,7 @@ static int decode16BitConstrainedString
          stat = decodeBits (pctxt, &idx, nbits);
          if (stat != ASN_OK) return LOG_ASN1ERR (pctxt, stat);
 
-         pString->data[i] = (pCharSet->charSet.data == 0) ? 
+         pString->data[i] = (pCharSet->charSet.data == 0) ?
             idx + pCharSet->firstChar : pCharSet->charSet.data[idx];
       }
    }
@@ -1048,6 +1048,6 @@ int moveBitCursor (OOCTXT* pctxt, int bitOffset)
    if (pctxt->buffer.byteIndex > pctxt->buffer.size) {
       return (ASN_E_ENDOFBUF);
    }
-      
+
    return ASN_OK;
 }

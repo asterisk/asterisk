@@ -31,4 +31,3 @@ def downgrade():
     if op.get_context().bind.dialect.name == 'mssql':
         op.drop_constraint('ck_ps_globals_ignore_uri_user_options_yesno_values','ps_globals')
     op.drop_column('ps_globals', 'ignore_uri_user_options')
-

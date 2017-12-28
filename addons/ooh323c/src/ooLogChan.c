@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -23,8 +23,8 @@
 /** Global endpoint structure */
 extern OOH323EndPoint gH323ep;
 
-OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo, 
-                                         int sessionID, char *dir, 
+OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
+                                         int sessionID, char *dir,
                                          ooH323EpCapability *epCap)
 {
    OOLogicalChannel *pNewChannel=NULL, *pChannel=NULL;
@@ -32,7 +32,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
    OOTRACEDBGC5("Adding new media channel for cap %d dir %s (%s, %s)\n",
                epCap->cap, dir, call->callType, call->callToken);
    /* Create a new logical channel entry */
-   pNewChannel = (OOLogicalChannel*)memAlloc(call->pctxt, 
+   pNewChannel = (OOLogicalChannel*)memAlloc(call->pctxt,
                                                      sizeof(OOLogicalChannel));
    if(!pNewChannel)
    {
@@ -40,7 +40,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
                   "(%s, %s)\n", call->callType, call->callToken);
       return NULL;
    }
-   
+
    memset(pNewChannel, 0, sizeof(OOLogicalChannel));
    pNewChannel->channelNo = channelNo;
    pNewChannel->sessionID = sessionID;
@@ -51,12 +51,12 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
 
    pNewChannel->chanCap = epCap;
    OOTRACEDBGC4("Adding new channel with cap %d (%s, %s)\n", epCap->cap,
-                call->callType, call->callToken); 
-   /* As per standards, media control port should be same for all 
+                call->callType, call->callToken);
+   /* As per standards, media control port should be same for all
       proposed channels with same session ID. However, most applications
       use same media port for transmit and receive of audio streams. Infact,
-      testing of OpenH323 based asterisk assumed that same ports are used. 
-      Hence we first search for existing media ports for same session and use 
+      testing of OpenH323 based asterisk assumed that same ports are used.
+      Hence we first search for existing media ports for same session and use
       them. This should take care of all cases.
    */
    if(call->mediaInfo)
@@ -72,7 +72,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
          pMediaInfo = pMediaInfo->next;
       }
    }
-    
+
    if(pMediaInfo)
    {
       OOTRACEDBGC3("Using configured media info (%s, %s)\n", call->callType,
@@ -80,7 +80,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
       pNewChannel->localRtpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirPort : pMediaInfo->lMediaPort;
       /* check MediaRedirPort here because RedirCPort is ReditPort + 1 and can't be 0 ;) */
       pNewChannel->localRtcpPort = pMediaInfo->lMediaRedirPort ? pMediaInfo->lMediaRedirCPort : pMediaInfo->lMediaCntrlPort;
-      /* If user application has not specified a specific ip and is using 
+      /* If user application has not specified a specific ip and is using
          multihomed mode, substitute appropriate ip.
       */
       if(!strcmp(pMediaInfo->lMediaIP, "0.0.0.0") || !strcmp(pMediaInfo->lMediaIP, "::"))
@@ -102,7 +102,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
       pNewChannel->localRtcpPort = ooGetNextPort (OORTP);
       strcpy(pNewChannel->localIP, call->localIP);
    }
-   
+
    /* Add new channel to the list */
    pNewChannel->next = NULL;
    if(!call->logicalChans) {
@@ -113,7 +113,7 @@ OOLogicalChannel* ooAddNewLogicalChannel(OOH323CallData *call, int channelNo,
       while(pChannel->next)  pChannel = pChannel->next;
       pChannel->next = pNewChannel;
    }
-   
+
    /* increment logical channels */
    call->noOfLogicalChannels++;
    OOTRACEINFO3("Created new logical channel entry (%s, %s)\n", call->callType,
@@ -144,22 +144,22 @@ OOLogicalChannel* ooFindLogicalChannelByLogicalChannelNo(OOH323CallData *call,
    return pLogicalChannel;
 }
 
-OOLogicalChannel * ooFindLogicalChannelByOLC(OOH323CallData *call, 
+OOLogicalChannel * ooFindLogicalChannelByOLC(OOH323CallData *call,
                                H245OpenLogicalChannel *olc)
 {
    H245DataType * psDataType=NULL;
    H245H2250LogicalChannelParameters * pslcp=NULL;
-   OOTRACEDBGC4("ooFindLogicalChannel by olc %d (%s, %s)\n", 
+   OOTRACEDBGC4("ooFindLogicalChannel by olc %d (%s, %s)\n",
             olc->forwardLogicalChannelNumber, call->callType, call->callToken);
    if(olc->m.reverseLogicalChannelParametersPresent)
    {
-      OOTRACEDBGC3("Finding receive channel (%s,%s)\n", call->callType, 
+      OOTRACEDBGC3("Finding receive channel (%s,%s)\n", call->callType,
                                                        call->callToken);
       psDataType = &olc->reverseLogicalChannelParameters.dataType;
       /* Only H2250LogicalChannelParameters are supported */
       if(olc->reverseLogicalChannelParameters.multiplexParameters.t !=
          T_H245OpenLogicalChannel_reverseLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters){
-         OOTRACEERR4("Error:Invalid olc %d received (%s, %s)\n", 
+         OOTRACEERR4("Error:Invalid olc %d received (%s, %s)\n",
            olc->forwardLogicalChannelNumber, call->callType, call->callToken);
          return NULL;
       }
@@ -168,14 +168,14 @@ OOLogicalChannel * ooFindLogicalChannelByOLC(OOH323CallData *call,
       return ooFindLogicalChannel(call, pslcp->sessionID, "receive", psDataType);
    }
    else{
-      OOTRACEDBGC3("Finding transmit channel (%s, %s)\n", call->callType, 
+      OOTRACEDBGC3("Finding transmit channel (%s, %s)\n", call->callType,
                                                            call->callToken);
       psDataType = &olc->forwardLogicalChannelParameters.dataType;
       /* Only H2250LogicalChannelParameters are supported */
-      if(olc->forwardLogicalChannelParameters.multiplexParameters.t != 
+      if(olc->forwardLogicalChannelParameters.multiplexParameters.t !=
          T_H245OpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters)
       {
-         OOTRACEERR4("Error:Invalid olc %d received (%s, %s)\n", 
+         OOTRACEERR4("Error:Invalid olc %d received (%s, %s)\n",
            olc->forwardLogicalChannelNumber, call->callType, call->callToken);
          return NULL;
       }
@@ -184,7 +184,7 @@ OOLogicalChannel * ooFindLogicalChannelByOLC(OOH323CallData *call,
    }
 }
 
-OOLogicalChannel * ooFindLogicalChannel(OOH323CallData *call, int sessionID, 
+OOLogicalChannel * ooFindLogicalChannel(OOH323CallData *call, int sessionID,
                                         char *dir, H245DataType * dataType)
 {
    OOLogicalChannel * pChannel = NULL;
@@ -246,7 +246,7 @@ OOLogicalChannel* ooGetTransmitLogicalChannel
    while(pChannel)
    {
       OOTRACEINFO6("Listing logical channel %d cap %d state %d for (%s, %s)\n",
-		pChannel->channelNo, pChannel->chanCap->cap, pChannel->state, 
+		pChannel->channelNo, pChannel->chanCap->cap, pChannel->state,
 		call->callType, call->callToken);
       if(!strcmp(pChannel->dir, "transmit") && pChannel->state != OO_LOGICALCHAN_IDLE &&
 					       pChannel->state != OO_LOGICALCHAN_PROPOSEDFS)
@@ -283,14 +283,14 @@ int ooClearAllLogicalChannels(OOH323CallData *call)
 
    OOTRACEINFO3("Clearing all logical channels (%s, %s)\n", call->callType,
                  call->callToken);
-   
+
    temp = call->logicalChans;
    while(temp)
    {
       prev = temp;
       temp = temp->next;
-      ooClearLogicalChannel(call, prev->channelNo);/* TODO: efficiency - This causes re-search 
-                                                      of of logical channel in the list. Can be
+      ooClearLogicalChannel(call, prev->channelNo);/* TODO: efficiency - This causes re-search
+                                                      of logical channel in the list. Can be
                                                       easily improved.*/
    }
    call->logicalChans = NULL;
@@ -321,7 +321,7 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
       if(epCap->stopReceiveChannel)
       {
          epCap->stopReceiveChannel(call, pLogicalChannel);
-         OOTRACEINFO4("Stopped Receive channel %d (%s, %s)\n", 
+         OOTRACEINFO4("Stopped Receive channel %d (%s, %s)\n",
                                  channelNo, call->callType, call->callToken);
       }
       else{
@@ -336,12 +336,12 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
          if(epCap->stopTransmitChannel)
          {
             epCap->stopTransmitChannel(call, pLogicalChannel);
-            OOTRACEINFO4("Stopped Transmit channel %d (%s, %s)\n", 
+            OOTRACEINFO4("Stopped Transmit channel %d (%s, %s)\n",
                           channelNo, call->callType, call->callToken);
          }
          else{
             OOTRACEERR4("ERROR:No callback registered for stopTransmitChannel"
-                        " %d (%s, %s)\n", channelNo, call->callType, 
+                        " %d (%s, %s)\n", channelNo, call->callType,
                         call->callToken);
          }
       }
@@ -355,11 +355,11 @@ int ooClearLogicalChannel(OOH323CallData *call, int channelNo)
 
 int ooRemoveLogicalChannel(OOH323CallData *call, int ChannelNo)
 {
-   OOLogicalChannel * temp = NULL, *prev=NULL; 
+   OOLogicalChannel * temp = NULL, *prev=NULL;
    if(!call->logicalChans)
    {
       OOTRACEERR4("ERROR:Remove Logical Channel - Channel %d not found "
-                  "Empty channel List(%s, %s)\n", ChannelNo, call->callType, 
+                  "Empty channel List(%s, %s)\n", ChannelNo, call->callType,
                   call->callToken);
       return OO_FAILED;
    }
@@ -381,23 +381,23 @@ int ooRemoveLogicalChannel(OOH323CallData *call, int ChannelNo)
       prev = temp;
       temp = temp->next;
    }
-   
+
    OOTRACEERR4("ERROR:Remove Logical Channel - Channel %d not found "
                   "(%s, %s)\n", ChannelNo, call->callType, call->callToken);
    return OO_FAILED;
 }
 
-/* 
-Change the state of the channel as established and close all other 
-channels with same session IDs. This is useful for handling fastStart, 
+/*
+Change the state of the channel as established and close all other
+channels with same session IDs. This is useful for handling fastStart,
 as the endpoint can open multiple logical channels for same sessionID.
-Once the remote endpoint confirms it's selection, all other channels for 
+Once the remote endpoint confirms it's selection, all other channels for
 the same sessionID must be closed.
 */
 int ooOnLogicalChannelEstablished
    (OOH323CallData *call, OOLogicalChannel * pChannel)
 {
-   OOLogicalChannel * temp = NULL, *prev=NULL; 
+   OOLogicalChannel * temp = NULL, *prev=NULL;
    OOTRACEDBGC3("In ooOnLogicalChannelEstablished (%s, %s)\n",
                 call->callType, call->callToken);
    pChannel->state = OO_LOGICALCHAN_ESTABLISHED;
@@ -417,4 +417,3 @@ int ooOnLogicalChannelEstablished
    }
    return OO_OK;
 }
-

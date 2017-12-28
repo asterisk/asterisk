@@ -93,7 +93,7 @@ OPTIONS:
         names.
   -O  Org name (cert field)
         An informational string (company name)
-  -o  Output filename base (defaults to asterisk) 
+  -o  Output filename base (defaults to asterisk)
   -d  Output directory (defaults to the current directory)
 
 Example:

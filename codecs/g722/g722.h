@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2005 Steve Underwood
  *
- *  Despite my general liking of the GPL, I place my own contributions 
+ *  Despite my general liking of the GPL, I place my own contributions
  *  to this code in the public domain for the benefit of all mankind -
  *  even the slimy ones who might try to proprietize my work and use it
  *  to my detriment.
@@ -122,7 +122,7 @@ typedef struct
         int nb;
         int det;
     } band[2];
-    
+
     unsigned int in_buffer;
     int in_bits;
     unsigned int out_buffer;

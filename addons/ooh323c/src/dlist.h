@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
-/** 
- * @file dlist.h 
+/**
+ * @file dlist.h
  * Doubly-linked list structures and utility functions.
  */
 #ifndef _OODLIST_H_
@@ -74,26 +74,26 @@ extern "C" {
  * @param pData        A pointer to a data item to be appended to the list.
  * @return             A pointer to an allocated node structure used to link
  *                     the given data value into the list.
- */ 
-EXTERN DListNode* dListAppend 
+ */
+EXTERN DListNode* dListAppend
 (struct OOCTXT* pctxt, DList* pList, void* pData);
 
-EXTERN DListNode* dListAppendNode 
+EXTERN DListNode* dListAppendNode
 (struct OOCTXT* pctxt, DList* pList, void* pData);
 
 /**
- * This function delete the head item from the list and returns a pointer 
- * the data item stored in that node.  The memory for the node structure 
+ * This function delete the head item from the list and returns a pointer
+ * the data item stored in that node.  The memory for the node structure
  * is released.
  *
  * @param pctxt        A pointer to a context structure. This provides a
  *                     storage area for the function to store all working
  *                     variables that must be maintained between function
  *                     calls.
- * @param pList        A pointer to the linked list structure from which 
+ * @param pList        A pointer to the linked list structure from which
  *                     the node will be deleted.
  * @return             A pointer to the data item stored in the deleted node.
- */ 
+ */
 EXTERN void* dListDeleteHead (struct OOCTXT* pctxt, DList* pList);
 
 EXTERN DListNode* dListFindByIndex (DList* pList, int index);
@@ -101,7 +101,7 @@ EXTERN DListNode* dListFindByIndex (DList* pList, int index);
 /**
  * This function initializes a doubly linked list structure. It sets the number
  * of elements to zero and sets all internal pointer values to NULL. A doubly
- * linked-list structure is described by the DList type. Nodes of the list 
+ * linked-list structure is described by the DList type. Nodes of the list
  * are of type DListNode.
  *
  * Memory for the structures is allocated using the memAlloc run-time
@@ -130,7 +130,7 @@ EXTERN void dListInit (DList* pList);
  */
 EXTERN void dListFreeNodes (struct OOCTXT* pctxt, DList* pList);
 
-/** 
+/**
  * This function removes all nodes from the linked list structure and releases
  * the memory that was allocated for storing the node structures
  * (DListNode) and for data. The memory for data in each node must have
@@ -146,37 +146,37 @@ EXTERN void dListFreeNodes (struct OOCTXT* pctxt, DList* pList);
 EXTERN void dListFreeAll (struct OOCTXT* pctxt, DList* pList);
 
 /**
- * This function inserts an item into the linked list structure before the 
+ * This function inserts an item into the linked list structure before the
  * specified element.
- * 
+ *
  * @param pctxt         Pointer to a context structure.
- * @param pList		A pointer to a linked list structure into which the 
+ * @param pList		A pointer to a linked list structure into which the
  *                        data item is to be inserted.
- * @param node          The position in the list where the item is to be 
- *                        inserted.  The item will be inserted before this 
+ * @param node          The position in the list where the item is to be
+ *                        inserted.  The item will be inserted before this
  *                        node or appended to the list if node is null.
  * @param pData		A pointer to the data item to be inserted to the list.
- * @return		A pointer to an allocated node structure used to 
+ * @return		A pointer to an allocated node structure used to
  *                        link the given data value into the list.
  */
-EXTERN DListNode* dListInsertBefore 
+EXTERN DListNode* dListInsertBefore
 (struct OOCTXT* pctxt, DList* pList, DListNode* node, const void* pData);
 
 /**
- * This function inserts an item into the linked list structure after the 
+ * This function inserts an item into the linked list structure after the
  * specified element.
- * 
+ *
  * @param pctxt         Pointer to a context structure.
- * @param pList		A pointer to a linked list structure into which the 
+ * @param pList		A pointer to a linked list structure into which the
  *                        data item is to be inserted.
- * @param node          The position in the list where the item is to be 
- *                        inserted.  The item will be inserted after this 
+ * @param node          The position in the list where the item is to be
+ *                        inserted.  The item will be inserted after this
  *                        node or added as the head element if node is null.
  * @param pData		A pointer to the data item to be inserted to the list.
- * @return		A pointer to an allocated node structure used to 
+ * @return		A pointer to an allocated node structure used to
  *                        link the given data value into the list.
  */
-EXTERN DListNode* dListInsertAfter 
+EXTERN DListNode* dListInsertAfter
 (struct OOCTXT* pctxt, DList* pList, DListNode* node, const void* pData);
 
 /**
@@ -194,7 +194,7 @@ EXTERN DListNode* dListInsertAfter
 EXTERN void  dListRemove (DList* pList, DListNode* node);
 EXTERN void dListFindAndRemove(struct OOCTXT* pctxt, DList* pList, void* data);
 
-/** 
+/**
  * @}
  */
 #ifdef __cplusplus

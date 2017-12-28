@@ -185,7 +185,7 @@ SIP
    configuration option. Symptoms of this include one way media or no media flow.
 
 chan_unistim
- - Due to massive update in chan_unistim phone keys functions and on-screen 
+ - Due to massive update in chan_unistim phone keys functions and on-screen
    information changed.
 
 users.conf:
@@ -257,10 +257,10 @@ Manager:
    unchanged.
 
 Module Support Level
- - All modules in the addons, apps, bridge, cdr, cel, channels, codecs, 
+ - All modules in the addons, apps, bridge, cdr, cel, channels, codecs,
    formats, funcs, pbx, and res have been updated to include MODULEINFO data
    that includes <support_level> tags with a value of core, extended, or deprecated.
-   More information is available on the Asterisk wiki at 
+   More information is available on the Asterisk wiki at
    https://wiki.asterisk.org/wiki/display/AST/Asterisk+Module+Support+States
 
    Deprecated modules are now marked to not build by default and must be explicitly

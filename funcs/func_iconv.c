@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<function name="ICONV" language="en_US">
 		<synopsis>
-			Converts charsets of strings.	
+			Converts charsets of strings.
 		</synopsis>
 		<syntax>
 			<parameter name="in-charset" required="true">
@@ -68,10 +68,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 
-/*! 
+/*!
  * Some systems define the second arg to iconv() as (const char *),
- * while others define it as (char *).  Cast it to a (void *) to 
- * suppress compiler warnings about it. 
+ * while others define it as (char *).  Cast it to a (void *) to
+ * suppress compiler warnings about it.
  */
 #define AST_ICONV_CAST void *
 
@@ -143,4 +143,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Charset conversions");
-

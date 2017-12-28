@@ -1,8 +1,7 @@
 context test1
 {
-	s => 
+	s =>
 	{
 		#include "apptest.ael2";
 	}
 }
-

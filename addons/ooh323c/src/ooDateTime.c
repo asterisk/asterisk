@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the LICENSE.txt file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the LICENSE.txt file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -69,7 +69,7 @@ static uint64 calcEpocOffset() {
 
 // Gets high resolution by spinning up to 15ms.  Don't call this often!!!
 static uint64 getRawCurMsSpin() {
-   FILETIME tm;   
+   FILETIME tm;
    uint64 t_now;
 
    static uint64 epocOffset = 0;
@@ -121,7 +121,7 @@ int gettimeofday(struct timeval* tv, void* null) {
       baselineMs = getRawCurMsSpin();
       tickBaseline = timeGetTime();
    }
-   
+
    uint64 now_ms = (baselineMs + (curTicks - tickBaseline));
    *tv = oo_ms_to_tv(now_ms);
    return 0;
@@ -170,7 +170,6 @@ int ooGetTimeOfDay (struct timeval *tv, struct timezone *tz)
 
 long ooGetTimeDiff(struct timeval *tv1, struct timeval *tv2)
 {
-   return ( ((tv2->tv_sec-tv1->tv_sec)*1000) + 
+   return ( ((tv2->tv_sec-tv1->tv_sec)*1000) +
             ((tv2->tv_usec-tv1->tv_usec)/1000) );
 }
-

@@ -64,7 +64,7 @@ struct fbuf_t {		/* frame buffers, dynamically allocated */
 	int	ebit;	/* bits to ignore at the end */
 	int	x;	/* origin, if necessary */
 	int	y;
-	int	w;	/* size */ 
+	int	w;	/* size */
 	int	h;
 	int	pix_fmt;
 	/* offsets and size of the copy in Picture-in-Picture mode */

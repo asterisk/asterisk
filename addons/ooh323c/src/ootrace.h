@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 
 /**
- * @file ootrace.h 
+ * @file ootrace.h
  * This file defines the trace functionality
  */
 #include "ooCommon.h"
@@ -67,7 +67,7 @@
 #define OOTRACEINFO4(a,b,c,d) ooTrace(OOTRCLVLINFO,a,b,c,d)
 #define OOTRACEINFO5(a,b,c,d,e) ooTrace(OOTRCLVLINFO,a,b,c,d,e)
 #define OOTRACEINFO6(a,b,c,d,e,f) ooTrace(OOTRCLVLINFO,a,b,c,d,e, f)
-#ifndef _COMPACT 
+#ifndef _COMPACT
 #define OOTRACEDBGA1(a)       ooTrace(OOTRCLVLDBGA,a)
 #define OOTRACEDBGA2(a,b)     ooTrace(OOTRCLVLDBGA,a,b)
 #define OOTRACEDBGA3(a,b,c)   ooTrace(OOTRCLVLDBGA,a,b,c)
@@ -83,13 +83,13 @@
 #define OOTRACEDBGC4(a,b,c,d) ooTrace(OOTRCLVLDBGC,a,b,c,d)
 #define OOTRACEDBGC5(a,b,c,d,e) ooTrace(OOTRCLVLDBGC,a,b,c,d,e)
 #else
-#define OOTRACEDBGA1(a) 
+#define OOTRACEDBGA1(a)
 #define OOTRACEDBGA2(a,b)
 #define OOTRACEDBGA3(a,b,c)
 #define OOTRACEDBGA4(a,b,c,d)
 #define OOTRACEDBGA5(a,b,c,d,e)
 #define OOTRACEDBGB1(a)
-#define OOTRACEDBGB2(a,b) 
+#define OOTRACEDBGB2(a,b)
 #define OOTRACEDBGB3(a,b,c)
 #define OOTRACEDBGB4(a,b,c,d)
 #define OOTRACEDBGC1(a)
@@ -113,11 +113,11 @@ extern "C" {
 
 /**
  * This function is used to set the trace level.
- * @param traceLevel  New trace level. Various values are: OOTRCLVLERR, 
+ * @param traceLevel  New trace level. Various values are: OOTRCLVLERR,
  *                    OOTRCLVLWARN, OOTRCLVLINFO, OOTRCLVLDBGA, OOTRCLVLDBGB,
  *                    OOTRCLVLDBGC
  *
- * @return            None 
+ * @return            None
  */
 EXTERN void ooSetTraceThreshold(OOUINT32 traceLevel);
 
@@ -126,7 +126,7 @@ EXTERN void ooSetTraceThreshold(OOUINT32 traceLevel);
  *
  * @param traceLevel  Trace level for the message.
  * @param fmtspec     Printf style format spec.
- * @param ...         Printf style variable list of arguments              
+ * @param ...         Printf style variable list of arguments
  *
  * @return            - none
  */

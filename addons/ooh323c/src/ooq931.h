@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooq931.h 
- * This file contains functions to support call signalling. 
+ * @file ooq931.h
+ * This file contains functions to support call signalling.
  */
 
 #ifndef _OOQ931HDR_H_
@@ -37,7 +37,7 @@ extern "C" {
 #endif /* MAKE_DLL */
 #endif /* EXTERN */
 
-/** 
+/**
  * @defgroup q931 Q.931/H.2250 Message Handling
  * @{
  */
@@ -48,11 +48,11 @@ extern "C" {
 #define OO_MAX_CALL_TOKEN 999999
 
 /* Q.931 packet must be at least 5 bytes long */
-#define Q931_E_TOOSHORT         (-1001)  
+#define Q931_E_TOOSHORT         (-1001)
 /* callReference field must be 2 bytes long */
-#define Q931_E_INVCALLREF       (-1002)  
+#define Q931_E_INVCALLREF       (-1002)
 /* invalid length of message */
-#define Q931_E_INVLENGTH        (-1003)  
+#define Q931_E_INVLENGTH        (-1003)
 
 enum Q931MsgTypes {
    Q931NationalEscapeMsg  = 0x00,
@@ -217,8 +217,8 @@ enum Q931UserInfoLayer1Protocol{
 
 /*
   Structure to build store outgoing encoded UUIE
-  The different fields in the structure have octet lengths 
-  as specified in the spec. 
+  The different fields in the structure have octet lengths
+  as specified in the spec.
 */
 typedef struct Q931InformationElement {
    int discriminator;
@@ -228,8 +228,8 @@ typedef struct Q931InformationElement {
 } Q931InformationElement;
 
 /**
- * Q.931 message structure. Contains context for memory allocation, 
- * protocol discriminator, call reference, meesage type and list of 
+ * Q.931 message structure. Contains context for memory allocation,
+ * protocol discriminator, call reference, meesage type and list of
  * user-user information elements (IEs).
  */
 typedef struct Q931Message {
@@ -240,7 +240,7 @@ typedef struct Q931Message {
    ASN1UINT tunneledMsgType;  /* The H245 message this message is tunneling*/
    ASN1INT  logicalChannelNo; /* channel number associated with tunneled */
                               /* message, 0 if no channel */
-   DList ies;    
+   DList ies;
    Q931InformationElement *bearerCapabilityIE;
    Q931InformationElement *callingPartyNumberIE;
    Q931InformationElement *calledPartyNumberIE;
@@ -266,13 +266,13 @@ struct OOH323CallData;
 
 /*
  * These are message callbacks which can be used by user applications
- * to perform application specific things on receiving a particular 
+ * to perform application specific things on receiving a particular
  * message or before sending a particular message. For ex. user application
  * can change values of some parameters of setup message before it is actually
  * sent out.
  */
 /**
- * This callback is triggered when an H.225 SETUP message is received by 
+ * This callback is triggered when an H.225 SETUP message is received by
  * the application.
  * @param call  The call the message is associated with.
  * @param pmsg  Q.931 message structure.
@@ -282,7 +282,7 @@ typedef int (*cb_OnReceivedSetup)
    (struct OOH323CallData *call, struct Q931Message *pmsg);
 
 /**
- * This callback is triggered when an H.225 CONNECT message is received by 
+ * This callback is triggered when an H.225 CONNECT message is received by
  * the application.
  * @param call  The call the message is associated with.
  * @param pmsg  Q.931 message structure.
@@ -292,8 +292,8 @@ typedef int (*cb_OnReceivedConnect)
    (struct OOH323CallData *call, struct Q931Message *pmsg);
 
 /**
- * This callback is triggered after an H.225 SETUP message has been 
- * constructed and is ready to be sent out.  It provides the application 
+ * This callback is triggered after an H.225 SETUP message has been
+ * constructed and is ready to be sent out.  It provides the application
  * with an opportunity to add additional non-standard information.
  * @param call  The call the message is associated with.
  * @param pmsg  Q.931 message structure.
@@ -303,8 +303,8 @@ typedef int (*cb_OnBuiltSetup)
    (struct OOH323CallData *call, struct Q931Message *pmsg);
 
 /**
- * This callback is triggered after an H.225 CONNECT message has been 
- * constructed and is ready to be sent out.  It provides the application 
+ * This callback is triggered after an H.225 CONNECT message has been
+ * constructed and is ready to be sent out.  It provides the application
  * with an opportunity to add additional non-standard information.
  * @param call  The call the message is associated with.
  * @param pmsg  Q.931 message structure.
@@ -314,7 +314,7 @@ typedef int (*cb_OnBuiltConnect)
    (struct OOH323CallData *call, struct Q931Message *pmsg);
 
 /**
- * This structure holds the various callback functions that are 
+ * This structure holds the various callback functions that are
  * triggered when H.225 messages are received or constructed.
  * @see ooH323EpSetH225MsgCallbacks
  */
@@ -326,8 +326,8 @@ typedef struct OOH225MsgCallbacks {
 } OOH225MsgCallbacks;
 
 /**
- * This function is invoked to decode a Q931 message. 
- * 
+ * This function is invoked to decode a Q931 message.
+ *
  * @param call     Handle to call which owns the message.
  * @param msg      Pointer to the Q931 message
  * @param length   Length of the encoded data
@@ -335,18 +335,18 @@ typedef struct OOH225MsgCallbacks {
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
-EXTERN int ooQ931Decode 
+EXTERN int ooQ931Decode
 (struct OOH323CallData *call, Q931Message* msg, int length, ASN1OCTET *data, int docallbacks);
 
 /**
  * This function is used to decode the UUIE of the message from the list of
  * ies. It decodes the User-User ie and populates the userInfo field of the
  * message.
- * @param q931Msg    Pointer to the message whose User-User ie has to be 
- *                   decoded.    
+ * @param q931Msg    Pointer to the message whose User-User ie has to be
+ *                   decoded.
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooDecodeUUIE(OOCTXT* pctxt, Q931Message *q931Msg);
 
 /**
@@ -360,20 +360,20 @@ EXTERN int ooDecodeUUIE(OOCTXT* pctxt, Q931Message *q931Msg);
 EXTERN int ooEncodeUUIE(OOCTXT* pctxt, Q931Message *q931msg);
 
 /**
- * This function is invoked to retrieve an IE element from a Q931 message. 
- * 
+ * This function is invoked to retrieve an IE element from a Q931 message.
+ *
  * @param q931msg  Pointer to the Q931 message
  * @param ieCode   IE code for the IE element to be retrieved
  *
- * @return         Pointer to a Q931InformationElement contating 
+ * @return         Pointer to a Q931InformationElement contating
  *                 the IE element.
  */
-EXTERN Q931InformationElement* ooQ931GetIE (const Q931Message* q931msg, 
+EXTERN Q931InformationElement* ooQ931GetIE (const Q931Message* q931msg,
                                             int ieCode);
 
 /**
- * This function is invoked to print a Q931 message. 
- * 
+ * This function is invoked to print a Q931 message.
+ *
  * @param q931msg  Pointer to the Q931 message
  *
  * @return         - none
@@ -382,8 +382,8 @@ EXTERN void ooQ931Print (const Q931Message* q931msg);
 
 
 /**
- * This function is invoked to create an outgoing Q931 message. 
- * 
+ * This function is invoked to create an outgoing Q931 message.
+ *
  * @param msg      Reference to the pointer of type Q931 message.
  * @param msgType  Type of Q931 message to be created
  *
@@ -392,7 +392,7 @@ EXTERN void ooQ931Print (const Q931Message* q931msg);
 EXTERN int ooCreateQ931Message(OOCTXT* pctxt, Q931Message **msg, int msgType);
 
 /**
- * This function is invoked to generate a unique call reference number. 
+ * This function is invoked to generate a unique call reference number.
  *
  * @return         - call reference number
  */
@@ -409,8 +409,8 @@ EXTERN ASN1USINT ooGenerateCallReference(void);
 EXTERN int ooGenerateCallIdentifier(H225CallIdentifier *callid);
 
 /**
- * This function is invoked to release the memory used up by a Q931 message 
- * 
+ * This function is invoked to release the memory used up by a Q931 message
+ *
  * @param q931Msg  Pointer to a Q931 message which has to be freed.
  *
  * @return         Completion status - 0 on success, -1 on failure
@@ -418,10 +418,10 @@ EXTERN int ooGenerateCallIdentifier(H225CallIdentifier *callid);
 EXTERN int ooFreeQ931Message(OOCTXT* pctxt, Q931Message *q931Msg);
 
 /**
- * This function is invoked to retrive the outgoing message buffer for 
+ * This function is invoked to retrive the outgoing message buffer for
  * Q931 message
  *
- * @param call     Pointer to call for which outgoing Q931 message has to be 
+ * @param call     Pointer to call for which outgoing Q931 message has to be
  *                 retrieved.
  * @param msgbuf   Pointer to a buffer in which retrieved message will
  *                 be returned.
@@ -436,11 +436,11 @@ EXTERN int ooGetOutgoingQ931Msgbuf
 (struct OOH323CallData *call, ASN1OCTET * msgbuf, int* len, int *msgType);
 
 /**
- * This function is invoked to send a ReleaseComplete message for 
+ * This function is invoked to send a ReleaseComplete message for
  * the currently active call.
  *
- * @param call    Pointer to the call for which ReleaseComplete message have 
- *                to be sent.  
+ * @param call    Pointer to the call for which ReleaseComplete message have
+ *                to be sent.
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
@@ -451,18 +451,18 @@ EXTERN int ooSendReleaseComplete(struct OOH323CallData *call);
  * received setup message.
  *
  * @param call    Pointer to the call for which CallProceeding message have to
- *                be sent.  
+ *                be sent.
  *
  * @return        Completion status - 0 on success, -1 on failure
  */
 EXTERN int ooSendCallProceeding(struct OOH323CallData *call);
 
 /**
- * This function is invoked to send alerting message in response to received  
- * setup message. 
+ * This function is invoked to send alerting message in response to received
+ * setup message.
  *
- * @param call     Pointer to the call for which Alerting message have to be 
- *                 sent.  
+ * @param call     Pointer to the call for which Alerting message have to be
+ *                 sent.
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
@@ -477,8 +477,8 @@ EXTERN int ooSendStatusInquiry(struct OOH323CallData *call);
 /**
  * This function is invoked to send Facility message.
  *
- * @param call     Pointer to the call for which Facility message have to be 
- *                 sent.  
+ * @param call     Pointer to the call for which Facility message have to be
+ *                 sent.
  *
  * @return         Completion status - 0 on success, -1 on failure
  */
@@ -497,11 +497,11 @@ EXTERN int ooQ931SendDTMFAsKeyPadIE
           (struct OOH323CallData *call, const char* data);
 
 /**
- * This function is invoked to send a Connect message in response to received  
- * setup message. 
+ * This function is invoked to send a Connect message in response to received
+ * setup message.
  *
- * @param call      Pointer to the call for which connect message has to be 
- *                  sent.  
+ * @param call      Pointer to the call for which connect message has to be
+ *                  sent.
  *
  * @return          Completion status - 0 on success, -1 on failure
  */
@@ -509,7 +509,7 @@ EXTERN int ooSendConnect(struct OOH323CallData *call);
 
 /**
  * This function is used to send a SETUP message for outgoing call. It first
- * creates an H.225 TCP connection with the remote end point and then sends 
+ * creates an H.225 TCP connection with the remote end point and then sends
  * SETUP message over this connection.
  * @param dest      Destination - IP:Port/alias.
  * @param callToken Unique token for the new call.
@@ -541,7 +541,7 @@ EXTERN int ooH323HandleCallFwdRequest(struct OOH323CallData *call);
 /**
  * This function is used for forwarding/redirecting a call to third party.
  * @param callToken   callToken for the call which has to be redirected.
- * @param dest        Address to which call has to be forwarded. Can be 
+ * @param dest        Address to which call has to be forwarded. Can be
  *                    IP:Port or alias.
  *
  * @return            OO_OK, on success. OO_FAILED, on failure.
@@ -559,7 +559,7 @@ EXTERN int ooH323ForwardCall(char* callToken, char *dest);
 EXTERN int ooH323HangCall(char * callToken, OOCallClearReason reason, int q931);
 
 
-/** 
+/**
  * Function to accept a call by sending connect. This function is used
  * as a helper function to ooSendConnect.
  * @param call      Pointer to the call for which connect has to be sent
@@ -602,7 +602,7 @@ int ooGenerateCallToken (char *callToken, size_t size);
 
 
 /**
- * This function sends an encoded H.245 message buffer as a tunneled 
+ * This function sends an encoded H.245 message buffer as a tunneled
  * H.245 Facility message.
  * @param call             Pointer to the call for which H.245 message has to
  *                         be tunneled.
@@ -617,28 +617,28 @@ int ooGenerateCallToken (char *callToken, size_t size);
  * @return                 OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooSendAsTunneledMessage
-(struct OOH323CallData *call, ASN1OCTET* msgbuf, 
- int h245Len, int h245MsgType, int associatedChan); 
- 
+(struct OOH323CallData *call, ASN1OCTET* msgbuf,
+ int h245Len, int h245MsgType, int associatedChan);
+
 
 /**
  * This function is used to encode an H.225 message.
  * @param call            Handle to the call.
  * @param pq931Msg        Pointer to the message to be encoded.
- * @param msgbuf          Pointer to the buffer in which encoded message will 
+ * @param msgbuf          Pointer to the buffer in which encoded message will
  *                        be returned.
  * @param size            Size of the buffer passed.
  *
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
-int ooEncodeH225Message(struct OOH323CallData *call, Q931Message *pq931Msg, 
+int ooEncodeH225Message(struct OOH323CallData *call, Q931Message *pq931Msg,
                         char *msgbuf, int size);
 
 /**
- * This is a callback function which is called when there is no CONNECT 
+ * This is a callback function which is called when there is no CONNECT
  * response from the remote endpoint after the SETUP has been sent and timeout
  * period has passed.
- * @param data            The callback data registered at the time of timer 
+ * @param data            The callback data registered at the time of timer
  *                        creation.
  *
  * @return                OO_OK, on success. OO_FAILED, on failure.
@@ -670,8 +670,8 @@ EXTERN int ooQ931SetKeypadIE(OOCTXT* pctxt, Q931Message *pmsg, const char* data)
  * @return                OO_OK on success, OO_FAILED, on failure.
  */
 EXTERN int ooSetBearerCapabilityIE
-   (OOCTXT* pctxt, Q931Message *pmsg, enum Q931CodingStandard codingStandard, 
-    enum Q931InformationTransferCapability capability, 
+   (OOCTXT* pctxt, Q931Message *pmsg, enum Q931CodingStandard codingStandard,
+    enum Q931InformationTransferCapability capability,
     enum Q931TransferMode transferMode, enum Q931TransferRate transferRate,
     enum Q931UserInfoLayer1Protocol userInfoLayer1);
 
@@ -703,10 +703,10 @@ EXTERN int ooQ931SetCalledPartyNumberIE
  * @return                OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931SetCallingPartyNumberIE
-   (OOCTXT* pctxt, Q931Message *pmsg, const char *number, unsigned plan, unsigned type, 
+   (OOCTXT* pctxt, Q931Message *pmsg, const char *number, unsigned plan, unsigned type,
     unsigned presentation, unsigned screening);
 
-/** 
+/**
  * This function is used to set a cause ie for a q931 message.
  * @param pmsg        Valid Q931 Message
  * @param cause       Q931 Cause Value
@@ -716,15 +716,15 @@ EXTERN int ooQ931SetCallingPartyNumberIE
  * @return            OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931SetCauseIE
-   (OOCTXT *pctxt, Q931Message *pmsg,enum Q931CauseValues cause, unsigned coding, 
+   (OOCTXT *pctxt, Q931Message *pmsg,enum Q931CauseValues cause, unsigned coding,
     unsigned location);
 
 EXTERN int ooQ931SetCallStateIE
     (OOCTXT *pctxt, Q931Message *pmsg, unsigned char callstate);
 
 /**
- * This function is used to convert a call clear reason to cause and 
- * reason code. It is used when local user is endoing the call and 
+ * This function is used to convert a call clear reason to cause and
+ * reason code. It is used when local user is endoing the call and
  * sending releaseComplete.
  * @param clearReason   Reason for ending call.
  * @param cause         Pointer to Q931CauseVaules enum in which cause
@@ -735,7 +735,7 @@ EXTERN int ooQ931SetCallStateIE
  * @return              OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooQ931GetCauseAndReasonCodeFromCallClearReason
-   (OOCallClearReason clearReason, enum Q931CauseValues *cause, 
+   (OOCallClearReason clearReason, enum Q931CauseValues *cause,
     unsigned *reasonCode);
 
 /**
@@ -750,7 +750,7 @@ EXTERN OOCallClearReason ooGetCallClearReasonFromCauseAndReasonCode
    (enum Q931CauseValues cause, unsigned reasonCode);
 
 /**
- * This function is used to retrieve the description text for a 
+ * This function is used to retrieve the description text for a
  * message type.
  *
  * @param msgType  Message type.
@@ -775,8 +775,8 @@ EXTERN int ooSendStartH245Facility(struct OOH323CallData *call);
 EXTERN int ooSendFSUpdate(struct OOH323CallData *call);
 EXTERN int ooHandleFastStartChannels(struct OOH323CallData *pCall);
 
-/** 
- * @} 
+/**
+ * @}
  */
 #ifdef __cplusplus
 }

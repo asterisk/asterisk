@@ -3,16 +3,16 @@
 # sip_nat_settings: generate NAT settings for sip.conf of an Asterisk system
 #                   that is behind a NAT router.
 #
-# This is a script to generate sane defaults for externip and localnet 
-# of sip.conf. The output should be included in the [general] section of 
+# This is a script to generate sane defaults for externip and localnet
+# of sip.conf. The output should be included in the [general] section of
 # sip.conf .
 #
-# Multiple network interfaces: If you have multiple network interfaces, 
-# this script will generate a 'localnet' line for each of them that has a 
-# broadcast (ipv4) address, except the loopback interface (lo). You can 
+# Multiple network interfaces: If you have multiple network interfaces,
+# this script will generate a 'localnet' line for each of them that has a
+# broadcast (ipv4) address, except the loopback interface (lo). You can
 # later rem-out all of those you don't need.
-# 
-# Alternatively, provide a network interface as a parameter an a localnet 
+#
+# Alternatively, provide a network interface as a parameter an a localnet
 # line will only be generated for its network.
 #
 # Copyright (C) 2005 by Tzafrir Cohen <tzafrir.cohen@xorcom.com>

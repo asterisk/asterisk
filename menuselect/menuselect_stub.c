@@ -20,7 +20,7 @@
  * \file
  *
  * \author Russell Bryant <russell@digium.com>
- * 
+ *
  * \brief Menu stub
  */
 

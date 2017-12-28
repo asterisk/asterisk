@@ -18,7 +18,7 @@
 /*! \file
  *
  * \brief SHA1 digest related dialplan functions
- * 
+ *
  * \author Claude Patry <cpatry@gmail.com>
  *
  * \ingroup functions
@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Generate a SHA1 digest via the SHA1 algorythm.</para>
 			<para>Example:  Set(sha1hash=${SHA1(junky)})</para>
 			<para>Sets the asterisk variable sha1hash to the string <literal>60fa5675b9303eb62f99a9cd47f9f5837d18f9a0</literal>
-			which is known as his hash</para>	
+			which is known as his hash</para>
 		</description>
 	</function>
  ***/

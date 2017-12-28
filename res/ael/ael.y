@@ -43,7 +43,7 @@ static void set_dads(pval *dad, pval *child_list);
 void reset_parencount(yyscan_t yyscanner);
 void reset_semicount(yyscan_t yyscanner);
 void reset_argcount(yyscan_t yyscanner );
- 
+
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
 
@@ -211,7 +211,7 @@ context : opt_abstract KW_CONTEXT context_name LC elements RC {
 		$$->u1.str = $3;
 		$$->u2.statements = $5;
 		set_dads($$,$5);
-		$$->u3.abstract = $1;} 
+		$$->u3.abstract = $1;}
 	;
 
 /* optional "abstract" keyword  XXX there is no regression test for this */
@@ -422,7 +422,7 @@ word3_list : word { $$ = $1;}
 			free($1);
 			free($2);
 			prev_word = $$;
-		}			
+		}
 	}
 	| word word word {
 		if (asprintf(&($$), "%s%s%s", $1, $2, $3) < 0) {
@@ -545,7 +545,7 @@ statement : LC statements RC {
 opt_else : KW_ELSE statement { $$ = $2; }
 	| { $$ = NULL ; }
 
- 
+
 target : goto_word { $$ = nword($1, &@1); }
 	| goto_word BAR goto_word {
 		$$ = nword($1, &@1);
@@ -884,8 +884,7 @@ static pval *nword(char *string, YYLTYPE *pos)
 static void set_dads(struct pval *dad, struct pval *child_list)
 {
 	struct pval *t;
-	
+
 	for(t=child_list;t;t=t->next)  /* simple stuff */
 		t->dad = dad;
 }
-

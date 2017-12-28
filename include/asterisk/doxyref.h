@@ -14,21 +14,21 @@
  * at the top of the source tree.
  */
 
-/*! 
+/*!
  * \file
  *
  * This is the main header file used for generating miscellaneous documentation
- * using Doxygen.  This also utilizes the documentation in 
+ * using Doxygen.  This also utilizes the documentation in
  * include/asterisk/doxygen/ header files.
  */
 
-/* 
+/*
  * The following is for Doxygen Developer's documentation generated
  * by running "make progdocs" with doxygen installed on your
  * system.
  */
 
-/*! 
+/*!
  * \page DevDoc Asterisk Developer's Documentation - Appendices
  *
  * \section devpolicy Development and Release Policies
@@ -59,7 +59,7 @@
  *
  * \section debugconfig Debugging and Configuration References
  * \arg \ref AstDebug : Hints on debugging
- * \arg \ref extref 
+ * \arg \ref extref
  * \arg \ref ConfigFiles
  * \arg \ref SoundFiles included in the Asterisk distribution
  *
@@ -72,7 +72,7 @@
  * \arg \b Digium: The Asterisk Company https://www.digium.com
  */
 
-/*! 
+/*!
  * \page CodeGuide Coding Guidelines
  * \AsteriskTrunkWarning
  * \section Coding Guidelines
@@ -81,7 +81,7 @@
  * \verbinclude CODING-GUIDELINES
  */
 
-/*! 
+/*!
  * \page AstAPI Asterisk API
  * \section Asteriskapi Asterisk API
  * Some generic documents on the Asterisk architecture
@@ -95,7 +95,7 @@
  * \arg See \ref Def_Channel
  */
 
-/*! 
+/*!
  * \page AstAPIChanges Asterisk API Changes
  *
  * \section Changes161 Version 1.6.1
@@ -128,7 +128,7 @@
  * \li ast_channel_alloc()
  */
 
-/*! 
+/*!
  * \page AstAMI AMI - The Manager Interface
  * \section ami AMI - The manager Interface
  * \arg \link Config_ami Configuration file \endlink
@@ -139,23 +139,23 @@
 /*!
  * \page AstARA ARA - The Asterisk Realtime Interface
  * \section realtime ARA - a generic API to storage and retrieval
- * Implemented in \ref config.c 
- * Implemented in \ref pbx_realtime.c 
+ * Implemented in \ref config.c
+ * Implemented in \ref pbx_realtime.c
  * \todo include missing realtime txt
  * \todo include missing extconfig txt
  */
 
-/*! 
+/*!
  * \page AstDUNDi DUNDi
  *
- * DUNDi is a peer-to-peer system for locating Internet gateways to telephony 
- * services. Unlike traditional centralized services (such as the remarkably 
- * simple and concise ENUM standard), DUNDi is fully-distributed with no 
+ * DUNDi is a peer-to-peer system for locating Internet gateways to telephony
+ * services. Unlike traditional centralized services (such as the remarkably
+ * simple and concise ENUM standard), DUNDi is fully-distributed with no
  * centralized authority whatsoever.
  *
- * DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, 
- * it publishes routes which are in turn accessed via industry standard 
- * protocols such as IAX, SIP and H.323. 
+ * DUNDi is not itself a Voice-over IP signaling or media protocol. Instead,
+ * it publishes routes which are in turn accessed via industry standard
+ * protocols such as IAX, SIP and H.323.
  *
  * \par References
  * \arg DUNDi is documented at http://www.dundi.com
@@ -163,7 +163,7 @@
  * \arg Configuration in \ref dundi.conf
  */
 
-/*! 
+/*!
  * \page AstCDR CDR - Call Data Records and billing
  * \section cdr Call Data Records
  * \par See also
@@ -174,18 +174,18 @@
  * \todo include missing cdrdriver txt
  */
 
-/*! 
+/*!
  * \page AstCREDITS CREDITS
  * \verbinclude CREDITS
  */
 
-/*! 
+/*!
  * \page AstVideo Video support in Asterisk
  * \section sectAstVideo Video support in Asterisk
  * \todo include missing video txt
  */
 
-/*! 
+/*!
  * \page AstVar Globally predefined channel variables
  * \section globchan Globally predefined channel variables
  *
@@ -199,7 +199,7 @@
  *
  */
 
-/*! 
+/*!
  * \page AstChanVar Asterisk Dialplan Variables
  *	Asterisk Dialplan variables are divided into three groups:
  *	- Predefined global variables, handled by the PBX core
@@ -210,7 +210,7 @@
  * Channel variables are only reachable within the channel.
  *
  * For more information on the predefined variables, see \ref AstVar
- * 
+ *
  * Global and Channel variables:
  * - Names are Case insensitive
  * - Names that start with a character, but are alphanumeric
@@ -232,7 +232,7 @@
  * Global variables can also be set in the [globals] section of extensions.conf. The
  * setting \b clearglobalvars in extensions.conf [general] section affects whether
  * or not the global variables defined in \b globals are reset at dialplan reload.
- * 
+ *
  * There are CLI commands to change and read global variables. This can be handy
  * to reset counters at midnight from an external script.
  *
@@ -246,7 +246,7 @@
  * with the list starting at varshead in struct ast_channel
  */
 
-/*! 
+/*!
  * \page Config_mod Modules configuration
  * All res_ resource modules are loaded with globals on, which means
  * that non-static functions are callable from other modules.
@@ -257,11 +257,11 @@
 
 /*!
  * \page Config_ext Extensions.conf - the Dial Plan
- * \section dialplan Extensions.conf 
+ * \section dialplan Extensions.conf
  * \verbinclude extensions.conf.sample
  */
 
-/*! 
+/*!
  * \page Config_rtp RTP configuration
  * \arg Implemented in \ref rtp.c
  * Used in \ref chan_sip.c and \ref chan_mgcp.c (and various H.323 channels)
@@ -269,27 +269,27 @@
  * \verbinclude rtp.conf.sample
  */
 
-/*! 
+/*!
  * \page Config_codec CODEC Configuration
  * \section codecsconf codecs.conf
  * \verbinclude codecs.conf.sample
  */
 
-/*! 
+/*!
  * \page Config_ara REALTIME Configuration
  * \arg See also: \arg \link AstARA \endlink
  * \section extconf extconfig.conf
  * \verbinclude extconfig.conf.sample
  */
 
-/*! 
+/*!
  * \page Config_ami AMI configuration
  * \arg See also: \arg \link AstAMI \endlink
  * \section amiconf manager.conf
  * \verbinclude manager.conf.sample
  */
 
-/*! 
+/*!
  * \page SoundFiles Sound files
  * \section SecSound Asterisk Sound files
  * Asterisk includes a large number of sound files. Many of these
@@ -314,59 +314,59 @@
 /*! \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \addtogroup cdr_drivers Module: CDR Drivers
  * \section CDR_generic Asterisk CDR Drivers
- * \brief CDR drivers are loaded dynamically, each loaded CDR driver produce 
+ * \brief CDR drivers are loaded dynamically, each loaded CDR driver produce
  *        a billing record for each call.
  * \arg \ref Config_mod "Modules Configuration"
  * \arg \ref Config_cdr "CDR Configuration"
  */
 
-/*! 
+/*!
  * \addtogroup channel_drivers Module: Asterisk Channel Drivers
  * \section channel_generic Asterisk Channel Drivers
- * \brief Channel drivers are loaded dynamically. 
+ * \brief Channel drivers are loaded dynamically.
  * \arg \ref Config_mod "Modules Configuration"
  */
 
-/*! 
+/*!
  * \addtogroup applications Dial plan applications
  * \section app_generic Asterisk Dial Plan Applications
- * \brief Applications support the dialplan. They register dynamically with 
- *        \see ast_register_application() and unregister with 
+ * \brief Applications support the dialplan. They register dynamically with
+ *        \see ast_register_application() and unregister with
  *        \see ast_unregister_application()
  * \par See also
  * \arg \ref functions
  */
 
-/*! 
+/*!
  * \addtogroup functions Module: Dial plan functions
  * \section func_generic Asterisk Dial Plan Functions
  * \brief Functions support the dialplan.  They do not change any property of a channel
  *        or touch a channel in any way.
  * \par See also
  * \arg \ref applications
- *  
+ *
  */
 
-/*! 
+/*!
  * \addtogroup codecs Module: Codecs
  * \section codec_generic Asterisk Codec Modules
- * Codecs are referenced in configuration files by name 
- * \par See also 
- * \arg \ref formats 
+ * Codecs are referenced in configuration files by name
+ * \par See also
+ * \arg \ref formats
  */
 
-/*! 
- * \addtogroup formats Module: Media File Formats 
+/*!
+ * \addtogroup formats Module: Media File Formats
  * \section codec_generic Asterisk Format drivers
  * Formats are modules that read or write media files to disk.
  * \par See also
- * \arg \ref codecs 
+ * \arg \ref codecs
  */
 
-/*! 
+/*!
  * \addtogroup rtp_engines Module: RTP Engines
  * \section rtp_engine_blah Asterisk RTP Engines
  */

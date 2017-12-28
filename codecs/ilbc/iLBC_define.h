@@ -214,4 +214,3 @@
    } iLBC_Dec_Inst_t;
 
    #endif
-

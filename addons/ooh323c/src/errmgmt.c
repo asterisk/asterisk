@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 1997-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
@@ -48,21 +48,21 @@ static const char* g_status_text[] = {
     "Value constraint violation: field %s, value %s",
     "Value range error: lower bound is greater than upper",
     "Unexpected end of file detected",
-    "Invalid UTF-8 character at index %d", 
-    "List error: concurrent modification attempt while iterating", 
+    "Invalid UTF-8 character at index %d",
+    "List error: concurrent modification attempt while iterating",
     "List error: illegal state for attempted operation",
     "Array index out of bounds",
     "Invalid parameter passed to function or method",
     "Invalid time string format",
-    "Context is not initialized", 
-    "ASN.1 value will not fit in target variable", 
-    "Character is not within the defined character set", 
-    "Invalid XML state for attempted operation", 
-    "Error condition returned from XML parser:\n%s", 
+    "Context is not initialized",
+    "ASN.1 value will not fit in target variable",
+    "Character is not within the defined character set",
+    "Invalid XML state for attempted operation",
+    "Error condition returned from XML parser:\n%s",
     "SEQUENCE elements not in correct order",
     "Invalid index for table constraint identifier",
-    "Invalid value for relational table constraint fixed type field", 
-    "File not found", 
+    "Invalid value for relational table constraint fixed type field",
+    "File not found",
     "File read error",
     "File write error",
     "Invalid Base64 string",
@@ -152,7 +152,7 @@ char* errFmtMsg (ASN1ErrInfo* pErrInfo, char* bufp)
          j  = pcnt = 0;
          tp = g_status_text[i];
 
-         while (*tp) 
+         while (*tp)
          {
             if (*tp == '%' && *(tp+1) == 's')
             {
@@ -176,14 +176,14 @@ char* errFmtMsg (ASN1ErrInfo* pErrInfo, char* bufp)
       }
       else
          strcpy (bufp, "unrecognized completion status");
-   }    
+   }
    else strcpy (bufp, "normal completion status");
 
    return (bufp);
 }
 
 /* Get error text in a dynamic memory buffer.  This allocates memory    */
-/* using the 'memAlloc' function.  This memory is automatically freed */ 
+/* using the 'memAlloc' function.  This memory is automatically freed */
 /* at the time the 'memFree' function is called.                      */
 
 char* errGetText (OOCTXT* pctxt)
@@ -198,7 +198,7 @@ char* errGetText (OOCTXT* pctxt)
 
    while (pctxt->errInfo.stkx > 0) {
       pctxt->errInfo.stkx--;
-      sprintf (lbuf, "  Module: %s, Line %d\n", 
+      sprintf (lbuf, "  Module: %s, Line %d\n",
                pctxt->errInfo.stack[pctxt->errInfo.stkx].module,
                pctxt->errInfo.stack[pctxt->errInfo.stkx].lineno);
       strcat(pBuf, lbuf);
@@ -219,7 +219,7 @@ void errPrint (ASN1ErrInfo* pErrInfo)
    printf ("Stack trace:");
    while (pErrInfo->stkx > 0) {
       pErrInfo->stkx--;
-      printf ("  Module: %s, Line %d\n", 
+      printf ("  Module: %s, Line %d\n",
               pErrInfo->stack[pErrInfo->stkx].module,
               pErrInfo->stack[pErrInfo->stkx].lineno);
    }
@@ -243,9 +243,9 @@ int errCopyData (ASN1ErrInfo* pSrcErrInfo, ASN1ErrInfo* pDestErrInfo)
 
    for (i = 0; i < pSrcErrInfo->stkx; i++) {
       if (pDestErrInfo->stkx < ASN_K_MAXERRSTK) {
-         pDestErrInfo->stack[pDestErrInfo->stkx].module = 
+         pDestErrInfo->stack[pDestErrInfo->stkx].module =
             pSrcErrInfo->stack[i].module;
-         pDestErrInfo->stack[pDestErrInfo->stkx++].lineno = 
+         pDestErrInfo->stack[pDestErrInfo->stkx++].lineno =
             pSrcErrInfo->stack[i].lineno;
       }
    }
@@ -254,12 +254,12 @@ int errCopyData (ASN1ErrInfo* pSrcErrInfo, ASN1ErrInfo* pDestErrInfo)
 }
 
 
-int errSetData (ASN1ErrInfo* pErrInfo, int status, 
-                  const char* module, int lno) 
-{ 
+int errSetData (ASN1ErrInfo* pErrInfo, int status,
+                  const char* module, int lno)
+{
    if (pErrInfo->status == 0) {
       pErrInfo->status = status;
    }
    ooLogAsn1Error(status, module, lno);
-   return status; 
+   return status;
 }

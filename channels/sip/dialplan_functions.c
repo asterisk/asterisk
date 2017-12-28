@@ -136,7 +136,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		AST_APP_ARG(type);
 		AST_APP_ARG(field);
 	);
-		
+
 	/* Check for zero arguments */
 	if (ast_strlen_zero(parse)) {
 		ast_log(LOG_ERROR, "Cannot call %s without arguments\n", funcname);
@@ -511,4 +511,3 @@ void sip_dialplan_function_unregister_tests(void)
 {
 	AST_TEST_UNREGISTER(test_sip_rtpqos_1);
 }
-

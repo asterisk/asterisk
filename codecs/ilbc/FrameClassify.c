@@ -111,4 +111,3 @@
 
        return max_ssqEn_n;
    }
-

@@ -5,7 +5,7 @@
 ; If dbhost is commented out or the string "localhost", a connection
 ; to the local host is assumed and dbsock is used instead of TCP/IP
 ; to connect to the server.  If no dbcharset is specified, the connection
-; is made with no extra charset configurations sent to MySQL, leaving all 
+; is made with no extra charset configurations sent to MySQL, leaving all
 ; configured MySQL charset options and defaults untouched.
 ;
 ; Multiple database contexts may be configured, with the caveat that

@@ -27,7 +27,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page app_mysql.conf app_mysql.conf
  * \verbinclude app_mysql.conf.sample
  */
@@ -335,7 +335,7 @@ static int aMYSQL_connect(struct ast_channel *chan, const char *data)
 	unsigned int port = 0;
 	char *port_str;
 	char *parse = ast_strdupa(data);
- 
+
 	AST_NONSTANDARD_APP_ARGS(args, parse, ' ');
 
 	if (args.argc < 6) {
@@ -626,8 +626,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
@@ -665,4 +665,3 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Simple Mysql Interface");
-

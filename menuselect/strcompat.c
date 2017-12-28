@@ -16,7 +16,7 @@
 
 /*! \file
  *
- * \brief Compatibility functions for strsep and strtoq missing on Solaris 
+ * \brief Compatibility functions for strsep and strtoq missing on Solaris
  */
 
 #include "autoconfig.h"
@@ -191,7 +191,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC) 
+#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC)
 int asprintf(char **str, const char *fmt, ...)
 {
         va_list ap;

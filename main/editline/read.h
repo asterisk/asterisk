@@ -47,7 +47,7 @@ typedef int (*el_rfunc_t)(EditLine *, char *);
 typedef struct el_read_t {
 	el_rfunc_t	read_char;	/* Function to read a character */
 } el_read_t;
- 
+
 protected int		read_init(EditLine *);
 protected int		el_read_setfn(EditLine *, el_rfunc_t);
 protected el_rfunc_t	el_read_getfn(EditLine *);

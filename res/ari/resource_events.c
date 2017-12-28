@@ -123,7 +123,7 @@ static void app_handler(void *data, const char *app_name,
 	if (!session) {
 		return;
 	}
- 
+
 	/* Determine if we've been replaced */
 	if (strcmp(msg_type, "ApplicationReplaced") == 0 &&
 		strcmp(msg_application, app_name) == 0) {
@@ -334,4 +334,3 @@ void ast_ari_events_user_event(struct ast_variable *headers,
 			"Error processing request");
 	}
 }
-

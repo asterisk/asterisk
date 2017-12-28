@@ -222,7 +222,7 @@ static struct odbc_txn_frame *find_transaction(struct ast_channel *chan, const c
 		/* No datastore? Definitely no transaction then */
 		return NULL;
 	}
-	
+
 	oldlist = txn_store->data;
 	AST_LIST_LOCK(oldlist);
 

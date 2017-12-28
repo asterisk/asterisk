@@ -1196,5 +1196,3 @@ int ast_security_event_report(const struct ast_security_event_common *sec)
 
 	return 0;
 }
-
-

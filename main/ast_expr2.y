@@ -1,12 +1,12 @@
 %{
-/* Written by Pace Willisson (pace@blitz.com) 
+/* Written by Pace Willisson (pace@blitz.com)
  * and placed in the public domain.
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
  * And then overhauled twice by Steve Murphy (murf@digium.com)
  * to add double-quoted strings, allow mult. spaces, improve
- * error messages, and then to fold in a flex scanner for the 
+ * error messages, and then to fold in a flex scanner for the
  * yylex operation.
  *
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
@@ -19,7 +19,7 @@
 #include <stdio.h>
 
 #if !defined(STANDALONE) && !defined(STANDALONE2)	\
-	
+
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #ifndef __USE_ISOC99
@@ -258,7 +258,7 @@ enum node_type {
 	AST_EXPR_NODE_COMMA, AST_EXPR_NODE_STRING, AST_EXPR_NODE_VAL
 } ;
 
-struct expr_node 
+struct expr_node
 {
 	enum node_type type;
 	struct val *val;
@@ -276,7 +276,7 @@ struct parse_io
 	yyscan_t scanner;
 	struct ast_channel *chan;
 };
- 
+
 static int		chk_div __P((FP___TYPE, FP___TYPE));
 static int		chk_minus __P((FP___TYPE, FP___TYPE, FP___TYPE));
 static int		chk_plus __P((FP___TYPE, FP___TYPE, FP___TYPE));
@@ -328,14 +328,14 @@ typedef struct yyltype
    define it here, we have no definition yet for YYSTYPE. */
 
 int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
- 
+
 /* I wanted to add args to the yyerror routine, so I could print out
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
 #define ast_yyerror(x) ast_yyerror(x,&yyloc,parseio)
 #define DESTROY(x) {if((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 %}
- 
+
 %pure-parser
 %locations
 /* %debug  for when you are having big problems */
@@ -357,7 +357,7 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %left <val> TOK_AND
 %left <val> TOK_EQ TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE
 %left <val> TOK_PLUS TOK_MINUS
-%left <val> TOK_MULT TOK_DIV TOK_MOD 
+%left <val> TOK_MULT TOK_DIV TOK_MOD
 %right <val> TOK_COMPL
 %left <val> TOK_COLON TOK_EQTILDE TOK_TILDETILDE
 %left <val> TOK_RP TOK_LP
@@ -366,8 +366,8 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %type <arglist> arglist
 %type <val> start expr
 
-%destructor {  free_value($$); }  expr TOKEN TOK_COND TOK_COLONCOLON TOK_OR TOK_AND TOK_EQ 
-                                 TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE TOK_PLUS TOK_MINUS TOK_MULT TOK_DIV TOK_MOD TOK_COMPL TOK_COLON TOK_EQTILDE 
+%destructor {  free_value($$); }  expr TOKEN TOK_COND TOK_COLONCOLON TOK_OR TOK_AND TOK_EQ
+                                 TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE TOK_PLUS TOK_MINUS TOK_MULT TOK_DIV TOK_MOD TOK_COMPL TOK_COLON TOK_EQTILDE
                                  TOK_RP TOK_LP TOK_TILDETILDE
 
 %%
@@ -377,12 +377,12 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
               if( $1->type == AST_EXPR_number )
 				  ((struct parse_io *)parseio)->val->u.i = $1->u.i;
               else
-				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
+				  ((struct parse_io *)parseio)->val->u.s = $1->u.s;
 			  free($1);
 			}
 	| {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
-			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
+			  ((struct parse_io *)parseio)->val->u.s = strdup("");
 			}
 
 	;
@@ -402,7 +402,7 @@ arglist: expr { $$ = alloc_expr_node(AST_EXPR_NODE_VAL); $$->val = $1;}
                                  $$ = $1; t->right = x; x->val = make_str("");}
        ;
 
-expr: 
+expr:
       TOKEN TOK_LP arglist TOK_RP { $$ = op_func($1,$3, ((struct parse_io *)parseio)->chan);
 		                            DESTROY($2);
 									DESTROY($4);
@@ -411,85 +411,85 @@ expr:
                                   }
     | TOKEN {$$ = $1;}
 	| TOK_LP expr TOK_RP { $$ = $2;
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						   @$.first_line=0; @$.last_line=0;
 							DESTROY($1); DESTROY($3); }
 	| expr TOK_OR expr { $$ = op_or ($1, $3);
-						DESTROY($2);	
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+						DESTROY($2);
+                         @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_AND expr { $$ = op_and ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_AND expr { $$ = op_and ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
                           @$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQ expr { $$ = op_eq ($1, $3);
-						DESTROY($2);	
+						DESTROY($2);
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GT expr { $$ = op_gt ($1, $3);
-						DESTROY($2);	
+						DESTROY($2);
                          @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LT expr { $$ = op_lt ($1, $3); 
-						DESTROY($2);	
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_LT expr { $$ = op_lt ($1, $3);
+						DESTROY($2);
+	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_GE expr  { $$ = op_ge ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_GE expr  { $$ = op_ge ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LE expr  { $$ = op_le ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_LE expr  { $$ = op_le ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_NE expr  { $$ = op_ne ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_NE expr  { $$ = op_ne ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_PLUS expr { $$ = op_plus ($1, $3); 
-						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_PLUS expr { $$ = op_plus ($1, $3);
+						DESTROY($2);
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MINUS expr { $$ = op_minus ($1, $3); 
-						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_MINUS expr { $$ = op_minus ($1, $3);
+						DESTROY($2);
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2); 
-						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
+	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2);
+						DESTROY($1);
+	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_COMPL expr   { $$ = op_compl ($2); 
-						DESTROY($1);	
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
+	| TOK_COMPL expr   { $$ = op_compl ($2);
+						DESTROY($1);
+	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_MULT expr { $$ = op_times ($1, $3); 
-						DESTROY($2);	
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_MULT expr { $$ = op_times ($1, $3);
+						DESTROY($2);
+	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_DIV expr { $$ = op_div ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_DIV expr { $$ = op_div ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MOD expr { $$ = op_rem ($1, $3); 
-						DESTROY($2);	
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_MOD expr { $$ = op_rem ($1, $3);
+						DESTROY($2);
+	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_COLON expr { $$ = op_colon ($1, $3); 
-						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_COLON expr { $$ = op_colon ($1, $3);
+						DESTROY($2);
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3); 
-						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3);
+						DESTROY($2);
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
-						DESTROY($2);	
-						DESTROY($4);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5);
+						DESTROY($2);
+						DESTROY($4);
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_TILDETILDE expr { $$ = op_tildetilde ($1, $3); 
-						DESTROY($2);	
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_TILDETILDE expr { $$ = op_tildetilde ($1, $3);
+						DESTROY($2);
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 							@$.first_line=0; @$.last_line=0;}
 	;
 
@@ -521,7 +521,7 @@ make_number (FP___TYPE i)
 
 	vp->type = AST_EXPR_number;
 	vp->u.i  = i;
-	return vp; 
+	return vp;
 }
 
 static struct val *
@@ -549,7 +549,7 @@ make_str (const char *s)
 	}
 	if (isint)
 		vp->type = AST_EXPR_numeric_string;
-	else	
+	else
 		vp->type = AST_EXPR_string;
 
 	return vp;
@@ -558,12 +558,12 @@ make_str (const char *s)
 
 static void
 free_value (struct val *vp)
-{	
+{
 	if (vp==NULL) {
 		return;
 	}
 	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
-		free (vp->u.s);	
+		free (vp->u.s);
 	free(vp);
 }
 
@@ -572,7 +572,7 @@ static int
 to_number (struct val *vp)
 {
 	FP___TYPE i;
-	
+
 	if (vp == NULL) {
 		ast_log(LOG_WARNING,"vp==NULL in to_number()\n");
 		return(0);
@@ -604,13 +604,13 @@ strip_quotes(struct val *vp)
 {
 	if (vp->type != AST_EXPR_string && vp->type != AST_EXPR_numeric_string)
 		return;
-	
+
 	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
 	{
 		char *f, *t;
 		f = vp->u.s;
 		t = vp->u.s;
-		
+
 		while( *f )
 		{
 			if( *f  && *f != '"' )
@@ -665,7 +665,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 {
 	va_list vars;
 	va_start(vars,fmt);
-	
+
         printf("LOG: lev:%d file:%s  line:%d func: %s  ",
                    level, file, line, function);
 	vprintf(fmt, vars);
@@ -678,14 +678,14 @@ int main(int argc,char **argv) {
 	char s[4096];
 	char out[4096];
 	FILE *infile;
-	
+
 	if( !argv[1] )
 		exit(20);
-	
+
 	if( access(argv[1],F_OK)== 0 )
 	{
 		int ret;
-		
+
 		infile = fopen(argv[1],"r");
 		if( !infile )
 		{
@@ -696,7 +696,7 @@ int main(int argc,char **argv) {
 		{
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
-			
+
 			ret = ast_expr(s, out, sizeof(out), NULL);
 			printf("Expression: %s    Result: [%d] '%s'\n",
 				   s, ret, out);
@@ -726,7 +726,7 @@ int main(int argc,char **argv) {
 static void destroy_arglist(struct expr_node *arglist)
 {
 	struct expr_node *arglist_next;
-	
+
 	while (arglist)
 	{
 		arglist_next = arglist->right;
@@ -745,7 +745,7 @@ static char *compose_func_args(struct expr_node *arglist)
 	struct expr_node *t = arglist;
 	char *argbuf;
 	int total_len = 0;
-	
+
 	while (t) {
 		if (t != arglist)
 			total_len += 1; /* for the sep */
@@ -755,7 +755,7 @@ static char *compose_func_args(struct expr_node *arglist)
 			else
 				total_len += strlen(t->val->u.s);
 		}
-		
+
 		t = t->right;
 	}
 	total_len++; /* for the null */
@@ -765,10 +765,10 @@ static char *compose_func_args(struct expr_node *arglist)
 	t = arglist;
 	while (t) {
 		char numbuf[30];
-		
+
 		if (t != arglist)
 			strcat(argbuf,",");
-		
+
 		if (t->val) {
 			if (t->val->type == AST_EXPR_number) {
 				sprintf(numbuf,FP___PRINTF,t->val->u.i);
@@ -1048,7 +1048,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Hey! chan is NULL.\n");
 			if (!f)
 				ast_log(LOG_WARNING,"Hey! could not find func %s.\n", funcname->u.s);
-			
+
 			if (f && chan) {
 				if (f->read) {
 					char workspace[512];
@@ -1063,7 +1063,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 					ast_log(LOG_ERROR,"Error! Function '%s' cannot be read!\n", funcname->u.s);
 					return (make_number ((FP___TYPE)0.0));
 				}
-				
+
 			} else {
 				ast_log(LOG_ERROR, "Error! '%s' doesn't appear to be an available function!\n", funcname->u.s);
 				return (make_number ((FP___TYPE)0.0));
@@ -1094,7 +1094,7 @@ op_or (struct val *a, struct val *b)
 		return (a);
 	}
 }
-		
+
 static struct val *
 op_and (struct val *a, struct val *b)
 {
@@ -1111,11 +1111,11 @@ op_and (struct val *a, struct val *b)
 static struct val *
 op_eq (struct val *a, struct val *b)
 {
-	struct val *r; 
+	struct val *r;
 
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
-		to_string (b);	
+		to_string (b);
 		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
 #ifdef DEBUG_FOR_CONVERSIONS
@@ -1390,7 +1390,7 @@ op_compl (struct val *a)
 {
 	int v1 = 1;
 	struct val *r;
-	
+
 	if( !a )
 	{
 		v1 = 0;
@@ -1403,7 +1403,7 @@ op_compl (struct val *a)
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
-			
+
 		case AST_EXPR_string:
 			if( a->u.s == 0 )
 				v1 = 0;
@@ -1417,7 +1417,7 @@ op_compl (struct val *a)
 					v1 = atoi(a->u.s);
 			}
 			break;
-			
+
 		case AST_EXPR_numeric_string:
 			if( a->u.s == 0 )
 				v1 = 0;
@@ -1433,7 +1433,7 @@ op_compl (struct val *a)
 			break;
 		}
 	}
-	
+
 	r = make_number (!v1);
 	free_value (a);
 	return r;
@@ -1504,7 +1504,7 @@ op_div (struct val *a, struct val *b)
 	}
 
 	if (b->u.i == 0) {
-		ast_log(LOG_WARNING, "division by zero\n");		
+		ast_log(LOG_WARNING, "division by zero\n");
 		free_value(a);
 		free_value(b);
 		return make_number(INT_MAX);
@@ -1518,7 +1518,7 @@ op_div (struct val *a, struct val *b)
 	free_value (b);
 	return r;
 }
-	
+
 static struct val *
 op_rem (struct val *a, struct val *b)
 {
@@ -1544,7 +1544,7 @@ op_rem (struct val *a, struct val *b)
 	free_value (b);
 	return r;
 }
-	
+
 
 static struct val *
 op_colon (struct val *a, struct val *b)
@@ -1567,7 +1567,7 @@ op_colon (struct val *a, struct val *b)
 		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
-		return make_str("");		
+		return make_str("");
 	}
 
 	/* compare string against pattern */
@@ -1595,7 +1595,7 @@ op_colon (struct val *a, struct val *b)
 
 	return v;
 }
-	
+
 
 static struct val *
 op_eqtilde (struct val *a, struct val *b)
@@ -1618,7 +1618,7 @@ op_eqtilde (struct val *a, struct val *b)
 		ast_log(LOG_WARNING, "regcomp() error : %s\n", errbuf);
 		free_value(a);
 		free_value(b);
-		return make_str("");		
+		return make_str("");
 	}
 
 	/* compare string against pattern */

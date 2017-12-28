@@ -38,4 +38,3 @@ def upgrade():
 
 def downgrade():
     op.alter_column('sippeers', 'useragent', type_=sa.String(20))
-

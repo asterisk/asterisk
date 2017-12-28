@@ -140,7 +140,7 @@ static int srv_query_read(struct ast_channel *chan, const char *cmd, char *data,
 		ast_log(LOG_WARNING, "%s requires a service as an argument\n", cmd);
 		return -1;
 	}
-	
+
 	/* If they already called SRVQUERY for this service once,
 	 * we need to kill the old datastore.
 	 */
@@ -152,7 +152,7 @@ static int srv_query_read(struct ast_channel *chan, const char *cmd, char *data,
 		ast_channel_datastore_remove(chan, datastore);
 		ast_datastore_free(datastore);
 	}
-	
+
 	if (!srv_datastore_setup(data, chan)) {
 		return -1;
 	}

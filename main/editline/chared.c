@@ -515,7 +515,7 @@ ch_enlargebufs(el, addlen)
 
 	/* zero the newly added memory, leave old data in */
 	(void) memset(&newbuffer[sz], 0, newsz - sz);
-	    
+
 	oldbuf = el->el_line.buffer;
 
 	el->el_line.buffer = newbuffer;
@@ -554,7 +554,7 @@ ch_enlargebufs(el, addlen)
 	el->el_chared.c_undo.ptr = el->el_line.buffer +
 				    (el->el_chared.c_undo.ptr - oldbuf);
 	el->el_chared.c_undo.buf = newbuffer;
-	
+
 	if (!hist_enlargebuf(el, sz, newsz))
 		return 0;
 

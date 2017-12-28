@@ -32,7 +32,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page amd.conf amd.conf
  * \verbinclude amd.conf.sample
  */
@@ -317,7 +317,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 
 			if (dspsilence > 0) {
 				silenceDuration = dspsilence;
-				
+
 				if (silenceDuration >= betweenWordsSilence) {
 					if (currentState != STATE_IN_SILENCE ) {
 						ast_verb(3, "AMD: Channel [%s]. Changed state to STATE_IN_SILENCE\n", ast_channel_name(chan));
@@ -339,7 +339,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 					res = 1;
 					break;
 				}
-				
+
 				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1) {
 					ast_verb(3, "AMD: Channel [%s]. HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
 						ast_channel_name(chan), silenceDuration, afterGreetingSilence);
@@ -349,7 +349,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 					res = 1;
 					break;
 				}
-				
+
 			} else {
 				consecutiveVoiceDuration += framelength;
 				voiceDuration += framelength;
@@ -398,12 +398,12 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 					inInitialSilence = 0;
 					inGreeting = 1;
 				}
-				
+
 			}
 		}
 		ast_frfree(f);
 	}
-	
+
 	if (!res) {
 		/* It took too long to get a frame back. Giving up. */
 		ast_verb(3, "AMD: Channel [%s]. Too long...\n", ast_channel_name(chan));
@@ -508,8 +508,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

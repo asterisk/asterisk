@@ -67,7 +67,7 @@ static integer c__2 = 2;
  *
  * Revision 1.15  2003/09/19 01:20:22  markster
  * Code cleanups (bug #66)
- * 
+ *
  * Revision 1.2  2003/09/19 01:20:22  markster
  * Code cleanups (bug #66)
  *
@@ -144,7 +144,7 @@ static integer c__2 = 2;
 /* reinitialize its state for any other reason, call the ENTRY */
 /* INITDECODE. */
 
-/* Subroutine */ int decode_(integer *ipitv, integer *irms, 
+/* Subroutine */ int decode_(integer *ipitv, integer *irms,
 	integer *irc, integer *voice, integer *pitch, real *rms, real *rc,
 			     struct lpc10_decoder_state *st)
 {
@@ -301,13 +301,13 @@ static integer c__2 = 2;
 /*    Error correction */
 /* Subroutine SETUP is the only place where order is assigned a value, */
 /* and that value is 10.  It could increase efficiency 1% or so to */
-/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as 
+/* declare order as a constant (i.e., a Fortran PARAMETER) instead of as
 */
 /* a variable in a COMMON block, since it is used in many places in the */
-/* core of the coding and decoding routines.  Actually, I take that back. 
+/* core of the coding and decoding routines.  Actually, I take that back.
 */
 /* At least when compiling with f2c, the upper bound of DO loops is */
-/* stored in a local variable before the DO loop begins, and then that is 
+/* stored in a local variable before the DO loop begins, and then that is
 */
 /* compared against on each iteration. */
 /* Similarly for lframe, which is given a value of MAXFRM in SETUP. */
@@ -317,35 +317,35 @@ static integer c__2 = 2;
 /* nbits is similar to quant, and is given a value of 54 in SETUP. */
 /* corrp is given a value of .TRUE. in SETUP, and is only used in the */
 /* subroutines ENCODE and DECODE.  It doesn't affect the speed of the */
-/* coder significantly whether it is .TRUE. or .FALSE., or whether it is 
+/* coder significantly whether it is .TRUE. or .FALSE., or whether it is
 */
 /* a constant or a variable, since it is only examined once per frame. */
 /* Leaving it as a variable that is set to .TRUE.  seems like a good */
 /* idea, since it does enable some error-correction capability for */
-/* unvoiced frames, with no change in the coding rate, and no noticeable 
+/* unvoiced frames, with no change in the coding rate, and no noticeable
 */
 /* quality difference in the decoded speech. */
 /* 	integer quant, nbits */
-/* *** Read/write: variables for debugging, not needed for LPC algorithm 
+/* *** Read/write: variables for debugging, not needed for LPC algorithm
 */
 
-/*  Current frame, Unstable frames, Output clip count, Max onset buffer, 
+/*  Current frame, Unstable frames, Output clip count, Max onset buffer,
 */
 /*    Debug listing detail level, Line count on listing page */
 
 /* nframe is not needed for an embedded LPC10 at all. */
 /* nunsfm is initialized to 0 in SETUP, and incremented in subroutine */
 /* ERROR, which is only called from RCCHK.  When LPC10 is embedded into */
-/* an application, I would recommend removing the call to ERROR in RCCHK, 
+/* an application, I would recommend removing the call to ERROR in RCCHK,
 */
 /* and remove ERROR and nunsfm completely. */
-/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in 
+/* iclip is initialized to 0 in SETUP, and incremented in entry SWRITE in
 */
 /* sread.f.  When LPC10 is embedded into an application, one might want */
 /* to cause it to be incremented in a routine that takes the output of */
 /* SYNTHS and sends it to an audio device.  It could be optionally */
 /* displayed, for those that might want to know what it is. */
-/* maxosp is never initialized to 0 in SETUP, although it probably should 
+/* maxosp is never initialized to 0 in SETUP, although it probably should
 */
 /* be, and it is updated in subroutine ANALYS.  I doubt that its value */
 /* would be of much interest to an application in which LPC10 is */
@@ -379,9 +379,9 @@ static integer c__2 = 2;
 /*       The following are used regardless of CORRP's value */
 /*       The following are used only if CORRP is .TRUE. */
 /*       I am guessing the initial values for IVP2H, IOVOIC, DRC, DPIT, */
-/*       and DRMS.  They should be checked to see if they are reasonable. 
+/*       and DRMS.  They should be checked to see if they are reasonable.
 */
-/*       I'm also guessing for ERATE, but I think 0 is the right initial 
+/*       I'm also guessing for ERATE, but I think 0 is the right initial
 */
 /*       value. */
     /* Parameter adjustments */
@@ -474,7 +474,7 @@ static integer c__2 = 2;
     if (*first) {
 	*first = FALSE_;
 /*          Assign PITCH a "default" value on the first call, since */
-/*          otherwise it would be left uninitialized.  The two lines 
+/*          otherwise it would be left uninitialized.  The two lines
 */
 /*          below were copied from above, since it seemed like a */
 /*          reasonable thing to do for the first call. */
@@ -535,7 +535,7 @@ static integer c__2 = 2;
     *pitch = dpit[1];
 /*  If bit 2 of ICORF is set then smooth RMS and RC's, */
     if ((icorf & bit[1]) != 0) {
-	if ((i__1 = drms[1] - drms[0], (real) abs(i__1)) >= corth[ixcor + 3] 
+	if ((i__1 = drms[1] - drms[0], (real) abs(i__1)) >= corth[ixcor + 3]
 		&& (i__2 = drms[1] - drms[2], (real) abs(i__2)) >= corth[
 		ixcor + 3]) {
 	    *irms = median_(&drms[2], &drms[1], drms);
@@ -552,7 +552,7 @@ static integer c__2 = 2;
     }
 /*  If bit 3 of ICORF is set then smooth pitch */
     if ((icorf & bit[2]) != 0) {
-	if ((i__1 = dpit[1] - dpit[0], (real) abs(i__1)) >= corth[ixcor - 1] 
+	if ((i__1 = dpit[1] - dpit[0], (real) abs(i__1)) >= corth[ixcor - 1]
 		&& (i__2 = dpit[1] - dpit[2], (real) abs(i__2)) >= corth[
 		ixcor - 1]) {
 	    *pitch = median_(&dpit[2], &dpit[1], dpit);

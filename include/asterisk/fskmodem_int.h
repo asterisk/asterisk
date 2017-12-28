@@ -48,7 +48,7 @@ typedef struct {
 	int xi0;
 	int xi1;
 	int xi2;
-	
+
 	int ispb;
 	int icont;
 	int bw;				/*!< Band Selector*/
@@ -59,7 +59,7 @@ typedef struct {
 	int pllispb;		/*!<Pll autosense */
 	int pllids;
 	int pllispb2;
-	
+
 	struct filter_struct mark_filter;
 	struct filter_struct space_filter;
 	struct filter_struct demod_filter;

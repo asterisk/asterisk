@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2011, Digium, Inc.
  *
- * David Vossel <dvossel@digium.com> 
+ * David Vossel <dvossel@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -455,7 +455,7 @@ struct test_string {
 		int value;
 		const char *subtype;
 		const char *message;
-		const char *options; 
+		const char *options;
 	} outputs;
 };
 
@@ -467,7 +467,7 @@ AST_TEST_DEFINE(test_valid_parse_data)
 	char *message;
 	char *options;
 	enum ast_test_result_state res = AST_TEST_PASS;
-	
+
 	struct test_string tests [] = {
 		{ "away",
 			{ AST_PRESENCE_AWAY,
@@ -884,4 +884,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Gets or sets a presen
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
 );
-

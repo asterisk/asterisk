@@ -21,7 +21,7 @@
  * \brief String manipulation dialplan functions
  *
  * \author Tilghman Lesher
- * \author Anothony Minessale II 
+ * \author Anothony Minessale II
  * \ingroup functions
  */
 
@@ -55,7 +55,7 @@ AST_THREADSTORAGE(result_buf);
 			<parameter name="argN" />
 		</syntax>
 		<description>
-			<para>Parses the format string specified and returns a string matching 
+			<para>Parses the format string specified and returns a string matching
 			that format. Supports most options found in <emphasis>sprintf(3)</emphasis>.
 			Returns a shortened string if a format specifier is not recognized.</para>
 		</description>

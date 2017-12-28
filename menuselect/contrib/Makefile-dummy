@@ -14,4 +14,3 @@ menuselect:
 dummies:
 	touch linkedlists.h menuselect.c menuselect_curses.c \
 		menuselect.h menuselect_stub.c
-

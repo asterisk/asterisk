@@ -1,12 +1,12 @@
 context dialextens
 {
-	/* 
+	/*
 		101 thru 123, 149 thru 152
         */
 	_10X => Dial(Zap/${EXTEN:2},30,Ttw);
 	_1ZX => Dial(Zap/${EXTEN:1},30,Ttw);
 }
-/* 
+/*
     Due to extenal wiring:
 
   dialing 125 will ring 101
@@ -183,7 +183,7 @@ macro funcC(a,b)
 		goto y,lab1;
 	catch y
 	{	lab1:
-		&funcB(${a},${b});	
+		&funcB(${a},${b});
 	}
 }
 
@@ -196,7 +196,7 @@ macro funcB(a,b)
 		goto z,lab2;
 	catch z
 	{	lab2:
-		&funcC(${a},${b});	
+		&funcC(${a},${b});
 	}
 }
 
@@ -236,7 +236,7 @@ context extension
 			Verbose(Finished 100000 levels deep call!);
 		}
 	83 => {
-		switch (${EXTEN}) 
+		switch (${EXTEN})
 		{
 		pattern 8X:
     			Verbose(do something to prepare it);
@@ -288,7 +288,7 @@ context extension
 		Verbose(ChannelOnly=${ChannelOnly}; neat huh?);
 		Set(ChannelOnly=${CUT(CHANNEL,,1)});
 		Verbose(ChannelOnly=${ChannelOnly}; neat huh?);
-	}	
+	}
 	873 => {
 		NOOP(this is a forkcdr test);
 		Set(CALLERID(num)=1234567890);

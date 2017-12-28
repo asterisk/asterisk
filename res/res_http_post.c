@@ -17,7 +17,7 @@
  */
 
 /*!
- * \file 
+ * \file
  * \brief HTTP POST upload support for Asterisk HTTP server
  *
  * \author Terry Wilson <twilson@digium.com
@@ -113,7 +113,7 @@ static GMimeMessage *parse_message(FILE *f)
 
 	parser = g_mime_parser_new_with_stream(stream);
 	g_mime_parser_set_respect_content_length(parser, 1);
-	
+
 	g_object_unref(stream);
 
 	message = g_mime_parser_construct_message(parser

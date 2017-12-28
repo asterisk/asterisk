@@ -1,6 +1,6 @@
 context test1
 {
-	s => 
+	s =>
 		{
 			goto lab1;
 			if( ${testnotnull} )

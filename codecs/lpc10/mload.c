@@ -96,7 +96,7 @@ extern int mload_(integer *order, integer *awins, integer *awinf, real *speech, 
 
 /* This subroutine has no local state. */
 
-/* Subroutine */ int mload_(integer *order, integer *awins, integer *awinf, 
+/* Subroutine */ int mload_(integer *order, integer *awins, integer *awinf,
 	real *speech, real *phi, real *psi)
 {
     /* System generated locals */
@@ -136,21 +136,21 @@ extern int mload_(integer *order, integer *awins, integer *awinf, real *speech, 
     for (r__ = 2; r__ <= i__1; ++r__) {
 	i__2 = r__;
 	for (c__ = 2; c__ <= i__2; ++c__) {
-	    phi[r__ + c__ * phi_dim1] = phi[r__ - 1 + (c__ - 1) * phi_dim1] - 
-		    speech[*awinf + 1 - r__] * speech[*awinf + 1 - c__] + 
+	    phi[r__ + c__ * phi_dim1] = phi[r__ - 1 + (c__ - 1) * phi_dim1] -
+		    speech[*awinf + 1 - r__] * speech[*awinf + 1 - c__] +
 		    speech[start - r__] * speech[start - c__];
 	}
     }
 /*   End correct to get additional elements of PSI */
     i__1 = *order - 1;
     for (c__ = 1; c__ <= i__1; ++c__) {
-	psi[c__] = phi[c__ + 1 + phi_dim1] - speech[start - 1] * speech[start 
+	psi[c__] = phi[c__ + 1 + phi_dim1] - speech[start - 1] * speech[start
 		- 1 - c__] + speech[*awinf] * speech[*awinf - c__];
     }
 /*   Copy lower triangular section into upper (why bother?) */
-/*       I'm commenting this out, since the upper triangular half of PHI 
+/*       I'm commenting this out, since the upper triangular half of PHI
 */
-/*       is never used by later code, unless a sufficiently high level of 
+/*       is never used by later code, unless a sufficiently high level of
 */
 /*       tracing is turned on. */
 /* 	DO R = 1,ORDER */
@@ -160,4 +160,3 @@ extern int mload_(integer *order, integer *awins, integer *awinf, real *speech, 
 /* 	END DO */
     return 0;
 } /* mload_ */
-

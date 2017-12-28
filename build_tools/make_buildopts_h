@@ -5,7 +5,7 @@ MD5=${MD5:-md5sum}
 
 cat << END
 /*
- * buildopts.h 
+ * buildopts.h
  * Automatically generated
  */
 

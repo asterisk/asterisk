@@ -383,4 +383,3 @@ struct ast_xml_xpath_results *ast_xml_query(struct ast_xml_doc *doc, const char 
 }
 
 #endif /* defined(HAVE_LIBXML2) */
-

@@ -150,9 +150,3 @@
                        length*sizeof(float));
 
    }
-
-
-
-
-
-

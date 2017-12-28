@@ -89,13 +89,13 @@ elif [ -d ${1}/.git ]; then
     if [ -z ${GIT} ]; then
         GIT="git"
     fi
-	
+
     if ! command -v ${GIT} >/dev/null 2>&1; then
         echo "UNKNOWN__and_probably_unsupported"
         exit 1
     fi
-	cd ${1} 
-    
+	cd ${1}
+
     # If the first log commit messages indicates that this is checked into
     # subversion, we'll just use the SVN- form of the revision.
     MODIFIED=""

@@ -18,7 +18,7 @@
 # - Added test for safe_asterisk
 # - Verified SIGTERM issued by "killproc" ensures "stop gracefully"
 # - Added support for -U and -G command line options
-# - Modified "reload" to call asterisk -rx 'reload' 
+# - Modified "reload" to call asterisk -rx 'reload'
 
 ### BEGIN INIT INFO
 # Provides:		asterisk

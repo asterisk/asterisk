@@ -856,7 +856,7 @@ struct ast_category *ast_category_new_template(const char *name, const char *in_
 
 /*!
  * \brief Inserts new category
- * 
+ *
  * \param config which config to use
  * \param cat newly created category to insert
  * \param match which category to insert above

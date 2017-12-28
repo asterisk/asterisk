@@ -96,7 +96,7 @@ libooh323c_a_SOURCES = ooLogChan.h ooLogChan.c ooUtils.c ooUtils.h ooGkClient.h 
 INCLUDES = -Ih323
 
 
-#include_HEADERS = ooUtils.h memheap.h ooCommon.h ooDateTime.h ooGkClient.h ooasn1.h oochannels.h ootrace.h ooh245.h ooports.h ooq931.h oohdr.h ooper.h ooSocket.h ooTimer.h ootypes.h eventHandler.h ooCapability.h ooCalls.h ooStackCmds.h ooh323.h ooh323ep.h printHandler.h rtctype.h h323/H235-SECURITY-MESSAGES.h h323/H323-MESSAGES.h h323/MULTIMEDIA-SYSTEM-CONTROL.h 
+#include_HEADERS = ooUtils.h memheap.h ooCommon.h ooDateTime.h ooGkClient.h ooasn1.h oochannels.h ootrace.h ooh245.h ooports.h ooq931.h oohdr.h ooper.h ooSocket.h ooTimer.h ootypes.h eventHandler.h ooCapability.h ooCalls.h ooStackCmds.h ooh323.h ooh323ep.h printHandler.h rtctype.h h323/H235-SECURITY-MESSAGES.h h323/H323-MESSAGES.h h323/MULTIMEDIA-SYSTEM-CONTROL.h
 EXTRA_DIST = oostk.dsp
 subdir = ooh323c/src
 mkinstalldirs = $(SHELL) $(top_srcdir)/config/mkinstalldirs
@@ -187,7 +187,7 @@ MULTIMEDIA-SYSTEM-CONTROLDec.$(OBJEXT): \
 	h323/MULTIMEDIA-SYSTEM-CONTROLDec.c
 MULTIMEDIA-SYSTEM-CONTROLEnc.$(OBJEXT): \
 	h323/MULTIMEDIA-SYSTEM-CONTROLEnc.c
-libooh323c.a: $(libooh323c_a_OBJECTS) $(libooh323c_a_DEPENDENCIES) 
+libooh323c.a: $(libooh323c_a_OBJECTS) $(libooh323c_a_DEPENDENCIES)
 	-rm -f libooh323c.a
 	$(libooh323c_a_AR) libooh323c.a $(libooh323c_a_OBJECTS) $(libooh323c_a_LIBADD)
 	$(RANLIB) libooh323c.a

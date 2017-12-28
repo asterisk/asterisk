@@ -1508,12 +1508,12 @@ pickupgroup=1
 ; MFC-R2 signaling has lots of variants from country to country and even sometimes
 ; minor variants inside the same country. The only mandatory parameters here are:
 ; mfcr2_variant, mfcr2_max_ani and mfcr2_max_dnis.
-; IT IS RECOMMENDED that you leave the default values (leaving it commented) for the 
-; other parameters unless you have problems or you have been instructed to change some 
-; parameter. OpenR2 library uses the mfcr2_variant parameter to try to determine the 
-; best defaults for your country, also refer to the OpenR2 package directory 
-; doc/asterisk/ where you can find sample configurations for some countries. If you 
-; want to contribute your configs for a particular country send them to the e-mail 
+; IT IS RECOMMENDED that you leave the default values (leaving it commented) for the
+; other parameters unless you have problems or you have been instructed to change some
+; parameter. OpenR2 library uses the mfcr2_variant parameter to try to determine the
+; best defaults for your country, also refer to the OpenR2 package directory
+; doc/asterisk/ where you can find sample configurations for some countries. If you
+; want to contribute your configs for a particular country send them to the e-mail
 ; of the primary OpenR2 developer that you can find in the AUTHORS file of the OpenR2 package
 
 ; MFC/R2 variant. This depends on the OpenR2 supported variants

@@ -214,4 +214,3 @@ void ast_alaw_init(void)
 #endif /* TEST_TANDEM_TRANSCODING */
 
 }
-

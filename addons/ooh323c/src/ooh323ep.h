@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooh323ep.h 
- * This file contains H323 endpoint related functions. 
+ * @file ooh323ep.h
+ * This file contains H323 endpoint related functions.
  */
 #ifndef OO_H323EP_H_
 #define OO_H323EP_H_
@@ -53,7 +53,7 @@ extern "C" {
 #endif /* EXTERN */
 
 struct OOCapPrefs;
-/** 
+/**
  * @defgroup h323ep  H323 Endpoint management functions
  * @{
  */
@@ -67,7 +67,7 @@ struct OOCapPrefs;
 
 
 
-  
+
 /**
  * This structure is used to define the port ranges to be used
  * by the application.
@@ -78,19 +78,19 @@ typedef struct OOH323Ports {
    int current;  /*!< Current port number.  */
 } OOH323Ports;
 
-/** 
+/**
  * Structure to store all configuration information related to the
- * endpoint created by an application 
+ * endpoint created by an application
  */
 typedef struct OOH323EndPoint {
-   
-   /** 
+
+   /**
     * This context should be used for allocation of memory for
     * items within the endpoint structure.
     */
    OOCTXT ctxt;
 
-   /** 
+   /**
     * This context should be used for allocation of memory for
     * message structures.
     */
@@ -107,11 +107,11 @@ typedef struct OOH323EndPoint {
 
    /** Range of port numbers to be used for RTP connections */
    OOH323Ports rtpPorts;
-  
+
    ASN1UINT  flags;
 
-   int termType; /* 50 - Terminal entity with No MC, 
-                    60 - Gateway entity with no MC, 
+   int termType; /* 50 - Terminal entity with No MC,
+                    60 - Gateway entity with no MC,
                     70 - Terminal Entity with MC, but no MP etc.*/
    int t35CountryCode;
    int t35Extension;
@@ -166,14 +166,14 @@ EXTERN int ooH323EpInitialize
    (enum OOCallMode callMode, const char* tracefile);
 
 /**
- * This function is used to represent the H.323 application endpoint as 
+ * This function is used to represent the H.323 application endpoint as
  * gateway, instead of an H.323 phone endpoint.
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpSetAsGateway(void);
 
-EXTERN void ooH323EpSetVersionInfo(int t35countrycode, int t35extensions, int manufacturer, 
+EXTERN void ooH323EpSetVersionInfo(int t35countrycode, int t35extensions, int manufacturer,
 				  char* vendor, char* version);
 
 /**
@@ -183,7 +183,7 @@ EXTERN void ooH323EpSetVersionInfo(int t35countrycode, int t35extensions, int ma
  * @param listenport     Port to be used for listening for incoming calls.
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooH323EpSetLocalAddress(const char* localip, int listenport);
 
 /**
@@ -192,7 +192,7 @@ EXTERN int ooH323EpSetLocalAddress(const char* localip, int listenport);
  * @param base           Starting port number for the range
  * @param max            Ending port number for the range.
  *
- * @return               OO_OK, on success. OO_FAILED, on failure.    
+ * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpSetTCPPortRange(int base, int max);
 
@@ -202,7 +202,7 @@ EXTERN int ooH323EpSetTCPPortRange(int base, int max);
  * @param base           Starting port number for the range
  * @param max            Ending port number for the range.
  *
- * @return               OO_OK, on success. OO_FAILED, on failure.    
+ * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpSetUDPPortRange(int base, int max);
 
@@ -212,7 +212,7 @@ EXTERN int ooH323EpSetUDPPortRange(int base, int max);
  * @param base           Starting port number for the range
  * @param max            Ending port number for the range.
  *
- * @return               OO_OK, on success. OO_FAILED, on failure.    
+ * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpSetRTPPortRange(int base, int max);
 
@@ -252,7 +252,7 @@ EXTERN int ooH323EpAddAliasURLID(const char* url);
 /**
  * This function is used to add an email id as an alias for the endpoint.
  * @param email          Email id to be set as an alias.
- * 
+ *
  * @return               OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpAddAliasEmailID(const char* email);
@@ -266,7 +266,7 @@ EXTERN int ooH323EpAddAliasEmailID(const char* email);
 EXTERN int ooH323EpAddAliasTransportID(const char* ipaddress);
 
 /**
- * This function is used to clear all the aliases used by the 
+ * This function is used to clear all the aliases used by the
  * H323 endpoint.
  *
  * @return               OO_OK, on success. OO_FAILED, on failure.
@@ -284,9 +284,9 @@ EXTERN int ooH323EpSetH225MsgCallbacks(OOH225MsgCallbacks h225Callbacks);
 
 /**
  * This function is used to set high level H.323 callbacks for the endpoint.
- * Make sure all unused callbacks in the structure are set to NULL before 
+ * Make sure all unused callbacks in the structure are set to NULL before
  * calling this function.
- * @param h323Callbacks    Callback structure containing various high level 
+ * @param h323Callbacks    Callback structure containing various high level
  *                         callbacks.
  * @return                 OO_OK, on success. OO_FAILED, on failure
  */
@@ -294,8 +294,8 @@ EXTERN int ooH323EpSetH323Callbacks(OOH323CALLBACKS h323Callbacks);
 
 
 /**
- * This function is the last function to be invoked after done using the 
- * stack. It closes the H323 Endpoint for an application, releasing all 
+ * This function is the last function to be invoked after done using the
+ * stack. It closes the H323 Endpoint for an application, releasing all
  * the associated memory.
  *
  * @return          OO_OK on success
@@ -321,8 +321,8 @@ EXTERN int ooH323EpEnableAutoAnswer(void);
 EXTERN int ooH323EpDisableAutoAnswer(void);
 
 /**
- * This function is used to enable manual ringback. By default the stack sends 
- * alerting message automatically on behalf of the endpoint application. 
+ * This function is used to enable manual ringback. By default the stack sends
+ * alerting message automatically on behalf of the endpoint application.
  * However, if endpoint application wants to do alerting user part first before
  * sending out alerting message, it can enable this feature.
  *
@@ -331,7 +331,7 @@ EXTERN int ooH323EpDisableAutoAnswer(void);
 EXTERN int ooH323EpEnableManualRingback(void);
 
 /**
- * This function is used to disable manual ringback. By default the 
+ * This function is used to disable manual ringback. By default the
  * manual ringback feature is disabled, i.e, the stack sends alerting on behalf
  * of the application automatically.
  *
@@ -407,7 +407,7 @@ EXTERN int ooH323EpDisableGkRouted(void);
  * @param productID  New value for the product id.
  *
  * @return           OO_OK, on success. OO_FAILED, on failure.
- */ 
+ */
 EXTERN int ooH323EpSetProductID (const char * productID);
 
 /**
@@ -429,7 +429,7 @@ EXTERN int ooH323EpSetCallerID (const char * callerID);
 
 /**
  * This function is used to set calling party number to be used for outbound
- * calls.Note, you can override it for a specific call by using 
+ * calls.Note, you can override it for a specific call by using
  * ooCallSetCallingPartyNumber function.
  * @param number   e164 number to be used as calling party number.
  *
@@ -438,7 +438,7 @@ EXTERN int ooH323EpSetCallerID (const char * callerID);
 EXTERN int ooH323EpSetCallingPartyNumber(const char * number);
 
 /**
- * This function is used to print the current configuration information of 
+ * This function is used to print the current configuration information of
  * the H323 endpoint to log file.
  */
 void ooH323EpPrintConfig(void);
@@ -447,7 +447,7 @@ void ooH323EpPrintConfig(void);
 /**
  * This function is used to add G728 capability to the H323 endpoint.
  * @param cap                  Type of G728 capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -455,10 +455,10 @@ void ooH323EpPrintConfig(void);
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpAddG728Capability
-   (int cap, int txframes, int rxframes, int dir, 
+   (int cap, int txframes, int rxframes, int dir,
     cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
@@ -467,7 +467,7 @@ EXTERN int ooH323EpAddG728Capability
 /**
  * This function is used to add G729 capability to the H323 endpoint.
  * @param cap                  Type of G729 capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -475,10 +475,10 @@ EXTERN int ooH323EpAddG728Capability
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpAddG729Capability
-   (int cap, int txframes, int rxframes, int dir, 
+   (int cap, int txframes, int rxframes, int dir,
     cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
@@ -488,7 +488,7 @@ EXTERN int ooH323EpAddG729Capability
 /**
  * This function is used to add G7231 capability to the H323 endpoint.
  * @param cap                  Type of G7231 capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param silenceSuppression   Silence Suppression support
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
@@ -497,9 +497,9 @@ EXTERN int ooH323EpAddG729Capability
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes, 
+EXTERN int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes,
                               OOBOOL silenceSuppression, int dir,
                               cb_StartReceiveChannel startReceiveChannel,
                               cb_StartTransmitChannel startTransmitChannel,
@@ -509,7 +509,7 @@ EXTERN int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes,
 /**
  * This function is used to add G711 capability to the H323 endpoint.
  * @param cap                  Type of G711 capability to be added.
- * @param txframes             Number of frames per packet for transmission. 
+ * @param txframes             Number of frames per packet for transmission.
  * @param rxframes             Number of frames per packet for reception.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -517,10 +517,10 @@ EXTERN int ooH323EpAddG7231Capability(int cap, int txframes, int rxframes,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
 EXTERN int ooH323EpAddG711Capability
-   (int cap, int txframes, int rxframes, int dir, 
+   (int cap, int txframes, int rxframes, int dir,
     cb_StartReceiveChannel startReceiveChannel,
     cb_StartTransmitChannel startTransmitChannel,
     cb_StopReceiveChannel stopReceiveChannel,
@@ -530,8 +530,8 @@ EXTERN int ooH323EpAddG711Capability
 /**
  * This function is used to add a new GSM capability to the endpoint.
  * @param cap                  Type of GSM capability to be added.
- * @param framesPerPkt         Number of GSM frames pre packet. 
- * @param comfortNoise         Comfort noise spec for the capability. 
+ * @param framesPerPkt         Number of GSM frames pre packet.
+ * @param comfortNoise         Comfort noise spec for the capability.
  * @param scrambled            Scrambled enabled/disabled for the capability.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -539,10 +539,10 @@ EXTERN int ooH323EpAddG711Capability
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt, 
-                             OOBOOL comfortNoise,OOBOOL scrambled,int dir, 
+EXTERN int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt,
+                             OOBOOL comfortNoise,OOBOOL scrambled,int dir,
                              cb_StartReceiveChannel startReceiveChannel,
                              cb_StartTransmitChannel startTransmitChannel,
                              cb_StopReceiveChannel stopReceiveChannel,
@@ -550,18 +550,18 @@ EXTERN int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt,
 /**
  * This function is used to add H263 video capability to the H323 endpoint.
  * @param cap                  Capability type - OO_H263VIDEO
- * @param sqcifMPI             Minimum picture interval for encoding/decoding 
+ * @param sqcifMPI             Minimum picture interval for encoding/decoding
  *                             of SQCIF pictures.
- * @param qcifMPI              Minimum picture interval for encoding/decoding 
+ * @param qcifMPI              Minimum picture interval for encoding/decoding
  *                             of QCIF pictures.
- * @param cifMPI               Minimum picture interval for encoding/decoding 
+ * @param cifMPI               Minimum picture interval for encoding/decoding
  *                             of CIF pictures.
- * @param cif4MPI              Minimum picture interval for encoding/decoding 
+ * @param cif4MPI              Minimum picture interval for encoding/decoding
  *                             of CIF4 pictures.
- * @param cif16MPI             Minimum picture interval for encoding/decoding 
+ * @param cif16MPI             Minimum picture interval for encoding/decoding
  *                             of CIF16 pictures.
  * @param maxBitRate           Maximum bit rate in units of 100 bits/s at
- *                             which a transmitter can transmit video or a 
+ *                             which a transmitter can transmit video or a
  *                             receiver can receive video.
  * @param dir                  Direction of capability.OORX, OOTX, OORXANDTX
  * @param startReceiveChannel  Callback function to start receive channel.
@@ -569,12 +569,12 @@ EXTERN int ooH323EpAddGSMCapability(int cap, ASN1USINT framesPerPkt,
  * @param stopReceiveChannel   Callback function to stop receive channel.
  * @param stopTransmitChannel  Callback function to stop transmit channel.
  *
- * @return                     OO_OK, on success. OO_FAILED, on failure. 
+ * @return                     OO_OK, on success. OO_FAILED, on failure.
  */
-EXTERN int ooH323EpAddH263VideoCapability(int cap, unsigned sqcifMPI, 
-                                 unsigned qcifMPI, unsigned cifMPI, 
-                                 unsigned cif4MPI, unsigned cif16MPI, 
-                                 unsigned maxBitRate, int dir, 
+EXTERN int ooH323EpAddH263VideoCapability(int cap, unsigned sqcifMPI,
+                                 unsigned qcifMPI, unsigned cifMPI,
+                                 unsigned cif4MPI, unsigned cif16MPI,
+                                 unsigned maxBitRate, int dir,
                                  cb_StartReceiveChannel startReceiveChannel,
                                  cb_StartTransmitChannel startTransmitChannel,
                                  cb_StopReceiveChannel stopReceiveChannel,

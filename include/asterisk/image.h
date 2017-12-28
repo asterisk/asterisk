@@ -35,16 +35,16 @@ struct ast_imager {
 	AST_LIST_ENTRY(ast_imager) list;			/*!< For linked list */
 };
 
-/*! 
- * \brief Check for image support on a channel 
+/*!
+ * \brief Check for image support on a channel
  * \param chan channel to check
  * Checks the channel to see if it supports the transmission of images
  * \return non-zero if image transmission is supported
  */
 int ast_supports_images(struct ast_channel *chan);
 
-/*! 
- * \brief Sends an image 
+/*!
+ * \brief Sends an image
  * \param chan channel to send image on
  * \param filename filename of image to send (minus extension)
  * Sends an image on the given channel.
@@ -53,8 +53,8 @@ int ast_supports_images(struct ast_channel *chan);
  */
 int ast_send_image(struct ast_channel *chan, const char *filename);
 
-/*! 
- * \brief Make an image 
+/*!
+ * \brief Make an image
  * \param filename filename of image to prepare
  * \param preflang preferred language to get the image...?
  * \param format the format of the file, NULL for any image format
@@ -64,7 +64,7 @@ int ast_send_image(struct ast_channel *chan, const char *filename);
  */
 struct ast_frame *ast_read_image(const char *filename, const char *preflang, struct ast_format *format);
 
-/*! 
+/*!
  * \brief Register image format
  * \param imgdrv Populated ast_imager structure with info to register
  * Registers an image format
@@ -72,15 +72,15 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
  */
 int ast_image_register(struct ast_imager *imgdrv);
 
-/*! 
- * \brief Unregister an image format 
+/*!
+ * \brief Unregister an image format
  * \param imgdrv pointer to the ast_imager structure you wish to unregister
  * Unregisters the image format passed in.
  * Returns nothing
  */
 void ast_image_unregister(struct ast_imager *imgdrv);
 
-/*! 
+/*!
  * \brief Initialize image stuff
  * Initializes all the various image stuff.  Basically just registers the cli stuff
  * \return 0 all the time

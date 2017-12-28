@@ -18,13 +18,13 @@
  */
 
 /*! \file
- * 
+ *
  * \brief file format conversion CLI command using Asterisk formats and translators
  *
  * \author redice li <redice_li@yahoo.com>
  * \author Russell Bryant <russell@digium.com>
  *
- */ 
+ */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int split_ext(char *filename, char **name, char **ext)
 {
 	*name = *ext = filename;
-	
+
 	if ((*ext = strrchr(filename, '.'))) {
 		**ext = '\0';
 		(*ext)++;
@@ -55,8 +55,8 @@ static int split_ext(char *filename, char **name, char **ext)
 	return 0;
 }
 
-/*! 
- * \brief Convert a file from one format to another 
+/*!
+ * \brief Convert a file from one format to another
  * \param e CLI entry
  * \param cmd command number
  * \param a list of cli arguments
@@ -87,13 +87,13 @@ static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_GENERATE:
 		return NULL;
 	}
-	
+
 	/* ugly, can be removed when CLI entries have ast_module pointers */
 	ast_module_ref(ast_module_info->self);
 
 	if (a->argc != 4 || ast_strlen_zero(a->argv[2]) || ast_strlen_zero(a->argv[3])) {
 		ret = CLI_SHOWUSAGE;
-		goto fail_out;	
+		goto fail_out;
 	}
 
 	file_in = ast_strdupa(a->argv[2]);
@@ -107,7 +107,7 @@ static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct as
 		ast_cli(a->fd, "Unable to open input file: %s\n", a->argv[2]);
 		goto fail_out;
 	}
-	
+
 	if (split_ext(file_out, &name_out, &ext_out)) {
 		ast_cli(a->fd, "'%s' is an invalid filename!\n", a->argv[3]);
 		goto fail_out;
@@ -118,7 +118,7 @@ static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct as
 	}
 
 	start = ast_tvnow();
-	
+
 	while ((f = ast_readframe(fs_in))) {
 		if (ast_writestream(fs_out, f)) {
 			ast_frfree(f);
@@ -139,7 +139,7 @@ fail_out:
 			ast_filedelete(name_out, ext_out);
 	}
 
-	if (fs_in) 
+	if (fs_in)
 		ast_closestream(fs_in);
 
 	ast_module_unref(ast_module_info->self);

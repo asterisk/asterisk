@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief codec_alaw.c - translate between signed linear and alaw
- * 
+ *
  * \ingroup codecs
  */
 
@@ -52,7 +52,7 @@ static int alawtolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 	pvt->samples += i;
 	pvt->datalen += i * 2;	/* 2 bytes/sample */
-	
+
 	while (i--)
 		*dst++ = AST_ALAW(*src++);
 
@@ -69,7 +69,7 @@ static int lintoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	pvt->samples += i;
 	pvt->datalen += i;	/* 1 byte/sample */
 
-	while (i--) 
+	while (i--)
 		*dst++ = AST_LIN2A(*src++);
 
 	return 0;

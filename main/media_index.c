@@ -594,4 +594,3 @@ int ast_media_index_update(struct ast_media_index *index,
 {
 	return media_index_update(index, variant, NULL);
 }
-

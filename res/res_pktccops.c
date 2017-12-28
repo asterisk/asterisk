@@ -19,10 +19,10 @@
 /*!\file
  *
  * \brief PacketCable COPS
- * 
+ *
  * \author Attila Domjan <attila.domjan.hu@gmail.com>
  *
- * \note 
+ * \note
  * This module is an add-on to chan_mgcp. It adds support for the
  * PacketCable MGCP variation called NCS. Res_pktccops implements COPS
  * (RFC 2748), a protocol used to manage dynamic bandwith allocation in
@@ -96,7 +96,7 @@ struct pktcobj {
 	unsigned char cnum;
 	unsigned char ctype;
 	char *contents;
-	struct pktcobj *next; 
+	struct pktcobj *next;
 };
 
 struct copsmsg {
@@ -136,7 +136,7 @@ struct cops_cmts {
 	char name[80];
 	char host[80];
 	char port[80];
-	uint16_t t1;	
+	uint16_t t1;
 	uint16_t t7;
 	uint16_t t8;
 	uint32_t keepalive;
@@ -186,7 +186,7 @@ static uint16_t cops_constructgatespec(struct gatespec *gs, char *res)
 	if (res == NULL) {
 		return 0;
 	}
-	
+
 	*res = (char) gs->direction;
 	*(res + 1) = (char) gs->protocolid;
 	*(res + 2) = (char) gs->flags;
@@ -226,7 +226,7 @@ static uint16_t cops_construct_gate (int cmd, char *p,  uint16_t trid,
 {
 	struct gatespec gs;
 	int offset = 0;
-	
+
 	ast_debug(3, "CMD: %d\n", cmd);
 
 	/* Transaction Identifier 8 octets */
@@ -246,7 +246,7 @@ static uint16_t cops_construct_gate (int cmd, char *p,  uint16_t trid,
 	*(p + offset++) = 1; /* stype */
 	*((uint32_t *) (p + offset)) = htonl(mtahost);
 	offset += 4;
-	
+
 	if (cmd == GATE_INFO || cmd == GATE_SET_HAVE_GATEID || cmd == GATE_DEL) {
 		/* Gate ID 8 Octets */
 		*(p + offset++) = 0;
@@ -258,7 +258,7 @@ static uint16_t cops_construct_gate (int cmd, char *p,  uint16_t trid,
 		if (cmd == GATE_INFO || cmd == GATE_DEL) {
 			return offset;
 		}
-	
+
 	}
 
 	/* Activity Count 8 octets */
@@ -392,7 +392,7 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 	char *buf;
 	int bufpos;
 	struct pktcobj *pobject;
-	
+
 	if (sfd < 0) {
 		return -1;
 	}
@@ -435,7 +435,7 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 			pobject = pobject->next;
 		}
 	}
-	
+
 	errno = 0;
 #ifdef HAVE_MSG_NOSIGNAL
 #define	SENDFLAGS	MSG_NOSIGNAL | MSG_DONTWAIT
@@ -481,15 +481,15 @@ struct cops_gate * AST_OPTIONAL_API_NAME(ast_pktccops_gate_alloc)(int cmd,
 		ast_debug(3, "------- gate modify gateid 0x%x ssip: 0x%x\n", gate->gateid, ssip);
 		/* TODO implement it */
 		ast_log(LOG_WARNING, "Modify GateID not implemented\n");
-	} 
-	
+	}
+
 	if ((gate = cops_gate_cmd(cmd, NULL, cops_trid++, mta, actcount, bitrate, psize, ssip, ssport, gate))) {
 		ast_debug(3, "COPS: Allocating gate for mta: 0x%x\n", mta);
 		gate->got_dq_gi = got_dq_gi;
 		gate->gate_remove = gate_remove;
 		return(gate);
 	} else {
-		ast_debug(3, "COPS: Couldn't allocate gate for mta: 0x%x\n", mta); 
+		ast_debug(3, "COPS: Couldn't allocate gate for mta: 0x%x\n", mta);
 		return NULL;
 	}
 }
@@ -552,7 +552,7 @@ static struct cops_gate *cops_gate_cmd(int cmd, struct cops_cmts *cmts,
 			gate->trid = trid;
 		}
 	}
-	
+
 	gate->in_transaction = time(NULL);
 
 	if (!(gateset = malloc(sizeof(struct copsmsg)))) {
@@ -563,7 +563,7 @@ static struct cops_gate *cops_gate_cmd(int cmd, struct cops_cmts *cmts,
 	gateset->verflag = 0x10;
 	gateset->opcode = 2; /* Decision */
 	gateset->clienttype = 0x8008; /* =PacketCable */
-	
+
 	/* Handle object */
 	gateset->object = malloc(sizeof(struct pktcobj));
 	if (!gateset->object) {
@@ -629,7 +629,7 @@ static struct cops_gate *cops_gate_cmd(int cmd, struct cops_cmts *cmts,
 		return NULL;
 	}
 	gateset->object->next->next->next->next = NULL;
-	
+
 	gateset->length = COPS_HEADER_SIZE + gateset->object->length + gateset->object->next->length + gateset->object->next->next->length + gateset->object->next->next->next->length;
 
 	if ((cmd == GATE_INFO || cmd == GATE_SET_HAVE_GATEID || cmd == GATE_DEL) && gate) {
@@ -660,7 +660,7 @@ static int cops_connect(char *host, char *port)
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 
-	hints.ai_family = AF_UNSPEC;    
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0;
@@ -827,7 +827,7 @@ static void *do_pktccops(void *data)
 										ast_debug(3, "   S-Num S-type: 0x%.4x len: %i\n", (unsigned)snst, sobjlen);
 										if (snst == 0x0101 ) {
 											recvtrid = ntohs(*((uint16_t *) (sobjp + 4)));
-											scommand = ntohs(*((uint16_t *) (sobjp + 6)));					
+											scommand = ntohs(*((uint16_t *) (sobjp + 6)));
 											ast_debug(3, "     Transaction Identifier command: %i trid %i\n", scommand, recvtrid);
 										} else if (snst == 0x0201) {
 											subscrid = ntohl(*((uint32_t *) (sobjp + 4)));
@@ -873,7 +873,7 @@ static void *do_pktccops(void *data)
 														gate->gate_open = NULL;
 													}
 													break;
-												} 
+												}
 											}
 										}
 										AST_LIST_TRAVERSE_SAFE_END;
@@ -944,7 +944,7 @@ static void *do_pktccops(void *data)
 							cmts->state = 2;
 							cmts->katimer = time(NULL);
 						}
-					} 
+					}
 					if (len <= 0) {
 						ast_debug(3, "COPS: lost connection to %s\n", cmts->name);
 						close(cmts->sfd);
@@ -954,7 +954,7 @@ static void *do_pktccops(void *data)
 					cops_freemsg(recmsg);
 				}
 			}
-			AST_LIST_UNLOCK(&cmts_list);			
+			AST_LIST_UNLOCK(&cmts_list);
 		}
 		if (pktcreload) {
 			ast_debug(3, "Reloading pktccops...\n");
@@ -1059,7 +1059,7 @@ static int load_pktccops_config(void)
 				} else {
 					ast_log(LOG_WARNING, "Unkown option %s in general section of res_ptkccops.conf\n", v->name);
 				}
-			}			
+			}
 		} else {
 			/* Defaults */
 			host = NULL;
@@ -1071,7 +1071,7 @@ static int load_pktccops_config(void)
 
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "host")) {
-					host = v->value;				
+					host = v->value;
 				} else if (!strcasecmp(v->name, "port")) {
 					port = v->value;
 				} else if (!strcasecmp(v->name, "t1")) {
@@ -1155,11 +1155,11 @@ static char *pktccops_show_cmtses(struct ast_cli_entry *e, int cmd, struct ast_c
 	struct cops_cmts *cmts;
 	char statedesc[16];
 	int katimer;
-	
+
 	switch(cmd) {
 	case CLI_INIT:
 		e->command = "pktccops show cmtses";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops show cmtses\n"
 			"       List PacketCable COPS CMTSes.\n";
 
@@ -1195,7 +1195,7 @@ static char *pktccops_show_gates(struct ast_cli_entry *e, int cmd, struct ast_cl
 	switch(cmd) {
 	case CLI_INIT:
 		e->command = "pktccops show gates";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops show gates\n"
 			"       List PacketCable COPS GATEs.\n";
 
@@ -1226,8 +1226,8 @@ static char *pktccops_show_gates(struct ast_cli_entry *e, int cmd, struct ast_cl
 		} else {
 			ast_copy_string(state_desc, "N/A", sizeof(state_desc));
 		}
-		
-		ast_cli(a->fd, "%-16s 0x%.8x   0x%08x   %-10s %10i %10i %u\n", (gate->cmts) ? gate->cmts->name : "null" , gate->gateid, gate->mta, 
+
+		ast_cli(a->fd, "%-16s 0x%.8x   0x%08x   %-10s %10i %10i %u\n", (gate->cmts) ? gate->cmts->name : "null" , gate->gateid, gate->mta,
 			state_desc, (int) (time(NULL) - gate->allocated), (gate->checked) ? (int) (time(NULL) - gate->checked) : 0, (unsigned int) gate->in_transaction);
 	}
 	AST_LIST_UNLOCK(&cmts_list);
@@ -1244,7 +1244,7 @@ static char *pktccops_show_pools(struct ast_cli_entry *e, int cmd, struct ast_cl
 	switch(cmd) {
 	case CLI_INIT:
 		e->command = "pktccops show pools";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops show pools\n"
 			"       List PacketCable COPS ip pools of MTAs.\n";
 
@@ -1277,7 +1277,7 @@ static char *pktccops_gatedel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pktccops gatedel";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops gatedel <cmts> <gateid>\n"
 			"       Send Gate-Del to cmts.\n";
 		return NULL;
@@ -1297,13 +1297,13 @@ static char *pktccops_gatedel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		}
 	}
 	AST_LIST_UNLOCK(&cmts_list);
-	
+
 	if (!found)
 		return CLI_SHOWUSAGE;
 
 	trid = cops_trid++;
 	if (!sscanf(a->argv[3], "%x", &gateid)) {
-		ast_cli(a->fd, "bad gate specification (%s)\n", a->argv[3]);	
+		ast_cli(a->fd, "bad gate specification (%s)\n", a->argv[3]);
 		return CLI_SHOWUSAGE;
 	}
 
@@ -1315,7 +1315,7 @@ static char *pktccops_gatedel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			break;
 		}
 	}
-		
+
 	if (!found) {
 		ast_cli(a->fd, "gate not found: %s\n", a->argv[3]);
 		return CLI_SHOWUSAGE;
@@ -1337,7 +1337,7 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pktccops gateset";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops gateset <cmts> <mta> <acctcount> <bitrate> <packet size> <switch ip> <switch port>\n"
 			"       Send Gate-Set to cmts.\n";
 		return NULL;
@@ -1388,7 +1388,7 @@ static char *pktccops_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pktccops set debug {on|off}";
-		e->usage = 
+		e->usage =
 			"Usage: pktccops set debug {on|off}\n"
 			"	Turn on/off debuging\n";
 		return NULL;
@@ -1516,4 +1516,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "PktcCOPS manager 
 		.unload = unload_module,
 		.reload = reload_module,
 	       );
-

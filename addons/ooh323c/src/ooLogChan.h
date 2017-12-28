@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2004-2005 by Objective Systems, Inc.
  *
- * This software is furnished under an open source license and may be 
- * used and copied only in accordance with the terms of this license. 
- * The text of the license may generally be found in the root 
- * directory of this installation in the COPYING file.  It 
+ * This software is furnished under an open source license and may be
+ * used and copied only in accordance with the terms of this license.
+ * The text of the license may generally be found in the root
+ * directory of this installation in the COPYING file.  It
  * can also be viewed online at the following URL:
  *
  *   http://www.obj-sys.com/open/license.html
  *
- * Any redistributions of this file including modified versions must 
+ * Any redistributions of this file including modified versions must
  * maintain this copyright notice.
  *
  *****************************************************************************/
 /**
- * @file ooLogChan.h 
+ * @file ooLogChan.h
  * This file contains structures and functions for maintaining information
  * on logical channels within the stack.
  */
@@ -34,13 +34,13 @@ extern "C" {
 struct ooH323EpCapability;
 struct OOH323CallData;
 
-/** 
+/**
  * Logical channel states.
  */
 typedef enum {
-   OO_LOGICAL_CHAN_UNKNOWN, 
-   OO_LOGICALCHAN_IDLE, 
-   OO_LOGICALCHAN_PROPOSED, 
+   OO_LOGICAL_CHAN_UNKNOWN,
+   OO_LOGICALCHAN_IDLE,
+   OO_LOGICALCHAN_PROPOSED,
    OO_LOGICALCHAN_ESTABLISHED,
    OO_LOGICALCHAN_PROPOSEDFS,
    OO_LOGICALCHAN_CLOSEPENDING
@@ -60,7 +60,7 @@ typedef struct OOLogicalChannel {
    int  localRtpPort;
    int  localRtcpPort;
    char localIP[2+8*4+7];
-   OOLogicalChannelState state;         
+   OOLogicalChannelState state;
    struct ooH323EpCapability *chanCap;
    struct OOLogicalChannel *next;
 } OOLogicalChannel;
@@ -70,7 +70,7 @@ typedef struct OOLogicalChannel {
 /**
  * This function is used to add a new logical channel entry into the list
  * of currently active logical channels.
- * @param call      Pointer to the call for which new logical channel 
+ * @param call      Pointer to the call for which new logical channel
  *                  entry has to be created.
  * @param channelNo Channel number for the new channel entry.
  * @param sessionID Session identifier for the new channel.
@@ -80,26 +80,26 @@ typedef struct OOLogicalChannel {
  * @return          Pointer to logical channel, on success. NULL, on failure
  */
 EXTERN ooLogicalChannel* ooAddNewLogicalChannel
-   (struct OOH323CallData *call, int channelNo, int sessionID, 
+   (struct OOH323CallData *call, int channelNo, int sessionID,
     char *dir, ooH323EpCapability *epCap);
 
 /**
- * This function is used to find a logical channel using the logical 
+ * This function is used to find a logical channel using the logical
  * channel number as a key.
- * @param call          Pointer to the call for which logical channel is 
+ * @param call          Pointer to the call for which logical channel is
  *                      required.
  * @param channelNo     Forward Logical Channel number for the logical channel
  *
- * @return              Pointer to the logical channel if found, NULL 
- *                      otherwise.   
+ * @return              Pointer to the logical channel if found, NULL
+ *                      otherwise.
  */
 EXTERN ooLogicalChannel* ooFindLogicalChannelByLogicalChannelNo
 (struct OOH323CallData *call, int channelNo);
 
 /**
- * This function is called when a new logical channel is established. It is 
- * particularly useful in case of faststart. When the remote endpoint selects 
- * one of the proposed alternatives, other channels for the same session type 
+ * This function is called when a new logical channel is established. It is
+ * particularly useful in case of faststart. When the remote endpoint selects
+ * one of the proposed alternatives, other channels for the same session type
  * need to be closed. This function is used for that.
  *
  * @param call      Handle to the call which owns the logical channel.
@@ -110,24 +110,24 @@ EXTERN int ooOnLogicalChannelEstablished
 (struct OOH323CallData *call, OOLogicalChannel * pChannel);
 
 /**
- * This function is used to retrieve a logical channel with a particular 
- * sessionID. Note that there can be two entries of logical channel, one in 
- * each direction. This function will return the first channel which has the 
+ * This function is used to retrieve a logical channel with a particular
+ * sessionID. Note that there can be two entries of logical channel, one in
+ * each direction. This function will return the first channel which has the
  * same session ID.
  * @param call      Handle to the call which owns the channels to be searched.
  * @param sessionID Session id of the session which is to be searched for.
  * @param dir       Direction of the channel.(transmit/receive)
  *
- * @return          Returns a pointer to the logical channel if found, NULL 
+ * @return          Returns a pointer to the logical channel if found, NULL
  *                  otherwise.
  */
 EXTERN ooLogicalChannel* ooGetLogicalChannel
 (struct OOH323CallData *call, int sessionID, char *dir);
 
 /**
- * This function is used to remove a logical channel from the list of 
+ * This function is used to remove a logical channel from the list of
  * channels within the call structure.
- * @param call              Pointer to the call from which logical channel has 
+ * @param call              Pointer to the call from which logical channel has
  *                          to be removed.
  * @param ChannelNo         Forward logical channel number of the channel to be
  *                          removed.
@@ -137,7 +137,7 @@ EXTERN int ooRemoveLogicalChannel (struct OOH323CallData *call, int ChannelNo);
 
 /**
  * This function is used to cleanup a logical channel. It first stops media if
- * it is still active and then removes the channel from the list, freeing up 
+ * it is still active and then removes the channel from the list, freeing up
  * all the associated memory.
  * @param call       Handle to the call which owns the logical channel.
  * @param channelNo  Channel number identifying the channel.
@@ -147,7 +147,7 @@ EXTERN int ooRemoveLogicalChannel (struct OOH323CallData *call, int ChannelNo);
 EXTERN int ooClearLogicalChannel (struct OOH323CallData *call, int channelNo);
 
 /**
- * This function is used to cleanup all the logical channels associated with 
+ * This function is used to cleanup all the logical channels associated with
  * the call.
  * @param call      Handle to the call which owns the channels.
  *
@@ -184,8 +184,8 @@ EXTERN OOLogicalChannel * ooFindLogicalChannel
 EXTERN OOLogicalChannel* ooGetTransmitLogicalChannel(struct OOH323CallData *call);
 EXTERN OOLogicalChannel* ooGetReceiveLogicalChannel(struct OOH323CallData *call);
 
-/** 
- * @} 
+/**
+ * @}
  */
 
 #ifdef __cplusplus

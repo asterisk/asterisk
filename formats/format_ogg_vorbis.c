@@ -64,13 +64,13 @@ struct ogg_vorbis_desc {	/* format specific parameters */
 	ogg_stream_state os;
 	ogg_page og;
 	ogg_packet op;
-	
+
 	/* structures for handling Vorbis audio data */
 	vorbis_info vi;
 	vorbis_comment vc;
 	vorbis_dsp_state vd;
 	vorbis_block vb;
-	
+
 	/*! \brief Indicates whether this filestream is set up for reading or writing. */
 	int writing;
 
@@ -372,7 +372,7 @@ static off_t ogg_vorbis_tell(struct ast_filestream *fs)
  * \brief Seek to a specific position in an OGG/Vorbis filestream.
  * \param fs The filestream to take action on.
  * \param sample_offset New position for the filestream, measured in 8KHz samples.
- * \param whence Location to measure 
+ * \param whence Location to measure
  * \return 0 on success, -1 on failure.
  */
 static int ogg_vorbis_seek(struct ast_filestream *fs, off_t sample_offset, int whence)

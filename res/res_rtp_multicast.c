@@ -96,7 +96,7 @@ struct multicast_rtp {
 	unsigned int ssrc;
 	/*! Sequence number, used when creating/sending the RTP packet */
 	uint16_t seqno;
-	unsigned int lastts;	
+	unsigned int lastts;
 	struct timeval txcore;
 	struct ast_smoother *smoother;
 };

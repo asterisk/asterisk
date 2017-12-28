@@ -17,8 +17,8 @@
  */
 
 /*! \file
- * 
- * \brief IAX Provisioning Protocol 
+ *
+ * \brief IAX Provisioning Protocol
  *
  * \author Mark Spencer <markster@digium.com>
  */
@@ -95,7 +95,7 @@ char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
 
 	if (!buf || buflen < 1)
 		return NULL;
-	
+
 	buf[0] = '\0';
 
 	for (x = 0; x < ARRAY_LEN(iax_flags); x++) {
@@ -105,7 +105,7 @@ char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
 		}
 	}
 
-	if (!ast_strlen_zero(buf)) 
+	if (!ast_strlen_zero(buf))
 		buf[strlen(buf) - 1] = '\0';
 	else
 		strncpy(buf, "none", buflen - 1);
@@ -241,7 +241,7 @@ int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, c
 			iax_ie_append_int(provdata, PROV_IE_FORMAT, cur->format);
 		if (force || cur->tos)
 			iax_ie_append_byte(provdata, PROV_IE_TOS, cur->tos);
-		
+
 		/* Calculate checksum of message so far */
 		sig = prov_ver_calc(provdata);
 		if (signature)
@@ -301,7 +301,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 				ast_log(LOG_WARNING, "Unable to find base template '%s' for creating '%s'.  Trying '%s'\n", t, s, def);
 			else
 				def = t;
-		} 
+		}
 		if (!src) {
 			src = iax_template_find(def, 0);
 			if (!src)
@@ -344,7 +344,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 					cur->server = ntohl(ia.s_addr);
 				else
 					cur->altserver = ntohl(ia.s_addr);
-			} else 
+			} else
 				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "codec")) {
 			struct ast_format *tmpfmt;
@@ -427,10 +427,10 @@ static const char *ifthere(const char *s)
 static const char *iax_server(unsigned int addr)
 {
 	struct in_addr ia;
-	
+
 	if (!addr)
 		return "<unspecified>";
-	
+
 	ia.s_addr = htonl(addr);
 
 	return ast_inet_ntoa(ia);
@@ -463,7 +463,7 @@ static char *iax_show_provisioning(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_mutex_lock(&provlock);
 	AST_LIST_TRAVERSE(&templates, cur, list) {
 		if ((a->argc == 3) || (!strcasecmp(a->argv[3], cur->name)))  {
-			if (found) 
+			if (found)
 				ast_cli(a->fd, "\n");
 			ast_copy_string(server, iax_server(cur->server), sizeof(server));
 			ast_copy_string(alternate, iax_server(cur->altserver), sizeof(alternate));
@@ -537,7 +537,7 @@ int iax_provision_reload(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	if (!provinit)
 		iax_provision_init();
-	
+
 	cfg = ast_config_load2("iaxprov.conf", "chan_iax2", config_flags);
 	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID) {
 		/* Mark all as dead.  No need for locking */

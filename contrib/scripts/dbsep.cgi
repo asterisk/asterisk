@@ -248,4 +248,3 @@ sub throw_error {
 	print STDERR $msg . "\n";
 	exit;
 }
-

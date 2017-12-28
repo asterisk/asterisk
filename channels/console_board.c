@@ -16,7 +16,7 @@
  * $Revision$
  */
 
-/* 
+/*
  * Message board implementation.
  *
  * A message board is a region of the SDL screen where
@@ -28,7 +28,7 @@
  * of fixed size (rows and cols). A portion of the buffer is
  * visible on the screen, and the visible window can be moved up and
  * down by dragging (not yet!)
- * 
+ *
  * TODO: font dynamic allocation
  *
  * The region where the text is displayed on the screen is defined
@@ -136,7 +136,7 @@ struct board *board_setup(SDL_Surface *screen, SDL_Rect *dest,
 		screen->format->Rmask, screen->format->Gmask,
 		screen->format->Bmask, screen->format->Amask);
 
-	if (b->blank == NULL) { 
+	if (b->blank == NULL) {
 		ast_log(LOG_WARNING, "Unable to allocate board virtual screen: %s\n",
 				SDL_GetError());
 		ast_free(b->text);

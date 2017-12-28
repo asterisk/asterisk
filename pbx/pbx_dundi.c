@@ -100,8 +100,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			in the DUNDi lookup. If no results were found, the result will be blank.</para>
 		</description>
 	</function>
-			
-		
+
+
 	<function name="DUNDIQUERY" language="en_US">
 		<synopsis>
 			Initiate a DUNDi query.
@@ -563,7 +563,7 @@ static int get_mapping_weight(struct dundi_mapping *map, struct varshead *headp)
 	if (map->weightstr) {
 		if (headp) {
 			pbx_substitute_variables_varshead(headp, map->weightstr, buf, sizeof(buf) - 1);
-		} else {                
+		} else {
 			pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
 		}
 
@@ -5068,4 +5068,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Nu
 		.reload = reload,
 		.nonoptreq = "res_crypto",
 	       );
-

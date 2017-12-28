@@ -23,7 +23,7 @@
  * \author Mark Spencer <markster@digium.com>
  *
  * \ingroup functions
- * 
+ *
  */
 
 /*** MODULEINFO

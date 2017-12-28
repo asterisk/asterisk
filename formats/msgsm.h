@@ -115,7 +115,7 @@ static inline void conv66(gsm_byte * d, wav_byte * c) {
 	gsm_byte frame_chain;
     unsigned int sr;
 	unsigned int    LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13*4];
-	
+
 	readGSM_33(d);
 	sr = 0;
 	sr = (sr >> 6) | (LARc[0] << 10);
@@ -459,7 +459,7 @@ static inline void conv65( wav_byte * c, gsm_byte * d){
 		unsigned int LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4];
 		/* silence bogus compiler warning */
 		unsigned int xmc[13*4] = { 0, };
- 
+
                         sr = *c++;
                         LARc[0] = sr & 0x3f;  sr >>= 6;
                         sr |= (uword)*c++ << 2;

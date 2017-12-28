@@ -1548,5 +1548,3 @@ void stasis_app_unregister_event_sources(void)
 	stasis_app_unregister_event_source(&bridge_event_source);
 	stasis_app_unregister_event_source(&channel_event_source);
 }
-
-

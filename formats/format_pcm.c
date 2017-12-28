@@ -20,14 +20,14 @@
  *
  * \brief Flat, binary, ulaw PCM file format.
  * \arg File name extension: alaw, al, alw, pcm, ulaw, ul, mu, ulw, g722, au
- * 
+ *
  * \ingroup formats
  */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -195,7 +195,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 		/* Check if we have written to this position yet. If we have, then increment pos by one frame
 		*  for some degree of protection against receiving packets in the same clock tick.
 		*/
-		
+
 		fstat(fileno(fs->f), &stat_buf );
 		if (stat_buf.st_size > fpos )
 			fpos += f->datalen;	/* Incrementing with the size of this current frame */
@@ -229,7 +229,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 		}
 	}
 #endif	/* REALTIME_WRITE */
-	
+
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 		return -1;

@@ -19,7 +19,7 @@
 /*!\file
  *
  * \brief Headerless G.726 (16/24/32/40kbps) data format for Asterisk.
- * 
+ *
  * File name extensions:
  * \arg 40 kbps: g726-40
  * \arg 32 kbps: g726-32
@@ -31,7 +31,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -51,7 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define	BUF_SIZE	(5*FRAME_TIME)	/* max frame size in bytes ? */
 /* Frame sizes in bytes */
-static int frame_size[4] = { 
+static int frame_size[4] = {
 		FRAME_TIME * 5,
 		FRAME_TIME * 4,
 		FRAME_TIME * 3,
@@ -143,12 +143,12 @@ static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 	struct g726_desc *fs = (struct g726_desc *)s->_private;
 
 	if (f->datalen % frame_size[fs->rate]) {
-		ast_log(LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
+		ast_log(LOG_WARNING, "Invalid data length %d, should be multiple of %d\n",
 						f->datalen, frame_size[fs->rate]);
 		return -1;
 	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
-		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
+		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n",
 				res, frame_size[fs->rate], strerror(errno));
 			return -1;
 	}

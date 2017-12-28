@@ -50,7 +50,7 @@
   <para>
    <command>asterisk</command> is a full-featured telephony server which
    provides Private Branch eXchange (PBX), Interactive Voice Response (IVR),
-   Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
+   Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying,
    Conferencing, and a plethora of other telephony applications to a broad
    range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny,
    H.323, Unistim) devices (both endpoints and proxies), as well as traditional TDM
@@ -112,9 +112,9 @@
      <para>
       Provide a control console on the calling terminal. The
       console is similar to the remote console provided by
-      <option>-r</option>. Specifying this option implies 
-      <command>-f</command> and will cause asterisk to no longer 
-      fork or detach from the controlling terminal. Equivalent 
+      <option>-r</option>. Specifying this option implies
+      <command>-f</command> and will cause asterisk to no longer
+      fork or detach from the controlling terminal. Equivalent
       to <option>console = yes</option> in <filename>asterisk.conf</filename>.
      </para>
     </listitem>
@@ -137,7 +137,7 @@
     <term>-e <replaceable class="parameter">memory</replaceable></term>
     <listitem>
      <para>
-      Limit the generation of new channels when the amount of free memory 
+      Limit the generation of new channels when the amount of free memory
       has decreased to under <replaceable>memory</replaceable> megabytes.
       Equivalent to <option>minmemfree = <replaceable>memory</replaceable></option> in
       <filename>asterisk.conf</filename>.
@@ -296,7 +296,7 @@
      <para>
       Much like <command>-r</command>.  Instead of running a new Asterisk process, attempt to connect
       to a running Asterisk process and provide a console interface
-      for controlling it. Additionally, if connection to the Asterisk 
+      for controlling it. Additionally, if connection to the Asterisk
       process is lost, attempt to reconnect for as long as 30 seconds.
      </para>
     </listitem>
@@ -314,7 +314,7 @@
     <term>-t</term>
     <listitem>
      <para>
-      When recording files, write them first into a temporary holding directory, 
+      When recording files, write them first into a temporary holding directory,
       then move them into the final location when done.
      </para>
     </listitem>
@@ -437,12 +437,12 @@
   <title>AUTHOR</title>
   <para>
    <author>
-    <firstname>Mark Spencer &lt;markster@digium.com&gt;</firstname> 
+    <firstname>Mark Spencer &lt;markster@digium.com&gt;</firstname>
    </author>
   </para>
   <para>
    <author>
-    <firstname>Countless other contributors, see CREDITS with distribution for more information.</firstname> 
+    <firstname>Countless other contributors, see CREDITS with distribution for more information.</firstname>
    </author>
   </para>
  </refsect1>
