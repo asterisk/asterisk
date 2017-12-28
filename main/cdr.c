@@ -2094,7 +2094,12 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 	if (!peer && !caller) {
 		return;
 	}
-	if (filter_channel_snapshot(peer) || (caller && filter_channel_snapshot(caller))) {
+
+	if (peer && filter_channel_snapshot(peer)) {
+		return;
+	}
+
+	if (caller && filter_channel_snapshot(caller)) {
 		return;
 	}
 
@@ -2868,31 +2873,38 @@ int ast_cdr_backend_unsuspend(const char *name)
 
 int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
-	struct cdr_beitem *i = NULL;
+	struct cdr_beitem *i;
+	struct cdr_beitem *cur;
 
-	if (!name)
+	if (!name) {
 		return -1;
+	}
 
 	if (!be) {
 		ast_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
+
 		return -1;
 	}
 
-	AST_RWLIST_WRLOCK(&be_list);
-	AST_RWLIST_TRAVERSE(&be_list, i, list) {
-		if (!strcasecmp(name, i->name)) {
-			ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
-			AST_RWLIST_UNLOCK(&be_list);
-			return -1;
-		}
-	}
-
-	if (!(i = ast_calloc(1, sizeof(*i))))
+	i = ast_calloc(1, sizeof(*i));
+	if (!i) {
 		return -1;
+	}
 
 	i->be = be;
 	ast_copy_string(i->name, name, sizeof(i->name));
 	ast_copy_string(i->desc, desc, sizeof(i->desc));
+
+	AST_RWLIST_WRLOCK(&be_list);
+	AST_RWLIST_TRAVERSE(&be_list, cur, list) {
+		if (!strcasecmp(name, cur->name)) {
+			ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
+			AST_RWLIST_UNLOCK(&be_list);
+			ast_free(i);
+
+			return -1;
+		}
+	}
 
 	AST_RWLIST_INSERT_HEAD(&be_list, i, list);
 	AST_RWLIST_UNLOCK(&be_list);
