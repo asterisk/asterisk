@@ -61,9 +61,7 @@ AH_TOP(
 #endif
 )
 
-AH_BOTTOM(
-#endif
-)
+AH_BOTTOM([#endif])
 
 # Checks for programs.
 AC_PROG_CC
