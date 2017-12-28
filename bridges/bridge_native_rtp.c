@@ -755,7 +755,7 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_channel)
 {
 	struct native_rtp_bridge_channel_data *data = bridge_channel->tech_pvt;
-	static struct ast_framehook_interface hook = {
+	struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = native_rtp_framehook,
 		.destroy_cb = __ao2_cleanup,
@@ -773,9 +773,10 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 	ast_debug(2, "Bridge '%s'.  Attaching hook data %p to '%s'\n",
 		bridge_channel->bridge->uniqueid, data, ast_channel_name(bridge_channel->chan));
 
-	ast_channel_lock(bridge_channel->chan);
 	/* We're giving 1 ref to the framehook and keeping the one from the alloc for ourselves */
 	hook.data = ao2_bump(data->hook_data);
+
+	ast_channel_lock(bridge_channel->chan);
 	data->hook_data->id = ast_framehook_attach(bridge_channel->chan, &hook);
 	ast_channel_unlock(bridge_channel->chan);
 	if (data->hook_data->id < 0) {
