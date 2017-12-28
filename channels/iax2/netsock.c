@@ -46,7 +46,7 @@
 #include "include/netsock.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
-#include "asterisk/astobj.h"
+#include "include/astobj.h"
 
 struct ast_netsock {
 	ASTOBJ_COMPONENTS(struct ast_netsock);
