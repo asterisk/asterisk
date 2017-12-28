@@ -64,10 +64,7 @@ all: $(ALL_TGTS)
 
 $(OBJS) $(C_OBJS) $(N_OBJS) $(G_OBJS) $(M_OBJS): autoconfig.h menuselect.h
 
-makeopts: makeopts.in
-autoconfig.h: autoconfig.h.in
-
-makeopts autoconfig.h:
+makeopts: configure
 	@./configure $(CONFIGURE_SILENT)
 	@echo "****"
 	@echo "**** The configure script was just executed, so 'make' needs to be"
