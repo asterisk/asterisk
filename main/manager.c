@@ -253,13 +253,15 @@
 				<parameter name="DNID">
 					<para>Dialed number identifier</para>
 				</parameter>
+				<parameter name="EffectiveConnectedLineNum">
+				</parameter>
+				<parameter name="EffectiveConnectedLineName">
+				</parameter>
 				<parameter name="TimeToHangup">
 					<para>Absolute lifetime of the channel</para>
 				</parameter>
 				<parameter name="BridgeID">
 					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
-				</parameter>
-				<parameter name="Linkedid">
 				</parameter>
 				<parameter name="Application">
 					<para>Application currently executing on the channel</para>
@@ -4614,7 +4616,6 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 		"EffectiveConnectedLineName: %s\r\n"
 		"TimeToHangup: %ld\r\n"
 		"BridgeID: %s\r\n"
-		"Linkedid: %s\r\n"
 		"Application: %s\r\n"
 		"Data: %s\r\n"
 		"Nativeformats: %s\r\n"
@@ -4635,7 +4636,6 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 		S_COR(effective_id.name.valid, effective_id.name.str, "<unknown>"),
 		(long)ast_channel_whentohangup(chan)->tv_sec,
 		bridge ? bridge->uniqueid : "",
-		ast_channel_linkedid(chan),
 		ast_channel_appl(chan),
 		ast_channel_data(chan),
 		ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
