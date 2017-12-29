@@ -148,8 +148,6 @@ static void unregister_all(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
-
 	if (ast_sip_pubsub_register_body_generator(&xpidf_body_generator)) {
 		goto fail;
 	}

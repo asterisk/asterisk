@@ -391,7 +391,7 @@ AST_TEST_DEFINE(agi_loaded_test)
 	}
 #endif
 
-	ast_agi_unregister(ast_module_info->self, &noop_command);
+	ast_agi_unregister(&noop_command);
 	return res;
 }
 

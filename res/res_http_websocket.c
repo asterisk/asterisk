@@ -131,24 +131,18 @@ struct ast_websocket_server {
 	struct ao2_container *protocols; /*!< Container for registered protocols */
 };
 
-static void websocket_server_internal_dtor(void *obj)
+static void websocket_server_dtor(void *obj)
 {
 	struct ast_websocket_server *server = obj;
 	ao2_cleanup(server->protocols);
 	server->protocols = NULL;
 }
 
-static void websocket_server_dtor(void *obj)
-{
-	websocket_server_internal_dtor(obj);
-	ast_module_unref(ast_module_info->self);
-}
-
-static struct ast_websocket_server *websocket_server_create_impl(void (*dtor)(void *))
+static struct ast_websocket_server *websocket_server_create_impl(void)
 {
 	RAII_VAR(struct ast_websocket_server *, server, NULL, ao2_cleanup);
 
-	server = ao2_alloc(sizeof(*server), dtor);
+	server = ao2_alloc(sizeof(*server), websocket_server_dtor);
 	if (!server) {
 		return NULL;
 	}
@@ -164,13 +158,12 @@ static struct ast_websocket_server *websocket_server_create_impl(void (*dtor)(vo
 
 static struct ast_websocket_server *websocket_server_internal_create(void)
 {
-	return websocket_server_create_impl(websocket_server_internal_dtor);
+	return websocket_server_create_impl();
 }
 
 struct ast_websocket_server *AST_OPTIONAL_API_NAME(ast_websocket_server_create)(void)
 {
-	ast_module_ref(ast_module_info->self);
-	return websocket_server_create_impl(websocket_server_dtor);
+	return websocket_server_create_impl();
 }
 
 /*! \brief Destructor function for sessions */
@@ -997,11 +990,7 @@ static int websocket_add_protocol_internal(const char *name, ast_websocket_callb
 
 int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_websocket_callback callback)
 {
-	int res = websocket_add_protocol_internal(name, callback);
-	if (res == 0) {
-		ast_module_ref(ast_module_info->self);
-	}
-	return res;
+	return websocket_add_protocol_internal(name, callback);
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol2)(struct ast_websocket_protocol *protocol)
@@ -1016,7 +1005,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol2)(struct ast_websocket_prot
 		return -1;
 	}
 
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -1031,11 +1019,7 @@ static int websocket_remove_protocol_internal(const char *name, ast_websocket_ca
 
 int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
 {
-	int res = websocket_remove_protocol_internal(name, callback);
-	if (res == 0) {
-		ast_module_unref(ast_module_info->self);
-	}
-	return res;
+	return websocket_remove_protocol_internal(name, callback);
 }
 
 /*! \brief Parse the given uri into a path and remote address.
@@ -1456,9 +1440,6 @@ static int load_module(void)
 	}
 	ast_http_uri_link(&websocketuri);
 	websocket_add_protocol_internal("echo", websocket_echo_callback);
-
-	/* For Optional API. */
-	ast_module_shutdown_ref(AST_MODULE_SELF);
 
 	return 0;
 }

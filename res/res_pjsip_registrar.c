@@ -1095,13 +1095,9 @@ static int load_module(void)
 {
 	const pj_str_t STR_REGISTER = { "REGISTER", 8 };
 
-	CHECK_PJPROJECT_MODULE_LOADED();
-
 	ast_pjproject_get_buildopt("PJ_MAX_HOSTNAME", "%d", &pj_max_hostname);
 	/* As of pjproject 2.4.5, PJSIP_MAX_URL_SIZE isn't exposed yet but we try anyway. */
 	ast_pjproject_get_buildopt("PJSIP_MAX_URL_SIZE", "%d", &pjsip_max_url_size);
-
-	CHECK_PJSIP_MODULE_LOADED();
 
 	if (ast_sip_register_service(&registrar_module)) {
 		return AST_MODULE_LOAD_DECLINE;

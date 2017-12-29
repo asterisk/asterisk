@@ -1339,8 +1339,6 @@ static int reload(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_register_subscription_handler(&mwi_handler)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

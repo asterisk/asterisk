@@ -323,8 +323,6 @@ static int load_module(void)
 {
 	struct ao2_container *transports;
 
-	CHECK_PJSIP_MODULE_LOADED();
-
 	transports = ao2_container_alloc(TRANSPORTS_BUCKETS, monitored_transport_hash_fn,
 		monitored_transport_cmp_fn);
 	if (!transports) {

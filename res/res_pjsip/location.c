@@ -1346,7 +1346,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "aor", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "aor", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, support_path));
 
-	internal_sip_register_endpoint_formatter(&endpoint_aor_formatter);
+	ast_sip_register_endpoint_formatter(&endpoint_aor_formatter);
 
 	contact_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!contact_formatter) {
@@ -1402,7 +1402,7 @@ int ast_sip_destroy_sorcery_location(void)
 	ast_sip_unregister_cli_formatter(aor_formatter);
 	ast_manager_unregister("PJSIPShowAors");
 
-	internal_sip_unregister_endpoint_formatter(&endpoint_aor_formatter);
+	ast_sip_unregister_endpoint_formatter(&endpoint_aor_formatter);
 
 	return 0;
 }

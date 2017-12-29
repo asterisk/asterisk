@@ -376,8 +376,6 @@ AST_TEST_DEFINE(scheduler_policy)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	AST_TEST_REGISTER(serialized_scheduler);
 	AST_TEST_REGISTER(unserialized_scheduler);
 	AST_TEST_REGISTER(scheduler_cleanup);

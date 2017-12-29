@@ -1202,8 +1202,6 @@ static int load_module(void)
 {
 	const pj_str_t str_norefersub = { "norefersub", 10 };
 
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	pjsip_replaces_init_module(ast_sip_get_pjsip_endpoint());
 	pjsip_xfer_init_module(ast_sip_get_pjsip_endpoint());
 	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub);

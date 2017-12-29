@@ -36,22 +36,6 @@ extern "C"
 
 /* ------------------------------------------------------------------- */
 
-/*!
- * \brief Increase the external MWI resource module reference count.
- * \since 12.1.0
- *
- * \return Nothing
- */
-void ast_mwi_external_ref(void);
-
-/*!
- * \brief Decrease the external MWI resource module reference count.
- * \since 12.1.0
- *
- * \return Nothing
- */
-void ast_mwi_external_unref(void);
-
 struct ast_mwi_mailbox_object;
 
 /*! \brief Convienience unref function for mailbox object. */

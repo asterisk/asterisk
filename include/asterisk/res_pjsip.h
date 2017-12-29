@@ -933,9 +933,7 @@ enum ast_sip_contact_filter {
  * \retval 0 Success
  * \retval -1 Failure
  */
-#define ast_sip_register_service(module) \
-	__ast_sip_register_service(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-int __ast_sip_register_service(pjsip_module *module, const char *file, int line, const char *func);
+int ast_sip_register_service(pjsip_module *module);
 
 /*!
  * This is the opposite of ast_sip_register_service().  Unregistering a
@@ -944,9 +942,7 @@ int __ast_sip_register_service(pjsip_module *module, const char *file, int line,
  *
  * \param module The PJSIP module to unregister
  */
-#define ast_sip_unregister_service(module) \
-	__ast_sip_unregister_service(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-void __ast_sip_unregister_service(pjsip_module *module, const char *file, int line, const char *func);
+void ast_sip_unregister_service(pjsip_module *module);
 
 /*!
  * \brief Register a SIP authenticator
@@ -2448,10 +2444,8 @@ struct ast_sip_endpoint_formatter {
  * \brief Register an endpoint formatter.
  *
  * \param obj the formatter to register
- * \retval 0 Success
- * \retval -1 Failure
  */
-int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
+void ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
 
 /*!
  * \brief Unregister an endpoint formatter.
@@ -2627,20 +2621,14 @@ struct ast_sip_supplement {
  * \retval 0 Success
  * \retval -1 Failure
  */
-#define ast_sip_register_supplement(supplement) \
-	__ast_sip_register_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-int __ast_sip_register_supplement(struct ast_sip_supplement *supplement,
-	const char *file, int line, const char *func);
+void ast_sip_register_supplement(struct ast_sip_supplement *supplement);
 
 /*!
  * \brief Unregister a an supplement to SIP out of dialog processing
  *
  * \param supplement The supplement to unregister
  */
-#define ast_sip_unregister_supplement(supplement) \
-	__ast_sip_unregister_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-void __ast_sip_unregister_supplement(struct ast_sip_supplement *supplement,
-	const char *file, int line, const char *func);
+void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 
 /*!
  * \brief Retrieve the global MWI taskprocessor high water alert trigger level.
@@ -2763,15 +2751,6 @@ void ast_sip_get_default_realm(char *realm, size_t size);
  * \return nothing
  */
 void ast_sip_get_default_from_user(char *from_user, size_t size);
-
-/*! \brief Determines whether the res_pjsip module is loaded */
-#define CHECK_PJSIP_MODULE_LOADED()				\
-	do {							\
-		if (!ast_module_check("res_pjsip.so")		\
-			|| !ast_sip_get_pjsip_endpoint()) {	\
-			return AST_MODULE_LOAD_DECLINE;		\
-		}						\
-	} while(0)
 
 /*!
  * \brief Retrieve the system keep alive interval setting.

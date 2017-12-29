@@ -1302,8 +1302,6 @@ static void remove_stasis_end_published(struct ast_channel *chan)
 int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		    char *argv[])
 {
-	SCOPED_MODULE_USE(ast_module_info->self);
-
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_control *, control, NULL, control_unlink);
 	struct ast_bridge *bridge = NULL;
@@ -1654,11 +1652,6 @@ void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 {
 	AST_RWLIST_WRLOCK(&event_sources);
 	AST_LIST_INSERT_TAIL(&event_sources, obj, next);
-	/* only need to bump the module ref on non-core sources because the
-	   core ones are [un]registered by this module. */
-	if (!stasis_app_is_core_event_source(obj)) {
-		ast_module_ref(ast_module_info->self);
-	}
 	AST_RWLIST_UNLOCK(&event_sources);
 }
 
@@ -1670,9 +1663,6 @@ void stasis_app_unregister_event_source(struct stasis_app_event_source *obj)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&event_sources, source, next) {
 		if (source == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			if (!stasis_app_is_core_event_source(obj)) {
-				ast_module_unref(ast_module_info->self);
-			}
 			break;
 		}
 	}
@@ -2034,16 +2024,6 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 	ao2_ref(message, -1);
 
 	return STASIS_APP_USER_OK;
-}
-
-void stasis_app_ref(void)
-{
-	ast_module_ref(ast_module_info->self);
-}
-
-void stasis_app_unref(void)
-{
-	ast_module_unref(ast_module_info->self);
 }
 
 static int unload_module(void)

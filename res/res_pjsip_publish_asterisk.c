@@ -855,8 +855,6 @@ static int regex_filter_handler(const struct aco_option *opt, struct ast_variabl
 
 static int load_module(void)
 {
-	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
-
 	if (ast_eid_is_empty(&ast_eid_default)) {
 		ast_log(LOG_ERROR, "Entity ID is not set.\n");
 		return AST_MODULE_LOAD_DECLINE;

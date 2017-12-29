@@ -920,13 +920,6 @@ static int load_module(void)
 {
 	int res;
 
-	if (!ast_module_check("res_curl.so")) {
-		if (ast_load_resource("res_curl.so") != AST_MODULE_LOAD_SUCCESS) {
-			ast_log(LOG_ERROR, "Cannot load res_curl, so func_curl cannot be loaded\n");
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	}
-
 	res = ast_custom_function_register_escalating(&acf_curl, AST_CFE_WRITE);
 	res |= ast_custom_function_register(&acf_curlopt);
 
@@ -940,4 +933,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Load external URL",
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_REALTIME_DEPEND2,
+	.requires = "res_curl",
 );

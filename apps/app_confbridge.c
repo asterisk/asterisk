@@ -2386,11 +2386,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		user.tech_args.drop_silence = 1;
 	}
 
-	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER) && ast_module_check("func_jitterbuffer.so")) {
+	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER)) {
 		ast_func_write(chan, "JITTERBUFFER(adaptive)", "default");
 	}
 
-	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE) && ast_module_check("codec_speex.so")) {
+	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE)) {
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
@@ -4088,4 +4088,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Conference Bridge App
 	.unload = unload_module,
 	.reload = reload,
 	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
+	.optional_modules = "codec_speex,func_jitterbuffer",
 );

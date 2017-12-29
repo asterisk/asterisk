@@ -282,7 +282,6 @@ static struct stasis_rest_handlers playbacks = {
 static int unload_module(void)
 {
 	ast_ari_remove_handler(&playbacks);
-	stasis_app_unref();
 	return 0;
 }
 
@@ -290,10 +289,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	CHECK_ARI_MODULE_LOADED();
 
-
-	stasis_app_ref();
 	res |= ast_ari_add_handler(&playbacks);
 	if (res) {
 		unload_module();

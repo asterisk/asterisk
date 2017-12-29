@@ -268,14 +268,4 @@ void ast_ari_response_created(struct ast_ari_response *response,
  */
 void ast_ari_response_alloc_failed(struct ast_ari_response *response);
 
-/*! \brief Determines whether the res_ari module is loaded */
-#define CHECK_ARI_MODULE_LOADED()				\
-	do {							\
-		if (!ast_module_check("res_ari.so")		\
-			|| !ast_ari_oom_json()) {	\
-			return AST_MODULE_LOAD_DECLINE;		\
-		}						\
-	} while(0)
-
-
 #endif /* _ASTERISK_ARI_H */

@@ -579,23 +579,15 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
  * a module could reject an incoming request if desired.
  *
  * \param supplement The supplement to register
- * \retval 0 Success
- * \retval -1 Failure
  */
-#define ast_sip_session_register_supplement(supplement) \
-	__ast_sip_session_register_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-int __ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement,
-	const char *file, int line, const char *func);
+void ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
 
 /*!
  * \brief Unregister a an supplement to SIP session processing
  *
  * \param supplement The supplement to unregister
  */
-#define ast_sip_session_unregister_supplement(supplement) \
-	__ast_sip_session_unregister_supplement(supplement, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-void __ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement,
-	const char *file, int line, const char *func);
+void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement);
 
 /*!
  * \brief Add supplements to a SIP session
@@ -893,14 +885,5 @@ int ast_sip_session_media_set_write_callback(struct ast_sip_session *session, st
  * \note This function is guaranteed to return non-NULL
  */
 struct ast_sip_session_media *ast_sip_session_media_get_transport(struct ast_sip_session *session, struct ast_sip_session_media *session_media);
-
-/*! \brief Determines whether the res_pjsip_session module is loaded */
-#define CHECK_PJSIP_SESSION_MODULE_LOADED()				\
-	do {								\
-		CHECK_PJSIP_MODULE_LOADED();				\
-		if (!ast_module_check("res_pjsip_session.so")) {	\
-			return AST_MODULE_LOAD_DECLINE;			\
-		}							\
-	} while(0)
 
 #endif /* _RES_PJSIP_SESSION_H */

@@ -1600,13 +1600,6 @@ void stasis_app_register_event_sources(void)
 	stasis_app_register_event_source(&endpoint_event_source);
 }
 
-int stasis_app_is_core_event_source(struct stasis_app_event_source *obj)
-{
-	return obj == &endpoint_event_source ||
-		obj == &bridge_event_source ||
-		obj == &channel_event_source;
-}
-
 void stasis_app_unregister_event_sources(void)
 {
 	stasis_app_unregister_event_source(&endpoint_event_source);

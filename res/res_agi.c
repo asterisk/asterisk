@@ -3815,8 +3815,6 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
 		AST_RWLIST_UNLOCK(&agi_commands);
-		if (mod != ast_module_info->self)
-			ast_module_ref(ast_module_info->self);
 		ast_verb(2, "AGI Command '%s' registered\n",fullcmd);
 		return 1;
 	} else {
@@ -3825,7 +3823,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 	}
 }
 
-int AST_OPTIONAL_API_NAME(ast_agi_unregister)(struct ast_module *mod, agi_command *cmd)
+int AST_OPTIONAL_API_NAME(ast_agi_unregister)(agi_command *cmd)
 {
 	struct agi_command *e;
 	int unregistered = 0;
@@ -3837,8 +3835,6 @@ int AST_OPTIONAL_API_NAME(ast_agi_unregister)(struct ast_module *mod, agi_comman
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&agi_commands, e, list) {
 		if (cmd == e) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			if (mod != ast_module_info->self)
-				ast_module_unref(ast_module_info->self);
 #ifdef AST_XML_DOCS
 			if (e->docsrc == AST_XML_DOC) {
 				ast_free((char *) e->summary);
@@ -3885,7 +3881,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_register_multiple)(struct ast_module *mod, str
 			   to fail is if the command is not
 			   registered
 			*/
-			(void) ast_agi_unregister(mod, cmd + x - 1);
+			(void) ast_agi_unregister(cmd + x - 1);
 		}
 		return -1;
 	}
@@ -3893,7 +3889,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_register_multiple)(struct ast_module *mod, str
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_agi_unregister_multiple)(struct ast_module *mod, struct agi_command *cmd, unsigned int len)
+int AST_OPTIONAL_API_NAME(ast_agi_unregister_multiple)(struct agi_command *cmd, unsigned int len)
 {
 	unsigned int i;
 	int res = 0;
@@ -3903,7 +3899,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_unregister_multiple)(struct ast_module *mod, s
 		   attempts failed... there is no recourse if
 		   any of them do
 		*/
-		res |= ast_agi_unregister(mod, cmd + i);
+		res |= ast_agi_unregister(cmd + i);
 	}
 
 	return res;
@@ -4659,7 +4655,7 @@ AST_TEST_DEFINE(test_agi_null_docs)
 	}
 #endif
 
-	ast_agi_unregister(ast_module_info->self, &noop_command);
+	ast_agi_unregister(&noop_command);
 	return res;
 }
 #endif
@@ -4673,7 +4669,7 @@ static int unload_module(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_end_type);
 
 	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
-	ast_agi_unregister_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
+	ast_agi_unregister_multiple(commands, ARRAY_LEN(commands));
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	ast_manager_unregister("AGI");
@@ -4705,9 +4701,6 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
-	/* For Optional API. */
-	ast_module_shutdown_ref(AST_MODULE_SELF);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

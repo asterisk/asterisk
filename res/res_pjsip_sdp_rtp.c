@@ -1928,8 +1928,6 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_check_ipv6()) {
 		ast_sockaddr_parse(&address_rtp, "::", 0);
 	} else {

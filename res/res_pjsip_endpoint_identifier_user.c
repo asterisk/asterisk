@@ -195,8 +195,6 @@ static struct ast_sip_endpoint_identifier auth_username_identifier = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sip_register_endpoint_identifier_with_name(&username_identifier, "username");
 	ast_sip_register_endpoint_identifier_with_name(&auth_username_identifier, "auth_username");
 	return AST_MODULE_LOAD_SUCCESS;

@@ -805,8 +805,6 @@ static pjsip_module messaging_module = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_sip_register_service(&messaging_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -849,5 +847,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Messaging Suppo
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND,
-	.requires = "res_pjsip",
+	.requires = "res_pjsip,res_pjsip_session",
 );

@@ -1364,8 +1364,6 @@ static struct ast_cli_entry cli_pjsip[] = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	log_level = ast_logger_register_level("PJSIP_HISTORY");
 	if (log_level < 0) {
 		ast_log(LOG_WARNING, "Unable to register history log level\n");

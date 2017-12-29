@@ -157,8 +157,8 @@ static void rtp_topic_handler(void *data, struct stasis_subscription *sub, struc
 
 static int load_module(void)
 {
-	if (!ast_module_check("res_hep.so") || !hepv3_is_loaded()) {
-		ast_log(AST_LOG_WARNING, "res_hep is not loaded or running; declining module load\n");
+	if (!hepv3_is_loaded()) {
+		ast_log(AST_LOG_WARNING, "res_hep is disabled; declining module load\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

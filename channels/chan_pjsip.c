@@ -2981,8 +2981,6 @@ static int load_module(void)
 {
 	struct ao2_container *endpoints;
 
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -3016,10 +3014,7 @@ static int load_module(void)
 		goto end;
 	}
 
-	if (ast_sip_session_register_supplement(&chan_pjsip_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register PJSIP supplement\n");
-		goto end;
-	}
+	ast_sip_session_register_supplement(&chan_pjsip_supplement);
 
 	if (!(pjsip_uids_onhold = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
 			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, 37, uid_hold_hash_fn,
@@ -3028,26 +3023,9 @@ static int load_module(void)
 		goto end;
 	}
 
-	if (ast_sip_session_register_supplement(&call_pickup_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register PJSIP call pickup supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		goto end;
-	}
-
-	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register PJSIP pbx start supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
-		goto end;
-	}
-
-	if (ast_sip_session_register_supplement(&chan_pjsip_ack_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register PJSIP ACK supplement\n");
-		ast_sip_session_unregister_supplement(&pbx_start_supplement);
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
-		goto end;
-	}
+	ast_sip_session_register_supplement(&call_pickup_supplement);
+	ast_sip_session_register_supplement(&pbx_start_supplement);
+	ast_sip_session_register_supplement(&chan_pjsip_ack_supplement);
 
 	if (pjsip_channel_cli_register()) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP Channel CLI\n");

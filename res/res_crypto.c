@@ -651,8 +651,6 @@ static int load_module(void)
 		crypto_load(-1, -1);
 	}
 
-	/* This prevents dlclose from ever running, but allows CLI cleanup at shutdown. */
-	ast_module_shutdown_ref(ast_module_info->self);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -663,7 +661,6 @@ static int unload_module(void)
 	return 0;
 }
 
-/* needs usecount semantics defined */
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Cryptographic Digital Signatures",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,

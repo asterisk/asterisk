@@ -107,12 +107,7 @@ static struct ast_sip_session_supplement info_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
-	if (ast_sip_session_register_supplement(&info_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register One Touch Recording supplement\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	ast_sip_session_register_supplement(&info_supplement);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -128,5 +123,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP INFO One Touch 
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND,
-	.requires = "res_pjsip",
+	.requires = "res_pjsip,res_pjsip_session",
 );
