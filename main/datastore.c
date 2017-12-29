@@ -31,12 +31,14 @@
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/uuid.h"
+#include "asterisk/module.h"
 
 /*! \brief Number of buckets for datastore container */
 #define DATASTORE_BUCKETS 53
 
-struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
-					    const char *file, int line, const char *function)
+struct ast_datastore *__ast_datastore_alloc(
+	const struct ast_datastore_info *info, const char *uid, struct ast_module *mod,
+	const char *file, int line, const char *function)
 {
 	struct ast_datastore *datastore = NULL;
 
@@ -50,11 +52,14 @@ struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *inf
 	}
 
 	datastore->info = info;
+	datastore->mod = mod;
 
 	if (!ast_strlen_zero(uid) && !(datastore->uid = ast_strdup(uid))) {
 		ast_free(datastore);
 		datastore = NULL;
 	}
+
+	ast_module_ref(mod);
 
 	return datastore;
 }
@@ -74,6 +79,8 @@ int ast_datastore_free(struct ast_datastore *datastore)
 		ast_free((void *) datastore->uid);
 		datastore->uid = NULL;
 	}
+
+	ast_module_unref(datastore->mod);
 
 	/* Finally free memory used by ourselves */
 	ast_free(datastore);

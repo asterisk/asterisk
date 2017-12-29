@@ -69,6 +69,7 @@ struct ast_datastore {
 	const char *uid;			/*!< Unique data store identifier */
 	void *data;				/*!< Contained data */
 	const struct ast_datastore_info *info;	/*!< Data store type information */
+	struct ast_module *mod;			/*!< Module referenced by this datastore */
 	unsigned int inheritance;		/*!< Number of levels this item will continue to be inherited */
 	AST_LIST_ENTRY(ast_datastore) entry; 	/*!< Used for easy linking */
 };
@@ -77,13 +78,16 @@ struct ast_datastore {
  * \brief Create a data store object
  * \param[in] info information describing the data store object
  * \param[in] uid unique identifer
+ * \param[in] mod The module to hold until this datastore is freed.
  * \param file, line, function
  * \version 1.6.1 moved here and renamed from ast_channel_datastore_alloc
  */
-struct ast_datastore * attribute_malloc __ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
-							      const char *file, int line, const char *function);
+struct ast_datastore * attribute_malloc __ast_datastore_alloc(
+	const struct ast_datastore_info *info, const char *uid, struct ast_module *mod,
+	const char *file, int line, const char *function);
 
-#define ast_datastore_alloc(info, uid) __ast_datastore_alloc(info, uid, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_datastore_alloc(info, uid) \
+	__ast_datastore_alloc(info, uid, AST_MODULE_SELF, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Free a data store object
