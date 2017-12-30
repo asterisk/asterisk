@@ -1179,6 +1179,67 @@ static int cli_aor_print_body(void *obj, void *arg, int flags)
 	return 0;
 }
 
+static struct ao2_container *cli_get_aors(void)
+{
+	struct ao2_container *aors;
+
+	aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "aor",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+
+	return aors;
+}
+
+static int format_ami_aorlist_handler(void *obj, void *arg, int flags)
+{
+	struct ast_sip_aor *aor = obj;
+	struct ast_sip_ami *ami = arg;
+	struct ast_str *buf;
+
+	buf = ast_sip_create_ami_event("AorList", ami);
+	if (!buf) {
+		return -1;
+	}
+
+	sip_aor_to_ami(aor, &buf);
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
+	ast_free(buf);
+
+	return 0;
+}
+
+static int ami_show_aors(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
+	struct ao2_container *aors;
+
+	aors = cli_get_aors();
+	if (!aors) {
+		astman_send_error(s, m, "Could not get AORs\n");
+		return 0;
+	}
+
+	if (!ao2_container_count(aors)) {
+		astman_send_error(s, m, "No AORs found\n");
+		ao2_ref(aors, -1);
+		return 0;
+	}
+
+	astman_send_listack(s, m, "A listing of AORs follows, presented as AorList events",
+			"start");
+
+	ao2_callback(aors, OBJ_NODATA, format_ami_aorlist_handler, &ami);
+
+	astman_send_list_complete_start(s, m, "AorListComplete", ami.count);
+	astman_send_list_complete_end(s);
+
+	ao2_ref(aors, -1);
+
+	return 0;
+}
+
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Aors",
 		.command = "pjsip list aors",
@@ -1317,6 +1378,10 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sip_register_cli_formatter(aor_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
+	if (ast_manager_register_xml("PJSIPShowAors", EVENT_FLAG_SYSTEM, ami_show_aors)) {
+		return -1;
+	}
+
 	/*
 	 * Reset StatsD gauges in case we didn't shut down cleanly.
 	 * Note that this must done here, as contacts will create the contact_status
@@ -1335,6 +1400,7 @@ int ast_sip_destroy_sorcery_location(void)
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(contact_formatter);
 	ast_sip_unregister_cli_formatter(aor_formatter);
+	ast_manager_unregister("PJSIPShowAors");
 
 	internal_sip_unregister_endpoint_formatter(&endpoint_aor_formatter);
 

@@ -2267,6 +2267,49 @@
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+		<managerEvent language="en_US" name="AorList">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an Address of Record (AoR) section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'aor'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="MinimumExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='minimum_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaximumExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='maximum_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DefaultExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='default_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="QualifyFrequency">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='qualify_frequency']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AuthenticateQualify">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='authenticate_qualify']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaxContacts">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='max_contacts']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RemoveExisting">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Mailboxes">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='outbound_proxy']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportPath">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='support_path']/synopsis/node())"/></para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="ContactStatusDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
 			<synopsis>Provide details about a contact's status.</synopsis>
@@ -2426,6 +2469,34 @@
 			</managerEvent>
 		</responses>
 	</manager>
+	<manager name="PJSIPShowAors" language="en_US">
+		<synopsis>
+			Lists PJSIP AORs.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			Provides a listing of all AORs. For each AOR an <literal>AorList</literal> event
+			is raised that contains relevant attributes and status information.  Once all
+			aors have been listed an <literal>AorListComplete</literal> event is issued.
+			</para>
+		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AorList'])" />
+			</list-elements>
+			<managerEvent language="en_US" name="AorListComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Provide final information about an aor list.</synopsis>
+					<syntax>
+						<parameter name="EventList"/>
+						<parameter name="ListItems"/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
+	</manager>
+
  ***/
 
 #define MOD_DATA_CONTACT "contact"

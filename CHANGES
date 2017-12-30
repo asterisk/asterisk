@@ -43,6 +43,11 @@ app_queue
    When set the wrapuptime on the member is used instead of the wrapuptime
    defined for the queue itself.
 
+res_pjsip
+------------------
+ * A new AMI action, PJSIPShowAors, has been added which displays information
+   about all configured PJSIP AORs.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
