@@ -107,19 +107,8 @@ struct named_acl {
 	char name[ACL_NAME_LENGTH]; /* Same max length as a configuration category */
 };
 
-static int named_acl_hash_fn(const void *obj, const int flags)
-{
-	const struct named_acl *entry = obj;
-	return ast_str_hash(entry->name);
-}
-
-static int named_acl_cmp_fn(void *obj, void *arg, const int flags)
-{
-	struct named_acl *entry1 = obj;
-	struct named_acl *entry2 = arg;
-
-	return (!strcmp(entry1->name, entry2->name)) ? (CMP_MATCH | CMP_STOP) : 0;
-}
+AO2_STRING_FIELD_HASH_FN(named_acl, name)
+AO2_STRING_FIELD_CMP_FN(named_acl, name)
 
 /*! \brief destructor for named_acl_config */
 static void named_acl_config_destructor(void *obj)
