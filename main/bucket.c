@@ -617,33 +617,10 @@ struct ast_json *ast_bucket_json(const struct ast_bucket *bucket)
 }
 
 /*! \brief Hashing function for file metadata */
-static int bucket_file_metadata_hash(const void *obj, const int flags)
-{
-	const struct ast_bucket_metadata *object;
-	const char *key;
-
-	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-	case OBJ_KEY:
-		key = obj;
-		return ast_str_hash(key);
-	case OBJ_POINTER:
-		object = obj;
-		return ast_str_hash(object->name);
-	default:
-		/* Hash can only work on something with a full key */
-		ast_assert(0);
-		return 0;
-	}
-}
+AO2_STRING_FIELD_HASH_FN(ast_bucket_metadata, name)
 
 /*! \brief Comparison function for file metadata */
-static int bucket_file_metadata_cmp(void *obj, void *arg, int flags)
-{
-	struct ast_bucket_metadata *metadata1 = obj, *metadata2 = arg;
-	const char *name = arg;
-
-	return !strcmp(metadata1->name, flags & OBJ_KEY ? name : metadata2->name) ? CMP_MATCH | CMP_STOP : 0;
-}
+AO2_STRING_FIELD_CMP_FN(ast_bucket_metadata, name)
 
 /*! \brief Destructor for bucket files */
 static void bucket_file_destroy(void *obj)
@@ -673,7 +650,7 @@ static void *bucket_file_alloc(const char *name)
 	}
 
 	file->metadata = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, METADATA_BUCKETS,
-		bucket_file_metadata_hash, bucket_file_metadata_cmp);
+		ast_bucket_metadata_hash_fn, ast_bucket_metadata_cmp_fn);
 	if (!file->metadata) {
 		return NULL;
 	}
@@ -941,33 +918,10 @@ void ast_bucket_file_temporary_destroy(struct ast_bucket_file *file)
 }
 
 /*! \brief Hashing function for scheme container */
-static int bucket_scheme_hash(const void *obj, const int flags)
-{
-	const struct ast_bucket_scheme *object;
-	const char *key;
-
-	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-	case OBJ_KEY:
-		key = obj;
-		return ast_str_hash(key);
-	case OBJ_POINTER:
-		object = obj;
-		return ast_str_hash(object->name);
-	default:
-		/* Hash can only work on something with a full key */
-		ast_assert(0);
-		return 0;
-	}
-}
+AO2_STRING_FIELD_HASH_FN(ast_bucket_scheme, name)
 
 /*! \brief Comparison function for scheme container */
-static int bucket_scheme_cmp(void *obj, void *arg, int flags)
-{
-	struct ast_bucket_scheme *scheme1 = obj, *scheme2 = arg;
-	const char *name = arg;
-
-	return !strcmp(scheme1->name, flags & OBJ_KEY ? name : scheme2->name) ? CMP_MATCH | CMP_STOP : 0;
-}
+AO2_STRING_FIELD_CMP_FN(ast_bucket_scheme, name)
 
 /*! \brief Cleanup function for graceful shutdowns */
 static void bucket_cleanup(void)
@@ -1000,8 +954,8 @@ int ast_bucket_init(void)
 {
 	ast_register_cleanup(&bucket_cleanup);
 
-	schemes = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, SCHEME_BUCKETS, bucket_scheme_hash,
-		bucket_scheme_cmp);
+	schemes = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, SCHEME_BUCKETS,
+		ast_bucket_scheme_hash_fn, ast_bucket_scheme_cmp_fn);
 	if (!schemes) {
 		ast_log(LOG_ERROR, "Failed to create container for Bucket schemes\n");
 		return -1;
