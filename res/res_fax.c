@@ -1161,8 +1161,10 @@ static struct ast_fax_session *fax_session_reserve(struct ast_fax_session_detail
 		if ((faxmod->tech->caps & details->caps) != details->caps) {
 			continue;
 		}
+		if (!ast_module_running_ref(faxmod->tech->module)) {
+			continue;
+		}
 		ast_debug(4, "Reserving a FAX session from '%s'.\n", faxmod->tech->description);
-		ast_module_ref(faxmod->tech->module);
 		s->tech = faxmod->tech;
 		break;
 	}
@@ -1279,8 +1281,10 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 			if ((faxmod->tech->caps & details->caps) != details->caps) {
 				continue;
 			}
+			if (!ast_module_running_ref(faxmod->tech->module)) {
+				continue;
+			}
 			ast_debug(4, "Requesting a new FAX session from '%s'.\n", faxmod->tech->description);
-			ast_module_ref(faxmod->tech->module);
 			if (reserved) {
 				/* Balance module ref from reserved session */
 				ast_module_unref(reserved->tech->module);

@@ -2923,34 +2923,41 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 	}
 
 	action = astman_get_header(&m, "Action");
-	if (strcasecmp(action, "login")) {
-		act_found = action_find(action);
-		if (act_found) {
-			/*
-			 * we have to simulate a session for this action request
-			 * to be able to pass it down for processing
-			 * This is necessary to meet the previous design of manager.c
-			 */
-			s.hook = hook;
 
-			ao2_lock(act_found);
-			if (act_found->registered && act_found->func) {
-				if (act_found->module) {
-					ast_module_ref(act_found->module);
-				}
-				ao2_unlock(act_found);
-				ret = act_found->func(&s, &m);
-				ao2_lock(act_found);
-				if (act_found->module) {
-					ast_module_unref(act_found->module);
-				}
-			} else {
-				ret = -1;
-			}
-			ao2_unlock(act_found);
-			ao2_t_ref(act_found, -1, "done with found action object");
+	do {
+		if (!strcasecmp(action, "login")) {
+			break;
 		}
-	}
+
+		act_found = action_find(action);
+		if (!act_found) {
+			break;
+		}
+
+		/*
+		 * we have to simulate a session for this action request
+		 * to be able to pass it down for processing
+		 * This is necessary to meet the previous design of manager.c
+		 */
+		s.hook = hook;
+
+		ret = -1;
+		ao2_lock(act_found);
+		if (act_found->registered && act_found->func) {
+			struct ast_module *mod_ref = ast_module_running_ref(act_found->module);
+
+			ao2_unlock(act_found);
+			/* If the action is in a module it must be running. */
+			if (!act_found->module || mod_ref) {
+				ret = act_found->func(&s, &m);
+				ast_module_unref(mod_ref);
+			}
+		} else {
+			ao2_unlock(act_found);
+		}
+		ao2_t_ref(act_found, -1, "done with found action object");
+	} while (0);
+
 	ast_free(dup_str);
 	return ret;
 }
@@ -6442,21 +6449,21 @@ static int process_message(struct mansession *s, const struct message *m)
 		if ((s->session->writeperm & act_found->authority)
 			|| act_found->authority == 0) {
 			/* We have the authority to execute the action. */
+			ret = -1;
 			ao2_lock(act_found);
 			if (act_found->registered && act_found->func) {
-				ast_debug(1, "Running action '%s'\n", act_found->action);
-				if (act_found->module) {
-					ast_module_ref(act_found->module);
-				}
+				struct ast_module *mod_ref = ast_module_running_ref(act_found->module);
+
 				ao2_unlock(act_found);
-				ret = act_found->func(s, m);
-				acted = 1;
-				ao2_lock(act_found);
-				if (act_found->module) {
-					ast_module_unref(act_found->module);
+				if (mod_ref || !act_found->module) {
+					ast_debug(1, "Running action '%s'\n", act_found->action);
+					ret = act_found->func(s, m);
+					acted = 1;
+					ast_module_unref(mod_ref);
 				}
+			} else {
+				ao2_unlock(act_found);
 			}
-			ao2_unlock(act_found);
 		}
 		if (!acted) {
 			/*

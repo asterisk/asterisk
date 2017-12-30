@@ -124,17 +124,22 @@ struct ast_timer *ast_timer_open(void)
 	void *data = NULL;
 	struct timing_holder *h;
 	struct ast_timer *t = NULL;
+	int idx = 1;
 
 	ast_heap_rdlock(timing_interfaces);
 
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		data = h->iface->timer_open();
-		ast_module_ref(h->mod);
+	while ((h = ast_heap_peek(timing_interfaces, idx))) {
+		if (ast_module_running_ref(h->mod)) {
+			data = h->iface->timer_open();
+			break;
+		}
+		idx++;
 	}
 
 	if (data) {
 		if (!(t = ast_calloc(1, sizeof(*t)))) {
 			h->iface->timer_close(data);
+			ast_module_unref(h->mod);
 		} else {
 			t->data = data;
 			t->holder = h;

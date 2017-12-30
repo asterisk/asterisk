@@ -342,7 +342,10 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 */
 	pvt->explicit_dst = ao2_bump(explicit_dst);
 
-	ast_module_ref(t->module);
+	if (!ast_module_running_ref(t->module)) {
+		ast_free(pvt);
+		return NULL;
+	}
 
 	/* call local init routine, if present */
 	if (t->newpvt && t->newpvt(pvt)) {

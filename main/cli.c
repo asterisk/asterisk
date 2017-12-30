@@ -2679,9 +2679,12 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 					.n = state - matchnum,
 					.argv = argv,
 					.argc = x};
-				ast_module_ref(e->module);
-				ret = e->handler(e, CLI_GENERATE, &a);
-				ast_module_unref(e->module);
+
+				/* If the command is in a module it must be running. */
+				if (!e->module || ast_module_running_ref(e->module)) {
+					ret = e->handler(e, CLI_GENERATE, &a);
+					ast_module_unref(e->module);
+				}
 			}
 			if (ret)
 				break;
@@ -2760,9 +2763,11 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	 */
 	args[0] = (char *)e;
 
-	ast_module_ref(e->module);
-	retval = e->handler(e, CLI_HANDLER, &a);
-	ast_module_unref(e->module);
+	/* If the command is in a module it must be running. */
+	if (!e->module || ast_module_running_ref(e->module)) {
+		retval = e->handler(e, CLI_HANDLER, &a);
+		ast_module_unref(e->module);
+	}
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));

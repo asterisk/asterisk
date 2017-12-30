@@ -386,6 +386,7 @@ int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *
 	return res;
 }
 
+/* BUGBUG this is not thread safe. */
 static const struct ast_app_stack_funcs *app_stack_callbacks;
 
 void ast_install_stack_functions(const struct ast_app_stack_funcs *funcs)
@@ -399,16 +400,16 @@ const char *ast_app_expand_sub_args(struct ast_channel *chan, const char *args)
 	const char *new_args;
 
 	funcs = app_stack_callbacks;
-	if (!funcs || !funcs->expand_sub_args) {
+	if (!funcs || !funcs->expand_sub_args || !ast_module_running_ref(funcs->module)) {
 		ast_log(LOG_WARNING,
 			"Cannot expand 'Gosub(%s)' arguments.  The app_stack module is not available.\n",
 			args);
 		return NULL;
 	}
-	ast_module_ref(funcs->module);
 
 	new_args = funcs->expand_sub_args(chan, args);
 	ast_module_unref(funcs->module);
+
 	return new_args;
 }
 
@@ -418,13 +419,12 @@ int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *s
 	int res;
 
 	funcs = app_stack_callbacks;
-	if (!funcs || !funcs->run_sub) {
+	if (!funcs || !funcs->run_sub || !ast_module_running_ref(funcs->module)) {
 		ast_log(LOG_WARNING,
 			"Cannot run 'Gosub(%s)'.  The app_stack module is not available.\n",
 			sub_args);
 		return -1;
 	}
-	ast_module_ref(funcs->module);
 
 	if (autoservice_chan) {
 		ast_autoservice_start(autoservice_chan);

@@ -425,11 +425,17 @@ static void filestream_destructor(void *arg)
 static struct ast_filestream *get_filestream(struct ast_format_def *fmt, FILE *bfile)
 {
 	struct ast_filestream *s;
-
 	int l = sizeof(*s) + fmt->buf_size + fmt->desc_size;	/* total allocation size */
-	if ( (s = ao2_alloc(l, filestream_destructor)) == NULL)
+
+	if (!ast_module_running_ref(fmt->module)) {
 		return NULL;
-	ast_module_ref(fmt->module);
+	}
+
+	s = ao2_alloc(l, filestream_destructor);
+	if (!s) {
+		ast_module_unref(fmt->module);
+		return NULL;
+	}
 	s->fmt = fmt;
 	s->f = bfile;
 

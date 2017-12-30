@@ -234,8 +234,21 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 	/* Copy module pointer so reference counting can keep the module from unloading */
 	technology->mod = module;
 
-	/* Insert our new bridge technology into the list and print out a pretty message */
-	AST_RWLIST_INSERT_TAIL(&bridge_technologies, technology, entry);
+	/* Find the correct position to insert the technology. */
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&bridge_technologies, current, entry) {
+		/* Put the highest preference tech's first in the list. */
+		if (technology->preference >= current->preference) {
+			AST_RWLIST_INSERT_BEFORE_CURRENT(technology, entry);
+
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!current) {
+		/* Insert our new bridge technology to the end of the list. */
+		AST_RWLIST_INSERT_TAIL(&bridge_technologies, technology, entry);
+	}
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
@@ -517,12 +530,17 @@ static struct ast_bridge_technology *find_best_technology(uint32_t capabilities,
 				current->name);
 			continue;
 		}
+		if (!ast_module_running_ref(current->mod)) {
+			ast_debug(1, "Bridge technology %s is not running, skipping.\n", current->name);
+			continue;
+		}
+		if (best) {
+			ast_module_unref(best->mod);
+		}
 		best = current;
 	}
 
 	if (best) {
-		/* Increment it's module reference count if present so it does not get unloaded while in use */
-		ast_module_ref(best->mod);
 		ast_debug(1, "Chose bridge technology %s\n", best->name);
 	}
 

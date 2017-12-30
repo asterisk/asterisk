@@ -357,6 +357,7 @@ void __ast_module_user_hangup_all(struct ast_module *);
 #define ast_module_user_hangup_all() __ast_module_user_hangup_all(AST_MODULE_SELF)
 
 struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, int line, const char *func);
+struct ast_module *__ast_module_running_ref(struct ast_module *mod, const char *file, int line, const char *func);
 void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func);
 void __ast_module_unref(struct ast_module *mod, const char *file, int line, const char *func);
 
@@ -369,6 +370,20 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
  * from being unloaded.
  */
 #define ast_module_ref(mod)           __ast_module_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \brief Hold a reference to the module if it is running.
+ * \param mod Module to reference
+ * \retval mod if running
+ * \retval NULL if not running
+ *
+ * The returned pointer should be released with ast_module_unref.
+ *
+ * \note A module reference will prevent the module from being unloaded.
+ */
+#define ast_module_running_ref(mod) \
+	__ast_module_running_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
 /*!
  * \brief Prevent unload of the module before shutdown
  * \param mod Module to hold
