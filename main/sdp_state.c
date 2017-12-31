@@ -2171,7 +2171,7 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
 
 	/* Find all of the candidates */
 	for (attr_i = 0; attr_i < ast_sdp_m_get_a_count(remote_m_line); ++attr_i) {
-		char foundation[32];
+		char foundation[33];
 		char transport[32];
 		char address[INET6_ADDRSTRLEN + 1];
 		char cand_type[6];
@@ -2187,7 +2187,7 @@ static void update_ice(const struct ast_sdp_state *state, struct ast_rtp_instanc
 			continue;
 		}
 
-		if (sscanf(attr->value, "%31s %30u %31s %30u %46s %30u typ %5s %*s %23s %*s %30u",
+		if (sscanf(attr->value, "%32s %30u %31s %30u %46s %30u typ %5s %*s %23s %*s %30u",
 			foundation, &candidate.id, transport, (unsigned *)&candidate.priority, address,
 			&port, cand_type, relay_address, &relay_port) < 7) {
 			/* Candidate did not parse properly */
