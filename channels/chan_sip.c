@@ -11288,7 +11288,7 @@ static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_in
 {
 	struct ast_rtp_engine_ice *ice;
 	int found = FALSE;
-	char ufrag[256], pwd[256], foundation[32], transport[4], address[46], cand_type[6], relay_address[46] = "";
+	char ufrag[256], pwd[256], foundation[33], transport[4], address[46], cand_type[6], relay_address[46] = "";
 	struct ast_rtp_engine_ice_candidate candidate = { 0, };
 	unsigned int port, relay_port = 0;
 
@@ -11302,7 +11302,7 @@ static int process_sdp_a_ice(const char *a, struct sip_pvt *p, struct ast_rtp_in
 	} else if (sscanf(a, "ice-pwd: %255s", pwd) == 1) {
 		ice->set_authentication(instance, NULL, pwd);
 		found = TRUE;
-	} else if (sscanf(a, "candidate: %31s %30u %3s %30u %23s %30u typ %5s %*s %23s %*s %30u", foundation, &candidate.id, transport, (unsigned *)&candidate.priority,
+	} else if (sscanf(a, "candidate: %32s %30u %3s %30u %23s %30u typ %5s %*s %23s %*s %30u", foundation, &candidate.id, transport, (unsigned *)&candidate.priority,
 			  address, &port, cand_type, relay_address, &relay_port) >= 7) {
 
 		if (rtcp_mux_offered && ast_test_flag(&p->flags[2], SIP_PAGE3_RTCP_MUX) && candidate.id > 1) {
