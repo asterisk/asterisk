@@ -4181,7 +4181,7 @@ static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	if (!ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
 		ast_cli(a->fd, "Cannot submit CDR batch: CDR engine disabled.\n");
-	} else if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
+	} else if (!ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
 		ast_cli(a->fd, "Cannot submit CDR batch: batch mode not enabled.\n");
 	} else {
 		submit_unscheduled_batch();
