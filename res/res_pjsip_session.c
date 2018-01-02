@@ -1883,10 +1883,8 @@ int ast_sip_session_defer_termination(struct ast_sip_session *session)
 	session->defer_end = 1;
 	session->ended_while_deferred = 0;
 
-	session->scheduled_termination.id = 0;
 	ao2_ref(session, +1);
-	session->scheduled_termination.user_data = session;
-	session->scheduled_termination.cb = session_termination_cb;
+	pj_timer_entry_init(&session->scheduled_termination, 0, session, session_termination_cb);
 
 	res = (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(),
 		&session->scheduled_termination, &delay) != PJ_SUCCESS) ? -1 : 0;
@@ -1908,8 +1906,8 @@ int ast_sip_session_defer_termination(struct ast_sip_session *session)
  */
 static void sip_session_defer_termination_stop_timer(struct ast_sip_session *session)
 {
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
-		&session->scheduled_termination)) {
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&session->scheduled_termination, session->scheduled_termination.id)) {
 		ao2_ref(session, -1);
 	}
 }

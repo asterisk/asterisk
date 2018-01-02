@@ -291,7 +291,8 @@ static struct ast_sip_event_publisher_handler *find_publisher_handler_for_event_
 /*! \brief Helper function which cancels the refresh timer on a client */
 static void cancel_publish_refresh(struct ast_sip_outbound_publish_client *client)
 {
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &client->timer)) {
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&client->timer, 0)) {
 		/* The timer was successfully cancelled, drop the refcount of the client */
 		ao2_ref(client, -1);
 	}
@@ -1090,8 +1091,7 @@ static struct ast_sip_outbound_publish_state *sip_outbound_publish_state_alloc(
 		return NULL;
 	}
 
-	state->client->timer.user_data = state->client;
-	state->client->timer.cb = sip_outbound_publish_timer_cb;
+	pj_timer_entry_init(&state->client->timer, 0, state->client, sip_outbound_publish_timer_cb);
 	state->client->transport_name = ast_strdup(publish->transport);
 	state->client->publish = ao2_bump(publish);
 
