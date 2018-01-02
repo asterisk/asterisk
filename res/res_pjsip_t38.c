@@ -142,7 +142,8 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 		new_state, old_state,
 		session->channel ? ast_channel_name(session->channel) : "<gone>");
 
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &state->timer)) {
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&state->timer, 0)) {
 		ast_debug(2, "Automatic T.38 rejection on channel '%s' terminated\n",
 			session->channel ? ast_channel_name(session->channel) : "<gone>");
 		ao2_ref(session, -1);
@@ -248,8 +249,7 @@ static struct t38_state *t38_state_get_or_alloc(struct ast_sip_session *session)
 	state = datastore->data;
 
 	/* This will get bumped up before scheduling */
-	state->timer.user_data = session;
-	state->timer.cb = t38_automatic_reject_timer_cb;
+	pj_timer_entry_init(&state->timer, 0, session, t38_automatic_reject_timer_cb);
 
 	datastore->data = state;
 
