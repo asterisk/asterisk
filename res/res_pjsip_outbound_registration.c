@@ -512,7 +512,8 @@ static struct ast_sip_endpoint_identifier line_identifier = {
 /*! \brief Helper function which cancels the timer on a client */
 static void cancel_registration(struct sip_outbound_registration_client_state *client_state)
 {
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &client_state->timer)) {
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&client_state->timer, client_state->timer.id)) {
 		/* The timer was successfully cancelled, drop the refcount of client_state */
 		ao2_ref(client_state, -1);
 	}
@@ -1129,8 +1130,8 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	}
 
 	state->client_state->status = SIP_REGISTRATION_UNREGISTERED;
-	state->client_state->timer.user_data = state->client_state;
-	state->client_state->timer.cb = sip_outbound_registration_timer_cb;
+	pj_timer_entry_init(&state->client_state->timer, 0, state->client_state,
+		sip_outbound_registration_timer_cb);
 	state->client_state->transport_name = ast_strdup(registration->transport);
 	state->client_state->registration_name =
 		ast_strdup(ast_sorcery_object_get_id(registration));
