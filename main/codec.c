@@ -73,24 +73,7 @@ struct internal_ast_codec {
 int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name,
 	struct ast_module *mod);
 
-static int codec_hash(const void *obj, int flags)
-{
-	const struct ast_codec *codec;
-	const char *key;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		key = obj;
-		return ast_str_hash(key);
-	case OBJ_SEARCH_OBJECT:
-		codec = obj;
-		return ast_str_hash(codec->name);
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-}
+AO2_STRING_FIELD_HASH_FN(ast_codec, name)
 
 static int codec_cmp(void *obj, void *arg, int flags)
 {
@@ -265,7 +248,8 @@ static void codec_shutdown(void)
 
 int ast_codec_init(void)
 {
-	codecs = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CODEC_BUCKETS, codec_hash, codec_cmp);
+	codecs = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CODEC_BUCKETS,
+		ast_codec_hash_fn, codec_cmp);
 	if (!codecs) {
 		return -1;
 	}
