@@ -98,6 +98,7 @@ static char *aco_option_type_string[] = {
 	"String",			/* OPT_STRINGFIELD_T, */
 	"Unsigned Integer",	/* OPT_UINT_T, */
 	"Boolean",			/* OPT_YESNO_T, */
+	"Time Length",		/* OPT_TIMELEN_T, */
 };
 #endif /* AST_XML_DOCS */
 
