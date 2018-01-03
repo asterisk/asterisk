@@ -1386,19 +1386,8 @@ struct generic_monitor_pvt {
 	int core_id;
 };
 
-static int generic_monitor_hash_fn(const void *obj, const int flags)
-{
-	const struct generic_monitor_instance_list *generic_list = obj;
-	return ast_str_hash(generic_list->device_name);
-}
-
-static int generic_monitor_cmp_fn(void *obj, void *arg, int flags)
-{
-	const struct generic_monitor_instance_list *generic_list1 = obj;
-	const struct generic_monitor_instance_list *generic_list2 = arg;
-
-	return !strcmp(generic_list1->device_name, generic_list2->device_name) ? CMP_MATCH | CMP_STOP : 0;
-}
+AO2_STRING_FIELD_HASH_FN(generic_monitor_instance_list, device_name)
+AO2_STRING_FIELD_CMP_FN(generic_monitor_instance_list, device_name)
 
 static struct generic_monitor_instance_list *find_generic_monitor_instance_list(const char * const device_name)
 {
@@ -4671,8 +4660,8 @@ int ast_cc_init(void)
 		return -1;
 	}
 	if (!(generic_monitors = ao2_t_container_alloc(CC_CORE_INSTANCES_BUCKETS,
-					generic_monitor_hash_fn, generic_monitor_cmp_fn,
-					"Create generic monitor container"))) {
+			generic_monitor_instance_list_hash_fn, generic_monitor_instance_list_cmp_fn,
+			"Create generic monitor container"))) {
 		return -1;
 	}
 	if (!(cc_core_taskprocessor = ast_taskprocessor_get("CCSS_core", TPS_REF_DEFAULT))) {

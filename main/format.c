@@ -64,53 +64,8 @@ struct format_interface {
 /*! \brief Container for registered format interfaces */
 static struct ao2_container *interfaces;
 
-static int format_interface_hash(const void *obj, int flags)
-{
-	const struct format_interface *format_interface;
-	const char *key;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		key = obj;
-		return ast_str_hash(key);
-	case OBJ_SEARCH_OBJECT:
-		format_interface = obj;
-		return ast_str_hash(format_interface->codec);
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-}
-
-static int format_interface_cmp(void *obj, void *arg, int flags)
-{
-	const struct format_interface *left = obj;
-	const struct format_interface *right = arg;
-	const char *right_key = arg;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		cmp = strcmp(left->codec, right->codec);
-		break;
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(left->codec, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(left->codec, right_key, strlen(right_key));
-		break;
-	default:
-		ast_assert(0);
-		cmp = 0;
-		break;
-	}
-	if (cmp) {
-		return 0;
-	}
-
-	return CMP_MATCH;
-}
+AO2_STRING_FIELD_HASH_FN(format_interface, codec)
+AO2_STRING_FIELD_CMP_FN(format_interface, codec)
 
 /*! \brief Function called when the process is shutting down */
 static void format_shutdown(void)
@@ -121,8 +76,8 @@ static void format_shutdown(void)
 
 int ast_format_init(void)
 {
-	interfaces = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, FORMAT_INTERFACE_BUCKETS, format_interface_hash,
-		format_interface_cmp);
+	interfaces = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, FORMAT_INTERFACE_BUCKETS,
+		format_interface_hash_fn, format_interface_cmp_fn);
 	if (!interfaces) {
 		return -1;
 	}

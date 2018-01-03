@@ -39,46 +39,8 @@ struct ast_named_lock {
 	char key[0];
 };
 
-static int named_locks_hash(const void *obj, const int flags)
-{
-	const struct ast_named_lock *lock = obj;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		return ast_str_hash(obj);
-	case OBJ_SEARCH_OBJECT:
-		return ast_str_hash(lock->key);
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-}
-
-static int named_locks_cmp(void *obj_left, void *obj_right, int flags)
-{
-	const struct ast_named_lock *object_left = obj_left;
-	const struct ast_named_lock *object_right = obj_right;
-	const char *right_key = obj_right;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->key;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->key, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(object_left->key, right_key, strlen(right_key));
-		break;
-	default:
-		cmp = 0;
-		break;
-	}
-
-	return cmp ? 0 : CMP_MATCH;
-}
+AO2_STRING_FIELD_HASH_FN(ast_named_lock, key)
+AO2_STRING_FIELD_CMP_FN(ast_named_lock, key)
 
 static void named_locks_shutdown(void)
 {
@@ -88,7 +50,7 @@ static void named_locks_shutdown(void)
 int ast_named_locks_init(void)
 {
 	named_locks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		NAMED_LOCKS_BUCKETS, named_locks_hash, NULL, named_locks_cmp);
+		NAMED_LOCKS_BUCKETS, ast_named_lock_hash_fn, NULL, ast_named_lock_cmp_fn);
 	if (!named_locks) {
 		return -1;
 	}
