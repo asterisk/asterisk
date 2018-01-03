@@ -329,129 +329,16 @@ struct cel_backend {
 };
 
 /*! \brief Hashing function for cel_backend */
-static int cel_backend_hash(const void *obj, int flags)
-{
-	const struct cel_backend *backend;
-	const char *name;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		backend = obj;
-		name = backend->name;
-		break;
-	case OBJ_SEARCH_KEY:
-		name = obj;
-		break;
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-
-	return ast_str_hash(name);
-}
+AO2_STRING_FIELD_HASH_FN(cel_backend, name)
 
 /*! \brief Comparator function for cel_backend */
-static int cel_backend_cmp(void *obj, void *arg, int flags)
-{
-	const struct cel_backend *object_left = obj;
-	const struct cel_backend *object_right = arg;
-	const char *right_key = arg;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->name;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->name, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		/*
-		 * We could also use a partial key struct containing a length
-		 * so strlen() does not get called for every comparison instead.
-		 */
-		cmp = strncmp(object_left->name, right_key, strlen(right_key));
-		break;
-	default:
-		/*
-		 * What arg points to is specific to this traversal callback
-		 * and has no special meaning to astobj2.
-		 */
-		cmp = 0;
-		break;
-	}
-	if (cmp) {
-		return 0;
-	}
-	/*
-	 * At this point the traversal callback is identical to a sorted
-	 * container.
-	 */
-	return CMP_MATCH;
-}
+AO2_STRING_FIELD_CMP_FN(cel_backend, name)
 
 /*! \brief Hashing function for dialstatus container */
-static int dialstatus_hash(const void *obj, int flags)
-{
-	const struct cel_dialstatus *dialstatus;
-	const char *key;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		key = obj;
-		break;
-	case OBJ_SEARCH_OBJECT:
-		dialstatus = obj;
-		key = dialstatus->uniqueid;
-		break;
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-	return ast_str_hash(key);
-}
+AO2_STRING_FIELD_HASH_FN(cel_dialstatus, uniqueid)
 
 /*! \brief Comparator function for dialstatus container */
-static int dialstatus_cmp(void *obj, void *arg, int flags)
-{
-	struct cel_dialstatus *object_left = obj;
-	struct cel_dialstatus *object_right = arg;
-	const char *right_key = arg;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->uniqueid;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->uniqueid, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		/*
-		 * We could also use a partial key struct containing a length
-		 * so strlen() does not get called for every comparison instead.
-		 */
-		cmp = strncmp(object_left->uniqueid, right_key, strlen(right_key));
-		break;
-	default:
-		/*
-		 * What arg points to is specific to this traversal callback
-		 * and has no special meaning to astobj2.
-		 */
-		cmp = 0;
-		break;
-	}
-	if (cmp) {
-		return 0;
-	}
-	/*
-	 * At this point the traversal callback is identical to a sorted
-	 * container.
-	 */
-	return CMP_MATCH;
-}
+AO2_STRING_FIELD_CMP_FN(cel_dialstatus, uniqueid)
 
 unsigned int ast_cel_check_enabled(void)
 {
@@ -1665,71 +1552,14 @@ static int create_routes(void)
 	return ret;
 }
 
-static int lid_hash(const void *obj, const int flags)
-{
-	const struct cel_linkedid *lid;
-	const char *key;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		key = obj;
-		break;
-	case OBJ_SEARCH_OBJECT:
-		lid = obj;
-		key = lid->id;
-		break;
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-	return ast_str_hash(key);
-}
-
-static int lid_cmp(void *obj, void *arg, int flags)
-{
-	const struct cel_linkedid *object_left = obj;
-	const struct cel_linkedid *object_right = arg;
-	const char *right_key = arg;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->id;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->id, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		/*
-		 * We could also use a partial key struct containing a length
-		 * so strlen() does not get called for every comparison instead.
-		 */
-		cmp = strncmp(object_left->id, right_key, strlen(right_key));
-		break;
-	default:
-		/*
-		 * What arg points to is specific to this traversal callback
-		 * and has no special meaning to astobj2.
-		 */
-		cmp = 0;
-		break;
-	}
-	if (cmp) {
-		return 0;
-	}
-	/*
-	 * At this point the traversal callback is identical to a sorted
-	 * container.
-	 */
-	return CMP_MATCH;
-}
+AO2_STRING_FIELD_HASH_FN(cel_linkedid, id)
+AO2_STRING_FIELD_CMP_FN(cel_linkedid, id)
 
 int ast_cel_engine_init(void)
 {
 	struct ao2_container *container;
 
-	container = ao2_container_alloc(NUM_APP_BUCKETS, lid_hash, lid_cmp);
+	container = ao2_container_alloc(NUM_APP_BUCKETS, cel_linkedid_hash_fn, cel_linkedid_cmp_fn);
 	ao2_global_obj_replace_unref(cel_linkedids, container);
 	ao2_cleanup(container);
 	if (!container) {
@@ -1738,7 +1568,7 @@ int ast_cel_engine_init(void)
 	}
 
 	container = ao2_container_alloc(NUM_DIALSTATUS_BUCKETS,
-		dialstatus_hash, dialstatus_cmp);
+		cel_dialstatus_hash_fn, cel_dialstatus_cmp_fn);
 	ao2_global_obj_replace_unref(cel_dialstatus_store, container);
 	ao2_cleanup(container);
 	if (!container) {
@@ -1756,7 +1586,7 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	container = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash, cel_backend_cmp);
+	container = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash_fn, cel_backend_cmp_fn);
 	ao2_global_obj_replace_unref(cel_backends, container);
 	ao2_cleanup(container);
 	if (!container) {
