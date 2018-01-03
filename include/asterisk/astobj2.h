@@ -1985,14 +1985,16 @@ void ao2_iterator_cleanup(struct ao2_iterator *iter);
 int ao2_iterator_count(struct ao2_iterator *iter);
 
 /*!
- * \brief Creates a hash function for a structure string field.
+ * \brief Creates a hash function for a structure field.
  * \param stype The structure type
  * \param field The string field in the structure to hash
+ * \param hash_fn Function which hashes the field
  *
- * AO2_STRING_FIELD_HASH_CB(mystruct, myfield) will produce a function
- * named mystruct_hash_fn which hashes mystruct->myfield.
+ * AO2_FIELD_HASH_FN(mystruct, myfield, ast_str_hash) will
+ * produce a function named mystruct_hash_fn which hashes
+ * mystruct->myfield with ast_str_hash.
  */
-#define AO2_STRING_FIELD_HASH_FN(stype, field) \
+#define AO2_FIELD_HASH_FN(stype, field, hash_fn) \
 static int stype ## _hash_fn(const void *obj, const int flags) \
 { \
 	const struct stype *object = obj; \
@@ -2008,19 +2010,33 @@ static int stype ## _hash_fn(const void *obj, const int flags) \
 		ast_assert(0); \
 		return 0; \
 	} \
-	return ast_str_hash(key); \
+	return hash_fn(key); \
 }
 
+
+#define AO2_FIELD_TRANSFORM_CMP_FN(cmp) ((cmp) ? 0 : CMP_MATCH)
+#define AO2_FIELD_TRANSFORM_SORT_FN(cmp) (cmp)
+
 /*!
+ * \internal
+ *
  * \brief Creates a compare function for a structure string field.
  * \param stype The structure type
+ * \param fn_suffix Function name suffix
  * \param field The string field in the structure to compare
+ * \param key_cmp Key comparison function like strcmp
+ * \param partial_key_cmp Partial key comparison function like strncmp
+ * \param transform A macro that takes the cmp result as an argument
+ *                  and transforms it to a return value.
  *
- * AO2_STRING_FIELD_CMP_FN(mystruct, myfield) will produce a function
- * named mystruct_cmp_fn which compares mystruct->myfield.
+ * Do not use this macro directly, instead use macro's starting with
+ * AST_STRING_FIELD.
+ *
+ * \warning The macro is an internal implementation detail, the API
+ *          may change at any time.
  */
-#define AO2_STRING_FIELD_CMP_FN(stype, field) \
-static int stype ## _cmp_fn(void *obj, void *arg, int flags) \
+#define AO2_FIELD_CMP_FN(stype, fn_suffix, field, key_cmp, partial_key_cmp, transform, argconst) \
+static int stype ## fn_suffix(argconst void *obj, argconst void *arg, int flags) \
 { \
 	const struct stype *object_left = obj, *object_right = arg; \
 	const char *right_key = arg; \
@@ -2029,20 +2045,49 @@ static int stype ## _cmp_fn(void *obj, void *arg, int flags) \
 	case OBJ_SEARCH_OBJECT: \
 		right_key = object_right->field; \
 	case OBJ_SEARCH_KEY: \
-		cmp = strcmp(object_left->field, right_key); \
+		cmp = key_cmp(object_left->field, right_key); \
 		break; \
 	case OBJ_SEARCH_PARTIAL_KEY: \
-		cmp = strncmp(object_left->field, right_key, strlen(right_key)); \
+		cmp = partial_key_cmp(object_left->field, right_key, strlen(right_key)); \
 		break; \
 	default: \
 		cmp = 0; \
 		break; \
 	} \
-	if (cmp) { \
-		return 0; \
-	} \
-	return CMP_MATCH; \
+	return transform(cmp); \
 }
+
+/*!
+ * \brief Creates a hash function for a structure string field.
+ * \param stype The structure type
+ * \param field The string field in the structure to hash
+ *
+ * AO2_STRING_FIELD_HASH_FN(mystruct, myfield) will produce a function
+ * named mystruct_hash_fn which hashes mystruct->myfield.
+ *
+ * AO2_STRING_FIELD_HASH_FN(mystruct, myfield) would do the same except
+ * it uses the hash function which ignores case.
+ */
+#define AO2_STRING_FIELD_HASH_FN(stype, field) \
+	AO2_FIELD_HASH_FN(stype, field, ast_str_hash)
+#define AO2_STRING_FIELD_CASE_HASH_FN(stype, field) \
+	AO2_FIELD_HASH_FN(stype, field, ast_str_case_hash)
+
+/*!
+ * \brief Creates a compare function for a structure string field.
+ * \param stype The structure type
+ * \param field The string field in the structure to compare
+ *
+ * AO2_STRING_FIELD_CMP_FN(mystruct, myfield) will produce a function
+ * named mystruct_cmp_fn which compares mystruct->myfield.
+ *
+ * AO2_STRING_FIELD_CASE_CMP_FN(mystruct, myfield) would do the same
+ * except it performs case insensitive comparisons.
+ */
+#define AO2_STRING_FIELD_CMP_FN(stype, field) \
+	AO2_FIELD_CMP_FN(stype, _cmp_fn, field, strcmp, strncmp, AO2_FIELD_TRANSFORM_CMP_FN,)
+#define AO2_STRING_FIELD_CASE_CMP_FN(stype, field) \
+	AO2_FIELD_CMP_FN(stype, _cmp_fn, field, strcasecmp, strncasecmp, AO2_FIELD_TRANSFORM_CMP_FN,)
 
 /*!
  * \brief Creates a sort function for a structure string field.
@@ -2051,30 +2096,13 @@ static int stype ## _cmp_fn(void *obj, void *arg, int flags) \
  *
  * AO2_STRING_FIELD_SORT_FN(mystruct, myfield) will produce a function
  * named mystruct_sort_fn which compares mystruct->myfield.
+ *
+ * AO2_STRING_FIELD_CASE_SORT_FN(mystruct, myfield) would do the same
+ * except it performs case insensitive comparisons.
  */
 #define AO2_STRING_FIELD_SORT_FN(stype, field) \
-static int stype ## _sort_fn(const void *obj, const void *arg, int flags) \
-{ \
-	const struct stype *object_left = obj; \
-	const struct stype *object_right = arg; \
-	const char *right_key = arg; \
-	int cmp; \
-\
-	switch (flags & OBJ_SEARCH_MASK) { \
-	case OBJ_SEARCH_OBJECT: \
-		right_key = object_right->field; \
-		/* Fall through */ \
-	case OBJ_SEARCH_KEY: \
-		cmp = strcmp(object_left->field, right_key); \
-		break; \
-	case OBJ_SEARCH_PARTIAL_KEY: \
-		cmp = strncmp(object_left->field, right_key, strlen(right_key)); \
-		break; \
-	default: \
-		cmp = 0; \
-		break; \
-	} \
-	return cmp; \
-}
+	AO2_FIELD_CMP_FN(stype, _sort_fn, field, strcmp, strncmp, AO2_FIELD_TRANSFORM_SORT_FN, const)
+#define AO2_STRING_FIELD_CASE_SORT_FN(stype, field) \
+	AO2_FIELD_CMP_FN(stype, _sort_fn, field, strcasecmp, strncasecmp, AO2_FIELD_TRANSFORM_SORT_FN, const)
 
 #endif /* _ASTERISK_ASTOBJ2_H */
