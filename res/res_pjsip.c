@@ -269,45 +269,60 @@
 				<configOption name="ice_support" default="no">
 					<synopsis>Enable the ICE mechanism to help traverse NAT</synopsis>
 				</configOption>
-				<configOption name="identify_by" default="username,ip">
-					<synopsis>Way(s) for Endpoint to be identified</synopsis>
-					<description><para>
-						Endpoints and aors can be identified in multiple ways. Currently, the supported
-						options are <literal>username</literal>, which matches the endpoint or aor id based on
-						the username and domain in the From header (or To header for aors),
-						<literal>auth_username</literal>, which matches the endpoint or aor id based on the
-						username and realm in the Authentication header, and <literal>ip</literal> which matches
-						an endpoint based on the source IP address.  In the <literal>username</literal> and
-						<literal>auth_username</literal> cases, if an exact match on both username and
-						domain/realm fails, the match will be retried with just the username.
+				<configOption name="identify_by">
+					<synopsis>Way(s) for the endpoint to be identified</synopsis>
+					<description>
+						<para>Endpoints and AORs can be identified in multiple ways.  This
+						option is a comma separated list of methods the endpoint can be
+						identified.
 						</para>
 						<note><para>
-						Identification by auth_username has some security considerations because an
-						Authentication header is not present on the first message of a dialog when
-						digest authentication is used.  The client can't generate it until the server
-						sends the challenge in a 401 response.  Since Asterisk normally sends a security
-						event when an incoming request can't be matched to an endpoint, using auth_username
-						requires that the security event be deferred until a request is received with
-						the Authentication header and only generated if the username doesn't result in a
-						match.  This may result in a delay before an attack is recognized.  You can control
-						how many unmatched requests are received from a single ip address before a security
-						event is generated using the unidentified_request parameters in the "global"
-						configuration object.
+						This option controls both how an endpoint is matched for incoming
+						traffic and also how an AOR is determined if a registration
+						occurs.  You must list at least one method that also matches for
+						AORs or the registration will fail.
 						</para></note>
-						<note><para>Endpoints can also be identified by IP address; however, that method
-						of identification is not configured but simply allowed by this configuration option.
-						See the documentation for the <literal>identify</literal> configuration section for
-						more details on that method of endpoint identification.</para></note>
-						<note><para>
-						This option controls both how an endpoint is matched for incoming traffic and also how
-						an AoR is determined if a registration occurs. If <literal>ip</literal> is set alone
-						then incoming registration will not find an AoR and the registration attempt will fail.
-						If you want to allow incoming registrations to succeed you must set a second identify
-						method such as <literal>username</literal> in this case.</para></note>
 						<enumlist>
-							<enum name="username" />
-							<enum name="auth_username" />
-							<enum name="ip" />
+							<enum name="username">
+								<para>Matches the endpoint or AOR ID based on the username
+								and domain in the From header (or To header for AORs).  If
+								an exact match on both username and domain/realm fails, the
+								match is retried with just the username.
+								</para>
+							</enum>
+							<enum name="auth_username">
+								<para>Matches the endpoint or AOR ID based on the username
+								and realm in the Authentication header.  If an exact match
+								on both username and domain/realm fails, the match is
+								retried with just the username.
+								</para>
+								<note><para>This method of identification has some security
+								considerations because an Authentication header is not
+								present on the first message of a dialog when digest
+								authentication is used.  The client can't generate it until
+								the server sends the challenge in a 401 response.  Since
+								Asterisk normally sends a security event when an incoming
+								request can't be matched to an endpoint, using this method
+								requires that the security event be deferred until a request
+								is received with the Authentication header and only
+								generated if the username doesn't result in a match.  This
+								may result in a delay before an attack is recognized.  You
+								can control how many unmatched requests are received from
+								a single ip address before a security event is generated
+								using the <literal>unidentified_request</literal>
+								parameters in the "global" configuration object.
+								</para></note>
+							</enum>
+							<enum name="ip">
+								<para>Matches the endpoint based on the source IP address.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.  See the
+								documentation for the <literal>identify</literal>
+								configuration section for more details on this method of
+								endpoint identification.
+								</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
@@ -1623,7 +1638,7 @@
 					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
 						a host address</synopsis>
 				</configOption>
-				<configOption name="endpoint_identifier_order" default="ip,username,anonymous">
+				<configOption name="endpoint_identifier_order">
 					<synopsis>The order by which endpoint identifiers are processed and checked.
 						Identifier names are usually derived from and can be found in the endpoint
 						identifier module itself (res_pjsip_endpoint_identifier_*).
@@ -1751,8 +1766,14 @@
 				<parameter name="Endpoint">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='endpoint']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="SrvLookups">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='srv_lookups']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="Match">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='match']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MatchHeader">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='match_header']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="EndpointName">
 					<para>The name of the endpoint associated with this information.</para>
