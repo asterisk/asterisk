@@ -2508,6 +2508,12 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_status_line status = tdata->msg->line.status;
 	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
+
+	if (!cseq) {
+		ast_log(LOG_ERROR, "Cannot send response due to missing sequence header");
+		return;
+	}
+
 	ast_debug(3, "Method is %.*s, Response is %d %.*s\n", (int) pj_strlen(&cseq->method.name),
 		pj_strbuf(&cseq->method.name), status.code, (int) pj_strlen(&status.reason),
 		pj_strbuf(&status.reason));
