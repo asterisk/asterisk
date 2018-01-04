@@ -616,7 +616,7 @@ enum aco_process_status aco_process_ast_config(struct aco_info *info, struct aco
 {
 	if (!info->internal) {
 		ast_log(LOG_ERROR, "Attempt to process %s with uninitialized aco_info\n", file->filename);
-		goto error;
+		return ACO_PROCESS_ERROR;
 	}
 
 	if (!(info->internal->pending = info->snapshot_alloc())) {
