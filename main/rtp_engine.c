@@ -2928,6 +2928,7 @@ static void add_static_payload(int payload, struct ast_format *format, int rtp_c
 		if (payload < 0) {
 			ast_log(LOG_WARNING, "No dynamic RTP payload type values available "
 				"for %s - %d!\n", format ? ast_format_get_name(format) : "", rtp_code);
+			ast_rwlock_unlock(&static_RTP_PT_lock);
 			return;
 		}
 	}
