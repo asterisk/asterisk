@@ -793,6 +793,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (!(resultset = ast_calloc(1, sizeof(*resultset)))) {
 			pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
+			AST_RWLIST_UNLOCK(&queries);
 			ast_autoservice_stop(chan);
 			return -1;
 		}
@@ -809,6 +810,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 			if (!(resultset = ast_calloc(1, sizeof(*resultset)))) {
 				pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 				pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
+				AST_RWLIST_UNLOCK(&queries);
 				ast_autoservice_stop(chan);
 				return -1;
 			}
