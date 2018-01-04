@@ -2823,7 +2823,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	struct ast_exten *e;
 	struct ast_app *app;
 	char *substitute = NULL;
-	int res;
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	char passdata[EXT_DATA_SIZE];
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
@@ -2840,9 +2839,12 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			ast_unlock_contexts();
 			return -1;	/* success, we found it */
 		} else if (action == E_FINDLABEL) { /* map the label to a priority */
-			res = e->priority;
+			int res = e->priority;
+
 			ast_unlock_contexts();
-			return res;	/* the priority we were looking for */
+
+			/* the priority we were looking for */
+			return res;
 		} else {	/* spawn */
 			if (!e->cached_app)
 				e->cached_app = pbx_findapp(e->app);
@@ -2892,7 +2894,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 		} else {
 			if (!q.swo->exec) {
 				ast_log(LOG_WARNING, "No execution engine for switch %s\n", q.swo->name);
-				res = -1;
+				return -1;
 			}
 			return q.swo->exec(c, q.foundcontext ? q.foundcontext : context, exten, priority, callerid, q.data);
 		}
