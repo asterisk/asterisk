@@ -1,6 +1,10 @@
-2018-01-04 16:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-01-04 17:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.2.0-rc2 Released.
+
+2018-01-04 10:57 +0000 [c5b0ab2f87]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 15.2.0-rc2
 
 2017-12-23 22:51 +0000 [cafbea98f1]  Corey Farrell <git@cfware.com>
 

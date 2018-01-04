@@ -2,12 +2,22 @@
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-15.2.0-rc1.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">1 Kevin Harwell <kharwell@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td><td width="33%">1 abelbeck <lonnie@abelbeck.com><br/></td><td width="33%">1 Ross Beer <ross.beer@voicehost.co.uk><br/>1 abelbeck <lonnie@abelbeck.com><br/></td></tr>
+<tr valign="top"><td width="33%">2 Kevin Harwell <kharwell@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td><td width="33%">1 abelbeck <lonnie@abelbeck.com><br/></td><td width="33%">1 Ross Beer <ross.beer@voicehost.co.uk><br/>1 abelbeck <lonnie@abelbeck.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27480">ASTERISK-27480</a>: Security: Authenticated SUBSCRIBE without Contact crashes asterisk<br/>Reported by: Ross Beer<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8fac824d1376d84b12ce298e174bd671b8353d20">[8fac824d13]</a> Kevin Harwell -- AST-2017-014: res_pjsip - Missing contact header can cause crash</li>
 </ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27531">ASTERISK-27531</a>: Compiler optimizations can break module load sequence.<br/>Reported by: abelbeck<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cafbea98f1d7177c4f77d5fd9a687263af89be12">[cafbea98f1]</a> Corey Farrell -- loader: Add volatile to resource_being_loaded.</li>
-</ul><br><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>0 files changed</pre><br></html>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c5b0ab2f87e065bd41f9778adb4ca2afaf38b342">c5b0ab2f87</a></td><td>Kevin Harwell</td><td>Update for 15.2.0-rc2</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-15.2.0-rc1-summary.html   |  691 ---------------
+asterisk-15.2.0-rc1-summary.txt    | 1663 -------------------------------------
+b/.version                         |    2
+b/ChangeLog                        |   35
+b/asterisk-15.2.0-rc2-summary.html |   13
+b/asterisk-15.2.0-rc2-summary.txt  |   90 ++
+6 files changed, 139 insertions(+), 2355 deletions(-)</pre><br></html>
