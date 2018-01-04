@@ -4040,14 +4040,19 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 
 	parse_args(buf, &argc, argv);
 	c = find_command(argv, 0);
-	if (c && (!dead || (dead && c->dead))) {
-		/* if this command wasn't registered by res_agi, be sure to usecount
-		the module we are using */
-		if (c->mod != ast_module_info->self)
-			ast_module_ref(c->mod);
+	if (!c || !ast_module_running_ref(c->mod)) {
+		ami_res = "Invalid or unknown command";
+		resultcode = 510;
+
+		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
+
+		publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
+
+		return AGI_RESULT_SUCCESS;
+	}
+
+	if (!dead || (dead && c->dead)) {
 		res = c->handler(chan, agi, argc, argv);
-		if (c->mod != ast_module_info->self)
-			ast_module_unref(c->mod);
 		switch (res) {
 		case RESULT_SHOWUSAGE:
 			ami_res = "Usage";
@@ -4094,21 +4099,15 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 
 			break;
 		}
-	} else if (c) {
+	} else {
 		ami_res = "Command Not Permitted on a dead channel or intercept routine";
 		resultcode = 511;
 
 		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
 
 		publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
-	} else {
-		ami_res = "Invalid or unknown command";
-		resultcode = 510;
-
-		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
-
-		publish_async_exec_end(chan, command_id, ami_cmd, resultcode, ami_res);
 	}
+	ast_module_unref(c->mod);
 
 	return AGI_RESULT_SUCCESS;
 }

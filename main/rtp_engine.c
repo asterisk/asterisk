@@ -428,6 +428,7 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 	struct ast_sockaddr address = {{0,}};
 	struct ast_rtp_instance *instance = NULL;
 	struct ast_rtp_engine *engine = NULL;
+	struct ast_module *mod_ref;
 
 	AST_RWLIST_RDLOCK(&engines);
 
@@ -450,9 +451,14 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 	}
 
 	/* Bump up the reference count before we return so the module can not be unloaded */
-	ast_module_ref(engine->mod);
+	mod_ref = ast_module_running_ref(engine->mod);
 
 	AST_RWLIST_UNLOCK(&engines);
+
+	if (!mod_ref) {
+		/* BUGBUG: improve handling of this situation. */
+		return NULL;
+	}
 
 	/* Allocate a new RTP instance */
 	if (!(instance = ao2_alloc(sizeof(*instance), instance_destructor))) {

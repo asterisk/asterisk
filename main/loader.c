@@ -1702,6 +1702,16 @@ struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, in
 	return mod;
 }
 
+struct ast_module *__ast_module_running_ref(struct ast_module *mod,
+	const char *file, int line, const char *func)
+{
+	if (!mod || !mod->flags.running) {
+		return NULL;
+	}
+
+	return __ast_module_ref(mod, file, line, func);
+}
+
 void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func)
 {
 	if (!mod || mod->flags.keepuntilshutdown) {

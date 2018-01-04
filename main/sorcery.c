@@ -835,16 +835,19 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, ao2_alloc(sizeof(*object_wizard), sorcery_object_wizard_destructor), ao2_cleanup);
 	int created = 0;
 
-	if (!wizard) {
+	if (!object_wizard) {
+		return AST_SORCERY_APPLY_FAIL;
+	}
+
+	if (!wizard || wizard->callbacks.module != ast_module_running_ref(wizard->callbacks.module)) {
 		ast_log(LOG_ERROR, "Wizard '%s' could not be applied to object type '%s' as it was not found\n",
 			name, type);
-		return AST_SORCERY_APPLY_FAIL;
-	} else if (!object_wizard) {
 		return AST_SORCERY_APPLY_FAIL;
 	}
 
 	if (!object_type) {
 		if (!(object_type = sorcery_object_type_alloc(type, module))) {
+			ast_module_unref(wizard->callbacks.module);
 			return AST_SORCERY_APPLY_FAIL;
 		}
 		created = 1;
@@ -861,6 +864,7 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 			ast_debug(1, "Wizard %s already applied to object type %s\n",
 					wizard->callbacks.name, object_type->name);
 			AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+			ast_module_unref(wizard->callbacks.module);
 			return AST_SORCERY_APPLY_DUPLICATE;
 		}
 	}
@@ -871,10 +875,9 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 		ast_log(LOG_WARNING, "Wizard '%s' failed to open mapping for object type '%s' with data: %s\n",
 			name, object_type->name, S_OR(data, ""));
 		AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+		ast_module_unref(wizard->callbacks.module);
 		return AST_SORCERY_APPLY_FAIL;
 	}
-
-	ast_module_ref(wizard->callbacks.module);
 
 	object_wizard->wizard = ao2_bump(wizard);
 	object_wizard->caching = caching;
