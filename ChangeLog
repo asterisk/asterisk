@@ -1,6 +1,10 @@
-2018-01-04 16:41 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-01-04 16:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.19.0-rc2 Released.
+
+2018-01-04 10:41 +0000 [13f74973c8]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 13.19.0-rc2
 
 2017-12-23 22:51 +0000 [e302e07567]  Corey Farrell <git@cfware.com>
 
