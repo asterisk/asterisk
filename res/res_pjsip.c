@@ -2680,13 +2680,13 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 
 	id_list_item = ast_calloc(1, sizeof(*id_list_item));
 	if (!id_list_item) {
-		ast_log(LOG_ERROR, "Unabled to add endpoint identifier. Out of memory.\n");
+		ast_log(LOG_ERROR, "Unable to add endpoint identifier. Out of memory.\n");
 		return -1;
 	}
 	id_list_item->identifier = identifier;
 	id_list_item->name = name;
 
-	ast_debug(1, "Register endpoint identifier %s (%p)\n", name, identifier);
+	ast_debug(1, "Register endpoint identifier %s(%p)\n", name ?: "", identifier);
 
 	if (ast_strlen_zero(name)) {
 		/* if an identifier has no name then place in front */
@@ -2709,7 +2709,8 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	id_list_item->priority = 0;
 	while ((current = strchr(current, ','))) {
 		++id_list_item->priority;
-		if (!strncmp(prev, name, current - prev)) {
+		if (!strncmp(prev, name, current - prev)
+			&& strlen(name) == current - prev) {
 			break;
 		}
 		prev = ++current;
