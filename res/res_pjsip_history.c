@@ -1280,7 +1280,7 @@ static char *pjsip_show_history(struct ast_cli_entry *e, int cmd, struct ast_cli
 		}
 		entry = ao2_bump(AST_VECTOR_GET(vec, 0));
 		if (vec == &vector_history) {
-			ast_mutex_lock(&history_lock);
+			ast_mutex_unlock(&history_lock);
 		}
 	}
 
