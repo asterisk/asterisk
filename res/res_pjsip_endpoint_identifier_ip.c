@@ -484,47 +484,54 @@ static int sip_identify_to_ami(const struct ip_identify_match *identify,
 	return ast_sip_sorcery_object_to_ami(identify, buf);
 }
 
-static int find_identify_by_endpoint(void *obj, void *arg, int flags)
+static int send_identify_ami_event(void *obj, void *arg, void *data, int flags)
 {
 	struct ip_identify_match *identify = obj;
 	const char *endpoint_name = arg;
+	struct ast_sip_ami *ami = data;
+	struct ast_str *buf;
 
-	return strcmp(identify->endpoint_name, endpoint_name) ? 0 : CMP_MATCH;
+	/* Build AMI event */
+	buf = ast_sip_create_ami_event("IdentifyDetail", ami);
+	if (!buf) {
+		return CMP_STOP;
+	}
+	if (sip_identify_to_ami(identify, &buf)) {
+		ast_free(buf);
+		return CMP_STOP;
+	}
+	ast_str_append(&buf, 0, "EndpointName: %s\r\n", endpoint_name);
+
+	/* Send AMI event */
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	++ami->count;
+
+	ast_free(buf);
+	return 0;
 }
 
 static int format_ami_endpoint_identify(const struct ast_sip_endpoint *endpoint,
 					struct ast_sip_ami *ami)
 {
-	RAII_VAR(struct ao2_container *, identifies, NULL, ao2_cleanup);
-	RAII_VAR(struct ip_identify_match *, identify, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
+	struct ao2_container *identifies;
+	struct ast_variable fields = {
+		.name = "endpoint",
+		.value = ast_sorcery_object_get_id(endpoint),
+	};
 
 	identifies = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "identify",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+		AST_RETRIEVE_FLAG_MULTIPLE, &fields);
 	if (!identifies) {
 		return -1;
 	}
 
-	identify = ao2_callback(identifies, 0, find_identify_by_endpoint,
-		(void *) ast_sorcery_object_get_id(endpoint));
-	if (!identify) {
-		return 1;
-	}
+	/* Build and send any found identify object's AMI IdentifyDetail event. */
+	ao2_callback_data(identifies, OBJ_MULTIPLE | OBJ_NODATA,
+		send_identify_ami_event,
+		(void *) ast_sorcery_object_get_id(endpoint),
+		ami);
 
-	if (!(buf = ast_sip_create_ami_event("IdentifyDetail", ami))) {
-		return -1;
-	}
-
-	if (sip_identify_to_ami(identify, &buf)) {
-		return -1;
-	}
-
-	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
-		ast_sorcery_object_get_id(endpoint));
-
-	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
-	ami->count++;
-
+	ao2_ref(identifies, -1);
 	return 0;
 }
 
