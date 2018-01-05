@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <math.h>
-#include <stdlib.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -1322,6 +1321,13 @@ void ast_translator_deactivate(struct ast_translator *t)
 	AST_RWLIST_UNLOCK(&translators);
 }
 
+/*! Calculate the absolute difference between sample rate of two formats. */
+#define format_sample_rate_absdiff(fmt1, fmt2) ({ \
+	unsigned int rate1 = ast_format_get_sample_rate(fmt1); \
+	unsigned int rate2 = ast_format_get_sample_rate(fmt2); \
+	(rate1 > rate2 ? rate1 - rate2 : rate2 - rate1); \
+})
+
 /*! \brief Calculate our best translator source format, given costs, and a desired destination */
 int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	struct ast_format_cap *src_cap,
@@ -1406,10 +1412,8 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 				beststeps = matrix_get(x, y)->multistep;
 			} else if (matrix_get(x, y)->table_cost == besttablecost
 					&& matrix_get(x, y)->multistep == beststeps) {
-				int gap_selected = abs(ast_format_get_sample_rate(best)
-					- ast_format_get_sample_rate(bestdst));
-				int gap_current = abs(ast_format_get_sample_rate(src)
-					- ast_format_get_sample_rate(dst));
+				unsigned int gap_selected = format_sample_rate_absdiff(best, bestdst);
+				unsigned int gap_current = format_sample_rate_absdiff(src, dst);
 
 				if (gap_current < gap_selected) {
 					/* better than what we have so far */
