@@ -2604,9 +2604,12 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 				}
 
 			} else if (!strcasecmp(v->name, "outgoinglimit")) {
-            			peer->outgoinglimit = atoi(v->value);
-            			if (peer->outgoinglimit < 0)
+				int val = atoi(v->value);
+				if (val < 0) {
 					peer->outgoinglimit = 0;
+				} else {
+					peer->outgoinglimit = val;
+				}
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_copy_string(peer->accountcode, v->value, sizeof(peer->accountcode));
 			} else if (!strcasecmp(v->name, "faststart")) {
