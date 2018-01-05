@@ -2267,7 +2267,7 @@
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
-		<managerEvent language="en_US" name="AorList">
+	<managerEvent language="en_US" name="AorList">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
 			<synopsis>Provide details about an Address of Record (AoR) section.</synopsis>
 			<syntax>
@@ -2306,6 +2306,37 @@
 				</parameter>
 				<parameter name="SupportPath">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='support_path']/synopsis/node())"/></para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AuthList">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an Address of Record (Auth) section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'auth'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Username">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='username']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Md5Cred">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='md5_cred']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Realm">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='realm']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AuthType">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='auth_type']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Password">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='password']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="NonceLifetime">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='nonce_lifetime']/synopsis/node())"/></para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
@@ -2488,6 +2519,32 @@
 			<managerEvent language="en_US" name="AorListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
 					<synopsis>Provide final information about an aor list.</synopsis>
+					<syntax>
+						<parameter name="EventList"/>
+						<parameter name="ListItems"/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
+	</manager>
+	<manager name="PJSIPShowAuths" language="en_US">
+		<synopsis>
+			Lists PJSIP Auths.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Provides a listing of all Auths. For each Auth an <literal>AuthList</literal> event
+			is raised that contains relevant attributes and status information.  Once all
+			auths have been listed an <literal>AuthListComplete</literal> event is issued.
+			</para>
+		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AuthList'])" />
+			</list-elements>
+			<managerEvent language="en_US" name="AuthListComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Provide final information about an auth list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
 						<parameter name="ListItems"/>

@@ -48,6 +48,9 @@ res_pjsip
  * A new AMI action, PJSIPShowAors, has been added which displays information
    about all configured PJSIP AORs.
 
+ * A new AMI action, PJSIPShowAuths, has been added which displays information
+   about all configured PJSIP Auths.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
