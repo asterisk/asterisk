@@ -14,7 +14,7 @@
  *
  *****************************************************************************/
 #ifndef _OO_H323CDRIVER_H_
-#define __OO_H323DRIVER_H_
+#define _OO_H323CDRIVER_H_
 #include "chan_ooh323.h"
 #include "ootypes.h"
 #include "ooh323ep.h"
