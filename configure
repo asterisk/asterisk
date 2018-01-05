@@ -29561,7 +29561,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in /usr/local/bin$PATH_SEPARATOR/usr/local/share/pwlib/make
+for as_dir in /usr/local/bin$PATH_SEPARATOR/usr/local/share/ptlib/make$PATH_SEPARATOR/usr/local/share/pwlib/make
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.
@@ -29623,7 +29623,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in /usr/bin$PATH_SEPARATOR/usr/share/pwlib/make
+for as_dir in /usr/bin$PATH_SEPARATOR/usr/share/ptlib/make$PATH_SEPARATOR/usr/share/pwlib/make
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.
