@@ -39,7 +39,7 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 # AST_OPTION_ONLY([option name], [option variable], [option description], [default value])
 AC_DEFUN([AST_OPTION_ONLY],
 [
-AC_ARG_WITH([$1], AC_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
+AC_ARG_WITH([$1], AS_HELP_STRING([--with-$1=PATH], [use $3 in PATH]),
 	[
 	case ${withval} in
 	n|no)
