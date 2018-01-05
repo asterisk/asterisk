@@ -1404,7 +1404,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		}
 
 #ifdef BINAURAL_RENDERING
-		check_binaural_position_change(bridge, softmix_data, bridge_channel);
+		check_binaural_position_change(bridge, softmix_data);
 #endif
 
 		/* Go through pulling audio from each factory that has it available */
