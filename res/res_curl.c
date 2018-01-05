@@ -60,7 +60,9 @@ static int unload_module(void)
 	/* If the dependent modules are still in memory, forbid unload */
 	for (i = 0; i < ARRAY_LEN(dependents); i++) {
 		if (ast_module_check(dependents[i])) {
-			ast_log(LOG_ERROR, "%s (dependent module) is still loaded.  Cannot unload res_curl.so\n", dependents[i]);
+			if (!ast_shutting_down()) {
+				ast_log(LOG_WARNING, "%s (dependent module) is still loaded.  Cannot unload res_curl.so\n", dependents[i]);
+			}
 			res = -1;
 		}
 	}
@@ -73,19 +75,9 @@ static int unload_module(void)
 	return res;
 }
 
-/*!
- * \brief Load the module
- *
- * Module loading including tests for configuration or dependencies.
- * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
- * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
- * configuration file or other non-critical problem return
- * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
- */
 static int load_module(void)
 {
-	int res = 0;
+	int res = AST_MODULE_LOAD_SUCCESS;
 
 	if (curl_global_init(CURL_GLOBAL_ALL)) {
 		ast_log(LOG_ERROR, "Unable to initialize the cURL library. Cannot load res_curl.so\n");
