@@ -574,12 +574,63 @@ static int outbound_auths_to_str(const void *obj, const intptr_t *args, char **b
 	return ast_sip_auths_to_str(&endpoint->outbound_auths, buf);
 }
 
+/*!
+ * \internal
+ * \brief Convert identify_by method to string.
+ *
+ * \param method Method value to convert to string
+ *
+ * \return String representation.
+ */
+static const char *sip_endpoint_identifier_type2str(enum ast_sip_endpoint_identifier_type method)
+{
+	const char *str = "<unknown>";
+
+	switch (method) {
+	case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME:
+		str = "username";
+		break;
+	case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME:
+		str = "auth_username";
+		break;
+	case AST_SIP_ENDPOINT_IDENTIFY_BY_IP:
+		str = "ip";
+		break;
+	}
+	return str;
+}
+
+/*!
+ * \internal
+ * \brief Convert string to an endpoint identifier token.
+ *
+ * \param str String to convert
+ *
+ * \retval enum ast_sip_endpoint_identifier_type token value on success.
+ * \retval -1 on failure.
+ */
+static int sip_endpoint_identifier_str2type(const char *str)
+{
+	int method;
+
+	if (!strcasecmp(str, "username")) {
+		method = AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
+	} else if (!strcasecmp(str, "auth_username")) {
+		method = AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME;
+	} else if (!strcasecmp(str, "ip")) {
+		method = AST_SIP_ENDPOINT_IDENTIFY_BY_IP;
+	} else {
+		method = -1;
+	}
+	return method;
+}
+
 static int ident_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	char *idents = ast_strdupa(var->value);
 	char *val;
-	enum ast_sip_endpoint_identifier_type method;
+	int method;
 
 	/*
 	 * If there's already something in the vector when we get here,
@@ -595,13 +646,8 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 			continue;
 		}
 
-		if (!strcasecmp(val, "username")) {
-			method = AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
-		} else if (!strcasecmp(val, "auth_username")) {
-			method = AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME;
-		} else if (!strcasecmp(val, "ip")) {
-			method = AST_SIP_ENDPOINT_IDENTIFY_BY_IP;
-		} else {
+		method = sip_endpoint_identifier_str2type(val);
+		if (method == -1) {
 			ast_log(LOG_ERROR, "Unrecognized identification method %s specified for endpoint %s\n",
 					val, ast_sorcery_object_get_id(endpoint));
 			AST_VECTOR_RESET(&endpoint->ident_method_order, AST_VECTOR_ELEM_CLEANUP_NOOP);
@@ -624,34 +670,41 @@ static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
 	int methods;
-	char *method;
-	int i;
-	int j = 0;
+	int idx;
+	int buf_used = 0;
+	int buf_size = MAX_OBJECT_FIELD;
 
 	methods = AST_VECTOR_SIZE(&endpoint->ident_method_order);
 	if (!methods) {
 		return 0;
 	}
 
-	if (!(*buf = ast_calloc(MAX_OBJECT_FIELD, sizeof(char)))) {
+	*buf = ast_malloc(buf_size);
+	if (!*buf) {
 		return -1;
 	}
 
-	for (i = 0; i < methods; i++) {
-		switch (AST_VECTOR_GET(&endpoint->ident_method_order, i)) {
-		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME :
-			method = "username";
-			break;
-		case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME :
-			method = "auth_username";
-			break;
-		case AST_SIP_ENDPOINT_IDENTIFY_BY_IP :
-			method = "ip";
-			break;
-		default:
+	for (idx = 0; idx < methods; ++idx) {
+		enum ast_sip_endpoint_identifier_type method;
+		const char *method_str;
+
+		method = AST_VECTOR_GET(&endpoint->ident_method_order, idx);
+		method_str = sip_endpoint_identifier_type2str(method);
+
+		/* Should never have an "<unknown>" method string */
+		ast_assert(strcmp(method_str, "<unknown>"));
+		if (!strcmp(method_str, "<unknown>")) {
 			continue;
 		}
-		j = sprintf(*buf + j, "%s%s", method, i < methods - 1 ? "," : "");
+
+		buf_used += snprintf(*buf + buf_used, buf_size - buf_used, "%s%s",
+			method_str, idx < methods - 1 ? "," : "");
+		if (buf_size <= buf_used) {
+			/* Need more room than available, truncating. */
+			*(*buf + (buf_size - 1)) = '\0';
+			ast_log(LOG_WARNING, "Truncated identify_by string: %s\n", *buf);
+			break;
+		}
 	}
 
 	return 0;
