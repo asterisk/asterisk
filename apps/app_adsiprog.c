@@ -1111,7 +1111,7 @@ static int adsi_process(struct adsi_script *state, char *buf, const char *script
 				tmp[7] = '\0';
 			}
 			/* Setup initial stuff */
-			state->key->retstr[0] = 128;
+			state->key->retstr[0] = 0x80;
 			/* 1 has the length */
 			state->key->retstr[2] = state->key->id;
 			/* Put the Full name in */
@@ -1147,7 +1147,7 @@ static int adsi_process(struct adsi_script *state, char *buf, const char *script
 				break;
 			}
 			/* Setup sub */
-			state->sub->data[0] = 130;
+			state->sub->data[0] = 0x82;
 			/* 1 is the length */
 			state->sub->data[2] = 0x0; /* Clear extensibility bit */
 			state->sub->datalen = 3;
@@ -1264,7 +1264,7 @@ static int adsi_process(struct adsi_script *state, char *buf, const char *script
 				/* Something bad happened */
 				break;
 			}
-			disp->data[0] = 129;
+			disp->data[0] = 0x81;
 			disp->data[1] = disp->datalen - 2;
 			disp->data[2] = ((lrci & 0x3) << 6) | disp->id;
 			disp->data[3] = wi;
