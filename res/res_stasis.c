@@ -498,7 +498,8 @@ static void moh_after_bridge_cb(struct ast_channel *chan, void *data)
 /*! Request a bridge MOH channel */
 static struct ast_channel *prepare_bridge_moh_channel(void)
 {
-	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
+	struct ast_channel *chan;
+	struct ast_format_cap *cap;
 
 	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
@@ -507,7 +508,10 @@ static struct ast_channel *prepare_bridge_moh_channel(void)
 
 	ast_format_cap_append(cap, ast_format_slin, 0);
 
-	return ast_request("Announcer", cap, NULL, NULL, "ARI_MOH", NULL);
+	chan = ast_request("Announcer", cap, NULL, NULL, "ARI_MOH", NULL);
+	ao2_ref(cap, -1);
+
+	return chan;
 }
 
 /*! Provides the moh channel with a thread so it can actually play its music */
@@ -599,23 +603,27 @@ static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
 
 struct ast_channel *stasis_app_bridge_moh_channel(struct ast_bridge *bridge)
 {
-	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+	struct ast_channel *chan;
+	struct stasis_app_bridge_channel_wrapper *moh_wrapper;
 
-	{
-		SCOPED_AO2LOCK(lock, app_bridges_moh);
+	ao2_lock(app_bridges_moh);
+	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (!moh_wrapper) {
+		chan = bridge_moh_create(bridge);
+	}
+	ao2_unlock(app_bridges_moh);
 
-		moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-		if (!moh_wrapper) {
-			return bridge_moh_create(bridge);
-		}
+	if (moh_wrapper) {
+		chan = ast_channel_get_by_name(moh_wrapper->channel_id);
+		ao2_ref(moh_wrapper, -1);
 	}
 
-	return ast_channel_get_by_name(moh_wrapper->channel_id);
+	return chan;
 }
 
 int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 {
-	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+	struct stasis_app_bridge_channel_wrapper *moh_wrapper;
 	struct ast_channel *chan;
 
 	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_UNLINK);
@@ -624,6 +632,7 @@ int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 	}
 
 	chan = ast_channel_get_by_name(moh_wrapper->channel_id);
+	ao2_ref(moh_wrapper, -1);
 	if (!chan) {
 		return -1;
 	}
@@ -862,25 +871,30 @@ static const struct ast_datastore_info replace_channel_store_info = {
 static struct replace_channel_store *get_replace_channel_store(struct ast_channel *chan, int no_create)
 {
 	struct ast_datastore *datastore;
+	struct replace_channel_store *ret;
 
-	SCOPED_CHANNELLOCK(lock, chan);
+	ast_channel_lock(chan);
 	datastore = ast_channel_datastore_find(chan, &replace_channel_store_info, NULL);
-	if (!datastore) {
-		if (no_create) {
-			return NULL;
-		}
-
+	if (!datastore && !no_create) {
 		datastore = ast_datastore_alloc(&replace_channel_store_info, NULL);
-		if (!datastore) {
-			return NULL;
+		if (datastore) {
+			ast_channel_datastore_add(chan, datastore);
 		}
-		ast_channel_datastore_add(chan, datastore);
+	}
+
+	if (!datastore) {
+		ast_channel_unlock(chan);
+		return NULL;
 	}
 
 	if (!datastore->data) {
 		datastore->data = ast_calloc(1, sizeof(struct replace_channel_store));
 	}
-	return datastore->data;
+
+	ret = datastore->data;
+	ast_channel_unlock(chan);
+
+	return ret;
 }
 
 int app_set_replace_channel_snapshot(struct ast_channel *chan, struct ast_channel_snapshot *replace_snapshot)
@@ -959,9 +973,9 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 	int argc, char *argv[], struct ast_channel_snapshot *snapshot,
 	struct ast_channel_snapshot *replace_channel_snapshot)
 {
-	RAII_VAR(struct ast_json *, json_blob, NULL, ast_json_unref);
+	struct ast_json *json_blob;
 	struct ast_json *json_args;
-	RAII_VAR(struct start_message_blob *, payload, NULL, ao2_cleanup);
+	struct start_message_blob *payload;
 	struct stasis_message *msg;
 	int i;
 
@@ -986,8 +1000,11 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 		"args");
 	if (!json_blob) {
 		ast_log(LOG_ERROR, "Error packing JSON for StasisStart message\n");
+		ao2_ref(payload, -1);
 		return -1;
 	}
+	payload->blob = json_blob;
+
 
 	/* Append arguments to args array */
 	json_args = ast_json_object_get(json_blob, "args");
@@ -997,13 +1014,14 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 					      ast_json_string_create(argv[i]));
 		if (r != 0) {
 			ast_log(LOG_ERROR, "Error appending to StasisStart message\n");
+			ao2_ref(payload, -1);
 			return -1;
 		}
 	}
 
-	payload->blob = ast_json_ref(json_blob);
 
 	msg = stasis_message_create(start_message_type(), payload);
+	ao2_ref(payload, -1);
 	if (!msg) {
 		ast_log(LOG_ERROR, "Error sending StasisStart message\n");
 		return -1;
@@ -1020,9 +1038,9 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 static int send_start_msg(struct stasis_app *app, struct ast_channel *chan,
 	int argc, char *argv[])
 {
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, replace_channel_snapshot,
-		NULL, ao2_cleanup);
+	int ret = -1;
+	struct ast_channel_snapshot *snapshot;
+	struct ast_channel_snapshot *replace_channel_snapshot;
 
 	ast_assert(chan != NULL);
 
@@ -1032,10 +1050,13 @@ static int send_start_msg(struct stasis_app *app, struct ast_channel *chan,
 	ast_channel_lock(chan);
 	snapshot = ast_channel_snapshot_create(chan);
 	ast_channel_unlock(chan);
-	if (!snapshot) {
-		return -1;
+	if (snapshot) {
+		ret = send_start_msg_snapshots(chan, app, argc, argv, snapshot, replace_channel_snapshot);
+		ao2_ref(snapshot, -1);
 	}
-	return send_start_msg_snapshots(chan, app, argc, argv, snapshot, replace_channel_snapshot);
+	ao2_cleanup(replace_channel_snapshot);
+
+	return ret;
 }
 
 static void remove_masquerade_store(struct ast_channel *chan);
@@ -1478,7 +1499,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 int stasis_app_send(const char *app_name, struct ast_json *message)
 {
-	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
+	struct stasis_app *app;
 
 	if (!apps_registry) {
 		return -1;
@@ -1494,6 +1515,8 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 		return -1;
 	}
 	app_send(app, message);
+	ao2_ref(app, -1);
+
 	return 0;
 }
 
@@ -1528,7 +1551,7 @@ static int append_name(void *obj, void *arg, int flags)
 
 struct ao2_container *stasis_app_get_all(void)
 {
-	RAII_VAR(struct ao2_container *, apps, NULL, ao2_cleanup);
+	struct ao2_container *apps;
 
 	if (!apps_registry) {
 		return NULL;
@@ -1541,12 +1564,12 @@ struct ao2_container *stasis_app_get_all(void)
 
 	ao2_callback(apps_registry, OBJ_NODATA, append_name, apps);
 
-	return ao2_bump(apps);
+	return apps;
 }
 
 static int __stasis_app_register(const char *app_name, stasis_app_cb handler, void *data, int all_events)
 {
-	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
+	struct stasis_app *app;
 
 	if (!apps_registry) {
 		return -1;
@@ -1558,24 +1581,25 @@ static int __stasis_app_register(const char *app_name, stasis_app_cb handler, vo
 		app_update(app, handler, data);
 	} else {
 		app = app_create(app_name, handler, data, all_events ? STASIS_APP_SUBSCRIBE_ALL : STASIS_APP_SUBSCRIBE_MANUAL);
-		if (app) {
-			if (all_events) {
-				struct stasis_app_event_source *source;
-				SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
-
-				AST_LIST_TRAVERSE(&event_sources, source, next) {
-					if (!source->subscribe) {
-						continue;
-					}
-
-					source->subscribe(app, NULL);
-				}
-			}
-			ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
-		} else {
+		if (!app) {
 			ao2_unlock(apps_registry);
 			return -1;
 		}
+
+		if (all_events) {
+			struct stasis_app_event_source *source;
+
+			AST_RWLIST_RDLOCK(&event_sources);
+			AST_LIST_TRAVERSE(&event_sources, source, next) {
+				if (!source->subscribe) {
+					continue;
+				}
+
+				source->subscribe(app, NULL);
+			}
+			AST_RWLIST_UNLOCK(&event_sources);
+		}
+		ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
 	}
 
 	/* We lazily clean up the apps_registry, because it's good enough to
@@ -1583,6 +1607,7 @@ static int __stasis_app_register(const char *app_name, stasis_app_cb handler, vo
 	 */
 	cleanup();
 	ao2_unlock(apps_registry);
+	ao2_ref(app, -1);
 	return 0;
 }
 
@@ -1598,7 +1623,7 @@ int stasis_app_register_all(const char *app_name, stasis_app_cb handler, void *d
 
 void stasis_app_unregister(const char *app_name)
 {
-	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
+	struct stasis_app *app;
 
 	if (!app_name) {
 		return;
@@ -1621,23 +1646,27 @@ void stasis_app_unregister(const char *app_name)
 	 * and clean up, just in case
 	 */
 	cleanup();
+
+	ao2_ref(app, -1);
 }
 
 void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 {
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_WRLOCK(&event_sources);
 	AST_LIST_INSERT_TAIL(&event_sources, obj, next);
 	/* only need to bump the module ref on non-core sources because the
 	   core ones are [un]registered by this module. */
 	if (!stasis_app_is_core_event_source(obj)) {
 		ast_module_ref(ast_module_info->self);
 	}
+	AST_RWLIST_UNLOCK(&event_sources);
 }
 
 void stasis_app_unregister_event_source(struct stasis_app_event_source *obj)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_WRLOCK(&event_sources);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&event_sources, source, next) {
 		if (source == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -1648,6 +1677,7 @@ void stasis_app_unregister_event_source(struct stasis_app_event_source *obj)
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&event_sources);
 }
 
 /*!
@@ -1666,12 +1696,15 @@ static struct ast_json *app_event_sources_to_json(
 	const struct stasis_app *app, struct ast_json *json)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_RDLOCK(&event_sources);
 	AST_LIST_TRAVERSE(&event_sources, source, next) {
 		if (source->to_json) {
 			source->to_json(app, json);
 		}
 	}
+	AST_RWLIST_UNLOCK(&event_sources);
+
 	return json;
 }
 
@@ -1686,9 +1719,12 @@ static struct ast_json *stasis_app_object_to_json(struct stasis_app *app)
 
 struct ast_json *stasis_app_to_json(const char *app_name)
 {
-	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	struct stasis_app *app = find_app_by_name(app_name);
+	struct ast_json *json = stasis_app_object_to_json(app);
 
-	return stasis_app_object_to_json(app);
+	ao2_cleanup(app);
+
+	return json;
 }
 
 /*!
@@ -1705,13 +1741,16 @@ struct ast_json *stasis_app_to_json(const char *app_name)
 static struct stasis_app_event_source *app_event_source_find(const char *uri)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_RDLOCK(&event_sources);
 	AST_LIST_TRAVERSE(&event_sources, source, next) {
 		if (ast_begins_with(uri, source->scheme)) {
-			return source;
+			break;
 		}
 	}
-	return NULL;
+	AST_RWLIST_UNLOCK(&event_sources);
+
+	return source;
 }
 
 /*!
@@ -1746,8 +1785,10 @@ static enum stasis_app_subscribe_res app_handle_subscriptions(
 	int event_sources_count, struct ast_json **json,
 	app_subscription_handler handler)
 {
-	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	struct stasis_app *app = find_app_by_name(app_name);
 	int i;
+
+	ast_assert(handler != NULL);
 
 	if (!app) {
 		return STASIS_ASR_APP_NOT_FOUND;
@@ -1755,16 +1796,21 @@ static enum stasis_app_subscribe_res app_handle_subscriptions(
 
 	for (i = 0; i < event_sources_count; ++i) {
 		const char *uri = event_source_uris[i];
-		enum stasis_app_subscribe_res res = STASIS_ASR_INTERNAL_ERROR;
 		struct stasis_app_event_source *event_source;
+		enum stasis_app_subscribe_res res;
 
-		if (!(event_source = app_event_source_find(uri))) {
+		event_source = app_event_source_find(uri);
+		if (!event_source) {
 			ast_log(LOG_WARNING, "Invalid scheme: %s\n", uri);
+			ao2_ref(app, -1);
+
 			return STASIS_ASR_EVENT_SOURCE_BAD_SCHEME;
 		}
 
-		if (handler &&
-		    ((res = handler(app, uri, event_source)))) {
+		res = handler(app, uri, event_source);
+		if (res != STASIS_ASR_OK) {
+			ao2_ref(app, -1);
+
 			return res;
 		}
 	}
@@ -1774,13 +1820,15 @@ static enum stasis_app_subscribe_res app_handle_subscriptions(
 		*json = stasis_app_object_to_json(app);
 	}
 
+	ao2_ref(app, -1);
+
 	return STASIS_ASR_OK;
 }
 
 enum stasis_app_subscribe_res stasis_app_subscribe_channel(const char *app_name,
 	struct ast_channel *chan)
 {
-	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	struct stasis_app *app = find_app_by_name(app_name);
 	int res;
 
 	if (!app) {
@@ -1790,6 +1838,8 @@ enum stasis_app_subscribe_res stasis_app_subscribe_channel(const char *app_name,
 	ast_debug(3, "%s: Subscribing to %s\n", app_name, ast_channel_uniqueid(chan));
 
 	res = app_subscribe_channel(app, chan);
+	ao2_ref(app, -1);
+
 	if (res != 0) {
 		ast_log(LOG_ERROR, "Error subscribing app '%s' to channel '%s'\n",
 			app_name, ast_channel_uniqueid(chan));
@@ -1892,12 +1942,10 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 	struct ast_json *json_variables)
 {
 	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	RAII_VAR(struct ast_multi_object_blob *, multi, NULL, ao2_cleanup);
-	RAII_VAR(void *, obj, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct ast_json *blob = NULL;
+	struct ast_multi_object_blob *multi;
+	struct stasis_message *message;
 	enum stasis_app_user_event_res res = STASIS_APP_USER_INTERNAL_ERROR;
-	struct ast_json *json_value;
 	int have_channel = 0;
 	int i;
 
@@ -1910,23 +1958,29 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 		return res;
 	}
 
-	blob = json_variables;
-	if (!blob) {
-		blob = ast_json_pack("{}");
+	if (json_variables) {
+		struct ast_json *json_value = ast_json_string_create(event_name);
+
+		if (json_value && !ast_json_object_set(json_variables, "eventname", json_value)) {
+			blob = ast_json_ref(json_variables);
+		}
 	} else {
-		ast_json_ref(blob);
+		blob = ast_json_pack("{s: s}", "eventname", event_name);
 	}
-	json_value = ast_json_string_create(event_name);
-	if (!json_value) {
-		ast_log(LOG_ERROR, "unable to create json string\n");
-		return res;
-	}
-	if (ast_json_object_set(blob, "eventname", json_value)) {
-		ast_log(LOG_ERROR, "unable to set eventname to blob\n");
+
+	if (!blob) {
+		ast_log(LOG_ERROR, "Failed to initialize blob\n");
+
 		return res;
 	}
 
 	multi = ast_multi_object_blob_create(blob);
+	ast_json_unref(blob);
+	if (!multi) {
+		ast_log(LOG_ERROR, "Failed to initialize multi\n");
+
+		return res;
+	}
 
 	for (i = 0; i < sources_count; ++i) {
 		const char *uri = source_uris[i];
@@ -1945,16 +1999,22 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 			snapshot = ast_endpoint_latest_snapshot(uri + 9, NULL);
 		} else {
 			ast_log(LOG_WARNING, "Invalid scheme: %s\n", uri);
+			ao2_ref(multi, -1);
+
 			return STASIS_APP_USER_EVENT_SOURCE_BAD_SCHEME;
 		}
 		if (!snapshot) {
 			ast_log(LOG_ERROR, "Unable to get snapshot for %s\n", uri);
+			ao2_ref(multi, -1);
+
 			return STASIS_APP_USER_EVENT_SOURCE_NOT_FOUND;
 		}
 		ast_multi_object_blob_add(multi, type, snapshot);
 	}
 
 	message = stasis_message_create(ast_multi_user_event_type(), multi);
+	ao2_ref(multi, -1);
+
 	if (!message) {
 		ast_log(LOG_ERROR, "Unable to create stasis user event message\n");
 		return res;
@@ -1971,6 +2031,7 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 	if (have_channel) {
 		stasis_publish(ast_manager_get_topic(), message);
 	}
+	ao2_ref(message, -1);
 
 	return STASIS_APP_USER_OK;
 }
@@ -2036,9 +2097,14 @@ static int channel_sanitizer(const struct ast_channel *chan)
 /* \brief Sanitization callback for channel unique IDs */
 static int channel_id_sanitizer(const char *id)
 {
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, ast_channel_snapshot_get_latest(id), ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+	int ret;
 
-	return channel_snapshot_sanitizer(snapshot);
+	snapshot = ast_channel_snapshot_get_latest(id);
+	ret = channel_snapshot_sanitizer(snapshot);
+	ao2_cleanup(snapshot);
+
+	return ret;
 }
 
 /* \brief Sanitization callbacks for communication to Stasis applications */
