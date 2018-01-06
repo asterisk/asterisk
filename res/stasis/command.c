@@ -78,21 +78,26 @@ struct stasis_app_command *command_create(
 
 void command_complete(struct stasis_app_command *command, int retval)
 {
-	SCOPED_MUTEX(lock, &command->lock);
-
+	ast_mutex_lock(&command->lock);
 	command->is_done = 1;
 	command->retval = retval;
 	ast_cond_signal(&command->condition);
+	ast_mutex_unlock(&command->lock);
 }
 
 int command_join(struct stasis_app_command *command)
 {
-	SCOPED_MUTEX(lock, &command->lock);
+	int ret;
+
+	ast_mutex_lock(&command->lock);
 	while (!command->is_done) {
 		ast_cond_wait(&command->condition, &command->lock);
 	}
 
-	return command->retval;
+	ret = command->retval;
+	ast_mutex_unlock(&command->lock);
+
+	return ret;
 }
 
 void command_invoke(struct stasis_app_command *command,
