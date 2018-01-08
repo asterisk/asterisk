@@ -377,10 +377,9 @@ void softmix_process_write_binaural_audio(struct softmix_channel *sc,
  *
  * \param bridge The conference bridge.
  * \param softmix_data The data used by the softmix bridge.
- * \param bridge_channel The bridge channel.
  */
 void check_binaural_position_change(struct ast_bridge *bridge,
-		struct softmix_bridge_data *softmix_data, struct ast_bridge_channel *bridge_channel);
+		struct softmix_bridge_data *softmix_data);
 
 /*!
  * \brief Processes audio data with the binaural synthesis and adds the result to the mixing array.

@@ -465,9 +465,10 @@ void softmix_process_write_binaural_audio(struct softmix_channel *sc,
 }
 
 void check_binaural_position_change(struct ast_bridge *bridge,
-		struct softmix_bridge_data *softmix_data, struct ast_bridge_channel *bridge_channel)
+		struct softmix_bridge_data *softmix_data)
 {
 	unsigned int pos_change;
+	struct ast_bridge_channel *bridge_channel;
 
 	/*
 	 * We only check binaural things if binaural is activated by the config
