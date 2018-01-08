@@ -456,6 +456,12 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 				return NULL;
 			}
 			session_media->bundle_group = 0;
+
+			/* Some WebRTC clients can't handle an offer to bundle media streams. Instead they expect them to
+			 * already be bundled. Every client handles this scenario though so if WebRTC is enabled just go
+			 * ahead and treat the streams as having already been bundled.
+			 */
+			session_media->bundled = session->endpoint->media.webrtc;
 		} else {
 			session_media->bundle_group = -1;
 		}
