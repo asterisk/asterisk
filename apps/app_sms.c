@@ -801,7 +801,7 @@ static void sms_log(sms_t * h, char status)
 				*p++ = '\\';
 				*p++ = 'r';
 			} else if (h->ud[n] < 32 || h->ud[n] == 127) {
-				*p++ = 191;
+				*p++ = 0xbf;
 			} else {
 				*p++ = h->ud[n];
 			}

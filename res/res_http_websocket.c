@@ -291,6 +291,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_webso
 /*! \brief Close function for websocket session */
 int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, uint16_t reason)
 {
+	enum ast_websocket_opcode opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 	char frame[4] = { 0, }; /* The header is 2 bytes and the reason code takes up another 2 bytes */
 	int res;
 
@@ -298,7 +299,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 		return 0;
 	}
 
-	frame[0] = AST_WEBSOCKET_OPCODE_CLOSE | 0x80;
+	frame[0] = opcode | 0x80;
 	frame[1] = 2; /* The reason code is always 2 bytes */
 
 	/* If no reason has been specified assume 1000 which is normal closure */
