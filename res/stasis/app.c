@@ -1432,25 +1432,15 @@ int app_unsubscribe_bridge_id(struct stasis_app *app, const char *bridge_id)
 int app_is_subscribed_bridge_id(struct stasis_app *app, const char *bridge_id)
 {
 	struct app_forwards *forwards;
-	SCOPED_AO2LOCK(lock, app->forwards);
-
-	forwards = ao2_find(app->forwards, BRIDGE_ALL, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-	if (forwards) {
-		ao2_ref(forwards, -1);
-		return 1;
-	}
 
 	if (ast_strlen_zero(bridge_id)) {
 		bridge_id = BRIDGE_ALL;
 	}
 
-	forwards = ao2_find(app->forwards, bridge_id, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-	if (forwards) {
-		ao2_ref(forwards, -1);
-		return 1;
-	}
+	forwards = ao2_find(app->forwards, bridge_id, OBJ_SEARCH_KEY);
+	ao2_cleanup(forwards);
 
-	return 0;
+	return forwards != NULL;
 }
 
 static void *bridge_find(const struct stasis_app *app, const char *id)
