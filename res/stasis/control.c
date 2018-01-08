@@ -1507,7 +1507,9 @@ void stasis_app_control_shutdown(void)
 {
 	ast_mutex_lock(&dial_bridge_lock);
 	shutting_down = 1;
-	ao2_cleanup(dial_bridge);
-	dial_bridge = NULL;
+	if (dial_bridge) {
+		ast_bridge_destroy(dial_bridge, 0);
+		dial_bridge = NULL;
+	}
 	ast_mutex_unlock(&dial_bridge_lock);
 }
