@@ -103,7 +103,7 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
     else
       AC_CHECK_HEADER(/usr/local/include/ptlib.h, HAS_PWLIB=1, )
       if test "${HAS_PWLIB:-unset}" != "unset" ; then
-        AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/bin$PATH_SEPARATOR/usr/local/share/pwlib/make)
+        AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/bin$PATH_SEPARATOR/usr/local/share/ptlib/make$PATH_SEPARATOR/usr/local/share/pwlib/make)
         PWLIB_INCDIR="/usr/local/include"
         PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir 2>/dev/null`
         if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
@@ -121,7 +121,7 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
       else
         AC_CHECK_HEADER(/usr/include/ptlib.h, HAS_PWLIB=1, )
         if test "${HAS_PWLIB:-unset}" != "unset" ; then
-          AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/bin$PATH_SEPARATOR/usr/share/pwlib/make)
+          AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/bin$PATH_SEPARATOR/usr/share/ptlib/make$PATH_SEPARATOR/usr/share/pwlib/make)
           PWLIB_INCDIR="/usr/include"
           PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir 2>/dev/null`
           if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
