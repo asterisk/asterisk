@@ -2689,17 +2689,23 @@ static int action_kick_last(struct confbridge_conference *conference,
 	}
 
 	ao2_lock(conference);
-	if (((last_user = AST_LIST_LAST(&conference->active_list)) == user)
-		|| (ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN))) {
+	last_user = AST_LIST_LAST(&conference->active_list);
+	if (!last_user) {
+		ao2_unlock(conference);
+		return 0;
+	}
+
+	if (last_user == user || ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN)) {
 		ao2_unlock(conference);
 		play_file(bridge_channel, NULL,
 			conf_get_sound(CONF_SOUND_ERROR_MENU, conference->b_profile.sounds));
-	} else if (last_user && !last_user->kicked) {
+	} else if (!last_user->kicked) {
 		last_user->kicked = 1;
 		pbx_builtin_setvar_helper(last_user->chan, "CONFBRIDGE_RESULT", "KICKED");
 		ast_bridge_remove(conference->bridge, last_user->chan);
 		ao2_unlock(conference);
 	}
+
 	return 0;
 }
 
