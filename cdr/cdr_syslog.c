@@ -37,8 +37,9 @@
  */
 
 /*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
 	<depend>syslog</depend>
-	<support_level>core</support_level>
+	<support_level>deprecated</support_level>
 ***/
 
 #include "asterisk.h"

@@ -51,6 +51,11 @@ res_pjsip
  * A new AMI action, PJSIPShowAuths, has been added which displays information
    about all configured PJSIP Auths.
 
+cdr_syslog
+------------------
+ * The cdr_syslog module is now deprecated and by default it is no longer
+   built.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.1.0 to Asterisk 15.2.0 ------------
 ------------------------------------------------------------------------------
