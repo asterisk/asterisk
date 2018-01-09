@@ -18425,7 +18425,7 @@ LDFLAGS="${saved_sanitize_LDFLAGS}"
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wdeclaration-after-statement support" >&5
 $as_echo_n "checking for -Wdeclaration-after-statement support... " >&6; }
-if $(${CC} -Wdeclaration-after-statement -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wdeclaration-after-statement -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 	AST_DECLARATION_AFTER_STATEMENT=-Wdeclaration-after-statement
@@ -18477,7 +18477,7 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wno-format-truncation" >&5
 $as_echo_n "checking for -Wno-format-truncation... " >&6; }
-if $(${CC} -O2 -Wno-format-truncation -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wno-format-truncation -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 	AST_NO_FORMAT_TRUNCATION=-Wno-format-truncation
@@ -18490,7 +18490,7 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wshadow" >&5
 $as_echo_n "checking for -Wshadow... " >&6; }
-if $(${CC} -Wshadow -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wshadow -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 	AST_SHADOW_WARNINGS=-Wshadow
