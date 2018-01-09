@@ -1224,7 +1224,7 @@ LDFLAGS="${saved_sanitize_LDFLAGS}"
 AC_SUBST(AST_UNDEFINED_SANITIZER)
 
 AC_MSG_CHECKING(for -Wdeclaration-after-statement support)
-if $(${CC} -Wdeclaration-after-statement -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wdeclaration-after-statement -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)
 	AST_DECLARATION_AFTER_STATEMENT=-Wdeclaration-after-statement
 else
@@ -1264,7 +1264,7 @@ fi
 AC_SUBST(AST_NO_STRICT_OVERFLOW)
 
 AC_MSG_CHECKING(for -Wno-format-truncation)
-if $(${CC} -O2 -Wno-format-truncation -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wno-format-truncation -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)
 	AST_NO_FORMAT_TRUNCATION=-Wno-format-truncation
 else
@@ -1274,7 +1274,7 @@ fi
 AC_SUBST(AST_NO_FORMAT_TRUNCATION)
 
 AC_MSG_CHECKING(for -Wshadow)
-if $(${CC} -Wshadow -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wshadow -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)
 	AST_SHADOW_WARNINGS=-Wshadow
 else
