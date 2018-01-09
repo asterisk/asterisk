@@ -65,8 +65,8 @@ static void all_dtor(void *obj)
 struct stasis_cp_all *stasis_cp_all_create(const char *name,
 	snapshot_get_id id_fn)
 {
-	RAII_VAR(char *, cached_name, NULL, ast_free);
-	RAII_VAR(struct stasis_cp_all *, all, NULL, ao2_cleanup);
+	char *cached_name = NULL;
+	struct stasis_cp_all *all;
 
 	all = ao2_t_alloc(sizeof(*all), all_dtor, name);
 	if (!all) {
@@ -75,21 +75,25 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 
 	ast_asprintf(&cached_name, "%s-cached", name);
 	if (!cached_name) {
+		ao2_ref(all, -1);
+
 		return NULL;
 	}
 
 	all->topic = stasis_topic_create(name);
 	all->topic_cached = stasis_topic_create(cached_name);
+	ast_free(cached_name);
 	all->cache = stasis_cache_create(id_fn);
 	all->forward_all_to_cached =
 		stasis_forward_all(all->topic, all->topic_cached);
 
 	if (!all->topic || !all->topic_cached || !all->cache ||
 		!all->forward_all_to_cached) {
+		ao2_ref(all, -1);
+
 		return NULL;
 	}
 
-	ao2_ref(all, +1);
 	return all;
 }
 
@@ -134,7 +138,7 @@ static void one_dtor(void *obj)
 struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 	const char *name)
 {
-	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
+	struct stasis_cp_single *one;
 
 	one = stasis_cp_sink_create(all, name);
 	if (!one) {
@@ -142,23 +146,22 @@ struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 	}
 
 	one->forward_topic_to_all = stasis_forward_all(one->topic, all->topic);
-	if (!one->forward_topic_to_all) {
-		return NULL;
-	}
 	one->forward_cached_to_all = stasis_forward_all(
 		stasis_caching_get_topic(one->topic_cached), all->topic_cached);
-	if (!one->forward_cached_to_all) {
+
+	if (!one->forward_topic_to_all || !one->forward_cached_to_all) {
+		ao2_ref(one, -1);
+
 		return NULL;
 	}
 
-	ao2_ref(one, +1);
 	return one;
 }
 
 struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
 	const char *name)
 {
-	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
+	struct stasis_cp_single *one;
 
 	one = ao2_t_alloc(sizeof(*one), one_dtor, name);
 	if (!one) {
@@ -167,14 +170,18 @@ struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
 
 	one->topic = stasis_topic_create(name);
 	if (!one->topic) {
-		return NULL;
-	}
-	one->topic_cached = stasis_caching_topic_create(one->topic, all->cache);
-	if (!one->topic_cached) {
+		ao2_ref(one, -1);
+
 		return NULL;
 	}
 
-	ao2_ref(one, +1);
+	one->topic_cached = stasis_caching_topic_create(one->topic, all->cache);
+	if (!one->topic_cached) {
+		ao2_ref(one, -1);
+
+		return NULL;
+	}
+
 	return one;
 }
 
