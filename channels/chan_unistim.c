@@ -114,7 +114,6 @@
 #define SUB_REAL		0
 #define SUB_RING                1
 #define SUB_THREEWAY            2
-#define SUB_ONHOLD              3
 
 struct ast_format_cap *global_cap;
 
@@ -351,13 +350,14 @@ struct wsabuf {
 
 struct unistim_subchannel {
 	ast_mutex_t lock;
-	unsigned int subtype;		/*! SUB_REAL, SUB_RING, SUB_THREEWAY or SUB_ONHOLD */
+	unsigned int subtype;		/*! SUB_REAL, SUB_RING or SUB_THREEWAY */
 	struct ast_channel *owner;	/*! Asterisk channel used by the subchannel */
 	struct unistim_line *parent;	/*! Unistim line */
 	struct ast_rtp_instance *rtp;	/*! RTP handle */
 	int softkey;			/*! Softkey assigned */
 	pthread_t ss_thread;		/*! unistim_ss thread handle */
 	int alreadygone;
+	int holding;			/*! this subchannel holds someone */
 	signed char ringvolume;
 	signed char ringstyle;
 	int moh;					/*!< Music on hold in progress */
@@ -2015,8 +2015,6 @@ static const char *subtype_tostr(const int type)
 	switch (type) {
 	case SUB_REAL:
 		return "REAL";
-	case SUB_ONHOLD:
-		return "ONHOLD";
 	case SUB_RING:
 		return "RINGING";
 	case SUB_THREEWAY:
@@ -2496,6 +2494,24 @@ static struct unistim_subchannel* get_sub(struct unistim_device *device, int typ
 	return sub;
 }
 
+static struct unistim_subchannel* get_sub_holding(struct unistim_device *device, int type, int holding)
+{
+	struct unistim_subchannel *sub = NULL;
+
+	AST_LIST_LOCK(&device->subs);
+	AST_LIST_TRAVERSE(&device->subs, sub, list) {
+		if (!sub) {
+			continue;
+		}
+		if (sub->subtype == type && sub->holding == holding) {
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&device->subs);
+
+	return sub;
+}
+
 static void sub_start_silence(struct unistimsession *pte, struct unistim_subchannel *sub)
 {
 	/* Silence our channel */
@@ -2533,13 +2549,12 @@ static void sub_hold(struct unistimsession *pte, struct unistim_subchannel *sub)
 		return;
 	}
 	sub->moh = 1;
-	sub->subtype = SUB_ONHOLD;
+	sub->holding = 1;
 	send_favorite_short(sub->softkey, FAV_ICON_ONHOLD_BLACK + FAV_BLINK_SLOW, pte);
 	send_select_output(pte, pte->device->output, pte->device->volume, MUTE_ON);
 	send_stop_timer(pte);
 	if (sub->owner) {
 		ast_queue_hold(sub->owner, NULL);
-		send_end_call(pte);
 	}
 	return;
 }
@@ -2554,7 +2569,7 @@ static void sub_unhold(struct unistimsession *pte, struct unistim_subchannel *su
 	}
 
 	sub->moh = 0;
-	sub->subtype = SUB_REAL;
+	sub->holding = 0;
 	send_favorite_short(sub->softkey, FAV_ICON_OFFHOOK_BLACK, pte);
 	send_select_output(pte, pte->device->output, pte->device->volume, MUTE_OFF);
 	send_start_timer(pte);
@@ -3355,12 +3370,12 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 static void handle_key_fav(struct unistimsession *pte, char keycode)
 {
 	int keynum = keycode - KEY_FAV0;
-	struct unistim_subchannel *sub;
-
-	sub = get_sub(pte->device, SUB_REAL);
+	struct unistim_subchannel *sub, *sub_key = NULL;
+	sub = get_sub_holding(pte->device, SUB_REAL, 0);
 
 	/* Make an action on selected favorite key */
 	if (!pte->device->ssub[keynum]) { /* Key have no assigned call */
+		sub = get_sub_holding(pte->device, SUB_REAL, 0);
 		send_favorite_selected(FAV_LINE_ICON, pte);
 		if (is_key_line(pte->device, keynum)) {
 			if (unistimdebug) {
@@ -3385,21 +3400,24 @@ static void handle_key_fav(struct unistimsession *pte, char keycode)
 			key_favorite(pte, keycode);
 		}
 	} else {
-		sub = pte->device->ssub[keynum];
+		sub_key = pte->device->ssub[keynum];
 		/* Favicon have assigned sub, activate it and put current on hold */
-		if (sub->subtype == SUB_REAL) {
-			sub_hold(pte, sub);
+		if (sub_key->subtype == SUB_REAL && !sub_key->holding) {
+			sub_hold(pte, sub_key);
 			show_main_page(pte);
-		} else if (sub->subtype == SUB_RING) {
-			sub->softkey = keynum;
-			handle_call_incoming(pte);
-		} else if (sub->subtype == SUB_ONHOLD) {
+		} else if (sub_key->subtype == SUB_REAL && sub_key->holding) {
+			/* We are going to unhold line (we should put active line on hold, of any) */
 			if (pte->state == STATE_DIALPAGE){
 				send_tone(pte, 0, 0);
 			}
-			send_callerid_screen(pte, sub);
-			sub_unhold(pte, sub);
+			sub_hold(pte, sub);
+			send_callerid_screen(pte, sub_key);
+			sub_unhold(pte, sub_key);
 			pte->state = STATE_CALL;
+		} else if (sub_key->subtype == SUB_RING) {
+			sub_hold(pte, sub);
+			sub_key->softkey = keynum;
+			handle_call_incoming(pte);
 		}
 	}
 }
@@ -3469,8 +3487,13 @@ static void key_call(struct unistimsession *pte, char keycode)
 	case KEY_ONHOLD:
 		if (!sub) {
 			if(pte->device->ssub[pte->device->selected]) {
-				sub_hold(pte, pte->device->ssub[pte->device->selected]);
+				sub = pte->device->ssub[pte->device->selected];
+			} else {
+				break;
 			}
+		}
+		if (sub->holding) {
+			sub_unhold(pte, sub);
 		} else {
 			sub_hold(pte, sub);
 		}
@@ -5428,7 +5451,8 @@ static struct unistim_subchannel *find_subchannel_by_name(const char *dest)
 					}
 					if (sub->owner) {
 						/* Allocate additional channel if asterisk channel already here */
-						sub = unistim_alloc_sub(d, SUB_ONHOLD);
+						sub = unistim_alloc_sub(d, SUB_REAL);
+						sub->holding = 1;
 					}
 					sub->ringvolume = -1;
 					sub->ringstyle = -1;
