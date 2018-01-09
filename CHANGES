@@ -15,6 +15,9 @@
 Core
 ------------------
  * Removed the unused and incomplete SDP processing modules.
+ * During dialplan reload log messages are produced for each context,
+   extension and include.  These messages are no longer printed by the
+   verbose loggers, they are now only logged as debug messages.
 
 res_sdp_translator_pjmedia
 ------------------
