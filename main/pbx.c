@@ -6142,15 +6142,14 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
-		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	} else {
 		tmp->next = *local_contexts;
 		if (exttable)
 			ast_hashtab_insert_immediate(exttable, tmp); /*put this context into the tree */
 
 		*local_contexts = tmp;
-		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	}
+	ast_debug(1, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	return tmp;
 }
 
@@ -6177,7 +6176,7 @@ static void context_merge_incls_swits_igps_other_registrars(struct ast_context *
 	struct ast_ignorepat *ip;
 	struct ast_sw *sw;
 
-	ast_verb(3, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
+	ast_debug(1, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
 	/* copy in the includes, switches, and ignorepats */
 	/* walk through includes */
 	for (i = NULL; (i = ast_walk_context_includes(old, i)) ; ) {
@@ -6310,6 +6309,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	struct ast_state_cb *thiscb;
 	struct ast_hashtab_iter *iter;
 	struct ao2_iterator i;
+	int ctx_count = 0;
 	struct timeval begintime;
 	struct timeval writelocktime;
 	struct timeval endlocktime;
@@ -6342,6 +6342,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 
 	iter = ast_hashtab_start_traversal(contexts_table);
 	while ((tmp = ast_hashtab_next(iter))) {
+		++ctx_count;
 		context_merge(extcontexts, exttable, tmp, registrar);
 	}
 	ast_hashtab_end_traversal(iter);
@@ -6514,6 +6515,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	ft = ast_tvdiff_us(enddeltime, begintime);
 	ft /= 1000000.0;
 	ast_verb(3,"Total time merge_contexts_delete: %8.6f sec\n", ft);
+	ast_verb(3, "%s successfully loaded %d contexts (enable debug for details).\n", registrar, ctx_count);
 }
 
 /*
@@ -6591,7 +6593,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 		il->next = new_include;
 	else
 		con->includes = new_include;
-	ast_verb(3, "Including context '%s' in context '%s'\n", new_include->name, ast_get_context_name(con));
+	ast_debug(1, "Including context '%s' in context '%s'\n", new_include->name, ast_get_context_name(con));
 
 	ast_unlock_context(con);
 
@@ -7430,14 +7432,6 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 			ast_debug(1, "Added extension '%s' priority %d to %s (%p)\n",
 					  tmp->name, tmp->priority, con->name, con);
 		}
-	}
-
-	if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
-		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-				 tmp->name, tmp->priority, tmp->cidmatch_display, con->name);
-	} else {
-		ast_verb(3, "Added extension '%s' priority %d to %s\n",
-				 tmp->name, tmp->priority, con->name);
 	}
 
 	return 0;
