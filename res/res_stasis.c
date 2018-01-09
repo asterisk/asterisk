@@ -1992,6 +1992,9 @@ static int unload_module(void)
 	messaging_cleanup();
 
 	cleanup();
+
+	stasis_app_control_shutdown();
+
 	ao2_cleanup(apps_registry);
 	apps_registry = NULL;
 
@@ -2006,8 +2009,6 @@ static int unload_module(void)
 
 	ao2_cleanup(app_bridges_playback);
 	app_bridges_playback = NULL;
-
-	stasis_app_control_shutdown();
 
 	STASIS_MESSAGE_TYPE_CLEANUP(end_message_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(start_message_type);
