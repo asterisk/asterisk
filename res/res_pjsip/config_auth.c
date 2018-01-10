@@ -195,6 +195,67 @@ static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
 	.format_ami = format_ami_endpoint_auth
 };
 
+static struct ao2_container *cli_get_auths(void)
+{
+	struct ao2_container *auths;
+
+	auths = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "auth",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+
+	return auths;
+}
+
+static int format_ami_authlist_handler(void *obj, void *arg, int flags)
+{
+	struct ast_sip_auth *auth = obj;
+	struct ast_sip_ami *ami = arg;
+	struct ast_str *buf;
+
+	buf = ast_sip_create_ami_event("AuthList", ami);
+	if (!buf) {
+		return CMP_STOP;
+	}
+
+	sip_auth_to_ami(auth, &buf);
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
+	ast_free(buf);
+
+	return 0;
+}
+
+static int ami_show_auths(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
+	struct ao2_container *auths;
+
+	auths = cli_get_auths();
+	if (!auths) {
+		astman_send_error(s, m, "Could not get Auths\n");
+		return 0;
+	}
+
+	if (!ao2_container_count(auths)) {
+		astman_send_error(s, m, "No Auths found\n");
+		ao2_ref(auths, -1);
+		return 0;
+	}
+
+	astman_send_listack(s, m, "A listing of Auths follows, presented as AuthList events",
+			"start");
+
+	ao2_callback(auths, OBJ_NODATA, format_ami_authlist_handler, &ami);
+
+	astman_send_list_complete_start(s, m, "AuthListComplete", ami.count);
+	astman_send_list_complete_end(s);
+
+	ao2_ref(auths, -1);
+
+	return 0;
+}
+
 static struct ao2_container *cli_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
@@ -331,6 +392,10 @@ int ast_sip_initialize_sorcery_auth(void)
 	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
+	if (ast_manager_register_xml("PJSIPShowAuths", EVENT_FLAG_SYSTEM, ami_show_auths)) {
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -339,6 +404,8 @@ int ast_sip_destroy_sorcery_auth(void)
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	internal_sip_unregister_endpoint_formatter(&endpoint_auth_formatter);
+
+	ast_manager_unregister("PJSIPShowAuths");
 
 	return 0;
 }
