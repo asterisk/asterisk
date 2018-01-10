@@ -137,8 +137,9 @@ static void app_control_register_rule(
 	const struct stasis_app_control *control,
 	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
-	SCOPED_AO2LOCK(lock, control->command_queue);
+	ao2_lock(control->command_queue);
 	AST_LIST_INSERT_TAIL(list, obj, next);
+	ao2_unlock(control->command_queue);
 }
 
 static void app_control_unregister_rule(
@@ -146,7 +147,8 @@ static void app_control_unregister_rule(
 	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
 	struct stasis_app_control_rule *rule;
-	SCOPED_AO2LOCK(lock, control->command_queue);
+
+	ao2_lock(control->command_queue);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(list, rule, next) {
 		if (rule == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -154,6 +156,7 @@ static void app_control_unregister_rule(
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	ao2_unlock(control->command_queue);
 }
 
 /*!
@@ -580,9 +583,10 @@ static int app_control_mute(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	struct stasis_app_control_mute_data *mute_data = data;
-	SCOPED_CHANNELLOCK(lockvar, chan);
 
+	ast_channel_lock(chan);
 	ast_channel_suppress(control->channel, mute_data->direction, mute_data->frametype);
+	ast_channel_unlock(chan);
 
 	return 0;
 }
@@ -607,9 +611,10 @@ static int app_control_unmute(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	struct stasis_app_control_mute_data *mute_data = data;
-	SCOPED_CHANNELLOCK(lockvar, chan);
 
+	ast_channel_lock(chan);
 	ast_channel_unsuppress(control->channel, mute_data->direction, mute_data->frametype);
+	ast_channel_unlock(chan);
 
 	return 0;
 }
@@ -818,7 +823,7 @@ void stasis_app_control_silence_stop(struct stasis_app_control *control)
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	const struct stasis_app_control *control)
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct stasis_message *msg;
 	struct ast_channel_snapshot *snapshot;
 
 	msg = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
@@ -831,6 +836,8 @@ struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	ast_assert(snapshot != NULL);
 
 	ao2_ref(snapshot, +1);
+	ao2_ref(msg, -1);
+
 	return snapshot;
 }
 
@@ -839,7 +846,8 @@ static int app_send_command_on_condition(struct stasis_app_control *control,
 					 command_data_destructor_fn data_destructor,
 					 app_command_can_exec_cb can_exec_fn)
 {
-	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
+	int ret;
+	struct stasis_app_command *command;
 
 	if (control == NULL || control->is_done) {
 		/* If exec_command_on_condition fails, it calls the data_destructor.
@@ -859,7 +867,10 @@ static int app_send_command_on_condition(struct stasis_app_control *control,
 		return -1;
 	}
 
-	return command_join(command);
+	ret = command_join(command);
+	ao2_ref(command, -1);
+
+	return ret;
 }
 
 int stasis_app_send_command(struct stasis_app_control *control,
@@ -872,7 +883,7 @@ int stasis_app_send_command_async(struct stasis_app_control *control,
 	stasis_app_command_cb command_fn, void *data,
 	command_data_destructor_fn data_destructor)
 {
-	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
+	struct stasis_app_command *command;
 
 	if (control == NULL || control->is_done) {
 		/* If exec_command fails, it calls the data_destructor. In order to
@@ -890,33 +901,39 @@ int stasis_app_send_command_async(struct stasis_app_control *control,
 	if (!command) {
 		return -1;
 	}
+	ao2_ref(command, -1);
 
 	return 0;
 }
 
 struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control)
 {
+	struct ast_bridge *ret;
+
 	if (!control) {
 		return NULL;
-	} else {
-		SCOPED_AO2LOCK(lock, control);
-		return control->bridge;
 	}
+
+	ao2_lock(control);
+	ret = control->bridge;
+	ao2_unlock(control);
+
+	return ret;
 }
 
 static int bridge_channel_depart(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	struct ast_bridge_channel *bridge_channel = data;
+	struct ast_bridge_channel *bridge_channel;
 
-	{
-		SCOPED_CHANNELLOCK(lock, chan);
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_internal_bridge_channel(chan);
+	ast_channel_unlock(chan);
 
-		if (bridge_channel != ast_channel_internal_bridge_channel(chan)) {
-			ast_debug(3, "%s: Channel is no longer in departable state\n",
-				ast_channel_uniqueid(chan));
-			return -1;
-		}
+	if (bridge_channel != data) {
+		ast_debug(3, "%s: Channel is no longer in departable state\n",
+			ast_channel_uniqueid(chan));
+		return -1;
 	}
 
 	ast_debug(3, "%s: Channel departing bridge\n",
@@ -931,9 +948,9 @@ static void internal_bridge_after_cb(struct ast_channel *chan, void *data,
 	enum ast_bridge_after_cb_reason reason)
 {
 	struct stasis_app_control *control = data;
-	SCOPED_AO2LOCK(lock, control);
 	struct ast_bridge_channel *bridge_channel;
 
+	ao2_lock(control);
 	ast_debug(3, "%s, %s: %s\n",
 		ast_channel_uniqueid(chan), control->bridge ? control->bridge->uniqueid : "unknown",
 			ast_bridge_after_cb_reason_string(reason));
@@ -979,6 +996,7 @@ static void internal_bridge_after_cb(struct ast_channel *chan, void *data,
 		ast_softhangup_nolock(chan, hangup_flag);
 		ast_channel_unlock(chan);
 	}
+	ao2_unlock(control);
 }
 
 static void bridge_after_cb(struct ast_channel *chan, void *data)
