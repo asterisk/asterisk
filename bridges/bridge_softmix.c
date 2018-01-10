@@ -1953,7 +1953,7 @@ static int validate_stream(struct ast_test *test, struct ast_stream *stream,
 	}
 	ast_format_cap_update_by_allow_disallow(params_caps, params->formats, 1);
 
-	if (ast_format_cap_identical(stream_caps, params_caps)) {
+	if (!ast_format_cap_identical(stream_caps, params_caps)) {
 		ast_test_status_update(test, "Formats are not as expected on stream '%s'\n",
 			ast_stream_get_name(stream));
 		ao2_cleanup(params_caps);
@@ -1975,7 +1975,7 @@ static int validate_original_streams(struct ast_test *test, struct ast_stream_to
 		return -1;
 	}
 
-	for (i = 0; i < ARRAY_LEN(params); ++i) {
+	for (i = 0; i < num_streams; ++i) {
 		if (validate_stream(test, ast_stream_topology_get_stream(topology, i), &params[i])) {
 			return -1;
 		}
@@ -1996,10 +1996,10 @@ AST_TEST_DEFINE(sfu_append_source_streams)
 		{ "alice_video", "vp8", AST_MEDIA_TYPE_VIDEO, },
 	};
 	static const struct stream_parameters alice_dest_stream = {
-		"softbridge_dest_PJSIP/Bob-00000001_bob_video", "vp8", AST_MEDIA_TYPE_VIDEO,
+		"softbridge_dest_PJSIP/Bob-00000001_bob_video", "h264,vp8", AST_MEDIA_TYPE_VIDEO,
 	};
 	static const struct stream_parameters bob_dest_stream = {
-		"softbridge_dest_PJSIP/Alice-00000000_alice_video", "h264,vp8", AST_MEDIA_TYPE_VIDEO,
+		"softbridge_dest_PJSIP/Alice-00000000_alice_video", "vp8", AST_MEDIA_TYPE_VIDEO,
 	};
 	struct ast_stream_topology *topology_alice = NULL;
 	struct ast_stream_topology *topology_bob = NULL;
