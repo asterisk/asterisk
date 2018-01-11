@@ -208,7 +208,7 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 	struct stasis_topic *topic, int use_thread_pool)
 {
 	int res;
-	RAII_VAR(struct stasis_message_router *, router, NULL, ao2_cleanup);
+	struct stasis_message_router *router;
 
 	router = ao2_t_alloc(sizeof(*router), router_dtor, stasis_topic_name(topic));
 	if (!router) {
@@ -219,6 +219,8 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 	res |= AST_VECTOR_INIT(&router->routes, 0);
 	res |= AST_VECTOR_INIT(&router->cache_routes, 0);
 	if (res) {
+		ao2_ref(router, -1);
+
 		return NULL;
 	}
 
@@ -228,10 +230,11 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 		router->subscription = stasis_subscribe(topic, router_dispatch, router);
 	}
 	if (!router->subscription) {
+		ao2_ref(router, -1);
+
 		return NULL;
 	}
 
-	ao2_ref(router, +1);
 	return router;
 }
 
