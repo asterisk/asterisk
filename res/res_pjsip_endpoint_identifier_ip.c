@@ -43,41 +43,50 @@
 					<para>This module provides alternatives to matching inbound requests to
 					a configured endpoint. At least one of the matching mechanisms
 					must be provided, or the object configuration will be invalid.</para>
-					<para>If multiple criteria are provided, an inbound request will
-					be matched if it matches <emphasis>any</emphasis> of the criteria.</para>
 					<para>The matching mechanisms are provided by the following
 					configuration options:</para>
 					<enumlist>
 						<enum name="match"><para>Match by source IP address.</para></enum>
 						<enum name="match_header"><para>Match by SIP header.</para></enum>
 					</enumlist>
+					<note><para>If multiple matching criteria are provided then an inbound
+					request will be matched to the endpoint if it matches
+					<emphasis>any</emphasis> of the criteria.</para></note>
 				</description>
 				<configOption name="endpoint">
-					<synopsis>Name of Endpoint</synopsis>
+					<synopsis>Name of endpoint identified</synopsis>
 				</configOption>
 				<configOption name="match">
 					<synopsis>IP addresses or networks to match against.</synopsis>
-					<description><para>
-						The value is a comma-delimited list of IP addresses. IP addresses may
-						have a subnet mask appended. The subnet mask may be written in either
-						CIDR or dot-decimal notation. Separate the IP address and subnet
-						mask with a slash ('/').
-					</para></description>
+					<description>
+						<para>The value is a comma-delimited list of IP addresses or
+						hostnames.  IP addresses may have a subnet mask appended.  The
+						subnet mask may be written in either CIDR or dotted-decimal
+						notation.  Separate the IP address and subnet mask with a slash
+						('/').
+						</para>
+					</description>
 				</configOption>
 				<configOption name="srv_lookups" default="yes">
 					<synopsis>Perform SRV lookups for provided hostnames.</synopsis>
-					<description><para>When enabled, <replaceable>srv_lookups</replaceable> will
-					perform SRV lookups for _sip._udp, _sip._tcp, and _sips._tcp of the given
-					hostnames to determine additional addresses that traffic may originate from.
-					</para></description>
+					<description>
+						<para>When enabled, <replaceable>srv_lookups</replaceable> will
+						perform SRV lookups for _sip._udp, _sip._tcp, and _sips._tcp of
+						the given hostnames to determine additional addresses that traffic
+						may originate from.
+						</para>
+					</description>
 				</configOption>
 				<configOption name="match_header">
 					<synopsis>Header/value pair to match against.</synopsis>
-					<description><para>A SIP header who value is used to match against. SIP
-					requests containing the header, along with the specified value, will be
-					mapped to the specified endpoint. The header must be specified with a
-					<literal>:</literal>, as in <literal>match_header = SIPHeader: value</literal>.
-					</para></description>
+					<description>
+						<para>A SIP header whose value is used to match against.  SIP
+						requests containing the header, along with the specified value,
+						will be mapped to the specified endpoint.  The header must be
+						specified with a <literal>:</literal>, as in
+						<literal>match_header = SIPHeader: value</literal>.
+						</para>
+					</description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
