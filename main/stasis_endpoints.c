@@ -307,8 +307,8 @@ static void endpoint_blob_dtor(void *obj)
 struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
 	struct stasis_message_type *type, struct ast_json *blob)
 {
-	RAII_VAR(struct ast_endpoint_blob *, obj, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_endpoint_blob *obj;
+	struct stasis_message *msg;
 
 	if (!type) {
 		return NULL;
@@ -323,37 +323,40 @@ struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
 
 	if (endpoint) {
 		if (!(obj->snapshot = ast_endpoint_snapshot_create(endpoint))) {
+			ao2_ref(obj, -1);
+
 			return NULL;
 		}
 	}
 
 	obj->blob = ast_json_ref(blob);
+	msg = stasis_message_create(type, obj);
+	ao2_ref(obj, -1);
 
-	if (!(msg = stasis_message_create(type, obj))) {
-		return NULL;
-	}
-
-	ao2_ref(msg, +1);
 	return msg;
 }
 
 void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_message_type *type,
 	struct ast_json *blob)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	if (blob) {
-		message = ast_endpoint_blob_create(endpoint, type, blob);
+	struct stasis_message *message;
+
+	if (!blob) {
+		return;
 	}
+
+	message = ast_endpoint_blob_create(endpoint, type, blob);
 	if (message) {
 		stasis_publish(ast_endpoint_topic(endpoint), message);
+		ao2_ref(message, -1);
 	}
 }
 
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	const char *name)
 {
-	RAII_VAR(char *, id, NULL, ast_free);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	char *id = NULL;
+	struct stasis_message *msg;
 	struct ast_endpoint_snapshot *snapshot;
 
 	if (ast_strlen_zero(name)) {
@@ -366,8 +369,8 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	}
 	ast_tech_to_upper(id);
 
-	msg = stasis_cache_get(ast_endpoint_cache(),
-		ast_endpoint_snapshot_type(), id);
+	msg = stasis_cache_get(ast_endpoint_cache(), ast_endpoint_snapshot_type(), id);
+	ast_free(id);
 	if (!msg) {
 		return NULL;
 	}
@@ -376,6 +379,8 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	ast_assert(snapshot != NULL);
 
 	ao2_ref(snapshot, +1);
+	ao2_ref(msg, -1);
+
 	return snapshot;
 }
 
@@ -408,7 +413,7 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 	const struct ast_endpoint_snapshot *snapshot,
 	const struct stasis_message_sanitizer *sanitize)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 	struct ast_json *channel_array;
 	int i;
 
@@ -426,6 +431,8 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 		int res = ast_json_object_set(json, "max_channels",
 			ast_json_integer_create(snapshot->max_channels));
 		if (res != 0) {
+			ast_json_unref(json);
+
 			return NULL;
 		}
 	}
@@ -443,11 +450,13 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 		res = ast_json_array_append(channel_array,
 			ast_json_string_create(snapshot->channel_ids[i]));
 		if (res != 0) {
+			ast_json_unref(json);
+
 			return NULL;
 		}
 	}
 
-	return ast_json_ref(json);
+	return json;
 }
 
 static void endpoints_stasis_cleanup(void)
