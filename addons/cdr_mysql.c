@@ -492,90 +492,93 @@ static int my_connect_db(struct ast_config *cfg)
 		ast_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", ast_str_buffer(dbname), ast_str_buffer(hostname));
 		connected = 0;
 		records = 0;
-	} else {
-		ast_debug(1, "Successfully connected to MySQL database.\n");
-		connected = 1;
-		records = 0;
-		connect_time = time(NULL);
 
-		/* Get table description */
-		snprintf(sqldesc, sizeof(sqldesc), "DESC %s", dbtable ? ast_str_buffer(dbtable) : "cdr");
-		if (mysql_query(&mysql, sqldesc)) {
-			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
-			mysql_close(&mysql);
-			connected = 0;
-
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		if (!(result = mysql_store_result(&mysql))) {
-			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
-			mysql_close(&mysql);
-			connected = 0;
-
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		while ((row = mysql_fetch_row(result))) {
-			struct column *entry;
-			char *cdrvar = "", *staticvalue = "";
-
-			ast_debug(1, "Got a field '%s' of type '%s'\n", row[0], row[1]);
-			/* Check for an alias or a static value */
-			for (var = ast_variable_browse(cfg, "columns"); var; var = var->next) {
-				if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, row[0]) == 0 ) {
-					char *alias = ast_strdupa(var->name + 5);
-					cdrvar = ast_strip(alias);
-					ast_verb(3, "Found alias %s for column %s\n", cdrvar, row[0]);
-					break;
-				} else if (strncmp(var->name, "static", 6) == 0 && strcasecmp(var->value, row[0]) == 0) {
-					char *item = ast_strdupa(var->name + 6);
-					item = ast_strip(item);
-					if (item[0] == '"' && item[strlen(item) - 1] == '"') {
-						/* Remove surrounding quotes */
-						item[strlen(item) - 1] = '\0';
-						item++;
-					}
-					staticvalue = item;
-				}
-			}
-
-			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(row[0]) + 1 + strlen(cdrvar) + 1 + strlen(staticvalue) + 1 + strlen(row[1]) + 1);
-			if (!entry) {
-				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s'\n", row[0]);
-				mysql_free_result(result);
-				return AST_MODULE_LOAD_DECLINE;
-			}
-
-			entry->name = (char *)entry + sizeof(*entry);
-			strcpy(entry->name, row[0]);
-
-			if (!ast_strlen_zero(cdrvar)) {
-				entry->cdrname = entry->name + strlen(row[0]) + 1;
-				strcpy(entry->cdrname, cdrvar);
-			} else { /* Point to same place as the column name */
-				entry->cdrname = (char *)entry + sizeof(*entry);
-			}
-
-			if (!ast_strlen_zero(staticvalue)) {
-				entry->staticvalue = entry->cdrname + strlen(entry->cdrname) + 1;
-				strcpy(entry->staticvalue, staticvalue);
-				ast_debug(1, "staticvalue length: %d\n", (int) strlen(staticvalue) );
-				entry->type = entry->staticvalue + strlen(entry->staticvalue) + 1;
-			} else {
-				entry->type = entry->cdrname + strlen(entry->cdrname) + 1;
-			}
-			strcpy(entry->type, row[1]);
-
-			ast_debug(1, "Entry name '%s'\n", entry->name);
-			ast_debug(1, "   cdrname '%s'\n", entry->cdrname);
-			ast_debug(1, "    static '%s'\n", entry->staticvalue);
-			ast_debug(1, "      type '%s'\n", entry->type);
-
-			AST_LIST_INSERT_TAIL(&columns, entry, list);
-		}
-		mysql_free_result(result);
+		return AST_MODULE_LOAD_SUCCESS;	/* May be reconnected later */
 	}
+
+	ast_debug(1, "Successfully connected to MySQL database.\n");
+	connected = 1;
+	records = 0;
+	connect_time = time(NULL);
+
+	/* Get table description */
+	snprintf(sqldesc, sizeof(sqldesc), "DESC %s", dbtable ? ast_str_buffer(dbtable) : "cdr");
+	if (mysql_query(&mysql, sqldesc)) {
+		ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
+		mysql_close(&mysql);
+		connected = 0;
+
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (!(result = mysql_store_result(&mysql))) {
+		ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
+		mysql_close(&mysql);
+		connected = 0;
+
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	while ((row = mysql_fetch_row(result))) {
+		struct column *entry;
+		char *cdrvar = "", *staticvalue = "";
+
+		ast_debug(1, "Got a field '%s' of type '%s'\n", row[0], row[1]);
+		/* Check for an alias or a static value */
+		for (var = ast_variable_browse(cfg, "columns"); var; var = var->next) {
+			if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, row[0]) == 0 ) {
+				char *alias = ast_strdupa(var->name + 5);
+				cdrvar = ast_strip(alias);
+				ast_verb(3, "Found alias %s for column %s\n", cdrvar, row[0]);
+				break;
+			} else if (strncmp(var->name, "static", 6) == 0 && strcasecmp(var->value, row[0]) == 0) {
+				char *item = ast_strdupa(var->name + 6);
+				item = ast_strip(item);
+				if (item[0] == '"' && item[strlen(item) - 1] == '"') {
+					/* Remove surrounding quotes */
+					item[strlen(item) - 1] = '\0';
+					item++;
+				}
+				staticvalue = item;
+			}
+		}
+
+		entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(row[0]) + 1 + strlen(cdrvar) + 1 + strlen(staticvalue) + 1 + strlen(row[1]) + 1);
+		if (!entry) {
+			ast_log(LOG_ERROR, "Out of memory creating entry for column '%s'\n", row[0]);
+			mysql_free_result(result);
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
+		entry->name = (char *)entry + sizeof(*entry);
+		strcpy(entry->name, row[0]);
+
+		if (!ast_strlen_zero(cdrvar)) {
+			entry->cdrname = entry->name + strlen(row[0]) + 1;
+			strcpy(entry->cdrname, cdrvar);
+		} else { /* Point to same place as the column name */
+			entry->cdrname = (char *)entry + sizeof(*entry);
+		}
+
+		if (!ast_strlen_zero(staticvalue)) {
+			entry->staticvalue = entry->cdrname + strlen(entry->cdrname) + 1;
+			strcpy(entry->staticvalue, staticvalue);
+			ast_debug(1, "staticvalue length: %d\n", (int) strlen(staticvalue) );
+			entry->type = entry->staticvalue + strlen(entry->staticvalue) + 1;
+		} else {
+			entry->type = entry->cdrname + strlen(entry->cdrname) + 1;
+		}
+		strcpy(entry->type, row[1]);
+
+		ast_debug(1, "Entry name '%s'\n", entry->name);
+		ast_debug(1, "   cdrname '%s'\n", entry->cdrname);
+		ast_debug(1, "    static '%s'\n", entry->staticvalue);
+		ast_debug(1, "      type '%s'\n", entry->type);
+
+		AST_LIST_INSERT_TAIL(&columns, entry, list);
+	}
+	mysql_free_result(result);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
