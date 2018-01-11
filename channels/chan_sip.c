@@ -29256,7 +29256,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		return s->fd;
 	}
 	if ((s->type & (AST_TRANSPORT_TCP | AST_TRANSPORT_TLS)) &&
-			s->tcptls_session) {
+			s->tcptls_session && s->tcptls_session->stream) {
 		return ast_iostream_get_fd(s->tcptls_session->stream);
 	}
 	if ((s->type & (AST_TRANSPORT_WS | AST_TRANSPORT_WSS))) {
