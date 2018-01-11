@@ -448,6 +448,137 @@ static int my_load_config_number(struct ast_config *cfg, const char *category, c
 	return 0;
 }
 
+/** Connect to MySQL. Initializes the connection.
+ *
+ * * Assumes the read-write lock for columns is held.
+ * * Caller should allocate and free cfg
+ * */
+static int my_connect_db(struct ast_config *cfg)
+{
+	struct ast_variable *var;
+	char *temp;
+	MYSQL_ROW row;
+	MYSQL_RES *result;
+	char sqldesc[128];
+#if MYSQL_VERSION_ID >= 50013
+	my_bool my_bool_true = 1;
+#endif
+
+	mysql_init(&mysql);
+
+	if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout) != 0) {
+		ast_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+	}
+
+#if MYSQL_VERSION_ID >= 50013
+	/* Add option for automatic reconnection */
+	if (mysql_options(&mysql, MYSQL_OPT_RECONNECT, &my_bool_true) != 0) {
+		ast_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+	}
+#endif
+
+	if ((ssl_ca && ast_str_strlen(ssl_ca)) || (ssl_cert && ast_str_strlen(ssl_cert)) || (ssl_key && ast_str_strlen(ssl_key))) {
+		mysql_ssl_set(&mysql,
+			ssl_key ? ast_str_buffer(ssl_key) : NULL,
+			ssl_cert ? ast_str_buffer(ssl_cert) : NULL,
+			ssl_ca ? ast_str_buffer(ssl_ca) : NULL,
+			NULL, NULL);
+	}
+	temp = dbsock && ast_str_strlen(dbsock) ? ast_str_buffer(dbsock) : NULL;
+
+	configure_connection_charset();
+
+	if (!mysql_real_connect(&mysql, ast_str_buffer(hostname), ast_str_buffer(dbuser), ast_str_buffer(password), ast_str_buffer(dbname), dbport, temp, ssl_ca && ast_str_strlen(ssl_ca) ? CLIENT_SSL : 0)) {
+		ast_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", ast_str_buffer(dbname), ast_str_buffer(hostname));
+		connected = 0;
+		records = 0;
+	} else {
+		ast_debug(1, "Successfully connected to MySQL database.\n");
+		connected = 1;
+		records = 0;
+		connect_time = time(NULL);
+
+		/* Get table description */
+		snprintf(sqldesc, sizeof(sqldesc), "DESC %s", dbtable ? ast_str_buffer(dbtable) : "cdr");
+		if (mysql_query(&mysql, sqldesc)) {
+			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
+			mysql_close(&mysql);
+			connected = 0;
+
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
+		if (!(result = mysql_store_result(&mysql))) {
+			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
+			mysql_close(&mysql);
+			connected = 0;
+
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
+		while ((row = mysql_fetch_row(result))) {
+			struct column *entry;
+			char *cdrvar = "", *staticvalue = "";
+
+			ast_debug(1, "Got a field '%s' of type '%s'\n", row[0], row[1]);
+			/* Check for an alias or a static value */
+			for (var = ast_variable_browse(cfg, "columns"); var; var = var->next) {
+				if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, row[0]) == 0 ) {
+					char *alias = ast_strdupa(var->name + 5);
+					cdrvar = ast_strip(alias);
+					ast_verb(3, "Found alias %s for column %s\n", cdrvar, row[0]);
+					break;
+				} else if (strncmp(var->name, "static", 6) == 0 && strcasecmp(var->value, row[0]) == 0) {
+					char *item = ast_strdupa(var->name + 6);
+					item = ast_strip(item);
+					if (item[0] == '"' && item[strlen(item) - 1] == '"') {
+						/* Remove surrounding quotes */
+						item[strlen(item) - 1] = '\0';
+						item++;
+					}
+					staticvalue = item;
+				}
+			}
+
+			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(row[0]) + 1 + strlen(cdrvar) + 1 + strlen(staticvalue) + 1 + strlen(row[1]) + 1);
+			if (!entry) {
+				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s'\n", row[0]);
+				mysql_free_result(result);
+				return AST_MODULE_LOAD_DECLINE;
+			}
+
+			entry->name = (char *)entry + sizeof(*entry);
+			strcpy(entry->name, row[0]);
+
+			if (!ast_strlen_zero(cdrvar)) {
+				entry->cdrname = entry->name + strlen(row[0]) + 1;
+				strcpy(entry->cdrname, cdrvar);
+			} else { /* Point to same place as the column name */
+				entry->cdrname = (char *)entry + sizeof(*entry);
+			}
+
+			if (!ast_strlen_zero(staticvalue)) {
+				entry->staticvalue = entry->cdrname + strlen(entry->cdrname) + 1;
+				strcpy(entry->staticvalue, staticvalue);
+				ast_debug(1, "staticvalue length: %d\n", (int) strlen(staticvalue) );
+				entry->type = entry->staticvalue + strlen(entry->staticvalue) + 1;
+			} else {
+				entry->type = entry->cdrname + strlen(entry->cdrname) + 1;
+			}
+			strcpy(entry->type, row[1]);
+
+			ast_debug(1, "Entry name '%s'\n", entry->name);
+			ast_debug(1, "   cdrname '%s'\n", entry->cdrname);
+			ast_debug(1, "    static '%s'\n", entry->staticvalue);
+			ast_debug(1, "      type '%s'\n", entry->type);
+
+			AST_LIST_INSERT_TAIL(&columns, entry, list);
+		}
+		mysql_free_result(result);
+	}
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
 static int my_load_module(int reload)
 {
 	int res;
@@ -458,14 +589,7 @@ static int my_load_module(int reload)
 	 * rescan the table layout. */
 	struct ast_flags config_flags = { 0 };
 	struct column *entry;
-	char *temp;
 	struct ast_str *compat;
-	MYSQL_ROW row;
-	MYSQL_RES *result;
-	char sqldesc[128];
-#if MYSQL_VERSION_ID >= 50013
-	my_bool my_bool_true = 1;
-#endif
 
 	/* Cannot use a conditionally different flag, because the table layout may
 	 * have changed, which is not detectable by config file change detection,
@@ -562,129 +686,12 @@ static int my_load_module(int reload)
 		ast_debug(1, "Got DB charset of %s\n", ast_str_buffer(dbcharset));
 	}
 
-	mysql_init(&mysql);
-
-	if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout) != 0) {
-		ast_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
-	}
-
-#if MYSQL_VERSION_ID >= 50013
-	/* Add option for automatic reconnection */
-	if (mysql_options(&mysql, MYSQL_OPT_RECONNECT, &my_bool_true) != 0) {
-		ast_log(LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
-	}
-#endif
-
-	if ((ssl_ca && ast_str_strlen(ssl_ca)) || (ssl_cert && ast_str_strlen(ssl_cert)) || (ssl_key && ast_str_strlen(ssl_key))) {
-		mysql_ssl_set(&mysql,
-			ssl_key ? ast_str_buffer(ssl_key) : NULL,
-			ssl_cert ? ast_str_buffer(ssl_cert) : NULL,
-			ssl_ca ? ast_str_buffer(ssl_ca) : NULL,
-			NULL, NULL);
-	}
-	temp = dbsock && ast_str_strlen(dbsock) ? ast_str_buffer(dbsock) : NULL;
-
-	configure_connection_charset();
-
-	if (!mysql_real_connect(&mysql, ast_str_buffer(hostname), ast_str_buffer(dbuser), ast_str_buffer(password), ast_str_buffer(dbname), dbport, temp, ssl_ca && ast_str_strlen(ssl_ca) ? CLIENT_SSL : 0)) {
-		ast_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", ast_str_buffer(dbname), ast_str_buffer(hostname));
-		connected = 0;
-		records = 0;
-	} else {
-		ast_debug(1, "Successfully connected to MySQL database.\n");
-		connected = 1;
-		records = 0;
-		connect_time = time(NULL);
-
-		/* Get table description */
-		snprintf(sqldesc, sizeof(sqldesc), "DESC %s", dbtable ? ast_str_buffer(dbtable) : "cdr");
-		if (mysql_query(&mysql, sqldesc)) {
-			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
-			mysql_close(&mysql);
-			connected = 0;
-			AST_RWLIST_UNLOCK(&columns);
-			ast_config_destroy(cfg);
-			free_strings();
-
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		if (!(result = mysql_store_result(&mysql))) {
-			ast_log(LOG_ERROR, "Unable to query table description!!  Logging disabled.\n");
-			mysql_close(&mysql);
-			connected = 0;
-			AST_RWLIST_UNLOCK(&columns);
-			ast_config_destroy(cfg);
-			free_strings();
-
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		while ((row = mysql_fetch_row(result))) {
-			struct column *entry;
-			char *cdrvar = "", *staticvalue = "";
-
-			ast_debug(1, "Got a field '%s' of type '%s'\n", row[0], row[1]);
-			/* Check for an alias or a static value */
-			for (var = ast_variable_browse(cfg, "columns"); var; var = var->next) {
-				if (strncmp(var->name, "alias", 5) == 0 && strcasecmp(var->value, row[0]) == 0 ) {
-					char *alias = ast_strdupa(var->name + 5);
-					cdrvar = ast_strip(alias);
-					ast_verb(3, "Found alias %s for column %s\n", cdrvar, row[0]);
-					break;
-				} else if (strncmp(var->name, "static", 6) == 0 && strcasecmp(var->value, row[0]) == 0) {
-					char *item = ast_strdupa(var->name + 6);
-					item = ast_strip(item);
-					if (item[0] == '"' && item[strlen(item) - 1] == '"') {
-						/* Remove surrounding quotes */
-						item[strlen(item) - 1] = '\0';
-						item++;
-					}
-					staticvalue = item;
-				}
-			}
-
-			entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(row[0]) + 1 + strlen(cdrvar) + 1 + strlen(staticvalue) + 1 + strlen(row[1]) + 1);
-			if (!entry) {
-				ast_log(LOG_ERROR, "Out of memory creating entry for column '%s'\n", row[0]);
-				res = -1;
-				break;
-			}
-
-			entry->name = (char *)entry + sizeof(*entry);
-			strcpy(entry->name, row[0]);
-
-			if (!ast_strlen_zero(cdrvar)) {
-				entry->cdrname = entry->name + strlen(row[0]) + 1;
-				strcpy(entry->cdrname, cdrvar);
-			} else { /* Point to same place as the column name */
-				entry->cdrname = (char *)entry + sizeof(*entry);
-			}
-
-			if (!ast_strlen_zero(staticvalue)) {
-				entry->staticvalue = entry->cdrname + strlen(entry->cdrname) + 1;
-				strcpy(entry->staticvalue, staticvalue);
-				ast_debug(1, "staticvalue length: %d\n", (int) strlen(staticvalue) );
-				entry->type = entry->staticvalue + strlen(entry->staticvalue) + 1;
-			} else {
-				entry->type = entry->cdrname + strlen(entry->cdrname) + 1;
-			}
-			strcpy(entry->type, row[1]);
-
-			ast_debug(1, "Entry name '%s'\n", entry->name);
-			ast_debug(1, "   cdrname '%s'\n", entry->cdrname);
-			ast_debug(1, "    static '%s'\n", entry->staticvalue);
-			ast_debug(1, "      type '%s'\n", entry->type);
-
-			AST_LIST_INSERT_TAIL(&columns, entry, list);
-		}
-		mysql_free_result(result);
-	}
+	res = my_connect_db(cfg);
 	AST_RWLIST_UNLOCK(&columns);
 	ast_config_destroy(cfg);
-	if (res < 0) {
+	if (res != AST_MODULE_LOAD_SUCCESS) {
 		my_unload_module(0);
-		return AST_MODULE_LOAD_DECLINE;
+		return res;
 	}
 
 	if (!reload) {
