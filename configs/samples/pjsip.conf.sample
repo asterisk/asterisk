@@ -635,9 +635,9 @@
                         ; "username": Identify by the From or To username and domain
                         ; "auth_username": Identify by the Authorization username and realm
                         ; "ip": Identify by the source IP address
-                        ; In username and auth_username cases, if an exact match on
-                        ; username and domain/realm fails, the match will be retried
-                        ; with just the username.
+                        ; In the username and auth_username cases, if an exact match
+                        ; on both username and domain/realm fails, the match is
+                        ; retried with just the username.
                         ; (default: "username,ip")
 ;redirect_method=user   ; How redirects received from an endpoint are handled
                         ; (default: "user")
@@ -1135,9 +1135,15 @@
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_endpoint_identifier_ip
 ;==========================IDENTIFY SECTION OPTIONS=========================
 ;[identify]
-;  SYNOPSIS: Identifies endpoints via source IP address
-;endpoint=      ; Name of Endpoint (default: "")
-;match= ; IP addresses or networks to match against (default: "")
+;  SYNOPSIS: Identifies endpoints via some criteria.
+;
+; NOTE: If multiple matching criteria are provided then an inbound request will
+; be matched to the endpoint if it matches ANY of the criteria.
+;endpoint=      ; Name of endpoint identified (default: "")
+;srv_lookups=yes        ; Perform SRV lookups for provided hostnames. (default: yes)
+;match= ; Comma separated list of IP addresses, networks, or hostnames to match
+        ; against (default: "")
+;match_header= ; SIP header with specified value to match against (default: "")
 ;type=  ; Must be of type identify (default: "")
 
 
