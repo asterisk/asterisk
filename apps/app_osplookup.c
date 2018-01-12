@@ -2346,7 +2346,7 @@ static int osplookup_exec(
 	struct osp_headers headers;
 	unsigned int i;
 	const char* cinfo[OSP_MAX_CUSTOMINFO] = { NULL };
-	char buffer[OSP_SIZE_TOKSTR];
+	char buffer[OSP_SIZE_TOKSTR + strlen(": ") + strlen(OSP_SIP_HEADER)];
 	struct osp_results results;
 	const char* status;
 	char* tmp;
@@ -2632,7 +2632,7 @@ static int ospnext_exec(
 	struct ast_var_t* current;
 	struct osp_results results;
 	OSPE_OPERATOR_NAME type;
-	char buffer[OSP_SIZE_TOKSTR];
+	char buffer[OSP_SIZE_TOKSTR + strlen(": ") + strlen(OSP_SIP_HEADER)];
 	unsigned int callidtypes = OSP_CALLID_UNDEF;
 	const char* status;
 	char* tmp;
