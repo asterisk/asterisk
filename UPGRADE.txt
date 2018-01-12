@@ -40,6 +40,10 @@ ARI:
  - The ContactInfo event's contact_status field is now set to "NonQualified"
    when a contact exists but has not been qualified.
 
+cdr_syslog:
+ - The cdr_syslog module is now deprecated and by default it is no longer
+   built.
+
 New in 15.0.0:
 
 Build System:
