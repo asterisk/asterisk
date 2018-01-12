@@ -3215,7 +3215,7 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 	}
 
 	if (peer) {
-		sprintf(ip_port, "%s:%hu", peer->ip, peer->port);
+		sprintf(ip_port, "%s:%d", peer->ip, peer->port);
 		ast_cli(a->fd, "%-15.15s%s\n", "Name: ", peer->name);
 		ast_cli(a->fd, "%s:%s,%s\n", "FastStart/H.245 Tunneling", peer->faststart?"yes":"no",
 					peer->h245tunneling?"yes":"no");
@@ -3306,7 +3306,7 @@ static char *handle_cli_ooh323_show_peers(struct ast_cli_entry *e, int cmd, stru
 	peer = peerl.peers;
 	while (peer) {
 		ast_mutex_lock(&peer->lock);
-		snprintf(ip_port, sizeof(ip_port), "%s:%hu", peer->ip, peer->port);
+		snprintf(ip_port, sizeof(ip_port), "%s:%d", peer->ip, peer->port);
 		ast_cli(a->fd, FORMAT, peer->name,
 					peer->accountcode,
 					ip_port,
