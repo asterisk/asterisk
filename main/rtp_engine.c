@@ -1216,7 +1216,7 @@ struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *c
 	}
 	ast_rwlock_unlock(&codecs->codecs_lock);
 
-	if (!type) {
+	if (!type && payload <= AST_RTP_PT_LAST_STATIC) {
 		ast_rwlock_rdlock(&static_RTP_PT_lock);
 		type = ao2_bump(static_RTP_PT[payload]);
 		ast_rwlock_unlock(&static_RTP_PT_lock);

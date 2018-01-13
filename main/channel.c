@@ -3667,7 +3667,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				 * originated from and update the frame to include it.
 				 */
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
-				f->stream_num = ast_stream_get_position(stream);
+				/* In order to allow media to be passed up the underlying media type has to have a format negotiated on
+				 * the channel itself. In cases where this hasn't happened the channel driver is incorrectly passing up
+				 * a frame for a format that has not been negotiated. If this occurs just drop the frame as we have no
+				 * stream that it came from.
+				 */
+				if (!stream) {
+					ast_frfree(f);
+					f = &ast_null_frame;
+				} else {
+					f->stream_num = ast_stream_get_position(stream);
+				}
 			}
 		}
 	} else {
@@ -3700,7 +3710,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 */
 			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
-				f->stream_num = ast_stream_get_position(stream);
+				if (!stream) {
+					ast_frfree(f);
+					f = &ast_null_frame;
+				} else {
+					f->stream_num = ast_stream_get_position(stream);
+				}
 			}
 		}
 		else
