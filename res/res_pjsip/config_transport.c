@@ -618,6 +618,8 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 				&temp_state->state->factory);
 		}
 	} else if (transport->type == AST_TRANSPORT_TLS) {
+		static int option = 1;
+
 		if (transport->async_operations > 1 && ast_compare_versions(pj_get_version(), "2.5.0") < 0) {
 			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls and pjproject version < 2.5.0, async_operations can't be > 1\n",
 					ast_sorcery_object_get_id(obj));
@@ -626,6 +628,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 		temp_state->state->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &temp_state->state->tls.qos_params);
+
+		/* sockopt_params.options is copied to each newly connected socket */
+		temp_state->state->tls.sockopt_params.options[0].level = pj_SOL_TCP();
+		temp_state->state->tls.sockopt_params.options[0].optname = pj_TCP_NODELAY();
+		temp_state->state->tls.sockopt_params.options[0].optval = &option;
+		temp_state->state->tls.sockopt_params.options[0].optlen = sizeof(option);
+		temp_state->state->tls.sockopt_params.cnt = 1;
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
 			if (perm_state && perm_state->state && perm_state->state->factory
