@@ -1215,7 +1215,8 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 	struct columns *column;
 	struct tables *table;
 	char *elm;
-	int type, size, res = 0;
+	int type, res = 0;
+	unsigned int size;
 
 	/*
 	 * Ignore database from the extconfig.conf since it was
@@ -1231,7 +1232,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 
 	while ((elm = va_arg(ap, char *))) {
 		type = va_arg(ap, require_type);
-		size = va_arg(ap, int);
+		size = va_arg(ap, unsigned int);
 		AST_LIST_TRAVERSE(&table->columns, column, list) {
 			if (strcmp(column->name, elm) == 0) {
 				/* Char can hold anything, as long as it is large enough */
@@ -1288,14 +1289,14 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 				res = -1;
 			} else {
 				struct ast_str *sql = ast_str_create(100);
-				char fieldtype[15];
+				char fieldtype[10];
 				PGresult *result;
 
 				if (requirements == RQ_CREATECHAR || type == RQ_CHAR) {
 					/* Size is minimum length; make it at least 50% greater,
 					 * just to be sure, because PostgreSQL doesn't support
 					 * resizing columns. */
-					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%hhu)",
+					snprintf(fieldtype, sizeof(fieldtype), "CHAR(%u)",
 						size < 15 ? size * 2 :
 						(size * 3 / 2 > 255) ? 255 : size * 3 / 2);
 				} else if (type == RQ_INTEGER1 || type == RQ_UINTEGER1 || type == RQ_INTEGER2) {
