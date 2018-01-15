@@ -1,12 +1,4 @@
-# Process this file with autoconf to produce a configure script.
-#
-# Make sure we use autoconf 2.60 to generate the "configure" script,
-# in case we want to commit it. Other than that, version 2.59 is
-# perfectly fine for our purposes, so people who want to modify
-# this file just have to remember to set the AC_PREREQ argument
-# to something that suits their needs.
-
-AC_PREREQ(2.60)
+AC_PREREQ(2.60a)
 
 AC_INIT([asterisk], [trunk], [https://issues.asterisk.org])
 
