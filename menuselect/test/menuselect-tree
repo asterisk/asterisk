@@ -619,8 +619,6 @@
 		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 		</member>
-		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
-		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">
 		</member>
 		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
