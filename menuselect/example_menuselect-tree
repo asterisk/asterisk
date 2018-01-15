@@ -426,8 +426,6 @@
 		</member>
 		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
 		</member>
-		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
-		</member>
 	</category>
 	<category name="MENUSELECT_CORE_SOUNDS" displayname="Core Sound Packages" positive_output="yes">
 		<member name="CORE-SOUNDS-EN-WAV" displayname="English, WAV format">
