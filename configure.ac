@@ -605,11 +605,16 @@ if test "$ac_cv_header_sys_wait_h" != "yes"; then
   AC_MSG_ERROR([*** POSIX.1 compatible sys/wait.h is required.])
 fi
 
+AC_HEADER_RESOLV
+if test "$ac_cv_header_resolv_h" != "yes"; then
+  AC_MSG_ERROR([*** resolv.h is required.])
+fi
+
 # Check for headers that are unconditionally required on all platforms.  Do not use
 # this to check for headers that are only needed by modules.
 AC_CHECK_HEADERS([ \
   arpa/nameser.h assert.h ctype.h dlfcn.h errno.h fcntl.h float.h grp.h \
-  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h resolv.h \
+  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h \
   sched.h stdarg.h stdint.h stdio.h stdlib.h string.h syslog.h \
   sys/file.h sys/ioctl.h sys/param.h sys/resource.h sys/socket.h sys/stat.h \
   sys/time.h sys/types.h sys/un.h \

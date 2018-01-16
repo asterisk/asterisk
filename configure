@@ -13566,11 +13566,41 @@ if test "$ac_cv_header_sys_wait_h" != "yes"; then
   as_fn_error $? "*** POSIX.1 compatible sys/wait.h is required." "$LINENO" 5
 fi
 
+for ac_header in sys/types.h netinet/in.h arpa/nameser.h netdb.h resolv.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>   /* inet_ functions / structs */
+#endif
+#ifdef HAVE_ARPA_NAMESER_H
+#  include <arpa/nameser.h> /* DNS HEADER struct */
+#endif
+#ifdef HAVE_NETDB_H
+#  include <netdb.h>
+#endif
+"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+
+done
+
+
+if test "$ac_cv_header_resolv_h" != "yes"; then
+  as_fn_error $? "*** resolv.h is required." "$LINENO" 5
+fi
+
 # Check for headers that are unconditionally required on all platforms.  Do not use
 # this to check for headers that are only needed by modules.
 for ac_header in  \
   arpa/nameser.h assert.h ctype.h dlfcn.h errno.h fcntl.h float.h grp.h \
-  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h resolv.h \
+  inttypes.h limits.h locale.h math.h pwd.h netinet/in.h regex.h \
   sched.h stdarg.h stdint.h stdio.h stdlib.h string.h syslog.h \
   sys/file.h sys/ioctl.h sys/param.h sys/resource.h sys/socket.h sys/stat.h \
   sys/time.h sys/types.h sys/un.h \
