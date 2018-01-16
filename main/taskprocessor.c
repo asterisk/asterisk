@@ -112,7 +112,13 @@ struct ast_taskprocessor_listener {
 	void *user_data;
 };
 
-#define TPS_MAX_BUCKETS 7
+#ifdef LOW_MEMORY
+#define TPS_MAX_BUCKETS 61
+#else
+/*! \brief Number of buckets in the tps_singletons container. */
+#define TPS_MAX_BUCKETS 1567
+#endif
+
 /*! \brief tps_singletons is the astobj2 container for taskprocessor singletons */
 static struct ao2_container *tps_singletons;
 
