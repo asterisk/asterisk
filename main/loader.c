@@ -524,9 +524,6 @@ static void unload_dynamic_module(struct ast_module *mod)
 	 * If somehow there was another dlopen() on the same module (unlikely,
 	 * since that all is supposed to happen in loader.c).
 	 *
-	 * Or the lazy resolution of a global symbol (very likely, since that is
-	 * how we load all of our modules that export global symbols).
-	 *
 	 * Avoid the temptation of repeating the dlclose(). The other code that
 	 * dlopened the module still has its module reference, and should close
 	 * it itself. In other situations, dlclose() will happily return success
@@ -631,7 +628,8 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 int modules_shutdown(void)
 {
 	struct ast_module *mod;
-	int somethingchanged = 1, final = 0;
+	int somethingchanged;
+	int res;
 
 	AST_DLLIST_LOCK(&module_list);
 
@@ -639,17 +637,11 @@ int modules_shutdown(void)
 	 * may be still in use, even if all channels are dead.  We must therefore
 	 * check the usecount before asking modules to unload. */
 	do {
-		if (!somethingchanged) {
-			/*!\note If we go through the entire list without changing
-			 * anything, ignore the usecounts and unload, then exit. */
-			final = 1;
-		}
-
 		/* Reset flag before traversing the list */
 		somethingchanged = 0;
 
 		AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_BEGIN(&module_list, mod, entry) {
-			if (!final && mod->usecount) {
+			if (mod->usecount) {
 				ast_debug(1, "Passing on %s: its use count is %d\n",
 					mod->resource, mod->usecount);
 				continue;
@@ -672,12 +664,12 @@ int modules_shutdown(void)
 				}
 			}
 		}
-	} while (somethingchanged && !final);
+	} while (somethingchanged);
 
-	final = AST_DLLIST_EMPTY(&module_list);
+	res = AST_DLLIST_EMPTY(&module_list);
 	AST_DLLIST_UNLOCK(&module_list);
 
-	return !final;
+	return !res;
 }
 
 int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode force)
@@ -1168,7 +1160,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 	if ((mod = find_resource(resource_name, 0))) {
 		if (mod->flags.running) {
-			ast_log(LOG_WARNING, "Module '%s' already exists.\n", resource_name);
+			ast_log(LOG_WARNING, "Module '%s' already loaded and running.\n", resource_name);
 			return AST_MODULE_LOAD_DECLINE;
 		}
 		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
@@ -1248,6 +1240,11 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 		return NULL;
 
 	order->resource = ast_strdup(resource);
+	if (!order->resource) {
+		ast_free(order);
+
+		return NULL;
+	}
 	order->required = required;
 	AST_LIST_INSERT_TAIL(load_order, order, entry);
 
@@ -1430,7 +1427,6 @@ int load_modules(unsigned int preload_only)
 			add_to_load_order(v->value, &load_order, 1);
 			ast_debug(2, "Adding module to required list: %s (%s)\n", v->value, v->name);
 		}
-
 	}
 
 	/* check if 'autoload' is on */
