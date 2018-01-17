@@ -115,7 +115,7 @@ ifneq ($(findstring :,$(XMLSTARLET)$(BASH)),:)
 	@if [ -f .moduleinfo ] ; then \
 		declare -A DISABLED_MODS ;\
 		for x in $(MENUSELECT_$(MENUSELECT_CATEGORY)) ; do DISABLED_MODS[$${x}]=1 ; done ;\
-		EXTERNAL_MODS=$$(xmlstarlet sel -t -m "/category/member[support_level = 'external']" -v "@name" -n .moduleinfo) ;\
+		EXTERNAL_MODS=$$($(XMLSTARLET) sel -t -m "/category/member[support_level = 'external']" -v "@name" -n .moduleinfo) ;\
 		for x in $${EXTERNAL_MODS} ; do \
 			if [ -z "$${DISABLED_MODS[$${x}]}" ] ; then \
 				$(ASTTOPDIR)/build_tools/download_externals $${x} ;\
