@@ -9,6 +9,31 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.19.0 to Asterisk 13.20.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * Users who are matching endpoints by SIP header need to reevaluate their
+   global "endpoint_identifier_order" option in light of the "ip" endpoint
+   identifier method split into the "ip" and "header" endpoint identifier
+   methods.
+
+res_pjsip_endpoint_identifier_ip
+------------------
+ * The endpoint identifier "ip" method previously recognized endpoints either
+   by IP address or a matching SIP header.  The "ip" endpoint identifier method
+   is now split into the "ip" and "header" endpoint identifier methods.  The
+   "ip" endpoint identifier method only matches by IP address and the "header"
+   endpoint identifier method only matches by SIP header.  The split allows the
+   user to control the relative priority of the IP address and the SIP header
+   identification methods in the global "endpoint_identifier_order" option.
+   e.g., If you have two type=identify sections where one matches by IP address
+   for endpoint alice and the other matches by SIP header for endpoint bob then
+   you can now predict which endpoint is matched when a request comes in that
+   matches both.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.18.0 to Asterisk 13.19.0 ----------
 ------------------------------------------------------------------------------
 
