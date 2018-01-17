@@ -323,6 +323,17 @@
 								endpoint identification.
 								</para>
 							</enum>
+							<enum name="header">
+								<para>Matches the endpoint based on a configured SIP header
+								value.
+								</para>
+								<para>This method of identification is not configured here
+								but simply allowed by this configuration option.  See the
+								documentation for the <literal>identify</literal>
+								configuration section for more details on this method of
+								endpoint identification.
+								</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
