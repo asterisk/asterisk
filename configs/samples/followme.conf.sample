@@ -39,7 +39,11 @@ status_prompt=>followme/status
 sorry_prompt=>followme/sorry
 ; The global default for 'I'm sorry, but we were unable to locate your party' message.
 ;
-;
+connecting_prompt=>
+; The global default sound file name for 'Please say hello to the caller' message.
+; Setting to an empty string skips playing the prompt.  The default is no prompt
+; file name.
+
 [default]
 musicclass=>default
 ; The moh class that should be used for the caller while they are waiting to be connected.
@@ -95,3 +99,9 @@ status_prompt=>followme/status
 sorry_prompt=>followme/sorry
 ; The 'I'm sorry, but we were unable to locate your party' message prompt. Default
 ; is the global default.
+;
+connecting_prompt=>
+; The sound file name for 'Please say hello to the caller' message. Default is the
+; global default.
+;
+
