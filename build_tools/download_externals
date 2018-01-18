@@ -165,7 +165,7 @@ if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 					fi
 				fi
 
-				cs=$(md5sum ${f} | cut -b1-32)
+				cs=$(${MD5} ${f} | cut -b1-32)
 				if [[ "${cs}" !=  "${sum}" ]] ; then
 					echo Checksum mismatch: ${f}
 					need_install=1
