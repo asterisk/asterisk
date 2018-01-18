@@ -7604,8 +7604,10 @@ $as_echo "no" >&6; }
 fi
 
 
-# Extract the first word of "xmlstarlet", so it can be a program name with args.
-set dummy xmlstarlet; ac_word=$2
+for ac_prog in xmlstarlet xml
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_path_XMLSTARLET+:} false; then :
@@ -7631,7 +7633,6 @@ done
   done
 IFS=$as_save_IFS
 
-  test -z "$ac_cv_path_XMLSTARLET" && ac_cv_path_XMLSTARLET=":"
   ;;
 esac
 fi
@@ -7644,6 +7645,10 @@ else
 $as_echo "no" >&6; }
 fi
 
+
+  test -n "$XMLSTARLET" && break
+done
+test -n "$XMLSTARLET" || XMLSTARLET=":"
 
 # Extract the first word of "bash", so it can be a program name with args.
 set dummy bash; ac_word=$2
