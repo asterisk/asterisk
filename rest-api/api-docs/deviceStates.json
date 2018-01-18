@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/deviceStates.{format}",
+	"requiresModules": [
+		"res_stasis_device_state"
+	],
 	"apis": [
 		{
 			"path": "/deviceStates",

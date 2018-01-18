@@ -35,6 +35,10 @@
 	<depend type="module">res_ari</depend>
 	<depend type="module">res_ari_model</depend>
 	<depend type="module">res_stasis</depend>
+	<depend type="module">res_stasis_answer</depend>
+	<depend type="module">res_stasis_playback</depend>
+	<depend type="module">res_stasis_recording</depend>
+	<depend type="module">res_stasis_snoop</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -2869,5 +2873,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Cha
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
-	.requires = "res_ari,res_ari_model,res_stasis",
+	.requires = "res_ari,res_ari_model,res_stasis,res_stasis_answer,res_stasis_playback,res_stasis_recording,res_stasis_snoop",
 );

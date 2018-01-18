@@ -647,6 +647,7 @@ class ApiDeclaration(Stringify):
         self.api_version = api_decl_json.get('apiVersion')
         self.base_path = api_decl_json.get('basePath')
         self.resource_path = api_decl_json.get('resourcePath')
+        self.requires_modules = api_decl_json.get('requiresModules') or []
         api_json = api_decl_json.get('apis') or []
         self.apis = [
             Api().load(j, processor, context) for j in api_json]

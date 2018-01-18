@@ -35,6 +35,7 @@
 	<depend type="module">res_ari</depend>
 	<depend type="module">res_ari_model</depend>
 	<depend type="module">res_stasis</depend>
+	<depend type="module">res_http_websocket</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -473,5 +474,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Web
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
-	.requires = "res_ari,res_ari_model,res_stasis",
+	.requires = "res_ari,res_ari_model,res_stasis,res_http_websocket",
 );

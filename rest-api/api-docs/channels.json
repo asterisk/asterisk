@@ -6,6 +6,12 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/channels.{format}",
+	"requiresModules": [
+		"res_stasis_answer",
+		"res_stasis_playback",
+		"res_stasis_recording",
+		"res_stasis_snoop"
+	],
 	"apis": [
 		{
 			"path": "/channels",

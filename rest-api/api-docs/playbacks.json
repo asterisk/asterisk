@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/playbacks.{format}",
+	"requiresModules": [
+		"res_stasis_playback"
+	],
 	"apis": [
 		{
 			"path": "/playbacks/{playbackId}",
