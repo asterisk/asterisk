@@ -214,7 +214,7 @@ trap "rm -rf ${cache_dir}/${module_dir} ; rm -rf ${tmpdir}" EXIT
 echo "${full_name}: Installing."
 
 if [[ $EUID == 0 ]] ; then
-	install_params="--group=0 --owner=0"
+	install_params="-g 0 -o 0"
 fi
 
 names=$(${XMLSTARLET} sel -t -m "//file" -v "@name" -n ${cache_dir}/${module_dir}/manifest.xml)
@@ -229,7 +229,7 @@ for name in ${names} ; do
 		mode=0644
 	fi
 
-	${INSTALL} -Dp ${install_params} --mode=${mode} ${source_path} ${install_path}
+	${INSTALL} -Dp ${install_params} -m ${mode} ${source_path} ${install_path}
 
 done
 ${INSTALL} -Dp ${install_params} --mode=0644 ${cache_dir}/${module_dir}/manifest.xml ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml
