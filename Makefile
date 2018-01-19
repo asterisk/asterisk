@@ -1090,11 +1090,9 @@ check-alembic: makeopts
 .PHONY: _all
 .PHONY: full
 .PHONY: _full
-.PHONY: prereqs
 .PHONY: uninstall
 .PHONY: _uninstall
 .PHONY: uninstall-all
-.PHONY: dont-optimize
 .PHONY: badshell
 .PHONY: installdirs
 .PHONY: validate-docs
