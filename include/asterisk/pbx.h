@@ -1432,7 +1432,7 @@ void ast_str_substitute_variables_varshead(struct ast_str **buf, ssize_t maxlen,
  * \param c Channel variables from which to extract values, and channel to pass to any dialplan functions.
  * \param headp If no channel is specified, a channel list from which to extract variable values
  * \param templ Variable template to expand.
- * \param used Number of bytes read from the template.
+ * \param used Number of bytes read from the template.  (May be NULL)
  */
 void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, struct ast_channel *c, struct varshead *headp, const char *templ, size_t *used);
 /*! @} */
