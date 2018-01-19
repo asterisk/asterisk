@@ -625,7 +625,7 @@ oldmodcheck:
 ld-cache-update:
 ifneq ($(LDCONFIG),)
 ifeq ($(DESTDIR),)  # DESTDIR means binary archive creation; ldconfig should be run on postinst
-	@if [ $${EUID} -eq 0 ] ; then \
+	@if [ $$(id -u) -eq 0 ] ; then \
 		$(LDCONFIG) "$(ASTLIBDIR)/" ; \
 	else \
 		echo " WARNING WARNING WARNING" ;\
