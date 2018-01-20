@@ -17,8 +17,6 @@ AC_CANONICAL_HOST
 # check existence of the package
 AC_CONFIG_SRCDIR([main/asterisk.c])
 
-AC_CONFIG_AUX_DIR()
-
 AC_COPYRIGHT("Asterisk")
 
 # preserve any CFLAGS or LDFLAGS that may be set
