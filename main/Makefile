@@ -17,6 +17,11 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+# Can the MODSRC list be automated without needing built-in modules to be
+# in a different directory?  Would a different directory be better?
+MOD_SRC:=
+MOD_OBJS:=$(sort $(MOD_SRC:.c=.o))
+
 # Must include the extra ast_expr2.c, ast_expr2f.c, in case they need to be regenerated (because to force regeneration, we delete them)
 SRC:=$(wildcard *.c) ast_expr2.c ast_expr2f.c
 ifeq ($(AST_ASTERISKSSL),yes)
@@ -25,7 +30,7 @@ endif
 ifeq ($(PJPROJECT_BUNDLED),yes)
 SRC:=$(filter-out libasteriskpj.c,$(SRC))
 endif
-OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
+OBJSFILTER:=$(MOD_OBJS) fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
 # we need to link in the objects statically, not as a library, because
@@ -178,6 +183,7 @@ GMIMELDFLAGS+=$(GMIME_LIB)
 endif
 
 $(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\" -DAST_IN_CORE
+$(MOD_OBJS): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,$*)
 
 libasteriskssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 
@@ -311,10 +317,10 @@ endif
 
 tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
 
-$(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB) $(LIBEDIT_OBJ)
+$(MAIN_TGT): $(OBJS) $(MOD_OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB) $(LIBEDIT_OBJ)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
-	$(ECHO_PREFIX) echo "   [LD] $(OBJS) $(LIBEDIT_OBJ) -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(ASTPJ_LDLIBS) $(LIBEDIT_OBJ) buildinfo.o $(AST_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
+	$(ECHO_PREFIX) echo "   [LD] $(OBJS) $(MOD_OBJS) $(LIBEDIT_OBJ) -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(MOD_OBJS) $(ASTSSL_LDLIBS) $(ASTPJ_LDLIBS) $(LIBEDIT_OBJ) buildinfo.o $(AST_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
 
 ifeq ($(GNU_LD),1)
 $(MAIN_TGT): asterisk.exports
