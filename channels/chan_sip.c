@@ -549,6 +549,9 @@
 				<para>At least one variable pair must be specified.
 				<replaceable>name</replaceable>=<replaceable>value</replaceable></para>
 			</parameter>
+			<parameter name="Call-ID" required="false">
+				<para>When specified, SIP notity will be sent as a part of an existing dialog.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Sends a SIP Notify event.</para>
@@ -15547,11 +15550,13 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 {
 	const char *channame = astman_get_header(m, "Channel");
 	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+	const char *callid = astman_get_header(m, "Call-ID");
 	struct sip_pvt *p;
 	struct ast_variable *header, *var;
 
 	if (ast_strlen_zero(channame)) {
 		astman_send_error(s, m, "SIPNotify requires a channel name");
+		ast_variables_destroy(vars);
 		return 0;
 	}
 
@@ -15559,23 +15564,46 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		channame += 4;
 	}
 
-	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL, 0))) {
-		astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
-		return 0;
-	}
+	/* check if Call-ID header is set */
+	if (!ast_strlen_zero(callid)) {
+		struct sip_pvt tmp_dialog = {
+			.callid = callid,
+		};
 
-	if (create_addr(p, channame, NULL, 0)) {
-		/* Maybe they're not registered, etc. */
-		dialog_unlink_all(p);
-		dialog_unref(p, "unref dialog inside for loop" );
-		/* sip_destroy(p); */
-		astman_send_error(s, m, "Could not create address");
-		return 0;
-	}
+		p = ao2_find(dialogs, &tmp_dialog, OBJ_SEARCH_OBJECT);
+		if (!p) {
+			astman_send_error(s, m, "Call-ID not found");
+			ast_variables_destroy(vars);
+			return 0;
+		}
 
-	/* Notify is outgoing call */
-	ast_set_flag(&p->flags[0], SIP_OUTGOING);
-	sip_notify_alloc(p);
+		if (!(p->notify)) {
+			sip_notify_alloc(p);
+		} else {
+			ast_variables_destroy(p->notify->headers);
+		}
+	} else {
+		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY, NULL, 0))) {
+			astman_send_error(s, m, "Unable to build sip pvt data for notify (memory/socket error)");
+			ast_variables_destroy(vars);
+			return 0;
+		}
+
+		if (create_addr(p, channame, NULL, 0)) {
+			/* Maybe they're not registered, etc. */
+			dialog_unlink_all(p);
+			dialog_unref(p, "unref dialog inside for loop" );
+			/* sip_destroy(p); */
+			astman_send_error(s, m, "Could not create address");
+			ast_variables_destroy(vars);
+			return 0;
+		}
+
+		/* Notify is outgoing call */
+		ast_set_flag(&p->flags[0], SIP_OUTGOING);
+		sip_notify_alloc(p);
+
+	}
 
 	p->notify->headers = header = ast_variable_new("Subscription-State", "terminated", "");
 
@@ -15592,14 +15620,19 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		}
 	}
 
-	/* Now that we have the peer's address, set our ip and change callid */
-	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
-	build_via(p);
+	if (ast_strlen_zero(callid)) {
+		/* Now that we have the peer's address, set our ip and change callid */
+		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
+		build_via(p);
 
-	change_callid_pvt(p, NULL);
+		change_callid_pvt(p, NULL);
 
-	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
-	transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
+	} else {
+		sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
+		transmit_invite(p, SIP_NOTIFY, 0, 1, NULL);
+	}
 	dialog_unref(p, "bump down the count of p since we're done with it.");
 
 	astman_send_ack(s, m, "Notify Sent");
