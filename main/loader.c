@@ -127,6 +127,21 @@ struct ast_module {
 	int usecount;
 	/*! List of users holding the module. */
 	struct module_user_list users;
+
+	/*! List of required module names. */
+	struct ast_vector_string requires;
+	/*! List of optional api modules. */
+	struct ast_vector_string optional_modules;
+	/*! List of modules this enhances. */
+	struct ast_vector_string enhances;
+
+	/*!
+	 * \brief Vector holding pointers to modules we have a reference to.
+	 *
+	 * When one module requires another, the required module gets added
+	 * to this list with a reference.
+	 */
+	struct module_vector reffed_deps;
 	struct {
 		/*! The module running and ready to accept requests. */
 		unsigned int running:1;
@@ -161,6 +176,225 @@ static int module_vector_cmp(struct ast_module *a, struct ast_module *b)
 	 * >0 a_pri > b_pri
 	 */
 	return a_pri - b_pri;
+}
+
+static struct ast_module *find_resource(const char *resource, int do_lock);
+
+/*!
+ * \internal
+ * \brief Add a reference from mod to dep.
+ *
+ * \param mod Owner of the new reference.
+ * \param dep Module to reference
+ * \param missing Vector to store name of \a dep if it is not running.
+ *
+ * This function returns failure if \a dep is not running and \a missing
+ * is NULL.  If \a missing is not NULL errors will only be returned for
+ * allocation failures.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note Adding a second reference to the same dep will return success
+ *       without doing anything.
+ */
+static int module_reffed_deps_add(struct ast_module *mod, struct ast_module *dep,
+	struct ast_vector_const_string *missing)
+{
+	if (!dep->flags.running) {
+		return !missing ? -1 : AST_VECTOR_APPEND(missing, dep->info->name);
+	}
+
+	if (AST_VECTOR_GET_CMP(&mod->reffed_deps, dep, AST_VECTOR_ELEM_DEFAULT_CMP)) {
+		/* Skip duplicate. */
+		return 0;
+	}
+
+	if (AST_VECTOR_APPEND(&mod->reffed_deps, dep)) {
+		return -1;
+	}
+
+	ast_module_ref(dep);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Add references for modules that enhance a dependency.
+ *
+ * \param mod Owner of the new references.
+ * \param dep Module to check for enhancers.
+ * \param missing Vector to store name of any enhancer that is not running or declined.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+static int module_reffed_deps_add_dep_enhancers(struct ast_module *mod,
+	struct ast_module *dep, struct ast_vector_const_string *missing)
+{
+	struct ast_module *cur;
+
+	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
+		if (cur->flags.declined) {
+			continue;
+		}
+
+		if (!AST_VECTOR_GET_CMP(&cur->enhances, dep->info->name, !strcasecmp)) {
+			/* dep is not enhanced by cur. */
+			continue;
+		}
+
+		/* dep is enhanced by cur, therefore mod requires cur. */
+		if (module_reffed_deps_add(mod, cur, missing)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Add references to a list of dependencies.
+ *
+ * \param mod Owner of the new references.
+ * \param vec List of required modules to process
+ * \param missing Vector to store names of modules that are not running.
+ * \param ref_enhancers Reference all enhancers of each required module.
+ * \param isoptional Modules that are not loaded can be ignored.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+static int module_deps_process_reqlist(struct ast_module *mod,
+	struct ast_vector_string *vec, struct ast_vector_const_string *missing,
+	int ref_enhancers, int isoptional)
+{
+	int idx;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(vec); idx++) {
+		const char *depname = AST_VECTOR_GET(vec, idx);
+		struct ast_module *dep = find_resource(depname, 0);
+
+		if (!dep || !dep->flags.running) {
+			if (isoptional && !dep) {
+				continue;
+			}
+
+			if (missing && !AST_VECTOR_APPEND(missing, depname)) {
+				continue;
+			}
+
+			return -1;
+		}
+
+		if (module_reffed_deps_add(mod, dep, missing)) {
+			return -1;
+		}
+
+		if (ref_enhancers && module_reffed_deps_add_dep_enhancers(mod, dep, missing)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Grab all references required to start the module.
+ *
+ * \param mod The module we're trying to start.
+ * \param missing Vector to store a list of missing dependencies.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note module_list must be locked.
+ *
+ * \note Caller is responsible for initializing and freeing the vector.
+ *       Elements are safely read only while module_list remains locked.
+ */
+static int module_deps_reference(struct ast_module *mod, struct ast_vector_const_string *missing)
+{
+	int res = 0;
+
+	/* Grab references to modules we enhance but not other enhancements. */
+	res |= module_deps_process_reqlist(mod, &mod->enhances, missing, 0, 0);
+
+	/* Grab references to modules we require plus enhancements. */
+	res |= module_deps_process_reqlist(mod, &mod->requires, missing, 1, 0);
+
+	/* Grab references to optional modules including enhancements. */
+	res |= module_deps_process_reqlist(mod, &mod->optional_modules, missing, 1, 1);
+
+	return res;
+}
+
+/*!
+ * \brief Recursively find required dependencies that are not running.
+ *
+ * \param mod Module to scan for dependencies.
+ * \param missingdeps Vector listing modules that must be started first.
+ *
+ * \retval 0 All dependencies resolved.
+ * \retval -1 Failed to resolve some dependencies.
+ *
+ * An error from this function usually means a required module is not even
+ * loaded.  This function is safe from infinite recursion, but dependency
+ * loops are not reported as an error from here.  On success missingdeps
+ * will contain a list of every module that needs to be running before this
+ * module can start.  missingdeps is sorted by load priority so any missing
+ * dependencies can be started if needed.
+ */
+static int module_deps_missing_recursive(struct ast_module *mod, struct module_vector *missingdeps)
+{
+	int i = 0;
+	int res = -1;
+	struct ast_vector_const_string localdeps;
+	struct ast_module *dep;
+
+	/*
+	 * localdeps stores a copy of all dependencies that mod could not reference.
+	 * First we discard modules that we've already found. We add all newly found
+	 * modules to the missingdeps vector then scan them recursively.  This will
+	 * ensure we quickly run out of stuff to do.
+	 */
+	AST_VECTOR_INIT(&localdeps, 0);
+	if (module_deps_reference(mod, &localdeps)) {
+		goto clean_return;
+	}
+
+	while (i < AST_VECTOR_SIZE(&localdeps)) {
+		dep = find_resource(AST_VECTOR_GET(&localdeps, i), 0);
+		if (!dep) {
+			goto clean_return;
+		}
+
+		if (AST_VECTOR_GET_CMP(missingdeps, dep, AST_VECTOR_ELEM_DEFAULT_CMP)) {
+			/* Skip common dependency.  We have already searched it. */
+			AST_VECTOR_REMOVE(&localdeps, i, 0);
+		} else {
+			/* missingdeps is the real list so keep it sorted. */
+			if (AST_VECTOR_ADD_SORTED(missingdeps, dep, module_vector_cmp)) {
+				goto clean_return;
+			}
+			i++;
+		}
+	}
+
+	res = 0;
+	for (i = 0; !res && i < AST_VECTOR_SIZE(&localdeps); i++) {
+		dep = find_resource(AST_VECTOR_GET(&localdeps, i), 0);
+		/* We've already confirmed dep is loaded in the first loop. */
+		res = module_deps_missing_recursive(dep, missingdeps);
+	}
+
+clean_return:
+	AST_VECTOR_FREE(&localdeps);
+
+	return res;
 }
 
 const char *ast_module_name(const struct ast_module *mod)
@@ -234,6 +468,10 @@ void ast_module_register(const struct ast_module_info *info)
 		mod->ref_debug = ao2_t_alloc(0, NULL, info->name);
 	}
 	AST_LIST_HEAD_INIT(&mod->users);
+	AST_VECTOR_INIT(&mod->requires, 0);
+	AST_VECTOR_INIT(&mod->optional_modules, 0);
+	AST_VECTOR_INIT(&mod->enhances, 0);
+	AST_VECTOR_INIT(&mod->reffed_deps, 0);
 
 	AST_DLLIST_INSERT_TAIL(&module_list, mod, entry);
 	AST_DLLIST_UNLOCK(&module_list);
@@ -244,6 +482,19 @@ void ast_module_register(const struct ast_module_info *info)
 
 static void module_destroy(struct ast_module *mod)
 {
+	AST_VECTOR_CALLBACK_VOID(&mod->requires, ast_free);
+	AST_VECTOR_FREE(&mod->requires);
+
+	AST_VECTOR_CALLBACK_VOID(&mod->optional_modules, ast_free);
+	AST_VECTOR_FREE(&mod->optional_modules);
+
+	AST_VECTOR_CALLBACK_VOID(&mod->enhances, ast_free);
+	AST_VECTOR_FREE(&mod->enhances);
+
+	/* Release references to all dependencies. */
+	AST_VECTOR_CALLBACK_VOID(&mod->reffed_deps, ast_module_unref);
+	AST_VECTOR_FREE(&mod->reffed_deps);
+
 	AST_LIST_HEAD_DESTROY(&mod->users);
 	ao2_cleanup(mod->ref_debug);
 	ast_free(mod);
@@ -267,7 +518,15 @@ void ast_module_unregister(const struct ast_module_info *info)
 	AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_END;
 	AST_DLLIST_UNLOCK(&module_list);
 
-	if (mod) {
+	if (mod && !mod->usecount) {
+		/*
+		 * We are intentionally leaking mod if usecount is not zero.
+		 * This is necessary if the module is being forcefully unloaded.
+		 * In addition module_destroy is not safe to run after exit()
+		 * is called.  ast_module_unregister is run during cleanup of
+		 * the process when libc releases each module's shared object
+		 * library.
+		 */
 		ast_debug(5, "Unregistering module %s\n", info->name);
 		module_destroy(mod);
 	}
@@ -1109,6 +1368,23 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	if (module_deps_reference(mod, NULL)) {
+		struct module_vector missing;
+		int i;
+
+		AST_VECTOR_INIT(&missing, 0);
+		if (module_deps_missing_recursive(mod, &missing)) {
+			ast_log(LOG_ERROR, "%s has one or more unknown dependencies.\n", mod->info->name);
+		}
+		for (i = 0; i < AST_VECTOR_SIZE(&missing); i++) {
+			ast_log(LOG_ERROR, "%s loaded before dependency %s!\n", mod->info->name,
+				AST_VECTOR_GET(&missing, i)->info->name);
+		}
+		AST_VECTOR_FREE(&missing);
+
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	if (!ast_fully_booted) {
 		ast_verb(1, "Loading %s.\n", mod->resource);
 	}
@@ -1174,6 +1450,17 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			if (!global_symbols_only) {
 				ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
 			}
+			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+		}
+
+		/* Split lists from mod->info. */
+		res  = ast_vector_string_split(&mod->requires, mod->info->requires, ",", 0, strcasecmp);
+		res |= ast_vector_string_split(&mod->optional_modules, mod->info->optional_modules, ",", 0, strcasecmp);
+		res |= ast_vector_string_split(&mod->enhances, mod->info->enhances, ",", 0, strcasecmp);
+		if (res) {
+			ast_log(LOG_WARNING, "Failed to initialize dependency structures for module '%s'.\n", resource_name);
+			unload_dynamic_module(mod);
+
 			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 		}
 	}
@@ -1252,6 +1539,117 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 }
 
 AST_LIST_HEAD_NOLOCK(load_retries, load_order_entry);
+
+static enum ast_module_load_result start_resource_attempt(struct ast_module *mod, int *count)
+{
+	enum ast_module_load_result lres;
+
+	/* Try to grab required references. */
+	if (module_deps_reference(mod, NULL)) {
+		/* We're likely to retry so not an error. */
+		ast_debug(1, "Module %s is missing dependencies\n", mod->resource);
+		return AST_MODULE_LOAD_SKIP;
+	}
+
+	lres = start_resource(mod);
+	ast_debug(3, "START: %-46s[%d] %d\n",
+		mod->resource,
+		ast_test_flag(mod->info, AST_MODFLAG_LOAD_ORDER) ? mod->info->load_pri : AST_MODPRI_DEFAULT,
+		lres);
+
+	if (lres == AST_MODULE_LOAD_SUCCESS) {
+		(*count)++;
+	} else if (lres == AST_MODULE_LOAD_FAILURE) {
+		ast_log(LOG_ERROR, "*** Failed to load module %s\n", mod->resource);
+	}
+
+	return lres;
+}
+
+static int start_resource_list(struct module_vector *resources, int *mod_count)
+{
+	struct module_vector missingdeps;
+	int res = 0;
+
+	AST_VECTOR_INIT(&missingdeps, 0);
+	while (AST_VECTOR_SIZE(resources)) {
+		struct ast_module *mod = AST_VECTOR_REMOVE(resources, 0, 1);
+		enum ast_module_load_result lres;
+
+		lres = start_resource_attempt(mod, mod_count);
+		if (lres == AST_MODULE_LOAD_SUCCESS) {
+			/* No missing dependencies, successful. */
+			continue;
+		}
+
+		if (lres == AST_MODULE_LOAD_FAILURE) {
+			ast_log(LOG_ERROR, "Failed to load %s.\n", ast_module_name(mod));
+			res = -1;
+			break;
+		}
+
+		if (lres == AST_MODULE_LOAD_DECLINE) {
+			continue;
+		}
+
+		res = module_deps_missing_recursive(mod, &missingdeps);
+		if (res) {
+			break;
+		}
+
+		if (!AST_VECTOR_SIZE(&missingdeps)) {
+			ast_log(LOG_WARNING, "%s isn't missing any dependencies but still didn't start\n",
+				ast_module_name(mod));
+			/* Dependencies were met but the module failed to start. */
+			res = -1;
+			break;
+		}
+
+		ast_debug(1, "%s has %d dependencies\n",
+			ast_module_name(mod), (int)AST_VECTOR_SIZE(&missingdeps));
+		while (AST_VECTOR_SIZE(&missingdeps)) {
+			int didwork = 0;
+			int i = 0;
+
+			while (i < AST_VECTOR_SIZE(&missingdeps)) {
+				struct ast_module *dep = AST_VECTOR_GET(&missingdeps, i);
+
+				ast_debug(1, "%s trying to start %s\n", ast_module_name(mod), ast_module_name(dep));
+				if (!start_resource_attempt(dep, mod_count)) {
+					ast_debug(1, "%s started %s\n", ast_module_name(mod), ast_module_name(dep));
+					AST_VECTOR_REMOVE(&missingdeps, i, 1);
+					AST_VECTOR_REMOVE_CMP_ORDERED(resources, dep,
+						AST_VECTOR_ELEM_DEFAULT_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
+					didwork++;
+					continue;
+				}
+				ast_debug(1, "%s failed to start %s\n", ast_module_name(mod), ast_module_name(dep));
+				i++;
+			}
+
+			if (!didwork) {
+				break;
+			}
+		}
+
+		if (AST_VECTOR_SIZE(&missingdeps)) {
+			ast_log(LOG_ERROR, "Failed to load %s due to unfilled dependencies.\n",
+				ast_module_name(mod));
+			res = -1;
+			break;
+		}
+
+		res = start_resource_attempt(mod, mod_count);
+		if (res) {
+			ast_log(LOG_ERROR, "Failed to load %s: %d\n", ast_module_name(mod), res);
+			break;
+		}
+	}
+
+	AST_VECTOR_FREE(&missingdeps);
+
+	return res;
+}
 
 /*! loads modules in order by load_pri, updates mod_count
 	\return -1 on failure to load module, -2 on failure to load required module, otherwise 0
@@ -1355,30 +1753,9 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
-	/* second remove modules from heap sorted by priority */
-	for (i = 0; i < AST_VECTOR_SIZE(&resource_heap); i++) {
-		struct ast_module *mod = AST_VECTOR_GET(&resource_heap, i);
-		enum ast_module_load_result lres;
-
-		lres = start_resource(mod);
-		ast_debug(3, "START: %-46s %d %d\n", mod->resource, lres, global_symbols);
-		switch (lres) {
-		case AST_MODULE_LOAD_SUCCESS:
-			count++;
-		case AST_MODULE_LOAD_DECLINE:
-			break;
-		case AST_MODULE_LOAD_FAILURE:
-			ast_log(LOG_ERROR, "*** Failed to load module %s\n", mod->resource);
-			res = -1;
-			goto done;
-		case AST_MODULE_LOAD_SKIP:
-		case AST_MODULE_LOAD_PRIORITY:
-			break;
-		}
-	}
+	res = start_resource_list(&resource_heap, &count);
 
 done:
-
 	while ((order = AST_LIST_REMOVE_HEAD(&load_retries, entry))) {
 		ast_free(order->resource);
 		ast_free(order);
