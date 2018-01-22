@@ -1238,6 +1238,8 @@
 								<para>This option is equivalent to setting 'default'</para>
 							</enum>
 							<enum name="tlsv1" />
+							<enum name="tlsv1_1" />
+							<enum name="tlsv1_2" />
 							<enum name="sslv2" />
 							<enum name="sslv3" />
 							<enum name="sslv23" />
