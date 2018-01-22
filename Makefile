@@ -104,8 +104,11 @@ export PATCH
 export SED
 export NM
 
-# makeopts is required unless the goal is clean or distclean
-ifeq ($(findstring clean,$(MAKECMDGOALS)),)
+# makeopts is required unless the goal is just {dist{-}}clean
+ifeq ($(MAKECMDGOALS),clean)
+else ifeq ($(MAKECMDGOALS),distclean)
+else ifeq ($(MAKECMDGOALS),dist-clean)
+else
 include makeopts
 endif
 
