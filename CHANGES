@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.19.0 to Asterisk 13.20.0 ----------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * During dialplan reload log messages are produced for each context,
+   extension and include.  These messages are no longer printed by the
+   verbose loggers, they are now only logged as debug messages.
+
 app_followme
 ------------------
  * Added a new prompt, connecting-prompt, which will be played
