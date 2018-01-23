@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 
 #include <mysql/mysql.h>
-#include <mysql/mysql_version.h>
 #include <mysql/errmsg.h>
 
 #include "asterisk/channel.h"
