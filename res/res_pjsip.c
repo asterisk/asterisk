@@ -2375,6 +2375,77 @@
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="ContactList">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about a contact section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'contact'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="ViaAddr">
+					<para>IP address of the last Via header in REGISTER request.
+					Will only appear in the event if available.</para>
+				</parameter>
+				<parameter name="ViaPort">
+					<para>Port number of the last Via header in REGISTER request.
+					Will only appear in the event if available.</para>
+				</parameter>
+				<parameter name="QualifyTimeout">
+					<para>The elapsed time in decimal seconds after which an OPTIONS
+					message is sent before the contact is considered unavailable.</para>
+				</parameter>
+				<parameter name="CallId">
+					<para>Content of the Call-ID header in REGISTER request.
+					Will only appear in the event if available.</para>
+				</parameter>
+				<parameter name="RegServer">
+					<para>Asterisk Server name.</para>
+				</parameter>
+				<parameter name="PruneOnBoot">
+					<para>If true delete the contact on Asterisk restart/boot.</para>
+				</parameter>
+				<parameter name="Path">
+					<para>The Path header received on the REGISTER.</para>
+				</parameter>
+				<parameter name="Endpoint">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+				<parameter name="AuthenticateQualify">
+					<para>A boolean indicating whether a qualify should be authenticated.</para>
+				</parameter>
+				<parameter name="Uri">
+					<para>This contact's URI.</para>
+				</parameter>
+				<parameter name="QualifyFrequency">
+					<para>The interval in seconds at which the contact will be qualified.</para>
+				</parameter>
+				<parameter name="UserAgent">
+					<para>Content of the User-Agent header in REGISTER request</para>
+				</parameter>
+				<parameter name="ExpirationTime">
+					<para>Absolute time that this contact is no longer valid after</para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para>The contact's outbound proxy.</para>
+				</parameter>
+				<parameter name="Status">
+					<para>This contact's status.</para>
+					<enumlist>
+						<enum name="Reachable"/>
+						<enum name="Unreachable"/>
+						<enum name="NonQualified"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="RoundtripUsec">
+					<para>The round trip time in microseconds.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="ContactStatusDetail">
 		<managerEventInstance class="EVENT_FLAG_COMMAND">
 			<synopsis>Provide details about a contact's status.</synopsis>
@@ -2391,6 +2462,7 @@
 						<enum name="Reachable"/>
 						<enum name="Unreachable"/>
 						<enum name="NonQualified"/>
+						<enum name="Unknown"/>
 					</enumlist>
 				</parameter>
 				<parameter name="RoundtripUsec">
@@ -2579,6 +2651,33 @@
 			<managerEvent language="en_US" name="AuthListComplete">
 				<managerEventInstance class="EVENT_FLAG_COMMAND">
 					<synopsis>Provide final information about an auth list.</synopsis>
+					<syntax>
+						<parameter name="EventList"/>
+						<parameter name="ListItems"/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
+	</manager>
+	<manager name="PJSIPShowContacts" language="en_US">
+		<synopsis>
+			Lists PJSIP Contacts.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>Provides a listing of all Contacts. For each Contact a <literal>ContactList</literal>
+			event is raised that contains relevant attributes and status information.
+			Once all contacts have been listed a <literal>ContactListComplete</literal> event
+			is issued.
+			</para>
+		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ContactList'])" />
+			</list-elements>
+			<managerEvent language="en_US" name="ContactListComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Provide final information about a contact list.</synopsis>
 					<syntax>
 						<parameter name="EventList"/>
 						<parameter name="ListItems"/>

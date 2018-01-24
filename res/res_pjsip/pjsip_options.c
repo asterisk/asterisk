@@ -929,6 +929,91 @@ static int ami_contact_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+static struct ao2_container *get_all_contacts(void)
+{
+	struct ao2_container *contacts;
+
+	contacts = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "contact",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+
+	return contacts;
+}
+
+static int sip_contact_to_ami(const struct ast_sip_contact *contact,
+			   struct ast_str **buf)
+{
+	return ast_sip_sorcery_object_to_ami(contact, buf);
+}
+
+static int format_ami_contactlist_handler(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ast_sip_ami *ami = arg;
+	struct ast_str *buf;
+	struct ast_sip_contact_status *status;
+
+	buf = ast_sip_create_ami_event("ContactList", ami);
+
+	if (!buf) {
+		return CMP_STOP;
+	}
+
+	if (sip_contact_to_ami(contact, &buf)) {
+		ast_free(buf);
+		return CMP_STOP;
+	}
+
+	/* Add extra info */
+	status = ast_sorcery_retrieve_by_id(
+		ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(contact));
+	ast_str_append(&buf, 0, "Status: %s\r\n",
+			ast_sip_get_contact_status_label(status ? status->status : UNKNOWN));
+	if (!status || status->status == UNKNOWN) {
+		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
+	} else {
+		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
+	}
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+
+	ami->count++;
+
+	ast_free(buf);
+
+	return 0;
+}
+
+static int ami_show_contacts(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
+	struct ao2_container *contacts;
+
+	contacts = get_all_contacts();
+	if (!contacts) {
+		astman_send_error(s, m, "Could not get Contacts\n");
+		return 0;
+	}
+
+	if (!ao2_container_count(contacts)) {
+		astman_send_error(s, m, "No Contacts found\n");
+		ao2_ref(contacts, -1);
+		return 0;
+	}
+
+	astman_send_listack(s, m, "A listing of Contacts follows, presented as ContactList events",
+			"start");
+
+	ao2_callback(contacts, OBJ_NODATA, format_ami_contactlist_handler, &ami);
+
+	astman_send_list_complete_start(s, m, "ContactListComplete", ami.count);
+	astman_send_list_complete_end(s);
+
+	ao2_ref(contacts, -1);
+
+	return 0;
+}
+
 static int ami_sip_qualify(struct mansession *s, const struct message *m)
 {
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
@@ -1479,6 +1564,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 
 	internal_sip_register_endpoint_formatter(&contact_status_formatter);
 	ast_manager_register_xml("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify);
+	ast_manager_register_xml("PJSIPShowContacts", EVENT_FLAG_SYSTEM, ami_show_contacts);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 
 	update_all_unqualified_endpoints();
@@ -1491,6 +1577,7 @@ void ast_res_pjsip_cleanup_options_handling(void)
 {
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_unregister("PJSIPQualify");
+	ast_manager_unregister("PJSIPShowContacts");
 	internal_sip_unregister_endpoint_formatter(&contact_status_formatter);
 
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "aor", &observer_callbacks_options);
