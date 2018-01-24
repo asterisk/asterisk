@@ -125,7 +125,7 @@ handle_debian() {
 handle_rh() {
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
 	if [ x"$extra_packs" != "x" ] ; then
-		$testcmd yum install -y $extra_packs
+		$testcmd yum install --skip-broken --assumeyes $extra_packs
 	fi
 }
 
