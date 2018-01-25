@@ -146,7 +146,7 @@ install_unpackaged() {
 	echo "*** Installing NBS (Network Broadcast Sound) ***"
 	svn co http://svn.digium.com/svn/nbs/trunk nbs-trunk
 	cd nbs-trunk
-	make && make install
+	make all install
 	cd ..
 
 	# Only install libresample if it wasn't installed via package
@@ -154,7 +154,8 @@ install_unpackaged() {
 		echo "*** Installing libresample ***"
 		svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
 		cd libresample-trunk
-		./configure && make && make install
+		./configure
+		make all install
 		cd ..
 	fi
 
@@ -163,7 +164,8 @@ install_unpackaged() {
 		echo "*** Installing jansson ***"
 		wget -O - http://www.digip.org/jansson/releases/jansson-${JANSSON_VER}.tar.gz | zcat | tar -xf -
 		cd jansson-${JANSSON_VER}
-		./configure && make all && make install
+		./configure
+		make all install
 		cd ..
 		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
 		/sbin/ldconfig
@@ -176,27 +178,16 @@ install_unpackaged() {
 			wget -O - http://github.com/cisco/libsrtp/archive/v2.tar.gz | zcat | tar -xf -
 			cd libsrtp-2
 			./configure --enable-openssl
-			make shared_library uninstall install
+			make shared_library install
 			cd ..
 			echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
 			/sbin/ldconfig
 		fi
 	fi
 
-	# Only install pjproject if it wasn't installed via package
 	if ! test -f /usr/include/pjlib.h; then
-		echo "*** Installing pjproject ***"
-		if [ ! -d pjproject ]; then
-			git clone https://github.com/asterisk/pjproject.git
-			cd pjproject
-		else
-			cd pjproject
-			git pull
-		fi
-		./configure CFLAGS="-DNDEBUG -DPJ_HAS_IPV6=1" --enable-shared --with-external-speex --with-external-gsm --with-external-srtp --disable-sound --disable-resample && make && make install
-		cd ..
-		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
-		/sbin/ldconfig
+		echo "PJProject not installed, yet. Therefore, please, run"
+		echo "./configure --with-pjproject-bundled"
 	fi
 }
 
