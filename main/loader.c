@@ -38,7 +38,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_MODULE_DIR */
 #include <dirent.h>
-#include <editline/readline.h>
 
 #include "asterisk/dlinkedlists.h"
 #include "asterisk/module.h"
@@ -58,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/test.h"
 #include "asterisk/sounds_index.h"
+#include "asterisk/cli.h"
 
 #include <dlfcn.h>
 
@@ -771,57 +771,55 @@ static int module_matches_helper_type(struct ast_module *mod, enum ast_module_he
 	}
 }
 
-static char *module_load_helper(const char *word, int state)
-{
-	struct ast_module *mod;
-	int which = 0;
-	char *name;
-	char *ret = NULL;
-	char *editline_ret;
-	char fullpath[PATH_MAX];
-	int idx = 0;
-	/* This is needed to avoid listing modules that are already running. */
-	AST_VECTOR(, char *) running_modules;
+struct module_load_word {
+	const char *word;
+	size_t len;
+	size_t moddir_len;
+};
 
-	AST_VECTOR_INIT(&running_modules, 200);
+static int module_load_helper_on_file(const char *dir_name, const char *filename, void *obj)
+{
+	struct module_load_word *word = obj;
+	struct ast_module *mod;
+	char *filename_merged = NULL;
+
+	/* dir_name will never be shorter than word->moddir_len. */
+	dir_name += word->moddir_len;
+	if (!ast_strlen_zero(dir_name)) {
+		ast_assert(dir_name[0] == '/');
+
+		dir_name += 1;
+		if (ast_asprintf(&filename_merged, "%s/%s", dir_name, filename) < 0) {
+			/* If we can't allocate the string just give up! */
+			return -1;
+		}
+		filename = filename_merged;
+	}
+
+	if (!strncasecmp(filename, word->word, word->len)) {
+		/* Don't list files that are already loaded! */
+		mod = find_resource(filename, 0);
+		if (!mod || !mod->flags.running) {
+			ast_cli_completion_add(ast_strdup(filename));
+		}
+	}
+
+	ast_free(filename_merged);
+
+	return 0;
+}
+
+static void module_load_helper(const char *word)
+{
+	struct module_load_word word_l = {
+		.word = word,
+		.len = strlen(word),
+		.moddir_len = strlen(ast_config_AST_MODULE_DIR),
+	};
 
 	AST_DLLIST_LOCK(&module_list);
-	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
-		if (mod->flags.running) {
-			AST_VECTOR_APPEND(&running_modules, mod->resource);
-		}
-	}
-
-	if (word[0] == '/') {
-		/* BUGBUG: we should not support this. */
-		ast_copy_string(fullpath, word, sizeof(fullpath));
-	} else {
-		snprintf(fullpath, sizeof(fullpath), "%s/%s", ast_config_AST_MODULE_DIR, word);
-	}
-
-	/*
-	 * This is ugly that we keep calling filename_completion_function.
-	 * The only way to avoid this would be to make a copy of the function
-	 * that skips matches found in the running_modules vector.
-	 */
-	while (!ret && (name = editline_ret = filename_completion_function(fullpath, idx++))) {
-		if (word[0] != '/') {
-			name += (strlen(ast_config_AST_MODULE_DIR) + 1);
-		}
-
-		/* Don't list files that are already loaded! */
-		if (!AST_VECTOR_GET_CMP(&running_modules, name, !strcasecmp) && ++which > state) {
-			ret = ast_strdup(name);
-		}
-
-		ast_std_free(editline_ret);
-	}
-
-	/* Do not clean-up the elements, they belong to module_list. */
-	AST_VECTOR_FREE(&running_modules);
+	ast_file_read_dirs(ast_config_AST_MODULE_DIR, module_load_helper_on_file, &word_l, -1);
 	AST_DLLIST_UNLOCK(&module_list);
-
-	return ret;
 }
 
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int _type)
@@ -837,7 +835,9 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	}
 
 	if (type == AST_MODULE_HELPER_LOAD) {
-		return module_load_helper(word, state);
+		module_load_helper(word);
+
+		return NULL;
 	}
 
 	if (type == AST_MODULE_HELPER_RELOAD) {

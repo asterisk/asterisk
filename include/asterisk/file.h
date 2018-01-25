@@ -143,6 +143,11 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
  * \param filename the name of the file
  * \param obj user data object
  * \return non-zero to stop reading, otherwise zero to continue
+ *
+ * \note dir_name is not processed by realpath or other functions,
+ *       symbolic links are not resolved.  This ensures dir_name
+ *       always starts with the exact string originally passed to
+ *       \ref ast_file_read_dir or \ref ast_file_read_dirs.
  */
 typedef int (*ast_file_on_file)(const char *dir_name, const char *filename, void *obj);
 
