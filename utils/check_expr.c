@@ -143,13 +143,6 @@ int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
 
 int ast_add_profile(const char *x, uint64_t scale) { return 0;}
-int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
-{
-        int ret;
-        ret = *p;
-        *p += v;
-        return ret;
-}
 
 char *find_var(const char *varname) /* the list should be pretty short, if there's any list at all */
 {

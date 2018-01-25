@@ -603,9 +603,6 @@
 /* Define to 1 if you have the Open Sound System library. */
 #undef HAVE_OSS
 
-/* Define to 1 if OSX atomic operations are supported. */
-#undef HAVE_OSX_ATOMICS
-
 /* Define to 1 if your system defines the file flag O_EVTONLY in fcntl.h */
 #undef HAVE_O_EVTONLY
 

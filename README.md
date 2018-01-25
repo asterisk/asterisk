@@ -69,7 +69,7 @@ list of new features in this version of Asterisk, see the [CHANGES] file.
 
   Ensure that your system contains a compatible compiler and development
 libraries.  Asterisk requires either the GNU Compiler Collection (GCC) version
-3.0 or higher, or a compiler that supports the C99 specification and some of
+4.1 or higher, or a compiler that supports the C99 specification and some of
 the gcc language extensions.  In addition, your system needs to have the C
 library headers available, and the headers and libraries for ncurses.
 

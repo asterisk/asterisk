@@ -1985,18 +1985,6 @@ char *ast_to_camel_case_delim(const char *s, const char *delim)
 	return res;
 }
 
-AST_MUTEX_DEFINE_STATIC(fetchadd_m); /* used for all fetc&add ops */
-
-int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
-{
-	int ret;
-	ast_mutex_lock(&fetchadd_m);
-	ret = *p;
-	*p += v;
-	ast_mutex_unlock(&fetchadd_m);
-	return ret;
-}
-
 /*! \brief
  * get values from config variables.
  */
