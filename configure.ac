@@ -1070,11 +1070,19 @@ AC_LINK_IFELSE(
 # for FreeBSD thr_self
 AC_CHECK_HEADERS([sys/thr.h])
 
-AC_MSG_CHECKING(for compiler atomic operations)
+AC_MSG_CHECKING(for compiler sync operations)
 AC_LINK_IFELSE(
 [AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);])],
 AC_MSG_RESULT(yes)
-AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides atomic operations.]),
+AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides __sync atomic operations.]),
+AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for compiler atomic operations)
+AC_LINK_IFELSE(
+[AC_LANG_PROGRAM([], [int foo1; int foo2 = __atomic_fetch_add(&foo1, 1, __ATOMIC_RELAXED);])],
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_C_ATOMICS], 1, [Define to 1 if your C compiler provides __atomic operations.]),
 AC_MSG_RESULT(no)
 )
 
