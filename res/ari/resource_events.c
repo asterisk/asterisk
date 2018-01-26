@@ -24,7 +24,6 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_http_websocket</depend>
 	<support_level>core</support_level>
  ***/
 

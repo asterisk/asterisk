@@ -6,6 +6,9 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/recordings.{format}",
+	"requiresModules": [
+		"res_stasis_recording"
+	],
 	"apis": [
 		{
 			"path": "/recordings/stored",

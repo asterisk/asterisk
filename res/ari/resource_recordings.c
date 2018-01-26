@@ -24,7 +24,6 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis_recording</depend>
 	<support_level>core</support_level>
  ***/
 

@@ -6,6 +6,10 @@
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/bridges.{format}",
+	"requiresModules": [
+		"res_stasis_recording",
+		"res_stasis_playback"
+	],
 	"apis": [
 		{
 			"path": "/bridges",

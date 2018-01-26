@@ -30,6 +30,7 @@
 #include "asterisk/acl.h"
 #include "asterisk/utils.h"
 #include "include/res_pjsip_private.h"
+/* We're only using a #define from http_websocket.h, no OPTIONAL_API symbols are used. */
 #include "asterisk/http_websocket.h"
 
 #define MAX_POINTER_STRING 33
