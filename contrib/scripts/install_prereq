@@ -46,7 +46,7 @@ PACKAGES_FBSD="$PACKAGES_FBSD sqlite3 libxslt jansson e2fsprogs-libuuid gsm libs
 
 KVERS=`uname -r`
 
-JANSSON_VER=2.4
+JANSSON_VER=2.10
 
 case "$1" in
 test)
