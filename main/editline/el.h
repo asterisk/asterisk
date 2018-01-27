@@ -55,9 +55,9 @@
 
 #define	EL_BUFSIZ	1024		/* Maximum line size		*/
 
-#define	HANDLE_SIGNALS	1<<0
-#define	NO_TTY		1<<1
-#define	EDIT_DISABLED	1<<2
+#define	HANDLE_SIGNALS	0x01
+#define	NO_TTY		0x02
+#define	EDIT_DISABLED	0x04
 
 typedef int bool_t;			/* True or not			*/
 
