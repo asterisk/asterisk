@@ -714,12 +714,6 @@ static int swapmode(int *used, int *total)
 	ast_free(swdev);
 	return 1;
 }
-#elif defined(HAVE_SYSCTL) && !defined(HAVE_SYSINFO)
-static int swapmode(int *used, int *total)
-{
-	*used = *total = 0;
-	return 1;
-}
 #endif
 
 #if defined(HAVE_SYSINFO) || defined(HAVE_SYSCTL)
@@ -728,11 +722,11 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 {
 	uint64_t physmem, freeram;
 #if defined(HAVE_SYSINFO) || defined(HAVE_SWAPCTL)
+	int totalswap = 0;
 	uint64_t freeswap = 0;
 #endif
 	int nprocs = 0;
 	long uptime = 0;
-	int totalswap = 0;
 #if defined(HAVE_SYSINFO)
 	struct sysinfo sys_info;
 #elif defined(HAVE_SYSCTL)
@@ -740,7 +734,10 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	struct vmtotal vmtotal;
 	struct timeval	boottime;
 	time_t	now;
-	int mib[2], pagesize, usedswap = 0;
+	int mib[2], pagesize;
+#if defined(HAVE_SWAPCTL)
+	int usedswap = 0;
+#endif
 	size_t len;
 #endif
 
@@ -800,8 +797,10 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 	sysctl(mib, 2, &vmtotal, &len, NULL, 0);
 	freeram = (vmtotal.t_free << pageshift);
 	/* generate swap usage and totals */
+#if defined(HAVE_SWAPCTL)
 	swapmode(&usedswap, &totalswap);
 	freeswap = (totalswap - usedswap);
+#endif
 	/* grab number of processes */
 #if defined(__OpenBSD__)
 	mib[0] = CTL_KERN;
