@@ -135,7 +135,7 @@ static void transport_state_callback(pjsip_transport *transport,
 				break;
 			}
 			monitored->transport = transport;
-			if (AST_VECTOR_INIT(&monitored->monitors, 2)) {
+			if (AST_VECTOR_INIT(&monitored->monitors, 5)) {
 				ao2_ref(monitored, -1);
 				break;
 			}
@@ -166,6 +166,8 @@ static void transport_state_callback(pjsip_transport *transport,
 					struct transport_monitor_notifier *notifier;
 
 					notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
+					ast_debug(3, "running callback %p(%p) for transport %s\n",
+						notifier->cb, notifier->data, transport->obj_name);
 					notifier->cb(notifier->data);
 				}
 				ao2_ref(monitored, -1);
@@ -195,42 +197,65 @@ static void transport_state_callback(pjsip_transport *transport,
 	}
 }
 
-static int transport_monitor_unregister_all(void *obj, void *arg, int flags)
+struct callback_data {
+	ast_transport_monitor_shutdown_cb cb;
+	void *data;
+	ast_transport_monitor_data_matcher matches;
+};
+
+static int transport_monitor_unregister_cb(void *obj, void *arg, int flags)
 {
 	struct transport_monitor *monitored = obj;
-	ast_transport_monitor_shutdown_cb cb = arg;
+	struct callback_data *cb_data = arg;
 	int idx;
 
 	for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
 		struct transport_monitor_notifier *notifier;
 
 		notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-		if (notifier->cb == cb) {
+		if (notifier->cb == cb_data->cb && (!cb_data->data
+			|| cb_data->matches(cb_data->data, notifier->data))) {
 			ao2_cleanup(notifier->data);
 			AST_VECTOR_REMOVE_UNORDERED(&monitored->monitors, idx);
-			break;
+			ast_debug(3, "Unregistered monitor %p(%p) from transport %s\n",
+				notifier->cb, notifier->data, monitored->transport->obj_name);
 		}
 	}
 	return 0;
 }
 
-void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb)
+static int ptr_matcher(void *a, void *b)
+{
+	return a == b;
+}
+
+void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb,
+	void *data, ast_transport_monitor_data_matcher matches)
 {
 	struct ao2_container *transports;
+	struct callback_data cb_data = {
+		.cb = cb,
+		.data = data,
+		.matches = matches ?: ptr_matcher,
+	};
+
+	ast_assert(cb != NULL);
 
 	transports = ao2_global_obj_ref(active_transports);
 	if (!transports) {
 		return;
 	}
-	ao2_callback(transports, OBJ_MULTIPLE | OBJ_NODATA, transport_monitor_unregister_all,
-		cb);
+	ao2_callback(transports, OBJ_MULTIPLE | OBJ_NODATA, transport_monitor_unregister_cb, &cb_data);
 	ao2_ref(transports, -1);
 }
 
-void ast_sip_transport_monitor_unregister(pjsip_transport *transport, ast_transport_monitor_shutdown_cb cb)
+void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches)
 {
 	struct ao2_container *transports;
 	struct transport_monitor *monitored;
+
+	ast_assert(transport != NULL && cb != NULL);
 
 	transports = ao2_global_obj_ref(active_transports);
 	if (!transports) {
@@ -240,18 +265,13 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport, ast_transp
 	ao2_lock(transports);
 	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (monitored) {
-		int idx;
+		struct callback_data cb_data = {
+			.cb = cb,
+			.data = data,
+			.matches = matches ?: ptr_matcher,
+		};
 
-		for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
-			struct transport_monitor_notifier *notifier;
-
-			notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-			if (notifier->cb == cb) {
-				ao2_cleanup(notifier->data);
-				AST_VECTOR_REMOVE_UNORDERED(&monitored->monitors, idx);
-				break;
-			}
-		}
+		transport_monitor_unregister_cb(monitored, &cb_data, 0);
 		ao2_ref(monitored, -1);
 	}
 	ao2_unlock(transports);
@@ -265,6 +285,8 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	struct transport_monitor *monitored;
 	enum ast_transport_monitor_reg res = AST_TRANSPORT_MONITOR_REG_NOT_FOUND;
 
+	ast_assert(transport != NULL && cb != NULL);
+
 	transports = ao2_global_obj_ref(active_transports);
 	if (!transports) {
 		return res;
@@ -273,21 +295,7 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	ao2_lock(transports);
 	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (monitored) {
-		int idx;
 		struct transport_monitor_notifier new_monitor;
-
-		/* Check if the callback monitor already exists */
-		for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
-			struct transport_monitor_notifier *notifier;
-
-			notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-			if (notifier->cb == cb) {
-				/* The monitor is already in the vector replace with new ao2_data. */
-				ao2_replace(notifier->data, ao2_data);
-				res = AST_TRANSPORT_MONITOR_REG_REPLACED;
-				goto register_done;
-			}
-		}
 
 		/* Add new monitor to vector */
 		new_monitor.cb = cb;
@@ -295,9 +303,14 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 		if (AST_VECTOR_APPEND(&monitored->monitors, new_monitor)) {
 			ao2_cleanup(ao2_data);
 			res = AST_TRANSPORT_MONITOR_REG_FAILED;
+			ast_debug(3, "Register monitor %p(%p) to transport %s FAILED\n",
+				cb, ao2_data, transport->obj_name);
+		} else {
+			res = AST_TRANSPORT_MONITOR_REG_SUCCESS;
+			ast_debug(3, "Registered monitor %p(%p) to transport %s\n",
+				cb, ao2_data, transport->obj_name);
 		}
 
-register_done:
 		ao2_ref(monitored, -1);
 	}
 	ao2_unlock(transports);
