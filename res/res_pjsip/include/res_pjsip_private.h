@@ -419,4 +419,18 @@ void internal_res_pjsip_ref(void);
  */
 void internal_res_pjsip_unref(void);
 
+/*!
+ * \internal
+ * \brief Determines if a uri will still be valid after an asterisk restart
+ * \since 13.20.0
+ *
+ * \param uri uri to test
+ * \param endpoint The associated endpoint
+ * \param rdata The rdata to get transport information from
+ *
+ * \retval 1 Yes, 0 No
+ */
+int ast_sip_will_uri_survive_restart(pjsip_sip_uri *uri, struct ast_sip_endpoint *endpoint,
+	pjsip_rx_data *rdata);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */

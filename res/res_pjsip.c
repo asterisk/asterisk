@@ -2894,6 +2894,45 @@ pjsip_endpoint *ast_sip_get_pjsip_endpoint(void)
 	return ast_pjsip_endpoint;
 }
 
+int ast_sip_will_uri_survive_restart(pjsip_sip_uri *uri, struct ast_sip_endpoint *endpoint,
+	pjsip_rx_data *rdata)
+{
+	pj_str_t host_name;
+	int result = 1;
+
+	/* Determine if the contact cannot survive a restart/boot. */
+	if (uri->port == rdata->pkt_info.src_port
+		&& !pj_strcmp(&uri->host,
+			pj_cstr(&host_name, rdata->pkt_info.src_name))
+		/* We have already checked if the URI scheme is sip: or sips: */
+		&& PJSIP_TRANSPORT_IS_RELIABLE(rdata->tp_info.transport)) {
+		pj_str_t type_name;
+
+		/* Determine the transport parameter value */
+		if (!strcasecmp("WSS", rdata->tp_info.transport->type_name)) {
+			/* WSS is special, as it needs to be ws. */
+			pj_cstr(&type_name, "ws");
+		} else {
+			pj_cstr(&type_name, rdata->tp_info.transport->type_name);
+		}
+
+		if (!pj_stricmp(&uri->transport_param, &type_name)
+			&& (endpoint->nat.rewrite_contact
+				/* Websockets are always rewritten */
+				|| !pj_stricmp(&uri->transport_param,
+					pj_cstr(&type_name, "ws")))) {
+			/*
+			 * The contact was rewritten to the reliable transport's
+			 * source address.  Disconnecting the transport for any
+			 * reason invalidates the contact.
+			 */
+			result = 0;
+		}
+	}
+
+	return result;
+}
+
 int ast_sip_get_transport_name(const struct ast_sip_endpoint *endpoint,
 	pjsip_sip_uri *sip_uri, char *buf, size_t buf_len)
 {

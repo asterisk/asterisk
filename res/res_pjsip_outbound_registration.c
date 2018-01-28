@@ -851,6 +851,14 @@ static void registration_transport_shutdown_cb(void *obj)
 	}
 }
 
+static int monitor_matcher(void *a, void *b)
+{
+	char *ma = a;
+	char *mb = b;
+
+	return strcmp(ma, mb) == 0;
+}
+
 static void registration_transport_monitor_setup(pjsip_transport *transport, const char *registration_name)
 {
 	char *monitor;
@@ -951,7 +959,8 @@ static int handle_registration_response(void *data)
 			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			update_client_state_status(response->client_state, SIP_REGISTRATION_UNREGISTERED);
 			ast_sip_transport_monitor_unregister(response->rdata->tp_info.transport,
-				registration_transport_shutdown_cb);
+				registration_transport_shutdown_cb, response->client_state->registration_name,
+				monitor_matcher);
 		}
 	} else if (response->client_state->destroy) {
 		/* We need to deal with the pending destruction instead. */
@@ -2150,7 +2159,7 @@ static int unload_module(void)
 
 	ao2_global_obj_release(current_states);
 
-	ast_sip_transport_monitor_unregister_all(registration_transport_shutdown_cb);
+	ast_sip_transport_monitor_unregister_all(registration_transport_shutdown_cb, NULL, NULL);
 
 	/* Wait for registration serializers to get destroyed. */
 	ast_debug(2, "Waiting for registration transactions to complete for unload.\n");

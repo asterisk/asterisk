@@ -30,6 +30,10 @@ res_pjsip
    identifier method split into the "ip" and "header" endpoint identifier
    methods.
 
+ * The pjsip_transport_event feature introduced in 13.18.0 has been refactored.
+   Any external modules that may have used that feature (highly unlikey) will
+   need to be changed as the API has been altered slightly.
+
 res_pjsip_endpoint_identifier_ip
 ------------------
  * The endpoint identifier "ip" method previously recognized endpoints either
@@ -49,6 +53,17 @@ res_pjsip_registrar_expire
  * The res_pjsip_registrar_expire module is now deprecated and will be removed
    from Asterisk 16.  The existing functionality was moved into
    res_pjsip_registrar.
+
+res_pjsip_pubsub
+------------------
+ * In an earlier release, inbound registrations on a reliable transport
+   were pruned on Asterisk restart since the TCP connection would have
+   been torn down and become unusable when Asterisk stopped.  This same
+   process is now also applied to inbound subscriptions.  Since this
+   required the addition of a new column to the ps_subscription_persistence
+   realtime table, users who store their subscriptions in a database will
+   need to run the "alembic upgrade head" process to add the column to
+   the schema.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.18.0 to Asterisk 13.19.0 ----------

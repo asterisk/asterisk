@@ -30,6 +30,10 @@ res_pjsip
    identifier method split into the "ip" and "header" endpoint identifier
    methods.
 
+ * The pjsip_transport_event feature introduced in 13.18.0 has been refactored.
+   Any external modules that may have used that feature (highly unlikey) will
+   need to be changed as the API has been altered slightly.
+
 res_pjsip_endpoint_identifier_ip
 ------------------
  * The endpoint identifier "ip" method previously recognized endpoints either
