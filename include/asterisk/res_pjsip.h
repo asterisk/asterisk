@@ -2985,6 +2985,18 @@ int ast_sip_str_to_dtmf(const char *dtmf_mode);
  */
 typedef void (*ast_transport_monitor_shutdown_cb)(void *data);
 
+/*!
+ * \brief Transport shutdown monitor data matcher
+ * \since 13.20.0
+ *
+ * \param a User data to compare.
+ * \param b User data to compare.
+ *
+ * \retval 1 The data objects match
+ * \retval 0 The data objects don't match
+ */
+typedef int (*ast_transport_monitor_data_matcher)(void *a, void *b);
+
 enum ast_transport_monitor_reg {
 	/*! \brief Successfully registered the transport monitor */
 	AST_TRANSPORT_MONITOR_REG_SUCCESS,
@@ -3001,11 +3013,17 @@ enum ast_transport_monitor_reg {
 
 /*!
  * \brief Register a reliable transport shutdown monitor callback.
- * \since 13.18.0
+ * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
  * \param cb Who to call when transport is shutdown.
  * \param ao2_data Data to pass with the callback.
+ *
+ * \note The data object passed will have its reference count automatically
+ * incremented by this call and automatically decremented after the callback
+ * runs or when the callback is unregistered.
+ *
+ * There is no checking for duplicate registrations.
  *
  * \return enum ast_transport_monitor_reg
  */
@@ -3013,25 +3031,41 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data);
 
 /*!
- * \brief Unregister a reliable transport shutdown monitor callback.
- * \since 13.18.0
+ * \brief Unregister a reliable transport shutdown monitor
+ * \since 13.20.0
  *
  * \param transport Transport to monitor for shutdown.
- * \param cb Who to call when transport is shutdown.
+ * \param cb The callback that was used for the original register.
+ * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
+ *             If NULL, all monitors with the provided callbck are unregistered.
+ * \param matches Matcher function that returns true if data matches the previously
+ *                registered data object.  If NULL, a simple pointer comparison is done.
+ *
+ * \note The data object passed into the original register will have its reference count
+ * automatically decremeneted.
  *
  * \return Nothing
  */
-void ast_sip_transport_monitor_unregister(pjsip_transport *transport, ast_transport_monitor_shutdown_cb cb);
+void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *data, ast_transport_monitor_data_matcher matches);
 
 /*!
- * \brief Unregister monitor callback from all reliable transports.
- * \since 13.18.0
+ * \brief Unregister a transport shutdown monitor from all reliable transports
+ * \since 13.20.0
  *
- * \param cb Who to call when a transport is shutdown.
+ * \param cb The callback that was used for the original register.
+ * \param data Data to pass to the matcher. May be NULL and does NOT need to be an ao2 object.
+ *             If NULL, all monitors with the provided callbck are unregistered.
+ * \param matches Matcher function that returns true if ao2_data matches the previously
+ *                registered data object.  If NULL, a simple pointer comparison is done.
+ *
+ * \note The data object passed into the original register will have its reference count
+ * automatically decremeneted.
  *
  * \return Nothing
  */
-void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb);
+void ast_sip_transport_monitor_unregister_all(ast_transport_monitor_shutdown_cb cb,
+	void *data, ast_transport_monitor_data_matcher matches);
 
 /*! Transport state notification registration element.  */
 struct ast_sip_tpmgr_state_callback {
