@@ -13,9 +13,9 @@ check_for_app() {
 # On Linux, environment variables tell which one to use.
 
 case `uname -sr` in
-	'FreeBSD 4'*)	# FreeBSD 4.x has a different naming
-		MY_AC_VER=259
-		MY_AM_VER=19
+	FreeBSD*)
+		MY_AC_VER=
+		MY_AM_VER=
 		;;
 	OpenBSD*)
 		export AUTOCONF_VERSION=2.63
