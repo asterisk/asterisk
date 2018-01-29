@@ -81,16 +81,6 @@ struct ast_mwi_mailbox_object {
 
 static struct ast_sorcery *mwi_sorcery;
 
-void ast_mwi_external_ref(void)
-{
-	ast_module_ref(ast_module_info->self);
-}
-
-void ast_mwi_external_unref(void)
-{
-	ast_module_unref(ast_module_info->self);
-}
-
 /*!
  * \internal
  * \brief Post an update event to the MWI counts.

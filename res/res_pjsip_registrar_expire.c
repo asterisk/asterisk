@@ -137,8 +137,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &expiration_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 

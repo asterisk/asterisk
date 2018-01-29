@@ -1023,18 +1023,13 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_check_ipv6()) {
 		ast_sockaddr_parse(&address, "::", 0);
 	} else {
 		ast_sockaddr_parse(&address, "0.0.0.0", 0);
 	}
 
-	if (ast_sip_session_register_supplement(&t38_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
-		goto end;
-	}
+	ast_sip_session_register_supplement(&t38_supplement);
 
 	if (ast_sip_session_register_sdp_handler(&image_sdp_handler, "image")) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for image stream type\n");

@@ -959,13 +959,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
-
-	if (!ast_module_check("res_pjsip_outbound_publish.so")) {
-		ast_log(LOG_WARNING, "This module requires the 'res_pjsip_outbound_publish.so' module to be loaded\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	publishers = ao2_container_alloc(PUBLISHER_BUCKETS, exten_state_publisher_hash,
 		exten_state_publisher_cmp);
 	if (!publishers) {

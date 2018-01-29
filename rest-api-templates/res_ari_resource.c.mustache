@@ -269,7 +269,6 @@ static int unload_module(void)
 	ast_ari_websocket_events_event_websocket_dtor();
 {{/has_websocket}}
 {{/apis}}
-	stasis_app_unref();
 	return 0;
 }
 
@@ -277,43 +276,37 @@ static int load_module(void)
 {
 	int res = 0;
 
-	CHECK_ARI_MODULE_LOADED();
-
 {{#apis}}
 {{#operations}}
 {{#has_websocket}}
-	/* This is scoped to not conflict with CHECK_ARI_MODULE_LOADED */
-	{
-		struct ast_websocket_protocol *protocol;
+	struct ast_websocket_protocol *protocol;
 
-		if (ast_ari_websocket_{{c_name}}_{{c_nickname}}_init() == -1) {
-			return AST_MODULE_LOAD_DECLINE;
-		}
+	if (ast_ari_websocket_{{c_name}}_{{c_nickname}}_init() == -1) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
-		{{full_name}}.ws_server = ast_websocket_server_create();
-		if (!{{full_name}}.ws_server) {
-			ast_ari_websocket_events_event_websocket_dtor();
-			return AST_MODULE_LOAD_DECLINE;
-		}
+	{{full_name}}.ws_server = ast_websocket_server_create();
+	if (!{{full_name}}.ws_server) {
+		ast_ari_websocket_events_event_websocket_dtor();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
-		protocol = ast_websocket_sub_protocol_alloc("{{websocket_protocol}}");
-		if (!protocol) {
-			ao2_ref({{full_name}}.ws_server, -1);
-			{{full_name}}.ws_server = NULL;
-			ast_ari_websocket_events_event_websocket_dtor();
-			return AST_MODULE_LOAD_DECLINE;
-		}
-		protocol->session_attempted = ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb;
-		protocol->session_established = ast_ari_{{c_name}}_{{c_nickname}}_ws_established_cb;
+	protocol = ast_websocket_sub_protocol_alloc("{{websocket_protocol}}");
+	if (!protocol) {
+		ao2_ref({{full_name}}.ws_server, -1);
+		{{full_name}}.ws_server = NULL;
+		ast_ari_websocket_events_event_websocket_dtor();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	protocol->session_attempted = ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb;
+	protocol->session_established = ast_ari_{{c_name}}_{{c_nickname}}_ws_established_cb;
 {{/has_websocket}}
 {{#is_websocket}}
-		res |= ast_websocket_server_add_protocol2({{full_name}}.ws_server, protocol);
-	}
+	res |= ast_websocket_server_add_protocol2({{full_name}}.ws_server, protocol);
 {{/is_websocket}}
 {{/operations}}
 {{/apis}}
 
-	stasis_app_ref();
 	res |= ast_ari_add_handler(&{{root_full_name}});
 	if (res) {
 		unload_module();

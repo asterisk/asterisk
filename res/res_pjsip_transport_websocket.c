@@ -471,8 +471,6 @@ static struct ast_sip_session_supplement websocket_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	/*
 	 * We only need one transport type name (ws) defined.  Firefox
 	 * and Chrome do not support anything other than secure websockets
@@ -490,10 +488,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (ast_sip_session_register_supplement(&websocket_supplement)) {
-		ast_sip_unregister_service(&websocket_module);
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	ast_sip_session_register_supplement(&websocket_supplement);
 
 	if (ast_websocket_add_protocol("sip", websocket_cb)) {
 		ast_sip_session_unregister_supplement(&websocket_supplement);

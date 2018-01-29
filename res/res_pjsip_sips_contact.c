@@ -90,8 +90,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_register_service(&sips_contact_module)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

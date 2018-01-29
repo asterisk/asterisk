@@ -2583,8 +2583,6 @@ int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
 
 	publish_add_handler(handler);
 
-	ast_module_ref(ast_module_info->self);
-
 	return 0;
 }
 
@@ -2597,7 +2595,6 @@ void ast_sip_unregister_publish_handler(struct ast_sip_publish_handler *handler)
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
 			ao2_cleanup(handler->publications);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -2611,7 +2608,6 @@ static void sub_add_handler(struct ast_sip_subscription_handler *handler)
 {
 	AST_RWLIST_WRLOCK(&subscription_handlers);
 	AST_RWLIST_INSERT_TAIL(&subscription_handlers, handler, next);
-	ast_module_ref(ast_module_info->self);
 	AST_RWLIST_UNLOCK(&subscription_handlers);
 }
 
@@ -2670,7 +2666,6 @@ void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscription_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -5377,8 +5372,6 @@ static int load_module(void)
 {
 	static const pj_str_t str_PUBLISH = { "PUBLISH", 7 };
 	struct ast_sorcery *sorcery;
-
-	CHECK_PJSIP_MODULE_LOADED();
 
 	sorcery = ast_sip_get_sorcery();
 

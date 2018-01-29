@@ -165,7 +165,7 @@ void ast_sip_initialize_global_headers(void)
 	AST_RWLIST_HEAD_INIT(&request_headers);
 	AST_RWLIST_HEAD_INIT(&response_headers);
 
-	internal_sip_register_service(&global_header_mod);
+	ast_sip_register_service(&global_header_mod);
 }
 
 static void destroy_headers(struct header_list *headers)
@@ -183,5 +183,5 @@ void ast_sip_destroy_global_headers(void)
 	destroy_headers(&request_headers);
 	destroy_headers(&response_headers);
 
-	internal_sip_unregister_service(&global_header_mod);
+	ast_sip_unregister_service(&global_header_mod);
 }

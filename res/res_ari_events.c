@@ -424,7 +424,6 @@ static int unload_module(void)
 	ao2_cleanup(events.ws_server);
 	events.ws_server = NULL;
 	ast_ari_websocket_events_event_websocket_dtor();
-	stasis_app_unref();
 	return 0;
 }
 
@@ -432,35 +431,29 @@ static int load_module(void)
 {
 	int res = 0;
 
-	CHECK_ARI_MODULE_LOADED();
+	struct ast_websocket_protocol *protocol;
 
-	/* This is scoped to not conflict with CHECK_ARI_MODULE_LOADED */
-	{
-		struct ast_websocket_protocol *protocol;
-
-		if (ast_ari_websocket_events_event_websocket_init() == -1) {
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		events.ws_server = ast_websocket_server_create();
-		if (!events.ws_server) {
-			ast_ari_websocket_events_event_websocket_dtor();
-			return AST_MODULE_LOAD_DECLINE;
-		}
-
-		protocol = ast_websocket_sub_protocol_alloc("ari");
-		if (!protocol) {
-			ao2_ref(events.ws_server, -1);
-			events.ws_server = NULL;
-			ast_ari_websocket_events_event_websocket_dtor();
-			return AST_MODULE_LOAD_DECLINE;
-		}
-		protocol->session_attempted = ast_ari_events_event_websocket_ws_attempted_cb;
-		protocol->session_established = ast_ari_events_event_websocket_ws_established_cb;
-		res |= ast_websocket_server_add_protocol2(events.ws_server, protocol);
+	if (ast_ari_websocket_events_event_websocket_init() == -1) {
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	stasis_app_ref();
+	events.ws_server = ast_websocket_server_create();
+	if (!events.ws_server) {
+		ast_ari_websocket_events_event_websocket_dtor();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	protocol = ast_websocket_sub_protocol_alloc("ari");
+	if (!protocol) {
+		ao2_ref(events.ws_server, -1);
+		events.ws_server = NULL;
+		ast_ari_websocket_events_event_websocket_dtor();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	protocol->session_attempted = ast_ari_events_event_websocket_ws_attempted_cb;
+	protocol->session_established = ast_ari_events_event_websocket_ws_established_cb;
+	res |= ast_websocket_server_add_protocol2(events.ws_server, protocol);
+
 	res |= ast_ari_add_handler(&events);
 	if (res) {
 		unload_module();

@@ -2177,8 +2177,6 @@ static int load_module(void)
 {
 	struct ao2_container *new_states;
 
-	CHECK_PJSIP_MODULE_LOADED();
-
 	shutdown_group = ast_serializer_shutdown_group_alloc();
 	if (!shutdown_group) {
 		return AST_MODULE_LOAD_DECLINE;

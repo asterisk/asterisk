@@ -1243,15 +1243,15 @@ int ast_sip_initialize_distributor(void)
 		return -1;
 	}
 
-	if (internal_sip_register_service(&distributor_mod)) {
+	if (ast_sip_register_service(&distributor_mod)) {
 		ast_sip_destroy_distributor();
 		return -1;
 	}
-	if (internal_sip_register_service(&endpoint_mod)) {
+	if (ast_sip_register_service(&endpoint_mod)) {
 		ast_sip_destroy_distributor();
 		return -1;
 	}
-	if (internal_sip_register_service(&auth_mod)) {
+	if (ast_sip_register_service(&auth_mod)) {
 		ast_sip_destroy_distributor();
 		return -1;
 	}
@@ -1282,9 +1282,9 @@ void ast_sip_destroy_distributor(void)
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(unid_formatter);
 
-	internal_sip_unregister_service(&auth_mod);
-	internal_sip_unregister_service(&endpoint_mod);
-	internal_sip_unregister_service(&distributor_mod);
+	ast_sip_unregister_service(&auth_mod);
+	ast_sip_unregister_service(&endpoint_mod);
+	ast_sip_unregister_service(&distributor_mod);
 
 	ao2_global_obj_release(artificial_auth);
 	ao2_cleanup(artificial_endpoint);

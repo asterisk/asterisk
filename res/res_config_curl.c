@@ -637,20 +637,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!ast_module_check("res_curl.so")) {
-		if (ast_load_resource("res_curl.so") != AST_MODULE_LOAD_SUCCESS) {
-			ast_log(LOG_ERROR, "Cannot load res_curl, so res_config_curl cannot be loaded\n");
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	}
-
-	if (!ast_module_check("func_curl.so")) {
-		if (ast_load_resource("func_curl.so") != AST_MODULE_LOAD_SUCCESS) {
-			ast_log(LOG_ERROR, "Cannot load func_curl, so res_config_curl cannot be loaded\n");
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	}
-
 	reload_module();
 
 	ast_config_engine_register(&curl_engine);
@@ -664,4 +650,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime Curl configu
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_REALTIME_DRIVER,
+	.requires = "res_curl,func_curl",
 );

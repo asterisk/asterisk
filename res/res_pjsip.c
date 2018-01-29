@@ -2716,7 +2716,7 @@ static pj_sockaddr host_ip_ipv6;
 /*! Local host address for IPv6 (string form) */
 static char host_ip_ipv6_string[PJ_INET6_ADDRSTRLEN];
 
-static int register_service_noref(void *data)
+static int register_service(void *data)
 {
 	pjsip_module **module = data;
 	if (!ast_pjsip_endpoint) {
@@ -2731,23 +2731,12 @@ static int register_service_noref(void *data)
 	return 0;
 }
 
-int internal_sip_register_service(pjsip_module *module)
+int ast_sip_register_service(pjsip_module *module)
 {
-	return ast_sip_push_task_synchronous(NULL, register_service_noref, &module);
+	return ast_sip_push_task_synchronous(NULL, register_service, &module);
 }
 
-int __ast_sip_register_service(pjsip_module *module, const char *file, int line, const char *func)
-{
-	int res;
-
-	if (!(res = ast_sip_push_task_synchronous(NULL, register_service_noref, &module))) {
-		__ast_module_ref(ast_module_info->self, file, line, func);
-	}
-
-	return res;
-}
-
-static int unregister_service_noref(void *data)
+static int unregister_service(void *data)
 {
 	pjsip_module **module = data;
 	if (!ast_pjsip_endpoint) {
@@ -2758,16 +2747,9 @@ static int unregister_service_noref(void *data)
 	return 0;
 }
 
-int internal_sip_unregister_service(pjsip_module *module)
+void ast_sip_unregister_service(pjsip_module *module)
 {
-	return ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module);
-}
-
-void __ast_sip_unregister_service(pjsip_module *module, const char *file, int line, const char *func)
-{
-	if (!ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module)) {
-		__ast_module_unref(ast_module_info->self, file, line, func);
-	}
+	ast_sip_push_task_synchronous(NULL, unregister_service, &module);
 }
 
 static struct ast_sip_authenticator *registered_authenticator;
@@ -2780,7 +2762,7 @@ int ast_sip_register_authenticator(struct ast_sip_authenticator *auth)
 	}
 	registered_authenticator = auth;
 	ast_debug(1, "Registered SIP authenticator module %p\n", auth);
-	ast_module_ref(ast_module_info->self);
+
 	return 0;
 }
 
@@ -2793,7 +2775,6 @@ void ast_sip_unregister_authenticator(struct ast_sip_authenticator *auth)
 	}
 	registered_authenticator = NULL;
 	ast_debug(1, "Unregistered SIP authenticator %p\n", auth);
-	ast_module_unref(ast_module_info->self);
 }
 
 int ast_sip_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
@@ -2826,7 +2807,7 @@ int ast_sip_register_outbound_authenticator(struct ast_sip_outbound_authenticato
 	}
 	registered_outbound_authenticator = auth;
 	ast_debug(1, "Registered SIP outbound authenticator module %p\n", auth);
-	ast_module_ref(ast_module_info->self);
+
 	return 0;
 }
 
@@ -2839,7 +2820,6 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
 	}
 	registered_outbound_authenticator = NULL;
 	ast_debug(1, "Unregistered SIP outbound authenticator %p\n", auth);
-	ast_module_unref(ast_module_info->self);
 }
 
 int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
@@ -2881,7 +2861,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	if (ast_strlen_zero(name)) {
 		/* if an identifier has no name then place in front */
 		AST_RWLIST_INSERT_HEAD(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		return 0;
 	}
 
@@ -2891,7 +2870,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	if (ast_strlen_zero(identifier_order)) {
 		id_list_item->priority = UINT_MAX;
 		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		ast_free(identifier_order);
 		return 0;
 	}
@@ -2919,7 +2897,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 		/* if not in the endpoint_identifier_order list then consider it less in
 		   priority and add it to the end */
 		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		ast_free(identifier_order);
 		return 0;
 	}
@@ -2937,7 +2914,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
-	ast_module_ref(ast_module_info->self);
 	ast_free(identifier_order);
 	return 0;
 }
@@ -2956,7 +2932,6 @@ void ast_sip_unregister_endpoint_identifier(struct ast_sip_endpoint_identifier *
 			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(iter);
 			ast_debug(1, "Unregistered endpoint identifier %p\n", identifier);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -3099,23 +3074,17 @@ static struct ast_cli_entry cli_commands[] = {
 
 AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
 
-void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+void ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 	AST_RWLIST_INSERT_TAIL(&endpoint_formatters, obj, next);
 }
 
-int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	internal_sip_register_endpoint_formatter(obj);
-	ast_module_ref(ast_module_info->self);
-	return 0;
-}
-
-int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	struct ast_sip_endpoint_formatter *i;
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&endpoint_formatters, i, next) {
 		if (i == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -3123,14 +3092,6 @@ int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	return i == obj ? 0 : -1;
-}
-
-void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	if (!internal_sip_unregister_endpoint_formatter(obj)) {
-		ast_module_unref(ast_module_info->self);
-	}
 }
 
 int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
@@ -3817,7 +3778,7 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 
 AST_RWLIST_HEAD_STATIC(supplements, ast_sip_supplement);
 
-void internal_sip_register_supplement(struct ast_sip_supplement *supplement)
+void ast_sip_register_supplement(struct ast_sip_supplement *supplement)
 {
 	struct ast_sip_supplement *iter;
 	int inserted = 0;
@@ -3837,39 +3798,18 @@ void internal_sip_register_supplement(struct ast_sip_supplement *supplement)
 	}
 }
 
-int __ast_sip_register_supplement(struct ast_sip_supplement *supplement,
-	const char *file, int line, const char *func)
-{
-	internal_sip_register_supplement(supplement);
-	__ast_module_ref(ast_module_info->self, file, line, func);
-
-	return 0;
-}
-
-int internal_sip_unregister_supplement(struct ast_sip_supplement *supplement)
+void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
 {
 	struct ast_sip_supplement *iter;
 	SCOPED_LOCK(lock, &supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-	int res = -1;
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&supplements, iter, next) {
 		if (supplement == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-
-	return res;
-}
-
-void __ast_sip_unregister_supplement(struct ast_sip_supplement *supplement,
-	const char *file, int line, const char *func)
-{
-	if (!internal_sip_unregister_supplement(supplement)) {
-		__ast_module_unref(ast_module_info->self, file, line, func);
-	}
 }
 
 static int send_in_dialog_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg)
@@ -4999,7 +4939,7 @@ static int unload_pjsip(void *data)
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_system();
 		ast_sip_destroy_global_headers();
-		internal_sip_unregister_service(&supplement_module);
+		ast_sip_unregister_service(&supplement_module);
 		ast_sip_destroy_transport_events();
 	}
 
@@ -5099,8 +5039,6 @@ static int load_module(void)
 {
 	struct ast_threadpool_options options;
 
-	CHECK_PJPROJECT_MODULE_LOADED();
-
 	/* pjproject and config_system need to be initialized before all else */
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
@@ -5166,7 +5104,7 @@ static int load_module(void)
 		goto error;
 	}
 
-	if (internal_sip_register_service(&supplement_module)) {
+	if (ast_sip_register_service(&supplement_module)) {
 		ast_log(LOG_ERROR, "Failed to initialize supplement hooks. Aborting load\n");
 		goto error;
 	}
@@ -5182,8 +5120,6 @@ static int load_module(void)
 
 	AST_TEST_REGISTER(xml_sanitization_end_null);
 	AST_TEST_REGISTER(xml_sanitization_exceeds_buffer);
-
-	ast_pjproject_ref();
 
 	return AST_MODULE_LOAD_SUCCESS;
 
@@ -5225,8 +5161,6 @@ static int unload_module(void)
 	ast_sip_destroy_scheduler();
 	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
-
-	ast_pjproject_unref();
 
 	return 0;
 }

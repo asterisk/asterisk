@@ -1278,7 +1278,7 @@ static int unload_module(void)
 {
 	ast_install_stack_functions(NULL);
 
-	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
+	ast_agi_unregister(&gosub_agi_command);
 
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);

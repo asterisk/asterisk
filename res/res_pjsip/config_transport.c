@@ -1436,7 +1436,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register(sorcery, "transport", "allow_reload", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, allow_reload));
 	ast_sorcery_object_field_register(sorcery, "transport", "symmetric_transport", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, symmetric_transport));
 
-	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
+	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
@@ -1466,7 +1466,7 @@ int ast_sip_destroy_sorcery_transport(void)
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 
-	internal_sip_unregister_endpoint_formatter(&endpoint_transport_formatter);
+	ast_sip_unregister_endpoint_formatter(&endpoint_transport_formatter);
 
 	ao2_ref(transport_states, -1);
 	transport_states = NULL;

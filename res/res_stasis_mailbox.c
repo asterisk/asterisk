@@ -143,17 +143,11 @@ enum stasis_mailbox_result stasis_app_mailbox_delete(
 
 static int load_module(void)
 {
-	/* Must be done first */
-	ast_mwi_external_ref();
-
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	/* Must be done last */
-	ast_mwi_external_unref();
-
 	return 0;
 }
 

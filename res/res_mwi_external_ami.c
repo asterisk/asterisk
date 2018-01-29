@@ -342,17 +342,12 @@ static int unload_module(void)
 	ast_manager_unregister("MWIDelete");
 	ast_manager_unregister("MWIUpdate");
 
-	/* Must be done last */
-	ast_mwi_external_unref();
 	return 0;
 }
 
 static int load_module(void)
 {
 	int res;
-
-	/* Must be done first */
-	ast_mwi_external_ref();
 
 	res = 0;
 	res |= ast_manager_register_xml("MWIGet", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, mwi_mailbox_get);

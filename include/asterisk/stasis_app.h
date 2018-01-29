@@ -46,8 +46,8 @@
  * functions.
  *
  * Since module unload order is based on reference counting, any module that
- * uses the API defined in this file must call stasis_app_ref() when loaded,
- * and stasis_app_unref() when unloaded.
+ * uses the API defined in this file must list "res_stasis" in the requires
+ * field.
  */
 
 #include "asterisk/channel.h"
@@ -227,18 +227,6 @@ void stasis_app_register_event_source(struct stasis_app_event_source *obj);
  * \brief Register core event sources.
  */
 void stasis_app_register_event_sources(void);
-
-/*!
- * \brief Checks to see if the given object is a core event source
- *
- * \note core event sources are currently only endpoint, bridge, and channel.
- *
- * \param obj event source object to check
- *
- * \return non-zero if core event source, otherwise 0 (false)
-
- */
-int stasis_app_is_core_event_source(struct stasis_app_event_source *obj);
 
 /*!
  * \brief Unregister an application event source.
@@ -848,20 +836,6 @@ struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control);
  * \retval zero on success
  */
 void stasis_app_bridge_destroy(const char *bridge_id);
-
-/*!
- * \brief Increment the res_stasis reference count.
- *
- * This ensures graceful shutdown happens in the proper order.
- */
-void stasis_app_ref(void);
-
-/*!
- * \brief Decrement the res_stasis reference count.
- *
- * This ensures graceful shutdown happens in the proper order.
- */
-void stasis_app_unref(void);
 
 /*!
  * \brief Get the Stasis message sanitizer for app_stasis applications

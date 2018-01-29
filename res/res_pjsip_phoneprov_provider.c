@@ -367,8 +367,6 @@ static int load_users(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	sorcery = ast_sip_get_sorcery();
 
 	ast_sorcery_apply_config(sorcery, "res_pjsip_phoneprov_provider");

@@ -3588,7 +3588,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	}
 
 	/* Reduce background noise from each participant */
-	if (!ast_test_flag64(confflags, CONFFLAG_DONT_DENOISE) && ast_module_check("func_speex.so")) {
+	if (!ast_test_flag64(confflags, CONFFLAG_DONT_DENOISE)) {
 		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
@@ -8085,4 +8085,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MeetMe conference bri
 	.unload = unload_module,
 	.reload = reload,
 	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
+	.optional_modules = "func_speex",
 );

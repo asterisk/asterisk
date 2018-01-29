@@ -196,7 +196,6 @@ int ast_ari_add_handler(struct stasis_rest_handlers *handler)
 	ao2_cleanup(root_handler);
 	ao2_ref(new_handler, +1);
 	root_handler = new_handler;
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -222,7 +221,6 @@ int ast_ari_remove_handler(struct stasis_rest_handlers *handler)
 	memcpy(new_handler, root_handler, sizeof(*new_handler));
 	for (i = 0, j = 0; i < root_handler->num_children; ++i) {
 		if (root_handler->children[i] == handler) {
-			ast_module_unref(ast_module_info->self);
 			continue;
 		}
 		new_handler->children[j++] = root_handler->children[i];

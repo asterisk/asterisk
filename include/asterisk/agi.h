@@ -82,13 +82,12 @@ AST_OPTIONAL_API(int, ast_agi_register,
  *
  * Unregisters an AGI command.
  *
- * \param mod Pointer to the module_info structure for the module that is unregistering the command
  * \param cmd Pointer to the descriptor for the command
  * \return 1 on success, 0 if the command was not already registered
  *
  */
 AST_OPTIONAL_API(int, ast_agi_unregister,
-		 (struct ast_module *mod, agi_command *cmd),
+		 (agi_command *cmd),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!
@@ -116,7 +115,6 @@ AST_OPTIONAL_API(int, ast_agi_register_multiple,
  * Unregisters a group of AGI commands, provided as an array of struct agi_command
  * entries.
  *
- * \param mod Pointer to the module_info structure for the module that is unregistering the commands
  * \param cmd Pointer to the first entry in the array of command descriptors
  * \param len Length of the array (use the ARRAY_LEN macro to determine this easily)
  * \return 0 on success, -1 on failure, AST_OPTIONAL_API_UNAVAILABLE if res_agi is not loaded
@@ -125,7 +123,7 @@ AST_OPTIONAL_API(int, ast_agi_register_multiple,
  * remaining commands in the array; it will not reregister the already-unregistered commands.
  */
 AST_OPTIONAL_API(int, ast_agi_unregister_multiple,
-		 (struct ast_module *mod, struct agi_command *cmd, unsigned int len),
+		 (struct agi_command *cmd, unsigned int len),
 		 { return AST_OPTIONAL_API_UNAVAILABLE; });
 
 /*!

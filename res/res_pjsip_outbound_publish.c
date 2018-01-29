@@ -345,7 +345,6 @@ AST_RWLIST_HEAD_STATIC(publisher_handlers, ast_sip_event_publisher_handler);
 static void sub_add_handler(struct ast_sip_event_publisher_handler *handler)
 {
 	AST_RWLIST_INSERT_TAIL(&publisher_handlers, handler, next);
-	ast_module_ref(ast_module_info->self);
 }
 
 static struct ast_sip_event_publisher_handler *find_publisher_handler_for_event_name(const char *event_name)
@@ -643,7 +642,6 @@ void ast_sip_unregister_event_publisher_handler(struct ast_sip_event_publisher_h
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&publisher_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -1643,8 +1641,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	/* As of pjproject 2.4.5, PJSIP_MAX_URL_SIZE isn't exposed yet but we try anyway. */
 	ast_pjproject_get_buildopt("PJSIP_MAX_URL_SIZE", "%d", &pjsip_max_url_size);
 

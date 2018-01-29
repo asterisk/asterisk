@@ -1562,7 +1562,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 		return -1;
 	}
 
-	internal_sip_register_endpoint_formatter(&contact_status_formatter);
+	ast_sip_register_endpoint_formatter(&contact_status_formatter);
 	ast_manager_register_xml("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify);
 	ast_manager_register_xml("PJSIPShowContacts", EVENT_FLAG_SYSTEM, ami_show_contacts);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
@@ -1578,7 +1578,7 @@ void ast_res_pjsip_cleanup_options_handling(void)
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_unregister("PJSIPQualify");
 	ast_manager_unregister("PJSIPShowContacts");
-	internal_sip_unregister_endpoint_formatter(&contact_status_formatter);
+	ast_sip_unregister_endpoint_formatter(&contact_status_formatter);
 
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "aor", &observer_callbacks_options);
 	pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);

@@ -32,7 +32,7 @@
 
 AST_RWLIST_HEAD_STATIC(session_supplements, ast_sip_session_supplement);
 
-void internal_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
+void ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
 {
 	struct ast_sip_session_supplement *iter;
 	int inserted = 0;
@@ -56,39 +56,18 @@ void internal_sip_session_register_supplement(struct ast_sip_session_supplement 
 	}
 }
 
-int __ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement,
-	const char *file, int line, const char *func)
-{
-	internal_sip_session_register_supplement(supplement);
-	__ast_module_ref(AST_MODULE_SELF, file, line, func);
-
-	return 0;
-}
-
-int internal_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement)
+void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement)
 {
 	struct ast_sip_session_supplement *iter;
-	int res = -1;
 	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&session_supplements, iter, next) {
 		if (supplement == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-
-	return res;
-}
-
-void __ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *supplement,
-	const char *file, int line, const char *func)
-{
-	if (!internal_sip_session_unregister_supplement(supplement)) {
-		__ast_module_unref(AST_MODULE_SELF, file, line, func);
-	}
 }
 
 static struct ast_sip_session_supplement *supplement_dup(const struct ast_sip_session_supplement *src)

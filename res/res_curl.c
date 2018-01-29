@@ -46,33 +46,11 @@
 
 #include "asterisk/module.h"
 
-static const char *dependents[] = {
-	"func_curl.so",
-	"res_config_curl.so",
-	"res_http_media_cache.so",
-};
-
 static int unload_module(void)
 {
-	int res = 0;
-	size_t i;
-
-	/* If the dependent modules are still in memory, forbid unload */
-	for (i = 0; i < ARRAY_LEN(dependents); i++) {
-		if (ast_module_check(dependents[i])) {
-			if (!ast_shutting_down()) {
-				ast_log(LOG_WARNING, "%s (dependent module) is still loaded.  Cannot unload res_curl.so\n", dependents[i]);
-			}
-			res = -1;
-		}
-	}
-
-	if (res)
-		return -1;
-
 	curl_global_cleanup();
 
-	return res;
+	return 0;
 }
 
 static int load_module(void)

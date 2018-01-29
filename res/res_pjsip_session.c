@@ -124,7 +124,7 @@ int ast_sip_session_register_sdp_handler(struct ast_sip_session_sdp_handler *han
 		}
 		AST_LIST_INSERT_TAIL(&handler_list->list, handler, next);
 		ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type);
-		ast_module_ref(ast_module_info->self);
+
 		return 0;
 	}
 
@@ -141,7 +141,7 @@ int ast_sip_session_register_sdp_handler(struct ast_sip_session_sdp_handler *han
 		return -1;
 	}
 	ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type);
-	ast_module_ref(ast_module_info->self);
+
 	return 0;
 }
 
@@ -156,7 +156,6 @@ static int remove_handler(void *obj, void *arg, void *data, int flags)
 		if (!strcmp(iter->id, handler->id)) {
 			AST_LIST_REMOVE_CURRENT(next);
 			ast_debug(1, "Unregistered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type);
-			ast_module_unref(ast_module_info->self);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -4155,8 +4154,6 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 static int load_module(void)
 {
 	pjsip_endpoint *endpt;
-
-	CHECK_PJSIP_MODULE_LOADED();
 
 	if (!ast_sip_get_sorcery() || !ast_sip_get_pjsip_endpoint()) {
 		return AST_MODULE_LOAD_DECLINE;

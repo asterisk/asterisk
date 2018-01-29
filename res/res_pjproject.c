@@ -280,16 +280,6 @@ void ast_pjproject_log_intercept_end(void)
 	ast_mutex_unlock(&pjproject_log_intercept_lock);
 }
 
-void ast_pjproject_ref(void)
-{
-	ast_module_ref(ast_module_info->self);
-}
-
-void ast_pjproject_unref(void)
-{
-	ast_module_unref(ast_module_info->self);
-}
-
 static char *handle_pjproject_show_buildopts(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i;

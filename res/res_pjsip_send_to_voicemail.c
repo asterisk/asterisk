@@ -215,12 +215,7 @@ static struct ast_sip_session_supplement refer_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
-	if (ast_sip_session_register_supplement(&refer_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register Send to Voicemail supplement\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	ast_sip_session_register_supplement(&refer_supplement);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

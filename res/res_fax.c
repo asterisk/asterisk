@@ -978,7 +978,6 @@ int ast_fax_tech_register(struct ast_fax_tech *tech)
 	AST_RWLIST_WRLOCK(&faxmodules);
 	AST_RWLIST_INSERT_TAIL(&faxmodules, fax, list);
 	AST_RWLIST_UNLOCK(&faxmodules);
-	ast_module_ref(ast_module_info->self);
 
 	ast_verb(3, "Registered handler for '%s' (%s)\n", fax->tech->type, fax->tech->description);
 
@@ -998,7 +997,6 @@ void ast_fax_tech_unregister(struct ast_fax_tech *tech)
 			continue;
 		}
 		AST_RWLIST_REMOVE_CURRENT(list);
-		ast_module_unref(ast_module_info->self);
 		ast_free(fax);
 		ast_verb(4, "Unregistered FAX module type '%s'\n", tech->type);
 		break;
