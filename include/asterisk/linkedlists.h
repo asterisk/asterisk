@@ -854,7 +854,7 @@ struct {								\
  */
 #define AST_LIST_REMOVE(head, elm, field)						\
 	({															\
-		__typeof(elm) __elm = (elm);							\
+		typeof(elm) __elm = (elm);								\
 		if (__elm) {											\
 			if ((head)->first == __elm) {						\
 				(head)->first = __elm->field.next;				\
