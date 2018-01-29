@@ -1394,7 +1394,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		}
 		AST_VECTOR_FREE(&missing);
 
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!ast_fully_booted) {
@@ -1580,6 +1580,7 @@ static int start_resource_list(struct module_vector *resources, int *mod_count)
 		struct ast_module *mod = AST_VECTOR_REMOVE(resources, 0, 1);
 		enum ast_module_load_result lres;
 
+retry_load:
 		lres = start_resource_attempt(mod, mod_count);
 		if (lres == AST_MODULE_LOAD_SUCCESS) {
 			/* No missing dependencies, successful. */
@@ -1598,13 +1599,18 @@ static int start_resource_list(struct module_vector *resources, int *mod_count)
 
 		res = module_deps_missing_recursive(mod, &missingdeps);
 		if (res) {
-			break;
+			AST_VECTOR_RESET(&missingdeps, AST_VECTOR_ELEM_CLEANUP_NOOP);
+			ast_log(LOG_ERROR, "Failed to resolve dependencies for %s\n", ast_module_name(mod));
+			mod->flags.declined = 1;
+
+			continue;
 		}
 
 		if (!AST_VECTOR_SIZE(&missingdeps)) {
-			ast_log(LOG_WARNING, "%s isn't missing any dependencies but still didn't start\n",
-				ast_module_name(mod));
-			/* Dependencies were met but the module failed to start. */
+			ast_log(LOG_WARNING, "%s load function returned an invalid result. "
+				"This is a bug in the module.\n", ast_module_name(mod));
+			/* Dependencies were met but the module failed to start and the result
+			 * code was not AST_MODULE_LOAD_FAILURE or AST_MODULE_LOAD_DECLINE. */
 			res = -1;
 			break;
 		}
@@ -1637,17 +1643,17 @@ static int start_resource_list(struct module_vector *resources, int *mod_count)
 		}
 
 		if (AST_VECTOR_SIZE(&missingdeps)) {
-			ast_log(LOG_ERROR, "Failed to load %s due to unfilled dependencies.\n",
+			ast_log(LOG_WARNING, "Failed to load %s due to unfilled dependencies.\n",
 				ast_module_name(mod));
-			res = -1;
-			break;
+			mod->flags.declined = 1;
+			AST_VECTOR_RESET(&missingdeps, AST_VECTOR_ELEM_CLEANUP_NOOP);
+
+			continue;
 		}
 
-		res = start_resource_attempt(mod, mod_count);
-		if (res) {
-			ast_log(LOG_ERROR, "Failed to load %s: %d\n", ast_module_name(mod), res);
-			break;
-		}
+		/* If we're here it means that we started with missingdeps and they're all loaded
+		 * now.  It's impossible to reach this point a second time for the same module. */
+		goto retry_load;
 	}
 
 	AST_VECTOR_FREE(&missingdeps);
