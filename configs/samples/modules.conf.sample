@@ -29,12 +29,7 @@ autoload=yes
 ; If you want you can combine with preload
 ; preload-require = res_odbc.so
 ;
-; If you want, load the GTK console right away.
-;
-noload => pbx_gtkconsole.so
-;load => pbx_gtkconsole.so
-;
-load => res_musiconhold.so
+;load => res_musiconhold.so
 ;
 ; Load one of: chan_oss, alsa, or console (portaudio).
 ; By default, load chan_oss only (automatically).
