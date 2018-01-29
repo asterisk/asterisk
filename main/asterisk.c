@@ -4546,20 +4546,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_device_state_engine_init(), "Device State Engine");
 	check_init(ast_presence_state_engine_init(), "Presence State Engine");
 	check_init(ast_dns_system_resolver_init(), "Default DNS resolver");
-	check_init(load_modules(1), "Module Preload");
-	check_init(ast_features_init(), "Call Features");
-	check_init(dnsmgr_init(), "DNS manager");
 	check_init(ast_security_stasis_init(), "Security Stasis Topic and Events");
-	check_init(ast_named_acl_init(), "Named ACL system");
-
-	ast_http_init();		/* Start the HTTP server, if needed */
-
-	check_init(ast_indications_init(), "Indication Tone Handling");
-	check_init(ast_cdr_engine_init(), "CDR Engine");
-
-	ast_dsp_init();
-	ast_udptl_init();
-
 	check_init(ast_image_init(), "Image");
 	check_init(ast_file_init(), "Generic File Format Support");
 	check_init(load_pbx(), "load_pbx");
@@ -4570,10 +4557,27 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(load_pbx_app(), "PBX Application Support");
 	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
+
+	/* We should avoid most config loads before this point as they can't use realtime. */
+	check_init(load_modules(1), "Module Preload");
+
+	/* Initialize core modules that have config files.  These should be converted to
+	 * built-in modules with load priority after realtime, that way users will not
+	 * need to 'preload' realtime modules. */
+	check_init(ast_features_init(), "Call Features");
+	check_init(dnsmgr_init(), "DNS manager");
+	check_init(ast_named_acl_init(), "Named ACL system");
+	ast_http_init();
+	check_init(ast_indications_init(), "Indication Tone Handling");
+	check_init(ast_cdr_engine_init(), "CDR Engine");
+	ast_dsp_init();
+	ast_udptl_init();
 	check_init(ast_cel_engine_init(), "CEL Engine");
 	check_init(init_manager(), "Asterisk Manager Interface");
 	check_init(ast_enum_init(), "ENUM Support");
 	check_init(ast_cc_init(), "Call Completion Supplementary Services");
+
+	/* Load remaining modules */
 	check_init(load_modules(0), "Module");
 
 	/*
