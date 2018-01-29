@@ -19,10 +19,7 @@ EOF
 
 XMLSTARLET=`getvar XMLSTARLET`
 ASTMODDIR=`getvar ASTMODDIR`
-cache_dir=`getvar EXTERNALS_CACHE_DIR`
-DOWNLOAD_TO_STDOUT=`getvar DOWNLOAD_TO_STDOUT`
 HOST_CPU=`getvar HOST_CPU`
-INSTALL=`getvar INSTALL`
 
 tmpdir=$(mktemp -d)
 if [[ -z "${tmpdir}" ]] ; then
