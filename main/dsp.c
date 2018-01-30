@@ -122,12 +122,19 @@ static struct progress {
 	{ GSAMP_SIZE_UK, { 350, 400, 440 } },				/*!< UK */
 };
 
-/*!\brief This value is the minimum threshold, calculated by averaging all
- * of the samples within a frame, for which a frame is determined to either
- * be silence (below the threshold) or noise (above the threshold).  Please
- * note that while the default threshold is an even exponent of 2, there is
- * no requirement that it be so.  The threshold will accept any value between
- * 0 and 32767.
+/*!
+ * \brief Default minimum average magnitude threshold to determine talking/noise by the DSP.
+ *
+ * \details
+ * The magnitude calculated for this threshold is determined by
+ * averaging the absolute value of all samples within a frame.
+ *
+ * This value is the threshold for which a frame's average magnitude
+ * is determined to either be silence (below the threshold) or
+ * noise/talking (at or above the threshold).  Please note that while
+ * the default threshold is an even exponent of 2, there is no
+ * requirement that it be so.  The threshold will work for any value
+ * between 1 and 2^15.
  */
 #define DEFAULT_THRESHOLD	512
 
@@ -397,7 +404,9 @@ typedef struct {
 struct ast_dsp {
 	struct ast_frame f;
 	int threshold;
+	/*! Accumulated total silence in ms since last talking/noise. */
 	int totalsilence;
+	/*! Accumulated total talking/noise in ms since last silence. */
 	int totalnoise;
 	int features;
 	int ringtimeout;
