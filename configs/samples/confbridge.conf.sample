@@ -49,59 +49,67 @@ type=user
                        ; noise from the conference. Highly recommended for large conferences
                        ; due to its performance enhancements.
 
-;dsp_talking_threshold=128  ; The time in milliseconds of sound above what the dsp has
-                            ; established as base line silence for a user before a user
-                            ; is considered to be talking.  This value affects several
+;dsp_talking_threshold=128  ; Average magnitude threshold to determine talking.
+                            ;
+                            ; The minimum average magnitude per sample in a frame for the
+                            ; DSP to consider talking/noise present.  A value below this
+                            ; level is considered silence.  This value affects several
                             ; operations and should not be changed unless the impact on
                             ; call quality is fully understood.
                             ;
                             ; What this value affects internally:
                             ;
-                            ; 1. Audio is only mixed out of a user's incoming audio stream
-                            ;    if talking is detected.  If this value is set too
-                            ;    loose the user will hear themselves briefly each
-                            ;    time they begin talking until the dsp has time to
-                            ;    establish that they are in fact talking.
-                            ; 2. When talk detection AMI events are enabled, this value
-                            ;    determines when talking has begun which results in
-                            ;    an AMI event to fire.  If this value is set too tight
-                            ;    AMI events may be falsely triggered by variants in
-                            ;    room noise.
-                            ; 3. The drop_silence option depends on this value to determine
-                            ;    when the user's audio should be mixed into the bridge
-                            ;    after periods of silence.  If this value is too loose
-                            ;    the beginning of a user's speech will get cut off as they
-                            ;    transition from silence to talking.
+                            ; 1. Audio is only mixed out of a user's incoming audio
+                            ;    stream if talking is detected.  If this value is set too
+                            ;    high the user will hear himself talking.
                             ;
-                            ; By default this value is 160 ms. Valid values are 1 through 2^31
+                            ; 2. When talk detection AMI events are enabled, this value
+                            ;    determines when talking has begun which results in an
+                            ;    AMI event to fire.  If this value is set too low AMI
+                            ;    events may be falsely triggered by variants in room
+                            ;    noise.
+                            ;
+                            ; 3. The 'drop_silence' option depends on this value to
+                            ;    determine when the user's audio should be mixed into the
+                            ;    bridge after periods of silence.  If this value is too
+                            ;    high the user's speech will get discarded as they will
+                            ;    be considered silent.
+                            ;
+                            ; Valid values are 1 through 2^15.
+                            ; By default this value is 160.
 
-;dsp_silence_threshold=2000 ; The time in milliseconds of sound falling within the what
-                            ; the dsp has established as baseline silence before a user
-                            ; is considered be silent.  This value affects several
-                            ; operations and should not be changed unless the impact
-                            ; on call quality is fully understood.
+;dsp_silence_threshold=2000 ; The number of milliseconds of silence necessary to declare
+                            ; talking stopped.
+                            ;
+                            ; The time in milliseconds of sound falling below the
+                            ; 'dsp_talking_threshold' option when a user is considered to
+                            ; stop talking.  This value affects several operations and
+                            ; should not be changed unless the impact on call quality is
+                            ; fully understood.
                             ;
                             ; What this value affects internally:
                             ;
                             ; 1. When talk detection AMI events are enabled, this value
                             ;    determines when the user has stopped talking after a
-                            ;    period of talking.  If this value is set too low
-                            ;    AMI events indicating the user has stopped talking
-                            ;    may get falsely sent out when the user briefly pauses
-                            ;    during mid sentence.
-                            ; 2. The drop_silence option depends on this value to
+                            ;    period of talking.  If this value is set too low AMI
+                            ;    events indicating the user has stopped talking may get
+                            ;    falsely sent out when the user briefly pauses during mid
+                            ;    sentence.
+                            ;
+                            ; 2. The 'drop_silence' option depends on this value to
                             ;    determine when the user's audio should begin to be
-                            ;    dropped from the conference bridge after the user
-                            ;    stops talking.  If this value is set too low the user's
-                            ;    audio stream may sound choppy to the other participants.
-                            ;    This is caused by the user transitioning constantly from
+                            ;    dropped from the conference bridge after the user stops
+                            ;    talking.  If this value is set too low the user's audio
+                            ;    stream may sound choppy to the other participants.  This
+                            ;    is caused by the user transitioning constantly from
                             ;    silence to talking during mid sentence.
                             ;
-                            ; The best way to approach this option is to set it slightly above
-                            ; the maximum amount of ms of silence a user may generate during
-                            ; natural speech.
+                            ; The best way to approach this option is to set it slightly
+                            ; above the maximum amount of milliseconds of silence a user
+                            ; may generate during natural speech.
                             ;
-                            ; By default this value is 2500ms. Valid values are 1 through 2^31
+                            ; Valid values are 1 through 2^31.
+                            ; By default this value is 2500ms.
 
 ;talk_detection_events=yes ; This option sets whether or not notifications of when a user
                            ; begins and ends talking should be sent out as events over AMI.

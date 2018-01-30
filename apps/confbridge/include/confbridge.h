@@ -41,7 +41,10 @@
 #define DEFAULT_BRIDGE_PROFILE "default_bridge"
 #define DEFAULT_MENU_PROFILE "default_menu"
 
+/*! Default minimum average magnitude threshold to determine talking by the DSP. */
 #define DEFAULT_TALKING_THRESHOLD 160
+
+/*! Default time in ms of silence necessary to declare talking stopped by the bridge. */
 #define DEFAULT_SILENCE_THRESHOLD 2500
 
 enum user_profile_flags {
@@ -136,9 +139,9 @@ struct user_profile {
 	char announcement[PATH_MAX];
 	unsigned int flags;
 	unsigned int announce_user_count_all_after;
-	/*! The time in ms of talking before a user is considered to be talking by the dsp. */
+	/*! Minimum average magnitude threshold to determine talking by the DSP. */
 	unsigned int talking_threshold;
-	/*! The time in ms of silence before a user is considered to be silent by the dsp. */
+	/*! Time in ms of silence necessary to declare talking stopped by the bridge. */
 	unsigned int silence_threshold;
 	/*! The time in ms the user may stay in the confbridge */
 	unsigned int timeout;
