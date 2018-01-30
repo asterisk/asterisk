@@ -87,7 +87,7 @@ void ast_dsp_free(struct ast_dsp *dsp);
  * created with */
 unsigned int ast_dsp_get_sample_rate(const struct ast_dsp *dsp);
 
-/*! \brief Set threshold value for silence */
+/*! \brief Set the minimum average magnitude threshold to determine talking by the DSP. */
 void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);
 
 /*! \brief Set number of required cadences for busy */
@@ -106,19 +106,41 @@ int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
    busies, and call progress, all dependent upon which features are enabled */
 struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf);
 
-/*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
-   number of seconds of silence  */
+/*!
+ * \brief Process the audio frame for silence.
+ *
+ * \param dsp DSP processing audio media.
+ * \param f Audio frame to process.
+ * \param totalsilence Variable to set to the total accumulated silence in ms
+ * seen by the DSP since the last noise.
+ *
+ * \return Non-zero if the frame is silence.
+ */
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence);
 
-/*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
-   number of seconds of silence. Returns the average energy of the samples in the frame
-   in frames_energy variable. */
+/*!
+ * \brief Process the audio frame for silence.
+ *
+ * \param dsp DSP processing audio media.
+ * \param f Audio frame to process.
+ * \param totalsilence Variable to set to the total accumulated silence in ms
+ * seen by the DSP since the last noise.
+ * \param frames_energy Variable to set to the average energy of the samples in the frame.
+ *
+ * \return Non-zero if the frame is silence.
+ */
 int ast_dsp_silence_with_energy(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence, int *frames_energy);
 
 /*!
- * \brief Return non-zero if this is noise.  Updates "totalnoise" with the total
- * number of seconds of noise
+ * \brief Process the audio frame for noise.
  * \since 1.6.1
+ *
+ * \param dsp DSP processing audio media.
+ * \param f Audio frame to process.
+ * \param totalnoise Variable to set to the total accumulated noise in ms
+ * seen by the DSP since the last silence.
+ *
+ * \return Non-zero if the frame is silence.
  */
 int ast_dsp_noise(struct ast_dsp *dsp, struct ast_frame *f, int *totalnoise);
 
