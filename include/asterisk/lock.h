@@ -617,107 +617,39 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
 
-/*
- * Support for atomic instructions.
- * For platforms that have it, use the native cpu instruction to
- * implement them. For other platforms, resort to a 'slow' version
- * (defined in utils.c) that protects the atomic instruction with
- * a single lock.
- * The slow versions is always available, for testing purposes,
- * as ast_atomic_fetchadd_int_slow()
- */
-
-int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
+/* Support for atomic instructions. */
 
 #include "asterisk/inline_api.h"
 
-#if defined(HAVE_OSX_ATOMICS)
-#include "libkern/OSAtomic.h"
+#if defined(HAVE_C_ATOMICS)
+#define ast_atomic_fetch_add(p, v, memorder)  __atomic_fetch_add(p, v, memorder)
+#define ast_atomic_sub_fetch(p, v, memorder)  __atomic_sub_fetch(p, v, memorder)
+#elif defined(HAVE_GCC_ATOMICS)
+#define ast_atomic_fetch_add(p, v, memorder)  __sync_fetch_and_add(p, v)
+#define ast_atomic_sub_fetch(p, v, memorder)  __sync_sub_and_fetch(p, v)
+#else
+#error "Atomics not available."
 #endif
 
-/*! \brief Atomically add v to *p and return * the previous value of *p.
+/*!
+ * \brief Atomically add v to *p and return the previous value of *p.
+ *
  * This can be used to handle reference counts, and the return value
  * can be used to generate unique identifiers.
  */
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return ast_atomic_fetch_add(p, v, __ATOMIC_RELAXED);
+})
 
-#if defined(HAVE_C_ATOMICS)
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	return __atomic_fetch_add(p, v, __ATOMIC_RELAXED);
-})
-#elif defined(HAVE_GCC_ATOMICS)
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	return __sync_fetch_and_add(p, v);
-})
-#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	return OSAtomicAdd32(v, (int32_t *) p) - v;
-})
-#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	return OSAtomicAdd64(v, (int64_t *) p) - v;
-})
-#elif defined (__i386__) || defined(__x86_64__)
-#ifdef sun
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	__asm __volatile (
-	"       lock;  xaddl   %0, %1 ;        "
-	: "+r" (v),                     /* 0 (result) */
-	  "=m" (*p)                     /* 1 */
-	: "m" (*p));                    /* 2 */
-	return (v);
-})
-#else /* ifndef sun */
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	__asm __volatile (
-	"       lock   xaddl   %0, %1 ;        "
-	: "+r" (v),                     /* 0 (result) */
-	  "=m" (*p)                     /* 1 */
-	: "m" (*p));                    /* 2 */
-	return (v);
-})
-#endif
-#else   /* low performance version in utils.c */
-AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
-{
-	return ast_atomic_fetchadd_int_slow(p, v);
-})
-#endif
-
-/*! \brief decrement *p by 1 and return true if the variable has reached 0.
+/*!
+ * \brief decrement *p by 1 and return true if the variable has reached 0.
+ *
  * Useful e.g. to check if a refcount has reached 0.
  */
-#if defined(HAVE_C_ATOMICS)
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
-	return __atomic_sub_fetch(p, 1, __ATOMIC_RELAXED) == 0;
+	return ast_atomic_sub_fetch(p, 1, __ATOMIC_RELAXED) == 0;
 })
-#elif defined(HAVE_GCC_ATOMICS)
-AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
-{
-	return __sync_sub_and_fetch(p, 1) == 0;
-})
-#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 4)
-AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
-{
-	return OSAtomicAdd32( -1, (int32_t *) p) == 0;
-})
-#elif defined(HAVE_OSX_ATOMICS) && (SIZEOF_INT == 8)
-AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
-{
-	return OSAtomicAdd64( -1, (int64_t *) p) == 0;
-})
-#else
-AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
-{
-	int a = ast_atomic_fetchadd_int(p, -1);
-	return a == 1; /* true if the value is 0 now (so it was 1 previously) */
-})
-#endif
 
 #endif /* _ASTERISK_LOCK_H */

@@ -1074,6 +1074,7 @@ AC_MSG_CHECKING(for compiler sync operations)
 AC_LINK_IFELSE(
 [AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);])],
 AC_MSG_RESULT(yes)
+ax_cv_have_gcc_atomics=1
 AC_DEFINE([HAVE_GCC_ATOMICS], 1, [Define to 1 if your GCC C compiler provides __sync atomic operations.]),
 AC_MSG_RESULT(no)
 )
@@ -1082,9 +1083,14 @@ AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 [AC_LANG_PROGRAM([], [int foo1; int foo2 = __atomic_fetch_add(&foo1, 1, __ATOMIC_RELAXED);])],
 AC_MSG_RESULT(yes)
+ax_cv_have_c_atomics=1
 AC_DEFINE([HAVE_C_ATOMICS], 1, [Define to 1 if your C compiler provides __atomic operations.]),
 AC_MSG_RESULT(no)
 )
+
+if test -z $ax_cv_have_c_atomics$ax_cv_have_gcc_atomics; then
+	AC_MSG_ERROR([*** Atomic operations are not supported by your compiler.])
+fi
 
 # glibc, AFAIK, is the only C library that makes printing a NULL to a string safe.
 AC_MSG_CHECKING([if your system printf is NULL-safe.])
@@ -1412,9 +1418,6 @@ AST_C_DEFINE_CHECK([GLOB_BRACE], [GLOB_BRACE], [glob.h])
 AST_C_DEFINE_CHECK([RTLD_NOLOAD], [RTLD_NOLOAD], [dlfcn.h])
 
 AST_C_DEFINE_CHECK([IP_MTU_DISCOVER], [IP_MTU_DISCOVER], [netinet/in.h])
-
-AC_CHECK_HEADER([libkern/OSAtomic.h],
-                [AC_DEFINE_UNQUOTED([HAVE_OSX_ATOMICS], 1, [Define to 1 if OSX atomic operations are supported.])])
 
 AC_CHECK_SIZEOF([int])
 AC_CHECK_SIZEOF([long])
