@@ -640,7 +640,12 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
  * can be used to generate unique identifiers.
  */
 
-#if defined(HAVE_GCC_ATOMICS)
+#if defined(HAVE_C_ATOMICS)
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return __atomic_fetch_add(p, v, __ATOMIC_RELAXED);
+})
+#elif defined(HAVE_GCC_ATOMICS)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return __sync_fetch_and_add(p, v);
@@ -687,7 +692,12 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 /*! \brief decrement *p by 1 and return true if the variable has reached 0.
  * Useful e.g. to check if a refcount has reached 0.
  */
-#if defined(HAVE_GCC_ATOMICS)
+#if defined(HAVE_C_ATOMICS)
+AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
+{
+	return __atomic_sub_fetch(p, 1, __ATOMIC_RELAXED) == 0;
+})
+#elif defined(HAVE_GCC_ATOMICS)
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
 	return __sync_sub_and_fetch(p, 1) == 0;

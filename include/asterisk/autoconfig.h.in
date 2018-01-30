@@ -188,6 +188,9 @@
 /* Define to 1 if you have the curses library. */
 #undef HAVE_CURSES
 
+/* Define to 1 if your C compiler provides __atomic operations. */
+#undef HAVE_C_ATOMICS
+
 /* Define if your system has the DAHDI headers. */
 #undef HAVE_DAHDI
 
@@ -292,7 +295,7 @@
 /* Define to 1 if you have the `ftruncate' function. */
 #undef HAVE_FTRUNCATE
 
-/* Define to 1 if your GCC C compiler provides atomic operations. */
+/* Define to 1 if your GCC C compiler provides __sync atomic operations. */
 #undef HAVE_GCC_ATOMICS
 
 /* Define to 1 if you have the `getcwd' function. */
