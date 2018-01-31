@@ -860,12 +860,17 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 {
 	struct softmix_channel *sc = bridge_channel->tech_pvt;
 	struct softmix_bridge_data *softmix_data = bridge->tech_pvt;
+	int silent = 0;
 	int totalsilence = 0;
 	int cur_energy = 0;
 	int silence_threshold = bridge_channel->tech_args.silence_threshold ?
 		bridge_channel->tech_args.silence_threshold :
 		DEFAULT_SOFTMIX_SILENCE_THRESHOLD;
-	char update_talking = -1;  /* if this is set to 0 or 1, tell the bridge that the channel has started or stopped talking. */
+	/*
+	 * If update_talking is set to 0 or 1, tell the bridge that the channel
+	 * has started or stopped talking.
+	 */
+	char update_talking = -1;
 
 	/* Write the frame into the conference */
 	ast_mutex_lock(&sc->lock);
@@ -893,7 +898,7 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 
 	/* The channel will be leaving soon if there is no dsp. */
 	if (sc->dsp) {
-		ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
+		silent = ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
 	}
 
 	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
@@ -910,15 +915,16 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 	}
 
 	if (totalsilence < silence_threshold) {
-		if (!sc->talking) {
+		if (!sc->talking && !silent) {
+			/* Tell the write process we have audio to be mixed out */
+			sc->talking = 1;
 			update_talking = 1;
 		}
-		sc->talking = 1; /* tell the write process we have audio to be mixed out */
 	} else {
 		if (sc->talking) {
+			sc->talking = 0;
 			update_talking = 0;
 		}
-		sc->talking = 0;
 	}
 
 	/* Before adding audio in, make sure we haven't fallen behind. If audio has fallen
@@ -928,9 +934,8 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 		ast_slinfactory_flush(&sc->factory);
 	}
 
-	/* If a frame was provided add it to the smoother, unless drop silence is enabled and this frame
-	 * is not determined to be talking. */
-	if (!(bridge_channel->tech_args.drop_silence && !sc->talking)) {
+	if (sc->talking || !bridge_channel->tech_args.drop_silence) {
+		/* Add frame to the smoother for mixing with other channels. */
 		ast_slinfactory_feed(&sc->factory, frame);
 	}
 
@@ -939,6 +944,38 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 
 	if (update_talking != -1) {
 		ast_bridge_channel_notify_talking(bridge_channel, update_talking);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Check for voice status updates.
+ * \since 13.20.0
+ *
+ * \param bridge Which bridge we are in
+ * \param bridge_channel Which channel we are checking
+ *
+ * \return Nothing
+ */
+static void softmix_bridge_check_voice(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	struct softmix_channel *sc = bridge_channel->tech_pvt;
+
+	if (sc->talking
+		&& bridge_channel->features->mute) {
+		/*
+		 * We were muted while we were talking.
+		 *
+		 * Immediately stop contributing to mixing
+		 * and report no longer talking.
+		 */
+		ast_mutex_lock(&sc->lock);
+		ast_slinfactory_flush(&sc->factory);
+		sc->talking = 0;
+		ast_mutex_unlock(&sc->lock);
+
+		/* Notify that we are no longer talking. */
+		ast_bridge_channel_notify_talking(bridge_channel, 0);
 	}
 }
 
@@ -1119,6 +1156,7 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	switch (frame->frametype) {
 	case AST_FRAME_NULL:
 		/* "Accept" the frame and discard it. */
+		softmix_bridge_check_voice(bridge, bridge_channel);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
 	case AST_FRAME_DTMF_END:
