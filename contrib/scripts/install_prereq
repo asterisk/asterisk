@@ -34,11 +34,21 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch python-dev"
 
-PACKAGES_RH="automake bzip2 gcc gcc-c++ patch ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
-PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel corosynclib-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
-PACKAGES_RH="$PACKAGES_RH sqlite-devel libsqlite3x-devel radiusclient-ng-devel portaudio-devel postgresql-devel libresample-devel neon-devel libical-devel"
-PACKAGES_RH="$PACKAGES_RH openldap-devel gmime22-devel sqlite2-devel mysql-devel bluez-libs-devel jack-audio-connection-kit-devel gsm-devel libedit-devel libuuid-devel"
-PACKAGES_RH="$PACKAGES_RH jansson-devel libsrtp-devel pjproject-devel subversion git libxslt-devel python-devel"
+# Basic build system:
+PACKAGES_RH="make gcc gcc-c++ pkgconfig"
+# Asterisk: basic requirements:
+PACKAGES_RH="$PACKAGES_RH libedit-devel jansson-devel libuuid-devel sqlite-devel libxml2-devel"
+# Asterisk: for addons:
+PACKAGES_RH="$PACKAGES_RH speex-devel speexdsp-devel libogg-devel libvorbis-devel alsa-lib-devel portaudio-devel libcurl-devel xmlstarlet bison flex"
+PACKAGES_RH="$PACKAGES_RH postgresql-devel unixODBC-devel libtool-ltdl-devel neon-devel gmime-devel lua-devel uriparser-devel libxslt-devel openssl-devel"
+PACKAGES_RH="$PACKAGES_RH mysql-devel bluez-libs-devel radcli-devel freetds-devel jack-audio-connection-kit-devel bash"
+PACKAGES_RH="$PACKAGES_RH net-snmp-devel iksemel-devel corosynclib-devel newt-devel popt-devel libical-devel spandsp-devel"
+PACKAGES_RH="$PACKAGES_RH libresample-devel uw-imap-devel binutils-devel libsrtp-devel gsm-devel doxygen graphviz zlib-devel openldap-devel hoard"
+PACKAGES_RH="$PACKAGES_RH codec2-devel fftw-devel libsndfile-devel unbound-devel"
+# Asterisk: for the unpackaged below:
+PACKAGES_RH="$PACKAGES_RH wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_RH="$PACKAGES_RH bzip2 patch python-devel"
 
 PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack libxslt"
 PACKAGES_FBSD="autoconf gcc binutils popt gmake wget libxml2 libogg libvorbis curl iksemel spandsp speex unixODBC freetds-devel mysql55-client gmime2 sqlite"
