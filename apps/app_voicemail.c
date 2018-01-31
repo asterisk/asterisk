@@ -3482,7 +3482,7 @@ static struct vm_state *get_vm_state_by_imapuser(const char *user, int interacti
 	if (interactive) {
 		struct vm_state *vms;
 		pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
-		if ((vms = pthread_getspecific(ts_vmstate.key)) && vms->imapuser && !strcmp(vms->imapuser, user)) {
+		if ((vms = pthread_getspecific(ts_vmstate.key)) && !strcmp(vms->imapuser, user)) {
 			return vms;
 		}
 	}
@@ -3494,10 +3494,6 @@ static struct vm_state *get_vm_state_by_imapuser(const char *user, int interacti
 			continue;
 		}
 		if (vlist->vms->imapversion != imapversion) {
-			continue;
-		}
-		if (!vlist->vms->imapuser) {
-			ast_debug(3, "error: imapuser is NULL for %s\n", user);
 			continue;
 		}
 
@@ -3522,7 +3518,7 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char 
 	if (interactive) {
 		struct vm_state *vms;
 		pthread_once(&ts_vmstate.once, ts_vmstate.key_init);
-		if ((vms = pthread_getspecific(ts_vmstate.key)) && vms->username && vms->context &&
+		if ((vms = pthread_getspecific(ts_vmstate.key)) &&
 		    !strcmp(vms->username,mailbox) && !strcmp(vms->context, local_context)) {
 			return vms;
 		}
@@ -3535,10 +3531,6 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, const char 
 			continue;
 		}
 		if (vlist->vms->imapversion != imapversion) {
-			continue;
-		}
-		if (!vlist->vms->username || !vlist->vms->context) {
-			ast_debug(3, "error: username is NULL for %s\n", mailbox);
 			continue;
 		}
 
