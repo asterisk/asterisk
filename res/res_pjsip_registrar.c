@@ -25,6 +25,7 @@
 
 #include "asterisk.h"
 
+#include <signal.h>
 #include <pjsip.h>
 #include <pjsip_ua.h>
 
