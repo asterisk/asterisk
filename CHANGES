@@ -44,6 +44,12 @@ res_pjsip_endpoint_identifier_ip
    you can now predict which endpoint is matched when a request comes in that
    matches both.
 
+res_pjsip_registrar_expire
+------------------
+ * The res_pjsip_registrar_expire module is now deprecated and will be removed
+   from Asterisk 16.  The existing functionality was moved into
+   res_pjsip_registrar.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.18.0 to Asterisk 13.19.0 ----------
 ------------------------------------------------------------------------------
