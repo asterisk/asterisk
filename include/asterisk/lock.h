@@ -617,19 +617,108 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
 
-/* Support for atomic instructions. */
+/*!
+ * \brief Support for atomic instructions.
+ *
+ * These macros implement a uniform interface to use built-in atomic functionality.
+ * If available __atomic built-ins are prefered.  Legacy __sync built-ins are used
+ * as a fallback for older compilers.
+ *
+ * Detailed documentation can be found in the GCC manual, all API's are modeled after
+ * the __atomic interfaces but using the namespace ast_atomic.
+ *
+ * The memorder argument is always ignored by legacy __sync functions.  Invalid
+ * memorder arguments do not produce errors unless __atomic functions are supported
+ * as the argument is erased by the preprocessor.
+ *
+ * \note ast_atomic_fetch_nand and ast_atomic_nand_fetch purposely do not exist.
+ *       It's implementation was broken prior to gcc-4.4.
+ *
+ * @{
+ */
 
 #include "asterisk/inline_api.h"
 
 #if defined(HAVE_C_ATOMICS)
-#define ast_atomic_fetch_add(p, v, memorder)  __atomic_fetch_add(p, v, memorder)
-#define ast_atomic_sub_fetch(p, v, memorder)  __atomic_sub_fetch(p, v, memorder)
+/*! Atomic += */
+#define ast_atomic_fetch_add(ptr, val, memorder)  __atomic_fetch_add((ptr), (val), (memorder))
+#define ast_atomic_add_fetch(ptr, val, memorder)  __atomic_add_fetch((ptr), (val), (memorder))
+
+/*! Atomic -= */
+#define ast_atomic_fetch_sub(ptr, val, memorder)  __atomic_fetch_sub((ptr), (val), (memorder))
+#define ast_atomic_sub_fetch(ptr, val, memorder)  __atomic_sub_fetch((ptr), (val), (memorder))
+
+/*! Atomic &= */
+#define ast_atomic_fetch_and(ptr, val, memorder)  __atomic_fetch_and((ptr), (val), (memorder))
+#define ast_atomic_and_fetch(ptr, val, memorder)  __atomic_and_fetch((ptr), (val), (memorder))
+
+/*! Atomic |= */
+#define ast_atomic_fetch_or(ptr, val, memorder)   __atomic_fetch_or((ptr), (val), (memorder))
+#define ast_atomic_or_fetch(ptr, val, memorder)   __atomic_or_fetch((ptr), (val), (memorder))
+
+/*! Atomic xor = */
+#define ast_atomic_fetch_xor(ptr, val, memorder)  __atomic_fetch_xor((ptr), (val), (memorder))
+#define ast_atomic_xor_fetch(ptr, val, memorder)  __atomic_xor_fetch((ptr), (val), (memorder))
+
+#if 0
+/* Atomic compare and swap
+ *
+ * See comments near the __atomic implementation for why this is disabled.
+ */
+#define ast_atomic_compare_exchange_n(ptr, expected, desired, success_memorder, failure_memorder) \
+	__atomic_compare_exchange_n((ptr), (expected), (desired), 0, success_memorder, failure_memorder)
+
+#define ast_atomic_compare_exchange(ptr, expected, desired, success_memorder, failure_memorder) \
+	__atomic_compare_exchange((ptr), (expected), (desired), 0, success_memorder, failure_memorder)
+#endif
+
 #elif defined(HAVE_GCC_ATOMICS)
-#define ast_atomic_fetch_add(p, v, memorder)  __sync_fetch_and_add(p, v)
-#define ast_atomic_sub_fetch(p, v, memorder)  __sync_sub_and_fetch(p, v)
+/*! Atomic += */
+#define ast_atomic_fetch_add(ptr, val, memorder)  __sync_fetch_and_add((ptr), (val))
+#define ast_atomic_add_fetch(ptr, val, memorder)  __sync_add_and_fetch((ptr), (val))
+
+/*! Atomic -= */
+#define ast_atomic_fetch_sub(ptr, val, memorder)  __sync_fetch_and_sub((ptr), (val))
+#define ast_atomic_sub_fetch(ptr, val, memorder)  __sync_sub_and_fetch((ptr), (val))
+
+/*! Atomic &= */
+#define ast_atomic_fetch_and(ptr, val, memorder)  __sync_fetch_and_and((ptr), (val))
+#define ast_atomic_and_fetch(ptr, val, memorder)  __sync_and_and_fetch((ptr), (val))
+
+/*! Atomic |= */
+#define ast_atomic_fetch_or(ptr, val, memorder)  __sync_fetch_and_or((ptr), (val))
+#define ast_atomic_or_fetch(ptr, val, memorder)  __sync_or_and_fetch((ptr), (val))
+
+/*! Atomic xor = */
+#define ast_atomic_fetch_xor(ptr, val, memorder)  __sync_fetch_and_xor((ptr), (val))
+#define ast_atomic_xor_fetch(ptr, val, memorder)  __sync_xor_and_fetch((ptr), (val))
+
+#if 0
+/* Atomic compare and swap
+ *
+ * The \a expected argument is a pointer, I'm guessing __atomic built-ins
+ * perform all memory reads/writes in a single atomic operation.  I don't
+ * believe this is possible to exactly replicate using __sync built-ins.
+ * Will need to determine potential use cases of this feature and write a
+ * wrapper which provides consistant behavior between __sync and __atomic
+ * implementations.
+ */
+#define ast_atomic_compare_exchange_n(ptr, expected, desired, success_memorder, failure_memorder) \
+	__sync_bool_compare_and_swap((ptr), *(expected), (desired))
+
+#define ast_atomic_compare_exchange(ptr, expected, desired, success_memorder, failure_memorder) \
+	__sync_bool_compare_and_swap((ptr), *(expected), *(desired))
+#endif
+
 #else
 #error "Atomics not available."
 #endif
+
+/*! Atomic flag set */
+#define ast_atomic_flag_set(ptr, val, memorder)   ast_atomic_fetch_or((ptr), (val), (memorder))
+
+/*! Atomic flag clear */
+#define ast_atomic_flag_clear(ptr, val, memorder) ast_atomic_fetch_and((ptr), ~(val), (memorder))
 
 /*!
  * \brief Atomically add v to *p and return the previous value of *p.
@@ -651,5 +740,7 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
 	return ast_atomic_sub_fetch(p, 1, __ATOMIC_RELAXED) == 0;
 })
+
+/*! @} */
 
 #endif /* _ASTERISK_LOCK_H */
