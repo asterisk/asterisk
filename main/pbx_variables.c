@@ -398,51 +398,74 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, struct ast_channel *c, struct varshead *headp, const char *templ, size_t *used)
 {
 	/* Substitutes variables into buf, based on string templ */
-	char *cp4 = NULL;
 	const char *whereweare;
-	int orig_size = 0;
-	int offset, offset2, isfunction;
-	const char *nextvar, *nextexp, *nextthing;
-	const char *vars, *vare;
-	char *finalvars;
-	int pos, brackets, needsub, len;
-	struct ast_str *substr1 = ast_str_create(16), *substr2 = NULL, *substr3 = ast_str_create(16);
+	struct ast_str *substr1 = ast_str_create(16);
+	struct ast_str *substr2 = NULL;
+	struct ast_str *substr3 = ast_str_create(16);
 
 	ast_str_reset(*buf);
+
+	if (!substr1 || !substr3) {
+		if (used) {
+			*used = ast_str_strlen(*buf);
+		}
+		ast_free(substr1);
+		ast_free(substr3);
+		return;
+	}
+
 	whereweare = templ;
 	while (!ast_strlen_zero(whereweare)) {
+		const char *nextvar = NULL;
+		const char *nextexp = NULL;
+		const char *nextthing;
+		const char *vars;
+		const char *vare;
+		char *finalvars;
+		int pos;
+		int brackets;
+		int needsub;
+		int len;
+
 		/* reset our buffer */
 		ast_str_reset(substr3);
 
-		/* Assume we're copying the whole remaining string */
-		pos = strlen(whereweare);
-		nextvar = NULL;
-		nextexp = NULL;
+		/* Determine how much simply needs to be copied to the output buf. */
 		nextthing = strchr(whereweare, '$');
 		if (nextthing) {
+			pos = nextthing - whereweare;
 			switch (nextthing[1]) {
 			case '{':
+				/* Variable substitution */
 				nextvar = nextthing;
-				pos = nextvar - whereweare;
 				break;
 			case '[':
+				/* Expression substitution */
 				nextexp = nextthing;
-				pos = nextexp - whereweare;
 				break;
 			default:
-				pos = 1;
+				/* '$' is not part of a substitution so include it too. */
+				++pos;
+				break;
 			}
+		} else {
+			/* We're copying the whole remaining string */
+			pos = strlen(whereweare);
 		}
 
 		if (pos) {
 			/* Copy that many bytes */
 			ast_str_append_substr(buf, maxlen, whereweare, pos);
 
-			templ += pos;
 			whereweare += pos;
 		}
 
 		if (nextvar) {
+			int offset;
+			int offset2;
+			int isfunction;
+			int res;
+
 			/* We have a variable.  Find the start and end, and determine
 			   if we are going to have to recursively call ourselves on the
 			   contents */
@@ -454,33 +477,42 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 			while (brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
+					brackets++;
+					vare++;
 				} else if (vare[0] == '{') {
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
-				} else if ((vare[0] == '$') && (vare[1] == '['))
+				} else if ((vare[0] == '$') && (vare[1] == '[')) {
 					needsub++;
+					vare++;
+				}
 				vare++;
 			}
-			if (brackets)
+			len = vare - vars;
+			if (brackets) {
 				ast_log(LOG_WARNING, "Error in extension logic (missing '}')\n");
-			len = vare - vars - 1;
+			} else {
+				/* Don't count the closing '}' in the length. */
+				--len;
+			}
 
 			/* Skip totally over variable string */
-			whereweare += (len + 3);
+			whereweare = vare;
 
-			/* Store variable name (and truncate) */
+			/* Store variable name expression to lookup. */
 			ast_str_set_substr(&substr1, 0, vars, len);
 			ast_debug(5, "Evaluating '%s' (from '%s' len %d)\n", ast_str_buffer(substr1), vars, len);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
 				if (!substr2) {
 					substr2 = ast_str_create(16);
+					if (!substr2) {
+						continue;
+					}
 				}
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &my_used);
+				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), NULL);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
@@ -490,28 +522,32 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 			if (isfunction) {
 				/* Evaluate function */
 				if (c || !headp) {
-					cp4 = ast_func_read2(c, finalvars, &substr3, 0) ? NULL : ast_str_buffer(substr3);
+					res = ast_func_read2(c, finalvars, &substr3, 0);
 				} else {
 					struct varshead old;
-					struct ast_channel *bogus = ast_dummy_channel_alloc();
+					struct ast_channel *bogus;
+
+					bogus = ast_dummy_channel_alloc();
 					if (bogus) {
-						memcpy(&old, ast_channel_varshead(bogus), sizeof(old));
-						memcpy(ast_channel_varshead(bogus), headp, sizeof(*ast_channel_varshead(bogus)));
-						cp4 = ast_func_read2(c, finalvars, &substr3, 0) ? NULL : ast_str_buffer(substr3);
+						old = *ast_channel_varshead(bogus);
+						*ast_channel_varshead(bogus) = *headp;
+						res = ast_func_read2(bogus, finalvars, &substr3, 0);
 						/* Don't deallocate the varshead that was passed in */
-						memcpy(ast_channel_varshead(bogus), &old, sizeof(*ast_channel_varshead(bogus)));
+						*ast_channel_varshead(bogus) = old;
 						ast_channel_unref(bogus);
 					} else {
-						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
+						ast_log(LOG_ERROR, "Unable to allocate bogus channel for function value substitution.\n");
+						res = -1;
 					}
 				}
-				ast_debug(2, "Function %s result is '%s'\n", finalvars, cp4 ? cp4 : "(null)");
+				ast_debug(2, "Function %s result is '%s'\n",
+					finalvars, res ? "" : ast_str_buffer(substr3));
 			} else {
 				/* Retrieve variable value */
 				ast_str_retrieve_variable(&substr3, 0, c, headp, finalvars);
-				cp4 = ast_str_buffer(substr3);
+				res = 0;
 			}
-			if (cp4) {
+			if (!res) {
 				ast_str_substring(substr3, offset, offset2);
 				ast_str_append(buf, maxlen, "%s", ast_str_buffer(substr3));
 			}
@@ -539,24 +575,29 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 				}
 				vare++;
 			}
-			if (brackets)
+			len = vare - vars;
+			if (brackets) {
 				ast_log(LOG_WARNING, "Error in extension logic (missing ']')\n");
-			len = vare - vars - 1;
+			} else {
+				/* Don't count the closing ']' in the length. */
+				--len;
+			}
 
 			/* Skip totally over expression */
-			whereweare += (len + 3);
+			whereweare = vare;
 
-			/* Store variable name (and truncate) */
+			/* Store expression to evaluate. */
 			ast_str_set_substr(&substr1, 0, vars, len);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
 				if (!substr2) {
 					substr2 = ast_str_create(16);
+					if (!substr2) {
+						continue;
+					}
 				}
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &my_used);
+				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), NULL);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
@@ -568,7 +609,9 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 			ast_str_append(buf, maxlen, "%s", ast_str_buffer(substr3));
 		}
 	}
-	*used = ast_str_strlen(*buf) - orig_size;
+	if (used) {
+		*used = ast_str_strlen(*buf);
+	}
 	ast_free(substr1);
 	ast_free(substr2);
 	ast_free(substr3);
@@ -576,49 +619,58 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 
 void ast_str_substitute_variables(struct ast_str **buf, ssize_t maxlen, struct ast_channel *chan, const char *templ)
 {
-	size_t used;
-	ast_str_substitute_variables_full(buf, maxlen, chan, NULL, templ, &used);
+	ast_str_substitute_variables_full(buf, maxlen, chan, NULL, templ, NULL);
 }
 
 void ast_str_substitute_variables_varshead(struct ast_str **buf, ssize_t maxlen, struct varshead *headp, const char *templ)
 {
-	size_t used;
-	ast_str_substitute_variables_full(buf, maxlen, NULL, headp, templ, &used);
+	ast_str_substitute_variables_full(buf, maxlen, NULL, headp, templ, NULL);
 }
 
 void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count, size_t *used)
 {
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
-	char *cp4 = NULL;
-	const char *whereweare, *orig_cp2 = cp2;
-	int length, offset, offset2, isfunction;
+	const char *whereweare;
+	const char *orig_cp2 = cp2;
 	char *workspace = NULL;
-	char *ltmp = NULL, *var = NULL;
-	char *nextvar, *nextexp, *nextthing;
-	char *vars, *vare;
-	int pos, brackets, needsub, len;
+	char *ltmp = NULL;
+	char *var = NULL;
 
 	*cp2 = 0; /* just in case nothing ends up there */
 	whereweare = cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
-		/* Assume we're copying the whole remaining string */
-		pos = strlen(whereweare);
-		nextvar = NULL;
-		nextexp = NULL;
+		char *nextvar = NULL;
+		char *nextexp = NULL;
+		char *nextthing;
+		char *vars;
+		char *vare;
+		int length;
+		int pos;
+		int brackets;
+		int needsub;
+		int len;
+
+		/* Determine how much simply needs to be copied to the output buf. */
 		nextthing = strchr(whereweare, '$');
 		if (nextthing) {
+			pos = nextthing - whereweare;
 			switch (nextthing[1]) {
 			case '{':
+				/* Variable substitution */
 				nextvar = nextthing;
-				pos = nextvar - whereweare;
 				break;
 			case '[':
+				/* Expression substitution */
 				nextexp = nextthing;
-				pos = nextexp - whereweare;
 				break;
 			default:
-				pos = 1;
+				/* '$' is not part of a substitution so include it too. */
+				++pos;
+				break;
 			}
+		} else {
+			/* We're copying the whole remaining string */
+			pos = strlen(whereweare);
 		}
 
 		if (pos) {
@@ -636,6 +688,11 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 		}
 
 		if (nextvar) {
+			int offset;
+			int offset2;
+			int isfunction;
+			char *cp4;
+
 			/* We have a variable.  Find the start and end, and determine
 			   if we are going to have to recursively call ourselves on the
 			   contents */
@@ -647,35 +704,41 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			while (brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
+					brackets++;
+					vare++;
 				} else if (vare[0] == '{') {
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
-				} else if ((vare[0] == '$') && (vare[1] == '['))
+				} else if ((vare[0] == '$') && (vare[1] == '[')) {
 					needsub++;
+					vare++;
+				}
 				vare++;
 			}
-			if (brackets)
+			len = vare - vars;
+			if (brackets) {
 				ast_log(LOG_WARNING, "Error in extension logic (missing '}')\n");
-			len = vare - vars - 1;
+			} else {
+				/* Don't count the closing '}' in the length. */
+				--len;
+			}
 
 			/* Skip totally over variable string */
-			whereweare += (len + 3);
+			whereweare = vare;
 
 			if (!var)
 				var = ast_alloca(VAR_BUF_SIZE);
 
-			/* Store variable name (and truncate) */
+			/* Store variable name expression to lookup (and truncate). */
 			ast_copy_string(var, vars, len + 1);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
 				if (!ltmp) {
 					ltmp = ast_alloca(VAR_BUF_SIZE);
 				}
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &my_used);
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
 				vars = ltmp;
 			} else {
 				vars = var;
@@ -693,16 +756,19 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 					cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 				else {
 					struct varshead old;
-					struct ast_channel *c = ast_dummy_channel_alloc();
-					if (c) {
-						memcpy(&old, ast_channel_varshead(c), sizeof(old));
-						memcpy(ast_channel_varshead(c), headp, sizeof(*ast_channel_varshead(c)));
-						cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+					struct ast_channel *bogus;
+
+					bogus = ast_dummy_channel_alloc();
+					if (bogus) {
+						old = *ast_channel_varshead(bogus);
+						*ast_channel_varshead(bogus) = *headp;
+						cp4 = ast_func_read(bogus, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
 						/* Don't deallocate the varshead that was passed in */
-						memcpy(ast_channel_varshead(c), &old, sizeof(*ast_channel_varshead(c)));
-						c = ast_channel_unref(c);
+						*ast_channel_varshead(bogus) = old;
+						ast_channel_unref(bogus);
 					} else {
-						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
+						ast_log(LOG_ERROR, "Unable to allocate bogus channel for function value substitution.\n");
+						cp4 = NULL;
 					}
 				}
 				ast_debug(2, "Function %s result is '%s'\n", vars, cp4 ? cp4 : "(null)");
@@ -745,34 +811,35 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 				}
 				vare++;
 			}
-			if (brackets)
+			len = vare - vars;
+			if (brackets) {
 				ast_log(LOG_WARNING, "Error in extension logic (missing ']')\n");
-			len = vare - vars - 1;
+			} else {
+				/* Don't count the closing ']' in the length. */
+				--len;
+			}
 
 			/* Skip totally over expression */
-			whereweare += (len + 3);
+			whereweare = vare;
 
 			if (!var)
 				var = ast_alloca(VAR_BUF_SIZE);
 
-			/* Store variable name (and truncate) */
+			/* Store expression to evaluate (and truncate). */
 			ast_copy_string(var, vars, len + 1);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
 				if (!ltmp) {
 					ltmp = ast_alloca(VAR_BUF_SIZE);
 				}
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &my_used);
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
 				vars = ltmp;
 			} else {
 				vars = var;
 			}
 
 			length = ast_expr(vars, cp2, count, c);
-
 			if (length) {
 				ast_debug(1, "Expression result is '%s'\n", cp2);
 				count -= length;
@@ -781,19 +848,19 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			}
 		}
 	}
-	*used = cp2 - orig_cp2;
+	if (used) {
+		*used = cp2 - orig_cp2;
+	}
 }
 
 void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
 {
-	size_t used;
-	pbx_substitute_variables_helper_full(c, (c) ? ast_channel_varshead(c) : NULL, cp1, cp2, count, &used);
+	pbx_substitute_variables_helper_full(c, (c) ? ast_channel_varshead(c) : NULL, cp1, cp2, count, NULL);
 }
 
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count)
 {
-	size_t used;
-	pbx_substitute_variables_helper_full(NULL, headp, cp1, cp2, count, &used);
+	pbx_substitute_variables_helper_full(NULL, headp, cp1, cp2, count, NULL);
 }
 
 /*! \brief CLI support for listing global variables in a parseable way */
