@@ -3426,8 +3426,12 @@ static void handle_incoming_before_media(pjsip_inv_session *inv,
 
 static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 {
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	struct ast_sip_session *session;
 	pjsip_event_id_e type;
+
+	if (ast_shutdown_final()) {
+		return;
+	}
 
 	if (e) {
 		print_debug_details(inv, NULL, e);
@@ -3436,6 +3440,7 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 		type = PJSIP_EVENT_UNKNOWN;
 	}
 
+	session = inv->mod_data[session_module.id];
 	if (!session) {
 		return;
 	}
@@ -3537,13 +3542,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 	struct ast_sip_session *session;
 	pjsip_tx_data *tdata;
 
-	/*
-	 * A race condition exists at shutdown where the res_pjsip_session can be
-	 * unloaded but this callback may still get called afterwards. In this case
-	 * the id may end up being -1 which is useless to us. To work around this
-	 * we store the current value and check/use it.
-	 */
-	if (id < 0) {
+	if (ast_shutdown_final()) {
 		return;
 	}
 
@@ -3992,9 +3991,14 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 
 static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_session *offer)
 {
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	struct ast_sip_session *session;
 	pjmedia_sdp_session *answer;
 
+	if (ast_shutdown_final()) {
+		return;
+	}
+
+	session = inv->mod_data[session_module.id];
 	if (handle_incoming_sdp(session, offer)) {
 		return;
 	}
@@ -4013,9 +4017,14 @@ static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_sess
 
 static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t status)
 {
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	struct ast_sip_session *session;
 	const pjmedia_sdp_session *local, *remote;
 
+	if (ast_shutdown_final()) {
+		return;
+	}
+
+	session = inv->mod_data[session_module.id];
 	if (!session || !session->channel) {
 		/*
 		 * If we don't have a session or channel then we really
@@ -4038,10 +4047,15 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 
 static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const pjsip_uri *target, const pjsip_event *e)
 {
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	struct ast_sip_session *session;
 	const pjsip_sip_uri *uri;
 
-	if (!session->channel) {
+	if (ast_shutdown_final()) {
+		return PJSIP_REDIRECT_STOP;
+	}
+
+	session = inv->mod_data[session_module.id];
+	if (!session || !session->channel) {
 		return PJSIP_REDIRECT_STOP;
 	}
 
