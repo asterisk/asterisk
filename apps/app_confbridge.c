@@ -528,9 +528,9 @@ static void send_join_event(struct confbridge_user *user, struct confbridge_conf
 {
 	struct ast_json *json_object;
 
-	json_object = ast_json_pack("{s: b}",
-		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
-	);
+	json_object = ast_json_pack("{s: b, s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN),
+		"muted", user->muted);
 	if (!json_object) {
 		return;
 	}

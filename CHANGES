@@ -18,6 +18,11 @@ Core
    extension and include.  These messages are no longer printed by the
    verbose loggers, they are now only logged as debug messages.
 
+app_confbridge
+------------------
+ * Added the Muted header to the ConfbridgeJoin AMI event to indicate the
+   participant's starting mute status.
+
 app_followme
 ------------------
  * Added a new prompt, connecting-prompt, which will be played

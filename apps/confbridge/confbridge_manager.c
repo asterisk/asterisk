@@ -83,6 +83,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="No"/>
 					</enumlist>
 				</parameter>
+				<parameter name="Muted">
+					<para>The joining mute status.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeLeave</ref>
@@ -254,20 +261,33 @@ static void confbridge_publish_manager_event(
 		"%s",
 		conference_name,
 		ast_str_buffer(bridge_text),
-		S_COR(channel_text, ast_str_buffer(channel_text), ""),
-		S_COR(extra_text, ast_str_buffer(extra_text), ""));
+		channel_text ? ast_str_buffer(channel_text) : "",
+		extra_text ? ast_str_buffer(extra_text) : "");
+}
+
+static int get_bool_header(struct ast_str **extra_text, struct stasis_message *message,
+	const char *json_key, const char *ami_header)
+{
+	const struct ast_bridge_blob *blob = stasis_message_data(message);
+	const struct ast_json *obj;
+
+	obj = ast_json_object_get(blob->blob, json_key);
+	if (!obj) {
+		return -1;
+	}
+
+	return ast_str_append_event_header(extra_text, ami_header,
+		AST_YESNO(ast_json_is_true(obj)));
 }
 
 static int get_admin_header(struct ast_str **extra_text, struct stasis_message *message)
 {
-	const struct ast_bridge_blob *blob = stasis_message_data(message);
-	const struct ast_json *admin = ast_json_object_get(blob->blob, "admin");
-	if (!admin) {
-		return -1;
-	}
+	return get_bool_header(extra_text, message, "admin", "Admin");
+}
 
-	return ast_str_append_event_header(extra_text, "Admin",
-		S_COR(ast_json_is_true(admin), "Yes", "No"));
+static int get_muted_header(struct ast_str **extra_text, struct stasis_message *message)
+{
+	return get_bool_header(extra_text, message, "muted", "Muted");
 }
 
 static void confbridge_start_cb(void *data, struct stasis_subscription *sub,
@@ -298,7 +318,8 @@ static void confbridge_join_cb(void *data, struct stasis_subscription *sub,
 {
 	struct ast_str *extra_text = NULL;
 
-	if (!get_admin_header(&extra_text, message)) {
+	if (!get_admin_header(&extra_text, message)
+		&& !get_muted_header(&extra_text, message)) {
 		confbridge_publish_manager_event(message, "ConfbridgeJoin", extra_text);
 	}
 	ast_free(extra_text);
