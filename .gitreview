@@ -1,5 +1,10 @@
 [gerrit]
+defaultbranch=15
+#
+# Intentional padding to ensure it is possible to point a commit
+# to an alternative gerrit server/repository without breaking
+# cherry-pick between branches.
+#
 host=gerrit.asterisk.org
 port=29418
 project=asterisk.git
-defaultbranch=15
