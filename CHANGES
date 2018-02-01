@@ -54,6 +54,11 @@ res_pjsip
  * A new AMI action, PJSIPShowContacts, has been added which displays information
    about all configured PJSIP Contacts.
 
+res_pjsip_registrar_expire
+------------------
+ * The res_pjsip_registrar_expire module has been removed.  The functionality has
+   been moved into res_pjsip_registrar.
+
 cdr_syslog
 ------------------
  * The cdr_syslog module is now deprecated and by default it is no longer
