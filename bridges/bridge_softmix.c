@@ -53,9 +53,16 @@
 /*! \brief Number of mixing iterations to perform between gathering statistics. */
 #define SOFTMIX_STAT_INTERVAL 100
 
-/* This is the threshold in ms at which a channel's own audio will stop getting
- * mixed out its own write audio stream because it is not talking. */
+/*!
+ * \brief Default time in ms of silence necessary to declare talking stopped by the bridge.
+ *
+ * \details
+ * This is the time at which a channel's own audio will stop getting
+ * mixed out of its own write audio stream because it is no longer talking.
+ */
 #define DEFAULT_SOFTMIX_SILENCE_THRESHOLD 2500
+
+/*! Default minimum average magnitude threshold to determine talking by the DSP. */
 #define DEFAULT_SOFTMIX_TALKING_THRESHOLD 160
 
 #define SOFTBRIDGE_VIDEO_DEST_PREFIX "softbridge_dest"
