@@ -127,6 +127,11 @@
 				<configOption name="contact_uri">
 					<synopsis>The Contact URI of the dialog for the subscription</synopsis>
 				</configOption>
+				<configOption name="prune_on_boot">
+					<synopsis>If set, indicates that the contact used a reliable transport
+					and therefore the subscription must be deleted after an asterisk restart.
+					</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="resource_list">
 				<synopsis>Resource list configuration parameters.</synopsis>
@@ -382,6 +387,8 @@ struct subscription_persistence {
 	struct timeval expires;
 	/*! Contact URI */
 	char contact_uri[PJSIP_MAX_URL_SIZE];
+	/*! Prune subscription on restart */
+	int prune_on_boot;
 };
 
 /*!
@@ -446,6 +453,10 @@ struct sip_subscription_tree {
 	 * capable of restarting the timer.
 	 */
 	struct ast_sip_sched_task *expiration_task;
+	/*! The transport the subscription was received on.
+	 * Only used for reliable transports.
+	 */
+	pjsip_transport *transport;
 };
 
 /*!
@@ -549,6 +560,17 @@ static void *publication_resource_alloc(const char *name)
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_publication_resource), publication_resource_destroy);
 }
 
+static void sub_tree_transport_cb(void *data) {
+	struct sip_subscription_tree *sub_tree = data;
+
+	ast_debug(3, "Transport destroyed.  Removing subscription '%s->%s'  prune on restart: %d\n",
+		sub_tree->persistence->endpoint, sub_tree->root->resource,
+		sub_tree->persistence->prune_on_boot);
+
+	sub_tree->state = SIP_SUB_TREE_TERMINATE_IN_PROGRESS;
+	pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+}
+
 /*! \brief Destructor for subscription persistence */
 static void subscription_persistence_destroy(void *obj)
 {
@@ -599,8 +621,9 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		return;
 	}
 
-	ast_debug(3, "Updating persistence for '%s->%s'\n", sub_tree->persistence->endpoint,
-		sub_tree->root->resource);
+	ast_debug(3, "Updating persistence for '%s->%s'  prune on restart: %s\n",
+		sub_tree->persistence->endpoint, sub_tree->root->resource,
+		sub_tree->persistence->prune_on_boot ? "yes" : "no");
 
 	dlg = sub_tree->dlg;
 	sub_tree->persistence->cseq = dlg->local.cseq;
@@ -614,6 +637,28 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		sub_tree->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
 
 		if (contact_hdr) {
+			if (contact_hdr) {
+				if (type == SUBSCRIPTION_PERSISTENCE_CREATED) {
+					sub_tree->persistence->prune_on_boot =
+						!ast_sip_will_uri_survive_restart(
+							(pjsip_sip_uri *)pjsip_uri_get_uri(contact_hdr->uri),
+							sub_tree->endpoint, rdata);
+
+					if (sub_tree->persistence->prune_on_boot) {
+						ast_debug(3, "adding transport monitor on %s for '%s->%s'  prune on restart: %d\n",
+							rdata->tp_info.transport->obj_name,
+							sub_tree->persistence->endpoint, sub_tree->root->resource,
+							sub_tree->persistence->prune_on_boot);
+						sub_tree->transport = rdata->tp_info.transport;
+						ast_sip_transport_monitor_register(rdata->tp_info.transport,
+							sub_tree_transport_cb, sub_tree);
+						/*
+						 * FYI: ast_sip_transport_monitor_register holds a reference to the sub_tree
+						 */
+					}
+				}
+			}
+
 			pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, contact_hdr->uri,
 					sub_tree->persistence->contact_uri, sizeof(sub_tree->persistence->contact_uri));
 		} else {
@@ -654,6 +699,15 @@ static void subscription_persistence_remove(struct sip_subscription_tree *sub_tr
 {
 	if (!sub_tree->persistence) {
 		return;
+	}
+
+	if (sub_tree->persistence->prune_on_boot && sub_tree->transport) {
+		ast_debug(3, "Unregistering transport monitor on %s '%s->%s'\n",
+			sub_tree->transport->obj_name,
+			sub_tree->endpoint ? ast_sorcery_object_get_id(sub_tree->endpoint) : "Unknown",
+			sub_tree->root ? sub_tree->root->resource : "Unknown");
+		ast_sip_transport_monitor_unregister(sub_tree->transport,
+			sub_tree_transport_cb, sub_tree, NULL);
 	}
 
 	ast_sorcery_delete(ast_sip_get_sorcery(), sub_tree->persistence);
@@ -1563,6 +1617,14 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	struct ast_taskprocessor *serializer;
 	pjsip_rx_data rdata;
 	struct persistence_recreate_data recreate_data;
+
+	/* If this subscription used a reliable transport it can't be reestablished so remove it */
+	if (persistence->prune_on_boot) {
+		ast_debug(3, "Deleting subscription marked as 'prune' from persistent store '%s' %s\n",
+			persistence->endpoint, persistence->tag);
+		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
+		return 0;
+	}
 
 	/* If this subscription has already expired remove it */
 	if (ast_tvdiff_ms(persistence->expires, ast_tvnow()) <= 0) {
@@ -5416,6 +5478,8 @@ static int load_module(void)
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "contact_uri", "", OPT_CHAR_ARRAY_T, 0,
 		CHARFLDSET(struct subscription_persistence, contact_uri));
+	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "prune_on_boot", "0", OPT_UINT_T, 0,
+		FLDSET(struct subscription_persistence, prune_on_boot));
 
 	if (apply_list_configuration(sorcery)) {
 		ast_sched_context_destroy(sched);
@@ -5491,6 +5555,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(duplicate_resource);
 	AST_TEST_UNREGISTER(loop);
 	AST_TEST_UNREGISTER(bad_event);
+
+	ast_sip_transport_monitor_unregister_all(sub_tree_transport_cb, NULL, NULL);
 
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
