@@ -176,6 +176,7 @@ static void *sorcery_realtime_retrieve_fields(const struct ast_sorcery *sorcery,
 	if (!id
 		|| !(object = ast_sorcery_alloc(sorcery, type, id->value))
 		|| ast_sorcery_objectset_apply(sorcery, object, objectset)) {
+		ao2_cleanup(object);
 		return NULL;
 	}
 
@@ -233,7 +234,9 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 
 		objectset = sorcery_realtime_filter_objectset(objectset, &id, sorcery, type);
 
-		if (id && (object = ast_sorcery_alloc(sorcery, type, id->value)) && !ast_sorcery_objectset_apply(sorcery, object, objectset)) {
+		if (id
+			&& (object = ast_sorcery_alloc(sorcery, type, id->value))
+			&& !ast_sorcery_objectset_apply(sorcery, object, objectset)) {
 			ao2_link(objects, object);
 		}
 
