@@ -9497,23 +9497,16 @@ struct ast_datastore *astman_datastore_find(struct mansession *s, const struct a
 }
 
 int ast_str_append_event_header(struct ast_str **fields_string,
-					const char *header, const char *value)
+	const char *header, const char *value)
 {
-	struct ast_str *working_str = *fields_string;
-
-	if (!working_str) {
-		working_str = ast_str_create(128);
-		if (!working_str) {
+	if (!*fields_string) {
+		*fields_string = ast_str_create(128);
+		if (!*fields_string) {
 			return -1;
 		}
-		*fields_string = working_str;
 	}
 
-	ast_str_append(&working_str, 0,
-		"%s: %s\r\n",
-		header, value);
-
-	return 0;
+	return (ast_str_append(fields_string, 0, "%s: %s\r\n", header, value) < 0) ? -1 : 0;
 }
 
 static void manager_event_blob_dtor(void *obj)
