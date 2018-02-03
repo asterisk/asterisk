@@ -650,11 +650,11 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 		.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
 		.body_data = &counter,
 	};
-	const char *resource = ast_sip_subscription_get_resource_name(sub->sip_sub);
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
 	if (sub->is_solicited) {
+		const char *resource = ast_sip_subscription_get_resource_name(sub->sip_sub);
 		struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub->sip_sub);
 		struct ast_sip_aor *aor = find_aor_for_resource(endpoint, resource);
 		pjsip_dialog *dlg = ast_sip_subscription_get_dialog(sub->sip_sub);
