@@ -66,7 +66,7 @@
 					It contains the core SIP related options only, endpoints are <emphasis>NOT</emphasis>
 					dialable entries of their own. Communication with another SIP device is
 					accomplished via Addresses of Record (AoRs) which have one or more
-					contacts assicated with them. Endpoints <emphasis>NOT</emphasis> configured to
+					contacts associated with them. Endpoints <emphasis>NOT</emphasis> configured to
 					use a <literal>transport</literal> will default to first transport found
 					in <filename>pjsip.conf</filename> that matches its type.
 					</para>
@@ -449,7 +449,7 @@
 				<configOption name="timers_min_se" default="90">
 					<synopsis>Minimum session timers expiration period</synopsis>
 					<description><para>
-						Minimium session timer expiration period. Time in seconds.
+						Minimum session timer expiration period. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="timers" default="yes">
@@ -467,7 +467,7 @@
 				<configOption name="timers_sess_expires" default="1800">
 					<synopsis>Maximum session timer expiration period</synopsis>
 					<description><para>
-						Maximium session timer expiration period. Time in seconds.
+						Maximum session timer expiration period. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="transport">
@@ -509,7 +509,7 @@
 					<synopsis>Must be of type 'endpoint'.</synopsis>
 				</configOption>
 				<configOption name="use_ptime" default="no">
-					<synopsis>Use Endpoint's requested packetisation interval</synopsis>
+					<synopsis>Use Endpoint's requested packetization interval</synopsis>
 				</configOption>
 				<configOption name="use_avpf" default="no">
 					<synopsis>Determines whether res_pjsip will use and enforce usage of AVPF for this
@@ -647,7 +647,7 @@
 								Forward error correction should be used.
 							</para></enum>
 							<enum name="redundancy"><para>
-								Redundacy error correction should be used.
+								Redundancy error correction should be used.
 							</para></enum>
 						</enumlist>
 					</description>
@@ -1111,7 +1111,7 @@
 					<description><para>Only used when auth_type is <literal>md5</literal>.</para></description>
 				</configOption>
 				<configOption name="password">
-					<synopsis>PlainText password used for authentication.</synopsis>
+					<synopsis>Plain text password used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
 				</configOption>
 				<configOption name="realm">
@@ -1316,7 +1316,7 @@
 					</description>
 				</configOption>
 				<configOption name="symmetric_transport" default="no">
-					<synopsis>Use the same transport for outgoing reqests as incoming ones.</synopsis>
+					<synopsis>Use the same transport for outgoing requests as incoming ones.</synopsis>
 					<description>
 						<para>When a request from a dynamic contact
 							comes in on a transport with this option set to 'yes',
@@ -1361,7 +1361,7 @@
 				<configOption name="qualify_timeout" default="3.0">
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
-						If the contact doesn't repond to the OPTIONS request before the timeout,
+						If the contact doesn't respond to the OPTIONS request before the timeout,
 						the contact is marked unavailable.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
@@ -1445,8 +1445,8 @@
 					<literal>endpoint</literal> for calls.
 					</para><para>
 					This can be used as another way of grouping a list of contacts to dial
-					rather than specifing them each directly when dialing via the dialplan.
-					This must be used in conjuction with the <literal>PJSIP_DIAL_CONTACTS</literal>.
+					rather than specifying them each directly when dialing via the dialplan.
+					This must be used in conjunction with the <literal>PJSIP_DIAL_CONTACTS</literal>.
 					</para><para>
 					Registrations: For Asterisk to match an inbound registration to an endpoint,
 					the AoR object name must match the user portion of the SIP URI in the "To:"
@@ -1486,7 +1486,7 @@
 				<configOption name="maximum_expiration" default="7200">
 					<synopsis>Maximum time to keep an AoR</synopsis>
 					<description><para>
-						Maximium time to keep a peer with explicit expiration. Time in seconds.
+						Maximum time to keep a peer with explicit expiration. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="max_contacts" default="0">
@@ -1560,7 +1560,7 @@
 				<configOption name="qualify_timeout" default="3.0">
 					<synopsis>Timeout for qualify</synopsis>
 					<description><para>
-						If the contact doesn't repond to the OPTIONS request before the timeout,
+						If the contact doesn't respond to the OPTIONS request before the timeout,
 						the contact is marked unavailable.
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
@@ -1659,7 +1659,7 @@
 				<configOption name="disable_multi_domain" default="no">
 					<synopsis>Disable Multi Domain support</synopsis>
 					<description><para>
-						If disabled it can improve realtime performace by reducing number of database requsts.
+						If disabled it can improve realtime performance by reducing the number of database requests.
 					</para></description>
 				</configOption>
 				<configOption name="max_initial_qualify_time" default="0">
@@ -1785,7 +1785,7 @@
 						in the user field of a SIP URI then the field is truncated
 						at the first semicolon.  This effectively makes the semicolon
 						a non-usable character for PJSIP endpoint names, extensions,
-						and AORs.  This can be useful for improving compatability with
+						and AORs.  This can be useful for improving compatibility with
 						an ITSP that likes to use user options for whatever reason.
 						</para>
 						<example title="Sample SIP URI">
