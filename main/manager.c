@@ -1770,7 +1770,12 @@ void manager_json_to_ast_str(struct ast_json *obj, const char *key,
 {
 	struct ast_json_iter *i;
 
-	if (!obj || (!res && !(*res) && (!(*res = ast_str_create(1024))))) {
+	/* If obj or res is not given, just return */
+	if (!obj || !res) {
+		return;
+	}
+
+	if (!*res && !(*res = ast_str_create(1024))) {
 		return;
 	}
 
@@ -1801,11 +1806,14 @@ void manager_json_to_ast_str(struct ast_json *obj, const char *key,
 	}
 }
 
-
 struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_exclusion_cb exclusion_cb)
 {
 	struct ast_str *res = ast_str_create(1024);
-	manager_json_to_ast_str(blob, NULL, &res, exclusion_cb);
+
+	if (!ast_json_is_null(blob)) {
+	   manager_json_to_ast_str(blob, NULL, &res, exclusion_cb);
+	}
+
 	return res;
 }
 
