@@ -34,8 +34,9 @@ static void domain_alias_destroy(void *obj)
 
 static void *domain_alias_alloc(const char *name)
 {
-        struct ast_sip_domain_alias *alias = ast_sorcery_generic_alloc(sizeof(*alias), domain_alias_destroy);
+	struct ast_sip_domain_alias *alias;
 
+	alias = ast_sorcery_generic_alloc(sizeof(*alias), domain_alias_destroy);
 	if (!alias) {
 		return NULL;
 	}
@@ -48,6 +49,23 @@ static void *domain_alias_alloc(const char *name)
 	return alias;
 }
 
+/*! \brief Apply handler for domain_alias type */
+static int domain_alias_apply(const struct ast_sorcery *sorcery, void *obj)
+{
+	struct ast_sip_domain_alias *alias = obj;
+
+	if (ast_strlen_zero(alias->domain)) {
+		/*
+		 * What is the point of defining an alias and not saying
+		 * what is being aliased?
+		 */
+		ast_log(LOG_ERROR, "%s '%s' missing required domain being aliased.\n",
+			SIP_SORCERY_DOMAIN_ALIAS_TYPE, ast_sorcery_object_get_id(alias));
+		return -1;
+	}
+	return 0;
+}
+
 /*! \brief Initialize sorcery with domain alias support */
 int ast_sip_initialize_sorcery_domain_alias(void)
 {
@@ -55,7 +73,8 @@ int ast_sip_initialize_sorcery_domain_alias(void)
 
 	ast_sorcery_apply_default(sorcery, SIP_SORCERY_DOMAIN_ALIAS_TYPE, "config", "pjsip.conf,criteria=type=domain_alias");
 
-	if (ast_sorcery_object_register(sorcery, SIP_SORCERY_DOMAIN_ALIAS_TYPE, domain_alias_alloc, NULL, NULL)) {
+	if (ast_sorcery_object_register(sorcery, SIP_SORCERY_DOMAIN_ALIAS_TYPE,
+		domain_alias_alloc, NULL, domain_alias_apply)) {
 		return -1;
 	}
 
