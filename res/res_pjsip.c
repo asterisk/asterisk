@@ -4972,6 +4972,7 @@ static int unload_pjsip(void *data)
 		ast_res_pjsip_cleanup_options_handling();
 		ast_res_pjsip_cleanup_message_filter();
 		ast_sip_destroy_distributor();
+		ast_sip_destroy_transport_management();
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_system();
 		ast_sip_destroy_global_headers();
@@ -5134,6 +5135,11 @@ static int load_module(void)
 
 	ast_sip_initialize_resolver();
 	ast_sip_initialize_dns();
+
+	if (ast_sip_initialize_transport_management()) {
+		ast_log(LOG_ERROR, "Failed to initialize SIP transport management. Aborting load\n");
+		goto error;
+	}
 
 	if (ast_sip_initialize_distributor()) {
 		ast_log(LOG_ERROR, "Failed to register distributor module. Aborting load\n");
