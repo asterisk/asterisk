@@ -21,6 +21,14 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 13.19.1 to 13.19.2:
+
+res_pjsip_transport_management:
+ - Since res_pjsip_transport_management provides several attack
+   mitigation features, its functionality moved to res_pjsip and
+   this module has been removed.  This way the features will always
+   be available if res_pjsip is loaded.
+
 From 13.17.0 to 13.18.0:
 
 Core:
