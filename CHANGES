@@ -76,6 +76,13 @@ res_pjsip_pubsub
    need to run the "alembic upgrade head" process to add the column to
    the schema.
 
+res_pjsip_transport_management
+------------------
+ * Since res_pjsip_transport_management provides several attack
+   mitigation features, its functionality moved to res_pjsip and
+   this module has been removed.  This way the features will always
+   be available if res_pjsip is loaded.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.18.0 to Asterisk 13.19.0 ----------
 ------------------------------------------------------------------------------
