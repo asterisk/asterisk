@@ -419,4 +419,32 @@ void internal_res_pjsip_ref(void);
  */
 void internal_res_pjsip_unref(void);
 
+/*!
+ * \internal
+ * \brief Initialize the transport management module
+ * \since 13.20.0
+ *
+ * The transport management module is responsible for 3 things...
+ * 1.  It automatically destroys any reliable transport that does not
+ * receive a valid request within system/timer_b milliseconds of the
+ * connection being opened. (Attack mitigation)
+ * 2.  Since it increments the reliable transport's reference count
+ * for that period of time, it also prevents issues if the transport
+ * disconnects while we're still trying to process a response.
+ *  (Attack mitigation)
+ * 3.  If enabled by global/keep_alive_interval, it sends '\r\n'
+ * keepalives on reliable transports at the interval specified.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+int ast_sip_initialize_transport_management(void);
+
+/*!
+ * \internal
+ * \brief Destruct the transport management module.
+ * \since 13.20.0
+ */
+void ast_sip_destroy_transport_management(void);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */
