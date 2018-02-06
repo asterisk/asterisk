@@ -87,6 +87,40 @@
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="Load">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when a module has been loaded in Asterisk.</synopsis>
+			<syntax>
+				<parameter name="Module">
+					<para>The name of the module that was loaded</para>
+				</parameter>
+				<parameter name="Status">
+					<para>The result of the load request.</para>
+					<enumlist>
+						<enum name="Failure"><para>Module could not be loaded properly</para></enum>
+						<enum name="Success"><para>Module loaded and configured</para></enum>
+						<enum name="Decline"><para>Module is not configured</para></enum>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="Unload">
+		<managerEventInstance class="EVENT_FLAG_SYSTEM">
+			<synopsis>Raised when a module has been unloaded in Asterisk.</synopsis>
+			<syntax>
+				<parameter name="Module">
+					<para>The name of the module that was unloaded</para>
+				</parameter>
+				<parameter name="Status">
+					<para>The result of the unload request.</para>
+					<enumlist>
+						<enum name="Success"><para>Module unloaded successfully</para></enum>
+					</enumlist>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 #ifndef RTLD_NOW
@@ -160,6 +194,27 @@ struct ast_module {
 };
 
 static AST_DLLIST_HEAD_STATIC(module_list, ast_module);
+
+
+struct load_results_map {
+	int result;
+	const char *name;
+};
+
+static const struct load_results_map load_results[] = {
+	{ AST_MODULE_LOAD_SUCCESS, "Success" },
+	{ AST_MODULE_LOAD_DECLINE, "Decline" },
+	{ AST_MODULE_LOAD_SKIP, "Skip" },
+	{ AST_MODULE_LOAD_PRIORITY, "Priority" },
+	{ AST_MODULE_LOAD_FAILURE, "Failure" },
+};
+#define AST_MODULE_LOAD_UNKNOWN_STRING		"Unknown"		/* Status string for unknown load status */
+
+static void publish_load_message_type(const char* type, const char *name, const char *status);
+static void publish_reload_message(const char *name, enum ast_module_reload_result result);
+static void publish_load_message(const char *name, enum ast_module_load_result result);
+static void publish_unload_message(const char *name, const char* status);
+
 
 /*
  * module_list is cleared by its constructor possibly after
@@ -1007,6 +1062,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 		unload_dynamic_module(mod);
 		ast_test_suite_event_notify("MODULE_UNLOAD", "Message: %s", resource_name);
 		ast_update_use_count();
+		publish_unload_message(resource_name, "Success");
 	}
 
 	return res;
@@ -1196,29 +1252,30 @@ static void queue_reload_request(const char *module)
 /*!
  * \since 12
  * \internal
- * \brief Publish a \ref stasis message regarding the reload result
+ * \brief Publish a \ref stasis message regarding the type.
  */
-static void publish_reload_message(const char *name, enum ast_module_reload_result result)
+static void publish_load_message_type(const char* type, const char *name, const char *status)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, event_object, NULL, ast_json_unref);
-	char res_buffer[8];
+
+	ast_assert(type != NULL);
+	ast_assert(!ast_strlen_zero(name));
+	ast_assert(!ast_strlen_zero(status));
 
 	if (!ast_manager_get_generic_type()) {
 		return;
 	}
 
-	snprintf(res_buffer, sizeof(res_buffer), "%u", result);
-	event_object = ast_json_pack("{s: s, s: s}",
-			"Module", S_OR(name, "All"),
-			"Status", res_buffer);
-	json_object = ast_json_pack("{s: s, s: i, s: o}",
-			"type", "Reload",
+	event_object = ast_json_pack("{s:s, s:s}",
+			"Module", name,
+			"Status", status);
+	json_object = ast_json_pack("{s:s, s:i, s:o}",
+			"type", type,
 			"class_type", EVENT_FLAG_SYSTEM,
 			"event", ast_json_ref(event_object));
-
 	if (!json_object) {
 		return;
 	}
@@ -1234,6 +1291,54 @@ static void publish_reload_message(const char *name, enum ast_module_reload_resu
 	}
 
 	stasis_publish(ast_manager_get_topic(), message);
+}
+
+static const char* loadresult2str(enum ast_module_load_result result)
+{
+	int i;
+	for (i = 0; i < ARRAY_LEN(load_results); i++) {
+		if (load_results[i].result == result) {
+			return load_results[i].name;
+		}
+	}
+
+	ast_log(LOG_WARNING, "Failed to find correct load result status. result %d\n", result);
+	return AST_MODULE_LOAD_UNKNOWN_STRING;
+}
+
+/*!
+ * \internal
+ * \brief Publish a \ref stasis message regarding the load result
+ */
+static void publish_load_message(const char *name, enum ast_module_load_result result)
+{
+	const char *status;
+
+	status = loadresult2str(result);
+
+	publish_load_message_type("Load", name, status);
+}
+
+/*!
+ * \internal
+ * \brief Publish a \ref stasis message regarding the unload result
+ */
+static void publish_unload_message(const char *name, const char* status)
+{
+	publish_load_message_type("Unload", name, status);
+}
+
+/*!
+ * \since 12
+ * \internal
+ * \brief Publish a \ref stasis message regarding the reload result
+ */
+static void publish_reload_message(const char *name, enum ast_module_reload_result result)
+{
+	char res_buffer[8];
+
+	snprintf(res_buffer, sizeof(res_buffer), "%u", result);
+	publish_load_message_type("Reload", S_OR(name, "All"), res_buffer);
 }
 
 enum ast_module_reload_result ast_module_reload(const char *name)
@@ -1462,10 +1567,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		res |= ast_vector_string_split(&mod->optional_modules, mod->info->optional_modules, ",", 0, strcasecmp);
 		res |= ast_vector_string_split(&mod->enhances, mod->info->enhances, ",", 0, strcasecmp);
 		if (res) {
-			ast_log(LOG_WARNING, "Failed to initialize dependency structures for module '%s'.\n", resource_name);
-			unload_dynamic_module(mod);
-
-			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+			goto prestart_error;
 		}
 	}
 
@@ -1484,12 +1586,20 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		res = start_resource(mod);
 	}
 
+	if (ast_fully_booted && !ast_shutdown_final()) {
+		publish_load_message(resource_name, res);
+	}
+
 	return res;
 
 prestart_error:
 	ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
 	unload_dynamic_module(mod);
-	return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+	res = required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+	if (ast_fully_booted && !ast_shutdown_final()) {
+		publish_load_message(resource_name, res);
+	}
+	return res;
 }
 
 int ast_load_resource(const char *resource_name)
