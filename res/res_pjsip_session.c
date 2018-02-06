@@ -1083,7 +1083,9 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 
 		/* Otherwise this is a new re-invite, so reject it */
 		if (pjsip_dlg_create_response(dlg, rdata, 491, NULL, &tdata) == PJ_SUCCESS) {
-			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+			if (pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL) != PJ_SUCCESS) {
+				pjsip_tx_data_dec_ref(tdata);
+			}
 		}
 
 		return PJ_TRUE;
@@ -2045,7 +2047,9 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 
 	if (pjsip_inv_verify_request(rdata, &options, NULL, NULL, ast_sip_get_pjsip_endpoint(), &tdata) != PJ_SUCCESS) {
 		if (tdata) {
-			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+			if (pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL) != PJ_SUCCESS) {
+				pjsip_tx_data_dec_ref(tdata);
+			}
 		} else {
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		}
