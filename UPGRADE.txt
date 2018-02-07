@@ -23,6 +23,14 @@
 
 From 13.19.0 to 13.20.0:
 
+app_confbridge
+------------------
+ * Made the AMI ConfbridgeList action's ConfbridgeList events output all
+   the standard channel snapshot headers instead of a few hand-coded channel
+   snapshot headers.  The benefit is that the CallerIDName gets disruptive
+   characters like CR, LF, Tab, and a few others escaped.  However, an empty
+   CallerIDName is now output as "<unknown>" instead of "<no name>".
+
 res_pjsip
 ------------------
  * Users who are matching endpoints by SIP header need to reevaluate their

@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/taskprocessor.h"
@@ -228,6 +229,62 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			ConfbridgeListComplete.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="ConfbridgeList">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised as part of the ConfbridgeList action response list.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>The name of the Confbridge conference.</para>
+				</parameter>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="MarkedUser">
+					<para>Identifies this user as a marked user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="WaitMarked">
+					<para>Must this user wait for a marked user to join?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="EndMarked">
+					<para>Does this user get kicked after the last marked user leaves?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Waiting">
+					<para>Is this user waiting for a marked user to join?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Muted">
+					<para>The current mute status.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
+				<parameter name="AnsweredTime">
+					<para>The number of seconds the channel has been up.</para>
+				</parameter>
+				<channel_snapshot/>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="ConfbridgeListRooms" language="en_US">
 		<synopsis>
 			List active conferences.
@@ -3443,15 +3500,26 @@ static struct ast_custom_function confbridge_info_function = {
 	.read = func_confbridge_info,
 };
 
-static void action_confbridgelist_item(struct mansession *s, const char *id_text, struct confbridge_conference *conference, struct confbridge_user *user, int waiting)
+static int action_confbridgelist_item(struct mansession *s, const char *id_text, struct confbridge_conference *conference, struct confbridge_user *user, int waiting)
 {
+	struct ast_channel_snapshot *snapshot;
+	struct ast_str *snap_str;
+
+	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(user->chan));
+	if (!snapshot) {
+		return 0;
+	}
+
+	snap_str = ast_manager_build_channel_state_string(snapshot);
+	if (!snap_str) {
+		ao2_ref(snapshot, -1);
+		return 0;
+	}
+
 	astman_append(s,
 		"Event: ConfbridgeList\r\n"
 		"%s"
 		"Conference: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n"
-		"Channel: %s\r\n"
 		"Admin: %s\r\n"
 		"MarkedUser: %s\r\n"
 		"WaitMarked: %s\r\n"
@@ -3459,19 +3527,23 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		"Waiting: %s\r\n"
 		"Muted: %s\r\n"
 		"AnsweredTime: %d\r\n"
+		"%s"
 		"\r\n",
 		id_text,
 		conference->name,
-		S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"),
-		S_COR(ast_channel_caller(user->chan)->id.name.valid, ast_channel_caller(user->chan)->id.name.str, "<no name>"),
-		ast_channel_name(user->chan),
-		ast_test_flag(&user->u_profile, USER_OPT_ADMIN) ? "Yes" : "No",
-		ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No",
-		ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) ? "Yes" : "No",
-		ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
-		waiting ? "Yes" : "No",
-		user->muted ? "Yes" : "No",
-		ast_channel_get_up_time(user->chan));
+		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_ADMIN)),
+		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)),
+		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED)),
+		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED)),
+		AST_YESNO(waiting),
+		AST_YESNO(user->muted),
+		ast_channel_get_up_time(user->chan),
+		ast_str_buffer(snap_str));
+
+	ast_free(snap_str);
+	ao2_ref(snapshot, -1);
+
+	return 1;
 }
 
 static int action_confbridgelist(struct mansession *s, const struct message *m)
@@ -3505,12 +3577,10 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 
 	ao2_lock(conference);
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
-		total++;
-		action_confbridgelist_item(s, id_text, conference, user, 0);
+		total += action_confbridgelist_item(s, id_text, conference, user, 0);
 	}
 	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
-		total++;
-		action_confbridgelist_item(s, id_text, conference, user, 1);
+		total += action_confbridgelist_item(s, id_text, conference, user, 1);
 	}
 	ao2_unlock(conference);
 	ao2_ref(conference, -1);
