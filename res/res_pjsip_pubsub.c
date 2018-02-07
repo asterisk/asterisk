@@ -786,10 +786,11 @@ static struct ast_sip_pubsub_body_generator *subscription_get_generator_from_rda
 	char accept[AST_SIP_MAX_ACCEPT][64];
 	size_t num_accept_headers = 0;
 
-	while ((accept_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, accept_header->next))) {
+	while ((accept_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, accept_header->next)) &&
+		(num_accept_headers < AST_SIP_MAX_ACCEPT)) {
 		int i;
 
-		for (i = 0; i < accept_header->count; ++i) {
+		for (i = 0; i < accept_header->count && num_accept_headers < AST_SIP_MAX_ACCEPT; ++i) {
 			if (!exceptional_accept(&accept_header->values[i])) {
 				ast_copy_pj_str(accept[num_accept_headers], &accept_header->values[i], sizeof(accept[num_accept_headers]));
 				++num_accept_headers;
