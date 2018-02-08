@@ -376,6 +376,13 @@ struct ast_module_info {
 	 */
 	const char *enhances;
 
+	/*! These reserved fields should be NULL, they exist to allow addition to this
+	 * structure in a non-breaking way. */
+	void *reserved1;
+	void *reserved2;
+	void *reserved3;
+	void *reserved4;
+
 	/*! The support level for the given module */
 	enum ast_module_support_level support_level;
 };
@@ -445,6 +452,10 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 		flags_to_set,                                                  \
 		AST_BUILDOPT_SUM,                                              \
 		load_pri,                                                      \
+		NULL,                                                          \
+		NULL,                                                          \
+		NULL,                                                          \
+		NULL,                                                          \
 		NULL,                                                          \
 		NULL,                                                          \
 		NULL,                                                          \
