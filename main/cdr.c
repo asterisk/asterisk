@@ -371,7 +371,7 @@ static ast_cond_t cdr_pending_cond;
 /*! \brief A container of the active master CDRs indexed by Party A channel uniqueid */
 static struct ao2_container *active_cdrs_master;
 
-/*! \brief A container of all active CDRs indexed by Party B channel name */
+/*! \brief A container of all active CDRs with a Party B indexed by Party B channel name */
 static struct ao2_container *active_cdrs_all;
 
 /*! \brief Message router for stasis messages regarding channel state */
@@ -971,13 +971,21 @@ static void cdr_all_unlink(struct cdr_object *cdr)
 
 	ast_assert(cdr->is_root);
 
+	/* Hold a ref to the root CDR to ensure the list members don't go away on us. */
+	ao2_ref(cdr, +1);
 	ao2_lock(active_cdrs_all);
-	for (cur = cdr->next; cur; cur = next) {
+	for (cur = cdr; cur; cur = next) {
 		next = cur->next;
 		ao2_unlink_flags(active_cdrs_all, cur, OBJ_NOLOCK);
+		/*
+		 * It is safe to still use cur after unlinking because the
+		 * root CDR holds a ref to all the CDRs in the list and we
+		 * have a ref to the root CDR.
+		 */
 		ast_string_field_set(cur, party_b_name, "");
 	}
 	ao2_unlock(active_cdrs_all);
+	ao2_ref(cdr, -1);
 }
 
 /*!
