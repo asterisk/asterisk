@@ -27425,7 +27425,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	} else {
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
-	if (ast_str_strlen(p->initreq.data) > 0) {
+	if (p->initreq.data && ast_str_strlen(p->initreq.data) > 0) {
 		struct sip_pkt *pkt, *prev_pkt;
 		/* If the CANCEL we are receiving is a retransmission, and we already have scheduled
 		 * a reliable 487, then we don't want to schedule another one on top of the previous
