@@ -570,9 +570,6 @@
 /* Define to 1 if you have the OGG library. */
 #undef HAVE_OGG
 
-/* Define if your system has the OpenH323 libraries. */
-#undef HAVE_OPENH323
-
 /* Define to 1 if you have the MFR2 library. */
 #undef HAVE_OPENR2
 
@@ -785,9 +782,6 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
-
-/* Define if your system has the PWLib libraries. */
-#undef HAVE_PWLIB
 
 /* Define if your system has the PYTHONDEV libraries. */
 #undef HAVE_PYTHONDEV
