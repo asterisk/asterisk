@@ -19,7 +19,7 @@ usage() {
 }
 
 # Basic build system:
-PACKAGES_DEBIAN="build-essential"
+PACKAGES_DEBIAN="build-essential pkg-config"
 # Asterisk: basic requirements:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libedit-dev libjansson-dev libsqlite3-dev uuid-dev libxml2-dev"
 # Asterisk: for addons:
