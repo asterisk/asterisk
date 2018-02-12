@@ -460,7 +460,6 @@ AST_EXT_LIB_SETUP([GSM], [External GSM], [gsm], [, use 'internal' GSM otherwise]
 AST_EXT_LIB_SETUP([ILBC], [System iLBC], [ilbc], [, use 'internal' iLBC otherwise])
 AST_EXT_LIB_SETUP([GTK2], [gtk2], [gtk2])
 AST_EXT_LIB_SETUP([GMIME], [GMime], [gmime])
-AST_EXT_LIB_SETUP([OPENH323], [OpenH323], [h323])
 AST_EXT_LIB_SETUP([HOARD], [Hoard Memory Allocator], [hoard])
 AST_EXT_LIB_SETUP([ICAL], [iCal], [ical])
 AST_EXT_LIB_SETUP([ICONV], [Iconv], [iconv])
@@ -541,7 +540,6 @@ AST_EXT_LIB_SETUP_OPTIONAL([PRI_PROG_W_CAUSE], [ISDN progress with cause], [PRI]
 AST_EXT_LIB_SETUP_OPTIONAL([PRI_SERVICE_MESSAGES], [ISDN service messages], [PRI], [pri])
 AST_EXT_LIB_SETUP_OPTIONAL([PRI_REVERSE_CHARGE], [ISDN reverse charge], [PRI], [pri])
 # ------------------------------------^
-AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([FFTW3], [LIBFFTW3], [fftw3])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
@@ -2358,42 +2356,6 @@ if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 	__opus_include=-I/usr/include/opus
 fi
 AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
-
-if test "${USE_PWLIB}" != "no"; then
-	if test -n "${PWLIB_DIR}"; then
-		PWLIBDIR="${PWLIB_DIR}"
-	fi
-	AST_CHECK_PWLIB()
-	AST_CHECK_PWLIB_VERSION([PWLib], [PWLIB], [ptbuildopts.h], [1], [9], [2], [P[[WT]]LIB_VERSION])
-
-	if test "${HAS_PWLIB:-unset}" != "unset"; then
-		AST_CHECK_PWLIB_PLATFORM()
-
-		PLATFORM_PWLIB="pt_${PWLIB_PLATFORM}_r"
-
-		AST_CHECK_PWLIB_BUILD([PWLib], [PWLIB],
-			[Define if your system has the PWLib libraries.],
-			[#include "ptlib.h"],
-			[int q = (int) PTime::IsDaylightSavings();])
-	fi
-fi
-
-if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
-	if test -n "${OPENH323_DIR}"; then
-		OPENH323DIR="${OPENH323_DIR}"
-	fi
-	AST_CHECK_OPENH323()
-	AST_CHECK_PWLIB_VERSION([OpenH323], [OPENH323], [openh323buildopts.h], [1], [17], [3], [], [1], [19], [0])
-	AST_CHECK_OPENH323_BUILD()
-	PLATFORM_OPENH323="h323_${PWLIB_PLATFORM}_${OPENH323_SUFFIX}"
-	AST_CHECK_PWLIB_BUILD([OpenH323], [OPENH323],
-		[Define if your system has the OpenH323 libraries.],
-		[#include "ptlib.h"
-		#include "h323.h"
-		#include "h323ep.h"],
-		[H323EndPoint ep = H323EndPoint();],
-		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
-fi
 
 AST_EXT_LIB_CHECK([LUA], [lua5.3], [luaL_newstate], [lua5.3/lua.h], [-lm])
 if test "x${PBX_LUA}" = "x1" ; then
