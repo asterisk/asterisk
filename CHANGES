@@ -64,6 +64,10 @@ cdr_syslog
  * The cdr_syslog module is now deprecated and by default it is no longer
    built.
 
+Core:
+ * libedit is no longer available as an embedded library and must be provided
+   by the system.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.2.0 to Asterisk 15.3.0 ------------
 ------------------------------------------------------------------------------
