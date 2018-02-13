@@ -128,6 +128,7 @@ static off_t vox_tell(struct ast_filestream *fs)
 static struct ast_format_def vox_f = {
 	.name = "vox",
 	.exts = "vox",
+	.mime_types = "audio/x-vox",
 	.write = vox_write,
 	.seek = vox_seek,
 	.trunc = vox_trunc,

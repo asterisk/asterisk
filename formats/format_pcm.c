@@ -507,6 +507,7 @@ static struct ast_format_def alaw_f = {
 static struct ast_format_def pcm_f = {
 	.name = "pcm",
 	.exts = "pcm|ulaw|ul|mu|ulw",
+	.mime_types = "audio/basic",
 	.write = pcm_write,
 	.seek = pcm_seek,
 	.trunc = pcm_trunc,
