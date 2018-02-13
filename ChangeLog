@@ -1,3 +1,18 @@
+2018-02-13 19:24 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.2.1 Released.
+
+2018-02-09 12:06 +0000 [fb2f2c0408]  Richard Mudgett <rmudgett@digium.com>
+
+	* cdr.c: Fix runtime leak of CDR records.
+
+	  Need to remove all CDR's listed by a CDR object from the active_cdrs_all
+	  container including the root/master record.
+
+	  ASTERISK-27656
+
+	  Change-Id: I48b4970663fea98baa262593d2204ef304aaf80e
+
 2018-01-11 16:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.2.0 Released.
