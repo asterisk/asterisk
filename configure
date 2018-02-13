@@ -682,7 +682,6 @@ PBX_MISDN_FAC_ERROR
 PBX_MISDN_FAC_RESULT
 LIBEDIT_LIBS
 LIBEDIT_CFLAGS
-LIBEDIT_INTERNAL
 ILBC_LIBS
 ILBC_CFLAGS
 ILBC_INTERNAL
@@ -2180,8 +2179,7 @@ Optional Packages:
   --with-ldap=PATH        use OpenLDAP files in PATH
   --with-libcurl=PREFIX   look for the curl library in PREFIX/lib and headers
                           in PREFIX/include
-  --with-libedit=PATH     use NetBSD Editline library files in PATH, use
-                          'internal' Editline otherwise
+  --with-libedit=PATH     use NetBSD Editline library files in PATH
   --with-libxml2=PATH     use LibXML2 files in PATH
   --with-libxslt=PATH     use LibXSLT files in PATH
   --with-ltdl=PATH        use libtool files in PATH
@@ -20890,16 +20888,6 @@ fi
    fi
 fi
 
-LIBEDIT_INTERNAL="yes"
-
-LIBEDIT_SYSTEM="yes"
-if test "${USE_LIBEDIT}" != "no"; then
-   if test "${LIBEDIT_DIR}" = "internal"; then
-      LIBEDIT_SYSTEM="no"
-   elif test "${LIBEDIT_DIR}" != ""; then
-      LIBEDIT_INTERNAL="no"
-   fi
-   if test "${LIBEDIT_SYSTEM}" = "yes"; then
 
    if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
@@ -20988,14 +20976,6 @@ $as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
 fi
    fi
 
-      if test "$PBX_LIBEDIT" = "1"; then
-      LIBEDIT_INTERNAL="no"
-      fi
-   fi
-   if test "${LIBEDIT_INTERNAL}" = "yes"; then
-      PBX_LIBEDIT=1
-      LIBEDIT_IS_UNICODE=no
-   else
 
     if test "x${PBX_LIBEDIT_IS_UNICODE}" != "x1" -a "${USE_LIBEDIT_IS_UNICODE}" != "no"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Testing for libedit unicode support" >&5
@@ -21036,7 +21016,10 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
-   fi
+
+if test "${PBX_LIBEDIT}" != 1; then
+	as_fn_error $? "*** Please install the 'libedit' development package." "$LINENO" 5
+	exit 1
 fi
 
 
