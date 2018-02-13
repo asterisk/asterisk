@@ -1028,7 +1028,7 @@ int ast_pbx_uuid_get(char *pbx_uuid, int length)
 
 static void publish_fully_booted(void)
 {
-	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	struct ast_json *json_object;
 	int uptime = 0;
 	int lastreloaded = 0;
 	struct timeval tmp;
@@ -1049,6 +1049,7 @@ static void publish_fully_booted(void)
 			"Uptime", uptime,
 			"LastReload", lastreloaded);
 	ast_manager_publish_event("FullyBooted", EVENT_FLAG_SYSTEM, json_object);
+	ast_json_unref(json_object);
 }
 
 static void ast_run_atexits(int run_cleanups)
