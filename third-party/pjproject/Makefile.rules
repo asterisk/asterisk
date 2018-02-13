@@ -16,7 +16,7 @@ PJPROJECT_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/p
 PJPROJECT_CONFIG_OPTS = $(PJPROJECT_CONFIGURE_OPTS) --prefix=/opt/pjproject \
 	--disable-speex-codec \
 	--disable-speex-aec \
-	--disable-speex-aec \
+	--disable-bcg729 \
 	--disable-gsm-codec \
 	--disable-ilbc-codec \
 	--disable-l16-codec \
