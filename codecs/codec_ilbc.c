@@ -41,8 +41,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef ILBC_WEBRTC
 #include <ilbc.h>
-typedef WebRtc_UWord16 ilbc_bytes;
-typedef WebRtc_Word16  ilbc_block;
+typedef uint16_t ilbc_bytes;
+typedef int16_t  ilbc_block;
 #define BUF_TYPE i16
 #else
 #include "ilbc/iLBC_encode.h"
