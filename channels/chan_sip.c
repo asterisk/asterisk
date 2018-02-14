@@ -10920,22 +10920,25 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	if (portno != -1 || vportno != -1 || tportno != -1) {
 		/* We are now ready to change the sip session and RTP structures with the offered codecs, since
 		   they are acceptable */
+		unsigned int framing;
 		ast_format_cap_remove_by_type(p->jointcaps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(p->jointcaps, newjointcapability, AST_MEDIA_TYPE_UNKNOWN); /* Our joint codec profile for this call */
 		ast_format_cap_remove_by_type(p->peercaps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(p->peercaps, newpeercapability, AST_MEDIA_TYPE_UNKNOWN); /* The other side's capability in latest offer */
 		p->jointnoncodeccapability = newnoncodeccapability;     /* DTMF capabilities */
 
+		tmp_fmt = ast_format_cap_get_format(p->jointcaps, 0);
+		framing = ast_format_cap_get_format_framing(p->jointcaps, tmp_fmt);
 		/* respond with single most preferred joint codec, limiting the other side's choice */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_PREFERRED_CODEC)) {
-			unsigned int framing;
-
-			tmp_fmt = ast_format_cap_get_format(p->jointcaps, 0);
-			framing = ast_format_cap_get_format_framing(p->jointcaps, tmp_fmt);
 			ast_format_cap_remove_by_type(p->jointcaps, AST_MEDIA_TYPE_UNKNOWN);
 			ast_format_cap_append(p->jointcaps, tmp_fmt, framing);
-			ao2_ref(tmp_fmt, -1);
 		}
+		if (!ast_rtp_codecs_get_framing(&newaudiortp)) {
+			/* Peer did not force us to use a specific framing, so use our own */
+			ast_rtp_codecs_set_framing(&newaudiortp, framing);
+		}
+		ao2_ref(tmp_fmt, -1);
 	}
 
 	/* Setup audio address and port */
@@ -11444,6 +11447,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 		if (framing && p->autoframing) {
 			ast_debug(1, "Setting framing to %ld\n", framing);
 			ast_format_cap_set_framing(p->caps, framing);
+			ast_rtp_codecs_set_framing(newaudiortp, framing);
 		}
 		found = TRUE;
 	} else if (sscanf(a, "rtpmap: %30u %127[^/]/%30u", &codec, mimeSubtype, &sample_rate) == 3) {
