@@ -605,7 +605,12 @@ $(SUBDIRS_INSTALL):
 
 NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
 OLDMODS=$(filter-out $(NEWMODS) $(notdir $(DESTDIR)$(ASTMODDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTMODDIR)/*.so)))
-BADMODS=$(strip $(filter-out $(shell ./build_tools/list_valid_installed_externals),$(OLDMODS)))
+ifneq ($(BASH),:)
+	FILMODS=$(filter-out $(shell ./build_tools/list_valid_installed_externals),$(OLDMODS))
+else
+	FILMODS=$(OLDMODS)
+endif
+BADMODS=$(strip $(FILMODS))
 
 oldmodcheck:
 	@if [ -n "$(BADMODS)" ]; then \
