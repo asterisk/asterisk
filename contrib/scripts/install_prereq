@@ -50,7 +50,22 @@ PACKAGES_RH="$PACKAGES_RH wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
 PACKAGES_RH="$PACKAGES_RH bzip2 patch python-devel"
 
-PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack libxslt"
+# Basic build system:
+PACKAGES_OBSD="gmake"
+# Asterisk: basic requirements:
+PACKAGES_OBSD="$PACKAGES_OBSD libxml sqlite3 e2fsprogs jansson"
+# Asterisk: for addons:
+PACKAGES_OBSD="$PACKAGES_OBSD speex speexdsp libogg libvorbis portaudio-svn curl xmlstarlet bison"
+PACKAGES_OBSD="$PACKAGES_OBSD postgresql-client iodbc libltdl neon gmime lua%5.2 uriparser libxslt"
+PACKAGES_OBSD="$PACKAGES_OBSD mariadb-client radcli freetds"
+PACKAGES_OBSD="$PACKAGES_OBSD net-snmp iksemel popt libical spandsp"
+PACKAGES_OBSD="$PACKAGES_OBSD c-client libsrtp gsm doxygen graphviz"
+PACKAGES_OBSD="$PACKAGES_OBSD fftw3 libsndfile"
+# Asterisk: for the unpackaged below:
+PACKAGES_OBSD="$PACKAGES_OBSD wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_OBSD="$PACKAGES_OBSD bzip2 python%2"
+
 PACKAGES_FBSD="autoconf gcc binutils popt gmake wget libxml2 libogg libvorbis curl iksemel spandsp speex unixODBC freetds-devel mysql55-client gmime2 sqlite"
 PACKAGES_FBSD="$PACKAGES_FBSD sqlite3 libxslt jansson e2fsprogs-libuuid gsm libsrtp libsamplerate"
 
