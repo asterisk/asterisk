@@ -20976,6 +20976,109 @@ $as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
 fi
    fi
 
+if test "${PBX_LIBEDIT}" != 1; then
+	# some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+
+if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
+   pbxlibdir=""
+   # if --with-LIBEDIT=DIR has been specified, use it.
+   if test "x${LIBEDIT_DIR}" != "x"; then
+      if test -d ${LIBEDIT_DIR}/lib; then
+         pbxlibdir="-L${LIBEDIT_DIR}/lib"
+      else
+         pbxlibdir="-L${LIBEDIT_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for history_init in -ledit" >&5
+$as_echo_n "checking for history_init in -ledit... " >&6; }
+if ${ac_cv_lib_edit_history_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ledit ${pbxlibdir} -ltermcap $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char history_init ();
+int
+main ()
+{
+return history_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_edit_history_init=yes
+else
+  ac_cv_lib_edit_history_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_edit_history_init" >&5
+$as_echo "$ac_cv_lib_edit_history_init" >&6; }
+if test "x$ac_cv_lib_edit_history_init" = xyes; then :
+  AST_LIBEDIT_FOUND=yes
+else
+  AST_LIBEDIT_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_LIBEDIT_FOUND}" = "yes"; then
+      LIBEDIT_LIB="${pbxlibdir} -ledit -ltermcap"
+      # if --with-LIBEDIT=DIR has been specified, use it.
+      if test "x${LIBEDIT_DIR}" != "x"; then
+         LIBEDIT_INCLUDE="-I${LIBEDIT_DIR}/include"
+      fi
+      LIBEDIT_INCLUDE="${LIBEDIT_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${LIBEDIT_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "histedit.h" "ac_cv_header_histedit_h" "$ac_includes_default"
+if test "x$ac_cv_header_histedit_h" = xyes; then :
+  LIBEDIT_HEADER_FOUND=1
+else
+  LIBEDIT_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${LIBEDIT_HEADER_FOUND}" = "x0" ; then
+         LIBEDIT_LIB=""
+         LIBEDIT_INCLUDE=""
+      else
+
+         PBX_LIBEDIT=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBEDIT 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+fi
+if test "${PBX_LIBEDIT}" != 1; then
+	as_fn_error $? "*** Please install the 'libedit' development package." "$LINENO" 5
+	exit 1
+fi
 
     if test "x${PBX_LIBEDIT_IS_UNICODE}" != "x1" -a "${USE_LIBEDIT_IS_UNICODE}" != "no"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Testing for libedit unicode support" >&5
@@ -21016,11 +21119,6 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
-
-if test "${PBX_LIBEDIT}" != 1; then
-	as_fn_error $? "*** Please install the 'libedit' development package." "$LINENO" 5
-	exit 1
-fi
 
 
 if test "x${PBX_ICONV}" != "x1" -a "${USE_ICONV}" != "no"; then

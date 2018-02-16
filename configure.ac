@@ -1577,12 +1577,15 @@ if test "${USE_ILBC}" != "no"; then
 fi
 
 AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
-AST_C_COMPILE_CHECK([LIBEDIT_IS_UNICODE], [el_rfunc_t *callback;], [histedit.h], [], [Testing for libedit unicode support])
-
+if test "${PBX_LIBEDIT}" != 1; then
+	# some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+	AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
+fi
 if test "${PBX_LIBEDIT}" != 1; then
 	AC_MSG_ERROR(*** Please install the 'libedit' development package.)
 	exit 1
 fi
+AST_C_COMPILE_CHECK([LIBEDIT_IS_UNICODE], [el_rfunc_t *callback;], [histedit.h], [], [Testing for libedit unicode support])
 
 AST_EXT_LIB_CHECK([ICONV], [iconv], [iconv_open], [iconv.h])
 # GNU libiconv #define's iconv_open to libiconv_open, so we need to search for that symbol
