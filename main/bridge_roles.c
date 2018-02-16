@@ -53,12 +53,12 @@ struct bridge_role_option {
 
 struct bridge_role {
 	AST_LIST_ENTRY(bridge_role) list;
-	AST_LIST_HEAD(, bridge_role_option) options;
+	AST_LIST_HEAD_NOLOCK(, bridge_role_option) options;
 	char role[AST_ROLE_LEN];
 };
 
 struct bridge_roles_datastore {
-	AST_LIST_HEAD(, bridge_role) role_list;
+	AST_LIST_HEAD_NOLOCK(, bridge_role) role_list;
 };
 
 /*!
@@ -129,6 +129,8 @@ static struct bridge_roles_datastore *setup_bridge_roles_datastore(struct ast_ch
 		ast_datastore_free(datastore);
 		return NULL;
 	}
+
+	AST_LIST_HEAD_INIT_NOLOCK(&roles_datastore->role_list);
 
 	datastore->data = roles_datastore;
 	ast_channel_datastore_add(chan, datastore);
@@ -265,6 +267,8 @@ static int setup_bridge_role(struct bridge_roles_datastore *roles_datastore, con
 	if (!role) {
 		return -1;
 	}
+
+	AST_LIST_HEAD_INIT_NOLOCK(&role->options);
 
 	ast_copy_string(role->role, role_name, sizeof(role->role));
 
