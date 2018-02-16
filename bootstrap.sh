@@ -44,11 +44,18 @@ check_for_app autoheader${MY_AC_VER}
 check_for_app automake${MY_AM_VER}
 check_for_app aclocal${MY_AM_VER}
 
-echo "Generating the configure script ..."
+gen_configure() {
+	echo "Generating the configure script for $1 ..."
+	shift
 
-aclocal${MY_AM_VER} -I autoconf `find third-party -maxdepth 1 -type d | xargs -I {} echo -I {}`
-autoconf${MY_AC_VER}
-autoheader${MY_AC_VER}
-automake${MY_AM_VER} --add-missing --copy 2>/dev/null
+	aclocal${MY_AM_VER} -I "$@"
+	autoconf${MY_AC_VER}
+	autoheader${MY_AC_VER}
+	automake${MY_AM_VER} --add-missing --copy 2>/dev/null
+}
+
+gen_configure "Asterisk" autoconf `find third-party -maxdepth 1 -type d | xargs -I {} echo -I {}`
+cd menuselect
+gen_configure "menuselect" ../autoconf
 
 exit 0
