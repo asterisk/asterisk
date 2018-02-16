@@ -21,6 +21,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_calendar</depend>
 	<depend>neon</depend>
 	<depend>ical</depend>
 	<depend>iksemel</depend>
