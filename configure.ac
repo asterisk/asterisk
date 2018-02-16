@@ -1979,7 +1979,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 			)
 		else #looking in imap directory didn't work, try c-client
 			imap_ldflags=""
-			imap_libs="-lc-client"
+			imap_libs="-lcrypto -lssl -lc-client"
 			imap_include="-DUSE_SYSTEM_CCLIENT"
 			CPPFLAGS="${saved_cppflags}"
 			LIBS="${saved_libs}"
