@@ -21,6 +21,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_calendar</depend>
 	<depend>neon</depend>
 	<depend>ical</depend>
 	<depend>iksemel</depend>
@@ -743,4 +744,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk MS Exchange 
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_DEVSTATE_PLUGIN,
+	.requires = "res_calendar",
 );
