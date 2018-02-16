@@ -1573,6 +1573,10 @@ if test "${USE_LIBEDIT}" != "no"; then
    fi
    if test "${LIBEDIT_SYSTEM}" = "yes"; then
       AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
+      if test "$PBX_LIBEDIT" != "1"; then
+         # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+         AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
+      fi
       if test "$PBX_LIBEDIT" = "1"; then
       LIBEDIT_INTERNAL="no"
       fi
