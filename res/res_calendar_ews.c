@@ -21,6 +21,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_calendar</depend>
 	<depend>neon29</depend>
 	<support_level>core</support_level>
 ***/
