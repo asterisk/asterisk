@@ -977,7 +977,7 @@ ifeq ($(HAVE_DAHDI),1)
 endif
 	$(MAKE) -C sounds uninstall
 ifneq ($(LDCONFIG),)
-	$(LDCONFIG) || :
+	$(LDCONFIG) "$(ASTLIBDIR)/" || :
 endif
 
 uninstall: _uninstall
