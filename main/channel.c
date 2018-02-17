@@ -7583,22 +7583,6 @@ static int ast_channel_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(name);
 }
 
-int ast_plc_reload(void)
-{
-	struct ast_variable *var;
-	struct ast_flags config_flags = { 0 };
-	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID)
-		return 0;
-	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
-		if (!strcasecmp(var->name, "genericplc")) {
-			ast_set2_flag(&ast_options, ast_true(var->value), AST_OPT_FLAG_GENERIC_PLC);
-		}
-	}
-	ast_config_destroy(cfg);
-	return 0;
-}
-
 /*!
  * \internal
  * \brief Print channel object key (name).
@@ -7821,8 +7805,6 @@ int ast_channels_init(void)
 	ast_stasis_channels_init();
 
 	ast_cli_register_multiple(cli_channel, ARRAY_LEN(cli_channel));
-
-	ast_plc_reload();
 
 	ast_register_cleanup(channels_shutdown);
 

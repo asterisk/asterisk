@@ -784,15 +784,6 @@ int ast_realtime_append_mapping(const char *name, const char *driver, const char
  */
 int register_config_cli(void);
 
-/*!
- * \brief Exposed re-initialization method for core process
- *
- * \details
- * This method is intended for use only with the core re-initialization and is
- * not designed to be called from any user applications.
- */
-int read_config_maps(void);
-
 /*! \brief Create a new base configuration structure */
 struct ast_config *ast_config_new(void);
 

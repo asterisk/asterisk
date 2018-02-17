@@ -97,7 +97,4 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *location, i
  */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *txt, int maxtxt, char *suffix);
 
-int ast_enum_init(void);
-int ast_enum_reload(void);
-
 #endif /* _ASTERISK_ENUM_H */

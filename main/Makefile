@@ -17,9 +17,9 @@ all: asterisk
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-# Can the MODSRC list be automated without needing built-in modules to be
-# in a different directory?  Would a different directory be better?
-MOD_SRC:=
+MOD_SRC:=cdr.c cel.c config.c ccss.c dnsmgr.c dsp.c enum.c features.c http.c indications.c logger.c manager.c named_acl.c plc.c sounds.c udptl.c
+# Allow deletion of built-in modules without needing to modify this source.
+MOD_SRC:=$(wildcard $(MOD_SRC))
 MOD_OBJS:=$(sort $(MOD_SRC:.c=.o))
 
 # Must include the extra ast_expr2.c, ast_expr2f.c, in case they need to be regenerated (because to force regeneration, we delete them)

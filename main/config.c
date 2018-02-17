@@ -30,6 +30,11 @@
 	<support_level>core</support_level>
  ***/
 
+/* This maintains the original "module reload extconfig" CLI command instead
+ * of replacing it with "module reload config". */
+#undef AST_MODULE
+#define AST_MODULE "extconfig"
+
 #include "asterisk.h"
 
 #include "asterisk/paths.h"	/* use ast_config_AST_CONFIG_DIR */
@@ -54,6 +59,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"	/* for the ast_str_*() API */
 #include "asterisk/netsock2.h"
+#include "asterisk/module.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -2883,7 +2889,7 @@ static int ast_realtime_append_mapping(const char *name, const char *driver, con
 	return 0;
 }
 
-int read_config_maps(void)
+static int reload_module(void)
 {
 	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
@@ -4042,6 +4048,7 @@ static void config_shutdown(void)
 int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
+	/* This is separate from the module load so cleanup can happen very late. */
 	ast_register_cleanup(config_shutdown);
 	return 0;
 }
@@ -4128,3 +4135,26 @@ int ast_config_hook_register(const char *name,
 	ao2_ref(hook, -1);
 	return 0;
 }
+
+static int unload_module(void)
+{
+	return 0;
+}
+
+static int load_module(void)
+{
+	if (ast_opt_console) {
+		ast_verb(0, "[ Initializing Custom Configuration Options ]\n");
+	}
+
+	return reload_module() ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+}
+
+/* This module explicitly loads before realtime drivers. */
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Configuration",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = 0,
+);

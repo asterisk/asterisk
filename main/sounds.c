@@ -34,7 +34,7 @@
 #include "asterisk/sounds_index.h"
 #include "asterisk/file.h"
 #include "asterisk/cli.h"
-#include "asterisk/_private.h"
+#include "asterisk/module.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/stasis_system.h"
 
@@ -111,7 +111,7 @@ static int update_index_cb(void *obj, void *arg, int flags)
 
 AST_MUTEX_DEFINE_STATIC(reload_lock);
 
-int ast_sounds_reindex(void)
+static int reload_module(void)
 {
 	RAII_VAR(struct ast_str *, sounds_dir, NULL, ast_free);
 	RAII_VAR(struct ao2_container *, languages, NULL, ao2_cleanup);
@@ -273,13 +273,15 @@ static struct ast_cli_entry cli_sounds[] = {
 	AST_CLI_DEFINE(handle_cli_sound_show, "Shows details about a specific sound"),
 };
 
-static void sounds_cleanup(void)
+static int unload_module(void)
 {
 	stasis_message_router_unsubscribe_and_join(sounds_system_router);
 	sounds_system_router = NULL;
 	ast_cli_unregister_multiple(cli_sounds, ARRAY_LEN(cli_sounds));
 	ao2_cleanup(sounds_index);
 	sounds_index = NULL;
+
+	return 0;
 }
 
 static void format_update_cb(void *data, struct stasis_subscription *sub,
@@ -287,21 +289,21 @@ static void format_update_cb(void *data, struct stasis_subscription *sub,
 {
 	/* Reindexing during shutdown is pointless. */
 	if (!ast_shutting_down()) {
-		ast_sounds_reindex();
+		reload_module();
 	}
 }
 
-int ast_sounds_index_init(void)
+static int load_module(void)
 {
 	int res = 0;
-	if (ast_sounds_reindex()) {
-		return -1;
+	if (reload_module()) {
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	res |= ast_cli_register_multiple(cli_sounds, ARRAY_LEN(cli_sounds));
 
 	sounds_system_router = stasis_message_router_create(ast_system_topic());
 	if (!sounds_system_router) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_format_register_type()) {
@@ -320,15 +322,19 @@ int ast_sounds_index_init(void)
 			NULL);
 	}
 
-	if (res) {
-		return -1;
-	}
-
-	ast_register_cleanup(sounds_cleanup);
-	return 0;
+	return res ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
 struct ast_media_index *ast_sounds_get_index(void)
 {
 	return ao2_bump(sounds_index);
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Sounds Index",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	/* Load after the format modules to reduce processing during startup. */
+	.load_pri = AST_MODPRI_APP_DEPEND + 1,
+);

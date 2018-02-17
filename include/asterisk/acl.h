@@ -382,24 +382,6 @@ const char *ast_tos2str(unsigned int tos);
 struct ast_ha *ast_named_acl_find(const char *name, int *is_realtime, int *is_undefined);
 
 /*!
- * \brief Initialize and configure the named ACL system.
- *
- * \details
- * This function will prepare the named ACL system for use.
- * For this reason, it needs to be called before other things that use ACLs are initialized.
- */
-int ast_named_acl_init(void);
-
-/*!
- * \brief reload/reconfigure the named ACL system.
- *
- * \details
- * This function is designed to trigger an event upon a successful reload that may update
- * ACL consumers.
- */
-int ast_named_acl_reload(void);
-
-/*!
  * \brief a \ref stasis_message_type for changes against a named ACL or the set of all named ACLs
  * \since 12
  *

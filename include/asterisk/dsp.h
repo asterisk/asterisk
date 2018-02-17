@@ -193,16 +193,4 @@ int ast_dsp_get_tcount(struct ast_dsp *dsp);
  */
 int ast_dsp_get_threshold_from_settings(enum threshold which);
 
-/*!
- * \brief Reloads dsp settings from dsp.conf
- * \since 1.6.1
- */
-int ast_dsp_reload(void);
-
-/*!
- * \brief Load dsp settings from dsp.conf
- * \since 1.6.1
- */
-int ast_dsp_init(void);
-
 #endif /* _ASTERISK_DSP_H */

@@ -49,6 +49,7 @@
 #include <fcntl.h>
 
 #include "asterisk/_private.h"
+#include "asterisk/module.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include "asterisk/logger.h"
 #include "asterisk/lock.h"
@@ -1123,16 +1124,6 @@ static int reload_logger(int rotate, const char *altconf)
 	}
 
 	return res;
-}
-
-/*! \brief Reload the logger module without rotating log files (also used from loader.c during
-	a full Asterisk reload) */
-int logger_reload(void)
-{
-	if (reload_logger(0, NULL)) {
-		return RESULT_FAILURE;
-	}
-	return RESULT_SUCCESS;
 }
 
 static char *handle_logger_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -2369,3 +2360,27 @@ int ast_logger_get_queue_limit(void)
 {
 	return logger_queue_limit;
 }
+
+static int reload_module(void)
+{
+	return reload_logger(0, NULL);
+}
+
+static int unload_module(void)
+{
+	return 0;
+}
+
+static int load_module(void)
+{
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+/* Logger is initialized separate from the module loader, only reload_module does anything. */
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Logger",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = 0,
+);

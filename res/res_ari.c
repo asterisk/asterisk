@@ -1196,6 +1196,6 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.unload = unload_module,
 	.reload = reload_module,
 	.optional_modules = "res_http_websocket",
-	.requires = "res_stasis",
+	.requires = "http,res_stasis",
 	.load_pri = AST_MODPRI_APP_DEPEND,
 );

@@ -581,12 +581,6 @@ const char *ast_cdr_disp2str(int disposition);
  */
 void ast_cdr_setuserfield(const char *channel_name, const char *userfield);
 
-/*! \brief Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
-int ast_cdr_engine_reload(void);
-
-/*! \brief Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
-int ast_cdr_engine_init(void);
-
 /*! Submit any remaining CDRs and prepare for shutdown */
 void ast_cdr_engine_term(void);
 

@@ -33,26 +33,17 @@ int astdb_init(void);			/*!< Provided by db.c */
 int ast_channels_init(void);		/*!< Provided by channel.c */
 void ast_builtins_init(void);		/*!< Provided by cli.c */
 int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
-int dnsmgr_init(void);			/*!< Provided by dnsmgr.c */
 void dnsmgr_start_refresh(void);	/*!< Provided by dnsmgr.c */
-int dnsmgr_reload(void);		/*!< Provided by dnsmgr.c */
 int ast_dns_system_resolver_init(void); /*!< Provided by dns_system_resolver.c */
 void threadstorage_init(void);		/*!< Provided by threadstorage.c */
 int ast_device_state_engine_init(void);	/*!< Provided by devicestate.c */
 int astobj2_init(void);			/*!< Provided by astobj2.c */
 int ast_named_locks_init(void);		/*!< Provided by named_locks.c */
 int ast_file_init(void);		/*!< Provided by file.c */
-int ast_features_init(void);            /*!< Provided by features.c */
 void ast_autoservice_init(void);	/*!< Provided by autoservice.c */
-int ast_http_init(void);		/*!< Provided by http.c */
-int ast_http_reload(void);		/*!< Provided by http.c */
 int ast_tps_init(void); 		/*!< Provided by taskprocessor.c */
 int ast_timing_init(void);		/*!< Provided by timing.c */
-int ast_indications_init(void); /*!< Provided by indications.c */
-int ast_indications_reload(void);/*!< Provided by indications.c */
 void ast_stun_init(void);               /*!< Provided by stun.c */
-int ast_cel_engine_init(void);		/*!< Provided by cel.c */
-int ast_cel_engine_reload(void);	/*!< Provided by cel.c */
 int ast_ssl_init(void);                 /*!< Provided by ssl.c */
 int ast_pj_init(void);                 /*!< Provided by libasteriskpj.c */
 int ast_test_init(void);            /*!< Provided by test.c */
@@ -97,13 +88,6 @@ void ast_process_pending_reloads(void);
  */
 int ast_xmldoc_load_documentation(void);
 
-/*!
- * \brief Reload genericplc configuration value from codecs.conf
- *
- * Implementation is in main/channel.c
- */
-int ast_plc_reload(void);
-
 /*! \brief initializes the rtp engine arrays */
 int ast_rtp_engine_init(void);
 
@@ -112,9 +96,6 @@ int ast_rtp_engine_init(void);
  * \since 12.0.0
  */
 int ast_parking_stasis_init(void);
-
-/*! \brief initialize the sounds index */
-int ast_sounds_index_init(void);
 
 /*!
  * \brief Endpoint support initialization.

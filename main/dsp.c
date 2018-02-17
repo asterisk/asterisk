@@ -57,6 +57,7 @@
 
 #include <math.h>
 
+#include "asterisk/module.h"
 #include "asterisk/frame.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/channel.h"
@@ -1331,10 +1332,11 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 #ifndef BUSYDETECT_TONEONLY
 	if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) &&
 	    (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) &&
-	    (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX)) {
+	    (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX))
 #else
-	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX)) {
+	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX))
 #endif
+	{
 #ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
 		if (avgtone > avgsilence) {
 			if (avgtone - avgtone*BUSY_PERCENT/100 <= avgsilence) {
@@ -2392,31 +2394,35 @@ AST_TEST_DEFINE(test_dsp_dtmf_detect)
 }
 #endif
 
-#ifdef TEST_FRAMEWORK
-static void test_dsp_shutdown(void)
+static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(test_dsp_fax_detect);
 	AST_TEST_UNREGISTER(test_dsp_dtmf_detect);
-}
-#endif
-
-int ast_dsp_init(void)
-{
-	if (_dsp_init(0)) {
-		return -1;
-	}
-
-#ifdef TEST_FRAMEWORK
-	AST_TEST_REGISTER(test_dsp_fax_detect);
-	AST_TEST_REGISTER(test_dsp_dtmf_detect);
-
-	ast_register_cleanup(test_dsp_shutdown);
-#endif
 
 	return 0;
 }
 
-int ast_dsp_reload(void)
+static int load_module(void)
+{
+	if (_dsp_init(0)) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	AST_TEST_REGISTER(test_dsp_fax_detect);
+	AST_TEST_REGISTER(test_dsp_dtmf_detect);
+
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+static int reload_module(void)
 {
 	return _dsp_init(1);
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "DSP",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

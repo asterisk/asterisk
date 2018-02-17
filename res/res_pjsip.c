@@ -5213,6 +5213,6 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 5,
-	.requires = "res_pjproject",
+	.requires = "dnsmgr,res_pjproject",
 	.optional_modules = "res_statsd",
 );

@@ -60,7 +60,7 @@
 #include "asterisk/stringfields.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/manager.h"
-#include "asterisk/_private.h"
+#include "asterisk/module.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/json.h"
@@ -2264,7 +2264,7 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
-int ast_http_reload(void)
+static int reload_module(void)
 {
 	return __ast_http_load(1);
 }
@@ -2273,7 +2273,7 @@ static struct ast_cli_entry cli_http[] = {
 	AST_CLI_DEFINE(handle_show_http, "Display HTTP server status"),
 };
 
-static void http_shutdown(void)
+static int unload_module(void)
 {
 	struct http_uri_redirect *redirect;
 	ast_cli_unregister_multiple(cli_http, ARRAY_LEN(cli_http));
@@ -2295,14 +2295,23 @@ static void http_shutdown(void)
 		ast_free(redirect);
 	}
 	AST_RWLIST_UNLOCK(&uri_redirects);
+
+	return 0;
 }
 
-int ast_http_init(void)
+static int load_module(void)
 {
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
-	ast_register_cleanup(http_shutdown);
 
-	return __ast_http_load(0);
+	return __ast_http_load(0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Built-in HTTP Server",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

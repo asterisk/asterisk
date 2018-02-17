@@ -40,6 +40,7 @@
 #include "asterisk.h"
 
 #include "asterisk/_private.h"
+#include "features_config.h"
 
 #include <pthread.h>
 #include <signal.h>
@@ -1145,29 +1146,32 @@ done:
 	return 0;
 }
 
-/*!
- * \internal
- * \brief Clean up resources on Asterisk shutdown
- */
-static void features_shutdown(void)
+static int unload_module(void)
 {
-	ast_features_config_shutdown();
+	unload_features_config();
 
 	ast_manager_unregister("Bridge");
 
 	ast_unregister_application(app_bridge);
 
+	return 0;
 }
 
-int ast_features_init(void)
+static int load_module(void)
 {
 	int res;
 
-	res = ast_features_config_init();
+	res = load_features_config();
 	res |= ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
 	res |= ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 
-	ast_register_cleanup(features_shutdown);
-
-	return res;
+	return res ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Call Features",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_features_config,
+	.load_pri = AST_MODPRI_CORE,
+);

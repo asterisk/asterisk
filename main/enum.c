@@ -70,6 +70,7 @@
 #include <ctype.h>
 #include <regex.h>
 
+#include "asterisk/module.h"
 #include "asterisk/enum.h"
 #include "asterisk/dns.h"
 #include "asterisk/channel.h"
@@ -1008,12 +1009,25 @@ static int private_enum_init(int reload)
 	return 0;
 }
 
-int ast_enum_init(void)
+static int load_module(void)
 {
-	return private_enum_init(0);
+	return private_enum_init(0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
-int ast_enum_reload(void)
+static int unload_module(void)
+{
+	return 0;
+}
+
+static int reload_module(void)
 {
 	return private_enum_init(1);
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "ENUM Support",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

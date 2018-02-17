@@ -1618,15 +1618,4 @@ typedef void (*ast_cc_callback_fn)(struct ast_channel *chan, struct ast_cc_confi
  */
 int ast_cc_callback(struct ast_channel *inbound, const char * const tech, const char * const dest, ast_cc_callback_fn callback);
 
-/*!
- * \since 1.8
- * \brief Initialize CCSS
- *
- * Performs startup routines necessary for CC operation.
- *
- * \retval 0 Success
- * \retval nonzero Failure
- */
-int ast_cc_init(void);
-
 #endif /* _ASTERISK_CCSS_H */

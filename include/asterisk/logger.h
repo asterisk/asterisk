@@ -133,9 +133,6 @@ int ast_logger_remove_channel(const char *log_channel);
  */
 void ast_log_backtrace(void);
 
-/*! \brief Reload logger without rotating log files */
-int logger_reload(void);
-
 /*! \brief Reload logger while rotating log files */
 int ast_logger_rotate(void);
 

@@ -42,19 +42,12 @@
 #include "asterisk/config.h"
 #include "asterisk/channel.h"
 #include "asterisk/term.h"
-#include "asterisk/acl.h"
 #include "asterisk/manager.h"
-#include "asterisk/cdr.h"
-#include "asterisk/enum.h"
-#include "asterisk/http.h"
+#include "asterisk/io.h"
 #include "asterisk/lock.h"
-#include "asterisk/features_config.h"
-#include "asterisk/dsp.h"
-#include "asterisk/udptl.h"
 #include "asterisk/vector.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
-#include "asterisk/sounds_index.h"
 #include "asterisk/cli.h"
 
 #include <dlfcn.h>
@@ -513,10 +506,11 @@ void ast_module_register(const struct ast_module_info *info)
 	struct ast_module *mod;
 
 	if (!loader_ready) {
-		mod = ast_calloc(1, sizeof(*mod) + strlen(info->name) + 1);
+		mod = ast_std_calloc(1, sizeof(*mod) + strlen(info->name) + 1);
 		if (!mod) {
 			/* We haven't even reached main() yet, if we can't
 			 * allocate memory at this point just give up. */
+			fprintf(stderr, "Allocation failure during startup.\n");
 			exit(2);
 		}
 		strcpy(mod->resource, info->name); /* safe */
@@ -580,7 +574,11 @@ static void module_destroy(struct ast_module *mod)
 
 	AST_LIST_HEAD_DESTROY(&mod->users);
 	ao2_cleanup(mod->ref_debug);
-	ast_free(mod);
+	if (mod->flags.builtin) {
+		ast_std_free(mod);
+	} else {
+		ast_free(mod);
+	}
 }
 
 void ast_module_unregister(const struct ast_module_info *info)
@@ -689,33 +687,6 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 
 	ast_update_use_count();
 }
-
-/*! \note
- * In addition to modules, the reload command handles some extra keywords
- * which are listed here together with the corresponding handlers.
- * This table is also used by the command completion code.
- */
-static struct reload_classes {
-	const char *name;
-	int (*reload_fn)(void);
-} reload_classes[] = {	/* list in alpha order, longest match first for cli completion */
-	{ "acl",         ast_named_acl_reload },
-	{ "cdr",         ast_cdr_engine_reload },
-	{ "cel",         ast_cel_engine_reload },
-	{ "dnsmgr",      dnsmgr_reload },
-	{ "dsp",         ast_dsp_reload},
-	{ "extconfig",   read_config_maps },
-	{ "enum",        ast_enum_reload },
-	{ "features",    ast_features_config_reload },
-	{ "http",        ast_http_reload },
-	{ "indications", ast_indications_reload },
-	{ "logger",      logger_reload },
-	{ "manager",     reload_manager },
-	{ "plc",         ast_plc_reload },
-	{ "sounds",      ast_sounds_reindex },
-	{ "udptl",       ast_udptl_reload },
-	{ NULL,          NULL }
-};
 
 static int printdigest(const unsigned char *d)
 {
@@ -1160,16 +1131,6 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 		return NULL;
 	}
 
-	if (type == AST_MODULE_HELPER_RELOAD) {
-		int idx;
-
-		for (idx = 0; reload_classes[idx].name; idx++) {
-			if (!strncasecmp(word, reload_classes[idx].name, wordlen) && ++which > state) {
-				return ast_strdup(reload_classes[idx].name);
-			}
-		}
-	}
-
 	AST_DLLIST_LOCK(&module_list);
 	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
 		if (!module_matches_helper_type(mod, type)) {
@@ -1345,7 +1306,6 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 {
 	struct ast_module *cur;
 	enum ast_module_reload_result res = AST_MODULE_RELOAD_NOT_FOUND;
-	int i;
 	size_t name_baselen = name ? resource_name_baselen(name) : 0;
 
 	/* If we aren't fully booted, we just pretend we reloaded but we queue this
@@ -1378,22 +1338,6 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 			res = AST_MODULE_RELOAD_ERROR;
 			goto module_reload_done;
 		}
-	}
-
-	/* Call "predefined" reload here first */
-	for (i = 0; reload_classes[i].name; i++) {
-		if (!name || !strcasecmp(name, reload_classes[i].name)) {
-			if (reload_classes[i].reload_fn() == AST_MODULE_LOAD_SUCCESS) {
-				res = AST_MODULE_RELOAD_SUCCESS;
-			}
-		}
-	}
-
-	if (name && res == AST_MODULE_RELOAD_SUCCESS) {
-		if (ast_opt_lock_confdir) {
-			ast_unlock_path(ast_config_AST_CONFIG_DIR);
-		}
-		goto module_reload_done;
 	}
 
 	AST_DLLIST_LOCK(&module_list);
@@ -1516,6 +1460,10 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		}
 
 		mod->flags.running = 1;
+		if (mod->flags.builtin) {
+			/* Built-in modules cannot be unloaded. */
+			ast_module_shutdown_ref(mod);
+		}
 
 		ast_update_use_count();
 		break;
@@ -1879,6 +1827,19 @@ int load_modules(unsigned int preload_only)
 	while ((resource_being_loaded = AST_DLLIST_REMOVE_HEAD(&builtin_module_list, entry))) {
 		/* ast_module_register doesn't finish when first run by built-in modules. */
 		ast_module_register(resource_being_loaded->info);
+	}
+
+	if (!preload_only) {
+		struct ast_module *mod;
+
+		/* Add all built-in modules to the load order. */
+		AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
+			if (!mod->flags.builtin) {
+				continue;
+			}
+
+			add_to_load_order(mod->resource, &load_order, 0);
+		}
 	}
 
 	cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags);

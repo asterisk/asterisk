@@ -356,12 +356,6 @@ void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, c
 /*! \brief Determinie if a manager session ident is authenticated */
 int astman_is_authed(uint32_t ident);
 
-/*! \brief Called by Asterisk initialization */
-int init_manager(void);
-
-/*! \brief Called by Asterisk module functions and the CLI command */
-int reload_manager(void);
-
 /*!
  * \brief Add a datastore to a session
  *
