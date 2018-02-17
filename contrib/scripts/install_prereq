@@ -66,8 +66,20 @@ PACKAGES_OBSD="$PACKAGES_OBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
 PACKAGES_OBSD="$PACKAGES_OBSD bzip2 python%2"
 
-PACKAGES_FBSD="autoconf gcc binutils popt gmake wget libxml2 libogg libvorbis curl iksemel spandsp speex unixODBC freetds-devel mysql55-client gmime2 sqlite"
-PACKAGES_FBSD="$PACKAGES_FBSD sqlite3 libxslt jansson e2fsprogs-libuuid gsm libsrtp libsamplerate"
+# Basic build system:
+PACKAGES_FBSD="gmake pkgconf"
+# Asterisk: basic requirements:
+PACKAGES_FBSD="$PACKAGES_FBSD libedit jansson e2fsprogs-libuuid sqlite3 libxml2"
+# Asterisk: for addons:
+PACKAGES_FBSD="$PACKAGES_FBSD speex speexdsp libogg libvorbis alsa-lib portaudio curl xmlstarlet bison flex"
+PACKAGES_FBSD="$PACKAGES_FBSD postgresql10-client unixODBC libltdl neon gmime26 lua52 uriparser libxslt openssl"
+PACKAGES_FBSD="$PACKAGES_FBSD mysql57-client radcli freetds"
+PACKAGES_FBSD="$PACKAGES_FBSD net-snmp iksemel corosync newt popt libical spandsp"
+PACKAGES_FBSD="$PACKAGES_FBSD cclient libbfd libsrtp gsm libilbc doxygen graphviz libzip openldap-client libhoard"
+# Asterisk: for the unpackaged below:
+PACKAGES_FBSD="$PACKAGES_FBSD wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_FBSD="$PACKAGES_FBSD bzip2 patch python"
 
 KVERS=`uname -r`
 
