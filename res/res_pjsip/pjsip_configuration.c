@@ -2193,6 +2193,7 @@ static void info_configuration_destroy(struct ast_sip_endpoint_info_configuratio
 
 static void media_configuration_destroy(struct ast_sip_endpoint_media_configuration *media)
 {
+	ast_rtp_dtls_cfg_free(&media->rtp.dtls_cfg);
 	ast_string_field_free_memory(&media->rtp);
 	ast_string_field_free_memory(media);
 }
