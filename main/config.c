@@ -2841,8 +2841,6 @@ static void clear_config_maps(void)
 {
 	struct ast_config_map *map;
 
-	SCOPED_MUTEX(lock, &config_lock);
-
 	while (config_maps) {
 		map = config_maps;
 		config_maps = config_maps->next;
@@ -2896,6 +2894,7 @@ int read_config_maps(void)
 	char *driver, *table, *database, *textpri, *stringp, *tmp;
 	struct ast_flags flags = { CONFIG_FLAG_NOREALTIME };
 	int pri;
+	SCOPED_MUTEX(lock, &config_lock);
 
 	clear_config_maps();
 
