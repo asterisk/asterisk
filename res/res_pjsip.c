@@ -3175,8 +3175,6 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 {
 	pjsip_sip_uri *sip_uri;
 	int i = 0;
-	pjsip_param *param;
-	static const pj_str_t STR_USER = { "user", 4 };
 	static const pj_str_t STR_PHONE = { "phone", 5 };
 
 	if (!endpoint || !endpoint->usereqphone || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
@@ -3204,15 +3202,7 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 		return;
 	}
 
-	if (pjsip_param_find(&sip_uri->other_param, &STR_USER)) {
-		/* Don't add it if it's already there */
-		return;
-	}
-
-	param = PJ_POOL_ALLOC_T(pool, pjsip_param);
-	param->name = STR_USER;
-	param->value = STR_PHONE;
-	pj_list_insert_before(&sip_uri->other_param, param);
+	sip_uri->user_param = STR_PHONE;
 }
 
 pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
