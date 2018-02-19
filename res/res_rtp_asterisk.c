@@ -1011,6 +1011,15 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 	}
 
 	rtp->role = role;
+
+	if (!rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
+		pj_thread_register_check();
+
+		pj_ice_sess_change_role(rtp->ice->real_ice, role == AST_RTP_ICE_ROLE_CONTROLLED ?
+			PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
+	} else {
+		ast_debug(3, "Not setting ICE role because state is %s\n", rtp->ice->real_ice->is_nominating ? "nominating" : "complete" );
+	}
 }
 
 /*! \pre instance is locked */
