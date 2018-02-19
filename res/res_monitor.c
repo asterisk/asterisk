@@ -25,7 +25,8 @@
 
 /*** MODULEINFO
 	<use type="module">func_periodic_hook</use>
-	<support_level>core</support_level>
+	<support_level>deprecated</support_level>
+	<replacement>app_mixmonitor</replacement>
  ***/
 
 #include "asterisk.h"

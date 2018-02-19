@@ -26,6 +26,10 @@
 
 New in 16.0.0:
 
+app_fax:
+ - The app_fax module is now deprecated, users should migrate to the
+   replacement module res_fax.
+
 app_macro:
  - The app_macro module is now deprecated and by default it is no longer
    built.  Users should migrate to app_stack (Gosub).  A warning is logged
@@ -43,6 +47,14 @@ ARI:
 cdr_syslog:
  - The cdr_syslog module is now deprecated and by default it is no longer
    built.
+
+res_config_sqlite:
+ - The res_config_sqlite module is now deprecated, users should migrate to the
+   replacement module res_config_sqlite3.
+
+res_monitor:
+ - The res_monitor module is now deprecated, users should migrate to the
+   replacement module app_mixmonitor.
 
 Core:
  - libedit is no longer available as an embedded library and must be provided

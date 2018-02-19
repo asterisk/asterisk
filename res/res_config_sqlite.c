@@ -82,7 +82,7 @@
 
 /*** MODULEINFO
 	<depend>sqlite</depend>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
  ***/
 
 #include "asterisk.h"

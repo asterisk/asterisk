@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 15 to Asterisk 16 --------------------
 ------------------------------------------------------------------------------
 
+app_fax
+------------------
+ * The app_fax module is now deprecated, users should migrate to the
+   replacement module res_fax.
+
 app_macro
 ------------------
  * The app_macro module is now deprecated and by default it is no longer
@@ -42,6 +47,16 @@ app_queue
  * Added the ability to set the wrapuptime in the configuration of member.
    When set the wrapuptime on the member is used instead of the wrapuptime
    defined for the queue itself.
+
+res_config_sqlite
+------------------
+ * The res_config_sqlite module is now deprecated, users should migrate to the
+   replacement module res_config_sqlite3.
+
+res_monitor
+------------------
+ * The res_monitor module is now deprecated, users should migrate to the
+   replacement module app_mixmonitor.
 
 res_pjsip
 ------------------
