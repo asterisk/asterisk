@@ -8,7 +8,7 @@
  * Since both pjproject and asterisk source files will include config_site.h,
  * we need to make sure that only pjproject source files include asterisk_malloc_debug.h.
  */
-#if defined(MALLOC_DEBUG) && !defined(_ASTERISK_ASTMM_H)
+#if !defined(_ASTERISK_ASTMM_H)
 #include "asterisk_malloc_debug.h"
 #endif
 

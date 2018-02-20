@@ -138,7 +138,7 @@ size_t strnlen(const char *s, size_t n)
 }
 #endif /* !HAVE_STRNLEN */
 
-#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_STRNDUP)
 char *strndup(const char *s, size_t n)
 {
 	size_t len = strnlen(s, n);
@@ -150,9 +150,9 @@ char *strndup(const char *s, size_t n)
 	new[len] = '\0';
 	return memcpy(new, s, len);
 }
-#endif /* !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC) */
+#endif /* !defined(HAVE_STRNDUP) */
 
-#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_VASPRINTF)
 int vasprintf(char **strp, const char *fmt, va_list ap)
 {
 	int size;
@@ -170,7 +170,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 
 	return size;
 }
-#endif /* !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC) */
+#endif /* !defined(HAVE_VASPRINTF) */
 
 /*
  * Based on Code from bsd-asprintf from OpenSSH
@@ -191,7 +191,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#if !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC)
+#if !defined(HAVE_ASPRINTF)
 int asprintf(char **str, const char *fmt, ...)
 {
         va_list ap;
@@ -204,7 +204,7 @@ int asprintf(char **str, const char *fmt, ...)
 
         return ret;
 }
-#endif /* !defined(HAVE_ASPRINTF) && !defined(__AST_DEBUG_MALLOC) */
+#endif /* !defined(HAVE_ASPRINTF) */
 
 #ifndef HAVE_GETLOADAVG
 #ifdef linux

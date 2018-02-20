@@ -22,7 +22,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
+int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
 {
 	va_list ap;
 	int rc = 0;
@@ -34,7 +34,7 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	return rc;
 }
 
-void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	return calloc(nmemb, size);
 }
@@ -44,27 +44,27 @@ void __ast_free(void *ptr, const char *file, int lineno, const char *func)
 	free(ptr);
 }
 
-void *__ast_malloc(size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func)
 {
 	return malloc(size);
 }
 
-void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
 {
 	return realloc(ptr, size);
 }
 
-char *__ast_strdup(const char *s, const char *file, int lineno, const char *func)
+char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func)
 {
 	return strdup(s);
 }
 
-char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
+char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
 {
 	return strndup(s, n);
 }
 
-int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
+int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
 {
 	return vasprintf(strp, format, ap);
 }

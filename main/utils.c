@@ -2321,28 +2321,6 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 	return 0;
 }
 
-#ifndef __AST_DEBUG_MALLOC
-int __ast_asprintf(const char *file, int lineno, const char *func, char **ret, const char *fmt, ...)
-{
-	int res;
-	va_list ap;
-
-	va_start(ap, fmt);
-	res = vasprintf(ret, fmt, ap);
-	if (res < 0) {
-		/*
-		 * *ret is undefined so set to NULL to ensure it is
-		 * initialized to something useful.
-		 */
-		*ret = NULL;
-		MALLOC_FAILURE_MSG;
-	}
-	va_end(ap);
-
-	return res;
-}
-#endif
-
 int ast_get_tid(void)
 {
 	int ret = -1;

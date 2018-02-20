@@ -52,13 +52,9 @@
  *	ast_str_append_va(...)
  */
 
-#ifdef __AST_DEBUG_MALLOC
-int __ast_debug_str_helper(struct ast_str **buf, ssize_t max_len,
-	int append, const char *fmt, va_list ap, const char *file, int lineno, const char *function)
-#else
 int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
-	int append, const char *fmt, va_list ap)
-#endif
+	int append, const char *fmt, va_list ap,
+	const char *file, int lineno, const char *function)
 {
 	int res;
 	int added;
@@ -110,13 +106,7 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 			need = max_len;
 		}
 
-		if (
-#ifdef __AST_DEBUG_MALLOC
-			_ast_str_make_space(buf, need, file, lineno, function)
-#else
-			ast_str_make_space(buf, need)
-#endif
-			) {
+		if (_ast_str_make_space(buf, need, file, lineno, function)) {
 			ast_log_safe(LOG_VERBOSE, "failed to extend from %d to %d\n",
 				(int) (*buf)->__AST_STR_LEN, need);
 

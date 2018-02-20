@@ -47,7 +47,8 @@ struct ast_datastore *__ast_datastore_alloc(
 		return NULL;
 	}
 
-	if (!(datastore = __ast_calloc(1, sizeof(*datastore), file, line, function))) {
+	datastore = __ast_calloc(1, sizeof(*datastore), file, line, function);
+	if (!datastore) {
 		return NULL;
 	}
 

@@ -33,21 +33,15 @@
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 
-#ifdef __AST_DEBUG_MALLOC
 struct ast_var_t *_ast_var_assign(const char *name, const char *value, const char *file, int lineno, const char *function)
-#else
-struct ast_var_t *ast_var_assign(const char *name, const char *value)
-#endif
 {
 	struct ast_var_t *var;
 	int name_len = strlen(name) + 1;
 	int value_len = strlen(value) + 1;
 
-#ifdef __AST_DEBUG_MALLOC
-	if (!(var = __ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char), file, lineno, function))) {
-#else
-	if (!(var = ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char)))) {
-#endif
+	var = __ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char),
+		file, lineno, function);
+	if (!var) {
 		return NULL;
 	}
 

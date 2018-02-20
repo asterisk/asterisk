@@ -509,11 +509,11 @@ long int ast_random(void);
 #endif
 
 
-#ifndef __AST_DEBUG_MALLOC
-#define ast_std_malloc malloc
-#define ast_std_calloc calloc
-#define ast_std_realloc realloc
-#define ast_std_free free
+#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2)
+void *ast_std_malloc(size_t size);
+void *ast_std_calloc(size_t nmemb, size_t size);
+void *ast_std_realloc(void *ptr, size_t size);
+void ast_std_free(void *ptr);
 
 /*!
  * \brief free() wrapper
@@ -521,8 +521,44 @@ long int ast_random(void);
  * ast_free_ptr should be used when a function pointer for free() needs to be passed
  * as the argument to a function. Otherwise, astmm will cause seg faults.
  */
+void ast_free_ptr(void *ptr);
+void __ast_free(void *ptr, const char *file, int lineno, const char *func);
+
+#else
+
+/*
+ * Need to defeat the MALLOC_DEBUG API when building the standalone utilities.
+ */
+
+#define ast_std_malloc malloc
+#define ast_std_calloc calloc
+#define ast_std_realloc realloc
+#define ast_std_free free
+
+#define ast_free_ptr free
 #define ast_free free
-#define ast_free_ptr ast_free
+
+#define __ast_repl_calloc(nmemb, size, file, lineno, func) \
+	calloc(nmemb, size)
+
+#define __ast_repl_calloc_cache(nmemb, size, file, lineno, func) \
+	calloc(nmemb, size)
+
+#define __ast_repl_malloc(size, file, lineno, func) \
+	malloc(size)
+
+#define __ast_repl_realloc(ptr, size, file, lineno, func) \
+	realloc(ptr, size)
+
+#define __ast_repl_strdup(s, file, lineno, func) \
+	strdup(s)
+
+#define __ast_repl_strndup(s, n, file, lineno, func) \
+	strndup(s, n)
+
+#define __ast_repl_vasprintf(strp, format, ap, file, lineno, func) \
+	vasprintf(strp, format, ap)
+#endif
 
 #if defined(AST_IN_CORE)
 #define MALLOC_FAILURE_MSG \
@@ -539,7 +575,8 @@ void * attribute_malloc __ast_malloc(size_t len, const char *file, int lineno, c
 
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
-	if (!(p = malloc(len))) {
+	p = __ast_repl_malloc(len, file, lineno, func);
+	if (!p) {
 		MALLOC_FAILURE_MSG;
 	}
 
@@ -554,7 +591,24 @@ void * attribute_malloc __ast_calloc(size_t num, size_t len, const char *file, i
 
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
-	if (!(p = calloc(num, len))) {
+	p = __ast_repl_calloc(num, len, file, lineno, func);
+	if (!p) {
+		MALLOC_FAILURE_MSG;
+	}
+
+	return p;
+}
+)
+
+AST_INLINE_API(
+void * attribute_malloc __ast_calloc_cache(size_t num, size_t len, const char *file, int lineno, const char *func),
+{
+	void *p;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
+	p = __ast_repl_calloc_cache(num, len, file, lineno, func);
+	if (!p) {
 		MALLOC_FAILURE_MSG;
 	}
 
@@ -569,7 +623,8 @@ void * attribute_malloc __ast_realloc(void *p, size_t len, const char *file, int
 
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
-	if (!(newp = realloc(p, len))) {
+	newp = __ast_repl_realloc(p, len, file, lineno, func);
+	if (!newp) {
 		MALLOC_FAILURE_MSG;
 	}
 
@@ -585,7 +640,8 @@ char * attribute_malloc __ast_strdup(const char *str, const char *file, int line
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (str) {
-		if (!(newstr = strdup(str))) {
+		newstr = __ast_repl_strdup(str, file, lineno, func);
+		if (!newstr) {
 			MALLOC_FAILURE_MSG;
 		}
 	}
@@ -602,7 +658,8 @@ char * attribute_malloc __ast_strndup(const char *str, size_t len, const char *f
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (str) {
-		if (!(newstr = strndup(str, len))) {
+		newstr = __ast_repl_strndup(str, len, file, lineno, func);
+		if (!newstr) {
 			MALLOC_FAILURE_MSG;
 		}
 	}
@@ -611,8 +668,30 @@ char * attribute_malloc __ast_strndup(const char *str, size_t len, const char *f
 }
 )
 
-int __attribute__((format(printf, 5, 6)))
-	__ast_asprintf(const char *file, int lineno, const char *func, char **ret, const char *fmt, ...);
+AST_INLINE_API(
+__attribute__((format(printf, 5, 6)))
+int __ast_asprintf(const char *file, int lineno, const char *func, char **ret, const char *fmt, ...),
+{
+	int res;
+	va_list ap;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
+
+	va_start(ap, fmt);
+	res = __ast_repl_vasprintf(ret, fmt, ap, file, lineno, func);
+	if (res < 0) {
+		/*
+		 * *ret is undefined so set to NULL to ensure it is
+		 * initialized to something useful.
+		 */
+		*ret = NULL;
+		MALLOC_FAILURE_MSG;
+	}
+	va_end(ap);
+
+	return res;
+}
+)
 
 AST_INLINE_API(
 __attribute__((format(printf, 2, 0)))
@@ -622,7 +701,7 @@ int __ast_vasprintf(char **ret, const char *fmt, va_list ap, const char *file, i
 
 	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
 
-	res = vasprintf(ret, fmt, ap);
+	res = __ast_repl_vasprintf(ret, fmt, ap, file, lineno, func);
 	if (res < 0) {
 		/*
 		 * *ret is undefined so set to NULL to ensure it is
@@ -635,8 +714,6 @@ int __ast_vasprintf(char **ret, const char *fmt, va_list ap, const char *file, i
 	return res;
 }
 )
-
-#endif /* AST_DEBUG_MALLOC */
 
 /*!
  * \brief A wrapper for malloc()
@@ -671,7 +748,7 @@ int __ast_vasprintf(char **ret, const char *fmt, va_list ap, const char *file, i
  * The arguments and return value are the same as calloc()
  */
 #define ast_calloc_cache(num, len) \
-	__ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ast_calloc_cache((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief A wrapper for realloc()

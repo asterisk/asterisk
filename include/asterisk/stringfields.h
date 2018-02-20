@@ -228,11 +228,11 @@ struct ast_string_field_mgr {
 	ast_string_field last_alloc;			/*!< the last field allocated */
 	struct ast_string_field_pool *embedded_pool;	/*!< pointer to the embedded pool, if any */
 	struct ast_string_field_vector string_fields;	/*!< field vector for compare and copy */
-#if defined(__AST_DEBUG_MALLOC)
+	/* v-- MALLOC_DEBUG information */
 	const char *owner_file;				/*!< filename of owner */
 	const char *owner_func;				/*!< function name of owner */
 	int owner_line;					/*!< line number of owner */
-#endif
+	/* ^-- MALLOC_DEBUG information */
 };
 
 /*!

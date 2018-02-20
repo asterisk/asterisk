@@ -149,31 +149,6 @@ AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 		}                                    \
 	} while (0)
 
-void *ast_std_malloc(size_t size)
-{
-	return malloc(size);
-}
-
-void *ast_std_calloc(size_t nmemb, size_t size)
-{
-	return calloc(nmemb, size);
-}
-
-void *ast_std_realloc(void *ptr, size_t size)
-{
-	return realloc(ptr, size);
-}
-
-void ast_std_free(void *ptr)
-{
-	free(ptr);
-}
-
-void ast_free_ptr(void *ptr)
-{
-	ast_free(ptr);
-}
-
 static void print_backtrace(struct ast_bt *bt)
 {
 	int i = 0;
@@ -479,7 +454,7 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 	}
 }
 
-void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
@@ -491,7 +466,7 @@ void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, cons
 	return ptr;
 }
 
-void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
@@ -503,7 +478,7 @@ void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno
 	return ptr;
 }
 
-void *__ast_malloc(size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
@@ -539,7 +514,7 @@ static struct ast_region *region_find(void *ptr)
 	return reg;
 }
 
-void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
+void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
 {
 	size_t len;
 	struct ast_region *found;
@@ -588,7 +563,7 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 	return new_mem;
 }
 
-char *__ast_strdup(const char *s, const char *file, int lineno, const char *func)
+char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func)
 {
 	size_t len;
 	void *ptr;
@@ -603,7 +578,7 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 	return ptr;
 }
 
-char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
+char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
 {
 	size_t len;
 	char *ptr;
@@ -621,7 +596,7 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	return ptr;
 }
 
-int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *fmt, ...)
+int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **strp, const char *fmt, ...)
 {
 	int size;
 	va_list ap, ap2;
@@ -642,7 +617,7 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	return size;
 }
 
-int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func)
+int __ast_repl_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func)
 {
 	int size;
 	va_list ap2;
@@ -1543,4 +1518,83 @@ void __ast_mm_init_phase_2(void)
 	ast_register_cleanup(mm_atexit_ast);
 }
 
+#else	/* !defined(__AST_DEBUG_MALLOC) */
+
+void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+{
+	return calloc(nmemb, size);
+}
+
+void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+{
+	return calloc(nmemb, size);
+}
+
+void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func)
+{
+	return malloc(size);
+}
+
+void __ast_free(void *ptr, const char *file, int lineno, const char *func)
+{
+	free(ptr);
+}
+
+void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
+{
+	return realloc(ptr, size);
+}
+
+char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func)
+{
+	return strdup(s);
+}
+
+char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
+{
+	return strndup(s, n);
+}
+
+int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
+{
+	va_list ap;
+	int rc = 0;
+
+	va_start(ap, format);
+	rc = vasprintf(strp, format, ap);
+	va_end(ap);
+
+	return rc;
+}
+
+int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
+{
+	return vasprintf(strp, format, ap);
+}
+
 #endif	/* defined(__AST_DEBUG_MALLOC) */
+
+void *ast_std_malloc(size_t size)
+{
+	return malloc(size);
+}
+
+void *ast_std_calloc(size_t nmemb, size_t size)
+{
+	return calloc(nmemb, size);
+}
+
+void *ast_std_realloc(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}
+
+void ast_std_free(void *ptr)
+{
+	free(ptr);
+}
+
+void ast_free_ptr(void *ptr)
+{
+	ast_free(ptr);
+}

@@ -20,18 +20,19 @@ fi
 TMP=`${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
 for x in ${TMP}; do
 	echo "#define ${x} 1"
-	if test "${x}" = "DONT_OPTIMIZE" \
+	if test "${x}" = "AO2_DEBUG" \
 			-o "${x}" = "BETTER_BACKTRACES" \
-			-o "${x}" = "LOTS_OF_SPANS" \
 			-o "${x}" = "BUILD_NATIVE" \
-			-o "${x}" = "LOW_MEMORY" \
-			-o "${x}" = "REF_DEBUG" \
-			-o "${x}" = "AO2_DEBUG" \
-			-o "${x}" = "REBUILD_PARSERS" \
-			-o "${x}" = "RADIO_RELAX" \
 			-o "${x}" = "DEBUG_SCHEDULER" \
 			-o "${x}" = "DETECT_DEADLOCKS" \
-			-o "${x}" = "DUMP_SCHEDULER" ; then
+			-o "${x}" = "DONT_OPTIMIZE" \
+			-o "${x}" = "DUMP_SCHEDULER" \
+			-o "${x}" = "LOTS_OF_SPANS" \
+			-o "${x}" = "LOW_MEMORY" \
+			-o "${x}" = "MALLOC_DEBUG" \
+			-o "${x}" = "RADIO_RELAX" \
+			-o "${x}" = "REBUILD_PARSERS" \
+			-o "${x}" = "REF_DEBUG" ; then
 		# These aren't ABI affecting options, keep them out of AST_BUILDOPTS
 		continue
 	fi

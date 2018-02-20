@@ -17,6 +17,13 @@ app_fax
  * The app_fax module is now deprecated, users should migrate to the
    replacement module res_fax.
 
+Build System
+------------------
+ * MALLOC_DEBUG no longer has an effect on Asterisk's ABI.  Asterisk built
+   with MALLOC_DEBUG can now successfully load binary modules built without
+   MALLOC_DEBUG and vice versa.  Third-party pre-compiled modules no longer
+   need to have a special build with it enabled.
+
 app_macro
 ------------------
  * The app_macro module is now deprecated and by default it is no longer
