@@ -146,18 +146,11 @@ struct hdr_list_entry {
 	pjsip_hdr *hdr;
 	AST_LIST_ENTRY(hdr_list_entry) nextptr;
 };
-AST_LIST_HEAD(hdr_list, hdr_list_entry);
-
-/*! \brief Destructor for hdr_list */
-static void hdr_list_destroy(void *obj)
-{
-	AST_LIST_HEAD_DESTROY((struct hdr_list *) obj);
-}
+AST_LIST_HEAD_NOLOCK(hdr_list, hdr_list_entry);
 
 /*! \brief Datastore for saving headers */
 static const struct ast_datastore_info header_datastore = {
 	.type = "header_datastore",
-	.destroy = hdr_list_destroy,
 };
 
 /*! \brief Data structure used for ast_sip_push_task_synchronous  */
@@ -215,7 +208,7 @@ static int incoming_request(struct ast_sip_session *session, pjsip_rx_data * rda
 			ast_log(AST_LOG_ERROR, "Unable to create datastore for header functions.\n");
 			return 0;
 		}
-		AST_LIST_HEAD_INIT((struct hdr_list *) datastore->data);
+		AST_LIST_HEAD_INIT_NOLOCK((struct hdr_list *) datastore->data);
 	}
 	insert_headers(pool, (struct hdr_list *) datastore->data, rdata->msg_info.msg);
 
@@ -340,7 +333,7 @@ static int add_header(void *obj)
 			ast_log(AST_LOG_ERROR, "Unable to create datastore for header functions.\n");
 			return -1;
 		}
-		AST_LIST_HEAD_INIT((struct hdr_list *) datastore->data);
+		AST_LIST_HEAD_INIT_NOLOCK((struct hdr_list *) datastore->data);
 	}
 
 	ast_debug(1, "Adding header %s with value %s\n", data->header_name,
@@ -486,15 +479,15 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 	header_data.buf = buf;
 	header_data.len = len;
 
-	if (stricmp(args.action, "read") == 0) {
+	if (!strcasecmp(args.action, "read")) {
 		return ast_sip_push_task_synchronous(channel->session->serializer, read_header,
 											 &header_data);
-	} else if (stricmp(args.action, "remove") == 0) {
+	} else if (!strcasecmp(args.action, "remove")) {
 		return ast_sip_push_task_synchronous(channel->session->serializer, remove_header,
 											 &header_data);
 	} else {
 		ast_log(AST_LOG_ERROR,
-				"Unknown action \'%s\' is not valid,  Must be \'read\' or \'remove\'.\n",
+				"Unknown action '%s' is not valid, must be 'read' or 'remove'.\n",
 				args.action);
 		return -1;
 	}
@@ -545,18 +538,18 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	header_data.buf = NULL;
 	header_data.len = 0;
 
-	if (stricmp(args.action, "add") == 0) {
+	if (!strcasecmp(args.action, "add")) {
 		return ast_sip_push_task_synchronous(channel->session->serializer, add_header,
 											 &header_data);
-	} else if (stricmp(args.action, "update") == 0) {
+	} else if (!strcasecmp(args.action, "update")) {
 		return ast_sip_push_task_synchronous(channel->session->serializer, update_header,
 											 &header_data);
-	} else if (stricmp(args.action, "remove") == 0) {
+	} else if (!strcasecmp(args.action, "remove")) {
 		return ast_sip_push_task_synchronous(channel->session->serializer, remove_header,
 											 &header_data);
 	} else {
 		ast_log(AST_LOG_ERROR,
-				"Unknown action \'%s\' is not valid,  Must be \'add\', \'update\', or \'remove\'.\n",
+				"Unknown action '%s' is not valid, must be 'add', 'update', or 'remove'.\n",
 				args.action);
 		return -1;
 	}
