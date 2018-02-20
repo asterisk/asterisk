@@ -20,6 +20,7 @@
 
 #include "asterisk/optional_api.h"
 #include "asterisk/utils.h"
+#include "asterisk/vector.h"
 
 #if defined(OPTIONAL_API)
 
@@ -56,15 +57,17 @@ struct optional_api_user {
 struct optional_api {
 	/*! Pointer to the implementation function; could be null */
 	ast_optional_fn impl;
-	/*! Variable length array of users of this API */
-	struct optional_api_user **users;
-	/*! Allocated size of the \a users array */
-	size_t users_maxlen;
-	/*! Number of entries in the \a users array */
-	size_t users_len;
+	/*! Users of the API */
+	AST_VECTOR(, struct optional_api_user *) users;
 	/*! Name of the optional API function */
 	char symname[];
 };
+
+/*! Vector of \ref optional_api functions */
+AST_VECTOR(, struct optional_api *) apis;
+
+#define USER_OPTIONAL_REF_CMP(ele, value) (ele->optional_ref == value)
+#define OPTIONAL_API_SYMNAME_CMP(ele, value) (!strcmp(ele->symname, value))
 
 /*!
  * \brief Free an \ref optional_api_user.
@@ -74,7 +77,7 @@ struct optional_api {
 static void optional_api_user_destroy(struct optional_api_user *user)
 {
 	*user->optional_ref = user->stub;
-	ast_std_free(user);
+	ast_free(user);
 }
 
 /*!
@@ -93,8 +96,10 @@ static struct optional_api_user *optional_api_user_create(
 	struct optional_api_user *user;
 	size_t size = sizeof(*user) + strlen(module) + 1;
 
-	user = ast_std_calloc(1, size);
+	user = ast_calloc(1, size);
 	if (!user) {
+		ast_do_crash();
+
 		return NULL;
 	}
 
@@ -112,17 +117,15 @@ static struct optional_api_user *optional_api_user_create(
  */
 static void optional_api_destroy(struct optional_api *api)
 {
-	while (api->users_len--) {
-		optional_api_user_destroy(api->users[api->users_len]);
-	}
-	ast_std_free(api->users);
-	api->users = NULL;
-	api->users_maxlen = 0;
-	ast_std_free(api);
+	AST_VECTOR_REMOVE_CMP_UNORDERED(&apis, api,
+		AST_VECTOR_ELEM_DEFAULT_CMP, AST_VECTOR_ELEM_CLEANUP_NOOP);
+	AST_VECTOR_CALLBACK_VOID(&api->users, optional_api_user_destroy);
+	AST_VECTOR_FREE(&api->users);
+	ast_free(api);
 }
 
 /*!
- * \brief Create an \ref optional_api.
+ * \brief Create and link an \ref optional_api.
  *
  * \param symname Name of the optional function.
  * \return New \ref optional_api.
@@ -131,12 +134,12 @@ static void optional_api_destroy(struct optional_api *api)
 static struct optional_api *optional_api_create(const char *symname)
 {
 	struct optional_api *api;
-	size_t size;
 
-	size = sizeof(*api) + strlen(symname) + 1;
-	api = ast_std_calloc(1, size);
-	if (!api) {
-		ast_log(LOG_ERROR, "Failed to allocate api\n");
+	api = ast_calloc(1, sizeof(*api) + strlen(symname) + 1);
+	if (!api || AST_VECTOR_APPEND(&apis, api)) {
+		ast_free(api);
+		ast_do_crash();
+
 		return NULL;
 	}
 
@@ -144,16 +147,6 @@ static struct optional_api *optional_api_create(const char *symname)
 
 	return api;
 }
-
-/*! Array of \ref optional_api functions */
-struct {
-	/*! Variable length array of API's */
-	struct optional_api **list;
-	/*! Allocated size of the \a list array */
-	size_t maxlen;
-	/*! Number of entries in the \a list array */
-	size_t len;
-} apis;
 
 /*!
  * \brief Gets (or creates) the \ref optional_api for the given function.
@@ -164,43 +157,16 @@ struct {
  */
 static struct optional_api *get_api(const char *symname)
 {
-	struct optional_api *api;
-	size_t i;
+	struct optional_api **api;
 
 	/* Find one, if we already have it */
-	if (apis.list) {
-		for (i = 0; i < apis.len; ++i) {
-			if (strcmp(symname, apis.list[i]->symname) == 0) {
-				return apis.list[i];
-			}
-		}
+	api = AST_VECTOR_GET_CMP(&apis, symname, OPTIONAL_API_SYMNAME_CMP);
+	if (api) {
+		return *api;
 	}
 
 	/* API not found. Build one */
-	api = optional_api_create(symname);
-	if (!api) {
-		return NULL;
-	}
-
-	/* Grow the list, if needed */
-	if (apis.len + 1 > apis.maxlen) {
-		size_t new_maxlen = apis.maxlen ? 2 * apis.maxlen : 1;
-		struct optional_api **new_list;
-
-		new_list = ast_std_realloc(apis.list, new_maxlen * sizeof(*new_list));
-		if (!new_list) {
-			optional_api_destroy(api);
-			ast_log(LOG_ERROR, "Failed to allocate api list\n");
-			return NULL;
-		}
-
-		apis.maxlen = new_maxlen;
-		apis.list = new_list;
-	}
-
-	apis.list[apis.len++] = api;
-
-	return api;
+	return optional_api_create(symname);
 }
 
 /*!
@@ -232,13 +198,14 @@ static void optional_api_user_relink(struct optional_api_user *user,
 static void optional_api_set_impl(struct optional_api *api,
 	ast_optional_fn impl)
 {
-	size_t i;
-
 	api->impl = impl;
 
 	/* re-link all users */
-	for (i = 0; i < api->users_len; ++i) {
-		optional_api_user_relink(api->users[i], api);
+	if (AST_VECTOR_SIZE(&api->users)) {
+		AST_VECTOR_CALLBACK_VOID(&api->users, optional_api_user_relink, api);
+	} else if (!impl) {
+		/* No users or impl means we should delete this api. */
+		optional_api_destroy(api);
 	}
 }
 
@@ -247,13 +214,9 @@ void ast_optional_api_provide(const char *symname, ast_optional_fn impl)
 	struct optional_api *api;
 
 	api = get_api(symname);
-	if (!api) {
-		ast_log(LOG_ERROR, "%s: Allocation failed\n", symname);
-		ast_do_crash();
-		return;
+	if (api) {
+		optional_api_set_impl(api, impl);
 	}
-
-	optional_api_set_impl(api, impl);
 }
 
 void ast_optional_api_unprovide(const char *symname, ast_optional_fn impl)
@@ -261,13 +224,9 @@ void ast_optional_api_unprovide(const char *symname, ast_optional_fn impl)
 	struct optional_api *api;
 
 	api = get_api(symname);
-	if (!api) {
-		ast_log(LOG_ERROR, "%s: Could not find api\n", symname);
-		ast_do_crash();
-		return;
+	if (api) {
+		optional_api_set_impl(api, 0);
 	}
-
-	optional_api_set_impl(api, 0);
 }
 
 void ast_optional_api_use(const char *symname, ast_optional_fn *optional_ref,
@@ -276,73 +235,36 @@ void ast_optional_api_use(const char *symname, ast_optional_fn *optional_ref,
 	struct optional_api_user *user;
 	struct optional_api *api;
 
-
 	api = get_api(symname);
 	if (!api) {
-		ast_log(LOG_ERROR, "%s: Allocation failed\n", symname);
-		ast_do_crash();
 		return;
 	}
 
 	user = optional_api_user_create(optional_ref, stub, module);
 	if (!user) {
-		ast_log(LOG_ERROR, "%s: Allocation failed\n", symname);
-		ast_do_crash();
 		return;
 	}
 
 	/* Add user to the API */
-	if (api->users_len + 1 > api->users_maxlen) {
-		size_t new_maxlen = api->users_maxlen ? 2 * api->users_maxlen : 1;
-		struct optional_api_user **new_list;
-
-		new_list = ast_std_realloc(api->users, new_maxlen * sizeof(*new_list));
-		if (!new_list) {
-			optional_api_user_destroy(user);
-			ast_log(LOG_ERROR, "Failed to allocate api list\n");
-			ast_do_crash();
-			return;
-		}
-
-		api->users_maxlen = new_maxlen;
-		api->users = new_list;
+	if (!AST_VECTOR_APPEND(&api->users, user)) {
+		optional_api_user_relink(user, api);
+	} else {
+		optional_api_user_destroy(user);
+		ast_do_crash();
 	}
-
-	api->users[api->users_len++] = user;
-
-	optional_api_user_relink(user, api);
 }
 
 void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 	const char *module)
 {
 	struct optional_api *api;
-	size_t i;
 
 	api = get_api(symname);
-	if (!api) {
-		ast_log(LOG_ERROR, "%s: Could not find api\n", symname);
-		ast_do_crash();
-		return;
-	}
-
-	for (i = 0; i < api->users_len; ++i) {
-		struct optional_api_user *user = api->users[i];
-
-		if (user->optional_ref == optional_ref) {
-			if (*user->optional_ref != user->stub) {
-				*user->optional_ref = user->stub;
-			}
-
-			/* Remove from the list */
-			api->users[i] = api->users[--api->users_len];
-
-			optional_api_user_destroy(user);
-			return;
+	if (api) {
+		AST_VECTOR_REMOVE_CMP_UNORDERED(&api->users, optional_ref, USER_OPTIONAL_REF_CMP, optional_api_user_destroy);
+		if (!api->impl && !AST_VECTOR_SIZE(&api->users)) {
+			optional_api_destroy(api);
 		}
 	}
-
-	ast_log(LOG_ERROR, "%s: Could not find user %s\n", symname, module);
 }
-
 #endif /* defined(OPTIONAL_API) */
