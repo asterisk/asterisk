@@ -3790,7 +3790,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if (f->subclass.integer == AST_CONTROL_STREAM_TOPOLOGY_CHANGED && dropnondefault) {
-				/* The caller of this function is incapable of handling streams so we absord the notification that the
+				/* The caller of this function is incapable of handling streams so we absorb the notification that the
 				 * stream topology has changed.
 				 */
 				ast_frfree(f);
