@@ -661,18 +661,27 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			session->payload_len = 0;
 		}
 	} else if (*opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+		session->closing = 1;
+
 		/* Make the payload available so the user can look at the reason code if they so desire */
-		if ((*payload_len) && (new_payload = ast_realloc(session->payload, *payload_len))) {
-			if (ws_safe_read(session, &buf[frame_size], (*payload_len), opcode)) {
-				return -1;
-			}
-			session->payload = new_payload;
-			memcpy(session->payload, &buf[frame_size], *payload_len);
-			*payload = session->payload;
-			frame_size += (*payload_len);
+		if (!*payload_len) {
+			return 0;
 		}
 
-		session->closing = 1;
+		if (!(new_payload = ast_realloc(session->payload, *payload_len))) {
+			ast_log(LOG_WARNING, "Failed allocation: %p, %"PRIu64"\n",
+					session->payload, *payload_len);
+			*payload_len = 0;
+			return -1;
+		}
+
+		session->payload = new_payload;
+		if (ws_safe_read(session, &buf[frame_size], *payload_len, opcode)) {
+			return -1;
+		}
+		memcpy(session->payload, &buf[frame_size], *payload_len);
+		*payload = session->payload;
+		frame_size += *payload_len;
 	} else {
 		ast_log(LOG_WARNING, "WebSocket unknown opcode %u\n", *opcode);
 		/* We received an opcode that we don't understand, the RFC states that 1003 is for a type of data that can't be accepted... opcodes
