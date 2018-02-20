@@ -2943,10 +2943,14 @@ static void add_static_payload(int payload, struct ast_format *format, int rtp_c
 
 int ast_rtp_engine_load_format(struct ast_format *format)
 {
+	char *codec_name = ast_strdupa(ast_format_get_codec_name(format));
+
+	codec_name = ast_str_to_upper(codec_name);
+
 	set_next_mime_type(format,
 		0,
 		ast_codec_media_type2str(ast_format_get_type(format)),
-		ast_format_get_codec_name(format),
+		codec_name,
 		ast_format_get_sample_rate(format));
 	add_static_payload(-1, format, 0);
 
