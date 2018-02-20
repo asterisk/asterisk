@@ -49,7 +49,7 @@ AC_SUBST([astvarrundir],      ['${localstatedir}/run/asterisk'])dnl
 
 case "${host_os}" in
      *bsd*)
-     if test ${prefix} = 'NONE'; then
+     if test ${prefix} != 'NONE'; then
         astvarlibdir='${prefix}/share/asterisk'
         astdbdir='${localstatedir}/db/asterisk'
      fi
