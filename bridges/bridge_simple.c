@@ -113,14 +113,19 @@ static struct ast_bridge_technology simple_bridge = {
 	.stream_topology_changed = simple_bridge_stream_topology_changed,
 };
 
-static void simple_bridge_request_stream_topology_change(struct ast_channel *chan,
+static struct ast_stream_topology *simple_bridge_request_stream_topology_update(
+	struct ast_stream_topology *existing_topology,
 	struct ast_stream_topology *requested_topology)
 {
-	struct ast_stream_topology *existing_topology = ast_channel_get_stream_topology(chan);
 	struct ast_stream *stream;
 	struct ast_format_cap *audio_formats = NULL;
 	struct ast_stream_topology *new_topology;
 	int i;
+
+	new_topology = ast_stream_topology_clone(requested_topology);
+	if (!new_topology) {
+		return NULL;
+	}
 
 	/* We find an existing stream with negotiated audio formats that we can place into
 	 * any audio streams in the new topology to ensure that negotiation succeeds. Some
@@ -138,59 +143,67 @@ static void simple_bridge_request_stream_topology_change(struct ast_channel *cha
 		break;
 	}
 
-	if (!audio_formats) {
-		ast_channel_request_stream_topology_change(chan, requested_topology, &simple_bridge);
-		return;
-	}
+	if (audio_formats) {
+		for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
+			stream = ast_stream_topology_get_stream(new_topology, i);
 
-	new_topology = ast_stream_topology_clone(requested_topology);
-	if (!new_topology) {
-		ast_channel_request_stream_topology_change(chan, requested_topology, &simple_bridge);
-		return;
-	}
+			if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+				ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+				continue;
+			}
 
-	for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
-		stream = ast_stream_topology_get_stream(new_topology, i);
-
-		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
-			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
-			continue;
+			ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats,
+				AST_MEDIA_TYPE_AUDIO);
 		}
-
-		ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats, AST_MEDIA_TYPE_AUDIO);
 	}
 
-	ast_channel_request_stream_topology_change(chan, new_topology, &simple_bridge);
-
-	ast_stream_topology_free(new_topology);
+	return new_topology;
 }
 
 static void simple_bridge_stream_topology_changed(struct ast_bridge *bridge,
 		struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
-	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
-	struct ast_stream_topology *t0 = ast_channel_get_stream_topology(c0);
-	struct ast_stream_topology *t1 = ast_channel_get_stream_topology(c1);
+	struct ast_channel *req_chan;
+	struct ast_channel *existing_chan;
+	struct ast_stream_topology *req_top;
+	struct ast_stream_topology *existing_top;
+	struct ast_stream_topology *new_top;
 
 	if (bridge_channel) {
 		ast_bridge_channel_stream_map(bridge_channel);
+
+		if (ast_channel_get_stream_topology_change_source(bridge_channel->chan)
+			== &simple_bridge) {
+			return;
+		}
 	}
-	/*
-	 * The bridge_channel should only be NULL after both channels join
-	 * the bridge and their topologies are being aligned.
-	 */
-	if (bridge_channel && ast_channel_get_stream_topology_change_source(
-		    bridge_channel->chan) == &simple_bridge) {
+
+	req_chan = AST_LIST_FIRST(&bridge->channels)->chan;
+	existing_chan = AST_LIST_LAST(&bridge->channels)->chan;
+	if (req_chan == existing_chan) {
+		/* Wait until both channels are in the bridge to align topologies. */
 		return;
 	}
 
 	/* Align topologies according to size or first channel to join */
-	if (ast_stream_topology_get_count(t0) < ast_stream_topology_get_count(t1)) {
-		simple_bridge_request_stream_topology_change(c0, t1);
-	} else {
-		simple_bridge_request_stream_topology_change(c1, t0);
+	ast_channel_lock_both(req_chan, existing_chan);
+	req_top = ast_channel_get_stream_topology(req_chan);
+	existing_top = ast_channel_get_stream_topology(existing_chan);
+	if (ast_stream_topology_get_count(req_top) < ast_stream_topology_get_count(existing_top)) {
+		SWAP(req_top, existing_top);
+		SWAP(req_chan, existing_chan);
 	}
+	new_top = simple_bridge_request_stream_topology_update(existing_top, req_top);
+	ast_channel_unlock(req_chan);
+	ast_channel_unlock(existing_chan);
+
+	if (!new_top) {
+		/* Failure.  We'll just have to live with the current topology. */
+		return;
+	}
+
+	ast_channel_request_stream_topology_change(existing_chan, new_top, &simple_bridge);
+	ast_stream_topology_free(new_top);
 }
 
 static int unload_module(void)
