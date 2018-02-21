@@ -16,12 +16,6 @@
  * at the top of the source tree.
  */
 
-/*** MODULEINFO
-	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<support_level>core</support_level>
- ***/
-
 #include "asterisk.h"
 
 #include <signal.h>
@@ -32,6 +26,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
+#include "include/res_pjsip_private.h"
 
 /*! \brief Number of buckets for monitored transports */
 #define TRANSPORTS_BUCKETS 127
@@ -319,7 +314,7 @@ static pjsip_module idle_monitor_module = {
 	.on_rx_request = idle_monitor_on_rx_request,
 };
 
-static int load_module(void)
+int ast_sip_initialize_transport_management(void)
 {
 	struct ao2_container *transports;
 
@@ -354,11 +349,10 @@ static int load_module(void)
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 
-	ast_module_shutdown_ref(ast_module_info->self);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+void ast_sip_destroy_transport_management(void)
 {
 	if (keepalive_interval) {
 		keepalive_interval = 0;
@@ -379,21 +373,4 @@ static int unload_module(void)
 	sched = NULL;
 
 	ao2_global_obj_release(monitored_transports);
-
-	return 0;
 }
-
-static int reload_module(void)
-{
-	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
-	return 0;
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Reliable Transport Management",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 4,
-	.requires = "res_pjsip",
-);
