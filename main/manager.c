@@ -7665,7 +7665,7 @@ static void process_output(struct mansession *s, struct ast_str **out, struct as
 
 	fd = ast_iostream_get_fd(s->stream);
 
-	l = lseek(fd, SEEK_CUR, 0);
+	l = lseek(fd, 0, SEEK_CUR);
 	if (l > 0) {
 		if (MAP_FAILED == (buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0))) {
 			ast_log(LOG_WARNING, "mmap failed.  Manager output was not processed\n");
@@ -8167,7 +8167,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		m.headers[idx] = NULL;
 	}
 
-	result_size = lseek(ast_iostream_get_fd(s.stream), SEEK_CUR, 0); /* Calculate approx. size of result */
+	result_size = lseek(ast_iostream_get_fd(s.stream), 0, SEEK_CUR); /* Calculate approx. size of result */
 
 	http_header = ast_str_create(80);
 	out = ast_str_create(result_size * 2 + 512);
