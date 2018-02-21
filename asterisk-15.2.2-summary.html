@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-15.2.2</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-15.2.2</h3><h3 align="center">Date: 2018-02-21</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2018-001,AST-2018-002,AST-2018-003,AST-2018-004,AST-2018-005,AST-2018-006.html">AST-2018-001,AST-2018-002,AST-2018-003,AST-2018-004,AST-2018-005,AST-2018-006</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-15.2.1.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">3 George Joseph <gjoseph@digium.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>1 Sean Bright <sean.bright@gmail.com><br/></td><td width="33%"><td width="33%">6 Sandro Gauci <sandro@enablesecurity.com><br/>4 Sandro Gauci<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 Sean Bright <sean.bright@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27583">ASTERISK-27583</a>: Segmentation fault occurs in asterisk with an invalid SDP fmtp attribute<br/>Reported by: Sandro Gauci<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=160513fee93b01b9bd8f8993b37e39571e679456">[160513fee9]</a> Kevin Harwell -- AST-2018-003: Crash with an invalid SDP fmtp attribute</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27582">ASTERISK-27582</a>: Segmentation fault occurs in Asterisk with an invalid SDP media format description<br/>Reported by: Sandro Gauci<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=73bf38ceb910dd23a0b6adccfca871019a7dc7fe">[73bf38ceb9]</a> Kevin Harwell -- AST-2018-002: Crash with an invalid SDP media format description</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27640">ASTERISK-27640</a>: SUBSCRIBE message with a large Accept value causes stack corruption<br/>Reported by: Sandro Gauci<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3f3fff56b877835912713676e4941a3a75ddf665">[3f3fff56b8]</a> Joshua Colp -- AST-2018-004: Restrict the number of Accept headers in a SUBSCRIBE.</li>
+</ul><br><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27658">ASTERISK-27658</a>: WebSocket frames with 0 sized payload causes DoS<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f26c5a2ea01b297932c7ebc9b6aa91bea68c743b">[f26c5a2ea0]</a> Sean Bright -- AST-2018-006: Properly handle WebSocket frames with 0 length payload.</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27618">ASTERISK-27618</a>: Crash occurs when sending a repeated number of INVITE messages over TCP or TLS transport<br/>Reported by: Sandro Gauci<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=77f0e6558cc0fcff4312e49201b00f6348fdeb8a">[77f0e6558c]</a> George Joseph -- AST-2018-005: res_pjsip_transport_management:  Move to core</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c51a8dfce341b2ead3688495bd315f7356acdf2">[6c51a8dfce]</a> George Joseph -- AST-2018-005: Fix tdata leaks when calling pjsip_endpt_send_response(2)</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c16935f470956a67ca2f2f939d1e2bcd9808aaf7">[c16935f470]</a> George Joseph -- AST-2018-005: Add a check for NULL tdata in ast_sip_failover_request</li>
+</ul><br><h3>Bug</h3><h4>Category: Core/Streams</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27488">ASTERISK-27488</a>: core: If frame with unnegotiated format is read crash will occur<br/>Reported by: Sébastien Duthil<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=32f1b69aa49ac19af2c6f0c2989daa0c2ca8a4c9">[32f1b69aa4]</a> Joshua Colp -- AST-2018-001: rtp / channel: Don't allow an unnegotiated format to be passed up.</li>
+</ul><br><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>b/CHANGES                                                |   11
+b/UPGRADE.txt                                            |    8
+b/main/channel.c                                         |   19
+b/main/rtp_engine.c                                      |    2
+b/res/res_http_websocket.c                               |   16
+b/res/res_pjsip.c                                        |   17
+b/res/res_pjsip/include/res_pjsip_private.h              |   28 +
+b/res/res_pjsip/pjsip_distributor.c                      |    8
+b/res/res_pjsip/pjsip_transport_management.c             |  376 ++++++++++++++
+b/res/res_pjsip_pubsub.c                                 |    5
+b/res/res_pjsip_session.c                                |    8
+b/third-party/pjproject/patches/0070-sdp_media_fmt.patch |   19
+b/third-party/pjproject/patches/0071-sdp_fmtp_attr.patch |   15
+res/res_pjsip_transport_management.c                     |  400 ---------------
+14 files changed, 518 insertions(+), 414 deletions(-)</pre><br></html>

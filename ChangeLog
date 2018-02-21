@@ -1,3 +1,142 @@
+2018-02-21 19:06 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.2.2 Released.
+
+2018-02-05 16:46 +0000 [f26c5a2ea0]  Sean Bright <sean.bright@gmail.com>
+
+	* AST-2018-006: Properly handle WebSocket frames with 0 length payload.
+
+	  In ast_websocket_read() we were not adequately checking that the
+	  payload_len was non-zero before passing it to ws_safe_read(). Calling
+	  ws_safe_read with a len argument of 0 will result in a busy loop until
+	  the underlying socket is closed.
+
+	  ASTERISK-27658 #close
+
+	  Change-Id: I9d59f83bc563f711df1a6197c57de473f6b0663a
+
+2018-01-31 13:37 +0000 [160513fee9]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-003: Crash with an invalid SDP fmtp attribute
+
+	  pjproject's fmtp retrieval function failed to catch invalid fmtp attributes.
+	  Because of this Asterisk would crash if given an SDP with an invalid fmtp
+	  attribute.
+
+	  When retrieving the format this patch now makes sure the fmtp attribute is
+	  available. If not available it now returns an error status.
+
+	  ASTERISK-27583 #close
+
+	  Change-Id: I5cebe000ce2d846cae3af33b6d72c416e51caf2f
+
+2018-01-31 13:33 +0000 [73bf38ceb9]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-002: Crash with an invalid SDP media format description
+
+	  pjproject's media format parsing algorithm failed to catch invalid values.
+	  Because of this Asterisk would crash if given an SDP with a invalid media
+	  format description.
+
+	  When parsing the media format description this patch now properly parses the
+	  value and returns an error status if it can't successfully parse/convert the
+	  value.
+
+	  ASTERISK-27582 #close
+
+	  Change-Id: I883b3a4ef85b6972397f7b56bf46c5779c55fdd6
+
+2018-02-06 12:07 +0000 [77f0e6558c]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: res_pjsip_transport_management:  Move to core
+
+	  Since res_pjsip_transport_management provides several attack
+	  mitigation features, its functionality moved to res_pjsip and
+	  this module has been removed.  This way the features will always
+	  be available if res_pjsip is loaded.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I21a2d33d9dda001452ea040d350d7a075f9acf0d
+
+2018-02-06 11:28 +0000 [6c51a8dfce]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: Fix tdata leaks when calling pjsip_endpt_send_response(2)
+
+	  pjsip_distributor:
+	     authenticate() creates a tdata and uses it to send a challenge or
+	     failure response.  When pjsip_endpt_send_response2() succeeds, it
+	     automatically decrements the tdata ref count but when it fails, it
+	     doesn't.  Since we weren't checking for a return status, we weren't
+	     decrementing the count ourselves on error and were therefore leaking
+	     tdatas.
+
+	  res_pjsip_session:
+	     session_reinvite_on_rx_request wasn't decrementing the ref count
+	     if an error happened while sending a 491 response.
+	     pre_session_setup wasn't decrementing the ref count if
+	     while sending an error after a pjsip_inv_verify_request failure.
+
+	  res_pjsip:
+	     ast_sip_send_response wasn't decrementing the ref count on error.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: Iab33a6c7b6fba96148ed465b690ba8534ac961bf
+
+2018-02-06 11:21 +0000 [c16935f470]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: Add a check for NULL tdata in ast_sip_failover_request
+
+	  It was discovered that there are some corner cases where a pjsip tsx
+	  might have no last_tx so calling ast_sip_failover_request with
+	  a NULL last_tx as its tdata would cause a crash.
+
+	  ASTERISK-27618
+	  Reported By:  Sandro Gauci
+
+	  Change-Id: Ic2b63f6d4ae617c4c19dcdec2a7a6156b54fd15b
+
+2018-02-07 08:09 +0000 [3f3fff56b8]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2018-004: Restrict the number of Accept headers in a SUBSCRIBE.
+
+	  When receiving a SUBSCRIBE request the Accept headers from it are
+	  stored locally. This operation has a fixed limit of 32 Accept headers
+	  but this limit was not enforced. As a result it was possible for
+	  memory outside of the allocated space to get written to resulting
+	  in a crash.
+
+	  This change enforces the limit so only 32 Accept headers are
+	  processed.
+
+	  ASTERISK-27640
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I99a814b10b554b13a6021ccf41111e5bc95e7301
+
+2018-01-13 08:04 +0000 [32f1b69aa4]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2018-001: rtp / channel: Don't allow an unnegotiated format to be passed up.
+
+	  When an RTP packet is received by an RTP engine it has to map the
+	  payload into the Asterisk format. The code was incorrectly checking
+	  our own static list for ALL payloads if it couldn't find a negotiated one.
+	  This included dynamic payloads. If the payload mapped to a format
+	  of a different type (for example receiving a video packet on an audio
+	  RTP instance) then the core stream code could cause a crash if a legacy
+	  channel driver was in use as no stream would be present.
+
+	  To provide further protection the core stream code will no longer assume
+	  that a video or audio frame will always have a stream for legacy channel
+	  drivers. If no stream is present the frame is dropped.
+
+	  ASTERISK-27488
+
+	  Change-Id: I022556f524ad8379ee73f14037040af17ea3316a
+
 2018-02-13 19:24 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.2.1 Released.
