@@ -4173,7 +4173,8 @@ int ast_sip_failover_request(pjsip_tx_data *tdata)
 {
 	pjsip_via_hdr *via;
 
-	if (!tdata->dest_info.addr.count || (tdata->dest_info.cur_addr == tdata->dest_info.addr.count - 1)) {
+	if (!tdata || !tdata->dest_info.addr.count
+		|| (tdata->dest_info.cur_addr == tdata->dest_info.addr.count - 1)) {
 		/* No more addresses to try */
 		return 0;
 	}
