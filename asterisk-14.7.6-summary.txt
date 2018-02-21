@@ -1,0 +1,118 @@
+                                Release Summary
+
+                                asterisk-14.7.6
+
+                                Date: 2018-02-21
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2018-002,AST-2018-003,AST-2018-004,AST-2018-005
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-14.7.5.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   3 George Joseph                                   6 Sandro Gauci           
+   2 Kevin Harwell                                   4 Sandro Gauci           
+   1 Joshua Colp            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-27583: Segmentation fault occurs in asterisk with an invalid SDP
+   fmtp attribute
+   Reported by: Sandro Gauci
+     * [4e9849c4bc] Kevin Harwell -- AST-2018-003: Crash with an invalid SDP
+       fmtp attribute
+   ASTERISK-27582: Segmentation fault occurs in Asterisk with an invalid SDP
+   media format description
+   Reported by: Sandro Gauci
+     * [37eb30e1d2] Kevin Harwell -- AST-2018-002: Crash with an invalid SDP
+       media format description
+   ASTERISK-27640: SUBSCRIBE message with a large Accept value causes stack
+   corruption
+   Reported by: Sandro Gauci
+     * [dd3e3153ea] Joshua Colp -- AST-2018-004: Restrict the number of
+       Accept headers in a SUBSCRIBE.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-27618: Crash occurs when sending a repeated number of INVITE
+   messages over TCP or TLS transport
+   Reported by: Sandro Gauci
+     * [45db14178f] George Joseph -- AST-2018-005:
+       res_pjsip_transport_management: Move to core
+     * [de0b026c4d] George Joseph -- AST-2018-005: Fix tdata leaks when
+       calling pjsip_endpt_send_response(2)
+     * [b5657daf8b] George Joseph -- AST-2018-005: Add a check for NULL tdata
+       in ast_sip_failover_request
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ b/CHANGES                                                |   11
+ b/UPGRADE.txt                                            |    8
+ b/res/res_pjsip.c                                        |   17
+ b/res/res_pjsip/include/res_pjsip_private.h              |   28 +
+ b/res/res_pjsip/pjsip_distributor.c                      |    8
+ b/res/res_pjsip/pjsip_transport_management.c             |  376 ++++++++++++++
+ b/res/res_pjsip_pubsub.c                                 |    5
+ b/res/res_pjsip_session.c                                |    8
+ b/third-party/pjproject/patches/0070-sdp_media_fmt.patch |   19
+ res/res_pjsip_transport_management.c                     |  400 ---------------
+ 10 files changed, 472 insertions(+), 408 deletions(-)
