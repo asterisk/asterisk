@@ -854,7 +854,9 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 		case AST_SIP_AUTHENTICATION_CHALLENGE:
 			/* Send the 401 we created for them */
 			ast_sip_report_auth_challenge_sent(endpoint, rdata, tdata);
-			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+			if (pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL) != PJ_SUCCESS) {
+				pjsip_tx_data_dec_ref(tdata);
+			}
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_SUCCESS:
 			/* See note in endpoint_lookup about not holding an unnecessary write lock */
@@ -867,7 +869,9 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 		case AST_SIP_AUTHENTICATION_FAILED:
 			log_failed_request(rdata, "Failed to authenticate", 0, 0);
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
-			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+			if (pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL) != PJ_SUCCESS) {
+				pjsip_tx_data_dec_ref(tdata);
+			}
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_ERROR:
 			log_failed_request(rdata, "Error to authenticate", 0, 0);
