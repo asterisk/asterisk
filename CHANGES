@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.7.5 to Asterisk 14.7.6 ------------
+------------------------------------------------------------------------------
+
+res_pjsip_transport_management
+------------------
+ * Since res_pjsip_transport_management provides several attack
+   mitigation features, its functionality moved to res_pjsip and
+   this module has been removed.  This way the features will always
+   be available if res_pjsip is loaded.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.6.0 to Asterisk 14.7.0 ------------
 ------------------------------------------------------------------------------
 
