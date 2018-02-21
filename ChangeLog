@@ -1,3 +1,96 @@
+2018-02-21 18:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.19.2 Released.
+
+2018-01-31 13:37 +0000 [f4bb71ea1b]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-003: Crash with an invalid SDP fmtp attribute
+
+	  pjproject's fmtp retrieval function failed to catch invalid fmtp attributes.
+	  Because of this Asterisk would crash if given an SDP with an invalid fmtp
+	  attribute.
+
+	  When retrieving the format this patch now makes sure the fmtp attribute is
+	  available. If not available it now returns an error status.
+
+	  ASTERISK-27583 #close
+
+	  Change-Id: I5cebe000ce2d846cae3af33b6d72c416e51caf2f
+
+2018-01-31 13:33 +0000 [88a89a0afa]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-002: Crash with an invalid SDP media format description
+
+	  pjproject's media format parsing algorithm failed to catch invalid values.
+	  Because of this Asterisk would crash if given an SDP with a invalid media
+	  format description.
+
+	  When parsing the media format description this patch now properly parses the
+	  value and returns an error status if it can't successfully parse/convert the
+	  value.
+
+	  ASTERISK-27582 #close
+
+	  Change-Id: I883b3a4ef85b6972397f7b56bf46c5779c55fdd6
+
+2018-02-06 12:07 +0000 [61e27223db]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: res_pjsip_transport_management:  Move to core
+
+	  Since res_pjsip_transport_management provides several attack
+	  mitigation features, its functionality moved to res_pjsip and
+	  this module has been removed.  This way the features will always
+	  be available if res_pjsip is loaded.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I21a2d33d9dda001452ea040d350d7a075f9acf0d
+
+2018-02-06 11:28 +0000 [e7f59358b8]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: Fix tdata leaks when calling pjsip_endpt_send_response(2)
+
+	  pjsip_distributor:
+	     authenticate() creates a tdata and uses it to send a challenge or
+	     failure response.  When pjsip_endpt_send_response2() succeeds, it
+	     automatically decrements the tdata ref count but when it fails, it
+	     doesn't.  Since we weren't checking for a return status, we weren't
+	     decrementing the count ourselves on error and were therefore leaking
+	     tdatas.
+
+	  res_pjsip_session:
+	     session_reinvite_on_rx_request wasn't decrementing the ref count
+	     if an error happened while sending a 491 response.
+	     pre_session_setup wasn't decrementing the ref count if
+	     while sending an error after a pjsip_inv_verify_request failure.
+
+	  res_pjsip:
+	     ast_sip_send_response wasn't decrementing the ref count on error.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: Iab33a6c7b6fba96148ed465b690ba8534ac961bf
+
+2018-02-07 08:09 +0000 [297f0ae05c]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2018-004: Restrict the number of Accept headers in a SUBSCRIBE.
+
+	  When receiving a SUBSCRIBE request the Accept headers from it are
+	  stored locally. This operation has a fixed limit of 32 Accept headers
+	  but this limit was not enforced. As a result it was possible for
+	  memory outside of the allocated space to get written to resulting
+	  in a crash.
+
+	  This change enforces the limit so only 32 Accept headers are
+	  processed.
+
+	  ASTERISK-27640
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I99a814b10b554b13a6021ccf41111e5bc95e7301
+
 2018-02-13 19:25 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.19.1 Released.
