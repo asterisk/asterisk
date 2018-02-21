@@ -495,12 +495,19 @@ const char * AST_OPTIONAL_API_NAME(ast_websocket_session_id)(struct ast_websocke
  * Note during the header parsing stage we try to read in small chunks just what we need, this
  * is buffered data anyways, no expensive syscall required most of the time ...
  */
-static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len, enum ast_websocket_opcode *opcode)
+static inline int ws_safe_read(struct ast_websocket *session, char *buf, size_t len, enum ast_websocket_opcode *opcode)
 {
 	ssize_t rlen;
 	int xlen = len;
 	char *rbuf = buf;
 	int sanity = 10;
+
+	ast_assert(len > 0);
+
+	if (!len) {
+		errno = EINVAL;
+		return -1;
+	}
 
 	ao2_lock(session);
 	if (!session->stream) {
@@ -615,9 +622,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			return -1;
 		}
 
-		if (ws_safe_read(session, *payload, *payload_len, opcode)) {
-			return -1;
+		if (*payload_len) {
+			if (ws_safe_read(session, *payload, *payload_len, opcode)) {
+				return -1;
+			}
 		}
+
 		/* If a mask is present unmask the payload */
 		if (mask_present) {
 			unsigned int pos;
