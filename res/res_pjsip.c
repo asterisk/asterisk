@@ -4502,9 +4502,15 @@ static void supplement_outgoing_response(pjsip_tx_data *tdata, struct ast_sip_en
 
 int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
 {
-	supplement_outgoing_response(tdata, sip_endpoint);
+	pj_status_t status;
 
-	return pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), res_addr, tdata, NULL, NULL);
+	supplement_outgoing_response(tdata, sip_endpoint);
+	status = pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), res_addr, tdata, NULL, NULL);
+	if (status != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
+	}
+
+	return status == PJ_SUCCESS ? 0 : -1;
 }
 
 int ast_sip_send_stateful_response(pjsip_rx_data *rdata, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
