@@ -1,3 +1,146 @@
+2018-02-21 19:00 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.18-cert3 Released.
+
+2018-01-31 13:37 +0000 [b8f704a1c5]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-003: Crash with an invalid SDP fmtp attribute
+
+	  pjproject's fmtp retrieval function failed to catch invalid fmtp attributes.
+	  Because of this Asterisk would crash if given an SDP with an invalid fmtp
+	  attribute.
+
+	  When retrieving the format this patch now makes sure the fmtp attribute is
+	  available. If not available it now returns an error status.
+
+	  ASTERISK-27583 #close
+
+	  Change-Id: I5cebe000ce2d846cae3af33b6d72c416e51caf2f
+
+2018-01-31 13:33 +0000 [ad93b6a031]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2018-002: Crash with an invalid SDP media format description
+
+	  pjproject's media format parsing algorithm failed to catch invalid values.
+	  Because of this Asterisk would crash if given an SDP with a invalid media
+	  format description.
+
+	  When parsing the media format description this patch now properly parses the
+	  value and returns an error status if it can't successfully parse/convert the
+	  value.
+
+	  ASTERISK-27582 #close
+
+	  Change-Id: I883b3a4ef85b6972397f7b56bf46c5779c55fdd6
+
+2018-02-06 12:07 +0000 [06acb4405e]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: res_pjsip_transport_management:  Move to core
+
+	  Since res_pjsip_transport_management provides several attack
+	  mitigation features, its functionality moved to res_pjsip and
+	  this module has been removed.  This way the features will always
+	  be available if res_pjsip is loaded.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I21a2d33d9dda001452ea040d350d7a075f9acf0d
+
+2018-02-06 11:28 +0000 [bfa7b20040]  George Joseph <gjoseph@digium.com>
+
+	* AST-2018-005: Fix tdata leaks when calling pjsip_endpt_send_response(2)
+
+	  pjsip_distributor:
+	     authenticate() creates a tdata and uses it to send a challenge or
+	     failure response.  When pjsip_endpt_send_response2() succeeds, it
+	     automatically decrements the tdata ref count but when it fails, it
+	     doesn't.  Since we weren't checking for a return status, we weren't
+	     decrementing the count ourselves on error and were therefore leaking
+	     tdatas.
+
+	  res_pjsip_session:
+	     session_reinvite_on_rx_request wasn't decrementing the ref count
+	     if an error happened while sending a 491 response.
+	     pre_session_setup wasn't decrementing the ref count if
+	     while sending an error after a pjsip_inv_verify_request failure.
+
+	  res_pjsip:
+	     ast_sip_send_response wasn't decrementing the ref count on error.
+
+	  ASTERISK-27618
+	  Reported By: Sandro Gauci
+
+	  Change-Id: Iab33a6c7b6fba96148ed465b690ba8534ac961bf
+
+2018-02-07 08:09 +0000 [6267846fab]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2018-004: Restrict the number of Accept headers in a SUBSCRIBE.
+
+	  When receiving a SUBSCRIBE request the Accept headers from it are
+	  stored locally. This operation has a fixed limit of 32 Accept headers
+	  but this limit was not enforced. As a result it was possible for
+	  memory outside of the allocated space to get written to resulting
+	  in a crash.
+
+	  This change enforces the limit so only 32 Accept headers are
+	  processed.
+
+	  ASTERISK-27640
+	  Reported By: Sandro Gauci
+
+	  Change-Id: I99a814b10b554b13a6021ccf41111e5bc95e7301
+
+2018-01-31 17:48 +0000 [8e170f5f18]  Richard Mudgett <rmudgett@digium.com>
+
+	* app_confbridge: ConfbridgeList event has standard channel shapshot headers.
+
+	  * Made the AMI ConfbridgeList action's ConfbridgeList events output all
+	  the standard channel snapshot headers instead of a few hand-coded channel
+	  snapshot headers.  The benefit is that the CallerIDName gets disruptive
+	  characters like CR, LF, Tab, and a few others escaped.  However, an empty
+	  CallerIDName is now output as "<unknown>" instead of "<no name>".
+
+	  ASTERISK-27651
+
+	  Change-Id: Iaf7d54a9d40194c2db060bc9b4979fab6720d977
+
+2018-01-31 15:45 +0000 [37445bc69e]  Richard Mudgett <rmudgett@digium.com>
+
+	* app_confbridge: Add the Muted header to ConfbridgeJoin AMI event.
+
+	  ASTERISK-27651
+
+	  Change-Id: Idef2ca54d242d1b894efd3fc7b360bc6fd5bdc34
+
+2018-01-30 19:22 +0000 [4560752184]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge_softmix.c: Report not talking immediately when muted.
+
+	  Currently in app_confbridge if someone mutes a channel while that channel
+	  is talking, the talk detection code is suspended while the channel is
+	  muted.  As far an an external observer is concerned, the muted channel's
+	  talk status is still "talking" even though the channel is not contributing
+	  audio to the conference bridge.  When the channel is later unmuted, it
+	  takes the usual 'dsp_silence_threshold' option time to clear the talking
+	  status even though the channel may have stopped talking while the channel
+	  was muted.
+
+	  * In bridge_softmix.c, clear the talking status and report talking stopped
+	  if the channel was talking when the channel is muted.  When the channel is
+	  unmuted and the channel is still talking then report the channel as
+	  talking since it is contributing audio to the bridge again.
+
+	  ASTERISK-27647
+
+	  Change-Id: Ie4fdbc05a0bc7343c2972bab012e2567917b3d4e
+
+2017-12-22 08:14 +0000 [6f65ebe76c]  Sean Bright <sean.bright@gmail.com>
+
+	* Remove as much trailing whitespace as possible.
+
+	  Change-Id: I873c1c6d00f447269bd841494459efccdd2c19c0
+
 2017-12-22 22:30 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.18-cert2 Released.
