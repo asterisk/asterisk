@@ -32,6 +32,11 @@ res_pjproject
    MALLOC_DEBUG.  The cache gets in the way of determining if the pool contents
    are used after free and who freed it.
 
+res_pjsip_notify
+------------------
+ * Extend the PJSIPNotify AMI command to send an in-dialog notify on a
+   channel.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.19.0 to Asterisk 13.20.0 ----------
 ------------------------------------------------------------------------------
