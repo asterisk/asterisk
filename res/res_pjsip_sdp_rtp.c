@@ -219,10 +219,13 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 			(session->endpoint->media.tos_audio || session->endpoint->media.cos_audio)) {
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_audio,
 				session->endpoint->media.cos_audio, "SIP RTP Audio");
-	} else if (session_media->type == AST_MEDIA_TYPE_VIDEO &&
-			(session->endpoint->media.tos_video || session->endpoint->media.cos_video)) {
-		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
-				session->endpoint->media.cos_video, "SIP RTP Video");
+	} else if (session_media->type == AST_MEDIA_TYPE_VIDEO) {
+		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
+		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
+		if (session->endpoint->media.tos_video || session->endpoint->media.cos_video) {
+			ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
+					session->endpoint->media.cos_video, "SIP RTP Video");
+		}
 	}
 
 	ast_rtp_instance_set_last_rx(session_media->rtp, time(NULL));
