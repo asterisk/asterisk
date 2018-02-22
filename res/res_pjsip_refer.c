@@ -468,10 +468,20 @@ static struct refer_attended *refer_attended_alloc(struct ast_sip_session *trans
 	return attended;
 }
 
-static int defer_termination_cancel(void *data)
+static int session_end_if_deferred_task(void *data)
 {
 	struct ast_sip_session *session = data;
 
+	ast_sip_session_end_if_deferred(session);
+	ao2_ref(session, -1);
+	return 0;
+}
+
+static int defer_termination_cancel_task(void *data)
+{
+	struct ast_sip_session *session = data;
+
+	ast_sip_session_end_if_deferred(session);
 	ast_sip_session_defer_termination_cancel(session);
 	ao2_ref(session, -1);
 	return 0;
@@ -513,6 +523,7 @@ static int refer_attended_task(void *data)
 {
 	struct refer_attended *attended = data;
 	int response;
+	int (*task_cb)(void *data);
 
 	if (attended->transferer_second->channel) {
 		ast_debug(3, "Performing a REFER attended transfer - Transferer #1: %s Transferer #2: %s\n",
@@ -543,13 +554,18 @@ static int refer_attended_task(void *data)
 		}
 	}
 
-	ast_sip_session_end_if_deferred(attended->transferer);
-	if (response != 200) {
-		if (!ast_sip_push_task(attended->transferer->serializer,
-			defer_termination_cancel, attended->transferer)) {
-			/* Gave the ref to the pushed task. */
-			attended->transferer = NULL;
-		}
+	if (response == 200) {
+		task_cb = session_end_if_deferred_task;
+	} else {
+		task_cb = defer_termination_cancel_task;
+	}
+	if (!ast_sip_push_task(attended->transferer->serializer,
+		task_cb, attended->transferer)) {
+		/* Gave the ref to the pushed task. */
+		attended->transferer = NULL;
+	} else {
+		/* Do this anyway even though it is the wrong serializer. */
+		ast_sip_session_end_if_deferred(attended->transferer);
 	}
 
 	ao2_ref(attended, -1);
