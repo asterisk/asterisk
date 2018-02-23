@@ -17,9 +17,11 @@
  */
 
 /*** MODULEINFO
+	<defaultenabled>no</defaultenabled>
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<support_level>deprecated</support_level>
+	<replacement>res_pjsip_registrar</replacement>
  ***/
 
 /*
