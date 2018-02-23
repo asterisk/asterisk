@@ -145,8 +145,9 @@ maxlogins=3
 ; You can select between two variables by using dialplan functions, e.g.
 ;     ${IF(${ISNULL(${ORIG_VM_DATE})}?${VM_DATE}:${ORIG_VM_DATE})}
 ;
-; Note: The emailbody config row can only be up to 512 characters due to a
-;       limitation in the Asterisk configuration subsystem.
+; Note: The emailbody config row can only be up to 8190 characters due to a
+;       limitation in the Asterisk configuration subsystem.  If compiled with
+;       LOW_MEMORY the limit is 510 characters.
 ;emailsubject=[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}
 ; The following definition is very close to the default, but the default shows
 ; just the CIDNAME, if it is not null, otherwise just the CIDNUM, or "an unknown
