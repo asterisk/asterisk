@@ -179,11 +179,6 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 	}
 
 	mgr->last_alloc = NULL;
-	/* v-- MALLOC_DEBUG information */
-	mgr->owner_file = file;
-	mgr->owner_func = func;
-	mgr->owner_line = lineno;
-	/* ^-- MALLOC_DEBUG information */
 
 	if (AST_VECTOR_INIT(&mgr->string_fields, initial_vector_size)) {
 		return -1;
@@ -205,7 +200,8 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 }
 
 ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, size_t needed)
+	struct ast_string_field_pool **pool_head, size_t needed,
+	const char *file, int lineno, const char *func)
 {
 	char *result = NULL;
 	size_t space = (*pool_head)->size - (*pool_head)->used;
@@ -222,8 +218,7 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 			new_size *= 2;
 		}
 
-		if (add_string_pool(mgr, pool_head, new_size,
-			mgr->owner_file, mgr->owner_line, mgr->owner_func)) {
+		if (add_string_pool(mgr, pool_head, new_size, file, lineno, func)) {
 			return NULL;
 		}
 	}
@@ -290,7 +285,8 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 
 void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool **pool_head, ast_string_field *ptr,
-	const char *format, va_list ap)
+	const char *format, va_list ap,
+	const char *file, int lineno, const char *func)
 {
 	size_t needed;
 	size_t available;
@@ -342,7 +338,8 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 		   (if it has one), or the space available in the pool (if it does not). allocate
 		   space for it, adding a new string pool if necessary.
 		*/
-		if (!(target = (char *) __ast_string_field_alloc_space(mgr, pool_head, needed))) {
+		target = (char *) __ast_string_field_alloc_space(mgr, pool_head, needed, file, lineno, func);
+		if (!target) {
 			return;
 		}
 		vsprintf(target, format, ap);
@@ -369,13 +366,14 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	}
 }
 
-void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
+void __ast_string_field_ptr_build(const char *file, int lineno, const char *func,
+	struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool **pool_head, ast_string_field *ptr, const char *format, ...)
 {
 	va_list ap;
 
 	va_start(ap, format);
-	__ast_string_field_ptr_build_va(mgr, pool_head, ptr, format, ap);
+	__ast_string_field_ptr_build_va(mgr, pool_head, ptr, format, ap, file, lineno, func);
 	va_end(ap);
 }
 
@@ -419,11 +417,6 @@ void *__ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_siz
 	mgr->embedded_pool = pool;
 	*pool_head = pool;
 	pool->size = size_to_alloc - struct_size - sizeof(*pool);
-	/* v-- MALLOC_DEBUG information */
-	mgr->owner_file = file;
-	mgr->owner_func = func;
-	mgr->owner_line = lineno;
-	/* ^-- MALLOC_DEBUG information */
 
 	return allocation;
 }
@@ -446,7 +439,8 @@ int __ast_string_fields_cmp(struct ast_string_field_vector *left,
 }
 
 int __ast_string_fields_copy(struct ast_string_field_pool *copy_pool,
-	struct ast_string_field_mgr *copy_mgr, struct ast_string_field_mgr *orig_mgr)
+	struct ast_string_field_mgr *copy_mgr, struct ast_string_field_mgr *orig_mgr,
+	const char *file, int lineno, const char *func)
 {
 	int i;
 	struct ast_string_field_vector *dest = &(copy_mgr->string_fields);
@@ -460,8 +454,8 @@ int __ast_string_fields_copy(struct ast_string_field_pool *copy_pool,
 	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(dest); i++) {
-		if (ast_string_field_ptr_set_by_fields(copy_pool, *copy_mgr, AST_VECTOR_GET(dest, i),
-			*AST_VECTOR_GET(src, i))) {
+		if (__ast_string_field_ptr_set_by_fields(copy_pool, *copy_mgr, AST_VECTOR_GET(dest, i),
+			*AST_VECTOR_GET(src, i), file, lineno, func)) {
 			return -1;
 		}
 	}
