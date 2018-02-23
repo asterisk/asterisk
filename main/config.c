@@ -2197,10 +2197,10 @@ static struct ast_config *config_text_file_load(const char *database, const char
 					lineno++;
 					if (fgets(buf, sizeof(buf), f)) {
 						/* Skip lines that are too long */
-						if (strlen(buf) == sizeof(buf) - 1 && buf[sizeof(buf) - 1] != '\n') {
+						if (strlen(buf) == sizeof(buf) - 1 && buf[sizeof(buf) - 2] != '\n') {
 							ast_log(LOG_WARNING, "Line %d too long, skipping. It begins with: %.32s...\n", lineno, buf);
 							while (fgets(buf, sizeof(buf), f)) {
-								if (strlen(buf) != sizeof(buf) - 1 || buf[sizeof(buf) - 1] == '\n') {
+								if (strlen(buf) != sizeof(buf) - 1 || buf[sizeof(buf) - 2] == '\n') {
 									break;
 								}
 							}
