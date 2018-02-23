@@ -216,6 +216,7 @@ running=false
 RUNNING=false
 latest=false
 tarball_coredumps=false
+tarball_config=false
 delete_coredumps_after=false
 tarball_results=false
 delete_results_after=false
@@ -280,6 +281,9 @@ for a in "$@" ; do
 		;;
 	--tarball-coredumps)
 		tarball_coredumps=true
+		;;
+	--tarball-config)
+		tarball_config=true
 		;;
 	--delete-coredumps-after)
 		delete_coredumps_after=true
@@ -436,7 +440,7 @@ for i in ${!COREDUMPS[@]} ; do
 
 		ln -s ${cf} ${dest}/tmp/${cfname}
 		cp ${outputdir}/${cfname}*.txt ${dest}/tmp/
-		cp /etc/os-release ${dest}/etc/
+		[ -f /etc/os-release ] && cp /etc/os-release ${dest}/etc/
 		if $tarball_config ; then
 			cp -a /etc/asterisk ${dest}/etc/
 		fi
@@ -445,6 +449,7 @@ for i in ${!COREDUMPS[@]} ; do
 		cp -a /usr/sbin/asterisk ${dest}/usr/sbin
 		rm -rf ${tf}
 		tar -chzf ${tf} --transform="s/^[.]/${cfname}/" -C ${dest} .
+		sleep 3
 		rm -rf ${dest}
 		echo "Created $tf"
 	elif $tarball_results ; then
