@@ -74,12 +74,19 @@ res_pjsip_registrar_expire
  * The res_pjsip_registrar_expire module has been removed.  The functionality has
    been moved into res_pjsip_registrar.
 
+func_audiohookinherit
+------------------
+ * The func_audiohookinherit module has been removed. Due to architectural changes
+   in Asterisk 12, audiohook inheritance is performed automatically and this
+   function now lacks function.
+
 cdr_syslog
 ------------------
  * The cdr_syslog module is now deprecated and by default it is no longer
    built.
 
 Core:
+------------------
  * libedit is no longer available as an embedded library and must be provided
    by the system.
 
