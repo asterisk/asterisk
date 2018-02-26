@@ -122,6 +122,10 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_RTCP,
 	/*! Enable Asymmetric RTP Codecs */
 	AST_RTP_PROPERTY_ASYMMETRIC_CODEC,
+	/*! Enable packet retransmission for received packets */
+	AST_RTP_PROPERTY_RETRANS_RECV,
+	/*! Enable packet retransmission for sent packets */
+	AST_RTP_PROPERTY_RETRANS_SEND,
 
 	/*!
 	 * \brief Maximum number of RTP properties supported
