@@ -23,6 +23,14 @@
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 ===========================================================
 
+From 15.3.0 to 15.4.0:
+
+app_dial
+------------------
+ * The Dial application now supports early-media video (in addition to
+   audio) on both the calling as well as the called party.
+   Be aware that this is a change in behavior.
+
 From 15.2.0 to 15.3.0:
 
 app_confbridge
