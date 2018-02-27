@@ -1609,6 +1609,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					break;
 				}
 				break;
+			case AST_FRAME_VIDEO:
 			case AST_FRAME_VOICE:
 			case AST_FRAME_IMAGE:
 				if (caller_entertained) {
@@ -1707,6 +1708,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_log(LOG_WARNING, "Unable to send URL\n");
 					}
 					break;
+				case AST_FRAME_VIDEO:
 				case AST_FRAME_VOICE:
 				case AST_FRAME_IMAGE:
 					if (!single || caller_entertained) {
