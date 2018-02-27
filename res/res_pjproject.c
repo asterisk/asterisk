@@ -469,6 +469,18 @@ static struct ast_cli_entry pjproject_cli[] = {
 	AST_CLI_DEFINE(handle_pjproject_show_log_level, "Show the maximum active pjproject logging level"),
 };
 
+void ast_pjproject_caching_pool_init(pj_caching_pool *cp,
+	const pj_pool_factory_policy *policy, pj_size_t max_capacity)
+{
+	/* Passing a max_capacity of zero disables caching pools */
+	pj_caching_pool_init(cp, policy, ast_option_pjproject_cache_pools ? max_capacity : 0);
+}
+
+void ast_pjproject_caching_pool_destroy(pj_caching_pool *cp)
+{
+	pj_caching_pool_destroy(cp);
+}
+
 static int load_module(void)
 {
 	ast_debug(3, "Starting PJPROJECT logging to Asterisk logger\n");
