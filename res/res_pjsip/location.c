@@ -17,8 +17,8 @@
  */
 
 #include "asterisk.h"
-#include "pjsip.h"
-#include "pjlib.h"
+#include <pjsip.h>
+#include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/logger.h"

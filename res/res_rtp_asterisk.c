@@ -71,6 +71,9 @@
 #include "asterisk/smoother.h"
 #include "asterisk/uuid.h"
 #include "asterisk/test.h"
+#ifdef HAVE_PJPROJECT
+#include "asterisk/res_pjproject.h"
+#endif
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -7376,7 +7379,7 @@ static void rtp_terminate_pjproject(void)
 		pj_thread_destroy(timer_thread);
 	}
 
-	pj_caching_pool_destroy(&cachingpool);
+	ast_pjproject_caching_pool_destroy(&cachingpool);
 	pj_shutdown();
 }
 #endif
@@ -7401,7 +7404,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	pj_caching_pool_init(&cachingpool, &pj_pool_factory_default_policy, 0);
+	ast_pjproject_caching_pool_init(&cachingpool, &pj_pool_factory_default_policy, 0);
 
 	pool = pj_pool_create(&cachingpool.factory, "timer", 512, 512, NULL);
 

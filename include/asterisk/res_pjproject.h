@@ -19,6 +19,9 @@
 #ifndef _RES_PJPROJECT_H
 #define _RES_PJPROJECT_H
 
+#include <pj/types.h>
+#include <pj/pool.h>
+
 /*!
  * \brief Retrieve a pjproject build option
  *
@@ -70,5 +73,28 @@ void ast_pjproject_log_intercept_begin(int fd);
  * \return Nothing
  */
 void ast_pjproject_log_intercept_end(void);
+
+/*!
+ * \brief Initialize the caching pool factory.
+ * \since 13.21.0
+ *
+ * \param cp Caching pool factory to initialize
+ * \param policy Pool factory policy
+ * \param max_capacity Total capacity to be retained in the cache.  Zero disables caching.
+ *
+ * \return Nothing
+ */
+void ast_pjproject_caching_pool_init(pj_caching_pool *cp,
+	const pj_pool_factory_policy *policy, pj_size_t max_capacity);
+
+/*!
+ * \brief Destroy caching pool factory and all cached pools.
+ * \since 13.21.0
+ *
+ * \param cp Caching pool factory to destroy
+ *
+ * \return Nothing
+ */
+void ast_pjproject_caching_pool_destroy(pj_caching_pool *cp);
 
 #endif /* _RES_PJPROJECT_H */

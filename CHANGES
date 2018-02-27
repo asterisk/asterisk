@@ -91,6 +91,17 @@ Core:
    by the system.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 15.3.0 to Asterisk 15.4.0 ------------
+------------------------------------------------------------------------------
+
+res_pjproject
+------------------
+ * Added the "cache_pools" option to pjproject.conf.  Disabling the option
+   helps track down pool content mismanagement when using valgrind or
+   MALLOC_DEBUG.  The cache gets in the way of determining if the pool contents
+   are used after free and who freed it.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.2.0 to Asterisk 15.3.0 ------------
 ------------------------------------------------------------------------------
 

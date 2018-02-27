@@ -5,6 +5,13 @@
 ;  NOTES: The name of this section in the pjproject.conf configuration file must
 ;         remain startup or the configuration will not be applied.
 ;
+;cache_pools = yes   ; Cache pjproject memory pools for performance
+                     ; Disable this option to help track down pool content
+                     ; mismanagement when using valgrind or MALLOC_DEBUG.
+                     ; The cache gets in the way of determining if the
+                     ; pool contents are used after being freed and who
+                     ; freed it.
+                     ; Default yes
 ;log_level=default   ; Initial maximum pjproject logging level to log
                      ; Valid values are: 0-6, and default
                      ;

@@ -42,6 +42,7 @@
 #include "asterisk/netsock2.h"
 #include "asterisk/vector.h"
 #include "asterisk/lock.h"
+#include "asterisk/res_pjproject.h"
 
 #define HISTORY_INITIAL_SIZE 256
 
@@ -1369,7 +1370,7 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "Unable to register history log level\n");
 	}
 
-	pj_caching_pool_init(&cachingpool, &pj_pool_factory_default_policy, 0);
+	ast_pjproject_caching_pool_init(&cachingpool, &pj_pool_factory_default_policy, 0);
 
 	AST_VECTOR_INIT(&vector_history, HISTORY_INITIAL_SIZE);
 
@@ -1387,7 +1388,7 @@ static int unload_module(void)
 	ast_sip_push_task_synchronous(NULL, clear_history_entries, NULL);
 	AST_VECTOR_FREE(&vector_history);
 
-	pj_caching_pool_destroy(&cachingpool);
+	ast_pjproject_caching_pool_destroy(&cachingpool);
 
 	if (log_level != -1) {
 		ast_logger_unregister_level("PJSIP_HISTORY");
