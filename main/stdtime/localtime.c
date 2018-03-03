@@ -310,7 +310,7 @@ static struct state *	sstate_alloc(void);
 static void		sstate_free(struct state *p);
 
 static AST_LIST_HEAD_STATIC(zonelist, state);
-#ifdef HAVE_NEWLOCALE
+#if defined(HAVE_NEWLOCALE) && defined(HAVE_USELOCALE)
 static AST_LIST_HEAD_STATIC(localelist, locale_entry);
 #endif
 
@@ -2362,7 +2362,7 @@ struct timeval ast_mktime(struct ast_tm *tmp, const char *zone)
 	return time1(tmp, localsub, 0L, sp);
 }
 
-#ifdef HAVE_NEWLOCALE
+#if defined(HAVE_NEWLOCALE) && defined(HAVE_USELOCALE)
 static struct locale_entry *find_by_locale(locale_t locale)
 {
 	struct locale_entry *cur;
