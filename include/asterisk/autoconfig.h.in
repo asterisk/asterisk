@@ -1136,6 +1136,9 @@
 /* Define to 1 if you have the uriparser library library. */
 #undef HAVE_URIPARSER
 
+/* Define to 1 if you have the `uselocale' function. */
+#undef HAVE_USELOCALE
+
 /* Define to 1 if you have the `utime' function. */
 #undef HAVE_UTIME
 
