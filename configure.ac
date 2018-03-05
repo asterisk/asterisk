@@ -1466,7 +1466,7 @@ PKG_PROG_PKG_CONFIG()
 
 # do the package library checks now
 
-AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
+AST_EXT_LIB_CHECK([ALSA], [asound], [snd_pcm_open], [alsa/asoundlib.h])
 
 AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
 # Fedora/RedHat/CentOS require extra libraries
