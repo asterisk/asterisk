@@ -622,7 +622,7 @@ AC_SUBST(UUID_LIB)
 # Find required JSON support.
 AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
-if test "x$JANSSON_LIB" == "x"; then
+if test "${PBX_JANSSON}" != 1; then
   AC_MSG_ERROR([*** JSON support not found (this typically means the libjansson development package is missing)])
 fi
 
