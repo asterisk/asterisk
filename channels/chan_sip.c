@@ -23984,6 +23984,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (ast_channel_state(p->owner) != AST_STATE_UP) {
 				ast_setstate(p->owner, AST_STATE_RINGING);
+				if (p->relatedpeer) {
+					ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_NOT_CACHABLE, "SIP/%s", p->relatedpeer->name);
+				}
 			}
 		}
 		if (find_sdp(req)) {
