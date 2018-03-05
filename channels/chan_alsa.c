@@ -41,6 +41,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <errno.h>
+#ifndef ESTRPIPE
+#define ESTRPIPE EPIPE
+#endif
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
