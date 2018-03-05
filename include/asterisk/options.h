@@ -173,6 +173,11 @@ enum ast_option_flags {
 /*! Current linked pjproject maximum logging level */
 extern int ast_pjproject_max_log_level;
 
+#define DEFAULT_PJPROJECT_CACHE_POOLS	1
+
+/*! Current pjproject pool caching enable */
+extern int ast_option_pjproject_cache_pools;
+
 /*! Current pjproject logging level */
 extern int ast_option_pjproject_log_level;
 

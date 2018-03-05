@@ -327,6 +327,7 @@ int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
 int ast_pjproject_max_log_level = -1;/* Default to -1 to know if we have read the level from pjproject yet. */
 int ast_option_pjproject_log_level;
+int ast_option_pjproject_cache_pools;
 double ast_option_maxload;			/*!< Max load avg on system */
 int ast_option_maxcalls;			/*!< Max number of active calls */
 int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
@@ -3877,6 +3878,7 @@ static void read_pjproject_startup_options(void)
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE | CONFIG_FLAG_NOREALTIME };
 
 	ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+	ast_option_pjproject_cache_pools = DEFAULT_PJPROJECT_CACHE_POOLS;
 
 	cfg = ast_config_load2("pjproject.conf", "" /* core, can't reload */, config_flags);
 	if (!cfg
@@ -3895,6 +3897,8 @@ static void read_pjproject_startup_options(void)
 			} else if (MAX_PJ_LOG_MAX_LEVEL < ast_option_pjproject_log_level) {
 				ast_option_pjproject_log_level = MAX_PJ_LOG_MAX_LEVEL;
 			}
+		} else if (!strcasecmp(v->name, "cache_pools")) {
+			ast_option_pjproject_cache_pools = !ast_false(v->value);
 		}
 	}
 
