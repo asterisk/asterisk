@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#if defined(__CYGWIN__)
+#if defined(__CYGWIN__) || defined(__NetBSD__)
 /*
  * cygwin headers are partly inconsistent. struct iovec is defined in sys/uio.h
  * which is not included by default by sys/socket.h - in_pktinfo is defined in
@@ -53,7 +53,7 @@
 #ifdef HAVE_PKTINFO
 #undef HAVE_PKTINFO
 #endif
-#endif /* __CYGWIN__ */
+#endif /* __CYGWIN__ || __NetBSD__ */
 
 #include "asterisk/paths.h"	/* ast_config_AST_LOG_DIR used in (too ?) many places */
 #include "asterisk/network.h"
