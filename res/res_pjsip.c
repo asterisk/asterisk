@@ -4998,7 +4998,7 @@ static int unload_pjsip(void *data)
 	ast_pjsip_endpoint = NULL;
 
 	if (caching_pool.lock) {
-		pj_caching_pool_destroy(&caching_pool);
+		ast_pjproject_caching_pool_destroy(&caching_pool);
 	}
 
 	pj_shutdown();
@@ -5015,7 +5015,7 @@ static int load_pjsip(void)
 	 * example code from PJLIB. This can be adjusted
 	 * if necessary.
 	 */
-	pj_caching_pool_init(&caching_pool, NULL, 1024 * 1024);
+	ast_pjproject_caching_pool_init(&caching_pool, NULL, 1024 * 1024);
 	if (pjsip_endpt_create(&caching_pool.factory, "SIP", &ast_pjsip_endpoint) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to create PJSIP endpoint structure. Aborting load\n");
 		goto error;

@@ -17,6 +17,11 @@
  */
 
 #include "asterisk.h"
+
+#include <pjlib.h>
+#include <pjmedia.h>
+
+#include "asterisk/res_pjproject.h"
 #include "asterisk/sdp_translator.h"
 #include "asterisk/sdp_options.h"
 #include "asterisk/vector.h"
@@ -27,10 +32,6 @@
 #include "asterisk/module.h"
 
 #include "asterisk/sdp.h"
-#ifdef HAVE_PJPROJECT
-#include <pjlib.h>
-#include <pjmedia.h>
-#endif
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -573,7 +574,7 @@ static int load_module(void)
 	if (ast_sdp_register_translator(&pjmedia_translator)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	pj_caching_pool_init(&sdp_caching_pool, NULL, 1024 * 1024);
+	ast_pjproject_caching_pool_init(&sdp_caching_pool, NULL, 1024 * 1024);
 	AST_TEST_REGISTER(pjmedia_to_sdp_test);
 	AST_TEST_REGISTER(sdp_to_pjmedia_test);
 
@@ -583,7 +584,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_sdp_unregister_translator(&pjmedia_translator);
-	pj_caching_pool_destroy(&sdp_caching_pool);
+	ast_pjproject_caching_pool_destroy(&sdp_caching_pool);
 	AST_TEST_UNREGISTER(pjmedia_to_sdp_test);
 	AST_TEST_UNREGISTER(sdp_to_pjmedia_test);
 	return 0;
@@ -600,4 +601,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJMEDIA SDP Translato
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
+	.requires = "res_pjproject",
 );
