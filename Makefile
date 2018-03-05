@@ -229,7 +229,7 @@ ifeq ($(OSARCH),FreeBSD)
 endif
 
 ifeq ($(OSARCH),NetBSD)
-  _ASTCFLAGS+=-pthread -I/usr/pkg/include
+  _ASTCFLAGS+=-pthread -D__LIBPTHREAD_SOURCE__ -I/usr/pkg/include
 endif
 
 ifeq ($(OSARCH),OpenBSD)
