@@ -504,7 +504,7 @@ static void *kqueue_daemon(void *data)
 			continue;
 		}
 
-		sp = kev.udata;
+		sp = (struct state *) kev.udata;
 
 		AST_LIST_LOCK(&zonelist);
 		/* see comment near psx_sp in add_notify() */
