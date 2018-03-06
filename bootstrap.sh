@@ -17,6 +17,10 @@ case `uname -sr` in
 		MY_AC_VER=
 		MY_AM_VER=
 		;;
+	NetBSD*)
+		MY_AC_VER=
+		MY_AM_VER=
+		;;
 	OpenBSD*)
 		# pkg_add autoconf%2.63 automake%1.9 metaauto
 		[ -z "$AUTOCONF_VERSION" ] && export AUTOCONF_VERSION=2.63
