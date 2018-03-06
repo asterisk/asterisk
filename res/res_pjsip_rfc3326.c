@@ -92,12 +92,12 @@ static void rfc3326_add_reason_header(struct ast_sip_session *session, struct pj
 {
 	char buf[20];
 
-	snprintf(buf, sizeof(buf), "Q.850;cause=%i", ast_channel_hangupcause(session->channel) & 0x7f);
-	ast_sip_add_header(tdata, "Reason", buf);
-
 	if (ast_channel_hangupcause(session->channel) == AST_CAUSE_ANSWERED_ELSEWHERE) {
 		ast_sip_add_header(tdata, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
 	}
+
+	snprintf(buf, sizeof(buf), "Q.850;cause=%i", ast_channel_hangupcause(session->channel) & 0x7f);
+	ast_sip_add_header(tdata, "Reason", buf);
 }
 
 static void rfc3326_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
