@@ -6089,22 +6089,33 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	return 0;
 }
 
-
+/*!
+ * \brief Check the given mailbox's message count.
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param urgentmsgs  urgent message count.
+ * \param newmsgs new message count.
+ * \param oldmsgs old message count pointer
+ * \return -1 if error occurred, 0 otherwise.
+ */
 static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs)
 {
 	char tmp[256];
 	char *context;
 
 	/* If no mailbox, return immediately */
-	if (ast_strlen_zero(mailbox))
+	if (ast_strlen_zero(mailbox)) {
 		return 0;
+	}
 
-	if (newmsgs)
+	if (newmsgs) {
 		*newmsgs = 0;
-	if (oldmsgs)
+	}
+	if (oldmsgs) {
 		*oldmsgs = 0;
-	if (urgentmsgs)
+	}
+	if (urgentmsgs) {
 		*urgentmsgs = 0;
+	}
 
 	if (strchr(mailbox, ',')) {
 		int tmpnew, tmpold, tmpurgent;
@@ -6114,15 +6125,18 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 		mb = tmp;
 		while ((cur = strsep(&mb, ", "))) {
 			if (!ast_strlen_zero(cur)) {
-				if (inboxcount2(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+				if (inboxcount2(cur, urgentmsgs ? &tmpurgent : NULL, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL)) {
 					return -1;
-				else {
-					if (newmsgs)
+				} else {
+					if (newmsgs) {
 						*newmsgs += tmpnew;
-					if (oldmsgs)
+					}
+					if (oldmsgs) {
 						*oldmsgs += tmpold;
-					if (urgentmsgs)
+					}
+					if (urgentmsgs) {
 						*urgentmsgs += tmpurgent;
+					}
 				}
 			}
 		}
@@ -6131,17 +6145,21 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
 
-	if ((context = strchr(tmp, '@')))
+	if ((context = strchr(tmp, '@'))) {
 		*context++ = '\0';
-	else
+	} else {
 		context = "default";
+	}
 
-	if (newmsgs)
+	if (newmsgs) {
 		*newmsgs = __has_voicemail(context, tmp, "INBOX", 0);
-	if (oldmsgs)
+	}
+	if (oldmsgs) {
 		*oldmsgs = __has_voicemail(context, tmp, "Old", 0);
-	if (urgentmsgs)
+	}
+	if (urgentmsgs) {
 		*urgentmsgs = __has_voicemail(context, tmp, "Urgent", 0);
+	}
 
 	return 0;
 }
@@ -13241,7 +13259,10 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
-/*! \brief Append vmu info string into given astman with event_name. */
+/*!
+ * \brief Append vmu info string into given astman with event_name.
+ * \return 0 failed. 1 otherwise.
+*/
 static int append_vmu_info_astman(
 		struct mansession *s,
 		struct ast_vm_user *vmu,
@@ -13251,14 +13272,33 @@ static int append_vmu_info_astman(
 {
 	int new;
 	int old;
+	char *mailbox;
+	int ret;
 
 	if((s == NULL) || (vmu == NULL) || (event_name == NULL) || (actionid == NULL)) {
 		ast_log(LOG_ERROR, "Wrong input parameter.");
 		return 0;
 	}
 
+	/* create mailbox string */
+	if (!ast_strlen_zero(vmu->context)) {
+		ret = ast_asprintf(&mailbox, "%s@%s", vmu->mailbox, vmu->context);
+	} else {
+		ret = ast_asprintf(&mailbox, "%s", vmu->mailbox);
+	}
+	if (ret == -1) {
+		ast_log(LOG_ERROR, "Could not create mailbox string. err[%s]\n", strerror(errno));
+		return 0;
+	}
+
 	/* get mailbox count */
-	inboxcount(vmu->mailbox, &new, &old);
+	ret = inboxcount(mailbox, &new, &old);
+	ast_free(mailbox);
+	if (ret == -1) {
+		ast_log(LOG_ERROR, "Could not get mailbox count. user[%s], context[%s]\n",
+			vmu->mailbox ?: "", vmu->context ?: "");
+		return 0;
+	}
 
 	astman_append(s,
 		"Event: %s\r\n"
