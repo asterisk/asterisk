@@ -13346,11 +13346,30 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	astman_send_listack(s, m, "Voicemail user list will follow", "start");
 
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		char dirname[256];
 		int new, old;
-		inboxcount(vmu->mailbox, &new, &old);
+		int ret;
+		char *mailbox;
 
-		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
+		/* create mailbox string */
+		if (!ast_strlen_zero(vmu->context)) {
+			ret = ast_asprintf(&mailbox, "%s@%s", vmu->mailbox, vmu->context);
+		} else {
+			ret = ast_asprintf(&mailbox, "%s", vmu->mailbox);
+		}
+		if (ret == -1) {
+			ast_log(LOG_ERROR, "Could not create mailbox string. err[%s]\n", strerror(errno));
+			continue;
+		}
+
+		/* get mailbox count */
+		ret = inboxcount(mailbox, &new, &old);
+		ast_free(mailbox);
+		if (ret == -1) {
+			ast_log(LOG_ERROR, "Could not get mailbox count. username[%s], context[%s]\n",
+				vmu->mailbox ?: "", vmu->context ?: "");
+			continue;
+		}
+
 		astman_append(s,
 			"Event: VoicemailUserEntry\r\n"
 			"%s"
