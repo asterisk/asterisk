@@ -33,10 +33,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #ifdef DEBUG_SCHEDULER
-#define DEBUG(a) do { \
-	if (option_debug) \
-		DEBUG_M(a) \
-	} while (0)
+#define DEBUG(a) a
 #else
 #define DEBUG(a)
 #endif
@@ -550,8 +547,7 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 	}
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	if (option_debug)
-		ast_sched_dump(con);
+	ast_sched_dump(con);
 #endif
 	if (con->sched_thread) {
 		ast_cond_signal(&con->sched_thread->cond);
@@ -651,8 +647,7 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
-	if (option_debug)
-		ast_sched_dump(con);
+	ast_sched_dump(con);
 #endif
 	if (con->sched_thread) {
 		ast_cond_signal(&con->sched_thread->cond);
@@ -713,25 +708,33 @@ void ast_sched_report(struct ast_sched_context *con, struct ast_str **buf, struc
 void ast_sched_dump(struct ast_sched_context *con)
 {
 	struct sched *q;
-	struct timeval when = ast_tvnow();
+	struct timeval when;
 	int x;
 	size_t heap_size;
+
+	if (!DEBUG_ATLEAST(1)) {
+		return;
+	}
+
+	when = ast_tvnow();
 #ifdef SCHED_MAX_CACHE
-	ast_debug(1, "Asterisk Schedule Dump (%zu in Q, %u Total, %u Cache, %u high-water)\n", ast_heap_size(con->sched_heap), con->eventcnt - 1, con->schedccnt, con->highwater);
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%zu in Q, %u Total, %u Cache, %u high-water)\n",
+		ast_heap_size(con->sched_heap), con->eventcnt - 1, con->schedccnt, con->highwater);
 #else
-	ast_debug(1, "Asterisk Schedule Dump (%zu in Q, %u Total, %u high-water)\n", ast_heap_size(con->sched_heap), con->eventcnt - 1, con->highwater);
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%zu in Q, %u Total, %u high-water)\n",
+		ast_heap_size(con->sched_heap), con->eventcnt - 1, con->highwater);
 #endif
 
-	ast_debug(1, "=============================================================\n");
-	ast_debug(1, "|ID    Callback          Data              Time  (sec:ms)   |\n");
-	ast_debug(1, "+-----+-----------------+-----------------+-----------------+\n");
+	ast_log(LOG_DEBUG, "=============================================================\n");
+	ast_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
+	ast_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
 	ast_mutex_lock(&con->lock);
 	heap_size = ast_heap_size(con->sched_heap);
 	for (x = 1; x <= heap_size; x++) {
 		struct timeval delta;
 		q = ast_heap_peek(con->sched_heap, x);
 		delta = ast_tvsub(q->when, when);
-		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n",
+		ast_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n",
 			q->sched_id->id,
 			q->callback,
 			q->data,
@@ -739,7 +742,7 @@ void ast_sched_dump(struct ast_sched_context *con)
 			(long int)delta.tv_usec);
 	}
 	ast_mutex_unlock(&con->lock);
-	ast_debug(1, "=============================================================\n");
+	ast_log(LOG_DEBUG, "=============================================================\n");
 }
 
 /*! \brief

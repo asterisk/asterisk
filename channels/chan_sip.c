@@ -22332,7 +22332,7 @@ static void sip_dump_history(struct sip_pvt *dialog)
 		return;
 	}
 
-	if (!option_debug && !sipdebug) {
+	if (!sipdebug && !DEBUG_ATLEAST(1)) {
 		if (!errmsg) {
 			ast_log(LOG_NOTICE, "You must have debugging enabled (SIP or Asterisk) in order to dump SIP history.\n");
 			errmsg = 1;
@@ -22340,20 +22340,20 @@ static void sip_dump_history(struct sip_pvt *dialog)
 		return;
 	}
 
-	ast_debug(1, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
+	ast_log(LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
 	if (dialog->subscribed) {
-		ast_debug(1, "  * Subscription\n");
+		ast_log(LOG_DEBUG, "  * Subscription\n");
 	} else {
-		ast_debug(1, "  * SIP Call\n");
+		ast_log(LOG_DEBUG, "  * SIP Call\n");
 	}
 	if (dialog->history) {
 		AST_LIST_TRAVERSE(dialog->history, hist, list)
-			ast_debug(1, "  %-3.3d. %s\n", ++x, hist->event);
+			ast_log(LOG_DEBUG, "  %-3.3d. %s\n", ++x, hist->event);
 	}
 	if (!x) {
-		ast_debug(1, "Call '%s' has no history\n", dialog->callid);
+		ast_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
 	}
-	ast_debug(1, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
+	ast_log(LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
 }
 
 

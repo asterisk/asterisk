@@ -2787,9 +2787,7 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 			}
 			cat = cat->next;
 		}
-		if (!option_debug) {
-			ast_verb(2, "Saving '%s': saved\n", fn);
-		}
+		ast_verb(2, "Saving '%s': saved\n", fn);
 	} else {
 		ast_debug(1, "Unable to open for writing: %s\n", fn);
 		ast_verb(2, "Unable to write '%s' (%s)\n", fn, strerror(errno));
