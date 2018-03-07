@@ -196,7 +196,9 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
+#ifndef HAVE_GETHOSTBYNAME_R_5
 	int res;
+#endif
 	int herrno;
 	int dots = 0;
 	const char *s;
@@ -206,7 +208,6 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 	   integers, we break with tradition and refuse to look up a
 	   pure integer */
 	s = host;
-	res = 0;
 	while (s && *s) {
 		if (*s == '.')
 			dots++;
