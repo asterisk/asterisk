@@ -50,7 +50,6 @@
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/cli.h"
-#include "asterisk/astosp.h"
 
 /*** DOCUMENTATION
 	<application name="OSPAuth" language="en_US">
@@ -435,6 +434,11 @@
 		</see-also>
 	</application>
  ***/
+
+/* OSP Return statuses */
+#define AST_OSP_SUCCESS	((char*)"SUCCESS")	/* Return status, success */
+#define AST_OSP_FAILED	((char*)"FAILED")	/* Return status, failed */
+#define AST_OSP_ERROR	((char*)"ERROR")	/* Return status, error */
 
 /* OSP Buffer Sizes */
 #define OSP_SIZE_INTSTR		((unsigned int)16)			/* OSP signed/unsigned int string buffer size */
