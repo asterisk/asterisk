@@ -114,6 +114,36 @@ static void transport_monitor_dtor(void *vdoomed)
 	AST_VECTOR_FREE(&monitored->monitors);
 }
 
+/*!
+ * \internal
+ * \brief Do registered callbacks for the transport.
+ * \since 13.21.0
+ *
+ * \param transports Active transports container
+ * \param transport Which transport to do callbacks for.
+ *
+ * \return Nothing
+ */
+static void transport_state_do_reg_callbacks(struct ao2_container *transports, pjsip_transport *transport)
+{
+	struct transport_monitor *monitored;
+
+	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_UNLINK);
+	if (monitored) {
+		int idx;
+
+		for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
+			struct transport_monitor_notifier *notifier;
+
+			notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
+			ast_debug(3, "running callback %p(%p) for transport %s\n",
+				notifier->cb, notifier->data, transport->obj_name);
+			notifier->cb(notifier->data);
+		}
+		ao2_ref(monitored, -1);
+	}
+}
+
 /*! \brief Callback invoked when transport state changes occur */
 static void transport_state_callback(pjsip_transport *transport,
 	pjsip_transport_state state, const pjsip_transport_state_info *info)
@@ -147,6 +177,7 @@ static void transport_state_callback(pjsip_transport *transport,
 			if (!transport->is_shutdown) {
 				pjsip_transport_shutdown(transport);
 			}
+			transport_state_do_reg_callbacks(transports, transport);
 			break;
 		case PJSIP_TP_STATE_SHUTDOWN:
 			/*
@@ -157,23 +188,17 @@ static void transport_state_callback(pjsip_transport *transport,
 			 */
 			transport->is_shutdown = PJ_TRUE;
 
-			monitored = ao2_find(transports, transport->obj_name,
-				OBJ_SEARCH_KEY | OBJ_UNLINK);
-			if (monitored) {
-				int idx;
-
-				for (idx = AST_VECTOR_SIZE(&monitored->monitors); idx--;) {
-					struct transport_monitor_notifier *notifier;
-
-					notifier = AST_VECTOR_GET_ADDR(&monitored->monitors, idx);
-					ast_debug(3, "running callback %p(%p) for transport %s\n",
-						notifier->cb, notifier->data, transport->obj_name);
-					notifier->cb(notifier->data);
-				}
-				ao2_ref(monitored, -1);
-			}
+			transport_state_do_reg_callbacks(transports, transport);
+			break;
+		case PJSIP_TP_STATE_DESTROY:
+			transport_state_do_reg_callbacks(transports, transport);
 			break;
 		default:
+			/*
+			 * We have to have a default case because the enum is
+			 * defined by a third-party library.
+			 */
+			ast_assert(0);
 			break;
 		}
 
