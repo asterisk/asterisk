@@ -443,7 +443,7 @@ uint16_t _ast_sockaddr_port(const struct ast_sockaddr *addr, const char *file, i
 		&& addr->ss.ss_family == AF_INET6) {
 		return ntohs(((struct sockaddr_in6 *)&addr->ss)->sin6_port);
 	}
-	if (option_debug >= 1) {
+	if (DEBUG_ATLEAST(1)) {
 		ast_log(__LOG_DEBUG, file, line, func, "Not an IPv4 nor IPv6 address, cannot get port.\n");
 	}
 	return 0;
@@ -461,7 +461,7 @@ void _ast_sockaddr_set_port(struct ast_sockaddr *addr, uint16_t port, const char
 	} else if (addr->len == sizeof(struct sockaddr_in6)
 		&& addr->ss.ss_family == AF_INET6) {
 		((struct sockaddr_in6 *)&addr->ss)->sin6_port = htons(port);
-	} else if (option_debug >= 1) {
+	} else if (DEBUG_ATLEAST(1)) {
 		ast_log(__LOG_DEBUG, file, line, func,
 			"Not an IPv4 nor IPv6 address, cannot set port.\n");
 	}
@@ -657,7 +657,7 @@ int _ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
 		return 0;
 	}
 
-	if (addr->ss.ss_family != AF_INET && option_debug >= 1) {
+	if (addr->ss.ss_family != AF_INET && DEBUG_ATLEAST(1)) {
 		ast_log(__LOG_DEBUG, file, line, func, "Address family is not AF_INET\n");
 	}
 
@@ -670,7 +670,7 @@ void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in 
 {
 	memcpy(&addr->ss, sin, sizeof(*sin));
 
-	if (addr->ss.ss_family != AF_INET && option_debug >= 1) {
+	if (addr->ss.ss_family != AF_INET && DEBUG_ATLEAST(1)) {
 		ast_log(__LOG_DEBUG, file, line, func, "Address family is not AF_INET\n");
 	}
 

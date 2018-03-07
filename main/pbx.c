@@ -7508,13 +7508,13 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 			ast_add_hint(tmp);
 		}
 	}
-	if (option_debug) {
+	if (DEBUG_ATLEAST(1)) {
 		if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
-			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
-					  tmp->name, tmp->priority, tmp->cidmatch_display, con->name, con);
+			ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
+				tmp->name, tmp->priority, tmp->cidmatch_display, con->name, con);
 		} else {
-			ast_debug(1, "Added extension '%s' priority %d to %s (%p)\n",
-					  tmp->name, tmp->priority, con->name, con);
+			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s (%p)\n",
+				tmp->name, tmp->priority, con->name, con);
 		}
 	}
 
