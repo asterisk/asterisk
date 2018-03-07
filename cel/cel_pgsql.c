@@ -556,18 +556,18 @@ static int process_my_load_module(struct ast_config *cfg)
 		ast_log(LOG_WARNING,"PostgreSQL Ran out of memory copying schema info\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (option_debug) {
+	if (DEBUG_ATLEAST(3)) {
 		if (ast_strlen_zero(pghostname)) {
-			ast_debug(3, "cel_pgsql: using default unix socket\n");
+			ast_log(LOG_DEBUG, "cel_pgsql: using default unix socket\n");
 		} else {
-			ast_debug(3, "cel_pgsql: got hostname of %s\n", pghostname);
+			ast_log(LOG_DEBUG, "cel_pgsql: got hostname of %s\n", pghostname);
 		}
-		ast_debug(3, "cel_pgsql: got port of %s\n", pgdbport);
-		ast_debug(3, "cel_pgsql: got user of %s\n", pgdbuser);
-		ast_debug(3, "cel_pgsql: got dbname of %s\n", pgdbname);
-		ast_debug(3, "cel_pgsql: got password of %s\n", pgpassword);
-		ast_debug(3, "cel_pgsql: got sql table name of %s\n", table);
-		ast_debug(3, "cel_pgsql: got show_user_defined of %s\n",
+		ast_log(LOG_DEBUG, "cel_pgsql: got port of %s\n", pgdbport);
+		ast_log(LOG_DEBUG, "cel_pgsql: got user of %s\n", pgdbuser);
+		ast_log(LOG_DEBUG, "cel_pgsql: got dbname of %s\n", pgdbname);
+		ast_log(LOG_DEBUG, "cel_pgsql: got password of %s\n", pgpassword);
+		ast_log(LOG_DEBUG, "cel_pgsql: got sql table name of %s\n", table);
+		ast_log(LOG_DEBUG, "cel_pgsql: got show_user_defined of %s\n",
 			cel_show_user_def ? "Yes" : "No");
 	}
 
