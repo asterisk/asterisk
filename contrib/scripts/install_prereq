@@ -51,6 +51,22 @@ PACKAGES_RH="$PACKAGES_RH wget subversion"
 PACKAGES_RH="$PACKAGES_RH bzip2 patch python-devel"
 
 # Basic build system:
+PACKAGES_NBSD="gmake pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_NBSD="$PACKAGES_NBSD editline jansson sqlite3 libuuid libxml2"
+# Asterisk: for addons:
+PACKAGES_NBSD="$PACKAGES_NBSD speex speexdsp libogg libvorbis alsa-lib portaudio-devel curl bison flex"
+PACKAGES_NBSD="$PACKAGES_NBSD postgresql10-client unixodbc libltdl neon gmime lua52 uriparser libxslt openssl"
+PACKAGES_NBSD="$PACKAGES_NBSD mysql-client radiusclient-ng freetds bash"
+PACKAGES_NBSD="$PACKAGES_NBSD net-snmp iksemel popt libical spandsp"
+PACKAGES_NBSD="$PACKAGES_NBSD imap-uw srtp gsm doxygen graphviz libzip openldap-client"
+PACKAGES_NBSD="$PACKAGES_NBSD codec2 fftw libsndfile unbound"
+# Asterisk: for the unpackaged below:
+PACKAGES_NBSD="$PACKAGES_NBSD wget subversion-base"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_NBSD="$PACKAGES_NBSD bzip2 patch python27"
+
+# Basic build system:
 PACKAGES_OBSD="gmake"
 # Asterisk: basic requirements:
 PACKAGES_OBSD="$PACKAGES_OBSD libxml sqlite3 e2fsprogs jansson"
@@ -166,6 +182,17 @@ handle_rh() {
 	fi
 }
 
+handle_nbsd() {
+	extra_packs=`check_installed_pkgs $PACKAGES_NBSD`
+	if [ x"$extra_packs" != "x" ] ; then
+		if [ -z "$PKG_PATH" ] ; then
+			# see NetBSD Problem Report #48177
+			export PKG_PATH="http://cdn.NetBSD.org/pub/pkgsrc/packages/$(uname -s)/$(uname -p)/$(uname -r)/All"
+		fi
+		$testcmd pkg_add $extra_packs
+	fi
+}
+
 handle_obsd() {
 	extra_packs=`check_installed_pkgs $PACKAGES_OBSD`
 	if [ x"$extra_packs" != "x" ] ; then
@@ -243,7 +270,7 @@ OS=`uname -s`
 unsupported_distro=''
 
 # A number of distributions we don't (yet?) support.
-if [ "$OS" != 'Linux' -a "$OS" != 'OpenBSD' -a "$OS" != 'FreeBSD' ]; then
+if [ "$OS" != 'Linux' -a "$OS" != 'NetBSD' -a "$OS" != 'OpenBSD' -a "$OS" != 'FreeBSD' ]; then
 	echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
 	exit 1
 fi
@@ -274,6 +301,8 @@ if [ -r /etc/debian_version ]; then
 	handle_debian
 elif [ -r /etc/redhat-release ]; then
 	handle_rh
+elif [ "$OS" = 'NetBSD' ]; then
+	handle_nbsd
 elif [ "$OS" = 'OpenBSD' ]; then
 	handle_obsd
 elif [ "$OS" = 'FreeBSD' ]; then
