@@ -1,6 +1,10 @@
-2018-03-08 21:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-03-08 21:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.20.0-rc2 Released.
+
+2018-03-08 15:28 +0000 [0a6db522ba]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 13.20.0-rc2
 
 2018-03-06 19:08 +0000 [a4d6158730]  Sungtae Kim <pchero21@gmail.com>
 
