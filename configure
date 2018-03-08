@@ -13846,6 +13846,10 @@ _ACEOF
 fi
 
 
+if test "x$LIBUUID_LIB" != "x" ; then
+  UUID_INCLUDE="$LIBUUID_INCLUDE"
+  UUID_LIB="$LIBUUID_LIB"
+else
 
 if test "x${PBX_E2FSUUID}" != "x1" -a "${USE_E2FSUUID}" != "no"; then
    pbxlibdir=""
@@ -13942,7 +13946,11 @@ _ACEOF
 fi
 
 
-for ac_func in uuid_generate_random
+  if test "x$E2FSUUID_LIB" != "x" ; then
+    UUID_INCLUDE="$E2FSUUID_INCLUDE"
+    UUID_LIB="$E2FSUUID_LIB"
+  else
+    for ac_func in uuid_generate_random
 do :
   ac_fn_c_check_func "$LINENO" "uuid_generate_random" "ac_cv_func_uuid_generate_random"
 if test "x$ac_cv_func_uuid_generate_random" = xyes; then :
@@ -13955,18 +13963,13 @@ else
 fi
 done
 
-
-if test "x$LIBUUID_LIB" != "x" ; then
-  UUID_INCLUDE="$LIBUUID_INCLUDE"
-  UUID_LIB="$LIBUUID_LIB"
-elif test "x$E2FSUUID_LIB" != "x" ; then
-  UUID_INCLUDE="$E2FSUUID_INCLUDE"
-  UUID_LIB="$E2FSUUID_LIB"
-elif test "x$SYSUUID" != "x" ; then
-  UUID_INCLUDE=""
-  UUID_LIB=""
-else
-  as_fn_error $? "*** uuid support not found (this typically means the uuid development package is missing)" "$LINENO" 5
+    if test "x$SYSUUID" != "x" ; then
+      UUID_INCLUDE=""
+      UUID_LIB=""
+    else
+      as_fn_error $? "*** uuid support not found (this typically means the uuid development package is missing)" "$LINENO" 5
+    fi
+  fi
 fi
 
 
