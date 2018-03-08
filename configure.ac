@@ -62,6 +62,11 @@ case "${host_os}" in
 esac
 
 case "${host_os}" in
+     netbsd*)
+     ac_default_prefix=/usr/pkg
+     CPPFLAGS=-I/usr/pkg/include
+     LDFLAGS=-L/usr/pkg/lib
+     ;;
      freebsd*)
      ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
@@ -1266,6 +1271,9 @@ AC_ARG_ENABLE(rpath,
 
 AC_MSG_CHECKING(whether to use rpath)
 AST_RPATH=
+if test "${OSARCH}" = "NetBSD"; then
+	AST_RPATH="-Wl,-rpath,/usr/pkg/lib"
+fi
 if test "${check_rpath}" != yes; then
 	AC_MSG_RESULT(skipped)
 elif test "${prefix}" = /usr || test "${prefix}" = NONE; then
