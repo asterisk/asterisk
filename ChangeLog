@@ -1,3 +1,17 @@
+2018-03-08 21:35 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.3.0-rc2 Released.
+
+2018-03-06 19:08 +0000 [1e5b9e42d5]  Sungtae Kim <pchero21@gmail.com>
+
+	* voicemail: Fixed wrong voicemail message count
+
+	  Fixed wrong voicemail mailbox reference for Action: VoicemailUsersList.
+
+	  ASTERISK-27703
+
+	  Change-Id: I99bfec14bd4ae475b0fa1fac5a7992f3e2e8d64a
+
 2018-02-22 23:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.3.0-rc1 Released.
