@@ -19447,9 +19447,7 @@ _ACEOF
 fi
 
 
-
-if test "${PBX_BFD}" = "0"; then
-  # Fedora/RedHat/CentOS require extra libraries
+# Fedora/RedHat/CentOS require extra libraries
 
 if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
    pbxlibdir=""
@@ -19464,9 +19462,9 @@ if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_check_format in -lbfd" >&5
-$as_echo_n "checking for bfd_check_format in -lbfd... " >&6; }
-if ${ac_cv_lib_bfd_bfd_check_format+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_openr in -lbfd" >&5
+$as_echo_n "checking for bfd_openr in -lbfd... " >&6; }
+if ${ac_cv_lib_bfd_bfd_openr+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -19480,27 +19478,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char bfd_check_format ();
+char bfd_openr ();
 int
 main ()
 {
-return bfd_check_format ();
+return bfd_openr ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_bfd_bfd_check_format=yes
+  ac_cv_lib_bfd_bfd_openr=yes
 else
-  ac_cv_lib_bfd_bfd_check_format=no
+  ac_cv_lib_bfd_bfd_openr=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bfd_bfd_check_format" >&5
-$as_echo "$ac_cv_lib_bfd_bfd_check_format" >&6; }
-if test "x$ac_cv_lib_bfd_bfd_check_format" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bfd_bfd_openr" >&5
+$as_echo "$ac_cv_lib_bfd_bfd_openr" >&6; }
+if test "x$ac_cv_lib_bfd_bfd_openr" = xyes; then :
   AST_BFD_FOUND=yes
 else
   AST_BFD_FOUND=no
@@ -19546,10 +19544,7 @@ _ACEOF
 fi
 
 
-fi
-
-if test "${PBX_BFD}" = "0"; then
-  # openSUSE requires -lz
+# openSUSE requires -lz
 
 if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
    pbxlibdir=""
@@ -19564,9 +19559,9 @@ if test "x${PBX_BFD}" != "x1" -a "${USE_BFD}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_check_format in -lbfd" >&5
-$as_echo_n "checking for bfd_check_format in -lbfd... " >&6; }
-if ${ac_cv_lib_bfd_bfd_check_format+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_openr in -lbfd" >&5
+$as_echo_n "checking for bfd_openr in -lbfd... " >&6; }
+if ${ac_cv_lib_bfd_bfd_openr+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -19580,27 +19575,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char bfd_check_format ();
+char bfd_openr ();
 int
 main ()
 {
-return bfd_check_format ();
+return bfd_openr ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_bfd_bfd_check_format=yes
+  ac_cv_lib_bfd_bfd_openr=yes
 else
-  ac_cv_lib_bfd_bfd_check_format=no
+  ac_cv_lib_bfd_bfd_openr=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bfd_bfd_check_format" >&5
-$as_echo "$ac_cv_lib_bfd_bfd_check_format" >&6; }
-if test "x$ac_cv_lib_bfd_bfd_check_format" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bfd_bfd_openr" >&5
+$as_echo "$ac_cv_lib_bfd_bfd_openr" >&6; }
+if test "x$ac_cv_lib_bfd_bfd_openr" = xyes; then :
   AST_BFD_FOUND=yes
 else
   AST_BFD_FOUND=no
@@ -19646,7 +19641,6 @@ _ACEOF
 fi
 
 
-fi
 
 if test "x${OSARCH}" = "xlinux-gnu" ; then
 
@@ -20461,8 +20455,7 @@ $as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
 fi
    fi
 
-      if test "$PBX_LIBEDIT" != "1"; then
-         # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
 
 if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
    pbxlibdir=""
@@ -20559,9 +20552,8 @@ _ACEOF
 fi
 
 
-      fi
       if test "$PBX_LIBEDIT" = "1"; then
-      LIBEDIT_INTERNAL="no"
+         LIBEDIT_INTERNAL="no"
       fi
    fi
    if test "${LIBEDIT_INTERNAL}" = "yes"; then
