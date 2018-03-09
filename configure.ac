@@ -1446,16 +1446,10 @@ PKG_PROG_PKG_CONFIG()
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
 
 AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
-
-if test "${PBX_BFD}" = "0"; then
-  # Fedora/RedHat/CentOS require extra libraries
-  AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty])
-fi
-
-if test "${PBX_BFD}" = "0"; then
-  # openSUSE requires -lz
-  AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty -lz])
-fi
+# Fedora/RedHat/CentOS require extra libraries
+AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h], [-ldl -liberty])
+# openSUSE requires -lz
+AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h], [-ldl -liberty -lz])
 
 case "${OSARCH}" in
 linux*)
@@ -1573,12 +1567,10 @@ if test "${USE_LIBEDIT}" != "no"; then
    fi
    if test "${LIBEDIT_SYSTEM}" = "yes"; then
       AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
-      if test "$PBX_LIBEDIT" != "1"; then
-         # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
-         AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
-      fi
+      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+      AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
       if test "$PBX_LIBEDIT" = "1"; then
-      LIBEDIT_INTERNAL="no"
+         LIBEDIT_INTERNAL="no"
       fi
    fi
    if test "${LIBEDIT_INTERNAL}" = "yes"; then
