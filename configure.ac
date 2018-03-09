@@ -287,6 +287,9 @@ AC_PATH_PROG([PATCH], [patch], :)
 AC_PATH_PROG([SED], [sed], :)
 AC_PATH_PROG([NM], [nm], :)
 
+DOWNLOAD=":"
+DOWNLOAD_TO_STDOUT=
+DOWNLOAD_TIMEOUT=
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
@@ -296,13 +299,14 @@ else if test "${CURL}" != ":" ; then
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
-  AC_PATH_PROG([FETCH], [fetch], [:])
-  DOWNLOAD=${FETCH}
-  DOWNLOAD_TO_STDOUT="${FETCH} -o-"
-  DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
+  AC_PATH_PROG([FETCH], [fetch], :)
+  if test "${FETCH}" != ":" ; then
+    DOWNLOAD=${FETCH}
+    DOWNLOAD_TO_STDOUT="${FETCH} -o-"
+    DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
+  fi
 fi
 fi
-
 AC_SUBST(DOWNLOAD)
 AC_SUBST(DOWNLOAD_TO_STDOUT)
 AC_SUBST(DOWNLOAD_TIMEOUT)
