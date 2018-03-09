@@ -16,7 +16,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	AC_MSG_RESULT(configuring)
 
 	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
-		AC_MSG_ERROR(A download utility (wget, curl or fetch) is required to download bundled pjproject)
+		AC_MSG_ERROR(A download utility (wget, curl, or fetch) is required to download bundled pjproject)
 	fi
 	if test "${BZIP2}" = ":" ; then
 		AC_MSG_ERROR(bzip2 is required to extract the pjproject tar file)
