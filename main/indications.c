@@ -1130,13 +1130,13 @@ static void indications_shutdown(void)
 /*! \brief Load indications module */
 int ast_indications_init(void)
 {
-	if (!(ast_tone_zones = ao2_container_alloc(NUM_TONE_ZONE_BUCKETS,
-			ast_tone_zone_hash, ast_tone_zone_cmp))) {
+	ast_tone_zones = ao2_container_alloc(NUM_TONE_ZONE_BUCKETS,
+			ast_tone_zone_hash, ast_tone_zone_cmp);
+	if (!ast_tone_zones) {
 		return -1;
 	}
 
 	if (load_indications(0)) {
-		indications_shutdown();
 		return -1;
 	}
 

@@ -59,6 +59,7 @@ int ast_test_init(void);            /*!< Provided by test.c */
 int ast_msg_init(void);             /*!< Provided by message.c */
 void ast_msg_shutdown(void);        /*!< Provided by message.c */
 int aco_init(void);             /*!< Provided by config_options.c */
+int dns_core_init(void);        /*!< Provided by dns_core.c */
 
 /*!
  * \brief Initialize the bridging system.
