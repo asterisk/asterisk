@@ -1167,17 +1167,10 @@ int ast_features_init(void)
 	int res;
 
 	res = ast_features_config_init();
-	if (res) {
-		return res;
-	}
 	res |= ast_register_application2(app_bridge, bridge_exec, NULL, NULL, NULL);
 	res |= ast_manager_register_xml_core("Bridge", EVENT_FLAG_CALL, action_bridge);
 
-	if (res) {
-		features_shutdown();
-	} else {
-		ast_register_cleanup(features_shutdown);
-	}
+	ast_register_cleanup(features_shutdown);
 
 	return res;
 }

@@ -1433,7 +1433,6 @@ int load_pbx_builtins(void)
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
 		if (ast_register_application2(builtins[x].name, builtins[x].execute, NULL, NULL, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
-			unload_pbx_builtins();
 			return -1;
 		}
 	}

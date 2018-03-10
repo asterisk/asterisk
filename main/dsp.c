@@ -2404,17 +2404,18 @@ static void test_dsp_shutdown(void)
 
 int ast_dsp_init(void)
 {
-	int res = _dsp_init(0);
+	if (_dsp_init(0)) {
+		return -1;
+	}
 
 #ifdef TEST_FRAMEWORK
-	if (!res) {
-		AST_TEST_REGISTER(test_dsp_fax_detect);
-		AST_TEST_REGISTER(test_dsp_dtmf_detect);
+	AST_TEST_REGISTER(test_dsp_fax_detect);
+	AST_TEST_REGISTER(test_dsp_dtmf_detect);
 
-		ast_register_cleanup(test_dsp_shutdown);
-	}
+	ast_register_cleanup(test_dsp_shutdown);
 #endif
-	return res;
+
+	return 0;
 }
 
 int ast_dsp_reload(void)
