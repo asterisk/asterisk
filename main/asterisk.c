@@ -4573,6 +4573,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_parking_stasis_init(), "Parking Core");
 	check_init(ast_device_state_engine_init(), "Device State Engine");
 	check_init(ast_presence_state_engine_init(), "Presence State Engine");
+	check_init(dns_core_init(), "DNS Resolver Core");
 	check_init(ast_dns_system_resolver_init(), "Default DNS resolver");
 	check_init(load_modules(1), "Module Preload");
 	check_init(ast_features_init(), "Call Features");
