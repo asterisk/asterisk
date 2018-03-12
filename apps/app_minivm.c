@@ -1440,7 +1440,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		ast_debug(1, "Using default subject for this email \n");
 	}
 
-	if (option_debug > 2)
+	if (DEBUG_ATLEAST(3))
 		fprintf(p, "X-Asterisk-debug: template %s user account %s@%s\n", template->name, vmu->username, vmu->domain);
 	fprintf(p, "MIME-Version: 1.0\n");
 

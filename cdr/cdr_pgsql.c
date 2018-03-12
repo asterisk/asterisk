@@ -649,20 +649,20 @@ static int config_module(int reload)
 		return -1;
 	}
 
-	if (option_debug) {
+	if (DEBUG_ATLEAST(1)) {
 		if (ast_strlen_zero(pghostname)) {
-			ast_debug(1, "using default unix socket\n");
+			ast_log(LOG_DEBUG, "using default unix socket\n");
 		} else {
-			ast_debug(1, "got hostname of %s\n", pghostname);
+			ast_log(LOG_DEBUG, "got hostname of %s\n", pghostname);
 		}
-		ast_debug(1, "got port of %s\n", pgdbport);
-		ast_debug(1, "got user of %s\n", pgdbuser);
-		ast_debug(1, "got dbname of %s\n", pgdbname);
-		ast_debug(1, "got password of %s\n", pgpassword);
-		ast_debug(1, "got application name of %s\n", pgappname);
-		ast_debug(1, "got sql table name of %s\n", table);
-		ast_debug(1, "got encoding of %s\n", encoding);
-		ast_debug(1, "got timezone of %s\n", tz);
+		ast_log(LOG_DEBUG, "got port of %s\n", pgdbport);
+		ast_log(LOG_DEBUG, "got user of %s\n", pgdbuser);
+		ast_log(LOG_DEBUG, "got dbname of %s\n", pgdbname);
+		ast_log(LOG_DEBUG, "got password of %s\n", pgpassword);
+		ast_log(LOG_DEBUG, "got application name of %s\n", pgappname);
+		ast_log(LOG_DEBUG, "got sql table name of %s\n", table);
+		ast_log(LOG_DEBUG, "got encoding of %s\n", encoding);
+		ast_log(LOG_DEBUG, "got timezone of %s\n", tz);
 	}
 
 	pgsql_reconnect();

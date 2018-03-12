@@ -1174,8 +1174,7 @@ static int ooh323_answer(struct ast_channel *ast)
 				p->alertsent = 1;
 			}
 			ast_setstate(ast, AST_STATE_UP);
-      			if (option_debug)
-				ast_debug(1, "ooh323_answer(%s)\n", ast_channel_name(ast));
+			ast_debug(1, "ooh323_answer(%s)\n", ast_channel_name(ast));
 			ast_channel_unlock(ast);
 			ooAnswerCall(p->callToken);
 		}

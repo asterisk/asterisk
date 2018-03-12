@@ -550,11 +550,11 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 			} /*!< while (ldap_attribute_name) */
 			ber_free(ber, 0);
 			if (static_table_config == table_config) {
-				if (option_debug > 2) {
+				if (DEBUG_ATLEAST(3)) {
 					const struct ast_variable *tmpdebug = variable_named(var, "variable_name");
 					const struct ast_variable *tmpdebug2 = variable_named(var, "variable_value");
 					if (tmpdebug && tmpdebug2) {
-						ast_debug(3, "Added to vars - %s = %s\n", tmpdebug->value, tmpdebug2->value);
+						ast_log(LOG_DEBUG, "Added to vars - %s = %s\n", tmpdebug->value, tmpdebug2->value);
 					}
 				}
 				vars[entry_index++] = var;
@@ -1620,14 +1620,14 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 
 	/* Ready to update */
 	ast_debug(3, "Modifying %zu matched entries\n", entry_count);
-	if (option_debug > 2) {
+	if (DEBUG_ATLEAST(3)) {
 		size_t i;
 		for (i = 0; modifications[i]; i++) {
 			if (modifications[i]->mod_op != LDAP_MOD_DELETE) {
-				ast_debug(3, "%s => %s\n", modifications[i]->mod_type,
-						modifications[i]->mod_values[0]);
+				ast_log(LOG_DEBUG, "%s => %s\n", modifications[i]->mod_type,
+					modifications[i]->mod_values[0]);
 			} else {
-				ast_debug(3, "deleting %s\n", modifications[i]->mod_type);
+				ast_log(LOG_DEBUG, "deleting %s\n", modifications[i]->mod_type);
 			}
 		}
 	}
