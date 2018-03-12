@@ -240,7 +240,9 @@ ifeq ($(OSARCH),SunOS)
   _ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include -D_XPG4_2 -D__EXTENSIONS__
 endif
 
-ifneq ($(GREP),:)
+ifeq ($(GREP),)
+else ifeq ($(GREP),:)
+else
   ASTERISKVERSION:=$(shell GREP=$(GREP) AWK=$(AWK) GIT=$(GIT) build_tools/make_version .)
 endif
 ifneq ($(AWK),)
@@ -468,7 +470,9 @@ endif
 		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/rest-api" ; \
 	done
 
-ifneq ($(GREP),:)
+ifeq ($(GREP),)
+else ifeq ($(GREP),:)
+else
   XML_core_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 endif
 
@@ -487,7 +491,9 @@ doc/core-en_US.xml: makeopts .lastclean $(XML_core_en_US)
 	@echo
 	@echo "</docs>" >> $@
 
-ifneq ($(GREP),:)
+ifeq ($(GREP),)
+else ifeq ($(GREP),:)
+else
   XML_full_en_US = $(foreach dir,$(MOD_SUBDIRS),$(shell $(GREP) -l "language=\"en_US\"" $(dir)/*.c $(dir)/*.cc 2>/dev/null))
 endif
 
@@ -631,7 +637,9 @@ oldmodcheck:
 	fi
 
 ld-cache-update:
-ifneq ($(LDCONFIG),:)
+ifeq ($(LDCONFIG),)
+else ifeq ($(LDCONFIG),:)
+else
 ifeq ($(DESTDIR),)  # DESTDIR means binary archive creation; ldconfig should be run on postinst
 	@if [ $$(id -u) -eq 0 ] ; then \
 		$(LDCONFIG) "$(ASTLIBDIR)/" ; \
@@ -985,7 +993,9 @@ ifeq ($(HAVE_DAHDI),1)
 	rm -f $(DESTDIR)$(DAHDI_UDEV_HOOK_DIR)/40-asterisk
 endif
 	$(MAKE) -C sounds uninstall
-ifneq ($(LDCONFIG),:)
+ifeq ($(LDCONFIG),)
+else ifeq ($(LDCONFIG),:)
+else
 	$(LDCONFIG) "$(ASTLIBDIR)/" || :
 endif
 
