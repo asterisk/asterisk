@@ -4565,11 +4565,9 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	format = frame->subclass.format;
 	if (ast_format_cmp(rtp->lasttxformat, format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		/* Oh dear, if the format changed we will have to set up a new smoother */
-		if (option_debug > 0) {
-			ast_debug(1, "Ooh, format changed from %s to %s\n",
-				ast_format_get_name(rtp->lasttxformat),
-				ast_format_get_name(frame->subclass.format));
-		}
+		ast_debug(1, "Ooh, format changed from %s to %s\n",
+			ast_format_get_name(rtp->lasttxformat),
+			ast_format_get_name(frame->subclass.format));
 		ao2_replace(rtp->lasttxformat, format);
 		if (rtp->smoother) {
 			ast_smoother_free(rtp->smoother);
@@ -5744,7 +5742,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 				ast_sockaddr_stringify(&remote_address),
 				strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
-			if (option_debug || rtpdebug) {
+			if (rtpdebug || DEBUG_ATLEAST(1)) {
 				ast_log(LOG_WARNING,
 					"RTP NAT: Can't write RTP to private "
 					"address %s, waiting for other end to "
@@ -6117,13 +6115,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	if (ext) {
 		hdrlen += (ntohl(rtpheader[hdrlen/4]) & 0xffff) << 2;
 		hdrlen += 4;
-		if (option_debug) {
+		if (DEBUG_ATLEAST(1)) {
 			unsigned int profile;
 			profile = (ntohl(rtpheader[3]) & 0xffff0000) >> 16;
-			if (profile == 0x505a)
-				ast_debug(1, "Found Zfone extension in RTP stream - zrtp - not supported.\n");
-			else
-				ast_debug(1, "Found unknown RTP Extensions %x\n", profile);
+			if (profile == 0x505a) {
+				ast_log(LOG_DEBUG, "Found Zfone extension in RTP stream - zrtp - not supported.\n");
+			} else {
+				ast_log(LOG_DEBUG, "Found unknown RTP Extensions %x\n", profile);
+			}
 		}
 	}
 

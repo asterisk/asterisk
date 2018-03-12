@@ -3657,7 +3657,7 @@ static void set_update(MAILSTREAM * stream)
 	char buf[1024] = "";
 
 	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))) || !(vms = get_vm_state_by_imapuser(user, 0))) {
-		if (user && option_debug > 2)
+		if (user && DEBUG_ATLEAST(3))
 			ast_log(AST_LOG_WARNING, "User %s mailbox not found for update.\n", user);
 		return;
 	}

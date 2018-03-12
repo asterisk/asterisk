@@ -1528,16 +1528,16 @@ static int parse_config(int is_reload)
 
 	ast_config_destroy(config);
 
-	if (option_debug) {
+	if (DEBUG_ATLEAST(1)) {
 		if (!ast_strlen_zero(dbhost)) {
-			ast_debug(1, "PostgreSQL RealTime Host: %s\n", dbhost);
-			ast_debug(1, "PostgreSQL RealTime Port: %i\n", dbport);
+			ast_log(LOG_DEBUG, "PostgreSQL RealTime Host: %s\n", dbhost);
+			ast_log(LOG_DEBUG, "PostgreSQL RealTime Port: %i\n", dbport);
 		} else {
-			ast_debug(1, "PostgreSQL RealTime Socket: %s\n", dbsock);
+			ast_log(LOG_DEBUG, "PostgreSQL RealTime Socket: %s\n", dbsock);
 		}
-		ast_debug(1, "PostgreSQL RealTime User: %s\n", dbuser);
-		ast_debug(1, "PostgreSQL RealTime Password: %s\n", dbpass);
-		ast_debug(1, "PostgreSQL RealTime DBName: %s\n", dbname);
+		ast_log(LOG_DEBUG, "PostgreSQL RealTime User: %s\n", dbuser);
+		ast_log(LOG_DEBUG, "PostgreSQL RealTime Password: %s\n", dbpass);
+		ast_log(LOG_DEBUG, "PostgreSQL RealTime DBName: %s\n", dbname);
 	}
 
 	if (!pgsql_reconnect(NULL)) {
