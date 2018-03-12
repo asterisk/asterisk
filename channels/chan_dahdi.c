@@ -15058,14 +15058,14 @@ retry:
 		ast_mutex_lock(&p->lock);
 		if (p->owner && !p->restartpending) {
 			if (ast_channel_trylock(p->owner)) {
-				if (option_debug > 2)
+				if (DEBUG_ATLEAST(3))
 					ast_verbose("Avoiding deadlock\n");
 				/* Avoid deadlock since you're not supposed to lock iflock or pvt before a channel */
 				ast_mutex_unlock(&p->lock);
 				ast_mutex_unlock(&iflock);
 				goto retry;
 			}
-			if (option_debug > 2)
+			if (DEBUG_ATLEAST(3))
 				ast_verbose("Softhanging up on %s\n", ast_channel_name(p->owner));
 			ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_EXPLICIT);
 			p->restartpending = 1;

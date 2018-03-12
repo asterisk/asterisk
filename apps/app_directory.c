@@ -815,10 +815,10 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	/* Sort items */
 	sort_items(sorted, count);
 
-	if (option_debug) {
-		ast_debug(2, "Listing matching entries:\n");
+	if (DEBUG_ATLEAST(2)) {
+		ast_log(LOG_DEBUG, "Listing matching entries:\n");
 		for (ptr = sorted, i = 0; i < count; i++, ptr++) {
-			ast_debug(2, "%s: %s\n", ptr[0]->exten, ptr[0]->name);
+			ast_log(LOG_DEBUG, "%s: %s\n", ptr[0]->exten, ptr[0]->name);
 		}
 	}
 
