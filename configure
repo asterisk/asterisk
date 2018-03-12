@@ -29567,7 +29567,7 @@ if test "x${PBX_LUA}" = "x1" ; then
 	fi
 fi
 
-# Some distributions (like SuSE) remove the 5.1 suffix.
+# Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -29582,9 +29582,9 @@ if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_openlib in -llua" >&5
-$as_echo_n "checking for luaL_openlib in -llua... " >&6; }
-if ${ac_cv_lib_lua_luaL_openlib+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_newstate in -llua" >&5
+$as_echo_n "checking for luaL_newstate in -llua... " >&6; }
+if ${ac_cv_lib_lua_luaL_newstate+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -29598,27 +29598,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char luaL_openlib ();
+char luaL_newstate ();
 int
 main ()
 {
-return luaL_openlib ();
+return luaL_newstate ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_lua_luaL_openlib=yes
+  ac_cv_lib_lua_luaL_newstate=yes
 else
-  ac_cv_lib_lua_luaL_openlib=no
+  ac_cv_lib_lua_luaL_newstate=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua_luaL_openlib" >&5
-$as_echo "$ac_cv_lib_lua_luaL_openlib" >&6; }
-if test "x$ac_cv_lib_lua_luaL_openlib" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua_luaL_newstate" >&5
+$as_echo "$ac_cv_lib_lua_luaL_newstate" >&6; }
+if test "x$ac_cv_lib_lua_luaL_newstate" = xyes; then :
   AST_LUA_FOUND=yes
 else
   AST_LUA_FOUND=no
