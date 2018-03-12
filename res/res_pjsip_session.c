@@ -877,15 +877,30 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	struct ast_stream_topology *topology;
 	unsigned int changed = 0;
 
-	/* This situation can legitimately happen when an SDP is received in a
-	 * 183 Session Progress message.  In that case, everything's been done
-	 * by the time this function is called and there are no more pending
-	 * streams.
-	 */
 	if (!session->pending_media_state->topology) {
-		ast_debug(1, "Pending topology was NULL for channel '%s'\n",
-			session->channel ? ast_channel_name(session->channel) : "unknown");
-		return 0;
+		if (session->active_media_state->topology) {
+			/*
+			 * This happens when we have negotiated media after receiving a 183,
+			 * and we're now receiving a 200 with a new SDP.  In this case, there
+			 * is active_media_state, but the pending_media_state has been reset.
+			 */
+			struct ast_sip_session_media_state *active_media_state_clone;
+
+			active_media_state_clone =
+				ast_sip_session_media_state_clone(session->active_media_state);
+			if (!active_media_state_clone) {
+				ast_log(LOG_WARNING, "Unable to clone active media state for channel '%s'\n",
+					session->channel ? ast_channel_name(session->channel) : "unknown");
+				return -1;
+			}
+
+			ast_sip_session_media_state_free(session->pending_media_state);
+			session->pending_media_state = active_media_state_clone;
+		} else {
+			ast_log(LOG_WARNING, "No pending or active media state for channel '%s'\n",
+				session->channel ? ast_channel_name(session->channel) : "unknown");
+			return -1;
+		}
 	}
 
 	/* If we're handling negotiated streams, then we should already have set
