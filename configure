@@ -21707,7 +21707,7 @@ $as_echo_n "checking for system c-client library...... " >&6; }
 		CPPFLAGS="${saved_cppflags}"
 		LIBS="${saved_libs}"
 		imap_ldflags=""
-		imap_libs="-lc-client"
+		imap_libs="-lcrypto -lssl -lc-client"
 		imap_include="-DUSE_SYSTEM_IMAP" #Try the imap directory first
 		CPPFLAGS="${CPPFLAGS} ${imap_include}"
 		LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
