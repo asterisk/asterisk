@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<depend>res_odbc</depend>
+	<depend>generic_odbc</depend>
 	<support_level>core</support_level>
  ***/
 
