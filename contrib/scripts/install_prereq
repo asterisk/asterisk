@@ -64,6 +64,21 @@ PACKAGES_SUSE="$PACKAGES_SUSE wget subversion"
 PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch python-devel"
 
 # Basic build system:
+PACKAGES_ARCH="make gcc pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_ARCH="$PACKAGES_ARCH libedit jansson libutil-linux libxml2 sqlite"
+# Asterisk: for addons:
+PACKAGES_ARCH="$PACKAGES_ARCH speex speexdsp libogg libvorbis alsa-lib portaudio curl xmlstarlet bison flex"
+PACKAGES_ARCH="$PACKAGES_ARCH postgresql-libs unixodbc libtool neon gmime lua uriparser libxslt openssl"
+PACKAGES_ARCH="$PACKAGES_ARCH libmariadbclient bluez-libs radcli freetds bash"
+PACKAGES_ARCH="$PACKAGES_ARCH net-snmp libnewt popt libical spandsp"
+PACKAGES_ARCH="$PACKAGES_ARCH c-client binutils libsrtp gsm doxygen graphviz zlib libldap"
+# Asterisk: for the unpackaged below:
+PACKAGES_ARCH="$PACKAGES_ARCH wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_ARCH="$PACKAGES_ARCH bzip2 patch python2"
+
+# Basic build system:
 PACKAGES_NBSD="gmake pkg-config"
 # Asterisk: basic requirements:
 PACKAGES_NBSD="$PACKAGES_NBSD editline jansson sqlite3 libuuid libxml2"
@@ -157,6 +172,15 @@ check_installed_rpms() {
 	done
 }
 
+check_installed_pacman() {
+	for pack in "$@"
+	do
+		if ! pacman -Q --explicit $pack >/dev/null 2>/dev/null
+		then echo $pack
+		fi
+	done
+}
+
 check_installed_pkgs() {
 	for pack in "$@"
 	do
@@ -199,6 +223,13 @@ handle_rh() {
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
 	if [ x"$extra_packs" != "x" ] ; then
 		$testcmd yum install --skip-broken --assumeyes $extra_packs
+	fi
+}
+
+handle_arch() {
+	extra_packs=`check_installed_pacman $PACKAGES_ARCH`
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd pacman -S --asexplicit --noconfirm $extra_packs
 	fi
 }
 
@@ -328,6 +359,10 @@ elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then
 	handle_SUSE
 elif [ -f /etc/os-release ] && . /etc/os-release && [ "$ID" = "opensuse" ]; then
 	handle_SUSE
+elif [ -r /etc/arch-release ]; then
+	handle_arch
+elif [ -f /etc/os-release ] && . /etc/os-release && [ "$ID_LIKE" = "archlinux" ]; then
+	handle_arch # $ID=arch
 elif [ "$OS" = 'NetBSD' ]; then
 	handle_nbsd
 elif [ "$OS" = 'OpenBSD' ]; then
