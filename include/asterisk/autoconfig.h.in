@@ -660,7 +660,7 @@
 /* Define to 1 if you have the popt library. */
 #undef HAVE_POPT
 
-/* Define to 1 if you have the PortAudio library. */
+/* Define if your system has the PORTAUDIO libraries. */
 #undef HAVE_PORTAUDIO
 
 /* Define to 1 if you have the `pow' function. */
