@@ -1149,7 +1149,7 @@ enum ama_flags {
  * \deprecated You should use the ast_datastore_alloc() generic function instead.
  * \version 1.6.1 deprecated
  */
-struct ast_datastore * attribute_malloc ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
 	__attribute__((deprecated));
 
 /*!
@@ -1208,7 +1208,7 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
  *       and "default" context.
  * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
-struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 16)))
+struct ast_channel * __attribute__((format(printf, 15, 16)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 		const char *cid_name, const char *acctcode,
 		const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
