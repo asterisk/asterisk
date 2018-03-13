@@ -281,11 +281,7 @@ struct ast_config_include {
 static void ast_variable_destroy(struct ast_variable *doomed);
 static void ast_includes_destroy(struct ast_config_include *incls);
 
-#ifdef __AST_DEBUG_MALLOC
 struct ast_variable *_ast_variable_new(const char *name, const char *value, const char *filename, const char *file, const char *func, int lineno)
-#else
-struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename)
-#endif
 {
 	struct ast_variable *variable;
 	int name_len = strlen(name) + 1;
@@ -297,13 +293,9 @@ struct ast_variable *ast_variable_new(const char *name, const char *value, const
 		fn_len = MIN_VARIABLE_FNAME_SPACE;
 	}
 
-	if (
-#ifdef __AST_DEBUG_MALLOC
-		(variable = __ast_calloc(1, fn_len + name_len + val_len + sizeof(*variable), file, lineno, func))
-#else
-		(variable = ast_calloc(1, fn_len + name_len + val_len + sizeof(*variable)))
-#endif
-		) {
+	variable = __ast_calloc(1, fn_len + name_len + val_len + sizeof(*variable),
+		file, lineno, func);
+	if (variable) {
 		char *dst = variable->stuff;	/* writable space starts here */
 
 		/* Put file first so ast_include_rename() can calculate space available. */

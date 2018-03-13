@@ -44,6 +44,12 @@ ARI:
  - The ContactInfo event's contact_status field is now set to "NonQualified"
    when a contact exists but has not been qualified.
 
+Build System:
+ - MALLOC_DEBUG no longer has an effect on Asterisk's ABI.  Asterisk built
+   with MALLOC_DEBUG can now successfully load binary modules built without
+   MALLOC_DEBUG and vice versa.  Third-party pre-compiled modules no longer
+   need to have a special build with it enabled.
+
 cdr_syslog:
  - The cdr_syslog module is now deprecated and by default it is no longer
    built.

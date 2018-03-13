@@ -109,13 +109,8 @@ int ast_heap_verify(struct ast_heap *h)
 	return 0;
 }
 
-#ifdef __AST_DEBUG_MALLOC
 struct ast_heap *_ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
-		ssize_t index_offset, const char *file, int lineno, const char *func)
-#else
-struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_fn,
-		ssize_t index_offset)
-#endif
+	ssize_t index_offset, const char *file, int lineno, const char *func)
 {
 	struct ast_heap *h;
 
@@ -128,13 +123,8 @@ struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_f
 		init_height = 8;
 	}
 
-	if (!(h =
-#ifdef __AST_DEBUG_MALLOC
-			__ast_calloc(1, sizeof(*h), file, lineno, func)
-#else
-			ast_calloc(1, sizeof(*h))
-#endif
-		)) {
+	h = __ast_calloc(1, sizeof(*h), file, lineno, func);
+	if (!h) {
 		return NULL;
 	}
 
@@ -142,13 +132,8 @@ struct ast_heap *ast_heap_create(unsigned int init_height, ast_heap_cmp_fn cmp_f
 	h->index_offset = index_offset;
 	h->avail_len = (1 << init_height) - 1;
 
-	if (!(h->heap =
-#ifdef __AST_DEBUG_MALLOC
-			__ast_malloc(h->avail_len * sizeof(void *), file, lineno, func)
-#else
-			ast_malloc(h->avail_len * sizeof(void *))
-#endif
-		)) {
+	h->heap = __ast_malloc(h->avail_len * sizeof(void *), file, lineno, func);
+	if (!h->heap) {
 		ast_free(h);
 		return NULL;
 	}
@@ -173,20 +158,12 @@ struct ast_heap *ast_heap_destroy(struct ast_heap *h)
 /*!
  * \brief Add a row of additional storage for the heap.
  */
-static int grow_heap(struct ast_heap *h
-#ifdef __AST_DEBUG_MALLOC
-, const char *file, int lineno, const char *func
-#endif
-)
+static int grow_heap(struct ast_heap *h, const char *file, int lineno, const char *func)
 {
 	void **new_heap;
 	size_t new_len = h->avail_len * 2 + 1;
 
-#ifdef __AST_DEBUG_MALLOC
 	new_heap = __ast_realloc(h->heap, new_len * sizeof(void *), file, lineno, func);
-#else
-	new_heap = ast_realloc(h->heap, new_len * sizeof(void *));
-#endif
 	if (!new_heap) {
 		return -1;
 	}
@@ -242,17 +219,9 @@ static int bubble_up(struct ast_heap *h, int i)
 	return i;
 }
 
-#ifdef __AST_DEBUG_MALLOC
 int _ast_heap_push(struct ast_heap *h, void *elm, const char *file, int lineno, const char *func)
-#else
-int ast_heap_push(struct ast_heap *h, void *elm)
-#endif
 {
-	if (h->cur_len == h->avail_len && grow_heap(h
-#ifdef __AST_DEBUG_MALLOC
-		, file, lineno, func
-#endif
-		)) {
+	if (h->cur_len == h->avail_len && grow_heap(h, file, lineno, func)) {
 		return -1;
 	}
 

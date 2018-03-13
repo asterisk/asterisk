@@ -21,7 +21,7 @@
 #include "asterisk/autoconfig.h"
 #include "asterisk/compat.h"
 
-#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2) && defined(MALLOC_DEBUG)
+#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2)
 #include "asterisk/astmm.h"
 #endif
 
