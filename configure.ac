@@ -2244,6 +2244,7 @@ AST_PKG_CONFIG_CHECK([PYTHONDEV], [python])
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
+AST_PKG_CONFIG_CHECK([PORTAUDIO], [portaudio-2.0])
 AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_connected_line_update], [libpri.h])

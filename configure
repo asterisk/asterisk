@@ -657,6 +657,8 @@ GMIME_LIBS
 GMIME_CFLAGS
 PBX_SSL_OP_NO_TLSV1_2
 PBX_SSL_OP_NO_TLSV1_1
+PORTAUDIO_LIBS
+PORTAUDIO_CFLAGS
 PYTHONDEV_LIBS
 PYTHONDEV_CFLAGS
 PYTHONDEV_INCLUDE
@@ -1449,6 +1451,8 @@ PJPROJECT_CFLAGS
 PJPROJECT_LIBS
 PYTHONDEV_CFLAGS
 PYTHONDEV_LIBS
+PORTAUDIO_CFLAGS
+PORTAUDIO_LIBS
 GMIME_CFLAGS
 GMIME_LIBS
 GTK2_CFLAGS
@@ -2204,6 +2208,10 @@ Some influential environment variables:
               C compiler flags for PYTHONDEV, overriding pkg-config
   PYTHONDEV_LIBS
               linker flags for PYTHONDEV, overriding pkg-config
+  PORTAUDIO_CFLAGS
+              C compiler flags for PORTAUDIO, overriding pkg-config
+  PORTAUDIO_LIBS
+              linker flags for PORTAUDIO, overriding pkg-config
   GMIME_CFLAGS
               C compiler flags for GMIME, overriding pkg-config
   GMIME_LIBS  linker flags for GMIME, overriding pkg-config
@@ -25790,6 +25798,94 @@ _ACEOF
 fi
 
 
+
+
+   if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PORTAUDIO" >&5
+$as_echo_n "checking for PORTAUDIO... " >&6; }
+
+if test -n "$PORTAUDIO_CFLAGS"; then
+    pkg_cv_PORTAUDIO_CFLAGS="$PORTAUDIO_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"portaudio-2.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "portaudio-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PORTAUDIO_CFLAGS=`$PKG_CONFIG --cflags "portaudio-2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$PORTAUDIO_LIBS"; then
+    pkg_cv_PORTAUDIO_LIBS="$PORTAUDIO_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"portaudio-2.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "portaudio-2.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PORTAUDIO_LIBS=`$PKG_CONFIG --libs "portaudio-2.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+        else
+	        PORTAUDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "portaudio-2.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$PORTAUDIO_PKG_ERRORS" >&5
+
+
+            PBX_PORTAUDIO=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_PORTAUDIO=0
+
+
+else
+	PORTAUDIO_CFLAGS=$pkg_cv_PORTAUDIO_CFLAGS
+	PORTAUDIO_LIBS=$pkg_cv_PORTAUDIO_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_PORTAUDIO=1
+            PORTAUDIO_INCLUDE="$PORTAUDIO_CFLAGS"
+            PORTAUDIO_LIB="$PORTAUDIO_LIBS"
+
+$as_echo "#define HAVE_PORTAUDIO 1" >>confdefs.h
+
+
+fi
+   fi
 
 
 if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
