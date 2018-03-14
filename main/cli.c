@@ -1655,8 +1655,15 @@ char *ast_cli_complete(const char *word, const char * const choices[], int state
 	len = ast_strlen_zero(word) ? 0 : strlen(word);
 
 	for (i = 0; choices[i]; i++) {
-		if ((!len || !strncasecmp(word, choices[i], len)) && ++which > state)
-			return ast_strdup(choices[i]);
+		if ((!len || !strncasecmp(word, choices[i], len)) && ++which > state) {
+			if (state != -1) {
+				return ast_strdup(choices[i]);
+			}
+
+			if (ast_cli_completion_add(ast_strdup(choices[i]))) {
+				return NULL;
+			}
+		}
 	}
 	return NULL;
 }
@@ -1682,9 +1689,16 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
 
 		if (!strncasecmp(word, snapshot->name, wordlen) && (++which > state)) {
-			ret = ast_strdup(snapshot->name);
-			ao2_ref(msg, -1);
-			break;
+			if (state != -1) {
+				ret = ast_strdup(snapshot->name);
+				ao2_ref(msg, -1);
+				break;
+			}
+
+			if (ast_cli_completion_add(ast_strdup(snapshot->name))) {
+				ao2_ref(msg, -1);
+				break;
+			}
 		}
 	}
 	ao2_iterator_destroy(&iter);
