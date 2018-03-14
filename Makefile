@@ -218,7 +218,9 @@ ifeq ($(AST_DEVMODE),yes)
   endif
 endif
 
-ifneq ($(findstring BSD,$(OSARCH)),)
+ifeq ($(OSARCH),NetBSD)
+  _ASTCFLAGS+=-isystem /usr/pkg/include
+else ifneq ($(findstring BSD,$(OSARCH)),)
   _ASTCFLAGS+=-isystem /usr/local/include
 endif
 
@@ -285,7 +287,9 @@ else
 # These are used for all but Darwin
   SOLINK=-shared
   DYLINK=$(SOLINK)
-  ifneq ($(findstring BSD,$(OSARCH)),)
+  ifeq ($(OSARCH),NetBSD)
+    _ASTLDFLAGS+=-L/usr/pkg/lib
+  else ifneq ($(findstring BSD,$(OSARCH)),)
     _ASTLDFLAGS+=-L/usr/local/lib
   endif
 endif
