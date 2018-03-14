@@ -4679,6 +4679,11 @@ case "${host_os}" in
 esac
 
 case "${host_os}" in
+     netbsd*)
+     ac_default_prefix=/usr/pkg
+     CPPFLAGS=-I/usr/pkg/include
+     LDFLAGS=-L/usr/pkg/lib
+     ;;
      freebsd*)
      ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
@@ -18634,6 +18639,9 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to use rpath" >&5
 $as_echo_n "checking whether to use rpath... " >&6; }
 AST_RPATH=
+if test "${OSARCH}" = "NetBSD"; then
+	AST_RPATH="-Wl,-rpath,/usr/pkg/lib"
+fi
 if test "${check_rpath}" != yes; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: skipped" >&5
 $as_echo "skipped" >&6; }
