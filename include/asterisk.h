@@ -20,10 +20,7 @@
 
 #include "asterisk/autoconfig.h"
 #include "asterisk/compat.h"
-
-#if !defined(NO_MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2)
 #include "asterisk/astmm.h"
-#endif
 
 /* Default to allowing the umask or filesystem ACLs to determine actual file
  * creation permissions

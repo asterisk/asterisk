@@ -31,6 +31,40 @@
 #define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
+#include "asterisk/logger.h"
+
+/*!
+ * \brief DEBUG_CHAOS returns failure randomly
+ *
+ * DEBUG_CHAOS_RETURN(failure); can be used to fake
+ * failure of functions such as memory allocation,
+ * for the purposes of testing failure handling.
+ */
+#ifdef DEBUG_CHAOS
+#ifndef DEBUG_CHAOS_ALLOC_CHANCE
+#define DEBUG_CHAOS_ALLOC_CHANCE 100000
+#endif
+/* Could #define DEBUG_CHAOS_ENABLE ast_fully_booted */
+#ifndef DEBUG_CHAOS_ENABLE
+#define DEBUG_CHAOS_ENABLE 1
+#endif
+#define DEBUG_CHAOS_RETURN(CHANCE, FAILURE) \
+	do { \
+		if ((DEBUG_CHAOS_ENABLE) && (ast_random() % CHANCE == 0)) { \
+			return FAILURE; \
+		} \
+	} while (0)
+#else
+#define DEBUG_CHAOS_RETURN(c,f)
+#endif
+
+#if defined(STANDALONE) || defined(STANDALONE2)
+#define ast_log_safe ast_log
+#endif
+
+#define MALLOC_FAILURE_MSG \
+	ast_log_safe(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file)
+
 #if defined(__AST_DEBUG_MALLOC)
 
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
@@ -190,6 +224,8 @@ static void *__ast_alloc_region(size_t size, const enum func_type which, const c
 	struct ast_region *reg;
 	unsigned int *fence;
 	int hash;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
 		astmm_log("Memory Allocation Failure - '%d' bytes at %s %s() line %d\n",
@@ -425,7 +461,7 @@ static void regions_check_all_fences(void)
 	ast_mutex_unlock(&reglock);
 }
 
-static void __ast_free_region(void *ptr, const char *file, int lineno, const char *func)
+void __ast_free(void *ptr, const char *file, int lineno, const char *func)
 {
 	struct ast_region *reg;
 
@@ -466,7 +502,7 @@ void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno,
 	return ptr;
 }
 
-void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+static void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
 	void *ptr;
 
@@ -489,11 +525,6 @@ void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *f
 	}
 
 	return ptr;
-}
-
-void __ast_free(void *ptr, const char *file, int lineno, const char *func)
-{
-	__ast_free_region(ptr, file, lineno, func);
 }
 
 /*!
@@ -538,7 +569,7 @@ void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, c
 	}
 
 	if (!size) {
-		__ast_free_region(ptr, file, lineno, func);
+		__ast_free(ptr, file, lineno, func);
 		return NULL;
 	}
 
@@ -553,7 +584,7 @@ void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, c
 				/* Make sure that the added memory is not zero. */
 				memset(new_mem + len, MALLOC_FILLER, size - len);
 			}
-			__ast_free_region(ptr, file, lineno, func);
+			__ast_free(ptr, file, lineno, func);
 		} else {
 			/* Make sure that the malloced memory is not zero. */
 			memset(new_mem, MALLOC_FILLER, size);
@@ -568,12 +599,10 @@ char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char 
 	size_t len;
 	void *ptr;
 
-	if (!s)
-		return NULL;
-
 	len = strlen(s) + 1;
-	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func, 0)))
+	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func, 0))) {
 		strcpy(ptr, s);
+	}
 
 	return ptr;
 }
@@ -582,10 +611,6 @@ char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, 
 {
 	size_t len;
 	char *ptr;
-
-	if (!s) {
-		return NULL;
-	}
 
 	len = strnlen(s, n);
 	if ((ptr = __ast_alloc_region(len + 1, FUNC_STRNDUP, file, lineno, func, 0))) {
@@ -601,18 +626,21 @@ int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **s
 	int size;
 	va_list ap, ap2;
 	char s;
+	void *ptr;
 
-	*strp = NULL;
 	va_start(ap, fmt);
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	if (!(*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func, 0))) {
+	ptr = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func, 0);
+	if (!ptr) {
+		/* As with stdlib *strp is undefined if allocation fails. */
 		va_end(ap);
 		return -1;
 	}
-	vsnprintf(*strp, size + 1, fmt, ap);
+	vsnprintf(ptr, size + 1, fmt, ap);
 	va_end(ap);
+	*strp = ptr;
 
 	return size;
 }
@@ -622,16 +650,18 @@ int __ast_repl_vasprintf(char **strp, const char *fmt, va_list ap, const char *f
 	int size;
 	va_list ap2;
 	char s;
+	void *ptr;
 
-	*strp = NULL;
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	if (!(*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func, 0))) {
-		va_end(ap);
+	ptr = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func, 0);
+	if (!ptr) {
+		/* As with stdlib *strp is undefined if allocation fails. */
 		return -1;
 	}
-	vsnprintf(*strp, size + 1, fmt, ap);
+	vsnprintf(ptr, size + 1, fmt, ap);
+	*strp = ptr;
 
 	return size;
 }
@@ -1522,16 +1552,22 @@ void __ast_mm_init_phase_2(void)
 
 void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return calloc(nmemb, size);
 }
 
-void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+static void *__ast_repl_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return calloc(nmemb, size);
 }
 
 void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return malloc(size);
 }
 
@@ -1542,37 +1578,163 @@ void __ast_free(void *ptr, const char *file, int lineno, const char *func)
 
 void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return realloc(ptr, size);
 }
 
 char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return strdup(s);
 }
 
 char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	return strndup(s, n);
 }
 
 int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
 {
+	int res;
 	va_list ap;
-	int rc = 0;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
 
 	va_start(ap, format);
-	rc = vasprintf(strp, format, ap);
+	res = vasprintf(strp, format, ap);
 	va_end(ap);
 
-	return rc;
+	return res;
 }
 
 int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
 {
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
+
 	return vasprintf(strp, format, ap);
 }
 
 #endif	/* defined(__AST_DEBUG_MALLOC) */
+
+void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	p = __ast_repl_calloc(nmemb, size, file, lineno, func);
+	if (!p) {
+		MALLOC_FAILURE_MSG;
+	}
+
+	return p;
+}
+
+void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	p = __ast_repl_calloc_cache(nmemb, size, file, lineno, func);
+	if (!p) {
+		MALLOC_FAILURE_MSG;
+	}
+
+	return p;
+
+}
+
+void *__ast_malloc(size_t size, const char *file, int lineno, const char *func)
+{
+	void *p;
+
+	p = __ast_repl_malloc(size, file, lineno, func);
+	if (!p) {
+		MALLOC_FAILURE_MSG;
+	}
+
+	return p;
+}
+
+void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func)
+{
+	void *newp;
+
+	newp = __ast_repl_realloc(ptr, size, file, lineno, func);
+	if (!newp) {
+		MALLOC_FAILURE_MSG;
+	}
+
+	return newp;
+}
+
+char *__ast_strdup(const char *s, const char *file, int lineno, const char *func)
+{
+	char *newstr = NULL;
+
+	if (s) {
+		newstr = __ast_repl_strdup(s, file, lineno, func);
+		if (!newstr) {
+			MALLOC_FAILURE_MSG;
+		}
+	}
+
+	return newstr;
+}
+
+char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func)
+{
+	char *newstr = NULL;
+
+	if (s) {
+		newstr = __ast_repl_strndup(s, n, file, lineno, func);
+		if (!newstr) {
+			MALLOC_FAILURE_MSG;
+		}
+	}
+
+	return newstr;
+}
+
+int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
+{
+	int res;
+	va_list ap;
+
+	va_start(ap, format);
+	res = __ast_repl_vasprintf(strp, format, ap, file, lineno, func);
+	if (res < 0) {
+		/*
+		 * *strp is undefined so set to NULL to ensure it is
+		 * initialized to something useful.
+		 */
+		*strp = NULL;
+
+		MALLOC_FAILURE_MSG;
+	}
+	va_end(ap);
+
+	return res;
+}
+
+int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
+{
+	int res;
+
+	res = __ast_repl_vasprintf(strp, format, ap, file, lineno, func);
+	if (res < 0) {
+		/*
+		 * *strp is undefined so set to NULL to ensure it is
+		 * initialized to something useful.
+		 */
+		*strp = NULL;
+
+		MALLOC_FAILURE_MSG;
+	}
+
+	return res;
+}
 
 void *ast_std_malloc(size_t size)
 {

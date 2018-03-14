@@ -25,14 +25,24 @@
 extern "C" {
 #endif
 
+#ifndef attribute_malloc
+#ifdef HAVE_ATTRIBUTE_malloc
+/* HAVE_ATTRIBUTE_malloc is never defined from pjproject.  This is here as a placeholder
+ * hopefully we can just use __attribute__((malloc)) unconditionally. */
+#define attribute_malloc __attribute__((malloc))
+#else
+#define attribute_malloc
+#endif
+#endif
+
 int __ast_repl_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...)
 	__attribute__((format(printf, 5, 6)));
-void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
+void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) attribute_malloc;
 void __ast_free(void *ptr, const char *file, int lineno, const char *func);
-void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func);
+void *__ast_repl_malloc(size_t size, const char *file, int lineno, const char *func) attribute_malloc;
 void *__ast_repl_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
-char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func);
-char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
+char *__ast_repl_strdup(const char *s, const char *file, int lineno, const char *func) attribute_malloc;
+char *__ast_repl_strndup(const char *s, size_t n, const char *file, int lineno, const char *func) attribute_malloc;
 int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func)
 	__attribute__((format(printf, 2, 0)));
 
@@ -47,29 +57,29 @@ int __ast_repl_vasprintf(char **strp, const char *format, va_list ap, const char
 #undef vasprintf
 
  /* Provide our own definitions */
-#define asprintf(a, b, c...) \
-	__ast_repl_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
+#define asprintf(strp, format, args...) \
+	__ast_repl_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, strp, format, args)
 
-#define calloc(a,b) \
-	__ast_repl_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define calloc(nmemb, size) \
+	__ast_repl_calloc(nmemb, size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define free(a) \
-	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define free(ptr) \
+	__ast_free(ptr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define malloc(a) \
-	__ast_repl_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define malloc(size) \
+	__ast_repl_malloc(size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define realloc(a,b) \
-	__ast_repl_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define realloc(ptr, size) \
+	__ast_repl_realloc(ptr, size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define strdup(a) \
-	__ast_repl_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define strdup(s) \
+	__ast_repl_strdup(s, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define strndup(a,b) \
-	__ast_repl_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define strndup(s, n) \
+	__ast_repl_strndup(s, n, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define vasprintf(a,b,c) \
-	__ast_repl_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define vasprintf(strp, format, ap) \
+	__ast_repl_vasprintf(strp, format, ap, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #ifdef __cplusplus
 }

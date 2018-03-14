@@ -86,7 +86,7 @@ clean:
 	rm -f *.o $(ALL_UTILS) check_expr
 	rm -f .*.d
 	rm -f *.s *.i
-	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
+	rm -f astmm.c md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
 	rm -f aelparse.c aelbison.c conf2ael
 	rm -f threadstorage.c
 	rm -f utils.c strings.c poll.c version.c sha1.c astobj2.c refcounter
@@ -100,10 +100,13 @@ md5.c: $(ASTTOPDIR)/main/md5.c
 
 astman: astman.o md5.o
 astman: LIBS+=$(NEWT_LIB)
-astman.o: _ASTCFLAGS+=-DNO_MALLOC_DEBUG
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
+
+astmm.c: $(ASTTOPDIR)/main/astmm.c
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
 
 hashtab.c: $(ASTTOPDIR)/main/hashtab.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -134,7 +137,7 @@ ast_expr2f.c: $(ASTTOPDIR)/main/ast_expr2f.c
 	$(CMD_PREFIX) cp "$<" "$@"
 ast_expr2f.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/main -Wno-unused
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o clicompat.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o clicompat.o astmm.o
 
 aelbison.c: $(ASTTOPDIR)/res/ael/ael.tab.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -162,7 +165,7 @@ aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 
 aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
-aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
+aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o astmm.o
 
 threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -171,15 +174,15 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 
 extconf.o: extconf.c
 
-conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o lock.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
+conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o lock.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o astmm.o
 
-check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
+check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h astmm.o
 	$(ECHO_PREFIX) echo "   [CC] ast_expr2f.c -> ast_expr2fz.o"
 	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2fz.o
 	$(ECHO_PREFIX) echo "   [CC] ast_expr2.c -> ast_expr2z.o"
 	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE2 $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2z.o
 	$(ECHO_PREFIX) echo "   [LD] ast_expr2fz.o ast_expr2z.o  -> check_expr2"
-	$(CC) -g -o check_expr2 ast_expr2fz.o ast_expr2z.o -lm
+	$(CC) -g -o check_expr2 ast_expr2fz.o ast_expr2z.o astmm.o -lm
 	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
 	rm ast_expr2z.o ast_expr2fz.o
 	./check_expr2 expr2.testinput
