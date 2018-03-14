@@ -92,6 +92,7 @@ PACKAGES_FBSD="$PACKAGES_FBSD postgresql10-client unixODBC libltdl neon gmime26 
 PACKAGES_FBSD="$PACKAGES_FBSD mysql57-client radcli freetds"
 PACKAGES_FBSD="$PACKAGES_FBSD net-snmp iksemel corosync newt popt libical spandsp"
 PACKAGES_FBSD="$PACKAGES_FBSD cclient libbfd libsrtp gsm libilbc doxygen graphviz libzip openldap-client libhoard"
+PACKAGES_FBSD="$PACKAGES_FBSD codec2 fftw3 libsndfile unbound"
 # Asterisk: for the unpackaged below:
 PACKAGES_FBSD="$PACKAGES_FBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
