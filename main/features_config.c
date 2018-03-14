@@ -2000,9 +2000,5 @@ int ast_features_config_init(void)
 	res |= __ast_custom_function_register(&featuremap_function, NULL);
 	res |= ast_cli_register_multiple(cli_features_config, ARRAY_LEN(cli_features_config));
 
-	if (res) {
-		ast_features_config_shutdown();
-	}
-
 	return res;
 }

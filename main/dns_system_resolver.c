@@ -255,7 +255,6 @@ int ast_dns_system_resolver_init(void)
 
 	/* Return error if the task processor failed to instantiate */
 	if (!dns_system_resolver_tp) {
-		dns_system_resolver_destroy();
 		return DNS_SYSTEM_RESOLVER_FAILURE;
 	}
 

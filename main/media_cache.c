@@ -645,7 +645,7 @@ static struct ast_cli_entry cli_media_cache[] = {
  */
 static void media_cache_shutdown(void)
 {
-	ao2_ref(media_cache, -1);
+	ao2_cleanup(media_cache);
 	media_cache = NULL;
 
 	ast_cli_unregister_multiple(cli_media_cache, ARRAY_LEN(cli_media_cache));
@@ -653,7 +653,7 @@ static void media_cache_shutdown(void)
 
 int ast_media_cache_init(void)
 {
-	ast_register_atexit(media_cache_shutdown);
+	ast_register_cleanup(media_cache_shutdown);
 
 	media_cache = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, AO2_BUCKETS,
 		ast_sorcery_object_id_hash, ast_sorcery_object_id_compare);
@@ -662,7 +662,6 @@ int ast_media_cache_init(void)
 	}
 
 	if (ast_cli_register_multiple(cli_media_cache, ARRAY_LEN(cli_media_cache))) {
-		ao2_ref(media_cache, -1);
 		return -1;
 	}
 
