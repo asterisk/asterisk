@@ -1563,7 +1563,6 @@ int ast_cel_engine_init(void)
 	ao2_global_obj_replace_unref(cel_linkedids, container);
 	ao2_cleanup(container);
 	if (!container) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
@@ -1572,17 +1571,14 @@ int ast_cel_engine_init(void)
 	ao2_global_obj_replace_unref(cel_dialstatus_store, container);
 	ao2_cleanup(container);
 	if (!container) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(cel_generic_type)) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
 	if (ast_cli_register(&cli_status)) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
@@ -1590,12 +1586,10 @@ int ast_cel_engine_init(void)
 	ao2_global_obj_replace_unref(cel_backends, container);
 	ao2_cleanup(container);
 	if (!container) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
 	if (aco_info_init(&cel_cfg_info)) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
@@ -1608,7 +1602,6 @@ int ast_cel_engine_init(void)
 		struct cel_config *cel_cfg = cel_config_alloc();
 
 		if (!cel_cfg) {
-			cel_engine_cleanup();
 			return -1;
 		}
 
@@ -1621,12 +1614,10 @@ int ast_cel_engine_init(void)
 	}
 
 	if (create_subscriptions()) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
 	if (ast_cel_check_enabled() && create_routes()) {
-		cel_engine_cleanup();
 		return -1;
 	}
 
