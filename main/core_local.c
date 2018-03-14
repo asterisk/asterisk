@@ -1074,7 +1074,6 @@ static void local_shutdown(void)
 
 int ast_local_init(void)
 {
-
 	if (STASIS_MESSAGE_TYPE_INIT(ast_local_optimization_begin_type)) {
 		return -1;
 	}
@@ -1094,17 +1093,13 @@ int ast_local_init(void)
 
 	locals = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, locals_cmp_cb);
 	if (!locals) {
-		ao2_cleanup(local_tech.capabilities);
-		local_tech.capabilities = NULL;
 		return -1;
 	}
 
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
-		ao2_ref(locals, -1);
-		ao2_cleanup(local_tech.capabilities);
-		local_tech.capabilities = NULL;
+
 		return -1;
 	}
 	ast_cli_register_multiple(cli_local, ARRAY_LEN(cli_local));

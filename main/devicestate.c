@@ -913,24 +913,20 @@ int devstate_init(void)
 	}
 	device_state_topic_all = stasis_topic_create("ast_device_state_topic");
 	if (!device_state_topic_all) {
-		devstate_cleanup();
 		return -1;
 	}
 	device_state_topic_pool = stasis_topic_pool_create(ast_device_state_topic_all());
 	if (!device_state_topic_pool) {
-		devstate_cleanup();
 		return -1;
 	}
 	device_state_cache = stasis_cache_create_full(device_state_get_id,
 		device_state_aggregate_calc, device_state_aggregate_publish);
 	if (!device_state_cache) {
-		devstate_cleanup();
 		return -1;
 	}
 	device_state_topic_cached = stasis_caching_topic_create(ast_device_state_topic_all(),
 		device_state_cache);
 	if (!device_state_topic_cached) {
-		devstate_cleanup();
 		return -1;
 	}
 
@@ -938,7 +934,6 @@ int devstate_init(void)
 		devstate_change_cb, NULL);
 	if (!devstate_message_sub) {
 		ast_log(LOG_ERROR, "Failed to create subscription creating uncached device state aggregate events.\n");
-		devstate_cleanup();
 		return -1;
 	}
 

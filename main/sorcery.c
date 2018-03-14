@@ -383,20 +383,17 @@ int ast_sorcery_init(void)
 	wizards = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, WIZARD_BUCKETS,
 		ast_sorcery_internal_wizard_hash_fn, NULL, ast_sorcery_internal_wizard_cmp_fn);
 	if (!wizards) {
-		sorcery_cleanup();
 		return -1;
 	}
 
 	observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL);
 	if (!observers) {
-		sorcery_cleanup();
 		return -1;
 	}
 
 	instances = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, INSTANCE_BUCKETS,
 		ast_sorcery_hash_fn, NULL, ast_sorcery_cmp_fn);
 	if (!instances) {
-		sorcery_cleanup();
 		return -1;
 	}
 
