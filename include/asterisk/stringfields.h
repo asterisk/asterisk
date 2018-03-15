@@ -443,7 +443,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
  * \internal
  * \brief internal version of ast_calloc_with_stringfields
  */
-void * attribute_malloc __ast_calloc_with_stringfields(unsigned int num_structs,
+void *__ast_calloc_with_stringfields(unsigned int num_structs,
 	size_t struct_size, size_t field_mgr_offset, size_t field_mgr_pool_offset, size_t pool_size,
 	const char *file, int lineno, const char *func);
 
