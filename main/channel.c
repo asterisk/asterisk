@@ -782,7 +782,7 @@ static int does_id_conflict(const char *uniqueid)
 }
 
 /*! \brief Create a new channel structure */
-static struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 0)))
+static struct ast_channel *__attribute__((format(printf, 15, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
 		       const char *acctcode, const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
 		       const struct ast_channel *requestor, enum ama_flags amaflag, struct ast_endpoint *endpoint,

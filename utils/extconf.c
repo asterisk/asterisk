@@ -780,7 +780,7 @@ void * attribute_malloc __ast_calloc(size_t num, size_t len, const char *file, i
 	__ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void * attribute_malloc __ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
+void *__ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
 {
 	void *newp;
 
