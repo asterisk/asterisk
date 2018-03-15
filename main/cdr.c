@@ -3920,18 +3920,14 @@ static char *handle_cli_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 /*! \brief Complete user input for 'cdr show' */
 static char *cli_complete_show(struct ast_cli_args *a)
 {
-	char *result = NULL;
 	int wordlen = strlen(a->word);
-	int which = 0;
 	struct ao2_iterator it_cdrs;
 	struct cdr_object *cdr;
 
 	it_cdrs = ao2_iterator_init(active_cdrs_master, 0);
 	while ((cdr = ao2_iterator_next(&it_cdrs))) {
-		if (!strncasecmp(a->word, cdr->party_a.snapshot->name, wordlen) &&
-			(++which > a->n)) {
-			result = ast_strdup(cdr->party_a.snapshot->name);
-			if (result) {
+		if (!strncasecmp(a->word, cdr->party_a.snapshot->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cdr->party_a.snapshot->name))) {
 				ao2_ref(cdr, -1);
 				break;
 			}
@@ -3939,7 +3935,8 @@ static char *cli_complete_show(struct ast_cli_args *a)
 		ao2_ref(cdr, -1);
 	}
 	ao2_iterator_destroy(&it_cdrs);
-	return result;
+
+	return NULL;
 }
 
 static void cli_show_channels(struct ast_cli_args *a)
