@@ -82,7 +82,7 @@ struct ast_datastore {
  * \param file, line, function
  * \version 1.6.1 moved here and renamed from ast_channel_datastore_alloc
  */
-struct ast_datastore * attribute_malloc __ast_datastore_alloc(
+struct ast_datastore *__ast_datastore_alloc(
 	const struct ast_datastore_info *info, const char *uid, struct ast_module *mod,
 	const char *file, int line, const char *function);
 
