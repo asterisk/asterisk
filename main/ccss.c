@@ -4547,11 +4547,9 @@ static int kill_cores(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static char *complete_core_id(const char *line, const char *word, int pos, int state)
+static char *complete_core_id(const char *word)
 {
-	int which = 0;
 	int wordlen = strlen(word);
-	char *ret = NULL;
 	struct ao2_iterator core_iter = ao2_iterator_init(cc_core_instances, 0);
 	struct cc_core_instance *core_instance;
 
@@ -4559,15 +4557,16 @@ static char *complete_core_id(const char *line, const char *word, int pos, int s
 			cc_unref(core_instance, "CLI tab completion iteration")) {
 		char core_id_str[20];
 		snprintf(core_id_str, sizeof(core_id_str), "%d", core_instance->core_id);
-		if (!strncmp(word, core_id_str, wordlen) && ++which > state) {
-			ret = ast_strdup(core_id_str);
-			cc_unref(core_instance, "Found a matching core ID for CLI tab-completion");
-			break;
+		if (!strncmp(word, core_id_str, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(core_id_str))) {
+				cc_unref(core_instance, "Found a matching core ID for CLI tab-completion");
+				break;
+			}
 		}
 	}
 	ao2_iterator_destroy(&core_iter);
 
-	return ret;
+	return NULL;
 }
 
 static char *handle_cc_kill(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -4583,7 +4582,7 @@ static char *handle_cc_kill(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3 && !strcasecmp(a->argv[2], "core")) {
-			return complete_core_id(a->line, a->word, a->pos, a->n);
+			return complete_core_id(a->word);
 		}
 		return NULL;
 	}
