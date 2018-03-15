@@ -49,6 +49,21 @@ PACKAGES_RH="$PACKAGES_RH wget subversion"
 PACKAGES_RH="$PACKAGES_RH bzip2 patch python-devel"
 
 # Basic build system:
+PACKAGES_SUSE="make gcc gcc-c++ pkg-config"
+# Asterisk: basic requirements:
+PACKAGES_SUSE="$PACKAGES_SUSE libedit-devel libjansson-devel libuuid-devel sqlite3-devel libxml2-devel"
+# Asterisk: for addons:
+PACKAGES_SUSE="$PACKAGES_SUSE speex-devel speexdsp-devel libogg-devel libvorbis-devel alsa-devel portaudio-devel libcurl-devel xmlstarlet bison flex"
+PACKAGES_SUSE="$PACKAGES_SUSE postgresql-devel unixODBC-devel libtool libneon-devel gmime-devel lua-devel liburiparser-devel libxslt-devel libopenssl-devel"
+PACKAGES_SUSE="$PACKAGES_SUSE libmysqlclient-devel bluez-devel freeradius-client-devel freetds-devel bash"
+PACKAGES_SUSE="$PACKAGES_SUSE net-snmp-devel iksemel-devel libcorosync-devel newt-devel popt-devel libical-devel spandsp-devel"
+PACKAGES_SUSE="$PACKAGES_SUSE imap-devel libsrtp2-devel libgsm-devel doxygen graphviz zlib-devel openldap2-devel"
+# Asterisk: for the unpackaged below:
+PACKAGES_SUSE="$PACKAGES_SUSE wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch python-devel"
+
+# Basic build system:
 PACKAGES_NBSD="gmake pkg-config"
 # Asterisk: basic requirements:
 PACKAGES_NBSD="$PACKAGES_NBSD editline jansson sqlite3 libuuid libxml2"
@@ -160,6 +175,15 @@ check_installed_fpkgs() {
 	done
 }
 
+check_installed_zypper() {
+	for pack in "$@"
+	do
+		if ! zypper se -ixnC $pack >/dev/null 2>/dev/null
+		then echo $pack
+		fi
+	done
+}
+
 handle_debian() {
 	if ! [ -x "$(command -v aptitude)" ]; then
 		apt-get install aptitude
@@ -200,6 +224,13 @@ handle_fbsd() {
 	extra_packs=`check_installed_fpkgs $PACKAGES_FBSD`
 	if [ x"$extra_packs" != "x" ] ; then
 		$testcmd pkg install -y $extra_packs
+	fi
+}
+
+handle_SUSE() {
+	extra_packs=`check_installed_zypper $PACKAGES_SUSE`
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd zypper install --no-confirm $extra_packs
 	fi
 }
 
@@ -279,10 +310,6 @@ if [ -f /etc/mandrake-release ]; then
 	unsupported_distro='Mandriva'
 fi
 
-if [ -f /etc/SuSE-release ]; then
-	unsupported_distro='SUSE'
-fi
-
 if [ -f /etc/slackware-version ]; then
 	unsupported_distro='Slackware'
 fi
@@ -297,6 +324,10 @@ if [ -r /etc/debian_version ]; then
 	handle_debian
 elif [ -r /etc/redhat-release ]; then
 	handle_rh
+elif [ -f /etc/SuSE-release -o -f /etc/novell-release ]; then
+	handle_SUSE
+elif [ -f /etc/os-release ] && . /etc/os-release && [ "$ID" = "opensuse" ]; then
+	handle_SUSE
 elif [ "$OS" = 'NetBSD' ]; then
 	handle_nbsd
 elif [ "$OS" = 'OpenBSD' ]; then
