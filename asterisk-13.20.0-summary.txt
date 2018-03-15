@@ -1,0 +1,1739 @@
+                                Release Summary
+
+                                asterisk-13.20.0
+
+                                Date: 2018-03-15
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.19.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                    Testers    Reporters                             
+   50 Alexander Traud        1 abelbeck 41 Alexander Traud                    
+   37 Corey Farrell                     5 Sandro Gauci                        
+   28 Richard Mudgett                   3 Ross Beer                           
+   13 Sean Bright                       3 Sandro Gauci                        
+   8 Kevin Harwell                      3 Richard Mudgett                     
+   6 George Joseph                      2 Rusty Newton                        
+   2 Sungtae Kim                        2 David M. Lee                        
+   2 Tzafrir Cohen                      2 Tzafrir Cohen                       
+   1 Joshua Elson                       2 Stuart Henderson                    
+   1 Torrey Searle                      1 Igor Goncharovsky                   
+   1 Joshua Colp                        1 Hunter Stevens, Said Masoud         
+   1 Yasuhiko Kamata                    1 Halil A:DEGbrahim YILDIZ            
+   1 Oron Peled                         1 Jean Aunis - Prescom                
+   1 Graham Mainwaring                  1 Steve Murphy                        
+   1 Igor Goncharovsky                  1 SA(c)bastien Duthil                 
+   1 BenoA(R)t Dereck-Tricot            1 Walter Doekes                       
+                                        1 Shane Mitchell                      
+                                        1 Said Masoud                         
+                                        1 sungtae kim                         
+                                        1 Michele PrA                         
+                                        1 Richard Kenner                      
+                                        1 D-*D-,D--oD- 3/4D->>D-DEGD-^1       
+                                        D-*D-,N*D- 3/4                        
+                                        1 PowerPBX                            
+                                        1 Torrey Searle                       
+                                        1 abelbeck                            
+                                        1 Joshua Colp                         
+                                        1 Corey Farrell                       
+                                        1 Leandro Dardini                     
+                                        1 StA(c)phan Kochen                   
+                                        1 Yasuhiko Kamata                     
+                                        1 Ross Beer, Jan Rozhon               
+                                        1 Stuart Henderson                    
+                                        1 Ross Beer                           
+                                        1 Halil A:DEGbrahim YILDIZ            
+                                        1 Joshua Elson                        
+                                        1 Graham Mainwaring                   
+                                        1 Ludovic Gasc (Eyepea)               
+                                        1 George Joseph                       
+                                        1 Michele PrA                         
+                                        1 Kristijan Vrban                     
+                                        1 Mak Dee                             
+                                        1 Hamid R. Hashmi                     
+                                        1 Mak Dee                             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-27583: Segmentation fault occurs in asterisk with an invalid SDP
+   fmtp attribute
+   Reported by: Sandro Gauci
+     * [05af43b240] Kevin Harwell -- AST-2018-003: Crash with an invalid SDP
+       fmtp attribute
+   ASTERISK-27582: Segmentation fault occurs in Asterisk with an invalid SDP
+   media format description
+   Reported by: Sandro Gauci
+     * [c5dc2fb4ab] Kevin Harwell -- AST-2018-002: Crash with an invalid SDP
+       media format description
+   ASTERISK-27640: SUBSCRIBE message with a large Accept value causes stack
+   corruption
+   Reported by: Sandro Gauci
+     * [de5df002a0] Joshua Colp -- AST-2018-004: Restrict the number of
+       Accept headers in a SUBSCRIBE.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-27618: Crash occurs when sending a repeated number of INVITE
+   messages over TCP or TLS transport
+   Reported by: Sandro Gauci
+     * [5947fd148b] George Joseph -- AST-2018-005:
+       res_pjsip_transport_management: Move to core
+     * [a780386dbb] George Joseph -- AST-2018-005: Fix tdata leaks when
+       calling pjsip_endpt_send_response(2)
+
+  New Feature
+
+    Category: Core/Configuration
+
+   ASTERISK-27117: core: Add support for timelen parsing to ast_parse_arg and
+   ACO.
+   Reported by: Corey Farrell
+     * [dd528c53c0] Corey Farrell -- aco: Add missing aco_option_type_string
+       for OPT_TIMELEN_T.
+
+  Bug
+
+    Category: Addons/cdr_mysql
+
+   ASTERISK-27366: Asterisk Turkish Language Set Problem
+   Reported by: Halil A:DEGbrahim YILDIZ
+     * [bae301c18c] Sean Bright -- cdr_mysql: Make sure connection charset is
+       always set
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-27577: [patch] chan_ooh323: Avoid typecasting an int to unsigned
+   short.
+   Reported by: Alexander Traud
+     * [d53a312a03] Alexander Traud -- chan_ooh323: Avoid typecasting an int
+       to unsigned short.
+   ASTERISK-27557: [patch] clang 5.0: implicit conversion to char changes
+   value to negative.
+   Reported by: Alexander Traud
+     * [9865e689d2] Alexander Traud -- General: Avoid implicit conversion to
+       char when changes value to negative.
+   ASTERISK-27552: [patch] chan_ooh323: Limit outgoinglimit to positive
+   values as intended.
+   Reported by: Alexander Traud
+     * [dda0ab236d] Alexander Traud -- chan_ooh323: Limit outgoinglimit to
+       positive values as intended.
+   ASTERISK-27551: [patch] ooh323cDriver: Fix typo in header guard.
+   Reported by: Alexander Traud
+     * [c11999f140] Alexander Traud -- ooh323cDriver: Fix typo in header
+       guard.
+
+    Category: Addons/res_config_mysql
+
+   ASTERISK-27607: [patch] res_config_mysql: Avoid the header
+   mysql_version.h.
+   Reported by: Alexander Traud
+     * [420586beab] Alexander Traud -- res_config_mysql: Avoid the header
+       mysql_version.h.
+
+    Category: Applications/app_adsiprog
+
+   ASTERISK-27557: [patch] clang 5.0: implicit conversion to char changes
+   value to negative.
+   Reported by: Alexander Traud
+     * [9865e689d2] Alexander Traud -- General: Avoid implicit conversion to
+       char when changes value to negative.
+
+    Category: Applications/app_osplookup
+
+   ASTERISK-27578: [patch] app_osplookup.c: Avoid a format truncation.
+   Reported by: Alexander Traud
+     * [45008c604d] Alexander Traud -- app_osplookup.c: Avoid two format
+       truncations.
+
+    Category: Applications/app_sms
+
+   ASTERISK-27557: [patch] clang 5.0: implicit conversion to char changes
+   value to negative.
+   Reported by: Alexander Traud
+     * [9865e689d2] Alexander Traud -- General: Avoid implicit conversion to
+       char when changes value to negative.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-27703: AMI Action VoicemailUsersList returns 0 MessageCount
+   Reported by: SA(c)bastien Duthil
+     * [a4d6158730] Sungtae Kim -- voicemail: Fixed wrong voicemail message
+       count
+
+    Category: Applications/app_voicemail/IMAP
+
+   ASTERISK-27681: [patch] BuildSystem: Enable IMAP storage on OpenBSD.
+   Reported by: Alexander Traud
+     * [58aa0d1014] Alexander Traud -- BuildSystem: Enable IMAP storage on
+       OpenBSD.
+   ASTERISK-27635: [patch] app_voicemail: Avoid always true warnings with
+   clang.
+   Reported by: Alexander Traud
+     * [dd6b8cd0b2] Alexander Traud -- app_voicemail: Avoid always true when
+       using pointer address.
+
+    Category: CDR/General
+
+   ASTERISK-27656: CDR: Leaking channel snapshots allocated by
+   stasis_channel.c
+   Reported by: Kristijan Vrban
+     * [dcfcf310a1] Richard Mudgett -- cdr.c: Fix runtime leak of CDR
+       records.
+   ASTERISK-27539: 'cdr submit' fails: batch mode not enabled.
+   Reported by: Tzafrir Cohen
+     * [00b0c67144] Tzafrir Cohen -- cdr: submit: fix logic of test for batch
+       mode
+
+    Category: Channels/General
+
+   ASTERISK-27426: chan_console: cannot read and write at the same time with
+   alsa backend
+   Reported by: Tzafrir Cohen
+     * [0fc3e831a7] Oron Peled -- chan_console: don't read and write at the
+       same time
+
+    Category: Channels/chan_h323
+
+   ASTERISK-27670: [patch] BuildSystem: Remove chan_h323 leftovers.
+   Reported by: Alexander Traud
+     * [4a5221cd43] Alexander Traud -- BuildSystem: Remove chan_h323
+       leftovers.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-27612: Subscriptions Persist After Expiration and TCP/TLS
+   Disconnect
+   Reported by: Ross Beer
+     * [7debdd285c] George Joseph -- res_pjsip_pubsub: Prune subs with
+       reliable transports at startup
+   ASTERISK-26832: res_pjsip: Segfault when calling pjsip_hdr_print_on in
+   sip_msg.c:581
+   Reported by: Ross Beer
+     * [fbd0667c84] George Joseph -- pjproject_bundled: Prevent crash on bad
+       outgoing header
+   ASTERISK-27480: Security: Authenticated SUBSCRIBE without Contact crashes
+   asterisk
+   Reported by: Ross Beer
+     * [53799318bc] Kevin Harwell -- AST-2017-014: res_pjsip - Missing
+       contact header can cause crash
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-27666: chan_sip: Crash processing CANCEL request
+   Reported by: Leandro Dardini
+     * [ba63dad12d] Richard Mudgett -- chan_sip.c: Fix crash processing
+       CANCEL.
+   ASTERISK-27498: ICE candidate parser - ICE foundation parsing too short
+   Reported by: Michele PrA 
+     * [d2c836d24a] Sean Bright -- ice: Increase foundation buffer size
+
+    Category: Channels/chan_unistim
+
+   ASTERISK-26596: Placing call on hold temporarily locks up set
+   Reported by: Igor Goncharovsky
+     * [1488efb3a8] Igor Goncharovsky -- chan_unistim: Fix hold function
+       ability to lock/crash asterisk
+
+    Category: Codecs/codec_gsm
+
+   ASTERISK-27558: [patch] codec_gsm: Avoid shifting a negative signed value.
+   Reported by: Alexander Traud
+     * [e60135efd4] Alexander Traud -- codec_gsm: Avoid shifting a negative
+       signed value.
+
+    Category: Codecs/codec_ilbc
+
+   ASTERISK-27669: [patch] codecs: Add support for WebRTC iLBC 2.0.
+   Reported by: Alexander Traud
+     * [81bec7c359] Alexander Traud -- codecs: Add support for WebRTC iLBC
+       2.0.
+
+    Category: Codecs/codec_siren14
+
+   ASTERISK-16172: Problems with siren14 codec; problems with siren7 sound
+   files.
+   Reported by: Steve Murphy
+     * [87f8459410] Richard Mudgett -- Update sounds release to fix siren7
+       and siren14 files.
+
+    Category: Codecs/codec_siren7
+
+   ASTERISK-16172: Problems with siren14 codec; problems with siren7 sound
+   files.
+   Reported by: Steve Murphy
+     * [87f8459410] Richard Mudgett -- Update sounds release to fix siren7
+       and siren14 files.
+
+    Category: Contrib/General
+
+   ASTERISK-27684: [patch] install_prereq: Update OpenBSD libraries.
+   Reported by: Alexander Traud
+     * [c5e34f0794] Alexander Traud -- install_prereq: Update OpenBSD
+       libraries.
+   ASTERISK-27555: [patch] install_prereq: Update Debian/Ubuntu libraries.
+   Reported by: Alexander Traud
+     * [21bd7421ef] Alexander Traud -- install_prereq: Update Debian/Ubuntu
+       libraries.
+     * [f20a522d43] Alexander Traud -- install_prereq: Update Debian/Ubuntu
+       libraries.
+     * [1d625a7428] Alexander Traud -- install_prereq: Update Debian/Ubuntu
+       libraries.
+   ASTERISK-27599: [patch] install_prereq: Update RHEL/CentOS/Fedora
+   libraries.
+   Reported by: Alexander Traud
+     * [8daed642c7] Alexander Traud -- install_prereq: Update
+       RHEL/CentOS/Fedora libraries.
+   ASTERISK-27603: [patch] install_prereq: Download latest Jansson.
+   Reported by: Alexander Traud
+     * [7ad6792011] Alexander Traud -- install_prereq: Download latest
+       Jansson.
+   ASTERISK-27598: [patch] install_prereq: Support package manager DNF.
+   Reported by: Alexander Traud
+     * [1fbca9a40d] Alexander Traud -- install_prereq: Support package
+       manager DNF and yum option strict=1.
+
+    Category: Core/Bridging
+
+   ASTERISK-27229: bridge: Old channel video source not set to NULL after
+   unref
+   Reported by: Richard Kenner
+     * [be3800c49d] Corey Farrell -- bridge: Old channel video source not set
+       to NULL after unref.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27681: [patch] BuildSystem: Enable IMAP storage on OpenBSD.
+   Reported by: Alexander Traud
+     * [58aa0d1014] Alexander Traud -- BuildSystem: Enable IMAP storage on
+       OpenBSD.
+   ASTERISK-27677: [patch] BuildSystem: Enable system provided libedit on
+   OpenBSD.
+   Reported by: Alexander Traud
+     * [94ff290361] Alexander Traud -- BuildSystem: Enable system provided
+       libedit on OpenBSD.
+   ASTERISK-27670: [patch] BuildSystem: Remove chan_h323 leftovers.
+   Reported by: Alexander Traud
+     * [4a5221cd43] Alexander Traud -- BuildSystem: Remove chan_h323
+       leftovers.
+   ASTERISK-27595: [patch] BuildSystem: Invoke ldconfig with previous paths.
+   Reported by: Alexander Traud
+     * [eabe72a679] Alexander Traud -- BuildSystem: Invoke ldconfig with
+       previous path.
+   ASTERISK-27631: [patch] BuildSystem: Do not warn when bash is not
+   installed.
+   Reported by: Alexander Traud
+     * [c2283fca21] Alexander Traud -- BuildSystem: Do not warn when bash is
+       not installed.
+   ASTERISK-27637: [patch] BuildSystem: Enable autotools in FreeBSD.
+   Reported by: Alexander Traud
+     * [967c70acb5] Alexander Traud -- BuildSystem: Enable autotools in
+       FreeBSD.
+   ASTERISK-16951: [patch] configure.ac in 1.4.37 broken with autoconf 2.60
+   Reported by: StA(c)phan Kochen
+     * [6b771e346b] Alexander Traud -- BuildSystem: Raise autoconf version
+       requirement to 2.60a.
+   ASTERISK-27602: [patch] BuildSystem: AC_CONFIG_AUX_DIR needs a directory.
+   Reported by: Alexander Traud
+     * [31e5008b47] Alexander Traud -- BuildSystem: Remove AC_CONFIG_AUX_DIR.
+   ASTERISK-27600: [patch] BuildSystem: Allow make clean all again.
+   Reported by: Alexander Traud
+     * [3b566fc8ec] Alexander Traud -- BuildSystem: Allow make clean all
+       again.
+   ASTERISK-27596: [patch] BuildSystem: Use the detected name for MD5
+   everywhere.
+   Reported by: Alexander Traud
+     * [9ffa1f4301] Alexander Traud -- BuildSystem: Use the detected name for
+       MD5 everywhere.
+   ASTERISK-27594: [patch] BuildSystem: Invoke install not in GNU but POSIX
+   style.
+   Reported by: Alexander Traud
+     * [de65fd11fe] Alexander Traud -- BuildSystem: Invoke install not in GNU
+       but POSIX style.
+   ASTERISK-27593: [patch] BuildSystem: In OpenBSD, xmlstarlet is xml.
+   Reported by: Alexander Traud
+     * [72845d54f0] Alexander Traud -- BuildSystem: In OpenBSD, xmlstarlet is
+       xml.
+   ASTERISK-27592: [patch] BuildSystem: Detect external library Lua in
+   version 5.3.
+   Reported by: Alexander Traud
+     * [985834607b] Alexander Traud -- BuildSystem: Detect external library
+       Lua in version 5.3.
+   ASTERISK-27589: [patch] BuildSystem: Avoid $EUID and use id -u instead.
+   Reported by: Alexander Traud
+     * [637bd26575] Alexander Traud -- BuildSystem: Avoid $EUID and use id -u
+       instead.
+   ASTERISK-27575: menuselect : remove obsolete TRACE_FRAMES compiler flag
+   Reported by: Jean Aunis - Prescom
+     * [97b574c927] Corey Farrell -- menuselect: Remove unused dev-mode
+       option TRACE_FRAMES.
+   ASTERISK-27560: [patch] clang 5 does not know -Wno-format-truncation
+   Reported by: Alexander Traud
+     * [659c44f5fb] Alexander Traud -- BuildSystem: Really do not pass
+       unknown-warning options to the compiler.
+     * [aa52c52b21] Alexander Traud -- BuildSystem: Really do not pass
+       unknown-warning options to the compiler.
+   ASTERISK-25329: Asterisk configure fails on 'cannot find ptlib-config',
+   despite ptlib-config existing
+   Reported by: Rusty Newton
+     * [440fb4d02b] Alexander Traud -- BuildSystem: Find ptlib-config on
+       Debian/Ubuntu.
+   ASTERISK-26046: [patch] Avoid obsolete warnings on autoconf.
+   Reported by: Alexander Traud
+     * [cee6de4e63] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with HELP_STRING on autoconf.
+
+    Category: Core/General
+
+   ASTERISK-26563: core: macOS devmode build fails: variable 'freeswap' set
+   but not used
+   Reported by: David M. Lee
+     * [4bb38022ea] Alexander Traud -- core: Fix unused variable error in
+       handle_show_sysinfo.
+     * [d05ec48145] Corey Farrell -- core: Fix unused variable error in
+       handle_show_sysinfo.
+   ASTERISK-27531: Compiler optimizations can break module load sequence.
+   Reported by: abelbeck
+     * [92fb393cab] Corey Farrell -- loader: Add volatile to
+       resource_being_loaded.
+
+    Category: Core/RTP
+
+   ASTERISK-27689: [patch] rtp_engine: Load format name / mime type in
+   uppercase again.
+   Reported by: Alexander Traud
+     * [6eb22964ba] Alexander Traud -- rtp_engine: Load format name / mime
+       type in uppercase again.
+
+    Category: Documentation
+
+   ASTERISK-24386: Asterisk "doc/lang/language-criteria.txt" needs update or
+   removal.
+   Reported by: Rusty Newton
+     * [cacb72f5ae] Corey Farrell -- doc/lang/language-criteria.txt: Link to
+       wiki.
+   ASTERISK-24198: Typo's
+   Reported by: Walter Doekes
+     * [82b6ba976f] Corey Farrell -- Fix Common Typo's.
+
+    Category: Formats/General
+
+   ASTERISK-27549: [patch] translate: Avoid absolute value on unsigned
+   substraction.
+   Reported by: Alexander Traud
+     * [b45fb3a6ec] Alexander Traud -- translate: Avoid absolute value on
+       unsigned substraction.
+
+    Category: Functions/General
+
+   ASTERISK-23133: Documentation fix - MASTER_CHANNEL Unexpected Behaviour
+   Reported by: Shane Mitchell
+     * [eead5d0c30] Richard Mudgett -- func_channel.c: Update MASTER_CHANNEL
+       documentation
+
+    Category: General
+
+   ASTERISK-27642: [patch] backtrace: Avoid -Wlogical-not-parentheses.
+   Reported by: Alexander Traud
+     * [b1c6a644d3] Alexander Traud -- backtrace: Avoid potential spurious
+       output.
+   ASTERISK-27630: [patch] editline: Avoid shifting a negative signed value.
+   Reported by: Alexander Traud
+     * [021168f06f] Alexander Traud -- editline: Avoid shifting a negative
+       signed value.
+   ASTERISK-27559: [patch] editline: Avoid comparison between pointer and
+   zero character constant.
+   Reported by: Alexander Traud
+     * [a68da30069] Alexander Traud -- editline: Avoid comparison between
+       pointer and zero character constant.
+
+    Category: PBX/pbx_lua
+
+   ASTERISK-27553: [patch] res_curl: Avoid error message on unload.
+   Reported by: Alexander Traud
+     * [da1a9f392a] Alexander Traud -- General: Silence modules on (un)load.
+
+    Category: Resources/General
+
+   ASTERISK-27553: [patch] res_curl: Avoid error message on unload.
+   Reported by: Alexander Traud
+     * [da1a9f392a] Alexander Traud -- General: Silence modules on (un)load.
+
+    Category: Resources/res_agi
+
+   ASTERISK-27621: (null) string tailing after AsyncAGIEnd AMI event
+   Reported by: sungtae kim
+     * [dd9690f68c] Sungtae Kim -- manager.c: Fixed "(null):" header in AMI
+       AsyncAGIEnd event
+
+    Category: Resources/res_calendar
+
+   ASTERISK-27680: [patch] res_calendar: Specialized calendars depend on
+   symbols of general calendar.
+   Reported by: Alexander Traud
+     * [139dd38193] Alexander Traud -- res_calendar: Specialized calendars
+       depend on symbols of general calendar.
+
+    Category: Resources/res_config_pgsql
+
+   ASTERISK-27576: [patch] res_config_pgsql: Avoid typecasting an int to
+   unsigned char.
+   Reported by: Alexander Traud
+     * [f07b0df627] Alexander Traud -- res_config_pgsql: Avoid typecasting an
+       int to unsigned char.
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-27557: [patch] clang 5.0: implicit conversion to char changes
+   value to negative.
+   Reported by: Alexander Traud
+     * [9865e689d2] Alexander Traud -- General: Avoid implicit conversion to
+       char when changes value to negative.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-27679: res_pjsip: Endpoint destruction does not free DTLS
+   configuration
+   Reported by: Mak Dee
+     * [9ad9433257] Sean Bright -- res_pjsip: Endpoint destruction does not
+       free DTLS configuration
+   ASTERISK-27571: res_pjsip: If SIP response is received during shutdown a
+   crash may occur
+   Reported by: Joshua Colp
+     * [4c8c0e4c22] Corey Farrell -- res_pjsip_session: Prevent crash during
+       shutdown.
+
+    Category: Resources/res_pjsip_endpoint_identifier_ip
+
+   ASTERISK-27491: res_pjsip_endpoint_identifier_ip only matches against
+   header if match by ip fails
+   Reported by: George Joseph
+     * [f35960d55b] Richard Mudgett -- res_pjsip: Split type=identify to IP
+       address and SIP header matching priorities
+
+    Category: Resources/res_pjsip_mwi
+
+   ASTERISK-27652: Null pointer Crash in PJSIP MWI
+   Reported by: Joshua Elson
+     * [8125b825d3] Joshua Elson -- res_pjsip_mwi.c: Fix null pointer crash
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-27612: Subscriptions Persist After Expiration and TCP/TLS
+   Disconnect
+   Reported by: Ross Beer
+     * [7debdd285c] George Joseph -- res_pjsip_pubsub: Prune subs with
+       reliable transports at startup
+
+    Category: Resources/res_stasis
+
+   ASTERISK-27656: CDR: Leaking channel snapshots allocated by
+   stasis_channel.c
+   Reported by: Kristijan Vrban
+     * [dcfcf310a1] Richard Mudgett -- cdr.c: Fix runtime leak of CDR
+       records.
+
+    Category: Sounds
+
+   ASTERISK-16172: Problems with siren14 codec; problems with siren7 sound
+   files.
+   Reported by: Steve Murphy
+     * [87f8459410] Richard Mudgett -- Update sounds release to fix siren7
+       and siren14 files.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-27584: Internal pjproject build doesn't disable bcg729
+   Reported by: Stuart Henderson
+     * [0ab97e9774] Alexander Traud -- pjproject_bundled: Disable G.729 from
+       Belledonne Communications.
+   ASTERISK-24598: When running ./contrib/scripts/install_prereq
+   install-unpackaged pjproject is installed in wrong place
+   Reported by: PowerPBX
+     * [d5a24cfdf7] Alexander Traud -- install_prereq: For PJProject, point
+       users to configure script.
+
+  Improvement
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-27651: app_confbridge: Add Muted to ConfbridgeJoin and channel
+   snapshot headers to ConfbridgeList AMI events
+   Reported by: Richard Mudgett
+     * [1ff580bb25] Richard Mudgett -- app_confbridge: ConfbridgeList event
+       has standard channel shapshot headers.
+     * [0cf7a9e0ca] Richard Mudgett -- app_confbridge: Add the Muted header
+       to ConfbridgeJoin AMI event.
+   ASTERISK-27647: app_confbridge/bridge_softmix: When channel muted report
+   talking stopped if was talking.
+   Reported by: Richard Mudgett
+     * [6520489952] Richard Mudgett -- bridge_softmix.c: Report not talking
+       immediately when muted.
+
+    Category: Applications/app_followme
+
+   ASTERISK-24372: [patch] Add config option to play a prompt to the "winner"
+   in app_followme
+   Reported by: Graham Mainwaring
+     * [0b399013c6] Graham Mainwaring -- app_followme: Add a prompt to be
+       read when a call is connected
+
+    Category: Bridges/bridge_softmix
+
+   ASTERISK-27647: app_confbridge/bridge_softmix: When channel muted report
+   talking stopped if was talking.
+   Reported by: Richard Mudgett
+     * [6520489952] Richard Mudgett -- bridge_softmix.c: Report not talking
+       immediately when muted.
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-27461: 3PCC patch for AMI "SIPnotify"
+   Reported by: Yasuhiko Kamata
+     * [c0a4a939cc] Yasuhiko Kamata -- chan_sip: 3PCC patch for AMI
+       "SIPnotify"
+
+    Category: Contrib/General
+
+   ASTERISK-27348: [patch]contrib/scripts: add a way to migrate from chan_sip
+   to chan_pjsip realtime
+   Reported by: Torrey Searle
+     * [e7f8302d30] Torrey Searle -- contrib/script/sip_to_pjsip: add support
+       for realtime
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27683: [patch] BuildSystem: Allow newer autotools on OpenBSD.
+   Reported by: Alexander Traud
+     * [88ec9be78a] Alexander Traud -- BuildSystem: Allow newer autotools on
+       OpenBSD.
+
+    Category: PBX/pbx_config
+
+   ASTERISK-27084: Reduce verbosity while loading PBX extensions.
+   Reported by: Ludovic Gasc (Eyepea)
+     * [d5bcbd460e] BenoA(R)t Dereck-Tricot -- pbx: Reduce verbosity while
+       loading extensions
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   |Revision  |Author     |Summary                                          |
+   |----------+-----------+-------------------------------------------------|
+   |0a0c1b1407|Kevin      |Update for 13.20.0-rc2                           |
+   |          |Harwell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |0a6db522ba|Kevin      |Update for 13.20.0-rc2                           |
+   |          |Harwell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |83a8058cd8|Kevin      |Update for 13.20.0-rc1                           |
+   |          |Harwell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |ffb15b2bc7|Kevin      |AMI: Bumping AMI non-breaking number for Asterisk|
+   |          |Harwell    |13.20.0 release                                  |
+   |----------+-----------+-------------------------------------------------|
+   |5ebc94da02|Sean Bright|res_http_websocket: Don't leak memory on read    |
+   |          |           |failure                                          |
+   |----------+-----------+-------------------------------------------------|
+   |e532b982b3|Corey      |core: Rename sounds_index.c to sounds.c.         |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |9c8763e4d2|Corey      |config: Fix locking for extconfig reload.        |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |1a7ad4c9cf|Sean Bright|res_pjsip_header_funcs: Various cleanups         |
+   |----------+-----------+-------------------------------------------------|
+   |27d28116d9|Corey      |BuildSystem: Use single bootstrap.sh for Asterisk|
+   |          |Farrell    |and menuselect.                                  |
+   |----------+-----------+-------------------------------------------------|
+   |0ba6337d32|Alexander  |BuildSystem: Fix a typo related to ./configure   |
+   |          |Traud      |--prefix=<path> on OpenBSD.                      |
+   |----------+-----------+-------------------------------------------------|
+   |48acd5cd26|Sean Bright|bridge_roles: Use a non-locking linked list where|
+   |          |           |appropriate                                      |
+   |----------+-----------+-------------------------------------------------|
+   |54efc0c637|Sean Bright|res_pjsip: Use pjsip_sip_uri.user_param instead  |
+   |          |           |of other_param                                   |
+   |----------+-----------+-------------------------------------------------|
+   |4e5d5b2ce2|Corey      |main/asterisk.c: Remove silly usage of RAII_VAR. |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |6c72c22d51|Corey      |json: Add conditionals to avoid locking if       |
+   |          |Farrell    |Jansson is thread safe.                          |
+   |----------+-----------+-------------------------------------------------|
+   |da987df122|Richard    |res_pjsip/config_domain_aliases.c: Add check for |
+   |          |Mudgett    |missing domain.                                  |
+   |----------+-----------+-------------------------------------------------|
+   |1adf90320d|Richard    |endpoint identifiers: Some code cleanup.         |
+   |          |Mudgett    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |93a1ffc834|Richard    |res_pjsip.c: Fix documentation typos.            |
+   |          |Mudgett    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |5d16cefd63|Richard    |res_sorcery_realtime.c: Fix ref leak if object   |
+   |          |Mudgett    |failed to apply.                                 |
+   |----------+-----------+-------------------------------------------------|
+   |09edcd93aa|Sean Bright|appdocsxml.xslt: Add Language to channel snapshot|
+   |          |           |transformation                                   |
+   |----------+-----------+-------------------------------------------------|
+   |665444b772|Richard    |manager.c: Fix potential memory leak and         |
+   |          |Mudgett    |corruption.                                      |
+   |----------+-----------+-------------------------------------------------|
+   |ef1aeb9437|Richard    |manager_channels.c: Reordered                    |
+   |          |Mudgett    |ast_manager_build_channel_state_string_prefix()  |
+   |----------+-----------+-------------------------------------------------|
+   |698b28e9c7|Corey      |res_pjsip_registrar_expire: Mark module          |
+   |          |Farrell    |deprecated.                                      |
+   |----------+-----------+-------------------------------------------------|
+   |4a337b1a76|Richard    |app_confbridge: Update dsp_silence_threshold and |
+   |          |Mudgett    |dsp_talking_threshold docs.                      |
+   |----------+-----------+-------------------------------------------------|
+   |2c4dde0ed0|Richard    |res_pjsip_registrar.c: Fix compiler error.       |
+   |          |Mudgett    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |5b699c812e|George     |res_pjsip_registrar_expire: Refactor into        |
+   |          |Joseph     |res_pjsip_register                               |
+   |----------+-----------+-------------------------------------------------|
+   |f59fb7fec8|Alexander  |BuildSystem: Remove unused variables.            |
+   |          |Traud      |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |154bccf147|Corey      |loader: Use ast_cli_completion_add for 'module   |
+   |          |Farrell    |load' completion.                                |
+   |----------+-----------+-------------------------------------------------|
+   |e998c906a7|Alexander  |headers: Consistent use of typeof and/or         |
+   |          |Traud      |__typeof__.                                      |
+   |----------+-----------+-------------------------------------------------|
+   |85b384728c|Richard    |pbx_variables.c: Misc fixes in variable          |
+   |          |Mudgett    |substitution.                                    |
+   |----------+-----------+-------------------------------------------------|
+   |ffb7b62019|Alexander  |BuildSystem: Remove orphaned .PHONY targets.     |
+   |          |Traud      |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |b353c90627|Sean Bright|res_pjsip: Document tlsv1_1 and tlsv1_2 methods  |
+   |----------+-----------+-------------------------------------------------|
+   |22edb10c44|Corey      |loader: Miscellaneous fixes.                     |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |1bbd9f4a47|Richard    |taskprocessor.c: Increase the number of          |
+   |          |Mudgett    |tps_singletons container buckets.                |
+   |----------+-----------+-------------------------------------------------|
+   |b0a78bdc3e|Richard    |cel_odbc.c: Fix menuslect module description     |
+   |          |Mudgett    |display.                                         |
+   |----------+-----------+-------------------------------------------------|
+   |948b852f48|George     |config_transport: Enable TCP_NODELAY on TLS      |
+   |          |Joseph     |transports                                       |
+   |----------+-----------+-------------------------------------------------|
+   |f01bac230d|Corey      |res_stasis_recording: Allow symbolic links in    |
+   |          |Farrell    |configured recordings dir.                       |
+   |----------+-----------+-------------------------------------------------|
+   |90b2dc1450|Tzafrir    |Ignore quilt .pc directory, used in deb packaging|
+   |          |Cohen      |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |608112ced3|Corey      |stasis: Remove silly usage of RAII_VAR.          |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |b7c25740fa|Corey      |stasis_bridges: Remove silly usage of RAII_VAR.  |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |2e09ed3b18|Richard    |res_pjsip.c: Update the endpoint identification  |
+   |          |Mudgett    |documentation.                                   |
+   |----------+-----------+-------------------------------------------------|
+   |dd6dee7e50|Richard    |res_pjsip_endpoint_identifier_ip.c: Remove       |
+   |          |Mudgett    |unnecessary requirement.                         |
+   |----------+-----------+-------------------------------------------------|
+   |96040fa6bb|Richard    |res_pjsip.c: Fix ident_to_str() and refactor     |
+   |          |Mudgett    |ident_handler().                                 |
+   |----------+-----------+-------------------------------------------------|
+   |a8a2f39f04|Richard    |res_pjsip_endpoint_identifier_ip.c: Allow        |
+   |          |Mudgett    |multiple IdentifyDetail AMI events.              |
+   |----------+-----------+-------------------------------------------------|
+   |dedf0ff2bf|Corey      |stasis_cache: Remove silly usage of RAII_VAR.    |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |8a6b3537b1|Corey      |stasis_cache_pattern: Remove silly usage of      |
+   |          |Farrell    |RAII_VAR.                                        |
+   |----------+-----------+-------------------------------------------------|
+   |909e642918|Corey      |stasis_endpoints: Remove silly usage of RAII_VAR.|
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |bd11159dbc|Corey      |stasis_message_router: Remove silly usage of     |
+   |          |Farrell    |RAII_VAR.                                        |
+   |----------+-----------+-------------------------------------------------|
+   |975a38e524|Corey      |stasis_system: Remove silly usage of RAII_VAR.   |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |1da8846ca7|Sean Bright|Revert "codec_opus: Make libcurl a dependency in |
+   |          |           |menuselect"                                      |
+   |----------+-----------+-------------------------------------------------|
+   |c67eb7031b|Corey      |app_confbridge: Fix NULL check in                |
+   |          |Farrell    |action_kick_last.                                |
+   |----------+-----------+-------------------------------------------------|
+   |17480f6ea4|Corey      |res_stasis: Reduce RAII_VAR usage.               |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |c1acc4f364|Corey      |res_stasis: Fix app_is_subscribed_bridge_id.     |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |ba57c03740|Richard    |res_pjsip_endpoint_identifier_ip.c: Fix apply    |
+   |          |Mudgett    |identify validation.                             |
+   |----------+-----------+-------------------------------------------------|
+   |0feca9bc18|Richard    |res_pjsip.c: Fix endpoint identifier registration|
+   |          |Mudgett    |name search.                                     |
+   |----------+-----------+-------------------------------------------------|
+   |0f141351f9|Corey      |pbx: Prevent execution of NULL pointer.          |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |d73a3a1764|Corey      |res_pjsip_history: Add missing unlock to CLI     |
+   |          |Farrell    |command.                                         |
+   |----------+-----------+-------------------------------------------------|
+   |ec74570598|Corey      |aco: Fix NULL dereference in error path.         |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |74b6fafbe6|Corey      |func_odbc: Add missing unlock's to acf_odbc_read.|
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |d25a9bc7d3|Kevin      |res_pjsip_session: Check if sequence header is   |
+   |          |Harwell    |missing                                          |
+   |----------+-----------+-------------------------------------------------|
+   |5b395a7b97|Corey      |core: Use macros to generate ao2_container       |
+   |          |Farrell    |callbacks where possible.                        |
+   |----------+-----------+-------------------------------------------------|
+   |b275b0a84f|Corey      |astobj2: Create case-insensitive variants of     |
+   |          |Farrell    |container function macros.                       |
+   |----------+-----------+-------------------------------------------------|
+   |751fd9b628|Richard    |stasis_channels.c: Misc cleanup.                 |
+   |          |Mudgett    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |5de8f49294|Richard    |manager.c: Update AMI Status event documentation |
+   |          |Mudgett    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |9f1cfbafca|Richard    |bridge_native_rtp.c: Fix reentrancy framehook    |
+   |          |Mudgett    |crash.                                           |
+   |----------+-----------+-------------------------------------------------|
+   |0bdddbe526|Corey      |menuselect: Fix check for running configure.     |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |d62c87bb8d|Corey      |cdr: Missing NULL check and unlock.              |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |ce3d56920b|Sean Bright|Remove as much trailing whitespace as possible.  |
+   |----------+-----------+-------------------------------------------------|
+   |b4ae112e3a|Sean Bright|Fix some invalid Unicode characters              |
+   |----------+-----------+-------------------------------------------------|
+   |719e8eee03|Corey      |app_voicemail: Fix file copy error handling.     |
+   |          |Farrell    |                                                 |
+   |----------+-----------+-------------------------------------------------|
+   |6892c13a2c|Sean Bright|docs: Remove old API changes documentation       |
+   |----------+-----------+-------------------------------------------------|
+   |6b3188fb8c|Corey      |app_festival: Fix fd leak on connection failure. |
+   |          |Farrell    |                                                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ /dev/null                                                                                     |binary
+ asterisk-13.19.0-summary.html                                                                 |  632 ---
+ asterisk-13.19.0-summary.txt                                                                  | 1540 ---------
+ autoconf/ast_check_openh323.m4                                                                |  132
+ autoconf/ast_check_pwlib.m4                                                                   |  265 -
+ b/.gitignore                                                                                  |    1
+ b/.version                                                                                    |    2
+ b/CHANGES                                                                                     |   81
+ b/CREDITS                                                                                     |    4
+ b/ChangeLog                                                                                   | 1678 +++++++++-
+ b/Makefile                                                                                    |   21
+ b/Makefile.moddir_rules                                                                       |    4
+ b/Makefile.rules                                                                              |    4
+ b/README-addons.txt                                                                           |    8
+ b/UPGRADE-1.2.txt                                                                             |   48
+ b/UPGRADE-1.4.txt                                                                             |   77
+ b/UPGRADE-1.6.txt                                                                             |   14
+ b/UPGRADE-1.8.txt                                                                             |   15
+ b/UPGRADE-10.txt                                                                              |    4
+ b/UPGRADE-11.txt                                                                              |    6
+ b/UPGRADE-12.txt                                                                              |    6
+ b/UPGRADE.txt                                                                                 |   42
+ b/addons/app_mysql.c                                                                          |    9
+ b/addons/cdr_mysql.c                                                                          |   36
+ b/addons/chan_mobile.c                                                                        |    6
+ b/addons/chan_ooh323.c                                                                        |  227 -
+ b/addons/chan_ooh323.h                                                                        |   14
+ b/addons/format_mp3.c                                                                         |    1
+ b/addons/ooh323c/README                                                                       |   35
+ b/addons/ooh323c/src/Makefile.in                                                              |    4
+ b/addons/ooh323c/src/context.c                                                                |   24
+ b/addons/ooh323c/src/decode.c                                                                 |  118
+ b/addons/ooh323c/src/dlist.c                                                                  |   27
+ b/addons/ooh323c/src/dlist.h                                                                  |   62
+ b/addons/ooh323c/src/encode.c                                                                 |  104
+ b/addons/ooh323c/src/errmgmt.c                                                                |   50
+ b/addons/ooh323c/src/eventHandler.c                                                           |   18
+ b/addons/ooh323c/src/eventHandler.h                                                           |   88
+ b/addons/ooh323c/src/h323/H235-SECURITY-MESSAGES.h                                            |   10
+ b/addons/ooh323c/src/h323/H235-SECURITY-MESSAGESDec.c                                         |   11
+ b/addons/ooh323c/src/h323/H235-SECURITY-MESSAGESEnc.c                                         |   11
+ b/addons/ooh323c/src/h323/H323-MESSAGES.c                                                     |   11
+ b/addons/ooh323c/src/h323/H323-MESSAGES.h                                                     |   10
+ b/addons/ooh323c/src/h323/H323-MESSAGESDec.c                                                  |   11
+ b/addons/ooh323c/src/h323/H323-MESSAGESEnc.c                                                  |   11
+ b/addons/ooh323c/src/h323/MULTIMEDIA-SYSTEM-CONTROL.c                                         |   11
+ b/addons/ooh323c/src/h323/MULTIMEDIA-SYSTEM-CONTROL.h                                         |   10
+ b/addons/ooh323c/src/h323/MULTIMEDIA-SYSTEM-CONTROLDec.c                                      |   11
+ b/addons/ooh323c/src/h323/MULTIMEDIA-SYSTEM-CONTROLEnc.c                                      |   11
+ b/addons/ooh323c/src/memheap.c                                                                |  335 -
+ b/addons/ooh323c/src/memheap.h                                                                |   10
+ b/addons/ooh323c/src/ooCalls.c                                                                |  153
+ b/addons/ooh323c/src/ooCalls.h                                                                |  222 -
+ b/addons/ooh323c/src/ooCapability.c                                                           |  646 +--
+ b/addons/ooh323c/src/ooCapability.h                                                           |  230 -
+ b/addons/ooh323c/src/ooCmdChannel.c                                                           |   59
+ b/addons/ooh323c/src/ooCmdChannel.h                                                           |   30
+ b/addons/ooh323c/src/ooCommon.h                                                               |   20
+ b/addons/ooh323c/src/ooDateTime.c                                                             |   17
+ b/addons/ooh323c/src/ooDateTime.h                                                             |   18
+ b/addons/ooh323c/src/ooGkClient.c                                                             |  452 +-
+ b/addons/ooh323c/src/ooGkClient.h                                                             |   90
+ b/addons/ooh323c/src/ooLogChan.c                                                              |   81
+ b/addons/ooh323c/src/ooLogChan.h                                                              |   60
+ b/addons/ooh323c/src/ooSocket.c                                                               |  148
+ b/addons/ooh323c/src/ooSocket.h                                                               |   65
+ b/addons/ooh323c/src/ooStackCmds.c                                                            |   45
+ b/addons/ooh323c/src/ooStackCmds.h                                                            |   32
+ b/addons/ooh323c/src/ooTimer.c                                                                |   24
+ b/addons/ooh323c/src/ooTimer.h                                                                |   26
+ b/addons/ooh323c/src/ooUtils.c                                                                |   12
+ b/addons/ooh323c/src/ooUtils.h                                                                |   20
+ b/addons/ooh323c/src/ooasn1.h                                                                 |  200 -
+ b/addons/ooh323c/src/oochannels.c                                                             |  376 +-
+ b/addons/ooh323c/src/oochannels.h                                                             |   59
+ b/addons/ooh323c/src/ooh245.c                                                                 |  993 ++---
+ b/addons/ooh323c/src/ooh245.h                                                                 |  164
+ b/addons/ooh323c/src/ooh323.c                                                                 |  476 +-
+ b/addons/ooh323c/src/ooh323.h                                                                 |   37
+ b/addons/ooh323c/src/ooh323ep.c                                                               |  127
+ b/addons/ooh323c/src/ooh323ep.h                                                               |  126
+ b/addons/ooh323c/src/oohdr.h                                                                  |   10
+ b/addons/ooh323c/src/ooper.h                                                                  |   11
+ b/addons/ooh323c/src/ooports.c                                                                |   16
+ b/addons/ooh323c/src/ooports.h                                                                |   20
+ b/addons/ooh323c/src/ooq931.c                                                                 |  819 ++--
+ b/addons/ooh323c/src/ooq931.h                                                                 |  158
+ b/addons/ooh323c/src/ootrace.c                                                                |   35
+ b/addons/ooh323c/src/ootrace.h                                                                |   24
+ b/addons/ooh323c/src/ootypes.h                                                                |  155
+ b/addons/ooh323c/src/perutil.c                                                                |   51
+ b/addons/ooh323c/src/printHandler.c                                                           |   22
+ b/addons/ooh323c/src/printHandler.h                                                           |   16
+ b/addons/ooh323c/src/rtctype.c                                                                |   10
+ b/addons/ooh323c/src/rtctype.h                                                                |   15
+ b/addons/ooh323cDriver.c                                                                      |  122
+ b/addons/ooh323cDriver.h                                                                      |   12
+ b/addons/res_config_mysql.c                                                                   |    8
+ b/agi/Makefile                                                                                |    2
+ b/agi/eagi-sphinx-test.c                                                                      |    4
+ b/agi/eagi-test.c                                                                             |    4
+ b/agi/jukebox.agi                                                                             |    4
+ b/apps/Makefile                                                                               |    2
+ b/apps/app_adsiprog.c                                                                         |   18
+ b/apps/app_amd.c                                                                              |   16
+ b/apps/app_authenticate.c                                                                     |    4
+ b/apps/app_chanisavail.c                                                                      |    5
+ b/apps/app_chanspy.c                                                                          |   28
+ b/apps/app_confbridge.c                                                                       |  124
+ b/apps/app_controlplayback.c                                                                  |    2
+ b/apps/app_dahdiras.c                                                                         |   14
+ b/apps/app_dial.c                                                                             |    2
+ b/apps/app_dictate.c                                                                          |    7
+ b/apps/app_directory.c                                                                        |   12
+ b/apps/app_echo.c                                                                             |    2
+ b/apps/app_externalivr.c                                                                      |   47
+ b/apps/app_fax.c                                                                              |   34
+ b/apps/app_festival.c                                                                         |   31
+ b/apps/app_flash.c                                                                            |    7
+ b/apps/app_followme.c                                                                         |   66
+ b/apps/app_forkcdr.c                                                                          |    2
+ b/apps/app_getcpeid.c                                                                         |    4
+ b/apps/app_ices.c                                                                             |   21
+ b/apps/app_image.c                                                                            |    7
+ b/apps/app_ivrdemo.c                                                                          |   13
+ b/apps/app_jack.c                                                                             |    1
+ b/apps/app_macro.c                                                                            |   16
+ b/apps/app_meetme.c                                                                           |  243 -
+ b/apps/app_milliwatt.c                                                                        |    2
+ b/apps/app_minivm.c                                                                           |  148
+ b/apps/app_morsecode.c                                                                        |    3
+ b/apps/app_mp3.c                                                                              |   19
+ b/apps/app_nbscat.c                                                                           |   15
+ b/apps/app_osplookup.c                                                                        |    4
+ b/apps/app_page.c                                                                             |    1
+ b/apps/app_playback.c                                                                         |   24
+ b/apps/app_queue.c                                                                            |    1
+ b/apps/app_read.c                                                                             |   10
+ b/apps/app_readexten.c                                                                        |    4
+ b/apps/app_record.c                                                                           |    6
+ b/apps/app_saycounted.c                                                                       |    3
+ b/apps/app_sayunixtime.c                                                                      |   12
+ b/apps/app_senddtmf.c                                                                         |    2
+ b/apps/app_sendtext.c                                                                         |    4
+ b/apps/app_setcallerid.c                                                                      |    5
+ b/apps/app_skel.c                                                                             |   10
+ b/apps/app_sms.c                                                                              |   45
+ b/apps/app_softhangup.c                                                                       |   10
+ b/apps/app_speech_utils.c                                                                     |   14
+ b/apps/app_stack.c                                                                            |    6
+ b/apps/app_system.c                                                                           |    6
+ b/apps/app_talkdetect.c                                                                       |   11
+ b/apps/app_test.c                                                                             |    3
+ b/apps/app_transfer.c                                                                         |    2
+ b/apps/app_url.c                                                                              |   15
+ b/apps/app_userevent.c                                                                        |    2
+ b/apps/app_voicemail.c                                                                        |  516 +--
+ b/apps/app_waitforring.c                                                                      |    3
+ b/apps/app_while.c                                                                            |   14
+ b/apps/app_zapateller.c                                                                       |   15
+ b/apps/confbridge/conf_config_parser.c                                                        |   96
+ b/apps/confbridge/confbridge_manager.c                                                        |   37
+ b/apps/confbridge/include/confbridge.h                                                        |    7
+ b/apps/enter.h                                                                                |  548 +--
+ b/apps/leave.h                                                                                |  388 +-
+ b/asterisk-13.20.0-rc2-summary.html                                                           |   22
+ b/asterisk-13.20.0-rc2-summary.txt                                                            |  105
+ b/autoconf/ast_c_compile_check.m4                                                             |    2
+ b/autoconf/ast_c_declare_check.m4                                                             |    2
+ b/autoconf/ast_c_define_check.m4                                                              |    2
+ b/autoconf/ast_check_osptk.m4                                                                 |    3
+ b/autoconf/ast_ext_lib.m4                                                                     |    2
+ b/autoconf/ast_pkgconfig.m4                                                                   |    1
+ b/bootstrap.sh                                                                                |   28
+ b/bridges/Makefile                                                                            |    2
+ b/bridges/bridge_holding.c                                                                    |    1
+ b/bridges/bridge_native_rtp.c                                                                 |    5
+ b/bridges/bridge_softmix.c                                                                    |   65
+ b/build_tools/cflags-devmode.xml                                                              |    3
+ b/build_tools/download_externals                                                              |    6
+ b/build_tools/list_valid_installed_externals                                                  |    3
+ b/build_tools/make_buildopts_h                                                                |    2
+ b/build_tools/make_defaults_h                                                                 |    2
+ b/build_tools/make_sample_voicemail                                                           |    6
+ b/build_tools/make_version                                                                    |    6
+ b/build_tools/menuselect-deps.in                                                              |    1
+ b/build_tools/sha1sum-sh                                                                      |    1
+ b/cdr/cdr_adaptive_odbc.c                                                                     |    1
+ b/cdr/cdr_custom.c                                                                            |    1
+ b/cdr/cdr_radius.c                                                                            |    2
+ b/cel/Makefile                                                                                |    2
+ b/cel/cel_custom.c                                                                            |    1
+ b/cel/cel_odbc.c                                                                              |    5
+ b/channels/Makefile                                                                           |    1
+ b/channels/chan_alsa.c                                                                        |   20
+ b/channels/chan_console.c                                                                     |   76
+ b/channels/chan_dahdi.c                                                                       |    2
+ b/channels/chan_iax2.c                                                                        |    2
+ b/channels/chan_mgcp.c                                                                        |    2
+ b/channels/chan_motif.c                                                                       |    4
+ b/channels/chan_nbs.c                                                                         |   11
+ b/channels/chan_oss.c                                                                         |   15
+ b/channels/chan_phone.c                                                                       |   51
+ b/channels/chan_phone.h                                                                       |  478 +-
+ b/channels/chan_pjsip.c                                                                       |    2
+ b/channels/chan_sip.c                                                                         |   91
+ b/channels/chan_unistim.c                                                                     |   78
+ b/channels/chan_vpb.cc                                                                        |  170 -
+ b/channels/console_board.c                                                                    |    6
+ b/channels/console_gui.c                                                                      |   76
+ b/channels/console_video.c                                                                    |   36
+ b/channels/console_video.h                                                                    |    2
+ b/channels/iax2/include/iax2.h                                                                |    4
+ b/channels/iax2/include/parser.h                                                              |    4
+ b/channels/iax2/parser.c                                                                      |   26
+ b/channels/iax2/provision.c                                                                   |   22
+ b/channels/misdn/ie.c                                                                         |    1
+ b/channels/misdn/isdn_lib.c                                                                   |    2
+ b/channels/sig_analog.h                                                                       |    4
+ b/channels/sip/config_parser.c                                                                |    1
+ b/channels/sip/dialplan_functions.c                                                           |    3
+ b/channels/sip/include/config_parser.h                                                        |    2
+ b/channels/sip/include/globals.h                                                              |    1
+ b/channels/sip/include/reqresp_parser.h                                                       |    4
+ b/channels/sip/security_events.c                                                              |    1
+ b/channels/vcodecs.c                                                                          |   14
+ b/channels/vgrabbers.c                                                                        |    4
+ b/codecs/Makefile                                                                             |    2
+ b/codecs/codec_adpcm.c                                                                        |   10
+ b/codecs/codec_alaw.c                                                                         |    6
+ b/codecs/codec_g722.c                                                                         |    6
+ b/codecs/codec_g726.c                                                                         |    2
+ b/codecs/codec_gsm.c                                                                          |    4
+ b/codecs/codec_ilbc.c                                                                         |    4
+ b/codecs/codec_lpc10.c                                                                        |    4
+ b/codecs/codec_resample.c                                                                     |    4
+ b/codecs/codec_speex.c                                                                        |   22
+ b/codecs/codec_ulaw.c                                                                         |    2
+ b/codecs/ex_ilbc.h                                                                            |    8
+ b/codecs/g722/g722.h                                                                          |    4
+ b/codecs/g722/g722_decode.c                                                                   |   14
+ b/codecs/g722/g722_encode.c                                                                   |    8
+ b/codecs/gsm/Makefile                                                                         |   16
+ b/codecs/gsm/README                                                                           |    2
+ b/codecs/gsm/inc/gsm.h                                                                        |    2
+ b/codecs/gsm/inc/private.h                                                                    |   14
+ b/codecs/gsm/inc/proto.h                                                                      |    2
+ b/codecs/gsm/src/add.c                                                                        |    8
+ b/codecs/gsm/src/code.c                                                                       |    6
+ b/codecs/gsm/src/debug.c                                                                      |    2
+ b/codecs/gsm/src/gsm_decode.c                                                                 |    4
+ b/codecs/gsm/src/gsm_explode.c                                                                |    6
+ b/codecs/gsm/src/gsm_implode.c                                                                |    6
+ b/codecs/gsm/src/gsm_option.c                                                                 |    2
+ b/codecs/gsm/src/k6opt.h                                                                      |   12
+ b/codecs/gsm/src/long_term.c                                                                  |   16
+ b/codecs/gsm/src/lpc.c                                                                        |   10
+ b/codecs/gsm/src/preprocess.c                                                                 |   12
+ b/codecs/gsm/src/rpe.c                                                                        |   36
+ b/codecs/gsm/src/short_term.c                                                                 |   20
+ b/codecs/gsm/src/table.c                                                                      |    2
+ b/codecs/ilbc/FrameClassify.c                                                                 |    1
+ b/codecs/ilbc/FrameClassify.h                                                                 |    1
+ b/codecs/ilbc/LPCdecode.c                                                                     |    6
+ b/codecs/ilbc/LPCdecode.h                                                                     |   12
+ b/codecs/ilbc/LPCencode.c                                                                     |    1
+ b/codecs/ilbc/LPCencode.h                                                                     |    1
+ b/codecs/ilbc/StateConstructW.c                                                               |   12
+ b/codecs/ilbc/StateConstructW.h                                                               |    1
+ b/codecs/ilbc/StateSearchW.c                                                                  |   11
+ b/codecs/ilbc/StateSearchW.h                                                                  |    8
+ b/codecs/ilbc/anaFilter.c                                                                     |    1
+ b/codecs/ilbc/anaFilter.h                                                                     |    1
+ b/codecs/ilbc/constants.c                                                                     |    1
+ b/codecs/ilbc/constants.h                                                                     |    1
+ b/codecs/ilbc/createCB.c                                                                      |    1
+ b/codecs/ilbc/createCB.h                                                                      |    1
+ b/codecs/ilbc/doCPLC.c                                                                        |    1
+ b/codecs/ilbc/doCPLC.h                                                                        |    1
+ b/codecs/ilbc/enhancer.c                                                                      |    1
+ b/codecs/ilbc/enhancer.h                                                                      |    1
+ b/codecs/ilbc/extract-cfile.awk                                                               |    2
+ b/codecs/ilbc/filter.c                                                                        |    1
+ b/codecs/ilbc/filter.h                                                                        |    1
+ b/codecs/ilbc/gainquant.c                                                                     |    6
+ b/codecs/ilbc/gainquant.h                                                                     |    1
+ b/codecs/ilbc/getCBvec.c                                                                      |    1
+ b/codecs/ilbc/getCBvec.h                                                                      |    1
+ b/codecs/ilbc/helpfun.c                                                                       |    1
+ b/codecs/ilbc/helpfun.h                                                                       |    1
+ b/codecs/ilbc/hpInput.c                                                                       |    1
+ b/codecs/ilbc/hpInput.h                                                                       |    1
+ b/codecs/ilbc/hpOutput.c                                                                      |    1
+ b/codecs/ilbc/hpOutput.h                                                                      |    1
+ b/codecs/ilbc/iCBConstruct.c                                                                  |    1
+ b/codecs/ilbc/iCBConstruct.h                                                                  |    1
+ b/codecs/ilbc/iCBSearch.c                                                                     |    9
+ b/codecs/ilbc/iCBSearch.h                                                                     |    1
+ b/codecs/ilbc/iLBC_decode.c                                                                   |    1
+ b/codecs/ilbc/iLBC_decode.h                                                                   |    1
+ b/codecs/ilbc/iLBC_define.h                                                                   |    1
+ b/codecs/ilbc/iLBC_encode.c                                                                   |    1
+ b/codecs/ilbc/iLBC_encode.h                                                                   |    6
+ b/codecs/ilbc/iLBC_test.c                                                                     |    1
+ b/codecs/ilbc/lsf.c                                                                           |    7
+ b/codecs/ilbc/lsf.h                                                                           |    1
+ b/codecs/ilbc/packing.c                                                                       |    1
+ b/codecs/ilbc/packing.h                                                                       |    1
+ b/codecs/ilbc/rfc3951.txt                                                                     |  387 +-
+ b/codecs/ilbc/syntFilter.c                                                                    |   14
+ b/codecs/ilbc/syntFilter.h                                                                    |    1
+ b/codecs/log2comp.h                                                                           |    8
+ b/codecs/lpc10/Makefile                                                                       |   12
+ b/codecs/lpc10/analys.c                                                                       |   68
+ b/codecs/lpc10/bsynz.c                                                                        |   28
+ b/codecs/lpc10/chanwr.c                                                                       |    8
+ b/codecs/lpc10/dcbias.c                                                                       |    1
+ b/codecs/lpc10/decode.c                                                                       |   34
+ b/codecs/lpc10/difmag.c                                                                       |    3
+ b/codecs/lpc10/dyptrk.c                                                                       |   38
+ b/codecs/lpc10/encode.c                                                                       |   23
+ b/codecs/lpc10/energy.c                                                                       |    1
+ b/codecs/lpc10/f2c.h                                                                          |    6
+ b/codecs/lpc10/ham84.c                                                                        |    1
+ b/codecs/lpc10/invert.c                                                                       |    1
+ b/codecs/lpc10/irc2pc.c                                                                       |    1
+ b/codecs/lpc10/ivfilt.c                                                                       |    1
+ b/codecs/lpc10/lpc10.h                                                                        |    4
+ b/codecs/lpc10/lpcdec.c                                                                       |   26
+ b/codecs/lpc10/lpcenc.c                                                                       |    8
+ b/codecs/lpc10/lpcini.c                                                                       |   22
+ b/codecs/lpc10/lpfilt.c                                                                       |    1
+ b/codecs/lpc10/median.c                                                                       |    1
+ b/codecs/lpc10/mload.c                                                                        |   13
+ b/codecs/lpc10/onset.c                                                                        |   24
+ b/codecs/lpc10/pitsyn.c                                                                       |   38
+ b/codecs/lpc10/placea.c                                                                       |    9
+ b/codecs/lpc10/placev.c                                                                       |   19
+ b/codecs/lpc10/preemp.c                                                                       |    5
+ b/codecs/lpc10/random.c                                                                       |    1
+ b/codecs/lpc10/rcchk.c                                                                        |    3
+ b/codecs/lpc10/synths.c                                                                       |   34
+ b/codecs/lpc10/tbdm.c                                                                         |    7
+ b/codecs/lpc10/voicin.c                                                                       |   60
+ b/codecs/lpc10/vparms.c                                                                       |    5
+ b/codecs/speex/arch.h                                                                         |   12
+ b/codecs/speex/fixed_generic.h                                                                |    8
+ b/codecs/speex/resample.c                                                                     |   84
+ b/codecs/speex/resample_sse.h                                                                 |    8
+ b/codecs/speex/speex_resampler.h                                                              |  116
+ b/codecs/speex/stack_alloc.h                                                                  |   10
+ b/configs/basic-pbx/indications.conf                                                          |    1
+ b/configs/basic-pbx/pjsip.conf                                                                |    1
+ b/configs/basic-pbx/queues.conf                                                               |    1
+ b/configs/samples/alsa.conf.sample                                                            |    1
+ b/configs/samples/ari.conf.sample                                                             |    1
+ b/configs/samples/asterisk.adsi                                                               |    1
+ b/configs/samples/asterisk.conf.sample                                                        |    2
+ b/configs/samples/calendar.conf.sample                                                        |    2
+ b/configs/samples/cdr_adaptive_odbc.conf.sample                                               |    1
+ b/configs/samples/cdr_mysql.conf.sample                                                       |   11
+ b/configs/samples/cdr_tds.conf.sample                                                         |    1
+ b/configs/samples/cel.conf.sample                                                             |    2
+ b/configs/samples/chan_dahdi.conf.sample                                                      |   12
+ b/configs/samples/chan_mobile.conf.sample                                                     |    4
+ b/configs/samples/codecs.conf.sample                                                          |    1
+ b/configs/samples/confbridge.conf.sample                                                      |   80
+ b/configs/samples/dbsep.conf.sample                                                           |    1
+ b/configs/samples/dsp.conf.sample                                                             |    1
+ b/configs/samples/extconfig.conf.sample                                                       |    1
+ b/configs/samples/extensions.lua.sample                                                       |    1
+ b/configs/samples/extensions_minivm.conf.sample                                               |    1
+ b/configs/samples/festival.conf.sample                                                        |    1
+ b/configs/samples/followme.conf.sample                                                        |   12
+ b/configs/samples/func_odbc.conf.sample                                                       |    1
+ b/configs/samples/iaxprov.conf.sample                                                         |    1
+ b/configs/samples/manager.conf.sample                                                         |    3
+ b/configs/samples/mgcp.conf.sample                                                            |   34
+ b/configs/samples/ooh323.conf.sample                                                          |    5
+ b/configs/samples/oss.conf.sample                                                             |    1
+ b/configs/samples/phoneprov.conf.sample                                                       |    1
+ b/configs/samples/pjsip.conf.sample                                                           |   29
+ b/configs/samples/queuerules.conf.sample                                                      |    1
+ b/configs/samples/queues.conf.sample                                                          |    2
+ b/configs/samples/res_config_mysql.conf.sample                                                |    2
+ b/configs/samples/res_config_sqlite3.conf.sample                                              |    1
+ b/configs/samples/res_fax.conf.sample                                                         |    2
+ b/configs/samples/res_ldap.conf.sample                                                        |    7
+ b/configs/samples/res_pgsql.conf.sample                                                       |    2
+ b/configs/samples/res_snmp.conf.sample                                                        |    2
+ b/configs/samples/say.conf.sample                                                             |   10
+ b/configs/samples/sip.conf.sample                                                             |   32
+ b/configs/samples/skinny.conf.sample                                                          |    1
+ b/configs/samples/sla.conf.sample                                                             |    3
+ b/configs/samples/users.conf.sample                                                           |    1
+ b/configs/samples/voicemail.conf.sample                                                       |    6
+ b/configs/samples/xmpp.conf.sample                                                            |    1
+ b/configure                                                                                   | 1113 +-----
+ b/configure.ac                                                                                |   69
+ b/contrib/README.festival                                                                     |   18
+ b/contrib/ast-db-manage/cdr/versions/210693f3123d_create_cdr_table.py                         |    1
+ b/contrib/ast-db-manage/config/versions/1758e8bbf6b_increase_useragent_column_size.py         |    1
+ b/contrib/ast-db-manage/config/versions/28887f25a46f_create_queue_tables.py                   |    1
+ b/contrib/ast-db-manage/config/versions/4a6c67fa9b7a_add_fax_detect_timeout_option.py         |    1
+ b/contrib/ast-db-manage/config/versions/52798ad97bdf_add_pjsip_identify_by_header.py          |   57
+ b/contrib/ast-db-manage/config/versions/837aa67461fb_ps_contacts_add_authenticate_qualify.py  |    1
+ b/contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py |    1
+ b/contrib/ast-db-manage/config/versions/d39508cb8d8_create_queue_rules.py                     |    1
+ b/contrib/ast-db-manage/config/versions/d3e4284f8707_add_prune_on_boot_to_ps_subscription_.py |   33
+ b/contrib/ast-db-manage/env.py                                                                |    1
+ b/contrib/ast-db-manage/voicemail/versions/39428242f7f5_increase_recording_column_size.py     |    1
+ b/contrib/asterisk-ices.xml                                                                   |    6
+ b/contrib/init.d/rc.debian.asterisk                                                           |    2
+ b/contrib/init.d/rc.mandriva.asterisk                                                         |   15
+ b/contrib/init.d/rc.mandriva.zaptel                                                           |    1
+ b/contrib/init.d/rc.redhat.asterisk                                                           |    2
+ b/contrib/init.d/rc.slackware.asterisk                                                        |    1
+ b/contrib/init.d/rc.suse.asterisk                                                             |    2
+ b/contrib/realtime/mssql/mssql_config.sql                                                     |   28
+ b/contrib/realtime/mysql/mysql_config.sql                                                     |   12
+ b/contrib/realtime/oracle/oracle_config.sql                                                   |   24
+ b/contrib/realtime/postgresql/postgresql_config.sql                                           |   14
+ b/contrib/scripts/README.messages-expire                                                      |    6
+ b/contrib/scripts/ast_tls_cert                                                                |    2
+ b/contrib/scripts/astcli                                                                      |    5
+ b/contrib/scripts/astgenkey.8                                                                 |   44
+ b/contrib/scripts/autosupport                                                                 |   52
+ b/contrib/scripts/autosupport.8                                                               |   20
+ b/contrib/scripts/dbsep.cgi                                                                   |    1
+ b/contrib/scripts/install_prereq                                                              |   86
+ b/contrib/scripts/managerproxy.pl                                                             |   11
+ b/contrib/scripts/messages-expire.pl                                                          |    6
+ b/contrib/scripts/retrieve_extensions_from_mysql.pl                                           |    7
+ b/contrib/scripts/retrieve_extensions_from_sql.pl                                             |    2
+ b/contrib/scripts/retrieve_sip_conf_from_mysql.pl                                             |    5
+ b/contrib/scripts/safe_asterisk.8                                                             |   38
+ b/contrib/scripts/sip_nat_settings                                                            |   14
+ b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                                |    2
+ b/contrib/scripts/sip_to_pjsip/sip_to_pjsql.py                                                |   81
+ b/contrib/scripts/sip_to_pjsip/sqlconfigparser.py                                             |   69
+ b/contrib/upstart/asterisk.user.conf                                                          |    1
+ b/contrib/utils/README.rawplayer                                                              |    9
+ b/contrib/utils/eagi_proxy.c                                                                  |   40
+ b/contrib/utils/rawplayer.c                                                                   |    5
+ b/contrib/utils/zones2indications.c                                                           |   16
+ b/doc/Makefile                                                                                |    1
+ b/doc/README.txt                                                                              |    2
+ b/doc/appdocsxml.xslt                                                                         |    5
+ b/doc/astdb2bdb.8                                                                             |    1
+ b/doc/astdb2sqlite3.8                                                                         |    1
+ b/doc/asterisk.8                                                                              |   74
+ b/doc/asterisk.sgml                                                                           |   18
+ b/doc/lang/language-criteria.txt                                                              |  493 --
+ b/formats/Makefile                                                                            |    2
+ b/formats/format_g719.c                                                                       |    3
+ b/formats/format_g723.c                                                                       |   12
+ b/formats/format_g726.c                                                                       |   10
+ b/formats/format_g729.c                                                                       |    6
+ b/formats/format_gsm.c                                                                        |    2
+ b/formats/format_h263.c                                                                       |    2
+ b/formats/format_h264.c                                                                       |    2
+ b/formats/format_ilbc.c                                                                       |    4
+ b/formats/format_jpeg.c                                                                       |    4
+ b/formats/format_ogg_vorbis.c                                                                 |    6
+ b/formats/format_pcm.c                                                                        |    8
+ b/formats/format_siren14.c                                                                    |    2
+ b/formats/format_siren7.c                                                                     |    2
+ b/formats/format_sln.c                                                                        |    2
+ b/formats/format_vox.c                                                                        |    6
+ b/formats/format_wav.c                                                                        |   18
+ b/formats/format_wav_gsm.c                                                                    |    4
+ b/formats/msgsm.h                                                                             |    4
+ b/funcs/Makefile                                                                              |    2
+ b/funcs/func_audiohookinherit.c                                                               |    1
+ b/funcs/func_base64.c                                                                         |    2
+ b/funcs/func_blacklist.c                                                                      |    2
+ b/funcs/func_channel.c                                                                        |    7
+ b/funcs/func_config.c                                                                         |    4
+ b/funcs/func_curl.c                                                                           |    9
+ b/funcs/func_cut.c                                                                            |    8
+ b/funcs/func_db.c                                                                             |    4
+ b/funcs/func_devstate.c                                                                       |    4
+ b/funcs/func_dialplan.c                                                                       |    2
+ b/funcs/func_enum.c                                                                           |   26
+ b/funcs/func_extstate.c                                                                       |    8
+ b/funcs/func_frame_trace.c                                                                    |    2
+ b/funcs/func_global.c                                                                         |    2
+ b/funcs/func_groupcount.c                                                                     |   12
+ b/funcs/func_iconv.c                                                                          |    9
+ b/funcs/func_jitterbuffer.c                                                                   |    1
+ b/funcs/func_lock.c                                                                           |    8
+ b/funcs/func_logic.c                                                                          |    8
+ b/funcs/func_md5.c                                                                            |    4
+ b/funcs/func_odbc.c                                                                           |   11
+ b/funcs/func_pitchshift.c                                                                     |    1
+ b/funcs/func_presencestate.c                                                                  |    7
+ b/funcs/func_rand.c                                                                           |    8
+ b/funcs/func_sha1.c                                                                           |    4
+ b/funcs/func_sorcery.c                                                                        |    1
+ b/funcs/func_speex.c                                                                          |   22
+ b/funcs/func_sprintf.c                                                                        |    4
+ b/funcs/func_srv.c                                                                            |    4
+ b/funcs/func_strings.c                                                                        |   34
+ b/funcs/func_sysinfo.c                                                                        |    5
+ b/funcs/func_timeout.c                                                                        |    4
+ b/funcs/func_uri.c                                                                            |    6
+ b/funcs/func_version.c                                                                        |    2
+ b/funcs/func_vmcount.c                                                                        |    6
+ b/funcs/func_volume.c                                                                         |   18
+ b/include/asterisk/abstract_jb.h                                                              |    2
+ b/include/asterisk/adsi.h                                                                     |    1
+ b/include/asterisk/ael_structs.h                                                              |   14
+ b/include/asterisk/agi.h                                                                      |    2
+ b/include/asterisk/ast_expr.h                                                                 |    4
+ b/include/asterisk/ast_version.h                                                              |    2
+ b/include/asterisk/astobj.h                                                                   |   52
+ b/include/asterisk/astobj2.h                                                                  |  108
+ b/include/asterisk/astosp.h                                                                   |    2
+ b/include/asterisk/autochan.h                                                                 |    2
+ b/include/asterisk/autoconfig.h.in                                                            |    6
+ b/include/asterisk/bridge_after.h                                                             |    2
+ b/include/asterisk/bridge_features.h                                                          |    2
+ b/include/asterisk/bridge_technology.h                                                        |    6
+ b/include/asterisk/calendar.h                                                                 |    4
+ b/include/asterisk/callerid.h                                                                 |    2
+ b/include/asterisk/ccss.h                                                                     |    4
+ b/include/asterisk/cel.h                                                                      |    4
+ b/include/asterisk/cli.h                                                                      |   20
+ b/include/asterisk/compat.h                                                                   |    4
+ b/include/asterisk/config.h                                                                   |    2
+ b/include/asterisk/config_options.h                                                           |    4
+ b/include/asterisk/core_unreal.h                                                              |    2
+ b/include/asterisk/doxygen/architecture.h                                                     |    1
+ b/include/asterisk/doxygen/licensing.h                                                        |    2
+ b/include/asterisk/doxyref.h                                                                  |   98
+ b/include/asterisk/dsp.h                                                                      |   38
+ b/include/asterisk/dundi.h                                                                    |   12
+ b/include/asterisk/endian.h                                                                   |    1
+ b/include/asterisk/event_defs.h                                                               |    2
+ b/include/asterisk/file.h                                                                     |   97
+ b/include/asterisk/format.h                                                                   |    2
+ b/include/asterisk/framehook.h                                                                |    6
+ b/include/asterisk/fskmodem.h                                                                 |    1
+ b/include/asterisk/fskmodem_int.h                                                             |    4
+ b/include/asterisk/http.h                                                                     |    2
+ b/include/asterisk/image.h                                                                    |   20
+ b/include/asterisk/indications.h                                                              |    4
+ b/include/asterisk/io.h                                                                       |   36
+ b/include/asterisk/linkedlists.h                                                              |    2
+ b/include/asterisk/manager.h                                                                  |   20
+ b/include/asterisk/message.h                                                                  |    2
+ b/include/asterisk/mod_format.h                                                               |   16
+ b/include/asterisk/module.h                                                                   |   58
+ b/include/asterisk/netsock2.h                                                                 |    2
+ b/include/asterisk/parking.h                                                                  |    4
+ b/include/asterisk/paths.h                                                                    |    2
+ b/include/asterisk/pbx.h                                                                      |    6
+ b/include/asterisk/pktccops.h                                                                 |    2
+ b/include/asterisk/presencestate.h                                                            |    1
+ b/include/asterisk/pval.h                                                                     |   20
+ b/include/asterisk/res_fax.h                                                                  |    2
+ b/include/asterisk/res_odbc.h                                                                 |   10
+ b/include/asterisk/res_pjsip.h                                                                |   54
+ b/include/asterisk/res_pjsip_session.h                                                        |    8
+ b/include/asterisk/sched.h                                                                    |   10
+ b/include/asterisk/select.h                                                                   |    2
+ b/include/asterisk/smdi.h                                                                     |   12
+ b/include/asterisk/speech.h                                                                   |    2
+ b/include/asterisk/srv.h                                                                      |    4
+ b/include/asterisk/statsd.h                                                                   |    1
+ b/include/asterisk/stringfields.h                                                             |   12
+ b/include/asterisk/strings.h                                                                  |   32
+ b/include/asterisk/tcptls.h                                                                   |    6
+ b/include/asterisk/tdd.h                                                                      |   10
+ b/include/asterisk/threadstorage.h                                                            |    6
+ b/include/asterisk/timing.h                                                                   |    2
+ b/include/asterisk/translate.h                                                                |   14
+ b/include/asterisk/udptl.h                                                                    |   14
+ b/include/asterisk/xml.h                                                                      |    1
+ b/include/jitterbuf.h                                                                         |   18
+ b/include/solaris-compat/sys/queue.h                                                          |    5
+ b/install-sh                                                                                  |   16
+ b/main/Makefile                                                                               |    1
+ b/main/acl.c                                                                                  |    1
+ b/main/alaw.c                                                                                 |    1
+ b/main/app.c                                                                                  |    1
+ b/main/ast_expr2.c                                                                            |  203 -
+ b/main/ast_expr2.h                                                                            |   13
+ b/main/ast_expr2.y                                                                            |  198 -
+ b/main/ast_expr2f.c                                                                           |   73
+ b/main/asterisk.c                                                                             |   22
+ b/main/astfd.c                                                                                |    1
+ b/main/astmm.c                                                                                |    2
+ b/main/astobj2_container.c                                                                    |    1
+ b/main/astobj2_hash.c                                                                         |    1
+ b/main/astobj2_rbtree.c                                                                       |    1
+ b/main/backtrace.c                                                                            |    2
+ b/main/bridge.c                                                                               |    2
+ b/main/bridge_basic.c                                                                         |    1
+ b/main/bridge_roles.c                                                                         |    8
+ b/main/bucket.c                                                                               |   60
+ b/main/ccss.c                                                                                 |   21
+ b/main/cdr.c                                                                                  |   50
+ b/main/cel.c                                                                                  |  188 -
+ b/main/channel.c                                                                              |    1
+ b/main/codec.c                                                                                |   22
+ b/main/config.c                                                                               |    4
+ b/main/config_options.c                                                                       |    3
+ b/main/db.c                                                                                   |    6
+ b/main/dns.c                                                                                  |    1
+ b/main/dsp.c                                                                                  |   21
+ b/main/editline/INSTALL                                                                       |    4
+ b/main/editline/chared.c                                                                      |    4
+ b/main/editline/configure                                                                     |   36
+ b/main/editline/configure.in                                                                  |   15
+ b/main/editline/el.h                                                                          |    6
+ b/main/editline/install-sh                                                                    |   16
+ b/main/editline/map.c                                                                         |    2
+ b/main/editline/np/unvis.c                                                                    |   34
+ b/main/editline/np/vis.c                                                                      |   12
+ b/main/editline/read.h                                                                        |    2
+ b/main/editline/readline.c                                                                    |    4
+ b/main/editline/refresh.c                                                                     |    6
+ b/main/editline/term.c                                                                        |    4
+ b/main/endpoints.c                                                                            |   57
+ b/main/format.c                                                                               |   53
+ b/main/format_cache.c                                                                         |    1
+ b/main/format_compatibility.c                                                                 |    1
+ b/main/fskmodem.c                                                                             |    1
+ b/main/indications.c                                                                          |    1
+ b/main/jitterbuf.c                                                                            |    2
+ b/main/json.c                                                                                 |   46
+ b/main/loader.c                                                                               |  108
+ b/main/manager.c                                                                              |   51
+ b/main/manager_channels.c                                                                     |   22
+ b/main/manager_endpoints.c                                                                    |    1
+ b/main/media_index.c                                                                          |    1
+ b/main/named_acl.c                                                                            |   17
+ b/main/named_locks.c                                                                          |   44
+ b/main/netsock2.c                                                                             |    2
+ b/main/pbx.c                                                                                  |   32
+ b/main/pbx_variables.c                                                                        |  245 -
+ b/main/plc.c                                                                                  |    2
+ b/main/poll.c                                                                                 |    2
+ b/main/rtp_engine.c                                                                           |    8
+ b/main/sdp_srtp.c                                                                             |    1
+ b/main/security_events.c                                                                      |    4
+ b/main/smoother.c                                                                             |    1
+ b/main/sorcery.c                                                                              |  199 -
+ b/main/sounds.c                                                                               |  334 +
+ b/main/stasis.c                                                                               |   93
+ b/main/stasis_bridges.c                                                                       |  102
+ b/main/stasis_cache.c                                                                         |   21
+ b/main/stasis_cache_pattern.c                                                                 |   30
+ b/main/stasis_channels.c                                                                      |  316 +
+ b/main/stasis_endpoints.c                                                                     |   41
+ b/main/stasis_message_router.c                                                                |    7
+ b/main/stasis_system.c                                                                        |   15
+ b/main/stdtime/localtime.c                                                                    |    5
+ b/main/taskprocessor.c                                                                        |    8
+ b/main/tdd.c                                                                                  |    1
+ b/main/threadpool.c                                                                           |    4
+ b/main/threadstorage.c                                                                        |    5
+ b/main/ulaw.c                                                                                 |    1
+ b/main/xml.c                                                                                  |    1
+ b/main/xmldoc.c                                                                               |    2
+ b/makeopts.in                                                                                 |    3
+ b/menuselect/Makefile                                                                         |    7
+ b/menuselect/README                                                                           |   12
+ b/menuselect/autoconfig.h.in                                                                  |    1
+ b/menuselect/configure.ac                                                                     |    4
+ b/menuselect/contrib/Makefile-dummy                                                           |    1
+ b/menuselect/contrib/menuselect-dummy                                                         |   58
+ b/menuselect/example_menuselect-tree                                                          |    2
+ b/menuselect/linkedlists.h                                                                    |    2
+ b/menuselect/make_version                                                                     |   16
+ b/menuselect/makeopts.in                                                                      |    1
+ b/menuselect/menuselect_curses.c                                                              |   22
+ b/menuselect/menuselect_gtk.c                                                                 |   10
+ b/menuselect/menuselect_stub.c                                                                |    2
+ b/menuselect/strcompat.c                                                                      |    4
+ b/menuselect/test/menuselect-tree                                                             |    2
+ b/pbx/Makefile                                                                                |    2
+ b/pbx/ael/ael-test/ael-ntest12/extensions.ael                                                 |    4
+ b/pbx/ael/ael-test/ael-ntest22/extensions.ael                                                 |    2
+ b/pbx/ael/ael-test/ael-ntest22/t2/f.ael                                                       |    1
+ b/pbx/ael/ael-test/ael-ntest23/t2/f.ael                                                       |    1
+ b/pbx/ael/ael-test/ael-ntest24/extensions.ael                                                 |    2
+ b/pbx/ael/ael-test/ael-ntest9/extensions.ael                                                  |    1
+ b/pbx/ael/ael-test/ael-test1/extensions.ael                                                   |   20
+ b/pbx/ael/ael-test/ael-test11/extensions.ael                                                  |    2
+ b/pbx/ael/ael-test/ael-test16/extensions.ael                                                  |    1
+ b/pbx/ael/ael-test/ael-test18/extensions.ael                                                  |    1
+ b/pbx/ael/ael-test/ael-test19/extensions.ael                                                  |   12
+ b/pbx/ael/ael-test/ael-test2/extensions.ael                                                   |    3
+ b/pbx/ael/ael-test/ael-test20/extensions.ael                                                  |    1
+ b/pbx/ael/ael-test/ael-test3/extensions.ael                                                   |  398 +-
+ b/pbx/ael/ael-test/ael-test3/telemarket_torture.ael2                                          |   50
+ b/pbx/ael/ael-test/ael-test4/extensions.ael                                                   |    3
+ b/pbx/ael/ael-test/ael-test7/extensions.ael                                                   |    9
+ b/pbx/ael/ael-test/ael-test8/extensions.ael                                                   |    1
+ b/pbx/ael/ael-test/ael-vtest13/extensions.ael                                                 |  398 +-
+ b/pbx/ael/ael-test/ael-vtest13/telemarket_torture.ael2                                        |   50
+ b/pbx/ael/ael-test/ael-vtest17/extensions.ael                                                 |    6
+ b/pbx/ael/ael-test/ael-vtest21/extensions.ael                                                 |    1
+ b/pbx/ael/ael-test/runtests                                                                   |    2
+ b/pbx/dundi-parser.c                                                                          |   20
+ b/pbx/pbx_ael.c                                                                               |   20
+ b/pbx/pbx_config.c                                                                            |   32
+ b/pbx/pbx_dundi.c                                                                             |    7
+ b/pbx/pbx_lua.c                                                                               |  103
+ b/pbx/pbx_realtime.c                                                                          |    7
+ b/pbx/pbx_spool.c                                                                             |    4
+ b/res/Makefile                                                                                |    2
+ b/res/ael/ael.flex                                                                            |   28
+ b/res/ael/ael.tab.c                                                                           |   18
+ b/res/ael/ael.tab.h                                                                           |   13
+ b/res/ael/ael.y                                                                               |   11
+ b/res/ael/ael_lex.c                                                                           |   95
+ b/res/ael/pval.c                                                                              |  845 ++---
+ b/res/ari/ari_model_validators.h                                                              |    2
+ b/res/ari/ari_websockets.c                                                                    |    2
+ b/res/ari/resource_events.c                                                                   |    3
+ b/res/parking/res_parking.h                                                                   |    2
+ b/res/res_ael_share.c                                                                         |    2
+ b/res/res_calendar.c                                                                          |    8
+ b/res/res_calendar_caldav.c                                                                   |    3
+ b/res/res_calendar_ews.c                                                                      |    1
+ b/res/res_calendar_exchange.c                                                                 |    1
+ b/res/res_calendar_icalendar.c                                                                |    3
+ b/res/res_clialiases.c                                                                        |    8
+ b/res/res_config_curl.c                                                                       |    2
+ b/res/res_config_ldap.c                                                                       |   48
+ b/res/res_config_odbc.c                                                                       |   10
+ b/res/res_config_pgsql.c                                                                      |    9
+ b/res/res_config_sqlite.c                                                                     |   10
+ b/res/res_config_sqlite3.c                                                                    |    8
+ b/res/res_convert.c                                                                           |   20
+ b/res/res_corosync.c                                                                          |    1
+ b/res/res_curl.c                                                                              |   20
+ b/res/res_fax.c                                                                               |    4
+ b/res/res_fax_spandsp.c                                                                       |    4
+ b/res/res_format_attr_opus.c                                                                  |    2
+ b/res/res_format_attr_silk.c                                                                  |    2
+ b/res/res_http_post.c                                                                         |    4
+ b/res/res_http_websocket.c                                                                    |   30
+ b/res/res_limit.c                                                                             |    3
+ b/res/res_monitor.c                                                                           |   28
+ b/res/res_musiconhold.c                                                                       |   50
+ b/res/res_mwi_external_ami.c                                                                  |    1
+ b/res/res_odbc.c                                                                              |   17
+ b/res/res_odbc_transaction.c                                                                  |    2
+ b/res/res_phoneprov.c                                                                         |    2
+ b/res/res_pjsip.c                                                                             |  206 -
+ b/res/res_pjsip/config_domain_aliases.c                                                       |   22
+ b/res/res_pjsip/config_transport.c                                                            |    9
+ b/res/res_pjsip/include/res_pjsip_private.h                                                   |   42
+ b/res/res_pjsip/location.c                                                                    |    1
+ b/res/res_pjsip/pjsip_configuration.c                                                         |  113
+ b/res/res_pjsip/pjsip_distributor.c                                                           |    8
+ b/res/res_pjsip/pjsip_global_headers.c                                                        |    4
+ b/res/res_pjsip/pjsip_options.c                                                               |    2
+ b/res/res_pjsip/pjsip_session.c                                                               |    1
+ b/res/res_pjsip/pjsip_transport_events.c                                                      |   83
+ b/res/res_pjsip/pjsip_transport_management.c                                                  |  376 ++
+ b/res/res_pjsip_endpoint_identifier_anonymous.c                                               |   38
+ b/res/res_pjsip_endpoint_identifier_ip.c                                                      |  229 -
+ b/res/res_pjsip_endpoint_identifier_user.c                                                    |   41
+ b/res/res_pjsip_header_funcs.c                                                                |   27
+ b/res/res_pjsip_history.c                                                                     |    2
+ b/res/res_pjsip_mwi.c                                                                         |    2
+ b/res/res_pjsip_outbound_registration.c                                                       |   13
+ b/res/res_pjsip_pubsub.c                                                                      |   79
+ b/res/res_pjsip_registrar.c                                                                   |  173 -
+ b/res/res_pjsip_registrar_expire.c                                                            |  119
+ b/res/res_pjsip_sdp_rtp.c                                                                     |    4
+ b/res/res_pjsip_session.c                                                                     |   56
+ b/res/res_pktccops.c                                                                          |   71
+ b/res/res_realtime.c                                                                          |   10
+ b/res/res_rtp_multicast.c                                                                     |    2
+ b/res/res_smdi.c                                                                              |   34
+ b/res/res_snmp.c                                                                              |    4
+ b/res/res_sorcery_realtime.c                                                                  |    7
+ b/res/res_srtp.c                                                                              |    4
+ b/res/res_stasis.c                                                                            |  226 -
+ b/res/res_timing_dahdi.c                                                                      |    8
+ b/res/res_timing_pthread.c                                                                    |    2
+ b/res/snmp/agent.c                                                                            |    2
+ b/res/stasis/app.c                                                                            |  211 -
+ b/res/stasis/command.c                                                                        |   13
+ b/res/stasis/control.c                                                                        |   58
+ b/res/stasis/stasis_bridge.c                                                                  |    3
+ b/res/stasis_recording/stored.c                                                               |   25
+ b/rest-api-templates/ari_model_validators.h.mustache                                          |    2
+ b/sample.call                                                                                 |    1
+ b/sounds/Makefile                                                                             |    6
+ b/static-http/ajamdemo.html                                                                   |   40
+ b/static-http/astman.css                                                                      |    2
+ b/static-http/astman.js                                                                       |    8
+ b/static-http/mantest.html                                                                    |    6
+ b/tests/Makefile                                                                              |    2
+ b/tests/test_acl.c                                                                            |    2
+ b/tests/test_ami_security_events.sh                                                           |    1
+ b/tests/test_aoc.c                                                                            |    2
+ b/tests/test_config.c                                                                         |    1
+ b/tests/test_dlinklists.c                                                                     |   28
+ b/tests/test_locale.c                                                                         |    2
+ b/tests/test_skel.c                                                                           |    4
+ b/tests/test_substitution.c                                                                   |    2
+ b/tests/test_taskprocessor.c                                                                  |    2
+ b/third-party/Makefile                                                                        |    1
+ b/third-party/configure.m4                                                                    |    1
+ b/third-party/pjproject/Makefile.rules                                                        |    2
+ b/third-party/pjproject/apply_patches                                                         |    1
+ b/third-party/pjproject/patches/0060-sip_msg-Prevent-crash-on-header-without-vptr.patch       |   47
+ b/third-party/pjproject/patches/0070-sdp_media_fmt.patch                                      |   19
+ b/third-party/pjproject/patches/0071-sdp_fmtp_attr.patch                                      |   34
+ b/third-party/pjproject/patches/asterisk_malloc_debug.c                                       |    2
+ b/third-party/pjproject/patches/user.mak                                                      |    2
+ b/utils/Makefile                                                                              |    8
+ b/utils/ael_main.c                                                                            |   62
+ b/utils/astcanary.c                                                                           |    1
+ b/utils/astman.1                                                                              |   34
+ b/utils/astman.c                                                                              |   62
+ b/utils/check_expr.c                                                                          |   42
+ b/utils/conf2ael.c                                                                            |   88
+ b/utils/db1-ast/hash/README                                                                   |   18
+ b/utils/db1-ast/hash/hash_page.c                                                              |    2
+ b/utils/db1-ast/include/db.h                                                                  |    2
+ b/utils/db1-ast/recno/rec_search.c                                                            |    2
+ b/utils/db1-ast/recno/rec_seq.c                                                               |    2
+ b/utils/extconf.c                                                                             |  283 -
+ b/utils/frame.c                                                                               |    7
+ b/utils/frame.h                                                                               |    2
+ b/utils/muted.c                                                                               |   18
+ doc/api-1.6.2-changes.txt                                                                     |    6
+ main/sounds_index.c                                                                           |  334 -
+ menuselect/bootstrap.sh                                                                       |   41
+ res/res_pjsip_transport_management.c                                                          |  400 --
+ 839 files changed, 15253 insertions(+), 16594 deletions(-)
