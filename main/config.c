@@ -3934,8 +3934,8 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct cache_file_mtime *cfmtime;
-	char *prev = "", *completion_value = NULL;
-	int wordlen, which = 0;
+	char *prev = "";
+	int wordlen;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -3953,19 +3953,20 @@ static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct a
 
 		AST_LIST_LOCK(&cfmtime_head);
 		AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-			/* Skip duplicates - this only works because the list is sorted by filename */
-			if (strcmp(cfmtime->filename, prev) == 0) {
-				continue;
-			}
-
 			/* Core configs cannot be reloaded */
 			if (ast_strlen_zero(cfmtime->who_asked)) {
 				continue;
 			}
 
-			if (++which > a->n && strncmp(cfmtime->filename, a->word, wordlen) == 0) {
-				completion_value = ast_strdup(cfmtime->filename);
-				break;
+			/* Skip duplicates - this only works because the list is sorted by filename */
+			if (!strcmp(cfmtime->filename, prev)) {
+				continue;
+			}
+
+			if (!strncmp(cfmtime->filename, a->word, wordlen)) {
+				if (ast_cli_completion_add(ast_strdup(cfmtime->filename))) {
+					break;
+				}
 			}
 
 			/* Otherwise save that we've seen this filename */
@@ -3973,7 +3974,7 @@ static char *handle_cli_config_reload(struct ast_cli_entry *e, int cmd, struct a
 		}
 		AST_LIST_UNLOCK(&cfmtime_head);
 
-		return completion_value;
+		return NULL;
 	}
 
 	if (a->argc != 3) {
