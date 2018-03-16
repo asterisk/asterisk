@@ -31825,105 +31825,6 @@ fi
 
 
 
-if test "${OSARCH}" = "OpenBSD";
-then
-
-if test "x${PBX_VORBIS}" != "x1" -a "${USE_VORBIS}" != "no"; then
-   pbxlibdir=""
-   # if --with-VORBIS=DIR has been specified, use it.
-   if test "x${VORBIS_DIR}" != "x"; then
-      if test -d ${VORBIS_DIR}/lib; then
-         pbxlibdir="-L${VORBIS_DIR}/lib"
-      else
-         pbxlibdir="-L${VORBIS_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for vorbis_info_init in -lvorbis" >&5
-$as_echo_n "checking for vorbis_info_init in -lvorbis... " >&6; }
-if ${ac_cv_lib_vorbis_vorbis_info_init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lvorbis ${pbxlibdir} -lm -lvorbisenc -lvorbisfile -logg $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char vorbis_info_init ();
-int
-main ()
-{
-return vorbis_info_init ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_vorbis_vorbis_info_init=yes
-else
-  ac_cv_lib_vorbis_vorbis_info_init=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_vorbis_vorbis_info_init" >&5
-$as_echo "$ac_cv_lib_vorbis_vorbis_info_init" >&6; }
-if test "x$ac_cv_lib_vorbis_vorbis_info_init" = xyes; then :
-  AST_VORBIS_FOUND=yes
-else
-  AST_VORBIS_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_VORBIS_FOUND}" = "yes"; then
-      VORBIS_LIB="${pbxlibdir} -lvorbis -lm -lvorbisenc -lvorbisfile -logg"
-      # if --with-VORBIS=DIR has been specified, use it.
-      if test "x${VORBIS_DIR}" != "x"; then
-         VORBIS_INCLUDE="-I${VORBIS_DIR}/include"
-      fi
-      VORBIS_INCLUDE="${VORBIS_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${VORBIS_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "vorbis/codec.h" "ac_cv_header_vorbis_codec_h" "$ac_includes_default"
-if test "x$ac_cv_header_vorbis_codec_h" = xyes; then :
-  VORBIS_HEADER_FOUND=1
-else
-  VORBIS_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${VORBIS_HEADER_FOUND}" = "x0" ; then
-         VORBIS_LIB=""
-         VORBIS_INCLUDE=""
-      else
-
-         PBX_VORBIS=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_VORBIS 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-else
 
 if test "x${PBX_VORBIS}" != "x1" -a "${USE_VORBIS}" != "no"; then
    pbxlibdir=""
@@ -32020,7 +31921,6 @@ _ACEOF
 fi
 
 
-fi
 
     if test "x${PBX_VORBIS_OPEN_CALLBACKS}" != "x1" -a "${USE_VORBIS_OPEN_CALLBACKS}" != "no"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OV_CALLBACKS_NOCLOSE declared in vorbis/vorbisfile.h" >&5
