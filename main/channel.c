@@ -6485,11 +6485,15 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	 * to use SLINEAR between channels, but only if there is
 	 * no direct conversion available. If generic PLC is
 	 * desired, then transcoding via SLINEAR is a requirement
+	 * even if the formats are the same.
 	 */
-	if (ast_format_cmp(best_dst_fmt, best_src_fmt) == AST_FORMAT_CMP_NOT_EQUAL
-		&& (ast_opt_generic_plc || ast_opt_transcode_via_slin)) {
+	if (ast_opt_generic_plc_on_equal_codecs
+		|| (ast_format_cmp(best_dst_fmt, best_src_fmt) == AST_FORMAT_CMP_NOT_EQUAL
+			&& (ast_opt_generic_plc || ast_opt_transcode_via_slin))) {
+
 		int use_slin = (ast_format_cache_is_slinear(best_src_fmt)
-			|| ast_format_cache_is_slinear(best_dst_fmt)) ? 1 : 0;
+			|| ast_format_cache_is_slinear(best_dst_fmt))
+			? 1 : ast_opt_generic_plc_on_equal_codecs;
 
 		if (use_slin || ast_translate_path_steps(best_dst_fmt, best_src_fmt) != 1) {
 			int best_sample_rate = (ast_format_get_sample_rate(best_src_fmt) > ast_format_get_sample_rate(best_dst_fmt)) ?

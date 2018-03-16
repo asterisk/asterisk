@@ -262,9 +262,18 @@ static int reload_module(void)
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 		if (!strcasecmp(var->name, "genericplc")) {
 			ast_set2_flag(&ast_options, ast_true(var->value), AST_OPT_FLAG_GENERIC_PLC);
+		} else if (!strcasecmp(var->name, "genericplc_on_equal_codecs")) {
+			ast_set2_flag(&ast_options, ast_true(var->value), AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS);
 		}
 	}
 	ast_config_destroy(cfg);
+
+	/*
+	 * Force on_equal_codecs to false if generic_plc is false.
+	 */
+	if (!ast_opt_generic_plc) {
+		ast_set2_flag(&ast_options, 0, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS);
+	}
 
 	return 0;
 }

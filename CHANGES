@@ -101,6 +101,13 @@ Core:
 --- Functionality changes from Asterisk 15.3.0 to Asterisk 15.4.0 ------------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * A new configuration option "genericplc_on_equal_codecs" was added to the
+   "plc" section of codecs.conf to allow generic packet loss concealment even
+   if no transcoding was originally needed.  Transcoding via SLIN is forced
+   in this case.
+
 res_pjproject
 ------------------
  * Added the "cache_pools" option to pjproject.conf.  Disabling the option
