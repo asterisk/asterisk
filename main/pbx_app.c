@@ -277,7 +277,7 @@ static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct as
 		 * application at one time. You can type 'show application Dial Echo' and
 		 * you will see informations about these two applications ...
 		 */
-		return ast_complete_applications(a->line, a->word, a->n);
+		return ast_complete_applications(a->line, a->word, -1);
 	}
 
 	if (a->argc < 4) {
@@ -439,20 +439,23 @@ char *ast_complete_applications(const char *line, const char *word, int state)
 	AST_RWLIST_RDLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, app, list) {
 		cmp = strncasecmp(word, app->name, wordlen);
-		if (cmp > 0) {
-			continue;
-		}
-		if (!cmp) {
-			/* Found match. */
-			if (++which <= state) {
-				/* Not enough matches. */
-				continue;
-			}
-			ret = ast_strdup(app->name);
+		if (cmp < 0) {
+			/* No more matches. */
 			break;
+		} else if (!cmp) {
+			/* Found match. */
+			if (state != -1) {
+				if (++which <= state) {
+					/* Not enough matches. */
+					continue;
+				}
+				ret = ast_strdup(app->name);
+				break;
+			}
+			if (ast_cli_completion_add(ast_strdup(app->name))) {
+				break;
+			}
 		}
-		/* Not in container. */
-		break;
 	}
 	AST_RWLIST_UNLOCK(&apps);
 
