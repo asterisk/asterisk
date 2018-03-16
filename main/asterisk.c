@@ -675,6 +675,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Transcode via SLIN:          %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Generic PLC on equal codecs: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
 
 	if (ast_option_rtpptdynamic == AST_RTP_PT_LAST_REASSIGN) {

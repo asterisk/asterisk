@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.18-cert3 to Asterisk 13.18-cert4 --
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * A new configuration option "genericplc_on_equal_codecs" was added to the
+   "plc" section of codecs.conf to allow generic packet loss concealment even
+   if no transcoding was originally needed.  Transcoding via SLIN is forced
+   in this case.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.18-cert2 to Asterisk 13.18-cert3 --
 ------------------------------------------------------------------------------
 
