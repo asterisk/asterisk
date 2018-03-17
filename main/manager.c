@@ -2325,9 +2325,9 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 {
 	struct manager_action *cur;
 	struct ast_str *authority;
-	int num, l, which;
+	int num;
+	int l;
 	const char *auth_str;
-	char *ret = NULL;
 #ifdef AST_XML_DOCS
 	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64];
 	char arguments_title[64], privilege_title[64], final_response_title[64], list_responses_title[64];
@@ -2342,16 +2342,16 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;
 	case CLI_GENERATE:
 		l = strlen(a->word);
-		which = 0;
 		AST_RWLIST_RDLOCK(&actions);
 		AST_RWLIST_TRAVERSE(&actions, cur, list) {
-			if (!strncasecmp(a->word, cur->action, l) && ++which > a->n) {
-				ret = ast_strdup(cur->action);
-				break;	/* make sure we exit even if ast_strdup() returns NULL */
+			if (!strncasecmp(a->word, cur->action, l)) {
+				if (ast_cli_completion_add(ast_strdup(cur->action))) {
+					break;
+				}
 			}
 		}
 		AST_RWLIST_UNLOCK(&actions);
-		return ret;
+		return NULL;
 	}
 	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
@@ -2481,8 +2481,7 @@ static char *handle_mandebug(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_manager_user *user = NULL;
-	int l, which;
-	char *ret = NULL;
+	int l;
 	struct ast_str *rauthority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	struct ast_str *wauthority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	struct ast_variable *v;
@@ -2496,19 +2495,19 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 	case CLI_GENERATE:
 		l = strlen(a->word);
-		which = 0;
 		if (a->pos != 3) {
 			return NULL;
 		}
 		AST_RWLIST_RDLOCK(&users);
 		AST_RWLIST_TRAVERSE(&users, user, list) {
-			if ( !strncasecmp(a->word, user->username, l) && ++which > a->n ) {
-				ret = ast_strdup(user->username);
-				break;
+			if (!strncasecmp(a->word, user->username, l)) {
+				if (ast_cli_completion_add(ast_strdup(user->username))) {
+					break;
+				}
 			}
 		}
 		AST_RWLIST_UNLOCK(&users);
-		return ret;
+		return NULL;
 	}
 
 	if (a->argc != 4) {
@@ -8636,8 +8635,6 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 	struct ao2_iterator it_events;
 	struct ast_xml_doc_item *item, *temp;
 	int length;
-	int which;
-	char *match = NULL;
 
 	if (cmd == CLI_INIT) {
 		e->command = "manager show event";
@@ -8654,19 +8651,24 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 	}
 
 	if (cmd == CLI_GENERATE) {
+		if (a->pos != 3) {
+			return NULL;
+		}
+
 		length = strlen(a->word);
-		which = 0;
 		it_events = ao2_iterator_init(events, 0);
 		while ((item = ao2_iterator_next(&it_events))) {
-			if (!strncasecmp(a->word, item->name, length) && ++which > a->n) {
-				match = ast_strdup(item->name);
-				ao2_ref(item, -1);
-				break;
+			if (!strncasecmp(a->word, item->name, length)) {
+				if (ast_cli_completion_add(ast_strdup(item->name))) {
+					ao2_ref(item, -1);
+					break;
+				}
 			}
 			ao2_ref(item, -1);
 		}
 		ao2_iterator_destroy(&it_events);
-		return match;
+
+		return NULL;
 	}
 
 	if (a->argc != 4) {
