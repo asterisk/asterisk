@@ -63,7 +63,6 @@
 	</member>
 	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
 		<depend>generic_odbc</depend>
-		<depend>ltdl</depend>
 		<conflict>IMAP_STORAGE</conflict>
 		<conflict>FILE_STORAGE</conflict>
 		<defaultenabled>no</defaultenabled>

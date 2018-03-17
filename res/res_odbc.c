@@ -42,7 +42,6 @@
 /*** MODULEINFO
 	<depend>generic_odbc</depend>
 	<depend>res_odbc_transaction</depend>
-	<depend>ltdl</depend>
 	<support_level>core</support_level>
  ***/
 
