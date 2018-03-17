@@ -648,9 +648,7 @@ static struct ast_tone_zone *ast_tone_zone_alloc(void)
 
 static char *complete_country(struct ast_cli_args *a)
 {
-	char *res = NULL;
 	struct ao2_iterator i;
-	int which = 0;
 	size_t wordlen;
 	struct ast_tone_zone *tz;
 
@@ -658,17 +656,17 @@ static char *complete_country(struct ast_cli_args *a)
 
 	i = ao2_iterator_init(ast_tone_zones, 0);
 	while ((tz = ao2_iterator_next(&i))) {
-		if (!strncasecmp(a->word, tz->country, wordlen) && ++which > a->n) {
-			res = ast_strdup(tz->country);
+		if (!strncasecmp(a->word, tz->country, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(tz->country))) {
+				ast_tone_zone_unref(tz);
+				break;
+			}
 		}
-		tz = ast_tone_zone_unref(tz);
-		if (res) {
-			break;
-		}
+		ast_tone_zone_unref(tz);
 	}
 	ao2_iterator_destroy(&i);
 
-	return res;
+	return NULL;
 }
 
 static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -734,17 +732,17 @@ static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct 
 
 static char *complete_indications(struct ast_cli_args *a)
 {
-	char *res = NULL;
-	int which = 0;
 	size_t wordlen;
 	struct ast_tone_zone_sound *ts;
-	struct ast_tone_zone *tz, tmp_tz = {
+	struct ast_tone_zone *tz;
+	struct ast_tone_zone tmp_tz = {
 		.nrringcadence = 0,
 	};
 
 	ast_copy_string(tmp_tz.country, a->argv[a->pos - 1], sizeof(tmp_tz.country));
 
-	if (!(tz = ao2_find(ast_tone_zones, &tmp_tz, OBJ_POINTER))) {
+	tz = ao2_find(ast_tone_zones, &tmp_tz, OBJ_POINTER);
+	if (!tz) {
 		return NULL;
 	}
 
@@ -752,16 +750,17 @@ static char *complete_indications(struct ast_cli_args *a)
 
 	ast_tone_zone_lock(tz);
 	AST_LIST_TRAVERSE(&tz->tones, ts, entry) {
-		if (!strncasecmp(a->word, ts->name, wordlen) && ++which > a->n) {
-			res = ast_strdup(ts->name);
-			break;
+		if (!strncasecmp(a->word, ts->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(ts->name))) {
+				break;
+			}
 		}
 	}
 	ast_tone_zone_unlock(tz);
 
 	tz = ast_tone_zone_unref(tz);
 
-	return res;
+	return NULL;
 }
 
 static char *handle_cli_indication_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
