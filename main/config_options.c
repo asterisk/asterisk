@@ -960,88 +960,79 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj)
 /*! \internal
  * \brief Complete the name of the module the user is looking for
  */
-static char *complete_config_module(const char *word, int pos, int state)
+static char *complete_config_module(const char *word)
 {
-	char *c = NULL;
 	size_t wordlen = strlen(word);
-	int which = 0;
 	struct ao2_iterator i;
 	struct ast_xml_doc_item *cur;
 
-	if (pos != 3) {
-		return NULL;
-	}
-
 	i = ao2_iterator_init(xmldocs, 0);
 	while ((cur = ao2_iterator_next(&i))) {
-		if (!strncasecmp(word, cur->name, wordlen) && ++which > state) {
-			c = ast_strdup(cur->name);
-			ao2_ref(cur, -1);
-			break;
+		if (!strncasecmp(word, cur->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cur->name))) {
+				ao2_ref(cur, -1);
+				break;
+			}
 		}
 		ao2_ref(cur, -1);
 	}
 	ao2_iterator_destroy(&i);
 
-	return c;
+	return NULL;
 }
 
 /*! \internal
  * \brief Complete the name of the configuration type the user is looking for
  */
-static char *complete_config_type(const char *module, const char *word, int pos, int state)
+static char *complete_config_type(const char *module, const char *word)
 {
-	char *c = NULL;
 	size_t wordlen = strlen(word);
-	int which = 0;
-	RAII_VAR(struct ast_xml_doc_item *, info, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *info;
 	struct ast_xml_doc_item *cur;
 
-	if (pos != 4) {
-		return NULL;
-	}
-
-	if (!(info = ao2_find(xmldocs, module, OBJ_KEY))) {
+	info = ao2_find(xmldocs, module, OBJ_KEY);
+	if (!info) {
 		return NULL;
 	}
 
 	cur = info;
 	while ((cur = AST_LIST_NEXT(cur, next))) {
-		if (!strcasecmp(cur->type, "configObject") && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
-			c = ast_strdup(cur->name);
-			break;
+		if (!strcasecmp(cur->type, "configObject") && !strncasecmp(word, cur->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cur->name))) {
+				break;
+			}
 		}
 	}
-	return c;
+	ao2_ref(info, -1);
+
+	return NULL;
 }
 
 /*! \internal
  * \brief Complete the name of the configuration option the user is looking for
  */
-static char *complete_config_option(const char *module, const char *option, const char *word, int pos, int state)
+static char *complete_config_option(const char *module, const char *option, const char *word)
 {
-	char *c = NULL;
 	size_t wordlen = strlen(word);
-	int which = 0;
-	RAII_VAR(struct ast_xml_doc_item *, info, NULL, ao2_cleanup);
+	struct ast_xml_doc_item *info;
 	struct ast_xml_doc_item *cur;
 
-	if (pos != 5) {
-		return NULL;
-	}
-
-	if (!(info = ao2_find(xmldocs, module, OBJ_KEY))) {
+	info = ao2_find(xmldocs, module, OBJ_KEY);
+	if (!info) {
 		return NULL;
 	}
 
 	cur = info;
 	while ((cur = AST_LIST_NEXT(cur, next))) {
-		if (!strcasecmp(cur->type, "configOption") && !strcasecmp(cur->ref, option) && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
-			c = ast_strdup(cur->name);
-			break;
+		if (!strcasecmp(cur->type, "configOption") && !strcasecmp(cur->ref, option) && !strncasecmp(word, cur->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cur->name))) {
+				break;
+			}
 		}
 	}
-	return c;
+	ao2_ref(info, -1);
+
+	return NULL;
 }
 
 /* Define as 0 if we want to allow configurations to be registered without
@@ -1342,10 +1333,14 @@ static char *cli_show_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return NULL;
 	case CLI_GENERATE:
 		switch(a->pos) {
-		case 3: return complete_config_module(a->word, a->pos, a->n);
-		case 4: return complete_config_type(a->argv[3], a->word, a->pos, a->n);
-		case 5: return complete_config_option(a->argv[3], a->argv[4], a->word, a->pos, a->n);
-		default: return NULL;
+		case 3:
+			return complete_config_module(a->word);
+		case 4:
+			return complete_config_type(a->argv[3], a->word);
+		case 5:
+			return complete_config_option(a->argv[3], a->argv[4], a->word);
+		default:
+			return NULL;
 		}
 	}
 
