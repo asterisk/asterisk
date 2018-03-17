@@ -1046,10 +1046,6 @@ PBX_LUA
 LUA_DIR
 LUA_INCLUDE
 LUA_LIB
-PBX_LTDL
-LTDL_DIR
-LTDL_INCLUDE
-LTDL_LIB
 PBX_LIBXSLT_CLEANUP
 LIBXSLT_CLEANUP_DIR
 LIBXSLT_CLEANUP_INCLUDE
@@ -1408,7 +1404,6 @@ with_libcurl
 with_libedit
 with_libxml2
 with_libxslt
-with_ltdl
 with_lua
 with_misdn
 with_mysqlclient
@@ -2165,7 +2160,6 @@ Optional Packages:
   --with-libedit=PATH     use NetBSD Editline library files in PATH
   --with-libxml2=PATH     use LibXML2 files in PATH
   --with-libxslt=PATH     use LibXSLT files in PATH
-  --with-ltdl=PATH        use libtool files in PATH
   --with-lua=PATH         use Lua files in PATH
   --with-misdn=PATH       use mISDN user files in PATH
   --with-mysqlclient=PATH use MySQL client files in PATH
@@ -10795,38 +10789,6 @@ LIBXSLT_CLEANUP_OPTION=libxslt
 LIBXSLT_CLEANUP_DIR=${LIBXSLT_DIR}
 
 PBX_LIBXSLT_CLEANUP=0
-
-
-
-
-
-
-
-    LTDL_DESCRIP="libtool"
-    LTDL_OPTION="ltdl"
-    PBX_LTDL=0
-
-# Check whether --with-ltdl was given.
-if test "${with_ltdl+set}" = set; then :
-  withval=$with_ltdl;
-	case ${withval} in
-	n|no)
-	USE_LTDL=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_LTDL=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LTDL"
-	;;
-	*)
-	LTDL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LTDL"
-	;;
-	esac
-
-fi
-
 
 
 
@@ -22437,104 +22399,6 @@ _ACEOF
 
 fi
 done
-
-
-# Needed by unixodbc
-
-if test "x${PBX_LTDL}" != "x1" -a "${USE_LTDL}" != "no"; then
-   pbxlibdir=""
-   # if --with-LTDL=DIR has been specified, use it.
-   if test "x${LTDL_DIR}" != "x"; then
-      if test -d ${LTDL_DIR}/lib; then
-         pbxlibdir="-L${LTDL_DIR}/lib"
-      else
-         pbxlibdir="-L${LTDL_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lt_dlinit in -lltdl" >&5
-$as_echo_n "checking for lt_dlinit in -lltdl... " >&6; }
-if ${ac_cv_lib_ltdl_lt_dlinit+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lltdl ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char lt_dlinit ();
-int
-main ()
-{
-return lt_dlinit ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ltdl_lt_dlinit=yes
-else
-  ac_cv_lib_ltdl_lt_dlinit=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ltdl_lt_dlinit" >&5
-$as_echo "$ac_cv_lib_ltdl_lt_dlinit" >&6; }
-if test "x$ac_cv_lib_ltdl_lt_dlinit" = xyes; then :
-  AST_LTDL_FOUND=yes
-else
-  AST_LTDL_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_LTDL_FOUND}" = "yes"; then
-      LTDL_LIB="${pbxlibdir} -lltdl "
-      # if --with-LTDL=DIR has been specified, use it.
-      if test "x${LTDL_DIR}" != "x"; then
-         LTDL_INCLUDE="-I${LTDL_DIR}/include"
-      fi
-      LTDL_INCLUDE="${LTDL_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${LTDL_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "ltdl.h" "ac_cv_header_ltdl_h" "$ac_includes_default"
-if test "x$ac_cv_header_ltdl_h" = xyes; then :
-  LTDL_HEADER_FOUND=1
-else
-  LTDL_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${LTDL_HEADER_FOUND}" = "x0" ; then
-         LTDL_LIB=""
-         LTDL_INCLUDE=""
-      else
-
-         PBX_LTDL=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_LTDL 1
-_ACEOF
-
-      fi
-   fi
-fi
-
 
 
 
