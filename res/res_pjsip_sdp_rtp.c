@@ -222,6 +222,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	} else if (session_media->type == AST_MEDIA_TYPE_VIDEO) {
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
+		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_REMB, session->endpoint->media.webrtc);
 		if (session->endpoint->media.tos_video || session->endpoint->media.cos_video) {
 			ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
 					session->endpoint->media.cos_video, "SIP RTP Video");
@@ -1091,6 +1092,9 @@ static void add_rtcp_fb_to_stream(struct ast_sip_session *session,
 	 * necessarily been negotiated.
 	 */
 	attr = pjmedia_sdp_attr_create(pool, "rtcp-fb", pj_cstr(&stmp, "* ccm fir"));
+	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+
+	attr = pjmedia_sdp_attr_create(pool, "rtcp-fb", pj_cstr(&stmp, "* goog-remb"));
 	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
 }
 

@@ -126,6 +126,8 @@ enum ast_rtp_property {
 	AST_RTP_PROPERTY_RETRANS_RECV,
 	/*! Enable packet retransmission for sent packets */
 	AST_RTP_PROPERTY_RETRANS_SEND,
+	/*! Enable REMB sending and receiving passthrough support */
+	AST_RTP_PROPERTY_REMB,
 
 	/*!
 	 * \brief Maximum number of RTP properties supported
