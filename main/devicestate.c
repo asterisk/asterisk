@@ -239,12 +239,6 @@ const char *ast_devstate2str(enum ast_device_state devstate)
 	return devstatestring[devstate][0];
 }
 
-/* Deprecated interface (not prefixed with ast_) */
-const char *devstate2str(enum ast_device_state devstate)
-{
-	return devstatestring[devstate][0];
-}
-
 enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate)
 {
 	int i;
@@ -513,11 +507,6 @@ int ast_devstate_changed_literal(enum ast_device_state state, enum ast_devstate_
 	return 0;
 }
 
-int ast_device_state_changed_literal(const char *dev)
-{
-	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, dev);
-}
-
 int ast_devstate_changed(enum ast_device_state state, enum ast_devstate_cache cachable, const char *fmt, ...)
 {
 	char buf[AST_MAX_EXTENSION];
@@ -528,18 +517,6 @@ int ast_devstate_changed(enum ast_device_state state, enum ast_devstate_cache ca
 	va_end(ap);
 
 	return ast_devstate_changed_literal(state, cachable, buf);
-}
-
-int ast_device_state_changed(const char *fmt, ...)
-{
-	char buf[AST_MAX_EXTENSION];
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
-	va_end(ap);
-
-	return ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, buf);
 }
 
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */

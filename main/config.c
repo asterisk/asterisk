@@ -2502,11 +2502,6 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 	fi->lineno = lineno + 1; /* Advance the file lineno */
 }
 
-int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
-{
-	return ast_config_text_file_save2(configfile, cfg, generator, CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT);
-}
-
 int ast_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
 	return ast_config_text_file_save2(configfile, cfg, generator, CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT);

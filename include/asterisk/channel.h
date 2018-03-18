@@ -1144,22 +1144,6 @@ enum ama_flags {
  *       take a channel argument.
  */
 
-/*!
- * \brief Create a channel data store object
- * \deprecated You should use the ast_datastore_alloc() generic function instead.
- * \version 1.6.1 deprecated
- */
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
-	__attribute__((deprecated));
-
-/*!
- * \brief Free a channel data store object
- * \deprecated You should use the ast_datastore_free() generic function instead.
- * \version 1.6.1 deprecated
- */
-int ast_channel_datastore_free(struct ast_datastore *datastore)
-	__attribute__((deprecated));
-
 /*! \brief Inherit datastores from a parent to a child. */
 int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to);
 
@@ -1710,21 +1694,6 @@ void ast_channel_softhangup_withcause_locked(struct ast_channel *chan, int cause
 
 /*!
  * \brief Compare a offset with the settings of when to hang a channel up
- * \param chan channel on which to check for hang up
- * \param offset offset in seconds from current time
- * \return 1, 0, or -1
- * \details
- * This function compares a offset from current time with the absolute time
- * out on a channel (when to hang up). If the absolute time out on a channel
- * is earlier than current time plus the offset, it returns 1, if the two
- * time values are equal, it return 0, otherwise, it return -1.
- * \sa ast_channel_cmpwhentohangup_tv()
- * \version 1.6.1 deprecated function (only had seconds precision)
- */
-int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset) __attribute__((deprecated));
-
-/*!
- * \brief Compare a offset with the settings of when to hang a channel up
  * \param chan channel on which to check for hangup
  * \param offset offset in seconds and microseconds from current time
  * \return 1, 0, or -1
@@ -1735,23 +1704,6 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset) __attri
  * \since 1.6.1
  */
 int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offset);
-
-/*!
- * \brief Set when to hang a channel up
- *
- * \param chan channel on which to check for hang up
- * \param offset offset in seconds relative to the current time of when to hang up
- *
- * \details
- * This function sets the absolute time out on a channel (when to hang up).
- *
- * \pre chan is locked
- *
- * \return Nothing
- * \sa ast_channel_setwhentohangup_tv()
- * \version 1.6.1 deprecated function (only had seconds precision)
- */
-void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset) __attribute__((deprecated));
 
 /*!
  * \brief Set when to hang a channel up
@@ -2735,12 +2687,6 @@ int ast_namedgroups_intersect(struct ast_namedgroups *a, struct ast_namedgroups 
 
 /*! \brief Print named call groups and named pickup groups */
 char *ast_print_namedgroups(struct ast_str **buf, struct ast_namedgroups *groups);
-
-/*!
- * \brief Convert enum channelreloadreason to text string for manager event
- * \param reason The reason for reload (manager, cli, start etc)
- */
-const char *channelreloadreason2txt(enum channelreloadreason reason);
 
 /*! \brief return an ast_variable list of channeltypes */
 struct ast_variable *ast_channeltype_list(void);

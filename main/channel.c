@@ -520,12 +520,6 @@ void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval off
 	return;
 }
 
-void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
-{
-	struct timeval when = { offset, };
-	ast_channel_setwhentohangup_tv(chan, when);
-}
-
 /*! \brief Compare a offset with when to hangup channel */
 int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offset)
 {
@@ -540,12 +534,6 @@ int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offs
 	whentohangup = ast_tvadd(offset, ast_tvnow());
 
 	return ast_tvdiff_ms(whentohangup, *ast_channel_whentohangup(chan));
-}
-
-int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
-{
-	struct timeval when = { offset, };
-	return ast_channel_cmpwhentohangup_tv(chan, when);
 }
 
 /*! \brief Register a new telephony channel in Asterisk */
@@ -2387,16 +2375,6 @@ static void ast_dummy_channel_destructor(void *obj)
 	}
 
 	ast_channel_internal_cleanup(chan);
-}
-
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
-{
-	return ast_datastore_alloc(info, uid);
-}
-
-int ast_channel_datastore_free(struct ast_datastore *datastore)
-{
-	return ast_datastore_free(datastore);
 }
 
 int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to)
@@ -8008,24 +7986,6 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
 	ast_free(state);
 }
 
-
-/*! \ brief Convert channel reloadreason (ENUM) to text string for manager event */
-const char *channelreloadreason2txt(enum channelreloadreason reason)
-{
-	switch (reason) {
-	case CHANNEL_MODULE_LOAD:
-		return "LOAD (Channel module load)";
-
-	case CHANNEL_MODULE_RELOAD:
-		return "RELOAD (Channel module reload)";
-
-	case CHANNEL_CLI_RELOAD:
-		return "CLIRELOAD (Channel module reload by CLI command)";
-
-	default:
-		return "MANAGERRELOAD (Channel module reload by manager)";
-	}
-};
 
 /*
  * Wrappers for various ast_say_*() functions that call the full version
