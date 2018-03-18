@@ -40,7 +40,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
 
-/* The helper function is required by struct manager_custom_hook. See __manager_event for details */
+/* The helper function is required by struct manager_custom_hook.
+ * See __ast_manager_event_multichan for details */
 static int amihook_helper(int category, const char *event, char *content)
 {
 	ast_log(LOG_NOTICE, "AMI Event: \nCategory: %d Event: %s\n%s\n", category, event, content);
