@@ -1460,6 +1460,23 @@ AC_LINK_IFELSE(
 )
 LIBS=${old_LIBS}
 
+# re-check without -ldl
+# Non-Linux platforms like FreeBSD and NetBSD do not need a library libdl.so.
+if test "${PBX_DLADDR}" = "0"; then
+	AC_MSG_CHECKING(for dladdr in dlfcn.h without -ldl)
+	AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([#define _GNU_SOURCE 1
+#include <dlfcn.h>],
+			[dladdr((void *)0, (void *)0)]
+		)],
+		AC_MSG_RESULT(yes)
+		PBX_DLADDR=1
+		AC_SUBST([PBX_DLADDR])
+		AC_DEFINE([HAVE_DLADDR], 1, [Define to 1 if your system has the dladdr() GNU extension]),
+		AC_MSG_RESULT(no)
+	)
+fi
+
 # PKGCONFIG is used in later tests
 PKG_PROG_PKG_CONFIG()
 
