@@ -78,11 +78,9 @@
 			<support_level>extended</support_level>
 		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
-			<conflict>DEBUG_CHAOS</conflict>
 			<support_level>core</support_level>
 		</member>
 		<member name="DEBUG_CHAOS" displayname="Randomly FAIL memory allocations or other operations">
-			<conflict>MALLOC_DEBUG</conflict>
 			<support_level>core</support_level>
 		</member>
 		<member name="ADDRESS_SANITIZER" displayname="Address Sanitizer">

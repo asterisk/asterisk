@@ -227,6 +227,8 @@ static void *__ast_alloc_region(size_t size, const enum func_type which, const c
 	unsigned int *fence;
 	int hash;
 
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
 		astmm_log("Memory Allocation Failure - '%d' bytes at %s %s() line %d\n",
 			(int) size, file, func, lineno);
@@ -664,7 +666,6 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
 	if (!(*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func, 0))) {
-		va_end(ap);
 		return -1;
 	}
 	vsnprintf(*strp, size + 1, fmt, ap);
