@@ -7872,7 +7872,8 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 		ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", '#', '#');
 		return '#';
 	}
-	ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", res, res);
+	ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+		isprint(res) ? res : '?', isprint(res) ? res : '?');
 	return res;
 }
 
@@ -8035,7 +8036,8 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			if (retries > 3) {
 				cmd = '*'; /* Let's cancel this beast */
 			}
-			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+				isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 		}
 	}
 
@@ -8263,7 +8265,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 						cmd = 't';
 						done = 1;
 					}
-					ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+					ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+						isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 				}
 			}
 			if (cmd < 0 || cmd == 't')
@@ -8928,7 +8931,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 			ast_log(AST_LOG_WARNING, "Playback of message %s failed\n", vms->fn);
 			res = 0;
 		}
-		ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", res, res);
+		ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+			isprint(res) ? res : '?', isprint(res) ? res : '?');
 	}
 	DISPOSE(vms->curdir, vms->curmsg);
 	return res;
@@ -10783,7 +10787,8 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			if (retries > 3) {
 				cmd = 't';
 			}
-			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+				isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 		}
 	}
 	if (cmd == 't')
@@ -10863,7 +10868,8 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 				if (retries > 3) {
 					cmd = 't';
 				}
-				ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+				ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+					isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 			}
 		}
 		DISPOSE(prefile, -1);
@@ -11685,7 +11691,8 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	} else {
 		cmd = vm_intro(chan, vmu, &vms);
 	}
-	ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+	ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+		isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 
 	vms.repeats = 0;
 	vms.starting = 1;
@@ -11705,7 +11712,8 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 				adsi_folders(chan, 0, "Change to folder...");
 
 			cmd = get_folder2(chan, "vm-changeto", 0);
-			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+				isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 			if (cmd == '#') {
 				cmd = 0;
 			} else if (cmd > 0) {
@@ -11837,7 +11845,8 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 					if (vms.repeats > 3) {
 						cmd = 't';
 					}
-					ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+					ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+						isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 				}
 			}
 			if (cmd == 't') {
@@ -12015,7 +12024,8 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			if (useadsi)
 				adsi_folders(chan, 1, "Save to folder...");
 			cmd = get_folder2(chan, "vm-savefolder", 1);
-			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+				isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 			box = 0;	/* Shut up compiler */
 			if (cmd == '#') {
 				cmd = 0;
@@ -15181,7 +15191,8 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 				else
 					cmd = 't';
 			}
-			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", cmd, cmd);
+			ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+				isprint(cmd) ? cmd : '?', isprint(cmd) ? cmd : '?');
 		}
 		if (retries >= 3) {
 			return 0;
@@ -15346,7 +15357,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 						res = 't';
 					}
 				}
-				ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c", res, res);
+				ast_test_suite_event_notify("USERPRESS", "Message: User pressed %c\r\nDTMF: %c",
+					isprint(res) ? res : '?', isprint(res) ? res : '?');
 				break;
 
 			}
