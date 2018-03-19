@@ -127,9 +127,9 @@ have_download:
 	@if test "$(DOWNLOAD)" = ":" ; then \
 		echo "**************************************************"; \
 		echo "***                                            ***"; \
-		echo "*** You must have either wget or fetch to be   ***"; \
-		echo "*** able to automatically download and install ***"; \
-		echo "*** the requested sound packages.              ***"; \
+		echo "*** You must have either wget, curl, or fetch  ***"; \
+		echo "*** to be able to automatically download and   ***"; \
+		echo "*** install the requested sound packages.      ***"; \
 		echo "***                                            ***"; \
 		echo "*** Please install one of these, or remove any ***"; \
 		echo "*** extra sound package selections in          ***"; \
