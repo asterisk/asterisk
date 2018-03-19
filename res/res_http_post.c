@@ -513,4 +513,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "HTTP POST support",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
+	.requires = "http",
 );

@@ -1772,9 +1772,16 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
+/*
+ * This module should require "cdr" to enforce startup/shutdown ordering but it
+ * loads at REALTIME_DRIVER priority which would cause "cdr" to load too early.
+ *
+ * ast_cdr_register / ast_cdr_unregister is safe for use while "cdr" is not running.
+ */
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime SQLite configuration",
 	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_REALTIME_DRIVER,
+	.requires = "extconfig",
 );

@@ -2710,6 +2710,8 @@ static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static int reload_module(void);
+
 /*! \brief CLI command manager reload */
 static char *handle_manager_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -2726,7 +2728,7 @@ static char *handle_manager_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc > 2) {
 		return CLI_SHOWUSAGE;
 	}
-	reload_manager();
+	reload_module();
 	return CLI_SUCCESS;
 }
 
@@ -8971,8 +8973,6 @@ static int __init_manager(int reload, int by_external_config)
 #endif
 		int res;
 
-		ast_register_cleanup(manager_shutdown);
-
 		res = STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
 		if (res != 0) {
 			return -1;
@@ -9455,12 +9455,19 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
 	__init_manager(1, 1);
 }
 
-int init_manager(void)
+static int unload_module(void)
 {
-	return __init_manager(0, 0);
+	return 0;
 }
 
-int reload_manager(void)
+static int load_module(void)
+{
+	ast_register_cleanup(manager_shutdown);
+
+	return __init_manager(0, 0) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+}
+
+static int reload_module(void)
 {
 	return __init_manager(1, 0);
 }
@@ -9557,3 +9564,12 @@ ast_manager_event_blob_create(
 
 	return ev;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk Manager Interface",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+	.requires = "http",
+);

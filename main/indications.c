@@ -1114,7 +1114,7 @@ static int ast_tone_zone_cmp(void *obj, void *arg, int flags)
  * \internal
  * \brief Clean up resources on Asterisk shutdown
  */
-static void indications_shutdown(void)
+static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_indications, ARRAY_LEN(cli_indications));
 	if (default_tone_zone) {
@@ -1125,29 +1125,38 @@ static void indications_shutdown(void)
 		ao2_ref(ast_tone_zones, -1);
 		ast_tone_zones = NULL;
 	}
+
+	return 0;
 }
 
 /*! \brief Load indications module */
-int ast_indications_init(void)
+static int load_module(void)
 {
 	ast_tone_zones = ao2_container_alloc(NUM_TONE_ZONE_BUCKETS,
 			ast_tone_zone_hash, ast_tone_zone_cmp);
 	if (!ast_tone_zones) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (load_indications(0)) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_cli_register_multiple(cli_indications, ARRAY_LEN(cli_indications));
 
-	ast_register_cleanup(indications_shutdown);
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief Reload indications module */
-int ast_indications_reload(void)
+static int reload_module(void)
 {
 	return load_indications(1);
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Indication Tone Handling",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

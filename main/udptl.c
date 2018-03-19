@@ -67,6 +67,7 @@
 #include <signal.h>
 #include <fcntl.h>
 
+#include "asterisk/module.h"
 #include "asterisk/udptl.h"
 #include "asterisk/frame.h"
 #include "asterisk/channel.h"
@@ -1355,9 +1356,10 @@ static int udptl_pre_apply_config(void) {
 	return 0;
 }
 
-int ast_udptl_reload(void)
+static int reload_module(void)
 {
 	__ast_udptl_reload(1);
+
 	return 0;
 }
 
@@ -1365,17 +1367,19 @@ int ast_udptl_reload(void)
  * \internal
  * \brief Clean up resources on Asterisk shutdown
  */
-static void udptl_shutdown(void)
+static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 	ao2_t_global_obj_release(globals, "Unref udptl global container in shutdown");
 	aco_info_destroy(&cfg_info);
+
+	return 0;
 }
 
-void ast_udptl_init(void)
+static int load_module(void)
 {
 	if (aco_info_init(&cfg_info)) {
-		return;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	aco_option_register(&cfg_info, "udptlstart", ACO_EXACT, general_options, __stringify(DEFAULT_UDPTLSTART),
@@ -1407,5 +1411,13 @@ void ast_udptl_init(void)
 
 	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 
-	ast_register_cleanup(udptl_shutdown);
+	return AST_MODULE_LOAD_SUCCESS;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "UDPTL",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

@@ -265,10 +265,4 @@ struct ast_applicationmap_item {
  */
 struct ao2_container *ast_get_chan_applicationmap(struct ast_channel *chan);
 
-void ast_features_config_shutdown(void);
-
-int ast_features_config_reload(void);
-
-int ast_features_config_init(void);
-
 #endif /* _FEATURES_CONFIG_H */

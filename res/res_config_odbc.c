@@ -1238,4 +1238,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime ODBC configu
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_REALTIME_DRIVER,
+	.requires = "extconfig,res_odbc",
 );

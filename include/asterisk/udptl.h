@@ -126,13 +126,6 @@ void ast_udptl_setnat(struct ast_udptl *udptl, int nat);
 
 void ast_udptl_stop(struct ast_udptl *udptl);
 
-void ast_udptl_init(void);
-
-/*!
- * \version 1.6.1 return changed to int
- */
-int ast_udptl_reload(void);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -27,6 +27,11 @@
  * Olle E. Johansson <oej@edvina.net>
  */
 
+/* This maintains the original "module reload acl" CLI command instead
+ * of replacing it with "module reload named_acl". */
+#undef AST_MODULE
+#define AST_MODULE "acl"
+
 #include "asterisk.h"
 
 #include "asterisk/config.h"
@@ -397,36 +402,6 @@ publish_failure:
 
 /*!
  * \internal
- * \brief reload configuration for named ACLs
- *
- * \param fd file descriptor for CLI client
- */
-int ast_named_acl_reload(void)
-{
-	enum aco_process_status status;
-
-	status = aco_process_config(&cfg_info, 1);
-
-	if (status == ACO_PROCESS_ERROR) {
-		ast_log(LOG_WARNING, "Could not reload ACL config\n");
-		return 0;
-	}
-
-	if (status == ACO_PROCESS_UNCHANGED) {
-		/* We don't actually log anything if the config was unchanged,
-		 * but we don't need to send a config change event either.
-		 */
-		return 0;
-	}
-
-	/* We need to push an ACL change event with no ACL name so that all subscribers update with all ACLs */
-	publish_acl_change("");
-
-	return 0;
-}
-
-/*!
- * \internal
  * \brief secondary handler for the 'acl show <name>' command (with arg)
  *
  * \param fd file descriptor of the cli
@@ -552,26 +527,48 @@ static struct ast_cli_entry cli_named_acl[] = {
 	AST_CLI_DEFINE(handle_show_named_acl_cmd, "Show a named ACL or list all named ACLs"),
 };
 
-static void named_acl_cleanup(void)
+static int reload_module(void)
+{
+	enum aco_process_status status;
+
+	status = aco_process_config(&cfg_info, 1);
+
+	if (status == ACO_PROCESS_ERROR) {
+		ast_log(LOG_WARNING, "Could not reload ACL config\n");
+		return 0;
+	}
+
+	if (status == ACO_PROCESS_UNCHANGED) {
+		/* We don't actually log anything if the config was unchanged,
+		 * but we don't need to send a config change event either.
+		 */
+		return 0;
+	}
+
+	/* We need to push an ACL change event with no ACL name so that all subscribers update with all ACLs */
+	publish_acl_change("");
+
+	return 0;
+}
+
+static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
 
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_named_acl_change_type);
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
+
+	return 0;
 }
 
-int ast_named_acl_init()
+static int load_module(void)
 {
-	ast_cli_register_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
+	if (aco_info_init(&cfg_info)) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	STASIS_MESSAGE_TYPE_INIT(ast_named_acl_change_type);
-
-	ast_register_cleanup(named_acl_cleanup);
-
-	if (aco_info_init(&cfg_info)) {
-		return 0;
-	}
 
 	/* Register the per level options. */
 	aco_option_register(&cfg_info, "permit", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 1, FLDSET(struct named_acl, ha));
@@ -579,5 +576,15 @@ int ast_named_acl_init()
 
 	aco_process_config(&cfg_info, 0);
 
-	return 0;
+	ast_cli_register_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Named ACL system",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

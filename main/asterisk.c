@@ -199,7 +199,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/channel.h"
 #include "asterisk/translate.h"
 #include "asterisk/pickup.h"
-#include "asterisk/features.h"
 #include "asterisk/acl.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
@@ -209,11 +208,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
 #include "asterisk/cdr.h"
-#include "asterisk/cel.h"
 #include "asterisk/pbx.h"
-#include "asterisk/enum.h"
-#include "asterisk/http.h"
-#include "asterisk/udptl.h"
 #include "asterisk/app.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
@@ -225,11 +220,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/devicestate.h"
 #include "asterisk/presencestate.h"
 #include "asterisk/module.h"
-#include "asterisk/dsp.h"
 #include "asterisk/buildinfo.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/poll-compat.h"
-#include "asterisk/ccss.h"
 #include "asterisk/test.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/format.h"
@@ -4445,12 +4438,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	print_intro_message(runuser, rungroup);
 
-	if (ast_opt_console) {
-		ast_verb(0, "[ Initializing Custom Configuration Options ]\n");
-	}
-	/* custom config setup */
 	register_config_cli();
-	read_config_maps();
 
 	check_init(astobj2_init(), "AO2");
 	check_init(ast_named_locks_init(), "Named Locks");
@@ -4565,30 +4553,8 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	/* We should avoid most config loads before this point as they can't use realtime. */
 	check_init(load_modules(1), "Module Preload");
 
-	/* Initialize core modules that have config files.  These should be converted to
-	 * built-in modules with load priority after realtime, that way users will not
-	 * need to 'preload' realtime modules. */
-	check_init(ast_features_init(), "Call Features");
-	check_init(dnsmgr_init(), "DNS manager");
-	check_init(ast_named_acl_init(), "Named ACL system");
-	ast_http_init();
-	check_init(ast_indications_init(), "Indication Tone Handling");
-	check_init(ast_cdr_engine_init(), "CDR Engine");
-	ast_dsp_init();
-	ast_udptl_init();
-	check_init(ast_cel_engine_init(), "CEL Engine");
-	check_init(init_manager(), "Asterisk Manager Interface");
-	check_init(ast_enum_init(), "ENUM Support");
-	check_init(ast_cc_init(), "Call Completion Supplementary Services");
-
 	/* Load remaining modules */
 	check_init(load_modules(0), "Module");
-
-	/*
-	 * This is initialized after the dynamic modules load to avoid repeatedly
-	 * reindexing sounds for every format module load.
-	 */
-	check_init(ast_sounds_index_init(), "Sounds Indexer");
 
 	/*
 	 * This has to load after the dynamic modules load, as items in the media

@@ -5243,5 +5243,6 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Objective Systems H32
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER
+	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
+	.requires = "udptl",
 );

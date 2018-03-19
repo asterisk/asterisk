@@ -49,6 +49,7 @@
 #include <regex.h>
 #include <signal.h>
 
+#include "asterisk/module.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
@@ -406,7 +407,7 @@ static struct ast_cli_entry cli_reload = AST_CLI_DEFINE(handle_cli_reload, "Relo
 static struct ast_cli_entry cli_refresh = AST_CLI_DEFINE(handle_cli_refresh, "Performs an immediate refresh");
 static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Display the DNS manager status");
 
-static void dnsmgr_shutdown(void)
+static int unload_module(void)
 {
 	ast_cli_unregister(&cli_reload);
 	ast_cli_unregister(&cli_status);
@@ -424,24 +425,24 @@ static void dnsmgr_shutdown(void)
 	ast_mutex_unlock(&refresh_lock);
 
 	ast_sched_context_destroy(sched);
+
+	return 0;
 }
 
-int dnsmgr_init(void)
+static int load_module(void)
 {
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_cli_register(&cli_reload);
 	ast_cli_register(&cli_status);
 	ast_cli_register(&cli_refresh);
 
-	ast_register_cleanup(dnsmgr_shutdown);
-
-	return do_reload(1);
+	return do_reload(1) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
-int dnsmgr_reload(void)
+static int reload_module(void)
 {
 	return do_reload(0);
 }
@@ -515,3 +516,11 @@ static int do_reload(int loading)
 
 	return 0;
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "DNS Manager",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);

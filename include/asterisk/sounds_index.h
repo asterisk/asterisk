@@ -33,14 +33,6 @@ extern "C" {
 struct ast_media_index;
 
 /*!
- * \brief Reload the sounds index
- *
- * \retval zero on success
- * \retval non-zero on failure
- */
-int ast_sounds_reindex(void);
-
-/*!
  * \brief Get the sounds index
  *
  * \retval sounds index (must be ao2_cleanup()'ed)

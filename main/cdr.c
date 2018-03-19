@@ -53,6 +53,7 @@
 #include "asterisk/cdr.h"
 #include "asterisk/callerid.h"
 #include "asterisk/manager.h"
+#include "asterisk/module.h"
 #include "asterisk/causes.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
@@ -4363,11 +4364,6 @@ static int process_config(int reload)
 	return 0;
 }
 
-static void cdr_engine_cleanup(void)
-{
-	destroy_subscriptions();
-}
-
 static void cdr_engine_shutdown(void)
 {
 	stasis_message_router_unsubscribe_and_join(stasis_router);
@@ -4500,26 +4496,33 @@ static int cdr_toggle_runtime_options(void)
 	return mod_cfg ? 0 : -1;
 }
 
-int ast_cdr_engine_init(void)
+static int unload_module(void)
+{
+	destroy_subscriptions();
+
+	return 0;
+}
+
+static int load_module(void)
 {
 	if (process_config(0)) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	cdr_topic = stasis_topic_create("cdr_engine");
 	if (!cdr_topic) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	stasis_router = stasis_message_router_create(cdr_topic);
 	if (!stasis_router) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	stasis_message_router_set_congestion_limits(stasis_router, -1,
 		10 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	if (STASIS_MESSAGE_TYPE_INIT(cdr_sync_message_type)) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
@@ -4532,28 +4535,27 @@ int ast_cdr_engine_init(void)
 	active_cdrs_master = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		NUM_CDR_BUCKETS, cdr_master_hash_fn, NULL, cdr_master_cmp_fn);
 	if (!active_cdrs_master) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ao2_container_register("cdrs_master", active_cdrs_master, cdr_master_print_fn);
 
 	active_cdrs_all = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		NUM_CDR_BUCKETS, cdr_all_hash_fn, NULL, cdr_all_cmp_fn);
 	if (!active_cdrs_all) {
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ao2_container_register("cdrs_all", active_cdrs_all, cdr_all_print_fn);
 
 	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	ast_register_cleanup(cdr_engine_cleanup);
 	ast_register_atexit(cdr_engine_shutdown);
 
-	return cdr_toggle_runtime_options();
+	return cdr_toggle_runtime_options() ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
 void ast_cdr_engine_term(void)
@@ -4596,7 +4598,7 @@ void ast_cdr_engine_term(void)
 	}
 }
 
-int ast_cdr_engine_reload(void)
+static int reload_module(void)
 {
 	struct module_config *old_mod_cfg;
 	struct module_config *mod_cfg;
@@ -4622,3 +4624,11 @@ int ast_cdr_engine_reload(void)
 	ao2_cleanup(old_mod_cfg);
 	return cdr_toggle_runtime_options();
 }
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "CDR Engine",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CORE,
+);
