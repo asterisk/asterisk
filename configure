@@ -7816,6 +7816,9 @@ fi
 
 
 
+DOWNLOAD=":"
+DOWNLOAD_TO_STDOUT=
+DOWNLOAD_TIMEOUT=
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
@@ -7866,12 +7869,13 @@ $as_echo "no" >&6; }
 fi
 
 
-  DOWNLOAD=${FETCH}
-  DOWNLOAD_TO_STDOUT="${FETCH} -o-"
-  DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
+  if test "${FETCH}" != ":" ; then
+    DOWNLOAD=${FETCH}
+    DOWNLOAD_TO_STDOUT="${FETCH} -o-"
+    DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
+  fi
 fi
 fi
-
 
 
 
@@ -9204,7 +9208,7 @@ $as_echo_n "checking for embedded pjproject (may have to download)... " >&6; }
 $as_echo "configuring" >&6; }
 
 	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
-		as_fn_error $? "A download utility (wget, curl or fetch) is required to download bundled pjproject" "$LINENO" 5
+		as_fn_error $? "A download utility (wget, curl, or fetch) is required to download bundled pjproject" "$LINENO" 5
 	fi
 	if test "${BZIP2}" = ":" ; then
 		as_fn_error $? "bzip2 is required to extract the pjproject tar file" "$LINENO" 5
