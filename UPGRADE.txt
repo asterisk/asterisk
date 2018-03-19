@@ -21,6 +21,14 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 13.20.0 to 13.21.0:
+
+app_dial
+------------------
+ * The Dial application now supports early-media video (in addition to
+   audio) on both the calling as well as the called party.
+   Be aware that this is a change in behavior.
+
 From 13.19.0 to 13.20.0:
 
 app_confbridge
