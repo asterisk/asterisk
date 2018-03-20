@@ -19603,13 +19603,13 @@ if test "x${PBX_ALSA}" != "x1" -a "${USE_ALSA}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for snd_spcm_init in -lasound" >&5
-$as_echo_n "checking for snd_spcm_init in -lasound... " >&6; }
-if ${ac_cv_lib_asound_snd_spcm_init+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for snd_pcm_open in -lasound" >&5
+$as_echo_n "checking for snd_pcm_open in -lasound... " >&6; }
+if ${ac_cv_lib_asound_snd_pcm_open+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lasound ${pbxlibdir} -lm -ldl $LIBS"
+LIBS="-lasound ${pbxlibdir}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -19619,27 +19619,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char snd_spcm_init ();
+char snd_pcm_open ();
 int
 main ()
 {
-return snd_spcm_init ();
+return snd_pcm_open ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_asound_snd_spcm_init=yes
+  ac_cv_lib_asound_snd_pcm_open=yes
 else
-  ac_cv_lib_asound_snd_spcm_init=no
+  ac_cv_lib_asound_snd_pcm_open=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_asound_snd_spcm_init" >&5
-$as_echo "$ac_cv_lib_asound_snd_spcm_init" >&6; }
-if test "x$ac_cv_lib_asound_snd_spcm_init" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_asound_snd_pcm_open" >&5
+$as_echo "$ac_cv_lib_asound_snd_pcm_open" >&6; }
+if test "x$ac_cv_lib_asound_snd_pcm_open" = xyes; then :
   AST_ALSA_FOUND=yes
 else
   AST_ALSA_FOUND=no
@@ -19650,7 +19650,7 @@ fi
 
    # now check for the header.
    if test "${AST_ALSA_FOUND}" = "yes"; then
-      ALSA_LIB="${pbxlibdir} -lasound -lm -ldl"
+      ALSA_LIB="${pbxlibdir} -lasound "
       # if --with-ALSA=DIR has been specified, use it.
       if test "x${ALSA_DIR}" != "x"; then
          ALSA_INCLUDE="-I${ALSA_DIR}/include"
