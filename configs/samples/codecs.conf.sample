@@ -64,8 +64,15 @@ experimental_rtcp_feedback => false
 [plc]
 ; for all codecs which do not support native PLC
 ; this determines whether to perform generic PLC
-; there is a minor performance penalty for this
+; there is a minor performance penalty for this.
+; By default plc is applied only when the 2 codecs
+; in a channel are different.
 genericplc => true
+; Apply generic plc to channels even if the 2 codecs
+; are the same.  This forces transcoding via slin so
+; the performance impact should be considered.
+; Ignored if genericplc is not also enabled.
+genericplc_on_equal_codecs => false
 
 ; Generate custom formats for formats requiring attributes.
 ; After defining the custom format, the name used in defining
