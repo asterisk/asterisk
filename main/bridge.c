@@ -5027,46 +5027,29 @@ struct ast_bridge *ast_bridge_find_by_id(const char *bridge_id)
 	return ao2_find(bridges, bridge_id, OBJ_SEARCH_KEY);
 }
 
-struct bridge_complete {
-	/*! Nth match to return. */
-	int state;
-	/*! Which match currently on. */
-	int which;
-};
-
-static int complete_bridge_live_search(void *obj, void *arg, void *data, int flags)
+static int complete_bridge_live_search(void *obj, void *arg, int flags)
 {
-	struct bridge_complete *search = data;
+	struct ast_bridge *bridge = obj;
 
-	if (++search->which > search->state) {
-		return CMP_MATCH;
+	if (ast_cli_completion_add(ast_strdup(bridge->uniqueid))) {
+		return CMP_STOP;
 	}
+
 	return 0;
 }
 
-static char *complete_bridge_live(const char *word, int state)
+static char *complete_bridge_live(const char *word)
 {
-	char *ret;
-	struct ast_bridge *bridge;
-	struct bridge_complete search = {
-		.state = state,
-		};
+	ao2_callback(bridges, ast_strlen_zero(word) ? 0 : OBJ_PARTIAL_KEY,
+		complete_bridge_live_search, (char *) word);
 
-	bridge = ao2_callback_data(bridges, ast_strlen_zero(word) ? 0 : OBJ_PARTIAL_KEY,
-		complete_bridge_live_search, (char *) word, &search);
-	if (!bridge) {
-		return NULL;
-	}
-	ret = ast_strdup(bridge->uniqueid);
-	ao2_ref(bridge, -1);
-	return ret;
+	return NULL;
 }
 
-static char *complete_bridge_stasis(const char *word, int state)
+static char *complete_bridge_stasis(const char *word)
 {
-	char *ret = NULL;
-	int wordlen = strlen(word), which = 0;
-	RAII_VAR(struct ao2_container *, cached_bridges, NULL, ao2_cleanup);
+	int wordlen = strlen(word);
+	struct ao2_container *cached_bridges;
 	struct ao2_iterator iter;
 	struct stasis_message *msg;
 
@@ -5079,15 +5062,17 @@ static char *complete_bridge_stasis(const char *word, int state)
 	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
 		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
 
-		if (!strncasecmp(word, snapshot->uniqueid, wordlen) && (++which > state)) {
-			ret = ast_strdup(snapshot->uniqueid);
-			ao2_ref(msg, -1);
-			break;
+		if (!strncasecmp(word, snapshot->uniqueid, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(snapshot->uniqueid))) {
+				ao2_ref(msg, -1);
+				break;
+			}
 		}
 	}
 	ao2_iterator_destroy(&iter);
+	ao2_ref(cached_bridges, -1);
 
-	return ret;
+	return NULL;
 }
 
 static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -5168,7 +5153,7 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
-			return complete_bridge_stasis(a->word, a->n);
+			return complete_bridge_stasis(a->word);
 		}
 		return NULL;
 	}
@@ -5207,7 +5192,7 @@ static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, st
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
-			return complete_bridge_live(a->word, a->n);
+			return complete_bridge_live(a->word);
 		}
 		return NULL;
 	}
@@ -5229,11 +5214,10 @@ static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, st
 }
 #endif
 
-static char *complete_bridge_participant(const char *bridge_name, const char *line, const char *word, int pos, int state)
+static char *complete_bridge_participant(const char *bridge_name, const char *word)
 {
 	struct ast_bridge *bridge;
 	struct ast_bridge_channel *bridge_channel;
-	int which;
 	int wordlen;
 
 	bridge = ast_bridge_find_by_id(bridge_name);
@@ -5241,19 +5225,17 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 		return NULL;
 	}
 
-	{
-		SCOPED_LOCK(bridge_lock, bridge, ast_bridge_lock, ast_bridge_unlock);
+	wordlen = strlen(word);
 
-		which = 0;
-		wordlen = strlen(word);
-		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-			if (!strncasecmp(ast_channel_name(bridge_channel->chan), word, wordlen)
-				&& ++which > state) {
-				ao2_ref(bridge, -1);
-				return ast_strdup(ast_channel_name(bridge_channel->chan));
+	ast_bridge_lock(bridge);
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		if (!strncasecmp(ast_channel_name(bridge_channel->chan), word, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(ast_channel_name(bridge_channel->chan)))) {
+				break;
 			}
 		}
 	}
+	ast_bridge_unlock(bridge);
 
 	ao2_ref(bridge, -1);
 
@@ -5263,7 +5245,6 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	static const char * const completions[] = { "all", NULL };
-	char *complete;
 	struct ast_bridge *bridge;
 
 	switch (cmd) {
@@ -5277,14 +5258,11 @@ static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
-			return complete_bridge_live(a->word, a->n);
+			return complete_bridge_live(a->word);
 		}
 		if (a->pos == 3) {
-			complete = ast_cli_complete(a->word, completions, a->n);
-			if (!complete) {
-				complete = complete_bridge_participant(a->argv[2], a->line, a->word, a->pos, a->n - 1);
-			}
-			return complete;
+			ast_cli_complete(a->word, completions, -1);
+			return complete_bridge_participant(a->argv[2], a->word);
 		}
 		return NULL;
 	}
@@ -5385,24 +5363,22 @@ static char *handle_bridge_technology_show(struct ast_cli_entry *e, int cmd, str
 #undef FORMAT
 }
 
-static char *complete_bridge_technology(const char *word, int state)
+static char *complete_bridge_technology(const char *word)
 {
 	struct ast_bridge_technology *cur;
-	char *res;
-	int which;
 	int wordlen;
 
-	which = 0;
 	wordlen = strlen(word);
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, cur, entry) {
-		if (!strncasecmp(cur->name, word, wordlen) && ++which > state) {
-			res = ast_strdup(cur->name);
-			AST_RWLIST_UNLOCK(&bridge_technologies);
-			return res;
+		if (!strncasecmp(cur->name, word, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cur->name))) {
+				break;
+			}
 		}
 	}
 	AST_RWLIST_UNLOCK(&bridge_technologies);
+
 	return NULL;
 }
 
@@ -5421,7 +5397,7 @@ static char *handle_bridge_technology_suspend(struct ast_cli_entry *e, int cmd, 
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {
-			return complete_bridge_technology(a->word, a->n);
+			return complete_bridge_technology(a->word);
 		}
 		return NULL;
 	}
