@@ -24013,9 +24013,9 @@ if test "x${PBX_OGG}" != "x1" -a "${USE_OGG}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ogg_sync_init in -logg" >&5
-$as_echo_n "checking for ogg_sync_init in -logg... " >&6; }
-if ${ac_cv_lib_ogg_ogg_sync_init+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ogg_stream_init in -logg" >&5
+$as_echo_n "checking for ogg_stream_init in -logg... " >&6; }
+if ${ac_cv_lib_ogg_ogg_stream_init+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -24029,27 +24029,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ogg_sync_init ();
+char ogg_stream_init ();
 int
 main ()
 {
-return ogg_sync_init ();
+return ogg_stream_init ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ogg_ogg_sync_init=yes
+  ac_cv_lib_ogg_ogg_stream_init=yes
 else
-  ac_cv_lib_ogg_ogg_sync_init=no
+  ac_cv_lib_ogg_ogg_stream_init=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ogg_ogg_sync_init" >&5
-$as_echo "$ac_cv_lib_ogg_ogg_sync_init" >&6; }
-if test "x$ac_cv_lib_ogg_ogg_sync_init" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ogg_ogg_stream_init" >&5
+$as_echo "$ac_cv_lib_ogg_ogg_stream_init" >&6; }
+if test "x$ac_cv_lib_ogg_ogg_stream_init" = xyes; then :
   AST_OGG_FOUND=yes
 else
   AST_OGG_FOUND=no
@@ -24067,8 +24067,18 @@ fi
       fi
       OGG_INCLUDE="${OGG_INCLUDE} "
 
-         # no header, assume found
-         OGG_HEADER_FOUND="1"
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${OGG_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "ogg/ogg.h" "ac_cv_header_ogg_ogg_h" "$ac_includes_default"
+if test "x$ac_cv_header_ogg_ogg_h" = xyes; then :
+  OGG_HEADER_FOUND=1
+else
+  OGG_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
 
       if test "x${OGG_HEADER_FOUND}" = "x0" ; then
          OGG_LIB=""
