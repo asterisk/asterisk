@@ -891,9 +891,9 @@ const char *ast_translate_path_to_str(struct ast_trans_pvt *p, struct ast_str **
 	return ast_str_buffer(*str);
 }
 
-static char *complete_trans_path_choice(const char *line, const char *word, int pos, int state)
+static char *complete_trans_path_choice(const char *word)
 {
-	int i = 1, which = 0;
+	int i = 1;
 	int wordlen = strlen(word);
 	struct ast_codec *codec;
 
@@ -903,13 +903,15 @@ static char *complete_trans_path_choice(const char *line, const char *word, int 
 			ao2_ref(codec, -1);
 			continue;
 		}
-		if (!strncasecmp(word, codec->name, wordlen) && ++which > state) {
-			char *res = ast_strdup(codec->name);
-			ao2_ref(codec, -1);
-			return res;
+		if (!strncasecmp(word, codec->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(codec->name))) {
+				ao2_ref(codec, -1);
+				break;
+			}
 		}
 		ao2_ref(codec, -1);
 	}
+
 	return NULL;
 }
 
@@ -1129,10 +1131,10 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {
-			return ast_cli_complete(a->word, option, a->n);
+			return ast_cli_complete(a->word, option, -1);
 		}
 		if (a->pos == 4 && !strcasecmp(a->argv[3], option[1])) {
-			return complete_trans_path_choice(a->line, a->word, a->pos, a->n);
+			return complete_trans_path_choice(a->word);
 		}
 		/* BUGBUG - add tab completion for sample rates */
 		return NULL;
