@@ -2158,7 +2158,7 @@ AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
-AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
+AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_stream_init], [ogg/ogg.h])
 
 # Non-glibc platforms require libexecinfo for backtrace support
 AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h])
