@@ -90,7 +90,8 @@ AST_TEST_DEFINE(amihook_cli_send)
 	return wait_for_hook(test) ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 
-/* The helper function is required by struct manager_custom_hook. See __manager_event for details */
+/* The helper function is required by struct manager_custom_hook.
+ * See __ast_manager_event_multichan for details */
 static int amihook_helper(int category, const char *event, char *content)
 {
 	ast_log(LOG_NOTICE, "AMI Event: \nCategory: %d Event: %s\n%s\n", category, event, content);
