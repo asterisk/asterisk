@@ -608,12 +608,12 @@ AC_SUBST(EDITLINE_LIB)
 #  * -luuid on Linux
 #  * -le2fs-uuid on OpenBSD
 #  * in libsystem on OS X
-AST_EXT_LIB_CHECK([LIBUUID], [uuid], [uuid_generate_random], [uuid/uuid.h], [])
+AST_EXT_LIB_CHECK([LIBUUID], [uuid], [uuid_generate_random], [uuid/uuid.h])
 if test "x$LIBUUID_LIB" != "x" ; then
   UUID_INCLUDE="$LIBUUID_INCLUDE"
   UUID_LIB="$LIBUUID_LIB"
 else
-  AST_EXT_LIB_CHECK([E2FSUUID], [e2fs-uuid], [uuid_generate_random], [uuid/uuid.h], [])
+  AST_EXT_LIB_CHECK([E2FSUUID], [e2fs-uuid], [uuid_generate_random], [uuid/uuid.h])
   if test "x$E2FSUUID_LIB" != "x" ; then
     UUID_INCLUDE="$E2FSUUID_INCLUDE"
     UUID_LIB="$E2FSUUID_LIB"
@@ -638,7 +638,7 @@ if test "${PBX_JANSSON}" != 1; then
 fi
 
 # See if clock_gettime is in librt
-AST_EXT_LIB_CHECK([RT], [rt], [clock_gettime])
+AST_EXT_LIB_CHECK([RT], [rt], [clock_gettime], [])
 
 AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
         [#include <libxml/tree.h>
@@ -2156,7 +2156,7 @@ AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
-AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
+AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_stream_init], [ogg/ogg.h])
 
