@@ -459,9 +459,6 @@
    than `double'. */
 #undef HAVE_LONG_DOUBLE_WIDER
 
-/* Define to 1 if you have the libtool library. */
-#undef HAVE_LTDL
-
 /* Define to 1 if you have the Lua library. */
 #undef HAVE_LUA
 
