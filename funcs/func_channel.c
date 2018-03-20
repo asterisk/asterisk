@@ -205,10 +205,6 @@
 					<enum name="videonativeformat">
 						<para>R/O format used natively for video</para>
 					</enum>
-					<enum name="trace">
-						<para>R/W whether or not context tracing is enabled, only available
-						<emphasis>if CHANNEL_TRACE is defined</emphasis>.</para>
-					</enum>
 					<enum name="hangupsource">
 						<para>R/W returns the channel responsible for hangup.</para>
 					</enum>
@@ -328,10 +324,6 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
 		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_writeformat(chan)), len);
-#ifdef CHANNEL_TRACE
-	} else if (!strcasecmp(data, "trace")) {
-		locked_copy_string(chan, buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
-#endif
 	} else if (!strcasecmp(data, "tonezone") && ast_channel_zone(chan)) {
 		locked_copy_string(chan, buf, ast_channel_zone(chan)->country, len);
 	} else if (!strcasecmp(data, "dtmf_features")) {
@@ -515,20 +507,6 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 	else if (!strcasecmp(data, "hangupsource"))
 		/* XXX - should we be forcing this here? */
 		ast_set_hangupsource(chan, value, 0);
-#ifdef CHANNEL_TRACE
-	else if (!strcasecmp(data, "trace")) {
-		ast_channel_lock(chan);
-		if (ast_true(value))
-			ret = ast_channel_trace_enable(chan);
-		else if (ast_false(value))
-			ret = ast_channel_trace_disable(chan);
-		else {
-			ret = -1;
-			ast_log(LOG_WARNING, "Invalid value for CHANNEL(trace).\n");
-		}
-		ast_channel_unlock(chan);
-	}
-#endif
 	else if (!strcasecmp(data, "tonezone")) {
 		struct ast_tone_zone *new_zone;
 		if (!(new_zone = ast_get_indication_zone(value))) {
