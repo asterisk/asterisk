@@ -2741,10 +2741,14 @@ static void send_rasterisk_connect_commands(void)
 }
 
 #ifdef HAVE_LIBEDIT_IS_UNICODE
-static int ast_el_read_char(EditLine *editline, wchar_t *cp)
+#define CHAR_T_LIBEDIT wchar_t
+#define CHAR_TO_LIBEDIT(c) btowc(c)
 #else
-static int ast_el_read_char(EditLine *editline, char *cp)
+#define CHAR_T_LIBEDIT char
+#define CHAR_TO_LIBEDIT(c) c
 #endif
+
+static int ast_el_read_char(EditLine *editline, CHAR_T_LIBEDIT *cp)
 {
 	int num_read = 0;
 	int lastpos = 0;
@@ -2765,28 +2769,29 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 		res = ast_poll(fds, max, -1);
 		if (res < 0) {
-			if (sig_flags.need_quit || sig_flags.need_quit_handler)
+			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
 				break;
-			if (errno == EINTR)
+			}
+			if (errno == EINTR) {
 				continue;
+			}
 			fprintf(stderr, "poll failed: %s\n", strerror(errno));
 			break;
 		}
 
 		if (!ast_opt_exec && fds[1].revents) {
 			char c = '\0';
+
 			num_read = read(STDIN_FILENO, &c, 1);
 			if (num_read < 1) {
 				break;
-			} else {
-#ifdef 	HAVE_LIBEDIT_IS_UNICODE
-				*cp = btowc(c);
-#else
-				*cp = c;
-#endif
-				return (num_read);
 			}
+
+			*cp = CHAR_TO_LIBEDIT(c);
+
+			return num_read;
 		}
+
 		if (fds[0].revents) {
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
@@ -2797,6 +2802,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				} else {
 					int tries;
 					int reconnects_per_second = 20;
+
 					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
 					for (tries = 0; tries < 30 * reconnects_per_second; tries++) {
 						if (ast_tryconnect()) {
@@ -2805,8 +2811,9 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 							WELCOME_MESSAGE;
 							send_rasterisk_connect_commands();
 							break;
-						} else
-							usleep(1000000 / reconnects_per_second);
+						}
+
+						usleep(1000000 / reconnects_per_second);
 					}
 					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
@@ -2827,25 +2834,17 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			console_print(buf);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (res >= 2 && buf[res-2] == '\n'))) {
-#ifdef 	HAVE_LIBEDIT_IS_UNICODE
-				*cp = btowc(CC_REFRESH);
-#else
-				*cp = CC_REFRESH;
-#endif
-				return(1);
-			} else {
-				lastpos = 1;
+				*cp = CHAR_TO_LIBEDIT(CC_REFRESH);
+
+				return 1;
 			}
+			lastpos = 1;
 		}
 	}
 
-#ifdef 	HAVE_LIBEDIT_IS_UNICODE
-	*cp = btowc('\0');
-#else
-	*cp = '\0';
-#endif
+	*cp = CHAR_TO_LIBEDIT('\0');
 
-	return (0);
+	return 0;
 }
 
 static struct ast_str *prompt = NULL;
