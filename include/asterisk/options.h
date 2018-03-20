@@ -98,6 +98,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_LOCK_CONFIG_DIR = (1 << 29),
 	/*! Generic PLC */
 	AST_OPT_FLAG_GENERIC_PLC = (1 << 30),
+	/*! Generic PLC onm equal codecs */
+	AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS = (1 << 31),
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -134,6 +136,7 @@ enum ast_option_flags {
 #define ast_opt_lock_confdir		ast_test_flag(&ast_options, AST_OPT_FLAG_LOCK_CONFIG_DIR)
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
 #define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
+#define ast_opt_generic_plc_on_equal_codecs  ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS)
 
 /*! Maximum log level defined by PJPROJECT. */
 #define MAX_PJ_LOG_MAX_LEVEL		6
