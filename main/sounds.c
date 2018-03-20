@@ -219,6 +219,11 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 /*! \brief Show details about a sound available in the system */
 static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	int length;
+	struct ao2_iterator it_sounds;
+	char *filename;
+	struct ao2_container *sound_files;
+
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show sound";
@@ -227,29 +232,30 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 			"       Shows information about the specified sound.\n";
 		return NULL;
 	case CLI_GENERATE:
-	{
-		int length = strlen(a->word);
-		int which = 0;
-		struct ao2_iterator it_sounds;
-		char *match = NULL;
-		char *filename;
-		RAII_VAR(struct ao2_container *, sound_files, ast_media_get_media(sounds_index), ao2_cleanup);
+		if (a->pos != 3) {
+			return NULL;
+		}
+
+		sound_files = ast_media_get_media(sounds_index);
 		if (!sound_files) {
 			return NULL;
 		}
 
+		length = strlen(a->word);
 		it_sounds = ao2_iterator_init(sound_files, 0);
 		while ((filename = ao2_iterator_next(&it_sounds))) {
-			if (!strncasecmp(a->word, filename, length) && ++which > a->n) {
-				match = ast_strdup(filename);
-				ao2_ref(filename, -1);
-				break;
+			if (!strncasecmp(a->word, filename, length)) {
+				if (ast_cli_completion_add(ast_strdup(filename))) {
+					ao2_ref(filename, -1);
+					break;
+				}
 			}
 			ao2_ref(filename, -1);
 		}
 		ao2_iterator_destroy(&it_sounds);
-		return match;
-	}
+		ao2_ref(sound_files, -1);
+
+		return NULL;
 	}
 
 	if (a->argc == 4) {
