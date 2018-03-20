@@ -307,14 +307,6 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 unsigned int ast_debug_get_by_module(const char *module);
 
 /*!
- * \brief Get the verbose level for a module
- * \param module the name of module
- * \return the verbose level
- * \version 11.0.0 deprecated
- */
-unsigned int ast_verbose_get_by_module(const char *module) __attribute__((deprecated));
-
-/*!
  * \brief Register a new logger level
  * \param name The name of the level to be registered
  * \retval -1 if an error occurs

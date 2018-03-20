@@ -86,7 +86,6 @@ enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate);
  *
  * \param devstate Current device state
  */
-const char *devstate2str(enum ast_device_state devstate) attribute_pure __attribute__((deprecated));
 const char *ast_devstate2str(enum ast_device_state devstate) attribute_pure;
 
 /*!
@@ -165,41 +164,6 @@ int ast_devstate_changed(enum ast_device_state state, enum ast_devstate_cache ca
  * \retval -1 on failure
  */
 int ast_devstate_changed_literal(enum ast_device_state state, enum ast_devstate_cache cachable, const char *device);
-
-/*!
- * \brief Tells Asterisk the State for Device is changed.
- * (Accept change notification, add it to change queue.)
- *
- * \param fmt device name like a dial string with format parameters
- *
- * Asterisk polls the new extension states and calls the registered
- * callbacks for the changed extensions
- *
- * \retval 0 on success
- * \retval -1 on failure
- *
- * \note This is deprecated in favor of ast_devstate_changed()
- * \version 1.6.1 deprecated
- */
-int ast_device_state_changed(const char *fmt, ...)
-	__attribute__((deprecated,format(printf, 1, 2)));
-
-/*!
- * \brief Tells Asterisk the State for Device is changed
- *
- * \param device device name like a dial string
- *
- * Asterisk polls the new extension states and calls the registered
- * callbacks for the changed extensions
- *
- * \retval 0 on success
- * \retval -1 on failure
- *
- * \note This is deprecated in favor of ast_devstate_changed_literal()
- * \version 1.6.1 deprecated
- */
-int ast_device_state_changed_literal(const char *device)
-	__attribute__((deprecated));
 
 /*!
  * \brief Add device state provider

@@ -74,8 +74,6 @@ enum ast_option_flags {
 	AST_OPT_FLAG_TRANSMIT_SILENCE = (1 << 17),
 	/*! Suppress some warnings */
 	AST_OPT_FLAG_DONT_WARN = (1 << 18),
-	/*! End CDRs before the 'h' extension */
-	AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN = (1 << 19),
 	/*! Reference Debugging */
 	AST_OPT_FLAG_REF_DEBUG = (1 << 20),
 	/*! Always fork, even if verbose or debug settings are non-zero */
@@ -84,12 +82,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_MUTE = (1 << 22),
 	/*! There is a per-module debug setting */
 	AST_OPT_FLAG_DEBUG_MODULE = (1 << 23),
-	/*! There is a per-module verbose setting */
-	AST_OPT_FLAG_VERBOSE_MODULE = (1 << 24),
 	/*! Terminal colors should be adjusted for a light-colored background */
 	AST_OPT_FLAG_LIGHT_BACKGROUND = (1 << 25),
-	/*! Count Initiated seconds in CDR's */
-	AST_OPT_FLAG_INITIATED_SECONDS = (1 << 26),
 	/*! Force black background */
 	AST_OPT_FLAG_FORCE_BLACK_BACKGROUND = (1 << 27),
 	/*! Hide remote console connect messages on console */
@@ -125,11 +119,9 @@ enum ast_option_flags {
 #define ast_opt_reconnect		ast_test_flag(&ast_options, AST_OPT_FLAG_RECONNECT)
 #define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
 #define ast_opt_dont_warn		ast_test_flag(&ast_options, AST_OPT_FLAG_DONT_WARN)
-#define ast_opt_end_cdr_before_h_exten	ast_test_flag(&ast_options, AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN)
 #define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
 #define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
 #define ast_opt_dbg_module		ast_test_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE)
-#define ast_opt_verb_module		ast_test_flag(&ast_options, AST_OPT_FLAG_VERBOSE_MODULE)
 #define ast_opt_light_background	ast_test_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND)
 #define ast_opt_force_black_background	ast_test_flag(&ast_options, AST_OPT_FLAG_FORCE_BLACK_BACKGROUND)
 #define ast_opt_hide_connect		ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_CONSOLE_CONNECT)

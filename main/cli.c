@@ -148,11 +148,6 @@ unsigned int ast_debug_get_by_module(const char *module)
 	return res;
 }
 
-unsigned int ast_verbose_get_by_module(const char *module)
-{
-	return 0;
-}
-
 /*! \internal
  *  \brief Check if the user with 'uid' and 'gid' is allow to execute 'command',
  *	   if command starts with '_' then not check permissions, just permit
