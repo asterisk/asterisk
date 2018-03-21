@@ -27,6 +27,7 @@
 	<support_level>extended</support_level>
  ***/
 
+#define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
 #include "asterisk/paths.h"	/* CONFIG_DIR */
