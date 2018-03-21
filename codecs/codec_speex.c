@@ -372,6 +372,11 @@ static void lintospeex_feedback(struct ast_trans_pvt *pvt, struct ast_frame *fee
 	if(!exp_rtcp_fb)
 		return;
 
+	/* We only accept feedback information in the form of SR and RR reports */
+	if (feedback->subclass.integer != AST_RTP_RTCP_SR && feedback->subclass.integer != AST_RTP_RTCP_RR) {
+		return;
+	}
+
 	rtcp_report = (struct ast_rtp_rtcp_report *)feedback->data.ptr;
 	if (rtcp_report->reception_report_count == 0)
 		return;
