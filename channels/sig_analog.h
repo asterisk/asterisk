@@ -34,6 +34,13 @@
 #define READ_SIZE 160
 #define RING_PATTERNS 3
 
+/*! \brief Default time (ms) to detect first digit */
+#define ANALOG_FIRST_DIGIT_TIMEOUT	16000
+/*! \brief Default time (ms) to detect following digits */
+#define ANALOG_INTER_DIGIT_TIMEOUT	8000
+/*! \brief Default time (ms) to wait, in case of ambiguous match */
+#define ANALOG_MATCH_DIGIT_TIMEOUT	3000
+
 /* Signalling types supported */
 enum analog_sigtype {
 	ANALOG_SIG_NONE = -1,
@@ -237,6 +244,9 @@ struct analog_callback {
 
 	const char *(* const get_orig_dialstring)(void *pvt);
 	int (* const have_progressdetect)(void *pvt);
+	int (* const get_firstdigit_timeout)(void *pvt);
+	int (* const get_interdigit_timeout)(void *pvt);
+	int (* const get_matchdigit_timeout)(void *pvt);
 };
 
 /*! Global analog callbacks to the upper layer. */

@@ -617,6 +617,21 @@ struct dahdi_pvt {
 	 * \note Set from the "faxdetect_timeout" value read in from chan_dahdi.conf
 	 */
 	unsigned int faxdetect_timeout;
+	/*!
+	 * \brief Time (ms) to detect first digit (in an analog phone)
+	 * \note Set from the "firstdigit_timeout" value read in from chan_dahdi.conf
+	 */
+	int firstdigit_timeout;
+	/*!
+	 * \brief Time (ms) to detect following digits (in an analog phone)
+	 * \note Set from the "interdigit_timeout" value read in from chan_dahdi.conf
+	 */
+	int interdigit_timeout;
+	/*!
+	 * \brief Time (ms) to wait, in case of ambiguous match (in an analog phone)
+	 * \note Set from the "matchdigit_timeout" value read in from chan_dahdi.conf
+	 */
+	int matchdigit_timeout;
 	struct timeval waitingfordt;			/*!< Time we started waiting for dialtone */
 	struct timeval flashtime;			/*!< Last flash-hook time */
 	/*! \brief Opaque DSP configuration structure. */
