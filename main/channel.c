@@ -4123,8 +4123,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			if (ast_channel_writetrans(chan)) {
 				ast_translate(ast_channel_writetrans(chan), f, 0);
 			}
-			ast_frfree(f);
-			f = &ast_null_frame;
+			break;
 		default:
 			/* Just pass it on! */
 			break;
@@ -5266,6 +5265,14 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 	case AST_FRAME_IAX:
 		/* Ignore these */
 		res = 0;
+		break;
+	case AST_FRAME_RTCP:
+		/* RTCP information is on a per-stream basis and only available on multistream capable channels */
+		if (ast_channel_tech(chan)->write_stream && stream) {
+			res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+		} else {
+			res = 0;
+		}
 		break;
 	default:
 		/* At this point, fr is the incoming frame and f is NULL.  Channels do

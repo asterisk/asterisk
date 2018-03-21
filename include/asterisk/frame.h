@@ -127,7 +127,7 @@ enum ast_frame_type {
 	 * directly into bridges.
 	 */
 	AST_FRAME_BRIDGE_ACTION_SYNC,
-	/*! RTCP feedback */
+	/*! RTCP feedback (the subclass will contain the payload type) */
 	AST_FRAME_RTCP,
 };
 #define AST_FRAME_DTMF AST_FRAME_DTMF_END
