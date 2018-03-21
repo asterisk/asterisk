@@ -34290,10 +34290,9 @@ static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags)
 	}
 
 	/* We matched the IP, check to see if we need to match by port as well. */
-	if ((peer->transports & peer2->transports) & (AST_TRANSPORT_TLS | AST_TRANSPORT_TCP)) {
-		/* peer matching on port is not possible with TCP/TLS */
-		return CMP_MATCH | CMP_STOP;
-	} else if (ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
+	if (((peer->transports & peer2->transports) &
+		(AST_TRANSPORT_UDP | AST_TRANSPORT_WS | AST_TRANSPORT_WSS)) &&
+		ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
 		/* We are allowing match without port for peers configured that
 		 * way in this pass through the peers. */
 		return ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT) ?
