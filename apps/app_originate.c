@@ -74,6 +74,10 @@ static const char app_originate[] = "Originate";
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
+				<option name="a">
+					<para>Originate asynchronously.  In other words, continue in the dialplan
+					without waiting for the originated channel to answer.</para>
+				</option>
 				<option name="b" argsep="^">
 					<para>Before originating the outgoing call, Gosub to the specified
 					location using the newly created channel.</para>
@@ -123,6 +127,7 @@ static const char app_originate[] = "Originate";
 enum {
 	OPT_PREDIAL_CALLEE =    (1 << 0),
 	OPT_PREDIAL_CALLER =    (1 << 1),
+	OPT_ASYNC =             (1 << 2),
 };
 
 enum {
@@ -133,6 +138,7 @@ enum {
 };
 
 AST_APP_OPTIONS(originate_exec_options, BEGIN_OPTIONS
+	AST_APP_OPTION('a', OPT_ASYNC),
 	AST_APP_OPTION_ARG('b', OPT_PREDIAL_CALLEE, OPT_ARG_PREDIAL_CALLEE),
 	AST_APP_OPTION_ARG('B', OPT_PREDIAL_CALLER, OPT_ARG_PREDIAL_CALLER),
 END_OPTIONS );
@@ -250,7 +256,8 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 
 		res = ast_pbx_outgoing_exten_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, exten, priority, &outgoing_status,
-				AST_OUTGOING_WAIT, NULL, NULL, NULL, NULL, NULL, 0, NULL,
+				ast_test_flag64(&opts, OPT_ASYNC) ? AST_OUTGOING_NO_WAIT : AST_OUTGOING_WAIT,
+				NULL, NULL, NULL, NULL, NULL, 0, NULL,
 				predial_callee);
 	} else {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
@@ -258,7 +265,8 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 
 		res = ast_pbx_outgoing_app_predial(chantech, cap_slin, chandata,
 				timeout * 1000, args.arg1, args.arg2, &outgoing_status,
-				AST_OUTGOING_WAIT, NULL, NULL, NULL, NULL, NULL, NULL,
+				ast_test_flag64(&opts, OPT_ASYNC) ? AST_OUTGOING_NO_WAIT : AST_OUTGOING_WAIT,
+				NULL, NULL, NULL, NULL, NULL, NULL,
 				predial_callee);
 	}
 

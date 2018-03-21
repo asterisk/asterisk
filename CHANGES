@@ -17,6 +17,13 @@ app_fax
  * The app_fax module is now deprecated, users should migrate to the
    replacement module res_fax.
 
+app_originate
+------------------
+ * An 'a' option has been added to the Originate dialplan application which
+   will execute the originate in an asynchronous fashion. If set then the
+   application will return immediately without waiting for the originated
+   channel to answer.
+
 Build System
 ------------------
  * MALLOC_DEBUG no longer has an effect on Asterisk's ABI.  Asterisk built
