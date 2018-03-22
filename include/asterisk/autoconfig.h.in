@@ -185,9 +185,6 @@
 /* Define to 1 if you have a functional curl library. */
 #undef HAVE_CURL
 
-/* Define to 1 if you have the curses library. */
-#undef HAVE_CURSES
-
 /* Define to 1 if your C compiler provides __atomic operations. */
 #undef HAVE_C_ATOMICS
 
@@ -533,9 +530,6 @@
 
 /* Define to 1 if you have the Network Broadcast Sound library. */
 #undef HAVE_NBS
-
-/* Define to 1 if you have the ncurses library. */
-#undef HAVE_NCURSES
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
@@ -1155,9 +1149,6 @@
 /* Define to 1 if you have the `tanl' function. */
 #undef HAVE_TANL
 
-/* Define to 1 if you have the Termcap library. */
-#undef HAVE_TERMCAP
-
 /* Define to 1 if you have the <termios.h> header file. */
 #undef HAVE_TERMIOS_H
 
@@ -1169,9 +1160,6 @@
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
-
-/* Define to 1 if you have the Term Info library. */
-#undef HAVE_TINFO
 
 /* Define to 1 if you have the tonezone library. */
 #undef HAVE_TONEZONE
