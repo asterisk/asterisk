@@ -261,7 +261,7 @@ struct ast_sip_contact {
 	struct timeval expiration_time;
 	/*! Frequency to send OPTIONS requests to contact. 0 is disabled. */
 	unsigned int qualify_frequency;
-	/*! If true authenticate the qualify if needed */
+	/*! If true authenticate the qualify challenge response if needed */
 	int authenticate_qualify;
 	/*! Qualify timeout. 0 is diabled. */
 	double qualify_timeout;
@@ -340,7 +340,7 @@ struct ast_sip_aor {
 	unsigned int default_expiration;
 	/*! Frequency to send OPTIONS requests to AOR contacts. 0 is disabled. */
 	unsigned int qualify_frequency;
-	/*! If true authenticate the qualify if needed */
+	/*! If true authenticate the qualify challenge response if needed */
 	int authenticate_qualify;
 	/*! Maximum number of external contacts, 0 to disable */
 	unsigned int max_contacts;
