@@ -29083,7 +29083,7 @@ fi
 
 if test "x${PBX_RADIUS}" = "x1"; then
 
-$as_echo "#define FREERADIUS_CLIENT /**/" >>confdefs.h
+$as_echo "#define RADIUS_HEADER_STR <freeradius-client.h>" >>confdefs.h
 
 else
 
@@ -29182,6 +29182,113 @@ _ACEOF
 fi
 
 
+	if test "x${PBX_RADIUS}" = "x1"; then
+
+$as_echo "#define RADIUS_HEADER_STR <radiusclient-ng.h>" >>confdefs.h
+
+	else
+
+if test "x${PBX_RADIUS}" != "x1" -a "${USE_RADIUS}" != "no"; then
+   pbxlibdir=""
+   # if --with-RADIUS=DIR has been specified, use it.
+   if test "x${RADIUS_DIR}" != "x"; then
+      if test -d ${RADIUS_DIR}/lib; then
+         pbxlibdir="-L${RADIUS_DIR}/lib"
+      else
+         pbxlibdir="-L${RADIUS_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for rc_read_config in -lradcli" >&5
+$as_echo_n "checking for rc_read_config in -lradcli... " >&6; }
+if ${ac_cv_lib_radcli_rc_read_config+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lradcli ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char rc_read_config ();
+int
+main ()
+{
+return rc_read_config ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_radcli_rc_read_config=yes
+else
+  ac_cv_lib_radcli_rc_read_config=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_radcli_rc_read_config" >&5
+$as_echo "$ac_cv_lib_radcli_rc_read_config" >&6; }
+if test "x$ac_cv_lib_radcli_rc_read_config" = xyes; then :
+  AST_RADIUS_FOUND=yes
+else
+  AST_RADIUS_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_RADIUS_FOUND}" = "yes"; then
+      RADIUS_LIB="${pbxlibdir} -lradcli "
+      # if --with-RADIUS=DIR has been specified, use it.
+      if test "x${RADIUS_DIR}" != "x"; then
+         RADIUS_INCLUDE="-I${RADIUS_DIR}/include"
+      fi
+      RADIUS_INCLUDE="${RADIUS_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${RADIUS_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "radcli/radcli.h" "ac_cv_header_radcli_radcli_h" "$ac_includes_default"
+if test "x$ac_cv_header_radcli_radcli_h" = xyes; then :
+  RADIUS_HEADER_FOUND=1
+else
+  RADIUS_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${RADIUS_HEADER_FOUND}" = "x0" ; then
+         RADIUS_LIB=""
+         RADIUS_INCLUDE=""
+      else
+
+         PBX_RADIUS=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_RADIUS 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+		if test "x${PBX_RADIUS}" = "x1"; then
+
+$as_echo "#define RADIUS_HEADER_STR <radcli/radcli.h>" >>confdefs.h
+
+		fi
+	fi
 fi
 
 

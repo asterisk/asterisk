@@ -35,11 +35,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Rev$")
 
-#ifdef FREERADIUS_CLIENT
-#include <freeradius-client.h>
-#else
-#include <radiusclient-ng.h>
-#endif
+#include RADIUS_HEADER_STR
 
 #include "asterisk/channel.h"
 #include "asterisk/cel.h"
