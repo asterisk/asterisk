@@ -262,7 +262,7 @@ AC_PATH_PROG([CAT], [cat], :)
 AC_PATH_PROG([CUT], [cut], :)
 AC_PATH_PROG([FLEX], [flex], :)
 AC_PATH_PROG([GREP], [grep], :)
-AC_PATH_PROGS([PYTHON], [python2 python2.7], :)
+AC_PATH_PROG([PYTHON], [python], :)
 AC_PATH_PROG([FIND], [find], :)
 AC_PATH_PROG([COMPRESS], [compress], :)
 AC_PATH_PROG([BASENAME], [basename], :)
@@ -2268,9 +2268,7 @@ fi
 
 AC_SUBST([PYTHONDEV_LIB])
 AC_SUBST([PYTHONDEV_INCLUDE])
-AST_PKG_CONFIG_CHECK([PYTHONDEV], [python >= 3])
-AST_PKG_CONFIG_CHECK([PYTHONDEV], [python3])
-AST_PKG_CONFIG_CHECK([PYTHONDEV], [python-3.6])
+AST_PKG_CONFIG_CHECK([PYTHONDEV], [python])
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
