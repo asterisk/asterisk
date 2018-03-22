@@ -667,6 +667,30 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 
 /*!
  * \internal
+ * \brief Clear talking flag, stop contributing to mixing and notify handlers.
+ * \since 13.21.0, 15.4.0
+ *
+ * \param bridge_channel Which channel's talking to clear
+ *
+ * \return Nothing
+ */
+static void clear_talking(struct ast_bridge_channel *bridge_channel)
+{
+	struct softmix_channel *sc = bridge_channel->tech_pvt;
+
+	if (sc->talking) {
+		ast_mutex_lock(&sc->lock);
+		ast_slinfactory_flush(&sc->factory);
+		sc->talking = 0;
+		ast_mutex_unlock(&sc->lock);
+
+		/* Notify that we are no longer talking. */
+		ast_bridge_channel_notify_talking(bridge_channel, 0);
+	}
+}
+
+/*!
+ * \internal
  * \brief Check for voice status updates.
  * \since 13.20.0
  *
@@ -677,23 +701,14 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
  */
 static void softmix_bridge_check_voice(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct softmix_channel *sc = bridge_channel->tech_pvt;
-
-	if (sc->talking
-		&& bridge_channel->features->mute) {
+	if (bridge_channel->features->mute) {
 		/*
 		 * We were muted while we were talking.
 		 *
 		 * Immediately stop contributing to mixing
 		 * and report no longer talking.
 		 */
-		ast_mutex_lock(&sc->lock);
-		ast_slinfactory_flush(&sc->factory);
-		sc->talking = 0;
-		ast_mutex_unlock(&sc->lock);
-
-		/* Notify that we are no longer talking. */
-		ast_bridge_channel_notify_talking(bridge_channel, 0);
+		clear_talking(bridge_channel);
 	}
 }
 
@@ -717,6 +732,17 @@ static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_br
 	 */
 
 	switch (frame->subclass.integer) {
+	case AST_CONTROL_HOLD:
+		/*
+		 * Doing anything for holds in a conference bridge could be considered a bit
+		 * odd. That being said, in most cases one would probably want the talking
+		 * flag cleared when 'hold' is pressed by the remote endpoint, so go ahead
+		 * and do that here. However, that is all we'll do. Meaning if for some reason
+		 * the endpoint continues to send audio frames despite pressing 'hold' talking
+		 * will once again be detected for that channel.
+		 */
+		clear_talking(bridge_channel);
+		break;
 	case AST_CONTROL_VIDUPDATE:
 		ast_bridge_queue_everyone_else(bridge, NULL, frame);
 		break;
