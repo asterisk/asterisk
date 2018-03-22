@@ -6820,10 +6820,8 @@ $as_echo "no" >&6; }
 fi
 
 
-for ac_prog in python2 python2.7
-do
-  # Extract the first word of "$ac_prog", so it can be a program name with args.
-set dummy $ac_prog; ac_word=$2
+# Extract the first word of "python", so it can be a program name with args.
+set dummy python; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_path_PYTHON+:} false; then :
@@ -6849,6 +6847,7 @@ done
   done
 IFS=$as_save_IFS
 
+  test -z "$ac_cv_path_PYTHON" && ac_cv_path_PYTHON=":"
   ;;
 esac
 fi
@@ -6861,10 +6860,6 @@ else
 $as_echo "no" >&6; }
 fi
 
-
-  test -n "$PYTHON" && break
-done
-test -n "$PYTHON" || PYTHON=":"
 
 # Extract the first word of "find", so it can be a program name with args.
 set dummy find; ac_word=$2
@@ -26098,12 +26093,12 @@ if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python >= 3\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python >= 3") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python >= 3" 2>/dev/null`
+  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -26115,12 +26110,12 @@ if test -n "$PYTHONDEV_LIBS"; then
     pkg_cv_PYTHONDEV_LIBS="$PYTHONDEV_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python >= 3\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python >= 3") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python >= 3" 2>/dev/null`
+  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -26141,185 +26136,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python >= 3" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python" 2>&1`
         else
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python >= 3" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$PYTHONDEV_PKG_ERRORS" >&5
-
-
-            PBX_PYTHONDEV=0
-
-
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-            PBX_PYTHONDEV=0
-
-
-else
-	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
-	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-            PBX_PYTHONDEV=1
-            PYTHONDEV_INCLUDE="$PYTHONDEV_CFLAGS"
-            PYTHONDEV_LIB="$PYTHONDEV_LIBS"
-
-$as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
-
-
-fi
-   fi
-
-
-   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
-
-if test -n "$PYTHONDEV_CFLAGS"; then
-    pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python3\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python3") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python3" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$PYTHONDEV_LIBS"; then
-    pkg_cv_PYTHONDEV_LIBS="$PYTHONDEV_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python3\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python3") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python3" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python3" 2>&1`
-        else
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python3" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$PYTHONDEV_PKG_ERRORS" >&5
-
-
-            PBX_PYTHONDEV=0
-
-
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-            PBX_PYTHONDEV=0
-
-
-else
-	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
-	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-            PBX_PYTHONDEV=1
-            PYTHONDEV_INCLUDE="$PYTHONDEV_CFLAGS"
-            PYTHONDEV_LIB="$PYTHONDEV_LIBS"
-
-$as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
-
-
-fi
-   fi
-
-
-   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
-$as_echo_n "checking for PYTHONDEV... " >&6; }
-
-if test -n "$PYTHONDEV_CFLAGS"; then
-    pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python-3.6\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python-3.6") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python-3.6" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$PYTHONDEV_LIBS"; then
-    pkg_cv_PYTHONDEV_LIBS="$PYTHONDEV_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python-3.6\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "python-3.6") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python-3.6" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python-3.6" 2>&1`
-        else
-	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python-3.6" 2>&1`
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$PYTHONDEV_PKG_ERRORS" >&5
