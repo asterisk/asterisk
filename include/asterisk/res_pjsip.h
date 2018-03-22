@@ -1403,7 +1403,7 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
  * the next item on the SIP socket(s) can be serviced. On incoming messages,
  * Asterisk automatically will push the request to a servant thread. When your
  * module callback is called, processing will already be in a servant. However,
- * for other PSJIP events, such as transaction state changes due to timer
+ * for other PJSIP events, such as transaction state changes due to timer
  * expirations, your module will be called into from a PJSIP thread. If you
  * are called into from a PJSIP thread, then you should push whatever processing
  * is needed to a servant as soon as possible. You can discern if you are currently
@@ -1584,13 +1584,13 @@ enum ast_sip_scheduler_task_flags {
 
 	/*!
 	 * Run at a fixed interval.
-	 * Stop scheduling if the callback returns 0.
+	 * Stop scheduling if the callback returns <= 0.
 	 * Any other value is ignored.
 	 */
 	AST_SIP_SCHED_TASK_FIXED = (0 << 0),
 	/*!
 	 * Run at a variable interval.
-	 * Stop scheduling if the callback returns 0.
+	 * Stop scheduling if the callback returns <= 0.
 	 * Any other return value is used as the new interval.
 	 */
 	AST_SIP_SCHED_TASK_VARIABLE = (1 << 0),
