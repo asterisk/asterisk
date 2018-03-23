@@ -21,6 +21,11 @@ import os.path
 import pystache
 import shutil
 import tempfile
+import sys
+
+if sys.version_info[0] == 3:
+    def unicode(v):
+        return str(v)
 
 
 class Transform(object):
@@ -52,11 +57,10 @@ class Transform(object):
         dest_exists = os.path.exists(dest_file)
         if dest_exists and not self.overwrite:
             return
-        tmp_file = tempfile.mkstemp()
-        with tempfile.NamedTemporaryFile() as out:
+        with tempfile.NamedTemporaryFile(mode='w+') as out:
             out.write(renderer.render(self.template, model))
             out.flush()
 
             if not dest_exists or not filecmp.cmp(out.name, dest_file):
-                print "Writing %s" % dest_file
+                print("Writing %s" % dest_file)
                 shutil.copyfile(out.name, dest_file)

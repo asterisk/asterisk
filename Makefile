@@ -512,7 +512,7 @@ else
 	@echo "<!DOCTYPE docs SYSTEM \"appdocsxml.dtd\">" >> $@
 	@echo "<?xml-stylesheet type=\"text/xsl\" href=\"appdocsxml.xslt\"?>" >> $@
 	@echo "<docs xmlns:xi=\"http://www.w3.org/2001/XInclude\">" >> $@
-	@for x in $(MOD_SUBDIRS); do \
+	@for x in $(filter-out third-party,$(MOD_SUBDIRS)); do \
 		printf "$$x " ; \
 		for i in `find $$x -name '*.c'`; do \
 			$(PYTHON) build_tools/get_documentation.py < $$i >> $@ ; \

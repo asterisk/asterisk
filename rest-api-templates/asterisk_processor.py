@@ -20,9 +20,10 @@
 Asterisk RESTful HTTP binding code.
 """
 
+import os
 import re
 
-from swagger_model import *
+from swagger_model import Stringify, SwaggerError, SwaggerPostProcessor
 
 try:
     from collections import OrderedDict
@@ -182,7 +183,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
                 raise SwaggerError(
                     "Should not mix resources in one API declaration", context)
             # root_path isn't needed any more
-            resource_api.root_path = resource_api.root_path.children()[0]
+            resource_api.root_path = list(resource_api.root_path.children())[0]
             if resource_api.name != resource_api.root_path.name:
                 raise SwaggerError(
                     "API declaration name should match", context)
@@ -205,10 +206,10 @@ class AsteriskProcessor(SwaggerPostProcessor):
 
     def process_parameter(self, parameter, context):
         if parameter.param_type == 'body':
-	    parameter.is_body_parameter = True;
+            parameter.is_body_parameter = True;
             parameter.c_data_type = 'struct ast_json *'
         else:
-	    parameter.is_body_parameter = False;
+            parameter.is_body_parameter = False;
             if not parameter.data_type in self.type_mapping:
                 raise SwaggerError(
                     "Invalid parameter type %s" % parameter.data_type, context)
