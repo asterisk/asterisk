@@ -16,19 +16,20 @@
 # at the top of the source tree.
 #
 
+from __future__ import print_function
 import sys
 
 try:
     import pystache
 except ImportError:
-    print >> sys.stderr, "Pystache required. Please sudo pip install pystache."
+    print("Pystache required. Please sudo pip install pystache.", file=sys.stderr)
     sys.exit(1)
 
 import os.path
 
 from asterisk_processor import AsteriskProcessor
 from optparse import OptionParser
-from swagger_model import *
+from swagger_model import ResourceListing
 from transform import Transform
 
 TOPDIR = os.path.dirname(os.path.abspath(__file__))
