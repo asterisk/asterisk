@@ -951,6 +951,10 @@ config:
 		fi ; \
 	elif [ -f /etc/arch-release -o -f /etc/arch-release ] ; then \
 		./build_tools/install_subst contrib/init.d/rc.archlinux.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
+	elif [ -f /etc/slackware-version ]; then \
+		./build_tools/install_subst contrib/init.d/rc.slackware.asterisk  "$(DESTDIR)/etc/rc.d/rc.asterisk"; \
+	elif [ -f /etc/os-release ] && [ "slackware" = "$(shell . /etc/os-release && echo $$ID)" ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.slackware.asterisk  "$(DESTDIR)/etc/rc.d/rc.asterisk"; \
 	elif [ -d "$(DESTDIR)/Library/LaunchDaemons" ]; then \
 		if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist" ]; then \
 			./build_tools/install_subst contrib/init.d/org.asterisk.asterisk.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist"; \
@@ -958,8 +962,6 @@ config:
 		if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist" ]; then \
 			./build_tools/install_subst contrib/init.d/org.asterisk.muted.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist"; \
 		fi; \
-	elif [ -f /etc/slackware-version ]; then \
-		echo "Slackware is not currently supported, although an init script does exist for it."; \
 	else \
 		echo "We could not install init scripts for your distribution." ; \
 	fi
