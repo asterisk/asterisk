@@ -368,7 +368,8 @@ struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *seria
 
 static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ao2_iterator i;
+	struct ao2_iterator iter;
+	struct ao2_container *sorted_tasks;
 	struct ast_sip_sched_task *schtd;
 	const char *log_format;
 	struct ast_tm tm;
@@ -377,7 +378,7 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	char next_start[32];
 	int datelen;
 	struct timeval now;
-	static const char separator[] = "======================================";
+	static const char separator[] = "=============================================";
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -393,6 +394,17 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
+	/* Get a sorted snapshot of the scheduled tasks */
+	sorted_tasks = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		ast_sip_sched_task_sort_fn, NULL);
+	if (!sorted_tasks) {
+		return CLI_SUCCESS;
+	}
+	if (ao2_container_dup(sorted_tasks, tasks, 0)) {
+		ao2_ref(sorted_tasks, -1);
+		return CLI_SUCCESS;
+	}
+
 	now = ast_tvnow();
 	log_format = ast_logger_get_dateformat();
 
@@ -401,25 +413,28 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	ast_cli(a->fd, "PJSIP Scheduled Tasks:\n\n");
 
-	ast_cli(a->fd, " %1$-24s %2$-9s %3$-9s %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s %9$7s\n",
+	ast_cli(a->fd, "%1$-45s %2$-9s %3$-9s %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s %9$7s\n",
 		"Task Name", "Interval", "Times Run", "State",
 		datelen, "Queued", "Last Started", "Next Start", "( secs)");
 
-	ast_cli(a->fd, " %1$-24.24s %2$-9.9s %3$-9.9s %4$-5.5s  %6$-*5$.*5$s  %7$-*5$.*5$s  %9$-*8$.*8$s\n",
+	ast_cli(a->fd, "%1$-45.45s %2$-9.9s %3$-9.9s %4$-5.5s  %6$-*5$.*5$s  %7$-*5$.*5$s  %9$-*8$.*8$s\n",
 		separator, separator, separator, separator,
 		datelen, separator, separator, datelen + 8, separator);
 
-
-	ao2_rdlock(tasks);
-	i = ao2_iterator_init(tasks, AO2_ITERATOR_DONTLOCK);
-	while ((schtd = ao2_iterator_next(&i))) {
+	iter = ao2_iterator_init(sorted_tasks, AO2_ITERATOR_UNLINK);
+	for (; (schtd = ao2_iterator_next(&iter)); ao2_ref(schtd, -1)) {
 		int next_run_sec;
 		struct timeval next;
 
 		ao2_lock(schtd);
 
 		next_run_sec = ast_sip_sched_task_get_next_run(schtd) / 1000;
-		next = ast_tvadd(now, (struct timeval) {next_run_sec, 0});
+		if (next_run_sec < 0) {
+			/* Scheduled task is now canceled */
+			ao2_unlock(schtd);
+			continue;
+		}
+		next = ast_tvadd(now, ast_tv(next_run_sec, 0));
 
 		ast_localtime(&schtd->when_queued, &tm, NULL);
 		ast_strftime(queued, sizeof(queued), log_format, &tm);
@@ -434,7 +449,7 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		ast_localtime(&next, &tm, NULL);
 		ast_strftime(next_start, sizeof(next_start), log_format, &tm);
 
-		ast_cli(a->fd, " %1$-24.24s %2$9.3f %3$9d %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s (%9$5d)\n",
+		ast_cli(a->fd, "%1$-46.46s%2$9.3f %3$9d %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s (%9$5d)\n",
 			schtd->name,
 			schtd->interval / 1000.0,
 			schtd->run_count,
@@ -443,11 +458,9 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			next_start,
 			next_run_sec);
 		ao2_unlock(schtd);
-
-		ao2_cleanup(schtd);
 	}
-	ao2_iterator_destroy(&i);
-	ao2_unlock(tasks);
+	ao2_iterator_destroy(&iter);
+	ao2_ref(sorted_tasks, -1);
 	ast_cli(a->fd, "\n");
 
 	return CLI_SUCCESS;
