@@ -3963,7 +3963,7 @@ int main(int argc, char *argv[])
 	 *
 	 * \todo Document these options
 	 */
-	optind = 0;
+	optind = 1;
 	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
 		/*!\note Please keep the ordering here to alphabetical, capital letters
 		 * first.  This will make it easier in the future to select unused
