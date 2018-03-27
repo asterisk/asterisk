@@ -629,7 +629,7 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 	   can occur between this thread and bridging (specifically when native bridging
 	   attempts to do direct media) */
 	ast_channel_unlock(ast);
-	res = ast_sip_push_task_synchronous(session->serializer, answer, session);
+	res = ast_sip_push_task_wait_serializer(session->serializer, answer, session);
 	if (res) {
 		if (res == -1) {
 			ast_log(LOG_ERROR,"Cannot answer '%s': Unable to push answer task to the threadpool.\n",
@@ -2241,10 +2241,10 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 
 	req_data.caps = cap;
 	req_data.dest = data;
-	/* Default failure value in case ast_sip_push_task_synchronous() itself fails. */
+	/* Default failure value in case ast_sip_push_task_wait_servant() itself fails. */
 	req_data.cause = AST_CAUSE_FAILURE;
 
-	if (ast_sip_push_task_synchronous(NULL, request, &req_data)) {
+	if (ast_sip_push_task_wait_servant(NULL, request, &req_data)) {
 		*cause = req_data.cause;
 		return NULL;
 	}

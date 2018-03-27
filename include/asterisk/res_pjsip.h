@@ -1572,26 +1572,90 @@ struct ast_sip_endpoint *ast_sip_dialog_get_endpoint(pjsip_dialog *dlg);
 int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
 
 /*!
- * \brief Push a task to SIP servants and wait for it to complete
+ * \brief Push a task to SIP servants and wait for it to complete.
  *
- * Like \ref ast_sip_push_task except that it blocks until the task completes.
+ * Like \ref ast_sip_push_task except that it blocks until the task
+ * completes.  If the current thread is a SIP servant thread then the
+ * task executes immediately.  Otherwise, the specified serializer
+ * executes the task and the current thread waits for it to complete.
  *
- * \warning \b Never use this function in a SIP servant thread. This can potentially
- * cause a deadlock. If you are in a SIP servant thread, just call your function
- * in-line.
+ * \note PJPROJECT callbacks tend to have locks already held when
+ * called.
  *
- * \warning \b Never hold locks that may be acquired by a SIP servant thread when
- * calling this function. Doing so may cause a deadlock if all SIP servant threads
- * are blocked waiting to acquire the lock while the thread holding the lock is
- * waiting for a free SIP servant thread.
+ * \warning \b Never hold locks that may be acquired by a SIP servant
+ * thread when calling this function.  Doing so may cause a deadlock
+ * if all SIP servant threads are blocked waiting to acquire the lock
+ * while the thread holding the lock is waiting for a free SIP servant
+ * thread.
  *
- * \param serializer The SIP serializer to which the task belongs. May be NULL.
+ * \warning \b Use of this function in an ao2 destructor callback is a
+ * bad idea.  You don't have control over which thread executes the
+ * destructor.  Attempting to shift execution to another thread with
+ * this function is likely to cause deadlock.
+ *
+ * \param serializer The SIP serializer to execute the task if the
+ * current thread is not a SIP servant.  NULL if any of the default
+ * serializers can be used.
  * \param sip_task The task to execute
  * \param task_data The parameter to pass to the task when it executes
- * \retval 0 Success
- * \retval -1 Failure
+ *
+ * \note The sip_task() return value may need to be distinguished from
+ * the failure to push the task.
+ *
+ * \return sip_task() return value on success.
+ * \retval -1 Failure to push the task.
+ */
+int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+/*!
+ * \brief Push a task to SIP servants and wait for it to complete.
+ * \deprecated Replaced with ast_sip_push_task_wait_servant().
  */
 int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
+
+/*!
+ * \brief Push a task to the serializer and wait for it to complete.
+ *
+ * Like \ref ast_sip_push_task except that it blocks until the task is
+ * completed by the specified serializer.  If the specified serializer
+ * is the current thread then the task executes immediately.
+ *
+ * \note PJPROJECT callbacks tend to have locks already held when
+ * called.
+ *
+ * \warning \b Never hold locks that may be acquired by a SIP servant
+ * thread when calling this function.  Doing so may cause a deadlock
+ * if all SIP servant threads are blocked waiting to acquire the lock
+ * while the thread holding the lock is waiting for a free SIP servant
+ * thread for the serializer to execute in.
+ *
+ * \warning \b Never hold locks that may be acquired by the serializer
+ * when calling this function.  Doing so will cause a deadlock.
+ *
+ * \warning \b Never use this function in the pjsip monitor thread (It
+ * is a SIP servant thread).  This is likely to cause a deadlock.
+ *
+ * \warning \b Use of this function in an ao2 destructor callback is a
+ * bad idea.  You don't have control over which thread executes the
+ * destructor.  Attempting to shift execution to another thread with
+ * this function is likely to cause deadlock.
+ *
+ * \param serializer The SIP serializer to execute the task.  NULL if
+ * any of the default serializers can be used.
+ * \param sip_task The task to execute
+ * \param task_data The parameter to pass to the task when it executes
+ *
+ * \note It is generally better to call
+ * ast_sip_push_task_wait_servant() if you pass NULL for the
+ * serializer parameter.
+ *
+ * \note The sip_task() return value may need to be distinguished from
+ * the failure to push the task.
+ *
+ * \return sip_task() return value on success.
+ * \retval -1 Failure to push the task.
+ */
+int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data);
 
 /*!
  * \brief Determine if the current thread is a SIP servant thread

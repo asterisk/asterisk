@@ -377,7 +377,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 
 	create_data.ws_session = session;
 
-	if (ast_sip_push_task_synchronous(serializer, transport_create, &create_data)) {
+	if (ast_sip_push_task_wait_serializer(serializer, transport_create, &create_data)) {
 		ast_log(LOG_ERROR, "Could not create WebSocket transport.\n");
 		ast_taskprocessor_unreference(serializer);
 		ast_websocket_unref(session);
@@ -396,13 +396,13 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 		}
 
 		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
-			ast_sip_push_task_synchronous(serializer, transport_read, &read_data);
+			ast_sip_push_task_wait_serializer(serializer, transport_read, &read_data);
 		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 			break;
 		}
 	}
 
-	ast_sip_push_task_synchronous(serializer, transport_shutdown, transport);
+	ast_sip_push_task_wait_serializer(serializer, transport_shutdown, transport);
 
 	ast_taskprocessor_unreference(serializer);
 	ast_websocket_unref(session);

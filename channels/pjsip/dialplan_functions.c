@@ -898,7 +898,7 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 	func_args.field = args.field;
 	func_args.buf = buf;
 	func_args.len = len;
-	if (ast_sip_push_task_synchronous(func_args.session->serializer, read_pjsip, &func_args)) {
+	if (ast_sip_push_task_wait_serializer(func_args.session->serializer, read_pjsip, &func_args)) {
 		ast_log(LOG_WARNING, "Unable to read properties of channel %s: failed to push task\n", ast_channel_name(chan));
 		ao2_ref(func_args.session, -1);
 		return -1;
@@ -1091,7 +1091,7 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 		mdata.media_type = AST_MEDIA_TYPE_VIDEO;
 	}
 
-	return ast_sip_push_task_synchronous(channel->session->serializer, media_offer_write_av, &mdata);
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, media_offer_write_av, &mdata);
 }
 
 int pjsip_acf_dtmf_mode_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -1261,7 +1261,7 @@ int pjsip_acf_dtmf_mode_write(struct ast_channel *chan, const char *cmd, char *d
 
 	ast_channel_unlock(chan);
 
-	return ast_sip_push_task_synchronous(channel->session->serializer, dtmf_mode_refresh_cb, &rdata);
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, dtmf_mode_refresh_cb, &rdata);
 }
 
 static int refresh_write_cb(void *obj)
@@ -1300,5 +1300,5 @@ int pjsip_acf_session_refresh_write(struct ast_channel *chan, const char *cmd, c
 		rdata.method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 	}
 
-	return ast_sip_push_task_synchronous(channel->session->serializer, refresh_write_cb, &rdata);
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, refresh_write_cb, &rdata);
 }
