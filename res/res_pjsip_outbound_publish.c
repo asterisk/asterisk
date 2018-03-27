@@ -1072,7 +1072,7 @@ static struct sip_outbound_publisher *sip_outbound_publisher_alloc(
 		return NULL;
 	}
 
-	if (ast_sip_push_task_synchronous(NULL, sip_outbound_publisher_init, publisher)) {
+	if (ast_sip_push_task_wait_servant(NULL, sip_outbound_publisher_init, publisher)) {
 		ast_log(LOG_ERROR, "Unable to create publisher for outbound publish '%s'\n",
 			ast_sorcery_object_get_id(client->publish));
 		ao2_ref(publisher, -1);
@@ -1516,8 +1516,8 @@ static int current_state_reusable(struct ast_sip_outbound_publish *publish,
 	 */
 	old_publish = current_state->client->publish;
 	current_state->client->publish = publish;
-	if (ast_sip_push_task_synchronous(
-		    NULL, sip_outbound_publisher_reinit_all, current_state->client->publishers)) {
+	if (ast_sip_push_task_wait_servant(NULL, sip_outbound_publisher_reinit_all,
+		current_state->client->publishers)) {
 		/*
 		 * If the state object fails to re-initialize then swap
 		 * the old publish info back in.
