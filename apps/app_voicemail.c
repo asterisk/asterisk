@@ -4412,6 +4412,14 @@ static int store_file(const char *dir, const char *mailboxuser, const char *mail
 		else
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,flag,msg_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", odbc_table);
 
+		if (ast_strlen_zero(idata.origtime)) {
+			idata.origtime = "0";
+		}
+
+		if (ast_strlen_zero(idata.duration)) {
+			idata.duration = "0";
+		}
+
 		if ((stmt = ast_odbc_direct_execute(obj, insert_data_cb, &idata))) {
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		} else {
