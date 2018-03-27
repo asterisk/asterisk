@@ -267,7 +267,7 @@ static void sip_transport_state_destroy(void *obj)
 {
 	struct ast_sip_transport_state *state = obj;
 
-	ast_sip_push_task_synchronous(NULL, destroy_sip_transport_state, state);
+	ast_sip_push_task_wait_servant(NULL, destroy_sip_transport_state, state);
 }
 
 /*! \brief Destructor for ast_sip_transport state information */

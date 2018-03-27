@@ -2743,7 +2743,7 @@ static int register_service(void *data)
 
 int ast_sip_register_service(pjsip_module *module)
 {
-	return ast_sip_push_task_synchronous(NULL, register_service, &module);
+	return ast_sip_push_task_wait_servant(NULL, register_service, &module);
 }
 
 static int unregister_service(void *data)
@@ -2759,7 +2759,7 @@ static int unregister_service(void *data)
 
 void ast_sip_unregister_service(pjsip_module *module)
 {
-	ast_sip_push_task_synchronous(NULL, unregister_service, &module);
+	ast_sip_push_task_wait_servant(NULL, unregister_service, &module);
 }
 
 static struct ast_sip_authenticator *registered_authenticator;
@@ -3009,7 +3009,7 @@ static char *cli_dump_endpt(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_sip_push_task_synchronous(NULL, do_cli_dump_endpt, a);
+	ast_sip_push_task_wait_servant(NULL, do_cli_dump_endpt, a);
 
 	return CLI_SUCCESS;
 }
@@ -4484,21 +4484,30 @@ static int serializer_pool_setup(void)
 	return 0;
 }
 
+static struct ast_taskprocessor *serializer_pool_pick(void)
+{
+	struct ast_taskprocessor *serializer;
+
+	unsigned int pos;
+
+	/*
+	 * Pick a serializer to use from the pool.
+	 *
+	 * Note: We don't care about any reentrancy behavior
+	 * when incrementing serializer_pool_pos.  If it gets
+	 * incorrectly incremented it doesn't matter.
+	 */
+	pos = serializer_pool_pos++;
+	pos %= SERIALIZER_POOL_SIZE;
+	serializer = serializer_pool[pos];
+
+	return serializer;
+}
+
 int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
 {
 	if (!serializer) {
-		unsigned int pos;
-
-		/*
-		 * Pick a serializer to use from the pool.
-		 *
-		 * Note: We don't care about any reentrancy behavior
-		 * when incrementing serializer_pool_pos.  If it gets
-		 * incorrectly incremented it doesn't matter.
-		 */
-		pos = serializer_pool_pos++;
-		pos %= SERIALIZER_POOL_SIZE;
-		serializer = serializer_pool[pos];
+		serializer = serializer_pool_pick();
 	}
 
 	return ast_taskprocessor_push(serializer, sip_task, task_data);
@@ -4522,9 +4531,8 @@ static int sync_task(void *data)
 
 	/*
 	 * Once we unlock std->lock after signaling, we cannot access
-	 * std again.  The thread waiting within
-	 * ast_sip_push_task_synchronous() is free to continue and
-	 * release its local variable (std).
+	 * std again.  The thread waiting within ast_sip_push_task_wait()
+	 * is free to continue and release its local variable (std).
 	 */
 	ast_mutex_lock(&std->lock);
 	std->complete = 1;
@@ -4534,14 +4542,10 @@ static int sync_task(void *data)
 	return ret;
 }
 
-int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+static int ast_sip_push_task_wait(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
 {
 	/* This method is an onion */
 	struct sync_task_data std;
-
-	if (ast_sip_thread_is_servant()) {
-		return sip_task(task_data);
-	}
 
 	memset(&std, 0, sizeof(std));
 	ast_mutex_init(&std.lock);
@@ -4564,6 +4568,42 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
 	ast_mutex_destroy(&std.lock);
 	ast_cond_destroy(&std.cond);
 	return std.fail;
+}
+
+int ast_sip_push_task_wait_servant(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	if (ast_sip_thread_is_servant()) {
+		return sip_task(task_data);
+	}
+
+	return ast_sip_push_task_wait(serializer, sip_task, task_data);
+}
+
+int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	return ast_sip_push_task_wait_servant(serializer, sip_task, task_data);
+}
+
+int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
+{
+	if (!serializer) {
+		/* Caller doesn't care which PJSIP serializer the task executes under. */
+		serializer = serializer_pool_pick();
+		if (!serializer) {
+			/* No serializer picked to execute the task */
+			return -1;
+		}
+	}
+	if (ast_taskprocessor_is_task(serializer)) {
+		/*
+		 * We are the requested serializer so we must execute
+		 * the task now or deadlock waiting on ourself to
+		 * execute it.
+		 */
+		return sip_task(task_data);
+	}
+
+	return ast_sip_push_task_wait(serializer, sip_task, task_data);
 }
 
 void ast_copy_pj_str(char *dest, const pj_str_t *src, size_t size)
@@ -5191,7 +5231,7 @@ static int reload_module(void)
 	 * We must wait for the reload to complete so multiple
 	 * reloads cannot happen at the same time.
 	 */
-	if (ast_sip_push_task_synchronous(NULL, reload_configuration_task, NULL)) {
+	if (ast_sip_push_task_wait_servant(NULL, reload_configuration_task, NULL)) {
 		ast_log(LOG_WARNING, "Failed to reload PJSIP\n");
 		return -1;
 	}
@@ -5208,7 +5248,7 @@ static int unload_module(void)
 	/* The thread this is called from cannot call PJSIP/PJLIB functions,
 	 * so we have to push the work to the threadpool to handle
 	 */
-	ast_sip_push_task_synchronous(NULL, unload_pjsip, NULL);
+	ast_sip_push_task_wait_servant(NULL, unload_pjsip, NULL);
 	ast_sip_destroy_scheduler();
 	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
