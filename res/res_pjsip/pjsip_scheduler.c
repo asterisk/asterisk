@@ -88,6 +88,9 @@ static int run_task(void *data)
 		return -1;
 	}
 
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Running %s\n", schtd, schtd->name);
+	}
 	ao2_lock(schtd);
 	schtd->last_start = ast_tvnow();
 	schtd->is_running = 1;
@@ -139,6 +142,10 @@ static int run_task(void *data)
 	}
 
 	ao2_unlock(schtd);
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Rescheduled %s for %d ms\n", schtd, schtd->name,
+			delay);
+	}
 
 	return 0;
 }
@@ -161,6 +168,9 @@ static int push_to_serializer(const void *data)
 		return 0;
 	}
 
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Ready to run %s\n", schtd, schtd->name);
+	}
 	ao2_t_ref(schtd, +1, "Give ref to run_task()");
 	if (ast_sip_push_task(schtd->serializer, run_task, schtd)) {
 		/*
@@ -182,6 +192,10 @@ int ast_sip_sched_task_cancel(struct ast_sip_sched_task *schtd)
 {
 	int res;
 	int sched_id;
+
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Canceling %s\n", schtd, schtd->name);
+	}
 
 	/*
 	 * Prevent any tasks in the serializer queue from
@@ -349,6 +363,9 @@ static void schtd_dtor(void *data)
 {
 	struct ast_sip_sched_task *schtd = data;
 
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Destructor %s\n", schtd, schtd->name);
+	}
 	if (schtd->flags & AST_SIP_SCHED_TASK_DATA_AO2) {
 		/* release our own ref, then release the callers if asked to do so */
 		ao2_ref(schtd->task_data, (schtd->flags & AST_SIP_SCHED_TASK_DATA_FREE) ? -2 : -1);
@@ -388,6 +405,10 @@ struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *seria
 
 		task_id = ast_atomic_fetchadd_int(&task_count, 1);
 		sprintf(schtd->name, "task_%08x", task_id);
+	}
+	if (schtd->flags & AST_SIP_SCHED_TASK_TRACK) {
+		ast_log(LOG_DEBUG, "Sched %p: Scheduling %s for %d ms\n", schtd, schtd->name,
+			interval);
 	}
 	schtd->when_queued = ast_tvnow();
 	if (!(schtd->flags & AST_SIP_SCHED_TASK_DELAY)) {
