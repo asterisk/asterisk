@@ -833,6 +833,8 @@ static int reregister_immediately_cb(void *obj)
  *
  * \param obj What is needed to initiate a reregister attempt.
  *
+ * \note Normally executed by the pjsip monitor thread.
+ *
  * \return Nothing
  */
 static void registration_transport_shutdown_cb(void *obj)

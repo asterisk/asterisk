@@ -560,15 +560,52 @@ static void *publication_resource_alloc(const char *name)
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_publication_resource), publication_resource_destroy);
 }
 
-static void sub_tree_transport_cb(void *data) {
+static int sub_tree_subscription_terminate_cb(void *data)
+{
 	struct sip_subscription_tree *sub_tree = data;
 
-	ast_debug(3, "Transport destroyed.  Removing subscription '%s->%s'  prune on restart: %d\n",
+	if (!sub_tree->evsub) {
+		/* Something else already terminated the subscription. */
+		ao2_ref(sub_tree, -1);
+		return 0;
+	}
+
+	ast_debug(3, "Transport destroyed.  Removing subscription '%s->%s'  prune on boot: %d\n",
 		sub_tree->persistence->endpoint, sub_tree->root->resource,
 		sub_tree->persistence->prune_on_boot);
 
 	sub_tree->state = SIP_SUB_TREE_TERMINATE_IN_PROGRESS;
 	pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+
+	ao2_ref(sub_tree, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief The reliable transport we used as a subscription contact has shutdown.
+ *
+ * \param data What subscription needs to be terminated.
+ *
+ * \note Normally executed by the pjsip monitor thread.
+ *
+ * \return Nothing
+ */
+static void sub_tree_transport_cb(void *data)
+{
+	struct sip_subscription_tree *sub_tree = data;
+
+	/*
+	 * Push off the subscription termination to the serializer to
+	 * avoid deadlock.  Another thread could be trying to send a
+	 * message on the subscription that can deadlock with this
+	 * thread.
+	 */
+	ao2_ref(sub_tree, +1);
+	if (ast_sip_push_task(sub_tree->serializer, sub_tree_subscription_terminate_cb,
+		sub_tree)) {
+		ao2_ref(sub_tree, -1);
+	}
 }
 
 /*! \brief Destructor for subscription persistence */
@@ -621,7 +658,7 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		return;
 	}
 
-	ast_debug(3, "Updating persistence for '%s->%s'  prune on restart: %s\n",
+	ast_debug(3, "Updating persistence for '%s->%s'  prune on boot: %s\n",
 		sub_tree->persistence->endpoint, sub_tree->root->resource,
 		sub_tree->persistence->prune_on_boot ? "yes" : "no");
 
@@ -645,7 +682,7 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 							sub_tree->endpoint, rdata);
 
 					if (sub_tree->persistence->prune_on_boot) {
-						ast_debug(3, "adding transport monitor on %s for '%s->%s'  prune on restart: %d\n",
+						ast_debug(3, "adding transport monitor on %s for '%s->%s'  prune on boot: %d\n",
 							rdata->tp_info.transport->obj_name,
 							sub_tree->persistence->endpoint, sub_tree->root->resource,
 							sub_tree->persistence->prune_on_boot);
