@@ -337,7 +337,7 @@ static int contact_transport_monitor_matcher(void *a, void *b)
 		&& strcmp(ma->contact_name, mb->contact_name) == 0;
 }
 
-static void register_contact_transport_shutdown_cb(void *data)
+static int register_contact_transport_remove_cb(void *data)
 {
 	struct contact_transport_monitor *monitor = data;
 	struct ast_sip_contact *contact;
@@ -345,7 +345,8 @@ static void register_contact_transport_shutdown_cb(void *data)
 
 	aor = ast_sip_location_retrieve_aor(monitor->aor_name);
 	if (!aor) {
-		return;
+		ao2_ref(monitor, -1);
+		return 0;
 	}
 
 	ao2_lock(aor);
@@ -365,6 +366,35 @@ static void register_contact_transport_shutdown_cb(void *data)
 	}
 	ao2_unlock(aor);
 	ao2_ref(aor, -1);
+
+	ao2_ref(monitor, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief The reliable transport we registered as a contact has shutdown.
+ *
+ * \param data What contact needs to be removed.
+ *
+ * \note Normally executed by the pjsip monitor thread.
+ *
+ * \return Nothing
+ */
+static void register_contact_transport_shutdown_cb(void *data)
+{
+	struct contact_transport_monitor *monitor = data;
+
+	/*
+	 * Push off to a default serializer.  This is in case sorcery
+	 * does database accesses for contacts.  Database accesses may
+	 * not be on this machine.  We don't want to tie up the pjsip
+	 * monitor thread with potentially long access times.
+	 */
+	ao2_ref(monitor, +1);
+	if (ast_sip_push_task(NULL, register_contact_transport_remove_cb, monitor)) {
+		ao2_ref(monitor, -1);
+	}
 }
 
 AST_VECTOR(excess_contact_vector, struct ast_sip_contact *);
