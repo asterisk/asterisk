@@ -965,6 +965,8 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 		break;
 	case AST_FRAME_CNG:
 		break;
+	case AST_FRAME_RTCP:
+		break;
 	default:
 		ast_log(LOG_WARNING, "Can't send %u type frames with PJSIP\n", frame->frametype);
 		break;

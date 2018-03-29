@@ -653,7 +653,8 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 		case AST_FRAME_VIDEO:
 		case AST_FRAME_TEXT:
 		case AST_FRAME_IMAGE:
-			/* Media frames need to be mapped to an appropriate write stream */
+		case AST_FRAME_RTCP:
+			/* These frames need to be mapped to an appropriate write stream */
 			if (frame->stream_num < 0) {
 				/* Map to default stream */
 				frame->stream_num = -1;
