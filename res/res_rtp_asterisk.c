@@ -106,7 +106,7 @@
 #define RTCP_PT_APP     204
 /* VP8: RTCP Feedback */
 /*! Payload Specific Feed Back (From RFC4585 also RFC5104) */
-#define RTCP_PT_PSFB    206
+#define RTCP_PT_PSFB    AST_RTP_RTCP_PSFB
 
 #define RTP_MTU		1200
 #define DTMF_SAMPLE_RATE_MS    8 /*!< DTMF samples per millisecond */
@@ -5185,6 +5185,7 @@ static const char *rtcp_payload_type2str(unsigned int pt)
 #define RTCP_SR_BLOCK_WORD_LENGTH 5
 #define RTCP_RR_BLOCK_WORD_LENGTH 6
 #define RTCP_HEADER_SSRC_LENGTH   2
+#define RTCP_FB_REMB_BLOCK_WORD_LENGTH 5
 
 static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, const unsigned char *rtcpdata, size_t size, struct ast_sockaddr *addr)
 {
@@ -5266,6 +5267,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 		RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 		struct ast_rtp_instance *child;
 		struct ast_rtp *rtp;
+		struct ast_rtp_rtcp_feedback *feedback;
 
 		i = position;
 		first_word = ntohl(rtcpheader[i]);
@@ -5284,7 +5286,15 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 			min_length += (rc * RTCP_RR_BLOCK_WORD_LENGTH);
 			break;
 		case RTCP_PT_FUR:
+			break;
 		case RTCP_PT_PSFB:
+			switch (rc) {
+			case AST_RTP_RTCP_FMT_REMB:
+				min_length += RTCP_FB_REMB_BLOCK_WORD_LENGTH;
+				break;
+			default:
+				break;
+			}
 			break;
 		case RTCP_PT_SDES:
 		case RTCP_PT_BYE:
@@ -5493,6 +5503,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 			/* Return an AST_FRAME_RTCP frame with the ast_rtp_rtcp_report
 			 * object as a its data */
 			transport_rtp->f.frametype = AST_FRAME_RTCP;
+			transport_rtp->f.subclass.integer = pt;
 			transport_rtp->f.data.ptr = rtp->rtcp->frame_buf + AST_FRIENDLY_OFFSET;
 			memcpy(transport_rtp->f.data.ptr, rtcp_report, sizeof(struct ast_rtp_rtcp_report));
 			transport_rtp->f.datalen = sizeof(struct ast_rtp_rtcp_report);
@@ -5514,18 +5525,55 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 			f = &transport_rtp->f;
 			break;
 		case RTCP_PT_FUR:
-		/* Handle RTCP FIR as FUR */
+		/* Handle RTCP FUR as FIR by setting the format to 4 */
+			rc = AST_RTP_RTCP_FMT_FIR;
 		case RTCP_PT_PSFB:
-			if (rtcp_debug_test_addr(addr)) {
-				ast_verbose("Received an RTCP Fast Update Request\n");
+			switch (rc) {
+			case AST_RTP_RTCP_FMT_FIR:
+				if (rtcp_debug_test_addr(addr)) {
+					ast_verbose("Received an RTCP Fast Update Request\n");
+				}
+				transport_rtp->f.frametype = AST_FRAME_CONTROL;
+				transport_rtp->f.subclass.integer = AST_CONTROL_VIDUPDATE;
+				transport_rtp->f.datalen = 0;
+				transport_rtp->f.samples = 0;
+				transport_rtp->f.mallocd = 0;
+				transport_rtp->f.src = "RTP";
+				f = &transport_rtp->f;
+				break;
+			case AST_RTP_RTCP_FMT_REMB:
+				/* If REMB support is not enabled ignore this message */
+				if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_REMB)) {
+					break;
+				}
+
+				if (rtcp_debug_test_addr(addr)) {
+					ast_verbose("Received REMB report\n");
+				}
+				transport_rtp->f.frametype = AST_FRAME_RTCP;
+				transport_rtp->f.subclass.integer = pt;
+				transport_rtp->f.stream_num = rtp->stream_num;
+				transport_rtp->f.data.ptr = rtp->rtcp->frame_buf + AST_FRIENDLY_OFFSET;
+				feedback = transport_rtp->f.data.ptr;
+				feedback->fmt = rc;
+
+				/* We don't actually care about the SSRC information in the feedback message */
+				first_word = ntohl(rtcpheader[i + 2]);
+				feedback->remb.br_exp = (first_word >> 18) & ((1 << 6) - 1);
+				feedback->remb.br_mantissa = first_word & ((1 << 18) - 1);
+
+				transport_rtp->f.datalen = sizeof(struct ast_rtp_rtcp_feedback);
+				transport_rtp->f.offset = AST_FRIENDLY_OFFSET;
+				transport_rtp->f.samples = 0;
+				transport_rtp->f.mallocd = 0;
+				transport_rtp->f.delivery.tv_sec = 0;
+				transport_rtp->f.delivery.tv_usec = 0;
+				transport_rtp->f.src = "RTP";
+				f = &transport_rtp->f;
+				break;
+			default:
+				break;
 			}
-			transport_rtp->f.frametype = AST_FRAME_CONTROL;
-			transport_rtp->f.subclass.integer = AST_CONTROL_VIDUPDATE;
-			transport_rtp->f.datalen = 0;
-			transport_rtp->f.samples = 0;
-			transport_rtp->f.mallocd = 0;
-			transport_rtp->f.src = "RTP";
-			f = &transport_rtp->f;
 			break;
 		case RTCP_PT_SDES:
 			if (rtcp_debug_test_addr(addr)) {

@@ -292,6 +292,14 @@ struct ast_rtp_payload_type {
 #define AST_RTP_RTCP_SR 200
 /*! Receiver Report */
 #define AST_RTP_RTCP_RR 201
+/*! Payload Specific Feed Back (From RFC4585 also RFC5104) */
+#define AST_RTP_RTCP_PSFB    206
+
+/* Common RTCP feedback message types */
+/*! Full INTRA-frame Request (From RFC5104) */
+#define AST_RTP_RTCP_FMT_FIR	4
+/*! REMB Information (From draft-alvestrand-rmcat-remb-03) */
+#define AST_RTP_RTCP_FMT_REMB	15
 
 /*!
  * \since 12
@@ -325,6 +333,24 @@ struct ast_rtp_rtcp_report {
 	 * \c reception_report_count.
 	 */
 	struct ast_rtp_rtcp_report_block *report_block[0];
+};
+
+/*!
+ * \since 15.4.0
+ * \brief A REMB feedback message (see draft-alvestrand-rmcat-remb-03 for details) */
+struct ast_rtp_rtcp_feedback_remb {
+	unsigned int br_exp;		/*!< Exponential scaling of the mantissa for the maximum total media bit rate value */
+	unsigned int br_mantissa;	/*!< The mantissa of the maximum total media bit rate */
+};
+
+/*!
+ * \since 15.4.0
+ * \brief An object that represents data received in a feedback report */
+struct ast_rtp_rtcp_feedback {
+	unsigned int fmt; /*!< The feedback message type */
+	union {
+		struct ast_rtp_rtcp_feedback_remb remb; /*!< REMB feedback information */
+	};
 };
 
 /*! Structure that represents statistics from an RTP instance */
