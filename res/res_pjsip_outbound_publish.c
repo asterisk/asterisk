@@ -362,7 +362,8 @@ static struct ast_sip_event_publisher_handler *find_publisher_handler_for_event_
 /*! \brief Helper function which cancels the refresh timer on a publisher */
 static void cancel_publish_refresh(struct sip_outbound_publisher *publisher)
 {
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &publisher->timer)) {
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&publisher->timer, 0)) {
 		/* The timer was successfully cancelled, drop the refcount of the publisher */
 		ao2_ref(publisher, -1);
 	}
