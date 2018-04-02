@@ -458,6 +458,18 @@
 						video update requests from clients.
 					</para></description>
 				</configOption>
+				<configOption name="remb_send_interval" default="0">
+					<synopsis>Sets the interval in milliseconds that a combined REMB frame will be sent to video sources</synopsis>
+					<description><para>
+						Sets the interval in milliseconds that a combined REMB frame will be sent
+						to video sources. This is done by taking all REMB frames that have been
+						received since the last REMB frame was sent, making a combined value,
+						and sending it to the source. A REMB frame contains receiver estimated
+						maximum bitrate information. By creating a combined REMB frame the
+						sender of video can be influenced on the bitrate they choose, allowing
+						better quality for all receivers.
+					</para></description>
+				</configOption>
 				<configOption name="template">
 					<synopsis>When using the CONFBRIDGE dialplan function, use a bridge profile as a template for creating a new temporary profile</synopsis>
 				</configOption>
@@ -1661,6 +1673,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	}
 
 	ast_cli(a->fd,"Video Update Discard: %u\n", b_profile.video_update_discard);
+	ast_cli(a->fd,"REMB Send Interval: %u\n", b_profile.remb_send_interval);
 
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
@@ -2231,6 +2244,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "sound_", ACO_PREFIX, bridge_types, NULL, sound_option_handler, 0);
 	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
+	aco_option_register(&cfg_info, "remb_send_interval", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_send_interval));
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 

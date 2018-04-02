@@ -222,6 +222,7 @@ struct bridge_profile {
 	struct bridge_profile_sounds *sounds;
 	char regcontext[AST_MAX_CONTEXT];
 	unsigned int video_update_discard; /*!< Amount of time after sending a video update request that subsequent requests should be discarded */
+	unsigned int remb_send_interval; /*!< Interval at which a combined REMB frame is sent to video sources */
 };
 
 /*! \brief The structure that represents a conference bridge */
