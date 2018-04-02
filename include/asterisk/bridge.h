@@ -135,6 +135,7 @@ struct ast_bridge_video_mode {
 		struct ast_bridge_video_talker_src_data talker_src_data;
 	} mode_data;
 	unsigned int video_update_discard;
+	unsigned int remb_send_interval;
 };
 
 /*!
@@ -910,6 +911,14 @@ void ast_bridge_set_sfu_video_mode(struct ast_bridge *bridge);
  * \param video_update_discard Amount of time after sending a video update that others should be discarded
  */
 void ast_bridge_set_video_update_discard(struct ast_bridge *bridge, unsigned int video_update_discard);
+
+/*!
+ * \brief Set the interval at which a combined REMB frame will be sent to video sources
+ *
+ * \param bridge Bridge to set the REMB send interval on
+ * \param remb_send_interval The REMB send interval
+ */
+void ast_bridge_set_remb_send_interval(struct ast_bridge *bridge, unsigned int remb_send_interval);
 
 /*!
  * \brief Update information about talker energy for talker src video mode.
