@@ -672,17 +672,11 @@ CONFIG_NEON
 CONFIG_MYSQLCLIENT
 PBX_MISDN_FAC_ERROR
 PBX_MISDN_FAC_RESULT
-LIBEDIT_LIBS
-LIBEDIT_CFLAGS
-LIBEDIT_INTERNAL
 ILBC_LIBS
 ILBC_CFLAGS
 ILBC_INTERNAL
 GSM_INTERNAL
 PBX_DAHDI_HALF_FULL
-PKG_CONFIG_LIBDIR
-PKG_CONFIG_PATH
-PKG_CONFIG
 PBX_DLADDR
 PBX_IP_MTU_DISCOVER
 PBX_RTLD_NOLOAD
@@ -714,6 +708,12 @@ CONFIG_LIBXML2
 UUID_LIB
 UUID_INCLUDE
 EDITLINE_LIB
+LIBEDIT_LIBS
+LIBEDIT_CFLAGS
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
+LIBEDIT_INTERNAL
 ALLOCA
 PBX_ZLIB
 ZLIB_DIR
@@ -1438,10 +1438,10 @@ PJPROJECT_CONFIGURE_OPTS
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
-ILBC_CFLAGS
-ILBC_LIBS
 LIBEDIT_CFLAGS
 LIBEDIT_LIBS
+ILBC_CFLAGS
+ILBC_LIBS
 PJPROJECT_CFLAGS
 PJPROJECT_LIBS
 PYTHONDEV_CFLAGS
@@ -2188,12 +2188,12 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
-  ILBC_CFLAGS C compiler flags for ILBC, overriding pkg-config
-  ILBC_LIBS   linker flags for ILBC, overriding pkg-config
   LIBEDIT_CFLAGS
               C compiler flags for LIBEDIT, overriding pkg-config
   LIBEDIT_LIBS
               linker flags for LIBEDIT, overriding pkg-config
+  ILBC_CFLAGS C compiler flags for ILBC, overriding pkg-config
+  ILBC_LIBS   linker flags for ILBC, overriding pkg-config
   PJPROJECT_CFLAGS
               C compiler flags for PJPROJECT, overriding pkg-config
   PJPROJECT_LIBS
@@ -13073,7 +13073,377 @@ fi
 done
 
 
-# Any one of these packages support a mandatory requirement, so we want to check on them as early as possible.
+# Find required NetBSD Editline library (libedit).
+EDITLINE_LIB=""
+LIBEDIT_INTERNAL="yes"
+
+LIBEDIT_SYSTEM="yes"
+if test "${USE_LIBEDIT}" != "no"; then
+   if test "${LIBEDIT_DIR}" = "internal"; then
+      LIBEDIT_SYSTEM="no"
+   elif test "${LIBEDIT_DIR}" != ""; then
+      LIBEDIT_INTERNAL="no"
+   fi
+   if test "${LIBEDIT_SYSTEM}" = "yes"; then
+
+
+
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
+
+   if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
+$as_echo_n "checking for LIBEDIT... " >&6; }
+
+if test -n "$LIBEDIT_CFLAGS"; then
+    pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libedit\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libedit") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_LIBEDIT_CFLAGS=`$PKG_CONFIG --cflags "libedit" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$LIBEDIT_LIBS"; then
+    pkg_cv_LIBEDIT_LIBS="$LIBEDIT_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libedit\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libedit") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_LIBEDIT_LIBS=`$PKG_CONFIG --libs "libedit" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
+        else
+	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$LIBEDIT_PKG_ERRORS" >&5
+
+
+            PBX_LIBEDIT=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_LIBEDIT=0
+
+
+else
+	LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
+	LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_LIBEDIT=1
+            LIBEDIT_INCLUDE="$LIBEDIT_CFLAGS"
+            LIBEDIT_LIB="$LIBEDIT_LIBS"
+
+$as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
+
+
+fi
+   fi
+
+      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+
+if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
+   pbxlibdir=""
+   # if --with-LIBEDIT=DIR has been specified, use it.
+   if test "x${LIBEDIT_DIR}" != "x"; then
+      if test -d ${LIBEDIT_DIR}/lib; then
+         pbxlibdir="-L${LIBEDIT_DIR}/lib"
+      else
+         pbxlibdir="-L${LIBEDIT_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for history_init in -ledit" >&5
+$as_echo_n "checking for history_init in -ledit... " >&6; }
+if ${ac_cv_lib_edit_history_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ledit ${pbxlibdir} -ltermcap $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char history_init ();
+int
+main ()
+{
+return history_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_edit_history_init=yes
+else
+  ac_cv_lib_edit_history_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_edit_history_init" >&5
+$as_echo "$ac_cv_lib_edit_history_init" >&6; }
+if test "x$ac_cv_lib_edit_history_init" = xyes; then :
+  AST_LIBEDIT_FOUND=yes
+else
+  AST_LIBEDIT_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_LIBEDIT_FOUND}" = "yes"; then
+      LIBEDIT_LIB="${pbxlibdir} -ledit -ltermcap"
+      # if --with-LIBEDIT=DIR has been specified, use it.
+      if test "x${LIBEDIT_DIR}" != "x"; then
+         LIBEDIT_INCLUDE="-I${LIBEDIT_DIR}/include"
+      fi
+      LIBEDIT_INCLUDE="${LIBEDIT_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${LIBEDIT_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "histedit.h" "ac_cv_header_histedit_h" "$ac_includes_default"
+if test "x$ac_cv_header_histedit_h" = xyes; then :
+  LIBEDIT_HEADER_FOUND=1
+else
+  LIBEDIT_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${LIBEDIT_HEADER_FOUND}" = "x0" ; then
+         LIBEDIT_LIB=""
+         LIBEDIT_INCLUDE=""
+      else
+
+         PBX_LIBEDIT=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBEDIT 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+      if test "$PBX_LIBEDIT" = "1"; then
+         LIBEDIT_INTERNAL="no"
+      fi
+   fi
+   if test "${LIBEDIT_INTERNAL}" = "yes"; then
+      PBX_LIBEDIT=1
+      LIBEDIT_IS_UNICODE=no
+   else
+
+    if test "x${PBX_LIBEDIT_IS_UNICODE}" != "x1" -a "${USE_LIBEDIT_IS_UNICODE}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Testing for libedit unicode support" >&5
+$as_echo_n "checking for Testing for libedit unicode support... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${LIBEDIT_IS_UNICODE_DIR}" != "x"; then
+	    LIBEDIT_IS_UNICODE_INCLUDE="-I${LIBEDIT_IS_UNICODE_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${LIBEDIT_IS_UNICODE_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <histedit.h>
+int
+main ()
+{
+ el_rfunc_t *callback;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_LIBEDIT_IS_UNICODE=1
+
+$as_echo "#define HAVE_LIBEDIT_IS_UNICODE 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+   fi
+fi
+# If the Asterisk internal copy should be build (user said so) or
+# must be build (system does not have it), either -ltermcap,
+# -ltinfo, or -l{n}curses must be available.
+if test "${LIBEDIT_INTERNAL}" = "yes"; then
 
 if test "x${PBX_TERMCAP}" != "x1" -a "${USE_TERMCAP}" != "no"; then
    pbxlibdir=""
@@ -13160,6 +13530,9 @@ _ACEOF
 fi
 
 
+   if test "x$TERMCAP_LIB" != "x" ; then
+      EDITLINE_LIB="$TERMCAP_LIB"
+   else
 
 if test "x${PBX_TINFO}" != "x1" -a "${USE_TINFO}" != "no"; then
    pbxlibdir=""
@@ -13246,6 +13619,9 @@ _ACEOF
 fi
 
 
+      if test "x$TINFO_LIB" != "x" ; then
+         EDITLINE_LIB="$TINFO_LIB"
+      else
 
 if test "x${PBX_CURSES}" != "x1" -a "${USE_CURSES}" != "no"; then
    pbxlibdir=""
@@ -13342,6 +13718,9 @@ _ACEOF
 fi
 
 
+         if test "x$CURSES_LIB" != "x" ; then
+            EDITLINE_LIB="$CURSES_LIB"
+         else
 
 if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
    pbxlibdir=""
@@ -13438,18 +13817,14 @@ _ACEOF
 fi
 
 
-
-EDITLINE_LIB=""
-if test "x$TERMCAP_LIB" != "x" ; then
-  EDITLINE_LIB="$TERMCAP_LIB"
-elif test "x$TINFO_LIB" != "x" ; then
-  EDITLINE_LIB="$TINFO_LIB"
-elif test "x$CURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$CURSES_LIB"
-elif test "x$NCURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$NCURSES_LIB"
-else
-  as_fn_error $? "*** termcap support not found (on modern systems, this typically means the ncurses development package is missing)" "$LINENO" 5
+            if test "x$NCURSES_LIB" != "x" ; then
+               EDITLINE_LIB="$NCURSES_LIB"
+            else
+               as_fn_error $? "*** termcap support not found (on modern systems, this typically means the ncurses development package is missing)" "$LINENO" 5
+            fi
+         fi
+      fi
+   fi
 fi
 
 
@@ -20374,252 +20749,6 @@ fi
    fi
    if test "${ILBC_INTERNAL}" = "yes"; then
       PBX_ILBC=1
-   fi
-fi
-
-LIBEDIT_INTERNAL="yes"
-
-LIBEDIT_SYSTEM="yes"
-if test "${USE_LIBEDIT}" != "no"; then
-   if test "${LIBEDIT_DIR}" = "internal"; then
-      LIBEDIT_SYSTEM="no"
-   elif test "${LIBEDIT_DIR}" != ""; then
-      LIBEDIT_INTERNAL="no"
-   fi
-   if test "${LIBEDIT_SYSTEM}" = "yes"; then
-
-   if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
-$as_echo_n "checking for LIBEDIT... " >&6; }
-
-if test -n "$LIBEDIT_CFLAGS"; then
-    pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libedit\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libedit") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_LIBEDIT_CFLAGS=`$PKG_CONFIG --cflags "libedit" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-if test -n "$LIBEDIT_LIBS"; then
-    pkg_cv_LIBEDIT_LIBS="$LIBEDIT_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libedit\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libedit") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_LIBEDIT_LIBS=`$PKG_CONFIG --libs "libedit" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
-else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
-
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
-else
-        _pkg_short_errors_supported=no
-fi
-        if test $_pkg_short_errors_supported = yes; then
-	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libedit" 2>&1`
-        else
-	        LIBEDIT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libedit" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$LIBEDIT_PKG_ERRORS" >&5
-
-
-            PBX_LIBEDIT=0
-
-
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-            PBX_LIBEDIT=0
-
-
-else
-	LIBEDIT_CFLAGS=$pkg_cv_LIBEDIT_CFLAGS
-	LIBEDIT_LIBS=$pkg_cv_LIBEDIT_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-            PBX_LIBEDIT=1
-            LIBEDIT_INCLUDE="$LIBEDIT_CFLAGS"
-            LIBEDIT_LIB="$LIBEDIT_LIBS"
-
-$as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
-
-
-fi
-   fi
-
-      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
-
-if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
-   pbxlibdir=""
-   # if --with-LIBEDIT=DIR has been specified, use it.
-   if test "x${LIBEDIT_DIR}" != "x"; then
-      if test -d ${LIBEDIT_DIR}/lib; then
-         pbxlibdir="-L${LIBEDIT_DIR}/lib"
-      else
-         pbxlibdir="-L${LIBEDIT_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for history_init in -ledit" >&5
-$as_echo_n "checking for history_init in -ledit... " >&6; }
-if ${ac_cv_lib_edit_history_init+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-ledit ${pbxlibdir} -ltermcap $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char history_init ();
-int
-main ()
-{
-return history_init ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_edit_history_init=yes
-else
-  ac_cv_lib_edit_history_init=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_edit_history_init" >&5
-$as_echo "$ac_cv_lib_edit_history_init" >&6; }
-if test "x$ac_cv_lib_edit_history_init" = xyes; then :
-  AST_LIBEDIT_FOUND=yes
-else
-  AST_LIBEDIT_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_LIBEDIT_FOUND}" = "yes"; then
-      LIBEDIT_LIB="${pbxlibdir} -ledit -ltermcap"
-      # if --with-LIBEDIT=DIR has been specified, use it.
-      if test "x${LIBEDIT_DIR}" != "x"; then
-         LIBEDIT_INCLUDE="-I${LIBEDIT_DIR}/include"
-      fi
-      LIBEDIT_INCLUDE="${LIBEDIT_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${LIBEDIT_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "histedit.h" "ac_cv_header_histedit_h" "$ac_includes_default"
-if test "x$ac_cv_header_histedit_h" = xyes; then :
-  LIBEDIT_HEADER_FOUND=1
-else
-  LIBEDIT_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${LIBEDIT_HEADER_FOUND}" = "x0" ; then
-         LIBEDIT_LIB=""
-         LIBEDIT_INCLUDE=""
-      else
-
-         PBX_LIBEDIT=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBEDIT 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-      if test "$PBX_LIBEDIT" = "1"; then
-         LIBEDIT_INTERNAL="no"
-      fi
-   fi
-   if test "${LIBEDIT_INTERNAL}" = "yes"; then
-      PBX_LIBEDIT=1
-      LIBEDIT_IS_UNICODE=no
-   else
-
-    if test "x${PBX_LIBEDIT_IS_UNICODE}" != "x1" -a "${USE_LIBEDIT_IS_UNICODE}" != "no"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for Testing for libedit unicode support" >&5
-$as_echo_n "checking for Testing for libedit unicode support... " >&6; }
-	saved_cppflags="${CPPFLAGS}"
-	if test "x${LIBEDIT_IS_UNICODE_DIR}" != "x"; then
-	    LIBEDIT_IS_UNICODE_INCLUDE="-I${LIBEDIT_IS_UNICODE_DIR}/include"
-	fi
-	CPPFLAGS="${CPPFLAGS} ${LIBEDIT_IS_UNICODE_INCLUDE}"
-
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
- #include <histedit.h>
-int
-main ()
-{
- el_rfunc_t *callback;;
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_LIBEDIT_IS_UNICODE=1
-
-$as_echo "#define HAVE_LIBEDIT_IS_UNICODE 1" >>confdefs.h
-
-
-
-else
-         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-	CPPFLAGS="${saved_cppflags}"
-    fi
-
    fi
 fi
 
