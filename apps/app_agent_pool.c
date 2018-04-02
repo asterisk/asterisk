@@ -438,6 +438,7 @@ static void *agent_cfg_alloc(const char *name)
 	cfg = ao2_alloc_options(sizeof(*cfg), agent_cfg_destructor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!cfg || ast_string_field_init(cfg, 64)) {
+		ao2_cleanup(cfg);
 		return NULL;
 	}
 	ast_string_field_set(cfg, username, name);
