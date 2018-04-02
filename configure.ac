@@ -620,23 +620,57 @@ AC_CHECK_HEADERS([ \
 
 AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
 
-# Any one of these packages support a mandatory requirement, so we want to check on them as early as possible.
-AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
-AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
-AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
-AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
-
+# Find required NetBSD Editline library (libedit).
 EDITLINE_LIB=""
-if test "x$TERMCAP_LIB" != "x" ; then
-  EDITLINE_LIB="$TERMCAP_LIB"
-elif test "x$TINFO_LIB" != "x" ; then
-  EDITLINE_LIB="$TINFO_LIB"
-elif test "x$CURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$CURSES_LIB"
-elif test "x$NCURSES_LIB" != "x" ; then
-  EDITLINE_LIB="$NCURSES_LIB"
-else
-  AC_MSG_ERROR([*** termcap support not found (on modern systems, this typically means the ncurses development package is missing)])
+LIBEDIT_INTERNAL="yes"
+AC_SUBST(LIBEDIT_INTERNAL)
+LIBEDIT_SYSTEM="yes"
+if test "${USE_LIBEDIT}" != "no"; then
+   if test "${LIBEDIT_DIR}" = "internal"; then
+      LIBEDIT_SYSTEM="no"
+   elif test "${LIBEDIT_DIR}" != ""; then
+      LIBEDIT_INTERNAL="no"
+   fi
+   if test "${LIBEDIT_SYSTEM}" = "yes"; then
+      AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
+      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
+      AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
+      if test "$PBX_LIBEDIT" = "1"; then
+         LIBEDIT_INTERNAL="no"
+      fi
+   fi
+   if test "${LIBEDIT_INTERNAL}" = "yes"; then
+      PBX_LIBEDIT=1
+      LIBEDIT_IS_UNICODE=no
+   else
+      AST_C_COMPILE_CHECK([LIBEDIT_IS_UNICODE], [el_rfunc_t *callback;], [histedit.h], [], [Testing for libedit unicode support])
+   fi
+fi
+# If the Asterisk internal copy should be build (user said so) or
+# must be build (system does not have it), either -ltermcap,
+# -ltinfo, or -l{n}curses must be available.
+if test "${LIBEDIT_INTERNAL}" = "yes"; then
+   AST_EXT_LIB_CHECK([TERMCAP], [termcap], [tgetent], [])
+   if test "x$TERMCAP_LIB" != "x" ; then
+      EDITLINE_LIB="$TERMCAP_LIB"
+   else
+      AST_EXT_LIB_CHECK([TINFO], [tinfo], [tgetent], [])
+      if test "x$TINFO_LIB" != "x" ; then
+         EDITLINE_LIB="$TINFO_LIB"
+      else
+         AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
+         if test "x$CURSES_LIB" != "x" ; then
+            EDITLINE_LIB="$CURSES_LIB"
+         else
+            AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+            if test "x$NCURSES_LIB" != "x" ; then
+               EDITLINE_LIB="$NCURSES_LIB"
+            else
+               AC_MSG_ERROR([*** termcap support not found (on modern systems, this typically means the ncurses development package is missing)])
+            fi
+         fi
+      fi
+   fi
 fi
 AC_SUBST(EDITLINE_LIB)
 
@@ -1584,31 +1618,6 @@ if test "${USE_ILBC}" != "no"; then
    fi
    if test "${ILBC_INTERNAL}" = "yes"; then
       PBX_ILBC=1
-   fi
-fi
-
-LIBEDIT_INTERNAL="yes"
-AC_SUBST(LIBEDIT_INTERNAL)
-LIBEDIT_SYSTEM="yes"
-if test "${USE_LIBEDIT}" != "no"; then
-   if test "${LIBEDIT_DIR}" = "internal"; then
-      LIBEDIT_SYSTEM="no"
-   elif test "${LIBEDIT_DIR}" != ""; then
-      LIBEDIT_INTERNAL="no"
-   fi
-   if test "${LIBEDIT_SYSTEM}" = "yes"; then
-      AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
-      # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
-      AST_EXT_LIB_CHECK([LIBEDIT], [edit], [history_init], [histedit.h], [-ltermcap])
-      if test "$PBX_LIBEDIT" = "1"; then
-         LIBEDIT_INTERNAL="no"
-      fi
-   fi
-   if test "${LIBEDIT_INTERNAL}" = "yes"; then
-      PBX_LIBEDIT=1
-      LIBEDIT_IS_UNICODE=no
-   else
-      AST_C_COMPILE_CHECK([LIBEDIT_IS_UNICODE], [el_rfunc_t *callback;], [histedit.h], [], [Testing for libedit unicode support])
    fi
 fi
 
