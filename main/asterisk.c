@@ -302,10 +302,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
-/*! Default minimum DTMF digit length - 80ms */
-#define AST_MIN_DTMF_DURATION 80
-
-
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
     ast_verbose("Asterisk %s, Copyright (C) 1999 - 2016, Digium, Inc. and others.\n" \
@@ -315,40 +311,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
                 "License version 2 and other licenses; you are welcome to redistribute it under\n" \
                 "certain conditions. Type 'core show license' for details.\n" \
                 "=========================================================================\n", ast_get_version()) \
-
-/*! \defgroup main_options Main Configuration Options
- * \brief Main configuration options from asterisk.conf or OS command line on starting Asterisk.
- * \arg \ref Config_ast "asterisk.conf"
- * \note Some of them can be changed in the CLI
- */
-/*! @{ */
-
-struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
-
-/*! Maximum active system verbosity level. */
-int ast_verb_sys_level;
-
-int option_verbose;				/*!< Verbosity level */
-int option_debug;				/*!< Debug level */
-int ast_pjproject_max_log_level = -1;/* Default to -1 to know if we have read the level from pjproject yet. */
-int ast_option_pjproject_log_level;
-int ast_option_pjproject_cache_pools;
-double ast_option_maxload;			/*!< Max load avg on system */
-int ast_option_maxcalls;			/*!< Max number of active calls */
-int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
-unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
-#if defined(HAVE_SYSINFO)
-long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
-#endif
-int ast_option_rtpusedynamic;
-unsigned int ast_option_rtpptdynamic;
-
-/*! @} */
-
-struct ast_eid ast_eid_default;
-
-/* XXX tmpdir is a subdir of the spool directory, and no way to remap it */
-char record_cache_dir[AST_CACHE_DIR_LEN] = DEFAULT_TMP_DIR;
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_socket_is_sd = 0; /*!< Is socket activation responsible for ast_socket? */
@@ -383,8 +345,6 @@ static char *remotehostname;
 
 struct console consoles[AST_MAX_CONNECTS];
 
-char ast_defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
-
 static int ast_el_add_history(const char *);
 static int ast_el_read_history(const char *);
 static int ast_el_write_history(const char *);
@@ -393,62 +353,6 @@ static void ast_el_read_default_histfile(void);
 static void ast_el_write_default_histfile(void);
 
 static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup);
-
-#define DEFAULT_MONITOR_DIR DEFAULT_SPOOL_DIR "/monitor"
-#define DEFAULT_RECORDING_DIR DEFAULT_SPOOL_DIR "/recording"
-
-struct _cfg_paths {
-	char config_dir[PATH_MAX];
-	char module_dir[PATH_MAX];
-	char spool_dir[PATH_MAX];
-	char monitor_dir[PATH_MAX];
-	char recording_dir[PATH_MAX];
-	char var_dir[PATH_MAX];
-	char data_dir[PATH_MAX];
-	char log_dir[PATH_MAX];
-	char agi_dir[PATH_MAX];
-	char run_dir[PATH_MAX];
-	char key_dir[PATH_MAX];
-
-	char config_file[PATH_MAX];
-	char db_path[PATH_MAX];
-	char sbin_dir[PATH_MAX];
-	char pid_path[PATH_MAX];
-	char socket_path[PATH_MAX];
-	char run_user[PATH_MAX];
-	char run_group[PATH_MAX];
-	char system_name[128];
-};
-
-static struct _cfg_paths cfg_paths;
-
-const char *ast_config_AST_CONFIG_DIR	= cfg_paths.config_dir;
-const char *ast_config_AST_CONFIG_FILE	= cfg_paths.config_file;
-const char *ast_config_AST_MODULE_DIR	= cfg_paths.module_dir;
-const char *ast_config_AST_SPOOL_DIR	= cfg_paths.spool_dir;
-const char *ast_config_AST_MONITOR_DIR	= cfg_paths.monitor_dir;
-const char *ast_config_AST_RECORDING_DIR	= cfg_paths.recording_dir;
-const char *ast_config_AST_VAR_DIR	= cfg_paths.var_dir;
-const char *ast_config_AST_DATA_DIR	= cfg_paths.data_dir;
-const char *ast_config_AST_LOG_DIR	= cfg_paths.log_dir;
-const char *ast_config_AST_AGI_DIR	= cfg_paths.agi_dir;
-const char *ast_config_AST_KEY_DIR	= cfg_paths.key_dir;
-const char *ast_config_AST_RUN_DIR	= cfg_paths.run_dir;
-const char *ast_config_AST_SBIN_DIR = cfg_paths.sbin_dir;
-
-const char *ast_config_AST_DB		= cfg_paths.db_path;
-const char *ast_config_AST_PID		= cfg_paths.pid_path;
-const char *ast_config_AST_SOCKET	= cfg_paths.socket_path;
-const char *ast_config_AST_RUN_USER	= cfg_paths.run_user;
-const char *ast_config_AST_RUN_GROUP	= cfg_paths.run_group;
-const char *ast_config_AST_SYSTEM_NAME	= cfg_paths.system_name;
-
-static char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
-static char ast_config_AST_CTL_OWNER[PATH_MAX] = "\0";
-static char ast_config_AST_CTL_GROUP[PATH_MAX] = "\0";
-static char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
-
-extern unsigned int ast_FD_SETSIZE;
 
 static char *_argv[256];
 
@@ -1812,29 +1716,6 @@ static struct sigaction child_handler = {
 	.sa_handler = _child_handler,
 	.sa_flags = SA_RESTART,
 };
-
-/*! \brief Set maximum open files */
-static void set_ulimit(int value)
-{
-	struct rlimit l = {0, 0};
-
-	if (value <= 0) {
-		ast_log(LOG_WARNING, "Unable to change max files open to invalid value %i\n",value);
-		return;
-	}
-
-	l.rlim_cur = value;
-	l.rlim_max = value;
-
-	if (setrlimit(RLIMIT_NOFILE, &l)) {
-		ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n",strerror(errno));
-		return;
-	}
-
-	ast_log(LOG_NOTICE, "Setting max files open to %d\n",value);
-
-	return;
-}
 
 /*! \brief Set an X-term or screen title */
 static void set_title(char *text)
@@ -3472,296 +3353,6 @@ static int show_cli_help(void)
 	return 0;
 }
 
-static void ast_readconfig(void)
-{
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	char hostname[MAXHOSTNAMELEN] = "";
-	struct ast_flags config_flags = { CONFIG_FLAG_NOREALTIME };
-	struct {
-		unsigned int dbdir:1;
-		unsigned int keydir:1;
-	} found = { 0, 0 };
-	/* Default to false for security */
-	int live_dangerously = 0;
-	int option_debug_new = 0;
-	int option_verbose_new = 0;
-
-	/* Set default value */
-	option_dtmfminduration = AST_MIN_DTMF_DURATION;
-	ast_option_rtpusedynamic = 1;
-	ast_option_rtpptdynamic = 35;
-
-	/* init with buildtime config */
-	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
-	ast_copy_string(cfg_paths.spool_dir, DEFAULT_SPOOL_DIR, sizeof(cfg_paths.spool_dir));
-	ast_copy_string(cfg_paths.module_dir, DEFAULT_MODULE_DIR, sizeof(cfg_paths.module_dir));
-	ast_copy_string(cfg_paths.monitor_dir, DEFAULT_MONITOR_DIR, sizeof(cfg_paths.monitor_dir));
-	ast_copy_string(cfg_paths.recording_dir, DEFAULT_RECORDING_DIR, sizeof(cfg_paths.recording_dir));
-	ast_copy_string(cfg_paths.var_dir, DEFAULT_VAR_DIR, sizeof(cfg_paths.var_dir));
-	ast_copy_string(cfg_paths.data_dir, DEFAULT_DATA_DIR, sizeof(cfg_paths.data_dir));
-	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));
-	ast_copy_string(cfg_paths.agi_dir, DEFAULT_AGI_DIR, sizeof(cfg_paths.agi_dir));
-	ast_copy_string(cfg_paths.db_path, DEFAULT_DB, sizeof(cfg_paths.db_path));
-	ast_copy_string(cfg_paths.sbin_dir, DEFAULT_SBIN_DIR, sizeof(cfg_paths.sbin_dir));
-	ast_copy_string(cfg_paths.key_dir, DEFAULT_KEY_DIR, sizeof(cfg_paths.key_dir));
-	ast_copy_string(cfg_paths.pid_path, DEFAULT_PID, sizeof(cfg_paths.pid_path));
-	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
-	ast_copy_string(cfg_paths.run_dir, DEFAULT_RUN_DIR, sizeof(cfg_paths.run_dir));
-
-#ifdef REF_DEBUG
-	/* The REF_DEBUG compiler flag is now only used to enable refdebug by default.
-	 * Support for debugging reference counts is always compiled in. */
-	ast_set2_flag(&ast_options, 1, AST_OPT_FLAG_REF_DEBUG);
-#endif
-
-	ast_set_default_eid(&ast_eid_default);
-
-	cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
-
-	/* If AST_OPT_FLAG_EXEC_INCLUDES was previously enabled with -X turn it off now.
-	 * Using #exec from other configs requires that it be enabled from asterisk.conf. */
-	ast_clear_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
-
-	/* no asterisk.conf? no problem, use buildtime config! */
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
-		fprintf(stderr, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
-		return;
-	}
-
-	for (v = ast_variable_browse(cfg, "files"); v; v = v->next) {
-		if (!strcasecmp(v->name, "astctlpermissions"))
-			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
-		else if (!strcasecmp(v->name, "astctlowner"))
-			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
-		else if (!strcasecmp(v->name, "astctlgroup"))
-			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
-		else if (!strcasecmp(v->name, "astctl"))
-			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
-	}
-
-	for (v = ast_variable_browse(cfg, "directories"); v; v = v->next) {
-		if (!strcasecmp(v->name, "astetcdir")) {
-			ast_copy_string(cfg_paths.config_dir, v->value, sizeof(cfg_paths.config_dir));
-		} else if (!strcasecmp(v->name, "astspooldir")) {
-			ast_copy_string(cfg_paths.spool_dir, v->value, sizeof(cfg_paths.spool_dir));
-			snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", v->value);
-			snprintf(cfg_paths.recording_dir, sizeof(cfg_paths.recording_dir), "%s/recording", v->value);
-		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			ast_copy_string(cfg_paths.var_dir, v->value, sizeof(cfg_paths.var_dir));
-			if (!found.dbdir)
-				snprintf(cfg_paths.db_path, sizeof(cfg_paths.db_path), "%s/astdb", v->value);
-		} else if (!strcasecmp(v->name, "astdbdir")) {
-			snprintf(cfg_paths.db_path, sizeof(cfg_paths.db_path), "%s/astdb", v->value);
-			found.dbdir = 1;
-		} else if (!strcasecmp(v->name, "astdatadir")) {
-			ast_copy_string(cfg_paths.data_dir, v->value, sizeof(cfg_paths.data_dir));
-			if (!found.keydir)
-				snprintf(cfg_paths.key_dir, sizeof(cfg_paths.key_dir), "%s/keys", v->value);
-		} else if (!strcasecmp(v->name, "astkeydir")) {
-			snprintf(cfg_paths.key_dir, sizeof(cfg_paths.key_dir), "%s/keys", v->value);
-			found.keydir = 1;
-		} else if (!strcasecmp(v->name, "astlogdir")) {
-			ast_copy_string(cfg_paths.log_dir, v->value, sizeof(cfg_paths.log_dir));
-		} else if (!strcasecmp(v->name, "astagidir")) {
-			ast_copy_string(cfg_paths.agi_dir, v->value, sizeof(cfg_paths.agi_dir));
-		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf(cfg_paths.pid_path, sizeof(cfg_paths.pid_path), "%s/%s", v->value, "asterisk.pid");
-			ast_copy_string(cfg_paths.run_dir, v->value, sizeof(cfg_paths.run_dir));
-		} else if (!strcasecmp(v->name, "astmoddir")) {
-			ast_copy_string(cfg_paths.module_dir, v->value, sizeof(cfg_paths.module_dir));
-		} else if (!strcasecmp(v->name, "astsbindir")) {
-			ast_copy_string(cfg_paths.sbin_dir, v->value, sizeof(cfg_paths.sbin_dir));
-		}
-	}
-
-	/* Combine astrundir and astctl settings. */
-	snprintf(cfg_paths.socket_path, sizeof(cfg_paths.socket_path), "%s/%s",
-		ast_config_AST_RUN_DIR, ast_config_AST_CTL);
-
-	for (v = ast_variable_browse(cfg, "options"); v; v = v->next) {
-		/* verbose level (-v at startup) */
-		if (!strcasecmp(v->name, "verbose")) {
-			option_verbose_new = atoi(v->value);
-		/* whether or not to force timestamping in CLI verbose output. (-T at startup) */
-		} else if (!strcasecmp(v->name, "timestamp")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
-		/* whether or not to support #exec in config files */
-		} else if (!strcasecmp(v->name, "execincludes")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_EXEC_INCLUDES);
-		/* debug level (-d at startup) */
-		} else if (!strcasecmp(v->name, "debug")) {
-			option_debug_new = 0;
-			if (sscanf(v->value, "%30d", &option_debug_new) != 1) {
-				option_debug_new = ast_true(v->value) ? 1 : 0;
-			}
-		} else if (!strcasecmp(v->name, "refdebug")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
-#if HAVE_WORKING_FORK
-		/* Disable forking (-f at startup) */
-		} else if (!strcasecmp(v->name, "nofork")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
-		/* Always fork, even if verbose or debug are enabled (-F at startup) */
-		} else if (!strcasecmp(v->name, "alwaysfork")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_ALWAYS_FORK);
-#endif
-		/* Run quietly (-q at startup ) */
-		} else if (!strcasecmp(v->name, "quiet")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
-		/* Run as console (-c at startup, implies nofork) */
-		} else if (!strcasecmp(v->name, "console")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
-		/* Run with high priority if the O/S permits (-p at startup) */
-		} else if (!strcasecmp(v->name, "highpriority")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
-		/* Initialize RSA auth keys (IAX2) (-i at startup) */
-		} else if (!strcasecmp(v->name, "initcrypto")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INIT_KEYS);
-		/* Disable ANSI colors for console (-c at startup) */
-		} else if (!strcasecmp(v->name, "nocolor")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_COLOR);
-		/* Disable some usage warnings for picky people :p */
-		} else if (!strcasecmp(v->name, "dontwarn")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DONT_WARN);
-		/* Dump core in case of crash (-g) */
-		} else if (!strcasecmp(v->name, "dumpcore")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DUMP_CORE);
-		/* Cache recorded sound files to another directory during recording */
-		} else if (!strcasecmp(v->name, "cache_record_files")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_RECORD_FILES);
-#if !defined(LOW_MEMORY)
-		/* Cache media frames for performance */
-		} else if (!strcasecmp(v->name, "cache_media_frames")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_MEDIA_FRAMES);
-#endif
-		/* Specify cache directory */
-		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
-			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
-		/* Build transcode paths via SLINEAR, instead of directly */
-		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSCODE_VIA_SLIN);
-		/* Transmit SLINEAR silence while a channel is being recorded or DTMF is being generated on a channel */
-		} else if (!strcasecmp(v->name, "transmit_silence_during_record") || !strcasecmp(v->name, "transmit_silence")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
-		/* Enable internal timing */
-		} else if (!strcasecmp(v->name, "internal_timing")) {
-			if (!ast_opt_remote) {
-				fprintf(stderr,
-					"NOTICE: The internal_timing option is no longer needed.\n"
-					"  It will always be enabled if you have a timing module loaded.\n");
-			}
-		} else if (!strcasecmp(v->name, "mindtmfduration")) {
-			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
-				option_dtmfminduration = AST_MIN_DTMF_DURATION;
-			}
-		} else if (!strcasecmp(v->name, "rtp_use_dynamic")) {
-			ast_option_rtpusedynamic = ast_true(v->value);
-		/* http://www.iana.org/assignments/rtp-parameters
-		 * RTP dynamic payload types start at 96 normally; extend down to 0 */
-		} else if (!strcasecmp(v->name, "rtp_pt_dynamic")) {
-			ast_parse_arg(v->value, PARSE_UINT32|PARSE_IN_RANGE,
-			              &ast_option_rtpptdynamic, 0, AST_RTP_PT_FIRST_DYNAMIC);
-		} else if (!strcasecmp(v->name, "maxcalls")) {
-			if ((sscanf(v->value, "%30d", &ast_option_maxcalls) != 1) || (ast_option_maxcalls < 0)) {
-				ast_option_maxcalls = 0;
-			}
-		} else if (!strcasecmp(v->name, "maxload")) {
-			double test[1];
-
-			if (getloadavg(test, 1) == -1) {
-				ast_log(LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
-				ast_option_maxload = 0.0;
-			} else if ((sscanf(v->value, "%30lf", &ast_option_maxload) != 1) || (ast_option_maxload < 0.0)) {
-				ast_option_maxload = 0.0;
-			}
-		/* Set the maximum amount of open files */
-		} else if (!strcasecmp(v->name, "maxfiles")) {
-			ast_option_maxfiles = atoi(v->value);
-			if (!ast_opt_remote) {
-				set_ulimit(ast_option_maxfiles);
-			}
-		/* What user to run as */
-		} else if (!strcasecmp(v->name, "runuser")) {
-			ast_copy_string(cfg_paths.run_user, v->value, sizeof(cfg_paths.run_user));
-		/* What group to run as */
-		} else if (!strcasecmp(v->name, "rungroup")) {
-			ast_copy_string(cfg_paths.run_group, v->value, sizeof(cfg_paths.run_group));
-		} else if (!strcasecmp(v->name, "systemname")) {
-			ast_copy_string(cfg_paths.system_name, v->value, sizeof(cfg_paths.system_name));
-		} else if (!strcasecmp(v->name, "autosystemname")) {
-			if (ast_true(v->value)) {
-				if (!gethostname(hostname, sizeof(hostname) - 1))
-					ast_copy_string(cfg_paths.system_name, hostname, sizeof(cfg_paths.system_name));
-				else {
-					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)){
-						ast_copy_string(cfg_paths.system_name, "localhost", sizeof(cfg_paths.system_name));
-					}
-					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using '%s' instead.\n", ast_config_AST_SYSTEM_NAME);
-				}
-			}
-		} else if (!strcasecmp(v->name, "languageprefix")) {
-			ast_language_is_prefix = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "defaultlanguage")) {
-			ast_copy_string(ast_defaultlanguage, v->value, MAX_LANGUAGE);
-		} else if (!strcasecmp(v->name, "lockmode")) {
-			if (!strcasecmp(v->value, "lockfile")) {
-				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
-			} else if (!strcasecmp(v->value, "flock")) {
-				ast_set_lock_type(AST_LOCK_TYPE_FLOCK);
-			} else {
-				ast_log(LOG_WARNING, "'%s' is not a valid setting for the lockmode option, "
-					"defaulting to 'lockfile'\n", v->value);
-				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
-			}
-#if defined(HAVE_SYSINFO)
-		} else if (!strcasecmp(v->name, "minmemfree")) {
-			/* specify the minimum amount of free memory to retain.  Asterisk should stop accepting new calls
-			 * if the amount of free memory falls below this watermark */
-			if ((sscanf(v->value, "%30ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
-				option_minmemfree = 0;
-			}
-#endif
-		} else if (!strcasecmp(v->name, "entityid")) {
-			struct ast_eid tmp_eid;
-			if (!ast_str_to_eid(&tmp_eid, v->value)) {
-				ast_eid_default = tmp_eid;
-			} else {
-				ast_log(LOG_WARNING, "Invalid Entity ID '%s' provided\n", v->value);
-			}
-		} else if (!strcasecmp(v->name, "lightbackground")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
-		} else if (!strcasecmp(v->name, "forceblackbackground")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_FORCE_BLACK_BACKGROUND);
-		} else if (!strcasecmp(v->name, "hideconnect")) {
-			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
-		} else if (!strcasecmp(v->name, "lockconfdir")) {
-			ast_set2_flag(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
-		} else if (!strcasecmp(v->name, "stdexten")) {
-			/* Choose how to invoke the extensions.conf stdexten */
-			if (!strcasecmp(v->value, "gosub")) {
-				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
-			} else if (!strcasecmp(v->value, "macro")) {
-				ast_set_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
-			} else {
-				ast_log(LOG_WARNING,
-					"'%s' is not a valid setting for the stdexten option, defaulting to 'gosub'\n",
-					v->value);
-				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
-			}
-		} else if (!strcasecmp(v->name, "live_dangerously")) {
-			live_dangerously = ast_true(v->value);
-		}
-	}
-	if (!ast_opt_remote) {
-		pbx_live_dangerously(live_dangerously);
-	}
-
-	option_debug += option_debug_new;
-	option_verbose += option_verbose_new;
-
-	ast_config_destroy(cfg);
-}
-
 static void read_pjproject_startup_options(void)
 {
 	struct ast_config *cfg;
@@ -3947,9 +3538,6 @@ int main(int argc, char *argv[])
 	}
 	ast_mainpid = getpid();
 
-	/* Set config file to default before checking arguments for override. */
-	ast_copy_string(cfg_paths.config_file, DEFAULT_CONFIG_FILE, sizeof(cfg_paths.config_file));
-
 	/* Process command-line options that effect asterisk.conf load. */
 	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
 		switch (c) {
@@ -3957,7 +3545,7 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
 			break;
 		case 'C':
-			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));
+			set_asterisk_conf_path(optarg);
 			break;
 		case 'd':
 			option_debug++;
@@ -3986,7 +3574,7 @@ int main(int argc, char *argv[])
 	/* Initialize env so it is available if #exec is used in asterisk.conf. */
 	env_init();
 
-	ast_readconfig();
+	load_asterisk_conf();
 
 	/* Update env to include any systemname that was set. */
 	env_init();
@@ -4079,7 +3667,7 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			if (ast_opt_remote) {
-				ast_copy_string((char *) cfg_paths.socket_path, optarg, sizeof(cfg_paths.socket_path));
+				set_socket_path(optarg);
 			}
 			break;
 		case 'T':
