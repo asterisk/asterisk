@@ -1,0 +1,434 @@
+From 853005378de2ffecee7774e095d8cbfbfa0ab706 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Tue, 2 Jan 2018 06:36:46 -0700
+Subject: [PATCH] timer: Clean up usage of timer heap
+
+Added a new pj_timer_entry_reset function that resets a timer_entry
+for re-use.
+
+Changed direct settings of timer_entry fields to use
+pj_timer_entry_init and pj_timer_entry_reset.
+
+Fixed issues where timers were being rescheduled incorrectly.
+---
+ pjlib/include/pj/timer.h             | 14 ++++++++++++++
+ pjlib/src/pj/ssl_sock_ossl.c         |  8 +++++---
+ pjlib/src/pj/timer.c                 | 12 ++++++++++++
+ pjnath/src/pjnath/ice_session.c      |  9 ++++++++-
+ pjnath/src/pjnath/nat_detect.c       |  2 ++
+ pjnath/src/pjnath/stun_sock.c        |  2 +-
+ pjnath/src/pjnath/stun_transaction.c | 10 +++++-----
+ pjnath/src/pjnath/turn_session.c     |  3 +++
+ pjnath/src/pjnath/turn_sock.c        |  1 +
+ pjnath/src/pjturn-srv/allocation.c   |  4 ++--
+ pjnath/src/pjturn-srv/listener_tcp.c |  2 +-
+ pjsip/src/pjsip-simple/evsub.c       |  6 +++---
+ pjsip/src/pjsip/sip_endpoint.c       |  4 +++-
+ pjsip/src/pjsip/sip_transaction.c    |  9 +++------
+ pjsip/src/pjsip/sip_transport.c      |  3 +--
+ 15 files changed, 64 insertions(+), 25 deletions(-)
+
+diff --git a/pjlib/include/pj/timer.h b/pjlib/include/pj/timer.h
+index df6155a81..90fc8ac85 100644
+--- a/pjlib/include/pj/timer.h
++++ b/pjlib/include/pj/timer.h
+@@ -212,6 +212,20 @@ PJ_DECL(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
+                                               void *user_data,
+                                               pj_timer_heap_callback *cb );
+ 
++/**
++ * Reset a timer entry. Application should call this function before reusing
++ * the timer entry.
++ *
++ * @param entry     The timer entry to be initialized.
++ * @param id        Arbitrary ID assigned by the user/owner of this entry.
++ *                  Applications can use this ID to distinguish multiple
++ *                  timer entries that share the same callback and user_data.
++ *
++ * @return          The timer entry itself.
++ */
++PJ_DECL(pj_timer_entry*) pj_timer_entry_reset( pj_timer_entry *entry,
++                                             int id);
++
+ /**
+  * Queries whether a timer entry is currently running.
+  *
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index 969cc1420..ead1a8fbb 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -291,6 +291,7 @@ struct pj_ssl_cert_t
+ static write_data_t* alloc_send_data(pj_ssl_sock_t *ssock, pj_size_t len);
+ static void free_send_data(pj_ssl_sock_t *ssock, write_data_t *wdata);
+ static pj_status_t flush_delayed_send(pj_ssl_sock_t *ssock);
++static void on_timer(pj_timer_heap_t *th, struct pj_timer_entry *te);
+ 
+ /*
+  *******************************************************************
+@@ -1621,7 +1622,8 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
+ 		    pj_timer_heap_cancel(ssock->param.timer_heap,
+ 					 &ssock->timer);
+ 		}
+-		ssock->timer.id = TIMER_CLOSE;
++
++		pj_timer_entry_reset(&ssock->timer, TIMER_CLOSE);
+ 		pj_time_val_normalize(&interval);
+ 		if (pj_timer_heap_schedule(ssock->param.timer_heap, 
+ 					   &ssock->timer, &interval) != 0)
+@@ -2387,7 +2389,7 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+ 	ssock->param.timeout.msec != 0))
+     {
+ 	pj_assert(ssock->timer.id == TIMER_NONE);
+-	ssock->timer.id = TIMER_HANDSHAKE_TIMEOUT;
++	pj_timer_entry_reset(&ssock->timer, TIMER_HANDSHAKE_TIMEOUT);
+ 	status = pj_timer_heap_schedule(ssock->param.timer_heap, 
+ 				        &ssock->timer,
+ 					&ssock->param.timeout);
+@@ -3405,7 +3407,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_connect( pj_ssl_sock_t *ssock,
+ 	ssock->param.timeout.msec != 0))
+     {
+ 	pj_assert(ssock->timer.id == TIMER_NONE);
+-	ssock->timer.id = TIMER_HANDSHAKE_TIMEOUT;
++	pj_timer_entry_reset(&ssock->timer, TIMER_HANDSHAKE_TIMEOUT);
+ 	status = pj_timer_heap_schedule(ssock->param.timer_heap,
+ 					&ssock->timer,
+ 				        &ssock->param.timeout);
+diff --git a/pjlib/src/pj/timer.c b/pjlib/src/pj/timer.c
+index 90a95e37b..13126116f 100644
+--- a/pjlib/src/pj/timer.c
++++ b/pjlib/src/pj/timer.c
+@@ -472,6 +472,18 @@ PJ_DEF(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
+     return entry;
+ }
+ 
++PJ_DEF(pj_timer_entry*) pj_timer_entry_reset( pj_timer_entry *entry,
++                                             int id)
++{
++    entry->id = id;
++    entry->_grp_lock = NULL;
++    entry->_timer_id = -1;
++    entry->_timer_value = (pj_time_val){0, 0};
++
++    return entry;
++}
++
++
+ PJ_DEF(pj_bool_t) pj_timer_entry_running( pj_timer_entry *entry )
+ {
+     return (entry->_timer_id >= 1);
+diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
+index 63a0d1c9c..6d0e6abc9 100644
+--- a/pjnath/src/pjnath/ice_session.c
++++ b/pjnath/src/pjnath/ice_session.c
+@@ -1246,6 +1246,7 @@ done:
+ 		     ice->comp_cnt;
+ 	pj_time_val_normalize(&delay);
+ 
++	pj_timer_entry_reset(&ice->timer, TIMER_KEEP_ALIVE);
+ 	pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+ 	                                  &ice->timer, &delay,
+ 	                                  TIMER_KEEP_ALIVE,
+@@ -1276,7 +1277,7 @@ static void on_ice_complete(pj_ice_sess *ice, pj_status_t status)
+ 	/* Call callback */
+ 	if (ice->cb.on_ice_complete) {
+ 	    pj_time_val delay = {0, 0};
+-
++	    pj_timer_entry_reset(&ice->timer, TIMER_COMPLETION_CALLBACK);
+ 	    pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+ 	                                      &ice->timer, &delay,
+ 	                                      TIMER_COMPLETION_CALLBACK,
+@@ -1507,6 +1508,7 @@ static pj_bool_t on_check_complete(pj_ice_sess *ice,
+ 		    delay.sec = 0;
+ 		    delay.msec = ice->opt.controlled_agent_want_nom_timeout;
+ 		    pj_time_val_normalize(&delay);
++		    pj_timer_entry_reset(&ice->timer, TIMER_CONTROLLED_WAIT_NOM);
+ 
+ 		    pj_timer_heap_schedule_w_grp_lock(
+ 					ice->stun_cfg.timer_heap,
+@@ -1597,6 +1599,7 @@ static pj_bool_t on_check_complete(pj_ice_sess *ice,
+ 	delay.sec = 0;
+ 	delay.msec = ice->opt.nominated_check_delay;
+ 	pj_time_val_normalize(&delay);
++        pj_timer_entry_reset(&ice->timer, TIMER_START_NOMINATED_CHECK);
+ 
+ 	pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+ 	                                  &ice->timer, &delay,
+@@ -1929,6 +1932,8 @@ static pj_status_t start_periodic_check(pj_timer_heap_t *th,
+ 	pj_time_val timeout = {0, PJ_ICE_TA_VAL};
+ 
+ 	pj_time_val_normalize(&timeout);
++        pj_timer_entry_reset(&ice->timer, PJ_TRUE);
++
+ 	pj_timer_heap_schedule_w_grp_lock(th, te, &timeout, PJ_TRUE,
+ 	                                  ice->grp_lock);
+     }
+@@ -1986,6 +1991,7 @@ static void start_nominated_check(pj_ice_sess *ice)
+                                    &ice->clist.timer, PJ_FALSE);
+ 
+     delay.sec = delay.msec = 0;
++    pj_timer_entry_reset(&ice->timer, PJ_TRUE);
+     status = pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+                                                &ice->clist.timer, &delay,
+                                                PJ_TRUE,
+@@ -2125,6 +2131,7 @@ PJ_DEF(pj_status_t) pj_ice_sess_start_check(pj_ice_sess *ice)
+      * return start_periodic_check(ice->stun_cfg.timer_heap, &clist->timer);
+      */
+     delay.sec = delay.msec = 0;
++    pj_timer_entry_reset(&ice->timer, PJ_TRUE);
+     status = pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap,
+                                                &clist->timer, &delay,
+                                                PJ_TRUE, ice->grp_lock);
+diff --git a/pjnath/src/pjnath/nat_detect.c b/pjnath/src/pjnath/nat_detect.c
+index 8a2408374..7bb364798 100644
+--- a/pjnath/src/pjnath/nat_detect.c
++++ b/pjnath/src/pjnath/nat_detect.c
+@@ -414,6 +414,7 @@ static void end_session(nat_detect_session *sess,
+     delay.msec = 0;
+ 
+     sess->timer.id = TIMER_DESTROY;
++    pj_timer_entry_init(&sess->timer, TIMER_DESTROY, sess, &on_sess_timer);
+     pj_timer_heap_schedule(sess->timer_heap, &sess->timer, &delay);
+ }
+ 
+@@ -933,6 +934,7 @@ static void on_sess_timer(pj_timer_heap_t *th,
+ 
+ 	if (next_timer) {
+ 	    pj_time_val delay = {0, TEST_INTERVAL};
++	    pj_timer_entry_reset(te, TIMER_TEST);
+ 	    pj_timer_heap_schedule(th, te, &delay);
+ 	} else {
+ 	    te->id = 0;
+diff --git a/pjnath/src/pjnath/stun_sock.c b/pjnath/src/pjnath/stun_sock.c
+index 6028e0c47..3aab27a1d 100644
+--- a/pjnath/src/pjnath/stun_sock.c
++++ b/pjnath/src/pjnath/stun_sock.c
+@@ -864,7 +864,7 @@ static void start_ka_timer(pj_stun_sock *stun_sock)
+ 
+ 	delay.sec = stun_sock->ka_interval;
+ 	delay.msec = 0;
+-
++	pj_timer_entry_reset(&stun_sock->ka_timer, PJ_TRUE);
+ 	pj_timer_heap_schedule_w_grp_lock(stun_sock->stun_cfg.timer_heap,
+ 	                                  &stun_sock->ka_timer,
+ 	                                  &delay, PJ_TRUE,
+diff --git a/pjnath/src/pjnath/stun_transaction.c b/pjnath/src/pjnath/stun_transaction.c
+index 28f623005..ad87b7b6c 100644
+--- a/pjnath/src/pjnath/stun_transaction.c
++++ b/pjnath/src/pjnath/stun_transaction.c
+@@ -86,11 +86,8 @@ PJ_DEF(pj_status_t) pj_stun_client_tsx_create(pj_stun_config *cfg,
+     tsx->grp_lock = grp_lock;
+     pj_memcpy(&tsx->cb, cb, sizeof(*cb));
+ 
+-    tsx->retransmit_timer.cb = &retransmit_timer_callback;
+-    tsx->retransmit_timer.user_data = tsx;
+-
+-    tsx->destroy_timer.cb = &destroy_timer_callback;
+-    tsx->destroy_timer.user_data = tsx;
++    pj_timer_entry_init(&tsx->retransmit_timer, 0, tsx, &retransmit_timer_callback);
++    pj_timer_entry_init(&tsx->destroy_timer, 0, tsx, &destroy_timer_callback);
+ 
+     pj_ansi_snprintf(tsx->obj_name, sizeof(tsx->obj_name), "utsx%p", tsx);
+ 
+@@ -120,6 +117,7 @@ PJ_DEF(pj_status_t) pj_stun_client_tsx_schedule_destroy(
+     pj_timer_heap_cancel_if_active(tsx->timer_heap, &tsx->retransmit_timer,
+                                    TIMER_INACTIVE);
+ 
++    pj_timer_entry_reset(&tsx->destroy_timer, TIMER_ACTIVE);
+     status = pj_timer_heap_schedule_w_grp_lock(tsx->timer_heap,
+                                                &tsx->destroy_timer, delay,
+                                                TIMER_ACTIVE, tsx->grp_lock);
+@@ -237,6 +235,7 @@ static pj_status_t tsx_transmit_msg(pj_stun_client_tsx *tsx,
+ 	 * cancel it (as opposed to when schedule_timer() failed we cannot
+ 	 * cancel transmission).
+ 	 */;
++	pj_timer_entry_reset(&tsx->retransmit_timer, TIMER_ACTIVE);
+ 	status = pj_timer_heap_schedule_w_grp_lock(tsx->timer_heap,
+ 						   &tsx->retransmit_timer,
+ 						   &tsx->retransmit_time,
+@@ -315,6 +314,7 @@ PJ_DEF(pj_status_t) pj_stun_client_tsx_send_msg(pj_stun_client_tsx *tsx,
+ 	 * cancel it (as opposed to when schedule_timer() failed we cannot
+ 	 * cancel transmission).
+ 	 */;
++        pj_timer_entry_reset(&tsx->retransmit_timer, TIMER_ACTIVE);
+ 	status = pj_timer_heap_schedule_w_grp_lock(tsx->timer_heap,
+ 	                                           &tsx->retransmit_timer,
+ 	                                           &tsx->retransmit_time,
+diff --git a/pjnath/src/pjnath/turn_session.c b/pjnath/src/pjnath/turn_session.c
+index bbea027f3..e4685e625 100644
+--- a/pjnath/src/pjnath/turn_session.c
++++ b/pjnath/src/pjnath/turn_session.c
+@@ -431,6 +431,7 @@ static void sess_shutdown(pj_turn_session *sess,
+ 
+ 	pj_timer_heap_cancel_if_active(sess->timer_heap, &sess->timer,
+ 	                               TIMER_NONE);
++	pj_timer_entry_reset(&sess->timer, TIMER_DESTROY);
+ 	pj_timer_heap_schedule_w_grp_lock(sess->timer_heap, &sess->timer,
+ 	                                  &delay, TIMER_DESTROY,
+ 	                                  sess->grp_lock);
+@@ -1434,6 +1435,7 @@ static void on_allocate_success(pj_turn_session *sess,
+ 	timeout.sec = sess->ka_interval;
+ 	timeout.msec = 0;
+ 
++	pj_timer_entry_reset(&sess->timer, TIMER_KEEP_ALIVE);
+ 	pj_timer_heap_schedule_w_grp_lock(sess->timer_heap, &sess->timer,
+ 					  &timeout, TIMER_KEEP_ALIVE,
+ 					  sess->grp_lock);
+@@ -2080,6 +2082,7 @@ static void on_timer_event(pj_timer_heap_t *th, pj_timer_entry *e)
+ 	    delay.sec = sess->ka_interval;
+ 	    delay.msec = 0;
+ 
++	    pj_timer_entry_reset(&sess->timer, TIMER_KEEP_ALIVE);
+ 	    pj_timer_heap_schedule_w_grp_lock(sess->timer_heap, &sess->timer,
+ 	                                      &delay, TIMER_KEEP_ALIVE,
+ 	                                      sess->grp_lock);
+diff --git a/pjnath/src/pjnath/turn_sock.c b/pjnath/src/pjnath/turn_sock.c
+index a30ab5153..507858048 100644
+--- a/pjnath/src/pjnath/turn_sock.c
++++ b/pjnath/src/pjnath/turn_sock.c
+@@ -928,6 +928,7 @@ static void turn_on_state(pj_turn_session *sess,
+ 
+ 	pj_timer_heap_cancel_if_active(turn_sock->cfg.timer_heap,
+ 	                               &turn_sock->timer, 0);
++	pj_timer_entry_reset(&turn_sock->timer, TIMER_DESTROY);
+ 	pj_timer_heap_schedule_w_grp_lock(turn_sock->cfg.timer_heap,
+ 	                                  &turn_sock->timer,
+ 	                                  &delay, TIMER_DESTROY,
+diff --git a/pjnath/src/pjturn-srv/allocation.c b/pjnath/src/pjturn-srv/allocation.c
+index 6c9c9ce11..88533926b 100644
+--- a/pjnath/src/pjturn-srv/allocation.c
++++ b/pjnath/src/pjturn-srv/allocation.c
+@@ -513,7 +513,7 @@ static void alloc_shutdown(pj_turn_allocation *alloc)
+      */
+ 
+     /* Schedule destroy timer */
+-    alloc->relay.timer.id = TIMER_ID_DESTROY;
++    pj_timer_entry_reset(&alloc->relay.timer, TIMER_ID_DESTROY);
+     pj_timer_heap_schedule(alloc->server->core.timer_heap,
+ 			   &alloc->relay.timer, &destroy_delay);
+ }
+@@ -538,7 +538,7 @@ static pj_status_t resched_timeout(pj_turn_allocation *alloc)
+     delay.sec = alloc->relay.lifetime;
+     delay.msec = 0;
+ 
+-    alloc->relay.timer.id = TIMER_ID_TIMEOUT;
++    pj_timer_entry_reset(&alloc->relay.timer, TIMER_ID_TIMEOUT);
+     status = pj_timer_heap_schedule(alloc->server->core.timer_heap,
+ 				    &alloc->relay.timer, &delay);
+     if (status != PJ_SUCCESS) {
+diff --git a/pjnath/src/pjturn-srv/listener_tcp.c b/pjnath/src/pjturn-srv/listener_tcp.c
+index 796ed471b..4a9550c2e 100644
+--- a/pjnath/src/pjturn-srv/listener_tcp.c
++++ b/pjnath/src/pjturn-srv/listener_tcp.c
+@@ -475,7 +475,7 @@ static void tcp_dec_ref(pj_turn_transport *tp,
+ 
+     if (tcp->ref_cnt == 0 && tcp->timer.id == TIMER_NONE) {
+ 	pj_time_val delay = { SHUTDOWN_DELAY, 0 };
+-	tcp->timer.id = TIMER_DESTROY;
++	pj_timer_entry_reset(&tcp->timer, TIMER_DESTROY);
+ 	pj_timer_heap_schedule(tcp->base.listener->server->core.timer_heap,
+ 			       &tcp->timer, &delay);
+     }
+diff --git a/pjsip/src/pjsip-simple/evsub.c b/pjsip/src/pjsip-simple/evsub.c
+index eb666654f..7748853d2 100644
+--- a/pjsip/src/pjsip-simple/evsub.c
++++ b/pjsip/src/pjsip-simple/evsub.c
+@@ -518,6 +518,7 @@ static void set_timer( pjsip_evsub *sub, int timer_id,
+ 	timeout.sec = seconds;
+ 	timeout.msec = 0;
+ 
++	pj_timer_entry_reset(&sub->timer, timer_id);
+ 	pj_timer_heap_schedule_w_grp_lock(
+ 			    pjsip_endpt_get_timer_heap(sub->endpt),
+ 			    &sub->timer, &timeout, timer_id, sub->grp_lock);
+@@ -655,7 +656,7 @@ static void on_timer( pj_timer_heap_t *timer_heap,
+     /* If this timer entry has just been rescheduled or cancelled
+      * while waiting for dialog mutex, just return (see #1885 scenario 1).
+      */
+-    if (pj_timer_entry_running(entry) || entry->id == TIMER_TYPE_NONE) {
++    if (entry->id == TIMER_TYPE_NONE) {
+ 	pjsip_dlg_dec_lock(sub->dlg);
+ 	return;
+     }
+@@ -786,8 +787,7 @@ static pj_status_t evsub_create( pjsip_dialog *dlg,
+     		  pjsip_hdr_clone(sub->pool, pkg->pkg_accept);
+     pj_list_init(&sub->sub_hdr_list);
+ 
+-    sub->timer.user_data = sub;
+-    sub->timer.cb = &on_timer;
++    pj_timer_entry_init(&sub->timer, 0, sub, &on_timer);
+ 
+     /* Set name. */
+     pj_ansi_snprintf(sub->obj_name, PJ_ARRAY_SIZE(sub->obj_name),
+diff --git a/pjsip/src/pjsip/sip_endpoint.c b/pjsip/src/pjsip/sip_endpoint.c
+index d810781d5..5c98a5bf6 100644
+--- a/pjsip/src/pjsip/sip_endpoint.c
++++ b/pjsip/src/pjsip/sip_endpoint.c
+@@ -788,6 +788,7 @@ PJ_DEF(pj_status_t) pjsip_endpt_schedule_timer_dbg(pjsip_endpoint *endpt,
+ {
+     PJ_LOG(6, (THIS_FILE, "pjsip_endpt_schedule_timer(entry=%p, delay=%u.%u)",
+ 			 entry, delay->sec, delay->msec));
++    pj_timer_entry_reset(entry, entry->id);
+     return pj_timer_heap_schedule_dbg(endpt->timer_heap, entry, delay,
+                                       src_file, src_line);
+ }
+@@ -798,6 +799,7 @@ PJ_DEF(pj_status_t) pjsip_endpt_schedule_timer( pjsip_endpoint *endpt,
+ {
+     PJ_LOG(6, (THIS_FILE, "pjsip_endpt_schedule_timer(entry=%p, delay=%u.%u)",
+ 			 entry, delay->sec, delay->msec));
++    pj_timer_entry_reset(entry, entry->id);
+     return pj_timer_heap_schedule( endpt->timer_heap, entry, delay );
+ }
+ #endif
+@@ -809,7 +811,7 @@ PJ_DEF(void) pjsip_endpt_cancel_timer( pjsip_endpoint *endpt,
+ 				       pj_timer_entry *entry )
+ {
+     PJ_LOG(6, (THIS_FILE, "pjsip_endpt_cancel_timer(entry=%p)", entry));
+-    pj_timer_heap_cancel( endpt->timer_heap, entry );
++    pj_timer_heap_cancel_if_active( endpt->timer_heap, entry, 0 );
+ }
+ 
+ /*
+diff --git a/pjsip/src/pjsip/sip_transaction.c b/pjsip/src/pjsip/sip_transaction.c
+index d52b12a72..5236e63f7 100644
+--- a/pjsip/src/pjsip/sip_transaction.c
++++ b/pjsip/src/pjsip/sip_transaction.c
+@@ -978,6 +978,7 @@ static pj_status_t tsx_schedule_timer(pjsip_transaction *tsx,
+     pj_status_t status;
+ 
+     pj_assert(active_id != 0);
++    pj_timer_entry_reset(entry, active_id);
+     status = pj_timer_heap_schedule_w_grp_lock(timer_heap, entry,
+                                                delay, active_id,
+                                                tsx->grp_lock);
+@@ -1019,12 +1020,8 @@ static pj_status_t tsx_create( pjsip_module *tsx_user,
+     pj_memcpy(pool->obj_name, tsx->obj_name, sizeof(pool->obj_name));
+ 
+     tsx->handle_200resp = 1;
+-    tsx->retransmit_timer.id = TIMER_INACTIVE;
+-    tsx->retransmit_timer.user_data = tsx;
+-    tsx->retransmit_timer.cb = &tsx_timer_callback;
+-    tsx->timeout_timer.id = TIMER_INACTIVE;
+-    tsx->timeout_timer.user_data = tsx;
+-    tsx->timeout_timer.cb = &tsx_timer_callback;
++    pj_timer_entry_init(&tsx->retransmit_timer, TIMER_INACTIVE, tsx, &tsx_timer_callback);
++    pj_timer_entry_init(&tsx->timeout_timer, TIMER_INACTIVE, tsx, &tsx_timer_callback);
+     
+     if (grp_lock) {
+ 	tsx->grp_lock = grp_lock;
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index 3d27d5d71..834babeae 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -1092,8 +1092,7 @@ PJ_DEF(pj_status_t) pjsip_transport_register( pjsip_tpmgr *mgr,
+     /* Init. */
+     tp->tpmgr = mgr;
+     pj_bzero(&tp->idle_timer, sizeof(tp->idle_timer));
+-    tp->idle_timer.user_data = tp;
+-    tp->idle_timer.cb = &transport_idle_callback;
++    pj_timer_entry_init(&tp->idle_timer, 0, tp, &transport_idle_callback);
+ 
+     /* 
+      * Register to hash table (see Trac ticket #42).
+-- 
+2.14.3
+
