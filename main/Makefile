@@ -57,9 +57,9 @@ ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-musl kfreebs
   ifneq (x$(CAP_LIB),x)
     AST_LIBS+=$(CAP_LIB)
   endif
-  AST_LIBS+=-lpthread $(EDITLINE_LIB) -lm -lresolv
+  AST_LIBS+=-lpthread -lm -lresolv
 else
-  AST_LIBS+=$(EDITLINE_LIB) -lm
+  AST_LIBS+=-lm
 endif
 
 ifneq ($(findstring BETTER_BACKTRACES,$(MENUSELECT_CFLAGS)),)
@@ -90,11 +90,11 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   ASTLINK+=-shared -Wl,--out-implib,libasterisk.a
 endif
 ifeq ($(OSARCH),NetBSD)
-  AST_LIBS+=-lpthread -lcrypto -lm -L/usr/pkg/lib $(EDITLINE_LIB)
+  AST_LIBS+=-lpthread -lcrypto -lm -L/usr/pkg/lib
 endif
 
 ifeq ($(OSARCH),OpenBSD)
-  AST_LIBS+=-lcrypto -lpthread -lm $(EDITLINE_LIB)
+  AST_LIBS+=-lcrypto -lpthread -lm
 endif
 
 ifeq ($(OSARCH),SunOS)
@@ -354,7 +354,6 @@ endif
 	rm -f .libasteriskpj*
 
 	rm -f asterisk.exports libasteriskssl.exports libasteriskpj.exports
-	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C stdtime clean
 	rm -f libresample/src/*.o
 	rm -f *.tmp
