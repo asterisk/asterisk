@@ -58,6 +58,14 @@
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
+#ifndef MYSQL_PORT
+# ifdef MARIADB_PORT
+#  define MYSQL_PORT MARIADB_PORT
+# else
+#  define MYSQL_PORT 3306
+# endif
+#endif
+
 AST_THREADSTORAGE(sql1_buf);
 AST_THREADSTORAGE(sql2_buf);
 AST_THREADSTORAGE(escape_buf);
