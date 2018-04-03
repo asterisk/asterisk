@@ -326,7 +326,11 @@ install_unpackaged() {
 		./configure
 		make all install
 		cd ..
-		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+		if test -d /etc/ld.so.conf.d; then
+			echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+		else # for example: Slackware 14.2
+			echo "/usr/local/lib" > /etc/ld.so.conf
+		fi
 		/sbin/ldconfig
 	fi
 
@@ -339,7 +343,11 @@ install_unpackaged() {
 			./configure --enable-openssl
 			make shared_library install
 			cd ..
-			echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+			if test -d /etc/ld.so.conf.d; then
+				echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+			else # for example: Slackware 14.2
+				echo "/usr/local/lib" > /etc/ld.so.conf
+			fi
 			/sbin/ldconfig
 		fi
 	fi
@@ -373,8 +381,14 @@ if [ -f /etc/mandrake-release ]; then
 	unsupported_distro='Mandriva'
 fi
 
-if [ -f /etc/slackware-version ]; then
-	unsupported_distro='Slackware'
+if [ -f /etc/slackware-version ] || ([ -f /etc/os-release ] && . /etc/os-release && [ "$ID" = "slackware" ]); then
+	echo >&2 "$0: Your distribution (Slackware) is currently not supported. Aborting. Try manually:"
+	# libedit requires a newer version than Slackware 14.2, for example Slackware-current
+	# or you build it manually: <http://thrysoee.dk/editline/>
+	echo >&2 "$0: # slackpkg install make gcc pkg-config libedit util-linux sqlite libxml2 patch wget"
+	# required for libjansson
+	echo >&2 "$0: # ./contrib/scripts/install_prereq install-unpackaged"
+	exit 1
 fi
 
 if [ "$unsupported_distro" != '' ]; then
