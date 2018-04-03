@@ -294,7 +294,7 @@ if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-else if test "${CURL}" != ":" ; then
+elif test "${CURL}" != ":" ; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
@@ -305,7 +305,6 @@ else
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
   fi
-fi
 fi
 AC_SUBST(DOWNLOAD)
 AC_SUBST(DOWNLOAD_TO_STDOUT)
@@ -1430,11 +1429,11 @@ AC_CHECK_SIZEOF(fd_set.fds_bits)
 # correctly if the size is wrong.
 if test $ac_cv_sizeof_int = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [int], [Define to a type of the same size as fd_set.fds_bits[[0]]])
-else if test $ac_cv_sizeof_long = $ac_cv_sizeof_fd_set_fds_bits; then
+elif test $ac_cv_sizeof_long = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [long], [Define to a type of the same size as fd_set.fds_bits[[0]]])
-else if test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
+elif test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
   AC_DEFINE([TYPEOF_FD_SET_FDS_BITS], [long long], [Define to a type of the same size as fd_set.fds_bits[[0]]])
-fi ; fi ; fi
+fi
 
 AC_MSG_CHECKING(for dladdr in dlfcn.h)
 PBX_DLADDR=0
@@ -1544,11 +1543,9 @@ if test "${USE_GSM}" != "no"; then
          if test "${GSM_HEADER_FOUND}" = "1" ; then
             AC_DEFINE_UNQUOTED([HAVE_GSM_HEADER], 1, [Define to indicate that gsm.h has no prefix for its location])
             GSM_OK=1
-         else
-            if test "${GSM_GSM_HEADER_FOUND}" = "1" ; then
-               AC_DEFINE_UNQUOTED([HAVE_GSM_GSM_HEADER], 1, [Define to indicate that gsm.h is in gsm/gsm.h])
-               GSM_OK=1
-            fi
+         elif test "${GSM_GSM_HEADER_FOUND}" = "1" ; then
+            AC_DEFINE_UNQUOTED([HAVE_GSM_GSM_HEADER], 1, [Define to indicate that gsm.h is in gsm/gsm.h])
+            GSM_OK=1
          fi
          if test "${GSM_OK}" = "1" ; then
             GSM_LIB="-lgsm"
@@ -2345,32 +2342,17 @@ if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 fi
 AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
 
-AST_EXT_LIB_CHECK([LUA], [lua5.3], [luaL_newstate], [lua5.3/lua.h], [-lm])
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.3"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.3"
+for ver in 5.3 5.2 5.1; do
+	AST_EXT_LIB_CHECK([LUA], lua${ver}, [luaL_newstate], lua${ver}/lua.h, [-lm])
+	if test "x${PBX_LUA}" = "x1" ; then
+		if test x"${LUA_DIR}" = x; then
+			LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua${ver}"
+		else
+			LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua${ver}"
+		fi
+		break;
 	fi
-fi
-
-AST_EXT_LIB_CHECK([LUA], [lua5.2], [luaL_newstate], [lua5.2/lua.h], [-lm])
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.2"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.2"
-	fi
-fi
-
-AST_EXT_LIB_CHECK([LUA], [lua5.1], [luaL_newstate], [lua5.1/lua.h], [-lm])
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.1"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.1"
-	fi
-fi
+done
 
 # Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
 AST_EXT_LIB_CHECK([LUA], [lua], [luaL_newstate], [lua.h], [-lm])
@@ -2702,9 +2684,9 @@ AC_OUTPUT
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
 if test "x${ac_cv_path_CMP}" = "x:"; then
 	( cd `pwd`/menuselect && ./configure )
-else if ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
+elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd `pwd`/menuselect && ./configure )
-fi ; fi
+fi
 
 rm makeopts.acbak makeopts.acbak2
 
