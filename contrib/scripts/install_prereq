@@ -83,6 +83,22 @@ PACKAGES_ARCH="$PACKAGES_ARCH wget subversion"
 PACKAGES_ARCH="$PACKAGES_ARCH bzip2 patch python2"
 
 # Basic build system:
+PACKAGES_GENTOO="sys-devel/make sys-devel/gcc dev-util/pkgconfig"
+# Asterisk: basic requirements:
+PACKAGES_GENTOO="$PACKAGES_GENTOO dev-libs/libedit dev-libs/jansson sys-libs/e2fsprogs-libs dev-libs/libxml2 dev-db/sqlite"
+# Asterisk: for addons:
+PACKAGES_GENTOO="$PACKAGES_GENTOO media-libs/speex media-libs/speexdsp media-libs/libogg media-libs/libvorbis media-libs/alsa-lib media-libs/portaudio net-misc/curl app-text/xmlstarlet sys-devel/bison sys-devel/flex"
+PACKAGES_GENTOO="$PACKAGES_GENTOO dev-db/postgresql dev-db/unixODBC net-libs/neon dev-libs/gmime dev-lang/lua dev-libs/uriparser dev-libs/libxslt dev-libs/openssl"
+PACKAGES_GENTOO="$PACKAGES_GENTOO virtual/libmysqlclient net-wireless/bluez net-dialup/radiusclient-ng dev-db/freetds app-shells/bash"
+PACKAGES_GENTOO="$PACKAGES_GENTOO net-analyzer/net-snmp dev-libs/iksemel sys-cluster/corosync dev-libs/newt dev-libs/popt dev-libs/libical media-libs/spandsp"
+PACKAGES_GENTOO="$PACKAGES_GENTOO net-libs/c-client sys-devel/binutils net-libs/libsrtp media-sound/gsm media-libs/libilbc app-doc/doxygen sys-libs/zlib net-nds/openldap"
+PACKAGES_GENTOO="$PACKAGES_GENTOO sci-libs/fftw media-libs/libsndfile net-dns/unbound"
+# Asterisk: for the unpackaged below:
+PACKAGES_GENTOO="$PACKAGES_GENTOO net-misc/wget dev-vcs/subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_GENTOO="$PACKAGES_GENTOO app-arch/bzip2 sys-devel/patch dev-lang/python:2.7"
+
+# Basic build system:
 PACKAGES_NBSD="gmake pkg-config"
 # Asterisk: basic requirements:
 PACKAGES_NBSD="$PACKAGES_NBSD editline jansson sqlite3 libuuid libxml2"
@@ -179,6 +195,20 @@ check_installed_rpms() {
 	done
 }
 
+check_installed_equery() {
+	for pack in "$@"
+	do
+		# equery --quiet list $pack
+		# is slower and
+		# would require the optional app-portage/gentoolkit
+		# /var/lib/portage/world would be the non-dep list
+		pack_with_version=${pack/:/-} # replace a possible version with '-'
+		if ! ls -d /var/db/pkg/${pack_with_version}* >/dev/null 2>/dev/null
+		then echo $pack
+		fi
+	done
+}
+
 check_installed_pacman() {
 	for pack in "$@"
 	do
@@ -230,6 +260,13 @@ handle_rh() {
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
 	if [ x"$extra_packs" != "x" ] ; then
 		$testcmd yum install --skip-broken --assumeyes $extra_packs
+	fi
+}
+
+handle_gentoo() {
+	extra_packs=`check_installed_equery $PACKAGES_GENTOO`
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd emerge $extra_packs
 	fi
 }
 
@@ -348,10 +385,6 @@ if [ "$OS" != 'Linux' -a "$OS" != 'NetBSD' -a "$OS" != 'OpenBSD' -a "$OS" != 'Fr
 	exit 1
 fi
 
-if [ -f /etc/gentoo-release ]; then
-	unsupported_distro='Gentoo'
-fi
-
 if [ -f /etc/mandrake-release ]; then
 	unsupported_distro='Mandriva'
 fi
@@ -384,6 +417,10 @@ elif [ -r /etc/arch-release ]; then
 	handle_arch
 elif [ -f /etc/os-release ] && . /etc/os-release && [ "$ID_LIKE" = "archlinux" ]; then
 	handle_arch # $ID=arch
+elif [ -f /etc/gentoo-release ]; then
+	handle_gentoo
+elif [ -f /etc/os-release ] && . /etc/os-release && [ "$ID" = "gentoo" ]; then
+	handle_gentoo
 elif [ "$OS" = 'NetBSD' ]; then
 	handle_nbsd
 elif [ "$OS" = 'OpenBSD' ]; then
