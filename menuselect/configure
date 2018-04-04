@@ -4392,7 +4392,7 @@ fi
 
 		if test ! "x${CONFIG_LIBXML2}" = xNo; then
 			LIBXML2_INCLUDE=$(${CONFIG_LIBXML2} --cflags)
-			LIBXML2_INCLUDE=$(echo ${LIBXML2_INCLUDE} | $SED -e "s|-I|-I${LIBXML2_DIR}|g")
+			LIBXML2_INCLUDE=$(echo ${LIBXML2_INCLUDE} | $SED -e "s|-I|-I${LIBXML2_DIR}|g" -e "s|-std=c99||g")
 
 			LIBXML2_LIB=$(${CONFIG_LIBXML2} --libs)
 			LIBXML2_LIB=$(echo ${LIBXML2_LIB} | $SED -e "s|-L|-L${LIBXML2_DIR}|g")
@@ -4633,7 +4633,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_GTK2=1
-            GTK2_INCLUDE="$GTK2_CFLAGS"
+            GTK2_INCLUDE=$(echo ${GTK2_CFLAGS} | $SED -e "s|-std=c99||g")
             GTK2_LIB="$GTK2_LIBS"
 
 $as_echo "#define HAVE_GTK2 1" >>confdefs.h
