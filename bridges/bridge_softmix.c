@@ -69,6 +69,15 @@
 #define SOFTBRIDGE_VIDEO_DEST_LEN strlen(SOFTBRIDGE_VIDEO_DEST_PREFIX)
 #define SOFTBRIDGE_VIDEO_DEST_SEPARATOR '_'
 
+struct softmix_remb_collector {
+	/*! The frame which will be given to each source stream */
+	struct ast_frame frame;
+	/*! The REMB to send to the source which is collecting REMB reports */
+	struct ast_rtp_rtcp_feedback feedback;
+	/*! The maximum bitrate */
+	unsigned int bitrate;
+};
+
 struct softmix_stats {
 	/*! Each index represents a sample rate used above the internal rate. */
 	unsigned int sample_rates[16];
@@ -768,6 +777,10 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 
 	ast_stream_topology_free(sc->topology);
 
+	ao2_cleanup(sc->remb_collector);
+
+	AST_VECTOR_FREE(&sc->video_sources);
+
 	/* Drop mutex lock */
 	ast_mutex_destroy(&sc->lock);
 
@@ -1160,6 +1173,39 @@ static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_br
 
 /*!
  * \internal
+ * \brief Determine what to do with an RTCP frame.
+ * \since 15.4.0
+ *
+ * \param bridge Which bridge is getting the frame
+ * \param bridge_channel Which channel is writing the frame.
+ * \param frame What is being written.
+ */
+static void softmix_bridge_write_rtcp(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+{
+	struct ast_rtp_rtcp_feedback *feedback = frame->data.ptr;
+	struct softmix_channel *sc = bridge_channel->tech_pvt;
+
+	/* We only care about REMB reports right now. In the future we may be able to use sender or
+	 * receiver reports to further tweak things, but not yet.
+	 */
+	if (frame->subclass.integer != AST_RTP_RTCP_PSFB || feedback->fmt != AST_RTP_RTCP_FMT_REMB ||
+		bridge->softmix.video_mode.mode != AST_BRIDGE_VIDEO_MODE_SFU ||
+		!bridge->softmix.video_mode.mode_data.sfu_data.remb_send_interval) {
+		return;
+	}
+
+	/* REMB is the total estimated maximum bitrate across all streams within the session, so we store
+	 * only the latest report and use it everywhere.
+	 */
+	ast_mutex_lock(&sc->lock);
+	sc->remb = feedback->remb;
+	ast_mutex_unlock(&sc->lock);
+
+	return;
+}
+
+/*!
+ * \internal
  * \brief Determine what to do with a frame written into the bridge.
  * \since 12.0.0
  *
@@ -1204,6 +1250,9 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	case AST_FRAME_CONTROL:
 		res = softmix_bridge_write_control(bridge, bridge_channel, frame);
 		break;
+	case AST_FRAME_RTCP:
+		softmix_bridge_write_rtcp(bridge, bridge_channel, frame);
+		break;
 	case AST_FRAME_BRIDGE_ACTION:
 		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
@@ -1217,6 +1266,104 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	}
 
 	return res;
+}
+
+static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel,
+	struct softmix_bridge_data *softmix_data, struct softmix_channel *sc)
+{
+	int i;
+	unsigned int bitrate;
+
+	/* If there are no video sources that we are a receiver of then we have noone to
+	 * report REMB to.
+	 */
+	if (!AST_VECTOR_SIZE(&sc->video_sources)) {
+		return;
+	}
+
+	/* We evenly divide the available maximum bitrate across the video sources
+	 * to this receiver so each source gets an equal slice.
+	 */
+	bitrate = (sc->remb.br_mantissa << sc->remb.br_exp) / AST_VECTOR_SIZE(&sc->video_sources);
+
+	/* If this receiver has no bitrate yet ignore it */
+	if (!bitrate) {
+		return;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&sc->video_sources); ++i) {
+		struct softmix_remb_collector *collector;
+
+		/* The collector will always exist if a video source is in our list */
+		collector = AST_VECTOR_GET(&softmix_data->remb_collectors, AST_VECTOR_GET(&sc->video_sources, i));
+
+		if (!collector->bitrate) {
+			collector->bitrate = bitrate;
+			continue;
+		}
+
+		switch (bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior) {
+		case AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE:
+			collector->bitrate = (collector->bitrate + bitrate) / 2;
+			break;
+		case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST:
+			if (bitrate < collector->bitrate) {
+				collector->bitrate = bitrate;
+			}
+			break;
+		case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST:
+			if (bitrate > collector->bitrate) {
+				collector->bitrate = bitrate;
+			}
+			break;
+		}
+	}
+}
+
+static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct softmix_channel *sc)
+{
+	int i;
+
+	if (!sc->remb_collector) {
+		return;
+	}
+
+	/* If we have a new bitrate then use it for the REMB, if not we use the previous
+	 * one until we know otherwise. This way the bitrate doesn't drop to 0 all of a sudden.
+	 */
+	if (sc->remb_collector->bitrate) {
+		sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate;
+		sc->remb_collector->feedback.remb.br_exp = 0;
+
+		/* The mantissa only has 18 bits available, so while it exceeds them we bump
+		 * up the exp.
+		 */
+		while (sc->remb_collector->feedback.remb.br_mantissa > 0x3ffff) {
+			sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->feedback.remb.br_mantissa >> 1;
+			sc->remb_collector->feedback.remb.br_exp++;
+		}
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&bridge_channel->stream_map.to_bridge); ++i) {
+		int bridge_num = AST_VECTOR_GET(&bridge_channel->stream_map.to_bridge, i);
+
+		/* If this stream is not being provided to the bridge there can be no receivers of it
+		 * so therefore no REMB reports.
+		 */
+		if (bridge_num == -1) {
+			continue;
+		}
+
+		/* We need to update the frame with this stream, or else it won't be
+		 * properly routed. We don't use the actual channel stream identifier as
+		 * the bridging core will do the translation from bridge stream identifier to
+		 * channel stream identifier.
+		 */
+		sc->remb_collector->frame.stream_num = bridge_num;
+		ast_bridge_channel_queue_frame(bridge_channel, &sc->remb_collector->frame);
+	}
+
+	sc->remb_collector->bitrate = 0;
 }
 
 static void gather_softmix_stats(struct softmix_stats *stats,
@@ -1440,6 +1587,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		struct ast_format *cur_slin = ast_format_cache_get_slin_by_rate(softmix_data->internal_rate);
 		unsigned int softmix_samples = SOFTMIX_SAMPLES(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
 		unsigned int softmix_datalen = SOFTMIX_DATALEN(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
+		int remb_update = 0;
 
 		if (softmix_datalen > MAX_DATALEN) {
 			/* This should NEVER happen, but if it does we need to know about it. Almost
@@ -1478,6 +1626,14 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		check_binaural_position_change(bridge, softmix_data);
 #endif
 
+		/* If we need to do a REMB update to all video sources then do so */
+		if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_SFU &&
+			bridge->softmix.video_mode.mode_data.sfu_data.remb_send_interval &&
+			ast_tvdiff_ms(ast_tvnow(), softmix_data->last_remb_update) > bridge->softmix.video_mode.mode_data.sfu_data.remb_send_interval) {
+			remb_update = 1;
+			softmix_data->last_remb_update = ast_tvnow();
+		}
+
 		/* Go through pulling audio from each factory that has it available */
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 			struct softmix_channel *sc = bridge_channel->tech_pvt;
@@ -1511,6 +1667,9 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 						ast_channel_name(bridge_channel->chan));
 #endif
 				mixing_array.used_entries++;
+			}
+			if (remb_update) {
+				remb_collect_report(bridge, bridge_channel, softmix_data, sc);
 			}
 			ast_mutex_unlock(&sc->lock);
 		}
@@ -1562,6 +1721,10 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 			/* A frame is now ready for the channel. */
 			ast_bridge_channel_queue_frame(bridge_channel, &sc->write_frame);
+
+			if (remb_update) {
+				remb_send_report(bridge_channel, sc);
+			}
 		}
 
 		update_all_rates = 0;
@@ -1688,6 +1851,8 @@ static void softmix_bridge_data_destroy(struct softmix_bridge_data *softmix_data
 	}
 	ast_mutex_destroy(&softmix_data->lock);
 	ast_cond_destroy(&softmix_data->cond);
+	AST_VECTOR_RESET(&softmix_data->remb_collectors, ao2_cleanup);
+	AST_VECTOR_FREE(&softmix_data->remb_collectors);
 	ast_free(softmix_data);
 }
 
@@ -1717,6 +1882,8 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	softmix_data->default_sample_size = SOFTMIX_SAMPLES(softmix_data->internal_rate,
 			softmix_data->internal_mixing_interval);
 #endif
+
+	AST_VECTOR_INIT(&softmix_data->remb_collectors, 0);
 
 	bridge->tech_pvt = softmix_data;
 
@@ -1814,12 +1981,67 @@ static void map_source_to_destinations(const char *source_stream_name, const cha
 
 			stream = ast_stream_topology_get_stream(topology, i);
 			if (is_video_dest(stream, source_channel_name, source_stream_name)) {
+				struct softmix_channel *sc = participant->tech_pvt;
+
 				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, bridge_stream_position, i);
+				AST_VECTOR_APPEND(&sc->video_sources, bridge_stream_position);
 				break;
 			}
 		}
 		ast_channel_unlock(participant->chan);
 		ast_bridge_channel_unlock(participant);
+	}
+}
+
+/*!
+ * \brief Allocate a REMB collector
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+static struct softmix_remb_collector *remb_collector_alloc(void)
+{
+	struct softmix_remb_collector *collector;
+
+	collector = ao2_alloc_options(sizeof(*collector), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!collector) {
+		return NULL;
+	}
+
+	collector->frame.frametype = AST_FRAME_RTCP;
+	collector->frame.subclass.integer = AST_RTP_RTCP_PSFB;
+	collector->feedback.fmt = AST_RTP_RTCP_FMT_REMB;
+	collector->frame.data.ptr = &collector->feedback;
+	collector->frame.datalen = sizeof(collector->feedback);
+
+	return collector;
+}
+
+/*!
+ * \brief Setup REMB collection for a particular bridge stream and channel.
+ *
+ * \param bridge The bridge
+ * \param bridge_channel Channel that is collecting REMB information
+ * \param bridge_stream_position The slot in the bridge where source video comes from
+ */
+static void remb_enable_collection(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel,
+	size_t bridge_stream_position)
+{
+	struct softmix_channel *sc = bridge_channel->tech_pvt;
+	struct softmix_bridge_data *softmix_data = bridge->tech_pvt;
+
+	if (!sc->remb_collector) {
+		sc->remb_collector = remb_collector_alloc();
+		if (!sc->remb_collector) {
+			/* This is not fatal. Things will still continue to work but we won't
+			 * produce a REMB report to the sender.
+			 */
+			return;
+		}
+	}
+
+	if (AST_VECTOR_REPLACE(&softmix_data->remb_collectors, bridge_stream_position, ao2_bump(sc->remb_collector))) {
+		ao2_ref(sc->remb_collector, -1);
 	}
 }
 
@@ -1835,6 +2057,8 @@ static void map_source_to_destinations(const char *source_stream_name, const cha
  */
 static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
+	struct softmix_bridge_data *softmix_data = bridge->tech_pvt;
+	struct softmix_channel *sc;
 	struct ast_bridge_channel *participant;
 	struct ast_vector_int media_types;
 	int nths[AST_MEDIA_TYPE_END] = {0};
@@ -1852,11 +2076,22 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 
 	AST_VECTOR_INIT(&media_types, AST_MEDIA_TYPE_END);
 
+	/* The bridge stream identifiers may change, so reset the mapping for them.
+	 * When channels end up getting added back in they'll reuse their existing
+	 * collector and won't need to allocate a new one (unless they were just added).
+	 */
+	AST_VECTOR_RESET(&softmix_data->remb_collectors, ao2_cleanup);
+
 	/* First traversal: re-initialize all of the participants' stream maps */
 	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
 		ast_bridge_channel_lock(participant);
+
 		AST_VECTOR_RESET(&participant->stream_map.to_channel, AST_VECTOR_ELEM_CLEANUP_NOOP);
 		AST_VECTOR_RESET(&participant->stream_map.to_bridge, AST_VECTOR_ELEM_CLEANUP_NOOP);
+
+		sc = participant->tech_pvt;
+		AST_VECTOR_RESET(&sc->video_sources, AST_VECTOR_ELEM_CLEANUP_NOOP);
+
 		ast_bridge_channel_unlock(participant);
 	}
 
@@ -1897,7 +2132,12 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 			if (is_video_source(stream)) {
 				AST_VECTOR_APPEND(&media_types, AST_MEDIA_TYPE_VIDEO);
 				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, AST_VECTOR_SIZE(&media_types) - 1);
-				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, AST_VECTOR_SIZE(&media_types) - 1, -1);
+				/*
+				 * There are cases where we need to bidirectionally send frames, such as for REMB reports
+				 * so we also map back to the channel.
+				 */
+				AST_VECTOR_REPLACE(&participant->stream_map.to_channel, AST_VECTOR_SIZE(&media_types) - 1, i);
+				remb_enable_collection(bridge, participant, AST_VECTOR_SIZE(&media_types) - 1);
 				/*
 				 * Unlock the channel and participant to prevent
 				 * potential deadlock in map_source_to_destinations().

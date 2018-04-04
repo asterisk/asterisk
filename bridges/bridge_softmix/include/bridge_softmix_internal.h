@@ -50,6 +50,8 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/timing.h"
 #include "asterisk/translate.h"
+#include "asterisk/rtp_engine.h"
+#include "asterisk/vector.h"
 
 #ifdef BINAURAL_RENDERING
 #include <fftw3.h>
@@ -124,6 +126,8 @@ struct video_follow_talker_data {
 	int energy_average;
 };
 
+struct softmix_remb_collector;
+
 /*! \brief Structure which contains per-channel mixing information */
 struct softmix_channel {
 	/*! Lock to protect this structure */
@@ -169,6 +173,12 @@ struct softmix_channel {
 	struct video_follow_talker_data video_talker;
 	/*! The ideal stream topology for the channel */
 	struct ast_stream_topology *topology;
+	/*! The latest REMB report from this participant */
+	struct ast_rtp_rtcp_feedback_remb remb;
+	/*! The REMB collector for this channel, collects REMB from all video receivers */
+	struct softmix_remb_collector *remb_collector;
+	/*! The bridge streams which are feeding us video sources */
+	AST_VECTOR(, int) video_sources;
 };
 
 struct softmix_bridge_data {
@@ -202,6 +212,10 @@ struct softmix_bridge_data {
 	unsigned int binaural_init;
 	/*! The last time a video update was sent into the bridge */
 	struct timeval last_video_update;
+	/*! The last time a REMB frame was sent to each source of video */
+	struct timeval last_remb_update;
+	/*! Per-bridge stream REMB collectors, which flow back to video source */
+	AST_VECTOR(, struct softmix_remb_collector *) remb_collectors;
 };
 
 struct softmix_mixing_array {

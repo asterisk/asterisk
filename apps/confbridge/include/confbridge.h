@@ -76,6 +76,9 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_RECORD_FILE_TIMESTAMP = (1 << 5), /*!< Set if the record file should have a timestamp appended */
 	BRIDGE_OPT_BINAURAL_ACTIVE = (1 << 6), /*!< Set if binaural convolution is activated */
 	BRIDGE_OPT_VIDEO_SRC_SFU = (1 << 7), /*!< Selective forwarding unit */
+	BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE = (1 << 8), /*!< The average of all REMB reports is sent to the sender */
+	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST = (1 << 9), /*!< The lowest estimated maximum bitrate is sent to the sender */
+	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST = (1 << 10), /*!< The highest estimated maximum bitrate is sent to the sender */
 };
 
 enum conf_menu_action_id {

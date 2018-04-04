@@ -126,6 +126,24 @@ struct ast_bridge_video_talker_src_data {
 	struct ast_channel *chan_old_vsrc;
 };
 
+/*! \brief REMB report behaviors */
+enum ast_bridge_video_sfu_remb_behavior {
+	/*! The average of all reports is sent to the sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE = 0,
+	/*! The lowest reported bitrate is forwarded to the sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_LOWEST,
+	/*! The highest reported bitrate is forwarded to the sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST,
+};
+
+/*! \brief This is used for selective forwarding unit configuration */
+struct ast_bridge_video_sfu_data {
+	/*! The interval at which a REMB report is generated and sent */
+	unsigned int remb_send_interval;
+	/*! How the combined REMB report is generated */
+	enum ast_bridge_video_sfu_remb_behavior remb_behavior;
+};
+
 /*! \brief Data structure that defines a video source mode */
 struct ast_bridge_video_mode {
 	enum ast_bridge_video_mode_type mode;
@@ -133,9 +151,10 @@ struct ast_bridge_video_mode {
 	union {
 		struct ast_bridge_video_single_src_data single_src_data;
 		struct ast_bridge_video_talker_src_data talker_src_data;
+		struct ast_bridge_video_sfu_data sfu_data;
 	} mode_data;
+	/*! The minimum interval between video updates */
 	unsigned int video_update_discard;
-	unsigned int remb_send_interval;
 };
 
 /*!
@@ -917,8 +936,20 @@ void ast_bridge_set_video_update_discard(struct ast_bridge *bridge, unsigned int
  *
  * \param bridge Bridge to set the REMB send interval on
  * \param remb_send_interval The REMB send interval
+ *
+ * \note This can only be called when the bridge has been set to the SFU video mode.
  */
 void ast_bridge_set_remb_send_interval(struct ast_bridge *bridge, unsigned int remb_send_interval);
+
+/*!
+ * \brief Set the REMB report generation behavior on a bridge
+ *
+ * \param bridge Bridge to set the REMB behavior on
+ * \param behavior How REMB reports are generated
+ *
+ * \note This can only be called when the bridge has been set to the SFU video mode.
+ */
+void ast_brige_set_remb_behavior(struct ast_bridge *bridge, enum ast_bridge_video_sfu_remb_behavior behavior);
 
 /*!
  * \brief Update information about talker energy for talker src video mode.
