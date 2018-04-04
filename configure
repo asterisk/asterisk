@@ -13556,7 +13556,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_LIBEDIT=1
-            LIBEDIT_INCLUDE="$LIBEDIT_CFLAGS"
+            LIBEDIT_INCLUDE=$(echo ${LIBEDIT_CFLAGS} | $SED -e "s|-std=c99||g")
             LIBEDIT_LIB="$LIBEDIT_LIBS"
 
 $as_echo "#define HAVE_LIBEDIT 1" >>confdefs.h
@@ -14623,7 +14623,7 @@ fi
 
 		if test ! "x${CONFIG_LIBXML2}" = xNo; then
 			LIBXML2_INCLUDE=$(${CONFIG_LIBXML2} --cflags)
-			LIBXML2_INCLUDE=$(echo ${LIBXML2_INCLUDE} | $SED -e "s|-I|-I${LIBXML2_DIR}|g")
+			LIBXML2_INCLUDE=$(echo ${LIBXML2_INCLUDE} | $SED -e "s|-I|-I${LIBXML2_DIR}|g" -e "s|-std=c99||g")
 
 			LIBXML2_LIB=$(${CONFIG_LIBXML2} --libs)
 			LIBXML2_LIB=$(echo ${LIBXML2_LIB} | $SED -e "s|-L|-L${LIBXML2_DIR}|g")
@@ -20993,7 +20993,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_ILBC=1
-            ILBC_INCLUDE="$ILBC_CFLAGS"
+            ILBC_INCLUDE=$(echo ${ILBC_CFLAGS} | $SED -e "s|-std=c99||g")
             ILBC_LIB="$ILBC_LIBS"
 
 $as_echo "#define HAVE_ILBC 1" >>confdefs.h
@@ -23131,7 +23131,7 @@ fi
 
 		if test ! "x${CONFIG_MYSQLCLIENT}" = xNo; then
 			MYSQLCLIENT_INCLUDE=$(${CONFIG_MYSQLCLIENT} --cflags)
-			MYSQLCLIENT_INCLUDE=$(echo ${MYSQLCLIENT_INCLUDE} | $SED -e "s|-I|-I${MYSQLCLIENT_DIR}|g")
+			MYSQLCLIENT_INCLUDE=$(echo ${MYSQLCLIENT_INCLUDE} | $SED -e "s|-I|-I${MYSQLCLIENT_DIR}|g" -e "s|-std=c99||g")
 
 			MYSQLCLIENT_LIB=$(${CONFIG_MYSQLCLIENT} --libs)
 			MYSQLCLIENT_LIB=$(echo ${MYSQLCLIENT_LIB} | $SED -e "s|-L|-L${MYSQLCLIENT_DIR}|g")
@@ -23348,7 +23348,7 @@ fi
 
 		if test ! "x${CONFIG_NEON}" = xNo; then
 			NEON_INCLUDE=$(${CONFIG_NEON} --cflags)
-			NEON_INCLUDE=$(echo ${NEON_INCLUDE} | $SED -e "s|-I|-I${NEON_DIR}|g")
+			NEON_INCLUDE=$(echo ${NEON_INCLUDE} | $SED -e "s|-I|-I${NEON_DIR}|g" -e "s|-std=c99||g")
 
 			NEON_LIB=$(${CONFIG_NEON} --libs)
 			NEON_LIB=$(echo ${NEON_LIB} | $SED -e "s|-L|-L${NEON_DIR}|g")
@@ -23468,7 +23468,7 @@ fi
 
 		if test ! "x${CONFIG_NEON29}" = xNo; then
 			NEON29_INCLUDE=$(${CONFIG_NEON29} --cflags)
-			NEON29_INCLUDE=$(echo ${NEON29_INCLUDE} | $SED -e "s|-I|-I${NEON29_DIR}|g")
+			NEON29_INCLUDE=$(echo ${NEON29_INCLUDE} | $SED -e "s|-I|-I${NEON29_DIR}|g" -e "s|-std=c99||g")
 
 			NEON29_LIB=$(${CONFIG_NEON29} --libs)
 			NEON29_LIB=$(echo ${NEON29_LIB} | $SED -e "s|-L|-L${NEON29_DIR}|g")
@@ -23612,7 +23612,7 @@ fi
 
 		if test ! "x${CONFIG_NETSNMP}" = xNo; then
 			NETSNMP_INCLUDE=$(${CONFIG_NETSNMP} --cflags)
-			NETSNMP_INCLUDE=$(echo ${NETSNMP_INCLUDE} | $SED -e "s|-I|-I${NETSNMP_DIR}|g")
+			NETSNMP_INCLUDE=$(echo ${NETSNMP_INCLUDE} | $SED -e "s|-I|-I${NETSNMP_DIR}|g" -e "s|-std=c99||g")
 
 			NETSNMP_LIB=$(${CONFIG_NETSNMP} --agent-libs)
 			NETSNMP_LIB=$(echo ${NETSNMP_LIB} | $SED -e "s|-L|-L${NETSNMP_DIR}|g")
@@ -25001,7 +25001,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_PJPROJECT=1
-            PJPROJECT_INCLUDE="$PJPROJECT_CFLAGS"
+            PJPROJECT_INCLUDE=$(echo ${PJPROJECT_CFLAGS} | $SED -e "s|-std=c99||g")
             PJPROJECT_LIB="$PJPROJECT_LIBS"
 
 $as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
@@ -26055,7 +26055,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_PYTHONDEV=1
-            PYTHONDEV_INCLUDE="$PYTHONDEV_CFLAGS"
+            PYTHONDEV_INCLUDE=$(echo ${PYTHONDEV_CFLAGS} | $SED -e "s|-std=c99||g")
             PYTHONDEV_LIB="$PYTHONDEV_LIBS"
 
 $as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
@@ -26241,7 +26241,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_PORTAUDIO=1
-            PORTAUDIO_INCLUDE="$PORTAUDIO_CFLAGS"
+            PORTAUDIO_INCLUDE=$(echo ${PORTAUDIO_CFLAGS} | $SED -e "s|-std=c99||g")
             PORTAUDIO_LIB="$PORTAUDIO_LIBS"
 
 $as_echo "#define HAVE_PORTAUDIO 1" >>confdefs.h
@@ -32747,7 +32747,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_GMIME=1
-            GMIME_INCLUDE="$GMIME_CFLAGS"
+            GMIME_INCLUDE=$(echo ${GMIME_CFLAGS} | $SED -e "s|-std=c99||g")
             GMIME_LIB="$GMIME_LIBS"
 
 $as_echo "#define HAVE_GMIME 1" >>confdefs.h
@@ -33656,7 +33656,7 @@ fi
 
 		if test ! "x${CONFIG_SDL}" = xNo; then
 			SDL_INCLUDE=$(${CONFIG_SDL} --cflags)
-			SDL_INCLUDE=$(echo ${SDL_INCLUDE} | $SED -e "s|-I|-I${SDL_DIR}|g")
+			SDL_INCLUDE=$(echo ${SDL_INCLUDE} | $SED -e "s|-I|-I${SDL_DIR}|g" -e "s|-std=c99||g")
 
 			SDL_LIB=$(${CONFIG_SDL} --libs)
 			SDL_LIB=$(echo ${SDL_LIB} | $SED -e "s|-L|-L${SDL_DIR}|g")
@@ -34184,7 +34184,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_GTK2=1
-            GTK2_INCLUDE="$GTK2_CFLAGS"
+            GTK2_INCLUDE=$(echo ${GTK2_CFLAGS} | $SED -e "s|-std=c99||g")
             GTK2_LIB="$GTK2_LIBS"
 
 $as_echo "#define HAVE_GTK2 1" >>confdefs.h
@@ -34295,7 +34295,7 @@ else
 $as_echo "yes" >&6; }
 
             PBX_SYSTEMD=1
-            SYSTEMD_INCLUDE="$SYSTEMD_CFLAGS"
+            SYSTEMD_INCLUDE=$(echo ${SYSTEMD_CFLAGS} | $SED -e "s|-std=c99||g")
             SYSTEMD_LIB="$SYSTEMD_LIBS"
 
 $as_echo "#define HAVE_SYSTEMD 1" >>confdefs.h

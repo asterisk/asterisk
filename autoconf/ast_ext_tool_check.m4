@@ -11,7 +11,7 @@ AC_DEFUN([AST_EXT_TOOL_CHECK],
 		AC_PATH_TOOL(CONFIG_$1, $2, No, [${$1_DIR}/bin:$PATH])
 		if test ! "x${CONFIG_$1}" = xNo; then
 			$1_INCLUDE=$(${CONFIG_$1} m4_default([$3],[--cflags]))
-			$1_INCLUDE=$(echo ${$1_INCLUDE} | $SED -e "s|-I|-I${$1_DIR}|g")
+			$1_INCLUDE=$(echo ${$1_INCLUDE} | $SED -e "s|-I|-I${$1_DIR}|g" -e "s|-std=c99||g")
 
 			$1_LIB=$(${CONFIG_$1} m4_default([$4],[--libs]))
 			$1_LIB=$(echo ${$1_LIB} | $SED -e "s|-L|-L${$1_DIR}|g")
