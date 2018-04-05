@@ -25725,10 +25725,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 
 	ast_raw_answer(c);
 
-	ast_channel_lock(replaces_chan);
-	bridge = ast_channel_get_bridge(replaces_chan);
-	ast_channel_unlock(replaces_chan);
-
+	bridge = ast_bridge_transfer_acquire_bridge(replaces_chan);
 	if (bridge) {
 		if (ast_bridge_impart(bridge, c, replaces_chan, NULL,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {

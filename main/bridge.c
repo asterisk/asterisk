@@ -4402,7 +4402,7 @@ static void set_transfer_variables_all(struct ast_channel *transferer, struct ao
 	ao2_iterator_destroy(&iter);
 }
 
-static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
+struct ast_bridge *ast_bridge_transfer_acquire_bridge(struct ast_channel *chan)
 {
 	struct ast_bridge *bridge;
 
@@ -4443,7 +4443,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
-	bridge = acquire_bridge(transferer);
+	bridge = ast_bridge_transfer_acquire_bridge(transferer);
 	if (!bridge) {
 		transfer_result = AST_BRIDGE_TRANSFER_INVALID;
 		goto publish;
@@ -4690,8 +4690,8 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	const char *app = NULL;
 	int hangup_target = 0;
 
-	to_transferee_bridge = acquire_bridge(to_transferee);
-	to_target_bridge = acquire_bridge(to_transfer_target);
+	to_transferee_bridge = ast_bridge_transfer_acquire_bridge(to_transferee);
+	to_target_bridge = ast_bridge_transfer_acquire_bridge(to_transfer_target);
 
 	transfer_msg = ast_attended_transfer_message_create(1, to_transferee, to_transferee_bridge,
 			to_transfer_target, to_target_bridge, NULL, NULL);
