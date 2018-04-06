@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.20.0 to Asterisk 13.21.0 ----------
 ------------------------------------------------------------------------------
 
+Build System
+------------------
+ * RADIUS backends for CEL and CDR can now also be built using the radcli
+   client library, in addition to the existing support for building them
+   using either freeradius or radiusclient-ng.
+
 Core
 ------------------
  * A new configuration option "genericplc_on_equal_codecs" was added to the

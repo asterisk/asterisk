@@ -32,9 +32,6 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
-/* Use the FreeRADIUS-client library */
-#undef FREERADIUS_CLIENT
-
 /* Define to 1 if anonymous semaphores work. */
 #undef HAS_WORKING_SEMAPHORE
 
@@ -1297,6 +1294,9 @@
 
 /* Define if your system needs braces around PTHREAD_ONCE_INIT */
 #undef PTHREAD_ONCE_INIT_NEEDS_BRACES
+
+/* Name of RADIUS library include header */
+#undef RADIUS_HEADER_STR
 
 /* Define to the type of arg 1 for `select'. */
 #undef SELECT_TYPE_ARG1
