@@ -1366,12 +1366,17 @@
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
-				<configOption name="authenticate_qualify" default="no">
-					<synopsis>Authenticates a qualify request if needed</synopsis>
-					<description><para>
-						If true and a qualify request receives a challenge or authenticate response
+				<configOption name="authenticate_qualify">
+					<synopsis>Authenticates a qualify challenge response if needed</synopsis>
+					<description>
+						<para>If true and a qualify request receives a challenge response then
 						authentication is attempted before declaring the contact available.
-					</para></description>
+						</para>
+						<note><para>This option does nothing as we will always complete
+						the challenge response authentication if the qualify request is
+						challenged.
+						</para></note>
+					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
@@ -1565,12 +1570,17 @@
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
-				<configOption name="authenticate_qualify" default="no">
-					<synopsis>Authenticates a qualify request if needed</synopsis>
-					<description><para>
-						If true and a qualify request receives a challenge or authenticate response
+				<configOption name="authenticate_qualify">
+					<synopsis>Authenticates a qualify challenge response if needed</synopsis>
+					<description>
+						<para>If true and a qualify request receives a challenge response then
 						authentication is attempted before declaring the contact available.
-					</para></description>
+						</para>
+						<note><para>This option does nothing as we will always complete
+						the challenge response authentication if the qualify request is
+						challenged.
+						</para></note>
+					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
