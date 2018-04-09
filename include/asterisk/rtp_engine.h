@@ -296,6 +296,8 @@ struct ast_rtp_payload_type {
 #define AST_RTP_RTCP_PSFB    206
 
 /* Common RTCP feedback message types */
+/*! Picture loss indication (From RFC4585) */
+#define AST_RTP_RTCP_FMT_PLI	1
 /*! Full INTRA-frame Request (From RFC5104) */
 #define AST_RTP_RTCP_FMT_FIR	4
 /*! REMB Information (From draft-alvestrand-rmcat-remb-03) */
