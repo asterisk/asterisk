@@ -5185,7 +5185,7 @@ static const char *rtcp_payload_type2str(unsigned int pt)
 #define RTCP_SR_BLOCK_WORD_LENGTH 5
 #define RTCP_RR_BLOCK_WORD_LENGTH 6
 #define RTCP_HEADER_SSRC_LENGTH   2
-#define RTCP_FB_REMB_BLOCK_WORD_LENGTH 5
+#define RTCP_FB_REMB_BLOCK_WORD_LENGTH 4
 
 static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, const unsigned char *rtcpdata, size_t size, struct ast_sockaddr *addr)
 {
