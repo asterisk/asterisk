@@ -5525,10 +5525,11 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, c
 			f = &transport_rtp->f;
 			break;
 		case RTCP_PT_FUR:
-		/* Handle RTCP FUR as FIR by setting the format to 4 */
+			/* Handle RTCP FUR as FIR by setting the format to 4 */
 			rc = AST_RTP_RTCP_FMT_FIR;
 		case RTCP_PT_PSFB:
 			switch (rc) {
+			case AST_RTP_RTCP_FMT_PLI:
 			case AST_RTP_RTCP_FMT_FIR:
 				if (rtcp_debug_test_addr(addr)) {
 					ast_verbose("Received an RTCP Fast Update Request\n");
