@@ -1543,6 +1543,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_SFU)) {
 			ast_bridge_set_sfu_video_mode(conference->bridge);
 			ast_bridge_set_video_update_discard(conference->bridge, conference->b_profile.video_update_discard);
+			ast_bridge_set_remb_send_interval(conference->bridge, conference->b_profile.remb_send_interval);
 		}
 
 		/* Link it into the conference bridges container */
