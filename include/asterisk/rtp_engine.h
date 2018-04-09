@@ -292,10 +292,14 @@ struct ast_rtp_payload_type {
 #define AST_RTP_RTCP_SR 200
 /*! Receiver Report */
 #define AST_RTP_RTCP_RR 201
+/*! Transport Layer Feed Back (From RFC4585 also RFC5104) */
+#define AST_RTP_RTCP_RTPFB	205
 /*! Payload Specific Feed Back (From RFC4585 also RFC5104) */
-#define AST_RTP_RTCP_PSFB    206
+#define AST_RTP_RTCP_PSFB	206
 
 /* Common RTCP feedback message types */
+/*! Generic NACK (From RFC4585 also RFC5104) */
+#define AST_RTP_RTCP_FMT_NACK	1
 /*! Picture loss indication (From RFC4585) */
 #define AST_RTP_RTCP_FMT_PLI	1
 /*! Full INTRA-frame Request (From RFC5104) */
