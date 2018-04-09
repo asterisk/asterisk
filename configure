@@ -7774,7 +7774,7 @@ if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -q -O-"
   DOWNLOAD_TIMEOUT='--timeout=$1'
-else if test "${CURL}" != ":" ; then
+elif test "${CURL}" != ":" ; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -Ls"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
@@ -7825,7 +7825,6 @@ fi
     DOWNLOAD_TO_STDOUT="${FETCH} -o-"
     DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
   fi
-fi
 fi
 
 
@@ -19444,15 +19443,15 @@ if test $ac_cv_sizeof_int = $ac_cv_sizeof_fd_set_fds_bits; then
 
 $as_echo "#define TYPEOF_FD_SET_FDS_BITS int" >>confdefs.h
 
-else if test $ac_cv_sizeof_long = $ac_cv_sizeof_fd_set_fds_bits; then
+elif test $ac_cv_sizeof_long = $ac_cv_sizeof_fd_set_fds_bits; then
 
 $as_echo "#define TYPEOF_FD_SET_FDS_BITS long" >>confdefs.h
 
-else if test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
+elif test $ac_cv_sizeof_long_long = $ac_cv_sizeof_fd_set_fds_bits; then
 
 $as_echo "#define TYPEOF_FD_SET_FDS_BITS long long" >>confdefs.h
 
-fi ; fi ; fi
+fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dladdr in dlfcn.h" >&5
 $as_echo_n "checking for dladdr in dlfcn.h... " >&6; }
@@ -20614,15 +20613,13 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
             GSM_OK=1
-         else
-            if test "${GSM_GSM_HEADER_FOUND}" = "1" ; then
+         elif test "${GSM_GSM_HEADER_FOUND}" = "1" ; then
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_GSM_GSM_HEADER 1
 _ACEOF
 
-               GSM_OK=1
-            fi
+            GSM_OK=1
          fi
          if test "${GSM_OK}" = "1" ; then
             GSM_LIB="-lgsm"
@@ -28702,6 +28699,7 @@ fi
 
 
 
+for ver in 5.3 5.2 5.1; do
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -28716,13 +28714,14 @@ if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_newstate in -llua5.3" >&5
-$as_echo_n "checking for luaL_newstate in -llua5.3... " >&6; }
-if ${ac_cv_lib_lua5_3_luaL_newstate+:} false; then :
+      as_ac_Lib=`$as_echo "ac_cv_lib_lua${ver}''_luaL_newstate" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_newstate in -llua${ver}" >&5
+$as_echo_n "checking for luaL_newstate in -llua${ver}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-llua5.3 ${pbxlibdir} -lm $LIBS"
+LIBS="-llua${ver} ${pbxlibdir} -lm $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -28742,17 +28741,18 @@ return luaL_newstate ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_lua5_3_luaL_newstate=yes
+  eval "$as_ac_Lib=yes"
 else
-  ac_cv_lib_lua5_3_luaL_newstate=no
+  eval "$as_ac_Lib=no"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua5_3_luaL_newstate" >&5
-$as_echo "$ac_cv_lib_lua5_3_luaL_newstate" >&6; }
-if test "x$ac_cv_lib_lua5_3_luaL_newstate" = xyes; then :
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
   AST_LUA_FOUND=yes
 else
   AST_LUA_FOUND=no
@@ -28763,7 +28763,7 @@ fi
 
    # now check for the header.
    if test "${AST_LUA_FOUND}" = "yes"; then
-      LUA_LIB="${pbxlibdir} -llua5.3 -lm"
+      LUA_LIB="${pbxlibdir} -llua${ver} -lm"
       # if --with-LUA=DIR has been specified, use it.
       if test "x${LUA_DIR}" != "x"; then
          LUA_INCLUDE="-I${LUA_DIR}/include"
@@ -28773,8 +28773,9 @@ fi
          # check for the header
          ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${CPPFLAGS} ${LUA_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "lua5.3/lua.h" "ac_cv_header_lua5_3_lua_h" "$ac_includes_default"
-if test "x$ac_cv_header_lua5_3_lua_h" = xyes; then :
+         as_ac_Header=`$as_echo "ac_cv_header_lua${ver}/lua.h" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "lua${ver}/lua.h" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   LUA_HEADER_FOUND=1
 else
   LUA_HEADER_FOUND=0
@@ -28798,221 +28799,15 @@ _ACEOF
 fi
 
 
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.3"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.3"
+	if test "x${PBX_LUA}" = "x1" ; then
+		if test x"${LUA_DIR}" = x; then
+			LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua${ver}"
+		else
+			LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua${ver}"
+		fi
+		break;
 	fi
-fi
-
-
-if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
-   pbxlibdir=""
-   # if --with-LUA=DIR has been specified, use it.
-   if test "x${LUA_DIR}" != "x"; then
-      if test -d ${LUA_DIR}/lib; then
-         pbxlibdir="-L${LUA_DIR}/lib"
-      else
-         pbxlibdir="-L${LUA_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_newstate in -llua5.2" >&5
-$as_echo_n "checking for luaL_newstate in -llua5.2... " >&6; }
-if ${ac_cv_lib_lua5_2_luaL_newstate+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-llua5.2 ${pbxlibdir} -lm $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char luaL_newstate ();
-int
-main ()
-{
-return luaL_newstate ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_lua5_2_luaL_newstate=yes
-else
-  ac_cv_lib_lua5_2_luaL_newstate=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua5_2_luaL_newstate" >&5
-$as_echo "$ac_cv_lib_lua5_2_luaL_newstate" >&6; }
-if test "x$ac_cv_lib_lua5_2_luaL_newstate" = xyes; then :
-  AST_LUA_FOUND=yes
-else
-  AST_LUA_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_LUA_FOUND}" = "yes"; then
-      LUA_LIB="${pbxlibdir} -llua5.2 -lm"
-      # if --with-LUA=DIR has been specified, use it.
-      if test "x${LUA_DIR}" != "x"; then
-         LUA_INCLUDE="-I${LUA_DIR}/include"
-      fi
-      LUA_INCLUDE="${LUA_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${LUA_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "lua5.2/lua.h" "ac_cv_header_lua5_2_lua_h" "$ac_includes_default"
-if test "x$ac_cv_header_lua5_2_lua_h" = xyes; then :
-  LUA_HEADER_FOUND=1
-else
-  LUA_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${LUA_HEADER_FOUND}" = "x0" ; then
-         LUA_LIB=""
-         LUA_INCLUDE=""
-      else
-
-         PBX_LUA=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_LUA 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.2"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.2"
-	fi
-fi
-
-
-if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
-   pbxlibdir=""
-   # if --with-LUA=DIR has been specified, use it.
-   if test "x${LUA_DIR}" != "x"; then
-      if test -d ${LUA_DIR}/lib; then
-         pbxlibdir="-L${LUA_DIR}/lib"
-      else
-         pbxlibdir="-L${LUA_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaL_newstate in -llua5.1" >&5
-$as_echo_n "checking for luaL_newstate in -llua5.1... " >&6; }
-if ${ac_cv_lib_lua5_1_luaL_newstate+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-llua5.1 ${pbxlibdir} -lm $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char luaL_newstate ();
-int
-main ()
-{
-return luaL_newstate ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_lua5_1_luaL_newstate=yes
-else
-  ac_cv_lib_lua5_1_luaL_newstate=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lua5_1_luaL_newstate" >&5
-$as_echo "$ac_cv_lib_lua5_1_luaL_newstate" >&6; }
-if test "x$ac_cv_lib_lua5_1_luaL_newstate" = xyes; then :
-  AST_LUA_FOUND=yes
-else
-  AST_LUA_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_LUA_FOUND}" = "yes"; then
-      LUA_LIB="${pbxlibdir} -llua5.1 -lm"
-      # if --with-LUA=DIR has been specified, use it.
-      if test "x${LUA_DIR}" != "x"; then
-         LUA_INCLUDE="-I${LUA_DIR}/include"
-      fi
-      LUA_INCLUDE="${LUA_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${LUA_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "lua5.1/lua.h" "ac_cv_header_lua5_1_lua_h" "$ac_includes_default"
-if test "x$ac_cv_header_lua5_1_lua_h" = xyes; then :
-  LUA_HEADER_FOUND=1
-else
-  LUA_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${LUA_HEADER_FOUND}" = "x0" ; then
-         LUA_LIB=""
-         LUA_INCLUDE=""
-      else
-
-         PBX_LUA=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_LUA 1
-_ACEOF
-
-      fi
-   fi
-fi
-
-
-if test "x${PBX_LUA}" = "x1" ; then
-	if test x"${LUA_DIR}" = x; then
-		LUA_INCLUDE="${LUA_INCLUDE} -I/usr/include/lua5.1"
-	else
-		LUA_INCLUDE="${LUA_INCLUDE} -I${LUA_DIR}/lua5.1"
-	fi
-fi
+done
 
 # Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
 
@@ -34938,9 +34733,9 @@ fi
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
 if test "x${ac_cv_path_CMP}" = "x:"; then
 	( cd `pwd`/menuselect && ./configure )
-else if ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
+elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
 	( cd `pwd`/menuselect && ./configure )
-fi ; fi
+fi
 
 rm makeopts.acbak makeopts.acbak2
 
