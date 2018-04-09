@@ -4473,6 +4473,94 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 	return &red->t140red;
 }
 
+static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *remote_address)
+{
+	unsigned int *rtcpheader;
+	char bdata[1024];
+	int len = 20;
+	int ice;
+	int res;
+
+	if (!rtp || !rtp->rtcp) {
+		return;
+	}
+
+	if (ast_sockaddr_isnull(&rtp->rtcp->them) || rtp->rtcp->schedid < 0) {
+		/*
+		 * RTCP was stopped.
+		 */
+		return;
+	}
+
+	if (!rtp->themssrc_valid) {
+		/* We don't know their SSRC value so we don't know who to update. */
+		return;
+	}
+
+	/* Prepare RTCP FIR (PT=206, FMT=4) */
+	rtp->rtcp->firseq++;
+	if(rtp->rtcp->firseq == 256) {
+		rtp->rtcp->firseq = 0;
+	}
+
+	rtcpheader = (unsigned int *)bdata;
+	rtcpheader[0] = htonl((2 << 30) | (4 << 24) | (RTCP_PT_PSFB << 16) | ((len/4)-1));
+	rtcpheader[1] = htonl(rtp->ssrc);
+	rtcpheader[2] = htonl(rtp->themssrc);
+	rtcpheader[3] = htonl(rtp->themssrc);	/* FCI: SSRC */
+	rtcpheader[4] = htonl(rtp->rtcp->firseq << 24);			/* FCI: Sequence number */
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "RTCP FIR transmission error: %s\n", strerror(errno));
+	}
+}
+
+static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_frame *frame, struct ast_sockaddr *remote_address)
+{
+	struct ast_rtp_rtcp_feedback *feedback = frame->data.ptr;
+	unsigned int *rtcpheader;
+	char bdata[1024];
+	int len = 24;
+	int ice;
+	int res;
+
+	if (feedback->fmt != AST_RTP_RTCP_FMT_REMB) {
+		ast_debug(1, "Provided an RTCP feedback frame of format %d to write on RTP instance '%p' but only REMB is supported\n",
+			feedback->fmt, instance);
+		return;
+	}
+
+	if (!rtp || !rtp->rtcp) {
+		return;
+	}
+
+	/* If REMB support is not enabled don't send this RTCP packet */
+	if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_REMB)) {
+		ast_debug(1, "Provided an RTCP feedback REMB report to write on RTP instance '%p' but REMB support not enabled\n",
+			instance);
+		return;
+	}
+
+	if (ast_sockaddr_isnull(&rtp->rtcp->them) || rtp->rtcp->schedid < 0) {
+		/*
+		 * RTCP was stopped.
+		 */
+		return;
+	}
+
+	rtcpheader = (unsigned int *)bdata;
+	rtcpheader[0] = htonl((2 << 30) | (AST_RTP_RTCP_FMT_REMB << 24) | (RTCP_PT_PSFB << 16) | ((len/4)-1));
+	rtcpheader[1] = htonl(rtp->ssrc);
+	rtcpheader[2] = htonl(0); /* Per the draft this should always be 0 */
+	rtcpheader[3] = htonl(('R' << 24) | ('E' << 16) | ('M' << 8) | ('B')); /* Unique identifier 'R' 'E' 'M' 'B' */
+	rtcpheader[4] = htonl((1 << 24) | (feedback->remb.br_exp << 18) | (feedback->remb.br_mantissa)); /* Number of SSRCs / BR Exp / BR Mantissa */
+	rtcpheader[5] = htonl(rtp->ssrc); /* The SSRC this feedback message applies to */
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "RTCP PSFB transmission error: %s\n", strerror(errno));
+	}
+}
+
 /*! \pre instance is locked */
 static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
@@ -4491,42 +4579,11 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	/* VP8: is this a request to send a RTCP FIR? */
 	if (frame->frametype == AST_FRAME_CONTROL && frame->subclass.integer == AST_CONTROL_VIDUPDATE) {
-		unsigned int *rtcpheader;
-		char bdata[1024];
-		int len = 20;
-		int ice;
-		int res;
-
-		if (!rtp || !rtp->rtcp) {
-			return 0;
-		}
-
-		if (ast_sockaddr_isnull(&rtp->rtcp->them) || rtp->rtcp->schedid < 0) {
-			/*
-			 * RTCP was stopped.
-			 */
-			return 0;
-		}
-		if (!rtp->themssrc_valid) {
-			/* We don't know their SSRC value so we don't know who to update. */
-			return 0;
-		}
-
-		/* Prepare RTCP FIR (PT=206, FMT=4) */
-		rtp->rtcp->firseq++;
-		if(rtp->rtcp->firseq == 256) {
-			rtp->rtcp->firseq = 0;
-		}
-
-		rtcpheader = (unsigned int *)bdata;
-		rtcpheader[0] = htonl((2 << 30) | (4 << 24) | (RTCP_PT_PSFB << 16) | ((len/4)-1));
-		rtcpheader[1] = htonl(rtp->ssrc);
-		rtcpheader[2] = htonl(rtp->themssrc);
-		rtcpheader[3] = htonl(rtp->themssrc);	/* FCI: SSRC */
-		rtcpheader[4] = htonl(rtp->rtcp->firseq << 24);			/* FCI: Sequence number */
-		res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, rtp->bundled ? &remote_address : &rtp->rtcp->them, &ice);
-		if (res < 0) {
-			ast_log(LOG_ERROR, "RTCP FIR transmission error: %s\n", strerror(errno));
+		rtp_write_rtcp_fir(instance, rtp, &remote_address);
+		return 0;
+	} else if (frame->frametype == AST_FRAME_RTCP) {
+		if (frame->subclass.integer == AST_RTP_RTCP_PSFB) {
+			rtp_write_rtcp_psfb(instance, rtp, frame, &remote_address);
 		}
 		return 0;
 	}

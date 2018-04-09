@@ -966,6 +966,16 @@ static int chan_pjsip_write_stream(struct ast_channel *ast, int stream_num, stru
 	case AST_FRAME_CNG:
 		break;
 	case AST_FRAME_RTCP:
+		/* We only support writing out feedback */
+		if (frame->subclass.integer != AST_RTP_RTCP_PSFB || !media) {
+			return 0;
+		} else if (media->type != AST_MEDIA_TYPE_VIDEO) {
+			ast_debug(3, "Channel %s stream %d is of type '%s', not video! Unable to write RTCP feedback.\n",
+				ast_channel_name(ast), stream_num, ast_codec_media_type2str(media->type));
+			return 0;
+		} else if (media->write_callback) {
+			res = media->write_callback(session, media, frame);
+		}
 		break;
 	default:
 		ast_log(LOG_WARNING, "Can't send %u type frames with PJSIP\n", frame->frametype);
