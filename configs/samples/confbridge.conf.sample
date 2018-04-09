@@ -235,6 +235,10 @@ type=bridge
                            ; the video stream. Since a full frame can be large limiting how often they occur can
                            ; reduce bandwidth usage at the cost of increasing how long it may take a newly joined
                            ; channel to receive the video stream.
+;remb_send_interval=1000   ; Interval (in milliseconds) at which a combined REMB frame will be sent to sources of video.
+                           ; A REMB frame contains receiver estimated maximum bitrate information. By creating a combined
+                           ; frame and sending it to the sources of video the sender can be influenced on what bitrate
+                           ; they choose allowing a better experience for the receivers. This defaults to 0, or disabled.
 
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after

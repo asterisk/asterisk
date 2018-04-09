@@ -3832,6 +3832,13 @@ void ast_bridge_set_video_update_discard(struct ast_bridge *bridge, unsigned int
 	ast_bridge_unlock(bridge);
 }
 
+void ast_bridge_set_remb_send_interval(struct ast_bridge *bridge, unsigned int remb_send_interval)
+{
+	ast_bridge_lock(bridge);
+	bridge->softmix.video_mode.remb_send_interval = remb_send_interval;
+	ast_bridge_unlock(bridge);
+}
+
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyframe)
 {
 	struct ast_bridge_video_talker_src_data *data;
