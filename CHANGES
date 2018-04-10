@@ -9,7 +9,7 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 13.21.0 to Asterisk 13.22.0 ----------
+--- Functionality changes from Asterisk 13.20.0 to Asterisk 13.21.0 ----------
 ------------------------------------------------------------------------------
 
 Core
@@ -21,9 +21,12 @@ Core
    MESSAGE message from a user in a conference call, it's relayed to all
    other participants in the call.
 
-------------------------------------------------------------------------------
---- Functionality changes from Asterisk 13.20.0 to Asterisk 13.21.0 ----------
-------------------------------------------------------------------------------
+app_sendtext
+------------------
+    Support Enhanced Messaging.  SendText now accepts new channel variables
+    that can be used to override the To and From display names and set the
+    Content-Type of a message.  Since you can now set Content-Type, other
+    text/* content types are now valid.
 
 Build System
 ------------------
