@@ -25856,7 +25856,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 		int *nounlock, struct sip_pvt *replaces_pvt, struct ast_channel *replaces_chan)
 {
 	struct ast_channel *c;
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	struct ast_bridge *bridge;
 
 	if (req->ignore) {
 		return 0;
@@ -25872,6 +25872,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 	}
 	append_history(p, "Xfer", "INVITE/Replace received");
 
+	/* Get a ref to ensure the channel cannot go away on us. */
 	c = ast_channel_ref(p->owner);
 
 	/* Fake call progress */
@@ -25891,16 +25892,22 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 	ast_channel_unlock(replaces_chan);
 
 	if (bridge) {
+		/*
+		 * We have two refs of the channel.  One is held in c and the other
+		 * is notionally represented by p->owner.  The impart is "stealing"
+		 * the p->owner ref on success so the bridging system can have
+		 * control of when the channel is hung up.
+		 */
 		if (ast_bridge_impart(bridge, c, replaces_chan, NULL,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(c);
-			ast_channel_unref(c);
 		}
+		ao2_ref(bridge, -1);
 	} else {
 		ast_channel_move(replaces_chan, c);
 		ast_hangup(c);
-		ast_channel_unref(c);
 	}
+	ast_channel_unref(c);
 	sip_pvt_lock(p);
 	return 0;
 }
