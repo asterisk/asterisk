@@ -912,6 +912,17 @@ void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *
  */
 const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type video_mode);
 
+/*!
+ * \brief Acquire the channel's bridge for transfer purposes.
+ * \since 13.21.0
+ *
+ * \param chan Channel involved in a transfer.
+ *
+ * \return The bridge the channel is in or NULL if it either isn't
+ * in a bridge or should not be considered to be in a bridge.
+ */
+struct ast_bridge *ast_bridge_transfer_acquire_bridge(struct ast_channel *chan);
+
 enum ast_transfer_result {
 	/*! The transfer completed successfully */
 	AST_BRIDGE_TRANSFER_SUCCESS,

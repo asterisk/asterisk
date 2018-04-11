@@ -917,10 +917,7 @@ static int invite_replaces(void *data)
 	ast_channel_ref(invite->session->channel);
 	invite->channel = invite->session->channel;
 
-	ast_channel_lock(invite->channel);
-	invite->bridge = ast_channel_get_bridge(invite->channel);
-	ast_channel_unlock(invite->channel);
-
+	invite->bridge = ast_bridge_transfer_acquire_bridge(invite->channel);
 	return 0;
 }
 
