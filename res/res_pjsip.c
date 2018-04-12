@@ -3626,8 +3626,6 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 {
 	const pjsip_method *pmethod = get_pjsip_method(method);
 
-	ast_assert(endpoint != NULL);
-
 	if (!pmethod) {
 		ast_log(LOG_WARNING, "Unknown method '%s'. Cannot send request\n", method);
 		return -1;
@@ -3636,6 +3634,7 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 	if (dlg) {
 		return create_in_dialog_request(pmethod, dlg, tdata);
 	} else {
+		ast_assert(endpoint != NULL);
 		return create_out_of_dialog_request(pmethod, endpoint, uri, contact, tdata);
 	}
 }
