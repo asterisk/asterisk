@@ -25,6 +25,7 @@
 #include "asterisk.h"
 
 #include <pjsip.h>
+#include <pjsip_ua.h>
 
 #include "asterisk/cli.h"
 #include "asterisk/config.h"
@@ -32,12 +33,13 @@
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_session.h"
 #include "asterisk/sorcery.h"
 
 /*** DOCUMENTATION
 	<manager name="PJSIPNotify" language="en_US">
 		<synopsis>
-			Send a NOTIFY to either an endpoint or an arbitrary URI.
+			Send a NOTIFY to either an endpoint, an arbitrary URI, or inside a SIP dialog.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -47,6 +49,9 @@
 			<parameter name="URI" required="false">
 				<para>Abritrary URI to which to send the NOTIFY.</para>
 			</parameter>
+			<parameter name="channel" required="false">
+				<para>Channel name to send the NOTIFY. Must be a PJSIP channel.</para>
+			</parameter>
 			<parameter name="Variable" required="true">
 				<para>Appends variables as headers/content to the NOTIFY. If the variable is
 				named <literal>Content</literal>, then the value will compose the body
@@ -55,14 +60,14 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Sends a NOTIFY to an endpoint or an arbitrary URI.</para>
+			<para>Sends a NOTIFY to an endpoint, an arbitrary URI, or inside a SIP dialog.</para>
 			<para>All parameters for this event must be specified in the body of this
 			request	via multiple <literal>Variable: name=value</literal> sequences.</para>
-			<note><para>One (and only one) of <literal>Endpoint</literal> or
-			<literal>URI</literal> must be specified. If <literal>URI</literal> is used,
-			the	default outbound endpoint will be used to send the message. If the default
-			outbound endpoint isn't configured, this command can not send to an arbitrary
-			URI.</para></note>
+			<note><para>One (and only one) of <literal>Endpoint</literal>,
+			<literal>URI</literal>, or <literal>Channel</literal> must be specified.
+			If <literal>URI</literal> is used, the default outbound endpoint will be used
+			to send the message. If the default outbound endpoint isn't configured, this command
+			can not send to an arbitrary URI.</para></note>
 		</description>
 	</manager>
 	<configInfo name="res_pjsip_notify" language="en_US">
@@ -289,6 +294,16 @@ struct notify_uri_data {
 	void (*build_notify)(pjsip_tx_data *, void *);
 };
 
+/*!
+ * \internal
+ * \brief Structure to hold task data for notifications (channel variant)
+ */
+struct notify_channel_data {
+	struct ast_sip_session *session;
+	void *info;
+	void (*build_notify)(pjsip_tx_data *, void *);
+};
+
 static void notify_cli_uri_data_destroy(void *obj)
 {
 	struct notify_uri_data *data = obj;
@@ -381,6 +396,19 @@ static void notify_ami_uri_data_destroy(void *obj)
 	ast_variables_destroy(info);
 }
 
+/*!
+ * \internal
+ * \brief Destroy the notify AMI channel data releasing any resources.
+ */
+static void notify_ami_channel_data_destroy(void *obj)
+{
+	struct notify_channel_data *data = obj;
+	struct ast_variable *info = data->info;
+
+	ao2_cleanup(data->session);
+	ast_variables_destroy(info);
+}
+
 static void build_ami_notify(pjsip_tx_data *tdata, void *info);
 
 /*!
@@ -424,6 +452,28 @@ static struct notify_uri_data* notify_ami_uri_data_create(
 		return NULL;
 	}
 
+	data->info = info;
+	data->build_notify = build_ami_notify;
+
+	return data;
+}
+
+/*!
+ * \internal
+ * \brief Construct a notify channel data object for AMI.
+ */
+static struct notify_channel_data *notify_ami_channel_data_create(
+	struct ast_sip_session *session, void *info)
+{
+	struct notify_channel_data *data;
+
+	data = ao2_alloc_options(sizeof(*data), notify_ami_channel_data_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!data) {
+		return NULL;
+	}
+
+	data->session = session;
 	data->info = info;
 	data->build_notify = build_ami_notify;
 
@@ -672,9 +722,45 @@ static int notify_uri(void *obj)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Send a notify request to a channel.
+ */
+static int notify_channel(void *obj)
+{
+	RAII_VAR(struct notify_channel_data *, data, obj, ao2_cleanup);
+	pjsip_tx_data *tdata;
+	struct pjsip_dialog *dlg;
+
+	if (!data->session->channel
+		|| !data->session->inv_session
+		|| data->session->inv_session->state < PJSIP_INV_STATE_EARLY
+		|| data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		return -1;
+	}
+
+	ast_debug(1, "Sending notify on channel %s\n", ast_channel_name(data->session->channel));
+
+	dlg = data->session->inv_session->dlg;
+
+	if (ast_sip_create_request("NOTIFY", dlg, NULL, NULL, NULL, &tdata)) {
+		return -1;
+	}
+
+	ast_sip_add_header(tdata, "Subscription-State", "terminated");
+	data->build_notify(tdata, data->info);
+
+	if (ast_sip_send_request(tdata, dlg, NULL, NULL, NULL)) {
+		return -1;
+	}
+
+	return 0;
+}
+
 enum notify_result {
 	SUCCESS,
 	INVALID_ENDPOINT,
+	INVALID_CHANNEL,
 	ALLOC_ERROR,
 	TASK_PUSH_ERROR
 };
@@ -684,6 +770,10 @@ typedef struct notify_data *(*task_data_create)(
 
 typedef struct notify_uri_data *(*task_uri_data_create)(
 	const char *uri, void *info);
+
+typedef struct notify_channel_data *(*task_channel_data_create)(
+	struct ast_sip_session *session, void *info);
+
 /*!
  * \internal
  * \brief Send a NOTIFY request to the endpoint within a threaded task.
@@ -726,6 +816,68 @@ static enum notify_result push_notify_uri(const char *uri, void *info,
 
 	if (ast_sip_push_task(NULL, notify_uri, data)) {
 		ao2_cleanup(data);
+		return TASK_PUSH_ERROR;
+	}
+
+	return SUCCESS;
+}
+
+/*!
+ * \internal
+ * \brief Send a NOTIFY request in a channel within an threaded task.
+ */
+static enum notify_result push_notify_channel(const char *channel_name, void *info,
+	task_channel_data_create data_create)
+{
+	struct notify_channel_data *data;
+	struct ast_channel *ch;
+	struct ast_sip_session *session;
+	struct ast_sip_channel_pvt *ch_pvt;
+
+	/* note: this increases the refcount of the channel */
+	ch = ast_channel_get_by_name(channel_name);
+	if (!ch) {
+		ast_debug(1, "No channel found with name %s", channel_name);
+		return INVALID_CHANNEL;
+	}
+
+	if (strcmp(ast_channel_tech(ch)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Channel was a non-PJSIP channel: %s\n", channel_name);
+		ast_channel_unref(ch);
+		return INVALID_CHANNEL;
+	}
+
+	ast_channel_lock(ch);
+	ch_pvt = ast_channel_tech_pvt(ch);
+	session = ch_pvt->session;
+
+	if (!session || !session->inv_session
+			|| session->inv_session->state < PJSIP_INV_STATE_EARLY
+			|| session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_debug(1, "No active session for channel %s\n", channel_name);
+		ast_channel_unlock(ch);
+		ast_channel_unref(ch);
+		return INVALID_CHANNEL;
+	}
+
+	ao2_ref(session, +1);
+	ast_channel_unlock(ch);
+
+	/* don't keep a reference to the channel, we've got a reference to the session */
+	ast_channel_unref(ch);
+
+	/*
+	 * data_create will take ownership of the session,
+	 * and take care of releasing the ref.
+	 */
+	data = data_create(session, info);
+	if (!data) {
+		ao2_ref(session, -1);
+		return ALLOC_ERROR;
+	}
+
+	if (ast_sip_push_task(session->serializer, notify_channel, data)) {
+		ao2_ref(data, -1);
 		return TASK_PUSH_ERROR;
 	}
 
@@ -915,6 +1067,10 @@ static void manager_notify_endpoint(struct mansession *s,
 	}
 
 	switch (push_notify(endpoint_name, vars, notify_ami_data_create)) {
+	case INVALID_CHANNEL:
+		/* Shouldn't be possible. */
+		ast_assert(0);
+		break;
 	case INVALID_ENDPOINT:
 		ast_variables_destroy(vars);
 		astman_send_error_va(s, m, "Unable to retrieve endpoint %s",
@@ -944,6 +1100,10 @@ static void manager_notify_uri(struct mansession *s,
 	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
 
 	switch (push_notify_uri(uri, vars, notify_ami_uri_data_create)) {
+	case INVALID_CHANNEL:
+		/* Shouldn't be possible. */
+		ast_assert(0);
+		break;
 	case INVALID_ENDPOINT:
 		/* Shouldn't be possible. */
 		ast_assert(0);
@@ -964,22 +1124,70 @@ static void manager_notify_uri(struct mansession *s,
 
 /*!
  * \internal
+ * \brief Completes SIPNotify AMI command in channel mode.
+ */
+static void manager_notify_channel(struct mansession *s,
+	const struct message *m, const char *channel)
+{
+	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+
+	switch (push_notify_channel(channel, vars, notify_ami_channel_data_create)) {
+	case INVALID_CHANNEL:
+		ast_variables_destroy(vars);
+		astman_send_error(s, m, "Channel not found");
+		break;
+	case INVALID_ENDPOINT:
+		/* Shouldn't be possible. */
+		ast_assert(0);
+		break;
+	case ALLOC_ERROR:
+		ast_variables_destroy(vars);
+		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
+		break;
+	case TASK_PUSH_ERROR:
+		/* Don't need to destroy vars since it is handled by cleanup in push_notify_channel */
+		astman_send_error(s, m, "Unable to push Notify task");
+		break;
+	case SUCCESS:
+		astman_send_ack(s, m, "NOTIFY sent");
+		break;
+	}
+}
+
+/*!
+ * \internal
  * \brief AMI entry point to send a SIP notify to an endpoint.
  */
 static int manager_notify(struct mansession *s, const struct message *m)
 {
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	const char *uri = astman_get_header(m, "URI");
+	const char *channel = astman_get_header(m, "Channel");
+	int count = 0;
 
-	if (!ast_strlen_zero(endpoint_name) && !ast_strlen_zero(uri)) {
-		astman_send_error(s, m, "PJSIPNotify action can not handle a request specifying "
-			"both 'URI' and 'Endpoint'. You must use only one of the two.\n");
+	if (!ast_strlen_zero(endpoint_name)) {
+		++count;
+	}
+	if (!ast_strlen_zero(uri)) {
+		++count;
+	}
+	if (!ast_strlen_zero(channel)) {
+		++count;
+	}
+
+	if (1 < count) {
+		astman_send_error(s, m,
+			"PJSIPNotify requires either an endpoint name, a SIP URI, or a channel.  "
+			"You must use only one of them.");
 	} else if (!ast_strlen_zero(endpoint_name)) {
 		manager_notify_endpoint(s, m, endpoint_name);
 	} else if (!ast_strlen_zero(uri)) {
 		manager_notify_uri(s, m, uri);
+	} else if (!ast_strlen_zero(channel)) {
+		manager_notify_channel(s, m, channel);
 	} else {
-		astman_send_error(s, m, "PJSIPNotify requires either an endpoint name or a SIP URI.");
+		astman_send_error(s, m,
+			"PJSIPNotify requires either an endpoint name, a SIP URI, or a channel.");
 	}
 
 	return 0;
