@@ -60,7 +60,7 @@ struct ast_sip_sched_task {
 	enum ast_sip_scheduler_task_flags flags;
 	/*! the serializer to be used (if any) */
 	struct ast_taskprocessor *serializer;
-	/* A name to be associated with the task */
+	/*! A name to be associated with the task */
 	char name[0];
 };
 
@@ -113,7 +113,7 @@ static int run_task(void *data)
 		delay = schtd->interval - (ast_tvdiff_ms(schtd->last_end, schtd->last_start) % schtd->interval);
 	}
 
-	schtd->current_scheduler_id = ast_sched_add(scheduler_context, delay, push_to_serializer, (const void *)schtd);
+	schtd->current_scheduler_id = ast_sched_add(scheduler_context, delay, push_to_serializer, schtd);
 	if (schtd->current_scheduler_id < 0) {
 		schtd->interval = 0;
 		ao2_unlock(schtd);
@@ -164,28 +164,28 @@ int ast_sip_sched_task_cancel(struct ast_sip_sched_task *schtd)
 
 int ast_sip_sched_task_cancel_by_name(const char *name)
 {
-	RAII_VAR(struct ast_sip_sched_task *, schtd, NULL, ao2_cleanup);
+	int res;
+	struct ast_sip_sched_task *schtd;
 
 	if (ast_strlen_zero(name)) {
 		return -1;
 	}
 
-	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY);
 	if (!schtd) {
 		return -1;
 	}
 
-	return ast_sip_sched_task_cancel(schtd);
+	res = ast_sip_sched_task_cancel(schtd);
+	ao2_ref(schtd, -1);
+	return res;
 }
 
 
 int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 	struct timeval *queued, struct timeval *last_start, struct timeval *last_end)
 {
-	if (!ao2_ref_and_lock(schtd)) {
-		return -1;
-	}
-
+	ao2_lock(schtd);
 	if (queued) {
 		memcpy(queued, &schtd->when_queued, sizeof(struct timeval));
 	}
@@ -195,8 +195,7 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 	if (last_end) {
 		memcpy(last_end, &schtd->last_end, sizeof(struct timeval));
 	}
-
-	ao2_unlock_and_unref(schtd);
+	ao2_unlock(schtd);
 
 	return 0;
 }
@@ -204,18 +203,21 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 int ast_sip_sched_task_get_times_by_name(const char *name,
 	struct timeval *queued, struct timeval *last_start, struct timeval *last_end)
 {
-	RAII_VAR(struct ast_sip_sched_task *, schtd, NULL, ao2_cleanup);
+	int res;
+	struct ast_sip_sched_task *schtd;
 
 	if (ast_strlen_zero(name)) {
 		return -1;
 	}
 
-	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY);
 	if (!schtd) {
 		return -1;
 	}
 
-	return ast_sip_sched_task_get_times(schtd, queued, last_start, last_end);
+	res = ast_sip_sched_task_get_times(schtd, queued, last_start, last_end);
+	ao2_ref(schtd, -1);
+	return res;
 }
 
 int ast_sip_sched_task_get_name(struct ast_sip_sched_task *schtd, char *name, size_t maxlen)
@@ -224,13 +226,9 @@ int ast_sip_sched_task_get_name(struct ast_sip_sched_task *schtd, char *name, si
 		return -1;
 	}
 
-	if (!ao2_ref_and_lock(schtd)) {
-		return -1;
-	}
-
+	ao2_lock(schtd);
 	ast_copy_string(name, schtd->name, maxlen);
-
-	ao2_unlock_and_unref(schtd);
+	ao2_unlock(schtd);
 
 	return 0;
 }
@@ -241,9 +239,7 @@ int ast_sip_sched_task_get_next_run(struct ast_sip_sched_task *schtd)
 	struct timeval since_when;
 	struct timeval now;
 
-	if (!ao2_ref_and_lock(schtd)) {
-		return -1;
-	}
+	ao2_lock(schtd);
 
 	if (schtd->interval) {
 		delay = schtd->interval;
@@ -262,50 +258,52 @@ int ast_sip_sched_task_get_next_run(struct ast_sip_sched_task *schtd)
 		delay = -1;
 	}
 
-	ao2_unlock_and_unref(schtd);
+	ao2_unlock(schtd);
 
 	return delay;
 }
 
 int ast_sip_sched_task_get_next_run_by_name(const char *name)
 {
-	RAII_VAR(struct ast_sip_sched_task *, schtd, NULL, ao2_cleanup);
+	int next_run;
+	struct ast_sip_sched_task *schtd;
 
 	if (ast_strlen_zero(name)) {
 		return -1;
 	}
 
-	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY);
 	if (!schtd) {
 		return -1;
 	}
 
-	return ast_sip_sched_task_get_next_run(schtd);
+	next_run = ast_sip_sched_task_get_next_run(schtd);
+	ao2_ref(schtd, -1);
+	return next_run;
 }
 
 int ast_sip_sched_is_task_running(struct ast_sip_sched_task *schtd)
 {
-	if (!schtd) {
-		return 0;
-	}
-
-	return schtd->is_running;
+	return schtd ? schtd->is_running : 0;
 }
 
 int ast_sip_sched_is_task_running_by_name(const char *name)
 {
-	RAII_VAR(struct ast_sip_sched_task *, schtd, NULL, ao2_cleanup);
+	int is_running;
+	struct ast_sip_sched_task *schtd;
 
 	if (ast_strlen_zero(name)) {
 		return 0;
 	}
 
-	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	schtd = ao2_find(tasks, name, OBJ_SEARCH_KEY);
 	if (!schtd) {
 		return 0;
 	}
 
-	return schtd->is_running;
+	is_running = schtd->is_running;
+	ao2_ref(schtd, -1);
+	return is_running;
 }
 
 static void schtd_destructor(void *data)
@@ -321,7 +319,8 @@ static void schtd_destructor(void *data)
 }
 
 struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *serializer,
-	int interval, ast_sip_task sip_task, char *name, void *task_data, enum ast_sip_scheduler_task_flags flags)
+	int interval, ast_sip_task sip_task, const char *name, void *task_data,
+	enum ast_sip_scheduler_task_flags flags)
 {
 #define ID_LEN 13 /* task_deadbeef */
 	struct ast_sip_sched_task *schtd;
@@ -352,7 +351,7 @@ struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *seria
 	if (flags & AST_SIP_SCHED_TASK_DATA_AO2) {
 		ao2_ref(task_data, +1);
 	}
-	res = ast_sched_add(scheduler_context, interval, push_to_serializer, (const void *)schtd);
+	res = ast_sched_add(scheduler_context, interval, push_to_serializer, schtd);
 	if (res < 0) {
 		ao2_ref(schtd, -1);
 		return NULL;
@@ -369,14 +368,14 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 {
 	struct ao2_iterator i;
 	struct ast_sip_sched_task *schtd;
-	const char *log_format = ast_logger_get_dateformat();
+	const char *log_format;
 	struct ast_tm tm;
 	char queued[32];
 	char last_start[32];
 	char next_start[32];
 	int datelen;
-	struct timeval now = ast_tvnow();
-	const char *separator = "======================================";
+	struct timeval now;
+	static const char separator[] = "======================================";
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -392,6 +391,9 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
+	now = ast_tvnow();
+	log_format = ast_logger_get_dateformat();
+
 	ast_localtime(&now, &tm, NULL);
 	datelen = ast_strftime(queued, sizeof(queued), log_format, &tm);
 
@@ -406,12 +408,16 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		datelen, separator, separator, datelen + 8, separator);
 
 
-	ao2_ref(tasks, +1);
 	ao2_rdlock(tasks);
-	i = ao2_iterator_init(tasks, 0);
+	i = ao2_iterator_init(tasks, AO2_ITERATOR_DONTLOCK);
 	while ((schtd = ao2_iterator_next(&i))) {
-		int next_run_sec = ast_sip_sched_task_get_next_run(schtd) / 1000;
-		struct timeval next = ast_tvadd(now, (struct timeval) {next_run_sec, 0});
+		int next_run_sec;
+		struct timeval next;
+
+		ao2_lock(schtd);
+
+		next_run_sec = ast_sip_sched_task_get_next_run(schtd) / 1000;
+		next = ast_tvadd(now, (struct timeval) {next_run_sec, 0});
 
 		ast_localtime(&schtd->when_queued, &tm, NULL);
 		ast_strftime(queued, sizeof(queued), log_format, &tm);
@@ -434,11 +440,12 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			datelen, queued, last_start,
 			next_start,
 			next_run_sec);
+		ao2_unlock(schtd);
+
 		ao2_cleanup(schtd);
 	}
 	ao2_iterator_destroy(&i);
 	ao2_unlock(tasks);
-	ao2_ref(tasks, -1);
 	ast_cli(a->fd, "\n");
 
 	return CLI_SUCCESS;
@@ -461,8 +468,9 @@ int ast_sip_initialize_scheduler(void)
 		return -1;
 	}
 
-	tasks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
-		TASK_BUCKETS, ast_sip_sched_task_hash_fn, ast_sip_sched_task_sort_fn, ast_sip_sched_task_cmp_fn);
+	tasks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, TASK_BUCKETS, ast_sip_sched_task_hash_fn,
+		ast_sip_sched_task_sort_fn, ast_sip_sched_task_cmp_fn);
 	if (!tasks) {
 		ast_log(LOG_ERROR, "Failed to allocate task container. Aborting load\n");
 		ast_sched_context_destroy(scheduler_context);
