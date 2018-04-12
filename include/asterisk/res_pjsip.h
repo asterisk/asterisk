@@ -1669,7 +1669,7 @@ struct ast_sip_sched_task;
  *
  */
 struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *serializer,
-	int interval, ast_sip_task sip_task, char *name, void *task_data,
+	int interval, ast_sip_task sip_task, const char *name, void *task_data,
 	enum ast_sip_scheduler_task_flags flags);
 
 /*!
