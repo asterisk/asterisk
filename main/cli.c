@@ -1646,19 +1646,29 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	ast_str_append(&output, 0, " -- Streams --\n");
 	for (stream_num = 0; stream_num < ast_stream_topology_get_count(ast_channel_get_stream_topology(chan)); stream_num++) {
 		struct ast_stream *stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
+		struct ast_variable *metadata = ast_stream_get_metadata_list(stream);
 
 		ast_str_append(&output, 0,
 			"Name: %s\n"
 			"    Type: %s\n"
 			"    State: %s\n"
 			"    Group: %d\n"
-			"    Formats: %s\n",
+			"    Formats: %s\n"
+			"    Metadata:\n",
 			ast_stream_get_name(stream),
 			ast_codec_media_type2str(ast_stream_get_type(stream)),
 			ast_stream_state2str(ast_stream_get_state(stream)),
 			ast_stream_get_group(stream),
 			ast_format_cap_get_names(ast_stream_get_formats(stream), &codec_buf)
 			);
+
+		if (metadata) {
+			struct ast_variable *v;
+			for(v = metadata; v; v = v->next) {
+				ast_str_append(&output, 0, "        %s: %s\n", v->name, v->value);
+			}
+			ast_variables_destroy(metadata);
+		}
 	}
 
 	ast_channel_unlock(chan);
