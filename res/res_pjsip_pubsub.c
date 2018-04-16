@@ -1318,7 +1318,8 @@ static void subscription_tree_destructor(void *obj)
 	destroy_subscriptions(sub_tree->root);
 
 	if (sub_tree->dlg) {
-		ast_sip_push_task_synchronous(sub_tree->serializer, subscription_unreference_dialog, sub_tree);
+		ast_sip_push_task_wait_servant(sub_tree->serializer,
+			subscription_unreference_dialog, sub_tree);
 	}
 
 	ao2_cleanup(sub_tree->endpoint);
@@ -1665,7 +1666,8 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	}
 	recreate_data.persistence = persistence;
 	recreate_data.rdata = &rdata;
-	if (ast_sip_push_task_synchronous(serializer, sub_persistence_recreate, &recreate_data)) {
+	if (ast_sip_push_task_wait_serializer(serializer, sub_persistence_recreate,
+		&recreate_data)) {
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: Could not continue under distributor serializer.\n",
 			persistence->endpoint);
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);

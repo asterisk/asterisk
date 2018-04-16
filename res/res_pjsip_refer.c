@@ -316,7 +316,15 @@ static void refer_progress_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 		/* It's possible that a task is waiting to remove us already, so bump the refcount of progress so it doesn't get destroyed */
 		ao2_ref(progress, +1);
 		pjsip_dlg_dec_lock(progress->dlg);
-		ast_sip_push_task_synchronous(progress->serializer, refer_progress_terminate, progress);
+		/*
+		 * XXX We are always going to execute this inline rather than
+		 * in the serializer because this function is a PJPROJECT
+		 * callback and thus has to be a SIP servant thread.
+		 *
+		 * The likely remedy is to push most of this function into
+		 * refer_progress_terminate() with ast_sip_push_task().
+		 */
+		ast_sip_push_task_wait_servant(progress->serializer, refer_progress_terminate, progress);
 		pjsip_dlg_inc_lock(progress->dlg);
 		ao2_ref(progress, -1);
 
@@ -960,7 +968,8 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 
 	invite.session = other_session;
 
-	if (ast_sip_push_task_synchronous(other_session->serializer, invite_replaces, &invite)) {
+	if (ast_sip_push_task_wait_serializer(other_session->serializer, invite_replaces,
+		&invite)) {
 		response = 481;
 		goto inv_replace_failed;
 	}

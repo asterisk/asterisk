@@ -153,7 +153,7 @@ static const struct ast_datastore_info header_datastore = {
 	.type = "header_datastore",
 };
 
-/*! \brief Data structure used for ast_sip_push_task_synchronous  */
+/*! \brief Data structure used for ast_sip_push_task_wait_serializer  */
 struct header_data {
 	struct ast_sip_channel_pvt *channel;
 	char *header_name;
@@ -480,11 +480,11 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 	header_data.len = len;
 
 	if (!strcasecmp(args.action, "read")) {
-		return ast_sip_push_task_synchronous(channel->session->serializer, read_header,
-											 &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			read_header, &header_data);
 	} else if (!strcasecmp(args.action, "remove")) {
-		return ast_sip_push_task_synchronous(channel->session->serializer, remove_header,
-											 &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			remove_header, &header_data);
 	} else {
 		ast_log(AST_LOG_ERROR,
 				"Unknown action '%s' is not valid, must be 'read' or 'remove'.\n",
@@ -539,14 +539,14 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 	header_data.len = 0;
 
 	if (!strcasecmp(args.action, "add")) {
-		return ast_sip_push_task_synchronous(channel->session->serializer, add_header,
-											 &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			add_header, &header_data);
 	} else if (!strcasecmp(args.action, "update")) {
-		return ast_sip_push_task_synchronous(channel->session->serializer, update_header,
-											 &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			update_header, &header_data);
 	} else if (!strcasecmp(args.action, "remove")) {
-		return ast_sip_push_task_synchronous(channel->session->serializer, remove_header,
-											 &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer,
+			remove_header, &header_data);
 	} else {
 		ast_log(AST_LOG_ERROR,
 				"Unknown action '%s' is not valid, must be 'add', 'update', or 'remove'.\n",

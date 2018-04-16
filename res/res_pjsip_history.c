@@ -1385,7 +1385,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_pjsip, ARRAY_LEN(cli_pjsip));
 	ast_sip_unregister_service(&logging_module);
 
-	ast_sip_push_task_synchronous(NULL, clear_history_entries, NULL);
+	ast_sip_push_task_wait_servant(NULL, clear_history_entries, NULL);
 	AST_VECTOR_FREE(&vector_history);
 
 	ast_pjproject_caching_pool_destroy(&cachingpool);
