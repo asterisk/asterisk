@@ -1481,7 +1481,7 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		return -1;
 	}
 
-	if (ast_sip_push_task_synchronous(new_state->client_state->serializer,
+	if (ast_sip_push_task_wait_serializer(new_state->client_state->serializer,
 		sip_outbound_registration_regc_alloc, new_state)) {
 		return -1;
 	}
@@ -1851,8 +1851,7 @@ static int ami_outbound_registration_detail(void *obj, void *arg, int flags)
 	struct sip_ami_outbound *ami = arg;
 
 	ami->registration = obj;
-	return ast_sip_push_task_synchronous(
-		NULL, ami_outbound_registration_task, ami);
+	return ast_sip_push_task_wait_servant(NULL, ami_outbound_registration_task, ami);
 }
 
 static int ami_show_outbound_registrations(struct mansession *s,

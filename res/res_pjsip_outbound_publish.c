@@ -1102,7 +1102,8 @@ static struct ast_sip_outbound_publish_state *sip_outbound_publish_state_alloc(
 static int initialize_publish_client(struct ast_sip_outbound_publish *publish,
 				     struct ast_sip_outbound_publish_state *state)
 {
-	if (ast_sip_push_task_synchronous(state->client->serializer, sip_outbound_publish_client_alloc, state->client)) {
+	if (ast_sip_push_task_wait_serializer(state->client->serializer,
+		sip_outbound_publish_client_alloc, state->client)) {
 		ast_log(LOG_ERROR, "Unable to create client for outbound publish '%s'\n",
 			ast_sorcery_object_get_id(publish));
 		return -1;
