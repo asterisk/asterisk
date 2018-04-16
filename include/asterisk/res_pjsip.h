@@ -1713,16 +1713,23 @@ enum ast_sip_scheduler_task_flags {
 	 */
 	AST_SIP_SCHED_TASK_DATA_FREE = ( 1 << 3 ),
 
-	/*! \brief AST_SIP_SCHED_TASK_PERIODIC
-	 * The task is scheduled at multiples of interval
+	/*!
+	 * \brief The task is scheduled at multiples of interval
 	 * \see Interval
 	 */
 	AST_SIP_SCHED_TASK_PERIODIC = (0 << 4),
-	/*! \brief AST_SIP_SCHED_TASK_DELAY
-	 * The next invocation of the task is at last finish + interval
+	/*!
+	 * \brief The next invocation of the task is at last finish + interval
 	 * \see Interval
 	 */
 	AST_SIP_SCHED_TASK_DELAY = (1 << 4),
+	/*!
+	 * \brief The scheduled task's events are tracked in the debug log.
+	 * \details
+	 * Schedule events such as scheduling, running, rescheduling, canceling,
+	 * and destroying are logged about the task.
+	 */
+	AST_SIP_SCHED_TASK_TRACK = (1 << 5),
 };
 
 /*!
