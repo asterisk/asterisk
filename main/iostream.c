@@ -197,11 +197,18 @@ static ssize_t iostream_read(struct ast_iostream *stream, void *buf, size_t size
 					}
 				}
 				break;
+			case SSL_ERROR_SYSCALL:
+				/* Some non-recoverable I/O error occurred. The OpenSSL error queue may
+				 * contain more information on the error. For socket I/O on Unix systems,
+				 * consult errno for details. */
+				ast_debug(1, "TLS non-recoverable I/O error occurred: %s, %s\n", ERR_error_string(sslerr, err),
+					ssl_error_to_string(sslerr, res));
+				return -1;
 			default:
 				/* Report EOF for an undecoded SSL or transport error. */
 				ast_debug(1, "TLS transport or SSL error reading data:  %s, %s\n", ERR_error_string(sslerr, err),
 					ssl_error_to_string(sslerr, res));
-				return 0;
+				return -1;
 			}
 			if (!ms) {
 				/* Report EOF for a timeout */
@@ -317,7 +324,7 @@ ssize_t ast_iostream_discard(struct ast_iostream *stream, size_t size)
 
 	while (remaining) {
 		ret = ast_iostream_read(stream, buf, remaining > sizeof(buf) ? sizeof(buf) : remaining);
-		if (ret < 0) {
+		if (ret <= 0) {
 			return ret;
 		}
 		remaining -= ret;
