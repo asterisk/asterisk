@@ -46,6 +46,8 @@ struct ast_bridge_snapshot {
 		AST_STRING_FIELD(creator);
 		/*! Name given to the bridge by its creator */
 		AST_STRING_FIELD(name);
+		/*! Unique ID of the channel providing video, if one exists */
+		AST_STRING_FIELD(video_source_id);
 	);
 	/*! AO2 container of bare channel uniqueid strings participating in the bridge.
 	 * Allocated from ast_str_container_alloc() */
@@ -60,8 +62,6 @@ struct ast_bridge_snapshot {
 	unsigned int num_active;
 	/*! The video mode of the bridge */
 	enum ast_bridge_video_mode_type video_mode;
-	/*! Unique ID of the channel providing video, if one exists */
-	AST_STRING_FIELD_EXTENDED(video_source_id);
 };
 
 /*!

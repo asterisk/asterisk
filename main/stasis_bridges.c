@@ -246,8 +246,7 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 		return NULL;
 	}
 
-	if (ast_string_field_init(snapshot, 128)
-		|| ast_string_field_init_extended(snapshot, video_source_id)) {
+	if (ast_string_field_init(snapshot, 128)) {
 		ao2_ref(snapshot, -1);
 
 		return NULL;
