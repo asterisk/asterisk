@@ -282,5 +282,5 @@ static int system_create_resolver_and_set_nameservers(void *data)
 
 void ast_sip_initialize_dns(void)
 {
-	ast_sip_push_task_synchronous(NULL, system_create_resolver_and_set_nameservers, NULL);
+	ast_sip_push_task_wait_servant(NULL, system_create_resolver_and_set_nameservers, NULL);
 }
