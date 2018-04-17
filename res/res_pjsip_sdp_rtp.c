@@ -1096,6 +1096,9 @@ static void add_rtcp_fb_to_stream(struct ast_sip_session *session,
 
 	attr = pjmedia_sdp_attr_create(pool, "rtcp-fb", pj_cstr(&stmp, "* goog-remb"));
 	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+
+	attr = pjmedia_sdp_attr_create(pool, "rtcp-fb", pj_cstr(&stmp, "* nack"));
+	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
 }
 
 /*! \brief Function which negotiates an incoming media stream */
