@@ -331,7 +331,6 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		}
 	} else {
 		state->announcement = 0;
-		state->samples = 0;
 	}
 
 	if (!state->class->total_files) {
