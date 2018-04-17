@@ -49,7 +49,7 @@ static ASN1OBJID gProtocolID = {
 };
 
 int ooGkClientInit(enum RasGatekeeperMode eGkMode,
-              char *szGkAddr, int iGkPort )
+              char *szGkAddr, char *szRasAddr, int iGkPort )
 {
    ooGkClient *pGkClient=NULL;
    OOInterface *cur=NULL;
@@ -69,7 +69,11 @@ int ooGkClientInit(enum RasGatekeeperMode eGkMode,
    pGkClient->rrqRetries = 0;
    pGkClient->grqRetries = 0;
 
-   strcpy(pGkClient->localRASIP, gH323ep.signallingIP);
+   if (szRasAddr && *szRasAddr) {
+      strcpy(pGkClient->localRASIP, szRasAddr);
+   } else {
+      strcpy(pGkClient->localRASIP, gH323ep.signallingIP);
+   }
 #ifndef _WIN32
    if(!strcmp(pGkClient->localRASIP, "0.0.0.0") ||
       !strcmp(pGkClient->localRASIP, "127.0.0.1"))
@@ -90,7 +94,6 @@ int ooGkClientInit(enum RasGatekeeperMode eGkMode,
       }
       if(cur)
       {
-         OOTRACEINFO2("Using local RAS Ip address %s\n", cur->addr);
          strcpy(pGkClient->localRASIP, cur->addr);
       }
       else{
@@ -98,6 +101,7 @@ int ooGkClientInit(enum RasGatekeeperMode eGkMode,
          return OO_FAILED;
       }
    }
+   OOTRACEINFO2("Using local RAS Ip address %s\n", pGkClient->localRASIP);
 #endif
    if(OO_OK != ooGkClientSetGkMode(pGkClient, eGkMode, szGkAddr, iGkPort))
    {
