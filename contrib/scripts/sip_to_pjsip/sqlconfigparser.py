@@ -1,6 +1,13 @@
 from astconfigparser import MultiOrderedConfigParser
 
-import MySQLdb
+try:
+    import pymysql as MySQLdb
+    MySQLdb.install_as_MySQLdb()
+except ImportError:
+    # MySQLdb is compatible with Python 2 only.  Try it as a
+    # fallback if pymysql is unavailable.
+    import MySQLdb
+
 import traceback
 
 class SqlConfigParser(MultiOrderedConfigParser):
@@ -61,9 +68,6 @@ class SqlConfigParser(MultiOrderedConfigParser):
         """Write configuration information out to a file"""
         try:
             self.write_dicts(config_file, self._sections)
-        except Exception,e:
-                print "Could not open file ", config_file, " for writing"
+        except:
+                print("Could not open file " + config_file + " for writing")
                 traceback.print_exc()
-
-
-

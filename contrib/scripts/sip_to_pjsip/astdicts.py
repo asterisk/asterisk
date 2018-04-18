@@ -3,10 +3,12 @@
 # copied from http://code.activestate.com/recipes/576693/
 
 try:
-    from thread import get_ident as _get_ident
+    from threading import get_ident as _get_ident
 except ImportError:
-    from dummy_thread import get_ident as _get_ident
-
+    try:
+        from thread import get_ident as _get_ident
+    except ImportError:
+        from dummy_thread import get_ident as _get_ident
 try:
     from _abcoll import KeysView, ValuesView, ItemsView
 except ImportError:
@@ -267,11 +269,11 @@ class MultiOrderedDict(OrderedDict):
 
     def __setitem__(self, key, val, i=None):
         if key not in self:
-#            print "__setitem__ key = ", key, " val = ", val
+#            print("__setitem__ key = " + key + " val = " + val)
             OrderedDict.__setitem__(
                 self, key, val if isinstance(val, list) else [val])
             return
-#        print "inserting key = ", key, " val = ", val
+#        print("inserting key = " + key + " val = " + val)
         vals = self[key]
         if i is None:
             i = len(vals)
