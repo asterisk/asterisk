@@ -119,7 +119,7 @@ class FaxPcap(object):
         else:
             self.date += timedelta(microseconds=9000)
 
-        print seqno, '\t', self.date + self.dateoff
+        print(seqno, '\t', self.date + self.dateoff)
 
         # Make packet.
         packet, prev_data = self.data2packet(self.date + self.dateoff,
