@@ -133,11 +133,6 @@ static void *contact_alloc(const char *name)
 		return NULL;
 	}
 
-	ast_string_field_init_extended(contact, endpoint_name);
-	ast_string_field_init_extended(contact, reg_server);
-	ast_string_field_init_extended(contact, via_addr);
-	ast_string_field_init_extended(contact, call_id);
-
 	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
 	if ((aor_separator = strstr(id, ";@")) || (aor_separator = strstr(id, "@@"))) {
 		*aor_separator = '\0';

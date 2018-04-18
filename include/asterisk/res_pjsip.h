@@ -258,6 +258,14 @@ struct ast_sip_contact {
 		AST_STRING_FIELD(user_agent);
 		/*! The name of the aor this contact belongs to */
 		AST_STRING_FIELD(aor);
+		/*! Asterisk Server name */
+		AST_STRING_FIELD(reg_server);
+		/*! IP-address of the Via header in REGISTER request */
+		AST_STRING_FIELD(via_addr);
+		/*! Content of the Call-ID header in REGISTER request */
+		AST_STRING_FIELD(call_id);
+		/*! The name of the endpoint that added the contact */
+		AST_STRING_FIELD(endpoint_name);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
@@ -269,16 +277,8 @@ struct ast_sip_contact {
 	double qualify_timeout;
 	/*! Endpoint that added the contact, only available in observers */
 	struct ast_sip_endpoint *endpoint;
-	/*! Asterisk Server name */
-	AST_STRING_FIELD_EXTENDED(reg_server);
-	/*! IP-address of the Via header in REGISTER request */
-	AST_STRING_FIELD_EXTENDED(via_addr);
-	/* Port of the Via header in REGISTER request */
+	/*! Port of the Via header in REGISTER request */
 	int via_port;
-	/*! Content of the Call-ID header in REGISTER request */
-	AST_STRING_FIELD_EXTENDED(call_id);
-	/*! The name of the endpoint that added the contact */
-	AST_STRING_FIELD_EXTENDED(endpoint_name);
 	/*! If true delete the contact on Asterisk restart/boot */
 	int prune_on_boot;
 };
@@ -751,6 +751,8 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(message_context);
 		/*! Accountcode to auto-set on channels */
 		AST_STRING_FIELD(accountcode);
+		/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
+		AST_STRING_FIELD(incoming_mwi_mailbox);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
@@ -812,8 +814,6 @@ struct ast_sip_endpoint {
 	unsigned int refer_blind_progress;
 	/*! Whether to notifies dialog-info 'early' on INUSE && RINGING state */
 	unsigned int notify_early_inuse_ringing;
-	/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
-	AST_STRING_FIELD_EXTENDED(incoming_mwi_mailbox);
 };
 
 /*! URI parameter for symmetric transport */
