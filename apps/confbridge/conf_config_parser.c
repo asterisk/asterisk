@@ -1652,8 +1652,10 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"Registration context: %s\n", b_profile.regcontext);
 
 	switch (b_profile.flags
-		& (BRIDGE_OPT_VIDEO_SRC_LAST_MARKED | BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
-			| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
+		& (BRIDGE_OPT_VIDEO_SRC_LAST_MARKED |
+			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED |
+			BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER |
+			BRIDGE_OPT_VIDEO_SRC_SFU)) {
 	case BRIDGE_OPT_VIDEO_SRC_LAST_MARKED:
 		ast_cli(a->fd, "Video Mode:           last_marked\n");
 		break;
@@ -1662,6 +1664,9 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		break;
 	case BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER:
 		ast_cli(a->fd, "Video Mode:           follow_talker\n");
+		break;
+	case BRIDGE_OPT_VIDEO_SRC_SFU:
+		ast_cli(a->fd, "Video Mode:           sfu\n");
 		break;
 	case 0:
 		ast_cli(a->fd, "Video Mode:           no video\n");
@@ -1992,12 +1997,6 @@ static int video_mode_handler(const struct aco_option *opt, struct ast_variable 
 				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
 				| BRIDGE_OPT_VIDEO_SRC_SFU,
 			BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER);
-	} else if (!strcasecmp(var->value, "none")) {
-		ast_clear_flag(b_profile,
-			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
-				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
-				| BRIDGE_OPT_VIDEO_SRC_SFU);
 	} else if (!strcasecmp(var->value, "sfu")) {
 		ast_set_flags_to(b_profile,
 			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
@@ -2005,6 +2004,12 @@ static int video_mode_handler(const struct aco_option *opt, struct ast_variable 
 				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
 				| BRIDGE_OPT_VIDEO_SRC_SFU,
 			BRIDGE_OPT_VIDEO_SRC_SFU);
+	} else if (!strcasecmp(var->value, "none")) {
+		ast_clear_flag(b_profile,
+			BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
+				| BRIDGE_OPT_VIDEO_SRC_LAST_MARKED
+				| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER
+				| BRIDGE_OPT_VIDEO_SRC_SFU);
 	} else {
 		return -1;
 	}
