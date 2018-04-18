@@ -54,7 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
-{{^has_websocket}}
+{{#has_websocket}}
 {{! Only include http_websocket if necessary. Otherwise we'll do a lot of
  *  unnecessary optional_api intialization, which makes optional_api harder
  *  to debug
@@ -267,7 +267,7 @@ static int load_module(void)
 
 {{#apis}}
 {{#operations}}
-{{#has_websocket}}
+{{#is_websocket}}
 	/* This is scoped to not conflict with CHECK_ARI_MODULE_LOADED */
 	{
 		struct ast_websocket_protocol *protocol;
@@ -285,8 +285,6 @@ static int load_module(void)
 		}
 		protocol->session_attempted = ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb;
 		protocol->session_established = ast_ari_{{c_name}}_{{c_nickname}}_ws_established_cb;
-{{/has_websocket}}
-{{#is_websocket}}
 		res |= ast_websocket_server_add_protocol2({{full_name}}.ws_server, protocol);
 	}
 {{/is_websocket}}
