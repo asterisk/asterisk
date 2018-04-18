@@ -2197,12 +2197,11 @@ void *ast_sip_endpoint_alloc(const char *name)
 	if (!endpoint) {
 		return NULL;
 	}
-	if (ast_string_field_init(endpoint, 64)) {
+	if (ast_string_field_init(endpoint, 64)
+		|| ast_string_field_init_extended(endpoint, incoming_mwi_mailbox)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
-
-	ast_string_field_init_extended(endpoint, incoming_mwi_mailbox);
 
 	if (!(endpoint->media.codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_cleanup(endpoint);
