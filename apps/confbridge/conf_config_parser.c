@@ -470,6 +470,27 @@
 						better quality for all receivers.
 					</para></description>
 				</configOption>
+				<configOption name="remb_behavior" default="average">
+					<synopsis>Sets how REMB reports are generated from multiple sources</synopsis>
+					<description><para>
+						Sets how REMB reports are combined from multiple sources to form one. A REMB report
+						consists of information about the receiver estimated maximum bitrate. As a source
+						stream may be forwarded to multiple receivers the reports must be combined into
+						a single one which is sent to the sender.</para>
+						<enumlist>
+							<enum name="average">
+								<para>The average of all estimated maximum bitrates is taken and sent
+								to the sender.</para>
+							</enum>
+							<enum name="lowest">
+								<para>The lowest estimated maximum bitrate is forwarded to the sender.</para>
+							</enum>
+							<enum name="highest">
+								<para>The highest estimated maximum bitrate is forwarded to the sender.</para>
+							</enum>
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="template">
 					<synopsis>When using the CONFBRIDGE dialplan function, use a bridge profile as a template for creating a new temporary profile</synopsis>
 				</configOption>
@@ -1675,6 +1696,23 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"Video Update Discard: %u\n", b_profile.video_update_discard);
 	ast_cli(a->fd,"REMB Send Interval: %u\n", b_profile.remb_send_interval);
 
+	switch (b_profile.flags
+		& (BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE | BRIDGE_OPT_REMB_BEHAVIOR_LOWEST
+			| BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST)) {
+	case BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE:
+		ast_cli(a->fd, "REMB Behavior:           average\n");
+		break;
+	case BRIDGE_OPT_REMB_BEHAVIOR_LOWEST:
+		ast_cli(a->fd, "REMB Behavior:           lowest\n");
+		break;
+	case BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST:
+		ast_cli(a->fd, "REMB Behavior:           highest\n");
+		break;
+	default:
+		ast_assert(0);
+		break;
+	}
+
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_joined:     %s\n", conf_get_sound(CONF_SOUND_HAS_JOINED, b_profile.sounds));
@@ -2011,6 +2049,30 @@ static int video_mode_handler(const struct aco_option *opt, struct ast_variable 
 	return 0;
 }
 
+static int remb_behavior_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct bridge_profile *b_profile = obj;
+
+	if (strcasecmp(var->name, "remb_behavior")) {
+		return -1;
+	}
+
+	ast_clear_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE |
+		BRIDGE_OPT_REMB_BEHAVIOR_LOWEST |
+		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST);
+
+	if (!strcasecmp(var->value, "average")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE);
+	} else if (!strcasecmp(var->value, "lowest")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_LOWEST);
+	} else if (!strcasecmp(var->value, "highest")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST);
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
 static int user_template_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct user_profile *u_profile = obj;
@@ -2245,6 +2307,7 @@ int conf_load_config(void)
 	aco_option_register_custom(&cfg_info, "sound_", ACO_PREFIX, bridge_types, NULL, sound_option_handler, 0);
 	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
 	aco_option_register(&cfg_info, "remb_send_interval", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_send_interval));
+	aco_option_register_custom(&cfg_info, "remb_behavior", ACO_EXACT, bridge_types, "average", remb_behavior_handler, 0);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 

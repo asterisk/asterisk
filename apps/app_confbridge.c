@@ -1544,6 +1544,13 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			ast_bridge_set_sfu_video_mode(conference->bridge);
 			ast_bridge_set_video_update_discard(conference->bridge, conference->b_profile.video_update_discard);
 			ast_bridge_set_remb_send_interval(conference->bridge, conference->b_profile.remb_send_interval);
+			if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE)) {
+				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE);
+			} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_LOWEST)) {
+				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_LOWEST);
+			} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST)) {
+				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST);
+			}
 		}
 
 		/* Link it into the conference bridges container */
