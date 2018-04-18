@@ -93,10 +93,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	s->fr.datalen = res;
-	if (ast_format_cmp(s->fmt->format, ast_format_g722) == AST_FORMAT_CMP_EQUAL)
-		*whennext = s->fr.samples = res * 2;
-	else
-		*whennext = s->fr.samples = res;
+	*whennext = s->fr.samples = res;
 	return &s->fr;
 }
 
@@ -412,15 +409,10 @@ static int au_rewrite(struct ast_filestream *s, const char *comment)
 static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
 	off_t min, max, cur;
-	long offset = 0, bytes;
+	long offset = 0;
 	struct au_desc *desc = fs->_private;
 
 	min = desc->hdr_size;
-
-	if (ast_format_cmp(fs->fmt->format, ast_format_g722) == AST_FORMAT_CMP_EQUAL)
-		bytes = sample_offset / 2;
-	else
-		bytes = sample_offset;
 
 	if ((cur = ftello(fs->f)) < 0) {
 		ast_log(AST_LOG_WARNING, "Unable to determine current position in au filestream %p: %s\n", fs, strerror(errno));
@@ -438,11 +430,11 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	}
 
 	if (whence == SEEK_SET)
-		offset = bytes + min;
+		offset = sample_offset + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
-		offset = bytes + cur;
+		offset = sample_offset + cur;
 	else if (whence == SEEK_END)
-		offset = max - bytes;
+		offset = max - sample_offset;
 
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max) ? max : offset;
@@ -481,6 +473,23 @@ static off_t au_tell(struct ast_filestream *fs)
 	return offset - desc->hdr_size;
 }
 
+static struct ast_frame *g722_read(struct ast_filestream *s, int *whennext)
+{
+	struct ast_frame *f = pcm_read(s, whennext);
+	*whennext = s->fr.samples = (*whennext * 2);
+	return f;
+}
+
+static int g722_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
+{
+	return pcm_seek(fs, sample_offset / 2, whence);
+}
+
+static off_t g722_tell(struct ast_filestream *fs)
+{
+	return pcm_tell(fs) * 2;
+}
+
 static struct ast_format_def alaw_f = {
 	.name = "alaw",
 	.exts = "alaw|al|alw",
@@ -512,10 +521,10 @@ static struct ast_format_def g722_f = {
 	.name = "g722",
 	.exts = "g722",
 	.write = pcm_write,
-	.seek = pcm_seek,
+	.seek = g722_seek,
 	.trunc = pcm_trunc,
-	.tell = pcm_tell,
-	.read = pcm_read,
+	.tell = g722_tell,
+	.read = g722_read,
 	.buf_size = (BUF_SIZE * 2) + AST_FRIENDLY_OFFSET,
 };
 
