@@ -356,7 +356,6 @@ int ooSendTermCapMsg(OOH323CallData *call)
    /* pctxt = &gH323ep.msgctxt; */
    pctxt = call->msgctxt;
    ph245msg->msgType = OOTerminalCapabilitySet;
-   memset(request, 0, sizeof(H245RequestMessage));
    if(request == NULL)
    {
       OOTRACEERR3("ERROR: No memory allocated for request message (%s, %s)\n",
@@ -364,6 +363,7 @@ int ooSendTermCapMsg(OOH323CallData *call)
       return OO_FAILED;
    }
 
+   memset(request, 0, sizeof(H245RequestMessage));
    request->t = T_H245RequestMessage_terminalCapabilitySet;
    request->u.terminalCapabilitySet = (H245TerminalCapabilitySet*)
                   memAlloc(pctxt, sizeof(H245TerminalCapabilitySet));

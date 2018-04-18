@@ -62,8 +62,6 @@ int ooCapabilityEnableDTMFCISCO
       /*Dynamic RTP payload type range is from 96 - 127 */
       if(dynamicRTPPayloadType >= 96 && dynamicRTPPayloadType <= 127)
         gcDynamicRTPPayloadType = dynamicRTPPayloadType;
-      else
-        call->dtmfcodec = dynamicRTPPayloadType;
    }
    else{
       call->dtmfmode |= OO_CAP_DTMF_CISCO;
@@ -623,8 +621,7 @@ int ooCapabilityAddT38Capability
    else pctxt = call->pctxt;
 
    epCap = (ooH323EpCapability*)memAllocZ(pctxt, sizeof(ooH323EpCapability));
-   params = (OOCapParams*) memAlloc(pctxt, sizeof(OOCapParams));
-   memset(params, 0 , sizeof(OOCapParams));
+   params = (OOCapParams*) memAllocZ(pctxt, sizeof(OOCapParams));
    if(!epCap || !params)
    {
       OOTRACEERR1("ERROR: Memory - ooCapabilityAddT38Capability - "
@@ -808,8 +805,7 @@ void* ooCapabilityCreateDTMFCapability(int cap, int dtmfcodec, OOCTXT *pctxt)
       }
       memset(pATECap, 0, sizeof(H245AudioTelephonyEventCapability));
       pATECap->dynamicRTPPayloadType = dtmfcodec;
-      events = (char*)memAlloc(pctxt, strlen("0-16")+1);
-      memset(events, 0, strlen("0-16")+1);
+      events = (char*)memAllocZ(pctxt, strlen("0-16")+1);
       if(!events)
       {
          OOTRACEERR1("Error:Memory - ooCapabilityCreateDTMFCapability - events\n");
