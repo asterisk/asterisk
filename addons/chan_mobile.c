@@ -56,6 +56,7 @@
 
 #include "asterisk/compat.h"
 #include "asterisk/lock.h"
+#include "asterisk/callerid.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/logger.h"
@@ -161,6 +162,12 @@ struct mbl_pvt {
 	AST_LIST_ENTRY(mbl_pvt) entry;
 };
 
+/*! Structure used by hfp_parse_clip to return two items */
+struct cidinfo {
+	char *cnum;
+	char *cnam;
+};
+
 static AST_RWLIST_HEAD_STATIC(devices, mbl_pvt);
 
 static int handle_response_ok(struct mbl_pvt *pvt, char *buf);
@@ -206,7 +213,7 @@ static char *mblsendsms_desc =
 "  Dest - destination\n"
 "  Message - text of the message\n";
 
-static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
+static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, struct cidinfo *cidinfo,
 		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor);
 static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *cap,
 		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
@@ -362,7 +369,8 @@ static struct hfp_hf hfp_our_brsf = {
 
 
 static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value);
-static char *hfp_parse_clip(struct hfp_pvt *hfp, char *buf);
+static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf);
+static int parse_next_token(char string[], const int start, const char delim);
 static int hfp_parse_cmti(struct hfp_pvt *hfp, char *buf);
 static int hfp_parse_cmgr(struct hfp_pvt *hfp, char *buf, char **from_number, char **text);
 static int hfp_parse_brsf(struct hfp_pvt *hfp, const char *buf);
@@ -835,7 +843,7 @@ e_return:
 
 */
 
-static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
+static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, struct cidinfo *cidinfo,
 		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *chn;
@@ -851,9 +859,11 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	ast_smoother_reset(pvt->smoother, DEVICE_FRAME_SIZE);
 	ast_dsp_digitreset(pvt->dsp);
 
-	chn = ast_channel_alloc(1, state, cid_num, pvt->id, 0, 0, pvt->context,
-			assignedids, requestor, 0,
-			"Mobile/%s-%04lx", pvt->id, ast_random() & 0xffff);
+	chn = ast_channel_alloc(1, state,
+		cidinfo ? cidinfo->cnum : NULL,
+		cidinfo ? cidinfo->cnam : NULL,
+		0, 0, pvt->context, assignedids, requestor, 0,
+		"Mobile/%s-%04lx", pvt->id, ast_random() & 0xffff);
 	if (!chn) {
 		goto e_return;
 	}
@@ -2201,45 +2211,103 @@ static int hfp_parse_ciev(struct hfp_pvt *hfp, char *buf, int *value)
  * \param hfp an hfp_pvt struct
  * \param buf the buffer to parse (null terminated)
  * \note buf will be modified when the CID string is parsed
- * \return NULL on error (parse error) or a pointer to the caller id
- * information in buf
+ * \return a cidinfo structure pointing to the cnam and cnum
+ * data in buf.  On parse errors, either or both pointers
+ * will point to null strings
  */
-static char *hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
+static struct cidinfo hfp_parse_clip(struct hfp_pvt *hfp, char *buf)
 {
-	int i, state;
-	char *clip = NULL;
-	size_t s;
+	int i;
+	int tokens[6];
+	char *cnamtmp;
+	char delim = ' ';	/* First token terminates with space */
+	int invalid = 0;	/* Number of invalid chars in cnam */
+	struct cidinfo cidinfo = { NULL, NULL };
 
 	/* parse clip info in the following format:
 	 * +CLIP: "123456789",128,...
 	 */
-	state = 0;
-	s = strlen(buf);
-	for (i = 0; i < s && state != 3; i++) {
-		switch (state) {
-		case 0: /* search for start of the number (") */
-			if (buf[i] == '"') {
-				state++;
-			}
-			break;
-		case 1: /* mark the number */
-			clip = &buf[i];
-			state++;
-			/* fall through */
-		case 2: /* search for the end of the number (") */
-			if (buf[i] == '"') {
-				buf[i] = '\0';
-				state++;
-			}
-			break;
+	ast_debug(3, "[%s] hfp_parse_clip is processing \"%s\"\n", hfp->owner->id, buf);
+	tokens[0] = 0;		/* First token starts in position 0 */
+	for (i = 1; i < ARRAY_LEN(tokens); i++) {
+		tokens[i] = parse_next_token(buf, tokens[i - 1], delim);
+		delim = ',';	/* Subsequent tokens terminate with comma */
+	}
+	ast_debug(3, "[%s] hfp_parse_clip found tokens: 0=%s, 1=%s, 2=%s, 3=%s, 4=%s, 5=%s\n",
+		hfp->owner->id, &buf[tokens[0]], &buf[tokens[1]], &buf[tokens[2]],
+		&buf[tokens[3]], &buf[tokens[4]], &buf[tokens[5]]);
+
+	/* Clean up cnum, and make sure it is legitimate since it is untrusted. */
+	cidinfo.cnum = ast_strip_quoted(&buf[tokens[1]], "\"", "\"");
+	if (!ast_isphonenumber(cidinfo.cnum)) {
+		ast_debug(1, "[%s] hfp_parse_clip invalid cidinfo.cnum data \"%s\" - deleting\n",
+			hfp->owner->id, cidinfo.cnum);
+		cidinfo.cnum = "";
+	}
+
+	/*
+	 * Some docs say tokens 2 and 3 including the commas are optional.
+	 * If absent, that would move CNAM back to token 3.
+	 */
+	cidinfo.cnam = &buf[tokens[5]];	/* Assume it's in token 5 */
+	if (buf[tokens[5]] == '\0' && buf[tokens[4]] == '\0') {
+		/* Tokens 4 and 5 are empty.  See if token 3 looks like CNAM (starts with ") */
+		i = tokens[3];
+		while (buf[i] == ' ') {		/* Find the first non-blank */
+			i++;
+		}
+		if (buf[i] == '"') {
+			/* Starts with quote.  Use this for CNAM. */
+			cidinfo.cnam = &buf[i];
 		}
 	}
 
-	if (state != 3) {
-		return NULL;
+	/* Clean up CNAM. */
+	cidinfo.cnam = ast_strip_quoted(cidinfo.cnam, "\"", "\"");
+	for (cnamtmp = cidinfo.cnam; *cnamtmp != '\0'; cnamtmp++) {
+		if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-,abcdefghijklmnopqrstuvwxyz_", *cnamtmp)) {
+			*cnamtmp = '_';	/* Invalid.  Replace with underscore. */
+			invalid++;
+		}
 	}
+	if (invalid) {
+		ast_debug(2, "[%s] hfp_parse_clip replaced %d invalid byte(s) in cnam data\n",
+			hfp->owner->id, invalid);
+	}
+	ast_debug(2, "[%s] hfp_parse_clip returns cnum=%s and cnam=%s\n",
+		hfp->owner->id, cidinfo.cnum, cidinfo.cnam);
 
-	return clip;
+	return cidinfo;
+}
+
+/*!
+ * \brief Terminate current token and return an index to start of the next token.
+ * \param string the null-terminated string being parsed (will be altered!)
+ * \param start where the current token starts
+ * \param delim the token termination delimiter.  \0 is also considered a terminator.
+ * \return index of the next token.  May be the same as this token if the string is
+ * exhausted.
+ */
+static int parse_next_token(char string[], const int start, const char delim)
+{
+	int index;
+	int quoting = 0;
+
+	for (index = start; string[index] != 0; index++) {
+		if ((string[index] == delim) && !quoting ) {
+			/* Found the delimiter, outside of quotes.  This is the end of the token. */
+			string[index] = '\0';	/* Terminate this token. */
+			index++;		/* Point the index to the start of the next token. */
+			break;			/* We're done. */
+		} else if (string[index] == '"' && !quoting) {
+			/* Found a beginning quote mark.  Remember it. */
+			quoting = 1;
+		} else if (string[index] == '"' ) {
+			/* Found the end quote mark. */
+			quoting = 0;
+		}
+	}
+	return index;
 }
 
 /*!
@@ -3576,19 +3644,17 @@ static int handle_response_ciev(struct mbl_pvt *pvt, char *buf)
  */
 static int handle_response_clip(struct mbl_pvt *pvt, char *buf)
 {
-	char *clip;
 	struct msg_queue_entry *msg;
 	struct ast_channel *chan;
+	struct cidinfo cidinfo;
 
 	if ((msg = msg_queue_head(pvt)) && msg->expected == AT_CLIP) {
 		msg_queue_free_and_pop(pvt);
 
 		pvt->needcallerid = 0;
-		if (!(clip = hfp_parse_clip(pvt->hfp, buf))) {
-			ast_debug(1, "[%s] error parsing CLIP: %s\n", pvt->id, buf);
-		}
+		cidinfo = hfp_parse_clip(pvt->hfp, buf);
 
-		if (!(chan = mbl_new(AST_STATE_RING, pvt, clip, NULL, NULL))) {
+		if (!(chan = mbl_new(AST_STATE_RING, pvt, &cidinfo, NULL, NULL))) {
 			ast_log(LOG_ERROR, "[%s] unable to allocate channel for incoming call\n", pvt->id);
 			hfp_send_chup(pvt->hfp);
 			msg_queue_push(pvt, AT_OK, AT_CHUP);
@@ -3857,7 +3923,7 @@ static void *do_monitor_phone(void *data)
 			break;
 		}
 
-		ast_debug(1, "[%s] %s\n", pvt->id, buf);
+		ast_debug(1, "[%s] read %s\n", pvt->id, buf);
 
 		switch (at_msg) {
 		case AT_BRSF:
