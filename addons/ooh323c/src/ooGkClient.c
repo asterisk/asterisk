@@ -2332,9 +2332,8 @@ int ooGkClientSendIRR
    pIRR->m.perCallInfoPresent = TRUE;
 
    perCallInfo =
-    (H225InfoRequestResponse_perCallInfo_element *)memAlloc(pctxt,
+    (H225InfoRequestResponse_perCallInfo_element *)memAllocZ(pctxt,
      sizeof(H225InfoRequestResponse_perCallInfo_element));
-   memset(perCallInfo, 0, sizeof(H225InfoRequestResponse_perCallInfo_element));
 
    if(!perCallInfo)
    {
