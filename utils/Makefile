@@ -158,7 +158,7 @@ aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	$(CMD_PREFIX) mv "$@.new" "$@"
 
 aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
-aelparse: LIBS+=-lm
+aelparse: LIBS+=-lm $(AST_CLANG_BLOCKS_LIBS)
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
 threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
@@ -168,6 +168,7 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 
 extconf.o: extconf.c
 
+conf2ael: LIBS+=$(AST_CLANG_BLOCKS_LIBS)
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o lock.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
 
 check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h
