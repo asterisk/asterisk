@@ -1,6 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-from sip_to_pjsip import cli_options
 from sip_to_pjsip import convert
 import sip_to_pjsip
 import optparse
@@ -18,7 +17,7 @@ def write_pjsip(filename, pjsip, non_mappings):
             pjsip.write(fp)
 
     except IOError:
-        print "Could not open file ", filename, " for writing"
+        print("Could not open file " + filename + " for writing")
 
 def cli_options():
     """
@@ -70,12 +69,12 @@ if __name__ == "__main__":
     sip = sqlconfigparser.SqlConfigParser(table)
     sip_to_pjsip.sip = sip
     sip.connect(user,password,host,port,database)
-    print 'Please, report any issue at:'
-    print '    https://issues.asterisk.org/'
-    print 'Reading', sip_filename
+    print('Please, report any issue at:')
+    print('    https://issues.asterisk.org/')
+    print('Reading ' + sip_filename)
     sip.read(sip_filename)
-    print 'Converting to PJSIP realtime sql...'
+    print('Converting to PJSIP realtime sql...')
     pjsip, non_mappings = convert(sip, pjsip_filename, dict(), False)
-    print 'Writing', pjsip_filename
+    print('Writing ' + pjsip_filename)
     write_pjsip(pjsip_filename, pjsip, non_mappings)
 
