@@ -860,6 +860,13 @@ void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_
 
 #ifdef AST_DEVMODE
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_assert_return(a, ...) \
+({ \
+	if (__builtin_expect(!(a), 1)) { \
+		_ast_assert(0, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
+		return __VA_ARGS__; \
+	}\
+})
 static void force_inline _ast_assert(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
 	if (__builtin_expect(!condition, 1)) {
@@ -868,6 +875,12 @@ static void force_inline _ast_assert(int condition, const char *condition_str, c
 }
 #else
 #define ast_assert(a)
+#define ast_assert_return(a, ...) \
+({ \
+	if (__builtin_expect(!(a), 1)) { \
+		return __VA_ARGS__; \
+	}\
+})
 #endif
 
 /*!
