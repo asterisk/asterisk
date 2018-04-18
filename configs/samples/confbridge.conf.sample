@@ -239,6 +239,10 @@ type=bridge
                            ; A REMB frame contains receiver estimated maximum bitrate information. By creating a combined
                            ; frame and sending it to the sources of video the sender can be influenced on what bitrate
                            ; they choose allowing a better experience for the receivers. This defaults to 0, or disabled.
+;remb_behavior=average     ; How the combined REMB report for an SFU video bridge is constructed. If set to "average" then
+                           ; the estimated maximum bitrate of each receiver is used to construct an average bitrate. If
+                           ; set to "lowest" the lowest maximum bitrate is forwarded to the sender. If set to "highest"
+                           ; the highest maximum bitrate is forwarded to the sender. This defaults to "average".
 
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
