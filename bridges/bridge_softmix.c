@@ -1318,6 +1318,12 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 			break;
 		}
 	}
+
+	/* After the report is integrated we reset this to 0 in case they stop producing
+	 * REMB reports.
+	 */
+	sc->remb.br_mantissa = 0;
+	sc->remb.br_exp = 0;
 }
 
 static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct softmix_channel *sc)
@@ -1328,20 +1334,18 @@ static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct s
 		return;
 	}
 
-	/* If we have a new bitrate then use it for the REMB, if not we use the previous
-	 * one until we know otherwise. This way the bitrate doesn't drop to 0 all of a sudden.
+	/* We always do this calculation as even when the bitrate is zero the browser
+	 * still prefers it to be accurate instead of lying.
 	 */
-	if (sc->remb_collector->bitrate) {
-		sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate;
-		sc->remb_collector->feedback.remb.br_exp = 0;
+	sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate;
+	sc->remb_collector->feedback.remb.br_exp = 0;
 
-		/* The mantissa only has 18 bits available, so while it exceeds them we bump
-		 * up the exp.
-		 */
-		while (sc->remb_collector->feedback.remb.br_mantissa > 0x3ffff) {
-			sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->feedback.remb.br_mantissa >> 1;
-			sc->remb_collector->feedback.remb.br_exp++;
-		}
+	/* The mantissa only has 18 bits available, so while it exceeds them we bump
+	 * up the exp.
+	 */
+	while (sc->remb_collector->feedback.remb.br_mantissa > 0x3ffff) {
+		sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->feedback.remb.br_mantissa >> 1;
+		sc->remb_collector->feedback.remb.br_exp++;
 	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(&bridge_channel->stream_map.to_bridge); ++i) {
@@ -2062,6 +2066,7 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 	struct ast_bridge_channel *participant;
 	struct ast_vector_int media_types;
 	int nths[AST_MEDIA_TYPE_END] = {0};
+	int idx;
 
 	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
@@ -2080,7 +2085,10 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 	 * When channels end up getting added back in they'll reuse their existing
 	 * collector and won't need to allocate a new one (unless they were just added).
 	 */
-	AST_VECTOR_RESET(&softmix_data->remb_collectors, ao2_cleanup);
+	for (idx = 0; idx < AST_VECTOR_SIZE(&softmix_data->remb_collectors); ++idx) {
+		ao2_cleanup(AST_VECTOR_GET(&softmix_data->remb_collectors, idx));
+		AST_VECTOR_REPLACE(&softmix_data->remb_collectors, idx, NULL);
+	}
 
 	/* First traversal: re-initialize all of the participants' stream maps */
 	AST_LIST_TRAVERSE(&bridge->channels, participant, entry) {
