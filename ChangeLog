@@ -1,6 +1,10 @@
-2018-04-19 18:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-04-19 18:45 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.4.0-rc1 Released.
+
+2018-04-19 13:34 +0000 [fb193a12b0]  Chris Savinovich <csavinovich@digium.com>
+
+	* Update for 15.4.0-rc1
 
 2018-04-04 13:12 +0000 [5c2120f5f5]  Joshua Colp <jcolp@digium.com>
 

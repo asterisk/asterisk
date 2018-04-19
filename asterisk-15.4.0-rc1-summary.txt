@@ -58,15 +58,15 @@
    8 Joshua Colp                            2 Richard Mudgett                 
    5 Benjamin Keith Ford                    2 lvl                             
    3 Ross Beer                              1 Michael Cargile                 
-   1 Michael Cargile                        1 SA(c)bastien Duthil             
-   1 Jean Aunis - Prescom                   1 Jean Aunis - Prescom            
-   1 Nathan Bruning                         1 Joerg Sonnenberger, D'Arcy Cain 
-   1 Ivan Poddubny                          1 Kevin Harwell                   
-   1 Sean Bright                            1 Guido Falsi                     
-   1 sungtae kim                            1 Stephane Chazelas               
-   1 lvl                                    1 Fran Vicente                    
-   1 Guido Falsi                            1 Michiel van Baak                
-   1 Chris Savinovich                       1 Curt Sampson                    
+   2 Chris Savinovich                       1 SA(c)bastien Duthil             
+   1 Michael Cargile                        1 Jean Aunis - Prescom            
+   1 Jean Aunis - Prescom                   1 Joerg Sonnenberger, D'Arcy Cain 
+   1 Nathan Bruning                         1 Kevin Harwell                   
+   1 Ivan Poddubny                          1 Guido Falsi                     
+   1 Sean Bright                            1 Stephane Chazelas               
+   1 sungtae kim                            1 Fran Vicente                    
+   1 lvl                                    1 Michiel van Baak                
+   1 Guido Falsi                            1 Curt Sampson                    
    1 Thomas Guebels                         1 Corey Farrell                   
    1 Kevin Harwell                          1 Nathan Bruning                  
    1 Evandro CA(c)sar Arruda                1 Shannon Price                   
@@ -559,167 +559,175 @@
    reference a JIRA issue.
 
    +------------------------------------------------------------------------+
-   | Revision   | Author        | Summary                                   |
-   |------------+---------------+-------------------------------------------|
-   | 00bdee4e62 | George Joseph | utils: Add ast_assert_return              |
-   |------------+---------------+-------------------------------------------|
-   | a7770fabd7 | Richard       | pjsip_scheduler.c: Add ability to trace   |
-   |            | Mudgett       | scheduled tasks.                          |
-   |------------+---------------+-------------------------------------------|
-   |            | Richard       | res_pjsip.c: Split                        |
-   | 571ccf92b2 | Mudgett       | ast_sip_push_task_synchronous() to fit    |
-   |            |               | expectations.                             |
-   |------------+---------------+-------------------------------------------|
-   | 10f4c68f70 | Richard       | pjsip_scheduler.c: Fix some corner cases. |
-   |            | Mudgett       |                                           |
-   |------------+---------------+-------------------------------------------|
-   | 54a6bb5f8a | Richard       | pjsip_scheduler.c: Sort "pjsip show       |
-   |            | Mudgett       | scheduled_tasks" output.                  |
-   |------------+---------------+-------------------------------------------|
-   | 6b9933fe44 | Richard       | pjsip_scheduler.c: Fix ao2 usage errors.  |
-   |            | Mudgett       |                                           |
-   |------------+---------------+-------------------------------------------|
-   | ae9c8d999d | Corey Farrell | Build System: Enable python3              |
-   |            |               | compatibility.                            |
-   |------------+---------------+-------------------------------------------|
-   | 49aa0da75f | Richard       | res_pjsip_refer/chan_sip: Fix INVITE with |
-   |            | Mudgett       | replaces transfer to ConfBridge           |
-   |------------+---------------+-------------------------------------------|
-   | a5db8c47d6 | Joshua Colp   | res_rtp_asterisk: Fix minimum block word  |
-   |            |               | length for REMB.                          |
-   |------------+---------------+-------------------------------------------|
-   | 01cc0731d0 | Joshua Colp   | res_rtp_asterisk: Queue video update on   |
-   |            |               | picture loss indication.                  |
-   |------------+---------------+-------------------------------------------|
-   | be75004852 | Richard       | res_pjsip: Update authenticate_qualify    |
-   |            | Mudgett       | documentation.                            |
-   |------------+---------------+-------------------------------------------|
-   | 1790ffb390 | Richard       | app_agent_pool.c: Fix off nominal ref     |
-   |            | Mudgett       | leak.                                     |
-   |------------+---------------+-------------------------------------------|
-   | c7f4aaf4c1 | Corey Farrell | Build System: Fixes for configure script. |
-   |------------+---------------+-------------------------------------------|
-   | fdabd5726d | Ben Ford      | test_data_buffer.c: Add unit tests for    |
-   |            |               | data buffer API.                          |
-   |------------+---------------+-------------------------------------------|
-   | 77b6f8c44e | Ben Ford      | Add data buffer API to store packets.     |
-   |------------+---------------+-------------------------------------------|
-   | 42abd6d3d8 | George Joseph | pjproject_bundled: Add patch for          |
-   |            |               | pj_atomic crashes                         |
-   |------------+---------------+-------------------------------------------|
-   | 9348e05585 | Corey Farrell | core: Create main/options.c.              |
-   |------------+---------------+-------------------------------------------|
-   | 8d76f678b2 | George Joseph | res_pjsip: Correct usages of pjproject's  |
-   |            |               | timer heap                                |
-   |------------+---------------+-------------------------------------------|
-   | ce2ea9e6aa | George Joseph | pjroject_bundled: Add already-destroyed   |
-   |            |               | check to tsx_timer_callback               |
-   |------------+---------------+-------------------------------------------|
-   | 9f1be1554c | George Joseph | pjproject_bundled: timer: Clean up usage  |
-   |            |               | of timer heap                             |
-   |------------+---------------+-------------------------------------------|
-   |            |               | main/indications: Use                     |
-   | 6a847614b6 | Corey Farrell | ast_cli_completion_add for all            |
-   |            |               | completions.                              |
-   |------------+---------------+-------------------------------------------|
-   |            |               | Revert "BuildSystem: In NetBSD, the       |
-   | f48a6519e2 | George Joseph | Python Programming Language is            |
-   |            |               | python-X.Y."                              |
-   |------------+---------------+-------------------------------------------|
-   | cb6bc25632 | Ivan Poddubny | func_channel: Delete dead CHANNEL_TRACE   |
-   |            |               | code                                      |
-   |------------+---------------+-------------------------------------------|
-   | d076eedf28 | Alexander     | BuildSystem: For consistency, avoid extra |
-   |            | Traud         | libs to be empty.                         |
-   |------------+---------------+-------------------------------------------|
-   | 3abb3bb834 | Corey Farrell | core: Remove dead symbols from            |
-   |            |               | asterisk.exports.in.                      |
-   |------------+---------------+-------------------------------------------|
-   | f164537553 | Corey Farrell | named_acl: Use ast_cli_completion_add.    |
-   |------------+---------------+-------------------------------------------|
-   | ebf9ec0948 | Corey Farrell | main/sounds: Use ast_cli_completion_add.  |
-   |------------+---------------+-------------------------------------------|
-   | b3736ed54b | Corey Farrell | manager: Use ast_cli_completion_add for   |
-   |            |               | completion generators.                    |
-   |------------+---------------+-------------------------------------------|
-   | 0a944dcdcc | Corey Farrell | main/test: Use ast_cli_completion_add.    |
-   |------------+---------------+-------------------------------------------|
-   | dfb2ebe72e | Joshua Colp   | rtp: Add REMB RTP property and set it on  |
-   |            |               | PJSIP video RTP.                          |
-   |------------+---------------+-------------------------------------------|
-   | 7e9ce160b1 | Corey Farrell | main/translate: Use                       |
-   |            |               | ast_cli_completion_add.                   |
-   |------------+---------------+-------------------------------------------|
-   | 78201f654d | Corey Farrell | main/taskprocessor: Use                   |
-   |            |               | ast_cli_completion_add.                   |
-   |------------+---------------+-------------------------------------------|
-   | 459fd5900c | Corey Farrell | aco: Use ast_cli_completion_add for       |
-   |            |               | 'config show help'.                       |
-   |------------+---------------+-------------------------------------------|
-   | 691fc3346c | Corey Farrell | main/config: Use ast_cli_completion_add   |
-   |            |               | for reload completion.                    |
-   |------------+---------------+-------------------------------------------|
-   | bf43977b25 | Corey Farrell | main/bridge: Use ast_cli_completion_add.  |
-   |------------+---------------+-------------------------------------------|
-   | 9af4df6a9e | Corey Farrell | core: Minor cleanup of ast_el_read_char.  |
-   |------------+---------------+-------------------------------------------|
-   | ffefb56b3f | Alexander     | BuildSystem: Check for header file of     |
-   |            | Traud         | OGG.                                      |
-   |------------+---------------+-------------------------------------------|
-   | f93d3fd45f | Alexander     | BuildSystem: When no download utility is  |
-   |            | Traud         | available, display the explanation.       |
-   |------------+---------------+-------------------------------------------|
-   | a316cb78b7 | Florian       | app_dial: Enable early-media video        |
-   |            | Floimair      |                                           |
-   |------------+---------------+-------------------------------------------|
-   | 2ef947555b | George Joseph | app_voicemail: Fix json blob errors       |
-   |------------+---------------+-------------------------------------------|
-   | a4f2081beb | Corey Farrell | main/cdr: Use ast_cli_completion_add for  |
-   |            |               | CDR channel completion.                   |
-   |------------+---------------+-------------------------------------------|
-   | ff04a20a11 | Corey Farrell | main/ccss: Use ast_cli_completion_add for |
-   |            |               | core id.                                  |
-   |------------+---------------+-------------------------------------------|
-   | 5be16ef66e | Corey Farrell | core: Backport compatible MALLOC_DEBUG    |
-   |            |               | changes.                                  |
-   |------------+---------------+-------------------------------------------|
-   |            |               | astobj2_container: Use                    |
-   | 8fa4b19b0d | Corey Farrell | ast_cli_completion_add for container      |
-   |            |               | names.                                    |
-   |------------+---------------+-------------------------------------------|
-   | ea8f9c69c4 | Corey Farrell | main/channel: Use ast_cli_completion_add  |
-   |            |               | for channeltypes.                         |
-   |------------+---------------+-------------------------------------------|
-   | 73885c6055 | Corey Farrell | cli: Enable ast_cli_completion_add on     |
-   |            |               | public completion generators.             |
-   |------------+---------------+-------------------------------------------|
-   | 472b2835c9 | Corey Farrell | core: Remove incorrect usage of           |
-   |            |               | attribute_malloc.                         |
-   |------------+---------------+-------------------------------------------|
-   | 06e84e1c42 | Corey Farrell | core: Remove non-critical cleanup from    |
-   |            |               | startup aborts.                           |
-   |------------+---------------+-------------------------------------------|
-   | 818a00cf60 | Alexander     | BuildSystem: For consistency, avoid       |
-   |            | Traud         | double-checking via if clauses.           |
-   |------------+---------------+-------------------------------------------|
-   | 9350fc0b6d | Alexander     | BuildSystem: Instead of $PJPROJECT_LIBS   |
-   |            | Traud         | with s, use $PJPROJECT_LIB everywhere.    |
-   |------------+---------------+-------------------------------------------|
-   | 852ef63964 | Corey Farrell | Replace direct checks of option_debug     |
-   |            |               | with DEBUG_ATLEAST macro.                 |
-   |------------+---------------+-------------------------------------------|
-   | 4a972d24c9 | Alexander     | utils: In Solaris, avoid a warning about  |
-   |            | Traud         | an unused variable.                       |
-   |------------+---------------+-------------------------------------------|
-   | e16228be30 | Corey Farrell | gitreview: Reorder and add padding.       |
-   |------------+---------------+-------------------------------------------|
-   | 86e73210fb | George Joseph | ast_coredumper: Minor fixes               |
-   |------------+---------------+-------------------------------------------|
-   | 8d707d33ab | Ben Ford      | Add extended properties to rtp_engine for |
-   |            |               | RTP retransmission support.               |
-   |------------+---------------+-------------------------------------------|
-   | 9d60fc6298 | Sean Bright   | modules: Set deprecated modules to not    |
-   |            |               | build by default                          |
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | fb193a12b0 | Chris           | Update for 15.4.0-rc1                   |
+   |            | Savinovich      |                                         |
+   |------------+-----------------+-----------------------------------------|
+   | 00bdee4e62 | George Joseph   | utils: Add ast_assert_return            |
+   |------------+-----------------+-----------------------------------------|
+   | a7770fabd7 | Richard Mudgett | pjsip_scheduler.c: Add ability to trace |
+   |            |                 | scheduled tasks.                        |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | res_pjsip.c: Split                      |
+   | 571ccf92b2 | Richard Mudgett | ast_sip_push_task_synchronous() to fit  |
+   |            |                 | expectations.                           |
+   |------------+-----------------+-----------------------------------------|
+   | 10f4c68f70 | Richard Mudgett | pjsip_scheduler.c: Fix some corner      |
+   |            |                 | cases.                                  |
+   |------------+-----------------+-----------------------------------------|
+   | 54a6bb5f8a | Richard Mudgett | pjsip_scheduler.c: Sort "pjsip show     |
+   |            |                 | scheduled_tasks" output.                |
+   |------------+-----------------+-----------------------------------------|
+   | 6b9933fe44 | Richard Mudgett | pjsip_scheduler.c: Fix ao2 usage        |
+   |            |                 | errors.                                 |
+   |------------+-----------------+-----------------------------------------|
+   | ae9c8d999d | Corey Farrell   | Build System: Enable python3            |
+   |            |                 | compatibility.                          |
+   |------------+-----------------+-----------------------------------------|
+   | 49aa0da75f | Richard Mudgett | res_pjsip_refer/chan_sip: Fix INVITE    |
+   |            |                 | with replaces transfer to ConfBridge    |
+   |------------+-----------------+-----------------------------------------|
+   | a5db8c47d6 | Joshua Colp     | res_rtp_asterisk: Fix minimum block     |
+   |            |                 | word length for REMB.                   |
+   |------------+-----------------+-----------------------------------------|
+   | 01cc0731d0 | Joshua Colp     | res_rtp_asterisk: Queue video update on |
+   |            |                 | picture loss indication.                |
+   |------------+-----------------+-----------------------------------------|
+   | be75004852 | Richard Mudgett | res_pjsip: Update authenticate_qualify  |
+   |            |                 | documentation.                          |
+   |------------+-----------------+-----------------------------------------|
+   | 1790ffb390 | Richard Mudgett | app_agent_pool.c: Fix off nominal ref   |
+   |            |                 | leak.                                   |
+   |------------+-----------------+-----------------------------------------|
+   | c7f4aaf4c1 | Corey Farrell   | Build System: Fixes for configure       |
+   |            |                 | script.                                 |
+   |------------+-----------------+-----------------------------------------|
+   | fdabd5726d | Ben Ford        | test_data_buffer.c: Add unit tests for  |
+   |            |                 | data buffer API.                        |
+   |------------+-----------------+-----------------------------------------|
+   | 77b6f8c44e | Ben Ford        | Add data buffer API to store packets.   |
+   |------------+-----------------+-----------------------------------------|
+   | 42abd6d3d8 | George Joseph   | pjproject_bundled: Add patch for        |
+   |            |                 | pj_atomic crashes                       |
+   |------------+-----------------+-----------------------------------------|
+   | 9348e05585 | Corey Farrell   | core: Create main/options.c.            |
+   |------------+-----------------+-----------------------------------------|
+   | 8d76f678b2 | George Joseph   | res_pjsip: Correct usages of            |
+   |            |                 | pjproject's timer heap                  |
+   |------------+-----------------+-----------------------------------------|
+   | ce2ea9e6aa | George Joseph   | pjroject_bundled: Add already-destroyed |
+   |            |                 | check to tsx_timer_callback             |
+   |------------+-----------------+-----------------------------------------|
+   | 9f1be1554c | George Joseph   | pjproject_bundled: timer: Clean up      |
+   |            |                 | usage of timer heap                     |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | main/indications: Use                   |
+   | 6a847614b6 | Corey Farrell   | ast_cli_completion_add for all          |
+   |            |                 | completions.                            |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | Revert "BuildSystem: In NetBSD, the     |
+   | f48a6519e2 | George Joseph   | Python Programming Language is          |
+   |            |                 | python-X.Y."                            |
+   |------------+-----------------+-----------------------------------------|
+   | cb6bc25632 | Ivan Poddubny   | func_channel: Delete dead CHANNEL_TRACE |
+   |            |                 | code                                    |
+   |------------+-----------------+-----------------------------------------|
+   | d076eedf28 | Alexander Traud | BuildSystem: For consistency, avoid     |
+   |            |                 | extra libs to be empty.                 |
+   |------------+-----------------+-----------------------------------------|
+   | 3abb3bb834 | Corey Farrell   | core: Remove dead symbols from          |
+   |            |                 | asterisk.exports.in.                    |
+   |------------+-----------------+-----------------------------------------|
+   | f164537553 | Corey Farrell   | named_acl: Use ast_cli_completion_add.  |
+   |------------+-----------------+-----------------------------------------|
+   | ebf9ec0948 | Corey Farrell   | main/sounds: Use                        |
+   |            |                 | ast_cli_completion_add.                 |
+   |------------+-----------------+-----------------------------------------|
+   | b3736ed54b | Corey Farrell   | manager: Use ast_cli_completion_add for |
+   |            |                 | completion generators.                  |
+   |------------+-----------------+-----------------------------------------|
+   | 0a944dcdcc | Corey Farrell   | main/test: Use ast_cli_completion_add.  |
+   |------------+-----------------+-----------------------------------------|
+   | dfb2ebe72e | Joshua Colp     | rtp: Add REMB RTP property and set it   |
+   |            |                 | on PJSIP video RTP.                     |
+   |------------+-----------------+-----------------------------------------|
+   | 7e9ce160b1 | Corey Farrell   | main/translate: Use                     |
+   |            |                 | ast_cli_completion_add.                 |
+   |------------+-----------------+-----------------------------------------|
+   | 78201f654d | Corey Farrell   | main/taskprocessor: Use                 |
+   |            |                 | ast_cli_completion_add.                 |
+   |------------+-----------------+-----------------------------------------|
+   | 459fd5900c | Corey Farrell   | aco: Use ast_cli_completion_add for     |
+   |            |                 | 'config show help'.                     |
+   |------------+-----------------+-----------------------------------------|
+   | 691fc3346c | Corey Farrell   | main/config: Use ast_cli_completion_add |
+   |            |                 | for reload completion.                  |
+   |------------+-----------------+-----------------------------------------|
+   | bf43977b25 | Corey Farrell   | main/bridge: Use                        |
+   |            |                 | ast_cli_completion_add.                 |
+   |------------+-----------------+-----------------------------------------|
+   | 9af4df6a9e | Corey Farrell   | core: Minor cleanup of                  |
+   |            |                 | ast_el_read_char.                       |
+   |------------+-----------------+-----------------------------------------|
+   | ffefb56b3f | Alexander Traud | BuildSystem: Check for header file of   |
+   |            |                 | OGG.                                    |
+   |------------+-----------------+-----------------------------------------|
+   | f93d3fd45f | Alexander Traud | BuildSystem: When no download utility   |
+   |            |                 | is available, display the explanation.  |
+   |------------+-----------------+-----------------------------------------|
+   | a316cb78b7 | Florian         | app_dial: Enable early-media video      |
+   |            | Floimair        |                                         |
+   |------------+-----------------+-----------------------------------------|
+   | 2ef947555b | George Joseph   | app_voicemail: Fix json blob errors     |
+   |------------+-----------------+-----------------------------------------|
+   | a4f2081beb | Corey Farrell   | main/cdr: Use ast_cli_completion_add    |
+   |            |                 | for CDR channel completion.             |
+   |------------+-----------------+-----------------------------------------|
+   | ff04a20a11 | Corey Farrell   | main/ccss: Use ast_cli_completion_add   |
+   |            |                 | for core id.                            |
+   |------------+-----------------+-----------------------------------------|
+   | 5be16ef66e | Corey Farrell   | core: Backport compatible MALLOC_DEBUG  |
+   |            |                 | changes.                                |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | astobj2_container: Use                  |
+   | 8fa4b19b0d | Corey Farrell   | ast_cli_completion_add for container    |
+   |            |                 | names.                                  |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | main/channel: Use                       |
+   | ea8f9c69c4 | Corey Farrell   | ast_cli_completion_add for              |
+   |            |                 | channeltypes.                           |
+   |------------+-----------------+-----------------------------------------|
+   | 73885c6055 | Corey Farrell   | cli: Enable ast_cli_completion_add on   |
+   |            |                 | public completion generators.           |
+   |------------+-----------------+-----------------------------------------|
+   | 472b2835c9 | Corey Farrell   | core: Remove incorrect usage of         |
+   |            |                 | attribute_malloc.                       |
+   |------------+-----------------+-----------------------------------------|
+   | 06e84e1c42 | Corey Farrell   | core: Remove non-critical cleanup from  |
+   |            |                 | startup aborts.                         |
+   |------------+-----------------+-----------------------------------------|
+   | 818a00cf60 | Alexander Traud | BuildSystem: For consistency, avoid     |
+   |            |                 | double-checking via if clauses.         |
+   |------------+-----------------+-----------------------------------------|
+   | 9350fc0b6d | Alexander Traud | BuildSystem: Instead of $PJPROJECT_LIBS |
+   |            |                 | with s, use $PJPROJECT_LIB everywhere.  |
+   |------------+-----------------+-----------------------------------------|
+   | 852ef63964 | Corey Farrell   | Replace direct checks of option_debug   |
+   |            |                 | with DEBUG_ATLEAST macro.               |
+   |------------+-----------------+-----------------------------------------|
+   | 4a972d24c9 | Alexander Traud | utils: In Solaris, avoid a warning      |
+   |            |                 | about an unused variable.               |
+   |------------+-----------------+-----------------------------------------|
+   | e16228be30 | Corey Farrell   | gitreview: Reorder and add padding.     |
+   |------------+-----------------+-----------------------------------------|
+   | 86e73210fb | George Joseph   | ast_coredumper: Minor fixes             |
+   |------------+-----------------+-----------------------------------------|
+   | 8d707d33ab | Ben Ford        | Add extended properties to rtp_engine   |
+   |            |                 | for RTP retransmission support.         |
+   |------------+-----------------+-----------------------------------------|
+   | 9d60fc6298 | Sean Bright     | modules: Set deprecated modules to not  |
+   |            |                 | build by default                        |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -731,13 +739,12 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |74067 ----------
- asterisk-15.3.0-summary.html                                                                    | 1135
- asterisk-15.3.0-summary.txt                                                                     | 1825
+ asterisk-15.3.0-summary.html                                                                    | 1135 ------
+ asterisk-15.3.0-summary.txt                                                                     | 1825 ----------
  b/.gitreview                                                                                    |    7
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   23
+ b/ChangeLog                                                                                     | 1533 ++++++++
  b/Makefile                                                                                      |   46
  b/UPGRADE.txt                                                                                   |    8
  b/addons/cdr_mysql.c                                                                            |    8
@@ -751,10 +758,12 @@
  b/apps/app_voicemail.c                                                                          |   39
  b/apps/confbridge/conf_config_parser.c                                                          |   77
  b/apps/confbridge/include/confbridge.h                                                          |    4
+ b/asterisk-15.4.0-rc1-summary.html                                                              |  386 ++
+ b/asterisk-15.4.0-rc1-summary.txt                                                               |  903 ++++
  b/autoconf/ast_ext_tool_check.m4                                                                |    2
  b/autoconf/ast_pkgconfig.m4                                                                     |    2
  b/bootstrap.sh                                                                                  |    4
- b/bridges/bridge_softmix.c                                                                      |  290
+ b/bridges/bridge_softmix.c                                                                      |  290 +
  b/bridges/bridge_softmix/include/bridge_softmix_internal.h                                      |   14
  b/build_tools/cflags.xml                                                                        |    2
  b/build_tools/menuselect-deps.in                                                                |    1
@@ -774,10 +783,10 @@
  b/configs/samples/confbridge.conf.sample                                                        |    8
  b/configs/samples/pjproject.conf.sample                                                         |    7
  b/configs/samples/voicemail.conf.sample                                                         |    5
- b/configure                                                                                     | 1618
- b/configure.ac                                                                                  |  264
+ b/configure                                                                                     | 1618 +++-----
+ b/configure.ac                                                                                  |  264 -
  b/contrib/scripts/ast_coredumper                                                                |    7
- b/contrib/scripts/install_prereq                                                                |  197
+ b/contrib/scripts/install_prereq                                                                |  197 -
  b/contrib/scripts/refcounter.py                                                                 |   23
  b/contrib/scripts/spandspflow2pcap.py                                                           |    2
  b/contrib/scripts/voicemailpwcheck.py                                                           |   10
@@ -801,7 +810,7 @@
  b/include/asterisk/stringfields.h                                                               |    2
  b/include/asterisk/utils.h                                                                      |   15
  b/main/Makefile                                                                                 |    2
- b/main/asterisk.c                                                                               |  477
+ b/main/asterisk.c                                                                               |  477 --
  b/main/asterisk.exports.in                                                                      |    6
  b/main/astmm.c                                                                                  |    3
  b/main/astobj2_container.c                                                                      |   29
@@ -816,7 +825,7 @@
  b/main/config.c                                                                                 |   29
  b/main/config_options.c                                                                         |   79
  b/main/core_local.c                                                                             |    7
- b/main/data_buffer.c                                                                            |  314
+ b/main/data_buffer.c                                                                            |  314 +
  b/main/devicestate.c                                                                            |    5
  b/main/dns_core.c                                                                               |   38
  b/main/dns_system_resolver.c                                                                    |    1
@@ -828,7 +837,7 @@
  b/main/media_cache.c                                                                            |    5
  b/main/named_acl.c                                                                              |   22
  b/main/netsock2.c                                                                               |    8
- b/main/options.c                                                                                |  475
+ b/main/options.c                                                                                |  475 ++
  b/main/pbx.c                                                                                    |   10
  b/main/pbx_app.c                                                                                |   27
  b/main/pbx_builtins.c                                                                           |    1
@@ -852,11 +861,11 @@
  b/res/res_pjsip/config_system.c                                                                 |    2
  b/res/res_pjsip/config_transport.c                                                              |    2
  b/res/res_pjsip/location.c                                                                      |    4
- b/res/res_pjsip/pjsip_scheduler.c                                                               |  311
+ b/res/res_pjsip/pjsip_scheduler.c                                                               |  311 +
  b/res/res_pjsip/pjsip_transport_events.c                                                        |   55
  b/res/res_pjsip_header_funcs.c                                                                  |   22
  b/res/res_pjsip_history.c                                                                       |    7
- b/res/res_pjsip_notify.c                                                                        |  230
+ b/res/res_pjsip_notify.c                                                                        |  230 +
  b/res/res_pjsip_outbound_publish.c                                                              |    9
  b/res/res_pjsip_outbound_registration.c                                                         |   14
  b/res/res_pjsip_pubsub.c                                                                        |   51
@@ -868,7 +877,7 @@
  b/res/res_pjsip_session.c                                                                       |   41
  b/res/res_pjsip_t38.c                                                                           |    6
  b/res/res_pjsip_transport_websocket.c                                                           |    6
- b/res/res_rtp_asterisk.c                                                                        |  408
+ b/res/res_rtp_asterisk.c                                                                        |  408 +-
  b/res/res_srtp.c                                                                                |    1
  b/rest-api-templates/api.wiki.mustache                                                          |    2
  b/rest-api-templates/ari_resource.h.mustache                                                    |    6
@@ -879,25 +888,13 @@
  b/rest-api-templates/transform.py                                                               |    9
  b/sounds/Makefile                                                                               |    6
  b/tests/test_amihooks.c                                                                         |    3
- b/tests/test_data_buffer.c                                                                      |  313
+ b/tests/test_data_buffer.c                                                                      |  313 +
  b/third-party/pjproject/configure.m4                                                            |    2
  b/third-party/pjproject/patches/0070-os_core_unix-Set-mutex-NULL-in-atomic-destroy-and-ad.patch |  114
- b/third-party/pjproject/patches/0080-timer-Clean-up-usage-of-timer-heap.patch                   |  434
+ b/third-party/pjproject/patches/0080-timer-Clean-up-usage-of-timer-heap.patch                   |  434 ++
  b/third-party/pjproject/patches/0090-sip_transaction-In-tsx_timer_callback-check-if-tsx-i.patch |   31
  b/third-party/versions.mak                                                                      |    2
  b/utils/.gitignore                                                                              |    1
- contrib/realtime/mssql/mssql_cdr.sql                                                            |   58
- contrib/realtime/mssql/mssql_config.sql                                                         | 1965
- contrib/realtime/mssql/mssql_voicemail.sql                                                      |   54
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   40
- contrib/realtime/mysql/mysql_config.sql                                                         | 1154
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   34
- contrib/realtime/oracle/oracle_cdr.sql                                                          |   52
- contrib/realtime/oracle/oracle_config.sql                                                       | 1931
- contrib/realtime/oracle/oracle_voicemail.sql                                                    |   48
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   44
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1246
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   38
  third-party/pjproject/patches/0070-sdp_media_fmt.patch                                          |   19
  third-party/pjproject/patches/0071-sdp_fmtp_attr.patch                                          |   34
- 169 files changed, 5345 insertions(+), 86246 deletions(-)
+ 158 files changed, 8161 insertions(+), 5521 deletions(-)
