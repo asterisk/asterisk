@@ -26,6 +26,7 @@ missing, or have incorrect values).
 See https://github.com/wordnik/swagger-core/wiki/API-Declaration for the spec.
 """
 
+from __future__ import print_function
 import json
 import os.path
 import pprint
@@ -75,7 +76,7 @@ def compare_versions(lhs, rhs):
     '''
     lhs = [int(v) for v in lhs.split('.')]
     rhs = [int(v) for v in rhs.split('.')]
-    return cmp(lhs, rhs)
+    return (lhs > rhs) - (lhs < rhs)
 
 
 class ParsingContext(object):
@@ -444,8 +445,7 @@ class Api(Stringify):
         op_json = api_json.get('operations')
         self.operations = [
             Operation().load(j, processor, context) for j in op_json]
-        self.has_websocket = \
-            filter(lambda op: op.is_websocket, self.operations) != []
+        self.has_websocket = any(op.is_websocket for op in self.operations)
         processor.process_api(self, context)
         return self
 
@@ -611,7 +611,7 @@ class ApiDeclaration(Stringify):
         except SwaggerError:
             raise
         except Exception as e:
-            print >> sys.stderr, "Error: ", traceback.format_exc()
+            print("Error: ", traceback.format_exc(), file=sys.stderr)
             raise SwaggerError(
                 "Error loading %s" % api_declaration_file, context, e)
 
@@ -624,8 +624,8 @@ class ApiDeclaration(Stringify):
             .replace(".json", ".{format}")
 
         if self.resource_path != expected_resource_path:
-            print >> sys.stderr, \
-                "%s != %s" % (self.resource_path, expected_resource_path)
+            print("%s != %s" % (self.resource_path, expected_resource_path),
+                file=sys.stderr)
             raise SwaggerError("resourcePath has incorrect value", context)
 
         return self
@@ -656,8 +656,7 @@ class ApiDeclaration(Stringify):
             if api.path in paths:
                 raise SwaggerError("API with duplicated path: %s" % api.path, context)
             paths.add(api.path)
-        self.has_websocket = filter(lambda api: api.has_websocket,
-                                    self.apis) == []
+        self.has_websocket = any(api.has_websocket for api in self.apis)
         models = api_decl_json.get('models').items() or []
         self.models = [Model().load(id, json, processor, context)
                        for (id, json) in models]
@@ -666,7 +665,7 @@ class ApiDeclaration(Stringify):
         model_dict = dict((m.id, m) for m in self.models)
         for m in self.models:
             def link_subtype(name):
-                res = model_dict.get(subtype)
+                res = model_dict.get(name)
                 if not res:
                     raise SwaggerError("%s has non-existing subtype %s",
                                        m.id, name)
@@ -725,7 +724,7 @@ class ResourceListing(Stringify):
         except SwaggerError:
             raise
         except Exception as e:
-            print >> sys.stderr, "Error: ", traceback.format_exc()
+            print("Error: ", traceback.format_exc(), file=sys.stderr)
             raise SwaggerError(
                 "Error loading %s" % resource_file, context, e)
 

@@ -46,20 +46,20 @@ mailbox, context, old_pw, new_pw = sys.argv[1:5]
 
 # Enforce a password length of at least 6 characters
 if len(new_pw) < REQUIRED_LENGTH:
-    print "INVALID: Password is too short (%d) - must be at least %d" % \
-            (len(new_pw), REQUIRED_LENGTH)
+    print("INVALID: Password is too short (%d) - must be at least %d" % \
+            (len(new_pw), REQUIRED_LENGTH))
     sys.exit(0)
 
 for regex, error in REGEX_BLACKLIST:
     if re.search(regex, new_pw):
-        print "INVALID: %s" % error
+        print("INVALID: %s" % error)
         sys.exit(0)
 
 for pw in PW_BLACKLIST:
     if new_pw.find(pw) != -1:
-        print "INVALID: %s is forbidden in a password" % pw
+        print("INVALID: %s is forbidden in a password" % pw)
         sys.exit(0)
 
-print "VALID"
+print("VALID")
 
 sys.exit(0)
