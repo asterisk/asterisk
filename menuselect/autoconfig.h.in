@@ -3,10 +3,6 @@
 #ifndef MENUSELECT_AUTOCONFIG_H
 #define MENUSELECT_AUTOCONFIG_H
 
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
-
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
