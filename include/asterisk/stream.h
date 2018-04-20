@@ -274,6 +274,8 @@ int ast_stream_get_position(const struct ast_stream *stream);
  * \retval NULL failure
  *
  * \since 15
+ *
+ * \note This returns an ao2 refcounted object
  */
 struct ast_stream_topology *ast_stream_topology_alloc(void);
 
@@ -286,6 +288,8 @@ struct ast_stream_topology *ast_stream_topology_alloc(void);
  * \retval NULL failure
  *
  * \since 15
+ *
+ * \note This returns an ao2 refcounted object
  */
 struct ast_stream_topology *ast_stream_topology_clone(
 	const struct ast_stream_topology *topology);
@@ -305,7 +309,7 @@ int ast_stream_topology_equal(const struct ast_stream_topology *left,
 	const struct ast_stream_topology *right);
 
 /*!
- * \brief Destroy a stream topology
+ * \brief Unreference and destroy a stream topology
  *
  * \param topology The topology of streams
  *
