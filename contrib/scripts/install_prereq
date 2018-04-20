@@ -138,6 +138,21 @@ PACKAGES_FBSD="$PACKAGES_FBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
 PACKAGES_FBSD="$PACKAGES_FBSD bzip2 patch python"
 
+# Basic build system:
+PACKAGES_DBSD="gmake pkgconf"
+# Asterisk: basic requirements:
+PACKAGES_DBSD="$PACKAGES_DBSD libedit jansson e2fsprogs-libuuid sqlite3 libxml2"
+# Asterisk: for addons:
+PACKAGES_DBSD="$PACKAGES_DBSD speex speexdsp libogg libvorbis alsa-lib portaudio curl xmlstarlet bison flex"
+PACKAGES_DBSD="$PACKAGES_DBSD postgresql10-client unixODBC neon gmime26 lua52 uriparser libxslt libressl"
+PACKAGES_DBSD="$PACKAGES_DBSD mariadb101-client radcli freetds"
+PACKAGES_DBSD="$PACKAGES_DBSD net-snmp iksemel corosync newt popt libical spandsp"
+PACKAGES_DBSD="$PACKAGES_DBSD cclient binutils libsrtp gsm libilbc doxygen graphviz libzip openldap-client libhoard"
+# Asterisk: for the unpackaged below:
+PACKAGES_DBSD="$PACKAGES_DBSD wget subversion"
+# Asterisk: for ./configure --with-pjproject-bundled:
+PACKAGES_DBSD="$PACKAGES_DBSD bzip2 patch python"
+
 KVERS=`uname -r`
 
 JANSSON_VER=2.11
@@ -294,6 +309,13 @@ handle_fbsd() {
 	fi
 }
 
+handle_dbsd() {
+	extra_packs=`check_installed_fpkgs $PACKAGES_DBSD`
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd pkg install -y $extra_packs
+	fi
+}
+
 handle_SUSE() {
 	extra_packs=`check_installed_zypper $PACKAGES_SUSE`
 	if [ x"$extra_packs" != "x" ] ; then
@@ -372,7 +394,7 @@ OS=`uname -s`
 unsupported_distro=''
 
 # A number of distributions we don't (yet?) support.
-if [ "$OS" != 'Linux' -a "$OS" != 'NetBSD' -a "$OS" != 'OpenBSD' -a "$OS" != 'FreeBSD' ]; then
+if [ "$OS" != 'Linux' -a "$OS" != 'NetBSD' -a "$OS" != 'OpenBSD' -a "$OS" != 'FreeBSD' -a "$OS" != 'DragonFly' ]; then
 	echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
 	exit 1
 fi
@@ -419,6 +441,8 @@ elif [ "$OS" = 'OpenBSD' ]; then
 	handle_obsd
 elif [ "$OS" = 'FreeBSD' ]; then
 	handle_fbsd
+elif [ "$OS" = 'DragonFly' ]; then
+	handle_dbsd
 fi
 
 if ! in_test_mode; then
