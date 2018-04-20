@@ -51,7 +51,7 @@
 
 #ifdef __linux
 #include <linux/soundcard.h>
-#elif defined(__FreeBSD__) || defined(__CYGWIN__) || defined(__GLIBC__) || defined(__sun)
+#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__CYGWIN__) || defined(__GLIBC__) || defined(__sun)
 #include <sys/soundcard.h>
 #else
 #include <soundcard.h>

@@ -31,7 +31,7 @@
 #ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
-#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__APPLE__)
 #if defined(__OpenBSD__)
 #include "asterisk/compat.h"
 #endif
