@@ -13,6 +13,10 @@ check_for_app() {
 # On Linux, environment variables tell which one to use.
 
 case `uname -sr` in
+	DragonFly*)
+		MY_AC_VER=
+		MY_AM_VER=
+		;;
 	FreeBSD*)
 		MY_AC_VER=
 		MY_AM_VER=
