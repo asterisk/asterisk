@@ -57,7 +57,7 @@
 #include <fftw3.h>
 #endif
 
-#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__CYGWIN__)
+#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__CYGWIN__)
 #include <float.h>
 #else
 #include <values.h>

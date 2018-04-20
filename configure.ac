@@ -67,7 +67,7 @@ case "${host_os}" in
      CPPFLAGS=-I/usr/pkg/include
      LDFLAGS=-L/usr/pkg/lib
      ;;
-     freebsd*)
+     dragonfly*|freebsd*)
      ac_default_prefix=/usr/local
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
@@ -152,7 +152,7 @@ AC_SUBST(HOST_OS)
 PBX_WINARCH=0
 
 case "${host_os}" in
-     freebsd*)
+     dragonfly*|freebsd*)
      OSARCH=FreeBSD
      ;;
      netbsd*)
