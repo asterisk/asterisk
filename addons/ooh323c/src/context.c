@@ -163,6 +163,7 @@ OOCTXT* newContext ()
          /* ASN1CRTFREE0 (pctxt); */
 	 free(pctxt);
          pctxt = 0;
+         return (pctxt);
       }
       pctxt->flags |= ASN1DYNCTXT;
    }

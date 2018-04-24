@@ -804,8 +804,7 @@ int ooAddMediaInfo(OOH323CallData *call, OOMediaInfo mediaInfo)
 
    if(!call)
    {
-      OOTRACEERR3("Error:Invalid 'call' param for ooAddMediaInfo.(%s, %s)\n",
-                   call->callType, call->callToken);
+      OOTRACEERR1("Error:Invalid 'call' param for ooAddMediaInfo.\n");
       return OO_FAILED;
    }
    newMediaInfo = (OOMediaInfo*) memAlloc(call->pctxt, sizeof(OOMediaInfo));

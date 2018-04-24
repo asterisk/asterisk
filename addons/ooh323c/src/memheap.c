@@ -622,7 +622,7 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
             }
          }
       }
-      if (!ISLAST (pElem) && ISFREE (GETNEXT (pElem))) {
+      if (pElem && !ISLAST (pElem) && ISFREE (GETNEXT (pElem))) {
          OSMemElemDescr* nextelem_p = GETNEXT (pElem);
 
          /* +1 because the OSMemElemDescr has size ONE unit (8 bytes) */
@@ -637,7 +637,7 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
       }
 
       /* correct the prevOff field of next element */
-      if (!ISLAST (pElem)) {
+      if (pElem && !ISLAST (pElem)) {
          OSMemElemDescr* nextelem_p = GETNEXT (pElem);
          pElem_prevOff (nextelem_p) = QOFFSETOF (nextelem_p, pElem);
       }
@@ -685,7 +685,7 @@ static void initNewFreeElement (OSMemBlk* pMemBlk,
    }
 
    pNextElem = GETNEXT (pNewElem);
-   if (ISFREE (pNextElem)) {
+   if (pNextElem && ISFREE (pNextElem)) {
 
       /* if the next elem is free, then unite them together */
 
@@ -819,7 +819,7 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
             /* look for free element after pElem */
 
             pNextElem = GETNEXT (pElem);
-            if (ISFREE (pNextElem)) {
+            if (pNextElem && ISFREE (pNextElem)) {
                /* +1 'cos sizeof (OSMemElemDescr) == 1 unit */
                sumSize += pElem_nunits (pNextElem) + 1;
                freeMem++;
@@ -1061,7 +1061,7 @@ void memHeapAddRef (void** ppvMemHeap)
 void memHeapRelease (void** ppvMemHeap)
 {
    OSMemHeap** ppMemHeap = (OSMemHeap**)ppvMemHeap;
-   OSMemHeap* pMemHeap = *ppMemHeap;
+   OSMemHeap* pMemHeap;
 
    if (ppMemHeap != 0 && *ppMemHeap != 0 && --(*ppMemHeap)->refCnt == 0) {
       OSMemLink* pMemLink, *pMemLink2;
@@ -1079,6 +1079,7 @@ void memHeapRelease (void** ppvMemHeap)
       }
 
       if ((*ppMemHeap)->flags & RT_MH_FREEHEAPDESC) {
+         pMemHeap = *ppMemHeap;
          ast_mutex_destroy(&pMemHeap->pLock);
          free (*ppMemHeap);
       }

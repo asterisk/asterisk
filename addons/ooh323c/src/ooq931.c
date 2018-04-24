@@ -2439,8 +2439,10 @@ int ooH323HandleCallFwdRequest(OOH323CallData *call)
       alias = call->pCallFwdData->aliases;
       while(alias)
       {
-         pNewAlias = (ooAliases*) memAlloc(pctxt, sizeof(ooAliases));
-         pNewAlias->value = (char*) memAlloc(pctxt, strlen(alias->value)+1);
+         pNewAlias = (ooAliases*) memAllocZ(pctxt, sizeof(ooAliases));
+         if (pNewAlias) {
+            pNewAlias->value = (char*) memAllocZ(pctxt, strlen(alias->value)+1);
+         }
          if(!pNewAlias || !pNewAlias->value)
          {
             OOTRACEERR3("Error:Memory - ooH323HandleCallFwdRequest - "
