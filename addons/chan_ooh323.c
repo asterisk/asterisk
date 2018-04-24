@@ -5053,9 +5053,7 @@ struct ast_frame *ooh323_rtp_read(struct ast_channel *ast, struct ooh323_pvt *p)
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(p->owner),target_context);
 				}
 				p->faxdetected = 1;
-				if (dfr) {
-					ast_frfree(dfr);
-				}
+				ast_frfree(dfr);
 				return &ast_null_frame;
 			}
 		}
