@@ -805,7 +805,19 @@ static int lua_error_function(lua_State *L)
 	lua_pushliteral(L, "\n");
 
 	lua_getglobal(L, "debug");
+	if (!lua_istable(L, -1)) {
+		/* Have no 'debug' table for whatever reason */
+		lua_pop(L, 2);
+		/*  Original err message is on stack top now */
+		return 1;
+	}
 	lua_getfield(L, -1, "traceback");
+	if (!lua_isfunction(L, -1)) {
+		/* Same here for traceback function */
+		lua_pop(L, 3);
+		/*  Original err message is on stack top now */
+		return 1;
+	}
 	lua_remove(L, -2); /* remove the 'debug' table */
 
 	lua_pushvalue(L, message_index);
