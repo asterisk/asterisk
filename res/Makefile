@@ -45,7 +45,8 @@ endif
 	$(ECHO_PREFIX) echo "   [FLEX] $< -> $@"
 	$(CMD_PREFIX) (cd ael; $(FLEX) ael.flex)
 	$(CMD_PREFIX) sed 's@#if __STDC_VERSION__ >= 199901L@#if !defined __STDC_VERSION__ || __STDC_VERSION__ >= 199901L@' $@ > $@.fix
-	$(CMD_PREFIX) echo "#include \"asterisk.h\"" > $@
+	$(CMD_PREFIX) echo "#define ASTMM_LIBC ASTMM_REDIRECT" > $@
+	$(CMD_PREFIX) echo "#include \"asterisk.h\"" >> $@
 	$(CMD_PREFIX) echo >> $@
 	$(CMD_PREFIX) cat $@.fix >> $@
 	$(CMD_PREFIX) rm $@.fix
