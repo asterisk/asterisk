@@ -78,20 +78,6 @@ enum ast_stream_state {
 };
 
 /*!
- * \brief Stream data slots
- */
-enum ast_stream_data_slot {
-	/*!
-	 * \brief Data slot for RTP instance
-	 */
-	AST_STREAM_DATA_RTP_CODECS = 0,
-	/*!
-	 * \brief Controls the size of the data pointer array
-	 */
-	AST_STREAM_DATA_SLOT_MAX
-};
-
-/*!
  * \brief Create a new media stream representation
  *
  * \param name A name for the stream
@@ -239,32 +225,47 @@ const char *ast_stream_state2str(enum ast_stream_state state);
 enum ast_stream_state ast_stream_str2state(const char *str);
 
 /*!
- * \brief Get the opaque stream data
+ * \brief Get a stream metadata value
  *
  * \param stream The media stream
- * \param slot The data slot to retrieve
+ * \param m_key  An arbitrary metadata key
  *
- * \retval non-NULL success
- * \retval NULL failure
+ * \retval non-NULL metadata value
+ * \retval NULL failure or not found
  *
- * \since 15
+ * \since 15.5
  */
-void *ast_stream_get_data(struct ast_stream *stream, enum ast_stream_data_slot slot);
+const char *ast_stream_get_metadata(const struct ast_stream *stream,
+	const char *m_key);
 
 /*!
- * \brief Set the opaque stream data
+ * \brief Get all stream metadata keys
  *
  * \param stream The media stream
- * \param slot The data slot to set
- * \param data Opaque data
- * \param data_free_fn Callback to free data when stream is freed. May be NULL for no action.
  *
- * \return data
+ * \retval An ast_variable list of the metadata key/value pairs.
+ * \retval NULL if error or no variables are set.
  *
- * \since 15
+ * When you're finished with the list, you must call
+ *  ast_variables_destroy(list);
+ *
+ * \since 15.5
  */
-void *ast_stream_set_data(struct ast_stream *stream, enum ast_stream_data_slot slot,
-	void *data, ast_stream_data_free_fn data_free_fn);
+struct ast_variable *ast_stream_get_metadata_list(const struct ast_stream *stream);
+
+/*!
+ * \brief Set a stream metadata value
+ *
+ * \param stream The media stream
+ * \param m_key  An arbitrary metadata key
+ * \param value  String metadata value or NULL to remove existing value
+ *
+ * \retval -1 failure
+ * \retval 0  success
+ *
+ * \since 15.5
+ */
+int ast_stream_set_metadata(struct ast_stream *stream, const char *m_key, const char *value);
 
 /*!
  * \brief Get the position of the stream in the topology
@@ -276,6 +277,27 @@ void *ast_stream_set_data(struct ast_stream *stream, enum ast_stream_data_slot s
  * \since 15
  */
 int ast_stream_get_position(const struct ast_stream *stream);
+
+/*!
+ * \brief Get rtp_codecs associated with the stream
+ *
+ * \param stream The media stream
+ *
+ * \return The rtp_codecs
+ *
+ * \since 15.5
+ */
+struct ast_rtp_codecs *ast_stream_get_rtp_codecs(const struct ast_stream *stream);
+
+/*!
+ * \brief Set rtp_codecs associated with the stream
+ *
+ * \param stream The media stream
+ * \param rtp_codecs The rtp_codecs
+ *
+ * \since 15.5
+ */
+void ast_stream_set_rtp_codecs(struct ast_stream *stream, struct ast_rtp_codecs *rtp_codecs);
 
 /*!
  * \brief Create a stream topology

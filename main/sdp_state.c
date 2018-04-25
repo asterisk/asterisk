@@ -1732,7 +1732,7 @@ static void merge_remote_stream_capabilities(
 	case AST_MEDIA_TYPE_AUDIO:
 	case AST_MEDIA_TYPE_VIDEO:
 		ao2_bump(joint_state_stream->rtp);
-		codecs = ast_stream_get_data(remote_stream, AST_STREAM_DATA_RTP_CODECS);
+		codecs = ast_stream_get_rtp_codecs(remote_stream);
 		ast_assert(codecs != NULL);
 		if (sdp_state->role == SDP_ROLE_ANSWERER) {
 			/*
@@ -1789,7 +1789,7 @@ static int create_remote_stream_capabilities(
 		 * Setup rx payload type mapping to prefer the mapping
 		 * from the peer that the RFC says we SHOULD use.
 		 */
-		codecs = ast_stream_get_data(remote_stream, AST_STREAM_DATA_RTP_CODECS);
+		codecs = ast_stream_get_rtp_codecs(remote_stream);
 		ast_assert(codecs != NULL);
 		ast_rtp_codecs_payloads_xover(codecs, codecs, NULL);
 		ast_rtp_codecs_payloads_copy(codecs,

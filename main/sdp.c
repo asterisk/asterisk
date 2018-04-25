@@ -848,8 +848,7 @@ static struct ast_stream *get_stream_from_m(const struct ast_sdp_a_lines *a_line
 			ast_free(codecs);
 			return NULL;
 		}
-		ast_stream_set_data(stream, AST_STREAM_DATA_RTP_CODECS, codecs,
-			(ast_stream_data_free_fn) rtp_codecs_free);
+		ast_stream_set_rtp_codecs(stream, codecs);
 
 		if (!m_line->port) {
 			/* Stream is declined.  There may not be any attributes. */
