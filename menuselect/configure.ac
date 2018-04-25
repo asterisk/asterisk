@@ -1,5 +1,3 @@
-# Process this file with autoconf to produce a configure script.
-
 AC_PREREQ(2.59)
 
 m4_define([MENUSELECT_VERSION],
@@ -16,49 +14,29 @@ AC_CONFIG_HEADER(autoconfig.h)
 
 AC_COPYRIGHT("Menuselect")
 
-AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 
 HOST_OS=${host_os}
 AC_SUBST(HOST_OS)
 
-PBX_WINARCH=0
 case "${host_os}" in
-     freebsd*)
-     OSARCH=FreeBSD
+     *dragonfly*)
+     CPPFLAGS="${CPPFLAGS} -I/usr/local/include"
+     LDFLAGS="${LDFLAGS} -L/usr/local/lib"
      ;;
-     netbsd*)
-     OSARCH=NetBSD
+     *netbsd*)
+     CPPFLAGS="${CPPFLAGS} -I/usr/pkg/include"
+     LDFLAGS="${LDFLAGS} -L/usr/pkg/lib"
      ;;
-     openbsd*)
-     OSARCH=OpenBSD
-     ;;
-     solaris*)
-     OSARCH=SunOS
-     ;;
-     mingw32)
-     OSARCH=mingw32
-     PBX_WINARCH=1
-     ;;
-     cygwin)
-     OSARCH=cygwin
-     PBX_WINARCH=1
-     ;;
-     linux-gnueabi)
-     OSARCH=linux-gnu
-     ;;
-     *)
-     OSARCH=${host_os}
+     *bsd*)
+     CPPFLAGS="${CPPFLAGS} -I/usr/local/include"
+     LDFLAGS="${LDFLAGS} -L/usr/local/lib"
      ;;
 esac
 
 AH_TOP(
 #ifndef MENUSELECT_AUTOCONFIG_H
 #define MENUSELECT_AUTOCONFIG_H
-
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
 )
 
 AH_BOTTOM([#endif])

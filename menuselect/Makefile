@@ -24,6 +24,14 @@ endif
 OBJS:=menuselect.o strcompat.o
 CFLAGS+=-g -D_GNU_SOURCE -Wall
 
+ifneq ($(findstring dragonfly,$(OSARCH)),)
+  CFLAGS += -isystem /usr/local/include
+else ifneq ($(findstring netbsd,$(OSARCH)),)
+  CFLAGS += -isystem /usr/pkg/include
+else ifneq ($(findstring bsd,$(OSARCH)),)
+  CFLAGS += -isystem /usr/local/include
+endif
+
 ifeq ($(MENUSELECT_DEBUG),yes)
   CFLAGS += -DMENUSELECT_DEBUG
 endif
