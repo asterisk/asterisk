@@ -38,6 +38,7 @@
 #include "asterisk/format_cap.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/channel.h"
+#include "asterisk/uuid.h"
 
 AST_TEST_DEFINE(stream_create)
 {
@@ -224,6 +225,70 @@ AST_TEST_DEFINE(stream_set_state)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(stream_metadata)
+{
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
+	char track_label[AST_UUID_STR_LEN + 1];
+	const char *stream_track_label;
+	int rc;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_metadata";
+		info->category = "/main/stream/";
+		info->summary = "stream metadata unit test";
+		info->description =
+			"Test that metadata operations on a stream works";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	stream = ast_stream_alloc("test", AST_MEDIA_TYPE_AUDIO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
+		return AST_TEST_FAIL;
+	}
+
+	stream_track_label = ast_stream_get_metadata(stream, "AST_STREAM_METADATA_TRACK_LABEL");
+	if (stream_track_label) {
+		ast_test_status_update(test, "New stream HAD a track label\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_uuid_generate_str(track_label, sizeof(track_label));
+	rc = ast_stream_set_metadata(stream, "AST_STREAM_METADATA_TRACK_LABEL", track_label);
+	if (rc != 0) {
+		ast_test_status_update(test, "Failed to add track label\n");
+		return AST_TEST_FAIL;
+	}
+
+	stream_track_label = ast_stream_get_metadata(stream, "AST_STREAM_METADATA_TRACK_LABEL");
+	if (!stream_track_label) {
+		ast_test_status_update(test, "Changed stream does not have a track label\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (strcmp(stream_track_label, track_label) != 0) {
+		ast_test_status_update(test, "Changed stream did not return same track label\n");
+		return AST_TEST_FAIL;
+	}
+
+	rc = ast_stream_set_metadata(stream, "AST_STREAM_METADATA_TRACK_LABEL", NULL);
+	if (rc != 0) {
+		ast_test_status_update(test, "Failed to remove track label\n");
+		return AST_TEST_FAIL;
+	}
+
+	stream_track_label = ast_stream_get_metadata(stream, "AST_STREAM_METADATA_TRACK_LABEL");
+	if (stream_track_label) {
+		ast_test_status_update(test, "Changed stream still had a track label after we removed it\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(stream_topology_create)
 {
 	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
@@ -254,6 +319,11 @@ AST_TEST_DEFINE(stream_topology_clone)
 	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	RAII_VAR(struct ast_stream_topology *, cloned, NULL, ast_stream_topology_free);
 	struct ast_stream *audio_stream, *video_stream;
+	char audio_track_label[AST_UUID_STR_LEN + 1];
+	char video_track_label[AST_UUID_STR_LEN + 1];
+	const char *original_track_label;
+	const char *cloned_track_label;
+	int rc;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -279,6 +349,13 @@ AST_TEST_DEFINE(stream_topology_clone)
 		return AST_TEST_FAIL;
 	}
 
+	ast_uuid_generate_str(audio_track_label, sizeof(audio_track_label));
+	rc = ast_stream_set_metadata(audio_stream, "AST_STREAM_METADATA_TRACK_LABEL", audio_track_label);
+	if (rc != 0) {
+		ast_test_status_update(test, "Failed to add track label\n");
+		return AST_TEST_FAIL;
+	}
+
 	if (ast_stream_topology_append_stream(topology, audio_stream) == -1) {
 		ast_test_status_update(test, "Failed to append valid audio stream to stream topology\n");
 		ast_stream_free(audio_stream);
@@ -288,6 +365,13 @@ AST_TEST_DEFINE(stream_topology_clone)
 	video_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!video_stream) {
 		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_uuid_generate_str(video_track_label, sizeof(video_track_label));
+	rc = ast_stream_set_metadata(video_stream, "AST_STREAM_METADATA_TRACK_LABEL", video_track_label);
+	if (rc != 0) {
+		ast_test_status_update(test, "Failed to add track label\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -313,8 +397,42 @@ AST_TEST_DEFINE(stream_topology_clone)
 		return AST_TEST_FAIL;
 	}
 
+	original_track_label = ast_stream_get_metadata(ast_stream_topology_get_stream(topology, 0),
+		"AST_STREAM_METADATA_TRACK_LABEL");
+	if (!original_track_label) {
+		ast_test_status_update(test, "Original topology stream 0 does not contain metadata\n");
+		return AST_TEST_FAIL;
+	}
+	cloned_track_label = ast_stream_get_metadata(ast_stream_topology_get_stream(cloned, 0),
+		"AST_STREAM_METADATA_TRACK_LABEL");
+	if (!cloned_track_label) {
+		ast_test_status_update(test, "Cloned topology stream 0 does not contain metadata\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(original_track_label, cloned_track_label) != 0) {
+		ast_test_status_update(test, "Cloned topology stream 0 track label was not the same as the original\n");
+		return AST_TEST_FAIL;
+	}
+
 	if (ast_stream_get_type(ast_stream_topology_get_stream(cloned, 1)) != ast_stream_get_type(ast_stream_topology_get_stream(topology, 1))) {
 		ast_test_status_update(test, "Cloned video stream does not contain same type as original\n");
+		return AST_TEST_FAIL;
+	}
+
+	original_track_label = ast_stream_get_metadata(ast_stream_topology_get_stream(topology, 1),
+		"AST_STREAM_METADATA_TRACK_LABEL");
+	if (!original_track_label) {
+		ast_test_status_update(test, "Original topology stream 1 does not contain metadata\n");
+		return AST_TEST_FAIL;
+	}
+	cloned_track_label = ast_stream_get_metadata(ast_stream_topology_get_stream(cloned, 1),
+		"AST_STREAM_METADATA_TRACK_LABEL");
+	if (!cloned_track_label) {
+		ast_test_status_update(test, "Cloned topology stream 1 does not contain metadata\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(original_track_label, cloned_track_label) != 0) {
+		ast_test_status_update(test, "Cloned topology stream 1 track label was not the same as the original\n");
 		return AST_TEST_FAIL;
 	}
 
@@ -2139,6 +2257,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_set_type);
 	AST_TEST_UNREGISTER(stream_set_formats);
 	AST_TEST_UNREGISTER(stream_set_state);
+	AST_TEST_UNREGISTER(stream_metadata);
 	AST_TEST_UNREGISTER(stream_topology_create);
 	AST_TEST_UNREGISTER(stream_topology_clone);
 	AST_TEST_UNREGISTER(stream_topology_clone);
@@ -2169,6 +2288,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_set_type);
 	AST_TEST_REGISTER(stream_set_formats);
 	AST_TEST_REGISTER(stream_set_state);
+	AST_TEST_REGISTER(stream_metadata);
 	AST_TEST_REGISTER(stream_topology_create);
 	AST_TEST_REGISTER(stream_topology_clone);
 	AST_TEST_REGISTER(stream_topology_append_stream);
