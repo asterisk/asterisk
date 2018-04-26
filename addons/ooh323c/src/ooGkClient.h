@@ -223,7 +223,7 @@ struct OOH323CallData;
  *
  */
 EXTERN int ooGkClientInit
-   (enum RasGatekeeperMode eGkMode, char *szGkAddr, int iGkPort );
+   (enum RasGatekeeperMode eGkMode, char *szGkAddr, char *szRasAddr, int iGkPort );
 
 /**
  * This function is used to print the gatekeeper client configuration

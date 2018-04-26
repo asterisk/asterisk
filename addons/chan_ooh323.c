@@ -355,6 +355,7 @@ static int  gDTMFCodec = 101;
 static int  gFAXdetect = FAXDETECT_CNG;
 static int  gT38Support = T38_FAXGW;
 static char gGatekeeper[100];
+static char gRASIP[2+8*4+7];	/* Max for IPv6 addr */
 static enum RasGatekeeperMode gRasGkMode = RasNoGatekeeper;
 
 static int  gIsGateway = 0;
@@ -2721,7 +2722,7 @@ static int ooh323_do_reload(void)
 	if (gRasGkMode == RasUseSpecificGatekeeper ||
 		gRasGkMode == RasDiscoverGatekeeper) {
 		ooGkClientInit(gRasGkMode, (gRasGkMode == RasUseSpecificGatekeeper) ?
-								gGatekeeper : 0, 0);
+								gGatekeeper : 0, gRASIP, 0);
 		ooGkClientStart(gH323ep.gkClient);
 	}
 
@@ -2864,6 +2865,7 @@ int reload_config(int reload)
 	gTRCLVL = OOTRCLVLERR;
 	gRasGkMode = RasNoGatekeeper;
 	gGatekeeper[0] = '\0';
+	gRASIP[0] = '\0';
 	gRTPTimeout = 60;
 	gNat = FALSE;
 	gRTDRInterval = 0;
@@ -3024,6 +3026,9 @@ int reload_config(int reload)
 				gRasGkMode = RasUseSpecificGatekeeper;
             			ast_copy_string(gGatekeeper, v->value, sizeof(gGatekeeper));
 			}
+		} else if (!strcasecmp(v->name, "localras")) {
+		        ast_copy_string(gRASIP, v->value, sizeof(gRASIP));
+			ast_verb(3, "  == Setting RAS IP to %s\n", gRASIP);
 		} else if (!strcasecmp(v->name, "logfile")) {
          		ast_copy_string(gLogFile, v->value, sizeof(gLogFile));
 		} else if (!strcasecmp(v->name, "context")) {
@@ -3919,9 +3924,9 @@ static int load_module(void)
 
 		/* Gatekeeper */
 		if (gRasGkMode == RasUseSpecificGatekeeper)
-			ooGkClientInit(gRasGkMode, gGatekeeper, 0);
+			ooGkClientInit(gRasGkMode, gGatekeeper, gRASIP, 0);
 		else if (gRasGkMode == RasDiscoverGatekeeper)
-			ooGkClientInit(gRasGkMode, 0, 0);
+			ooGkClientInit(gRasGkMode, 0, gRASIP, 0);
 
 		/* Register callbacks */
 		ooH323EpSetH323Callbacks(h323Callbacks);
@@ -4008,7 +4013,7 @@ static void *do_monitor(void *data)
 			ooGkClientDestroy();
 			ast_verb(0, "Restart stopped gatekeeper client\n");
 			ooGkClientInit(gRasGkMode, (gRasGkMode == RasUseSpecificGatekeeper) ?
-									gGatekeeper : 0, 0);
+									gGatekeeper : 0, gRASIP, 0);
 			ooGkClientStart(gH323ep.gkClient);
 		}
 
