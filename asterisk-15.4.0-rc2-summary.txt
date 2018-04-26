@@ -13,7 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -49,7 +50,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Joshua Colp                                     1 Joshua Colp            
+   1 Kevin Harwell                                   1 Joshua Colp            
+   1 Joshua Colp            
 
      ----------------------------------------------------------------------
 
@@ -78,6 +80,21 @@
 
      ----------------------------------------------------------------------
 
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision          | Author               | Summary                     |
+   |-------------------+----------------------+-----------------------------|
+   | 746fa10cbc        | Kevin Harwell        | Update for 15.4.0-rc2       |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
                                 Diffstat Results
 
                                  [Back to Top]
@@ -85,4 +102,10 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ asterisk-15.4.0-rc1-summary.html   |  376 ---------------
+ asterisk-15.4.0-rc1-summary.txt    |  900 -------------------------------------
+ b/.version                         |    2
+ b/ChangeLog                        |   17
+ b/asterisk-15.4.0-rc2-summary.html |   13
+ b/asterisk-15.4.0-rc2-summary.txt  |   65 ++
+ 6 files changed, 96 insertions(+), 1277 deletions(-)
