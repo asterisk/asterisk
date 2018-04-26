@@ -73,6 +73,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/max_forwards.h"
 #include "asterisk/stream.h"
+#include "asterisk/message.h"
 
 /*** DOCUMENTATION
  ***/
@@ -1504,6 +1505,7 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 	case AST_FRAME_BRIDGE_ACTION_SYNC:
 	case AST_FRAME_CONTROL:
 	case AST_FRAME_TEXT:
+	case AST_FRAME_TEXT_DATA:
 	case AST_FRAME_IMAGE:
 	case AST_FRAME_HTML:
 		return 1;
@@ -2789,6 +2791,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 				case AST_FRAME_VOICE:
 				case AST_FRAME_VIDEO:
 				case AST_FRAME_TEXT:
+				case AST_FRAME_TEXT_DATA:
 				case AST_FRAME_DTMF_BEGIN:
 				case AST_FRAME_DTMF_END:
 				case AST_FRAME_IMAGE:
@@ -4674,9 +4677,11 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 	return buf;
 }
 
-int ast_sendtext(struct ast_channel *chan, const char *text)
+int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 {
 	int res = 0;
+	const char *body = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
+	const char *content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
 
 	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
@@ -4685,33 +4690,74 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 		return -1;
 	}
 
-	if (ast_strlen_zero(text)) {
-		ast_channel_unlock(chan);
-		return 0;
-	}
-
 	CHECK_BLOCKING(chan);
-	if (ast_channel_tech(chan)->write_text && (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
+	if (ast_channel_tech(chan)->write_text
+		&& (ast_strlen_zero(content_type) || strcasecmp(content_type, "text/plain") == 0)
+		&& (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
 		struct ast_frame f;
+		size_t body_len = strlen(body) + 1;
 
+		/* Process as T.140 text (moved here from ast_sendtext() */
 		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_TEXT;
 		f.src = "DIALPLAN";
-		f.mallocd = AST_MALLOCD_DATA;
-		f.datalen = strlen(text);
-		f.data.ptr = ast_strdup(text);
 		f.subclass.format = ast_format_t140;
-
+		f.frametype = AST_FRAME_TEXT;
+		f.datalen = body_len;
+		f.mallocd = AST_MALLOCD_DATA;
+		f.data.ptr = ast_strdup(body);
 		if (f.data.ptr) {
 			res = ast_channel_tech(chan)->write_text(chan, &f);
-			ast_frfree(&f);
+		} else {
+			res = -1;
 		}
-	} else if (ast_channel_tech(chan)->send_text) {
-		res = ast_channel_tech(chan)->send_text(chan, text);
+		ast_frfree(&f);
+	} else if ((ast_channel_tech(chan)->properties & AST_CHAN_TP_SEND_TEXT_DATA)
+		&& ast_channel_tech(chan)->send_text_data) {
+		/* Send enhanced message to a channel driver that supports it */
+		ast_debug(1, "Sending TEXT_DATA from '%s' to %s:%s %s\n",
+			ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM),
+			ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_TO),
+			ast_channel_name(chan), body);
+		res = ast_channel_tech(chan)->send_text_data(chan, msg);
+	} else if (ast_channel_tech(chan)->send_text
+		&& (ast_strlen_zero(content_type) || strcasecmp(content_type, "text/plain") == 0)) {
+		/* Send the body of an enhanced message to a channel driver that supports only a char str */
+		ast_debug(1, "Sending TEXT to %s: %s\n", ast_channel_name(chan), body);
+		res = ast_channel_tech(chan)->send_text(chan, body);
+	} else {
+		ast_debug(1, "Channel technology does not support sending text on channel '%s'\n",
+			ast_channel_name(chan));
+		res = -1;
 	}
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 	ast_channel_unlock(chan);
 	return res;
+}
+
+int ast_sendtext(struct ast_channel *chan, const char *text)
+{
+	struct ast_msg_data *msg;
+	int rc;
+	struct ast_msg_data_attribute attrs[] =
+	{
+		{
+			.type = AST_MSG_DATA_ATTR_BODY,
+			.value = (char *)text,
+		}
+	};
+
+	if (ast_strlen_zero(text)) {
+		return 0;
+	}
+
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	if (!msg) {
+		return -1;
+	}
+	rc = ast_sendtext_data(chan, msg);
+	ast_free(msg);
+
+	return rc;
 }
 
 int ast_senddigit_begin(struct ast_channel *chan, char digit)

@@ -36,6 +36,7 @@
 #include "asterisk/stream.h"
 #include "asterisk/test.h"
 #include "asterisk/vector.h"
+#include "asterisk/message.h"
 #include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
@@ -1121,6 +1122,42 @@ cleanup:
 
 /*!
  * \internal
+ * \brief Determine what to do with a text frame.
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param bridge Which bridge is getting the frame
+ * \param bridge_channel Which channel is writing the frame.
+ * \param frame What is being written.
+ *
+ * \return Nothing
+ */
+static void softmix_bridge_write_text(struct ast_bridge *bridge,
+	struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+{
+	if (DEBUG_ATLEAST(1)) {
+		struct ast_msg_data *msg = frame->data.ptr;
+		char frame_type[64];
+
+		ast_frame_type2str(frame->frametype, frame_type, sizeof(frame_type));
+
+		if (frame->frametype == AST_FRAME_TEXT_DATA) {
+			ast_log(LOG_DEBUG, "Received %s frame from '%s:%s': %s\n", frame_type,
+				ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_FROM),
+				ast_channel_name(bridge_channel->chan),
+				ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
+		} else {
+			ast_log(LOG_DEBUG, "Received %s frame from '%s': %.*s\n", frame_type,
+				ast_channel_name(bridge_channel->chan), frame->datalen,
+				(char *)frame->data.ptr);
+		}
+	}
+
+	ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
+}
+
+/*!
+ * \internal
  * \brief Determine what to do with a control frame.
  * \since 12.0.0
  *
@@ -1246,6 +1283,10 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 		break;
 	case AST_FRAME_VIDEO:
 		softmix_bridge_write_video(bridge, bridge_channel, frame);
+		break;
+	case AST_FRAME_TEXT:
+	case AST_FRAME_TEXT_DATA:
+		softmix_bridge_write_text(bridge, bridge_channel, frame);
 		break;
 	case AST_FRAME_CONTROL:
 		res = softmix_bridge_write_control(bridge, bridge_channel, frame);
