@@ -1,3 +1,20 @@
+2018-04-26 17:30 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.4.0-rc2 Released.
+
+2018-04-19 13:44 +0000 [9f1d4ba8de]  Joshua Colp <jcolp@digium.com>
+
+	* bridge_softmix: Fix some REMB bugs.
+
+	  This change fixes a bug where a REMB collector may be
+	  freed twice, and also tweaks REMB combining such that if
+	  there is no bitrate from anyone (or there are no sources)
+	  we report 0 instead of using an old bitrate.
+
+	  ASTERISK-27804
+
+	  Change-Id: Ia9dc9c150043890ee7ff85e9cdec007f1a77fcfd
+
 2018-04-19 18:45 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.4.0-rc1 Released.
