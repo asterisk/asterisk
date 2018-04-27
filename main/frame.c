@@ -591,6 +591,9 @@ void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 	case AST_FRAME_TEXT:
 		ast_copy_string(ftype, "Text", len);
 		break;
+	case AST_FRAME_TEXT_DATA:
+		ast_copy_string(ftype, "Text Data", len);
+		break;
 	case AST_FRAME_IMAGE:
 		ast_copy_string(ftype, "Image", len);
 		break;
