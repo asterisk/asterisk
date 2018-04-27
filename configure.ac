@@ -2041,6 +2041,66 @@ if test "${USE_IMAP_TK}" != "no"; then
 				[ac_cv_imap_tk="yes"],
 				[ac_cv_imap_tk="no"]
 	   		)
+			if test "${ac_cv_imap_tk}" = "no"; then
+				imap_libs="-lcrypto -lssl -lc-client4"
+				LIBS="${saved_libs} ${imap_libs} "`echo ${imap_ldflags}`
+				AC_LINK_IFELSE(
+					[AC_LANG_PROGRAM(
+						[#include <stdio.h>
+						#include <c-client/c-client.h>
+						void mm_searched (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_exists (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_expunged (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_flags (MAILSTREAM *stream,unsigned long number)
+						{
+						}
+						void mm_notify (MAILSTREAM *stream,char *string,long errflg)
+						{
+						}
+						void mm_list (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+						{
+						}
+						void mm_lsub (MAILSTREAM *stream,int delimiter,char *mailbox,long attributes)
+						{
+						}
+						void mm_status (MAILSTREAM *stream,char *mailbox,MAILSTATUS *status)
+						{
+						}
+						void mm_log (char *string,long errflg)
+						{
+						}
+						void mm_dlog (char *string)
+						{
+						}
+						void mm_login (NETMBX *mb,char *user,char *pwd,long trial)
+						{
+						}
+						void mm_critical (MAILSTREAM *stream)
+						{
+						}
+						void mm_nocritical (MAILSTREAM *stream)
+						{
+						}
+						long mm_diskerror (MAILSTREAM *stream,long errcode,long serious)
+						{
+						}
+						void mm_fatal (char *string)
+						{
+						}],
+						[
+						MAILSTREAM *foo = mail_open(NULL, "", 0);
+						]
+					)],
+					[ac_cv_imap_tk="yes"],
+					[ac_cv_imap_tk="no"]
+				)
+			fi
 			if test "${ac_cv_imap_tk}" = "yes"; then
 				AC_LINK_IFELSE(
 					[AC_LANG_PROGRAM(
