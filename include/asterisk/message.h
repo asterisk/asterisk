@@ -407,6 +407,129 @@ void ast_msg_var_iterator_destroy(struct ast_msg_var_iterator *iter);
  */
 void ast_msg_var_unref_current(struct ast_msg_var_iterator *iter);
 
+
+/*! \defgroup ast_msg_data Enhanced Messaging
+ * @{
+ * \page Messaging Enhanced Messaging
+ *
+ * The basic messaging framework has a basic drawback... It can only pass
+ * a text string through the core.  This causes several issues:
+ * \li Only a content type of text/plain can be passed.
+ * \li If a softmix bridge is used, the original sender identity is lost.
+ *
+ * The Enhanced Messaging framework allows attributes, such as "From", "To"
+ * and "Content-Type" to be attached to the message by the incoming channel
+ * tech which can then be used by the outgoing channel tech to construct
+ * the appropriate technology-specific outgoing message.
+ */
+
+/*!
+ * \brief Structure used to transport an enhanced message through the frame core
+ * \since 13.22.0
+ * \since 15.5.0
+ */
+struct ast_msg_data;
+
+enum ast_msg_data_source_type {
+	AST_MSG_DATA_SOURCE_TYPE_UNKNOWN = 0,
+	AST_MSG_DATA_SOURCE_TYPE_T140,
+	AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG,
+	AST_MSG_DATA_SOURCE_TYPE_OUT_OF_DIALOG,
+	__AST_MSG_DATA_SOURCE_TYPE_LAST,
+};
+
+enum ast_msg_data_attribute_type {
+	AST_MSG_DATA_ATTR_TO = 0,
+	AST_MSG_DATA_ATTR_FROM,
+	AST_MSG_DATA_ATTR_CONTENT_TYPE,
+	AST_MSG_DATA_ATTR_BODY,
+	__AST_MSG_DATA_ATTR_LAST,
+};
+
+struct ast_msg_data_attribute {
+	enum ast_msg_data_attribute_type type;
+	char *value;
+};
+
+/*!
+ * \brief Allocates an ast_msg_data structure.
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param source The source type of the message
+ * \param attributes A pointer to an array of ast_msg_data_attribute structures
+ * \param count The number of elements in the array
+ *
+ * \return Pointer to msg structure or NULL on allocation failure.
+ *         Caller must call ast_free when done.
+ */
+struct ast_msg_data *ast_msg_data_alloc(enum ast_msg_data_source_type source,
+	struct ast_msg_data_attribute attributes[], size_t count);
+
+/*!
+ * \brief Clone an ast_msg_data structure
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param msg The message to clone
+ *
+ * \return New message structure or NULL if there was an allocation failure.
+ *         Caller must call ast_free when done.
+ */
+struct ast_msg_data *ast_msg_data_dup(struct ast_msg_data *msg);
+
+/*!
+ * \brief Get length of the structure
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param msg Pointer to ast_msg_data structure
+ *
+ * \return The length of the structure itself plus the dynamically allocated attribute buffer.
+ */
+size_t ast_msg_data_get_length(struct ast_msg_data *msg);
+
+/*!
+ * \brief Get "source type" from ast_msg_data
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param msg Pointer to ast_msg_data structure
+ *
+ * \return The source type field.
+ */
+enum ast_msg_data_source_type ast_msg_data_get_source_type(struct ast_msg_data *msg);
+
+/*!
+ * \brief Get attribute from ast_msg_data
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param msg Pointer to ast_msg_data structure
+ * \param attribute_type One of ast_msg_data_attribute_type
+ *
+ * \return The attribute or an empty string ("") if the attribute wasn't set.
+ */
+const char *ast_msg_data_get_attribute(struct ast_msg_data *msg,
+	enum ast_msg_data_attribute_type attribute_type);
+
+/*!
+ * \brief Queue an AST_FRAME_TEXT_DATA frame containing an ast_msg_data structure
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param channel  The channel on which to queue the frame
+ * \param msg Pointer to ast_msg_data structure
+ *
+ * \retval -1 Error
+ * \retval  0 Success
+ */
+int ast_msg_data_queue_frame(struct ast_channel *channel, struct ast_msg_data *msg);
+
+/*!
+ *  @}
+ */
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

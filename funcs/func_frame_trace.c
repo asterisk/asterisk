@@ -59,6 +59,7 @@
 					<enum name = "NULL" />
 					<enum name = "IAX" />
 					<enum name = "TEXT" />
+					<enum name = "TEXT_DATA" />
 					<enum name = "IMAGE" />
 					<enum name = "HTML" />
 					<enum name = "CNG" />
@@ -88,6 +89,7 @@ static struct {
 	{ AST_FRAME_NULL,   "NULL" },
 	{ AST_FRAME_IAX,   "IAX" },
 	{ AST_FRAME_TEXT,   "TEXT" },
+	{ AST_FRAME_TEXT_DATA,   "TEXT_DATA" },
 	{ AST_FRAME_IMAGE,   "IMAGE" },
 	{ AST_FRAME_HTML,   "HTML" },
 	{ AST_FRAME_CNG,   "CNG" },
@@ -390,6 +392,9 @@ static void print_frame(struct ast_frame *frame)
 		break;
 	case AST_FRAME_TEXT:
 		ast_verbose("FrameType: TXT\n");
+		break;
+	case AST_FRAME_TEXT_DATA:
+		ast_verbose("FrameType: TXT_DATA\n");
 		break;
 	case AST_FRAME_IMAGE:
 		ast_verbose("FrameType: IMAGE\n");

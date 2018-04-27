@@ -48,6 +48,7 @@ extern "C" {
  * \arg \b DTMF:   A DTMF digit, subclass is the digit
  * \arg \b IMAGE:  Image transport, mostly used in IAX
  * \arg \b TEXT:   Text messages and character by character (real time text)
+ * \arg \b TEXT_DATA:   Text messages in an ast_msg_data structure
  * \arg \b HTML:   URL's and web pages
  * \arg \b MODEM:  Modulated data encodings, such as T.38 and V.150
  * \arg \b IAX:    Private frame type for the IAX protocol
@@ -129,6 +130,8 @@ enum ast_frame_type {
 	AST_FRAME_BRIDGE_ACTION_SYNC,
 	/*! RTCP feedback (the subclass will contain the payload type) */
 	AST_FRAME_RTCP,
+	/*! Text message in an ast_msg_data structure */
+	AST_FRAME_TEXT_DATA,
 };
 #define AST_FRAME_DTMF AST_FRAME_DTMF_END
 
