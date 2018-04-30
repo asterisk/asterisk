@@ -526,6 +526,34 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 	return head;
 }
 
+static struct ast_frame *generate_interpolated_slin(struct ast_trans_pvt *p, struct ast_frame *f)
+{
+	struct ast_frame res = { AST_FRAME_VOICE };
+
+	/*
+	 * If we've gotten here then we should have an interpolated frame that was not handled
+	 * by the translation codec. So create an interpolated frame in the appropriate format
+	 * that was going to be written. This frame might be handled later by other resources.
+	 * For instance, generic plc.
+	 *
+	 * Note, generic plc is currently only available for the format type 'slin' (8KHz only -
+	 * The generic plc code appears to have been based around that). Generic plc is filled
+	 * in later on frame write.
+	 */
+	if (!ast_opt_generic_plc || f->datalen != 0 ||
+		ast_format_cmp(p->explicit_dst, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
+		return NULL;
+	}
+
+	res.subclass.format = ast_format_cache_get_slin_by_rate(8000); /* ref bumped on dup */
+	res.samples = f->samples;
+	res.datalen = 0;
+	res.data.ptr = NULL;
+	res.offset = AST_FRIENDLY_OFFSET;
+
+	return ast_frdup(&res);
+}
+
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
@@ -577,6 +605,11 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		}
 		out = p->t->frameout(p);
 	}
+
+	if (!out) {
+		out = generate_interpolated_slin(path, f);
+	}
+
 	if (out) {
 		/* we have a frame, play with times */
 		if (!ast_tvzero(delivery)) {

@@ -56,6 +56,12 @@ static struct ast_frame *generic_read(struct ast_filestream *s, int *whennext, u
 static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
+
+	/* Don't try to write an interpolated frame */
+	if (f->datalen == 0) {
+		return 0;
+	}
+
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
