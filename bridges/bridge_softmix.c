@@ -2197,12 +2197,13 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 					AST_VECTOR_SIZE(&media_types) - 1, &bridge->channels);
 				ast_bridge_channel_lock(participant);
 				ast_channel_lock(participant->chan);
-			} else if (is_video_dest(stream, NULL, NULL)) {
-				/* We expect to never read media from video destination channels, but just
-				 * in case, we should set their to_bridge value to -1.
+			} else if (ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) {
+				/* Video stream mapping occurs directly when a video source stream
+				 * is found on a channel. Video streams should otherwise remain
+				 * unmapped.
 				 */
 				AST_VECTOR_REPLACE(&participant->stream_map.to_bridge, i, -1);
-			} else {
+			} else if (ast_stream_get_state(stream) != AST_STREAM_STATE_REMOVED) {
 				/* XXX This is copied from ast_stream_topology_map(). This likely could
 				 * be factored out in some way
 				 */
