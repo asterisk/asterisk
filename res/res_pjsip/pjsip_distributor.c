@@ -676,6 +676,26 @@ static void check_endpoint(pjsip_rx_data *rdata, struct unidentified_request *un
 	ao2_unlock(unid);
 }
 
+static int apply_endpoint_acl(pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint);
+static int apply_endpoint_contact_acl(pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint);
+
+static void apply_acls(pjsip_rx_data *rdata)
+{
+	struct ast_sip_endpoint *endpoint;
+
+	/* Is the endpoint allowed with the source or contact address? */
+	endpoint = rdata->endpt_info.mod_data[endpoint_mod.id];
+	if (endpoint != artificial_endpoint
+		&& (apply_endpoint_acl(rdata, endpoint)
+			|| apply_endpoint_contact_acl(rdata, endpoint))) {
+		ast_debug(1, "Endpoint '%s' not allowed by ACL\n",
+			ast_sorcery_object_get_id(endpoint));
+
+		/* Replace the rdata endpoint with the artificial endpoint. */
+		ao2_replace(rdata->endpt_info.mod_data[endpoint_mod.id], artificial_endpoint);
+	}
+}
+
 static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 {
 	struct ast_sip_endpoint *endpoint;
@@ -694,6 +714,7 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ao2_unlink(unidentified_requests, unid);
 			ao2_ref(unid, -1);
 		}
+		apply_acls(rdata);
 		return PJ_FALSE;
 	}
 
@@ -753,6 +774,8 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ast_sip_report_invalid_endpoint(name, rdata);
 		}
 	}
+
+	apply_acls(rdata);
 	return PJ_FALSE;
 }
 
@@ -836,16 +859,11 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 
 	ast_assert(endpoint != NULL);
 
-	if (endpoint!=artificial_endpoint) {
-		if (apply_endpoint_acl(rdata, endpoint) || apply_endpoint_contact_acl(rdata, endpoint)) {
-			if (!is_ack) {
-				pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-			}
-			return PJ_TRUE;
-		}
+	if (is_ack) {
+		return PJ_FALSE;
 	}
 
-	if (!is_ack && ast_sip_requires_authentication(endpoint, rdata)) {
+	if (ast_sip_requires_authentication(endpoint, rdata)) {
 		pjsip_tx_data *tdata;
 		struct unidentified_request *unid;
 
@@ -881,6 +899,10 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			return PJ_TRUE;
 		}
 		pjsip_tx_data_dec_ref(tdata);
+	} else if (endpoint == artificial_endpoint) {
+		/* Uh. Oh.  The artificial endpoint couldn't challenge so block the request. */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		return PJ_TRUE;
 	}
 
 	return PJ_FALSE;
