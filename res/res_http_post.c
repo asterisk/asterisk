@@ -36,7 +36,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <gmime/gmime.h>
-#if defined (__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__Darwin__)
+#if defined (__OpenBSD__) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__Darwin__)
 #include <libgen.h>
 #endif
 
