@@ -238,9 +238,9 @@ static ssize_t iostream_read(struct ast_iostream *stream, void *buf, size_t size
 	}
 }
 
-ssize_t ast_iostream_read(struct ast_iostream *stream, void *buf, size_t size)
+ssize_t ast_iostream_read(struct ast_iostream *stream, void *buffer, size_t count)
 {
-	if (!size) {
+	if (!count) {
 		/* You asked for no data you got no data. */
 		return 0;
 	}
@@ -252,20 +252,20 @@ ssize_t ast_iostream_read(struct ast_iostream *stream, void *buf, size_t size)
 
 	/* Get any remains from the read buffer */
 	if (stream->rbuflen) {
-		size_t r = size;
+		size_t r = count;
 		if (r > stream->rbuflen) {
 			r = stream->rbuflen;
 		}
-		memcpy(buf, stream->rbufhead, r);
+		memcpy(buffer, stream->rbufhead, r);
 		stream->rbuflen -= r;
 		stream->rbufhead += r;
 		return r;
 	}
 
-	return iostream_read(stream, buf, size);
+	return iostream_read(stream, buffer, count);
 }
 
-ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buf, size_t count)
+ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buffer, size_t size)
 {
 	ssize_t r;
 	char *newline;
@@ -275,15 +275,15 @@ ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buf, size_t count)
 		newline = memchr(stream->rbufhead, '\n', stream->rbuflen);
 		if (newline) {
 			r = newline - stream->rbufhead + 1;
-			if (r > count-1) {
-				r = count-1;
+			if (r > size-1) {
+				r = size-1;
 			}
 			break;
 		}
 
 		/* Enough data? */
-		if (stream->rbuflen >= count - 1) {
-			r = count - 1;
+		if (stream->rbuflen >= size - 1) {
+			r = size - 1;
 			break;
 		}
 
@@ -301,8 +301,8 @@ ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buf, size_t count)
 	} while (1);
 
 	/* Return r bytes with termination byte */
-	memcpy(buf, stream->rbufhead, r);
-	buf[r] = 0;
+	memcpy(buffer, stream->rbufhead, r);
+	buffer[r] = 0;
 	stream->rbuflen -= r;
 	stream->rbufhead += r;
 
@@ -326,7 +326,7 @@ ssize_t ast_iostream_discard(struct ast_iostream *stream, size_t size)
 	return size;
 }
 
-ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t size)
+ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buffer, size_t size)
 {
 	struct timeval start;
 	int ms;
@@ -357,7 +357,7 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 		for (;;) {
 			int sslerr;
 			char err[256];
-			res = SSL_write(stream->ssl, buf + written, remaining);
+			res = SSL_write(stream->ssl, buffer + written, remaining);
 			if (res == remaining) {
 				/* Everything was written. */
 				return size;
@@ -414,7 +414,7 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 	written = 0;
 	remaining = size;
 	for (;;) {
-		res = write(stream->fd, buf + written, remaining);
+		res = write(stream->fd, buffer + written, remaining);
 		if (res == remaining) {
 			/* Yay everything was written. */
 			return size;
@@ -443,14 +443,14 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 	}
 }
 
-ssize_t ast_iostream_printf(struct ast_iostream *stream, const char *fmt, ...)
+ssize_t ast_iostream_printf(struct ast_iostream *stream, const char *format, ...)
 {
 	char sbuf[512], *buf = sbuf;
 	int len, len2, ret = -1;
 	va_list va;
 
-	va_start(va, fmt);
-	len = vsnprintf(buf, sizeof(sbuf), fmt, va);
+	va_start(va, format);
+	len = vsnprintf(buf, sizeof(sbuf), format, va);
 	va_end(va);
 
 	if (len > sizeof(sbuf) - 1) {
@@ -461,8 +461,8 @@ ssize_t ast_iostream_printf(struct ast_iostream *stream, const char *fmt, ...)
 		if (!buf) {
 			return -1;
 		}
-		va_start(va, fmt);
-		len2 = vsnprintf(buf, buf_len, fmt, va);
+		va_start(va, format);
+		len2 = vsnprintf(buf, buf_len, format, va);
 		va_end(va);
 		if (len2 != len) {
 			goto error;
