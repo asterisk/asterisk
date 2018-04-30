@@ -38,19 +38,60 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/message.h"
 
 /*** DOCUMENTATION
 	<application name="SendText" language="en_US">
 		<synopsis>
-			Send a Text Message.
+			Send a Text Message on a channel.
 		</synopsis>
 		<syntax>
-			<parameter name="text" required="true" />
+			<parameter name="text" required="false" />
 		</syntax>
 		<description>
-			<para>Sends <replaceable>text</replaceable> to current channel (callee).</para>
-			<para>Result of transmission will be stored in the <variable>SENDTEXTSTATUS</variable></para>
+			<para>Sends <replaceable>text</replaceable> to the current channel.</para>
+			<note><para><literal>current channel</literal> could be the caller or callee depending
+			on the context in which this application is called.</para></note>
+			<para>
+			</para>
+			<para>The following variables can be set:</para>
 			<variablelist>
+				<variable name="SENDTEXT_FROM_DISPLAYNAME">
+					<para>If set and this channel supports enhanced messaging, this value will be
+					used as the <literal>From</literal> display name.</para>
+				</variable>
+				<variable name="SENDTEXT_TO_DISPLAYNAME">
+					<para>If set and this channel supports enhanced messaging, this value will be
+					used as the <literal>To</literal> display name.</para>
+				</variable>
+				<variable name="SENDTEXT_CONTENT_TYPE">
+					<para>If set and this channel supports enhanced messaging, this value will be
+					used as the message <literal>Content-Type</literal>.  It <emphasis>MUST</emphasis>
+					be a <literal>text/&#42;</literal> content type.  If not specified, the
+					default of <literal>text/plain</literal> will be used.</para>
+				</variable>
+				<variable name="SENDTEXT_BODY">
+					<para>If set this value will be used as the message body and any text supplied
+					as a function parameter will be ignored.
+					</para>
+				</variable>
+			</variablelist>
+			<para>
+			</para>
+			<para>Result of transmission will be stored in the following variables:</para>
+			<variablelist>
+				<variable name="SENDTEXTTYPE">
+					<value name="NONE">
+						No message sent.
+					</value>
+					<value name="BASIC">
+						Message body sent without attributes because the channel driver
+						doesn't support enhanced messaging.
+					</value>
+					<value name="ENHANCED">
+						The message was sent using enhanced messaging.
+					</value>
+				</variable>
 				<variable name="SENDTEXTSTATUS">
 					<value name="SUCCESS">
 						Transmission succeeded.
@@ -63,7 +104,34 @@
 					</value>
 				</variable>
 			</variablelist>
-			<note><para>At this moment, text is supposed to be 7 bit ASCII in most channels.</para></note>
+			<para>
+			</para>
+			<note><para>The text encoding and transmission method is completely at the
+			discretion of the channel driver.  chan_pjsip will use in-dialog SIP MESSAGE
+			messages always.  chan_sip will use T.140 via RTP if a text media type was
+			negotiated and in-dialog SIP MESSAGE messages otherwise.</para></note>
+			<para>
+			</para>
+			<para>Examples:
+			</para>
+			<example title="Send a simple message">
+			 same => n,SendText(Your Text Here)
+			</example>
+			<para>If the channel driver supports enhanced messaging (currently only chan_pjsip),
+			you can set additional variables:</para>
+			<example title="Alter the From display name">
+			 same => n,Set(SENDTEXT_FROM_DISPLAYNAME=Really From Bob)
+			 same => n,SendText(Your Text Here)
+			</example>
+			<example title="Send a JSON String">
+			 same => n,Set(SENDTEXT_CONTENT_TYPE=text/json)
+			 same => n,SendText({"foo":a, "bar":23})
+			</example>
+			<example title="Send a JSON String (alternate)">
+			 same => n,Set(SENDTEXT_CONTENT_TYPE=text/json)
+			 same => n,Set(SENDTEXT_BODY={"foo":a, "bar":23})
+			 same => n,SendText()
+			</example>
 		</description>
 		<see-also>
 			<ref type="application">SendImage</ref>
@@ -76,36 +144,93 @@ static const char * const app = "SendText";
 
 static int sendtext_exec(struct ast_channel *chan, const char *data)
 {
-	char *status = "UNSUPPORTED";
+	char *status;
+	char *msg_type;
 	struct ast_str *str;
-
-	/* NOT ast_strlen_zero, because some protocols (e.g. SIP) MUST be able to
-	 * send a zero-length message. */
-	if (!data) {
-		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
-		return -1;
-	}
-
-	if (!(str = ast_str_alloca(strlen(data) + 1))) {
-		return -1;
-	}
-
-	ast_str_get_encoded_str(&str, -1, data);
+	const char *from;
+	const char *to;
+	const char *content_type;
+	const char *body;
+	int rc = 0;
 
 	ast_channel_lock(chan);
-	if (!ast_channel_tech(chan)->send_text) {
-		ast_channel_unlock(chan);
-		/* Does not support transport */
-		pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
-		return 0;
+	from = pbx_builtin_getvar_helper(chan, "SENDTEXT_FROM_DISPLAYNAME");
+	to = pbx_builtin_getvar_helper(chan, "SENDTEXT_TO_DISPLAYNAME");
+	content_type = pbx_builtin_getvar_helper(chan, "SENDTEXT_CONTENT_TYPE");
+	body = S_OR(pbx_builtin_getvar_helper(chan, "SENDTEXT_BODY"), data);
+	body = S_OR(body, "");
+
+	if (!(str = ast_str_alloca(strlen(body) + 1))) {
+		rc = -1;
+		goto cleanup;
 	}
-	status = "FAILURE";
-	if (!ast_sendtext(chan, ast_str_buffer(str))) {
-		status = "SUCCESS";
+	ast_str_get_encoded_str(&str, -1, body);
+	body = ast_str_buffer(str);
+
+	msg_type = "NONE";
+	status = "UNSUPPORTED";
+	if (ast_channel_tech(chan)->send_text_data) {
+		struct ast_msg_data *msg;
+		struct ast_msg_data_attribute attrs[] =
+		{
+			{
+				.type = AST_MSG_DATA_ATTR_FROM,
+				.value = (char *)S_OR(from, ""),
+			},
+			{
+				.type = AST_MSG_DATA_ATTR_TO,
+				.value = (char *)S_OR(to, ""),
+			},
+			{
+				.type = AST_MSG_DATA_ATTR_CONTENT_TYPE,
+				.value = (char *)S_OR(content_type, ""),
+			},
+			{
+				.type = AST_MSG_DATA_ATTR_BODY,
+				.value = (char *)S_OR(body, ""),
+			},
+		};
+
+		if (!ast_strlen_zero(content_type) && !ast_begins_with(content_type, "text/")) {
+			ast_log(LOG_ERROR, "SENDTEXT_CONTENT_TYPE must begin with 'text/'\n");
+			rc = -1;
+			goto cleanup;
+		}
+		msg_type = "ENHANCED";
+		msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
+		if (msg) {
+			if (ast_sendtext_data(chan, msg) == 0) {
+				status = "SUCCESS";
+			} else {
+				status = "FAILURE";
+			}
+
+			ast_free(msg);
+		} else {
+			rc = -1;
+			goto cleanup;
+		}
+
+	} else if (ast_channel_tech(chan)->send_text) {
+		msg_type = "BASIC";
+		if (ast_sendtext(chan, body) == 0) {
+			status = "SUCCESS";
+		} else {
+			status = "FAILURE";
+		}
 	}
-	ast_channel_unlock(chan);
+
+	pbx_builtin_setvar_helper(chan, "SENDTEXTTYPE", msg_type);
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
-	return 0;
+
+cleanup:
+	pbx_builtin_setvar_helper(chan, "SENDTEXT_FROM_DISPLAYNAME", NULL);
+	pbx_builtin_setvar_helper(chan, "SENDTEXT_TO_DISPLAYNAME", NULL);
+	pbx_builtin_setvar_helper(chan, "SENDTEXT_CONTENT_TYPE", NULL);
+	pbx_builtin_setvar_helper(chan, "SENDTEXT_BODY", NULL);
+	ast_channel_unlock(chan);
+
+	return rc;
 }
 
 static int unload_module(void)
