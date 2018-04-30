@@ -680,7 +680,8 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		 * the find without OBJ_UNLINK to prevent the unnecessary write lock, then unlink
 		 * if needed.
 		 */
-		if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY))) {
+		unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY);
+		if (unid) {
 			ao2_unlink(unidentified_requests, unid);
 			ao2_ref(unid, -1);
 		}
@@ -689,14 +690,14 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 
 	endpoint = ast_sip_identify_endpoint(rdata);
 	if (endpoint) {
-		if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY))) {
+		unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY);
+		if (unid) {
 			ao2_unlink(unidentified_requests, unid);
 			ao2_ref(unid, -1);
 		}
 	}
 
 	if (!endpoint) {
-
 		/* always use an artificial endpoint - per discussion no reason
 		   to have "alwaysauthreject" as an option.  It is felt using it
 		   was a bug fix and it is not needed since we are not worried about
@@ -705,9 +706,10 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		endpoint = ast_sip_get_artificial_endpoint();
 	}
 
+	/* endpoint ref held by mod_data[] */
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 
-	if ((endpoint == artificial_endpoint) && !is_ack) {
+	if (endpoint == artificial_endpoint && !is_ack) {
 		char name[AST_UUID_STR_LEN] = "";
 		pjsip_uri *from = rdata->msg_info.from->uri;
 
@@ -716,17 +718,20 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ast_copy_pj_str(name, &sip_from->user, sizeof(name));
 		}
 
-		if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY))) {
+		unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY);
+		if (unid) {
 			check_endpoint(rdata, unid, name);
 			ao2_ref(unid, -1);
 		} else if (using_auth_username) {
 			ao2_wrlock(unidentified_requests);
-			/* The check again with the write lock held allows us to eliminate the DUPS_REPLACE and sort_fn */
-			if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY | OBJ_NOLOCK))) {
+			/* Checking again with the write lock held allows us to eliminate the DUPS_REPLACE and sort_fn */
+			unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name,
+				OBJ_SEARCH_KEY | OBJ_NOLOCK);
+			if (unid) {
 				check_endpoint(rdata, unid, name);
 			} else {
-				unid = ao2_alloc_options(sizeof(*unid) + strlen(rdata->pkt_info.src_name) + 1, NULL,
-					AO2_ALLOC_OPT_LOCK_RWLOCK);
+				unid = ao2_alloc_options(sizeof(*unid) + strlen(rdata->pkt_info.src_name) + 1,
+					NULL, AO2_ALLOC_OPT_LOCK_RWLOCK);
 				if (!unid) {
 					ao2_unlock(unidentified_requests);
 					return PJ_TRUE;
@@ -850,7 +855,8 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_SUCCESS:
 			/* See note in endpoint_lookup about not holding an unnecessary write lock */
-			if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY))) {
+			unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY);
+			if (unid) {
 				ao2_unlink(unidentified_requests, unid);
 				ao2_ref(unid, -1);
 			}
