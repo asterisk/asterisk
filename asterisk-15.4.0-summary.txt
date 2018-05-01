@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-15.4.0-rc1
+                                asterisk-15.4.0
 
-                                Date: 2018-04-19
+                                Date: 2018-05-01
 
                            <asteriskteam@digium.com>
 
@@ -52,13 +52,13 @@
 
    Coders                    Testers        Reporters                         
    38 Alexander Traud                       32 Alexander Traud                
-   27 Corey Farrell                         4 Ross Beer                       
-   14 Richard Mudgett                       4 Joshua Colp                     
+   27 Corey Farrell                         5 Joshua Colp                     
+   14 Richard Mudgett                       4 Ross Beer                       
    9 George Joseph                          3 John Nemeth                     
-   8 Joshua Colp                            2 Richard Mudgett                 
+   9 Joshua Colp                            2 Richard Mudgett                 
    5 Benjamin Keith Ford                    2 lvl                             
    3 Ross Beer                              1 Michael Cargile                 
-   2 Chris Savinovich                       1 SA(c)bastien Duthil             
+   3 Chris Savinovich                       1 SA(c)bastien Duthil             
    1 Michael Cargile                        1 Jean Aunis - Prescom            
    1 Jean Aunis - Prescom                   1 Joerg Sonnenberger, D'Arcy Cain 
    1 Nathan Bruning                         1 Kevin Harwell                   
@@ -118,6 +118,7 @@
    ASTERISK-27804: bridge_softmix / app_confbridge: Add support for combining
    REMB reports
    Reported by: Joshua Colp
+     * [9f1d4ba8de] Joshua Colp -- bridge_softmix: Fix some REMB bugs.
      * [5c2120f5f5] Joshua Colp -- bridge_softmix / app_confbridge: Add
        support for REMB combining.
    ASTERISK-27786: app_confbridge: Add ability to enable and configure REMB
@@ -151,6 +152,7 @@
    ASTERISK-27804: bridge_softmix / app_confbridge: Add support for combining
    REMB reports
    Reported by: Joshua Colp
+     * [9f1d4ba8de] Joshua Colp -- bridge_softmix: Fix some REMB bugs.
      * [5c2120f5f5] Joshua Colp -- bridge_softmix / app_confbridge: Add
        support for REMB combining.
    ASTERISK-27786: app_confbridge: Add ability to enable and configure REMB
@@ -561,6 +563,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author          | Summary                                 |
    |------------+-----------------+-----------------------------------------|
+   | 60f5d0e5c5 | Chris           | Update for 15.4.0-rc1                   |
+   |            | Savinovich      |                                         |
+   |------------+-----------------+-----------------------------------------|
    | fb193a12b0 | Chris           | Update for 15.4.0-rc1                   |
    |            | Savinovich      |                                         |
    |------------+-----------------+-----------------------------------------|
@@ -744,7 +749,7 @@
  b/.gitreview                                                                                    |    7
  b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   23
- b/ChangeLog                                                                                     | 1533 ++++++++
+ b/ChangeLog                                                                                     | 1537 ++++++++
  b/Makefile                                                                                      |   46
  b/UPGRADE.txt                                                                                   |    8
  b/addons/cdr_mysql.c                                                                            |    8
@@ -758,12 +763,12 @@
  b/apps/app_voicemail.c                                                                          |   39
  b/apps/confbridge/conf_config_parser.c                                                          |   77
  b/apps/confbridge/include/confbridge.h                                                          |    4
- b/asterisk-15.4.0-rc1-summary.html                                                              |  386 ++
- b/asterisk-15.4.0-rc1-summary.txt                                                               |  903 ++++
+ b/asterisk-15.4.0-rc1-summary.html                                                              |  376 ++
+ b/asterisk-15.4.0-rc1-summary.txt                                                               |  900 ++++
  b/autoconf/ast_ext_tool_check.m4                                                                |    2
  b/autoconf/ast_pkgconfig.m4                                                                     |    2
  b/bootstrap.sh                                                                                  |    4
- b/bridges/bridge_softmix.c                                                                      |  290 +
+ b/bridges/bridge_softmix.c                                                                      |  298 +
  b/bridges/bridge_softmix/include/bridge_softmix_internal.h                                      |   14
  b/build_tools/cflags.xml                                                                        |    2
  b/build_tools/menuselect-deps.in                                                                |    1
@@ -895,6 +900,7 @@
  b/third-party/pjproject/patches/0090-sip_transaction-In-tsx_timer_callback-check-if-tsx-i.patch |   31
  b/third-party/versions.mak                                                                      |    2
  b/utils/.gitignore                                                                              |    1
+ b/utils/Makefile                                                                                |    3
  third-party/pjproject/patches/0070-sdp_media_fmt.patch                                          |   19
  third-party/pjproject/patches/0071-sdp_fmtp_attr.patch                                          |   34
- 158 files changed, 8161 insertions(+), 5521 deletions(-)
+ 159 files changed, 8162 insertions(+), 5522 deletions(-)
