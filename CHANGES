@@ -45,6 +45,11 @@ chan_sip
    headers be retrieved from the REFER message and made accessible to the
    dialplan in the hash TRANSFER_DATA.
 
+chan_dahdi
+------------------
+ * Timeouts for reading digits from analog phones are now configurable in
+   chan_dahdi.conf: firstdigit_timeout, interdigit_timeout, matchdigit_timeout.
+
 AMI
 ------------------
  * The ContactStatus and Status fields for the manager events ContactStatus

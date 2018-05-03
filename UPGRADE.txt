@@ -50,6 +50,10 @@ Build System:
    MALLOC_DEBUG and vice versa.  Third-party pre-compiled modules no longer
    need to have a special build with it enabled.
 
+chan_dahdi:
+ - Timeouts for reading digits from analog phones are now configurable in
+   chan_dahdi.conf: firstdigit_timeout, interdigit_timeout, matchdigit_timeout.
+
 cdr_syslog:
  - The cdr_syslog module is now deprecated and by default it is no longer
    built.

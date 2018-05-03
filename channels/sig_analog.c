@@ -62,9 +62,6 @@
 #define POLARITY_IDLE 0
 #define POLARITY_REV    1
 #define MIN_MS_SINCE_FLASH			( (2000) )	/*!< 2000 ms */
-static int analog_matchdigittimeout = 3000;
-static int analog_gendigittimeout = 8000;
-static int analog_firstdigittimeout = 16000;
 static char analog_defaultcic[64] = "";
 static char analog_defaultozz[64] = "";
 
@@ -218,6 +215,21 @@ static int analog_have_progressdetect(struct analog_pvt *p)
 	/* Don't have progress detection. */
 	return 0;
 }
+
+#define gen_analog_field_callback(type, callback_name, def_value) \
+	static type analog_get_##callback_name(struct analog_pvt *p) \
+	{ \
+		if (!analog_callbacks.get_##callback_name) { \
+			return def_value; \
+		} \
+		return analog_callbacks.get_##callback_name(p->chan_pvt); \
+	}
+
+gen_analog_field_callback(int, firstdigit_timeout, ANALOG_FIRST_DIGIT_TIMEOUT);
+gen_analog_field_callback(int, interdigit_timeout, ANALOG_INTER_DIGIT_TIMEOUT);
+gen_analog_field_callback(int, matchdigit_timeout, ANALOG_MATCH_DIGIT_TIMEOUT);
+
+#undef gen_analog_field_callback
 
 enum analog_cid_start analog_str_to_cidstart(const char *value)
 {
@@ -1886,9 +1898,9 @@ static void *__analog_ss_thread(void *data)
 				dtmfbuf[len] = '\0';
 				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
 					if (ast_exists_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
-						timeout = analog_matchdigittimeout;
+						timeout = analog_get_matchdigit_timeout(p);
 					} else {
-						timeout = analog_gendigittimeout;
+						timeout = analog_get_interdigit_timeout(p);
 					}
 					res = ast_waitfordigit(chan, timeout);
 					if (res < 0) {
@@ -2074,7 +2086,7 @@ static void *__analog_ss_thread(void *data)
 	case ANALOG_SIG_FXOGS:
 	case ANALOG_SIG_FXOKS:
 		/* Read the first digit */
-		timeout = analog_firstdigittimeout;
+		timeout = analog_get_firstdigit_timeout(p);
 		/* If starting a threeway call, never timeout on the first digit so someone
 		   can use flash-hook as a "hold" feature */
 		if (p->subs[ANALOG_SUB_THREEWAY].owner) {
@@ -2155,7 +2167,7 @@ static void *__analog_ss_thread(void *data)
 				} else {
 					/* It's a match, but they just typed a digit, and there is an ambiguous match,
 					   so just set the timeout to analog_matchdigittimeout and wait some more */
-					timeout = analog_matchdigittimeout;
+					timeout = analog_get_matchdigit_timeout(p);
 				}
 			} else if (res == 0) {
 				ast_debug(1, "not enough digits (and no ambiguous match)...\n");
@@ -2174,7 +2186,7 @@ static void *__analog_ss_thread(void *data)
 				}
 				len = 0;
 				memset(exten, 0, sizeof(exten));
-				timeout = analog_firstdigittimeout;
+				timeout = analog_get_firstdigit_timeout(p);
 
 			} else if (!strcmp(exten, pickupexten)) {
 				/* Scan all channels and see if there are any
@@ -2219,7 +2231,7 @@ static void *__analog_ss_thread(void *data)
 				}
 				len = 0;
 				memset(exten, 0, sizeof(exten));
-				timeout = analog_firstdigittimeout;
+				timeout = analog_get_firstdigit_timeout(p);
 			} else if (p->callreturn && !strcmp(exten, "*69")) {
 				res = 0;
 				if (!ast_strlen_zero(p->lastcid_num)) {
@@ -2305,7 +2317,7 @@ static void *__analog_ss_thread(void *data)
 				}
 				len = 0;
 				memset(exten, 0, sizeof(exten));
-				timeout = analog_firstdigittimeout;
+				timeout = analog_get_firstdigit_timeout(p);
 			} else if (!strcmp(exten, "*0")) {
 				struct ast_channel *nbridge = p->subs[ANALOG_SUB_THREEWAY].owner;
 				struct analog_pvt *pbridge = NULL;
@@ -2348,7 +2360,7 @@ static void *__analog_ss_thread(void *data)
 				break;
 			}
 			if (!timeout) {
-				timeout = analog_gendigittimeout;
+				timeout = analog_get_interdigit_timeout(p);
 			}
 			if (len && !ast_ignore_pattern(ast_channel_context(chan), exten)) {
 				analog_play_tone(p, idx, -1);

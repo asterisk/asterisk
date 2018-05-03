@@ -1137,6 +1137,21 @@ pickupgroup=1
 ;
 ;faxbuffers=>6,full
 ;
+; When FXO signalling (FXS device, e.g. analog phone) is used, overlap dialing
+; is typically used. Asterisk has several configurable (per-channel) timeouts
+; to know how long to wait for the next digit. All the values are in
+; milliseconds.
+; * firstdigit_timeout: a longer timeout before any digit is dialed.
+;   By default: 16 seconds.
+; * interdigit_timeout: timeout for next digits, if the current number dialed
+;   does not match a number in the current context. Default: 8 seconds.
+; * matchdigit_timeout: timeout for next digits, if the current number dialed
+;   matches a number in the current context. Default: 3 seconds.
+;
+;firstdigit_timeout=16000
+;interdigit_timeout=8000
+;matchdigit_timeout=3000
+;
 ; Configure the default number of DAHDI buffers and the transmit policy to use.
 ; This can be used to eliminate data drops when scheduling jitter prevents
 ; Asterisk from writing to a DAHDI channel regularly. Most users will probably

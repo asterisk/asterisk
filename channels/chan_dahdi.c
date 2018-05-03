@@ -615,15 +615,6 @@ static int pridebugfd = -1;
 static char pridebugfilename[1024] = "";
 #endif
 
-/*! \brief Wait up to 16 seconds for first digit (FXO logic) */
-static int firstdigittimeout = 16000;
-
-/*! \brief How long to wait for following digits (FXO logic) */
-static int gendigittimeout = 8000;
-
-/*! \brief How long to wait for an extra digit, if there is an ambiguous match */
-static int matchdigittimeout = 3000;
-
 /*! \brief Protect the interface list (of dahdi_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -977,6 +968,9 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.buf_no = numbufs,
 			.usefaxbuffers = 0,
 			.cc_params = ast_cc_config_params_init(),
+			.firstdigit_timeout = ANALOG_FIRST_DIGIT_TIMEOUT,
+			.interdigit_timeout = ANALOG_INTER_DIGIT_TIMEOUT,
+			.matchdigit_timeout = ANALOG_MATCH_DIGIT_TIMEOUT,
 		},
 		.timing = {
 			.prewinktime = -1,
@@ -3326,6 +3320,19 @@ static int my_have_progressdetect(void *pvt)
 	}
 }
 
+#define gen_pvt_field_callback(type, field) \
+	static type my_get_##field(void *pvt) \
+	{ \
+		struct dahdi_pvt *p = pvt; \
+		return p->field; \
+	}
+
+gen_pvt_field_callback(int, firstdigit_timeout);
+gen_pvt_field_callback(int, interdigit_timeout);
+gen_pvt_field_callback(int, matchdigit_timeout);
+
+#undef gen_pvt_field_callback
+
 struct analog_callback analog_callbacks =
 {
 	.play_tone = my_play_tone,
@@ -3394,6 +3401,9 @@ struct analog_callback analog_callbacks =
 	.answer_polarityswitch = my_answer_polarityswitch,
 	.hangup_polarityswitch = my_hangup_polarityswitch,
 	.have_progressdetect = my_have_progressdetect,
+	.get_firstdigit_timeout = my_get_firstdigit_timeout,
+	.get_matchdigit_timeout = my_get_matchdigit_timeout,
+	.get_interdigit_timeout = my_get_interdigit_timeout,
 };
 
 /*! Round robin search locations. */
@@ -9555,9 +9565,9 @@ static void *analog_ss_thread(void *data)
 				dtmfbuf[len] = '\0';
 				while ((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
 					if (ast_exists_extension(chan, ast_channel_context(chan), dtmfbuf, 1, p->cid_num)) {
-						timeout = matchdigittimeout;
+						timeout = p->matchdigit_timeout;
 					} else {
-						timeout = gendigittimeout;
+						timeout = p->interdigit_timeout;
 					}
 					res = ast_waitfordigit(chan, timeout);
 					if (res < 0) {
@@ -9725,7 +9735,7 @@ static void *analog_ss_thread(void *data)
 	case SIG_FXOGS:
 	case SIG_FXOKS:
 		/* Read the first digit */
-		timeout = firstdigittimeout;
+		timeout = p->firstdigit_timeout;
 		/* If starting a threeway call, never timeout on the first digit so someone
 		   can use flash-hook as a "hold" feature */
 		if (p->subs[SUB_THREEWAY].owner)
@@ -9800,8 +9810,8 @@ static void *analog_ss_thread(void *data)
 					}
 				} else {
 					/* It's a match, but they just typed a digit, and there is an ambiguous match,
-					   so just set the timeout to matchdigittimeout and wait some more */
-					timeout = matchdigittimeout;
+					   so just set the timeout to matchdigit_timeout and wait some more */
+					timeout = p->matchdigit_timeout;
 				}
 			} else if (res == 0) {
 				ast_debug(1, "not enough digits (and no ambiguous match)...\n");
@@ -9821,7 +9831,7 @@ static void *analog_ss_thread(void *data)
 				len = 0;
 				ioctl(p->subs[idx].dfd,DAHDI_CONFDIAG,&len);
 				memset(exten, 0, sizeof(exten));
-				timeout = firstdigittimeout;
+				timeout = p->firstdigit_timeout;
 
 			} else if (!strcmp(exten, pickupexten)) {
 				/* Scan all channels and see if there are any
@@ -9866,7 +9876,7 @@ static void *analog_ss_thread(void *data)
 				}
 				len = 0;
 				memset(exten, 0, sizeof(exten));
-				timeout = firstdigittimeout;
+				timeout = p->firstdigit_timeout;
 			} else if (p->callreturn && !strcmp(exten, "*69")) {
 				res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALRECALL);
 				break;
@@ -9938,7 +9948,7 @@ static void *analog_ss_thread(void *data)
 				}
 				len = 0;
 				memset(exten, 0, sizeof(exten));
-				timeout = firstdigittimeout;
+				timeout = p->firstdigit_timeout;
 			} else if (!strcmp(exten, "*0")) {
 				struct ast_channel *nbridge =
 					p->subs[SUB_THREEWAY].owner;
@@ -9986,7 +9996,7 @@ static void *analog_ss_thread(void *data)
 				break;
 			}
 			if (!timeout)
-				timeout = gendigittimeout;
+				timeout = p->interdigit_timeout;
 			if (len && !ast_ignore_pattern(ast_channel_context(chan), exten))
 				tone_zone_play_tone(p->subs[idx].dfd, -1);
 		}
@@ -12501,6 +12511,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->waitfordialtone = conf->chan.waitfordialtone;
 		tmp->dialtone_detect = conf->chan.dialtone_detect;
 		tmp->faxdetect_timeout = conf->chan.faxdetect_timeout;
+		tmp->firstdigit_timeout = conf->chan.firstdigit_timeout;
+		tmp->interdigit_timeout = conf->chan.interdigit_timeout;
+		tmp->matchdigit_timeout = conf->chan.matchdigit_timeout;
 		tmp->cancallforward = conf->chan.cancallforward;
 		tmp->dtmfrelax = conf->chan.dtmfrelax;
 		tmp->callwaiting = tmp->permcallwaiting;
@@ -17712,6 +17725,21 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "faxdetect_timeout")) {
 			if (sscanf(v->value, "%30u", &confp->chan.faxdetect_timeout) != 1) {
 				confp->chan.faxdetect_timeout = 0;
+			}
+		} else if (!strcasecmp(v->name, "firstdigit_timeout")) {
+			if (sscanf(v->value, "%30d", &confp->chan.firstdigit_timeout) != 1
+				|| confp->chan.firstdigit_timeout <= 0) {
+				confp->chan.firstdigit_timeout = ANALOG_FIRST_DIGIT_TIMEOUT;
+			}
+		} else if (!strcasecmp(v->name, "interdigit_timeout")) {
+			if (sscanf(v->value, "%30d", &confp->chan.interdigit_timeout) != 1
+				|| confp->chan.interdigit_timeout <= 0) {
+				confp->chan.interdigit_timeout = ANALOG_INTER_DIGIT_TIMEOUT;
+			}
+		} else if (!strcasecmp(v->name, "matchdigit_timeout")) {
+			if (sscanf(v->value, "%30d", &confp->chan.matchdigit_timeout) != 1
+				|| confp->chan.matchdigit_timeout <= 0) {
+				confp->chan.matchdigit_timeout = ANALOG_MATCH_DIGIT_TIMEOUT;
 			}
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			process_echocancel(confp, v->value, v->lineno);
