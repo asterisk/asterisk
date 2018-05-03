@@ -734,6 +734,7 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 					NULL, AO2_ALLOC_OPT_LOCK_RWLOCK);
 				if (!unid) {
 					ao2_unlock(unidentified_requests);
+					pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 					return PJ_TRUE;
 				}
 				strcpy(unid->src_name, rdata->pkt_info.src_name); /* Safe */
