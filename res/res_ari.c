@@ -984,9 +984,9 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		struct ast_str *buf = ast_str_create(512);
 		char *str = ast_json_dump_string_format(body, ast_ari_json_format());
 
-		if (!buf || !str) {
+		if (!buf || (body && !str)) {
 			ast_http_request_close_on_completion(ser);
-			ast_http_error(ser, 500, "Server Error", "Out of memory");
+			ast_ari_response_error(&response, 500, "Server Error", "Out of memory");
 			ast_json_free(str);
 			ast_free(buf);
 			goto request_failed;
@@ -1000,7 +1000,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		for (var = get_params; var; var = var->next) {
 			ast_str_append(&buf, 0, "%s: %s\n", var->name, var->value);
 		}
-		ast_verbose("%sbody:\n%s\n\n", ast_str_buffer(buf), str);
+		ast_verbose("%sbody:\n%s\n\n", ast_str_buffer(buf), S_OR(str, ""));
 		ast_json_free(str);
 		ast_free(buf);
 	}
