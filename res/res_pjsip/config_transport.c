@@ -977,27 +977,22 @@ static int tls_method_to_str(const void *obj, const intptr_t *args, char **buf)
 /*! \brief Helper function which turns a cipher name into an identifier */
 static pj_ssl_cipher cipher_name_to_id(const char *name)
 {
-	pj_ssl_cipher ciphers[100];
-	pj_ssl_cipher id = 0;
+	pj_ssl_cipher ciphers[PJ_SSL_SOCK_MAX_CIPHERS];
 	unsigned int cipher_num = PJ_ARRAY_SIZE(ciphers);
-	int pos;
-	const char *pos_name;
+	unsigned int pos;
 
 	if (pj_ssl_cipher_get_availables(ciphers, &cipher_num)) {
 		return 0;
 	}
 
 	for (pos = 0; pos < cipher_num; ++pos) {
-		pos_name = pj_ssl_cipher_name(ciphers[pos]);
-		if (!pos_name || strcmp(pos_name, name)) {
-			continue;
+		const char *pos_name = pj_ssl_cipher_name(ciphers[pos]);
+		if (pos_name && !strcmp(pos_name, name)) {
+			return ciphers[pos];
 		}
-
-		id = ciphers[pos];
-		break;
 	}
 
-	return id;
+	return 0;
 }
 
 /*!
@@ -1072,7 +1067,7 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 static void cipher_to_str(char **buf, const pj_ssl_cipher *ciphers, unsigned int cipher_num)
 {
 	struct ast_str *str;
-	int idx;
+	unsigned int idx;
 
 	str = ast_str_create(128);
 	if (!str) {
@@ -1106,7 +1101,7 @@ static int transport_tls_cipher_to_str(const void *obj, const intptr_t *args, ch
 
 static char *handle_pjsip_list_ciphers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	pj_ssl_cipher ciphers[100];
+	pj_ssl_cipher ciphers[PJ_SSL_SOCK_MAX_CIPHERS];
 	unsigned int cipher_num = PJ_ARRAY_SIZE(ciphers);
 	char *buf;
 
