@@ -333,19 +333,20 @@ static char *build_filename(const char *filename, const char *ext)
 
 /* compare type against the list 'exts' */
 /* XXX need a better algorithm */
-static int exts_compare(const char *exts, const char *type)
+static int type_in_list(const char *list, const char *type, int (*cmp)(const char *s1, const char *s2))
 {
-	char tmp[256];
-	char *stringp = tmp, *ext;
+	char *stringp = ast_strdupa(list), *item;
 
-	ast_copy_string(tmp, exts, sizeof(tmp));
-	while ((ext = strsep(&stringp, "|"))) {
-		if (!strcmp(ext, type))
+	while ((item = strsep(&stringp, "|"))) {
+		if (!cmp(item, type)) {
 			return 1;
+		}
 	}
 
 	return 0;
 }
+
+#define exts_compare(list, type) (type_in_list((list), (type), strcmp))
 
 /*!
  * \internal
@@ -1924,6 +1925,27 @@ struct ast_format *ast_get_format_for_file_ext(const char *file_ext)
 	}
 
 	return NULL;
+}
+
+int ast_get_extension_for_mime_type(const char *mime_type, char *buffer, size_t capacity)
+{
+	struct ast_format_def *f;
+	SCOPED_RDLOCK(lock, &formats.lock);
+
+	ast_assert(buffer && capacity);
+
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
+		if (type_in_list(f->mime_types, mime_type, strcasecmp)) {
+			size_t item_len = strcspn(f->exts, "|");
+			size_t bytes_written = snprintf(buffer, capacity, ".%.*s", (int) item_len, f->exts);
+			if (bytes_written < capacity) {
+				/* Only return success if we didn't truncate */
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static struct ast_cli_entry cli_file[] = {

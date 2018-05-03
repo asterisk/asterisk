@@ -427,6 +427,18 @@ char *ast_format_str_reduce(char *fmts);
  */
 struct ast_format *ast_get_format_for_file_ext(const char *file_ext);
 
+/*!
+ * \brief Get a suitable filename extension for the given MIME type
+ *
+ * \param mime_type The MIME type for which to find extensions
+ * \param buffer A pointer to a buffer to receive the extension
+ * \param capacity The size of 'buffer' in bytes
+ *
+ * \retval 1 if an extension was found for the provided MIME type
+ * \retval 0 if the MIME type was not found
+ */
+int ast_get_extension_for_mime_type(const char *mime_type, char *buffer, size_t capacity);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

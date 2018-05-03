@@ -84,6 +84,7 @@ static size_t curl_header_callback(char *buffer, size_t size, size_t nitems, voi
 	if (strcasecmp(header, "ETag")
 		&& strcasecmp(header, "Cache-Control")
 		&& strcasecmp(header, "Last-Modified")
+		&& strcasecmp(header, "Content-Type")
 		&& strcasecmp(header, "Expires")) {
 		return realsize;
 	}
