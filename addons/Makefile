@@ -65,6 +65,7 @@ ifneq ($(wildcard mp3/Makefile),)
 format_mp3.so: mp3/common.o mp3/dct64_i386.o mp3/decode_ntom.o mp3/layer3.o mp3/tabinit.o mp3/interface.o
 endif
 
+chan_mobile.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_ooh323.o: _ASTCFLAGS+=$(H323CFLAGS)
 chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
 chan_ooh323.so: $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o

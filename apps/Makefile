@@ -30,7 +30,11 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 clean::
 	rm -f confbridge/*.o confbridge/*.i confbridge/*.gcda confbridge/*.gcno
 
+app_confbridge.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+app_meetme.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+app_minivm.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 app_voicemail.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+app_while.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 app_confbridge.so: $(subst .c,.o,$(wildcard confbridge/*.c))
 $(subst .c,.o,$(wildcard confbridge/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,app_confbridge)

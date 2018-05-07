@@ -3181,7 +3181,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 	char *c;
 	char *cur = buf;
 	struct ast_variable *v;
-	char cmd[512], exec_file[512];
+	char exec_file[512];
 	int object, do_exec, do_include;
 
 	/* Actually parse the entry */
@@ -3295,8 +3295,14 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				/* #exec </path/to/executable>
 				   We create a tmp file, then we #include it, then we delete it. */
 				if (do_exec) {
+					char cmd[1024];
+
 					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%d.%ld", (int)time(NULL), (long)pthread_self());
-					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
+					if (snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file) >= sizeof(cmd)) {
+						ast_log(LOG_ERROR, "Failed to construct command string to execute %s.\n", cur);
+
+						return -1;
+					}
 					ast_safe_system(cmd);
 					cur = exec_file;
 				} else

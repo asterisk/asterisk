@@ -35002,21 +35002,22 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 	struct ast_str *overflow;
 	struct {
 		char **fragments;
+		size_t fragment_count;
 		char **expected;
 		int num_expected;
 		const char *description;
 	} tests[] = {
-		{ normal, normal, 1, "normal" },
-		{ fragmented, normal, 1, "fragmented" },
-		{ fragmented_body, normal, 1, "fragmented_body" },
-		{ multi_fragment, normal, 1, "multi_fragment" },
-		{ multi_message, multi_message_divided, 2, "multi_message" },
-		{ multi_message_body, multi_message_body_divided, 2, "multi_message_body" },
-		{ multi_message_in_fragments, multi_message_divided, 2, "multi_message_in_fragments" },
-		{ compact, compact, 1, "compact" },
-		{ faux, faux, 1, "faux" },
-		{ folded, folded, 1, "folded" },
-		{ cl_in_body, cl_in_body, 1, "cl_in_body" },
+		{ normal, ARRAY_LEN(normal), normal, 1, "normal" },
+		{ fragmented, ARRAY_LEN(fragmented), normal, 1, "fragmented" },
+		{ fragmented_body, ARRAY_LEN(fragmented_body), normal, 1, "fragmented_body" },
+		{ multi_fragment, ARRAY_LEN(multi_fragment), normal, 1, "multi_fragment" },
+		{ multi_message, ARRAY_LEN(multi_message), multi_message_divided, 2, "multi_message" },
+		{ multi_message_body, ARRAY_LEN(multi_message_body), multi_message_body_divided, 2, "multi_message_body" },
+		{ multi_message_in_fragments, ARRAY_LEN(multi_message_in_fragments), multi_message_divided, 2, "multi_message_in_fragments" },
+		{ compact, ARRAY_LEN(compact), compact, 1, "compact" },
+		{ faux, ARRAY_LEN(faux), faux, 1, "faux" },
+		{ folded, ARRAY_LEN(folded), folded, 1, "folded" },
+		{ cl_in_body, ARRAY_LEN(cl_in_body), cl_in_body, 1, "cl_in_body" },
 	};
 	int i;
 	enum ast_test_result_state res = AST_TEST_PASS;
@@ -35044,7 +35045,7 @@ AST_TEST_DEFINE(test_tcp_message_fragmentation)
 	}
 	for (i = 0; i < ARRAY_LEN(tests); ++i) {
 		int num_messages = 0;
-		if (mock_tcp_loop(tests[i].fragments, ARRAY_LEN(tests[i].fragments),
+		if (mock_tcp_loop(tests[i].fragments, tests[i].fragment_count,
 					&overflow, tests[i].expected, &num_messages, test)) {
 			ast_test_status_update(test, "Failed to parse message '%s'\n", tests[i].description);
 			res = AST_TEST_FAIL;
