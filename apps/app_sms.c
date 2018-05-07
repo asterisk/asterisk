@@ -1207,7 +1207,7 @@ static void sms_compose2(sms_t *h, int more)
 {
 	struct ast_tm tm;
 	struct timeval now = h->scts;
-	char stm[9];
+	char stm[45];
 
 	h->omsg[0] = 0x00;                      /* set later... */
 	h->omsg[1] = 0;

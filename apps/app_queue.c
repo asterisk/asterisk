@@ -6411,7 +6411,7 @@ static void escape_and_substitute(struct ast_channel *chan, const char *input,
 static void setup_mixmonitor(struct queue_ent *qe, const char *filename)
 {
 	char escaped_filename[256];
-	char file_with_ext[256];
+	char file_with_ext[sizeof(escaped_filename) + sizeof(qe->parent->monfmt)];
 	char mixmonargs[1512];
 	char escaped_monitor_exec[1024];
 	const char *monitor_options;

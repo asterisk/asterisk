@@ -50,6 +50,9 @@ chan_dahdi.so: $(CHAN_DAHDI_OBJS)
 $(CHAN_DAHDI_OBJS): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_dahdi)
 
 chan_mgcp.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+chan_unistim.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+chan_phone.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+chan_sip.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 chan_misdn.o: _ASTCFLAGS+=-Imisdn
 

@@ -388,7 +388,7 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 	int x;
 	int found;
 	char interp[1024];
-	char tmp[1024];
+	char tmp[1051];
 	if (len < 2)
 		return;
 	while(len >= 2) {

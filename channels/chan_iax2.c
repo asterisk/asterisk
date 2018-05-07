@@ -14319,7 +14319,7 @@ static int iax2_matchmore(struct ast_channel *chan, const char *context, const c
 static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	char odata[256];
-	char req[256];
+	char req[sizeof(odata) + AST_MAX_CONTEXT + AST_MAX_EXTENSION + sizeof("IAX2//@")];
 	char *ncontext;
 	struct iax2_dpcache *dp = NULL;
 	struct ast_app *dial = NULL;

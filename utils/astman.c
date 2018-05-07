@@ -543,14 +543,15 @@ static void try_redirect(newtComponent c)
 	struct ast_chan *chan;
 	char dest[256];
 	struct message *m;
+	static const char tmp_prefix[] = "Enter new extension for ";
 	char channame[256];
-	char tmp[80];
+	char tmp[sizeof(tmp_prefix) + sizeof(channame)];
 	char *context;
 
 	chan = newtListboxGetCurrent(c);
 	if (chan) {
 		strncpy(channame, chan->name, sizeof(channame) - 1);
-		snprintf(tmp, sizeof(tmp), "Enter new extension for %s", channame);
+		snprintf(tmp, sizeof(tmp), "%s%s", tmp_prefix, channame);
 		if (get_user_input(tmp, dest, sizeof(dest)))
 			return;
 		if ((context = strchr(dest, '@'))) {
