@@ -1959,9 +1959,7 @@ static int ldap_reconnect(void)
  */
 static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char status[256];
-	char credentials[100] = "";
-	char buf[362]; /* 256+100+" for "+NULL */
+	struct ast_str *buf;
 	int ctimesec = time(NULL) - connect_time;
 
 	switch (cmd) {
@@ -1978,14 +1976,18 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 	if (!ldapConn)
 		return CLI_FAILURE;
 
-	if (!ast_strlen_zero(url))
-		snprintf(status, sizeof(status), "Connected to '%s', baseDN %s", url, base_distinguished_name);
+	buf = ast_str_create(512);
+	if (!ast_strlen_zero(url)) {
+		ast_str_append(&buf, 0, "Connected to '%s', baseDN %s", url, base_distinguished_name);
+	}
 
-	if (!ast_strlen_zero(user))
-		snprintf(credentials, sizeof(credentials), " with username %s", user);
+	if (!ast_strlen_zero(user)) {
+		ast_str_append(&buf, 0, " with username %s", user);
+	}
 
-	snprintf(buf, sizeof(buf), "%s%s for ", status, credentials);
-	ast_cli_print_timestr_fromseconds(a->fd, ctimesec, buf);
+	ast_str_append(&buf, 0, " for ");
+	ast_cli_print_timestr_fromseconds(a->fd, ctimesec, ast_str_buffer(buf));
+	ast_free(buf);
 
 	return CLI_SUCCESS;
 }

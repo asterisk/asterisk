@@ -3706,49 +3706,49 @@ static char *skinny_debugs(void)
 	int posn = 0;
 
 	ptr = dbgcli_buf;
-	strncpy(ptr, "\0", 1);
+	ptr[0] = '\0';
 	if (skinnydebug & DEBUG_GENERAL) {
-		strncpy(ptr, "general ", 8);
+		strcpy(ptr, "general "); /* SAFE */
 		posn += 8;
 		ptr += 8;
 	}
 	if (skinnydebug & DEBUG_SUB) {
-		strncpy(ptr, "sub ", 4);
+		strcpy(ptr, "sub "); /* SAFE */
 		posn += 4;
 		ptr += 4;
 	}
 	if (skinnydebug & DEBUG_AUDIO) {
-		strncpy(ptr, "audio ", 6);
+		strcpy(ptr, "audio "); /* SAFE */
 		posn += 6;
 		ptr += 6;
 	}
 	if (skinnydebug & DEBUG_PACKET) {
-		strncpy(ptr, "packet ", 7);
+		strcpy(ptr, "packet "); /* SAFE */
 		posn += 7;
 		ptr += 7;
 	}
 	if (skinnydebug & DEBUG_LOCK) {
-		strncpy(ptr, "lock ", 5);
+		strcpy(ptr, "lock "); /* SAFE */
 		posn += 5;
 		ptr += 5;
 	}
 	if (skinnydebug & DEBUG_TEMPLATE) {
-		strncpy(ptr, "template ", 9);
+		strcpy(ptr, "template "); /* SAFE */
 		posn += 9;
 		ptr += 9;
 	}
 	if (skinnydebug & DEBUG_THREAD) {
-		strncpy(ptr, "thread ", 7);
+		strcpy(ptr, "thread "); /* SAFE */
 		posn += 7;
 		ptr += 7;
 	}
 	if (skinnydebug & DEBUG_HINT) {
-		strncpy(ptr, "hint ", 5);
+		strcpy(ptr, "hint "); /* SAFE */
 		posn += 5;
 		ptr += 5;
 	}
 	if (skinnydebug & DEBUG_KEEPALIVE) {
-		strncpy(ptr, "keepalive ", 10);
+		strcpy(ptr, "keepalive "); /* SAFE */
 		posn += 10;
 		ptr += 10;
 	}
@@ -6427,7 +6427,6 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	case STIMULUS_CALLPARK:
 		{
 		char extout[AST_MAX_EXTENSION];
-		char message[32];
 		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_CALLPARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
@@ -6449,7 +6448,10 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			}
 
 			if (!ast_parking_park_call(bridge_channel, extout, sizeof(extout))) {
-				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
+				static const char msg_prefix[] = "Call Parked at: ";
+				char message[sizeof(msg_prefix) + sizeof(extout)];
+
+				snprintf(message, sizeof(message), "%s%s", msg_prefix, extout);
 				transmit_displaynotify(d, message, 10);
 				break;
 			}
@@ -7180,7 +7182,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_PARK:
 		{
 		char extout[AST_MAX_EXTENSION];
-		char message[32];
 		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_PARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
@@ -7202,7 +7203,10 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			}
 
 			if (!ast_parking_park_call(bridge_channel, extout, sizeof(extout))) {
-				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
+				static const char msg_prefix[] = "Call Parked at: ";
+				char message[sizeof(msg_prefix) + sizeof(extout)];
+
+				snprintf(message, sizeof(message), "%s%s", msg_prefix, extout);
 				transmit_displaynotify(d, message, 10);
 				break;
 			}

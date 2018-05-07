@@ -59,6 +59,7 @@ endif
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+chan_mobile.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
 $(call MOD_ADD_C,chan_ooh323,$(H323SOURCE))
 

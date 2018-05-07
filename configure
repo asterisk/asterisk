@@ -686,6 +686,7 @@ BIND8_CFLAGS
 AST_RPATH
 AST_NATIVE_ARCH
 AST_SHADOW_WARNINGS
+AST_NO_STRINGOP_TRUNCATION
 AST_NO_FORMAT_TRUNCATION
 AST_NO_STRICT_OVERFLOW
 AST_FORTIFY_SOURCE
@@ -18865,6 +18866,19 @@ else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	AST_NO_FORMAT_TRUNCATION=
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wno-stringop-truncation" >&5
+$as_echo_n "checking for -Wno-stringop-truncation... " >&6; }
+if $(${CC} -Wno-stringop-truncation -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	AST_NO_STRINGOP_TRUNCATION=-Wno-stringop-truncation
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	AST_NO_STRINGOP_TRUNCATION=
 fi
 
 
