@@ -566,23 +566,26 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_TLS && sip_transport_is_available(PJSIP_TRANSPORT_TLS)) ||
 			(type == PJSIP_TRANSPORT_TLS6 && sip_transport_is_available(PJSIP_TRANSPORT_TLS6))) {
-			snprintf(srv, sizeof(srv), "_sips._tcp.%s", host);
-			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
-				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TLS : type, 0);
+			if (snprintf(srv, sizeof(srv), "_sips._tcp.%s", host) < NI_MAXHOST) {
+				res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
+					type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TLS : type, 0);
+			}
 		}
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_TCP && sip_transport_is_available(PJSIP_TRANSPORT_TCP)) ||
 			(type == PJSIP_TRANSPORT_TCP6 && sip_transport_is_available(PJSIP_TRANSPORT_TCP6))) {
-			snprintf(srv, sizeof(srv), "_sip._tcp.%s", host);
-			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
-				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TCP : type, 0);
+			if (snprintf(srv, sizeof(srv), "_sip._tcp.%s", host) < NI_MAXHOST) {
+				res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
+					type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TCP : type, 0);
+			}
 		}
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_UDP && sip_transport_is_available(PJSIP_TRANSPORT_UDP)) ||
 			(type == PJSIP_TRANSPORT_UDP6 && sip_transport_is_available(PJSIP_TRANSPORT_UDP6))) {
-			snprintf(srv, sizeof(srv), "_sip._udp.%s", host);
-			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
-				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type, 0);
+			if (snprintf(srv, sizeof(srv), "_sip._udp.%s", host) < NI_MAXHOST) {
+				res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
+					type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type, 0);
+			}
 		}
 	}
 

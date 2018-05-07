@@ -374,7 +374,7 @@ void ast_context_add_switch2(struct ast_context *con, const char *value, const c
 	if( dump_extensions ) {
 		struct namelist *x;
 		x = create_name((char*)value);
-		strncpy(x->name2,data,100);
+		strncpy(x->name2, data, 99);
 		if( eval ) {
 
 			ADD_LAST(con->switches,x);
