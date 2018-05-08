@@ -7997,13 +7997,20 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 
 	/* compute the expected response to compare with what we received */
 	{
-		char a2[256];
+		char *a2;
 		char a2_hash[256];
 		char resp[256];
 
 		/* XXX Now request method are hardcoded in A2 */
-		snprintf(a2, sizeof(a2), "%s:%s", ast_get_http_method(method), d.uri);
+		if (ast_asprintf(&a2, "%s:%s", ast_get_http_method(method), d.uri) < 0) {
+			AST_RWLIST_UNLOCK(&users);
+			ast_http_request_close_on_completion(ser);
+			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)");
+			return 0;
+		}
+
 		ast_md5_hash(a2_hash, a2);
+		ast_free(a2);
 
 		if (d.qop) {
 			/* RFC 2617 */
