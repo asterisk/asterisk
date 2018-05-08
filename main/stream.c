@@ -344,18 +344,26 @@ void ast_stream_set_rtp_codecs(struct ast_stream *stream, struct ast_rtp_codecs 
 	stream->rtp_codecs = rtp_codecs;
 }
 
+static void stream_topology_destroy(void *data)
+{
+	struct ast_stream_topology *topology = data;
+
+	AST_VECTOR_CALLBACK_VOID(&topology->streams, ast_stream_free);
+	AST_VECTOR_FREE(&topology->streams);
+}
+
 #define TOPOLOGY_INITIAL_STREAM_COUNT 2
 struct ast_stream_topology *ast_stream_topology_alloc(void)
 {
 	struct ast_stream_topology *topology;
 
-	topology = ast_calloc(1, sizeof(*topology));
+	topology = ao2_alloc_options(sizeof(*topology), stream_topology_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!topology) {
 		return NULL;
 	}
 
 	if (AST_VECTOR_INIT(&topology->streams, TOPOLOGY_INITIAL_STREAM_COUNT)) {
-		ast_free(topology);
+		ao2_ref(topology, -1);
 		topology = NULL;
 	}
 
@@ -440,13 +448,7 @@ int ast_stream_topology_equal(const struct ast_stream_topology *left,
 
 void ast_stream_topology_free(struct ast_stream_topology *topology)
 {
-	if (!topology) {
-		return;
-	}
-
-	AST_VECTOR_CALLBACK_VOID(&topology->streams, ast_stream_free);
-	AST_VECTOR_FREE(&topology->streams);
-	ast_free(topology);
+	ao2_cleanup(topology);
 }
 
 int ast_stream_topology_append_stream(struct ast_stream_topology *topology, struct ast_stream *stream)
