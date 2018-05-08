@@ -2159,15 +2159,7 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 		ast_bridge_channel_lock(participant);
 		ast_channel_lock(participant->chan);
 
-		topology = ast_channel_get_stream_topology(participant->chan);
-		if (topology) {
-			/*
-			 * Sigh.  We have to clone to avoid deadlock in
-			 * map_source_to_destinations() because topology
-			 * is not an ao2 object.
-			 */
-			topology = ast_stream_topology_clone(topology);
-		}
+		topology = ao2_bump(ast_channel_get_stream_topology(participant->chan));
 		if (!topology) {
 			/* Oh, my, we are in trouble. */
 			ast_channel_unlock(participant->chan);
