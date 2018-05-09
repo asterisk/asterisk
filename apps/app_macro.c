@@ -36,6 +36,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/extconf.h"
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
@@ -185,11 +186,20 @@ static void macro_fixup(void *data, struct ast_channel *old_chan, struct ast_cha
 	}
 }
 
-static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
+static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten,
+	int priority, const char *callerid, int iter, int *had_error)
 {
 	struct ast_exten *e;
 	struct ast_context *c2;
 	int idx;
+
+	if (iter >= AST_PBX_MAX_STACK) {
+		if (!(*had_error)) {
+			*had_error = 1;
+			ast_log(LOG_ERROR, "Potential infinite loop detected, will not recurse further.\n");
+		}
+		return NULL;
+	}
 
 	for (e=ast_walk_context_extensions(c, NULL); e; e=ast_walk_context_extensions(c, e)) {
 		if (ast_extension_match(ast_get_extension_name(e), exten)) {
@@ -213,7 +223,7 @@ static struct ast_exten *find_matching_priority(struct ast_context *c, const cha
 
 		for (c2=ast_walk_contexts(NULL); c2; c2=ast_walk_contexts(c2)) {
 			if (!strcmp(ast_get_context_name(c2), ast_get_include_name(i))) {
-				e = find_matching_priority(c2, exten, priority, callerid);
+				e = find_matching_priority(c2, exten, priority, callerid, iter + 1, had_error);
 				if (e)
 					return e;
 			}
@@ -250,6 +260,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	char *save_macro_offset;
 	int save_in_subroutine;
 	struct ast_datastore *macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
+	int had_infinite_include_error = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"core show application macro\" for help.\n");
@@ -418,7 +429,9 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 						ast_log(LOG_WARNING, "Unable to lock context?\n");
 					} else {
 						e = find_matching_priority(c, ast_channel_exten(chan), ast_channel_priority(chan),
-							S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
+							S_COR(ast_channel_caller(chan)->id.number.valid,
+							ast_channel_caller(chan)->id.number.str, NULL),
+							0, &had_infinite_include_error);
 						if (e) { /* This will only be undefined for pbx_realtime, which is majorly broken. */
 							ast_copy_string(runningapp, ast_get_extension_app(e), sizeof(runningapp));
 							ast_copy_string(runningdata, ast_get_extension_app_data(e), sizeof(runningdata));
