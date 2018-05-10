@@ -49,7 +49,7 @@ class Section(MultiOrderedDict):
         """
         Use self.id as means of determining equality
         """
-        return cmp(self.id, other.id)
+        return (self.id > other.id) - (self.id < other.id)
 
     def __eq__(self, other):
         """
@@ -445,7 +445,7 @@ class MultiOrderedConfigParser:
             with open(filename, 'rt') as config_file:
                 self._read(config_file, sect)
         except IOError:
-            print "Could not open file ", filename, " for reading"
+            print("Could not open file " + filename + " for reading")
 
     def _read(self, config_file, sect):
         """Parse configuration information from the config_file"""
@@ -490,4 +490,4 @@ class MultiOrderedConfigParser:
                 with open(config_file, 'wt') as fp:
                     self.write(fp)
             except IOError:
-                print "Could not open file ", config_file, " for writing"
+                print("Could not open file " + config_file + " for writing")
