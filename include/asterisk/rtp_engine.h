@@ -1607,7 +1607,7 @@ int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_f
  * Example usage:
  *
  * \code
- * int payload = ast_rtp_codecs_payload_code(&codecs, 0);
+ * int payload = ast_rtp_codecs_find_payload_code(&codecs, 0);
  * \endcode
  *
  * This looks for the numerical payload for ULAW in the codecs structure.
