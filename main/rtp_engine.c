@@ -2755,7 +2755,7 @@ int ast_rtp_engine_init(void)
 	add_static_payload(31, ast_format_h261, 0);
 	add_static_payload(34, ast_format_h263, 0);
 	add_static_payload(97, ast_format_ilbc, 0);
-	add_static_payload(98, ast_format_h263p, 0);
+
 	add_static_payload(99, ast_format_h264, 0);
 	add_static_payload(101, NULL, AST_RTP_DTMF);
 	add_static_payload(102, ast_format_siren7, 0);
