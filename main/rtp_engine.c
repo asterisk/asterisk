@@ -1545,7 +1545,7 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 	if (!explicit) {
 		payload = find_static_payload_type(asterisk_format, format, code);
 
-		if (payload < 0 && (!asterisk_format || ast_option_rtpusedynamic)) {
+		if (payload < 0 && (!asterisk_format || !ast_option_rtpusedynamic)) {
 			return payload;
 		}
 	}
