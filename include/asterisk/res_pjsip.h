@@ -283,8 +283,6 @@ struct ast_sip_contact {
 	int prune_on_boot;
 };
 
-#define CONTACT_STATUS "contact_status"
-
 /*!
  * \brief Status type for a contact.
  */
@@ -303,21 +301,20 @@ enum ast_sip_contact_status_type {
  *         if available.
  */
 struct ast_sip_contact_status {
-	SORCERY_OBJECT(details);
-	/*! Current status for a contact (default - unavailable) */
-	enum ast_sip_contact_status_type status;
-	/*! The round trip start time set before sending a qualify request */
-	struct timeval rtt_start;
+	AST_DECLARE_STRING_FIELDS(
+		/*! The original contact's URI */
+		AST_STRING_FIELD(uri);
+		/*! The name of the aor this contact_status belongs to */
+		AST_STRING_FIELD(aor);
+	);
 	/*! The round trip time in microseconds */
 	int64_t rtt;
+	/*! Current status for a contact (default - unavailable) */
+	enum ast_sip_contact_status_type status;
 	/*! Last status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type last_status;
-	/*! The name of the aor this contact_status belongs to */
-	char *aor;
-	/*! The original contact's URI */
-	char *uri;
-	/*! TRUE if the contact was refreshed. e.g., re-registered */
-	unsigned int refresh:1;
+	/*! Name of the contact */
+	char name[0];
 };
 
 /*!
@@ -1053,12 +1050,32 @@ void *ast_sip_endpoint_alloc(const char *name);
 /*!
  * \brief Change state of a persistent endpoint.
  *
- * \param endpoint The SIP endpoint name to change state.
+ * \param endpoint_name The SIP endpoint name to change state.
  * \param state The new state
  * \retval 0 Success
  * \retval -1 Endpoint not found
  */
 int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast_endpoint_state state);
+
+/*!
+ * \brief Publish the change of state for a contact.
+ *
+ * \param endpoint_name The SIP endpoint name.
+ * \param contact_status The contact status.
+ */
+void ast_sip_persistent_endpoint_publish_contact_state(const char *endpoint_name, const struct ast_sip_contact_status *contact_status);
+
+/*!
+ * \brief Retrieve the current status for a contact.
+ *
+ * \param contact The contact.
+ *
+ * \retval non-NULL Success
+ * \retval NULL Status information not found
+ *
+ * \note The returned contact status object is immutable.
+ */
+struct ast_sip_contact_status *ast_sip_get_contact_status(const struct ast_sip_contact *contact);
 
 /*!
  * \brief Get a pointer to the PJSIP endpoint.
