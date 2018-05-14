@@ -367,27 +367,6 @@ static void hepv3_data_dtor(void *obj)
 	}
 }
 
-/*! \brief Pulls first resolved address and returns it */
-static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
-				      const char* name, int flag, int family)
-{
-	struct ast_sockaddr *addrs;
-	int addrs_cnt;
-
-	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
-	if (addrs_cnt <= 0) {
-		return 1;
-	}
-	if (addrs_cnt > 1) {
-		ast_debug(1, "Multiple addresses resolving %s, using the first one only\n", name);
-	}
-
-	ast_sockaddr_copy(addr, &addrs[0]);
-
-	ast_free(addrs);
-	return 0;
-}
-
 /*! \brief Allocate the HEPv3 run-time data */
 static struct hepv3_runtime_data *hepv3_data_alloc(struct hepv3_global_config *config)
 {
