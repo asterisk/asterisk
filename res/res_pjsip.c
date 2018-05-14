@@ -5174,8 +5174,12 @@ static int load_module(void)
 	}
 
 	ast_sip_initialize_dns();
-
 	ast_sip_initialize_global_headers();
+
+	if (ast_res_pjsip_preinit_options_handling()) {
+		ast_log(LOG_ERROR, "Failed to pre-initialize OPTIONS handling. Aborting load\n");
+		goto error;
+	}
 
 	if (ast_res_pjsip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
@@ -5200,7 +5204,10 @@ static int load_module(void)
 		goto error;
 	}
 
-	ast_res_pjsip_init_options_handling(0);
+	if (ast_res_pjsip_init_options_handling(0)) {
+		ast_log(LOG_ERROR, "Failed to initialize OPTIONS handling. Aborting load\n");
+		goto error;
+	}
 
 	if (ast_res_pjsip_init_message_filter()) {
 		ast_log(LOG_ERROR, "Failed to initialize message IP updating. Aborting load\n");

@@ -180,7 +180,7 @@ static int contact_remove_unreachable(void *obj, void *arg, int flags)
 	struct ast_sip_contact_status *status;
 	int unreachable;
 
-	status = ast_res_pjsip_find_or_create_contact_status(contact);
+	status = ast_sip_get_contact_status(contact);
 	if (!status) {
 		return 0;
 	}
@@ -1065,7 +1065,7 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	ast_assert(contact->uri != NULL);
 	ast_assert(context->output_buffer != NULL);
 
-	status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, contact_id);
+	status = ast_sip_get_contact_status(contact);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	flexwidth = CLI_LAST_TABSTOP - indent - 9 - strlen(contact->aor) + 1;
@@ -1078,7 +1078,7 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		contact->uri,
 		hash_start,
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
-		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
+		(status && (status->status == AVAILABLE)) ? ((long long) status->rtt) / 1000.0 : NAN);
 
 	ao2_cleanup(status);
 	return 0;
