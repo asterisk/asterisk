@@ -79,7 +79,7 @@ dbm_open(file, flags, mode)
 	info.cachesize = 0;
 	info.hash = NULL;
 	info.lorder = 0;
-	(void)strncpy(path, file, len - 1);
+	(void)strcpy(path, file); /* SAFE */
 	(void)strncat(path, DBM_SUFFIX, len - strlen(path) - 1);
 	db = (DBM *)__hash_open(path, flags, mode, &info, 0);
 #ifndef	__GNUC__

@@ -8007,7 +8007,8 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	/* compute the expected response to compare with what we received */
 	{
 		char *a2;
-		char a2_hash[256];
+		/* ast_md5_hash outputs 32 characters plus NULL terminator. */
+		char a2_hash[33];
 		char resp[256];
 
 		/* XXX Now request method are hardcoded in A2 */
