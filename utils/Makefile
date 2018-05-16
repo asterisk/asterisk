@@ -160,7 +160,7 @@ aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	$(CMD_PREFIX) sed 's/ast_debug([[:digit:]][[:digit:]]*/ast_log(LOG_DEBUG/' "$@" > "$@.new"
 	$(CMD_PREFIX) mv "$@.new" "$@"
 
-aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
+aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused $(AST_NO_FORMAT_TRUNCATION)
 aelparse: LIBS+=-lm $(AST_CLANG_BLOCKS_LIBS)
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 

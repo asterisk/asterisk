@@ -1008,7 +1008,7 @@ struct mwi_sub {
 	int old_new;
 	int old_old;
 	char *uniqueid;
-	char mailbox[1];
+	char mailbox[0];
 };
 
 struct mwi_sub_task {
@@ -13103,7 +13103,7 @@ static int handle_subscribe(void *datap)
 	struct mwi_sub *mwi_sub;
 	struct mwi_sub_task *p = datap;
 
-	len = sizeof(*mwi_sub);
+	len = sizeof(*mwi_sub) + 1;
 	if (!ast_strlen_zero(p->mailbox))
 		len += strlen(p->mailbox);
 

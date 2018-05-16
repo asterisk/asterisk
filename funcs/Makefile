@@ -25,3 +25,5 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 # warning must be disabled; for safety reasons, SPRINTF() is kept in
 # a separate module so that as little code as possible is left unchecked
 func_sprintf.o: _ASTCFLAGS+=-Wno-format-nonliteral
+
+func_groupcount.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
