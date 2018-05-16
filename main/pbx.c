@@ -6165,7 +6165,7 @@ struct store_hint {
 	char *last_presence_message;
 
 	AST_LIST_ENTRY(store_hint) list;
-	char data[1];
+	char data[0];
 };
 
 AST_LIST_HEAD_NOLOCK(store_hints, store_hint);

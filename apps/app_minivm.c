@@ -2788,11 +2788,11 @@ static char *message_template_parse_emailbody(const char *configuration)
 	       switch (tmpwrite[1]) {
 	       case 'n':
 		      memmove(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-		      strncpy(tmpwrite, "\n", len);
+		      tmpwrite[0] = '\n';
 		      break;
 	       case 't':
 		      memmove(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
-		      strncpy(tmpwrite, "\t", len);
+		      tmpwrite[0] = '\t';
 		      break;
 	       default:
 		      ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n", tmpwrite[1]);

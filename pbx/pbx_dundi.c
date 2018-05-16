@@ -1239,7 +1239,6 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 
 static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, uint32_t crc, int *lowexpiration)
 {
-	char key[256];
 	char eid_str[20];
 	char eidroot_str[20];
 	time_t now;
@@ -1247,6 +1246,8 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, uint32_t
 	int res2=0;
 	char eid_str_full[20];
 	char tmp[256]="";
+	/* Enough space for largest value that can be stored in key. */
+	char key[sizeof(eid_str) + sizeof(tmp) + sizeof(req->dcontext) + sizeof(eidroot_str) + sizeof("hint////r")];
 	int x;
 
 	time(&now);

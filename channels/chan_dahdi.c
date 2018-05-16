@@ -1864,7 +1864,7 @@ static void publish_dahdichannel(struct ast_channel *chan, int span, const char 
  */
 static void dahdi_ami_channel_event(struct dahdi_pvt *p, struct ast_channel *chan)
 {
-	char ch_name[20];
+	char ch_name[23];
 
 	if (p->channel < CHAN_PSEUDO) {
 		/* No B channel */

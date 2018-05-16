@@ -29,7 +29,7 @@ endif
 res_config_ldap.o: _ASTCFLAGS+=-DLDAP_DEPRECATED
 
 ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
-ael/ael_lex.o: _ASTCFLAGS+=-I. -Iael -Wno-unused
+ael/ael_lex.o: _ASTCFLAGS+=-I. -Iael -Wno-unused $(AST_NO_FORMAT_TRUNCATION)
 
 ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
 ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
@@ -94,6 +94,8 @@ ari/ari_model_validators.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_model)
 
 res_stasis_recording.so: stasis_recording/stored.o
 stasis_recording/stored.o:  _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_recording)
+
+res_parking.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
