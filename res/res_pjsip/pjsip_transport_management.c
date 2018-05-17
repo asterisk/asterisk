@@ -342,7 +342,7 @@ int ast_sip_initialize_transport_management(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_sip_register_service(&idle_monitor_module);
+	internal_sip_register_service(&idle_monitor_module);
 
 	ast_sip_transport_state_register(&monitored_transport_reg);
 
@@ -367,7 +367,7 @@ void ast_sip_destroy_transport_management(void)
 
 	ast_sip_transport_state_unregister(&monitored_transport_reg);
 
-	ast_sip_unregister_service(&idle_monitor_module);
+	internal_sip_unregister_service(&idle_monitor_module);
 
 	ast_sched_context_destroy(sched);
 	sched = NULL;
