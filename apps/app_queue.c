@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2017, Digium, Inc.
+ * Copyright (C) 1999 - 2018, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -495,15 +495,15 @@
 	<application name="QueueUpdate" language="en_US">
 		<synopsis>
 			Writes to the queue_log file for OutBound calls and updates Realtime Data.
-            Is used at h extension to be able to have all the parameters.
+			Is used at h extension to be able to have all the parameters.
 		</synopsis>
 		<syntax>
 			<parameter name="queuename" required="true" />
 			<parameter name="uniqueid" required="true" />
 			<parameter name="agent" required="true" />
 			<parameter name="status" required="true" />
-            <parameter name="talktime" required="true" />
-            <parameter name="params" required="false" />
+			<parameter name="talktime" required="true" />
+			<parameter name="params" required="false" />
 		</syntax>
 		<description>
 			<para>Allows you to write Outbound events into the queue log.</para>
