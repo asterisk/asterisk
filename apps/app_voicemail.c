@@ -3961,6 +3961,10 @@ static int retrieve_file(char *dir, int msgnum)
 				generate_msg_id(msg_id);
 				snprintf(rowdata, sizeof(rowdata), "%s", msg_id);
 				odbc_update_msg_id(dir, msgnum, msg_id);
+			} else if (res == SQL_NULL_DATA && !strcasecmp(coltitle, "category")) {
+				/* Ignore null column value for category */
+				ast_debug(3, "Ignoring null category column in ODBC voicemail retrieve_file.\n");
+				continue;
 			} else if (!SQL_SUCCEEDED(res)) {
 				ast_log(AST_LOG_WARNING, "SQL Get Data error! coltitle=%s\n[%s]\n\n", coltitle, sql);
 				goto bail_with_handle;
