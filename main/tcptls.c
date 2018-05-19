@@ -943,7 +943,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV1)) {
 		ssl_opts |= SSL_OP_NO_TLSv1;
 	}
-#if defined(HAVE_SSL_OP_NO_TLSV1_1) && defined(HAVE_SSL_OP_NO_TLSV1_2)
+#if defined(SSL_OP_NO_TLSv1_1) && defined(SSL_OP_NO_TLSv1_2)
 	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV11)) {
 		ssl_opts |= SSL_OP_NO_TLSv1_1;
 	}
