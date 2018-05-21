@@ -1444,25 +1444,19 @@ static int alloc_playback_chan(struct confbridge_conference *conference)
 /*!
  * \brief Push the announcer channel into the bridge
  *
- * This runs in the playback queue taskprocessor.
- *
- * \param data A confbridge_conference
+ * \param conference Conference bridge to push the announcer to
  * \retval 0 Success
  * \retval -1 Failed to push the channel to the bridge
  */
-static int push_announcer(void *data)
+static int push_announcer(struct confbridge_conference *conference)
 {
-	struct confbridge_conference *conference = data;
-
 	if (conf_announce_channel_push(conference->playback_chan)) {
 		ast_hangup(conference->playback_chan);
 		conference->playback_chan = NULL;
-		ao2_cleanup(conference);
 		return -1;
 	}
 
 	ast_autoservice_start(conference->playback_chan);
-	ao2_cleanup(conference);
 	return 0;
 }
 
@@ -1563,7 +1557,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			return NULL;
 		}
 
-		if (ast_taskprocessor_push(conference->playback_queue, push_announcer, ao2_bump(conference))) {
+		if (push_announcer(conference)) {
 			ao2_unlink(conference_bridges, conference);
 			ao2_ref(conference, -1);
 			ao2_unlock(conference_bridges);
