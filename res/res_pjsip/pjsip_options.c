@@ -2059,6 +2059,29 @@ struct sip_options_contact_observer_task_data {
 	struct ast_sip_contact *contact;
 };
 
+
+/*!
+ * \brief Check if the contact qualify options are different than local aor qualify options
+ */
+static int has_qualify_changed (struct ast_sip_contact *contact, struct sip_options_aor *aor_options)
+{
+	if (!contact) {
+	    return 0;
+	}
+
+	if (!aor_options) {
+		if (contact->qualify_frequency) {
+			return 1;
+		}
+	} else if (contact->qualify_frequency != aor_options->qualify_frequency
+		|| contact->authenticate_qualify != aor_options->authenticate_qualify
+		|| ((int)(contact->qualify_timeout * 1000)) != ((int)(aor_options->qualify_timeout * 1000))) {
+		return 1;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Task which adds a dynamic contact to an AOR
  * \note Run by aor_options->serializer
@@ -2135,23 +2158,21 @@ static int sip_options_contact_add_management_task(void *obj)
 	task_data.contact = obj;
 	task_data.aor_options = ao2_find(sip_options_aors, task_data.contact->aor,
 		OBJ_SEARCH_KEY);
-	if (!task_data.aor_options) {
+
+	if (has_qualify_changed(task_data.contact, task_data.aor_options)) {
 		struct ast_sip_aor *aor;
 
-		/*
-		 * The only reason this would occur is if the AOR was sourced
-		 * after the last reload happened.  To handle this we fetch the
-		 * AOR and treat it as if we received notification that it had
-		 * been created.  This will create the needed AOR feeder
-		 * compositor and will cause any associated contact statuses and
-		 * endpoint state compositors to also get created if needed.
-		 */
 		aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor",
 			task_data.contact->aor);
 		if (aor) {
+			ast_debug(3, "AOR '%s' qualify options have been modified. Synchronize an AOR local state\n",
+				task_data.contact->aor);
 			sip_options_aor_observer_modified_task(aor);
 			ao2_ref(aor, -1);
 		}
+	}
+
+	if (!task_data.aor_options) {
 		return 0;
 	}
 
@@ -2215,6 +2236,21 @@ static void contact_observer_updated(const void *obj)
 	task_data->contact = (struct ast_sip_contact *) obj;
 	task_data->aor_options = ao2_find(sip_options_aors, task_data->contact->aor,
 		OBJ_SEARCH_KEY);
+
+	if (has_qualify_changed(task_data->contact, task_data->aor_options)) {
+		struct ast_sip_aor *aor;
+
+		aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor",
+			task_data->contact->aor);
+		if (aor) {
+			ast_debug(3, "AOR '%s' qualify options have been modified. Synchronize an AOR local state\n",
+				task_data->contact->aor);
+			ast_sip_push_task_wait_serializer(management_serializer,
+				sip_options_aor_observer_modified_task, aor);
+			ao2_ref(aor, -1);
+		}
+	}
+
 	if (!task_data->aor_options) {
 		ast_free(task_data);
 		return;
