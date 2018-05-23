@@ -41,31 +41,6 @@ enum pjsip_logging_mode {
 static enum pjsip_logging_mode logging_mode;
 static struct ast_sockaddr log_addr;
 
-/*! \brief  Return the first entry from ast_sockaddr_resolve filtered by address family
- *
- * \warning Using this function probably means you have a faulty design.
- * \note This function was taken from the function of the same name in chan_sip.c
- */
-static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
-				      const char* name, int flag, int family)
-{
-	struct ast_sockaddr *addrs;
-	int addrs_cnt;
-
-	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
-	if (addrs_cnt <= 0) {
-		return 1;
-	}
-	if (addrs_cnt > 1) {
-		ast_debug(1, "Multiple addresses, using the first one only\n");
-	}
-
-	ast_sockaddr_copy(addr, &addrs[0]);
-
-	ast_free(addrs);
-	return 0;
-}
-
 /*! \brief See if we pass debug IP filter */
 static inline int pjsip_log_test_addr(const char *address, int port)
 {

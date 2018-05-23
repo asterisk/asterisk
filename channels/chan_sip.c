@@ -1380,8 +1380,6 @@ static int sip_dtmfmode(struct ast_channel *chan, const char *data);
 static int sip_addheader(struct ast_channel *chan, const char *data);
 static int sip_do_reload(enum channelreloadreason reason);
 static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
-				      const char *name, int flag, int family);
 static int ast_sockaddr_resolve_first(struct ast_sockaddr *addr,
 				      const char *name, int flag);
 static int ast_sockaddr_resolve_first_transport(struct ast_sockaddr *addr,
@@ -34330,30 +34328,6 @@ static int reload(void)
 {
 	sip_reload(0, 0, NULL);
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-/*! \brief  Return the first entry from ast_sockaddr_resolve filtered by address family
- *
- * \warning Using this function probably means you have a faulty design.
- */
-static int ast_sockaddr_resolve_first_af(struct ast_sockaddr *addr,
-				      const char* name, int flag, int family)
-{
-	struct ast_sockaddr *addrs;
-	int addrs_cnt;
-
-	addrs_cnt = ast_sockaddr_resolve(&addrs, name, flag, family);
-	if (addrs_cnt <= 0) {
-		return 1;
-	}
-	if (addrs_cnt > 1) {
-		ast_debug(1, "Multiple addresses, using the first one only\n");
-	}
-
-	ast_sockaddr_copy(addr, &addrs[0]);
-
-	ast_free(addrs);
-	return 0;
 }
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by family of binddaddr
