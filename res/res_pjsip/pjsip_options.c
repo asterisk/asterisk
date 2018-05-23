@@ -2360,6 +2360,189 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
+static char *cli_show_qualify_endpoint(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	const char *endpoint_name;
+	char *aors;
+	char *aor_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show qualify endpoint";
+		e->usage =
+			"Usage: pjsip show qualify endpoint <id>\n"
+			"       Show the current qualify options for all Aors on the PJSIP endpoint.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	endpoint_name = a->argv[4];
+
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
+		endpoint_name);
+	if (!endpoint) {
+		ast_cli(a->fd, "Unable to retrieve endpoint %s\n", endpoint_name);
+		return CLI_FAILURE;
+	}
+
+	if (ast_strlen_zero(endpoint->aors)) {
+		ast_cli(a->fd, "No AORs configured for endpoint '%s'\n", endpoint_name);
+		return CLI_FAILURE;
+	}
+
+	aors = ast_strdupa(endpoint->aors);
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
+		struct sip_options_aor *aor_options;
+
+		aor_options = ao2_find(sip_options_aors, aor_name, OBJ_SEARCH_KEY);
+		if (!aor_options) {
+			continue;
+		}
+
+		ast_cli(a->fd, " * AOR '%s' on endpoint '%s'\n", aor_name, endpoint_name);
+		ast_cli(a->fd, "  Qualify frequency    : %d sec\n", aor_options->qualify_frequency);
+		ast_cli(a->fd, "  Qualify timeout      : %d ms\n", (int)(aor_options->qualify_timeout / 1000));
+		ast_cli(a->fd, "  Authenticate qualify : %s\n", aor_options->authenticate_qualify?"yes":"no");
+		ast_cli(a->fd, "\n");
+		ao2_ref(aor_options, -1);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *cli_show_qualify_aor(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sip_options_aor *aor_options;
+	const char *aor_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show qualify aor";
+		e->usage =
+			"Usage: pjsip show qualify aor <id>\n"
+			"       Show the PJSIP Aor current qualify options.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	aor_name = a->argv[4];
+
+	aor_options = ao2_find(sip_options_aors, aor_name, OBJ_SEARCH_KEY);
+	if (!aor_options) {
+		ast_cli(a->fd, "Unable to retrieve aor '%s' qualify options\n", aor_name);
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, " * AOR '%s'\n", aor_name);
+	ast_cli(a->fd, "  Qualify frequency    : %d sec\n", aor_options->qualify_frequency);
+	ast_cli(a->fd, "  Qualify timeout      : %d ms\n", (int)(aor_options->qualify_timeout / 1000));
+	ast_cli(a->fd, "  Authenticate qualify : %s\n", aor_options->authenticate_qualify?"yes":"no");
+	ao2_ref(aor_options, -1);
+
+	return CLI_SUCCESS;
+}
+
+static char *cli_reload_qualify_endpoint(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	const char *endpoint_name;
+	char *aors;
+	char *aor_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip reload qualify endpoint";
+		e->usage =
+			"Usage: pjsip reload qualify endpoint <id>\n"
+			"       Synchronize the qualify options for all Aors on the PJSIP endpoint.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	endpoint_name = a->argv[4];
+
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
+		endpoint_name);
+	if (!endpoint) {
+		ast_cli(a->fd, "Unable to retrieve endpoint %s\n", endpoint_name);
+		return CLI_FAILURE;
+	}
+
+	if (ast_strlen_zero(endpoint->aors)) {
+		ast_cli(a->fd, "No AORs configured for endpoint '%s'\n", endpoint_name);
+		return CLI_FAILURE;
+	}
+
+	aors = ast_strdupa(endpoint->aors);
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
+		struct ast_sip_aor *aor;
+
+		aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor", aor_name);
+		if (!aor) {
+			continue;
+		}
+
+		ast_cli(a->fd, "Synchronizing AOR '%s' on endpoint '%s'\n", aor_name, endpoint_name);
+		ast_sip_push_task_wait_serializer(management_serializer,
+			sip_options_aor_observer_modified_task, aor);
+		ao2_ref(aor, -1);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *cli_reload_qualify_aor(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_sip_aor *aor;
+	const char *aor_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip reload qualify aor";
+		e->usage =
+			"Usage: pjsip reload qualify aor <id>\n"
+			"       Synchronize the PJSIP Aor qualify options.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	aor_name = a->argv[4];
+
+	aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor", aor_name);
+	if (!aor) {
+		ast_cli(a->fd, "Unable to retrieve aor '%s'\n", aor_name);
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "Synchronizing AOR '%s'\n", aor_name);
+	ast_sip_push_task_wait_serializer(management_serializer,
+		sip_options_aor_observer_modified_task, aor);
+	ao2_ref(aor, -1);
+
+	return CLI_SUCCESS;
+}
+
 static int ami_sip_qualify(struct mansession *s, const struct message *m)
 {
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
@@ -2404,7 +2587,11 @@ static int ami_sip_qualify(struct mansession *s, const struct message *m)
 }
 
 static struct ast_cli_entry cli_options[] = {
-	AST_CLI_DEFINE(cli_qualify, "Send an OPTIONS request to a PJSIP endpoint")
+	AST_CLI_DEFINE(cli_qualify, "Send an OPTIONS request to a PJSIP endpoint"),
+	AST_CLI_DEFINE(cli_show_qualify_endpoint, "Show the current qualify options for all Aors on the PJSIP endpoint"),
+	AST_CLI_DEFINE(cli_show_qualify_aor, "Show the PJSIP Aor current qualify options"),
+	AST_CLI_DEFINE(cli_reload_qualify_endpoint, "Synchronize the qualify options for all Aors on the PJSIP endpoint"),
+	AST_CLI_DEFINE(cli_reload_qualify_aor, "Synchronize the PJSIP Aor qualify options"),
 };
 
 
