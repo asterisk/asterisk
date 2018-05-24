@@ -3568,7 +3568,7 @@ int ast_destroy_realtime_fields(const char *family, const char *keyfield, const 
 
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->destroy_func && !(res = eng->destroy_func(db, table, keyfield, lookup, fields))) {
+			if (eng->destroy_func && ((res = eng->destroy_func(db, table, keyfield, lookup, fields)) >= 0)) {
 				break;
 			}
 		} else {
