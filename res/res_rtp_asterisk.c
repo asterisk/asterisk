@@ -551,6 +551,7 @@ static unsigned int ast_rtp_get_ssrc(struct ast_rtp_instance *instance);
 static const char *ast_rtp_get_cname(struct ast_rtp_instance *instance);
 static void ast_rtp_set_remote_ssrc(struct ast_rtp_instance *instance, unsigned int ssrc);
 static void ast_rtp_set_stream_num(struct ast_rtp_instance *instance, int stream_num);
+static int ast_rtp_extension_enable(struct ast_rtp_instance *instance, enum ast_rtp_extension extension);
 static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instance *parent);
 
 #ifdef HAVE_OPENSSL_SRTP
@@ -2249,6 +2250,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.cname_get = ast_rtp_get_cname,
 	.set_remote_ssrc = ast_rtp_set_remote_ssrc,
 	.set_stream_num = ast_rtp_set_stream_num,
+	.extension_enable = ast_rtp_extension_enable,
 	.bundle = ast_rtp_bundle,
 };
 
@@ -4282,6 +4284,20 @@ static int ast_rtcp_write(const void *data)
 	return res;
 }
 
+static void put_unaligned_time24(void *p, uint32_t time_msw, uint32_t time_lsw)
+{
+	unsigned char *cp = p;
+	uint32_t datum;
+
+	/* Convert the time to 6.18 format */
+	datum = (time_msw << 18) & 0x00fc0000;
+	datum |= (time_lsw >> 14) & 0x0003ffff;
+
+	cp[0] = datum >> 16;
+	cp[1] = datum >> 8;
+	cp[2] = datum;
+}
+
 /*! \pre instance is locked */
 static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *frame, int codec)
 {
@@ -4399,13 +4415,45 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	/* If we know the remote address construct a packet and send it out */
 	if (!ast_sockaddr_isnull(&remote_address)) {
-		int hdrlen = 12, res, ice;
-		int packet_len = frame->datalen + hdrlen;
-		unsigned char *rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
+		int hdrlen = 12;
+		int res;
+		int ice;
+		int ext = 0;
+		int abs_send_time_id;
+		int packet_len;
+		unsigned char *rtpheader;
 
-		put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (seqno) | (mark << 23)));
+		/* If the abs-send-time extension has been negotiated determine how much space we need */
+		abs_send_time_id = ast_rtp_instance_extmap_get_id(instance, AST_RTP_EXTENSION_ABS_SEND_TIME);
+		if (abs_send_time_id != -1) {
+			/* 4 bytes for the shared information, 1 byte for identifier, 3 bytes for abs-send-time */
+			hdrlen += 8;
+			ext = 1;
+		}
+
+		packet_len = frame->datalen + hdrlen;
+		rtpheader = (unsigned char *)(frame->data.ptr - hdrlen);
+
+		put_unaligned_uint32(rtpheader, htonl((2 << 30) | (ext << 28) | (codec << 16) | (seqno) | (mark << 23)));
 		put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
 		put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc));
+
+		/* We assume right now that we will only ever have the abs-send-time extension in the packet
+		 * which simplifies things a bit.
+		 */
+		if (abs_send_time_id != -1) {
+			unsigned int now_msw;
+			unsigned int now_lsw;
+
+			/* This happens before being placed into the retransmission buffer so that when we
+			 * retransmit we only have to update the timestamp, not everything else.
+			 */
+			put_unaligned_uint32(rtpheader + 12, htonl((0xBEDE << 16) | 1));
+			rtpheader[16] = (abs_send_time_id << 4) | 2;
+
+			timeval2ntp(ast_tvnow(), &now_msw, &now_lsw);
+			put_unaligned_time24(rtpheader + 17, now_msw, now_lsw);
+		}
 
 		/* If retransmissions are enabled, we need to store this packet for future use */
 		if (rtp->send_buffer) {
@@ -5263,10 +5311,18 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 	unsigned int pid;	/* Packet ID which refers to seqno of lost packet */
 	unsigned int blp;	/* Bitmask of following lost packets */
 	struct ast_sockaddr remote_address = { {0,} };
+	int abs_send_time_id;
+	unsigned int now_msw = 0;
+	unsigned int now_lsw = 0;
 
 	if (!rtp->send_buffer) {
 		ast_debug(1, "Tried to handle NACK request, but we don't have a RTP packet storage!\n");
 		return res;
+	}
+
+	abs_send_time_id = ast_rtp_instance_extmap_get_id(instance, AST_RTP_EXTENSION_ABS_SEND_TIME);
+	if (abs_send_time_id != -1) {
+		timeval2ntp(ast_tvnow(), &now_msw, &now_lsw);
 	}
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
@@ -5281,6 +5337,12 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 		/* We know the remote end is missing this packet. Go ahead and send it if we still have it. */
 		payload = (struct ast_rtp_rtcp_nack_payload *)ast_data_buffer_get(rtp->send_buffer, pid);
 		if (payload) {
+			if (abs_send_time_id != -1) {
+				/* On retransmission we need to update the timestamp within the packet, as it
+				 * is supposed to contain when the packet was actually sent.
+				 */
+				put_unaligned_time24(payload->buf + 17, now_msw, now_lsw);
+			}
 			res += rtp_sendto(instance, payload->buf, payload->size, 0, &remote_address, &ice);
 		} else {
 			ast_debug(1, "Received NACK request for RTP packet with seqno %d, but we don't have it\n", pid);
@@ -5299,6 +5361,9 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 				unsigned int seqno = (pid + blp_index) % 65536;
 				payload = (struct ast_rtp_rtcp_nack_payload *)ast_data_buffer_get(rtp->send_buffer, seqno);
 				if (payload) {
+					if (abs_send_time_id != -1) {
+						put_unaligned_time24(payload->buf + 17, now_msw, now_lsw);
+					}
 					res += rtp_sendto(instance, payload->buf, payload->size, 0, &remote_address, &ice);
 				} else {
 					ast_debug(1, "Remote end also requested RTP packet with seqno %d, but we don't have it\n", seqno);
@@ -7163,6 +7228,16 @@ static void ast_rtp_set_stream_num(struct ast_rtp_instance *instance, int stream
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	rtp->stream_num = stream_num;
+}
+
+static int ast_rtp_extension_enable(struct ast_rtp_instance *instance, enum ast_rtp_extension extension)
+{
+	switch (extension) {
+	case AST_RTP_EXTENSION_ABS_SEND_TIME:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 /*! \pre child is locked */

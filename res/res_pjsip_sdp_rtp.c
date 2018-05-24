@@ -151,8 +151,57 @@ static void enable_rtcp(struct ast_sip_session *session, struct ast_sip_session_
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, rtcp_type);
 }
 
+/*!
+ * \brief Enable an RTP extension on an RTP session.
+ */
+static void enable_rtp_extension(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	enum ast_rtp_extension extension, enum ast_rtp_extension_direction direction,
+	const pjmedia_sdp_session *sdp)
+{
+	int id = -1;
+
+	/* For a bundle group the local unique identifier space is shared across all streams within
+	 * it.
+	 */
+	if (session_media->bundle_group != -1) {
+		int index;
+
+		for (index = 0; index < sdp->media_count; ++index) {
+			struct ast_sip_session_media *other_session_media;
+			int other_id;
+
+			if (index >= AST_VECTOR_SIZE(&session->pending_media_state->sessions)) {
+				break;
+			}
+
+			other_session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, index);
+			if (!other_session_media->rtp || other_session_media->bundle_group != session_media->bundle_group) {
+				continue;
+			}
+
+			other_id = ast_rtp_instance_extmap_get_id(other_session_media->rtp, extension);
+			if (other_id == -1) {
+				/* Worst case we have to fall back to the highest available free local unique identifier
+				 * for the bundle group.
+				 */
+				other_id = ast_rtp_instance_extmap_count(other_session_media->rtp) + 1;
+				if (id < other_id) {
+					id = other_id;
+				}
+				continue;
+			}
+
+			id = other_id;
+			break;
+		}
+	}
+
+	ast_rtp_instance_extmap_enable(session_media->rtp, id, extension, direction);
+}
+
 /*! \brief Internal function which creates an RTP instance */
-static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
+static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	const pjmedia_sdp_session *sdp)
 {
 	struct ast_rtp_engine_ice *ice;
 	struct ast_sockaddr temp_media_address;
@@ -223,6 +272,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_REMB, session->endpoint->media.webrtc);
+		enable_rtp_extension(session, session_media, AST_RTP_EXTENSION_ABS_SEND_TIME, AST_RTP_EXTENSION_DIRECTION_SENDRECV, sdp);
 		if (session->endpoint->media.tos_video || session->endpoint->media.cos_video) {
 			ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
 					session->endpoint->media.cos_video, "SIP RTP Video");
@@ -1101,6 +1151,113 @@ static void add_rtcp_fb_to_stream(struct ast_sip_session *session,
 	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
 }
 
+static void add_extmap_to_stream(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
+{
+	int idx;
+	char extmap_value[256];
+
+	if (!session->endpoint->media.webrtc || session_media->type != AST_MEDIA_TYPE_VIDEO) {
+		return;
+	}
+
+	/* RTP extension local unique identifiers start at '1' */
+	for (idx = 1; idx <= ast_rtp_instance_extmap_count(session_media->rtp); ++idx) {
+		enum ast_rtp_extension extension = ast_rtp_instance_extmap_get_extension(session_media->rtp, idx);
+		const char *direction_str = "";
+		pj_str_t stmp;
+		pjmedia_sdp_attr *attr;
+
+		/* If this is an unsupported RTP extension we can't place it into the SDP */
+		if (extension == AST_RTP_EXTENSION_UNSUPPORTED) {
+			continue;
+		}
+
+		switch (ast_rtp_instance_extmap_get_direction(session_media->rtp, idx)) {
+		case AST_RTP_EXTENSION_DIRECTION_SENDRECV:
+			/* Lack of a direction indicates sendrecv, so we leave it out */
+			direction_str = "";
+			break;
+		case AST_RTP_EXTENSION_DIRECTION_SENDONLY:
+			direction_str = "/sendonly";
+			break;
+		case AST_RTP_EXTENSION_DIRECTION_RECVONLY:
+			direction_str = "/recvonly";
+			break;
+		case AST_RTP_EXTENSION_DIRECTION_NONE:
+			/* It is impossible for a "none" direction extension to be negotiated but just in case
+			 * we treat it as inactive.
+			 */
+		case AST_RTP_EXTENSION_DIRECTION_INACTIVE:
+			direction_str = "/inactive";
+			break;
+		}
+
+		snprintf(extmap_value, sizeof(extmap_value), "%d%s %s", idx, direction_str,
+			ast_rtp_instance_extmap_get_uri(session_media->rtp, idx));
+		attr = pjmedia_sdp_attr_create(pool, "extmap", pj_cstr(&stmp, extmap_value));
+		pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+	}
+}
+
+/*! \brief Function which processes extmap attributes in a stream */
+static void process_extmap_attributes(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+				   const struct pjmedia_sdp_media *remote_stream)
+{
+	int index;
+
+	if (!session->endpoint->media.webrtc || session_media->type != AST_MEDIA_TYPE_VIDEO) {
+		return;
+	}
+
+	ast_rtp_instance_extmap_clear(session_media->rtp);
+
+	for (index = 0; index < remote_stream->attr_count; ++index) {
+		pjmedia_sdp_attr *attr = remote_stream->attr[index];
+		char attr_value[pj_strlen(&attr->value) + 1];
+		char *uri;
+		int id;
+		char direction_str[10] = "";
+		char *attributes;
+		enum ast_rtp_extension_direction direction = AST_RTP_EXTENSION_DIRECTION_SENDRECV;
+
+		/* We only care about extmap attributes */
+		if (pj_strcmp2(&attr->name, "extmap")) {
+			continue;
+		}
+
+		ast_copy_pj_str(attr_value, &attr->value, sizeof(attr_value));
+
+		/* Split the combined unique identifier and direction away from the URI and attributes for easier parsing */
+		uri = strchr(attr_value, ' ');
+		if (ast_strlen_zero(uri)) {
+			continue;
+		}
+		*uri++ = '\0';
+
+		if ((sscanf(attr_value, "%30d%9s", &id, direction_str) < 1) || (id < 1)) {
+			/* We require at a minimum the unique identifier */
+			continue;
+		}
+
+		/* Convert from the string to the internal representation */
+		if (!strcasecmp(direction_str, "/sendonly")) {
+			direction = AST_RTP_EXTENSION_DIRECTION_SENDONLY;
+		} else if (!strcasecmp(direction_str, "/recvonly")) {
+			direction = AST_RTP_EXTENSION_DIRECTION_RECVONLY;
+		} else if (!strcasecmp(direction_str, "/inactive")) {
+			direction = AST_RTP_EXTENSION_DIRECTION_INACTIVE;
+		}
+
+		attributes = strchr(uri, ' ');
+		if (!ast_strlen_zero(attributes)) {
+			*attributes++ = '\0';
+		}
+
+		ast_rtp_instance_extmap_negotiate(session_media->rtp, id, direction, uri, attributes);
+	}
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media, const pjmedia_sdp_session *sdp,
@@ -1139,11 +1296,12 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	}
 
 	/* Using the connection information create an appropriate RTP instance */
-	if (!session_media->rtp && create_rtp(session, session_media)) {
+	if (!session_media->rtp && create_rtp(session, session_media, sdp)) {
 		return -1;
 	}
 
 	process_ssrc_attributes(session, session_media, stream);
+	process_extmap_attributes(session, session_media, stream);
 	session_media_transport = ast_sip_session_media_get_transport(session, session_media);
 
 	if (session_media_transport == session_media || !session_media->bundled) {
@@ -1377,7 +1535,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		return 1;
 	}
 
-	if (!session_media->rtp && create_rtp(session, session_media)) {
+	if (!session_media->rtp && create_rtp(session, session_media, sdp)) {
 		return -1;
 	}
 
@@ -1602,6 +1760,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	add_ssrc_to_stream(session, session_media, pool, media);
 	add_msid_to_stream(session, session_media, pool, media, stream);
 	add_rtcp_fb_to_stream(session, session_media, pool, media);
+	add_extmap_to_stream(session, session_media, pool, media);
 
 	/* Add the media stream to the SDP */
 	sdp->media[sdp->media_count++] = media;
@@ -1676,11 +1835,12 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	}
 
 	/* Create an RTP instance if need be */
-	if (!session_media->rtp && create_rtp(session, session_media)) {
+	if (!session_media->rtp && create_rtp(session, session_media, local)) {
 		return -1;
 	}
 
 	process_ssrc_attributes(session, session_media, remote_stream);
+	process_extmap_attributes(session, session_media, remote_stream);
 
 	session_media_transport = ast_sip_session_media_get_transport(session, session_media);
 
