@@ -818,7 +818,20 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ast_channel_stage_snapshot(tmp);
 
-	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	/*
+	 * Init file descriptors to unopened state so
+	 * the destructor can know not to close them.
+	 */
+	ast_channel_timingfd_set(tmp, -1);
+	ast_channel_internal_alertpipe_clear(tmp);
+	ast_channel_internal_fd_clear_all(tmp);
+
+#ifdef HAVE_EPOLL
+	ast_channel_epfd_set(tmp, epoll_create(25));
+#endif
+
+	nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!nativeformats) {
 		/*
 		 * Aborting the channel creation.  We do not need to complete staging
 		 * the channel snapshot because the channel has not been finalized or
@@ -835,18 +848,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_set_rawreadformat(tmp, ast_format_none);
 	ast_channel_set_writeformat(tmp, ast_format_none);
 	ast_channel_set_readformat(tmp, ast_format_none);
-
-	/*
-	 * Init file descriptors to unopened state so
-	 * the destructor can know not to close them.
-	 */
-	ast_channel_timingfd_set(tmp, -1);
-	ast_channel_internal_alertpipe_clear(tmp);
-	ast_channel_internal_fd_clear_all(tmp);
-
-#ifdef HAVE_EPOLL
-	ast_channel_epfd_set(tmp, epoll_create(25));
-#endif
 
 	if (!(schedctx = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
