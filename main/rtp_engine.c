@@ -177,6 +177,14 @@
 struct ast_srtp_res *res_srtp = NULL;
 struct ast_srtp_policy_res *res_srtp_policy = NULL;
 
+/*! Structure that contains extmap negotiation information */
+struct rtp_extmap {
+	/*! The RTP extension */
+	enum ast_rtp_extension extension;
+	/*! The current negotiated direction */
+	enum ast_rtp_extension_direction direction;
+};
+
 /*! Structure that represents an RTP session (instance) */
 struct ast_rtp_instance {
 	/*! Engine that is handling this RTP instance */
@@ -213,6 +221,20 @@ struct ast_rtp_instance {
 	time_t last_tx;
 	/*! Time of last packet received */
 	time_t last_rx;
+	/*! Enabled RTP extensions */
+	AST_VECTOR(, enum ast_rtp_extension_direction) extmap_enabled;
+	/*! Negotiated RTP extensions (using index based on extension) */
+	AST_VECTOR(, int) extmap_negotiated;
+	/*! Negotiated RTP extensions (using index based on unique id) */
+	AST_VECTOR(, struct rtp_extmap) extmap_unique_ids;
+};
+
+/*!
+ * \brief URIs for known RTP extensions
+ */
+static const char * const rtp_extension_uris[AST_RTP_EXTENSION_MAX] = {
+	[AST_RTP_EXTENSION_UNSUPPORTED]		= "",
+	[AST_RTP_EXTENSION_ABS_SEND_TIME]	= "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 };
 
 /*! List of RTP engines that are currently registered */
@@ -408,6 +430,10 @@ static void instance_destructor(void *obj)
 
 	ast_rtp_codecs_payloads_destroy(&instance->codecs);
 
+	AST_VECTOR_FREE(&instance->extmap_enabled);
+	AST_VECTOR_FREE(&instance->extmap_negotiated);
+	AST_VECTOR_FREE(&instance->extmap_unique_ids);
+
 	/* Drop our engine reference */
 	ast_module_unref(instance->engine->mod);
 
@@ -464,6 +490,14 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 	ast_sockaddr_copy(&address, sa);
 
 	if (ast_rtp_codecs_payloads_initialize(&instance->codecs)) {
+		ao2_ref(instance, -1);
+		return NULL;
+	}
+
+	/* Initialize RTP extension support */
+	if (AST_VECTOR_INIT(&instance->extmap_enabled, 0) ||
+		AST_VECTOR_INIT(&instance->extmap_negotiated, 0) ||
+		AST_VECTOR_INIT(&instance->extmap_unique_ids, 0)) {
 		ao2_ref(instance, -1);
 		return NULL;
 	}
@@ -672,6 +706,232 @@ int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_pr
 struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *instance)
 {
 	return &instance->codecs;
+}
+
+int ast_rtp_instance_extmap_enable(struct ast_rtp_instance *instance, int id, enum ast_rtp_extension extension,
+	enum ast_rtp_extension_direction direction)
+{
+	struct rtp_extmap extmap = {
+		.extension = extension,
+		.direction = direction,
+	};
+
+	ao2_lock(instance);
+
+	if (!instance->engine->extension_enable || !instance->engine->extension_enable(instance, extension)) {
+		ao2_unlock(instance);
+		return 0;
+	}
+
+	/* We store enabled extensions separately so we can easily do negotiation */
+	if (AST_VECTOR_REPLACE(&instance->extmap_enabled, extension, direction)) {
+		ao2_unlock(instance);
+		return -1;
+	}
+
+	if (id <= 0) {
+		/* We find a free unique identifier for this extension by just appending it to the
+		 * vector of unique ids. The size of the vector will become its unique identifier.
+		 * As well when we are asking for information on the extensions it will be returned,
+		 * allowing it to be added to the SDP offer.
+		 */
+		if (AST_VECTOR_APPEND(&instance->extmap_unique_ids, extmap)) {
+			AST_VECTOR_REPLACE(&instance->extmap_enabled, extension, AST_RTP_EXTENSION_DIRECTION_NONE);
+			ao2_unlock(instance);
+			return -1;
+		}
+		id = AST_VECTOR_SIZE(&instance->extmap_unique_ids);
+	} else {
+		/* Otherwise we put it precisely where they want it */
+		if (AST_VECTOR_REPLACE(&instance->extmap_unique_ids, id - 1, extmap)) {
+			AST_VECTOR_REPLACE(&instance->extmap_enabled, extension, AST_RTP_EXTENSION_DIRECTION_NONE);
+			ao2_unlock(instance);
+			return -1;
+		}
+	}
+
+	/* Now that we have an id add the extension to here */
+	if (AST_VECTOR_REPLACE(&instance->extmap_negotiated, extension, id)) {
+		extmap.extension = AST_RTP_EXTENSION_UNSUPPORTED;
+		extmap.direction = AST_RTP_EXTENSION_DIRECTION_NONE;
+		AST_VECTOR_REPLACE(&instance->extmap_enabled, extension, AST_RTP_EXTENSION_DIRECTION_NONE);
+		AST_VECTOR_REPLACE(&instance->extmap_unique_ids, id - 1, extmap);
+		ao2_unlock(instance);
+		return -1;
+	}
+
+	ao2_unlock(instance);
+
+	return 0;
+}
+
+/*! \brief Helper function which negotiates two RTP extension directions to get our current direction */
+static enum ast_rtp_extension_direction rtp_extmap_negotiate_direction(enum ast_rtp_extension_direction ours,
+	enum ast_rtp_extension_direction theirs)
+{
+	if (theirs == AST_RTP_EXTENSION_DIRECTION_NONE || ours == AST_RTP_EXTENSION_DIRECTION_NONE) {
+		/* This should not occur but if it does tolerate either side not having this extension
+		 * in use.
+		 */
+		return AST_RTP_EXTENSION_DIRECTION_NONE;
+	} else if (theirs == AST_RTP_EXTENSION_DIRECTION_INACTIVE) {
+		/* Inactive is always inactive on our side */
+		return AST_RTP_EXTENSION_DIRECTION_INACTIVE;
+	} else if (theirs == AST_RTP_EXTENSION_DIRECTION_SENDRECV) {
+		return ours;
+	} else if (theirs == AST_RTP_EXTENSION_DIRECTION_SENDONLY) {
+		/* If they are send only then we become recvonly if we are configured as sendrecv or recvonly */
+		if (ours == AST_RTP_EXTENSION_DIRECTION_SENDRECV || ours == AST_RTP_EXTENSION_DIRECTION_RECVONLY) {
+			return AST_RTP_EXTENSION_DIRECTION_RECVONLY;
+		}
+	} else if (theirs == AST_RTP_EXTENSION_DIRECTION_RECVONLY) {
+		/* If they are recv only then we become sendonly if we are configured as sendrecv or sendonly */
+		if (ours == AST_RTP_EXTENSION_DIRECTION_SENDRECV || ours == AST_RTP_EXTENSION_DIRECTION_SENDONLY) {
+			return AST_RTP_EXTENSION_DIRECTION_SENDONLY;
+		}
+	}
+
+	return AST_RTP_EXTENSION_DIRECTION_NONE;
+}
+
+int ast_rtp_instance_extmap_negotiate(struct ast_rtp_instance *instance, int id, enum ast_rtp_extension_direction direction,
+	const char *uri, const char *attributes)
+{
+	/* 'attributes' is currently unused but exists in the API to ensure it does not need to be altered
+	 * in the future in case we need to use it.
+	 */
+	int idx;
+	enum ast_rtp_extension extension = AST_RTP_EXTENSION_UNSUPPORTED;
+
+	/* Per the RFC the identifier has to be 1 or above */
+	if (id < 1) {
+		return -1;
+	}
+
+	/* Convert the provided URI to the internal representation */
+	for (idx = 0; idx < ARRAY_LEN(rtp_extension_uris); ++idx) {
+		if (!strcasecmp(rtp_extension_uris[idx], uri)) {
+			extension = idx;
+			break;
+		}
+	}
+
+	ao2_lock(instance);
+	/* We only accept the extension if it is enabled */
+	if (extension < AST_VECTOR_SIZE(&instance->extmap_enabled) &&
+		AST_VECTOR_GET(&instance->extmap_enabled, extension) != AST_RTP_EXTENSION_DIRECTION_NONE) {
+		struct rtp_extmap extmap = {
+			.extension = extension,
+			.direction = rtp_extmap_negotiate_direction(AST_VECTOR_GET(&instance->extmap_enabled, extension), direction),
+		};
+
+		/* If the direction negotiation failed then don't accept or use this extension */
+		if (extmap.direction != AST_RTP_EXTENSION_DIRECTION_NONE) {
+			if (extension != AST_RTP_EXTENSION_UNSUPPORTED) {
+				AST_VECTOR_REPLACE(&instance->extmap_negotiated, extension, id);
+			}
+			AST_VECTOR_REPLACE(&instance->extmap_unique_ids, id - 1, extmap);
+		}
+	}
+	ao2_unlock(instance);
+
+	return 0;
+}
+
+void ast_rtp_instance_extmap_clear(struct ast_rtp_instance *instance)
+{
+	static const struct rtp_extmap extmap_none = {
+		.extension = AST_RTP_EXTENSION_UNSUPPORTED,
+		.direction = AST_RTP_EXTENSION_DIRECTION_NONE,
+	};
+	int idx;
+
+	ao2_lock(instance);
+
+	/* Clear both the known unique ids and the negotiated extensions as we are about to have
+	 * new results set on us.
+	 */
+	for (idx = 0; idx < AST_VECTOR_SIZE(&instance->extmap_unique_ids); ++idx) {
+		AST_VECTOR_REPLACE(&instance->extmap_unique_ids, idx, extmap_none);
+	}
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&instance->extmap_negotiated); ++idx) {
+		AST_VECTOR_REPLACE(&instance->extmap_negotiated, idx, -1);
+	}
+
+	ao2_unlock(instance);
+}
+
+int ast_rtp_instance_extmap_get_id(struct ast_rtp_instance *instance, enum ast_rtp_extension extension)
+{
+	int id = -1;
+
+	ao2_lock(instance);
+	if (extension < AST_VECTOR_SIZE(&instance->extmap_negotiated)) {
+		id = AST_VECTOR_GET(&instance->extmap_negotiated, extension);
+	}
+	ao2_unlock(instance);
+
+	return id;
+}
+
+size_t ast_rtp_instance_extmap_count(struct ast_rtp_instance *instance)
+{
+	size_t count;
+
+	ao2_lock(instance);
+	count = AST_VECTOR_SIZE(&instance->extmap_unique_ids);
+	ao2_unlock(instance);
+
+	return count;
+}
+
+enum ast_rtp_extension ast_rtp_instance_extmap_get_extension(struct ast_rtp_instance *instance, int id)
+{
+	enum ast_rtp_extension extension = AST_RTP_EXTENSION_UNSUPPORTED;
+
+	ao2_lock(instance);
+
+	/* The local unique identifier starts at '1' so the highest unique identifier
+	 * can be the actual size of the vector. We compensate (as it is 0 index based)
+	 * by dropping it down to 1 to get the correct information.
+	 */
+	if (0 < id && id <= AST_VECTOR_SIZE(&instance->extmap_unique_ids)) {
+		struct rtp_extmap *extmap = AST_VECTOR_GET_ADDR(&instance->extmap_unique_ids, id - 1);
+
+		extension = extmap->extension;
+	}
+	ao2_unlock(instance);
+
+	return extension;
+}
+
+enum ast_rtp_extension_direction ast_rtp_instance_extmap_get_direction(struct ast_rtp_instance *instance, int id)
+{
+	enum ast_rtp_extension_direction direction = AST_RTP_EXTENSION_DIRECTION_NONE;
+
+	ao2_lock(instance);
+
+	if (0 < id && id <= AST_VECTOR_SIZE(&instance->extmap_unique_ids)) {
+		struct rtp_extmap *extmap = AST_VECTOR_GET_ADDR(&instance->extmap_unique_ids, id - 1);
+
+		direction = extmap->direction;
+	}
+	ao2_unlock(instance);
+
+	return direction;
+}
+
+const char *ast_rtp_instance_extmap_get_uri(struct ast_rtp_instance *instance, int id)
+{
+	enum ast_rtp_extension extension = ast_rtp_instance_extmap_get_extension(instance, id);
+
+	if (extension == AST_RTP_EXTENSION_UNSUPPORTED ||
+		(unsigned int)extension >= ARRAY_LEN(rtp_extension_uris)) {
+		return NULL;
+	}
+
+	return rtp_extension_uris[extension];
 }
 
 int ast_rtp_codecs_payloads_initialize(struct ast_rtp_codecs *codecs)

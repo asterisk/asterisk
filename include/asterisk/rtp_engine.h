@@ -533,6 +533,18 @@ enum ast_rtp_dtls_verify {
 	AST_RTP_DTLS_VERIFY_CERTIFICATE = (1 << 1), /*!< Verify the certificate */
 };
 
+/*!
+ * \brief Known RTP extensions
+ */
+enum ast_rtp_extension {
+	/*! Per the RFC 0 should not be used, so we treat it as an unsupported extension placeholder */
+	AST_RTP_EXTENSION_UNSUPPORTED = 0,
+	/*! abs-send-time from https://tools.ietf.org/html/draft-alvestrand-rmcat-remb-03 */
+	AST_RTP_EXTENSION_ABS_SEND_TIME,
+	/*! The maximum number of known RTP extensions */
+	AST_RTP_EXTENSION_MAX,
+};
+
 /*! \brief DTLS configuration structure */
 struct ast_rtp_dtls_cfg {
 	unsigned int enabled:1;                /*!< Whether DTLS support is enabled or not */
@@ -654,6 +666,8 @@ struct ast_rtp_engine {
 	struct ast_rtp_engine_ice *ice;
 	/*! Callback to pointer for optional DTLS SRTP support */
 	struct ast_rtp_engine_dtls *dtls;
+	/*! Callback to enable an RTP extension (returns non-zero if supported) */
+	int (*extension_enable)(struct ast_rtp_instance *instance, enum ast_rtp_extension extension);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
@@ -718,6 +732,22 @@ struct ast_rtp_glue {
 	void (*get_codec)(struct ast_channel *chan, struct ast_format_cap *result_cap);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_glue) entry;
+};
+
+/*!
+ * \brief Directions for RTP extensions
+ */
+enum ast_rtp_extension_direction {
+	/*! The extension is not negotiated and is not flowing */
+	AST_RTP_EXTENSION_DIRECTION_NONE,
+	/*! Send and receive */
+	AST_RTP_EXTENSION_DIRECTION_SENDRECV,
+	/*! Send only */
+	AST_RTP_EXTENSION_DIRECTION_SENDONLY,
+	/*! Receive only */
+	AST_RTP_EXTENSION_DIRECTION_RECVONLY,
+	/*! Negotiated but not sending or receiving */
+	AST_RTP_EXTENSION_DIRECTION_INACTIVE,
 };
 
 /*!
@@ -1245,6 +1275,109 @@ int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_pr
  * \since 1.8
  */
 struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Enable support for an RTP extension on an instance
+ *
+ * \param instance The RTP instance to enable the extension on
+ * \param id The unique local identifier to use for this extension (-1 to have one auto selected)
+ * \param extension The RTP extension
+ * \param direction The initial direction that the RTP extension should be used in
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \since 15.5.0
+ */
+int ast_rtp_instance_extmap_enable(struct ast_rtp_instance *instance, int id, enum ast_rtp_extension extension,
+	enum ast_rtp_extension_direction direction);
+
+/*!
+ * \brief Negotiate received RTP extension information
+ *
+ * \param instance The RTP instance to set the extension on
+ * \param id The local identifier for the extension
+ * \param direction The direction that the extension should be used in
+ * \param uri The unique URI for the extension
+ * \param attributes Attributes specific to this extension (if NULL or empty then no attributes)
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \since 15.5.0
+ */
+int ast_rtp_instance_extmap_negotiate(struct ast_rtp_instance *instance, int id, enum ast_rtp_extension_direction direction,
+	const char *uri, const char *attributes);
+
+/*!
+ * \brief Clear negotiated RTP extension information
+ *
+ * \param instance The RTP instance to clear negotiated extension information on
+ */
+void ast_rtp_instance_extmap_clear(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Retrieve the id for an RTP extension
+ *
+ * \param instance The RTP instance to retrieve the id from
+ * \param extension The RTP extension
+ *
+ * \retval -1 not negotiated
+ * \retval id if negotiated
+ *
+ * \since 15.5.0
+ */
+int ast_rtp_instance_extmap_get_id(struct ast_rtp_instance *instance, enum ast_rtp_extension extension);
+
+/*!
+ * \brief Get the number of known unique identifiers
+ *
+ * \param instance The RTP instance to retrieve the count from
+ *
+ * \return the number of known unique identifiers
+ *
+ * \since 15.5.0
+ */
+size_t ast_rtp_instance_extmap_count(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Retrieve the extension for an RTP extension id
+ *
+ * \param instance The RTP instance to retrieve the extension from
+ * \param id The negotiated RTP extension id
+ *
+ * \retval extension the extension that maps to the id
+ *
+ * \since 15.5.0
+ *
+ * \note This will return AST_RTP_EXTENSION_UNSUPPORTED if an extension was proposed for this unique identifier
+ * but it is not supported or if the unique identifier is unused.
+ */
+enum ast_rtp_extension ast_rtp_instance_extmap_get_extension(struct ast_rtp_instance *instance, int id);
+
+/*!
+ * \brief Retrieve the negotiated direction for an RTP extension id
+ *
+ * \param instance The RTP instance to retrieve the direction from
+ * \param id The negotiated RTP extension id
+ *
+ * \retval direction the direction that has been negotiated
+ *
+ * \since 15.5.0
+ */
+enum ast_rtp_extension_direction ast_rtp_instance_extmap_get_direction(struct ast_rtp_instance *instance, int id);
+
+/*!
+ * \brief Retrieve the URI for an RTP extension id
+ *
+ * \param instance The RTP instance to retrieve the direction from
+ * \param id The negotiated RTP extension id
+ *
+ * \retval uri The URI for the RTP extension
+ *
+ * \since 15.5.0
+ */
+const char *ast_rtp_instance_extmap_get_uri(struct ast_rtp_instance *instance, int id);
 
 /*!
  * \brief Initialize an RTP codecs structure
