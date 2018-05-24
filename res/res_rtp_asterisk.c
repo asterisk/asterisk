@@ -245,6 +245,7 @@ static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
 #define FLAG_NAT_INACTIVE_NOWARN        (1 << 1)
 #define FLAG_NEED_MARKER_BIT            (1 << 3)
 #define FLAG_DTMF_COMPENSATE            (1 << 4)
+#define FLAG_REQ_LOCAL_BRIDGE_BIT       (1 << 5)
 
 #define TRANSPORT_SOCKET_RTP 0
 #define TRANSPORT_SOCKET_RTCP 1
@@ -5234,6 +5235,12 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 		ast_clear_flag(bridged, FLAG_NEED_MARKER_BIT);
 	}
 
+	/* Set the marker bit for the first local bridged packet which has the first bridged peer's SSRC. */
+	if (ast_test_flag(bridged, FLAG_REQ_LOCAL_BRIDGE_BIT)) {
+		mark = 1;
+		ast_clear_flag(bridged, FLAG_REQ_LOCAL_BRIDGE_BIT);
+	}
+
 	/* Reconstruct part of the packet */
 	reconstruct &= 0xFF80FFFF;
 	reconstruct |= (bridged_payload << 16);
@@ -6104,7 +6111,7 @@ static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_r
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance0);
 
 	ao2_lock(instance0);
-	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
+	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT | FLAG_REQ_LOCAL_BRIDGE_BIT);
 	ao2_unlock(instance0);
 
 	return 0;
