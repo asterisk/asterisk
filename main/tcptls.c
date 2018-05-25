@@ -1001,8 +1001,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		}
 	}
 
-#ifdef HAVE_OPENSSL_EC
-
+#ifndef OPENSSL_NO_DH
 	if (!ast_strlen_zero(cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(cfg->pvtfile, "r");
 		if (bio != NULL) {
@@ -1018,12 +1017,15 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			BIO_free(bio);
 		}
 	}
+#endif
+
 	#ifndef SSL_CTRL_SET_ECDH_AUTO
 		#define SSL_CTRL_SET_ECDH_AUTO 94
 	#endif
 	/* SSL_CTX_set_ecdh_auto(cfg->ssl_ctx, on); requires OpenSSL 1.0.2 which wraps: */
 	if (SSL_CTX_ctrl(cfg->ssl_ctx, SSL_CTRL_SET_ECDH_AUTO, 1, NULL)) {
 		ast_verb(2, "TLS/SSL ECDH initialized (automatic), faster PFS ciphers enabled\n");
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	} else {
 		/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
 		EC_KEY *ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
@@ -1033,9 +1035,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			}
 			EC_KEY_free(ecdh);
 		}
+#endif
 	}
-
-#endif /* #ifdef HAVE_OPENSSL_EC */
 
 	ast_verb(2, "TLS/SSL certificate ok\n");	/* We should log which one that is ok. This message doesn't really make sense in production use */
 	return 1;
