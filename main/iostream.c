@@ -508,19 +508,19 @@ int ast_iostream_close(struct ast_iostream *stream)
 					ERR_error_string(sslerr, err), ssl_error_to_string(sslerr, res));
 			}
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+#if !defined(LIBRESSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER >= 0x10100000L)
 			if (!SSL_is_server(stream->ssl)) {
 #else
 			if (!stream->ssl->server) {
 #endif
 				/* For client threads, ensure that the error stack is cleared */
-#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x10100000L)
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
 				ERR_remove_thread_state(NULL);
 #else
 				ERR_remove_state(0);
 #endif	/* OPENSSL_VERSION_NUMBER >= 0x10000000L */
-#endif  /* !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif  /* OPENSSL_VERSION_NUMBER  < 0x10100000L */
 			}
 
 			SSL_free(stream->ssl);
