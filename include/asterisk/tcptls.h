@@ -46,18 +46,20 @@
  * be run earlier in the startup process so modules have it available.
  *
  * \ref AstTlsOverview
- *
- * \todo For SIP, the SubjectAltNames should be checked on verification
- *       of the certificate. (Check RFC 5922)
- *
  */
 
 #ifndef _ASTERISK_TCPTLS_H
 #define _ASTERISK_TCPTLS_H
 
-#include "asterisk/netsock2.h"
-#include "asterisk/utils.h"
+#include <pthread.h>            /* for pthread_t */
+#include <sys/param.h>          /* for MAXHOSTNAMELEN */
+
 #include "asterisk/iostream.h"
+#include "asterisk/netsock2.h"  /* for ast_sockaddr */
+#include "asterisk/utils.h"     /* for ast_flags */
+
+struct ssl_ctx_st;              /* forward declaration */
+typedef struct ssl_ctx_st SSL_CTX;
 
 /*! SSL support */
 #define AST_CERTFILE "asterisk.pem"

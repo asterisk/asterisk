@@ -309,6 +309,7 @@ endif
 
 endif
 
+iostream.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
 
 $(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB) $(LIBEDIT_OBJ)
