@@ -25,21 +25,19 @@
  * \brief Generic abstraction for input/output streams.
  */
 
+#include "asterisk.h"           /* for size_t, ssize_t, HAVE_OPENSSL */
+
 #if defined(HAVE_OPENSSL)
 #define DO_SSL  /* comment in/out if you want to support ssl */
 #endif
 
-#ifdef DO_SSL
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/x509v3.h>
-#else
-/* declare dummy types so we can define a pointer to them */
-typedef struct {} SSL;
-typedef struct {} SSL_CTX;
-#endif /* DO_SSL */
+struct ssl_st;                  /* forward declaration */
+struct ssl_ctx_st;              /* forward declaration */
+struct timeval;                 /* forward declaration */
+typedef struct ssl_st SSL;
+typedef struct ssl_ctx_st SSL_CTX;
 
-struct ast_iostream;
+struct ast_iostream;            /* forward declaration */
 
 /*!
  * \brief Disable the iostream timeout timer.
