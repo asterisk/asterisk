@@ -269,6 +269,7 @@ struct confbridge_user {
 	unsigned int muted:1;                        /*!< Has the user requested to be muted? */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
 	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
+	unsigned int talking:1;                      /*!< User is currently talking */
 	AST_LIST_HEAD_NOLOCK(, post_join_action) post_join_list; /*!< List of sounds to play after joining */;
 	AST_LIST_ENTRY(confbridge_user) list;        /*!< Linked list information */
 };

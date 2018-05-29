@@ -129,6 +129,12 @@ app_sendtext
     Content-Type of a message.  Since you can now set Content-Type, other
     text/* content types are now valid.
 
+app_confbridge
+------------------
+  * ConfbridgeList now shows talking status. This utilizes the same voice
+    detection as the ConfbridgeTalking event, so bridges must be configured
+    with "talk_detection_events=yes" for this flag to have meaning.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.3.0 to Asterisk 15.4.0 ------------
 ------------------------------------------------------------------------------
