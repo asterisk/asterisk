@@ -54,6 +54,23 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	if test "$host" != "$this_host" ; then
 		PJPROJECT_CONFIGURE_OPTS+=" --host=$host"
 	fi
+	# This was a copy of the autoconf generated code from the root ./configure.
+	# Hopefully, when you read this, the code is still the same.
+	if test "${with_ssl+set}" = set; then :
+		case $with_ssl in
+		n|no)
+		PJPROJECT_CONFIGURE_OPTS+=" --disable-ssl"
+		;;
+		y|ye|yes)
+		# This is the default value in PJProject and means "autodetect".
+		# In Asterisk, "./configure --with-ssl" means "must be present".
+		PJPROJECT_CONFIGURE_OPTS+=" --enable-ssl"
+		;;
+		*)
+		PJPROJECT_CONFIGURE_OPTS+=" --with-ssl=${with_ssl}"
+		;;
+		esac
+	fi
 
 	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
 	export NOISY_BUILD
