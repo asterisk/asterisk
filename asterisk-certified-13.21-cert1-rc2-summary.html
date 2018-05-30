@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.21-cert1-rc2</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.21-cert1-rc2</h3><h3 align="center">Date: 2018-05-30</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.21-cert1-rc1.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">3 George Joseph <gjoseph@digium.com><br/>2 Alexander Traud <pabstraud@compuserve.com><br/></td><td width="33%"><td width="33%">2 Alexander Traud <pabstraud@compuserve.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27860">ASTERISK-27860</a>: [patch] res_pjsip: Register pjsip_transport_management not externally but internally.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5aaf6d16054fad4eb24ef85544d4baae6e573218">[5aaf6d1605]</a> Alexander Traud -- res_pjsip: Register pjsip_transport_management not externally but internally.</li>
+</ul><br><h4>Category: Resources/res_pjsip_endpoint_identifier_ip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27861">ASTERISK-27861</a>: [patch] res_pjsip_endpoint_identifier_ip: Unregister the module for headers.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5de8b00f2c5790d4bf7a94bb2b65e36769b35984">[5de8b00f2c]</a> Alexander Traud -- res_pjsip_endpoint_identifier_ip: Unregister the module for headers.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8f5fc3870d4577f47da308c1cc74e5da7fbd9f6c">8f5fc3870d</a></td><td>George Joseph</td><td>app_sendtext:  Enhance SendText to support Enhanced Messaging</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c1deeb28c2c7bcb81c96ebdb7bc53d980d5acfb1">c1deeb28c2</a></td><td>George Joseph</td><td>bridge_softmix:  Forward TEXT frames</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72fb285d9b72be369b00603a799626eff6c85eef">72fb285d9b</a></td><td>George Joseph</td><td>bridge_softmix:  Forward TEXT frames</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-certified-13.21-cert1-rc1-summary.html | 1188
+asterisk-certified-13.21-cert1-rc1-summary.txt  | 2878 -
+b/.version                                      |    2
+b/CHANGES                                       |   29
+b/ChangeLog                                     |55598 +++++++++---------------
+b/apps/app_sendtext.c                           |  179
+b/asterisk-13.21.0-rc1-summary.html             |  348
+b/asterisk-13.21.0-rc1-summary.txt              |  825
+b/bridges/bridge_softmix.c                      |   41
+b/channels/chan_pjsip.c                         |  112
+b/funcs/func_frame_trace.c                      |    8
+b/include/asterisk/channel.h                    |   32
+b/include/asterisk/frame.h                      |    5
+b/include/asterisk/message.h                    |  123
+b/main/bridge_channel.c                         |   31
+b/main/channel.c                                |   78
+b/main/frame.c                                  |    3
+b/main/message.c                                |  142
+b/res/res_pjsip/pjsip_transport_management.c    |    4
+b/res/res_pjsip_endpoint_identifier_ip.c        |    1
+b/res/res_pjsip_messaging.c                     |  111
+21 files changed, 24620 insertions(+), 37118 deletions(-)</pre><br></html>

@@ -1,0 +1,133 @@
+                                Release Summary
+
+                       asterisk-certified/13.21-cert1-rc2
+
+                                Date: 2018-05-30
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.21-cert1-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   3 George Joseph                                   2 Alexander Traud        
+   2 Alexander Traud        
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-27860: [patch] res_pjsip: Register pjsip_transport_management not
+   externally but internally.
+   Reported by: Alexander Traud
+     * [5aaf6d1605] Alexander Traud -- res_pjsip: Register
+       pjsip_transport_management not externally but internally.
+
+    Category: Resources/res_pjsip_endpoint_identifier_ip
+
+   ASTERISK-27861: [patch] res_pjsip_endpoint_identifier_ip: Unregister the
+   module for headers.
+   Reported by: Alexander Traud
+     * [5de8b00f2c] Alexander Traud -- res_pjsip_endpoint_identifier_ip:
+       Unregister the module for headers.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | 8f5fc3870d | George Joseph | app_sendtext: Enhance SendText to support |
+   |            |               | Enhanced Messaging                        |
+   |------------+---------------+-------------------------------------------|
+   | c1deeb28c2 | George Joseph | bridge_softmix: Forward TEXT frames       |
+   |------------+---------------+-------------------------------------------|
+   | 72fb285d9b | George Joseph | bridge_softmix: Forward TEXT frames       |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-certified-13.21-cert1-rc1-summary.html | 1188
+ asterisk-certified-13.21-cert1-rc1-summary.txt  | 2878 -
+ b/.version                                      |    2
+ b/CHANGES                                       |   29
+ b/ChangeLog                                     |55598 +++++++++---------------
+ b/apps/app_sendtext.c                           |  179
+ b/asterisk-13.21.0-rc1-summary.html             |  348
+ b/asterisk-13.21.0-rc1-summary.txt              |  825
+ b/bridges/bridge_softmix.c                      |   41
+ b/channels/chan_pjsip.c                         |  112
+ b/funcs/func_frame_trace.c                      |    8
+ b/include/asterisk/channel.h                    |   32
+ b/include/asterisk/frame.h                      |    5
+ b/include/asterisk/message.h                    |  123
+ b/main/bridge_channel.c                         |   31
+ b/main/channel.c                                |   78
+ b/main/frame.c                                  |    3
+ b/main/message.c                                |  142
+ b/res/res_pjsip/pjsip_transport_management.c    |    4
+ b/res/res_pjsip_endpoint_identifier_ip.c        |    1
+ b/res/res_pjsip_messaging.c                     |  111
+ 21 files changed, 24620 insertions(+), 37118 deletions(-)
