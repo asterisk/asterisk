@@ -68,6 +68,23 @@
 				<configOption name="admin">
 					<synopsis>Sets if the user is an admin or not</synopsis>
 				</configOption>
+				<configOption name="send_events" default="no">
+					<synopsis>Sets if events are send to the user</synopsis>
+					<description><para>If events are enabled for this bridge and this option is
+					set, users will receive events like join, leave, talking, etc. via text
+					messages.  For users accessing the bridge via chan_pjsip, this means
+					in-dialog MESSAGE messages.  This is most useful for WebRTC participants
+					where the browser application can use the messages to alter the user
+					interface.</para></description>
+				</configOption>
+				<configOption name="echo_events" default="yes">
+					<synopsis>Sets if events are echoed back to the user that
+					triggered them</synopsis>
+					<description><para>If events are enabled for this user and this option
+					is set, the user will receive events they trigger, talking, mute, etc.
+					If not set, they will not receive their own events.
+					</para></description>
+				</configOption>
 				<configOption name="marked">
 					<synopsis>Sets if this is a marked user or not</synopsis>
 				</configOption>
@@ -489,6 +506,17 @@
 								<para>The highest estimated maximum bitrate is forwarded to the sender.</para>
 							</enum>
 						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="enable_events" default="no">
+					<synopsis>Enables events for this bridge</synopsis>
+					<description><para>
+						If enabled, recipients who joined the bridge via a channel driver
+						that supports Enhanced Messaging (currently only chan_pjsip) will
+						receive in-dialog messages containing a JSON body describing the
+						event.  The Content-Type header will be
+						<literal>text/x-ast-confbridge-event</literal>.
+						This feature must also be enabled in user profiles.</para>
 					</description>
 				</configOption>
 				<configOption name="template">
@@ -1478,6 +1506,12 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Admin:                   %s\n",
 		u_profile.flags & USER_OPT_ADMIN ?
 		"true" : "false");
+	ast_cli(a->fd,"Send Events:             %s\n",
+		u_profile.flags & USER_OPT_SEND_EVENTS ?
+		"true" : "false");
+	ast_cli(a->fd,"Echo Events:             %s\n",
+		u_profile.flags & USER_OPT_ECHO_EVENTS ?
+		"true" : "false");
 	ast_cli(a->fd,"Marked User:             %s\n",
 		u_profile.flags & USER_OPT_MARKEDUSER ?
 		"true" : "false");
@@ -1717,6 +1751,10 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		ast_assert(0);
 		break;
 	}
+
+	ast_cli(a->fd,"Enable Events:             %s\n",
+		b_profile.flags & BRIDGE_OPT_ENABLE_EVENTS ?
+		"yes" : "no");
 
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
@@ -2265,6 +2303,8 @@ int conf_load_config(void)
 	/* User options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, user_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "admin", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ADMIN);
+	aco_option_register(&cfg_info, "send_events", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_SEND_EVENTS);
+	aco_option_register(&cfg_info, "echo_events", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ECHO_EVENTS);
 	aco_option_register(&cfg_info, "marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MARKEDUSER);
 	aco_option_register(&cfg_info, "startmuted", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTMUTED);
 	aco_option_register(&cfg_info, "music_on_hold_when_empty", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MUSICONHOLD);
@@ -2288,6 +2328,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "dsp_talking_threshold", ACO_EXACT, user_types, __stringify(DEFAULT_TALKING_THRESHOLD), OPT_UINT_T, 0, FLDSET(struct user_profile, talking_threshold));
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_JITTERBUFFER);
 	aco_option_register(&cfg_info, "timeout", ACO_EXACT, user_types, "0", OPT_UINT_T, 0, FLDSET(struct user_profile, timeout));
+
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, user_types, NULL, user_template_handler, 0);
 
@@ -2313,6 +2354,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
 	aco_option_register(&cfg_info, "remb_send_interval", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_send_interval));
 	aco_option_register_custom(&cfg_info, "remb_behavior", ACO_EXACT, bridge_types, "average", remb_behavior_handler, 0);
+	aco_option_register(&cfg_info, "enable_events", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_ENABLE_EVENTS);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
 
