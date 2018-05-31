@@ -225,10 +225,28 @@ append_coredumps=false
 declare -a COREDUMPS
 declare -a ARGS_COREDUMPS
 
-# Read config files from least important to most important
-[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
-[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
-[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+# readconf reads a bash-sourceable file and sets variables
+# that havn't already been set.  This allows variables set
+# on the command line or that are already in the environment
+# to take precedence over those read from the file.
+#
+# Setting the values can't be done in a subshell so you can't
+# just pipe the output of sed into the while.
+
+readconf() {
+	while read line ; do
+		declare -n v=${line%%=*}
+		[ -z "${v}" ] && eval $line || :
+	done <<EOF
+$( sed -r -e "/\s*#/d" -e "/^\s*$/d" $1 )
+EOF
+}
+
+# Read config files from most important to least important.
+# Variable set on the command line or environment always take precedence.
+[ -f ./ast_debug_tools.conf ] && readconf ./ast_debug_tools.conf
+[ -f ~/ast_debug_tools.conf ] && readconf ~/ast_debug_tools.conf
+[ -f /etc/asterisk/ast_debug_tools.conf ] && readconf /etc/asterisk/ast_debug_tools.conf
 
 # For *BSD, the preferred gdb may be in /usr/local/bin so we
 # need to search for one that supports python.
