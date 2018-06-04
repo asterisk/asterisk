@@ -66,9 +66,13 @@
 				</variable>
 				<variable name="SENDTEXT_CONTENT_TYPE">
 					<para>If set and this channel supports enhanced messaging, this value will be
-					used as the message <literal>Content-Type</literal>.  It <emphasis>MUST</emphasis>
-					be a <literal>text/&#42;</literal> content type.  If not specified, the
+					used as the message <literal>Content-Type</literal>.  If not specified, the
 					default of <literal>text/plain</literal> will be used.</para>
+					<para><emphasis>Warning:</emphasis> Messages of types other than
+					<literal>text/&#42;</literal> cannot be sent via channel drivers that do not
+					support Enhanced Messaging. An attempt to do so will be ignored and will result
+					in the <literal>SENDTEXTSTATUS</literal> variable being set to
+					<literal>UNSUPPORTED</literal>.</para>
 				</variable>
 				<variable name="SENDTEXT_BODY">
 					<para>If set this value will be used as the message body and any text supplied
@@ -191,11 +195,6 @@ static int sendtext_exec(struct ast_channel *chan, const char *data)
 			},
 		};
 
-		if (!ast_strlen_zero(content_type) && !ast_begins_with(content_type, "text/")) {
-			ast_log(LOG_ERROR, "SENDTEXT_CONTENT_TYPE must begin with 'text/'\n");
-			rc = -1;
-			goto cleanup;
-		}
 		msg_type = "ENHANCED";
 		msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
 		if (msg) {
@@ -212,6 +211,11 @@ static int sendtext_exec(struct ast_channel *chan, const char *data)
 		}
 
 	} else if (ast_channel_tech(chan)->send_text) {
+		if (!ast_strlen_zero(content_type) && !ast_begins_with(content_type, "text/")) {
+			rc = -1;
+			goto cleanup;
+		}
+
 		msg_type = "BASIC";
 		if (ast_sendtext(chan, body) == 0) {
 			status = "SUCCESS";
