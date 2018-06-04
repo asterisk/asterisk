@@ -4889,7 +4889,7 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 
 	CHECK_BLOCKING(chan);
 	if (ast_channel_tech(chan)->write_text
-		&& (ast_strlen_zero(content_type) || strcasecmp(content_type, "text/plain") == 0)
+		&& (ast_strlen_zero(content_type) || ast_begins_with(content_type, "text/"))
 		&& (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
 		struct ast_frame f;
 		size_t body_len = strlen(body) + 1;
@@ -4917,7 +4917,7 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 			ast_channel_name(chan), body);
 		res = ast_channel_tech(chan)->send_text_data(chan, msg);
 	} else if (ast_channel_tech(chan)->send_text
-		&& (ast_strlen_zero(content_type) || strcasecmp(content_type, "text/plain") == 0)) {
+		&& (ast_strlen_zero(content_type) || ast_begins_with(content_type, "text/"))) {
 		/* Send the body of an enhanced message to a channel driver that supports only a char str */
 		ast_debug(1, "Sending TEXT to %s: %s\n", ast_channel_name(chan), body);
 		res = ast_channel_tech(chan)->send_text(chan, body);
