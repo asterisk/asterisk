@@ -562,7 +562,7 @@
 				<parameter name="Meetme">
 					<para>The identifier for the MeetMe conference.</para>
 				</parameter>
-				<parameter name="Usernum">
+				<parameter name="User">
 					<para>The identifier of the MeetMe user who joined.</para>
 				</parameter>
 				<channel_snapshot/>
