@@ -12583,6 +12583,8 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 
 static void *network_thread(void *ignore)
 {
+	int res;
+
 	if (timer) {
 		ast_io_add(io, ast_timer_fd(timer), timing_read, AST_IO_IN | AST_IO_PRI, NULL);
 	}
@@ -12592,7 +12594,11 @@ static void *network_thread(void *ignore)
 		/* Wake up once a second just in case SIGURG was sent while
 		 * we weren't in poll(), to make sure we don't hang when trying
 		 * to unload. */
-		if (ast_io_wait(io, 1000) <= 0) {
+		res = ast_io_wait(io, 1000);
+		/* Timeout(=0), and EINTR is not a thread exit condition. We do
+		 * not want to exit the thread loop on these conditions. */
+		if (res < 0 && errno != -EINTR) {
+			ast_log(LOG_ERROR, "IAX2 network thread unexpected exit: %s\n", strerror(errno));
 			break;
 		}
 	}
