@@ -1281,7 +1281,7 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 {
 	struct ast_rtp_payload_type *new_type;
 
-	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
+	if (payload < 0 || payload >= AST_RTP_MAX_PT || payload > AST_RTP_PT_LAST_STATIC) {
 		return;
 	}
 
