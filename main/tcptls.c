@@ -25,33 +25,52 @@
  * \author Brett Bryant <brettbryant@gmail.com>
  */
 
-/*** MODULEINFO
-	<use type="external">openssl</use>
-	<support_level>core</support_level>
- ***/
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/tcptls.h"            /* for ast_tls_config, ast_tcptls_se... */
+
 #ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
+#include <fcntl.h>                      /* for O_NONBLOCK */
+#endif /* HAVE_FCNTL_H */
+#include <netinet/in.h>                 /* for IPPROTO_TCP */
+#ifdef DO_SSL
+#include <openssl/asn1.h>               /* for ASN1_STRING_to_UTF8 */
+#include <openssl/crypto.h>             /* for OPENSSL_free */
+#include <openssl/err.h>                /* for ERR_error_string */
+#include <openssl/opensslconf.h>        /* for OPENSSL_NO_SSL3_METHOD, OPENS... */
+#include <openssl/opensslv.h>           /* for OPENSSL_VERSION_NUMBER */
+#include <openssl/safestack.h>          /* for STACK_OF */
+#include <openssl/ssl.h>                /* for SSL_CTX_free, SSL_get_error, ... */
+#include <openssl/x509.h>               /* for X509_free, X509_NAME_ENTRY_ge... */
+#include <openssl/x509v3.h>             /* for GENERAL_NAME, sk_GENERAL_NAME... */
+#ifndef OPENSSL_NO_DH
+#include <openssl/bio.h>                /* for BIO_free, BIO_new_file */
+#include <openssl/dh.h>                 /* for DH_free */
+#include <openssl/pem.h>                /* for PEM_read_bio_DHparams */
+#endif /* OPENSSL_NO_DH */
+#ifndef OPENSSL_NO_EC
+#include <openssl/ec.h>                 /* for EC_KEY_free, EC_KEY_new_by_cu... */
+#endif /* OPENSSL_NO_EC */
+#endif /* DO_SSL */
+#include <pthread.h>                    /* for pthread_cancel, pthread_join */
+#include <signal.h>                     /* for pthread_kill, SIGURG */
+#include <sys/socket.h>                 /* for setsockopt, shutdown, socket */
+#include <sys/stat.h>                   /* for stat */
+#include <sys/time.h>                   /* for timeval */
 
-#include <signal.h>
-#include <sys/signal.h>
-#include <sys/stat.h>
-
-#include "asterisk/compat.h"
-#include "asterisk/tcptls.h"
-#include "asterisk/http.h"
-#include "asterisk/utils.h"
-#include "asterisk/strings.h"
-#include "asterisk/options.h"
-#include "asterisk/manager.h"
-#include "asterisk/astobj2.h"
-#include "asterisk/pbx.h"
-#include "asterisk/app.h"
+#include "asterisk/app.h"               /* for ast_read_textfile */
+#include "asterisk/astobj2.h"           /* for ao2_ref, ao2_t_ref, ao2_alloc */
+#include "asterisk/compat.h"            /* for strcasecmp */
+#include "asterisk/config.h"            /* for ast_parse_arg, ast_parse_flag... */
+#include "asterisk/lock.h"              /* for AST_PTHREADT_NULL */
+#include "asterisk/logger.h"            /* for ast_log, LOG_ERROR, ast_debug */
+#include "asterisk/netsock2.h"          /* for ast_sockaddr_copy, ast_sockad... */
+#include "asterisk/pbx.h"               /* for ast_thread_inhibit_escalations */
+#include "asterisk/threadstorage.h"     /* for ast_threadstorage_get, AST_TH... */
+#include "asterisk/time.h"              /* for ast_remaining_ms, ast_tvnow */
+#include "asterisk/utils.h"             /* for ast_true, ast_free, ast_wait_... */
 
 /*! ao2 object used for the FILE stream fopencookie()/funopen() cookie. */
 struct ast_tcptls_stream {
