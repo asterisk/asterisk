@@ -18,12 +18,23 @@
 
 #include "asterisk.h"
 
-#include <fcntl.h>
-#include <stdarg.h>
+#include "asterisk/iostream.h"          /* for DO_SSL */
 
-#include "asterisk/utils.h"
-#include "asterisk/astobj2.h"
-#include "asterisk/iostream.h"
+#include <fcntl.h>                      /* for O_NONBLOCK */
+#ifdef DO_SSL
+#include <openssl/err.h>                /* for ERR_error_string */
+#include <openssl/opensslv.h>           /* for OPENSSL_VERSION_NUMBER */
+#include <openssl/ssl.h>                /* for SSL_get_error, SSL_free, SSL_... */
+#endif
+#include <sys/socket.h>                 /* for shutdown, SHUT_RDWR */
+#include <sys/time.h>                   /* for timeval */
+
+#include "asterisk/astobj2.h"           /* for ao2_alloc_options, ao2_alloc_... */
+#include "asterisk/logger.h"            /* for ast_debug, ast_log, LOG_ERROR */
+#include "asterisk/strings.h"           /* for asterisk/threadstorage.h */
+#include "asterisk/threadstorage.h"     /* for ast_threadstorage_get, AST_TH... */
+#include "asterisk/time.h"              /* for ast_remaining_ms, ast_tvnow */
+#include "asterisk/utils.h"             /* for ast_wait_for_input, ast_wait_... */
 
 struct ast_iostream {
 	SSL *ssl;
