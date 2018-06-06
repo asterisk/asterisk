@@ -278,6 +278,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="No"/>
 					</enumlist>
 				</parameter>
+				<parameter name="Talking">
+					<para>Is this user talking?</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 				<parameter name="AnsweredTime">
 					<para>The number of seconds the channel has been up.</para>
 				</parameter>
@@ -2085,7 +2092,7 @@ static int play_sound_number(struct confbridge_conference *conference, int say_n
 
 static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking)
 {
-	const struct confbridge_user *user = hook_pvt;
+	struct confbridge_user *user = hook_pvt;
 	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
 	struct ast_json *talking_extras;
 
@@ -2094,6 +2101,10 @@ static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void
 		/* Remove the hook since the conference does not exist. */
 		return -1;
 	}
+
+	ao2_lock(conference);
+	user->talking = talking;
+	ao2_unlock(conference);
 
 	talking_extras = ast_json_pack("{s: s, s: b}",
 		"talking_status", talking ? "on" : "off",
@@ -3526,6 +3537,7 @@ static int action_confbridgelist_item(struct mansession *s, const char *id_text,
 		"EndMarked: %s\r\n"
 		"Waiting: %s\r\n"
 		"Muted: %s\r\n"
+		"Talking: %s\r\n"
 		"AnsweredTime: %d\r\n"
 		"%s"
 		"\r\n",
@@ -3537,6 +3549,7 @@ static int action_confbridgelist_item(struct mansession *s, const char *id_text,
 		AST_YESNO(ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED)),
 		AST_YESNO(waiting),
 		AST_YESNO(user->muted),
+		AST_YESNO(user->talking),
 		ast_channel_get_up_time(user->chan),
 		ast_str_buffer(snap_str));
 
