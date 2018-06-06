@@ -2820,6 +2820,7 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;
+	uint8_t indicate_src_change = 0;
 	struct ast_bridge_features *channel_features;
 	struct ast_channel *swap;
 
@@ -2889,7 +2890,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		 */
 		if (!(bridge_channel->bridge->technology->capabilities
 			& AST_BRIDGE_CAPABILITY_MULTIMIX)) {
-			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCCHANGE);
+			indicate_src_change = 1;
 		}
 
 		bridge_channel_impart_signal(bridge_channel->chan);
@@ -2898,6 +2899,10 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		/* Must release any swap ref after unlocking the bridge. */
 		ao2_t_cleanup(swap, "Bridge push with swap successful");
 		swap = NULL;
+
+		if (indicate_src_change) {
+			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCCHANGE);
+		}
 
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
 
