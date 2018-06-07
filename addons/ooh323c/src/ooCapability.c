@@ -812,7 +812,7 @@ void* ooCapabilityCreateDTMFCapability(int cap, int dtmfcodec, OOCTXT *pctxt)
          memFreePtr(pctxt, pATECap);
          return NULL;
       }
-      strncpy(events, "0-16", strlen("0-16"));
+      strcpy(events, "0-16");
       pATECap->audioTelephoneEvent = events;
       return pATECap;
    case OO_CAP_DTMF_CISCO:
