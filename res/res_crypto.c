@@ -35,21 +35,28 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/paths.h"	/* use ast_config_AST_KEY_DIR */
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <dirent.h>
+#include <dirent.h>                 /* for closedir, opendir, readdir, DIR */
 
-#include "asterisk/module.h"
-#include "asterisk/md5.h"
-#include "asterisk/cli.h"
-#include "asterisk/io.h"
-#include "asterisk/lock.h"
-#include "asterisk/utils.h"
+#include <openssl/aes.h>            /* for AES_decrypt, AES_encrypt, AES_set... */
+#include <openssl/err.h>            /* for ERR_print_errors_fp */
+#include <openssl/ssl.h>            /* for NID_sha1, RSA */
+#include <openssl/pem.h>            /* for PEM_read_RSAPrivateKey, PEM_read_... */
+#include <openssl/rsa.h>            /* for RSA_free, RSA_private_decrypt, RSA */
+#include <openssl/sha.h>            /* for SHA1 */
+
+#include "asterisk/cli.h"           /* for ast_cli, ast_cli_args, ast_cli_entry */
+#include "asterisk/compat.h"        /* for strcasecmp */
+#include "asterisk/io.h"            /* for ast_hide_password, ast_restore_tty */
+#include "asterisk/linkedlists.h"   /* for AST_RWLIST_TRAVERSE, AST_RWLIST_U... */
+#include "asterisk/logger.h"        /* for ast_log, LOG_WARNING, LOG_NOTICE */
+#include "asterisk/md5.h"           /* for MD5Final, MD5Init, MD5Update, MD5... */
+#include "asterisk/module.h"        /* for ast_module_flags::AST_MODFLAG_GLO... */
+#include "asterisk/options.h"       /* for ast_opt_init_keys */
+#include "asterisk/paths.h"         /* for ast_config_AST_KEY_DIR */
+#include "asterisk/utils.h"         /* for ast_copy_string, ast_base64decode */
 
 #define AST_API_MODULE
-#include "asterisk/crypto.h"
+#include "asterisk/crypto.h"        /* for AST_KEY_PUBLIC, AST_KEY_PRIVATE */
 
 /*
  * Asterisk uses RSA keys with SHA-1 message digests for its
