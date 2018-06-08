@@ -43,9 +43,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 
 #ifdef HAVE_OPENSSL_SRTP
+#include <openssl/opensslconf.h>
+#include <openssl/opensslv.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
+#ifndef OPENSSL_NO_DH
+#include <openssl/dh.h>
+#endif
 #endif
 
 #ifdef HAVE_PJPROJECT
@@ -1610,7 +1615,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int res;
-#ifdef HAVE_OPENSSL_EC
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	EC_KEY *ecdh;
 #endif
 
@@ -1638,8 +1643,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 
 	SSL_CTX_set_read_ahead(rtp->ssl_ctx, 1);
 
-#ifdef HAVE_OPENSSL_EC
-
+#ifndef OPENSSL_NO_DH
 	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
 		if (bio != NULL) {
@@ -1656,6 +1660,8 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 			BIO_free(bio);
 		}
 	}
+#endif /* !OPENSSL_NO_DH */
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
 	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	if (ecdh != NULL) {
@@ -1672,8 +1678,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		}
 		EC_KEY_free(ecdh);
 	}
-
-#endif /* #ifdef HAVE_OPENSSL_EC */
+#endif /* !OPENSSL_NO_ECDH */
 
 	rtp->dtls_verify = dtls_cfg->verify;
 
