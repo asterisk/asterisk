@@ -13,7 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -51,7 +52,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Richard Mudgett                                 1 John                   
+   1 Kevin Harwell                                   1 John                   
+   1 Richard Mudgett        
 
      ----------------------------------------------------------------------
 
@@ -73,6 +75,21 @@
 
      ----------------------------------------------------------------------
 
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision           | Author                | Summary                   |
+   |--------------------+-----------------------+---------------------------|
+   | a562192fa4         | Kevin Harwell         | Update for 14.7.7         |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
                                 Diffstat Results
 
                                  [Back to Top]
@@ -80,4 +97,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ asterisk-14.7.6-summary.html        |   31 ---------
+ asterisk-14.7.6-summary.txt         |  118 ------------------------------------
+ b/.version                          |    2
+ b/ChangeLog                         |   23 +++++++
+ b/asterisk-14.7.7-summary.html      |   13 +++
+ b/asterisk-14.7.7-summary.txt       |   83 +++++++++++++++++++++++++
+ b/res/res_pjsip/pjsip_distributor.c |   20 ++++++
+ 7 files changed, 140 insertions(+), 150 deletions(-)
