@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.18-cert4</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.18-cert4</h3><h3 align="center">Date: 2018-06-11</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2018-008.html">AST-2018-008</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.18-cert3.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">2 Kevin Harwell <kharwell@digium.com><br/>2 Richard Mudgett <rmudgett@digium.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Joshua Colp <jcolp@digium.com><br/></td><td width="33%"><td width="33%">2 Kevin Harwell <kharwell@digium.com><br/>1 Bryan Walters <secretop@gmail.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 John <john@antme.com><br/>1 Alejandro Padilla <alejandro.padilla83@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27818">ASTERISK-27818</a>: Username bruteforce is possible when using ACL with PJSIP<br/>Reported by: John<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9fc59c223cc56c718b99b6cef2cb03dfcaf0a234">[9fc59c223c]</a> Richard Mudgett -- AST-2018-008: Fix enumeration of endpoints from ACL rejected addresses.</li>
+</ul><br><h3>Bug</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27755">ASTERISK-27755</a>: ConfBridge: raise ConfbridgeTalking when put on hold and clear talking status<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9d6dfebe5cde16fcd8062396a48b6306d377268">[a9d6dfebe5]</a> Kevin Harwell -- bridge_softmix: Clear "talking" when a channel is put on hold</li>
+</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27755">ASTERISK-27755</a>: ConfBridge: raise ConfbridgeTalking when put on hold and clear talking status<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9d6dfebe5cde16fcd8062396a48b6306d377268">[a9d6dfebe5]</a> Kevin Harwell -- bridge_softmix: Clear "talking" when a channel is put on hold</li>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27568">ASTERISK-27568</a>: PJSIP: Crash during SIP attended transfer.<br/>Reported by: Bryan Walters<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=92f509fce6e18a5574eda9240588c8c36ba694da">[92f509fce6]</a> Richard Mudgett -- res_pjsip_refer.c: Fix attended transfer race condition crash.</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24488">ASTERISK-24488</a>: Wrong remote identity and target in dialog package XML in NOTIFY<br/>Reported by: Alejandro Padilla<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=03b072c6c3a84de2e882c9cab52f065794315653">[03b072c6c3]</a> Joshua Colp -- chan_sip: Emit a second ringing event to ensure channel is found.</li>
+</ul><br><h4>Category: Codecs/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27814">ASTERISK-27814</a>: translate: interpolated frames are not passed through<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9b9e8bdb5a8b1b819897d8a1e3922efe309a8c88">[9b9e8bdb5a]</a> Kevin Harwell -- translate: generic plc not filled in after translation</li>
+</ul><br><h4>Category: Core/Channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27743">ASTERISK-27743</a>: Generic PLC doesn't work if the 2 codecs on a channel are equal<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=051c1ddf6c13caed38bd60fbddd9ca3fe955ccc9">[051c1ddf6c]</a> George Joseph -- channel.c:  Allow generic plc then channel formats are equal</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24488">ASTERISK-24488</a>: Wrong remote identity and target in dialog package XML in NOTIFY<br/>Reported by: Alejandro Padilla<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=03b072c6c3a84de2e882c9cab52f065794315653">[03b072c6c3]</a> Joshua Colp -- chan_sip: Emit a second ringing event to ensure channel is found.</li>
+</ul><br><h4>Category: Resources/res_pjsip_refer</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27568">ASTERISK-27568</a>: PJSIP: Crash during SIP attended transfer.<br/>Reported by: Bryan Walters<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=92f509fce6e18a5574eda9240588c8c36ba694da">[92f509fce6]</a> Richard Mudgett -- res_pjsip_refer.c: Fix attended transfer race condition crash.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=064a18ce361747ca26aa536c26f74a17a24e7163">064a18ce36</a></td><td>George Joseph</td><td>ast_coredumper:  Minor fixes</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>CHANGES                            |   11 ++
+bridges/bridge_softmix.c           |   48 ++++++++--
+channels/chan_sip.c                |    3
+configs/samples/codecs.conf.sample |    9 +
+contrib/scripts/ast_coredumper     |  169 ++++++++++++++++++++++++++++---------
+formats/format_sln.c               |    6 +
+include/asterisk/options.h         |    3
+main/asterisk.c                    |    1
+main/channel.c                     |   19 +++-
+main/translate.c                   |   33 +++++++
+res/res_pjsip/pjsip_distributor.c  |   38 ++++++--
+res/res_pjsip_refer.c              |    5 -
+12 files changed, 283 insertions(+), 62 deletions(-)</pre><br></html>
