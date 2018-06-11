@@ -1,6 +1,10 @@
-2018-06-11 21:06 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-06-11 21:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.18-cert4 Released.
+
+2018-06-11 16:06 +0000 [d6f82bee60]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for certified/13.18-cert4
 
 2018-04-30 17:38 +0000 [9fc59c223c]  Richard Mudgett <rmudgett@digium.com>
 
