@@ -1,8 +1,8 @@
                                 Release Summary
 
-                                asterisk-14.7.6
+                                asterisk-14.7.7
 
-                                Date: 2018-02-21
+                                Date: 2018-06-11
 
                            <asteriskteam@digium.com>
 
@@ -30,10 +30,10 @@
 
    Security Advisories:
 
-     * AST-2018-002,AST-2018-003,AST-2018-004,AST-2018-005
+     * AST-2018-008
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-14.7.5.
+   previous release, asterisk-14.7.6.
 
      ----------------------------------------------------------------------
 
@@ -51,9 +51,7 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   3 George Joseph                                   6 Sandro Gauci           
-   2 Kevin Harwell                                   4 Sandro Gauci           
-   1 Joshua Colp            
+   1 Richard Mudgett                                 1 John                   
 
      ----------------------------------------------------------------------
 
@@ -66,35 +64,12 @@
 
   Security
 
-    Category: Channels/chan_pjsip
+    Category: Resources/res_pjsip
 
-   ASTERISK-27583: Segmentation fault occurs in asterisk with an invalid SDP
-   fmtp attribute
-   Reported by: Sandro Gauci
-     * [4e9849c4bc] Kevin Harwell -- AST-2018-003: Crash with an invalid SDP
-       fmtp attribute
-   ASTERISK-27582: Segmentation fault occurs in Asterisk with an invalid SDP
-   media format description
-   Reported by: Sandro Gauci
-     * [37eb30e1d2] Kevin Harwell -- AST-2018-002: Crash with an invalid SDP
-       media format description
-   ASTERISK-27640: SUBSCRIBE message with a large Accept value causes stack
-   corruption
-   Reported by: Sandro Gauci
-     * [dd3e3153ea] Joshua Colp -- AST-2018-004: Restrict the number of
-       Accept headers in a SUBSCRIBE.
-
-    Category: pjproject/pjsip
-
-   ASTERISK-27618: Crash occurs when sending a repeated number of INVITE
-   messages over TCP or TLS transport
-   Reported by: Sandro Gauci
-     * [45db14178f] George Joseph -- AST-2018-005:
-       res_pjsip_transport_management: Move to core
-     * [de0b026c4d] George Joseph -- AST-2018-005: Fix tdata leaks when
-       calling pjsip_endpt_send_response(2)
-     * [b5657daf8b] George Joseph -- AST-2018-005: Add a check for NULL tdata
-       in ast_sip_failover_request
+   ASTERISK-27818: Username bruteforce is possible when using ACL with PJSIP
+   Reported by: John
+     * [b67fe624c6] Richard Mudgett -- AST-2018-008: Fix enumeration of
+       endpoints from ACL rejected addresses.
 
      ----------------------------------------------------------------------
 
@@ -105,14 +80,4 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- b/CHANGES                                                |   11
- b/UPGRADE.txt                                            |    8
- b/res/res_pjsip.c                                        |   17
- b/res/res_pjsip/include/res_pjsip_private.h              |   28 +
- b/res/res_pjsip/pjsip_distributor.c                      |    8
- b/res/res_pjsip/pjsip_transport_management.c             |  376 ++++++++++++++
- b/res/res_pjsip_pubsub.c                                 |    5
- b/res/res_pjsip_session.c                                |    8
- b/third-party/pjproject/patches/0070-sdp_media_fmt.patch |   19
- res/res_pjsip_transport_management.c                     |  400 ---------------
- 10 files changed, 472 insertions(+), 408 deletions(-)
+ 0 files changed

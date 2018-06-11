@@ -1,3 +1,26 @@
+2018-06-11 21:11 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.7.7 Released.
+
+2018-04-30 17:38 +0000 [b67fe624c6]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2018-008: Fix enumeration of endpoints from ACL rejected addresses.
+
+	  When endpoint specific ACL rules block a SIP request they respond with a
+	  403 forbidden.  However, if an endpoint is not identified then a 401
+	  unauthorized response is sent.  This vulnerability just discloses which
+	  requests hit a defined endpoint.  The ACL rules cannot be bypassed to gain
+	  access to the disclosed endpoints.
+
+	  * Made endpoint specific ACL rules now respond with a 401 unauthorized
+	  which is the same as if an endpoint were not identified.  The fix is
+	  accomplished by replacing the found endpoint with the artificial endpoint
+	  which always fails authentication.
+
+	  ASTERISK-27818
+
+	  Change-Id: Icb275a54ff8e2df6c671a6d9bda37b5d732b3b32
+
 2018-02-21 18:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.7.6 Released.
