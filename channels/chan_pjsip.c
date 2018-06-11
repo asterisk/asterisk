@@ -147,9 +147,16 @@ static struct ast_sip_session_supplement chan_pjsip_supplement = {
 	.session_begin = chan_pjsip_session_begin,
 	.session_end = chan_pjsip_session_end,
 	.incoming_request = chan_pjsip_incoming_request,
-	.incoming_response = chan_pjsip_incoming_response,
 	/* It is important that this supplement runs after media has been negotiated */
 	.response_priority = AST_SIP_SESSION_AFTER_MEDIA,
+};
+
+/*! \brief SIP session supplement structure just for responses */
+static struct ast_sip_session_supplement chan_pjsip_supplement_response = {
+	.method = "INVITE",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL,
+	.incoming_response = chan_pjsip_incoming_response,
+	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA | AST_SIP_SESSION_AFTER_MEDIA,
 };
 
 static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
@@ -2837,6 +2844,11 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (ast_sip_session_register_supplement(&chan_pjsip_supplement_response)) {
+		ast_log(LOG_ERROR, "Unable to register PJSIP supplement\n");
+		goto end;
+	}
+
 	if (!(pjsip_uids_onhold = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
 			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, 37, uid_hold_hash_fn,
 			uid_hold_sort_fn, NULL))) {
@@ -2846,31 +2858,21 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&call_pickup_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP call pickup supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 		goto end;
 	}
 
 	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP pbx start supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
 		goto end;
 	}
 
 	if (ast_sip_session_register_supplement(&chan_pjsip_ack_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP ACK supplement\n");
-		ast_sip_session_unregister_supplement(&pbx_start_supplement);
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
 		goto end;
 	}
 
 	if (pjsip_channel_cli_register()) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP Channel CLI\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
-		ast_sip_session_unregister_supplement(&pbx_start_supplement);
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
 		goto end;
 	}
 
@@ -2886,6 +2888,11 @@ static int load_module(void)
 end:
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
+	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
+	ast_sip_session_unregister_supplement(&pbx_start_supplement);
+	ast_sip_session_unregister_supplement(&chan_pjsip_supplement_response);
+	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
+	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
@@ -2904,6 +2911,7 @@ static int unload_module(void)
 
 	pjsip_channel_cli_unregister();
 
+	ast_sip_session_unregister_supplement(&chan_pjsip_supplement_response);
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
