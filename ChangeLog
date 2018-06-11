@@ -2,6 +2,10 @@
 
 	* asterisk 15.4.1 Released.
 
+2018-06-11 16:21 +0000 [6b6402adf3]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 15.4.1
+
 2018-04-30 17:38 +0000 [888979a7ee]  Richard Mudgett <rmudgett@digium.com>
 
 	* AST-2018-008: Fix enumeration of endpoints from ACL rejected addresses.

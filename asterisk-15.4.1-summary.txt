@@ -13,7 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -52,7 +53,8 @@
 
    Coders                   Testers                  Reporters                
    1 Sean Bright                                     1 John                   
-   1 Richard Mudgett                                 1 Sean Bright            
+   1 Kevin Harwell                                   1 Sean Bright            
+   1 Richard Mudgett        
 
      ----------------------------------------------------------------------
 
@@ -82,6 +84,21 @@
 
      ----------------------------------------------------------------------
 
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision           | Author                | Summary                   |
+   |--------------------+-----------------------+---------------------------|
+   | 6b6402adf3         | Kevin Harwell         | Update for 15.4.1         |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
                                 Diffstat Results
 
                                  [Back to Top]
@@ -89,4 +106,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ asterisk-15.4.0-summary.html   |  380 -----------------
+ asterisk-15.4.0-summary.txt    |  906 -----------------------------------------
+ b/.version                     |    2
+ b/ChangeLog                    |   37 +
+ b/asterisk-15.4.1-summary.html |   15
+ b/asterisk-15.4.1-summary.txt  |   92 ++++
+ b/main/iostream.c              |    9
+ 7 files changed, 153 insertions(+), 1288 deletions(-)
