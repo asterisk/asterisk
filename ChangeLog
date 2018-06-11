@@ -1,6 +1,10 @@
-2018-06-11 21:00 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2018-06-11 21:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.21.1 Released.
+
+2018-06-11 16:00 +0000 [9ae823015c]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 13.21.1
 
 2018-04-30 17:38 +0000 [0ebeb3bed5]  Richard Mudgett <rmudgett@digium.com>
 

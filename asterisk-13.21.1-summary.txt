@@ -13,7 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -51,7 +52,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Richard Mudgett                                 1 John                   
+   1 Kevin Harwell                                   1 John                   
+   1 Richard Mudgett        
 
      ----------------------------------------------------------------------
 
@@ -73,6 +75,21 @@
 
      ----------------------------------------------------------------------
 
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision           | Author                | Summary                   |
+   |--------------------+-----------------------+---------------------------|
+   | 9ae823015c         | Kevin Harwell         | Update for 13.21.1        |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
                                 Diffstat Results
 
                                  [Back to Top]
@@ -80,4 +97,10 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ asterisk-13.21.0-summary.html   |  335 ----------------
+ asterisk-13.21.0-summary.txt    |  819 ----------------------------------------
+ b/.version                      |    2
+ b/ChangeLog                     |   23 +
+ b/asterisk-13.21.1-summary.html |   13
+ b/asterisk-13.21.1-summary.txt  |   67 +++
+ 6 files changed, 104 insertions(+), 1155 deletions(-)
