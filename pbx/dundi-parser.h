@@ -60,7 +60,7 @@ struct dundi_ie_data {
 extern void dundi_set_output(void (*output)(const char *data));
 /* Choose a different function for errors */
 extern void dundi_set_error(void (*output)(const char *data));
-extern void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
+extern void dundi_showframe(struct dundi_hdr *fhi, int rx, struct ast_sockaddr *sin, int datalen);
 
 extern const char *dundi_ie2str(int ie);
 
