@@ -2710,15 +2710,30 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 	return state;
 }
 
-#define CHECK_BLOCKING(c) do { 	 \
-	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) {\
-		ast_debug(1, "Thread %p is blocking '%s', already blocked by thread %p in procedure %s\n", \
-			(void *) pthread_self(), ast_channel_name(c), (void *) ast_channel_blocker(c), ast_channel_blockproc(c)); \
-	} else { \
+/*!
+ * \brief Set the blocking indication on the channel.
+ *
+ * \details
+ * Indicate that the thread handling the channel is about to do a blocking
+ * operation to wait for media on the channel.  (poll, read, or write)
+ *
+ * Masquerading and ast_queue_frame() use this indication to wake up the thread.
+ *
+ * \pre The channel needs to be locked
+ */
+#define CHECK_BLOCKING(c) \
+	do { \
+		if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) { \
+			/* This should not happen as there should only be one thread handling a channel's media at a time. */ \
+			ast_log(LOG_DEBUG, "Thread %p is blocking '%s', already blocked by thread %p in procedure %s\n", \
+				(void *) pthread_self(), ast_channel_name(c), \
+				(void *) ast_channel_blocker(c), ast_channel_blockproc(c)); \
+			ast_assert(0); \
+		} \
 		ast_channel_blocker_set((c), pthread_self()); \
 		ast_channel_blockproc_set((c), __PRETTY_FUNCTION__); \
 		ast_set_flag(ast_channel_flags(c), AST_FLAG_BLOCKING); \
-	} } while (0)
+	} while (0)
 
 ast_group_t ast_get_group(const char *s);
 
