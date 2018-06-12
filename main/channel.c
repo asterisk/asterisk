@@ -3266,10 +3266,10 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 		}
 	}
 
-	ast_channel_unlock(chan);
-
 	/* Time to make this channel block... */
 	CHECK_BLOCKING(chan);
+
+	ast_channel_unlock(chan);
 
 	if (*ms > 0) {
 		start = ast_tvnow();
@@ -3279,7 +3279,9 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 	res = epoll_wait(ast_channel_epfd(chan), ev, 1, rms);
 
 	/* Stop blocking */
+	ast_channel_lock(chan);
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
+	ast_channel_unlock(chan);
 
 	/* Simulate a timeout if we were interrupted */
 	if (res < 0) {
@@ -3305,12 +3307,14 @@ static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, 
 
 	/* See what events are pending */
 	aed = ev[0].data.ptr;
+	ast_channel_lock(chan);
 	ast_channel_fdno_set(chan, aed->which);
 	if (ev[0].events & EPOLLPRI) {
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 	} else {
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 	}
+	ast_channel_unlock(chan);
 
 	if (*ms > 0) {
 		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
@@ -3346,8 +3350,8 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 				whentohangup = diff;
 			}
 		}
-		ast_channel_unlock(c[i]);
 		CHECK_BLOCKING(c[i]);
+		ast_channel_unlock(c[i]);
 	}
 
 	rms = *ms;
@@ -3365,7 +3369,9 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 	res = epoll_wait(ast_channel_epfd(c[0]), ev, 25, rms);
 
 	for (i = 0; i < n; i++) {
+		ast_channel_lock(c[i]);
 		ast_clear_flag(ast_channel_flags(c[i]), AST_FLAG_BLOCKING);
+		ast_channel_unlock(c[i]);
 	}
 
 	if (res < 0) {
@@ -3400,12 +3406,14 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 		}
 
 		winner = aed->chan;
+		ast_channel_lock(winner);
 		if (ev[i].events & EPOLLPRI) {
 			ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 		} else {
 			ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 		}
 		ast_channel_fdno_set(winner, aed->which);
+		ast_channel_unlock(winner);
 	}
 
 	if (*ms > 0) {
@@ -5220,11 +5228,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				/* There is a generator running while we're in the middle of a digit.
 				 * It's probably inband DTMF, so go ahead and pass it so it can
 				 * stop the generator */
-				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 				ast_channel_unlock(chan);
 				res = ast_senddigit_end(chan, fr->subclass.integer, fr->len);
 				ast_channel_lock(chan);
-				CHECK_BLOCKING(chan);
 			} else if (fr->frametype == AST_FRAME_CONTROL
 				&& fr->subclass.integer == AST_CONTROL_UNHOLD) {
 				/*
@@ -5242,7 +5248,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	/* High bit prints debugging */
 	if (ast_channel_fout(chan) & DEBUGCHAN_FLAG)
 		ast_frame_dump(ast_channel_name(chan), fr, ">>");
-	CHECK_BLOCKING(chan);
 	switch (fr->frametype) {
 	case AST_FRAME_CONTROL:
 		indicate_data_internal(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
@@ -5256,11 +5261,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				f = fr;
 		}
 		send_dtmf_begin_event(chan, DTMF_SENT, fr->subclass.integer);
-		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_begin(chan, fr->subclass.integer);
 		ast_channel_lock(chan);
-		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_DTMF_END:
 		if (ast_channel_audiohooks(chan)) {
@@ -5272,13 +5275,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			}
 		}
 		send_dtmf_end_event(chan, DTMF_SENT, fr->subclass.integer, fr->len);
-		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_end(chan, fr->subclass.integer, fr->len);
 		ast_channel_lock(chan);
-		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
+		CHECK_BLOCKING(chan);
 		if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL) {
 			res = (ast_channel_tech(chan)->write_text == NULL) ? 0 :
 				ast_channel_tech(chan)->write_text(chan, fr);
@@ -5286,19 +5288,26 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			res = (ast_channel_tech(chan)->send_text == NULL) ? 0 :
 				ast_channel_tech(chan)->send_text(chan, (char *) fr->data.ptr);
 		}
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_HTML:
+		CHECK_BLOCKING(chan);
 		res = (ast_channel_tech(chan)->send_html == NULL) ? 0 :
 			ast_channel_tech(chan)->send_html(chan, fr->subclass.integer, (char *) fr->data.ptr, fr->datalen);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
+		CHECK_BLOCKING(chan);
 		res = (ast_channel_tech(chan)->write_video == NULL) ? 0 :
 			ast_channel_tech(chan)->write_video(chan, fr);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_MODEM:
+		CHECK_BLOCKING(chan);
 		res = (ast_channel_tech(chan)->write == NULL) ? 0 :
 			ast_channel_tech(chan)->write(chan, fr);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_VOICE:
 		if (ast_channel_tech(chan)->write == NULL)
@@ -5459,6 +5468,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		/* the translator on chan->writetrans may have returned multiple frames
 		   from the single frame we passed in; if so, feed each one of them to the
 		   channel, freeing each one after it has been written */
+		CHECK_BLOCKING(chan);
 		if ((f != fr) && AST_LIST_NEXT(f, frame_list)) {
 			struct ast_frame *cur, *next = NULL;
 			unsigned int skip = 0;
@@ -5487,6 +5497,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		} else {
 			res = ast_channel_tech(chan)->write(chan, f);
 		}
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_NULL:
 	case AST_FRAME_IAX:
@@ -5497,13 +5508,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		/* At this point, fr is the incoming frame and f is NULL.  Channels do
 		 * not expect to get NULL as a frame pointer and will segfault.  Hence,
 		 * we output the original frame passed in. */
+		CHECK_BLOCKING(chan);
 		res = ast_channel_tech(chan)->write(chan, fr);
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	}
 
 	if (f && f != fr)
 		ast_frfree(f);
-	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0) {
