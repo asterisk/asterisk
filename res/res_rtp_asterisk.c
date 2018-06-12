@@ -41,9 +41,17 @@
 #include <fcntl.h>
 
 #ifdef HAVE_OPENSSL_SRTP
+#include <openssl/opensslconf.h>
+#include <openssl/opensslv.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+#include <openssl/bn.h>
+#endif
+#ifndef OPENSSL_NO_DH
+#include <openssl/dh.h>
+#endif
 #endif
 
 #ifdef HAVE_PJPROJECT
@@ -1656,12 +1664,13 @@ struct dtls_cert_info {
 	X509 *certificate;
 };
 
-#ifdef HAVE_OPENSSL_EC
-
 static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	EC_KEY *ecdh;
+#endif
 
+#ifndef OPENSSL_NO_DH
 	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
 		if (bio) {
@@ -1678,7 +1687,9 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 			BIO_free(bio);
 		}
 	}
+#endif /* !OPENSSL_NO_DH */
 
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
 	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 	if (ecdh) {
@@ -1695,7 +1706,10 @@ static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_d
 		}
 		EC_KEY_free(ecdh);
 	}
+#endif /* !OPENSSL_NO_ECDH */
 }
+
+#if !defined(OPENSSL_NO_ECDH) && (OPENSSL_VERSION_NUMBER >= 0x10000000L)
 
 static int create_ephemeral_ec_keypair(EVP_PKEY **keypair)
 {
@@ -1772,10 +1786,17 @@ static int create_ephemeral_certificate(EVP_PKEY *keypair, X509 **certificate)
 	 * Validity period - Current Chrome & Firefox make it 31 days starting
 	 * with yesterday at the current time, so we will do the same.
 	 */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	if (!X509_time_adj_ex(X509_get_notBefore(cert), -1, 0, NULL)
 	   || !X509_time_adj_ex(X509_get_notAfter(cert), 30, 0, NULL)) {
 		goto error;
 	}
+#else
+	if (!X509_time_adj_ex(X509_getm_notBefore(cert), -1, 0, NULL)
+	   || !X509_time_adj_ex(X509_getm_notAfter(cert), 30, 0, NULL)) {
+		goto error;
+	}
+#endif
 
 	/* Set the name and issuer */
 	if (!(name = X509_get_subject_name(cert))
@@ -1830,10 +1851,6 @@ static int create_certificate_ephemeral(struct ast_rtp_instance *instance,
 
 #else
 
-static void configure_dhparams(const struct ast_rtp *rtp, const struct ast_rtp_dtls_cfg *dtls_cfg)
-{
-}
-
 static int create_certificate_ephemeral(struct ast_rtp_instance *instance,
 										const struct ast_rtp_dtls_cfg *dtls_cfg,
 										struct dtls_cert_info *cert_info)
@@ -1842,7 +1859,7 @@ static int create_certificate_ephemeral(struct ast_rtp_instance *instance,
 	return -1;
 }
 
-#endif /* HAVE_OPENSSL_EC */
+#endif /* !OPENSSL_NO_ECDH */
 
 static int create_certificate_from_file(struct ast_rtp_instance *instance,
 										const struct ast_rtp_dtls_cfg *dtls_cfg,
