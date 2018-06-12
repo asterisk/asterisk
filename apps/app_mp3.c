@@ -37,6 +37,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <sys/time.h>
+#include <sys/types.h>
 #include <signal.h>
 
 #include "asterisk/lock.h"
@@ -138,17 +139,34 @@ static int mp3play(const char *filename, unsigned int sampling_rate, int fd)
 	_exit(0);
 }
 
-static int timed_read(int fd, void *data, int datalen, int timeout)
+static int timed_read(int fd, void *data, int datalen, int timeout, int pid)
 {
 	int res;
+	int i;
 	struct pollfd fds[1];
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
-	res = ast_poll(fds, 1, timeout);
-	if (res < 1) {
-		ast_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
+	for (i = 0; i < timeout; i++) {
+		res = ast_poll(fds, 1, 1000);
+		if (res > 0) {
+			break;
+		} else if (res == 0) {
+			/* is mpg123 still running? */
+			kill(pid, 0);
+			if (errno == ESRCH) {
+				return -1;
+			}
+		} else {
+			ast_log(LOG_NOTICE, "error polling mpg123: %s\n", strerror(errno));
+			return -1;
+		}
+	}
+
+	if (i == timeout) {
+		ast_log(LOG_NOTICE, "Poll timed out.\n");
 		return -1;
 	}
+
 	return read(fd, data, datalen);
 
 }
@@ -160,7 +178,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	int ms = -1;
 	int pid = -1;
 	RAII_VAR(struct ast_format *, owriteformat, NULL, ao2_cleanup);
-	int timeout = 2000;
+	int timeout = 2;
 	struct timeval next;
 	struct ast_frame *f;
 	struct myframe {
@@ -208,7 +226,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 
 	res = mp3play(data, sampling_rate, fds[1]);
 	if (!strncasecmp(data, "http://", 7)) {
-		timeout = 10000;
+		timeout = 10;
 	}
 	/* Wait 1000 ms first */
 	next = ast_tvnow();
@@ -220,7 +238,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 		for (;;) {
 			ms = ast_tvdiff_ms(next, ast_tvnow());
 			if (ms <= 0) {
-				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
+				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout, pid);
 				if (res > 0) {
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
