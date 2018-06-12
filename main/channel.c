@@ -6032,7 +6032,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	 */
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
+	ast_channel_lock(chan);
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ORIGINATED);
+	ast_channel_unlock(chan);
 	ast_party_connected_line_set_init(&connected, ast_channel_connected(chan));
 	if (cid_num) {
 		connected.id.number.valid = 1;

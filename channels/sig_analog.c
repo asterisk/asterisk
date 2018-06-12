@@ -2403,7 +2403,9 @@ static void *__analog_ss_thread(void *data)
 				 * emulation.  The DTMF digits can come so fast that emulation
 				 * can drop some of them.
 				 */
+				ast_channel_lock(chan);
 				ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
+				ast_channel_unlock(chan);
 				timeout_ms = 4000;/* This is a typical OFF time between rings. */
 				for (;;) {
 					struct ast_frame *f;
@@ -2438,7 +2440,9 @@ static void *__analog_ss_thread(void *data)
 						break; /* Got ring */
 					}
 				}
+				ast_channel_lock(chan);
 				ast_clear_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
+				ast_channel_unlock(chan);
 				dtmfbuf[k] = '\0';
 
 				analog_set_linear_mode(p, idx, oldlinearity);
