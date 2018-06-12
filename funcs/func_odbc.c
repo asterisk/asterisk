@@ -857,6 +857,21 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		return -1;
 	}
 
+	if (colcount <= 0) {
+		ast_verb(4, "Returned %d columns [%s]\n", colcount, ast_str_buffer(sql));
+		buf[0] = '\0';
+		SQLCloseCursor(stmt);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		release_obj_or_dsn (&obj, &dsn);
+		if (!bogus_chan) {
+			pbx_builtin_setvar_helper(chan, "ODBCROWS", "0");
+			pbx_builtin_setvar_helper(chan, "ODBCSTATUS", "NODATA");
+			ast_autoservice_stop(chan);
+		}
+		odbc_datastore_free(resultset);
+		return 0;
+	}
+
 	res = SQLFetch(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		int res1 = -1;
@@ -1516,6 +1531,15 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 				SQLCloseCursor(stmt);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 				release_obj_or_dsn (&obj, &dsn);
+				AST_RWLIST_UNLOCK(&queries);
+				return CLI_SUCCESS;
+			}
+
+			if (colcount <= 0) {
+				SQLCloseCursor(stmt);
+				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+				release_obj_or_dsn (&obj, &dsn);
+				ast_cli(a->fd, "Returned %d columns.  Query executed on handle %d:%s [%s]\n", colcount, dsn_num, query->readhandle[dsn_num], ast_str_buffer(sql));
 				AST_RWLIST_UNLOCK(&queries);
 				return CLI_SUCCESS;
 			}
