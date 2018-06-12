@@ -33,6 +33,7 @@
 /*** MODULEINFO
 	<depend>zlib</depend>
 	<use type="module">res_crypto</use>
+	<use type="external">crypto</use>
 	<support_level>extended</support_level>
  ***/
 
