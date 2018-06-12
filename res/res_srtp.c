@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<depend>srtp</depend>
+	<use type="external">openssl</use>
 	<support_level>core</support_level>
 ***/
 
