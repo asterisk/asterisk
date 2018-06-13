@@ -169,6 +169,7 @@ struct ast_channel {
 	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long outsmpl;				/*!< Track the read/written samples for monitor use */
 
+	int blocker_tid;					/*!< If anyone is blocking, this is their thread id */
 	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
 							 *   these file descriptors, so at least one must be non -1.
 							 *   See \arg \ref AstFileDesc */
@@ -1329,6 +1330,15 @@ pthread_t ast_channel_blocker(const struct ast_channel *chan)
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value)
 {
 	chan->blocker = value;
+}
+
+int ast_channel_blocker_tid(const struct ast_channel *chan)
+{
+	return chan->blocker_tid;
+}
+void ast_channel_blocker_tid_set(struct ast_channel *chan, int value)
+{
+	chan->blocker_tid = value;
 }
 
 ast_timing_func_t ast_channel_timingfunc(const struct ast_channel *chan)
