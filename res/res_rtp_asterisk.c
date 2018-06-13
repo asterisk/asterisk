@@ -40,9 +40,10 @@
 #include <signal.h>
 #include <fcntl.h>
 
-#ifdef HAVE_OPENSSL_SRTP
+#ifdef HAVE_OPENSSL
 #include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/bio.h>
@@ -51,6 +52,7 @@
 #endif
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
+#endif
 #endif
 #endif
 
@@ -275,7 +277,7 @@ struct rtp_learning_info {
 	enum ast_media_type stream_type;
 };
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 struct dtls_details {
 	SSL *ssl;         /*!< SSL session */
 	BIO *read_bio;    /*!< Memory buffer for reading */
@@ -417,7 +419,7 @@ struct ast_rtp {
 	unsigned int ice_num_components; /*!< The number of ICE components */
 #endif
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	SSL_CTX *ssl_ctx; /*!< SSL context */
 	enum ast_rtp_dtls_verify dtls_verify; /*!< What to verify */
 	enum ast_srtp_suite suite;   /*!< SRTP crypto suite */
@@ -494,7 +496,7 @@ struct ast_rtcp {
 	/* VP8: sequence number for the RTCP FIR FCI */
 	int firseq;
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	struct dtls_details dtls; /*!< DTLS state information */
 #endif
 
@@ -562,7 +564,7 @@ static void ast_rtp_set_stream_num(struct ast_rtp_instance *instance, int stream
 static int ast_rtp_extension_enable(struct ast_rtp_instance *instance, enum ast_rtp_extension extension);
 static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instance *parent);
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
@@ -1581,7 +1583,7 @@ static struct ast_rtp_engine_ice ast_rtp_ice = {
 };
 #endif
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 static int dtls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
 	/* We don't want to actually verify the certificate so just accept what they have provided */
@@ -2259,7 +2261,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 #ifdef HAVE_PJPROJECT
 	.ice = &ast_rtp_ice,
 #endif
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	.dtls = &ast_rtp_dtls,
 	.activate = ast_rtp_activate,
 #endif
@@ -2271,7 +2273,7 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.bundle = ast_rtp_bundle,
 };
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 /*! \pre instance is locked */
 static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtls_details *dtls, int rtcp)
 {
@@ -2305,7 +2307,7 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 }
 #endif
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 static void dtls_perform_setup(struct dtls_details *dtls)
 {
 	if (!dtls->ssl || !SSL_is_init_finished(dtls->ssl)) {
@@ -2349,7 +2351,7 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 		}
 	}
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 
 	dtls_perform_setup(&rtp->dtls);
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
@@ -2483,7 +2485,7 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 	return 1;
 }
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 /*! \pre instance is locked */
 static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int rtcp)
 {
@@ -2817,7 +2819,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	   return len;
 	}
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	/* If this is an SSL packet pass it to OpenSSL for processing. RFC section for first byte value:
 	 * https://tools.ietf.org/html/rfc5764#section-5.1.2 */
 	if ((*in >= 20) && (*in <= 63)) {
@@ -3514,7 +3516,7 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 	}
 #endif
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	rtp->rekeyid = -1;
 	rtp->dtls.timeout_timer = -1;
 #endif
@@ -3530,7 +3532,7 @@ static void rtp_deallocate_transport(struct ast_rtp_instance *instance, struct a
 	struct timespec ts = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000, };
 #endif
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	ast_rtp_dtls_stop(instance);
 #endif
 
@@ -6727,7 +6729,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					return;
 				}
 				rtp->rtcp->s = -1;
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 				rtp->rtcp->dtls.timeout_timer = -1;
 #endif
 				rtp->rtcp->schedid = -1;
@@ -6790,7 +6792,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us, ast_sockaddr_port(&rtp->rtcp->us), AST_RTP_ICE_COMPONENT_RTCP, TRANSPORT_SOCKET_RTCP);
 				}
 #endif
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 				dtls_setup_rtcp(instance);
 #endif
 			} else {
@@ -6810,7 +6812,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				rtp->rtcp->s = rtp->s;
 				ast_rtp_instance_get_remote_address(instance, &addr);
 				ast_sockaddr_copy(&rtp->rtcp->them, &addr);
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 				if (rtp->rtcp->dtls.ssl && rtp->rtcp->dtls.ssl != rtp->dtls.ssl) {
 					SSL_free(rtp->rtcp->dtls.ssl);
 				}
@@ -6838,7 +6840,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 				if (rtp->rtcp->s > -1 && rtp->rtcp->s != rtp->s) {
 					close(rtp->rtcp->s);
 				}
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 				ao2_unlock(instance);
 				dtls_srtp_stop_timeout_timer(instance, rtp, 1);
 				ao2_lock(instance);
@@ -7090,7 +7092,7 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr addr = { {0,} };
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	ao2_unlock(instance);
 	AST_SCHED_DEL_UNREF(rtp->sched, rtp->rekeyid, ao2_ref(instance, -1));
 
@@ -7310,7 +7312,7 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 
 	AST_VECTOR_APPEND(&parent_rtp->ssrc_mapping, mapping);
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 	/* If DTLS-SRTP is already in use then add the local SSRC to it, otherwise it will get added once DTLS
 	 * negotiation has been completed.
 	 */
@@ -7331,7 +7333,7 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 	return 0;
 }
 
-#ifdef HAVE_OPENSSL_SRTP
+#if !defined(OPENSSL_NO_SRTP) && (OPENSSL_VERSION_NUMBER >= 0x10001000L)
 /*! \pre instance is locked */
 static int ast_rtp_activate(struct ast_rtp_instance *instance)
 {
