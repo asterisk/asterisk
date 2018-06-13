@@ -2725,11 +2725,12 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 	do { \
 		if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) { \
 			/* This should not happen as there should only be one thread handling a channel's media at a time. */ \
-			ast_log(LOG_DEBUG, "Thread %p is blocking '%s', already blocked by thread %p in procedure %s\n", \
-				(void *) pthread_self(), ast_channel_name(c), \
-				(void *) ast_channel_blocker(c), ast_channel_blockproc(c)); \
+			ast_log(LOG_DEBUG, "Thread LWP %d is blocking '%s', already blocked by thread LWP %d in procedure %s\n", \
+				ast_get_tid(), ast_channel_name(c), \
+				ast_channel_blocker_tid(c), ast_channel_blockproc(c)); \
 			ast_assert(0); \
 		} \
+		ast_channel_blocker_tid_set((c), ast_get_tid()); \
 		ast_channel_blocker_set((c), pthread_self()); \
 		ast_channel_blockproc_set((c), __PRETTY_FUNCTION__); \
 		ast_set_flag(ast_channel_flags(c), AST_FLAG_BLOCKING); \
@@ -4368,6 +4369,9 @@ int ast_channel_fd_add(struct ast_channel *chan, int value);
 
 pthread_t ast_channel_blocker(const struct ast_channel *chan);
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);
+
+int ast_channel_blocker_tid(const struct ast_channel *chan);
+void ast_channel_blocker_tid_set(struct ast_channel *chan, int tid);
 
 ast_timing_func_t ast_channel_timingfunc(const struct ast_channel *chan);
 void ast_channel_timingfunc_set(struct ast_channel *chan, ast_timing_func_t value);

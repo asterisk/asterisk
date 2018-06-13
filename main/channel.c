@@ -2618,10 +2618,10 @@ void ast_hangup(struct ast_channel *chan)
 	ast_channel_generator_set(chan, NULL);
 
 	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING)) {
-		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
-			"is blocked by thread %ld in procedure %s!  Expect a failure\n",
-			(long) pthread_self(), ast_channel_name(chan), (long)ast_channel_blocker(chan), ast_channel_blockproc(chan));
-		ast_assert(ast_test_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING) == 0);
+		ast_log(LOG_WARNING, "Hard hangup called by thread LWP %d on %s, while blocked by thread LWP %d in procedure %s!  Expect a failure\n",
+			ast_get_tid(), ast_channel_name(chan), ast_channel_blocker_tid(chan),
+			ast_channel_blockproc(chan));
+		ast_assert(0);
 	}
 
 	if (ast_channel_tech(chan)->hangup) {
@@ -3661,7 +3661,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			}
 		}
 	} else {
-		ast_channel_blocker_set(chan, pthread_self());
 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION)) {
 			if (ast_channel_tech(chan)->exception)
 				f = ast_channel_tech(chan)->exception(chan);
