@@ -636,14 +636,14 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 		return -1;
 	}
 
-	if (chan) {
-		ast_autoservice_start(chan);
-	}
-
 	if (!(curl = ast_threadstorage_get(&curl_instance, sizeof(*curl)))) {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 		ast_free(str);
 		return -1;
+	}
+
+	if (chan) {
+		ast_autoservice_start(chan);
 	}
 
 	AST_LIST_LOCK(&global_curl_info);
@@ -656,14 +656,19 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	}
 	AST_LIST_UNLOCK(&global_curl_info);
 
-	if (chan && (store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
-		list = store->data;
-		AST_LIST_LOCK(list);
-		AST_LIST_TRAVERSE(list, cur, list) {
-			if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
-				hashcompat = (long) cur->value;
-			} else {
-				curl_easy_setopt(*curl, cur->key, cur->value);
+	if (chan) {
+		ast_channel_lock(chan);
+		store = ast_channel_datastore_find(chan, &curl_info, NULL);
+		ast_channel_unlock(chan);
+		if (store) {
+			list = store->data;
+			AST_LIST_LOCK(list);
+			AST_LIST_TRAVERSE(list, cur, list) {
+				if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
+					hashcompat = (long) cur->value;
+				} else {
+					curl_easy_setopt(*curl, cur->key, cur->value);
+				}
 			}
 		}
 	}
