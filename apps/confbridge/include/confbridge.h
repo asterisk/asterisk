@@ -65,6 +65,8 @@ enum user_profile_flags {
 	USER_OPT_ANNOUNCEUSERCOUNTALL = (1 << 14), /*!< Sets if the number of users should be announced to everyone. */
 	USER_OPT_JITTERBUFFER =  (1 << 15), /*!< Places a jitterbuffer on the user. */
 	USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW = (1 << 16), /*!< modifies ANNOUNCE_JOIN_LEAVE - user reviews the recording before continuing */
+	USER_OPT_SEND_EVENTS = (1 << 17), /*!< Send text message events to users */
+	USER_OPT_ECHO_EVENTS = (1 << 18), /*!< Send events only to the admin(s) */
 };
 
 enum bridge_profile_flags {
@@ -79,6 +81,7 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE = (1 << 8), /*!< The average of all REMB reports is sent to the sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST = (1 << 9), /*!< The lowest estimated maximum bitrate is sent to the sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST = (1 << 10), /*!< The highest estimated maximum bitrate is sent to the sender */
+	BRIDGE_OPT_ENABLE_EVENTS = (1 << 11), /*!< Enable sending events to participants */
 };
 
 enum conf_menu_action_id {
@@ -624,6 +627,26 @@ struct stasis_message_type *confbridge_unmute_type(void);
  * \retval NULL if it isn't
  */
 struct stasis_message_type *confbridge_talking_type(void);
+
+/*!
+ * \since 15.5
+ * \brief get the confbridge welcome stasis message type
+ *
+ * \retval stasis message type for confbridge welcome messages if it's available
+ * \retval NULL if it isn't
+ */
+struct stasis_message_type *confbridge_welcome_type(void);
+
+/*!
+ * \since 15.5
+ * \brief Get the string representation of a confbridge stasis message type
+ *
+ * \param event_type The confbridge event type such as 'confbridge_welcome_type()'
+ *
+ * \retval The string representation of the message type
+ * \retval "unknown" if not found
+ */
+const char *confbridge_event_type_to_string(struct stasis_message_type *event_type);
 
 /*!
  * \since 12.0
