@@ -1194,4 +1194,22 @@ enum ast_fd_flag_operation {
 int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
 	const char *file, int lineno, const char *function);
 
+/*!
+ * \brief Set the current thread's user interface status.
+ *
+ * \param is_user_interface Non-zero to mark the thread as a user interface.
+ *
+ * \return 0 if successfuly marked current thread.
+ * \return Non-zero if marking current thread failed.
+ */
+int ast_thread_user_interface_set(int is_user_interface);
+
+/*!
+ * \brief Indicates whether the current thread is a user interface
+ *
+ * \return True (non-zero) if thread is a user interface.
+ * \return False (zero) if thread is not a user interface.
+ */
+int ast_thread_is_user_interface(void);
+
 #endif /* _ASTERISK_UTILS_H */
