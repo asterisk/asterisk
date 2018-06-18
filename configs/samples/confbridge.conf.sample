@@ -18,6 +18,18 @@
 [default_user]
 type=user
 ;admin=yes     ; Sets if the user is an admin or not. Off by default.
+
+;send_events=no  ; If events are enabled for this bridge and this option is
+                 ; set, users will receive events like join, leave, talking,
+                 ; etc. via text messages.  For users accessing the bridge
+                 ; via chan_pjsip, this means in-dialog MESSAGE messages.
+                 ; This is most useful for WebRTC participants where the
+                 ; browser application can use the messages to alter the user
+                 ; interface.
+;echo_events=yes ; If events are enabled for this user and this option is set,
+                 ; the user will receive events they trigger, talking, mute, etc.
+                 ; If not set, they will not receive their own events.
+
 ;marked=yes    ; Sets if this is a marked user or not. Off by default.
 ;startmuted=yes; Sets if all users should start out muted. Off by default
 ;music_on_hold_when_empty=yes  ; Sets whether MOH should be played when only
@@ -243,6 +255,13 @@ type=bridge
                            ; the estimated maximum bitrate of each receiver is used to construct an average bitrate. If
                            ; set to "lowest" the lowest maximum bitrate is forwarded to the sender. If set to "highest"
                            ; the highest maximum bitrate is forwarded to the sender. This defaults to "average".
+
+;enable_events=no          ; If enabled, recipients who joined the bridge via a channel driver
+                           ; that supports Enhanced Messaging (currently only chan_pjsip) will
+                           ; receive in-dialog messages containing a JSON body describing the
+                           ; event.  The Content-Type header will be
+                           ; "text/x-ast-confbridge-event".
+                           ; This feature must also be enabled in user profiles.
 
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
