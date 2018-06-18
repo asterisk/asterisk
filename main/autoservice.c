@@ -195,6 +195,13 @@ int ast_autoservice_start(struct ast_channel *chan)
 	int res = 0;
 	struct asent *as;
 
+	if (ast_thread_is_user_interface()) {
+		/* User interface threads do not handle channel media. */
+		ast_debug(1, "Thread is a user interface, not putting channel %s into autoservice\n",
+			ast_channel_name(chan));
+		return 0;
+	}
+
 	AST_LIST_LOCK(&aslist);
 	AST_LIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan == chan) {
@@ -255,6 +262,13 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	struct asent *as, *removed = NULL;
 	struct ast_frame *f;
 	int chan_list_state;
+
+	if (ast_thread_is_user_interface()) {
+		/* User interface threads do not handle channel media. */
+		ast_debug(1, "Thread is a user interface, not removing channel %s from autoservice\n",
+			ast_channel_name(chan));
+		return 0;
+	}
 
 	AST_LIST_LOCK(&aslist);
 
