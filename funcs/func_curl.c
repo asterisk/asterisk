@@ -672,14 +672,19 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	}
 	AST_LIST_UNLOCK(&global_curl_info);
 
-	if (chan && (store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
-		list = store->data;
-		AST_LIST_LOCK(list);
-		AST_LIST_TRAVERSE(list, cur, list) {
-			if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
-				hashcompat = (long) cur->value;
-			} else {
-				curl_easy_setopt(*curl, cur->key, cur->value);
+	if (chan) {
+		ast_channel_lock(chan);
+		store = ast_channel_datastore_find(chan, &curl_info, NULL);
+		ast_channel_unlock(chan);
+		if (store) {
+			list = store->data;
+			AST_LIST_LOCK(list);
+			AST_LIST_TRAVERSE(list, cur, list) {
+				if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
+					hashcompat = (long) cur->value;
+				} else {
+					curl_easy_setopt(*curl, cur->key, cur->value);
+				}
 			}
 		}
 	}
