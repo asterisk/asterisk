@@ -2750,3 +2750,38 @@ int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
 
 	return 0;
 }
+
+/*!
+ * \brief A thread local indicating whether the current thread is a user interface.
+ */
+AST_THREADSTORAGE(thread_user_interface_tl);
+
+int ast_thread_user_interface_set(int is_user_interface)
+{
+	int *thread_user_interface;
+
+	thread_user_interface = ast_threadstorage_get(
+		&thread_user_interface_tl, sizeof(*thread_user_interface));
+	if (thread_user_interface == NULL) {
+		ast_log(LOG_ERROR, "Error setting user interface status for current thread\n");
+		return -1;
+	}
+
+	*thread_user_interface = !!is_user_interface;
+	return 0;
+}
+
+int ast_thread_is_user_interface(void)
+{
+	int *thread_user_interface;
+
+	thread_user_interface = ast_threadstorage_get(
+		&thread_user_interface_tl, sizeof(*thread_user_interface));
+	if (thread_user_interface == NULL) {
+		ast_log(LOG_ERROR, "Error checking thread's user interface status\n");
+		/* On error, assume that we are not a user interface thread */
+		return 0;
+	}
+
+	return *thread_user_interface;
+}
