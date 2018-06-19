@@ -626,6 +626,10 @@
 /* Define to 1 if PJPROJECT has the pjsip_get_dest_info support feature. */
 #undef HAVE_PJSIP_GET_DEST_INFO
 
+/* Define if your system has the PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
+   headers. */
+#undef HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
+
 /* Define to 1 if PJPROJECT has the PJSIP INVITE Session Reference Count
    support feature. */
 #undef HAVE_PJSIP_INV_SESSION_REF

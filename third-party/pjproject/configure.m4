@@ -87,6 +87,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	AC_DEFINE([HAVE_PJSIP_INV_SESSION_REF], 1, [Define if your system has PJSIP_INV_SESSION_REF])
 	AC_DEFINE([HAVE_PJSIP_AUTH_CLT_DEINIT], 1, [Define if your system has pjsip_auth_clt_deinit declared.])
 	AC_DEFINE([HAVE_PJSIP_TSX_LAYER_FIND_TSX2], 1, [Define if your system has pjsip_tsx_layer_find_tsx2 declared.])
+	AC_DEFINE([HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], 1, [Define if your system has HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS declared.])
 
 	AC_SUBST([PJPROJECT_BUNDLED])
 	AC_SUBST([PJPROJECT_DIR])

@@ -4054,6 +4054,42 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 		return;
 	}
 
+	if (session->endpoint) {
+		int bail = 0;
+
+		/*
+		 * If following_fork is set, then this is probably the result of a
+		 * forked INVITE and SDP asnwers coming from the different fork UAS
+		 * destinations.  In this case updated_sdp_answer will also be set.
+		 *
+		 * If only updated_sdp_answer is set, then this is the non-forking
+		 * scenario where the same UAS just needs to change something like
+		 * the media port.
+		 */
+
+		if (inv->following_fork) {
+			if (session->endpoint->follow_early_media_fork) {
+				ast_debug(3, "Following early media fork with different To tags\n");
+			} else {
+				ast_debug(3, "Not following early media fork with different To tags\n");
+				bail = 1;
+			}
+		}
+#ifdef HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
+		else if (inv->updated_sdp_answer) {
+			if (session->endpoint->accept_multiple_sdp_answers) {
+				ast_debug(3, "Accepting updated SDP with same To tag\n");
+			} else {
+				ast_debug(3, "Ignoring updated SDP answer with same To tag\n");
+				bail = 1;
+			}
+		}
+#endif
+		if (bail) {
+			return;
+		}
+	}
+
 	if ((status != PJ_SUCCESS) || (pjmedia_sdp_neg_get_active_local(inv->neg, &local) != PJ_SUCCESS) ||
 		(pjmedia_sdp_neg_get_active_remote(inv->neg, &remote) != PJ_SUCCESS)) {
 		ast_channel_hangupcause_set(session->channel, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
