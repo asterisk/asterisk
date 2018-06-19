@@ -791,6 +791,10 @@ struct ast_sip_endpoint {
 	unsigned int notify_early_inuse_ringing;
 	/*! If set, we'll push incoming MWI NOTIFYs to stasis using this mailbox */
 	AST_STRING_FIELD_EXTENDED(incoming_mwi_mailbox);
+	/*! Follow forked media with a different To tag */
+	unsigned int follow_early_media_fork;
+	/*! Accept updated SDPs on non-100rel 18X and 2XX responses with the same To tag */
+	unsigned int accept_multiple_sdp_answers;
 };
 
 /*! URI parameter for symmetric transport */
