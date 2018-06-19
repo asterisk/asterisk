@@ -643,6 +643,10 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int timeout;
 	/*! Number of seconds before terminating channel due to lack of RTP (when on hold) */
 	unsigned int timeout_hold;
+	/*! Follow forked media with a different To tag */
+	unsigned int follow_early_media_fork;
+	/*! Accept updated SDPs on non-100rel 18X and 2XX responses with the same To tag */
+	unsigned int accept_multiple_sdp_answers;
 };
 
 /*!

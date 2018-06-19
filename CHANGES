@@ -141,6 +141,30 @@ app_confbridge
    ConfbridgeWelcome has been added that will send a list of all
    current participants to a new participant.
 
+res_pjsip
+------------------
+  * Two new options have been added to the system and endpoint objects to
+    control whether, on outbound calls, Asterisk will accept updated SDP answers
+    during the initial INVITE transaction when 100rel is not in effect.
+    This usually happens when the INVITE is forked to multiple UASs and more
+    than one sends an SDP answer or when a single UAS needs to change a media
+    port to switch from custom ringback to the actual media destination.
+
+    The 'follow_early_media_forked' option sets whether Asterisk will accept
+    the updated SDP when the To tag on the subsequent response is different than
+    that on the the previous response.  This usually occurs in the forked INVITE
+    scenario. The default value is "yes" which is the current behavior.
+
+    The 'accept_multiple_sdp_answers' flag sets whether Asterisk will accept the
+    updated SDP when the To tag on the subsequent response is the same as that
+    on the previous response. This can occur when a UAS needs to switch media
+    ports from custom ringback to the final media path.  The default value is
+    "no" which is the current behavior.
+
+    These options have to be enabled system-wide in the system config section
+    of pjsip.conf as well as on individual endpoints that require the
+    functionality.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.3.0 to Asterisk 15.4.0 ------------
 ------------------------------------------------------------------------------
