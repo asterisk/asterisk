@@ -302,7 +302,8 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
  * \return True (non-zero) if reads escalate privileges.
  * \return False (zero) if reads just read.
  */
-static int read_escalates(const struct ast_custom_function *acf) {
+static int read_escalates(const struct ast_custom_function *acf)
+{
 	return acf->read_escalates;
 }
 
@@ -313,7 +314,8 @@ static int read_escalates(const struct ast_custom_function *acf) {
  * \return True (non-zero) if writes escalate privileges.
  * \return False (zero) if writes just write.
  */
-static int write_escalates(const struct ast_custom_function *acf) {
+static int write_escalates(const struct ast_custom_function *acf)
+{
 	return acf->write_escalates;
 }
 
