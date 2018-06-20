@@ -58,9 +58,6 @@
 #include "asterisk/netsock2.h"  /* for ast_sockaddr */
 #include "asterisk/utils.h"     /* for ast_flags */
 
-struct ssl_ctx_st;              /* forward declaration */
-typedef struct ssl_ctx_st SSL_CTX;
-
 /*! SSL support */
 #define AST_CERTFILE "asterisk.pem"
 
