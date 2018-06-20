@@ -227,6 +227,9 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 
 	if (resultslen > len) {
 		ast_log(LOG_WARNING, "Failed to fetch. Realtime data is too large: need %zu, have %zu.\n", resultslen, len);
+		if (chan) {
+			ast_autoservice_stop(chan);
+		}
 		return -1;
 	}
 
@@ -460,6 +463,9 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 			 * someones data without giving him the chance to look
 			 * at it. */
 			ast_log(LOG_WARNING, "Failed to fetch/destroy. Realtime data is too large: need %zu, have %zu.\n", resultslen, len);
+			if (chan) {
+				ast_autoservice_stop(chan);
+			}
 			return -1;
 		}
 
