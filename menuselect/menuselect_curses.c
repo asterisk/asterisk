@@ -227,7 +227,7 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 				buf[0] = '\0';
 				new_line = 1;
 			}
-			sprintf(buf, "%s%*.*s%s", buf, new_line ? 0 : 1, new_line ? 0 : 1, " ", word);
+			sprintf(buf + strlen(buf), "%*.*s%s", new_line ? 0 : 1, new_line ? 0 : 1, " ", word);
 			new_line = 0;
 		}
 		if (strlen(buf)) {
