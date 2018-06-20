@@ -818,7 +818,7 @@ static inline void _raii_cleanup_block(_raii_cleanup_block_t *b) { (*b)(); }
  */
 char *ast_crypt(const char *key, const char *salt);
 
-/*
+/*!
  * \brief Asterisk wrapper around crypt(3) for encrypting passwords.
  *
  * This function will generate a random salt and encrypt the given password.
@@ -831,7 +831,7 @@ char *ast_crypt(const char *key, const char *salt);
  */
 char *ast_crypt_encrypt(const char *key);
 
-/*
+/*!
  * \brief Asterisk wrapper around crypt(3) for validating passwords.
  *
  * \param key User's password to validate.
@@ -841,7 +841,7 @@ char *ast_crypt_encrypt(const char *key);
  */
 int ast_crypt_validate(const char *key, const char *expected);
 
-/*
+/*!
  * \brief Test that a file exists and is readable by the effective user.
  * \since 13.7.0
  *
@@ -851,7 +851,7 @@ int ast_crypt_validate(const char *key, const char *expected);
  */
 int ast_file_is_readable(const char *filename);
 
-/*
+/*!
  * \brief Compare 2 major.minor.patch.extra version strings.
  * \since 13.7.0
  *
@@ -864,7 +864,7 @@ int ast_file_is_readable(const char *filename);
  */
 int ast_compare_versions(const char *version1, const char *version2);
 
-/*
+/*!
  * \brief Test that an OS supports IPv6 Networking.
  * \since 13.14.0
  *
@@ -878,7 +878,7 @@ enum ast_fd_flag_operation {
 	AST_FD_FLAG_CLEAR,
 };
 
-/*
+/*!
  * \brief Set flags on the given file descriptor
  * \since 13.19
  *
@@ -894,7 +894,7 @@ enum ast_fd_flag_operation {
 #define ast_fd_set_flags(fd, flags) \
 	__ast_fd_set_flags((fd), (flags), AST_FD_FLAG_SET, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-/*
+/*!
  * \brief Clear flags on the given file descriptor
  * \since 13.19
  *
