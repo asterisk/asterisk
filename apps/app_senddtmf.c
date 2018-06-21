@@ -167,7 +167,7 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_senddigit(chan, *digit, duration_ms);
+	ast_senddigit_external(chan, *digit, duration_ms);
 
 	chan = ast_channel_unref(chan);
 
