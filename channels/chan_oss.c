@@ -257,7 +257,12 @@ struct chan_oss_pvt {
 	char *name;
 	int total_blocks;			/*!< total blocks in the output device */
 	int sounddev;
-	enum { M_UNSET, M_FULL, M_READ, M_WRITE } duplex;
+	enum {
+		CHAN_OSS_DUPLEX_UNSET,
+		CHAN_OSS_DUPLEX_FULL,
+		CHAN_OSS_DUPLEX_READ,
+		CHAN_OSS_DUPLEX_WRITE
+	} duplex;
 	int autoanswer;             /*!< Boolean: whether to answer the immediately upon calling */
 	int autohangup;             /*!< Boolean: whether to hangup the call when the remote end hangs up */
 	int hookstate;              /*!< Boolean: 1 if offhook; 0 if onhook */
@@ -320,7 +325,7 @@ struct video_desc *get_video_desc(struct ast_channel *c)
 }
 static struct chan_oss_pvt oss_default = {
 	.sounddev = -1,
-	.duplex = M_UNSET,			/* XXX check this */
+	.duplex = CHAN_OSS_DUPLEX_UNSET, /* XXX check this */
 	.autoanswer = 1,
 	.autohangup = 1,
 	.queuesize = QUEUE_SIZE,
@@ -482,7 +487,7 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 	if (o->sounddev >= 0) {
 		ioctl(o->sounddev, SNDCTL_DSP_RESET, 0);
 		close(o->sounddev);
-		o->duplex = M_UNSET;
+		o->duplex = CHAN_OSS_DUPLEX_UNSET;
 		o->sounddev = -1;
 	}
 	if (mode == O_CLOSE)		/* we are done */
@@ -515,16 +520,16 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 		res = ioctl(fd, SNDCTL_DSP_GETCAPS, &fmt);
 		if (res == 0 && (fmt & DSP_CAP_DUPLEX)) {
 			ast_verb(2, "Console is full duplex\n");
-			o->duplex = M_FULL;
+			o->duplex = CHAN_OSS_DUPLEX_FULL;
 		};
 		break;
 
 	case O_WRONLY:
-		o->duplex = M_WRITE;
+		o->duplex = CHAN_OSS_DUPLEX_WRITE;
 		break;
 
 	case O_RDONLY:
-		o->duplex = M_READ;
+		o->duplex = CHAN_OSS_DUPLEX_READ;
 		break;
 	}
 
@@ -1418,7 +1423,7 @@ openit:
 		ast_verb(1, "Turn off OSS support by adding " "'noload=chan_oss.so' in /etc/asterisk/modules.conf\n");
 		goto error;
 	}
-	if (o->duplex != M_FULL)
+	if (o->duplex != CHAN_OSS_DUPLEX_FULL)
 		ast_log(LOG_WARNING, "XXX I don't work right with non " "full-duplex sound cards XXX\n");
 #endif /* TRYOPEN */
 
