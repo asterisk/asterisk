@@ -30,9 +30,6 @@
 #include <ctype.h>
 #include <time.h>
 
-#ifdef SOLARIS
-#define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
-#endif
 #if !defined(POPT_ARGFLAG_SHOW_DEFAULT)
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
 #endif
