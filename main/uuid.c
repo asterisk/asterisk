@@ -133,11 +133,11 @@ struct ast_uuid *ast_uuid_generate(void)
 	return uuid;
 }
 
-char *ast_uuid_to_str(const struct ast_uuid *uuid, char *buf, size_t size)
+char *ast_uuid_to_str(struct ast_uuid *uuid, char *buf, size_t size)
 {
 	ast_assert(size >= AST_UUID_STR_LEN);
-	uuid_unparse_lower(uuid->uu, buf);
-	return buf;
+	uuid_unparse(uuid->uu, buf);
+	return ast_str_to_lower(buf);
 }
 
 char *ast_uuid_generate_str(char *buf, size_t size)
@@ -148,7 +148,7 @@ char *ast_uuid_generate_str(char *buf, size_t size)
 	return ast_uuid_to_str(&uuid, buf, size);
 }
 
-struct ast_uuid *ast_str_to_uuid(const char *str)
+struct ast_uuid *ast_str_to_uuid(char *str)
 {
 	struct ast_uuid *uuid = ast_malloc(sizeof(*uuid));
 	int res;
@@ -165,7 +165,7 @@ struct ast_uuid *ast_str_to_uuid(const char *str)
 	return uuid;
 }
 
-struct ast_uuid *ast_uuid_copy(const struct ast_uuid *src)
+struct ast_uuid *ast_uuid_copy(struct ast_uuid *src)
 {
 	struct ast_uuid *dst = ast_malloc(sizeof(*dst));
 
@@ -176,7 +176,7 @@ struct ast_uuid *ast_uuid_copy(const struct ast_uuid *src)
 	return dst;
 }
 
-int ast_uuid_compare(const struct ast_uuid *left, const struct ast_uuid *right)
+int ast_uuid_compare(struct ast_uuid *left, struct ast_uuid *right)
 {
 	return uuid_compare(left->uu, right->uu);
 }
@@ -186,7 +186,7 @@ void ast_uuid_clear(struct ast_uuid *uuid)
 	uuid_clear(uuid->uu);
 }
 
-int ast_uuid_is_nil(const struct ast_uuid *uuid)
+int ast_uuid_is_nil(struct ast_uuid *uuid)
 {
 	return uuid_is_null(uuid->uu);
 }
