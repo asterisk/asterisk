@@ -2649,15 +2649,31 @@ static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *c
 	return state;
 }
 
-#define CHECK_BLOCKING(c) do { 	 \
-	if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) {\
-		ast_debug(1, "Thread %p is blocking '%s', already blocked by thread %p in procedure %s\n", \
-			(void *) pthread_self(), ast_channel_name(c), (void *) ast_channel_blocker(c), ast_channel_blockproc(c)); \
-	} else { \
+/*!
+ * \brief Set the blocking indication on the channel.
+ *
+ * \details
+ * Indicate that the thread handling the channel is about to do a blocking
+ * operation to wait for media on the channel.  (poll, read, or write)
+ *
+ * Masquerading and ast_queue_frame() use this indication to wake up the thread.
+ *
+ * \pre The channel needs to be locked
+ */
+#define CHECK_BLOCKING(c) \
+	do { \
+		if (ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING)) { \
+			/* This should not happen as there should only be one thread handling a channel's media at a time. */ \
+			ast_log(LOG_DEBUG, "Thread LWP %d is blocking '%s', already blocked by thread LWP %d in procedure %s\n", \
+				ast_get_tid(), ast_channel_name(c), \
+				ast_channel_blocker_tid(c), ast_channel_blockproc(c)); \
+			ast_assert(0); \
+		} \
+		ast_channel_blocker_tid_set((c), ast_get_tid()); \
 		ast_channel_blocker_set((c), pthread_self()); \
 		ast_channel_blockproc_set((c), __PRETTY_FUNCTION__); \
 		ast_set_flag(ast_channel_flags(c), AST_FLAG_BLOCKING); \
-	} } while (0)
+	} while (0)
 
 ast_group_t ast_get_group(const char *s);
 
@@ -4300,6 +4316,9 @@ void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , st
 
 pthread_t ast_channel_blocker(const struct ast_channel *chan);
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);
+
+int ast_channel_blocker_tid(const struct ast_channel *chan);
+void ast_channel_blocker_tid_set(struct ast_channel *chan, int tid);
 
 ast_timing_func_t ast_channel_timingfunc(const struct ast_channel *chan);
 void ast_channel_timingfunc_set(struct ast_channel *chan, ast_timing_func_t value);

@@ -685,6 +685,19 @@ static void *handle_tcptls_connection(void *data)
 		return NULL;
 	}
 
+	/*
+	 * TCP/TLS connections are associated with external protocols which can
+	 * be considered to be user interfaces (even for SIP messages), and
+	 * will not handle channel media.  This may need to be pushed down into
+	 * the individual protocol handlers, but this seems like a good start.
+	 */
+	if (ast_thread_user_interface_set(1)) {
+		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection\n");
+		ast_tcptls_close_session_file(tcptls_session);
+		ao2_ref(tcptls_session, -1);
+		return NULL;
+	}
+
 	tcptls_session->stream_cookie = tcptls_stream_alloc();
 	if (!tcptls_session->stream_cookie) {
 		ast_tcptls_close_session_file(tcptls_session);
