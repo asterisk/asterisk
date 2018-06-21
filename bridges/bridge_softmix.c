@@ -2085,7 +2085,9 @@ static void remb_enable_collection(struct ast_bridge *bridge, struct ast_bridge_
 		}
 	}
 
-	if (AST_VECTOR_REPLACE(&softmix_data->remb_collectors, bridge_stream_position, ao2_bump(sc->remb_collector))) {
+	ao2_ref(sc->remb_collector, +1);
+	if (AST_VECTOR_REPLACE(&softmix_data->remb_collectors, bridge_stream_position,
+		sc->remb_collector)) {
 		ao2_ref(sc->remb_collector, -1);
 	}
 }

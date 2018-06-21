@@ -251,7 +251,10 @@ struct ast_sip_session_media_state *ast_sip_session_media_state_clone(const stru
 		struct ast_sip_session_media *session_media = AST_VECTOR_GET(&media_state->sessions, index);
 		enum ast_media_type type = ast_stream_get_type(ast_stream_topology_get_stream(cloned->topology, index));
 
-		AST_VECTOR_REPLACE(&cloned->sessions, index, ao2_bump(session_media));
+		ao2_bump(session_media);
+		if (AST_VECTOR_REPLACE(&cloned->sessions, index, session_media)) {
+			ao2_cleanup(session_media);
+		}
 		if (ast_stream_get_state(ast_stream_topology_get_stream(cloned->topology, index)) != AST_STREAM_STATE_REMOVED &&
 			!cloned->default_session[type]) {
 			cloned->default_session[type] = session_media;
