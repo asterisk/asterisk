@@ -1135,7 +1135,8 @@ static struct vector_history_t *filter_history(struct ast_cli_args *a)
 		} else if (!res) {
 			continue;
 		} else {
-			if (AST_VECTOR_APPEND(output, ao2_bump(entry))) {
+			ao2_bump(entry);
+			if (AST_VECTOR_APPEND(output, entry)) {
 				ao2_cleanup(entry);
 			}
 		}
