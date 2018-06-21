@@ -2111,12 +2111,30 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
 
 /*!
  * \brief Send a DTMF digit to a channel.
+ *
  * \param chan channel to act upon
  * \param digit the DTMF digit to send, encoded in ASCII
  * \param duration the duration of the digit ending in ms
+ *
+ * \pre This must only be called by the channel's media handler thread.
+ *
  * \return 0 on success, -1 on failure
  */
 int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration);
+
+/*!
+ * \brief Send a DTMF digit to a channel from an external thread.
+ *
+ * \param chan channel to act upon
+ * \param digit the DTMF digit to send, encoded in ASCII
+ * \param duration the duration of the digit ending in ms
+ *
+ * \pre This must only be called by threads that are not the channel's
+ * media handler thread.
+ *
+ * \return 0 on success, -1 on failure
+ */
+int ast_senddigit_external(struct ast_channel *chan, char digit, unsigned int duration);
 
 /*!
  * \brief Send a DTMF digit to a channel.
