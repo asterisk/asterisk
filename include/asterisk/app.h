@@ -923,23 +923,50 @@ void ast_replace_sigchld(void);
 void ast_unreplace_sigchld(void);
 
 /*!
-  \brief Send DTMF to a channel
-
-  \param chan    The channel that will receive the DTMF frames
-  \param peer    (optional) Peer channel that will be autoserviced while the
-                 primary channel is receiving DTMF
-  \param digits  This is a string of characters representing the DTMF digits
-                 to be sent to the channel.  Valid characters are
-                 "0123456789*#abcdABCD".  Note: You can pass arguments 'f' or
-                 'F', if you want to Flash the channel (if supported by the
-                 channel), or 'w' to add a 500 millisecond pause to the DTMF
-                 sequence.
-  \param between This is the number of milliseconds to wait in between each
-                 DTMF digit.  If zero milliseconds is specified, then the
-                 default value of 100 will be used.
-  \param duration This is the duration that each DTMF digit should have.
-*/
+ * \brief Send a string of DTMF digits to a channel
+ *
+ * \param chan    The channel that will receive the DTMF frames
+ * \param peer    (optional) Peer channel that will be autoserviced while the
+ *                primary channel is receiving DTMF
+ * \param digits  This is a string of characters representing the DTMF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789*#abcdABCD".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' to add a 500 millisecond pause to the DTMF
+ *                sequence.
+ * \param between This is the number of milliseconds to wait in between each
+ *                DTMF digit.  If zero milliseconds is specified, then the
+ *                default value of 100 will be used.
+ * \param duration This is the duration that each DTMF digit should have.
+ *
+ * \pre This must only be called by the channel's media handler thread.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure or a channel hung up.
+ */
 int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration);
+
+/*!
+ * \brief Send a string of DTMF digits to a channel from an external thread.
+ *
+ * \param chan    The channel that will receive the DTMF frames
+ * \param digits  This is a string of characters representing the DTMF digits
+ *                to be sent to the channel.  Valid characters are
+ *                "0123456789*#abcdABCD".  Note: You can pass arguments 'f' or
+ *                'F', if you want to Flash the channel (if supported by the
+ *                channel), or 'w' to add a 500 millisecond pause to the DTMF
+ *                sequence.
+ * \param between This is the number of milliseconds to wait in between each
+ *                DTMF digit.  If zero milliseconds is specified, then the
+ *                default value of 100 will be used.
+ * \param duration This is the duration that each DTMF digit should have.
+ *
+ * \pre This must only be called by threads that are not the channel's
+ * media handler thread.
+ *
+ * \return Nothing
+ */
+void ast_dtmf_stream_external(struct ast_channel *chan, const char *digits, int between, unsigned int duration);
 
 /*! \brief Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
