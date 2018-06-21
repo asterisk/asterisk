@@ -503,6 +503,32 @@ struct stasis_app_control_dtmf_data {
 	char dtmf[];
 };
 
+static void dtmf_in_bridge(struct ast_channel *chan, struct stasis_app_control_dtmf_data *dtmf_data)
+{
+	if (dtmf_data->before) {
+		usleep(dtmf_data->before * 1000);
+	}
+
+	ast_dtmf_stream_external(chan, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
+
+	if (dtmf_data->after) {
+		usleep(dtmf_data->after * 1000);
+	}
+}
+
+static void dtmf_no_bridge(struct ast_channel *chan, struct stasis_app_control_dtmf_data *dtmf_data)
+{
+	if (dtmf_data->before) {
+		ast_safe_sleep(chan, dtmf_data->before);
+	}
+
+	ast_dtmf_stream(chan, NULL, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
+
+	if (dtmf_data->after) {
+		ast_safe_sleep(chan, dtmf_data->after);
+	}
+}
+
 static int app_control_dtmf(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -512,14 +538,10 @@ static int app_control_dtmf(struct stasis_app_control *control,
 		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
-	if (dtmf_data->before) {
-		ast_safe_sleep(chan, dtmf_data->before);
-	}
-
-	ast_dtmf_stream(chan, NULL, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
-
-	if (dtmf_data->after) {
-		ast_safe_sleep(chan, dtmf_data->after);
+	if (stasis_app_get_bridge(control)) {
+		dtmf_in_bridge(chan, dtmf_data);
+	} else {
+		dtmf_no_bridge(chan, dtmf_data);
 	}
 
 	return 0;
