@@ -52,7 +52,7 @@ struct ast_uuid *ast_uuid_generate(void);
  * \param size The size of the buffer. Must be at least AST_UUID_STR_LEN.
  * \return The UUID string (a pointer to buf)
  */
-char *ast_uuid_to_str(const struct ast_uuid *uuid, char *buf, size_t size);
+char *ast_uuid_to_str(struct ast_uuid *uuid, char *buf, size_t size);
 
 /*!
  * \brief Generate a UUID string.
@@ -75,7 +75,7 @@ char *ast_uuid_generate_str(char *buf, size_t size);
  * \retval NULL Failed to convert
  * \retval non-NULL The heap-allocated converted UUID
  */
-struct ast_uuid *ast_str_to_uuid(const char *str);
+struct ast_uuid *ast_str_to_uuid(char *str);
 
 /*!
  * \brief Make a copy of a UUID
@@ -87,7 +87,7 @@ struct ast_uuid *ast_str_to_uuid(const char *str);
  * \retval NULL Failed to copy
  * \retval non-NULL The heap-allocated duplicate UUID
  */
-struct ast_uuid *ast_uuid_copy(const struct ast_uuid *src);
+struct ast_uuid *ast_uuid_copy(struct ast_uuid *src);
 
 /*!
  * \brief Compare two UUIDs
@@ -98,7 +98,7 @@ struct ast_uuid *ast_uuid_copy(const struct ast_uuid *src);
  * \retval 0 left and right are the same
  * \retval >0 left is lexicographically greater than right
  */
-int ast_uuid_compare(const struct ast_uuid *left, const struct ast_uuid *right);
+int ast_uuid_compare(struct ast_uuid *left, struct ast_uuid *right);
 
 /*!
  * \brief Clear a UUID by setting it to be a nil UUID (all 0s)
@@ -114,5 +114,5 @@ void ast_uuid_clear(struct ast_uuid *uuid);
  * \retval 0 The UUID is not nil
  * \retval non-zero The UUID is nil
  */
-int ast_uuid_is_nil(const struct ast_uuid *uuid);
+int ast_uuid_is_nil(struct ast_uuid *uuid);
 #endif
