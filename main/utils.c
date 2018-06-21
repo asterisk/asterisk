@@ -2568,7 +2568,6 @@ void ast_set_default_eid(struct ast_eid *eid)
 {
 	int s;
 	int x;
-	int res = 0;
 	struct lifreq *ifr = NULL;
 	struct lifnum ifn;
 	struct lifconf ifc;
