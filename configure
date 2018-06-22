@@ -9063,12 +9063,12 @@ else
 
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for clang -fblocks" >&5
 $as_echo_n "checking for clang -fblocks... " >&6; }
-			if test "`echo "int main(){return ^{return 42;}();}" | ${CC} -o /dev/null -fblocks -x c - 2>&1`" = ""; then
+			if test "`echo 'int main(){return ^{return 42;}();}' | ${CC} -o /dev/null -fblocks -x c - 2>&1`" = ""; then
 				AST_CLANG_BLOCKS_LIBS=""
 				AST_CLANG_BLOCKS="-Wno-unknown-warning-option -fblocks"
 				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-			elif test "`echo "int main(){return ^{return 42;}();}" | ${CC} -o /dev/null -fblocks -x c -lBlocksRuntime - 2>&1`" = ""; then
+			elif test "`echo 'int main(){return ^{return 42;}();}' | ${CC} -o /dev/null -fblocks -x c -lBlocksRuntime - 2>&1`" = ""; then
 				AST_CLANG_BLOCKS_LIBS="-lBlocksRuntime"
 				AST_CLANG_BLOCKS="-fblocks"
 				{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
