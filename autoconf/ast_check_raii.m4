@@ -33,11 +33,11 @@ AC_DEFUN([AST_CHECK_RAII], [
 			AST_C_COMPILER_FAMILY="gcc"
 		],[
 			AC_MSG_CHECKING(for clang -fblocks)
-			if test "`echo "int main(){return ^{return 42;}();}" | ${CC} -o /dev/null -fblocks -x c - 2>&1`" = ""; then
+			if test "`echo 'int main(){return ^{return 42;}();}' | ${CC} -o /dev/null -fblocks -x c - 2>&1`" = ""; then
 				AST_CLANG_BLOCKS_LIBS=""
 				AST_CLANG_BLOCKS="-Wno-unknown-warning-option -fblocks"
 				AC_MSG_RESULT(yes)
-			elif test "`echo "int main(){return ^{return 42;}();}" | ${CC} -o /dev/null -fblocks -x c -lBlocksRuntime - 2>&1`" = ""; then
+			elif test "`echo 'int main(){return ^{return 42;}();}' | ${CC} -o /dev/null -fblocks -x c -lBlocksRuntime - 2>&1`" = ""; then
 				AST_CLANG_BLOCKS_LIBS="-lBlocksRuntime"
 				AST_CLANG_BLOCKS="-fblocks"
 				AC_MSG_RESULT(yes)
