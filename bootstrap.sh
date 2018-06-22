@@ -9,61 +9,26 @@ check_for_app() {
 	fi
 }
 
-# On FreeBSD and OpenBSD, multiple autoconf/automake versions have different names.
-# On Linux, environment variables tell which one to use.
+# OpenBSD: pkg_add autoconf%2.63 automake%1.9 metaauto
+test -n "$AUTOCONF_VERSION" || export AUTOCONF_VERSION=2.63
+test -n "$AUTOMAKE_VERSION" || export AUTOMAKE_VERSION=1.9
 
-case `uname -sr` in
-	DragonFly*)
-		MY_AC_VER=
-		MY_AM_VER=
-		;;
-	FreeBSD*)
-		MY_AC_VER=
-		MY_AM_VER=
-		;;
-	NetBSD*)
-		MY_AC_VER=
-		MY_AM_VER=
-		;;
-	OpenBSD*)
-		# pkg_add autoconf%2.63 automake%1.9 metaauto
-		[ -z "$AUTOCONF_VERSION" ] && export AUTOCONF_VERSION=2.63
-		[ -z "$AUTOMAKE_VERSION" ] && export AUTOMAKE_VERSION=1.9
-		;;
-	*'BSD'*)
-		MY_AC_VER=-2.62
-		MY_AM_VER=-1.9
-		;;
-	*'SunOS '*)
-		MY_AC_VER=
-		MY_AM_VER=-1.9
-		;;
-	*)
-		MY_AC_VER=
-		MY_AM_VER=
-		AUTOCONF_VERSION=2.60
-		AUTOMAKE_VERSION=1.9
-		export AUTOCONF_VERSION
-		export AUTOMAKE_VERSION
-		;;
-esac
-
-check_for_app autoconf${MY_AC_VER}
-check_for_app autoheader${MY_AC_VER}
-check_for_app automake${MY_AM_VER}
-check_for_app aclocal${MY_AM_VER}
+check_for_app autoconf
+check_for_app autoheader
+check_for_app automake
+check_for_app aclocal
 
 gen_configure() {
 	echo "Generating the configure script for $1 ..."
 	shift
 
-	aclocal${MY_AM_VER} -I "$@"
-	autoconf${MY_AC_VER}
-	autoheader${MY_AC_VER}
-	automake${MY_AM_VER} --add-missing --copy 2>/dev/null
+	aclocal -I "$@"
+	autoconf
+	autoheader
+	automake --add-missing --copy 2>/dev/null
 }
 
-gen_configure "Asterisk" autoconf `find third-party -maxdepth 1 -type d | xargs -I {} echo -I {}`
+gen_configure "Asterisk" autoconf `find third-party -path '*/*/*' -prune -o -type d -print | xargs -I {} echo -I {}`
 cd menuselect
 gen_configure "menuselect" ../autoconf
 
