@@ -193,12 +193,12 @@ int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_le
 	float *hrir;
 
 	/* Prepare FFTW. */
-	channel->fftw_in = fftw_alloc_real(hrtf_len + 1);
+	channel->fftw_in = (double *) fftw_malloc(sizeof(double) * (hrtf_len + 1));
 	if (channel->fftw_in == NULL) {
 		return -1;
 	}
 
-	channel->fftw_out = fftw_alloc_real(hrtf_len + 1);
+	channel->fftw_out = (double *) fftw_malloc(sizeof(double) * (hrtf_len + 1));
 	if (channel->fftw_out == NULL) {
 		fftw_free(channel->fftw_in);
 		return -1;
@@ -239,7 +239,7 @@ int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_le
 	}
 
 	fftw_execute(channel->fftw_plan);
-	channel->hrtf = fftw_alloc_real(hrtf_len);
+	channel->hrtf = (double *) fftw_malloc(sizeof(double) * hrtf_len);
 	if (channel->hrtf == NULL) {
 		fftw_free(channel->fftw_in);
 		fftw_free(channel->fftw_out);
