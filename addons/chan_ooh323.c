@@ -73,6 +73,10 @@
 #include "chan_ooh323.h"
 #include <math.h>
 
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST	0x02
+#endif
+
 #define FORMAT_STRING_SIZE	512
 
 /* Defaults */
