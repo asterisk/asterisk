@@ -1530,10 +1530,11 @@ static int sip_options_endpoint_compositor_add_task(void *obj)
 	ast_debug(3, "Adding endpoint compositor '%s' to AOR '%s'\n",
 		task_data->endpoint_state_compositor->name, task_data->aor_options->name);
 
+	ao2_ref(task_data->endpoint_state_compositor, +1);
 	if (AST_VECTOR_APPEND(&task_data->aor_options->compositors,
-		ao2_bump(task_data->endpoint_state_compositor))) {
+		task_data->endpoint_state_compositor)) {
 		/* Failed to add so no need to update the endpoint status.  Nothing changed. */
-		ao2_cleanup(task_data->endpoint_state_compositor);
+		ao2_ref(task_data->endpoint_state_compositor, -1);
 		return 0;
 	}
 
