@@ -459,8 +459,9 @@ static struct message_subscription *get_or_create_subscription(struct ast_endpoi
 		ao2_link(endpoint_subscriptions, sub);
 	} else {
 		ast_rwlock_wrlock(&tech_subscriptions_lock);
-		if (AST_VECTOR_APPEND(&tech_subscriptions, ao2_bump(sub))) {
-			/* Release the ao2_bump that was for the vector and allocation references. */
+		ao2_ref(sub, +1);
+		if (AST_VECTOR_APPEND(&tech_subscriptions, sub)) {
+			/* Release the refs that were for the vector and the allocation. */
 			ao2_ref(sub, -2);
 			sub = NULL;
 		}
