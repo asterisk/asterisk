@@ -4984,12 +4984,13 @@ static int unload_module(void)
 
 	close(netsocket);
 	io_context_destroy(io);
-	ast_sched_context_destroy(sched);
 
 	mark_mappings();
 	prune_mappings();
 	mark_peers();
 	prune_peers();
+
+	ast_sched_context_destroy(sched);
 
 	return 0;
 }
