@@ -821,6 +821,7 @@ void ast_ari_bridges_start_moh(struct ast_variable *headers,
 	}
 
 	ast_moh_start(moh_channel, moh_class, NULL);
+	ast_channel_cleanup(moh_channel);
 
 	ast_ari_response_no_content(response);
 
