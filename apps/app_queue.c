@@ -133,6 +133,27 @@
 			<parameter name="queuename" required="true" />
 			<parameter name="options">
 				<optionlist>
+					<option name="b" argsep="^">
+						<para>Before initiating an outgoing call, <literal>Gosub</literal> to the specified
+						location using the newly created channel.  The <literal>Gosub</literal> will be
+						executed for each destination channel.</para>
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" hasparams="optional" argsep="^">
+							<argument name="arg1" multiple="true" required="true" />
+							<argument name="argN" />
+						</argument>
+					</option>
+					<option name="B" argsep="^">
+						<para>Before initiating the outgoing call(s), <literal>Gosub</literal> to the
+						specified location using the current channel.</para>
+						<argument name="context" required="false" />
+						<argument name="exten" required="false" />
+						<argument name="priority" required="true" hasparams="optional" argsep="^">
+							<argument name="arg1" multiple="true" required="true" />
+							<argument name="argN" />
+						</argument>
+					</option>
 					<option name="C">
 						<para>Mark all calls as "answered elsewhere" when cancelled.</para>
 					</option>
@@ -1325,15 +1346,21 @@ enum {
 	OPT_CALLER_AUTOMIXMON =      (1 << 16),
 	OPT_CALLEE_AUTOMON =         (1 << 17),
 	OPT_CALLER_AUTOMON =         (1 << 18),
+	OPT_PREDIAL_CALLEE =         (1 << 19),
+	OPT_PREDIAL_CALLER =         (1 << 20),
 };
 
 enum {
 	OPT_ARG_CALLEE_GO_ON = 0,
+	OPT_ARG_PREDIAL_CALLEE,
+	OPT_ARG_PREDIAL_CALLER,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE
 };
 
 AST_APP_OPTIONS(queue_exec_options, BEGIN_OPTIONS
+	AST_APP_OPTION_ARG('b', OPT_PREDIAL_CALLEE, OPT_ARG_PREDIAL_CALLEE),
+	AST_APP_OPTION_ARG('B', OPT_PREDIAL_CALLER, OPT_ARG_PREDIAL_CALLER),
 	AST_APP_OPTION('C', OPT_MARK_AS_ANSWERED),
 	AST_APP_OPTION('c', OPT_GO_ON),
 	AST_APP_OPTION('d', OPT_DATA_QUALITY),
@@ -1545,6 +1572,7 @@ struct queue_ent {
 	char announce[PATH_MAX];               /*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];         /*!< Context when user exits queue */
 	char digits[AST_MAX_EXTENSION];        /*!< Digits entered while in queue */
+	const char *predial_callee;            /*!< Gosub app arguments for outgoing calls.  NULL if not supplied. */
 	int valid_digits;                      /*!< Digits entered correspond to valid extension. Exited */
 	int pos;                               /*!< Where we are in the queue */
 	int prio;                              /*!< Our priority */
@@ -4559,6 +4587,11 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	ast_channel_unlock(tmp->chan);
 	ast_channel_unlock(qe->chan);
 
+	/* PREDIAL: Run gosub on the callee's channel */
+	if (qe->predial_callee) {
+		ast_pre_call(tmp->chan, qe->predial_callee);
+	}
+
 	/* Place the call, but don't wait on the answer */
 	if ((res = ast_call(tmp->chan, location, 0))) {
 		/* Again, keep going even if there's an error */
@@ -4615,6 +4648,16 @@ static struct callattempt *find_best(struct callattempt *outgoing)
 static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *busies)
 {
 	int ret = 0;
+	struct callattempt *cur;
+
+	if (qe->predial_callee) {
+		ast_autoservice_start(qe->chan);
+		for (cur = outgoing; cur; cur = cur->q_next) {
+			if (cur->stillgoing && cur->chan) {
+				ast_autoservice_start(cur->chan);
+			}
+		}
+	}
 
 	while (ret == 0) {
 		struct callattempt *best = find_best(outgoing);
@@ -4623,18 +4666,23 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 			break;
 		}
 		if (qe->parent->strategy == QUEUE_STRATEGY_RINGALL) {
-			struct callattempt *cur;
 			/* Ring everyone who shares this best metric (for ringall) */
 			for (cur = outgoing; cur; cur = cur->q_next) {
 				if (cur->stillgoing && !cur->chan && cur->metric <= best->metric) {
 					ast_debug(1, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
 					ret |= ring_entry(qe, cur, busies);
+					if (qe->predial_callee && cur->chan) {
+						ast_autoservice_start(cur->chan);
+					}
 				}
 			}
 		} else {
 			/* Ring just the best channel */
 			ast_debug(1, "Trying '%s' with metric %d\n", best->interface, best->metric);
 			ret = ring_entry(qe, best, busies);
+			if (qe->predial_callee && cur->chan) {
+				ast_autoservice_start(best->chan);
+			}
 		}
 
 		/* If we have timed out, break out */
@@ -4643,6 +4691,14 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 			ret = 0;
 			break;
 		}
+	}
+	if (qe->predial_callee) {
+		for (cur = outgoing; cur; cur = cur->q_next) {
+			if (cur->stillgoing && cur->chan) {
+				ast_autoservice_stop(cur->chan);
+			}
+		}
+		ast_autoservice_stop(qe->chan);
 	}
 
 	return ret;
@@ -8270,6 +8326,21 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		S_OR(args.url, ""),
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
 		qe.opos);
+
+	/* PREDIAL: Preprocess any callee gosub arguments. */
+	if (ast_test_flag(&opts, OPT_PREDIAL_CALLEE)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLEE])) {
+		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLEE]);
+		qe.predial_callee = opt_args[OPT_ARG_PREDIAL_CALLEE];
+	}
+
+	/* PREDIAL: Run gosub on the caller's channel */
+	if (ast_test_flag(&opts, OPT_PREDIAL_CALLER)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_PREDIAL_CALLER])) {
+		ast_replace_subargument_delimiter(opt_args[OPT_ARG_PREDIAL_CALLER]);
+		ast_app_exec_sub(NULL, chan, opt_args[OPT_ARG_PREDIAL_CALLER], 0);
+	}
+
 	copy_rules(&qe, args.rule);
 	qe.pr = AST_LIST_FIRST(&qe.qe_rules);
 check_turns:

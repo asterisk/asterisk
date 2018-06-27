@@ -67,6 +67,10 @@ app_queue
    When set the wrapuptime on the member is used instead of the wrapuptime
    defined for the queue itself.
 
+ * Added predial handler support for caller and callee channels with the
+   B and b options respectively.  This is similar to the predial support
+   in app_dial.
+
 res_config_sqlite
 ------------------
  * The res_config_sqlite module is now deprecated, users should migrate to the
