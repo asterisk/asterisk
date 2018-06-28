@@ -4930,8 +4930,8 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 		ast_debug(1, "Sending TEXT to %s: %s\n", ast_channel_name(chan), body);
 		res = ast_channel_tech(chan)->send_text(chan, body);
 	} else {
-		ast_debug(1, "Channel technology does not support sending text on channel '%s'\n",
-			ast_channel_name(chan));
+		ast_debug(1, "Channel technology does not support sending content type '%s' on channel '%s'\n",
+			S_OR(content_type, "text/plain"), ast_channel_name(chan));
 		res = -1;
 	}
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);

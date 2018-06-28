@@ -80,22 +80,25 @@ static enum pjsip_status_code check_content_type(const pjsip_rx_data *rdata)
  * \internal
  * \brief Checks to make sure the request has the correct content type.
  *
- * \details This module supports the following media types: "text/\*".
+ * \details This module supports the following media types: "text/\*", "application/\*".
  * Return unsupported otherwise.
  *
  * \param rdata The SIP request
  */
-static enum pjsip_status_code check_content_type_any_text(const pjsip_rx_data *rdata)
+static enum pjsip_status_code check_content_type_in_dialog(const pjsip_rx_data *rdata)
 {
 	int res = PJSIP_SC_UNSUPPORTED_MEDIA_TYPE;
-	pj_str_t text = { "text", 4};
+	static const pj_str_t text = { "text", 4};
+	static const pj_str_t application = { "application", 11};
 
-	/* We'll accept any text/ content type */
+	/* We'll accept any text/ or application/ content type */
 	if (rdata->msg_info.msg->body && rdata->msg_info.msg->body->len
-		&& pj_stricmp(&rdata->msg_info.msg->body->content_type.type, &text) == 0) {
+		&& (pj_stricmp(&rdata->msg_info.msg->body->content_type.type, &text) == 0
+			|| pj_stricmp(&rdata->msg_info.msg->body->content_type.type, &application) == 0)) {
 		res = PJSIP_SC_OK;
 	} else if (rdata->msg_info.ctype
-		&& pj_stricmp(&rdata->msg_info.ctype->media.type, &text) == 0) {
+		&& (pj_stricmp(&rdata->msg_info.ctype->media.type, &text) == 0
+		|| pj_stricmp(&rdata->msg_info.ctype->media.type, &application) == 0)) {
 		res = PJSIP_SC_OK;
 	}
 
@@ -800,7 +803,7 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 		return 0;
 	}
 
-	code = check_content_type_any_text(rdata);
+	code = check_content_type_in_dialog(rdata);
 	if (code != PJSIP_SC_OK) {
 		send_response(rdata, code, dlg, tsx);
 		return 0;
@@ -849,7 +852,7 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 		send_response(rdata, PJSIP_SC_INTERNAL_SERVER_ERROR, dlg, tsx);
 		return 0;
 	}
-	ast_copy_string(attrs[pos].value, rdata->msg_info.msg->body->data, rdata->msg_info.msg->body->len);
+	ast_copy_string(attrs[pos].value, rdata->msg_info.msg->body->data, rdata->msg_info.msg->body->len + 1);
 	pos++;
 
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, pos);
