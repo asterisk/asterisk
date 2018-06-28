@@ -337,6 +337,7 @@ enum ast_control_frame_type {
 
 enum ast_frame_read_action {
 	AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO,
+	AST_FRAME_READ_ACTION_SEND_TEXT,
 };
 
 struct ast_control_read_action_payload {
