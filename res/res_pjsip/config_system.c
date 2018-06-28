@@ -52,6 +52,13 @@ struct system_config {
 	} threadpool;
 	/*! Nonzero to disable switching from UDP to TCP transport */
 	unsigned int disable_tcp_switch;
+	/*!
+	 * Although early media is enabled in pjproject by default, it's only
+	 * enabled when the To tags are different. These options allow turning
+	 * on or off the feature for different tags and same tags.
+	 */
+	unsigned int follow_early_media_fork;
+	unsigned int accept_multiple_sdp_answers;
 };
 
 static struct ast_threadpool_options sip_threadpool_options = {
@@ -95,6 +102,16 @@ static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
 
 	pjsip_cfg()->tsx.t1 = system->timert1;
 	pjsip_cfg()->tsx.td = system->timerb;
+
+	pjsip_cfg()->endpt.follow_early_media_fork = system->follow_early_media_fork;
+#ifdef HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
+	pjsip_cfg()->endpt.accept_multiple_sdp_answers = system->accept_multiple_sdp_answers;
+#else
+	if (system->accept_multiple_sdp_answers) {
+		ast_log(LOG_WARNING,
+			"The accept_multiple_sdp_answers flag is not supported in this version of pjproject. Ignoring\n");
+	}
+#endif
 
 	if (system->compactheaders) {
 		extern pj_bool_t pjsip_use_compact_form;
@@ -184,6 +201,10 @@ int ast_sip_initialize_system(void)
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.max_size));
 	ast_sorcery_object_field_register(system_sorcery, "system", "disable_tcp_switch", "yes",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_tcp_switch));
+	ast_sorcery_object_field_register(system_sorcery, "system", "follow_early_media_fork", "yes",
+			OPT_BOOL_T, 1, FLDSET(struct system_config, follow_early_media_fork));
+	ast_sorcery_object_field_register(system_sorcery, "system", "accept_multiple_sdp_answers", "no",
+			OPT_BOOL_T, 1, FLDSET(struct system_config, accept_multiple_sdp_answers));
 
 	ast_sorcery_load(system_sorcery);
 
