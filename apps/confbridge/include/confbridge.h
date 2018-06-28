@@ -689,4 +689,18 @@ struct ast_channel_tech *conf_announce_get_tech(void);
  * \retval -1 on error.
  */
 int conf_announce_channel_push(struct ast_channel *ast);
+
+/*!
+ * \brief Find a confbridge by name.
+ * \since 13.22.0
+ * \since 15.5.0
+ *
+ * \param confbridge_name The name to search for
+ *
+ * \return ConfBridge (which must be unreffed) or NULL.
+ */
+struct confbridge_conference *conf_find_bridge(const char *conference_name);
+
+
+
 #endif
