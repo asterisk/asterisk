@@ -809,6 +809,27 @@
                         ; this mailbox will be used when notifying other modules
                         ; of MWI status changes.  If not set, incoming MWI
                         ; NOTIFYs are ignored.
+;follow_early_media_fork = ; On outgoing calls, if the UAS responds with
+                           ; different SDP attributes on subsequent 18X or 2XX
+                           ; responses (such as a port update) AND the To tag
+                           ; on the subsequent response is different than that
+                           ; on the previous one, follow it.  This usually
+                           ; happens when the INVITE is forked to multiple UASs
+                           ; and more than 1 sends an SDP answer.
+                           ; This option must also be enabled in the system
+                           ; section.
+                           ; (default: yes)
+;accept_multiple_sdp_answers =
+                           ; On outgoing calls, if the UAS responds with
+                           ; different SDP attributes on non-100rel 18X or 2XX
+                           ; responses (such as a port update) AND the To tag on
+                           ; the subsequent response is the same as that on the
+                           ; previous one, process it. This can happen when the
+                           ; UAS needs to change ports for some reason such as
+                           ; using a separate port for custom ringback.
+                           ; This option must also be enabled in the system
+                           ; section.
+                           ; (default: no)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
@@ -961,6 +982,27 @@
                         ; Disabling this option has been known to cause interoperability
                         ; issues, so disable at your own risk.
                         ; (default: "yes")
+;follow_early_media_fork = ; On outgoing calls, if the UAS responds with
+                           ; different SDP attributes on subsequent 18X or 2XX
+                           ; responses (such as a port update) AND the To tag
+                           ; on the subsequent response is different than that
+                           ; on the previous one, follow it.  This usually
+                           ; happens when the INVITE is forked to multiple UASs
+                           ; and more than 1 sends an SDP answer.
+                           ; This option must also be enabled on endpoints that
+                           ; require this functionality.
+                           ; (default: yes)
+;accept_multiple_sdp_answers =
+                           ; On outgoing calls, if the UAS responds with
+                           ; different SDP attributes on non-100rel 18X or 2XX
+                           ; responses (such as a port update) AND the To tag on
+                           ; the subsequent response is the same as that on the
+                           ; previous one, process it. This can happen when the
+                           ; UAS needs to change ports for some reason such as
+                           ; using a separate port for custom ringback.
+                           ; This option must also be enabled on endpoints that
+                           ; require this functionality.
+                           ; (default: no)
 ;type=  ; Must be of type system (default: "")
 
 ;==========================GLOBAL SECTION OPTIONS=========================

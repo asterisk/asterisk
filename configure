@@ -924,6 +924,10 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_INCLUDE
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_LIB
 PBX_PJSIP_TSX_LAYER_FIND_TSX2
 PJSIP_TSX_LAYER_FIND_TSX2_DIR
 PJSIP_TSX_LAYER_FIND_TSX2_INCLUDE
@@ -9272,6 +9276,9 @@ $as_echo "#define HAVE_PJSIP_AUTH_CLT_DEINIT 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_TSX_LAYER_FIND_TSX2 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
+
+
 
 
 
@@ -11396,6 +11403,18 @@ PJSIP_TSX_LAYER_FIND_TSX2_OPTION=pjsip
 PJSIP_TSX_LAYER_FIND_TSX2_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_TSX_LAYER_FIND_TSX2=0
+
+
+
+
+
+
+
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DESCRIP="PJSIP INVITE Accept Multiple SDP Answers"
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_OPTION=pjsip
+PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS=0
 
 
 
@@ -25235,6 +25254,46 @@ $as_echo "yes" >&6; }
 		PBX_PJSIP_TLS_TRANSPORT_PROTO=1
 
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS}" != "x1" -a "${USE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR}" != "x"; then
+	    PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_INCLUDE="-I${PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS=1
+
+$as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
 
 
 
