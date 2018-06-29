@@ -245,8 +245,6 @@ static struct t38_state *t38_state_get_or_alloc(struct ast_sip_session *session)
 	/* This will get bumped up before scheduling */
 	pj_timer_entry_init(&state->timer, 0, session, t38_automatic_reject_timer_cb);
 
-	datastore->data = state;
-
 	return state;
 }
 
@@ -296,18 +294,22 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 	struct t38_state *state;
 	struct ast_sip_session_media *session_media = NULL;
 
-	if (status.code == 100) {
+	if (status.code / 100 <= 1) {
+		/* Ignore any non-final responses (1xx) */
 		return 0;
 	}
 
 	if (!session->channel || !(state = t38_state_get_or_alloc(session)) ||
 		!(session_media = ao2_find(session->media, "image", OBJ_KEY))) {
-		ast_log(LOG_WARNING, "Received response to T.38 re-invite on '%s' but state unavailable\n",
+		ast_log(LOG_WARNING, "Received %d response to T.38 re-invite on '%s' but state unavailable\n",
+			status.code,
 			session->channel ? ast_channel_name(session->channel) : "unknown channel");
 		return 0;
 	}
 
-	t38_change_state(session, session_media, state, (status.code == 200) ? T38_ENABLED : T38_REJECTED);
+	/* Accept any 2xx response as successfully negotiated */
+	t38_change_state(session, session_media, state,
+		(status.code / 100 == 2) ? T38_ENABLED : T38_REJECTED);
 
 	ao2_cleanup(session_media);
 	return 0;
