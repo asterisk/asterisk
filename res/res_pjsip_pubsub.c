@@ -3161,6 +3161,8 @@ static void publication_destroy_fn(void *obj)
 
 	ao2_cleanup(publication->datastores);
 	ao2_cleanup(publication->endpoint);
+
+	ast_module_unref(ast_module_info->self);
 }
 
 static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata,
@@ -3176,6 +3178,8 @@ static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoin
 	if (!(publication = ao2_alloc(sizeof(*publication) + resource_len + event_configuration_name_len, publication_destroy_fn))) {
 		return NULL;
 	}
+
+	ast_module_ref(ast_module_info->self);
 
 	if (!(publication->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp))) {
 		ao2_ref(publication, -1);
