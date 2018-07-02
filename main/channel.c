@@ -3773,6 +3773,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					ast_party_connected_line_free(&connected);
 					ast_channel_lock(chan);
 					break;
+				case AST_FRAME_READ_ACTION_SEND_TEXT:
+					ast_channel_unlock(chan);
+					ast_sendtext(chan, (const char *) read_action_payload->payload);
+					ast_channel_lock(chan);
+					break;
 				}
 				ast_frfree(f);
 				f = &ast_null_frame;
