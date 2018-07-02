@@ -3784,6 +3784,7 @@ static void cdr_submit_batch(int do_shutdown)
 static int submit_scheduled_batch(const void *data)
 {
 	struct module_config *mod_cfg;
+	int nextms;
 
 	cdr_submit_batch(0);
 
@@ -3792,25 +3793,23 @@ static int submit_scheduled_batch(const void *data)
 		return 0;
 	}
 
-	/* manually reschedule from this point in time */
-	ast_mutex_lock(&cdr_sched_lock);
-	cdr_sched = ast_sched_add(sched, mod_cfg->general->batch_settings.time * 1000, submit_scheduled_batch, NULL);
-	ast_mutex_unlock(&cdr_sched_lock);
+	/* Calculate the next scheduled interval */
+	nextms = mod_cfg->general->batch_settings.time * 1000;
 
 	ao2_cleanup(mod_cfg);
-	/* returning zero so the scheduler does not automatically reschedule */
-	return 0;
+
+	return nextms;
 }
 
 /*! Do not hold the batch lock while calling this function */
-static void submit_unscheduled_batch(void)
+static void start_batch_mode(void)
 {
 	/* Prevent two deletes from happening at the same time */
 	ast_mutex_lock(&cdr_sched_lock);
 	/* this is okay since we are not being called from within the scheduler */
 	AST_SCHED_DEL(sched, cdr_sched);
 	/* schedule the submission to occur ASAP (1 ms) */
-	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
+	cdr_sched = ast_sched_add_variable(sched, 1, submit_scheduled_batch, NULL, 1);
 	ast_mutex_unlock(&cdr_sched_lock);
 
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
@@ -3875,9 +3874,9 @@ static void cdr_detach(struct ast_cdr *cdr)
 	}
 	ast_mutex_unlock(&cdr_batch_lock);
 
-	/* Don't call submit_unscheduled_batch with the cdr_batch_lock held */
+	/* Don't submit a batch with cdr_batch_lock held */
 	if (submit_batch) {
-		submit_unscheduled_batch();
+		start_batch_mode();
 	}
 }
 
@@ -3891,7 +3890,7 @@ static void *do_cdr(void *data)
 		struct timeval now;
 		schedms = ast_sched_wait(sched);
 		/* this shouldn't happen, but provide a 1 second default just in case */
-		if (schedms <= 0)
+		if (schedms < 0)
 			schedms = 1000;
 		now = ast_tvadd(ast_tvnow(), ast_samp2tv(schedms, 1000));
 		timeout.tv_sec = now.tv_sec;
@@ -3901,7 +3900,7 @@ static void *do_cdr(void *data)
 		ast_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = ast_sched_runq(sched);
 		ast_mutex_unlock(&cdr_pending_lock);
-		ast_debug(2, "Processed %d scheduled CDR batches from the run queue\n", numevents);
+		ast_debug(2, "Processed %d CDR batches from the run queue\n", numevents);
 	}
 
 	return NULL;
@@ -4219,7 +4218,7 @@ static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	} else if (!ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
 		ast_cli(a->fd, "Cannot submit CDR batch: batch mode not enabled.\n");
 	} else {
-		submit_unscheduled_batch();
+		start_batch_mode();
 		ast_cli(a->fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
 	}
 	ao2_cleanup(mod_cfg);
@@ -4335,7 +4334,7 @@ static int process_config(int reload)
 		aco_option_register(&cfg_info, "scheduleronly", ACO_EXACT, general_options, DEFAULT_BATCH_SCHEDULER_ONLY, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, batch_settings.settings), BATCH_MODE_SCHEDULER_ONLY);
 		aco_option_register(&cfg_info, "safeshutdown", ACO_EXACT, general_options, DEFAULT_BATCH_SAFE_SHUTDOWN, OPT_BOOLFLAG_T, 1, FLDSET(struct ast_cdr_config, batch_settings.settings), BATCH_MODE_SAFE_SHUTDOWN);
 		aco_option_register(&cfg_info, "size", ACO_EXACT, general_options, DEFAULT_BATCH_SIZE, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.size), 0, MAX_BATCH_SIZE);
-		aco_option_register(&cfg_info, "time", ACO_EXACT, general_options, DEFAULT_BATCH_TIME, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.time), 0, MAX_BATCH_TIME);
+		aco_option_register(&cfg_info, "time", ACO_EXACT, general_options, DEFAULT_BATCH_TIME, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_cdr_config, batch_settings.time), 1, MAX_BATCH_TIME);
 	}
 
 	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
@@ -4401,8 +4400,6 @@ static void cdr_engine_shutdown(void)
 
 static void cdr_enable_batch_mode(struct ast_cdr_config *config)
 {
-	SCOPED_LOCK(batch, &cdr_batch_lock, ast_mutex_lock, ast_mutex_unlock);
-
 	/* Only create the thread level portions once */
 	if (cdr_thread == AST_PTHREADT_NULL) {
 		ast_cond_init(&cdr_pending_cond, NULL);
@@ -4412,9 +4409,9 @@ static void cdr_enable_batch_mode(struct ast_cdr_config *config)
 		}
 	}
 
-	/* Kill the currently scheduled item */
-	AST_SCHED_DEL(sched, cdr_sched);
-	cdr_sched = ast_sched_add(sched, config->batch_settings.time * 1000, submit_scheduled_batch, NULL);
+	/* Start the batching process */
+	start_batch_mode();
+
 	ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %u or time %u seconds.\n",
 			config->batch_settings.size, config->batch_settings.time);
 }
