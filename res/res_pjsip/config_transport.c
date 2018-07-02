@@ -651,6 +651,9 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
 		if (transport->cos || transport->tos) {
 			ast_log(LOG_WARNING, "TOS and COS values ignored for websocket transport\n");
+		} else if (!ast_strlen_zero(transport->ca_list_file) || !ast_strlen_zero(transport->ca_list_path) ||
+			!ast_strlen_zero(transport->cert_file) || !ast_strlen_zero(transport->privkey_file)) {
+			ast_log(LOG_WARNING, "TLS certificate values ignored for websocket transport as they are configured in http.conf\n");
 		}
 		res = PJ_SUCCESS;
 	}
