@@ -507,21 +507,42 @@ static struct ast_frame *t38_framehook(struct ast_channel *chan, struct ast_fram
 		return f;
 	}
 
-	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
+	if (f->frametype == AST_FRAME_CONTROL
+		&& f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
 		if (channel->session->endpoint->media.t38.enabled) {
-			struct t38_parameters_task_data *data = t38_parameters_task_data_alloc(channel->session, f);
+			struct t38_parameters_task_data *data;
 
-			if (!data) {
-				return f;
-			}
-
-			if (ast_sip_push_task(channel->session->serializer, t38_interpret_parameters, data)) {
+			data = t38_parameters_task_data_alloc(channel->session, f);
+			if (data
+				&& ast_sip_push_task(channel->session->serializer,
+					t38_interpret_parameters, data)) {
 				ao2_ref(data, -1);
 			}
 		} else {
-			struct ast_control_t38_parameters parameters = { .request_response = AST_T38_REFUSED, };
-			ast_debug(2, "T.38 support not enabled, rejecting T.38 control packet\n");
-			ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+			static const struct ast_control_t38_parameters rsp_refused = {
+				.request_response = AST_T38_REFUSED,
+			};
+			static const struct ast_control_t38_parameters rsp_terminated = {
+				.request_response = AST_T38_TERMINATED,
+			};
+			const struct ast_control_t38_parameters *parameters = f->data.ptr;
+
+			switch (parameters->request_response) {
+			case AST_T38_REQUEST_NEGOTIATE:
+				ast_debug(2, "T.38 support not enabled on %s, refusing T.38 negotiation\n",
+					ast_channel_name(chan));
+				ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS,
+					&rsp_refused, sizeof(rsp_refused));
+				break;
+			case AST_T38_REQUEST_TERMINATE:
+				ast_debug(2, "T.38 support not enabled on %s, 'terminating' T.38 session\n",
+					ast_channel_name(chan));
+				ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS,
+					&rsp_terminated, sizeof(rsp_terminated));
+				break;
+			default:
+				break;
+			}
 		}
 	}
 
