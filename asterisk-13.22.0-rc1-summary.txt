@@ -1,0 +1,787 @@
+                                Release Summary
+
+                              asterisk-13.22.0-rc1
+
+                                Date: 2018-07-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.21.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   31 Alexander Traud       1 Brian Martin           23 Alexander Traud       
+   15 Richard Mudgett       1 Ilya Shipitsin         6 Corey Farrell          
+   7 George Joseph                                   4 Alexei Gradinari       
+   6 Corey Farrell                                   4 George Joseph          
+   4 Joshua Colp                                     3 Kevin Harwell          
+   4 Alexei Gradinari                                2 Nic Colledge           
+   3 Matthew Fredrickson                             2 Kirsty Tyerman         
+   2 Sean Bright                                     2 Kirsty Tyerman         
+   2 Alexander Anikin                                1 Sebastian Gutierrez    
+   2 Nic Colledge                                    1 Ted G                  
+   1 Jaco Kroon                                      1 Denis Lebedev          
+   1 William McCall                                  1 Jaco Kroon             
+   1 Kevin Harwell                                   1 Dimos, Marco Giordani  
+   1 Sam Wierema                                     1 Alessandro Polidori    
+   1 Torrey Searle                                   1 John                   
+   1 Robert Mordec                                   1 Brian Martin           
+   1 Kirsty Tyerman                                  1 Sebastian Gutierrez    
+   1 Brian P. Martin                                 1 bautsche               
+   1 Kirsty Tyerman                                  1 Sam Wierema            
+   1 Pirmin Walthert                                 1 shaurya jain           
+                                                     1 David Brillert         
+                                                     1 Alexander Traud        
+                                                     1 Marco Giordani         
+                                                     1 Ilya Shipitsin         
+                                                     1 Brian                  
+                                                     1 Ross Beer              
+                                                     1 Tzafrir Cohen          
+                                                     1 Francois Blackburn     
+                                                     1 William McCall         
+                                                     1 Dimos                  
+                                                     1 Richard Mudgett        
+                                                     1 Ted G                  
+                                                     1 Denis Lebedev          
+                                                     1 Ilya Shipitsin         
+                                                     1 Robert Mordec          
+                                                     1 Torrey Searle          
+                                                     1 David Brillert         
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-27818: Username bruteforce is possible when using ACL with PJSIP
+   Reported by: John
+     * [034a04af2a] Richard Mudgett -- AST-2018-008: Fix enumeration of
+       endpoints from ACL rejected addresses.
+
+  Bug
+
+    Category: . I did not set the category correctly.
+
+   ASTERISK-27878: [patch] tcptls.h: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [8c78337479] Alexander Traud -- tcptls.h: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Addons/chan_mobile
+
+   ASTERISK-27726: chan_mobile: presents incorrect inbound Caller-ID names
+   Reported by: Brian
+     * [8c1202beb9] Brian P. Martin -- chan_mobile: support handling of
+       caller-id names ("cnam").
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-27901: [patch] ooh323c: GCC 8: output truncated before
+   terminating nul.
+   Reported by: Alexander Traud
+     * [1205bcb69f] Alexander Traud -- ooh323c: GCC 8.1 warned about output
+       truncated before terminating nul.
+   ASTERISK-27812: When the ooh323 debug is on there is no ringing signal to
+   incoming calls via H323 trunk.
+   Reported by: Dimos
+     * [1593ff91fe] Alexander Anikin -- chan_ooh323: fix
+       ooManualProgress/ooManualRingback on ooh323 debuggin on
+   ASTERISK-26893: No "alert" or "progress" in chan_ooh323 if debug is
+   enabled only on the module
+   Reported by: Marco Giordani
+     * [1593ff91fe] Alexander Anikin -- chan_ooh323: fix
+       ooManualProgress/ooManualRingback on ooh323 debuggin on
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-27870: app_confbridge: Conference bridge and announcer channels
+   are not removed if conference is ended as soon as it starts
+   Reported by: Robert Mordec
+     * [447ec4e472] Robert Mordec -- app_confbridge: Bridge and announcers
+       not removed if conference ends quickly
+
+    Category: Applications/app_macro
+
+   ASTERISK-26570: Macro allows an infinite loop of dialplan inclusion
+   resulting in a crash
+   Reported by: Tzafrir Cohen
+     * [5dffdf79d1] Corey Farrell -- app_macro: Prevent infinite loop in
+       find_matching_priority.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-27853: Incorrect error reported when leaving/retrieving a ODBC
+   voicemail
+   Reported by: Nic Colledge
+     * [436d17fa50] Nic Colledge -- app_voicemail: Fix incorrect msg
+       leaving/retrieving an ODBC voicemail
+
+    Category: Applications/app_voicemail/IMAP
+
+   ASTERISK-27639: [patch] BuildSystem: Enable IMAP storage on FreeBSD and
+   DragonFly BSD.
+   Reported by: Alexander Traud
+     * [94c8b20f5f] Alexander Traud -- BuildSystem: Enable IMAP storage on
+       FreeBSD and DragonFly BSD.
+
+    Category: Applications/app_voicemail/ODBC
+
+   ASTERISK-27853: Incorrect error reported when leaving/retrieving a ODBC
+   voicemail
+   Reported by: Nic Colledge
+     * [436d17fa50] Nic Colledge -- app_voicemail: Fix incorrect msg
+       leaving/retrieving an ODBC voicemail
+   ASTERISK-27760: Asterisk ODBC Voicemail Prompt storage fails with recent
+   MariaDB version.
+   Reported by: Nic Colledge
+     * [36f08075da] Nic Colledge -- app_voicemail: Fix data-type mismatch
+       between app_voicemail and database
+
+    Category: CDR/General
+
+   ASTERISK-27909: cdr: Deadlock with submit_scheduled_batch and
+   submit_unscheduled_batch
+   Reported by: Denis Lebedev
+     * [33f4716d13] Matthew Fredrickson -- main/cdr.c: Alleviate CDR deadlock
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-27705: chan_iax2: Stops listening for traffic
+   Reported by: Kirsty Tyerman
+     * [c6116a3234] Kirsty Tyerman -- chan_iax2: better handling for timeout
+       and EINTR
+   ASTERISK-27908: [patch] crypto.h: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [2c3ad1e40d] Alexander Traud -- crypto.h: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-27902: chan_pjsip isn't updating hangupcause on 4XX responses
+   Reported by: George Joseph
+     * [98da1971e3] George Joseph -- chan_pjsip: Register for "BEFORE_MEDIA"
+       responses
+
+    Category: Channels/chan_vpb
+
+   ASTERISK-27808: [patch] chan_vpb: Avoid GNU old-style field designator
+   extension.
+   Reported by: Alexander Traud
+     * [fb9634bcb3] Alexander Traud -- chan_vpb: Avoid GNU old-style field
+       designator extension.
+
+    Category: Codecs/General
+
+   ASTERISK-27814: translate: interpolated frames are not passed through
+   Reported by: Kevin Harwell
+     * [63c68d023c] Kevin Harwell -- translate: generic plc not filled in
+       after translation
+
+    Category: Contrib/General
+
+   ASTERISK-27811: [patch] sip_to_pjsip: Enable python3 compatibility.
+   Reported by: Alexander Traud
+     * [c6a4d34b7f] Alexander Traud -- sip_to_pjsip: Enable python3
+       compatibility.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27931: [patch] BuildSystem: Enable ./configure in Solaris 11.
+   Reported by: Alexander Traud
+     * [d3fe2aceab] Alexander Traud -- BuildSystem: Enable ./configure in
+       Solaris 11.
+   ASTERISK-27926: [patch] bootstrap.sh: find -maxdepth is not POSIX
+   compatible.
+   Reported by: Alexander Traud
+     * [7686e674bf] Alexander Traud -- BuildSystem: Enable autotools in
+       Solaris 11.
+   ASTERISK-27903: menuselect: GCC 8: restrict-qualified parameter passed and
+   aliased.
+   Reported by: Alexander Traud
+     * [3570a62b32] Matthew Fredrickson -- menuselect/menuselect_curses:
+       Resolves sprintf usage error
+   ASTERISK-27824: Fix issues exposed by GCC 8
+   Reported by: George Joseph
+     * [d893e57c90] Corey Farrell -- Fix GCC 8 build issues.
+
+    Category: Core/Channels
+
+   ASTERISK-27625: channels: CHECK_BLOCKING is ineffective
+   Reported by: Corey Farrell
+     * [f878de44af] Richard Mudgett -- channel.c: Make CHECK_BLOCKING() save
+       thread LWP id for messages.
+     * [99f439dc01] Richard Mudgett -- ARI POST DTMF: Make not compete with
+       channel's media thread.
+     * [6a1626c265] Richard Mudgett -- AMI PlayDTMF Action: Make not compete
+       with channel's media thread.
+     * [1abcc41fff] Richard Mudgett -- channel.c: Fix usage of
+       CHECK_BLOCKING()
+     * [5d34ca5b33] Richard Mudgett -- autoservice: Don't start channel
+       autoservice if the thread is a user interface.
+
+    Category: Core/Configuration
+
+   ASTERISK-27863: config/ast_destroy_realtime_fields: successful DELETE is
+   treated as failed
+   Reported by: Alexei Gradinari
+     * [d6145087cf] Alexei Gradinari -- config.c: Fix successful DELETE
+       treated as failure
+
+    Category: Core/General
+
+   ASTERISK-27876: [patch] tcptls: Allow OpenSSL configured with no-dh.
+   Reported by: Alexander Traud
+     * [6833c763c7] Alexander Traud -- tcptls: Allow OpenSSL configured with
+       no-dh.
+   ASTERISK-27874: [patch] tcptls: Allow OpenSSL 1.1.x configured with
+   enable-ssl3-method no-deprecated.
+   Reported by: Alexander Traud
+     * [204cc25a27] Alexander Traud -- tcptls: Allow OpenSSL 1.1.x configured
+       with enable-ssl3-method no-deprecated.
+   ASTERISK-27865: [patch]: tcptls: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [b6234f9577] Alexander Traud -- tcptls: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-27943: AMI: Action SendText needs to use the correct thread.
+   Reported by: Richard Mudgett
+     * [d0e4cbfc51] Richard Mudgett -- AMI SendText action: Fix to use
+       correct thread to send the text.
+   ASTERISK-27852: cli: "manager show settings" mislabels HTTP timeout as
+   being minutes.
+   Reported by: Corey Farrell
+     * [67212eae87] Corey Farrell -- cli: Display correct unit for HTTP
+       timeout in "manager show settings".
+   ASTERISK-27841: digest over for manager (ami) over http fails on too long
+   uris
+   Reported by: Jaco Kroon
+     * [47548ff485] Jaco Kroon -- manager: fix digest auth for ami/http
+       mechanism.
+
+    Category: Core/Portability
+
+   ASTERISK-27933: [patch] uuid: Enable UUID in Solaris 11.
+   Reported by: Alexander Traud
+     * [5e9230b528] Alexander Traud -- uuid: Enable UUID in Solaris 11.
+
+    Category: Documentation
+
+   ASTERISK-25261: Manager events for MeetMe have incorrectly documented key
+   name 'Usernum' - should be 'User'
+   Reported by: Francois Blackburn
+     * [071232244a] Richard Mudgett -- app_meetme: Fix manager event
+       documentation for several events.
+
+    Category: Functions/func_aes
+
+   ASTERISK-27908: [patch] crypto.h: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [2c3ad1e40d] Alexander Traud -- crypto.h: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Functions/func_odbc
+
+   ASTERISK-27888: SQL fetch error on query which return 0 columns
+   Reported by: Alexei Gradinari
+     * [d9d50396cf] Alexei Gradinari -- func_odbc: NODATA if SQLNumResultCols
+       returned 0 columns on readsql
+
+    Category: PBX/pbx_dundi
+
+   ASTERISK-26987: pbx_dundi: Asterisk crashes when unloading module
+   pbx_dundi.so with dundi peers
+   Reported by: Kirsty Tyerman
+     * [3203c3491a] Kirsty Tyerman -- pbx_dundi: reordered unloading of
+       module pbx_dundi
+   ASTERISK-27908: [patch] crypto.h: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [2c3ad1e40d] Alexander Traud -- crypto.h: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Resources/res_ari
+
+   ASTERISK-27801: Asterisk got stuck while enabling "ari set debug all on"
+   Reported by: shaurya jain
+     * [a36d6e3674] Joshua Colp -- res_ari: Remove requirement that body
+       exists when debug is on.
+
+    Category: Resources/res_config_odbc
+
+   ASTERISK-27863: config/ast_destroy_realtime_fields: successful DELETE is
+   treated as failed
+   Reported by: Alexei Gradinari
+     * [d6145087cf] Alexei Gradinari -- config.c: Fix successful DELETE
+       treated as failure
+
+    Category: Resources/res_crypto
+
+   ASTERISK-27908: [patch] crypto.h: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [2c3ad1e40d] Alexander Traud -- crypto.h: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Resources/res_fax
+
+   ASTERISK-27094: res_fax: Deadlock when using Local channels and fax
+   gateway
+   Reported by: David Brillert
+     * [8b67e2bd14] Pirmin Walthert -- bridge_channel.c: Fix Deadlock when
+       using Local channels and fax gateway
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-27872: res_pjsip: Modified qualify_frequency doesn't effect until
+   pjsip reload
+   Reported by: Alexei Gradinari
+     * [9ad3918acd] Alexei Gradinari -- pjsip_options: handle modification of
+       qualify options in realtime
+     * [a576f50362] Alexei Gradinari -- pjsip_options: show/reload AOR
+       qualify options using CLI
+   ASTERISK-27860: [patch] res_pjsip: Register pjsip_transport_management not
+   externally but internally.
+   Reported by: Alexander Traud
+     * [99b24dc63b] Alexander Traud -- res_pjsip: Register
+       pjsip_transport_management not externally but internally.
+   ASTERISK-26806: pjsip_options: rework to make more efficient
+   Reported by: Kevin Harwell
+     * [bea52b3706] Joshua Colp -- pjsip: Rewrite OPTIONS support with new
+       eyes.
+
+    Category: Resources/res_pjsip_endpoint_identifier_ip
+
+   ASTERISK-27861: [patch] res_pjsip_endpoint_identifier_ip: Unregister the
+   module for headers.
+   Reported by: Alexander Traud
+     * [b615df06d3] Alexander Traud -- res_pjsip_endpoint_identifier_ip:
+       Unregister the module for headers.
+
+    Category: Resources/res_pjsip_messaging
+
+   ASTERISK-27942: res_pjsip_messaging doesn't accept application/*
+   content-types.
+   Reported by: George Joseph
+     * [6087c1e575] George Joseph -- res_pjsip_messaging: Allow application/*
+       for in-dialog MESSAGEs
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-27783: res_pjsip_pubsub: apparent crash on shutdown
+   Reported by: Kevin Harwell
+     * [5f3869608a] Joshua Colp -- res_pjsip_pubsub: Hold module reference
+       for publications.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-27936: res_pjsip_session doesn't update media when a 200 comes in
+   with a different port than a 183
+   Reported by: George Joseph
+     * [06966e91fe] George Joseph -- res_pjsip_session: Add ability to accept
+       multiple sdp answers
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-27845: Codec-Change Re-INVITE during DTMF can cause marker bit
+   error
+   Reported by: Torrey Searle
+     * [4b7fd478d5] Torrey Searle -- res/res_rtp_asterisk: ensure marker bit
+       is correctly set on ssrc change
+
+    Category: Resources/res_srtp
+
+   ASTERISK-27905: [patch] res_srtp: Repair ./configure --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [e62e069705] Alexander Traud -- res_srtp: Repair ./configure
+       --with-ssl=PATH.
+
+    Category: Tests/General
+
+   ASTERISK-27914: [patch] tests/test_utils: Repair ./configure
+   --with-ssl=PATH.
+   Reported by: Alexander Traud
+     * [b004b44a46] Alexander Traud -- tests/test_utils: Repair ./configure
+       --with-ssl=PATH.
+
+  Improvement
+
+    Category: Addons/General
+
+   ASTERISK-27846: ast_coredumper: Fix OUTPUT directory
+   Reported by: Ted G
+     * [acfdfcd19e] George Joseph -- ast_coredumper: Fix output directory and
+       variable precedence
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-27793: cppcheck identifies redundant "if"
+   Reported by: Ilya Shipitsin
+     * [8611135e96] Alexander Anikin -- chan_ooh323: Fix cppcheck warnings
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-27877: app_confbridge: Add talking indicator for ConfBridgeList
+   AMI response
+   Reported by: William McCall
+     * [9ff4779f03] William McCall -- app_confbridge: Add talking indicator
+       for ConfBridgeList AMI response
+
+    Category: Applications/app_meetme
+
+   ASTERISK-27873: documentation: Error on wiki description of Asterisk 13
+   "MeetmeMute" event
+   Reported by: Alessandro Polidori
+     * [071232244a] Richard Mudgett -- app_meetme: Fix manager event
+       documentation for several events.
+
+    Category: Applications/app_mp3
+
+   ASTERISK-27752: Ten seconds of silence after mp3 playback
+   Reported by: Sam Wierema
+     * [bb0ce22b2b] Sam Wierema -- app_mp3: remove 10 seconds of silence
+       after mp3 playback
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27929: [patch] BuildSystem: Enable autotools in Solaris 11.
+   Reported by: Alexander Traud
+     * [7686e674bf] Alexander Traud -- BuildSystem: Enable autotools in
+       Solaris 11.
+   ASTERISK-27820: [patch] Add DragonFly BSD.
+   Reported by: Alexander Traud
+     * [7b219311eb] Alexander Traud -- BuildSystem: Add DragonFly BSD.
+     * [00711bce99] Alexander Traud -- menuselect: Add DragonFly BSD.
+     * [866b884eab] Alexander Traud -- install_prereq: Add DragonFly BSD.
+
+    Category: Core/General
+
+   ASTERISK-27867: [patch] libasteriskssl: Allow OpenSSL 1.0.2 configured
+   with no-deprecated.
+   Reported by: Alexander Traud
+     * [ec40bd945c] Alexander Traud -- libasteriskssl: Allow OpenSSL 1.0.2
+       configured with no-deprecated.
+
+    Category: Documentation
+
+   ASTERISK-27873: documentation: Error on wiki description of Asterisk 13
+   "MeetmeMute" event
+   Reported by: Alessandro Polidori
+     * [071232244a] Richard Mudgett -- app_meetme: Fix manager event
+       documentation for several events.
+
+    Category: Resources/res_crypto
+
+   ASTERISK-27906: [patch] res_crypto: Allow OpenSSL configured with
+   no-deprecated.
+   Reported by: Alexander Traud
+     * [7763aa824e] Alexander Traud -- res_crypto: Allow OpenSSL configured
+       with no-deprecated.
+
+    Category: Resources/res_hep
+
+   ASTERISK-27796: res_hep: Allow create_address to resolve a provided
+   hostname
+   Reported by: Sebastian Gutierrez
+     * [316efcddb9] Matthew Fredrickson -- res_hep: Adds hostname resolution
+       support for capture_address
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-27910: [patch] res_rtp_asterisk: Allow OpenSSL configured with
+   no-deprecated.
+   Reported by: Alexander Traud
+     * [ef2386fcd7] Alexander Traud -- res_rtp_asterisk: Allow OpenSSL
+       configured with no-deprecated.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | 62859ad526 | Joshua Colp   | pjsip: Clarify certificate configuration  |
+   |            |               | for Websocket.                            |
+   |------------+---------------+-------------------------------------------|
+   | cb9475eb3d | Richard       | VECTOR: Passing parameters with side      |
+   |            | Mudgett       | effects to macros is dangerous.           |
+   |------------+---------------+-------------------------------------------|
+   | 6d201a5df4 | Alexander     | smsq: Remove an left-over special case    |
+   |            | Traud         | for Solaris.                              |
+   |------------+---------------+-------------------------------------------|
+   | c8966b8c29 | Alexander     | res_http_post: Enable GMime in Solaris    |
+   |            | Traud         | 11.                                       |
+   |------------+---------------+-------------------------------------------|
+   | 81f39649ea | Alexander     | codecs/ilbc: Compile in Solaris 11.       |
+   |            | Traud         |                                           |
+   |------------+---------------+-------------------------------------------|
+   | 78855e13e8 | Alexander     | chan_oss: Compile in Solaris 11.          |
+   |            | Traud         |                                           |
+   |------------+---------------+-------------------------------------------|
+   | 0b3c090ada | Alexander     | func_env: Compile in Solaris 11.          |
+   |            | Traud         |                                           |
+   |------------+---------------+-------------------------------------------|
+   | a0445c7a3e | Alexander     | utils: Avoid an unused variable in        |
+   |            | Traud         | Solaris 11.                               |
+   |------------+---------------+-------------------------------------------|
+   | a6edbc9be1 | Richard       | Dialplan functions: Fix some channel      |
+   |            | Mudgett       | autoservice misuse.                       |
+   |------------+---------------+-------------------------------------------|
+   | 7b30158147 | Richard       | Fix some doxygen and curly placement.     |
+   |            | Mudgett       |                                           |
+   |------------+---------------+-------------------------------------------|
+   | f94a310ca0 | Richard       | channel: Fix some more unprotected        |
+   |            | Mudgett       | channel flag setting.                     |
+   |------------+---------------+-------------------------------------------|
+   | e3de4bc46e | Alexander     | res_rtp_asterisk: Instead of ./configure  |
+   |            | Traud         | use OPENSSL_NO_SRTP.                      |
+   |------------+---------------+-------------------------------------------|
+   | db2413b446 | George Joseph | app_sendtext: Allow content types other   |
+   |            |               | than text/plain                           |
+   |------------+---------------+-------------------------------------------|
+   | 90a075221b | Richard       | channel.c: Fix off nominal channel        |
+   |            | Mudgett       | allocation failure path.                  |
+   |------------+---------------+-------------------------------------------|
+   | 308a967470 | Alexander     | rtp_engine: Remove the double assigned    |
+   |            | Traud         | RTP payload ID of H.263+.                 |
+   |------------+---------------+-------------------------------------------|
+   | 9fe4f99cba | Alexander     | rtp_engine: Avoid a typo error in Doxygen |
+   |            | Traud         | for ast_rtp_codecs_find_payload_code.     |
+   |------------+---------------+-------------------------------------------|
+   | 19ebad0d30 | Corey Farrell | git: Ignore *.orig.                       |
+   |------------+---------------+-------------------------------------------|
+   | ba6034db48 | Corey Farrell | makeopts.in: Remove unused/undefined      |
+   |            |               | AST_MARCH_NATIVE.                         |
+   |------------+---------------+-------------------------------------------|
+   | 850e554793 | Sean Bright   | pjsip: Increase maximum number of usable  |
+   |            |               | ciphers & other cleanups                  |
+   |------------+---------------+-------------------------------------------|
+   | 51a6a986f1 | Richard       | res_pjsip/pjsip_distributor.c: Add        |
+   |            | Mudgett       | missing off-nominal request response.     |
+   |------------+---------------+-------------------------------------------|
+   | 3663968705 | Richard       | res_pjsip/pjsip_distributor.c: Pull some  |
+   |            | Mudgett       | assignments out of if tests.              |
+   |------------+---------------+-------------------------------------------|
+   | ea14243971 | Corey Farrell | res_pjsip: Fix initialization of extended |
+   |            |               | stringfields.                             |
+   |------------+---------------+-------------------------------------------|
+   | 7b05184bca | Sean Bright   | format_pcm: Correct behavior of fseek and |
+   |            |               | ftell for G.722                           |
+   |------------+---------------+-------------------------------------------|
+   | 3c2249fd37 | George Joseph | app_sendtext: Enhance SendText to support |
+   |            |               | Enhanced Messaging                        |
+   |------------+---------------+-------------------------------------------|
+   | be7d4faed5 | George Joseph | bridge_softmix: Forward TEXT frames       |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                                      |    1
+ .version                                                                                        |    1
+ ChangeLog                                                                                       |59738 ----------
+ asterisk-13.21.0-summary.html                                                                   |  335
+ asterisk-13.21.0-summary.txt                                                                    |  819
+ b/.gitignore                                                                                    |    2
+ b/CHANGES                                                                                       |   50
+ b/addons/Makefile                                                                               |    1
+ b/addons/chan_mobile.c                                                                          |  146
+ b/addons/chan_ooh323.c                                                                          |   19
+ b/addons/ooh323c/src/context.c                                                                  |    1
+ b/addons/ooh323c/src/memheap.c                                                                  |   11
+ b/addons/ooh323c/src/ooCalls.c                                                                  |    3
+ b/addons/ooh323c/src/ooCapability.c                                                             |   10
+ b/addons/ooh323c/src/ooGkClient.c                                                               |    3
+ b/addons/ooh323c/src/ooh245.c                                                                   |    2
+ b/addons/ooh323c/src/ooq931.c                                                                   |    6
+ b/apps/Makefile                                                                                 |    4
+ b/apps/app_confbridge.c                                                                         |   27
+ b/apps/app_macro.c                                                                              |   19
+ b/apps/app_meetme.c                                                                             |    2
+ b/apps/app_minivm.c                                                                             |    4
+ b/apps/app_mp3.c                                                                                |   32
+ b/apps/app_queue.c                                                                              |    2
+ b/apps/app_senddtmf.c                                                                           |    2
+ b/apps/app_sendtext.c                                                                           |  183
+ b/apps/app_sms.c                                                                                |    2
+ b/apps/app_test.c                                                                               |    3
+ b/apps/app_voicemail.c                                                                          |   16
+ b/apps/confbridge/include/confbridge.h                                                          |    1
+ b/autoconf/ast_check_raii.m4                                                                    |    4
+ b/bootstrap.sh                                                                                  |   55
+ b/bridges/bridge_softmix.c                                                                      |   41
+ b/channels/Makefile                                                                             |    3
+ b/channels/chan_dahdi.c                                                                         |    6
+ b/channels/chan_iax2.c                                                                          |   11
+ b/channels/chan_oss.c                                                                           |   21
+ b/channels/chan_pjsip.c                                                                         |  142
+ b/channels/chan_sip.c                                                                           |   25
+ b/channels/chan_skinny.c                                                                        |   32
+ b/channels/chan_vpb.cc                                                                          |  109
+ b/channels/iax2/parser.c                                                                        |    2
+ b/channels/sig_analog.c                                                                         |    4
+ b/codecs/ilbc/iLBC_define.h                                                                     |    1
+ b/configs/samples/ast_debug_tools.conf.sample                                                   |    2
+ b/configs/samples/pjsip.conf.sample                                                             |   59
+ b/configure                                                                                     |  463
+ b/configure.ac                                                                                  |   89
+ b/contrib/ast-db-manage/config/versions/0be05c3a8225_add_early_media_options.py                 |   37
+ b/contrib/scripts/ast_coredumper                                                                |   26
+ b/contrib/scripts/install_prereq                                                                |   26
+ b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                               |    6
+ b/contrib/scripts/sip_to_pjsip/astdicts.py                                                      |   12
+ b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                                  |   83
+ b/contrib/scripts/sip_to_pjsip/sip_to_pjsql.py                                                  |   15
+ b/contrib/scripts/sip_to_pjsip/sqlconfigparser.py                                               |   16
+ b/formats/format_pcm.c                                                                          |   41
+ b/formats/format_sln.c                                                                          |    6
+ b/funcs/Makefile                                                                                |    2
+ b/funcs/func_aes.c                                                                              |    1
+ b/funcs/func_curl.c                                                                             |   29
+ b/funcs/func_env.c                                                                              |    2
+ b/funcs/func_frame_trace.c                                                                      |    8
+ b/funcs/func_odbc.c                                                                             |   24
+ b/funcs/func_pjsip_contact.c                                                                    |    6
+ b/funcs/func_realtime.c                                                                         |    6
+ b/include/asterisk/app.h                                                                        |   59
+ b/include/asterisk/autoconfig.h.in                                                              |   13
+ b/include/asterisk/channel.h                                                                    |   81
+ b/include/asterisk/endian.h                                                                     |    2
+ b/include/asterisk/frame.h                                                                      |    6
+ b/include/asterisk/message.h                                                                    |  123
+ b/include/asterisk/res_pjsip.h                                                                  |   49
+ b/include/asterisk/rtp_engine.h                                                                 |    2
+ b/include/asterisk/tcptls.h                                                                     |   28
+ b/include/asterisk/utils.h                                                                      |   32
+ b/include/asterisk/uuid.h                                                                       |   10
+ b/main/app.c                                                                                    |   52
+ b/main/asterisk.c                                                                               |    2
+ b/main/autoservice.c                                                                            |   14
+ b/main/bridge_channel.c                                                                         |   38
+ b/main/cdr.c                                                                                    |   35
+ b/main/channel.c                                                                                |  175
+ b/main/channel_internal_api.c                                                                   |   10
+ b/main/config.c                                                                                 |   12
+ b/main/enum.c                                                                                   |    7
+ b/main/frame.c                                                                                  |    3
+ b/main/libasteriskssl.c                                                                         |   36
+ b/main/manager.c                                                                                |   45
+ b/main/message.c                                                                                |  142
+ b/main/pbx.c                                                                                    |    2
+ b/main/pbx_functions.c                                                                          |    6
+ b/main/rtp_engine.c                                                                             |    2
+ b/main/tcptls.c                                                                                 |   97
+ b/main/translate.c                                                                              |   33
+ b/main/utils.c                                                                                  |   38
+ b/main/uuid.c                                                                                   |   14
+ b/makeopts.in                                                                                   |    2
+ b/menuselect/Makefile                                                                           |    8
+ b/menuselect/autoconfig.h.in                                                                    |    4
+ b/menuselect/configure                                                                          |   33
+ b/menuselect/configure.ac                                                                       |   40
+ b/menuselect/menuselect_curses.c                                                                |    2
+ b/pbx/dundi-parser.c                                                                            |    2
+ b/pbx/pbx_dundi.c                                                                               |    7
+ b/res/Makefile                                                                                  |    4
+ b/res/res_ari.c                                                                                 |    6
+ b/res/res_config_ldap.c                                                                         |   29
+ b/res/res_crypto.c                                                                              |   33
+ b/res/res_hep.c                                                                                 |   24
+ b/res/res_http_post.c                                                                           |    2
+ b/res/res_musiconhold.c                                                                         |    2
+ b/res/res_pjsip.c                                                                               |   87
+ b/res/res_pjsip/config_system.c                                                                 |   21
+ b/res/res_pjsip/config_transport.c                                                              |   24
+ b/res/res_pjsip/include/res_pjsip_private.h                                                     |    9
+ b/res/res_pjsip/location.c                                                                      |   15
+ b/res/res_pjsip/pjsip_configuration.c                                                           |  351
+ b/res/res_pjsip/pjsip_distributor.c                                                             |   65
+ b/res/res_pjsip/pjsip_options.c                                                                 | 3388
+ b/res/res_pjsip/pjsip_transport_management.c                                                    |    4
+ b/res/res_pjsip_endpoint_identifier_ip.c                                                        |    1
+ b/res/res_pjsip_history.c                                                                       |    3
+ b/res/res_pjsip_messaging.c                                                                     |  118
+ b/res/res_pjsip_pubsub.c                                                                        |    4
+ b/res/res_pjsip_session.c                                                                       |   36
+ b/res/res_rtp_asterisk.c                                                                        |   64
+ b/res/res_srtp.c                                                                                |    1
+ b/res/stasis/control.c                                                                          |   32
+ b/res/stasis/messaging.c                                                                        |    5
+ b/tests/Makefile                                                                                |    3
+ b/tests/test_utils.c                                                                            |    1
+ b/third-party/pjproject/configure.m4                                                            |    1
+ b/third-party/pjproject/patches/0100-sip_inv-Add-option-to-accept-updated-SDP-on-same-To-.patch |  215
+ b/utils/Makefile                                                                                |    2
+ b/utils/ael_main.c                                                                              |    2
+ contrib/realtime/mssql/mssql_cdr.sql                                                            |   44
+ contrib/realtime/mssql/mssql_config.sql                                                         | 1863
+ contrib/realtime/mssql/mssql_voicemail.sql                                                      |   54
+ contrib/realtime/mysql/mysql_cdr.sql                                                            |   32
+ contrib/realtime/mysql/mysql_config.sql                                                         | 1106
+ contrib/realtime/mysql/mysql_voicemail.sql                                                      |   34
+ contrib/realtime/oracle/oracle_cdr.sql                                                          |   38
+ contrib/realtime/oracle/oracle_config.sql                                                       | 1829
+ contrib/realtime/oracle/oracle_voicemail.sql                                                    |   48
+ contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   36
+ contrib/realtime/postgresql/postgresql_config.sql                                               | 1198
+ contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   38
+ 148 files changed, 5351 insertions(+), 69647 deletions(-)
