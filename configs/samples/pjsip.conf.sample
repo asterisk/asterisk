@@ -842,10 +842,13 @@
 ;==========================TRANSPORT SECTION OPTIONS=========================
 ;[transport]
 ;  SYNOPSIS: SIP Transport
+;
 ;async_operations=1     ; Number of simultaneous Asynchronous Operations
                         ; (default: "1")
 ;bind=  ; IP Address and optional port to bind to for this transport (default:
         ; "")
+; Note that for the Websocket transport the TLS configuration is configured
+; in http.conf and is applied for all HTTPS traffic.
 ;ca_list_file=  ; File containing a list of certificates to read TLS ONLY
                 ; (default: "")
 ;ca_list_path=  ; Path to directory containing certificates to read TLS ONLY.
@@ -857,6 +860,13 @@
                 ; a .key file must be specified via priv_key_file
                 ; (default: "")
 ;cipher=        ; Preferred cryptography cipher names TLS ONLY (default: "")
+;method=        ; Method of SSL transport TLS ONLY (default: "")
+;priv_key_file= ; Private key file TLS ONLY (default: "")
+;verify_client= ; Require verification of client certificate TLS ONLY (default:
+                ; "")
+;verify_server= ; Require verification of server certificate TLS ONLY (default:
+                ; "")
+;require_client_cert=   ; Require client certificate TLS ONLY (default: "")
 ;domain=        ; Domain the transport comes from (default: "")
 ;external_media_address=        ; External IP address to use in RTP handling
                                 ; (default: "")
@@ -864,17 +874,10 @@
                                 ; "")
 ;external_signaling_port=0      ; External port for SIP signalling (default:
                                 ; "0")
-;method=        ; Method of SSL transport TLS ONLY (default: "")
 ;local_net=     ; Network to consider local used for NAT purposes (default: "")
 ;password=      ; Password required for transport (default: "")
-;priv_key_file= ; Private key file TLS ONLY (default: "")
 ;protocol=udp   ; Protocol to use for SIP traffic (default: "udp")
-;require_client_cert=   ; Require client certificate TLS ONLY (default: "")
 ;type=  ; Must be of type transport (default: "")
-;verify_client= ; Require verification of client certificate TLS ONLY (default:
-                ; "")
-;verify_server= ; Require verification of server certificate TLS ONLY (default:
-                ; "")
 ;tos=0  ; Enable TOS for the signalling sent over this transport (default: "0")
 ;cos=0  ; Enable COS for the signalling sent over this transport (default: "0")
 ;websocket_write_timeout=100    ; Default write timeout to set on websocket

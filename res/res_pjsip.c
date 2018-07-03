@@ -1158,13 +1158,13 @@
 					<synopsis>IP Address and optional port to bind to for this transport</synopsis>
 				</configOption>
 				<configOption name="ca_list_file">
-					<synopsis>File containing a list of certificates to read (TLS ONLY)</synopsis>
+					<synopsis>File containing a list of certificates to read (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="ca_list_path">
-					<synopsis>Path to directory containing a list of certificates to read (TLS ONLY)</synopsis>
+					<synopsis>Path to directory containing a list of certificates to read (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="cert_file">
-					<synopsis>Certificate file for endpoint (TLS ONLY)</synopsis>
+					<synopsis>Certificate file for endpoint (TLS ONLY, not WSS)</synopsis>
 					<description><para>
 						A path to a .crt or .pem file can be provided.  However, only
 						the certificate is read from the file, not the private key.
@@ -1173,7 +1173,7 @@
 					</para></description>
 				</configOption>
 				<configOption name="cipher">
-					<synopsis>Preferred cryptography cipher names (TLS ONLY)</synopsis>
+					<synopsis>Preferred cryptography cipher names (TLS ONLY, not WSS)</synopsis>
 					<description>
 					<para>Comma separated list of cipher names or numeric equivalents.
 						Numeric equivalents can be either decimal or hexadecimal (0xX).
@@ -1205,7 +1205,7 @@
 					<synopsis>External port for SIP signalling</synopsis>
 				</configOption>
 				<configOption name="method">
-					<synopsis>Method of SSL transport (TLS ONLY)</synopsis>
+					<synopsis>Method of SSL transport (TLS ONLY, not WSS)</synopsis>
 					<description>
 						<enumlist>
 							<enum name="default">
@@ -1232,7 +1232,7 @@
 					<synopsis>Password required for transport</synopsis>
 				</configOption>
 				<configOption name="priv_key_file">
-					<synopsis>Private key file (TLS ONLY)</synopsis>
+					<synopsis>Private key file (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="protocol" default="udp">
 					<synopsis>Protocol to use for SIP traffic</synopsis>
@@ -1247,16 +1247,16 @@
 					</description>
 				</configOption>
 				<configOption name="require_client_cert" default="false">
-					<synopsis>Require client certificate (TLS ONLY)</synopsis>
+					<synopsis>Require client certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'transport'.</synopsis>
 				</configOption>
 				<configOption name="verify_client" default="false">
-					<synopsis>Require verification of client certificate (TLS ONLY)</synopsis>
+					<synopsis>Require verification of client certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="verify_server" default="false">
-					<synopsis>Require verification of server certificate (TLS ONLY)</synopsis>
+					<synopsis>Require verification of server certificate (TLS ONLY, not WSS)</synopsis>
 				</configOption>
 				<configOption name="tos" default="false">
 					<synopsis>Enable TOS for the signalling sent over this transport</synopsis>
