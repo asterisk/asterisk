@@ -3354,7 +3354,7 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 			ao2_link(handler->publications, publication);
 
 			AST_SCHED_REPLACE_UNREF(publication->sched_id, sched, expires * 1000, publish_expire, publication,
-						ao2_ref(publication, -1), ao2_ref(publication, -1), ao2_ref(publication, +1));
+						ao2_ref(_data, -1), ao2_ref(publication, -1), ao2_ref(publication, +1));
 		} else {
 			AST_SCHED_DEL_UNREF(sched, publication->sched_id, ao2_ref(publication, -1));
 		}
