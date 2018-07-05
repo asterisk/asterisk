@@ -28201,9 +28201,9 @@ if test "x${PBX_FFTW3}" != "x1" -a "${USE_FFTW3}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fftw_alloc_real in -lfftw3" >&5
-$as_echo_n "checking for fftw_alloc_real in -lfftw3... " >&6; }
-if ${ac_cv_lib_fftw3_fftw_alloc_real+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fftw_malloc in -lfftw3" >&5
+$as_echo_n "checking for fftw_malloc in -lfftw3... " >&6; }
+if ${ac_cv_lib_fftw3_fftw_malloc+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -28217,27 +28217,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char fftw_alloc_real ();
+char fftw_malloc ();
 int
 main ()
 {
-return fftw_alloc_real ();
+return fftw_malloc ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_fftw3_fftw_alloc_real=yes
+  ac_cv_lib_fftw3_fftw_malloc=yes
 else
-  ac_cv_lib_fftw3_fftw_alloc_real=no
+  ac_cv_lib_fftw3_fftw_malloc=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_fftw3_fftw_alloc_real" >&5
-$as_echo "$ac_cv_lib_fftw3_fftw_alloc_real" >&6; }
-if test "x$ac_cv_lib_fftw3_fftw_alloc_real" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_fftw3_fftw_malloc" >&5
+$as_echo "$ac_cv_lib_fftw3_fftw_malloc" >&6; }
+if test "x$ac_cv_lib_fftw3_fftw_malloc" = xyes; then :
   AST_FFTW3_FOUND=yes
 else
   AST_FFTW3_FOUND=no
