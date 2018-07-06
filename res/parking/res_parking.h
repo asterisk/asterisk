@@ -196,6 +196,19 @@ struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot);
 int parking_lot_get_space(struct parking_lot *lot, int target_override);
 
 /*!
+ * \brief Determine if there is a parked user in a parking space and return it if there is.
+ *
+ * \param lot Parking lot being pulled from
+ * \param target If < 0   search for the first occupied space in the parking lot
+ *               If >= 0  Only pull from the indicated target
+ *
+ * \retval NULL if no parked user could be pulled from the requested parking lot at the requested parking space
+ * \retval reference to the requested parked user
+ *
+ */
+struct parked_user *parking_lot_inspect_parked_user(struct parking_lot *lot, int target);
+
+/*!
  * \since 12.0.0
  * \brief Determine if there is a parked user in a parking space and pull it from the parking lot if there is.
  *
