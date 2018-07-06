@@ -99,8 +99,15 @@ static void rfc3326_add_reason_header(struct ast_sip_session *session, struct pj
 		ast_sip_add_header(tdata, "Reason", "SIP;cause=200;text=\"Call completed elsewhere\"");
 	}
 
-	snprintf(buf, sizeof(buf), "Q.850;cause=%i", ast_channel_hangupcause(session->channel) & 0x7f);
-	ast_sip_add_header(tdata, "Reason", buf);
+	if (session->endpoint && session->endpoint->suppress_q850_reason_headers) {
+		ast_debug(1, "A Q.850 '%s'(%i) Reason header was suppresed for endpoint '%s'\n",
+			ast_cause2str((ast_channel_hangupcause(session->channel) & 0x7f)),
+			(ast_channel_hangupcause(session->channel) & 0x7f),
+			ast_sorcery_object_get_id(session->endpoint));
+	} else {
+		snprintf(buf, sizeof(buf), "Q.850;cause=%i", ast_channel_hangupcause(session->channel) & 0x7f);
+		ast_sip_add_header(tdata, "Reason", buf);
+	}
 }
 
 static void rfc3326_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
