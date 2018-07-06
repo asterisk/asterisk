@@ -114,6 +114,17 @@ Core:
    by the system.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 15.5.0 to Asterisk 15.6.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * A new option 'suppress_q850_reason_headers' has been added to the endpoint
+   object. Some devices can't accept multiple Reason headers and get confused
+   when both 'SIP' and 'Q.850' Reason headers are received.  This option allows
+   the 'Q.850' Reason header to be suppressed.  The default value is 'no'.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.4.0 to Asterisk 15.5.0 ------------
 ------------------------------------------------------------------------------
 

@@ -1110,6 +1110,14 @@
 						</para></note>
 					</description>
 				</configOption>
+				<configOption name="suppress_q850_reason_headers" default="no">
+					<synopsis>Suppress Q.850 Reason headers for this endpoint</synopsis>
+					<description><para>
+						Some devices can't accept multiple Reason headers and get confused
+						when both 'SIP' and 'Q.850' Reason headers are received.  This
+						option allows the 'Q.850' Reason header to be suppressed.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
