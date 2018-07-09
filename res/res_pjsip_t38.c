@@ -692,17 +692,17 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 
 	if (!session->endpoint->media.t38.enabled) {
 		ast_debug(3, "Declining; T.38 not enabled on session\n");
-		return -1;
+		return 0;
 	}
 
 	if (!(state = t38_state_get_or_alloc(session))) {
-		return -1;
+		return 0;
 	}
 
 	if ((session->t38state == T38_REJECTED) || (session->t38state == T38_DISABLED)) {
 		ast_debug(3, "Declining; T.38 state is rejected or declined\n");
 		t38_change_state(session, session_media, state, T38_DISABLED);
-		return -1;
+		return 0;
 	}
 
 	ast_copy_pj_str(host, stream->conn ? &stream->conn->addr : &sdp->conn->addr, sizeof(host));
@@ -711,7 +711,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	if (ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_INET) <= 0) {
 		/* The provided host was actually invalid so we error out this negotiation */
 		ast_debug(3, "Declining; provided host is invalid\n");
-		return -1;
+		return 0;
 	}
 
 	/* Check the address family to make sure it matches configured */
@@ -719,7 +719,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		(ast_sockaddr_is_ipv4(addrs) && session->endpoint->media.t38.ipv6)) {
 		/* The address does not match configured */
 		ast_debug(3, "Declining, provided host does not match configured address family\n");
-		return -1;
+		return 0;
 	}
 
 	return 1;
