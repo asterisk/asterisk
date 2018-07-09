@@ -444,6 +444,7 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		}
 
 		session_media->encryption = session->endpoint->media.rtp.encryption;
+		session_media->remote_ice = session->endpoint->media.rtp.ice_support;
 		session_media->keepalive_sched_id = -1;
 		session_media->timeout_sched_id = -1;
 		session_media->type = type;

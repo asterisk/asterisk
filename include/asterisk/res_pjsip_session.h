@@ -93,6 +93,8 @@ struct ast_sip_session_media {
 	unsigned int locally_held:1;
 	/*! \brief Does remote support rtcp_mux */
 	unsigned int remote_rtcp_mux:1;
+	/*! \brief Does remote support ice */
+	unsigned int remote_ice:1;
 	/*! \brief Media type of this session media */
 	enum ast_media_type type;
 	/*! \brief The write callback when writing frames */
