@@ -3846,14 +3846,14 @@ static int add_bundle_groups(struct ast_sip_session *session, pj_pool_t *pool, p
 				continue;
 			}
 
-			ast_str_set(&bundle_group->attr_string, -1, "BUNDLE %s", session_media->mid);
+			ast_str_set(&bundle_group->attr_string, 0, "BUNDLE %s", session_media->mid);
 			continue;
 		}
 
 		for (mid_id = 1; mid_id < PJMEDIA_MAX_SDP_MEDIA; ++mid_id) {
 			if (!bundle_group->mids[mid_id]) {
 				bundle_group->mids[mid_id] = session_media->mid;
-				ast_str_append(&bundle_group->attr_string, -1, " %s", session_media->mid);
+				ast_str_append(&bundle_group->attr_string, 0, " %s", session_media->mid);
 				break;
 			} else if (!strcmp(bundle_group->mids[mid_id], session_media->mid)) {
 				break;
