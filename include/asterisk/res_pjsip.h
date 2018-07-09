@@ -795,6 +795,8 @@ struct ast_sip_endpoint {
 	unsigned int follow_early_media_fork;
 	/*! Accept updated SDPs on non-100rel 18X and 2XX responses with the same To tag */
 	unsigned int accept_multiple_sdp_answers;
+	/*! Suppress Q.850 Reason headers on this endpoint */
+	unsigned int suppress_q850_reason_headers;
 };
 
 /*! URI parameter for symmetric transport */
