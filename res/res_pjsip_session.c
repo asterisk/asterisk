@@ -1341,6 +1341,7 @@ static int add_session_media(void *obj, void *arg, int flags)
 		return CMP_STOP;
 	}
 	session_media->encryption = session->endpoint->media.rtp.encryption;
+	session_media->remote_ice = session->endpoint->media.rtp.ice_support;
 	session_media->keepalive_sched_id = -1;
 	session_media->timeout_sched_id = -1;
 	/* Safe use of strcpy */
