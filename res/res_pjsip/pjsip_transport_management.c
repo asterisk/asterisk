@@ -56,21 +56,22 @@ struct monitored_transport {
 	int sip_received;
 };
 
-/*! \brief Callback function to send keepalive */
-static int keepalive_transport_cb(void *obj, void *arg, int flags)
+static void keepalive_transport_send_keepalive(struct monitored_transport *monitored)
 {
-	struct monitored_transport *monitored = obj;
 	pjsip_tpselector selector = {
 		.type = PJSIP_TPSELECTOR_TRANSPORT,
 		.u.transport = monitored->transport,
 	};
 
 	pjsip_tpmgr_send_raw(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
-		monitored->transport->key.type, &selector, NULL, keepalive_packet.ptr, keepalive_packet.slen,
-		&monitored->transport->key.rem_addr, pj_sockaddr_get_len(&monitored->transport->key.rem_addr),
+		monitored->transport->key.type,
+		&selector,
+		NULL,
+		keepalive_packet.ptr,
+		keepalive_packet.slen,
+		&monitored->transport->key.rem_addr,
+		pj_sockaddr_get_len(&monitored->transport->key.rem_addr),
 		NULL, NULL);
-
-	return 0;
 }
 
 /*! \brief Thread which sends keepalives to all active connection-oriented transports */
@@ -90,12 +91,26 @@ static void *keepalive_transport_thread(void *data)
 		return NULL;
 	}
 
-	/* Once loaded this module just keeps on going as it is unsafe to stop and change the underlying
-	 * callback for the transport manager.
+	/*
+	 * Once loaded this module just keeps on going as it is unsafe to stop
+	 * and change the underlying callback for the transport manager.
 	 */
 	while (keepalive_interval) {
+		struct ao2_iterator iter;
+		struct monitored_transport *monitored;
+
 		sleep(keepalive_interval);
-		ao2_callback(transports, OBJ_NODATA, keepalive_transport_cb, NULL);
+
+		/*
+		 * We must use the iterator to avoid deadlock between the container lock
+		 * and the pjproject transport manager group lock when sending
+		 * the keepalive packet.
+		 */
+		iter = ao2_iterator_init(transports, 0);
+		for (; (monitored = ao2_iterator_next(&iter)); ao2_ref(monitored, -1)) {
+			keepalive_transport_send_keepalive(monitored);
+		}
+		ao2_iterator_destroy(&iter);
 	}
 
 	ao2_ref(transports, -1);
