@@ -15,6 +15,10 @@
  *****************************************************************************/
 #include "asterisk.h"
 
+#ifdef SOLARIS
+#include <sys/sockio.h>
+#endif
+
 #include "asterisk/io.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
