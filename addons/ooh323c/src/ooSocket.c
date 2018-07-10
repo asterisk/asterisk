@@ -17,6 +17,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#ifdef SOLARIS
+#include <sys/sockio.h>
+#endif
+
 #include "asterisk/io.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
