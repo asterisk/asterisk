@@ -1100,6 +1100,7 @@ static void add_msid_to_stream(struct ast_sip_session *session,
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
 	char msid[(AST_UUID_STR_LEN * 2) + 2];
+	const char *stream_label = ast_stream_get_metadata(stream, "SDP:LABEL");
 
 	if (!session->endpoint->media.webrtc) {
 		return;
@@ -1119,19 +1120,7 @@ static void add_msid_to_stream(struct ast_sip_session *session,
 	}
 
 	if (ast_strlen_zero(session_media->label)) {
-		/*
-		 * If this stream has already been assigned a label, use it.
-		 * This will ensure that a confbridge participant is known by
-		 * the same label by all other participants.
-		 */
-		const char *stream_label = ast_stream_get_metadata(stream, "MSID:LABEL");
-
-		if (!ast_strlen_zero(stream_label)) {
-			ast_copy_string(session_media->label, stream_label, sizeof(session_media->label));
-		} else {
 			ast_uuid_generate_str(session_media->label, sizeof(session_media->label));
-			ast_stream_set_metadata(stream, "MSID:LABEL", session_media->label);
-		}
 	}
 
 	snprintf(msid, sizeof(msid), "%s %s", session_media->mslabel, session_media->label);
@@ -1139,6 +1128,14 @@ static void add_msid_to_stream(struct ast_sip_session *session,
 		ast_codec_media_type2str(ast_stream_get_type(stream)), msid);
 	attr = pjmedia_sdp_attr_create(pool, "msid", pj_cstr(&stmp, msid));
 	pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+
+	/* 'label' must come after 'msid' */
+	if (!ast_strlen_zero(stream_label)) {
+		ast_debug(3, "Stream Label: %p %s %s\n", stream,
+			ast_codec_media_type2str(ast_stream_get_type(stream)), stream_label);
+		attr = pjmedia_sdp_attr_create(pool, "label", pj_cstr(&stmp, stream_label));
+		pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+	}
 }
 
 static void add_rtcp_fb_to_stream(struct ast_sip_session *session,
