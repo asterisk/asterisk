@@ -42,6 +42,10 @@ pipeline {
 				onUnstable: false
 			]
 	}
+	options {
+	  skipDefaultCheckout true
+	}
+	
 	agent {
 		/* All of the stages need to be performed on a docker host */
 		label "swdev-docker"
@@ -63,12 +67,6 @@ pipeline {
 						sh "sudo chown -R jenkins:users ."  
 					
 						/*
-						 * Jenkins has already automatically checked out the base branch
-						 * for this change but we now need to check out the change itself
-						 * and rebase it on the current base branch.  If the rebase fails,
-						 * that's an indication to the user that they'll need to sort their
-						 * change out.
-						 *
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
 						 */
@@ -116,17 +114,17 @@ pipeline {
 					def parallelTasks = [ : ]
 
 					for (def testGroup in testGroups) {
-						/*
-						 * Because each task is a Groovy closure, we need to
-						 * keep local references to some variables.
-						 */
-						def groupName = testGroup.name
-
-						parallelTasks[groupName] = {
+						parallelTasks[testGroup.name] = {
+							/*
+							 * Because each task is a Groovy closure, we need to
+							 * keep local references to some variables.
+							 */
+							def groupName = testGroup.name
+							def groupDir = testGroup.dir
+							def groupTestcmd = testGroup.testcmd
+							def testsuiteUrl = env.GIT_URL.replaceAll(/${GERRIT_PROJECT}$/, "testsuite")
+							
 							stage (groupName) {
-								def groupDir = testGroup.dir
-								def groupTestcmd = testGroup.testcmd
-								def testsuiteUrl = env.GIT_URL.replaceAll(/${GERRIT_PROJECT}$/, "testsuite")
 
 								docker.image(randomImage).inside("${dockerOptions} --name ${BUILD_TAG}-${groupName}") {
 
