@@ -132,6 +132,8 @@ pipeline {
 										sh 'sudo ./tests/CI/installAsterisk.sh'
 									}
 
+									sh "sudo rm -rf ${groupDir} || : "
+									
 									checkout scm: [$class: 'GitSCM',
 										branches: [[name: "${BRANCH_NAME}"]],
 											extensions: [
@@ -149,9 +151,9 @@ pipeline {
 									sh "tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
-										artifacts: "${groupDir}**"
+										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
 
-									junit testResults: "${groupDir}",
+									junit testResults: "${groupDir}/asterisk-test-suite-report.xml",
 										healthScaleFactor: 1.0,
 										keepLongStdio: true
 								}
