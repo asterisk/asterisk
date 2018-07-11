@@ -36,3 +36,5 @@ latex
 doxygen.log
 out/
 *.orig
+tests/CI/output
+
