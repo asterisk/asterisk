@@ -11,8 +11,6 @@ if [ -f asterisk-test-suite-report.xml ]  ; then
 	sudo chown jenkins:users asterisk-test-suite-report.xml
 fi
 
-runner ${CIDIR}/fixTestResults.py asterisk-test-suite-report.xml asterisk-test-suite-report.xml
-
 if [ -f core* ] ; then
 	echo "*** Found a core file after running unit tests ***"
 	sudo /var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
