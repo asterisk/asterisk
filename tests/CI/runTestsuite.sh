@@ -5,6 +5,9 @@ ASTETCDIR=$DESTDIR/etc/asterisk
 
 pushd $TESTSUITE_DIR
 
+sudo ./cleanup-test-temnants.sh
+sudo chown -R jenkins:users .
+
 runner sudo PYTHONPATH=./lib/python/ ./runtests.py --cleanup ${TEST_COMMAND} || :
 
 if [ -f asterisk-test-suite-report.xml ]  ; then
