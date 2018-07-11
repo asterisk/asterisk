@@ -76,3 +76,11 @@
 #define	PJMEDIA_MAX_SDP_BANDW   4
 #define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*2 + 4)
 #define	PJMEDIA_MAX_SDP_MEDIA   16
+
+/*
+ * Turn off the periodic sending of CRLNCRLN.  Default is on (90 seconds),
+ * which conflicts with the global section's keep_alive_interval option in
+ * pjsip.conf.
+ */
+#define PJSIP_TCP_KEEP_ALIVE_INTERVAL	0
+#define PJSIP_TLS_KEEP_ALIVE_INTERVAL	0
