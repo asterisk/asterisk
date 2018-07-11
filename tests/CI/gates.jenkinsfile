@@ -135,7 +135,6 @@ pipeline {
 									checkout scm: [$class: 'GitSCM',
 										branches: [[name: "${BRANCH_NAME}"]],
 											extensions: [
-												[$class: 'CleanBeforeCheckout'],
 												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
 												[$class: 'CloneOption',
 													noTags: true,
