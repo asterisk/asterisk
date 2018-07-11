@@ -1,0 +1,170 @@
+/*
+ * This pipeline is the "template" for the Asterisk Unit Tests multi-branch
+ * parent job.  Jenkins will automatically scan the branches in the "asterisk"
+ * or "Security-asterisk" projects in Gerrit and automatically create a branch-
+ * specific job for each branch it finds this file in.
+ *
+ * This file starts as a declarative pipeline because with a declarative
+ * pipeline, you can define the trigger in the pipeline file.  This keeps
+ * everything in one place.  We transition to scripted pipeline later on because
+ * we need to dynamically determine which docker image we're going to use and
+ * you can't do that in a delcarative pipeline.
+ */
+pipeline {
+	triggers {
+		/*
+		 * This trigger will match either the "asterisk" or "Security-asterisk"
+		 * projects.  The branch is taken from the branch this job was created
+		 * for.
+		 */
+		gerrit customUrl: '',
+			commentTextParameterMode: 'PLAIN',
+			commitMessageParameterMode: 'PLAIN',
+			gerritBuildStartedVerifiedValue: 0,
+			gerritBuildNotBuiltVerifiedValue: 0,
+			gerritBuildSuccessfulVerifiedValue: 1,
+			gerritBuildFailedVerifiedValue: -1,
+			gerritBuildUnstableVerifiedValue: -1,
+			gerritProjects: [
+				[branches: [[compareType: 'PLAIN', pattern: "${BRANCH_NAME}"]],
+					compareType: 'REG_EXP',
+					disableStrictForbiddenFileVerification: false,
+					pattern: '^(Security-)?asterisk.*'
+				]
+			],
+			silentMode: false,
+			triggerOnEvents: [
+				commentAddedContains('^recheck$'),
+				patchsetCreated(excludeDrafts: false,
+								excludeNoCodeChange: true,
+								excludeTrivialRebase: false),
+				draftPublished()
+			],
+			skipVote: [
+				onFailed: false,
+				onNotBuilt: true,
+				onSuccessful: false,
+				onUnstable: false
+			]
+	}
+	agent {
+		/* All of the stages need to be performed on a docker host */
+		label "swdev-docker"
+	}
+
+	stages {
+		stage ("Unit Tests-->") {
+			/*
+			 * Jenkins will try to automatically rebuild this job when
+			 * the jenkinsfile changes but since this job is dependent on
+			 * Gerrit, we really don't want to do anything in that case.
+			 */
+			when {
+				not { environment name: 'GERRIT_CHANGE_NUMBER', value: '' }
+			}
+			steps {
+				script {
+					stage ("Checkout") {
+						/*
+						 * Jenkins has already automatically checked out the base branch
+						 * for this change but we now need to check out the change itself
+						 * and rebase it on the current base branch.  If the rebase fails,
+						 * that's an indication to the user that they'll need to sort their
+						 * change out.
+						 *
+						 * The Gerrit Trigger provides all the URLs and refspecs to
+						 * check out the change.
+						 */
+						checkout scm: [$class: 'GitSCM',
+							branches: [[name: env.GERRIT_BRANCH ]],
+							extensions: [
+								[$class: 'CleanBeforeCheckout'],
+								[$class: 'PreBuildMerge', options: [
+									mergeRemote: env.GERRIT_NAME,
+									mergeTarget: env.GERRIT_BRANCH ]
+								],
+								[$class: 'CloneOption',
+									noTags: true,
+									depth: 10,
+									honorRefspec: true,
+									shallow: true
+								],
+								[$class: 'BuildChooserSetting',
+									buildChooser: [$class: 'GerritTriggerBuildChooser']
+								]
+							],
+							userRemoteConfigs: [
+								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GIT_URL ]
+							]
+						]
+					}
+
+					def images = env.DOCKER_IMAGES.split(' ')
+					def r = currentBuild.startTimeInMillis % images.length
+					def ri = images[(int)r]
+					def randomImage = env.DOCKER_REGISTRY + "/" + ri;
+					def dockerOptions =
+						"-v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw" +
+						 " --entrypoint='' --name ${BUILD_TAG}-build"
+
+					docker.image(randomImage).inside(dockerOptions) {
+
+						stage ('Build') {
+							echo 'Building..'
+							sh './tests/CI/buildAsterisk.sh'
+
+							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
+								artifacts: "tests/CI/output/*"
+						}
+
+						stage ('Test') {
+							def outputdir = "tests/CI/output/UnitTests"
+							def outputfile = "${outputdir}/unittests-results.xml"
+							def testcmd = "test execute all"
+
+							sh 'sudo ./tests/CI/installAsterisk.sh'
+							echo "tests/CI/runUnittests.sh --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
+							sh "tests/CI/runUnittests.sh --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
+
+							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
+								artifacts: "${outputdir}/**"
+
+							junit testResults: outputfile,
+								healthScaleFactor: 1.0,
+								keepLongStdio: true
+						}
+					}
+
+					stage ('Cleanup') {
+						sh "sudo make distclean || : "
+					}
+				}
+			}
+		}
+	}
+	/*
+	 * The Gerrit Trigger will automatically post the "Verified" results back
+	 * to Gerrit but the verification publisher publishes extra stuff in the
+	 * "Code Review" section of the review.
+	 */
+	post {
+		success {
+			gerritverificationpublisher verifyStatusValue: 1, verifyStatusCategory: 'Passed',
+				verifyStatusURL: '', verifyStatusComment: '',
+				verifyStatusName: '', verifyStatusReporter: '',
+				verifyStatusRerun: 'recheck'
+		}
+		failure {
+			gerritverificationpublisher verifyStatusValue: -1, verifyStatusCategory: 'Failed',
+				verifyStatusURL: '', verifyStatusComment: '',
+				verifyStatusName: '', verifyStatusReporter: '',
+				verifyStatusRerun: 'recheck'
+		}
+		unstable {
+			gerritverificationpublisher verifyStatusValue: -1, verifyStatusCategory: 'Failed',
+				verifyStatusURL: '', verifyStatusComment: '',
+				verifyStatusName: '', verifyStatusReporter: '',
+				verifyStatusRerun: 'recheck'
+		}
+	}
+}

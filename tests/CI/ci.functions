@@ -1,0 +1,26 @@
+#
+# This file contains useful Bash functions
+# and can be "source"d from the scripts.
+#
+
+for a in "$@" ; do
+	OPTION_COUNT+=1
+	case "$a" in
+		--*=*)
+			[[ $a =~ --([^=]+)=(.*) ]]
+			l=${BASH_REMATCH[1]//-/_}
+			r=${BASH_REMATCH[2]}
+			eval ${l^^}=\"$r\"
+			;;
+		--*)
+			[[ $a =~ --(.+) ]]
+			l=${BASH_REMATCH[1]//-/_}
+			eval ${l^^}=1
+			;;
+	esac
+done
+
+runner() {
+	( set -x ; "$@" )
+}
+
