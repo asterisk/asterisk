@@ -38,7 +38,7 @@ common_config_args+=" --with-sounds-cache=/srv/cache/sounds --with-externals-cac
 common_config_args+=" --enable-dev-mode"
 export WGET_EXTRA_ARGS="--quiet"
 
-runner ./configure ${common_config_args} CCACHE_DISABLE=1 >tests/CI/output/configure.txt
+runner ./configure ${common_config_args} >tests/CI/output/configure.txt
 
 runner ${MAKE} menuselect.makeopts
 

@@ -1,0 +1,47 @@
+[
+	{
+		"name": "ari1",
+		"dir": "tests/CI/output/ari1",
+		"testcmd": "--test-regex=tests/rest_api/[Ca-d]"
+	},
+	{
+		"name": "ari2",
+		"dir": "tests/CI/output/ari2",
+		"testcmd": "--test-regex=tests/rest_api/[e-z]"
+	},
+	{
+		"name": "pjsip1",
+		"dir": "tests/CI/output/pjsip1",
+		"testcmd": "--test-regex=tests/channels/pjsip/[a-f]"
+	},
+	{
+		"name": "pjsip2",
+		"dir": "tests/CI/output/pjsip2",
+		"testcmd": "--test-regex=tests/channels/pjsip/[g-r]"
+	},
+	{
+		"name": "pjsip3",
+		"dir": "tests/CI/output/pjsip3",
+		"testcmd": "--test-regex=tests/channels/pjsip/[s-z]"
+	},
+	{
+		"name": "sip1",
+		"dir": "tests/CI/output/sip1",
+		"testcmd": "--test-regex=tests/channels/SIP/[Sa-r]"
+	},
+	{
+		"name": "sip2",
+		"dir": "tests/CI/output/sip2",
+		"testcmd": "--test-regex=tests/channels/SIP/[s-z]"
+	},
+	{
+		"name": "iax2_local",
+		"dir": "tests/CI/output/iax2_local",
+		"testcmd": " -t tests/channels/iax2 -t tests/channels/local"
+	},
+	{
+		"name": "extmwi",
+		"dir": "tests/CI/output/extmwi",
+		"testcmd": "--test-regex=tests/channels/pjsip/.*mwi"
+	}
+]
