@@ -65,6 +65,7 @@ pipeline {
 			steps {
 				script {
 					stage ("Checkout") {
+						sh "sudo chown -R jenkins:users ."  
 						/*
 						 * Jenkins has already automatically checked out the base branch
 						 * for this change but we now need to check out the change itself
@@ -75,6 +76,7 @@ pipeline {
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
 						 */
+						sh "sudo chown -R jenkins:users ."  
 						checkout scm: [$class: 'GitSCM',
 							branches: [[name: env.GERRIT_BRANCH ]],
 							extensions: [
@@ -134,20 +136,20 @@ pipeline {
 								keepLongStdio: true
 						}
 					}
-
-					stage ('Cleanup') {
-						sh "sudo make distclean || : "
-					}
 				}
 			}
 		}
 	}
-	/*
-	 * The Gerrit Trigger will automatically post the "Verified" results back
-	 * to Gerrit but the verification publisher publishes extra stuff in the
-	 * "Code Review" section of the review.
-	 */
 	post {
+		always {
+			sh "sudo make distclean || : "
+			sh "sudo rm -rf tests/CI/output || : "
+		}
+		/*
+		 * The Gerrit Trigger will automatically post the "Verified" results back
+		 * to Gerrit but the verification publisher publishes extra stuff in the
+		 * "Code Review" section of the review.
+	 	*/
 		success {
 			gerritverificationpublisher verifyStatusValue: 1, verifyStatusCategory: 'Passed',
 				verifyStatusURL: '', verifyStatusComment: '',

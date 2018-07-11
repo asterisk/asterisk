@@ -60,6 +60,8 @@ pipeline {
 				/* Here's where we switch to scripted pipeline */
 				script {
 					stage ("Checkout") {
+						sh "sudo chown -R jenkins:users ."  
+					
 						/*
 						 * Jenkins has already automatically checked out the base branch
 						 * for this change but we now need to check out the change itself
