@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+CIDIR=$(dirname $(readlink -fn $0))
+source $CIDIR/ci.functions
+ASTETCDIR=$DESTDIR/etc/asterisk
+
+echo "full => notice,warning,error,debug,verbose" > 	"$ASTETCDIR/logger.conf"
+
+echo "[default]" > "$ASTETCDIR/extensions.conf"
+
+cat <<-EOF > "$ASTETCDIR/manager.conf"
+	[general]
+	enabled=yes
+	bindaddr=127.0.0.1
+	port=5038
+
+	[test]
+	secret=test
+	read = system,call,log,verbose,agent,user,config,dtmf,reporting,cdr,dialplan
+	write = system,call,agent,user,config,command,reporting,originate
+EOF
+
+cat <<-EOF > "$ASTETCDIR/http.conf"
+	[general]
+	enabled=yes
+	bindaddr=127.0.0.1
+	port=8088
+EOF
+
+cat <<-EOF > "$ASTETCDIR/modules.conf"
+	[modules]
+	autoload=yes
+	noload=res_mwi_external.so
+	noload=res_mwi_external_ami.so
+	noload=res_ari_mailboxes.so
+	noload=res_stasis_mailbox.so
+EOF
+
+cat <<-EOF >> "$ASTETCDIR/sorcery.conf"
+	[res_pjsip_pubsub]
+	resource_list=memory
+EOF
+
+ASTERISK="$DESTDIR/usr/sbin/asterisk"
+CONFFILE=$ASTETCDIR/asterisk.conf
+OUTPUTDIR=${OUTPUT_DIR:-tests/CI/output/}
+OUTPUTFILE=${OUTPUT_XML:-${OUTPUTDIR}/unittests-results.xml}
+
+[ ! -d ${OUTPUTDIR} ] && mkdir -p $OUTPUTDIR
+sudo chown -R jenkins:users $OUTPUTDIR
+
+rm -rf $ASTETCDIR/extensions.{ael,lua} || :
+
+runner sudo $ASTERISK -U jenkins -G users -gn -C $CONFFILE
+sleep 3
+runner $ASTERISK -rx "core waitfullybooted" -C $CONFFILE
+sleep 1
+runner $ASTERISK -rx "${TEST_COMMAND:-test execute all}" -C $CONFFILE
+runner $ASTERISK -rx "test show results failed" -C $CONFFILE
+runner $ASTERISK -rx "test generate results xml $OUTPUTFILE" -C $CONFFILE
+runner $ASTERISK -rx "core stop now" -C $CONFFILE
+
+runner rsync -vaH $DESTDIR/var/log/asterisk/. $OUTPUTDIR
+
+sudo chown -R jenkins:users $OUTPUTDIR
+if [ -f core* ] ; then
+	echo "*** Found a core file after running unit tests ***"
+	$DESTDIR/var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
+	exit 1
+fi
