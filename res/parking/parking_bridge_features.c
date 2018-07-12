@@ -30,10 +30,12 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/logger.h"
 #include "asterisk/pbx.h"
+#include "asterisk/app.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_internal.h"
 #include "asterisk/bridge_channel.h"
 #include "asterisk/bridge_features.h"
+#include "asterisk/conversions.h"
 #include "asterisk/features.h"
 #include "asterisk/say.h"
 #include "asterisk/datastore.h"
@@ -41,6 +43,24 @@
 #include "asterisk/module.h"
 #include "asterisk/core_local.h"
 #include "asterisk/causes.h"
+
+/*** DOCUMENTATION
+	<function name="PARK_GET_CHANNEL" language="en_US">
+		<synopsis>
+			Get the channel name of an occupied parking space in a parking lot.
+		</synopsis>
+			<syntax>
+				<parameter name="parking_space" required="true">
+				</parameter>
+				<parameter name="parking_lot" required="true">
+				</parameter>
+			</syntax>
+		<description>
+			<para>This function returns the channel of the specified parking space
+				if the parking lot space is occupied.</para>
+			</description>
+	</function>
+***/
 
 struct parked_subscription_datastore {
 	struct stasis_subscription *parked_subscription;
@@ -704,6 +724,60 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 	}
 }
 
+/*! \brief  Dial plan function to get the parking lot channel of an occupied parking lot */
+static int func_get_parkingslot_channel(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
+{
+	RAII_VAR(struct parked_user *, pu, NULL, ao2_cleanup);
+	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
+	unsigned int space = 0;
+	const char *content = NULL;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(parking_space);
+		AST_APP_ARG(parking_lot);
+		AST_APP_ARG(other);
+	);
+
+	/* Parse the arguments. */
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc < 2) {
+		/* Didn't receive enough arguments to do anything */
+		ast_log(LOG_ERROR, "Usage: %s(<parking_space>,<parking_lot>)\n",
+			function);
+		return -1;
+	}
+
+	lot = parking_lot_find_by_name(args.parking_lot);
+	if (!lot) {
+		ast_log(LOG_ERROR, "Could not find parking lot: '%s'\n", args.parking_lot);
+		return -1;
+	}
+
+	if (!ast_strlen_zero(args.parking_space)) {
+		if (ast_str_to_uint(args.parking_space, &space) != 0) {
+			ast_log(LOG_ERROR, "value '%s' for parking_space argument is invalid. Must be an integer greater than 0.\n",
+				args.parking_space);
+			return -1;
+		}
+	}
+
+	pu = parking_lot_inspect_parked_user(lot, space);
+	if (!pu) {
+		return -1;
+	}
+
+	content = ast_channel_name(pu->chan);
+	ast_copy_string(buf, content, len);
+
+	return 0;
+}
+
+static struct ast_custom_function getparkingslotchannel_function = {
+	.name = "PARK_GET_CHANNEL",
+	.read = func_get_parkingslot_channel,
+};
+
 struct ast_parking_bridge_feature_fn_table parking_provider = {
 	.module_version = PARKING_MODULE_VERSION,
 	.module_name = __FILE__,
@@ -717,11 +791,14 @@ void unload_parking_bridge_features(void)
 {
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_PARKCALL);
 	ast_parking_unregister_bridge_features(parking_provider.module_name);
+	ast_custom_function_unregister(&getparkingslotchannel_function);
 }
 
 int load_parking_bridge_features(void)
 {
 	parking_provider.module = AST_MODULE_SELF;
+
+	ast_custom_function_register(&getparkingslotchannel_function);
 
 	if (ast_parking_register_bridge_features(&parking_provider)) {
 		return -1;

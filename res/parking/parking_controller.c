@@ -163,6 +163,23 @@ static int retrieve_parked_user_targeted(void *obj, void *arg, int flags)
 	return 0;
 }
 
+struct parked_user *parking_lot_inspect_parked_user(struct parking_lot *lot, int target)
+{
+	struct parked_user *user;
+
+	if (target < 0) {
+		user = ao2_callback(lot->parked_users, 0, NULL, NULL);
+	} else {
+		user = ao2_callback(lot->parked_users, 0, retrieve_parked_user_targeted, &target);
+	}
+
+	if (!user) {
+		return NULL;
+	}
+
+	return user;
+}
+
 struct parked_user *parking_lot_retrieve_parked_user(struct parking_lot *lot, int target)
 {
 	RAII_VAR(struct parked_user *, user, NULL, ao2_cleanup);
