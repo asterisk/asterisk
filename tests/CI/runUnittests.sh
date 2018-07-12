@@ -46,11 +46,11 @@ OUTPUTDIR=${OUTPUT_DIR:-tests/CI/output/}
 OUTPUTFILE=${OUTPUT_XML:-${OUTPUTDIR}/unittests-results.xml}
 
 [ ! -d ${OUTPUTDIR} ] && mkdir -p $OUTPUTDIR
-sudo chown -R jenkins:users $OUTPUTDIR
+[ x"$USER_GROUP" != x ] && sudo chown -R $USER_GROUP $OUTPUTDIR
 
 rm -rf $ASTETCDIR/extensions.{ael,lua} || :
 
-runner sudo $ASTERISK -U jenkins -G users -gn -C $CONFFILE
+runner sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
 sleep 3
 runner $ASTERISK -rx "core waitfullybooted" -C $CONFFILE
 sleep 1
@@ -61,7 +61,7 @@ runner $ASTERISK -rx "core stop now" -C $CONFFILE
 
 runner rsync -vaH $DESTDIR/var/log/asterisk/. $OUTPUTDIR
 
-sudo chown -R jenkins:users $OUTPUTDIR
+[ x"$USER_GROUP" != x ] && sudo chown -R $USER_GROUP $OUTPUTDIR
 if [ -f core* ] ; then
 	echo "*** Found a core file after running unit tests ***"
 	$DESTDIR/var/lib/asterisk/scripts/ast_coredumper --no-default-search core*

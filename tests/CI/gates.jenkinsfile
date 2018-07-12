@@ -42,14 +42,12 @@ pipeline {
 				onUnstable: false
 			]
 	}
-	options {
-	  skipDefaultCheckout true
-	}
 	
 	agent {
 		/* All of the stages need to be performed on a docker host */
 		label "swdev-docker"
 	}
+
 	stages {
 		stage ("->") {
 			/*
@@ -65,8 +63,16 @@ pipeline {
 				script {
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
+						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
+						sh "printenv | sort"
 					
 						/*
+						 * Jenkins has already automatically checked out the base branch
+						 * for this change but we now need to check out the change itself
+						 * and rebase it on the current base branch.  If the rebase fails,
+						 * that's an indication to the user that they'll need to sort their
+						 * change out.
+						 *
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
 						 */
@@ -81,7 +87,6 @@ pipeline {
 								[$class: 'CloneOption',
 									noTags: true,
 									depth: 10,
-									honorRefspec: true,
 									shallow: true
 								],
 								[$class: 'BuildChooserSetting',
@@ -89,24 +94,32 @@ pipeline {
 								]
 							],
 							userRemoteConfigs: [
-								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GIT_URL ]
+								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GERRIT_PROJECT_URL ]
 							]
 						]
+
+						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
 					def images = env.DOCKER_IMAGES.split(' ')
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
-					def dockerOptions = "-v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw --entrypoint=''"
+					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
+						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+						" --entrypoint=''"
+					def outputdir = "tests/CI/output/Testsuite"
+					def img = docker.image(randomImage)
+					img.pull()
 
 					stage ("Build") {
-						docker.image(randomImage).inside(dockerOptions + " --name ${BUILD_TAG}-build") {
+						img.inside(dockerOptions + " --name ${BUILD_TAG}-build") {
 							echo 'Building..'
-							sh './tests/CI/buildAsterisk.sh'
+							env.CCACHE_DIR = "/srv/cache/ccache"
+							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
-								artifacts: "tests/CI/output/*"
+								artifacts: "${outputdir}/*"
 						}
 					}
 
@@ -114,22 +127,23 @@ pipeline {
 					def parallelTasks = [ : ]
 
 					for (def testGroup in testGroups) {
-						parallelTasks[testGroup.name] = {
-							/*
-							 * Because each task is a Groovy closure, we need to
-							 * keep local references to some variables.
-							 */
-							def groupName = testGroup.name
-							def groupDir = testGroup.dir
-							def groupTestcmd = testGroup.testcmd
-							def testsuiteUrl = env.GIT_URL.replaceAll(/${GERRIT_PROJECT}$/, "testsuite")
-							
+						/*
+						 * Because each task is a Groovy closure, we need to
+						 * keep local references to some variables.
+						 */
+						def groupName = testGroup.name
+						def groupDir = testGroup.dir
+						def groupTestcmd = testGroup.testcmd
+						def testsuiteUrl = env.GERRIT_PROJECT_URL.replaceAll(/${GERRIT_PROJECT}$/, "testsuite")
+
+						parallelTasks[groupName] = {
 							stage (groupName) {
 
-								docker.image(randomImage).inside("${dockerOptions} --name ${BUILD_TAG}-${groupName}") {
+								img.inside("${dockerOptions} --name ${BUILD_TAG}-${groupName}") {
+									sh "printenv | sort"
 
 									lock("${JOB_NAME}.${NODE_NAME}.installer") {
-										sh 'sudo ./tests/CI/installAsterisk.sh'
+										sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
@@ -148,7 +162,7 @@ pipeline {
 											userRemoteConfigs: [[name: env.GERRIT_NAME, url: testsuiteUrl]]
 										]
 
-									sh "tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
+									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
@@ -156,7 +170,10 @@ pipeline {
 									junit testResults: "${groupDir}/asterisk-test-suite-report.xml",
 										healthScaleFactor: 1.0,
 										keepLongStdio: true
+
+									echo "Group result d: ${currentBuild.currentResult}"
 								}
+								echo "Group result s: ${currentBuild.currentResult}"
 							}
 						}
 					}
@@ -166,32 +183,48 @@ pipeline {
 		}
 	}
 	post {
-		always {
-			sh "sudo make distclean || : "
-			sh "sudo rm -rf tests/CI/output || : "
+		cleanup {
+			sh "sudo make distclean 2&>/dev/null || : "
+			sh "sudo rm -rf tests/CI/output  2&>/dev/null || : "
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back
 		 * to Gerrit but the verification publisher publishes extra stuff in the
 		 * "Code Review" section of the review.
 		 */
+		always {
+			script {
+				def cat
+				def comment
+				switch (currentBuild.currentResult) {
+					case ~/^SUCCESS$/:
+						cat = "Passed"
+						comment = ""
+						break
+					case ~/^FAILURE$/:
+						cat = "Failed"
+						comment = "Fatal Error"
+						break
+					case ~/^UNSTABLE$/:
+						cat = "Failed"
+						comment = "Tests Failed"
+						break
+				}
+
+				gerritverificationpublisher verifyStatusCategory: cat,
+					verifyStatusURL: '', verifyStatusComment: comment,
+					verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
+					verifyStatusRerun: 'regate'
+			}
+		}
 		success {
-			gerritverificationpublisher verifyStatusCategory: 'Passed',
-				verifyStatusURL: '', verifyStatusComment: 'OK',
-				verifyStatusName: 'Jenkins2', verifyStatusReporter: '',
-				verifyStatusRerun: 'regate'
+			echo "Reporting ${currentBuild.currentResult} Passed"
 		}
 		failure {
-			gerritverificationpublisher verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: 'You\'re really screwed',
-				verifyStatusName: 'Jenkins2', verifyStatusReporter: '',
-				verifyStatusRerun: 'regate'
+			echo "Reporting ${currentBuild.currentResult}: Failed: Fatal Error"
 		}
 		unstable {
-			gerritverificationpublisher verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: 'You\'re screwed',
-				verifyStatusName: 'Jenkins2', verifyStatusReporter: '',
-				verifyStatusRerun: 'regate'
+			echo "Reporting ${currentBuild.currentResult}: Failed: Tests Failed"
 		}
 	}
 }

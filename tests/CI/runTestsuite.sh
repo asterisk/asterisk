@@ -5,18 +5,13 @@ ASTETCDIR=$DESTDIR/etc/asterisk
 
 pushd $TESTSUITE_DIR
 
-sudo ./cleanup-test-temnants.sh
-sudo chown -R jenkins:users .
-
-runner sudo PYTHONPATH=./lib/python/ ./runtests.py --cleanup ${TEST_COMMAND} || :
-
-if [ -f asterisk-test-suite-report.xml ]  ; then
-	sudo chown jenkins:users asterisk-test-suite-report.xml
-fi
+./cleanup-test-remnants.sh
+export PYTHONPATH=./lib/python/
+runner ./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
 if [ -f core* ] ; then
 	echo "*** Found a core file after running unit tests ***"
-	sudo /var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
+	/var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
 	exit 1
 fi
 
