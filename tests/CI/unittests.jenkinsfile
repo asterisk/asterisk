@@ -20,8 +20,6 @@ pipeline {
 		gerrit customUrl: '',
 			commentTextParameterMode: 'PLAIN',
 			commitMessageParameterMode: 'PLAIN',
-			gerritBuildStartedVerifiedValue: 0,
-			gerritBuildNotBuiltVerifiedValue: 0,
 			gerritBuildSuccessfulVerifiedValue: 1,
 			gerritBuildFailedVerifiedValue: -1,
 			gerritBuildUnstableVerifiedValue: -1,
@@ -53,7 +51,7 @@ pipeline {
 	}
 
 	stages {
-		stage ("Unit Tests-->") {
+		stage ("->") {
 			/*
 			 * Jenkins will try to automatically rebuild this job when
 			 * the jenkinsfile changes but since this job is dependent on
@@ -65,7 +63,10 @@ pipeline {
 			steps {
 				script {
 					stage ("Checkout") {
-						sh "sudo chown -R jenkins:users ."  
+						sh "sudo chown -R jenkins:users ."
+						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
+						sh "printenv | sort"
+
 						/*
 						 * Jenkins has already automatically checked out the base branch
 						 * for this change but we now need to check out the change itself
@@ -76,7 +77,6 @@ pipeline {
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
 						 */
-						sh "sudo chown -R jenkins:users ."  
 						checkout scm: [$class: 'GitSCM',
 							branches: [[name: env.GERRIT_BRANCH ]],
 							extensions: [
@@ -88,7 +88,6 @@ pipeline {
 								[$class: 'CloneOption',
 									noTags: true,
 									depth: 10,
-									honorRefspec: true,
 									shallow: true
 								],
 								[$class: 'BuildChooserSetting',
@@ -96,37 +95,44 @@ pipeline {
 								]
 							],
 							userRemoteConfigs: [
-								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GIT_URL ]
+								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GERRIT_PROJECT_URL ]
 							]
 						]
+
+						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
 					def images = env.DOCKER_IMAGES.split(' ')
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri;
-					def dockerOptions =
-						"-v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw" +
-						 " --entrypoint='' --name ${BUILD_TAG}-build"
+					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
+						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+						" --entrypoint='' --name ${BUILD_TAG}-build"
 
-					docker.image(randomImage).inside(dockerOptions) {
+					def outputdir = "tests/CI/output/UnitTests"
+
+
+					def img = docker.image(randomImage)
+					img.pull()
+					img.inside(dockerOptions) {
 
 						stage ('Build') {
 							echo 'Building..'
-							sh './tests/CI/buildAsterisk.sh'
+
+							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
-								artifacts: "tests/CI/output/*"
+								artifacts: "${outputdir}/*"
 						}
 
 						stage ('Test') {
-							def outputdir = "tests/CI/output/UnitTests"
 							def outputfile = "${outputdir}/unittests-results.xml"
 							def testcmd = "test execute all"
 
-							sh 'sudo ./tests/CI/installAsterisk.sh'
-							echo "tests/CI/runUnittests.sh --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
-							sh "tests/CI/runUnittests.sh --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
+							sh 'sudo ./tests/CI/installAsterisk.sh --user-group=jenkins:users'
+
+							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 								artifacts: "${outputdir}/**"
@@ -142,8 +148,8 @@ pipeline {
 	}
 	post {
 		always {
-			sh "sudo make distclean || : "
-			sh "sudo rm -rf tests/CI/output || : "
+			sh "sudo make distclean 2&>/dev/null || : "
+			sh "sudo rm -rf tests/CI/output 2&>/dev/null || : "
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back
@@ -151,21 +157,24 @@ pipeline {
 		 * "Code Review" section of the review.
 	 	*/
 		success {
-			gerritverificationpublisher verifyStatusValue: 1, verifyStatusCategory: 'Passed',
+			echo "Reporting Passed"
+			gerritverificationpublisher verifyStatusCategory: 'Passed',
 				verifyStatusURL: '', verifyStatusComment: '',
-				verifyStatusName: '', verifyStatusReporter: '',
+				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
 				verifyStatusRerun: 'recheck'
 		}
 		failure {
-			gerritverificationpublisher verifyStatusValue: -1, verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: '',
-				verifyStatusName: '', verifyStatusReporter: '',
+			echo "Reporting Failed: Fatal Error"
+			gerritverificationpublisher verifyStatusCategory: 'Failed',
+				verifyStatusURL: '', verifyStatusComment: 'Fatal Error',
+				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
 				verifyStatusRerun: 'recheck'
 		}
 		unstable {
-			gerritverificationpublisher verifyStatusValue: -1, verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: '',
-				verifyStatusName: '', verifyStatusReporter: '',
+			echo "Reporting Failed: Tests Failed"
+			gerritverificationpublisher verifyStatusCategory: 'Failed',
+				verifyStatusURL: '', verifyStatusComment: 'Tests Failed',
+				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
 				verifyStatusRerun: 'recheck'
 		}
 	}
