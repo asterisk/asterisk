@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-15.5.0-rc1
+                                asterisk-15.5.0
 
-                                Date: 2018-07-03
+                                Date: 2018-07-12
 
                            <asteriskteam@digium.com>
 
@@ -55,23 +55,23 @@
    10 George Joseph                           4 Alexei Gradinari              
    10 Joshua Colp                             4 George Joseph                 
    7 Corey Farrell                            3 Kevin Harwell                 
-   4 Sean Bright                              2 Joshua Colp                   
-   4 Alexei Gradinari                         2 Nic Colledge                  
+   4 Alexei Gradinari                         2 Joshua Colp                   
+   4 Sean Bright                              2 Nic Colledge                  
    3 Matthew Fredrickson                      2 Kirsty Tyerman                
-   2 Alexander Anikin                         2 Kirsty Tyerman                
-   2 Nic Colledge                             1 Sebastian Gutierrez           
-   1 Jaco Kroon                               1 Ted G                         
-   1 Chris-Savinovich                         1 Carlos Chavez                 
-   1 William McCall                           1 Denis Lebedev                 
-   1 Kevin Harwell                            1 Jaco Kroon                    
-   1 Sam Wierema                              1 Dimos, Marco Giordani         
-   1 Torrey Searle                            1 Florian Kaiser                
-   1 Robert Mordec                            1 Sean Bright                   
-   1 Kirsty Tyerman                           1 Artur Pires                   
-   1 Brian P. Martin                          1 Alessandro Polidori           
+   2 Nic Colledge                             2 Kirsty Tyerman                
+   2 Alexander Anikin                         1 Sebastian Gutierrez           
+   1 Torrey Searle                            1 Ted G                         
+   1 Kevin Harwell                            1 Carlos Chavez                 
+   1 Pirmin Walthert                          1 Denis Lebedev                 
+   1 Brian P. Martin                          1 Jaco Kroon                    
+   1 Robert Mordec                            1 Dimos, Marco Giordani         
+   1 Sam Wierema                              1 Florian Kaiser                
+   1 Kirsty Tyerman                           1 Sean Bright                   
+   1 Chris-Savinovich                         1 Artur Pires                   
+   1 William McCall                           1 Alessandro Polidori           
    1 Kirsty Tyerman                           1 John                          
-   1 Pirmin Walthert                          1 Brian Martin                  
-                                              1 Sebastian Gutierrez           
+   1 Jaco Kroon                               1 Brian Martin                  
+   1 Ben Ford                                 1 Sebastian Gutierrez           
                                               1 bautsche                      
                                               1 Sam Wierema                   
                                               1 Dinis BrazA-L-o, Selene Feigl 
@@ -621,6 +621,8 @@
    +------------------------------------------------------------------------+
    | Revision   | Author        | Summary                                   |
    |------------+---------------+-------------------------------------------|
+   | db24efd0e4 | Ben Ford      | Update for 15.5.0-rc1                     |
+   |------------+---------------+-------------------------------------------|
    | c333eef78e | Joshua Colp   | pjsip: Clarify certificate configuration  |
    |            |               | for Websocket.                            |
    |------------+---------------+-------------------------------------------|
@@ -730,13 +732,12 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |75594 ----------
- asterisk-15.4.0-summary.html                                                                    |  380
- asterisk-15.4.0-summary.txt                                                                     |  906
+ asterisk-15.4.0-summary.html                                                                    |  380 -
+ asterisk-15.4.0-summary.txt                                                                     |  906 --
  b/.gitignore                                                                                    |    2
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   56
+ b/ChangeLog                                                                                     | 1388 ++++
  b/addons/Makefile                                                                               |    1
  b/addons/chan_mobile.c                                                                          |  146
  b/addons/chan_ooh323.c                                                                          |   19
@@ -760,8 +761,10 @@
  b/apps/app_test.c                                                                               |    3
  b/apps/app_voicemail.c                                                                          |   16
  b/apps/confbridge/conf_config_parser.c                                                          |   63
- b/apps/confbridge/confbridge_manager.c                                                          |  411
+ b/apps/confbridge/confbridge_manager.c                                                          |  411 +
  b/apps/confbridge/include/confbridge.h                                                          |   38
+ b/asterisk-15.5.0-rc1-summary.html                                                              |  363 +
+ b/asterisk-15.5.0-rc1-summary.txt                                                               |  897 ++
  b/autoconf/ast_check_raii.m4                                                                    |    4
  b/bootstrap.sh                                                                                  |   55
  b/bridges/bridge_softmix.c                                                                      |   66
@@ -780,9 +783,13 @@
  b/configs/samples/ast_debug_tools.conf.sample                                                   |    2
  b/configs/samples/confbridge.conf.sample                                                        |   19
  b/configs/samples/pjsip.conf.sample                                                             |   59
- b/configure                                                                                     |  463
+ b/configure                                                                                     |  463 -
  b/configure.ac                                                                                  |   89
  b/contrib/ast-db-manage/config/versions/0be05c3a8225_add_early_media_options.py                 |   37
+ b/contrib/realtime/mssql/mssql_config.sql                                                       |   38
+ b/contrib/realtime/mysql/mysql_config.sql                                                       |   12
+ b/contrib/realtime/oracle/oracle_config.sql                                                     |   38
+ b/contrib/realtime/postgresql/postgresql_config.sql                                             |   12
  b/contrib/scripts/ast_coredumper                                                                |   26
  b/contrib/scripts/install_prereq                                                                |   27
  b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                               |    6
@@ -857,9 +864,9 @@
  b/res/res_pjsip/config_transport.c                                                              |   24
  b/res/res_pjsip/include/res_pjsip_private.h                                                     |    9
  b/res/res_pjsip/location.c                                                                      |   15
- b/res/res_pjsip/pjsip_configuration.c                                                           |  348
+ b/res/res_pjsip/pjsip_configuration.c                                                           |  348 -
  b/res/res_pjsip/pjsip_distributor.c                                                             |   65
- b/res/res_pjsip/pjsip_options.c                                                                 | 3420
+ b/res/res_pjsip/pjsip_options.c                                                                 | 3420 +++++++---
  b/res/res_pjsip/pjsip_resolver.c                                                                |   21
  b/res/res_pjsip/pjsip_transport_management.c                                                    |    4
  b/res/res_pjsip_endpoint_identifier_ip.c                                                        |    1
@@ -882,16 +889,6 @@
  b/utils/astman.c                                                                                |    5
  b/utils/db1-ast/hash/ndbm.c                                                                     |    2
  b/utils/extconf.c                                                                               |   10
- contrib/realtime/mssql/mssql_cdr.sql                                                            |   58
- contrib/realtime/mssql/mssql_config.sql                                                         | 1965
- contrib/realtime/mssql/mssql_voicemail.sql                                                      |   54
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   40
- contrib/realtime/mysql/mysql_config.sql                                                         | 1154
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   34
- contrib/realtime/oracle/oracle_cdr.sql                                                          |   52
- contrib/realtime/oracle/oracle_config.sql                                                       | 1931
- contrib/realtime/oracle/oracle_voicemail.sql                                                    |   48
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   44
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1246
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   38
- 164 files changed, 7046 insertions(+), 86172 deletions(-)
+ b/utils/muted.c                                                                                 |    2
+ b/utils/smsq.c                                                                                  |    3
+ 159 files changed, 9794 insertions(+), 3919 deletions(-)
