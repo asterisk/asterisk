@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CIDIR=$(dirname $(readlink -fn $0))
 source $CIDIR/ci.functions
@@ -25,20 +25,46 @@ gen_mods() {
 	done
 }
 
-sudo mkdir -p /srv/cache/externals /srv/cache/sounds || :
-sudo chown -R jenkins:users /srv/cache
-[ ! -d tests/CI/output ] && mkdir tests/CI/output
-sudo chown -R jenkins:users tests/CI/output
+[ x"$OUTPUT_DIR" != x ] && mkdir -p "$OUTPUT_DIR" 2&> /dev/null
+
+if [ x"$CACHE_DIR" != x ] ; then
+	mkdir -p "$CACHE_DIR/sounds $CACHE_DIR/externals" 2&> /dev/null
+fi
+
+if [ ${CCACHE_DISABLE:-0} -ne 1 ] ; then
+	if [ x"$CACHE_DIR" != x ] ; then
+		mkdir -p $CACHE_DIR/ccache
+		export CCACHE_UMASK=002
+		export CCACHE_DIR=$CACHE_DIR/ccache
+	fi
+	case ":${PATH:-}:" in
+		*:/usr/lib*/ccache:*)
+			echo "Enabling ccache at $CCACHE_DIR"
+		 ;;
+		*)
+			if [ -d /usr/lib64/ccache ] ; then
+				echo "Enabling ccache at /usr/lib64/ccache with $CCACHE_DIR"
+				export PATH="/usr/lib64/ccache${PATH:+:$PATH}"
+			elif [ -d /usr/lib/ccache ] ; then
+				echo "Enabling ccache at /usr/lib/ccache with $CCACHE_DIR"
+				export PATH="/usr/lib/ccache${PATH:+:$PATH}"
+			fi
+		;;
+	esac
+fi
+
+runner ccache -s
+runner ulimit -a
 
 MAKE=`which make`
-printenv | sort
+[ -d /usr/lib64 ] && _libdir=/usr/lib64
 
-common_config_args="--sysconfdir=/etc --with-pjproject-bundled"
-common_config_args+=" --with-sounds-cache=/srv/cache/sounds --with-externals-cache=/srv/cache/externals"
+common_config_args="--prefix=/usr ${_libdir:+--libdir=${_libdir}} --sysconfdir=/etc --with-pjproject-bundled"
+common_config_args+=" ${CACHE_DIR:+--with-sounds-cache=${CACHE_DIR}/sounds --with-externals-cache=${CACHE_DIR}/externals}"
 common_config_args+=" --enable-dev-mode"
 export WGET_EXTRA_ARGS="--quiet"
 
-runner ./configure ${common_config_args} >tests/CI/output/configure.txt
+runner ./configure ${common_config_args} > ${OUTPUT_DIR:+${OUTPUT_DIR}/}configure.txt
 
 runner ${MAKE} menuselect.makeopts
 

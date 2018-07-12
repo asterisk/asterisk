@@ -1,23 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+CIDIR=$(dirname $(readlink -fn $0))
+source $CIDIR/ci.functions
+
 MAKE=`which make`
-if [ x"${@}" != x ] ; then
-	mkdir -p "${@}"
+
+if [ x"$DESTDIR" != x ] ; then
+	mkdir -p "$DESTDIR"
 fi
-destdir=${@:+DESTDIR=${@}}
+destdir=${DESTDIR:+DESTDIR=$DESTDIR}
 
 ${MAKE} ${destdir} install || ${MAKE} ${destdir} NOISY_BUILD=yes install || exit 1
 ${MAKE} ${destdir} samples
-if [ -n "${@}" ] ; then
-	sed -i -r -e "s@\[directories\]\(!\)@[directories]@g" $@/etc/asterisk/asterisk.conf
-	sed -i -r -e "s@ /(var|etc|usr)/@ ${@}/\1/@g" $@/etc/asterisk/asterisk.conf
+if [ x"$DESTDIR" != x ] ; then
+	sed -i -r -e "s@\[directories\]\(!\)@[directories]@g" $DESTDIR/etc/asterisk/asterisk.conf
+	sed -i -r -e "s@ /(var|etc|usr)/@ $DESTDIR/\1/@g" $DESTDIR/etc/asterisk/asterisk.conf
 fi
 
 set +e
-chown -R jenkins:users ${@}/var/lib/asterisk
-chown -R jenkins:users ${@}/var/spool/asterisk
-chown -R jenkins:users ${@}/var/log/asterisk
-chown -R jenkins:users ${@}/var/run/asterisk
-chown -R jenkins:users ${@}/etc/asterisk
-[ ! -d ${@}/tmp/asterisk-jenkins ] && mkdir ${@}/tmp/asterisk-jenkins
-chown -R jenkins:users ${@}/tmp/asterisk-jenkins
+if [ x"$USER_GROUP" != x ] ; then
+	chown -R $USER_GROUP $DESTDIR/var/lib/asterisk
+	chown -R $USER_GROUP $DESTDIR/var/spool/asterisk
+	chown -R $USER_GROUP $DESTDIR/var/log/asterisk
+	chown -R $USER_GROUP $DESTDIR/var/run/asterisk
+	chown -R $USER_GROUP $DESTDIR/etc/asterisk
+fi
 ldconfig
