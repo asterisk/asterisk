@@ -1,5 +1,5 @@
 /*
- * This pipeline is the "template" for the Asterisk Gate Tests multi-branch
+ * This pipeline is the "template" for the Asterisk Periodic Tests multi-branch
  * parent job.  Jenkins will automatically scan the branches in the "asterisk"
  * or "Security-asterisk" projects in Gerrit and automatically create a branch-
  * specific job for each branch it finds this file in.
@@ -12,35 +12,7 @@
  */
 pipeline {
 	triggers {
-		/*
-		 * This trigger will match either the "asterisk" or "Security-asterisk"
-		 * projects.  The branch is taken from the branch this job was created
-		 * for.
-		 */
-		gerrit customUrl: '',
-			commentTextParameterMode: 'PLAIN',
-			commitMessageParameterMode: 'PLAIN',
-			gerritBuildSuccessfulVerifiedValue: 2,
-			gerritBuildFailedVerifiedValue: -1,
-			gerritBuildUnstableVerifiedValue: -1,
-			gerritProjects: [
-				[branches: [[compareType: 'PLAIN', pattern: "${BRANCH_NAME}"]],
-					compareType: 'REG_EXP',
-					disableStrictForbiddenFileVerification: false,
-					pattern: '^(Security-)?asterisk.*'
-				]
-			],
-			silentMode: false,
-			triggerOnEvents: [
-				commentAddedContains('^regate$'),
-				commentAdded(commentAddedTriggerApprovalValue: '+2', verdictCategory: 'Code-Review'),
-			],
-			skipVote: [
-				onFailed: false,
-				onNotBuilt: true,
-				onSuccessful: false,
-				onUnstable: false
-			]
+		cron 'H H(0-4) * * *'
 	}
 	
 	agent {
@@ -50,54 +22,12 @@ pipeline {
 
 	stages {
 		stage ("->") {
-			/*
-			 * Jenkins will try to automatically rebuild this job when
-			 * the jenkinsfile changes but since this job is dependent on
-			 * Gerrit, we really don't want to do anything in that case.
-			 */
-			when {
-				not { environment name: 'GERRIT_CHANGE_NUMBER', value: '' }
-			}
 			steps {
 				/* Here's where we switch to scripted pipeline */
 				script {
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
-						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
 						sh "printenv | sort"
-					
-						/*
-						 * Jenkins has already automatically checked out the base branch
-						 * for this change but we now need to check out the change itself
-						 * and rebase it on the current base branch.  If the rebase fails,
-						 * that's an indication to the user that they'll need to sort their
-						 * change out.
-						 *
-						 * The Gerrit Trigger provides all the URLs and refspecs to
-						 * check out the change.
-						 */
-						checkout scm: [$class: 'GitSCM',
-							branches: [[name: env.GERRIT_BRANCH ]],
-							extensions: [
-								[$class: 'CleanBeforeCheckout'],
-								[$class: 'PreBuildMerge', options: [
-									mergeRemote: env.GERRIT_NAME,
-									mergeTarget: env.GERRIT_BRANCH ]
-								],
-								[$class: 'CloneOption',
-									noTags: true,
-									depth: 10,
-									shallow: true
-								],
-								[$class: 'BuildChooserSetting',
-									buildChooser: [$class: 'GerritTriggerBuildChooser']
-								]
-							],
-							userRemoteConfigs: [
-								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GERRIT_PROJECT_URL ]
-							]
-						]
-
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
@@ -123,7 +53,7 @@ pipeline {
 						}
 					}
 
-					def testGroups = readJSON file: "tests/CI/gateTestGroups.json"
+					def testGroups = readJSON file: "tests/CI/periodic-dailyTestGroups.json"
 					def parallelTasks = [ : ]
 
 					for (def testGroup in testGroups) {
@@ -134,7 +64,7 @@ pipeline {
 						def groupName = testGroup.name
 						def groupDir = testGroup.dir
 						def groupTestcmd = testGroup.testcmd
-						def testsuiteUrl = env.GERRIT_PROJECT_URL.replaceAll(/\/(Security-)?[^\/]+$/, "/\$1testsuite")
+						def testsuiteUrl = env.GIT_URL.replaceAll(/\/(Security-)?[^\/]+$/, "/\$1testsuite")
 
 						parallelTasks[groupName] = {
 							stage (groupName) {
@@ -158,7 +88,7 @@ pipeline {
 													shallow: true
 												],
 											],
-											userRemoteConfigs: [[name: env.GERRIT_NAME, url: testsuiteUrl]]
+											userRemoteConfigs: [[url: testsuiteUrl]]
 										]
 
 									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
@@ -185,36 +115,6 @@ pipeline {
 		cleanup {
 			sh "sudo make distclean 2&>/dev/null || : "
 			sh "sudo rm -rf tests/CI/output  2&>/dev/null || : "
-		}
-		/*
-		 * The Gerrit Trigger will automatically post the "Verified" results back
-		 * to Gerrit but the verification publisher publishes extra stuff in the
-		 * "Code Review" section of the review.
-		 */
-		always {
-			script {
-				def cat
-				def comment
-				switch (currentBuild.currentResult) {
-					case ~/^SUCCESS$/:
-						cat = "Passed"
-						comment = ""
-						break
-					case ~/^FAILURE$/:
-						cat = "Failed"
-						comment = "Fatal Error"
-						break
-					case ~/^UNSTABLE$/:
-						cat = "Failed"
-						comment = "Tests Failed"
-						break
-				}
-
-				gerritverificationpublisher verifyStatusCategory: cat,
-					verifyStatusURL: '', verifyStatusComment: comment,
-					verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
-					verifyStatusRerun: 'regate'
-			}
 		}
 		success {
 			echo "Reporting ${currentBuild.currentResult} Passed"

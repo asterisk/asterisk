@@ -7,7 +7,8 @@ pushd $TESTSUITE_DIR
 
 ./cleanup-test-remnants.sh
 export PYTHONPATH=./lib/python/
-runner ./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
+echo "Running tests ${TEST_COMMAND}"
+./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
 if [ -f core* ] ; then
 	echo "*** Found a core file after running unit tests ***"
