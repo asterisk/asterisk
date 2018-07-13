@@ -388,34 +388,18 @@ static struct ast_stream *get_stream(struct ast_stream_topology *topology,
 	return NULL;
 }
 
-static struct ast_json *get_media_labels(struct confbridge_conference *conference,
+static void set_media_labels(struct confbridge_conference *conference,
 	struct ast_channel *src_chan, struct ast_channel *dest_chan, enum label_direction dir)
 {
 	struct ast_stream_topology *topology;
 	struct ast_stream *stream;
-	const char *curr_a_label;
-	const char *a_label = NULL;
-	const char *v_label = NULL;
-	struct ast_json *labels = ast_json_array_create();
+	struct ast_channel *chan = dir == LABEL_DIRECTION_SRC ? dest_chan : src_chan;
 
-	if (!labels) {
-		return NULL;
-	}
-
-	topology = ast_channel_get_stream_topology(dir == LABEL_DIRECTION_SRC ? src_chan : dest_chan);
-	stream = get_stream(topology, AST_MEDIA_TYPE_AUDIO);
-	curr_a_label = stream ? ast_stream_get_metadata(stream, "MSID:LABEL") : NULL;
-	a_label = curr_a_label ?: conference->bridge->uniqueid;
-	ast_json_array_append(labels, ast_json_string_create(a_label));
-
-	topology = ast_channel_get_stream_topology(dir == LABEL_DIRECTION_SRC ? dest_chan : src_chan);
+	topology = ast_channel_get_stream_topology(chan);
 	stream = get_stream(topology, AST_MEDIA_TYPE_VIDEO);
-	v_label = stream ? ast_stream_get_metadata(stream, "MSID:LABEL") : NULL;
-	if (v_label) {
-		ast_json_array_append(labels, ast_json_string_create(v_label));
+	if (stream) {
+		ast_stream_set_metadata(stream, "SDP:LABEL", ast_channel_uniqueid(chan));
 	}
-
-	return ast_json_pack("{s: o }", "media_source_track_labels", labels);
 }
 
 static void send_message(const char *msg_name, char *conf_name, struct ast_json *json_object,
@@ -505,7 +489,6 @@ static void send_event_to_participants(struct confbridge_conference *conference,
 	ao2_lock(conference);
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 		struct ast_json *json_object;
-		struct ast_json* source_json_labels = NULL;
 
 		/*
 		 * If the msg type is join, we need to capture all targets channel info so we can
@@ -514,7 +497,6 @@ static void send_event_to_participants(struct confbridge_conference *conference,
 		if (source_send_events && stasis_message_type(msg) == confbridge_join_type()) {
 			struct ast_channel_snapshot *target_snapshot;
 			struct ast_json *target_json_channel;
-			struct ast_json *target_json_labels;
 
 			target_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(user->chan));
 			if (!target_snapshot) {
@@ -523,17 +505,15 @@ static void send_event_to_participants(struct confbridge_conference *conference,
 				continue;
 			}
 
-			target_json_labels = get_media_labels(conference, chan, user->chan, LABEL_DIRECTION_SRC);
-			target_json_channel = channel_to_json(target_snapshot, extras, target_json_labels);
+			set_media_labels(conference, chan, user->chan, LABEL_DIRECTION_SRC);
+			target_json_channel = channel_to_json(target_snapshot, extras, NULL);
 			ao2_ref(target_snapshot, -1);
-			ast_json_unref(target_json_labels);
 
 			if (!json_channels) {
 				json_channels = ast_json_array_create();
 				if (!json_channels) {
 					ast_log(LOG_ERROR, "Unable to allocate json array\n");
 					ast_json_unref(target_json_channel);
-					ast_json_unref(target_json_labels);
 					return;
 				}
 			}
@@ -555,11 +535,9 @@ static void send_event_to_participants(struct confbridge_conference *conference,
 			continue;
 		}
 
-		source_json_labels = get_media_labels(conference, chan, user->chan, LABEL_DIRECTION_DEST);
-		ast_json_object_update(extras, source_json_labels);
+		set_media_labels(conference, chan, user->chan, LABEL_DIRECTION_DEST);
 
-		json_object = pack_snapshots(obj->bridge, obj->channel, extras, source_json_labels, msg);
-		ast_json_unref(source_json_labels);
+		json_object = pack_snapshots(obj->bridge, obj->channel, extras, NULL, msg);
 
 		if (!json_object) {
 			ast_log(LOG_ERROR, "Unable to convert %s message to json\n", msg_name);
