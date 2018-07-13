@@ -21,6 +21,6 @@ for a in "$@" ; do
 done
 
 runner() {
-	( set -x ; "$@" )
+	( set -x ; ${@} )
 }
 
