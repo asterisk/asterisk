@@ -158,8 +158,11 @@ build.mak: source/build.mak
 
 configure: source/build.mak
 
+# We need to filter-out any -O and -g options in PJ_CFLAGS before echoing out
+# the result so Asterisk modules don't have the optimization and symbolic debug
+# options overridden by the PJPROJECT configure script selected settings.
 echo_cflags: source/build.mak
-	@echo $(PJ_CFLAGS)
+	@echo $(filter-out -O% -g%,$(PJ_CFLAGS))
 
 libpj%.a: source/build.mak
 	$(ECHO_PREFIX) Compiling lib $(@F)
