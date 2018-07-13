@@ -50,16 +50,18 @@ OUTPUTFILE=${OUTPUT_XML:-${OUTPUTDIR}/unittests-results.xml}
 
 rm -rf $ASTETCDIR/extensions.{ael,lua} || :
 
-runner sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
+set -x
+sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
 sleep 3
-runner $ASTERISK -rx "core waitfullybooted" -C $CONFFILE
+$ASTERISK -rx "core waitfullybooted" -C $CONFFILE
 sleep 1
-runner $ASTERISK -rx "${TEST_COMMAND:-test execute all}" -C $CONFFILE
-runner $ASTERISK -rx "test show results failed" -C $CONFFILE
-runner $ASTERISK -rx "test generate results xml $OUTPUTFILE" -C $CONFFILE
-runner $ASTERISK -rx "core stop now" -C $CONFFILE
+$ASTERISK -rx "${TEST_COMMAND:-test execute all}" -C $CONFFILE
+$ASTERISK -rx "test show results failed" -C $CONFFILE
+$ASTERISK -rx "test generate results xml $OUTPUTFILE" -C $CONFFILE
+$ASTERISK -rx "core stop now" -C $CONFFILE
 
 runner rsync -vaH $DESTDIR/var/log/asterisk/. $OUTPUTDIR
+set +x
 
 [ x"$USER_GROUP" != x ] && sudo chown -R $USER_GROUP $OUTPUTDIR
 if [ -f core* ] ; then
