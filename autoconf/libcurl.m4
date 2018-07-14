@@ -80,7 +80,7 @@ AC_DEFUN([AST_LIBCURL_CHECK_CONFIG],
   AH_TEMPLATE([LIBCURL_PROTOCOL_POP3],[Defined if libcurl supports POP3])
   AH_TEMPLATE([LIBCURL_PROTOCOL_IMAP],[Defined if libcurl supports IMAP])
   AH_TEMPLATE([LIBCURL_PROTOCOL_SMTP],[Defined if libcurl supports SMTP])
-  AC_SUBST(PBX_CURL)
+  AC_SUBST(PBX_CURL, 0)
 
   AC_ARG_WITH(libcurl,
      AS_HELP_STRING([--with-libcurl=PREFIX],[look for the curl library in PREFIX/lib and headers in PREFIX/include]),
@@ -248,7 +248,6 @@ if (x) {;}
         else
            unset CURL_LIB
            unset CURL_INCLUDE
-           PBX_CURL=0
         fi
      fi
 
