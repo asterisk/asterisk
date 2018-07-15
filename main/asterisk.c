@@ -4139,10 +4139,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_local_init(), "Local Proxy Channel Driver");
 
 	/* We should avoid most config loads before this point as they can't use realtime. */
-	check_init(load_modules(1), "Module Preload");
-
-	/* Load remaining modules */
-	check_init(load_modules(0), "Module");
+	check_init(load_modules(), "Module");
 
 	/*
 	 * This has to load after the dynamic modules load, as items in the media
