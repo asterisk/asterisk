@@ -1,0 +1,32 @@
+[
+	{
+		"name": "ari ",
+		"dir": "tests/CI/output/ari",
+		"testcmd": "-t tests/rest_api/"
+	},
+	{
+		"name": "pjs ",
+		"dir": "tests/CI/output/pjsip",
+		"testcmd": "-t tests/channels/pjsip"
+	},
+	{
+		"name": "sip ",
+		"dir": "tests/CI/output/sip",
+		"testcmd": "-t tests/channels/SIP"
+	},
+	{
+		"name": "iax ",
+		"dir": "tests/CI/output/iax2_local",
+		"testcmd": " -t tests/channels/iax2 -t tests/channels/local"
+	},
+	{
+		"name": "apps",
+		"dir": "tests/CI/output/agi-apps",
+		"testcmd": " -t tests/agi -t tests/apps -t blind-transfer-parkingtimeout"
+	},
+	{
+		"name": "othr",
+		"dir": "tests/CI/output/other",
+		"testcmd": " -T tests/(apps|agi|blind-transfer-parkingtimeout|rest_api|channels|realtime|example|skeleton_test|remote-test)"
+	}
+]
