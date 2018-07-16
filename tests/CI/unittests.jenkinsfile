@@ -146,7 +146,7 @@ pipeline {
 		}
 	}
 	post {
-		always {
+		cleanup {
 			sh "sudo make distclean 2&>/dev/null || : "
 			sh "sudo rm -rf tests/CI/output 2&>/dev/null || : "
 		}
@@ -154,27 +154,44 @@ pipeline {
 		 * The Gerrit Trigger will automatically post the "Verified" results back
 		 * to Gerrit but the verification publisher publishes extra stuff in the
 		 * "Code Review" section of the review.
-	 	*/
+		 */
+		always {
+			script {
+				def cat
+				def comment
+				def rvalue
+				switch (currentBuild.currentResult) {
+					case ~/^SUCCESS$/:
+						cat = "Passed"
+						comment = ""
+						rvalue = 1
+						break
+					case ~/^FAILURE$/:
+						cat = "Failed"
+						comment = "Fatal Error"
+						rvalue = -1
+						break
+					case ~/^UNSTABLE$/:
+						cat = "Failed"
+						comment = "Tests Failed"
+						rvalue = -1
+						break
+				}
+
+				gerritverificationpublisher verifyStatusValue: rvalue,
+					verifyStatusCategory: cat, verifyStatusURL: '',
+					verifyStatusComment: comment, verifyStatusName: '',
+					verifyStatusReporter: 'Jenkins2', verifyStatusRerun: 'regate'
+			}
+		}
 		success {
-			echo "Reporting Passed"
-			gerritverificationpublisher verifyStatusCategory: 'Passed',
-				verifyStatusURL: '', verifyStatusComment: '',
-				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
-				verifyStatusRerun: 'recheck'
+			echo "Reporting ${currentBuild.currentResult} Passed"
 		}
 		failure {
-			echo "Reporting Failed: Fatal Error"
-			gerritverificationpublisher verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: 'Fatal Error',
-				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
-				verifyStatusRerun: 'recheck'
+			echo "Reporting ${currentBuild.currentResult}: Failed: Fatal Error"
 		}
 		unstable {
-			echo "Reporting Failed: Tests Failed"
-			gerritverificationpublisher verifyStatusCategory: 'Failed',
-				verifyStatusURL: '', verifyStatusComment: 'Tests Failed',
-				verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
-				verifyStatusRerun: 'recheck'
+			echo "Reporting ${currentBuild.currentResult}: Failed: Tests Failed"
 		}
 	}
 }

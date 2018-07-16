@@ -196,25 +196,29 @@ pipeline {
 			script {
 				def cat
 				def comment
+				def rvalue
 				switch (currentBuild.currentResult) {
 					case ~/^SUCCESS$/:
 						cat = "Passed"
 						comment = ""
+						rvalue = 2
 						break
 					case ~/^FAILURE$/:
 						cat = "Failed"
 						comment = "Fatal Error"
+						rvalue = -1
 						break
 					case ~/^UNSTABLE$/:
 						cat = "Failed"
 						comment = "Tests Failed"
+						rvalue = -1
 						break
 				}
 
-				gerritverificationpublisher verifyStatusCategory: cat,
-					verifyStatusURL: '', verifyStatusComment: comment,
-					verifyStatusName: '', verifyStatusReporter: 'Jenkins2',
-					verifyStatusRerun: 'regate'
+				gerritverificationpublisher verifyStatusValue: rvalue,
+					verifyStatusCategory: cat, verifyStatusURL: '',
+					verifyStatusComment: comment, verifyStatusName: '',
+					verifyStatusReporter: 'Jenkins2', verifyStatusRerun: 'regate'
 			}
 		}
 		success {
