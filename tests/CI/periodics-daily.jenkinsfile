@@ -65,6 +65,7 @@ pipeline {
 						def groupName = testGroup.name
 						def groupDir = testGroup.dir
 						def groupTestcmd = testGroup.testcmd
+						def groupRunTestsuiteOptions = testGroup.runTestsuiteOptions
 						def testsuiteUrl = env.GIT_URL.replaceAll(/\/(Security-)?[^\/]+$/, "/\$1testsuite")
 
 						parallelTasks[groupName] = {
@@ -92,7 +93,7 @@ pipeline {
 											userRemoteConfigs: [[url: testsuiteUrl]]
 										]
 
-									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
+									sh "sudo tests/CI/runTestsuite.sh ${groupRunTestsuiteOptions} --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"

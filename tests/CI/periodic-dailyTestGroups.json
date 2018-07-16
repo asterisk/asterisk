@@ -28,5 +28,11 @@
 		"name": "othr",
 		"dir": "tests/CI/output/other",
 		"testcmd": " -T tests/(apps|agi|blind-transfer-parkingtimeout|rest_api|channels|realtime|example|skeleton_test|remote-test)"
+	},
+	{
+		"name": "real",
+		"dir": "tests/CI/output/realtime",
+		"runTestsuiteOptions": "--realtime",
+		"testcmd": " -t tests/channels/pjsip -G realtime-incompatible"
 	}
 ]
