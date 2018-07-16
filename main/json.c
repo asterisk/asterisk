@@ -44,7 +44,6 @@
 #include <jansson.h>
 #include <time.h>
 
-#if defined(JANSSON_THREAD_SAFE_REFCOUNT)
 void *ast_json_malloc(size_t size)
 {
 	return ast_malloc(size);
@@ -54,155 +53,6 @@ void ast_json_free(void *p)
 {
 	ast_free(p);
 }
-
-/* No need to lock since jansson is thread safe. */
-#define SCOPED_JSON_LOCK(json)
-
-#else
-/*! \brief Magic number, for safety checks. */
-#define JSON_MAGIC 0x1541992
-
-/*! \brief Internal structure for allocated memory blocks */
-struct json_mem {
-	/*! Magic number, for safety checks */
-	uint32_t magic;
-	/*! Mutext for locking this memory block */
-	ast_mutex_t mutex;
-	/*! Linked list pointer for the free list */
-	AST_LIST_ENTRY(json_mem) list;
-	/*! Data section of the allocation; void pointer for proper alignment */
-	void *data[];
-};
-
-/*! \brief Free a \ref json_mem block. */
-static void json_mem_free(struct json_mem *mem)
-{
-	mem->magic = 0;
-	ast_mutex_destroy(&mem->mutex);
-	ast_free(mem);
-}
-
-/*!
- * \brief Get the \ref json_mem block for a pointer allocated via
- * ast_json_malloc().
- *
- * This function properly handles Jansson singletons (null, true, false), and
- * \c NULL.
- *
- * \param p Pointer, usually to a \c json_t or \ref ast_json.
- * \return \ref json_mem object with extra allocation info.
- */
-static inline struct json_mem *to_json_mem(void *p)
-{
-	struct json_mem *mem;
-	/* Avoid ref'ing the singleton values */
-	if (p == NULL || p == json_null() || p == json_true() ||
-		p == json_false()) {
-		return NULL;
-	}
-	mem = (struct json_mem *)((char *) (p) - sizeof(*mem));
-	ast_assert(mem->magic == JSON_MAGIC);
-	return mem;
-}
-
-/*!
- * \brief Lock an \ref ast_json instance.
- *
- * If \a json is an immutable singleton (null, true, false), this function
- * safely ignores it and returns \c NULL. Otherwise, \a json must have been
- * allocates using ast_json_malloc().
- *
- * \param json JSON instance to lock.
- * \return \ref Corresponding \ref json_mem block.
- * \return \c NULL if \a json was not allocated.
- */
-static struct json_mem *json_mem_lock(struct ast_json *json)
-{
-	struct json_mem *mem = to_json_mem(json);
-	if (!mem) {
-		return NULL;
-	}
-	ast_mutex_lock(&mem->mutex);
-	return mem;
-}
-
-/*!
- * \brief Unlock a \ref json_mem instance.
- *
- * \param mem \ref json_mem, usually returned from json_mem_lock().
- */
-static void json_mem_unlock(struct json_mem *mem)
-{
-	if (!mem) {
-		return;
-	}
-	ast_mutex_unlock(&mem->mutex);
-}
-
-/*!
- * \brief Scoped lock for a \ref ast_json instance.
- *
- * \param json JSON instance to lock.
- */
-#define SCOPED_JSON_LOCK(json)				\
-	RAII_VAR(struct json_mem *, __mem_ ## __LINE__, \
-		json_mem_lock(json), json_mem_unlock)
-
-void *ast_json_malloc(size_t size)
-{
-	struct json_mem *mem = ast_malloc(size + sizeof(*mem));
-	if (!mem) {
-		return NULL;
-	}
-	mem->magic = JSON_MAGIC;
-	ast_mutex_init(&mem->mutex);
-	return mem->data;
-}
-
-AST_THREADSTORAGE(json_free_list_ts);
-
-/*!
- * \brief Struct for a linked list of \ref json_mem.
- */
-AST_LIST_HEAD_NOLOCK(json_mem_list, json_mem);
-
-/*!
- * \brief Thread local list of \ref json_mem blocks to free at the end of an
- * unref.
- */
-static struct json_mem_list *json_free_list(void)
-{
-	return ast_threadstorage_get(&json_free_list_ts,
-		sizeof(struct json_mem_list));
-}
-
-void ast_json_free(void *p)
-{
-	struct json_mem *mem;
-	struct json_mem_list *free_list;
-	mem = to_json_mem(p);
-
-	if (!mem) {
-		return;
-	}
-
-	/* Since the unref is holding a lock in mem, we can't free it
-	 * immediately. Store it off on a thread local list to be freed by
-	 * ast_json_unref().
-	 */
-	free_list = json_free_list();
-	if (!free_list) {
-		ast_log(LOG_ERROR, "Error allocating free list\n");
-		ast_assert(0);
-		/* It's not ideal to free the memory immediately, but that's the
-		 * best we can do if the threadlocal allocation fails */
-		json_mem_free(mem);
-		return;
-	}
-
-	AST_LIST_INSERT_HEAD(free_list, mem, list);
-}
-#endif
 
 void ast_json_set_alloc_funcs(void *(*malloc_fn)(size_t), void (*free_fn)(void*))
 {
@@ -216,42 +66,13 @@ void ast_json_reset_alloc_funcs(void)
 
 struct ast_json *ast_json_ref(struct ast_json *json)
 {
-	/* If Jansson refcounting is non-atomic; lock it. */
-	SCOPED_JSON_LOCK(json);
 	json_incref((json_t *)json);
 	return json;
 }
 
 void ast_json_unref(struct ast_json *json)
 {
-#if defined(JANSSON_THREAD_SAFE_REFCOUNT)
 	json_decref((json_t *) json);
-#else
-	struct json_mem_list *free_list;
-	struct json_mem *mem;
-
-	if (!json) {
-		return;
-	}
-
-	/* Jansson refcounting is non-atomic; lock it. */
-	{
-		SCOPED_JSON_LOCK(json);
-
-		json_decref((json_t *) json);
-	}
-
-	/* Now free any objects that were ast_json_free()'s while the lock was
-	 * held */
-	free_list = json_free_list();
-	if (!free_list) {
-		return;
-	}
-
-	while ((mem = AST_LIST_REMOVE_HEAD(free_list, list))) {
-		json_mem_free(mem);
-	}
-#endif
 }
 
 enum ast_json_type ast_json_typeof(const struct ast_json *json)
@@ -421,11 +242,7 @@ struct ast_json *ast_json_false(void)
 
 struct ast_json *ast_json_boolean(int value)
 {
-#if JANSSON_VERSION_HEX >= 0x020400
 	return (struct ast_json *)json_boolean(value);
-#else
-	return value ? ast_json_true() : ast_json_false();
-#endif
 }
 
 struct ast_json *ast_json_null(void)
@@ -593,57 +410,11 @@ int ast_json_object_update(struct ast_json *object, struct ast_json *other)
 }
 int ast_json_object_update_existing(struct ast_json *object, struct ast_json *other)
 {
-#if JANSSON_VERSION_HEX >= 0x020300
 	return json_object_update_existing((json_t *)object, (json_t *)other);
-#else
-	struct ast_json_iter *iter = ast_json_object_iter(other);
-	int ret = 0;
-
-	if (object == NULL || other == NULL) {
-		return -1;
-	}
-
-	while (iter != NULL && ret == 0) {
-		const char *key = ast_json_object_iter_key(iter);
-
-		if (ast_json_object_get(object, key) != NULL) {
-			struct ast_json *value = ast_json_object_iter_value(iter);
-
-			if (!value || ast_json_object_set(object, key, ast_json_ref(value))) {
-				ret = -1;
-			}
-		}
-		iter = ast_json_object_iter_next(other, iter);
-	}
-	return ret;
-#endif
 }
 int ast_json_object_update_missing(struct ast_json *object, struct ast_json *other)
 {
-#if JANSSON_VERSION_HEX >= 0x020300
 	return json_object_update_missing((json_t *)object, (json_t *)other);
-#else
-	struct ast_json_iter *iter = ast_json_object_iter(other);
-	int ret = 0;
-
-	if (object == NULL || other == NULL) {
-		return -1;
-	}
-
-	while (iter != NULL && ret == 0) {
-		const char *key = ast_json_object_iter_key(iter);
-
-		if (ast_json_object_get(object, key) == NULL) {
-			struct ast_json *value = ast_json_object_iter_value(iter);
-
-			if (!value || ast_json_object_set(object, key, ast_json_ref(value))) {
-				ret = -1;
-			}
-		}
-		iter = ast_json_object_iter_next(other, iter);
-	}
-	return ret;
-#endif
 }
 
 struct ast_json_iter *ast_json_object_iter(struct ast_json *object)
@@ -682,14 +453,6 @@ static size_t dump_flags(enum ast_json_encoding_format format)
 
 char *ast_json_dump_string_format(struct ast_json *root, enum ast_json_encoding_format format)
 {
-	/* Jansson's json_dump*, even though it's a read operation, isn't
-	 * thread safe for concurrent reads. Locking is necessary.
-	 * See http://www.digip.org/jansson/doc/2.4/portability.html#thread-safety.
-	 *
-	 * This comment does not apply when JANSSON_THREAD_SAFE_REFCOUNT is defined,
-	 * in that case SCOPED_JSON_LOCK is a no-op.
-	 */
-	SCOPED_JSON_LOCK(root);
 	return json_dumps((json_t *)root, dump_flags(format));
 }
 
@@ -726,28 +489,12 @@ static int write_to_ast_str(const char *buffer, size_t size, void *data)
 
 int ast_json_dump_str_format(struct ast_json *root, struct ast_str **dst, enum ast_json_encoding_format format)
 {
-	/* Jansson's json_dump*, even though it's a read operation, isn't
-	 * thread safe for concurrent reads. Locking is necessary.
-	 * See http://www.digip.org/jansson/doc/2.4/portability.html#thread-safety.
-	 *
-	 * This comment does not apply when JANSSON_THREAD_SAFE_REFCOUNT is defined,
-	 * in that case SCOPED_JSON_LOCK is a no-op.
-	 */
-	SCOPED_JSON_LOCK(root);
 	return json_dump_callback((json_t *)root, write_to_ast_str, dst, dump_flags(format));
 }
 
 
 int ast_json_dump_file_format(struct ast_json *root, FILE *output, enum ast_json_encoding_format format)
 {
-	/* Jansson's json_dump*, even though it's a read operation, isn't
-	 * thread safe for concurrent reads. Locking is necessary.
-	 * See http://www.digip.org/jansson/doc/2.4/portability.html#thread-safety.
-	 *
-	 * This comment does not apply when JANSSON_THREAD_SAFE_REFCOUNT is defined,
-	 * in that case SCOPED_JSON_LOCK is a no-op.
-	 */
-	SCOPED_JSON_LOCK(root);
 	if (!root || !output) {
 		return -1;
 	}
@@ -755,14 +502,6 @@ int ast_json_dump_file_format(struct ast_json *root, FILE *output, enum ast_json
 }
 int ast_json_dump_new_file_format(struct ast_json *root, const char *path, enum ast_json_encoding_format format)
 {
-	/* Jansson's json_dump*, even though it's a read operation, isn't
-	 * thread safe for concurrent reads. Locking is necessary.
-	 * See http://www.digip.org/jansson/doc/2.4/portability.html#thread-safety.
-	 *
-	 * This comment does not apply when JANSSON_THREAD_SAFE_REFCOUNT is defined,
-	 * in that case SCOPED_JSON_LOCK is a no-op.
-	 */
-	SCOPED_JSON_LOCK(root);
 	if (!root || !path) {
 		return -1;
 	}

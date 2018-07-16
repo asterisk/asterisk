@@ -89,49 +89,22 @@ SHELL_ECHO_PREFIX := echo '[pjproject] '
 
 _all: $(TARGETS)
 
-define tarball_exists
-	(if [ -f $(TARBALL) -a -f $(PJMD5SUM) ] ; then exit 0 ;\
-	else exit 1; fi; )
-endef
-
-define verify_tarball
-	($(SHELL_ECHO_PREFIX) Verifying $(TARBALL) &&\
-	tarball_sum=$$($(CAT) $(TARBALL) | $(MD5) | $(CUT) -d' ' -f1) ;\
-	required_sum=$$($(GREP) -e $(TARBALL_FILE) $(PJMD5SUM) | $(CUT) -d' ' -f1) ;\
-	if [ -z "$$required_sum" -o "$$tarball_sum" != "$$required_sum" ] ; then $(SHELL_ECHO_PREFIX) Verify failed ; exit 1 ;\
-	else $(SHELL_ECHO_PREFIX) Verify successful ; exit 0 ; fi; )
-endef
-
-define download_from_pjproject
-	($(SHELL_ECHO_PREFIX) Downloading $(TARBALL_URL) to $(TARBALL) ;\
-	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,60) $(TARBALL_URL) > $(TARBALL) &&\
-	$(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/MD5SUM.TXT to $(PJMD5SUM) &&\
-	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,60) $(PJPROJECT_URL)/MD5SUM.TXT > $(PJMD5SUM) &&\
-	$(verify_tarball))
-endef
-
 .DELETE_ON_ERROR:
 
-DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
-TARBALL_FILE = pjproject-$(PJPROJECT_VERSION).tar.bz2
-TARBALL = $(DOWNLOAD_DIR)/$(TARBALL_FILE)
-TARBALL_URL = $(PJPROJECT_URL)/$(TARBALL_FILE)
-PJMD5SUM = $(patsubst %.tar.bz2,%.md5,$(TARBALL))
+$(DOWNLOAD_DIR)/$(TARBALL_FILE): ../versions.mak
+	$(CMD_PREFIX) ($(TARBALL_EXISTS) && $(TARBALL_VERIFY) && touch $@) || (rm -rf $@ ;\
+	$(TARBALL_DOWNLOAD)) || (rm -rf $@ ;\
+	$(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD))
 
-$(TARBALL): ../versions.mak
-	$(CMD_PREFIX) ($(tarball_exists) && $(verify_tarball) && touch $@) || (rm -rf $@ ;\
-	$(download_from_pjproject)) || (rm -rf $@ ;\
-	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
-
-source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
-	$(CMD_PREFIX) $(verify_tarball) || (rm -rf $@ ;\
-	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
+source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
+	$(CMD_PREFIX) $(TARBALL_VERIFY) || (rm -rf $@ ;\
+	$(SHELL_ECHO_PREFIX) Retrying download ; $(TARBALL_DOWNLOAD))
 	$(ECHO_PREFIX) Unpacking $<
-	-@rm -rf source pjproject-* >/dev/null 2>&1
+	-@rm -rf source pjproject-*/ >/dev/null 2>&1
 	$(CMD_PREFIX) $(TAR) -xjf $<
 	@mv pjproject-$(PJPROJECT_VERSION) source
 	$(ECHO_PREFIX) Applying patches "$(realpath patches)" "$(realpath .)/source"
-	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) "$(realpath patches)" "$(realpath .)/source"
+	$(CMD_PREFIX) ../apply_patches $(QUIET_CONFIGURE) "$(realpath patches)" "$(realpath .)/source"
 	-@touch source/.unpacked
 
 source/version.mak: source/.unpacked

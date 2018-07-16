@@ -1072,10 +1072,7 @@ PBX_URIPARSER
 URIPARSER_DIR
 URIPARSER_INCLUDE
 URIPARSER_LIB
-PBX_JANSSON
 JANSSON_DIR
-JANSSON_INCLUDE
-JANSSON_LIB
 PBX_JACK
 JACK_DIR
 JACK_INCLUDE
@@ -1186,6 +1183,11 @@ PBX_PJPROJECT
 PJPROJECT_DIR
 PJPROJECT_BUNDLED
 PJPROJECT_CONFIGURE_OPTS
+JANSSON_INCLUDE
+JANSSON_LIB
+PBX_JANSSON
+JANSSON_BUNDLED
+JANSSON_CONFIGURE_OPTS
 AST_C_COMPILER_FAMILY
 AST_CLANG_BLOCKS
 AST_CLANG_BLOCKS_LIBS
@@ -1352,6 +1354,7 @@ with_download_cache
 with_sounds_cache
 with_externals_cache
 enable_coverage
+with_jansson_bundled
 with_pjproject_bundled
 with_asound
 with_bfd
@@ -1448,6 +1451,7 @@ CXX
 CXXFLAGS
 CCC
 CXXCPP
+JANSSON_CONFIGURE_OPTS
 PJPROJECT_CONFIGURE_OPTS
 PKG_CONFIG
 PKG_CONFIG_PATH
@@ -2100,6 +2104,7 @@ Optional Packages:
                           use cached sound tarfiles in PATH
   --with-externals-cache=PATH
                           use cached external module tarfiles in PATH
+  --with-jansson-bundled  Use bundled jansson library
   --with-pjproject-bundled
                           Use bundled pjproject libraries (default)
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
@@ -2195,6 +2200,8 @@ Some influential environment variables:
   CXX         C++ compiler command
   CXXFLAGS    C++ compiler flags
   CXXCPP      C++ preprocessor
+  JANSSON_CONFIGURE_OPTS
+              Additional configure options to pass to bundled jansson
   PJPROJECT_CONFIGURE_OPTS
               Additional configure options to pass to bundled pjproject
   PKG_CONFIG  path to pkg-config utility
@@ -9145,6 +9152,17 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CFLAGS="$save_CFLAGS"
 
 
+JANSSON_BUNDLED=no
+
+# Check whether --with-jansson-bundled was given.
+if test "${with_jansson_bundled+set}" = set; then :
+  withval=$with_jansson_bundled; case "${withval}" in
+		y|yes) JANSSON_BUNDLED=yes ;;
+		*) JANSSON_BUNDLED=no ;;
+	esac
+fi
+
+
 PJPROJECT_BUNDLED=yes
 
 
@@ -9158,6 +9176,92 @@ if test "${with_pjproject_bundled+set}" = set; then :
 fi
 
 
+
+
+	if test "$JANSSON_BUNDLED" = "yes" ; then
+
+	if test "${ac_mandatory_list#*JANSSON*}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "--with-jansson and --with-jansson-bundled can't both be specified" "$LINENO" 5
+	fi
+
+	ac_mandatory_list="$ac_mandatory_list JANSSON"
+	JANSSON_DIR="${ac_pwd}/third-party/jansson"
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for embedded jansson (may have to download)" >&5
+$as_echo_n "checking for embedded jansson (may have to download)... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
+$as_echo "configuring" >&6; }
+
+	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
+		as_fn_error $? "A download utility (wget, curl, or fetch) is required to download bundled jansson" "$LINENO" 5
+	fi
+	if test "${BZIP2}" = ":" ; then
+		as_fn_error $? "bzip2 is required to extract the jansson tar file" "$LINENO" 5
+	fi
+	if test "${TAR}" = ":" ; then
+		as_fn_error $? "tar is required to extract the jansson tar file" "$LINENO" 5
+	fi
+	if test "${PATCH}" = ":" ; then
+		as_fn_error $? "patch is required to configure bundled jansson" "$LINENO" 5
+	fi
+	if test "${SED}" = ":" ; then
+		as_fn_error $? "sed is required to configure bundled jansson" "$LINENO" 5
+	fi
+	if test "${NM}" = ":" ; then
+		as_fn_error $? "nm is required to build bundled jansson" "$LINENO" 5
+	fi
+	if test "${MD5}" = ":" ; then
+		as_fn_error $? "md5sum is required to build bundled jansson" "$LINENO" 5
+	fi
+	if test "${CAT}" = ":" ; then
+		as_fn_error $? "cat is required to build bundled jansson" "$LINENO" 5
+	fi
+	if test "${CUT}" = ":" ; then
+		as_fn_error $? "cut is required to build bundled jansson" "$LINENO" 5
+	fi
+	if test "${GREP}" = ":" ; then
+		as_fn_error $? "grep is required to build bundled jansson" "$LINENO" 5
+	fi
+
+
+	this_host=$(./config.sub $(./config.guess))
+	if test "$build" != "$this_host" ; then
+		JANSSON_CONFIGURE_OPTS+=" --build=$build"
+	fi
+	if test "$host" != "$this_host" ; then
+		JANSSON_CONFIGURE_OPTS+=" --host=$host"
+	fi
+
+	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+	export NOISY_BUILD
+	${GNU_MAKE} --quiet --no-print-directory -C ${JANSSON_DIR} \
+		JANSSON_CONFIGURE_OPTS="$JANSSON_CONFIGURE_OPTS" \
+		EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+		configure
+	if test $? -ne 0 ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+$as_echo "failed" >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure ${JANSSON_DIR}" >&5
+$as_echo "$as_me: Unable to configure ${JANSSON_DIR}" >&6;}
+		as_fn_error $? "Re-run the ./configure command with 'NOISY_BUILD=yes' appended to see error details." "$LINENO" 5
+	fi
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled jansson" >&5
+$as_echo_n "checking for bundled jansson... " >&6; }
+
+	JANSSON_INCLUDE=-I${JANSSON_DIR}/dest/include
+	JANSSON_CFLAGS="$JANSSON_INCLUDE"
+	JANSSON_LIB="-L${JANSSON_DIR}/dest/lib -ljansson"
+	PBX_JANSSON=1
+
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+	fi
 
 
 	if test "$PJPROJECT_BUNDLED" = "yes" ; then
@@ -13825,7 +13929,9 @@ fi
 
 
 
-# Find required JSON support.
+# Find required JSON support if bundled is not enabled.
+if test "$JANSSON_BUNDLED" = "no" ; then
+	# json_sprintf is available in 2.11+
 
 if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
    pbxlibdir=""
@@ -13840,9 +13946,9 @@ if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
       CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for json_dumps in -ljansson" >&5
-$as_echo_n "checking for json_dumps in -ljansson... " >&6; }
-if ${ac_cv_lib_jansson_json_dumps+:} false; then :
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for json_sprintf in -ljansson" >&5
+$as_echo_n "checking for json_sprintf in -ljansson... " >&6; }
+if ${ac_cv_lib_jansson_json_sprintf+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -13856,27 +13962,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char json_dumps ();
+char json_sprintf ();
 int
 main ()
 {
-return json_dumps ();
+return json_sprintf ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_jansson_json_dumps=yes
+  ac_cv_lib_jansson_json_sprintf=yes
 else
-  ac_cv_lib_jansson_json_dumps=no
+  ac_cv_lib_jansson_json_sprintf=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_jansson_json_dumps" >&5
-$as_echo "$ac_cv_lib_jansson_json_dumps" >&6; }
-if test "x$ac_cv_lib_jansson_json_dumps" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_jansson_json_sprintf" >&5
+$as_echo "$ac_cv_lib_jansson_json_sprintf" >&6; }
+if test "x$ac_cv_lib_jansson_json_sprintf" = xyes; then :
   AST_JANSSON_FOUND=yes
 else
   AST_JANSSON_FOUND=no
@@ -13923,8 +14029,17 @@ fi
 
 
 
-if test "${PBX_JANSSON}" != 1; then
-  as_fn_error $? "*** JSON support not found (this typically means the libjansson development package is missing)" "$LINENO" 5
+	if test "${PBX_JANSSON}" != 1; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: *** Asterisk requires libjansson >= 2.11 and no system copy was found." >&5
+$as_echo "$as_me: *** Asterisk requires libjansson >= 2.11 and no system copy was found." >&6;}
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: *** Please install the 'libjansson' development package or" >&5
+$as_echo "$as_me: *** Please install the 'libjansson' development package or" >&6;}
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: *** use './configure --with-jansson-bundled'" >&5
+$as_echo "$as_me: *** use './configure --with-jansson-bundled'" >&6;}
+		exit 1
+	fi
+else
+	PBX_JANSSON=1
 fi
 
 # See if clock_gettime is in librt
