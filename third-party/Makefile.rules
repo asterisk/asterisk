@@ -33,3 +33,25 @@ export GREP
 export DOWNLOAD
 export DOWNLOAD_TO_STDOUT
 export DOWNLOAD_TIMEOUT
+
+DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
+
+# These depend on the subpackage defining TARBALL_FILE.
+TARBALL_EXISTS = test -f $(DOWNLOAD_DIR)/$(TARBALL_FILE) -a -f $(TARBALL_MD5)
+
+define TARBALL_VERIFY
+	($(SHELL_ECHO_PREFIX) Verifying $(DOWNLOAD_DIR)/$(TARBALL_FILE) &&\
+	tarball_sum=$$($(CAT) $(DOWNLOAD_DIR)/$(TARBALL_FILE) | $(MD5) | $(CUT) -d' ' -f1) ;\
+	required_sum=$$($(GREP) -e $(TARBALL_FILE) $(TARBALL_MD5) | $(CUT) -d' ' -f1) ;\
+	if [ -z "$$required_sum" -o "$$tarball_sum" != "$$required_sum" ] ; then $(SHELL_ECHO_PREFIX) Verify failed ; exit 1 ;\
+	else $(SHELL_ECHO_PREFIX) Verify successful ; exit 0 ; fi; )
+endef
+
+define TARBALL_DOWNLOAD
+	($(SHELL_ECHO_PREFIX) Downloading $(TARBALL_URL) to $(DOWNLOAD_DIR)/$(TARBALL_FILE) ;\
+	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,60) $(TARBALL_URL) > $(DOWNLOAD_DIR)/$(TARBALL_FILE) &&\
+	$(TARBALL_VERIFY))
+endef
+
+TARBALL_URL = $(PACKAGE_URL)/$(TARBALL_FILE)
+TARBALL_MD5 = $(TARBALL_FILE).md5
