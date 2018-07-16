@@ -52,8 +52,10 @@ rm -rf $ASTETCDIR/extensions.{ael,lua} || :
 
 set -x
 sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
-sleep 3
-$ASTERISK -rx "core waitfullybooted" -C $CONFFILE
+for n in `seq 1 5` ; do
+	sleep 3
+	$ASTERISK -rx "core waitfullybooted" -C $CONFFILE && break
+done
 sleep 1
 $ASTERISK -rx "${TEST_COMMAND:-test execute all}" -C $CONFFILE
 $ASTERISK -rx "test show results failed" -C $CONFFILE
