@@ -57,6 +57,7 @@ pipeline {
 			 */
 			when {
 				not { environment name: 'GERRIT_CHANGE_NUMBER', value: '' }
+				not { environment name: 'GERRIT_EVENT_ACCOUNT_NAME', value: 'Jenkins2' }
 			}
 			steps {
 				/* Here's where we switch to scripted pipeline */
