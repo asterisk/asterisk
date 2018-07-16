@@ -1,0 +1,128 @@
+From 73c22de51672cb40fdc29c95331923d4dcebb6fa Mon Sep 17 00:00:00 2001
+From: Corey Farrell <git@cfware.com>
+Date: Tue, 13 Feb 2018 04:35:37 -0500
+Subject: [PATCH 01/22] Improve test coverage.
+
+Changes to test/ removed for bundled use in Asterisk.
+
+* Test equality of different length strings.
+* Add tab to json_pack whitespace test.
+* Test json_sprintf with empty result and invalid UTF.
+* Test json_get_alloc_funcs with NULL arguments.
+* Test invalid arguments.
+* Add test_chaos to test allocation failure code paths.
+* Remove redundant json_is_string checks from json_string_equal and
+  json_string_copy.  Both functions are static and can only be called
+  with a json string.
+
+Fixes to issues found by test_chaos:
+* Fix crash on OOM in pack_unpack.c:read_string().
+* Unconditionally free string in string_create upon allocation failure.
+  Update load.c:parse_value() to reflect this.  This resolves a leak on
+  allocation failure for pack_unpack.c:pack_string() and
+  value.c:json_sprintf().
+
+Although not visible from CodeCoverage these changes significantly
+increase branch coverage.  Especially in src/value.c where we previously
+covered 67.4% of branches and now cover 96.3% of branches.
+---
+ CMakeLists.txt                      |   1 +
+ src/load.c                          |   6 +-
+ src/pack_unpack.c                   |   5 +-
+ src/value.c                         |   9 +-
+ test/.gitignore                     |   1 +
+ test/suites/api/Makefile.am         |   2 +
+ test/suites/api/test_array.c        |  73 +++++++++++++++++
+ test/suites/api/test_chaos.c        | 115 ++++++++++++++++++++++++++
+ test/suites/api/test_equal.c        |   7 ++
+ test/suites/api/test_memory_funcs.c |   7 ++
+ test/suites/api/test_number.c       |  36 ++++++++
+ test/suites/api/test_object.c       | 122 ++++++++++++++++++++++++++++
+ test/suites/api/test_pack.c         |  10 ++-
+ test/suites/api/test_simple.c       |  52 ++++++++++++
+ test/suites/api/test_sprintf.c      |  12 +++
+ 15 files changed, 444 insertions(+), 14 deletions(-)
+ create mode 100644 test/suites/api/test_chaos.c
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 16cf552..2f6cfec 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -487,6 +487,7 @@ if (NOT JANSSON_WITHOUT_TESTS)
+    set(api_tests
+          test_array
+          test_copy
++         test_chaos
+          test_dump
+          test_dump_callback
+          test_equal
+diff --git a/src/load.c b/src/load.c
+index deb36f3..25efe2e 100644
+--- a/src/load.c
++++ b/src/load.c
+@@ -829,10 +829,8 @@ static json_t *parse_value(lex_t *lex, size_t flags, json_error_t *error)
+             }
+ 
+             json = jsonp_stringn_nocheck_own(value, len);
+-            if(json) {
+-                lex->value.string.val = NULL;
+-                lex->value.string.len = 0;
+-            }
++            lex->value.string.val = NULL;
++            lex->value.string.len = 0;
+             break;
+         }
+ 
+diff --git a/src/pack_unpack.c b/src/pack_unpack.c
+index 153f64d..19dbf93 100644
+--- a/src/pack_unpack.c
++++ b/src/pack_unpack.c
+@@ -159,7 +159,10 @@ static char *read_string(scanner_t *s, va_list *ap,
+         return (char *)str;
+     }
+ 
+-    strbuffer_init(&strbuff);
++    if(strbuffer_init(&strbuff)) {
++        set_error(s, "<internal>", json_error_out_of_memory, "Out of memory");
++        s->has_error = 1;
++    }
+ 
+     while(1) {
+         str = va_arg(*ap, const char *);
+diff --git a/src/value.c b/src/value.c
+index b3b3141..29a978c 100644
+--- a/src/value.c
++++ b/src/value.c
+@@ -652,8 +652,7 @@ static json_t *string_create(const char *value, size_t len, int own)
+ 
+     string = jsonp_malloc(sizeof(json_string_t));
+     if(!string) {
+-        if(!own)
+-            jsonp_free(v);
++        jsonp_free(v);
+         return NULL;
+     }
+     json_init(&string->json, JSON_STRING);
+@@ -768,9 +767,6 @@ static int json_string_equal(const json_t *string1, const json_t *string2)
+ {
+     json_string_t *s1, *s2;
+ 
+-    if(!json_is_string(string1) || !json_is_string(string2))
+-        return 0;
+-
+     s1 = json_to_string(string1);
+     s2 = json_to_string(string2);
+     return s1->length == s2->length && !memcmp(s1->value, s2->value, s1->length);
+@@ -780,9 +776,6 @@ static json_t *json_string_copy(const json_t *string)
+ {
+     json_string_t *s;
+ 
+-    if(!json_is_string(string))
+-        return NULL;
+-
+     s = json_to_string(string);
+     return json_stringn_nocheck(s->value, s->length);
+ }
+-- 
+2.17.1
+
