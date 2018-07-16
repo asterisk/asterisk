@@ -50,6 +50,9 @@ Build System:
    MALLOC_DEBUG and vice versa.  Third-party pre-compiled modules no longer
    need to have a special build with it enabled.
 
+ - Asterisk now depends on libjansson >= 2.11.  If this version is not
+   available on your distro you can use `./configure --with-jansson-bundled`.
+
 chan_dahdi:
  - Timeouts for reading digits from analog phones are now configurable in
    chan_dahdi.conf: firstdigit_timeout, interdigit_timeout, matchdigit_timeout.
