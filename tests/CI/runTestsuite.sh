@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 CIDIR=$(dirname $(readlink -fn $0))
+REALTIME=0
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
 
 pushd $TESTSUITE_DIR
 
 ./cleanup-test-remnants.sh
+
+if [ $REALTIME -eq 0 ] ; then
+	$CIDIR/setupRealtime.sh
+fi
+
 export PYTHONPATH=./lib/python/
 echo "Running tests ${TEST_COMMAND}"
 ./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
