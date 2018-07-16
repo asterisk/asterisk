@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 CIDIR=$(dirname $(readlink -fn $0))
+REF_DEBUG=0
 source $CIDIR/ci.functions
 
 gen_cats() {
@@ -70,6 +71,9 @@ runner ${MAKE} menuselect.makeopts
 
 runner menuselect/menuselect `gen_mods enable DONT_OPTIMIZE BETTER_BACKTRACES MALLOC_DEBUG DO_CRASH TEST_FRAMEWORK` menuselect.makeopts
 runner menuselect/menuselect `gen_mods disable COMPILE_DOUBLE BUILD_NATIVE` menuselect.makeopts
+if [ $REF_DEBUG -eq 1 ] ; then
+	runner menuselect/menuselect --enable REF_DEBUG menuselect.makeopts
+fi
 
 cat_enables="MENUSELECT_BRIDGES MENUSELECT_CEL MENUSELECT_CDR"
 cat_enables+=" MENUSELECT_CHANNELS MENUSELECT_CODECS MENUSELECT_FORMATS MENUSELECT_FUNCS"

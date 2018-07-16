@@ -1,0 +1,127 @@
+/*
+ * This pipeline is the "template" for the Asterisk REF_DEBUG Tests multi-branch
+ * parent job.  Jenkins will automatically scan the branches in the "asterisk"
+ * or "Security-asterisk" projects in Gerrit and automatically create a branch-
+ * specific job for each branch it finds this file in.
+ *
+ * This file starts as a declarative pipeline because with a declarative
+ * pipeline, you can define the trigger in the pipeline file.  This keeps
+ * everything in one place.  We transition to scripted pipeline later on because
+ * we need to dynamically determine which docker image we're going to use and
+ * you can't do that in a delcarative pipeline.
+ */
+pipeline {
+	triggers {
+		cron 'H H(0-4) * * 0'
+	}
+	
+	agent {
+		/* All of the stages need to be performed on a docker host */
+		label "swdev-docker"
+	}
+
+	stages {
+		stage ("->") {
+			steps {
+				/* Here's where we switch to scripted pipeline */
+				script {
+					stage ("Checkout") {
+						sh "sudo chown -R jenkins:users ."  
+						sh "printenv | sort"
+						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
+					}
+
+					def images = env.DOCKER_IMAGES.split(' ')
+					def r = currentBuild.startTimeInMillis % images.length
+					def ri = images[(int)r]
+					def randomImage = env.DOCKER_REGISTRY + "/" + ri
+					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
+						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+						" --entrypoint=''"
+					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
+					def outputdir = "tests/CI/output/Testsuite"
+					def img = docker.image(randomImage)
+					img.pull()
+
+					stage ("Build") {
+						img.inside(dockerOptions + " --name ${bt}-build") {
+							echo 'Building..'
+							env.CCACHE_DIR = "/srv/cache/ccache"
+							sh "./tests/CI/buildAsterisk.sh --ref-debug --output-dir=${outputdir} --cache-dir=/srv/cache"
+
+							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
+								artifacts: "${outputdir}/*"
+						}
+					}
+
+					def testGroups = readJSON file: "tests/CI/ref_debugTestGroups.json"
+					def parallelTasks = [ : ]
+
+					for (def testGroup in testGroups) {
+						/*
+						 * Because each task is a Groovy closure, we need to
+						 * keep local references to some variables.
+						 */
+						def groupName = testGroup.name
+						def groupDir = testGroup.dir
+						def groupTestcmd = testGroup.testcmd
+						def testsuiteUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/\$1testsuite")
+
+						parallelTasks[groupName] = {
+							stage (groupName) {
+
+								img.inside("${dockerOptions} --name ${bt}-${groupName}") {
+
+									lock("${JOB_NAME}.${NODE_NAME}.installer") {
+										sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
+									}
+
+									sh "sudo rm -rf ${groupDir} || : "
+									
+									checkout scm: [$class: 'GitSCM',
+										branches: [[name: "${BRANCH_NAME}"]],
+											extensions: [
+												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
+												[$class: 'CloneOption',
+													noTags: true,
+													depth: 10,
+													honorRefspec: true,
+													shallow: true
+												],
+											],
+											userRemoteConfigs: [[url: testsuiteUrl]]
+										]
+
+									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
+
+									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
+										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
+
+									junit testResults: "${groupDir}/asterisk-test-suite-report.xml",
+										healthScaleFactor: 1.0,
+										keepLongStdio: true
+								}
+							}
+						}
+					}
+					parallel parallelTasks
+				}
+			}
+		}
+	}
+	post {
+		cleanup {
+			sh "sudo make distclean 2&>/dev/null || : "
+			sh "sudo rm -rf tests/CI/output  2&>/dev/null || : "
+		}
+		success {
+			echo "Reporting ${currentBuild.currentResult} Passed"
+		}
+		failure {
+			echo "Reporting ${currentBuild.currentResult}: Failed: Fatal Error"
+		}
+		unstable {
+			echo "Reporting ${currentBuild.currentResult}: Failed: Tests Failed"
+		}
+	}
+}
