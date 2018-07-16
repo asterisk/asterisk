@@ -3,6 +3,7 @@
 # and can be "source"d from the scripts.
 #
 
+declare -a POSITIONAL_ARGS
 for a in "$@" ; do
 	OPTION_COUNT+=1
 	case "$a" in
@@ -16,6 +17,9 @@ for a in "$@" ; do
 			[[ $a =~ --(.+) ]]
 			l=${BASH_REMATCH[1]//-/_}
 			eval ${l^^}=1
+			;;
+		*)
+			POSITIONAL_ARGS+=($a)
 			;;
 	esac
 done
