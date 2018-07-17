@@ -2006,6 +2006,7 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 	} else {
 		ast_cli(a->fd, "%s for %d seconds.\n", ast_str_buffer(buf), ctimesec);
 	}
+	ast_free(buf);
 
 	return CLI_SUCCESS;
 }
