@@ -4,7 +4,9 @@ source $CIDIR/ci.functions
 
 set -e
 
-cat >test-config.yaml <<EOF
+cp test-config.yaml test-config.orig.yaml
+
+cat >test-config.yaml <<-EOF
 	global-settings:
 	    test-configuration: config-realtime
 

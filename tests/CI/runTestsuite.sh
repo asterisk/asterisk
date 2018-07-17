@@ -16,6 +16,10 @@ export PYTHONPATH=./lib/python/
 echo "Running tests ${TEST_COMMAND}"
 ./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
+if [ $REALTIME -eq 0 ] ; then
+	$CIDIR/teardownRealtime.sh
+fi
+
 if [ -f core* ] ; then
 	echo "*** Found a core file after running unit tests ***"
 	/var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
