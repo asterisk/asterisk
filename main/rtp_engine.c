@@ -3430,10 +3430,10 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 		}
 	}
 
-	return ast_json_pack("{s: o, s: o, s: o}",
-		"channel", payload->snapshot ? json_channel : ast_json_null(),
+	return ast_json_pack("{s: o?, s: o, s: O?}",
+		"channel", json_channel,
 		"rtcp_report", json_rtcp_report,
-		"blob", ast_json_deep_copy(payload->blob) ?: ast_json_null());
+		"blob", payload->blob);
 }
 
 static void rtp_rtcp_report_dtor(void *obj)
