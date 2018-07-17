@@ -1,0 +1,56 @@
+From 020cc26b5cb147ae3569a3f7d314d3900b4bbc0b Mon Sep 17 00:00:00 2001
+From: Petri Lehtinen <petri@digip.org>
+Date: Sun, 12 Aug 2018 18:25:51 +0300
+Subject: [PATCH 27/29] Rename a varialble that shadows another one
+
+configure.ac changes are removed for bundled jansson.
+
+Fixes #430
+---
+ configure.ac | 2 +-
+ src/dump.c   | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/dump.c b/src/dump.c
+index 8e725c9..4a64aa4 100644
+--- a/src/dump.c
++++ b/src/dump.c
+@@ -306,7 +306,7 @@ static int do_dump(const json_t *json, size_t flags, int depth,
+             const char *separator;
+             int separator_length;
+             /* Space for "0x", double the sizeof a pointer for the hex and a terminator. */
+-            char key[2 + (sizeof(json) * 2) + 1];
++            char loop_key[2 + (sizeof(json) * 2) + 1];
+ 
+             if(flags & JSON_COMPACT) {
+                 separator = ":";
+@@ -318,7 +318,7 @@ static int do_dump(const json_t *json, size_t flags, int depth,
+             }
+ 
+             /* detect circular references */
+-            if (loop_check(parents, json, key, sizeof(key)))
++            if (loop_check(parents, json, loop_key, sizeof(loop_key)))
+                 return -1;
+ 
+             iter = json_object_iter((json_t *)json);
+@@ -326,7 +326,7 @@ static int do_dump(const json_t *json, size_t flags, int depth,
+             if(!embed && dump("{", 1, data))
+                 return -1;
+             if(!iter) {
+-                hashtable_del(parents, key);
++                hashtable_del(parents, loop_key);
+                 return embed ? 0 : dump("}", 1, data);
+             }
+             if(dump_indent(flags, depth + 1, 0, dump, data))
+@@ -422,7 +422,7 @@ static int do_dump(const json_t *json, size_t flags, int depth,
+                 }
+             }
+ 
+-            hashtable_del(parents, key);
++            hashtable_del(parents, loop_key);
+             return embed ? 0 : dump("}", 1, data);
+         }
+ 
+-- 
+2.17.1
+
