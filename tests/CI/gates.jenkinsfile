@@ -81,11 +81,8 @@ pipeline {
 							branches: [[name: env.GERRIT_BRANCH ]],
 							extensions: [
 								[$class: 'CleanBeforeCheckout'],
-								[$class: 'PreBuildMerge', options: [
-									mergeRemote: env.GERRIT_NAME,
-									mergeTarget: env.GERRIT_BRANCH ]
-								],
 								[$class: 'CloneOption',
+									honorRefspec: true,
 									noTags: true,
 									depth: 10,
 									shallow: true
