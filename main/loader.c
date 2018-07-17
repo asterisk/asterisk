@@ -181,6 +181,10 @@ struct ast_module {
 		unsigned int keepuntilshutdown:1;
 		/*! The module is built-in. */
 		unsigned int builtin:1;
+		/*! The admin has declared this module is required. */
+		unsigned int required:1;
+		/*! This module is marked for preload. */
+		unsigned int preload:1;
 	} flags;
 	AST_DLLIST_ENTRY(ast_module) entry;
 	char resource[0];
@@ -223,11 +227,19 @@ static int module_vector_strcasecmp(struct ast_module *a, struct ast_module *b)
 
 static int module_vector_cmp(struct ast_module *a, struct ast_module *b)
 {
+	int preload_diff = (int)b->flags.preload - (int)a->flags.preload;
 	/* if load_pri is not set, default is 128.  Lower is better */
 	int a_pri = ast_test_flag(a->info, AST_MODFLAG_LOAD_ORDER)
 		? a->info->load_pri : AST_MODPRI_DEFAULT;
 	int b_pri = ast_test_flag(b->info, AST_MODFLAG_LOAD_ORDER)
 		? b->info->load_pri : AST_MODPRI_DEFAULT;
+
+	if (preload_diff) {
+		/* -1 preload a but not b */
+		/*  0 preload both or neither */
+		/*  1 preload b but not a */
+		return preload_diff;
+	}
 
 	/*
 	 * Returns comparison values for a vector sorted by priority.
@@ -1469,6 +1481,9 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		break;
 	case AST_MODULE_LOAD_DECLINE:
 		mod->flags.declined = 1;
+		if (mod->flags.required) {
+			res = AST_MODULE_LOAD_FAILURE;
+		}
 		break;
 	case AST_MODULE_LOAD_FAILURE:
 	case AST_MODULE_LOAD_SKIP: /* modules should never return this value */
@@ -1494,7 +1509,8 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the module_vector is not provided, the module's load function will be executed
  *  immediately */
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int suppress_logging, struct module_vector *module_priorities, int required)
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int suppress_logging,
+	struct module_vector *module_priorities, int required, int preload)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
@@ -1518,6 +1534,9 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			goto prestart_error;
 		}
 	}
+
+	mod->flags.required |= required;
+	mod->flags.preload |= preload;
 
 	if (inspect_module(mod)) {
 		goto prestart_error;
@@ -1554,7 +1573,7 @@ int ast_load_resource(const char *resource_name)
 {
 	int res;
 	AST_DLLIST_LOCK(&module_list);
-	res = load_resource(resource_name, 0, NULL, 0);
+	res = load_resource(resource_name, 0, NULL, 0, 0);
 	if (!res) {
 		ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
 	}
@@ -1566,12 +1585,14 @@ int ast_load_resource(const char *resource_name)
 struct load_order_entry {
 	char *resource;
 	int required;
+	int preload;
+	int builtin;
 	AST_LIST_ENTRY(load_order_entry) entry;
 };
 
 AST_LIST_HEAD_NOLOCK(load_order, load_order_entry);
 
-static struct load_order_entry *add_to_load_order(const char *resource, struct load_order *load_order, int required)
+static struct load_order_entry *add_to_load_order(const char *resource, struct load_order *load_order, int required, int preload, int builtin)
 {
 	struct load_order_entry *order;
 	size_t resource_baselen = resource_name_baselen(resource);
@@ -1581,12 +1602,15 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 			/* Make sure we have the proper setting for the required field
 			   (we might have both load= and required= lines in modules.conf) */
 			order->required |= required;
-			return NULL;
+			order->preload |= preload;
+			return order;
 		}
 	}
 
-	if (!(order = ast_calloc(1, sizeof(*order))))
+	order = ast_calloc(1, sizeof(*order));
+	if (!order) {
 		return NULL;
+	}
 
 	order->resource = ast_strdup(resource);
 	if (!order->resource) {
@@ -1595,6 +1619,8 @@ static struct load_order_entry *add_to_load_order(const char *resource, struct l
 		return NULL;
 	}
 	order->required = required;
+	order->preload = preload;
+	order->builtin = builtin;
 	AST_LIST_INSERT_TAIL(load_order, order, entry);
 
 	return order;
@@ -1647,7 +1673,7 @@ retry_load:
 
 		if (lres == AST_MODULE_LOAD_FAILURE) {
 			ast_log(LOG_ERROR, "Failed to load %s.\n", ast_module_name(mod));
-			res = -1;
+			res = -2;
 			break;
 		}
 
@@ -1745,7 +1771,7 @@ static int load_resource_list(struct load_order *load_order, int *mod_count)
 			enum ast_module_load_result lres;
 
 			/* Suppress log messages unless this is the last pass */
-			lres = load_resource(order->resource, !lasttry, &module_priorities, order->required);
+			lres = load_resource(order->resource, !lasttry, &module_priorities, order->required, order->preload);
 			ast_debug(3, "PASS %d: %-46s %d\n", attempt, order->resource, lres);
 			switch (lres) {
 			case AST_MODULE_LOAD_SUCCESS:
@@ -1799,24 +1825,9 @@ static int load_resource_list(struct load_order *load_order, int *mod_count)
 	return res;
 }
 
-int load_modules(unsigned int preload_only)
+static int loader_builtin_init(struct load_order *load_order)
 {
-	struct ast_config *cfg;
-	struct load_order_entry *order;
-	struct ast_variable *v;
-	unsigned int load_count;
-	struct load_order load_order;
-	int res = 0;
-	struct ast_flags config_flags = { 0 };
-	int modulecount = 0;
-	struct dirent *dirent;
-	DIR *dir;
-
-	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
-
-	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
-
-	AST_DLLIST_LOCK(&module_list);
+	struct ast_module *mod;
 
 	/*
 	 * All built-in modules have registered the first time, now it's time to complete
@@ -1829,42 +1840,79 @@ int load_modules(unsigned int preload_only)
 		ast_module_register(resource_being_loaded->info);
 	}
 
-	if (!preload_only) {
-		struct ast_module *mod;
+	/* Add all built-in modules to the load order. */
+	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
+		if (!mod->flags.builtin) {
+			continue;
+		}
 
-		/* Add all built-in modules to the load order. */
-		AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
-			if (!mod->flags.builtin) {
-				continue;
-			}
-
-			add_to_load_order(mod->resource, &load_order, 0);
+		/* Built-in modules are not preloaded, most have an early load priority. */
+		if (!add_to_load_order(mod->resource, load_order, 0, 0, 1)) {
+			return -1;
 		}
 	}
 
+	return 0;
+}
+
+static int loader_config_init(struct load_order *load_order)
+{
+	int res = -1;
+	struct load_order_entry *order;
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_flags config_flags = { 0 };
+
 	cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_WARNING, "No '%s' found, no modules will be loaded.\n", AST_MODULE_CONFIG);
-		goto done;
+		ast_log(LOG_WARNING, "'%s' invalid or missing.\n", AST_MODULE_CONFIG);
+
+		return -1;
 	}
 
 	/* first, find all the modules we have been explicitly requested to load */
 	for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
-		if (!strcasecmp(v->name, preload_only ? "preload" : "load")) {
-			add_to_load_order(v->value, &load_order, 0);
+		int required;
+		int preload = 0;
+
+		if (!strncasecmp(v->name, "preload", strlen("preload"))) {
+			preload = 1;
+			if (!strcasecmp(v->name, "preload")) {
+				required = 0;
+			} else if (!strcasecmp(v->name, "preload-require")) {
+				required = 1;
+			} else {
+				ast_log(LOG_ERROR, "Unknown configuration option '%s'", v->name);
+				goto done;
+			}
+		} else if (!strcasecmp(v->name, "load")) {
+			required = 0;
+		} else if (!strcasecmp(v->name, "require")) {
+			required = 1;
+		} else if (!strcasecmp(v->name, "noload") || !strcasecmp(v->name, "autoload")) {
+			continue;
+		} else {
+			ast_log(LOG_ERROR, "Unknown configuration option '%s'", v->name);
+			goto done;
 		}
-		if (!strcasecmp(v->name, preload_only ? "preload-require" : "require")) {
-			/* Add the module to the list and make sure it's required */
-			add_to_load_order(v->value, &load_order, 1);
+
+		if (required) {
 			ast_debug(2, "Adding module to required list: %s (%s)\n", v->value, v->name);
+		}
+
+		if (!add_to_load_order(v->value, load_order, required, preload, 0)) {
+			goto done;
 		}
 	}
 
 	/* check if 'autoload' is on */
-	if (!preload_only && ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
+	if (ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
 		/* if we are allowed to load dynamic modules, scan the directory for
 		   for all available modules and add them as well */
-		if ((dir = opendir(ast_config_AST_MODULE_DIR))) {
+		DIR *dir = opendir(ast_config_AST_MODULE_DIR);
+		struct dirent *dirent;
+
+		if (dir) {
 			while ((dirent = readdir(dir))) {
 				int ld = strlen(dirent->d_name);
 
@@ -1881,14 +1929,16 @@ int load_modules(unsigned int preload_only)
 				if (find_resource(dirent->d_name, 0))
 					continue;
 
-				add_to_load_order(dirent->d_name, &load_order, 0);
+				if (!add_to_load_order(dirent->d_name, load_order, 0, 0, 0)) {
+					closedir(dir);
+					goto done;
+				}
 			}
 
 			closedir(dir);
 		} else {
-			if (!ast_opt_quiet)
-				ast_log(LOG_WARNING, "Unable to open modules directory '%s'.\n",
-					ast_config_AST_MODULE_DIR);
+			ast_log(LOG_ERROR, "Unable to open modules directory '%s'.\n", ast_config_AST_MODULE_DIR);
+			goto done;
 		}
 	}
 
@@ -1902,8 +1952,18 @@ int load_modules(unsigned int preload_only)
 		}
 
 		baselen = resource_name_baselen(v->value);
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
 			if (!resource_name_match(v->value, baselen, order->resource)) {
+				if (order->builtin) {
+					ast_log(LOG_ERROR, "%s is a built-in module, you cannot specify 'noload'.\n", v->value);
+					goto done;
+				}
+
+				if (order->required) {
+					ast_log(LOG_ERROR, "%s is configured with '%s' and 'noload', this is impossible.\n",
+						v->value, order->preload ? "preload-require" : "require");
+					goto done;
+				}
 				AST_LIST_REMOVE_CURRENT(entry);
 				ast_free(order->resource);
 				ast_free(order);
@@ -1912,9 +1972,35 @@ int load_modules(unsigned int preload_only)
 		AST_LIST_TRAVERSE_SAFE_END;
 	}
 
-	/* we are done with the config now, all the information we need is in the
-	   load_order list */
+	res = 0;
+done:
 	ast_config_destroy(cfg);
+
+	return res;
+}
+
+int load_modules(void)
+{
+	struct load_order_entry *order;
+	unsigned int load_count;
+	struct load_order load_order;
+	int res = 0;
+	int modulecount = 0;
+
+	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
+
+	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
+	AST_DLLIST_LOCK(&module_list);
+
+	res = loader_builtin_init(&load_order);
+	if (res) {
+		goto done;
+	}
+
+	res = loader_config_init(&load_order);
+	if (res) {
+		goto done;
+	}
 
 	load_count = 0;
 	AST_LIST_TRAVERSE(&load_order, order, entry)

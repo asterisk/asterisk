@@ -20,7 +20,7 @@ void load_asterisk_conf(void);
 void set_asterisk_conf_path(const char *path);
 void set_socket_path(const char *path);
 
-int load_modules(unsigned int);		/*!< Provided by loader.c */
+int load_modules(void);		/*!< Provided by loader.c */
 int modules_shutdown(void);		/*!< Provided by loader.c */
 int load_pbx(void);			/*!< Provided by pbx.c */
 int load_pbx_builtins(void);	/*!< Provided by pbx_builtins.c */
