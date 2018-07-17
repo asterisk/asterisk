@@ -65,7 +65,7 @@ pipeline {
 						def groupName = testGroup.name
 						def groupDir = testGroup.dir
 						def groupTestcmd = testGroup.testcmd
-						def testsuiteUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/\$1testsuite")
+						def testsuiteUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/1testsuite")
 
 						parallelTasks[groupName] = {
 							stage (groupName) {
