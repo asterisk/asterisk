@@ -80,15 +80,20 @@ pipeline {
 						checkout scm: [$class: 'GitSCM',
 							branches: [[name: env.GERRIT_BRANCH ]],
 							extensions: [
+								[$class: 'ScmName', name: 'gerrit-public'],
 								[$class: 'CleanBeforeCheckout'],
 								[$class: 'PreBuildMerge', options: [
-									mergeStrategy: 'RECURSIVE', mergeTarget: env.GERRIT_BRANCH]],
+									mergeRemote: 'gerrit-public',
+									fastForwardMode: 'NO_FF',
+									mergeStrategy: 'RECURSIVE',
+									mergeTarget: env.GERRIT_BRANCH]],
 								[$class: 'CloneOption',
 									honorRefspec: true,
 									noTags: true,
 									depth: 10,
 									shallow: true
 								],
+								[$class: 'PruneStaleBranch'],
 								[$class: 'BuildChooserSetting',
 									buildChooser: [$class: 'GerritTriggerBuildChooser']
 								]
