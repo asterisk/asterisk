@@ -1,0 +1,203 @@
+From 3c9ad14b32ddb881559c05ea742aba3153a8cb8f Mon Sep 17 00:00:00 2001
+From: Riza Sulistyo <riza@teluu.com>
+Date: Wed, 1 Aug 2018 10:49:51 -0500
+Subject: [PATCH] r5851 svn backport sip_inv.c: Fix race condition in 183
+ re-transmission deadlock
+
+Fixed #2137: Race condition in 183 re-transmission can result in a deadlock.
+
+The tdata containing the response can be shared by both the dialog
+object and the tsx object.  In order to prevent the race condition
+between the tsx retransmission and the dialog sending a response,
+clone the tdata before modifying it for the dialog send response.
+
+ASTERISK-27966
+---
+ pjsip/include/pjsip/sip_transport.h | 16 +++++++++++++
+ pjsip/src/pjsip-ua/sip_100rel.c     | 43 +--------------------------------
+ pjsip/src/pjsip-ua/sip_inv.c        | 14 ++++++++++-
+ pjsip/src/pjsip/sip_transport.c     | 47 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 43 deletions(-)
+
+diff --git a/pjsip/include/pjsip/sip_transport.h b/pjsip/include/pjsip/sip_transport.h
+index 10a50ef..36581dc 100644
+--- a/pjsip/include/pjsip/sip_transport.h
++++ b/pjsip/include/pjsip/sip_transport.h
+@@ -721,6 +721,22 @@ PJ_DECL(char*) pjsip_tx_data_get_info( pjsip_tx_data *tdata );
+ PJ_DECL(pj_status_t) pjsip_tx_data_set_transport(pjsip_tx_data *tdata,
+ 						 const pjsip_tpselector *sel);
+ 
++/**
++ * Clone pjsip_tx_data. This will duplicate the message contents of
++ * pjsip_tx_data (pjsip_tx_data.msg) and add reference count to the tdata.
++ * Once application has finished using the cloned pjsip_tx_data,
++ * it must release it by calling  #pjsip_tx_data_dec_ref().
++ * Currently, this will only clone response message.
++ *
++ * @param src	    The source to be cloned.
++ * @param flags	    Optional flags. Must be zero for now.
++ * @param p_rdata   Pointer to receive the cloned tdata.
++ *
++ * @return	    PJ_SUCCESS on success or the appropriate error.
++ */
++PJ_DECL(pj_status_t) pjsip_tx_data_clone(const pjsip_tx_data *src,
++                                         unsigned flags,
++                                         pjsip_tx_data **p_rdata);
+ 
+ /*****************************************************************************
+  *
+diff --git a/pjsip/src/pjsip-ua/sip_100rel.c b/pjsip/src/pjsip-ua/sip_100rel.c
+index eb9e587..7bf0ad1 100644
+--- a/pjsip/src/pjsip-ua/sip_100rel.c
++++ b/pjsip/src/pjsip-ua/sip_100rel.c
+@@ -634,47 +634,6 @@ static void on_retransmit(pj_timer_heap_t *timer_heap,
+ }
+ 
+ 
+-/* Clone response. */
+-static pjsip_tx_data *clone_tdata(dlg_data *dd,
+-				  const pjsip_tx_data *src)
+-{
+-    pjsip_tx_data *dst;
+-    const pjsip_hdr *hsrc;
+-    pjsip_msg *msg;
+-    pj_status_t status;
+-
+-    status = pjsip_endpt_create_tdata(dd->inv->dlg->endpt, &dst);
+-    if (status != PJ_SUCCESS)
+-	return NULL;
+-
+-    msg = pjsip_msg_create(dst->pool, PJSIP_RESPONSE_MSG);
+-    dst->msg = msg;
+-    pjsip_tx_data_add_ref(dst);
+-
+-    /* Duplicate status line */
+-    msg->line.status.code = src->msg->line.status.code;
+-    pj_strdup(dst->pool, &msg->line.status.reason, 
+-	      &src->msg->line.status.reason);
+-
+-    /* Duplicate all headers */
+-    hsrc = src->msg->hdr.next;
+-    while (hsrc != &src->msg->hdr) {
+-	pjsip_hdr *h = (pjsip_hdr*) pjsip_hdr_clone(dst->pool, hsrc);
+-	pjsip_msg_add_hdr(msg, h);
+-	hsrc = hsrc->next;
+-    }
+-
+-    /* Duplicate message body */
+-    if (src->msg->body)
+-	msg->body = pjsip_msg_body_clone(dst->pool, src->msg->body);
+-
+-    PJ_LOG(5,(dd->inv->dlg->obj_name,
+-	     "Reliable response %s created",
+-	     pjsip_tx_data_get_info(dst)));
+-
+-    return dst;
+-}
+-
+ 
+ /* Check if any pending response in transmission list has SDP */
+ static pj_bool_t has_sdp(dlg_data *dd)
+@@ -725,7 +684,7 @@ PJ_DEF(pj_status_t) pjsip_100rel_tx_response(pjsip_inv_session *inv,
+      * if it wants to send another response.
+      */
+     old_tdata = tdata;
+-    tdata = clone_tdata(dd, old_tdata);
++    pjsip_tx_data_clone(old_tdata, 0, &tdata);
+     pjsip_tx_data_dec_ref(old_tdata);
+     
+ 
+diff --git a/pjsip/src/pjsip-ua/sip_inv.c b/pjsip/src/pjsip-ua/sip_inv.c
+index 16a0e17..da28903 100644
+--- a/pjsip/src/pjsip-ua/sip_inv.c
++++ b/pjsip/src/pjsip-ua/sip_inv.c
+@@ -2382,6 +2382,7 @@ PJ_DEF(pj_status_t) pjsip_inv_answer(	pjsip_inv_session *inv,
+ 					pjsip_tx_data **p_tdata )
+ {
+     pjsip_tx_data *last_res;
++    pjsip_tx_data *old_res;
+     pj_status_t status;
+ 
+     /* Verify arguments. */
+@@ -2397,8 +2398,19 @@ PJ_DEF(pj_status_t) pjsip_inv_answer(	pjsip_inv_session *inv,
+ 
+     pjsip_dlg_inc_lock(inv->dlg);
+ 
++    /* Clone last response.
++     * The tdata (last_answer) is a shared object used by the transaction.
++     * Modifying a shared object might lead to a deadlock.
++     * Refer to ticket #2137 for more detail.
++     */
++    status = pjsip_tx_data_clone(inv->last_answer, 0, &last_res);
++    if (status != PJ_SUCCESS)
++	goto on_return;
++    old_res = inv->last_answer;
++    inv->last_answer = last_res;
++    pjsip_tx_data_dec_ref(old_res);
++
+     /* Modify last response. */
+-    last_res = inv->last_answer;
+     status = pjsip_dlg_modify_response(inv->dlg, last_res, st_code, st_text);
+     if (status != PJ_SUCCESS)
+ 	goto on_return;
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index f350fe7..3a8baca 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -643,6 +643,53 @@ PJ_DEF(pj_status_t) pjsip_tx_data_set_transport(pjsip_tx_data *tdata,
+     return PJ_SUCCESS;
+ }
+ 
++/* Clone pjsip_tx_data. */
++PJ_DEF(pj_status_t) pjsip_tx_data_clone(const pjsip_tx_data *src,
++                                        unsigned flags,
++				  	pjsip_tx_data ** p_tdata)
++{
++    pjsip_tx_data *dst;
++    const pjsip_hdr *hsrc;
++    pjsip_msg *msg;
++    pj_status_t status;
++
++    PJ_UNUSED_ARG(flags);
++
++    status = pjsip_tx_data_create(src->mgr, p_tdata);
++    if (status != PJ_SUCCESS)
++	return status;
++
++    dst = *p_tdata;
++
++    msg = pjsip_msg_create(dst->pool, PJSIP_RESPONSE_MSG);
++    dst->msg = msg;
++    pjsip_tx_data_add_ref(dst);
++
++    /* Duplicate status line */
++    msg->line.status.code = src->msg->line.status.code;
++    pj_strdup(dst->pool, &msg->line.status.reason,
++	      &src->msg->line.status.reason);
++
++    /* Duplicate all headers */
++    hsrc = src->msg->hdr.next;
++    while (hsrc != &src->msg->hdr) {
++	pjsip_hdr *h = (pjsip_hdr*) pjsip_hdr_clone(dst->pool, hsrc);
++	pjsip_msg_add_hdr(msg, h);
++	hsrc = hsrc->next;
++    }
++
++    /* Duplicate message body */
++    if (src->msg->body)
++	msg->body = pjsip_msg_body_clone(dst->pool, src->msg->body);
++
++    dst->is_pending = src->is_pending;
++
++    PJ_LOG(5,(THIS_FILE,
++	     "Tx data %s cloned",
++	     pjsip_tx_data_get_info(dst)));
++
++    return PJ_SUCCESS;
++}
+ 
+ PJ_DEF(char*) pjsip_rx_data_get_info(pjsip_rx_data *rdata)
+ {
+-- 
+2.7.4
+
