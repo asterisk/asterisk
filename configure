@@ -10229,6 +10229,7 @@ fi
 
 
 
+  PBX_CURL=0
 
 
 
@@ -10568,7 +10569,6 @@ _ACEOF
         else
            unset CURL_LIB
            unset CURL_INCLUDE
-           PBX_CURL=0
         fi
      fi
 
