@@ -1,7 +1,7 @@
 <category name="MENUSELECT_UTILS" displayname="Utilities" positive_output="yes">
   <member name="aelparse">
 	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
   </member>
   <member name="astcanary">
 	<defaultenabled>yes</defaultenabled>
@@ -18,7 +18,7 @@
   <member name="astman">
 	<defaultenabled>no</defaultenabled>
 	<depend>newt</depend>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
   </member>
   <member name="check_expr">
 	<defaultenabled>no</defaultenabled>
@@ -30,11 +30,11 @@
   </member>
   <member name="conf2ael">
 	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
   </member>
   <member name="muted">
 	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
   </member>
   <member name="smsq">
 	<defaultenabled>no</defaultenabled>

@@ -45,7 +45,7 @@
  */
 
 /*** MODULEINFO
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
  ***/
 
 #include "asterisk/autoconfig.h"

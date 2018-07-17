@@ -76,9 +76,6 @@ export AST_DEVMODE_STRICT # Enables shadow warnings (-Wshadow)
 export _SOLINK            # linker flags for all shared objects
 export SOLINK             # linker flags for loadable modules
 export DYLINK             # linker flags for shared libraries
-export STATIC_BUILD       # Additional cflags, set to -static
-                          # for static builds. Probably
-                          # should go directly to ASTLDFLAGS
 
 #--- paths to various commands
 # The makeopts include below tries to set these if they're found during

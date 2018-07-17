@@ -535,8 +535,6 @@
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
-		<member name="STATIC_BUILD" displayname="Build static binaries">
-		</member>
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>

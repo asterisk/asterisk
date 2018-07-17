@@ -50,7 +50,7 @@
 /*** MODULEINFO
 	<depend>vpb</depend>
 	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
  ***/
 
 #include <vpbapi.h>
@@ -2875,4 +2875,4 @@ static enum ast_module_load_result load_module()
 #endif
 /**/
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Voicetronix API driver");
+AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Voicetronix API driver");
