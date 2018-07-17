@@ -980,8 +980,8 @@ static int res_sdp_crypto_parse_offer(struct ast_rtp_instance *rtp, struct ast_s
 				sdes_lifetime = n_lifetime;
 			}
 
-			/* Accept anything above 10 hours. Less than 10; reject. */
-			if (sdes_lifetime < 1800000) {
+			/* Accept anything above ~5.8 hours. Less than ~5.8; reject. */
+			if (sdes_lifetime < 1048576) {
 				ast_log(LOG_NOTICE, "Rejecting crypto attribute '%s': lifetime '%f' too short\n", attr, sdes_lifetime);
 				continue;
 			}
