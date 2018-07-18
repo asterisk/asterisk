@@ -111,6 +111,35 @@ int ast_data_buffer_put(struct ast_data_buffer *buffer, size_t pos, void *payloa
 void *ast_data_buffer_get(const struct ast_data_buffer *buffer, size_t pos);
 
 /*!
+ * \brief Remove a data payload from the data buffer
+ *
+ * \param buffer The data buffer
+ * \param pos The position of the data payload
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This DOES remove the data payload from the data buffer. It does not free it, though.
+ *
+ * \since 15.5.0
+ */
+void *ast_data_buffer_remove(struct ast_data_buffer *buffer, size_t pos);
+
+/*!
+ * \brief Remove the first payload from the data buffer
+ *
+ * \param buffer The data buffer
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This DOES remove the data payload from the data buffer.
+ *
+ * \since 15.5.0
+ */
+void *ast_data_buffer_remove_head(struct ast_data_buffer *buffer);
+
+/*!
  * \brief Free a data buffer (and all held data payloads)
  *
  * \param buffer The data buffer
