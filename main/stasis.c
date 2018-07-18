@@ -1199,7 +1199,9 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 void stasis_log_bad_type_access(const char *name)
 {
 #ifdef AST_DEVMODE
-	ast_log(LOG_ERROR, "Use of %s() before init/after destruction\n", name);
+	if (!stasis_message_type_declined(name)) {
+		ast_log(LOG_ERROR, "Use of %s() before init/after destruction\n", name);
+	}
 #endif
 }
 
