@@ -217,6 +217,7 @@ AST_TEST_DEFINE(buffer_resize)
 AST_TEST_DEFINE(buffer_nominal)
 {
 	RAII_VAR(struct ast_data_buffer *, buffer, NULL, ast_data_buffer_free_wrapper);
+	RAII_VAR(struct mock_payload *, removed_payload, NULL, ast_free_ptr);
 	struct mock_payload *payload;
 	struct mock_payload *fetched_payload;
 	int ret;
@@ -247,6 +248,9 @@ AST_TEST_DEFINE(buffer_nominal)
 				"Failed to allocate memory for payload %d", i);
 
 		ret = ast_data_buffer_put(buffer, i, payload);
+		if (ret) {
+			ast_free(payload);
+		}
 
 		ast_test_validate(test, ret == 0,
 				"Failed to add payload %d to buffer", i);
@@ -268,7 +272,11 @@ AST_TEST_DEFINE(buffer_nominal)
 		ast_test_validate(test, payload != NULL,
 				"Failed to allocate memory for payload %d", i + BUFFER_MAX_NOMINAL);
 
+		payload->id = i;
 		ret = ast_data_buffer_put(buffer, i + BUFFER_MAX_NOMINAL, payload);
+		if (ret) {
+			ast_free(payload);
+		}
 
 		ast_test_validate(test, ret == 0,
 				"Failed to add payload %d to buffer", i + BUFFER_MAX_NOMINAL);
@@ -288,6 +296,30 @@ AST_TEST_DEFINE(buffer_nominal)
 		ast_test_validate(test, fetched_payload != NULL,
 				"Failed to get payload at position %d during second loop", i + BUFFER_MAX_NOMINAL);
 	}
+
+	removed_payload = (struct mock_payload *)ast_data_buffer_remove_head(buffer);
+
+	ast_test_validate(test, removed_payload != NULL,
+			"Failed to get the payload at the HEAD of the buffer");
+
+	ast_test_validate(test, ast_data_buffer_count(buffer) == BUFFER_MAX_NOMINAL - 1,
+			"Removing payload from HEAD of buffer did not decrease buffer size");
+
+	ast_test_validate(test, removed_payload->id == 1,
+			"Removing payload from HEAD of buffer did not return expected payload");
+
+	ast_free(removed_payload);
+
+	removed_payload = (struct mock_payload *)ast_data_buffer_remove(buffer, BUFFER_MAX_NOMINAL * 2);
+
+	ast_test_validate(test, removed_payload != NULL,
+			"Failed to get payload at position %d from buffer", BUFFER_MAX_NOMINAL * 2);
+
+	ast_test_validate(test, ast_data_buffer_count(buffer) == BUFFER_MAX_NOMINAL - 2,
+			"Removing payload from buffer did not decrease buffer size");
+
+	ast_test_validate(test, removed_payload->id == BUFFER_MAX_NOMINAL,
+			"Removing payload from buffer did not return expected payload");
 
 	return AST_TEST_PASS;
 }

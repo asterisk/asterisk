@@ -281,6 +281,60 @@ void *ast_data_buffer_get(const struct ast_data_buffer *buffer, size_t pos)
 	return NULL;
 }
 
+static void data_buffer_free_buffer_payload(struct ast_data_buffer *buffer,
+	struct data_buffer_payload_entry *buffer_payload)
+{
+	buffer_payload->payload = NULL;
+	buffer->count--;
+
+	if (buffer->cache_count < CACHED_PAYLOAD_MAX
+			&& buffer->cache_count < (buffer->max - buffer->count)) {
+		AST_LIST_INSERT_TAIL(&buffer->cached_payloads, buffer_payload, list);
+		buffer->cache_count++;
+	} else {
+		ast_free(buffer_payload);
+	}
+}
+
+void *ast_data_buffer_remove(struct ast_data_buffer *buffer, size_t pos)
+{
+	struct data_buffer_payload_entry *buffer_payload;
+
+	ast_assert(buffer != NULL);
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&buffer->payloads, buffer_payload, list) {
+		if (buffer_payload->pos == pos) {
+			void *payload = buffer_payload->payload;
+
+			AST_LIST_REMOVE_CURRENT(list);
+			data_buffer_free_buffer_payload(buffer, buffer_payload);
+
+			return payload;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	return NULL;
+}
+
+void *ast_data_buffer_remove_head(struct ast_data_buffer *buffer)
+{
+	ast_assert(buffer != NULL);
+
+	if (buffer->count > 0) {
+		struct data_buffer_payload_entry *buffer_payload;
+		void *payload;
+
+		buffer_payload = AST_LIST_REMOVE_HEAD(&buffer->payloads, list);
+		payload = buffer_payload->payload;
+		data_buffer_free_buffer_payload(buffer, buffer_payload);
+
+		return payload;
+	}
+
+	return NULL;
+}
+
 void ast_data_buffer_free(struct ast_data_buffer *buffer)
 {
 	struct data_buffer_payload_entry *buffer_payload;
