@@ -52,11 +52,17 @@ struct sorcery_config {
 	/*! \brief Any specific variable criteria for considering a defined category for this object */
 	struct ast_variable *criteria;
 
+	/*! \brief An explicit name for the configuration section, with it there can be only one */
+	char *explicit_name;
+
 	/*! \brief Number of buckets to use for objects */
 	unsigned int buckets;
 
 	/*! \brief Enable file level integrity instead of object level */
 	unsigned int file_integrity:1;
+
+	/*! \brief Enable enforcement of a single configuration object of this type */
+	unsigned int single_object:1;
 
 	/*! \brief Filename of the configuration file */
 	char filename[];
@@ -115,6 +121,7 @@ static void sorcery_config_destructor(void *obj)
 	ao2_global_obj_release(config->objects);
 	ast_rwlock_destroy(&config->objects.lock);
 	ast_variables_destroy(config->criteria);
+	ast_free(config->explicit_name);
 }
 
 static int sorcery_config_fields_cmp(void *obj, void *arg, int flags)
@@ -239,12 +246,66 @@ static void sorcery_config_retrieve_prefix(const struct ast_sorcery *sorcery, vo
 	ao2_callback(config_objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_config_fields_cmp, &params);
 }
 
-/*! \brief Internal function which determines if criteria has been met for considering an object set applicable */
-static int sorcery_is_criteria_met(struct ast_variable *objset, struct ast_variable *criteria)
+/*! \brief Internal function which determines if a category matches based on explicit name */
+static int sorcery_is_explicit_name_met(const struct ast_sorcery *sorcery, const char *type,
+	struct ast_category *category, struct sorcery_config *config)
+{
+	struct ast_sorcery_object_type *object_type;
+	struct ast_variable *field;
+	int met = 1;
+
+	if (ast_strlen_zero(config->explicit_name) || strcmp(ast_category_get_name(category), config->explicit_name)) {
+		return 0;
+	}
+
+	object_type = ast_sorcery_get_object_type(sorcery, type);
+	if (!object_type) {
+		return 0;
+	}
+
+	/* We iterate the configured fields to see if we don't know any, if we don't then
+	 * this is likely not for the given type and we skip it. If it actually is then criteria
+	 * may pick it up in which case it would just get rejected as an invalid configuration later.
+	 */
+	for (field = ast_category_first(category); field; field = field->next) {
+		if (!ast_sorcery_is_object_field_registered(object_type, field->name)) {
+			met = 0;
+			break;
+		}
+	}
+
+	ao2_ref(object_type, -1);
+
+	return met;
+}
+
+/*! \brief Internal function which determines if a category matches based on criteria */
+static int sorcery_is_criteria_met(struct ast_category *category, struct sorcery_config *config)
 {
 	RAII_VAR(struct ast_variable *, diff, NULL, ast_variables_destroy);
 
-	return (!criteria || (!ast_sorcery_changeset_create(objset, criteria, &diff) && !diff)) ? 1 : 0;
+	if (!config->criteria) {
+		return 0;
+	}
+
+	return (!ast_sorcery_changeset_create(ast_category_first(category), config->criteria, &diff) && !diff) ? 1 : 0;
+}
+
+/*! \brief Internal function which determines if criteria has been met for considering an object set applicable */
+static int sorcery_is_configuration_met(const struct ast_sorcery *sorcery, const char *type,
+	struct ast_category *category, struct sorcery_config *config)
+{
+	if (!config->criteria && ast_strlen_zero(config->explicit_name)) {
+		/* Nothing is configured to allow specific matching, so accept it! */
+		return 1;
+	} else if (sorcery_is_explicit_name_met(sorcery, type, category, config)) {
+		return 1;
+	} else if (sorcery_is_criteria_met(category, config)) {
+		return 1;
+	} else {
+		/* Nothing explicitly matched so reject */
+		return 0;
+	}
 }
 
 static void sorcery_config_internal_load(void *data, const struct ast_sorcery *sorcery, const char *type, unsigned int reload)
@@ -271,8 +332,8 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 	if (!config->buckets) {
 		while ((category = ast_category_browse_filtered(cfg, NULL, category, NULL))) {
 
-			/* If given criteria has not been met skip the category, it is not applicable */
-			if (!sorcery_is_criteria_met(ast_category_first(category), config->criteria)) {
+			/* If given configuration has not been met skip the category, it is not applicable */
+			if (!sorcery_is_configuration_met(sorcery, type, category, config)) {
 				continue;
 			}
 
@@ -294,6 +355,16 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		buckets = config->buckets;
 	}
 
+	/* For single object configurations there can only ever be one bucket, if there's more than the single
+	 * object requirement has been violated.
+	 */
+	if (config->single_object && buckets > 1) {
+		ast_log(LOG_ERROR, "Config file '%s' could not be loaded; configuration contains more than one object of type '%s'\n",
+			config->filename, type);
+		ast_config_destroy(cfg);
+		return;
+	}
+
 	ast_debug(2, "Using bucket size of '%d' for objects of type '%s' from '%s'\n",
 		buckets, type, config->filename);
 
@@ -310,8 +381,8 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		RAII_VAR(void *, obj, NULL, ao2_cleanup);
 		id = ast_category_get_name(category);
 
-		/* If given criteria has not been met skip the category, it is not applicable */
-		if (!sorcery_is_criteria_met(ast_category_first(category), config->criteria)) {
+		/* If given configurationhas not been met skip the category, it is not applicable */
+		if (!sorcery_is_configuration_met(sorcery, type, category, config)) {
 			continue;
 		}
 
@@ -420,6 +491,24 @@ static void *sorcery_config_open(const char *data)
 				ao2_ref(config, -1);
 				return NULL;
 			}
+		} else if (!strcasecmp(name, "explicit_name")) {
+			ast_free(config->explicit_name);
+			config->explicit_name = ast_strdup(value);
+			if (ast_strlen_zero(config->explicit_name)) {
+				/* This is fatal since it could stop a configuration section from getting applied */
+				ast_log(LOG_ERROR, "Could not create explicit name entry of '%s' for configuration file '%s'\n",
+					value, filename);
+				ao2_ref(config, -1);
+				return NULL;
+			}
+		} else if (!strcasecmp(name, "single_object")) {
+			if (ast_strlen_zero(value)) {
+				ast_log(LOG_ERROR, "Could not set single object value for configuration file '%s' as the value is empty\n",
+					filename);
+				ao2_ref(config, -1);
+				return NULL;
+			}
+			config->single_object = ast_true(value);
 		} else {
 			ast_log(LOG_ERROR, "Unsupported option '%s' used for configuration file '%s'\n", name, filename);
 		}

@@ -175,7 +175,7 @@ int ast_sip_initialize_system(void)
 		return -1;
 	}
 
-	ast_sorcery_apply_default(system_sorcery, "system", "config", "pjsip.conf,criteria=type=system");
+	ast_sorcery_apply_default(system_sorcery, "system", "config", "pjsip.conf,criteria=type=system,single_object=yes,explicit_name=system");
 
 	if (ast_sorcery_object_register_no_reload(system_sorcery, "system", system_alloc, NULL, system_apply)) {
 		ast_log(LOG_ERROR, "Failed to register with sorcery (is res_sorcery_config loaded?)\n");

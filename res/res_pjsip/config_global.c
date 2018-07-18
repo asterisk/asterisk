@@ -491,7 +491,7 @@ int ast_sip_initialize_sorcery_global(void)
 	snprintf(default_useragent, sizeof(default_useragent), "%s %s",
 		DEFAULT_USERAGENT_PREFIX, ast_get_version());
 
-	ast_sorcery_apply_default(sorcery, "global", "config", "pjsip.conf,criteria=type=global");
+	ast_sorcery_apply_default(sorcery, "global", "config", "pjsip.conf,criteria=type=global,single_object=yes,explicit_name=global");
 
 	if (ast_sorcery_object_register(sorcery, "global", global_alloc, NULL, global_apply)) {
 		return -1;
