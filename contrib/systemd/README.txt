@@ -12,6 +12,9 @@ extends to the following listeners:
 The primary use case of this feature is to allow Asterisk to be started by
 other services through use of AMI, CLI or REST API.
 
+The examples and documentation assume that Asterisk was linked to libsystemd
+when compiled.  This integration is required for `Type=notify` and socket
+activation to work.
 
 Security
 ========
