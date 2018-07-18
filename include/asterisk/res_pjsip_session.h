@@ -85,6 +85,8 @@ struct ast_sip_session_media {
 	unsigned int held:1;
 	/*! \brief Does remote support rtcp_mux */
 	unsigned int remote_rtcp_mux:1;
+	/*! \brief Does remote support ice */
+	unsigned int remote_ice:1;
 	/*! \brief Stream type this session media handles */
 	char stream_type[1];
 };
