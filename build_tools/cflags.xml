@@ -16,9 +16,6 @@
 		<member name="AO2_DEBUG" displayname="Enable internal Astobj2 debugging">
 			<support_level>extended</support_level>
 		</member>
-		<member name="STATIC_BUILD" displayname="Build static binaries">
-			<support_level>extended</support_level>
-		</member>
 		<member name="DEBUG_FD_LEAKS" displayname="Enable File Descriptor Leak Detection">
 			<support_level>core</support_level>
 		</member>

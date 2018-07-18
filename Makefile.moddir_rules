@@ -18,10 +18,6 @@
 # Also note that we can only set one variable per rule, so we have to
 # repeat the left hand side to set multiple variables.
 
-ifneq ($(findstring STATIC_BUILD,$(MENUSELECT_CFLAGS)),)
-  STATIC_BUILD=-static
-endif
-
 include $(ASTTOPDIR)/Makefile.rules
 
 # If MODULE_PREFIX is defined, use it to run the standard functions to set

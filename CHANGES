@@ -37,6 +37,11 @@ app_macro
    built.  Users should migrate to app_stack (Gosub).  A warning is logged
    the first time any Macro is used.
 
+app_setcallerid
+------------------
+ * The app_setcallerid module has been removed. The CALLERID dialplan function
+   should be used instead.
+
 chan_sip
 ------------------
  * New function SIP_HEADERS() enumerates all headers in the incoming INVITE.
@@ -108,10 +113,21 @@ cdr_syslog
  * The cdr_syslog module is now deprecated and by default it is no longer
    built.
 
+cdr_sqlite
+------------------
+ * The cdr_sqlite module has been removed. Users should move to using the
+   cdr_sqlite3_custom module instead.
+
+format_jpeg
+------------------
+ * The format_jpeg module has been removed.
+
 Core:
 ------------------
  * libedit is no longer available as an embedded library and must be provided
    by the system.
+ * The STATIC_BUILD functionality has been removed as it has not been maintained
+   and has not worked in quite some time.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.5.0 to Asterisk 15.6.0 ------------
