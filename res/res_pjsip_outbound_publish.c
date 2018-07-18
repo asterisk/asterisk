@@ -428,9 +428,11 @@ static void set_transport(struct sip_outbound_publisher *publisher, pjsip_tx_dat
 {
 	if (!ast_strlen_zero(publisher->owner->publish->transport)) {
 		pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+
 		ast_sip_set_tpselector_from_transport_name(
 			publisher->owner->publish->transport, &selector);
 		pjsip_tx_data_set_transport(tdata, &selector);
+		ast_sip_tpselector_unref(&selector);
 	}
 }
 

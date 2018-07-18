@@ -1,0 +1,129 @@
+diff -x '*.o' -x '*.a' -ru a/pjsip/include/pjsip/sip_auth_msg.h b/pjsip/include/pjsip/sip_auth_msg.h
+--- a/pjsip/include/pjsip/sip_auth_msg.h	2011-05-05 02:14:19.000000000 -0400
++++ b/pjsip/include/pjsip/sip_auth_msg.h	2018-09-14 16:42:03.986813665 -0400
+@@ -89,6 +89,23 @@
+ typedef struct pjsip_pgp_credential pjsip_pgp_credential;
+ 
+ /**
++ * This structure describe credential used in Authorization and
++ * Proxy-Authorization header for OAuth authentication scheme.
++ */
++struct pjsip_oauth_credential
++{
++    pj_str_t    realm;          /**< Realm of the credential    */
++    pjsip_param other_param;    /**< Other parameters.          */
++    pj_str_t    username;       /**< Username parameter.        */
++    pj_str_t    token;          /**< Token parameter.           */
++};
++
++/**
++ * @see pjsip_oauth_credential
++ */
++typedef struct pjsip_oauth_credential pjsip_oauth_credential;
++
++/**
+  * This structure describes SIP Authorization header (and also SIP
+  * Proxy-Authorization header).
+  */
+@@ -106,6 +123,7 @@
+ 	pjsip_common_credential common;	/**< Common fields.	    */
+ 	pjsip_digest_credential digest;	/**< Digest credentials.    */
+ 	pjsip_pgp_credential	pgp;	/**< PGP credentials.	    */
++	pjsip_oauth_credential  oauth;  /**< OAuth credentials.     */
+     } credential;
+ };
+ 
+diff -x '*.o' -x '*.a' -ru a/pjsip/include/pjsip/sip_auth_parser.h b/pjsip/include/pjsip/sip_auth_parser.h
+--- a/pjsip/include/pjsip/sip_auth_parser.h	2011-05-05 02:14:19.000000000 -0400
++++ b/pjsip/include/pjsip/sip_auth_parser.h	2018-09-14 16:42:11.982807508 -0400
+@@ -64,6 +64,7 @@
+ 			pjsip_FALSE_STR,    /**< "false" string const.	    */
+ 			pjsip_DIGEST_STR,   /**< "digest" string const.	    */
+ 			pjsip_PGP_STR,	    /**< "pgp" string const.	    */
++			pjsip_BEARER_STR,   /**< "bearer" string const.     */
+ 			pjsip_MD5_STR,	    /**< "md5" string const.	    */
+ 			pjsip_AUTH_STR;	    /**< "auth" string const.	    */
+ 
+diff -x '*.o' -x '*.a' -ru a/pjsip/src/pjsip/sip_auth_client.c b/pjsip/src/pjsip/sip_auth_client.c
+--- a/pjsip/src/pjsip/sip_auth_client.c	2017-03-31 02:02:48.000000000 -0400
++++ b/pjsip/src/pjsip/sip_auth_client.c	2018-09-14 16:42:28.138795061 -0400
+@@ -959,13 +959,22 @@
+ 
+ 		hs = pjsip_authorization_hdr_create(tdata->pool);
+ 		pj_strdup(tdata->pool, &hs->scheme, &c->scheme);
+-		pj_strdup(tdata->pool, &hs->credential.digest.username,
+-			  &c->username);
+-		pj_strdup(tdata->pool, &hs->credential.digest.realm,
+-			  &c->realm);
+-		pj_strdup(tdata->pool, &hs->credential.digest.uri, &uri);
+-		pj_strdup(tdata->pool, &hs->credential.digest.algorithm,
+-			  &sess->pref.algorithm);
++		if (pj_stricmp(&c->scheme, &pjsip_BEARER_STR)==0) {
++			pj_strdup(tdata->pool, &hs->credential.oauth.username,
++                                  &c->username);
++                        pj_strdup(tdata->pool, &hs->credential.oauth.realm,
++                                  &c->realm);
++                        pj_strdup(tdata->pool, &hs->credential.oauth.token,
++                                  &c->data);
++		} else { //if (pj_stricmp(&c->scheme, &pjsip_DIGEST_STR)==0)
++			pj_strdup(tdata->pool, &hs->credential.digest.username,
++				  &c->username);
++			pj_strdup(tdata->pool, &hs->credential.digest.realm,
++				  &c->realm);
++			pj_strdup(tdata->pool,&hs->credential.digest.uri, &uri);
++			pj_strdup(tdata->pool, &hs->credential.digest.algorithm,
++			  	  &sess->pref.algorithm);
++		}
+ 
+ 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)hs);
+ 	    }
+diff -x '*.o' -x '*.a' -ru a/pjsip/src/pjsip/sip_auth_msg.c b/pjsip/src/pjsip/sip_auth_msg.c
+--- a/pjsip/src/pjsip/sip_auth_msg.c	2016-01-27 00:42:20.000000000 -0500
++++ b/pjsip/src/pjsip/sip_auth_msg.c	2018-09-14 16:42:15.882804502 -0400
+@@ -103,6 +103,23 @@
+     return -1;
+ }
+ 
++static int print_oauth_credential(pjsip_oauth_credential *cred, char *buf,
++				  pj_size_t size)
++{
++    pj_ssize_t printed;
++    char *startbuf = buf;
++    char *endbuf = buf + size;
++
++    copy_advance_pair_quote_cond_always(buf, "token=", 6, cred->token,
++    					'"', '"');
++    copy_advance_pair_quote_cond_always(buf, ", username=", 11, cred->username,
++    					'"', '"');
++    copy_advance_pair_quote_cond_always(buf, ", realm=", 8, cred->realm,
++    					'"', '"');
++
++    return (int) (buf-startbuf);
++}
++
+ static int pjsip_authorization_hdr_print( pjsip_authorization_hdr *hdr,
+ 					  char *buf, pj_size_t size)
+ {
+@@ -125,6 +142,11 @@
+     {
+ 	printed = print_pgp_credential(&hdr->credential.pgp, buf, endbuf - buf);
+     } 
++    else if (pj_stricmp(&hdr->scheme, &pjsip_BEARER_STR) == 0)
++    {
++        printed = print_oauth_credential(&hdr->credential.oauth, buf,
++        				 endbuf - buf);
++    }
+     else {
+ 	pj_assert(0);
+ 	return -1;
+diff -x '*.o' -x '*.a' -ru a/pjsip/src/pjsip/sip_auth_parser.c b/pjsip/src/pjsip/sip_auth_parser.c
+--- a/pjsip/src/pjsip/sip_auth_parser.c	2014-06-09 22:56:56.000000000 -0400
++++ b/pjsip/src/pjsip/sip_auth_parser.c	2018-09-14 16:42:21.418800238 -0400
+@@ -59,6 +59,7 @@
+ 		pjsip_QUOTED_DIGEST_STR =   { "\"Digest\"", 8},
+ 		pjsip_PGP_STR =		    { "PGP", 3 },
+ 		pjsip_QUOTED_PGP_STR =	    { "\"PGP\"", 5 },
++		pjsip_BEARER_STR =          { "Bearer", 6 },
+ 		pjsip_MD5_STR =		    { "md5", 3 },
+ 		pjsip_QUOTED_MD5_STR =	    { "\"md5\"", 5},
+ 		pjsip_AUTH_STR =	    { "auth", 4},

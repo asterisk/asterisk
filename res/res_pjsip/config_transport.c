@@ -203,6 +203,176 @@ struct ast_sip_endpoint_formatter endpoint_transport_formatter = {
 	.format_ami = format_ami_endpoint_transport
 };
 
+int ast_sip_transport_state_set_transport(const char *transport_name, pjsip_transport *transport)
+{
+	struct ast_sip_transport_state *transport_state;
+
+	/* To make it easier on callers we allow an empty transport name */
+	if (ast_strlen_zero(transport_name)) {
+		return 0;
+	}
+
+	transport_state = ast_sip_get_transport_state(transport_name);
+	if (!transport_state) {
+		return -1;
+	}
+
+	if (!transport_state->flow) {
+		ao2_ref(transport_state, -1);
+		return 0;
+	}
+
+	ao2_lock(transport_state);
+	if (transport_state->transport != transport) {
+		if (transport_state->transport) {
+			pjsip_transport_dec_ref(transport_state->transport);
+		}
+		transport_state->transport = transport;
+		if (transport_state->transport) {
+			pjsip_transport_add_ref(transport_state->transport);
+		}
+	}
+	ao2_unlock(transport_state);
+
+	ao2_ref(transport_state, -1);
+
+	return 0;
+}
+
+int ast_sip_transport_state_set_preferred_identity(const char *transport_name, const char *identity)
+{
+	struct ast_sip_transport_state *transport_state;
+
+	if (ast_strlen_zero(transport_name)) {
+		return 0;
+	}
+
+	transport_state = ast_sip_get_transport_state(transport_name);
+	if (!transport_state) {
+		return -1;
+	}
+
+	if (!transport_state->flow) {
+		ao2_ref(transport_state, -1);
+		return 0;
+	}
+
+	ao2_lock(transport_state);
+	ast_free(transport_state->preferred_identity);
+	transport_state->preferred_identity = ast_strdup(identity);
+	ao2_unlock(transport_state);
+
+	ao2_ref(transport_state, -1);
+
+	return 0;
+}
+
+int ast_sip_transport_state_set_service_routes(const char *transport_name, struct ast_sip_service_route_vector *service_routes)
+{
+	struct ast_sip_transport_state *transport_state;
+
+	if (ast_strlen_zero(transport_name)) {
+		ast_sip_service_route_vector_destroy(service_routes);
+		return 0;
+	}
+
+	transport_state = ast_sip_get_transport_state(transport_name);
+	if (!transport_state) {
+		ast_sip_service_route_vector_destroy(service_routes);
+		return -1;
+	}
+
+	if (!transport_state->flow) {
+		ao2_ref(transport_state, -1);
+		ast_sip_service_route_vector_destroy(service_routes);
+		return 0;
+	}
+
+	ao2_lock(transport_state);
+	ast_sip_service_route_vector_destroy(transport_state->service_routes);
+	transport_state->service_routes = service_routes;
+	ao2_unlock(transport_state);
+
+	ao2_ref(transport_state, -1);
+
+	return 0;
+}
+
+void ast_sip_message_apply_transport(const char *transport_name, pjsip_tx_data *tdata)
+{
+	struct ast_sip_transport_state *transport_state;
+
+	if (ast_strlen_zero(transport_name)) {
+		return;
+	}
+
+	/* We only currently care about requests that are of the INVITE, CANCEL, or OPTIONS
+	 * type but in the future we could support other messages.
+	 */
+	if (tdata->msg->type != PJSIP_REQUEST_MSG ||
+		(pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_invite_method) &&
+		pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_cancel_method) &&
+		pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_options_method))) {
+		return;
+	}
+
+	transport_state = ast_sip_get_transport_state(transport_name);
+	if (!transport_state) {
+		return;
+	}
+
+	if (!transport_state->flow) {
+		ao2_ref(transport_state, -1);
+		return;
+	}
+
+	ao2_lock(transport_state);
+
+	/* If a Preferred Identity has been set then add it to the request */
+	if (transport_state->preferred_identity) {
+		ast_sip_add_header(tdata, "P-Preferred-Identity", transport_state->preferred_identity);
+	}
+
+	/* If Service Routes have been set then add them to the request */
+	if (transport_state->service_routes) {
+		int idx;
+
+		for (idx = 0; idx < AST_VECTOR_SIZE(transport_state->service_routes); ++idx) {
+			char *service_route = AST_VECTOR_GET(transport_state->service_routes, idx);
+
+			ast_sip_add_header(tdata, "Route", service_route);
+		}
+	}
+
+	ao2_unlock(transport_state);
+
+	ao2_ref(transport_state, -1);
+}
+
+struct ast_sip_service_route_vector *ast_sip_service_route_vector_alloc(void)
+{
+	struct ast_sip_service_route_vector *service_routes;
+
+	service_routes = ast_calloc(1, sizeof(*service_routes));
+	if (!service_routes) {
+		return NULL;
+	}
+
+	AST_VECTOR_INIT(service_routes, 0);
+
+	return service_routes;
+}
+
+void ast_sip_service_route_vector_destroy(struct ast_sip_service_route_vector *service_routes)
+{
+	if (!service_routes) {
+		return;
+	}
+
+	AST_VECTOR_CALLBACK_VOID(service_routes, ast_free);
+	ast_free(service_routes);
+}
+
 static void set_qos(struct ast_sip_transport *transport, pj_qos_params *qos)
 {
 	int tos_as_dscp = transport->tos >> 2;
@@ -500,7 +670,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			return 0;
 		}
 
-		if (!transport->allow_reload) {
+		if (!transport->allow_reload && !transport->flow) {
 			if (!perm_state->change_detected) {
 				perm_state->change_detected = 1;
 				ast_log(LOG_WARNING, "Transport '%s' is not reloadable, maintaining previous values\n", transport_id);
@@ -513,14 +683,16 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	}
 
-	if (temp_state->state->host.addr.sa_family != PJ_AF_INET && temp_state->state->host.addr.sa_family != PJ_AF_INET6) {
-		ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", transport_id);
-		return -1;
-	}
+	if (!transport->flow) {
+		if (temp_state->state->host.addr.sa_family != PJ_AF_INET && temp_state->state->host.addr.sa_family != PJ_AF_INET6) {
+			ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", transport_id);
+			return -1;
+		}
 
-	/* Set default port if not present */
-	if (!pj_sockaddr_get_port(&temp_state->state->host)) {
-		pj_sockaddr_set_port(&temp_state->state->host, (transport->type == AST_TRANSPORT_TLS) ? 5061 : 5060);
+		/* Set default port if not present */
+		if (!pj_sockaddr_get_port(&temp_state->state->host)) {
+			pj_sockaddr_set_port(&temp_state->state->host, (transport->type == AST_TRANSPORT_TLS) ? 5061 : 5060);
+		}
 	}
 
 	/* Now that we know what address family we can set up a dnsmgr refresh for the external addresses if present */
@@ -558,7 +730,16 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	}
 
-	if (transport->type == AST_TRANSPORT_UDP) {
+	if (transport->flow) {
+		pj_str_t address;
+
+		ast_debug(1, "Ignoring any bind configuration on transport '%s' as it is a child of another\n",
+			transport_id);
+		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, "0.0.0.0"), &temp_state->state->host);
+
+		temp_state->state->flow = 1;
+		res = PJ_SUCCESS;
+	} else if (transport->type == AST_TRANSPORT_UDP) {
 
 		for (i = 0; i < BIND_TRIES && res != PJ_SUCCESS; i++) {
 			if (perm_state && perm_state->state && perm_state->state->transport) {
@@ -775,18 +956,23 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 		return -1;
 	}
 
-	if (!strcasecmp(var->value, "udp")) {
-		transport->type = AST_TRANSPORT_UDP;
-	} else if (!strcasecmp(var->value, "tcp")) {
-		transport->type = AST_TRANSPORT_TCP;
-	} else if (!strcasecmp(var->value, "tls")) {
-		transport->type = AST_TRANSPORT_TLS;
-	} else if (!strcasecmp(var->value, "ws")) {
-		transport->type = AST_TRANSPORT_WS;
-	} else if (!strcasecmp(var->value, "wss")) {
-		transport->type = AST_TRANSPORT_WSS;
+	if (!strcasecmp(var->value, "flow")) {
+		transport->flow = 1;
 	} else {
-		return -1;
+		if (!strcasecmp(var->value, "udp")) {
+			transport->type = AST_TRANSPORT_UDP;
+		} else if (!strcasecmp(var->value, "tcp")) {
+			transport->type = AST_TRANSPORT_TCP;
+		} else if (!strcasecmp(var->value, "tls")) {
+			transport->type = AST_TRANSPORT_TLS;
+		} else if (!strcasecmp(var->value, "ws")) {
+			transport->type = AST_TRANSPORT_WS;
+		} else if (!strcasecmp(var->value, "wss")) {
+			transport->type = AST_TRANSPORT_WSS;
+		} else {
+			return -1;
+		}
+		transport->flow = 0;
 	}
 
 	state->type = transport->type;
@@ -806,7 +992,9 @@ static int transport_protocol_to_str(const void *obj, const intptr_t *args, char
 {
 	const struct ast_sip_transport *transport = obj;
 
-	if (ARRAY_IN_BOUNDS(transport->type, transport_types)) {
+	if (transport->flow) {
+		*buf = ast_strdup("flow");
+	} else if (ARRAY_IN_BOUNDS(transport->type, transport_types)) {
 		*buf = ast_strdup(transport_types[transport->type]);
 	}
 
@@ -1361,6 +1549,16 @@ struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transpor
 
 	trans_state = ao2_bump(state->state);
 	ao2_ref(state, -1);
+
+	/* If this is a child transport see if the transport is actually dead */
+	if (trans_state->flow) {
+		ao2_lock(trans_state);
+		if (trans_state->transport && trans_state->transport->is_shutdown == PJ_TRUE) {
+			pjsip_transport_dec_ref(trans_state->transport);
+			trans_state->transport = NULL;
+		}
+		ao2_unlock(trans_state);
+	}
 
 	return trans_state;
 }

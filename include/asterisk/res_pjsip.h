@@ -63,6 +63,8 @@ struct pjsip_tpselector;
 /*! \brief Maximum number of ciphers supported for a TLS transport */
 #define SIP_TLS_MAX_CIPHERS 64
 
+AST_VECTOR(ast_sip_service_route_vector, char *);
+
 /*!
  * \brief Structure for SIP transport information
  */
@@ -124,6 +126,21 @@ struct ast_sip_transport_state {
 	 * \since 13.18.0
 	 */
 	struct ast_sockaddr external_media_address;
+	/*!
+	 * Set when this transport is a flow of signaling to a target
+	 * \since 17.0.0
+	 */
+	int flow;
+	/*!
+	 * The P-Preferred-Identity to use on traffic using this transport
+	 * \since 17.0.0
+	 */
+	char *preferred_identity;
+	/*!
+	 * The Service Routes to use on traffic using this transport
+	 * \since 17.0.0
+	 */
+	struct ast_sip_service_route_vector *service_routes;
 };
 
 #define ast_sip_transport_is_nonlocal(transport_state, addr) \
@@ -214,6 +231,8 @@ struct ast_sip_transport {
 	int allow_reload;
 	/*! Automatically send requests out the same transport requests have come in on */
 	int symmetric_transport;
+	/*! This is a flow to another target */
+	int flow;
 };
 
 #define SIP_SORCERY_DOMAIN_ALIAS_TYPE "domain_alias"
@@ -400,6 +419,8 @@ enum ast_sip_auth_type {
 	AST_SIP_AUTH_TYPE_USER_PASS,
 	/*! Credentials stored as an MD5 sum */
 	AST_SIP_AUTH_TYPE_MD5,
+	/*! Google Oauth */
+	AST_SIP_AUTH_TYPE_GOOGLE_OAUTH,
 	/*! Credentials not stored this is a fake auth */
 	AST_SIP_AUTH_TYPE_ARTIFICIAL
 };
@@ -418,6 +439,12 @@ struct ast_sip_auth {
 		AST_STRING_FIELD(auth_pass);
 		/*! Authentication credentials in MD5 format (hash of user:realm:pass) */
 		AST_STRING_FIELD(md5_creds);
+		/*! Refresh token to use for OAuth authentication */
+		AST_STRING_FIELD(refresh_token);
+		/*! Client ID to use for OAuth authentication */
+		AST_STRING_FIELD(oauth_clientid);
+		/*! Secret to use for OAuth authentication */
+		AST_STRING_FIELD(oauth_secret);
 	);
 	/*! The time period (in seconds) that a nonce may be reused */
 	unsigned int nonce_lifetime;
@@ -2952,6 +2979,8 @@ struct ao2_container *ast_sip_get_transport_states(void);
  * \param selector The selector to be populated
  * \retval 0 success
  * \retval -1 failure
+ *
+ * \note The transport selector must be unreffed using ast_sip_tpselector_unref
  */
 int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transport, pjsip_tpselector *selector);
 
@@ -2963,8 +2992,79 @@ int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transp
  * \param selector The selector to be populated
  * \retval 0 success
  * \retval -1 failure
+ *
+ * \note The transport selector must be unreffed using ast_sip_tpselector_unref
  */
 int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip_tpselector *selector);
+
+/*!
+ * \brief Unreference a pjsip_tpselector
+ * \since 17.0.0
+ *
+ * \param selector The selector to be unreffed
+ */
+void ast_sip_tpselector_unref(pjsip_tpselector *selector);
+
+/*!
+ * \brief Sets the PJSIP transport on a child transport
+ * \since 17.0.0
+ *
+ * \param transport_name The name of the transport to be updated
+ * \param transport The PJSIP transport
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_transport_state_set_transport(const char *transport_name, pjsip_transport *transport);
+
+/*!
+ * \brief Sets the P-Preferred-Identity on a child transport
+ * \since 17.0.0
+ *
+ * \param transport_name The name of the transport to be set on
+ * \param identity The P-Preferred-Identity to use on requests on this transport
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_transport_state_set_preferred_identity(const char *transport_name, const char *identity);
+
+/*!
+ * \brief Sets the service routes on a child transport
+ * \since 17.0.0
+ *
+ * \param transport_name The name of the transport to be set on
+ * \param service_routes A vector of service routes
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note This assumes ownership of the service routes in both success and failure scenarios
+ */
+int ast_sip_transport_state_set_service_routes(const char *transport_name, struct ast_sip_service_route_vector *service_routes);
+
+/*!
+ * \brief Apply the configuration for a transport to an outgoing message
+ * \since 17.0.0
+ *
+ * \param transport_name The name of the transport to apply configuration from
+ * \param tdata The SIP message
+ */
+void ast_sip_message_apply_transport(const char *transport_name, pjsip_tx_data *tdata);
+
+/*!
+ * \brief Allocate a vector of service routes
+ * \since 17.0.0
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_sip_service_route_vector *ast_sip_service_route_vector_alloc(void);
+
+/*!
+ * \brief Destroy a vector of service routes
+ * \since 17.0.0
+ *
+ * \param service_routes A vector of service routes
+ */
+void ast_sip_service_route_vector_destroy(struct ast_sip_service_route_vector *service_routes);
 
 /*!
  * \brief Set name and number information on an identity header.
@@ -3033,6 +3133,9 @@ int ast_sip_set_tpselector_from_ep_or_uri(const struct ast_sip_endpoint *endpoin
  * This API calls ast_sip_get_transport_name(endpoint, dlg->target) and if the result is
  * non-NULL, calls pjsip_dlg_set_transport.  If 'selector' is non-NULL, it is updated with
  * the selector used.
+ *
+ * \note
+ * It is the responsibility of the caller to unref the passed in selector if one is provided.
  */
 int ast_sip_dlg_set_transport(const struct ast_sip_endpoint *endpoint, pjsip_dialog *dlg,
 	pjsip_tpselector *selector);
