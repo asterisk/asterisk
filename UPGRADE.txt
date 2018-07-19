@@ -22,50 +22,6 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 === UPGRADE-15.txt  -- Upgrade info for 14 to 15
+=== UPGRADE-16.txt  -- Upgrade info for 15 to 16
 ===========================================================
 
-New in 16.0.0:
-
-app_fax:
- - The app_fax module is now deprecated, users should migrate to the
-   replacement module res_fax.
-
-app_macro:
- - The app_macro module is now deprecated and by default it is no longer
-   built.  Users should migrate to app_stack (Gosub).  A warning is logged
-   the first time any Macro is used.
-
-AMI:
- - The ContactStatus and Status fields for the manager events ContactStatus
-   and ContactStatusDetail are now set to "NonQualified" when a contact exists
-   but has not been qualified.
-
-ARI:
- - The ContactInfo event's contact_status field is now set to "NonQualified"
-   when a contact exists but has not been qualified.
-
-Build System:
- - MALLOC_DEBUG no longer has an effect on Asterisk's ABI.  Asterisk built
-   with MALLOC_DEBUG can now successfully load binary modules built without
-   MALLOC_DEBUG and vice versa.  Third-party pre-compiled modules no longer
-   need to have a special build with it enabled.
-
-chan_dahdi:
- - Timeouts for reading digits from analog phones are now configurable in
-   chan_dahdi.conf: firstdigit_timeout, interdigit_timeout, matchdigit_timeout.
-
-cdr_syslog:
- - The cdr_syslog module is now deprecated and by default it is no longer
-   built.
-
-res_config_sqlite:
- - The res_config_sqlite module is now deprecated, users should migrate to the
-   replacement module res_config_sqlite3.
-
-res_monitor:
- - The res_monitor module is now deprecated, users should migrate to the
-   replacement module app_mixmonitor.
-
-Core:
- - libedit is no longer available as an embedded library and must be provided
-   by the system.
