@@ -3,7 +3,7 @@
 AWK=${AWK:-awk}
 GIT=${GIT:-git}
 GREP=${GREP:-grep}
-MAINLINE_BRANCH=master
+MAINLINE_BRANCH=16
 
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
