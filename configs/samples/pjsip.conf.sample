@@ -288,8 +288,8 @@
 ; a transport that you'll need to uncomment from the previous examples.
 ;
 ; Uncomment one of the transport lines to choose which transport you want. If
-; not specified then the default transport chosen is the first defined transport
-; in the configuration file.
+; not specified then the default transport chosen is the first compatible transport
+; in the configuration file for the contact URL.
 ;
 ; Modify the "max_contacts=" line to change how many unique registrations to allow.
 ;
@@ -670,7 +670,12 @@
 ;timers=yes     ; Session timers for SIP packets (default: "yes")
 ;timers_sess_expires=1800       ; Maximum session timer expiration period
                                 ; (default: "1800")
-;transport=     ; Desired transport configuration (default: "")
+;transport=     ; Explicit transport configuration to use (default: "")
+                ; This will force the endpoint to use the specified transport
+                ; configuration to send SIP messages.  You need to already know
+                ; what kind of transport (UDP/TCP/IPv4/etc) the endpoint device
+                ; will use.
+
 ;trust_id_inbound=no    ; Accept identification information received from this
                         ; endpoint (default: "no")
 ;trust_id_outbound=no   ; Send private identification details to the endpoint
