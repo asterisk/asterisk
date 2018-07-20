@@ -1673,7 +1673,7 @@
 				<configOption name="max_forwards" default="70">
 					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
 				</configOption>
-				<configOption name="keep_alive_interval" default="0">
+				<configOption name="keep_alive_interval" default="90">
 					<synopsis>The interval (in seconds) to send keepalives to active connection-oriented transports.</synopsis>
 				</configOption>
 				<configOption name="contact_expiration_check_interval" default="30">
