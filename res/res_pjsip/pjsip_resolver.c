@@ -704,7 +704,7 @@ static int sip_replace_resolver(void *data)
 void ast_sip_initialize_resolver(void)
 {
 	/* Replace the existing PJSIP resolver with our own implementation */
-	ast_sip_push_task_synchronous(NULL, sip_replace_resolver, NULL);
+	ast_sip_push_task_wait_servant(NULL, sip_replace_resolver, NULL);
 }
 
 #else
