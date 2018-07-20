@@ -83,6 +83,23 @@ struct ast_xml_node *ast_xml_new_child(struct ast_xml_node *parent, const char *
 struct ast_xml_node *ast_xml_add_child(struct ast_xml_node *parent, struct ast_xml_node *child);
 
 /*!
+ * \brief Add a list of child nodes, to a specified parent node.
+ * \param parent Where to add the child node.
+ * \param child The child list to add.
+ * \retval NULL on error.
+ * \retval non-NULL The added child list on success.
+ */
+struct ast_xml_node *ast_xml_add_child_list(struct ast_xml_node *parent, struct ast_xml_node *child);
+
+/*!
+ * \brief Create a copy of a n ode list.
+ * \param list The list to copy.
+ * \retval NULL on error.
+ * \retval non-NULL The copied list.
+ */
+struct ast_xml_node *ast_xml_copy_node_list(struct ast_xml_node *list);
+
+/*!
  * \brief Close an already open document and free the used
  *        structure.
  * \retval doc The document reference.
