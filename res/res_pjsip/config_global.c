@@ -29,7 +29,7 @@
 #include "asterisk/res_pjsip_cli.h"
 
 #define DEFAULT_MAX_FORWARDS 70
-#define DEFAULT_KEEPALIVE_INTERVAL 0
+#define DEFAULT_KEEPALIVE_INTERVAL 90
 #define DEFAULT_USERAGENT_PREFIX "Asterisk PBX"
 #define DEFAULT_OUTBOUND_ENDPOINT "default_outbound_endpoint"
 #define DEFAULT_DEBUG "no"
