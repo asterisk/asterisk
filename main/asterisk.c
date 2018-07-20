@@ -3285,7 +3285,7 @@ static int show_version(void)
 
 static int show_cli_help(void)
 {
-	printf("Asterisk %s, Copyright (C) 1999 - 2016, Digium, Inc. and others.\n", ast_get_version());
+	printf("Asterisk %s, Copyright (C) 1999 - 2018, Digium, Inc. and others.\n", ast_get_version());
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
