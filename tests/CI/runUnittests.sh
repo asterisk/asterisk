@@ -3,7 +3,10 @@ CIDIR=$(dirname $(readlink -fn $0))
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
 
-echo "full => notice,warning,error,debug,verbose" > 	"$ASTETCDIR/logger.conf"
+cat <<-EOF > "$ASTETCDIR/logger.conf"
+	[logfiles]
+	full => notice,warning,error,debug,verbose
+EOF
 
 echo "[default]" > "$ASTETCDIR/extensions.conf"
 
