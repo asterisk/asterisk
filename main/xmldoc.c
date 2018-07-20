@@ -2785,6 +2785,8 @@ static int xml_pathmatch(char *xmlpattern, int xmlpattern_maxlen, glob_t *globbu
 static char *handle_dump_docs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct documentation_tree *doctree;
+	struct ast_xml_doc *dumpdoc;
+	struct ast_xml_node *dumproot;
 	FILE *f;
 
 	switch (cmd) {
@@ -2801,15 +2803,53 @@ static char *handle_dump_docs(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
+
+	dumpdoc = ast_xml_new();
+	if (!dumpdoc) {
+		ast_log(LOG_ERROR, "Could not create new XML document\n");
+		return CLI_FAILURE;
+	}
+
+	dumproot = ast_xml_new_node("docs");
+	if (!dumproot) {
+		ast_xml_close(dumpdoc);
+		ast_log(LOG_ERROR, "Could not create new XML root node\n");
+		return CLI_FAILURE;
+	}
+
+	ast_xml_set_root(dumpdoc, dumproot);
+
+	AST_RWLIST_RDLOCK(&xmldoc_tree);
+	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
+		struct ast_xml_node *root_node = ast_xml_get_root(doctree->doc);
+		struct ast_xml_node *kids = ast_xml_node_get_children(root_node);
+		struct ast_xml_node *kids_copy;
+
+		/* If there are no kids someone screwed up, but we check anyway. */
+		if (!kids) {
+			continue;
+		}
+
+		kids_copy = ast_xml_copy_node_list(kids);
+		if (!kids_copy) {
+			ast_xml_close(dumpdoc);
+			ast_log(LOG_ERROR, "Could not create copy of XML node list\n");
+			return CLI_FAILURE;
+		}
+
+		ast_xml_add_child_list(dumproot, kids_copy);
+	}
+	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
 	if (!(f = fopen(a->argv[2], "w"))) {
+		ast_xml_close(dumpdoc);
 		ast_log(LOG_ERROR, "Could not open file '%s': %s\n", a->argv[2], strerror(errno));
 		return CLI_FAILURE;
 	}
-	AST_RWLIST_RDLOCK(&xmldoc_tree);
-	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
-		ast_xml_doc_dump_file(f, doctree->doc);
-	}
-	AST_RWLIST_UNLOCK(&xmldoc_tree);
+
+	ast_xml_doc_dump_file(f, dumpdoc);
+	ast_xml_close(dumpdoc);
+
 	fclose(f);
 	return CLI_SUCCESS;
 }

@@ -144,6 +144,22 @@ struct ast_xml_node *ast_xml_add_child(struct ast_xml_node *parent, struct ast_x
 	return (struct ast_xml_node *) xmlAddChild((xmlNode *) parent, (xmlNode *) child);
 }
 
+struct ast_xml_node *ast_xml_add_child_list(struct ast_xml_node *parent, struct ast_xml_node *child)
+{
+	if (!parent || !child) {
+		return NULL;
+	}
+	return (struct ast_xml_node *) xmlAddChildList((xmlNode *) parent, (xmlNode *) child);
+}
+
+struct ast_xml_node *ast_xml_copy_node_list(struct ast_xml_node *list)
+{
+	if (!list) {
+		return NULL;
+	}
+	return (struct ast_xml_node *) xmlCopyNodeList((xmlNode *) list);
+}
+
 struct ast_xml_doc *ast_xml_read_memory(char *buffer, size_t size)
 {
 	xmlDoc *doc;
