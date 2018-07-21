@@ -29,7 +29,7 @@ gen_mods() {
 [ x"$OUTPUT_DIR" != x ] && mkdir -p "$OUTPUT_DIR" 2&> /dev/null
 
 if [ x"$CACHE_DIR" != x ] ; then
-	mkdir -p "$CACHE_DIR/sounds $CACHE_DIR/externals" 2&> /dev/null
+	mkdir -p $CACHE_DIR/sounds $CACHE_DIR/externals 2&> /dev/null
 fi
 
 if [ ${CCACHE_DISABLE:-0} -ne 1 ] ; then
