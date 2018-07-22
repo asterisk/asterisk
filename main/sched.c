@@ -610,11 +610,7 @@ const void *ast_sched_find_data(struct ast_sched_context *con, int id)
  * would be two or more in the list with that
  * id.
  */
-#ifndef AST_DEVMODE
 int ast_sched_del(struct ast_sched_context *con, int id)
-#else
-int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int line, const char *function)
-#endif
 {
 	struct sched *s = NULL;
 	int *last_id = ast_threadstorage_get(&last_del_id, sizeof(int));
