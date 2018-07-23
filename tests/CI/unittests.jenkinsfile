@@ -136,7 +136,7 @@ pipeline {
 
 							sh 'sudo ./tests/CI/installAsterisk.sh --user-group=jenkins:users'
 
-							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
+							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${testcmd}'"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 								artifacts: "${outputdir}/**"

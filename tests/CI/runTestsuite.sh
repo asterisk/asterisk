@@ -13,8 +13,8 @@ if [ $REALTIME -eq 1 ] ; then
 fi
 
 export PYTHONPATH=./lib/python/
-echo "Running tests ${TEST_COMMAND}"
-./runtests.py --cleanup ${TEST_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
+echo "Running tests ${TESTSUITE_COMMAND}"
+./runtests.py --cleanup ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
 if [ $REALTIME -eq 1 ] ; then
 	$CIDIR/teardownRealtime.sh
