@@ -14,7 +14,7 @@ pipeline {
 	triggers {
 		cron 'H H(0-4) * * *'
 	}
-	
+
 	agent {
 		/* All of the stages need to be performed on a docker host */
 		label "swdev-docker"
@@ -26,7 +26,7 @@ pipeline {
 				/* Here's where we switch to scripted pipeline */
 				script {
 					stage ("Checkout") {
-						sh "sudo chown -R jenkins:users ."  
+						sh "sudo chown -R jenkins:users ."
 						sh "printenv | sort"
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
@@ -43,14 +43,35 @@ pipeline {
 					def img = docker.image(randomImage)
 					img.pull()
 
-					stage ("Build") {
-						img.inside(dockerOptions + " --name ${bt}-build") {
+					img.inside(dockerOptions + " --name ${bt}-build") {
+						stage ("Build") {
 							echo 'Building..'
 							env.CCACHE_DIR = "/srv/cache/ccache"
 							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
+						}
+						stage ("Docs") {
+
+							sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
+
+							def docUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/publish-docs")
+							checkout scm: [$class: 'GitSCM',
+								branches: [[name: "master"]],
+									extensions: [
+										[$class: 'RelativeTargetDirectory', relativeTargetDir: "tests/CI/output/publish-docs"],
+										[$class: 'CloneOption',
+											noTags: true,
+											depth: 10,
+											honorRefspec: true,
+											shallow: true
+										],
+									],
+									userRemoteConfigs: [[url: docUrl]]
+								]
+
+							sh "./tests/CI/publishAsteriskDocs.sh --branch-name=${BRANCH_NAME} --wiki-doc-branch-regex=\"${WIKI_DOC_BRANCH_REGEX}\""
 						}
 					}
 
@@ -78,7 +99,7 @@ pipeline {
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
-									
+
 									checkout scm: [$class: 'GitSCM',
 										branches: [[name: "${BRANCH_NAME}"]],
 											extensions: [
