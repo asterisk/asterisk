@@ -114,7 +114,7 @@ pipeline {
 											userRemoteConfigs: [[url: testsuiteUrl]]
 										]
 
-									sh "sudo tests/CI/runTestsuite.sh ${groupRunTestsuiteOptions} --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
+									sh "sudo tests/CI/runTestsuite.sh ${groupRunTestsuiteOptions} --testsuite-dir='${groupDir}' --testsuite-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
