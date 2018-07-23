@@ -14,7 +14,8 @@ END
 if ${GREP} "AST_DEVMODE" makeopts | ${GREP} -q "yes"
 then
 	echo "#define AST_DEVMODE 1"
-	BUILDOPTS="AST_DEVMODE"
+	# AST_DEVMODE is no longer an API/ABI affecting option so it no longer
+	# gets added to BUILDOPTS.
 fi
 
 TMP=`${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
