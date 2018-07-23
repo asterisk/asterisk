@@ -60,7 +60,7 @@ for n in `seq 1 5` ; do
 	$ASTERISK -rx "core waitfullybooted" -C $CONFFILE && break
 done
 sleep 1
-$ASTERISK -rx "${TEST_COMMAND:-test execute all}" -C $CONFFILE
+$ASTERISK -rx "${UNITTEST_COMMAND:-test execute all}" -C $CONFFILE
 $ASTERISK -rx "test show results failed" -C $CONFFILE
 $ASTERISK -rx "test generate results xml $OUTPUTFILE" -C $CONFFILE
 $ASTERISK -rx "core stop now" -C $CONFFILE
