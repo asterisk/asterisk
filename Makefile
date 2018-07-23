@@ -767,7 +767,7 @@ upgrade: bininstall
 #  (1) the configuration directory to install from
 #  (2) the extension to strip off
 define INSTALL_CONFIGS
-	@for x in configs/$(1)/*$(2); do \
+	@for x in $(1)/*$(2); do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x $(2)`"; \
 		if [ -f "$${dst}" ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
@@ -803,6 +803,14 @@ define INSTALL_CONFIGS
 	fi
 endef
 
+install-configs:
+	@if test -z "$(CONFIG_SRC)" -o ! -d "$(CONFIG_SRC)"; then \
+		>&2 echo "CONFIG_SRC must be set to a directory."; \
+		exit 1; \
+	fi
+	@echo "Installing config files from $(CONFIG_SRC)/*$(CONFIG_EXTEN)"
+	$(call INSTALL_CONFIGS,$(CONFIG_SRC),$(CONFIG_EXTEN))
+
 # XXX why *.adsi is installed first ?
 adsi:
 	@echo Installing adsi config files...
@@ -819,7 +827,7 @@ adsi:
 
 samples: adsi
 	@echo Installing other config files...
-	$(call INSTALL_CONFIGS,samples,.sample)
+	$(call INSTALL_CONFIGS,configs/samples,.sample)
 	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX"
 	build_tools/make_sample_voicemail "$(DESTDIR)/$(ASTDATADIR)" "$(DESTDIR)/$(ASTSPOOLDIR)"
 	@for x in phoneprov/*; do \
@@ -842,7 +850,7 @@ samples: adsi
 
 basic-pbx:
 	@echo Installing basic-pbx config files...
-	$(call INSTALL_CONFIGS,basic-pbx)
+	$(call INSTALL_CONFIGS,configs/basic-pbx)
 
 webvmail:
 	@[ -d "$(DESTDIR)$(HTTP_DOCSDIR)/" ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
@@ -1112,6 +1120,7 @@ check-alembic: makeopts
 	@find contrib/ast-db-manage/ -name '*.pyc' -delete
 	@ALEMBIC=$(ALEMBIC) build_tools/make_check_alembic config cdr voicemail >&2
 
+.PHONY: install-configs
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds
