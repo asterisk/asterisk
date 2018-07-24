@@ -1,4 +1,4 @@
-.PHONY: _all all _install install clean distclean configure
+.PHONY: all install clean distclean configure
 
 .NOTPARALLEL:
 
@@ -39,10 +39,9 @@ ifeq ($(SPECIAL_TARGETS),)
             $(warning ASTTOPDIR/menuselect hasn't been run yet.  Can't find debug options.)
         endif
 
-        all: _all
-        install: _install
+        all: dest/include/jansson.h
     else
-        all install:
+        all:
     endif
 endif
 
@@ -53,7 +52,7 @@ include Makefile.rules
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[jansson] '
 SHELL_ECHO_PREFIX := echo '[jansson] '
 
-_all: source/config.status
+dest/include/jansson.h: source/config.status
 	$(ECHO_PREFIX) Building bundled jansson.
 	$(CMD_PREFIX) (cd source; make)
 	$(CMD_PREFIX) (cd source; make install)
@@ -86,8 +85,7 @@ source/config.status: source/.unpacked Makefile.rules .rebuild_needed
 
 configure: source/config.status
 
-_install: _all
-
+install:
 uninstall:
 
 clean:
