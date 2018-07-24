@@ -4,9 +4,10 @@
 # For future reference when upgrading bundled PJPROJECT the next time
 # PJPROJECT is released.
 # Teluu's download URL.
-# PJPROJECT_URL ?= http://www.pjsip.org/release/$(PJPROJECT_VERSION)
+# PACKAGE_URL ?= http://www.pjsip.org/release/$(PJPROJECT_VERSION)
 
-PJPROJECT_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/pjproject/$(PJPROJECT_VERSION)
+PACKAGE_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/pjproject/$(PJPROJECT_VERSION)
+TARBALL_FILE = pjproject-$(PJPROJECT_VERSION).tar.bz2
 
 # PJPROJECT_CONFIGURE_OPTS could come from the command line or could be
 # set/modified by configure.m4 if the build or host tuples aren't the same

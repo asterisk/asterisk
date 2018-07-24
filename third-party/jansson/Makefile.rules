@@ -1,0 +1,16 @@
+# We switched download locations so Asterisk users don't bombard the Digip
+# site with download requests.
+#
+# For future reference when upgrading bundled JANSSON the next time
+# JANSSON is released.
+# Digip's download URL.
+# PACKAGE_URL ?= http://www.digip.org/jansson/releases/
+
+PACKAGE_URL ?= https://raw.githubusercontent.com/asterisk/third-party/master/jansson/$(JANSSON_VERSION)
+TARBALL_FILE = jansson-$(JANSSON_VERSION).tar.bz2
+
+# JANSSON_CONFIGURE_OPTS could come from the command line or could be
+# set/modified by configure.m4 if the build or host tuples aren't the same
+# as the current build environment (cross-compile).
+
+JANSSON_CONFIG_OPTS = $(JANSSON_CONFIGURE_OPTS)
