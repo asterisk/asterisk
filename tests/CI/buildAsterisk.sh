@@ -58,9 +58,11 @@ runner ccache -s
 runner ulimit -a
 
 MAKE=`which make`
+PKGCONFIG=`which pkg-config`
 [ -d /usr/lib64 ] && _libdir=/usr/lib64
 
 common_config_args="--prefix=/usr ${_libdir:+--libdir=${_libdir}} --sysconfdir=/etc --with-pjproject-bundled"
+$PKGCONFIG 'jansson >= 2.11' || common_config_args+=" --with-jansson-bundled"
 common_config_args+=" ${CACHE_DIR:+--with-sounds-cache=${CACHE_DIR}/sounds --with-externals-cache=${CACHE_DIR}/externals}"
 common_config_args+=" --enable-dev-mode"
 export WGET_EXTRA_ARGS="--quiet"
