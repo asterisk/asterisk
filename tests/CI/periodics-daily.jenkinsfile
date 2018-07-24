@@ -71,7 +71,7 @@ pipeline {
 									userRemoteConfigs: [[url: docUrl]]
 								]
 
-							sh "./tests/CI/publishAsteriskDocs.sh --branch-name=${BRANCH_NAME} --wiki-doc-branch-regex=\"${WIKI_DOC_BRANCH_REGEX}\""
+							sh "./tests/CI/publishAsteriskDocs.sh --user-group=jenkins:users --branch-name=${BRANCH_NAME} --wiki-doc-branch-regex=\"${WIKI_DOC_BRANCH_REGEX}\""
 						}
 					}
 
