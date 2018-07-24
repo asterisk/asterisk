@@ -35,7 +35,7 @@ pipeline {
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
-					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
+					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
 						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint=''"
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
