@@ -124,7 +124,7 @@ pipeline {
 						stage ('Build') {
 							echo 'Building..'
 
-							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
@@ -134,7 +134,7 @@ pipeline {
 							def outputfile = "${outputdir}/unittests-results.xml"
 							def testcmd = "test execute all"
 
-							sh 'sudo ./tests/CI/installAsterisk.sh --user-group=jenkins:users'
+							sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
 
 							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${testcmd}'"
 

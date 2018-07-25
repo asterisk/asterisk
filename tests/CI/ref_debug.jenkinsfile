@@ -47,7 +47,7 @@ pipeline {
 						img.inside(dockerOptions + " --name ${bt}-build") {
 							echo 'Building..'
 							env.CCACHE_DIR = "/srv/cache/ccache"
-							sh "./tests/CI/buildAsterisk.sh --ref-debug --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --ref-debug --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
@@ -73,7 +73,7 @@ pipeline {
 								img.inside("${dockerOptions} --name ${bt}-${groupName}") {
 
 									lock("${JOB_NAME}.${NODE_NAME}.installer") {
-										sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
+										sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME}  --user-group=jenkins:users"
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
