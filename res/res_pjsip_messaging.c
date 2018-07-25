@@ -656,7 +656,7 @@ static int msg_send(void *data)
 	}
 
 	if (ast_sip_create_request("MESSAGE", NULL, endpoint, uri, NULL, &tdata)) {
-		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not create request\n");
+		ast_log(LOG_WARNING, "PJSIP MESSAGE - Could not create request\n");
 		return -1;
 	}
 
