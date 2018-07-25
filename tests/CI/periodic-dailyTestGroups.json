@@ -32,7 +32,7 @@
 	{
 		"name": "real",
 		"dir": "tests/CI/output/realtime",
-		"runTestsuiteOptions": "--realtime",
+		"runTestsuiteOptions": "--realtime --initialize-db --cleanup-db",
 		"testcmd": " -t tests/channels/pjsip -G realtime-incompatible"
 	}
 ]
