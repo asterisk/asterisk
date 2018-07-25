@@ -47,14 +47,14 @@ pipeline {
 						stage ("Build") {
 							echo 'Building..'
 							env.CCACHE_DIR = "/srv/cache/ccache"
-							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
 						}
 						stage ("Docs") {
 
-							sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
+							sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME}  --user-group=jenkins:users"
 
 							def docUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/publish-docs")
 							checkout scm: [$class: 'GitSCM',
