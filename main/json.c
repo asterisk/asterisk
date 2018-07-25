@@ -1046,6 +1046,7 @@ struct ast_json *ast_json_party_id(struct ast_party_id *party)
 enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
 {
 	struct ast_json_iter *it_json_var;
+	struct ast_variable *tail = NULL;
 
 	*variables = NULL;
 
@@ -1082,7 +1083,7 @@ enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_v
 			return AST_JSON_TO_AST_VARS_CODE_OOM;
 		}
 
-		ast_variable_list_append(variables, new_var);
+		tail = ast_variable_list_append_hint(variables, tail, new_var);
 	}
 
 	return AST_JSON_TO_AST_VARS_CODE_SUCCESS;
