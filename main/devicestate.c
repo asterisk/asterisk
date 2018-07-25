@@ -739,7 +739,7 @@ int ast_publish_device_state_full(
 {
 	RAII_VAR(struct ast_device_state_message *, device_state, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	struct stasis_topic *device_specific_topic;
+	struct stasis_topic *topic;
 
 	ast_assert(!ast_strlen_zero(device));
 
@@ -758,12 +758,28 @@ int ast_publish_device_state_full(
 		return -1;
 	}
 
-	device_specific_topic = ast_device_state_topic(device);
-	if (!device_specific_topic) {
+	/* When a device state is to be cached it is likely that something
+	 * external will either be monitoring it or will want to pull the
+	 * information from the cache, so we always publish to the device
+	 * specific topic. Cachable updates traditionally come from such things
+	 * as a SIP or PJSIP device.
+	 * When a device state is not to be cached we only publish to its
+	 * specific topic if something has already created the topic. Publishing
+	 * to its topic otherwise would create the topic, which may not be
+	 * necessary as it could be an ephemeral device. Uncachable updates
+	 * traditionally come from such things as Local channels.
+	 */
+	if (cachable || stasis_topic_pool_topic_exists(device_state_topic_pool, device)) {
+		topic = ast_device_state_topic(device);
+	} else {
+		topic = ast_device_state_topic_all();
+	}
+
+	if (!topic) {
 		return -1;
 	}
 
-	stasis_publish(device_specific_topic, message);
+	stasis_publish(topic, message);
 	return 0;
 }
 
