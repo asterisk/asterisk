@@ -54,8 +54,8 @@ SHELL_ECHO_PREFIX := echo '[jansson] '
 
 dest/include/jansson.h: source/config.status
 	$(ECHO_PREFIX) Building bundled jansson.
-	$(CMD_PREFIX) (cd source; make)
-	$(CMD_PREFIX) (cd source; make install)
+	$(CMD_PREFIX) (cd source; make $(REALLY_QUIET))
+	$(CMD_PREFIX) (cd source; make install $(REALLY_QUIET))
 
 .DELETE_ON_ERROR:
 
