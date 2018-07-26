@@ -24,6 +24,8 @@ pipeline {
 		stage ("->") {
 			steps {
 				/* Here's where we switch to scripted pipeline */
+				manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 				script {
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
@@ -40,6 +42,8 @@ pipeline {
 						" --entrypoint=''"
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
 					def outputdir = "tests/CI/output/Testsuite"
+
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Image: ${randomImage}", false)
 					def img = docker.image(randomImage)
 					img.pull()
 
