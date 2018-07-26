@@ -63,6 +63,9 @@ pipeline {
 			}
 			steps {
 				script {
+					manager.build.displayName = "${env.GERRIT_CHANGE_NUMBER}"
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."
 						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
@@ -117,6 +120,7 @@ pipeline {
 						" --entrypoint='' --name ${bt}-build"
 					def outputdir = "tests/CI/output/UnitTests"
 
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Image: ${randomImage}", false)
 					def img = docker.image(randomImage)
 					img.pull()
 					img.inside(dockerOptions) {
