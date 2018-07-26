@@ -61,10 +61,10 @@ pipeline {
 			}
 			steps {
 				/* Here's where we switch to scripted pipeline */
-				manager.build.displayName = "${env.GERRIT_CHANGE_NUMBER}"
-				manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
-
 				script {
+					manager.build.displayName = "${env.GERRIT_CHANGE_NUMBER}"
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
 						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
