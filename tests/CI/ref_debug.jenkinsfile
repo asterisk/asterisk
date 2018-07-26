@@ -24,9 +24,9 @@ pipeline {
 		stage ("->") {
 			steps {
 				/* Here's where we switch to scripted pipeline */
-				manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
-
 				script {
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
 						sh "printenv | sort"
