@@ -153,7 +153,7 @@ pipeline {
 								img.inside("${dockerOptions} --name ${bt}-${groupName}") {
 
 									lock("${JOB_NAME}.${NODE_NAME}.installer") {
-										sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
+										sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
