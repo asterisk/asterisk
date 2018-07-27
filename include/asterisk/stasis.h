@@ -744,6 +744,16 @@ struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_t
  */
 struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name);
 
+/*!
+ * \brief Check if a topic exists in a pool
+ * \param pool Pool to check
+ * \param topic_name Name of the topic to check
+ * \retval 1 exists
+ * \retval 0 does not exist
+ * \since 13.23.0
+ */
+int stasis_topic_pool_topic_exists(const struct stasis_topic_pool *pool, const char *topic_name);
+
 /*! \addtogroup StasisTopicsAndMessages
  * @{
  */
