@@ -569,6 +569,18 @@ void ast_module_register(const struct ast_module_info *info)
 	*((struct ast_module **) &(info->self)) = mod;
 }
 
+static int module_post_register(struct ast_module *mod)
+{
+	int res;
+
+	/* Split lists from mod->info. */
+	res  = ast_vector_string_split(&mod->requires, mod->info->requires, ",", 0, strcasecmp);
+	res |= ast_vector_string_split(&mod->optional_modules, mod->info->optional_modules, ",", 0, strcasecmp);
+	res |= ast_vector_string_split(&mod->enhances, mod->info->enhances, ",", 0, strcasecmp);
+
+	return res;
+}
+
 static void module_destroy(struct ast_module *mod)
 {
 	AST_VECTOR_CALLBACK_VOID(&mod->requires, ast_free);
@@ -1526,11 +1538,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 		}
 
-		/* Split lists from mod->info. */
-		res  = ast_vector_string_split(&mod->requires, mod->info->requires, ",", 0, strcasecmp);
-		res |= ast_vector_string_split(&mod->optional_modules, mod->info->optional_modules, ",", 0, strcasecmp);
-		res |= ast_vector_string_split(&mod->enhances, mod->info->enhances, ",", 0, strcasecmp);
-		if (res) {
+		if (module_post_register(mod)) {
 			goto prestart_error;
 		}
 	}
@@ -1844,6 +1852,11 @@ static int loader_builtin_init(struct load_order *load_order)
 	AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
 		if (!mod->flags.builtin) {
 			continue;
+		}
+
+		/* Parse dependendencies from mod->info. */
+		if (module_post_register(mod)) {
+			return -1;
 		}
 
 		/* Built-in modules are not preloaded, most have an early load priority. */
