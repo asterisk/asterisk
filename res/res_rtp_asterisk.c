@@ -6101,9 +6101,29 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 static int rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct rtp_red *red = rtp->red;
 
-	if (frame->datalen > -1) {
-		struct rtp_red *red = rtp->red;
+	if (!red) {
+		return 0;
+	}
+
+	if (frame->datalen > 0) {
+		if (red->t140.datalen > 0) {
+			const unsigned char *primary = red->buf_data;
+
+			/* There is something already in the T.140 buffer */
+			if (primary[0] == 0x08 || primary[0] == 0x0a || primary[0] == 0x0d) {
+				/* Flush the previous T.140 packet if it is a command */
+				ast_rtp_write(instance, &rtp->red->t140);
+			} else {
+				primary = frame->data.ptr;
+				if (primary[0] == 0x08 || primary[0] == 0x0a || primary[0] == 0x0d) {
+					/* Flush the previous T.140 packet if we are buffering a command now */
+					ast_rtp_write(instance, &rtp->red->t140);
+				}
+			}
+		}
+
 		memcpy(&red->buf_data[red->t140.datalen], frame->data.ptr, frame->datalen);
 		red->t140.datalen += frame->datalen;
 		red->t140.ts = frame->ts;
