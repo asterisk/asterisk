@@ -138,7 +138,7 @@ pipeline {
 							def outputfile = "${outputdir}/unittests-results.xml"
 							def testcmd = "test execute all"
 
-							sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
+							sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
 
 							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${testcmd}'"
 
