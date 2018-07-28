@@ -634,6 +634,7 @@ PKG_CONFIG_PATH
 PKG_CONFIG
 CONFIG_LIBXML2
 SED
+HAVE_NCURSES_SUBDIR
 PBX_LIBXML2
 LIBXML2_DIR
 LIBXML2_INCLUDE
@@ -4012,6 +4013,201 @@ fi
 
 
 
+if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
+   pbxlibdir=""
+   # if --with-NCURSES=DIR has been specified, use it.
+   if test "x${NCURSES_DIR}" != "x"; then
+      if test -d ${NCURSES_DIR}/lib; then
+         pbxlibdir="-L${NCURSES_DIR}/lib"
+      else
+         pbxlibdir="-L${NCURSES_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
+$as_echo_n "checking for initscr in -lncurses... " >&6; }
+if ${ac_cv_lib_ncurses_initscr+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lncurses ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char initscr ();
+int
+main ()
+{
+return initscr ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ncurses_initscr=yes
+else
+  ac_cv_lib_ncurses_initscr=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ncurses_initscr" >&5
+$as_echo "$ac_cv_lib_ncurses_initscr" >&6; }
+if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
+  AST_NCURSES_FOUND=yes
+else
+  AST_NCURSES_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_NCURSES_FOUND}" = "yes"; then
+      NCURSES_LIB="${pbxlibdir} -lncurses "
+      # if --with-NCURSES=DIR has been specified, use it.
+      if test "x${NCURSES_DIR}" != "x"; then
+         NCURSES_INCLUDE="-I${NCURSES_DIR}/include"
+      fi
+      NCURSES_INCLUDE="${NCURSES_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${NCURSES_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
+if test "x$ac_cv_header_ncurses_h" = xyes; then :
+  NCURSES_HEADER_FOUND=1
+else
+  NCURSES_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${NCURSES_HEADER_FOUND}" = "x0" ; then
+         NCURSES_LIB=""
+         NCURSES_INCLUDE=""
+      else
+
+         PBX_NCURSES=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_NCURSES 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+if test "${PBX_NCURSES}" != 1; then
+  # some platforms have the header in a sub-directory, for example Solaris
+
+if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
+   pbxlibdir=""
+   # if --with-NCURSES=DIR has been specified, use it.
+   if test "x${NCURSES_DIR}" != "x"; then
+      if test -d ${NCURSES_DIR}/lib; then
+         pbxlibdir="-L${NCURSES_DIR}/lib"
+      else
+         pbxlibdir="-L${NCURSES_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
+$as_echo_n "checking for initscr in -lncurses... " >&6; }
+if ${ac_cv_lib_ncurses_initscr+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lncurses ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char initscr ();
+int
+main ()
+{
+return initscr ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ncurses_initscr=yes
+else
+  ac_cv_lib_ncurses_initscr=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ncurses_initscr" >&5
+$as_echo "$ac_cv_lib_ncurses_initscr" >&6; }
+if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
+  AST_NCURSES_FOUND=yes
+else
+  AST_NCURSES_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_NCURSES_FOUND}" = "yes"; then
+      NCURSES_LIB="${pbxlibdir} -lncurses "
+      # if --with-NCURSES=DIR has been specified, use it.
+      if test "x${NCURSES_DIR}" != "x"; then
+         NCURSES_INCLUDE="-I${NCURSES_DIR}/include"
+      fi
+      NCURSES_INCLUDE="${NCURSES_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${NCURSES_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "ncurses/ncurses.h" "ac_cv_header_ncurses_ncurses_h" "$ac_includes_default"
+if test "x$ac_cv_header_ncurses_ncurses_h" = xyes; then :
+  NCURSES_HEADER_FOUND=1
+else
+  NCURSES_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${NCURSES_HEADER_FOUND}" = "x0" ; then
+         NCURSES_LIB=""
+         NCURSES_INCLUDE=""
+      else
+
+         PBX_NCURSES=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_NCURSES 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+  if test "${PBX_NCURSES}" != 1; then
+
 if test "x${PBX_CURSES}" != "x1" -a "${USE_CURSES}" != "no"; then
    pbxlibdir=""
    # if --with-CURSES=DIR has been specified, use it.
@@ -4107,101 +4303,10 @@ _ACEOF
 fi
 
 
-
-if test "x${PBX_NCURSES}" != "x1" -a "${USE_NCURSES}" != "no"; then
-   pbxlibdir=""
-   # if --with-NCURSES=DIR has been specified, use it.
-   if test "x${NCURSES_DIR}" != "x"; then
-      if test -d ${NCURSES_DIR}/lib; then
-         pbxlibdir="-L${NCURSES_DIR}/lib"
-      else
-         pbxlibdir="-L${NCURSES_DIR}"
-      fi
-   fi
-
-      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} "
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for initscr in -lncurses" >&5
-$as_echo_n "checking for initscr in -lncurses... " >&6; }
-if ${ac_cv_lib_ncurses_initscr+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lncurses ${pbxlibdir}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char initscr ();
-int
-main ()
-{
-return initscr ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ncurses_initscr=yes
-else
-  ac_cv_lib_ncurses_initscr=no
+  else
+    HAVE_NCURSES_SUBDIR=yes
+  fi
 fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ncurses_initscr" >&5
-$as_echo "$ac_cv_lib_ncurses_initscr" >&6; }
-if test "x$ac_cv_lib_ncurses_initscr" = xyes; then :
-  AST_NCURSES_FOUND=yes
-else
-  AST_NCURSES_FOUND=no
-fi
-
-      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
-
-
-   # now check for the header.
-   if test "${AST_NCURSES_FOUND}" = "yes"; then
-      NCURSES_LIB="${pbxlibdir} -lncurses "
-      # if --with-NCURSES=DIR has been specified, use it.
-      if test "x${NCURSES_DIR}" != "x"; then
-         NCURSES_INCLUDE="-I${NCURSES_DIR}/include"
-      fi
-      NCURSES_INCLUDE="${NCURSES_INCLUDE} "
-
-         # check for the header
-         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
-         CPPFLAGS="${CPPFLAGS} ${NCURSES_INCLUDE}"
-         ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
-if test "x$ac_cv_header_curses_h" = xyes; then :
-  NCURSES_HEADER_FOUND=1
-else
-  NCURSES_HEADER_FOUND=0
-fi
-
-
-         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
-
-      if test "x${NCURSES_HEADER_FOUND}" = "x0" ; then
-         NCURSES_LIB=""
-         NCURSES_INCLUDE=""
-      else
-
-         PBX_NCURSES=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_NCURSES 1
-_ACEOF
-
-      fi
-   fi
-fi
-
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a sed that does not truncate output" >&5
 $as_echo_n "checking for a sed that does not truncate output... " >&6; }
