@@ -327,7 +327,7 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 					resolve->addresses.entry[address_count].addr_len = sizeof(pj_sockaddr_in);
 					pj_sockaddr_init(pj_AF_INET(), &resolve->addresses.entry[address_count].addr, NULL,
 						target->port);
-					resolve->addresses.entry[address_count].addr.ipv4.sin_addr = *(struct pj_in_addr*)ast_dns_record_get_data(record);
+					resolve->addresses.entry[address_count].addr.ipv4.sin_addr = *(pj_in_addr *) ast_dns_record_get_data(record);
 				} else {
 					ast_debug(2, "[%p] AAAA record received on target '%s'\n", resolve, ast_dns_query_get_name(query));
 					resolve->addresses.entry[address_count].addr_len = sizeof(pj_sockaddr_in6);
