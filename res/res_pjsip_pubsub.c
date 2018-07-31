@@ -5589,7 +5589,7 @@ static int load_module(void)
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "contact_uri", "", OPT_CHAR_ARRAY_T, 0,
 		CHARFLDSET(struct subscription_persistence, contact_uri));
-	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "prune_on_boot", "no", OPT_YESNO_T, 0,
+	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "prune_on_boot", "no", OPT_YESNO_T, 1,
 		FLDSET(struct subscription_persistence, prune_on_boot));
 
 	if (apply_list_configuration(sorcery)) {
