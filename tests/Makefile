@@ -19,5 +19,6 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+test_astobj2.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)
 test_strings.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION) $(AST_NO_STRINGOP_TRUNCATION)
 test_voicemail_api.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)

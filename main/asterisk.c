@@ -3964,9 +3964,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	 * an Asterisk instance, and that there isn't one already running. */
 	multi_thread_safe = 1;
 
-#if defined(__AST_DEBUG_MALLOC)
-	__ast_mm_init_phase_1();
-#endif	/* defined(__AST_DEBUG_MALLOC) */
+	load_astmm_phase_1();
 
 	/* Check whether high prio was succesfully set by us or some
 	 * other incantation. */
@@ -4171,9 +4169,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
-#if defined(__AST_DEBUG_MALLOC)
-	__ast_mm_init_phase_2();
-#endif	/* defined(__AST_DEBUG_MALLOC) */
+	load_astmm_phase_2();
 
 	ast_cli_register_multiple(cli_asterisk_shutdown, ARRAY_LEN(cli_asterisk_shutdown));
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));

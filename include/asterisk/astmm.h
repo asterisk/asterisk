@@ -31,13 +31,6 @@ extern "C" {
 #define _ASTERISK_ASTMM_H
 /* IWYU pragma: private, include "asterisk.h" */
 
-#if defined(MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2)
-#define __AST_DEBUG_MALLOC
-
-void __ast_mm_init_phase_1(void);
-void __ast_mm_init_phase_2(void);
-#endif
-
 void *ast_std_malloc(size_t size) attribute_malloc;
 void *ast_std_calloc(size_t nmemb, size_t size) attribute_malloc;
 void *ast_std_realloc(void *ptr, size_t size);

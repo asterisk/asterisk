@@ -29,6 +29,7 @@ $(call MOD_ADD_C,chan_pjsip,$(wildcard pjsip/*.c))
 $(call MOD_ADD_C,chan_dahdi,$(wildcard dahdi/*.c) sig_analog.c sig_pri.c sig_ss7.c)
 $(call MOD_ADD_C,chan_misdn,misdn_config.c misdn/isdn_lib.c misdn/isdn_msg_parser.c)
 
+chan_dahdi.o: _ASTCFLAGS+=$(call get_menuselect_cflags,LOTS_OF_SPANS)
 chan_mgcp.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_unistim.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 chan_phone.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)

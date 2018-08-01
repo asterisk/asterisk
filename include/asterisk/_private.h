@@ -58,6 +58,22 @@ int aco_init(void);             /*!< Provided by config_options.c */
 int dns_core_init(void);        /*!< Provided by dns_core.c */
 
 /*!
+ * \brief Initialize malloc debug phase 1.
+ *
+ * \note Must be called first thing after forking.
+ *
+ * \return Nothing
+ */
+void load_astmm_phase_1(void);
+
+/*!
+ * \brief Initialize malloc debug phase 2.
+ *
+ * \return Nothing
+ */
+void load_astmm_phase_2(void);
+
+/*!
  * \brief Initialize the bridging system.
  * \since 12.0.0
  *
