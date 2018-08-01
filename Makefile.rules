@@ -20,6 +20,9 @@
 # Helpful functions
 # call with $(call function,...)
 tolower = $(shell echo $(1) | tr '[:upper:]' '[:lower:]')
+# Takes a list of MENUSELECT_CFLAG Id and returns CFLAGS to declare
+# the ones which are enabled.
+get_menuselect_cflags=$(patsubst %,-D%,$(filter $1,$(MENUSELECT_CFLAGS)))
 
 .PHONY: dist-clean
 
