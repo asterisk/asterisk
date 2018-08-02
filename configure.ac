@@ -628,6 +628,8 @@ AC_CHECK_HEADERS([ \
 
 AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
 
+PKG_PROG_PKG_CONFIG()
+
 # Find required NetBSD Editline library (libedit).
 EDITLINE_LIB=""
 LIBEDIT_INTERNAL="yes"
@@ -670,7 +672,7 @@ if test "${LIBEDIT_INTERNAL}" = "yes"; then
          if test "x$CURSES_LIB" != "x" ; then
             EDITLINE_LIB="$CURSES_LIB"
          else
-            AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+            AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [ncurses.h])
             if test "x$NCURSES_LIB" != "x" ; then
                EDITLINE_LIB="$NCURSES_LIB"
             else
@@ -710,6 +712,7 @@ AC_SUBST(UUID_LIB)
 
 # Find required JSON support if bundled is not enabled.
 if test "$JANSSON_BUNDLED" = "no" ; then
+	AST_PKG_CONFIG_CHECK([JANSSON], [jansson])
 	AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
 
 	if test "${PBX_JANSSON}" != 1; then
@@ -1526,9 +1529,6 @@ if test "${PBX_DLADDR}" = "0"; then
 		AC_MSG_RESULT(no)
 	)
 fi
-
-# PKGCONFIG is used in later tests
-PKG_PROG_PKG_CONFIG()
 
 
 # do the package library checks now
