@@ -625,6 +625,8 @@ AC_CHECK_HEADERS([ \
 
 AC_CHECK_HEADERS([arpa/inet.h libintl.h malloc.h netdb.h stddef.h strings.h sys/event.h utime.h])
 
+PKG_PROG_PKG_CONFIG()
+
 # Find required NetBSD Editline library (libedit).
 AST_PKG_CONFIG_CHECK(LIBEDIT, libedit)
 # some platforms do not list libedit via pkg-config, for example OpenBSD 6.2
@@ -663,6 +665,7 @@ AC_SUBST(UUID_LIB)
 
 # Find required JSON support if bundled is not enabled.
 if test "$JANSSON_BUNDLED" = "no" ; then
+	AST_PKG_CONFIG_CHECK([JANSSON], [jansson >= 2.11])
 	# json_sprintf is available in 2.11+
 	AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_sprintf], [jansson.h])
 
@@ -1491,9 +1494,6 @@ if test "${PBX_DLADDR}" = "0"; then
 		AC_MSG_RESULT(no)
 	)
 fi
-
-# PKGCONFIG is used in later tests
-PKG_PROG_PKG_CONFIG()
 
 
 # do the package library checks now
