@@ -1015,7 +1015,6 @@ static int res_sdp_crypto_parse_offer(struct ast_rtp_instance *rtp, struct ast_s
 		}
 	} else if (!memcmp(crypto->remote_key, remote_key, key_len_from_sdp)) {
 		ast_debug(1, "SRTP remote key unchanged; maintaining current policy\n");
-		ast_set_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
 		return 0;
 	}
 
