@@ -383,7 +383,7 @@
 /* Define to 1 if you have the Jack Audio Connection Kit library. */
 #undef HAVE_JACK
 
-/* Define to 1 if you have the Jansson JSON library library. */
+/* Define if your system has the JANSSON libraries. */
 #undef HAVE_JANSSON
 
 /* Define to 1 if you have the `kevent64' function. */
