@@ -17,9 +17,10 @@
  */
 
 #include "asterisk.h"
+
 #undef bzero
 #define bzero bzero
-#include "pjsip.h"
+#include <pjsip.h>
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
