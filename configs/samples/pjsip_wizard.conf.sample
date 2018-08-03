@@ -12,6 +12,12 @@
 ; If you want to see more detail please check the documentation sources
 ; mentioned at the top of this file.
 
+; ============================================================================
+; NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE
+;
+; This file does not maintain the complete option documentation.
+; ============================================================================
+
 ; Documentation
 ;
 ; The official documentation is at http://wiki.asterisk.org
@@ -99,8 +105,6 @@
                  ; If an aor/contact or match/identify is explicitly supplied,
                  ; remote_hosts will not be used to automatically create contacts
                  ; or matches respectively.
-                 ; Hostnames must resolve to A, AAAA or CNAME records.
-                 ; SRV records are not currently supported.
                  ; (default: "")
 
 ;outbound_proxy= ; Setting this is a shortcut for setting
