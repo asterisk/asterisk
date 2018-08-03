@@ -41,6 +41,10 @@ ifdef NCURSES_LIB
   C_LIBS +=$(NCURSES_LIB)
   C_INCLUDE += $(NCURSES_INCLUDE)
   ALL_TGTS += cmenuselect
+  CFLAGS += -DHAVE_NCURSES
+  ifeq ($(HAVE_NCURSES_SUBDIR),yes)
+    CFLAGS += -DHAVE_NCURSES_SUBDIR
+  endif
 else
   ifdef CURSES_LIB
     C_OBJS += menuselect_curses.o
