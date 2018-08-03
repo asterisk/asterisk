@@ -143,6 +143,13 @@ res_pjsip
    when both 'SIP' and 'Q.850' Reason headers are received.  This option allows
    the 'Q.850' Reason header to be suppressed.  The default value is 'no'.
 
+res_pjsip_endpoint_identifier_ip
+------------------
+ * Added regex support to the identify section match_header option.  You
+   specify a regex instead of an explicit string by surrounding the header
+   value with slashes:
+   match_header = SIPHeader: /regex/
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.4.0 to Asterisk 15.5.0 ------------
 ------------------------------------------------------------------------------
