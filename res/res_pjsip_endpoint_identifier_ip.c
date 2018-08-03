@@ -42,7 +42,7 @@
 				<description>
 					<para>This module provides alternatives to matching inbound requests to
 					a configured endpoint. At least one of the matching mechanisms
-					must be provided, or the object configuration will be invalid.</para>
+					must be provided, or the object configuration is invalid.</para>
 					<para>The matching mechanisms are provided by the following
 					configuration options:</para>
 					<enumlist>
@@ -86,6 +86,13 @@
 						specified with a <literal>:</literal>, as in
 						<literal>match_header = SIPHeader: value</literal>.
 						</para>
+						<para>The specified SIP header value can be a regular
+						expression if the value is of the form
+						/<replaceable>regex</replaceable>/.
+						</para>
+						<note><para>Use of a regex is expensive so be sure you need
+						to use a regex to match your endpoint.
+						</para></note>
 					</description>
 				</configOption>
 				<configOption name="type">
@@ -109,13 +116,21 @@ struct ip_identify_match {
 		AST_STRING_FIELD(endpoint_name);
 		/*! If matching by header, the header/value to match against */
 		AST_STRING_FIELD(match_header);
+		/*! SIP header name of the match_header string */
+		AST_STRING_FIELD(match_header_name);
+		/*! SIP header value of the match_header string */
+		AST_STRING_FIELD(match_header_value);
 	);
+	/*! Compiled match_header regular expression when is_regex is non-zero */
+	regex_t regex_buf;
 	/*! \brief Networks or addresses that should match this */
 	struct ast_ha *matches;
-	/*! \brief Perform SRV resolution of hostnames */
-	unsigned int srv_lookups;
 	/*! \brief Hosts to be resolved when applying configuration */
 	struct ao2_container *hosts;
+	/*! \brief Perform SRV resolution of hostnames */
+	unsigned int srv_lookups;
+	/*! Non-zero if match_header has a regular expression (i.e., regex_buf is valid) */
+	unsigned int is_regex:1;
 };
 
 /*! \brief Destructor function for a matching object */
@@ -126,6 +141,9 @@ static void ip_identify_destroy(void *obj)
 	ast_string_field_free_memory(identify);
 	ast_free_ha(identify->matches);
 	ao2_cleanup(identify->hosts);
+	if (identify->is_regex) {
+		regfree(&identify->regex_buf);
+	}
 }
 
 /*! \brief Allocator function for a matching object */
@@ -146,47 +164,66 @@ static int header_identify_match_check(void *obj, void *arg, int flags)
 {
 	struct ip_identify_match *identify = obj;
 	struct pjsip_rx_data *rdata = arg;
-	pjsip_generic_string_hdr *header;
+	pjsip_hdr *header;
 	pj_str_t pj_header_name;
-	pj_str_t pj_header_value;
-	char *c_header;
-	char *c_value;
+	int header_present;
 
 	if (ast_strlen_zero(identify->match_header)) {
 		return 0;
 	}
 
-	c_header = ast_strdupa(identify->match_header);
-	c_value = strchr(c_header, ':');
-	if (!c_value) {
-		/* This should not be possible.  The object cannot be created if so. */
-		ast_assert(0);
-		return 0;
-	}
-	*c_value = '\0';
-	c_value++;
-	c_value = ast_strip(c_value);
+	pj_header_name = pj_str((void *) identify->match_header_name);
 
-	pj_header_name = pj_str(c_header);
-	header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &pj_header_name, NULL);
-	if (!header) {
-		ast_debug(3, "Identify '%s': SIP message does not have header '%s'\n",
+	/* Check all headers of the given name for a match. */
+	header_present = 0;
+	for (header = NULL;
+		(header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &pj_header_name, header));
+		header = header->next) {
+		char *pos;
+		int len;
+		char buf[PATH_MAX];
+
+		header_present = 1;
+
+		/* Print header line to buf */
+		len = pjsip_hdr_print_on(header, buf, sizeof(buf) - 1);
+		if (len < 0) {
+			/* Buffer not large enough or no header vptr! */
+			ast_assert(0);
+			continue;
+		}
+		buf[len] = '\0';
+
+		/* Remove header name from pj_buf and trim blanks. */
+		pos = strchr(buf, ':');
+		if (!pos) {
+			/* No header name?  Bug in PJPROJECT if so. */
+			ast_assert(0);
+			continue;
+		}
+		pos = ast_strip(pos + 1);
+
+		/* Does header value match what we are looking for? */
+		if (identify->is_regex) {
+			if (!regexec(&identify->regex_buf, pos, 0, NULL, 0)) {
+				return CMP_MATCH;
+			}
+		} else if (!strcmp(identify->match_header_value, pos)) {
+			return CMP_MATCH;
+		}
+
+		ast_debug(3, "Identify '%s': SIP message has '%s' header but value '%s' does not match '%s'.\n",
 			ast_sorcery_object_get_id(identify),
-			c_header);
-		return 0;
+			identify->match_header_name,
+			pos,
+			identify->match_header_value);
 	}
-
-	pj_header_value = pj_str(c_value);
-	if (pj_strcmp(&pj_header_value, &header->hvalue)) {
-		ast_debug(3, "Identify '%s': SIP message has header '%s' but value '%.*s' does not match '%s'\n",
+	if (!header_present) {
+		ast_debug(3, "Identify '%s': SIP message does not have '%s' header.\n",
 			ast_sorcery_object_get_id(identify),
-			c_header,
-			(int) pj_strlen(&header->hvalue), pj_strbuf(&header->hvalue),
-			c_value);
-		return 0;
+			identify->match_header_name);
 	}
-
-	return CMP_MATCH;
+	return 0;
 }
 
 /*! \brief Comparator function for matching an object by IP address */
@@ -404,14 +441,57 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 			ast_sorcery_object_get_id(identify));
 		return -1;
 	}
-	if (!ast_strlen_zero(identify->match_header)
-		&& !strchr(identify->match_header, ':')) {
-		ast_log(LOG_ERROR, "Identify '%s' missing ':' separator in match_header '%s'.\n",
-			ast_sorcery_object_get_id(identify), identify->match_header);
-		return -1;
+
+	if (!ast_strlen_zero(identify->match_header)) {
+		char *c_header;
+		char *c_value;
+		int len;
+
+		/* Split the header name and value */
+		c_header = ast_strdupa(identify->match_header);
+		c_value = strchr(c_header, ':');
+		if (!c_value) {
+			ast_log(LOG_ERROR, "Identify '%s' missing ':' separator in match_header '%s'.\n",
+				ast_sorcery_object_get_id(identify), identify->match_header);
+			return -1;
+		}
+		*c_value = '\0';
+		c_value = ast_strip(c_value + 1);
+		c_header = ast_strip(c_header);
+
+		if (ast_strlen_zero(c_header)) {
+			ast_log(LOG_ERROR, "Identify '%s' has no SIP header to match in match_header '%s'.\n",
+				ast_sorcery_object_get_id(identify), identify->match_header);
+			return -1;
+		}
+
+		if (!strcmp(c_value, "//")) {
+			/* An empty regex is the same as an empty literal string. */
+			c_value = "";
+		}
+
+		if (ast_string_field_set(identify, match_header_name, c_header)
+			|| ast_string_field_set(identify, match_header_value, c_value)) {
+			return -1;
+		}
+
+		len = strlen(c_value);
+		if (2 < len && c_value[0] == '/' && c_value[len - 1] == '/') {
+			/* Make "/regex/" into "regex" */
+			c_value[len - 1] = '\0';
+			++c_value;
+
+			if (regcomp(&identify->regex_buf, c_value, REG_EXTENDED | REG_NOSUB)) {
+				ast_log(LOG_ERROR, "Identify '%s' failed to compile match_header regex '%s'.\n",
+					ast_sorcery_object_get_id(identify), c_value);
+				return -1;
+			}
+			identify->is_regex = 1;
+		}
 	}
 
 	if (!identify->hosts) {
+		/* No match addresses to resolve */
 		return 0;
 	}
 
