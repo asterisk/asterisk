@@ -176,7 +176,7 @@ static void cache_entry_dtor(void *obj)
 
 static void cache_entry_compute_hash(struct cache_entry_key *key)
 {
-	key->hash = ast_hashtab_hash_string(stasis_message_type_name(key->type));
+	key->hash = stasis_message_type_hash(key->type);
 	key->hash += ast_hashtab_hash_string(key->id);
 }
 

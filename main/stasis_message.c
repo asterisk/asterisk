@@ -34,11 +34,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/utils.h"
+#include "asterisk/hashtab.h"
 
 /*! \internal */
 struct stasis_message_type {
 	struct stasis_message_vtable *vtable;
 	char *name;
+	unsigned int hash;
 };
 
 static struct stasis_message_vtable null_vtable = {};
@@ -75,6 +77,7 @@ int stasis_message_type_create(const char *name,
 		ao2_cleanup(type);
 		return STASIS_MESSAGE_TYPE_ERROR;
 	}
+	type->hash = ast_hashtab_hash_string(name);
 	type->vtable = vtable;
 	*result = type;
 
@@ -84,6 +87,11 @@ int stasis_message_type_create(const char *name,
 const char *stasis_message_type_name(const struct stasis_message_type *type)
 {
 	return type->name;
+}
+
+unsigned int stasis_message_type_hash(const struct stasis_message_type *type)
+{
+	return type->hash;
 }
 
 /*! \internal */
