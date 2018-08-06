@@ -350,7 +350,6 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 
 	if (!memcmp(crypto->remote_key, remote_key, sizeof(crypto->remote_key))) {
 		ast_debug(1, "SRTP remote key unchanged; maintaining current policy\n");
-		ast_set_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
 		return 0;
 	}
 	memcpy(crypto->remote_key, remote_key, sizeof(crypto->remote_key));

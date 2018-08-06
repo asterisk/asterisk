@@ -530,7 +530,13 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 	} else if (!strcmp(type, "direct")) {
 		ast_copy_string(buf, ast_sockaddr_stringify(&media->direct_media_addr), buflen);
 	} else if (!strcmp(type, "secure")) {
-		snprintf(buf, buflen, "%d", media->srtp ? 1 : 0);
+		if (media->srtp) {
+			struct ast_sdp_srtp *srtp = media->srtp;
+			int flag = ast_test_flag(srtp, AST_SRTP_CRYPTO_OFFER_OK);
+			snprintf(buf, buflen, "%d", flag ? 1 : 0);
+		} else {
+			snprintf(buf, buflen, "%d", 0);
+		}
 	} else if (!strcmp(type, "hold")) {
 		snprintf(buf, buflen, "%d", media->held ? 1 : 0);
 	} else {
