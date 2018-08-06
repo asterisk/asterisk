@@ -133,7 +133,7 @@ struct ast_sip_transport_state {
 #define ast_sip_transport_is_local(transport_state, addr) \
 	(transport_state->localnet && ast_apply_ha(transport_state->localnet, addr) != AST_SENSE_ALLOW)
 
-/*
+/*!
  * \brief Transport to bind to
  */
 struct ast_sip_transport {
@@ -273,7 +273,7 @@ struct ast_sip_contact {
 	AST_STRING_FIELD_EXTENDED(reg_server);
 	/*! IP-address of the Via header in REGISTER request */
 	AST_STRING_FIELD_EXTENDED(via_addr);
-	/* Port of the Via header in REGISTER request */
+	/*! Port of the Via header in REGISTER request */
 	int via_port;
 	/*! Content of the Call-ID header in REGISTER request */
 	AST_STRING_FIELD_EXTENDED(call_id);
@@ -349,7 +349,7 @@ struct ast_sip_aor {
 	unsigned int support_path;
 	/*! Qualify timeout. 0 is diabled. */
 	double qualify_timeout;
-	/* Voicemail extension to set in Message-Account */
+	/*! Voicemail extension to set in Message-Account */
 	char *voicemail_extension;
 };
 
@@ -512,11 +512,11 @@ struct ast_sip_mwi_configuration {
 		/*! Username to use when sending MWI NOTIFYs to this endpoint */
 		AST_STRING_FIELD(fromuser);
 	);
-	/* Should mailbox states be combined into a single notification? */
+	/*! Should mailbox states be combined into a single notification? */
 	unsigned int aggregate;
-	/* Should a subscribe replace unsolicited notifies? */
+	/*! Should a subscribe replace unsolicited notifies? */
 	unsigned int subscribe_replaces_unsolicited;
-	/* Voicemail extension to set in Message-Account */
+	/*! Voicemail extension to set in Message-Account */
 	char *voicemail_extension;
 };
 
@@ -530,7 +530,7 @@ struct ast_sip_endpoint_subscription_configuration {
 	unsigned int minexpiry;
 	/*! Message waiting configuration */
 	struct ast_sip_mwi_configuration mwi;
-	/* Context for SUBSCRIBE requests */
+	/*! Context for SUBSCRIBE requests */
 	char context[AST_MAX_CONTEXT];
 };
 
