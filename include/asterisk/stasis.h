@@ -319,6 +319,14 @@ enum stasis_message_type_result stasis_message_type_create(const char *name,
 const char *stasis_message_type_name(const struct stasis_message_type *type);
 
 /*!
+ * \brief Gets the hash of a given message type
+ * \param type The type to get the hash of.
+ * \return The hash
+ * \since 13.24.0
+ */
+unsigned int stasis_message_type_hash(const struct stasis_message_type *type);
+
+/*!
  * \brief Check whether a message type is declined
  *
  * \param name The name of the message type to check
