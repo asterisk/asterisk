@@ -1,0 +1,18 @@
+--- a/aconfigure.ac	(PJSIP 2.7.2)
++++ b/aconfigure.ac	(working copy)
+@@ -1571 +1571,5 @@
+-                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++                    if test -d $with_ssl/lib; then
++                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++                    else
++                        LDFLAGS="$LDFLAGS -L$with_ssl"
++                    fi
+--- a/aconfigure	(PJSIP 2.7.2)
++++ b/aconfigure	(working copy)
+@@ -7884 +7884,5 @@
+-                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++                    if test -d $with_ssl/lib; then
++                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
++                    else
++                        LDFLAGS="$LDFLAGS -L$with_ssl"
++                    fi
