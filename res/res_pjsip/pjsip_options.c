@@ -2064,7 +2064,7 @@ struct sip_options_contact_observer_task_data {
 /*!
  * \brief Check if the contact qualify options are different than local aor qualify options
  */
-static int has_qualify_changed (struct ast_sip_contact *contact, struct sip_options_aor *aor_options)
+static int has_qualify_changed (const struct ast_sip_contact *contact, const struct sip_options_aor *aor_options)
 {
 	if (!contact) {
 	    return 0;
@@ -2185,77 +2185,27 @@ static void contact_observer_created(const void *obj)
 		sip_options_contact_add_management_task, (void *) obj);
 }
 
-/*!
- * \brief Task which updates a dynamic contact to an AOR
- * \note Run by aor_options->serializer
- */
-static int sip_options_contact_update_task(void *obj)
-{
-	struct sip_options_contact_observer_task_data *task_data = obj;
-	struct ast_sip_contact_status *contact_status;
-
-	contact_status = ast_sip_get_contact_status(task_data->contact);
-	if (contact_status) {
-		switch (contact_status->status) {
-		case CREATED:
-		case UNAVAILABLE:
-		case AVAILABLE:
-		case UNKNOWN:
-			/* Refresh the ContactStatus AMI events. */
-			sip_options_contact_status_update(contact_status);
-			break;
-		case REMOVED:
-			break;
-		}
-		ao2_ref(contact_status, -1);
-	}
-
-	ao2_ref(task_data->contact, -1);
-	ao2_ref(task_data->aor_options, -1);
-	ast_free(task_data);
-	return 0;
-}
-
 /*! \brief Observer callback invoked on contact update */
 static void contact_observer_updated(const void *obj)
 {
-	struct sip_options_contact_observer_task_data *task_data;
+	const struct ast_sip_contact *contact = obj;
+	struct sip_options_aor *aor_options = ao2_find(sip_options_aors, contact->aor, OBJ_SEARCH_KEY);
 
-	task_data = ast_malloc(sizeof(*task_data));
-	if (!task_data) {
-		return;
-	}
-
-	task_data->contact = (struct ast_sip_contact *) obj;
-	task_data->aor_options = ao2_find(sip_options_aors, task_data->contact->aor,
-		OBJ_SEARCH_KEY);
-
-	if (has_qualify_changed(task_data->contact, task_data->aor_options)) {
+	if (has_qualify_changed(contact, aor_options)) {
 		struct ast_sip_aor *aor;
 
 		aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor",
-			task_data->contact->aor);
+			contact->aor);
 		if (aor) {
 			ast_debug(3, "AOR '%s' qualify options have been modified. Synchronize an AOR local state\n",
-				task_data->contact->aor);
+				contact->aor);
 			ast_sip_push_task_wait_serializer(management_serializer,
 				sip_options_aor_observer_modified_task, aor);
 			ao2_ref(aor, -1);
 		}
 	}
 
-	if (!task_data->aor_options) {
-		ast_free(task_data);
-		return;
-	}
-
-	ao2_ref(task_data->contact, +1);
-	if (ast_sip_push_task(task_data->aor_options->serializer,
-		sip_options_contact_update_task, task_data)) {
-		ao2_ref(task_data->contact, -1);
-		ao2_ref(task_data->aor_options, -1);
-		ast_free(task_data);
-	}
+	ao2_cleanup(aor_options);
 }
 
 /*!

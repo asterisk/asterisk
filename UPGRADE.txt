@@ -39,6 +39,8 @@ AMI:
  - The ContactStatus and Status fields for the manager events ContactStatus
    and ContactStatusDetail are now set to "NonQualified" when a contact exists
    but has not been qualified.
+ - The ContactStatus event will no longer be sent by PJSIP when a device
+   refreshes its registration.
 
 ARI:
  - The ContactInfo event's contact_status field is now set to "NonQualified"
