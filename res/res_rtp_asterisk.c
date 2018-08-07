@@ -5802,7 +5802,17 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 		}
 
 		if (ssrc_valid && rtp->themssrc_valid) {
-			if (ssrc != rtp->themssrc && use_packet_source) {
+			/*
+			 * If the SSRC is 1, we still need to handle RTCP since this could be a
+			 * special case. For example, if we have a unidirectional video stream, the
+			 * SSRC may be set to 1 by the browser (in the case of chromium), and requests
+			 * will still need to be processed so that video can flow as expected. This
+			 * should only be done for PLI and FUR, since there is not a way to get the
+			 * appropriate rtp instance when the SSRC is 1.
+			 */
+			int exception = (ssrc == 1 && !((pt == RTCP_PT_PSFB && rc == AST_RTP_RTCP_FMT_PLI) || pt == RTCP_PT_FUR));
+			if ((ssrc != rtp->themssrc && use_packet_source && ssrc != 1)
+					|| exception) {
 				/*
 				 * Skip over this RTCP record as it does not contain the
 				 * correct SSRC.  We should not act upon RTCP records
