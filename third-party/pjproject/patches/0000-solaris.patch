@@ -1,0 +1,149 @@
+From 8f8a9dc7203bfcd5557ad5c2f15359308535c4bb Mon Sep 17 00:00:00 2001
+From: Shaun Ruffell <sruffell@digium.com>
+Date: Fri, 7 Sep 2012 14:31:19 -0500
+Subject: [PATCH] pjproject: Fix for Solaris builds. Do not undef s_addr.
+
+pjproject, in order to solve build problems on Windows [1], undefines s_addr in
+one of it's headers that is included in res_rtp_asterisk.c. On Solaris s_addr is
+not a structure member, but defined to map to the real strucuture member,
+therefore when building on Solaris it's possible to get build errors like:
+
+    [CC] res_rtp_asterisk.c -> res_rtp_asterisk.o
+    In file included from /export/home/admin/asterisk-11-svn/include/asterisk/stun.h:29,
+                     from res_rtp_asterisk.c:51:
+    /export/home/admin/asterisk-11-svn/include/asterisk/network.h: In function `inaddrcmp':
+    /export/home/admin/asterisk-11-svn/include/asterisk/network.h:92: error: structure has no member named `s_addr'
+    /export/home/admin/asterisk-11-svn/include/asterisk/network.h:92: error: structure has no member named `s_addr'
+    res_rtp_asterisk.c: In function `ast_rtp_on_ice_tx_pkt':
+    res_rtp_asterisk.c:706: warning: dereferencing type-punned pointer will break strict-aliasing rules
+    res_rtp_asterisk.c:710: warning: dereferencing type-punned pointer will break strict-aliasing rules
+    res_rtp_asterisk.c: In function `rtp_add_candidates_to_ice':
+    res_rtp_asterisk.c:1085: error: structure has no member named `s_addr'
+    make[2]: *** [res_rtp_asterisk.o] Error 1
+    make[1]: *** [res] Error 2
+    make[1]: Leaving directory `/export/home/admin/asterisk-11-svn'
+    gmake: *** [_cleantest_all] Error 2
+
+Unfortunately, in order to make this work, I also had to make sure pjproject
+only used the typdef pj_in_addr and not the struct pj_in_addr so that when
+building Asterisk I could "typedef struct in_addr pj_in_addr". It's possible
+then that the library and users of those interfaces in Asterisk have a different
+idea about the type of the argument. While on the surface it looks like they are
+all 32 bit big endian values.
+
+[1] http://trac.pjsip.org/repos/changeset/484
+
+Reported-by: Ben Klang
+(issues ASTERISK-20366)
+
+Updated by ASTERISK-27997
+---
+ pjlib/include/pj/sock.h          | 8 +++++++-
+ pjlib/src/pj/sock_bsd.c          | 2 +-
+ pjlib/src/pj/sock_linux_kernel.c | 2 +-
+ pjlib/src/pj/sock_symbian.cpp    | 2 +-
+ pjlib/src/pj/sock_uwp.cpp        | 2 +-
+ pjsip/src/test/transport_test.c  | 2 +-
+ 6 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/pjlib/include/pj/sock.h b/pjlib/include/pj/sock.h
+index 8fc833c..c415358 100644
+--- a/pjlib/include/pj/sock.h
++++ b/pjlib/include/pj/sock.h
+@@ -484,6 +484,7 @@ typedef enum pj_socket_sd_type
+  */
+ #define PJ_INVALID_SOCKET   (-1)
+ 
++#ifndef _ASTERISK_H
+ /* Must undefine s_addr because of pj_in_addr below */
+ #undef s_addr
+ 
+@@ -495,6 +496,11 @@ typedef struct pj_in_addr
+     pj_uint32_t	s_addr;		/**< The 32bit IP address.	    */
+ } pj_in_addr;
+ 
++#else
++#include <sys/types.h>
++#include <netinet/in.h>
++typedef struct in_addr pj_in_addr;
++#endif
+ 
+ /**
+  * Maximum length of text representation of an IPv4 address.
+@@ -714,7 +720,7 @@ PJ_DECL(char*) pj_inet_ntoa(pj_in_addr inaddr);
+  *
+  * @return	nonzero if the address is valid, zero if not.
+  */
+-PJ_DECL(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp);
++PJ_DECL(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp);
+ 
+ /**
+  * This function converts an address in its standard text presentation form
+diff --git a/pjlib/src/pj/sock_bsd.c b/pjlib/src/pj/sock_bsd.c
+index 95c3804..daefc54 100644
+--- a/pjlib/src/pj/sock_bsd.c
++++ b/pjlib/src/pj/sock_bsd.c
+@@ -244,7 +244,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr inaddr)
+  * numbers-and-dots notation into binary data and stores it in the structure
+  * that inp points to. 
+  */
+-PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp)
++PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp)
+ {
+     char tempaddr[PJ_INET_ADDRSTRLEN];
+ 
+diff --git a/pjlib/src/pj/sock_linux_kernel.c b/pjlib/src/pj/sock_linux_kernel.c
+index 899b486..10d84cd 100644
+--- a/pjlib/src/pj/sock_linux_kernel.c
++++ b/pjlib/src/pj/sock_linux_kernel.c
+@@ -149,7 +149,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr in)
+  * numbers-and-dots notation into binary data and stores it in the structure
+  * that inp points to. 
+  */
+-PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, struct pj_in_addr *addr)
++PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, pj_in_addr *addr)
+ {
+     pj_uint32_t val;
+     int base, n;
+diff --git a/pjlib/src/pj/sock_symbian.cpp b/pjlib/src/pj/sock_symbian.cpp
+index 09239b0..e72bbda 100644
+--- a/pjlib/src/pj/sock_symbian.cpp
++++ b/pjlib/src/pj/sock_symbian.cpp
+@@ -299,7 +299,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr inaddr)
+  * numbers-and-dots notation into binary data and stores it in the structure
+  * that inp points to. 
+  */
+-PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp)
++PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp)
+ {
+     enum { MAXIPLEN = PJ_INET_ADDRSTRLEN };
+ 
+diff --git a/pjlib/src/pj/sock_uwp.cpp b/pjlib/src/pj/sock_uwp.cpp
+index 876c328..40250bf 100644
+--- a/pjlib/src/pj/sock_uwp.cpp
++++ b/pjlib/src/pj/sock_uwp.cpp
+@@ -933,7 +933,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr inaddr)
+  * numbers-and-dots notation into binary data and stores it in the structure
+  * that inp points to. 
+  */
+-PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, struct pj_in_addr *inp)
++PJ_DEF(int) pj_inet_aton(const pj_str_t *cp, pj_in_addr *inp)
+ {
+     char tempaddr[PJ_INET_ADDRSTRLEN];
+ 
+diff --git a/pjsip/src/test/transport_test.c b/pjsip/src/test/transport_test.c
+index e5083d1..c429cc7 100644
+--- a/pjsip/src/test/transport_test.c
++++ b/pjsip/src/test/transport_test.c
+@@ -35,7 +35,7 @@ int generic_transport_test(pjsip_transport *tp)
+ 
+     /* Check that local address name is valid. */
+     {
+-	struct pj_in_addr addr;
++	pj_in_addr addr;
+ 
+ 	if (pj_inet_pton(pj_AF_INET(), &tp->local_name.host,
+ 			 &addr) == PJ_SUCCESS)
+-- 
+2.7.4
+
