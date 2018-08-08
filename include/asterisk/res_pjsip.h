@@ -24,6 +24,7 @@
 #include <pjsip_simple.h>
 #include <pjsip/sip_transaction.h>
 #include <pj/timer.h>
+/* Needed for pj_sockaddr */
 #include <pjlib.h>
 
 #include "asterisk/stringfields.h"
@@ -41,8 +42,6 @@
 #include "asterisk/endpoints.h"
 /* Needed for ast_t38_ec_modes */
 #include "asterisk/udptl.h"
-/* Needed for pj_sockaddr */
-#include <pjlib.h>
 /* Needed for ast_rtp_dtls_cfg struct */
 #include "asterisk/rtp_engine.h"
 /* Needed for AST_VECTOR macro */

@@ -20,7 +20,7 @@
 #define _RES_PJSIP_SESSION_H
 
 /* Needed for pj_timer_entry definition */
-#include "pjlib.h"
+#include <pjlib.h>
 #include "asterisk/linkedlists.h"
 /* Needed for AST_MAX_EXTENSION constant */
 #include "asterisk/channel.h"
