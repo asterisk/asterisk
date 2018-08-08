@@ -122,25 +122,28 @@ static int registrar_find_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
 	const struct registrar_contact_details *details = arg;
-	pjsip_uri *contact_uri = pjsip_parse_uri(details->pool, (char*)contact->uri, strlen(contact->uri), 0);
+	pjsip_uri *contact_uri;
+
+	if (ast_tvzero(contact->expiration_time)) {
+		return 0;
+	}
+
+	contact_uri = pjsip_parse_uri(details->pool, (char*)contact->uri, strlen(contact->uri), 0);
 
 	return (pjsip_uri_cmp(PJSIP_URI_IN_CONTACT_HDR, details->uri, contact_uri) == PJ_SUCCESS) ? CMP_MATCH : 0;
 }
 
 /*! \brief Internal function which validates provided Contact headers to confirm that they are acceptable, and returns number of contacts */
-static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_container *contacts, struct ast_sip_aor *aor, int *added, int *updated, int *deleted)
+static int registrar_validate_contacts(const pjsip_rx_data *rdata, pj_pool_t *pool, struct ao2_container *contacts,
+	struct ast_sip_aor *aor, int permanent, int *added, int *updated, int *deleted)
 {
 	pjsip_contact_hdr *previous = NULL;
 	pjsip_contact_hdr *contact = (pjsip_contact_hdr *)&rdata->msg_info.msg->hdr;
 	struct registrar_contact_details details = {
-		.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Contact Comparison", 256, 256),
+		.pool = pool,
 	};
 
-	if (!details.pool) {
-		return -1;
-	}
-
-	while ((contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next))) {
+	for (; (contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next)); pj_pool_reset(pool)) {
 		int expiration = registrar_get_expiration(aor, contact, rdata);
 		struct ast_sip_contact *existing;
 		char contact_uri[pjsip_max_url_size];
@@ -148,16 +151,14 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 		if (contact->star) {
 			/* The expiration MUST be 0 when a '*' contact is used and there must be no other contact */
 			if (expiration != 0 || previous) {
-				pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 				return -1;
 			}
 			/* Count all contacts to delete */
-			*deleted = ao2_container_count(contacts);
+			*deleted = ao2_container_count(contacts) - permanent;
 			previous = contact;
 			continue;
 		} else if (previous && previous->star) {
 			/* If there is a previous contact and it is a '*' this is a deal breaker */
-			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 			return -1;
 		}
 		previous = contact;
@@ -171,13 +172,11 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 		/* pjsip_uri_print returns -1 if there's not enough room in the buffer */
 		if (pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri)) < 0) {
 			/* If the total length of the uri is greater than pjproject can handle, go no further */
-			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 			return -1;
 		}
 
 		if (details.uri->host.slen >= pj_max_hostname) {
 			/* If the length of the hostname is greater than pjproject can handle, go no further */
-			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 			return -1;
 		}
 
@@ -195,17 +194,7 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 		}
 	}
 
-	/* The provided contacts are acceptable, huzzah! */
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 	return 0;
-}
-
-/*! \brief Callback function which prunes static contacts */
-static int registrar_prune_static(void *obj, void *arg, int flags)
-{
-	struct ast_sip_contact *contact = obj;
-
-	return ast_tvzero(contact->expiration_time) ? CMP_MATCH : 0;
 }
 
 /*! \brief Internal function used to delete a contact from an AOR */
@@ -213,6 +202,11 @@ static int registrar_delete_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
 	const char *aor_name = arg;
+
+	/* Permanent contacts can't be deleted */
+	if (ast_tvzero(contact->expiration_time)) {
+		return 0;
+	}
 
 	ast_sip_location_delete_contact(contact);
 	if (!ast_strlen_zero(aor_name)) {
@@ -270,7 +264,7 @@ static int build_path_data(pjsip_rx_data *rdata, struct ast_str **path_str)
 	}
 
 	*path_str = ast_str_create(64);
-	if (!path_str) {
+	if (!*path_str) {
 		return -1;
 	}
 
@@ -442,7 +436,8 @@ static int vec_contact_add(void *obj, void *arg, int flags)
  *
  * \return Nothing
  */
-static void remove_excess_contacts(struct ao2_container *contacts, unsigned int to_remove)
+static void remove_excess_contacts(struct ao2_container *contacts, struct ao2_container *response_contacts,
+	unsigned int to_remove)
 {
 	struct excess_contact_vector contact_vec;
 
@@ -482,9 +477,26 @@ static void remove_excess_contacts(struct ao2_container *contacts, unsigned int 
 			contact->uri,
 			contact->aor,
 			contact->user_agent);
+
+		ao2_unlink(response_contacts, contact);
 	}
 
 	AST_VECTOR_FREE(&contact_vec);
+}
+
+/*! \brief Callback function which adds non-permanent contacts to a container */
+static int registrar_add_non_permanent(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ao2_container *container = arg;
+
+	if (ast_tvzero(contact->expiration_time)) {
+		return 0;
+	}
+
+	ao2_link(container, contact);
+
+	return 0;
 }
 
 struct aor_core_response {
@@ -506,8 +518,10 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	int added = 0;
 	int updated = 0;
 	int deleted = 0;
+	int permanent = 0;
 	int contact_count;
-	pjsip_contact_hdr *contact_hdr = NULL;
+	struct ao2_container *existing_contacts = NULL;
+	pjsip_contact_hdr *contact_hdr = (pjsip_contact_hdr *)&rdata->msg_info.msg->hdr;
 	struct registrar_contact_details details = { 0, };
 	pjsip_tx_data *tdata;
 	RAII_VAR(struct ast_str *, path_str, NULL, ast_free);
@@ -523,15 +537,28 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	char *call_id = NULL;
 	size_t alloc_size;
 
-	/* So we don't count static contacts against max_contacts we prune them out from the container */
-	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
+	/* We create a single pool and use it throughout this function where we need one */
+	details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
+		"Contact Comparison", 1024, 256);
+	if (!details.pool) {
+		response->code = 500;
+		return;
+	}
 
-	if (registrar_validate_contacts(rdata, contacts, aor, &added, &updated, &deleted)) {
+	/* If there are any permanent contacts configured on the AOR we need to take them
+	 * into account when counting contacts.
+	 */
+	if (aor->permanent_contacts) {
+		permanent = ao2_container_count(aor->permanent_contacts);
+	}
+
+	if (registrar_validate_contacts(rdata, details.pool, contacts, aor, permanent, &added, &updated, &deleted)) {
 		/* The provided Contact headers do not conform to the specification */
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
 		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
 				ast_sorcery_object_get_id(endpoint));
 		response->code = 400;
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 		return;
 	}
 
@@ -540,15 +567,29 @@ static void register_aor_core(pjsip_rx_data *rdata,
 		ast_log(LOG_WARNING, "Invalid modifications made to REGISTER request from '%s' by intervening proxy\n",
 				ast_sorcery_object_get_id(endpoint));
 		response->code = 420;
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 		return;
 	}
 
 	if (aor->remove_existing) {
 		/* Cumulative number of contacts affected by this registration */
 		contact_count = MAX(updated + added - deleted,  0);
+
+		/* We need to keep track of only existing contacts so we can later
+		 * remove them if need be.
+		 */
+		existing_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+			NULL, ast_sorcery_object_id_compare);
+		if (!existing_contacts) {
+			response->code = 500;
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+			return;
+		}
+
+		ao2_callback(contacts, OBJ_NODATA, registrar_add_non_permanent, existing_contacts);
 	} else {
 		/* Total contacts after this registration */
-		contact_count = ao2_container_count(contacts) + added - deleted;
+		contact_count = ao2_container_count(contacts) - permanent + added - deleted;
 	}
 	if (contact_count > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
@@ -556,13 +597,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %u\n",
 				ast_sorcery_object_get_id(endpoint), aor_name, aor->max_contacts);
 		response->code = 403;
-		return;
-	}
-
-	details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
-		"Contact Comparison", 256, 256);
-	if (!details.pool) {
-		response->code = 500;
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+		ao2_cleanup(existing_contacts);
 		return;
 	}
 
@@ -595,7 +631,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	}
 
 	/* Iterate each provided Contact header and add, update, or delete */
-	while ((contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
+	for (; (contact_hdr = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr->next)); pj_pool_reset(details.pool)) {
 		int expiration;
 		char contact_uri[pjsip_max_url_size];
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
@@ -604,6 +640,13 @@ static void register_aor_core(pjsip_rx_data *rdata,
 			/* A star means to unregister everything, so do so for the possible contacts */
 			ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
 				registrar_delete_contact, (void *)aor_name);
+			/* If we are keeping track of existing contacts for removal then, well, there is
+			 * absolutely nothing left so no need to try to remove any.
+			 */
+			if (existing_contacts) {
+				ao2_ref(existing_contacts, -1);
+				existing_contacts = NULL;
+			}
 			break;
 		}
 
@@ -617,6 +660,14 @@ static void register_aor_core(pjsip_rx_data *rdata,
 		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri));
 
 		contact = ao2_callback(contacts, OBJ_UNLINK, registrar_find_contact, &details);
+
+		/* If a contact was returned and we need to keep track of existing contacts then it
+		 * should be removed.
+		 */
+		if (contact && existing_contacts) {
+			ao2_unlink(existing_contacts, contact);
+		}
+
 		if (!contact) {
 			int prune_on_boot;
 
@@ -672,6 +723,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 					aor_name,
 					expiration,
 					user_agent);
+
+			ao2_link(contacts, contact);
 		} else if (expiration) {
 			struct ast_sip_contact *contact_update;
 
@@ -712,6 +765,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 					aor_name,
 					expiration,
 					contact_update->user_agent);
+			ao2_link(contacts, contact_update);
 			ao2_cleanup(contact_update);
 		} else {
 			if (contact->prune_on_boot) {
@@ -749,24 +803,20 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	 * that have not been updated/added/deleted as a result of this
 	 * REGISTER do so.
 	 *
-	 * The contacts container currently holds the existing contacts that
-	 * were not affected by this REGISTER.
+	 * The existing contacts container holds all contacts that were not
+	 * involved in this REGISTER.
+	 * The contacts container holds the current contacts of the AOR.
 	 */
-	if (aor->remove_existing) {
+	if (aor->remove_existing && existing_contacts) {
 		/* Total contacts after this registration */
-		contact_count = ao2_container_count(contacts) + updated + added;
+		contact_count = ao2_container_count(existing_contacts) + updated + added;
 		if (contact_count > aor->max_contacts) {
 			/* Remove excess existing contacts that expire the soonest */
-			remove_excess_contacts(contacts, contact_count - aor->max_contacts);
+			remove_excess_contacts(existing_contacts, contacts, contact_count - aor->max_contacts);
 		}
+		ao2_ref(existing_contacts, -1);
 	}
 
-	/* Re-retrieve contacts.  Caller will clean up the original container. */
-	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
-	if (!contacts) {
-		response->code = 500;
-		return;
-	}
 	response_contact = ao2_callback(contacts, 0, NULL, NULL);
 
 	/* Send a response containing all of the contacts (including static) that are present on this AOR */
@@ -782,7 +832,6 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	registrar_add_date_header(tdata);
 
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
-	ao2_cleanup(contacts);
 
 	if ((expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
 		expires_hdr = pjsip_expires_hdr_create(tdata->pool, registrar_get_expiration(aor, NULL, rdata));
