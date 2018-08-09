@@ -1376,8 +1376,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	attr->name = STR_SENDRECV;
 	media->attr[media->attr_count++] = attr;
 
-	/* If we've got rtcp-mux enabled, just unconditionally offer it in all SDPs */
-	if (session->endpoint->rtcp_mux) {
+	/* If we've got rtcp-mux enabled, add it unless we received an offer without it */
+	if (session->endpoint->rtcp_mux && session_media->remote_rtcp_mux) {
 		attr = pjmedia_sdp_attr_create(pool, "rtcp-mux", NULL);
 		pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
 	}
