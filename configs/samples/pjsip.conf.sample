@@ -815,7 +815,7 @@
                            ; This option must also be enabled in the system
                            ; section.
                            ; (default: no)
-suppress_q850_reason_headers =
+;suppress_q850_reason_headers =
                            ; Suppress Q.850 Reason headers for this endpoint.
                            ; Some devices can't accept multiple Reason headers
                            ; and get confused when both 'SIP' and 'Q.850' Reason
