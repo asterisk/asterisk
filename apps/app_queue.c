@@ -8172,11 +8172,11 @@ stop:
 					"%d|%d|%ld", qe.pos, qe.opos,
 					(long) (time(NULL) - qe.start));
 				res = -1;
-			} else if (qcontinue) {
-				reason = QUEUE_CONTINUE;
-				res = 0;
 			} else if (reason == QUEUE_LEAVEEMPTY) {
 				/* Return back to dialplan, don't hang up */
+				res = 0;
+			} else if (qcontinue) {
+				reason = QUEUE_CONTINUE;
 				res = 0;
 			}
 		} else if (qe.valid_digits) {
