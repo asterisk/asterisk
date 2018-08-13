@@ -34399,17 +34399,14 @@ static int peer_iphash_cb(const void *obj, const int flags)
  * This function has two modes.
  *  - If the peer arg does not have INSECURE_PORT set, then we will only return
  *    a match for a peer that matches both the IP and port.
- *  - If the peer arg does have the INSECURE_PORT flag set, then we will only
- *    return a match for a peer that matches the IP and has insecure=port
- *    in its configuration.
+ *  - If the peer arg does have the INSECURE_PORT flag set, then we will return
+ *    a match for UDP peers with insecure=port set, or a peer that does NOT have
+ *    host=dynamic for other protocols (or have a valid Contact: header in REGISTER).
+ * This callback will be used twice when doing peer matching, as per the two modes
+ * described above.
  *
- * This callback will be used twice when doing peer matching.  There is a first
- * pass for full IP+port matching, and a second pass in case there is a match
- * that meets the insecure=port criteria.
- *
- * \note Connections coming in over TCP or TLS should never be matched by port.
- *
- * \note the peer's addr struct provides to fields combined to make a key: the sin_addr.s_addr and sin_port fields.
+ * \note the peer's addr struct provides to fields combined to make a key: the
+ *    sin_addr.s_addr and sin_port fields (transport is compared separately).
  */
 static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags)
 {
@@ -34428,24 +34425,50 @@ static int peer_ipcmp_cb_full(void *obj, void *arg, void *data, int flags)
 		return 0;
 	}
 
-	/* We matched the IP, check to see if we need to match by port as well. */
-	if (((peer->transports & peer2->transports) &
-		(AST_TRANSPORT_UDP | AST_TRANSPORT_WS | AST_TRANSPORT_WSS)) &&
-		ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
+	if ((peer->transports & peer2->transports) == 0) {
+		/* transport setting doesn't match */
+		return 0;
+	}
+
+	if (!ast_test_flag(&peer2->flags[0], SIP_INSECURE_PORT)) {
+		/* On the first pass only match if ports match. */
+		return ast_sockaddr_port(&peer->addr) == ast_sockaddr_port(&peer2->addr) ?
+			(CMP_MATCH | CMP_STOP) : 0;
+	}
+
+	/* We can reach here only if peer2 is for SIP_INSECURE_PORT, in
+	 * other words, the second pass where we only try to match against IP.
+	 *
+	 * Some special handling for UDP vs non-UDP (TCP, TLS, WS and WSS), since
+	 * for non-UDP the source port won't typically be controlled, we only want
+	 * to check the source IP, but only if the host isn't dynamic.  This isn't
+	 * done in the first pass so that if a peer registers from the same IP as
+	 * a static IP peer that registration (port match) will take prescedence).
+	 */
+	if (peer2->transports == AST_TRANSPORT_UDP) {
 		/* We are allowing match without port for peers configured that
 		 * way in this pass through the peers. */
 		return ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT) ?
 				(CMP_MATCH | CMP_STOP) : 0;
 	}
 
-	/* Now only return a match if the port matches, as well. */
-	return ast_sockaddr_port(&peer->addr) == ast_sockaddr_port(&peer2->addr) ?
-			(CMP_MATCH | CMP_STOP) : 0;
-}
+	if (!peer->host_dynamic) {
+		return CMP_MATCH | CMP_STOP;
+	}
 
-static int peer_ipcmp_cb(void *obj, void *arg, int flags)
-{
-	return peer_ipcmp_cb_full(obj, arg, NULL, flags);
+	/* Conditions taken from parse_register_contact() */
+	if (peer2->transports & (AST_TRANSPORT_WS | AST_TRANSPORT_WSS)) {
+		/* The contact address of websockets is always the transport source address and port */
+		return 0;
+	}
+
+	if (ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT)) {
+		/* The contact address of NATed peers is always the transport source address and port */
+		return 0;
+	}
+
+	/* Have to assume that we used the registered contact header (non-NAT) */
+	return CMP_MATCH | CMP_STOP;
 }
 
 static int threadt_hash_cb(const void *obj, const int flags)
@@ -35334,7 +35357,7 @@ static int load_module(void)
 	/* the fact that ao2_containers can't resize automatically is a major worry! */
 	/* if the number of objects gets above MAX_XXX_BUCKETS, things will slow down */
 	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
-	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, peer_ipcmp_cb, "allocate peers_by_ip");
+	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, NULL, "allocate peers_by_ip");
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
 	dialogs_needdestroy = ao2_t_container_alloc(1, NULL, NULL, "allocate dialogs_needdestroy");
 	dialogs_rtpcheck = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs for rtpchecks");
