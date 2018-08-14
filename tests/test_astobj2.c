@@ -1996,10 +1996,15 @@ static enum ast_test_result_state testloop(struct ast_test *test,
 {
 	int res = AST_TEST_PASS;
 	int i;
+	int reportcount = iterations / 5;
 	struct timeval start;
 
 	start = ast_tvnow();
 	for (i = 1 ; i <= iterations && res == AST_TEST_PASS ; i++) {
+		if (i % reportcount == 0 && i != iterations) {
+			ast_test_status_update(test, "%5.2fK traversals, %9s\n",
+				i / 1000.0, test_container2str(type));
+		}
 		res = test_performance(test, type, copt);
 	}
 	ast_test_status_update(test, "%5.2fK traversals, %9s : %5lu ms\n",
