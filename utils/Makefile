@@ -172,6 +172,7 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(CMD_PREFIX) cp "$<" "$@"
 
 
+extconf.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DETECT_DEADLOCKS)
 extconf.o: extconf.c
 
 conf2ael: LIBS+=$(AST_CLANG_BLOCKS_LIBS)

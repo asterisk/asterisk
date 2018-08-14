@@ -141,21 +141,33 @@ endif
 	$(CMD_PREFIX) cat $@.fix >> $@
 	$(CMD_PREFIX) rm $@.fix
 
-ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
-cdr.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
-
-db.o: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
-asterisk.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
-json.o: _ASTCFLAGS+=$(JANSSON_INCLUDE)
-bucket.o: _ASTCFLAGS+=$(URIPARSER_INCLUDE)
-crypt.o: _ASTCFLAGS+=$(CRYPT_INCLUDE)
-uuid.o: _ASTCFLAGS+=$(UUID_INCLUDE)
-
 ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
-http.o: _ASTCFLAGS+=$(GMIME_INCLUDE)
+GMIMELDFLAGS+=$(GMIME_LIB)
+GMIMECFLAGS+=$(GMIME_INCLUDE)
 endif
 
+# Alter CFLAGS for specific sources
 stdtime/localtime.o: _ASTCFLAGS+=$(AST_NO_STRICT_OVERFLOW) -Wno-format-nonliteral
+
+asterisk.o: _ASTCFLAGS+=$(LIBEDIT_INCLUDE)
+ast_expr2f.o: _ASTCFLAGS+=-Wno-unused
+astmm.o: _ASTCFLAGS+=$(call get_menuselect_cflags,MALLOC_DEBUG DEBUG_CHAOS)
+astobj2.o astobj2_container.o astobj2_hash.o astobj2_rbtree.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)
+backtrace.o: _ASTCFLAGS+=$(call get_menuselect_cflags,BETTER_BACKTRACES)
+bucket.o: _ASTCFLAGS+=$(URIPARSER_INCLUDE)
+cdr.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
+crypt.o: _ASTCFLAGS+=$(CRYPT_INCLUDE)
+db.o: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
+dsp.o: _ASTCFLAGS+=$(call get_menuselect_cflags,RADIO_RELAX)
+http.o: _ASTCFLAGS+=$(GMIMECFLAGS)
+iostream.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
+json.o: _ASTCFLAGS+=$(JANSSON_INCLUDE)
+lock.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DETECT_DEADLOCKS)
+options.o: _ASTCFLAGS+=$(call get_menuselect_cflags,REF_DEBUG)
+sched.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DEBUG_SCHEDULER DUMP_SCHEDULER)
+tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
+uuid.o: _ASTCFLAGS+=$(UUID_INCLUDE)
+
 
 OBJS:=$(sort $(OBJS))
 
@@ -167,10 +179,6 @@ asterisk: cygload
 cygload: asterisk.dll
 else
 MAIN_TGT:=asterisk
-endif
-
-ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
-GMIMELDFLAGS+=$(GMIME_LIB)
 endif
 
 $(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\" -DAST_IN_CORE
@@ -305,9 +313,6 @@ $(ASTPJ_LIB): libasteriskpj.o
 endif
 
 endif
-
-iostream.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
-tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
 
 $(MAIN_TGT): $(OBJS) $(MOD_OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)

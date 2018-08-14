@@ -31,6 +31,7 @@
 #define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
+#include "asterisk/_private.h"
 #include "asterisk/logger.h"
 
 /*!
@@ -60,6 +61,10 @@
 
 #if defined(STANDALONE) || defined(STANDALONE2)
 #define ast_log_safe ast_log
+#endif
+
+#if defined(MALLOC_DEBUG) && !defined(STANDALONE) && !defined(STANDALONE2)
+#define __AST_DEBUG_MALLOC
 #endif
 
 #define MALLOC_FAILURE_MSG \
@@ -1501,14 +1506,7 @@ static void mm_atexit_final(void)
 	}
 }
 
-/*!
- * \brief Initialize malloc debug phase 1.
- *
- * \note Must be called first thing in main().
- *
- * \return Nothing
- */
-void __ast_mm_init_phase_1(void)
+void load_astmm_phase_1(void)
 {
 	atexit(mm_atexit_final);
 }
@@ -1522,12 +1520,7 @@ static void mm_atexit_ast(void)
 	ast_cli_unregister_multiple(cli_memory, ARRAY_LEN(cli_memory));
 }
 
-/*!
- * \brief Initialize malloc debug phase 2.
- *
- * \return Nothing
- */
-void __ast_mm_init_phase_2(void)
+void load_astmm_phase_2(void)
 {
 	char filename[PATH_MAX];
 
@@ -1549,6 +1542,14 @@ void __ast_mm_init_phase_2(void)
 }
 
 #else	/* !defined(__AST_DEBUG_MALLOC) */
+
+void load_astmm_phase_1(void)
+{
+}
+
+void load_astmm_phase_2(void)
+{
+}
 
 void *__ast_repl_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func)
 {

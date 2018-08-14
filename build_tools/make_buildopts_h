@@ -20,21 +20,30 @@ fi
 
 TMP=`${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
 for x in ${TMP}; do
-	echo "#define ${x} 1"
 	if test "${x}" = "AO2_DEBUG" \
 			-o "${x}" = "BETTER_BACKTRACES" \
 			-o "${x}" = "BUILD_NATIVE" \
+			-o "${x}" = "COMPILE_DOUBLE" \
+			-o "${x}" = "DEBUG_CHAOS" \
 			-o "${x}" = "DEBUG_SCHEDULER" \
 			-o "${x}" = "DETECT_DEADLOCKS" \
 			-o "${x}" = "DONT_OPTIMIZE" \
 			-o "${x}" = "DUMP_SCHEDULER" \
 			-o "${x}" = "LOTS_OF_SPANS" \
-			-o "${x}" = "LOW_MEMORY" \
 			-o "${x}" = "MALLOC_DEBUG" \
 			-o "${x}" = "RADIO_RELAX" \
 			-o "${x}" = "REBUILD_PARSERS" \
-			-o "${x}" = "REF_DEBUG" ; then
-		# These aren't ABI affecting options, keep them out of AST_BUILDOPTS
+			-o "${x}" = "REF_DEBUG" \
+			-o "${x}" = "USE_HOARD_ALLOCATOR" ; then
+		# These options are only for specific sources and have no effect on public ABI.
+		# Keep them out of buildopts.h so ccache does not invalidate all sources.
+		continue
+	fi
+
+	echo "#define ${x} 1"
+	if test "${x}" = "LOW_MEMORY" ; then
+		# LOW_MEMORY isn't an ABI affecting option but it is used in many sources
+		# so it gets defined globally but is not included in AST_BUILTOPTS.
 		continue
 	fi
 	if test "x${BUILDOPTS}" != "x" ; then
