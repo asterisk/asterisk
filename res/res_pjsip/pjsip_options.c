@@ -565,6 +565,7 @@ static enum ast_endpoint_state sip_options_get_endpoint_state_compositor_state(
 	for (; (aor_status = ao2_iterator_next(&it_aor_statuses)); ao2_ref(aor_status, -1)) {
 		if (aor_status->available) {
 			state = AST_ENDPOINT_ONLINE;
+			ao2_ref(aor_status, -1);
 			break;
 		}
 	}
