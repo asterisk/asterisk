@@ -432,20 +432,22 @@ static int unbound_config_preapply(struct unbound_config *cfg)
 
 	if (cfg->global->nameservers) {
 		struct ao2_iterator it_nameservers;
-		const char *nameserver;
+		char *nameserver;
 
 		it_nameservers = ao2_iterator_init(cfg->global->nameservers, 0);
-		while ((nameserver = ao2_iterator_next(&it_nameservers))) {
+		while (!res && (nameserver = ao2_iterator_next(&it_nameservers))) {
 			res = ub_ctx_set_fwd(cfg->global->state->resolver->context, (UNBOUND_CHAR *)nameserver);
 
 			if (res) {
 				ast_log(LOG_ERROR, "Failed to add nameserver '%s' to unbound resolver: %s\n",
 					nameserver, ub_strerror(res));
-				ao2_iterator_destroy(&it_nameservers);
-				return -1;
 			}
+			ao2_ref(nameserver, -1);
 		}
 		ao2_iterator_destroy(&it_nameservers);
+		if (res) {
+			return -1;
+		}
 	}
 
 	if (!strcmp(cfg->global->resolv, "system")) {
