@@ -996,17 +996,25 @@ static int reload(void)
 
 static int unload_module(void)
 {
-	/* Prohibit unloading */
-	return -1;
+	ao2_cleanup(class_container);
+	ast_cli_unregister_multiple(cli_odbc, ARRAY_LEN(cli_odbc));
+
+	return 0;
 }
 
 static int load_module(void)
 {
-	if (!(class_container = ao2_container_alloc(1, null_hash_fn, ao2_match_by_addr)))
+	if (!(class_container = ao2_container_alloc(1, null_hash_fn, ao2_match_by_addr))) {
 		return AST_MODULE_LOAD_DECLINE;
-	if (load_odbc_config() == -1)
+	}
+
+	if (load_odbc_config() == -1) {
 		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_module_shutdown_ref(ast_module_info->self);
 	ast_cli_register_multiple(cli_odbc, ARRAY_LEN(cli_odbc));
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
