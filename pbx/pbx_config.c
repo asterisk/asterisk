@@ -1625,15 +1625,15 @@ static struct ast_cli_entry cli_dialplan_save =
  */
 static int unload_module(void)
 {
-	if (static_config && !write_protect_config)
-		ast_cli_unregister(&cli_dialplan_save);
-	if (overrideswitch_config) {
-		ast_free(overrideswitch_config);
-	}
+	ast_cli_unregister(&cli_dialplan_save);
+	ast_free(overrideswitch_config);
+	overrideswitch_config = NULL;
+
 	ast_cli_unregister_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
 	ast_manager_unregister(AMI_EXTENSION_ADD);
 	ast_manager_unregister(AMI_EXTENSION_REMOVE);
 	ast_context_destroy(NULL, registrar);
+
 	return 0;
 }
 
@@ -2081,10 +2081,17 @@ static int pbx_load_module(void)
 
 	ast_mutex_lock(&reload_lock);
 
-	if (!local_table)
+	if (!local_table) {
 		local_table = ast_hashtab_create(17, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
+		if (!local_table) {
+			ast_mutex_unlock(&reload_lock);
+			return AST_MODULE_LOAD_DECLINE;
+		}
+	}
 
 	if (!pbx_load_config(config)) {
+		ast_hashtab_destroy(local_table, NULL);
+		local_table = NULL;
 		ast_mutex_unlock(&reload_lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -2111,6 +2118,11 @@ static int load_module(void)
 {
 	int res;
 
+	if (pbx_load_module()) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (static_config && !write_protect_config)
 		ast_cli_register(&cli_dialplan_save);
 	ast_cli_register_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
@@ -2124,9 +2136,6 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
-	if (pbx_load_module())
-		return AST_MODULE_LOAD_DECLINE;
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
