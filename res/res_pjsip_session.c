@@ -930,10 +930,18 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 		session_media = AST_VECTOR_GET(&session->pending_media_state->sessions, i);
 		stream = ast_stream_topology_get_stream(session->pending_media_state->topology, i);
 
-		/* The stream state will have already been set to removed when either we
-		 * negotiate the incoming SDP stream or when we produce our own local SDP.
-		 * This can occur if an internal thing has requested it to be removed, or if
-		 * we remove it as a result of the stream limit being reached.
+		/* Make sure that this stream is in the correct state. If we need to change
+		 * the state to REMOVED, then our work here is done, so go ahead and move on
+		 * to the next stream.
+		 */
+		if (!remote->media[i]->desc.port) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
+			continue;
+		}
+
+		/* If the stream state is REMOVED, nothing needs to be done, so move on to the
+		 * next stream. This can occur if an internal thing has requested it to be
+		 * removed, or if we remove it as a result of the stream limit being reached.
 		 */
 		if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
 			/*
