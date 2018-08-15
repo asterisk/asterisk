@@ -2629,7 +2629,7 @@ static int dtls_srtp_renegotiate(const void *data)
 	return 0;
 }
 
-static int dtls_srtp_add_local_ssrc(struct ast_rtp *rtp, struct ast_srtp *srtp, struct ast_rtp_instance *instance, int rtcp, unsigned int ssrc, int set_remote_policy)
+static int dtls_srtp_add_local_ssrc(struct ast_rtp *rtp, struct ast_rtp_instance *instance, int rtcp, unsigned int ssrc, int set_remote_policy)
 {
 	unsigned char material[SRTP_MASTER_LEN * 2];
 	unsigned char *local_key, *local_salt, *remote_key, *remote_salt;
@@ -2709,7 +2709,7 @@ error:
 	return res;
 }
 
-static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct ast_rtp_instance *instance, int rtcp)
+static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_rtp_instance *instance, int rtcp)
 {
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	int index;
@@ -2751,14 +2751,14 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 		X509_free(certificate);
 	}
 
-	if (dtls_srtp_add_local_ssrc(rtp, srtp, instance, rtcp, ast_rtp_instance_get_ssrc(instance), 1)) {
+	if (dtls_srtp_add_local_ssrc(rtp, instance, rtcp, ast_rtp_instance_get_ssrc(instance), 1)) {
 		return -1;
 	}
 
 	for (index = 0; index < AST_VECTOR_SIZE(&rtp->ssrc_mapping); ++index) {
 		struct rtp_ssrc_mapping *mapping = AST_VECTOR_GET_ADDR(&rtp->ssrc_mapping, index);
 
-		if (dtls_srtp_add_local_ssrc(rtp, srtp, instance, rtcp, ast_rtp_instance_get_ssrc(mapping->instance), 0)) {
+		if (dtls_srtp_add_local_ssrc(rtp, instance, rtcp, ast_rtp_instance_get_ssrc(mapping->instance), 0)) {
 			return -1;
 		}
 	}
@@ -2825,8 +2825,9 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 {
 	int len;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance, rtcp);
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 	char *in = buf;
+#endif
 #ifdef HAVE_PJPROJECT
 	struct ast_sockaddr *loop = rtcp ? &rtp->rtcp_loop : &rtp->rtp_loop;
 #endif
@@ -2887,7 +2888,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			/* Any further connections will be existing since this is now established */
 			dtls->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
 			/* Use the keying material to set up key/salt information */
-			if ((res = dtls_srtp_setup(rtp, srtp, instance, rtcp))) {
+			if ((res = dtls_srtp_setup(rtp, instance, rtcp))) {
 				return res;
 			}
 			/* Notify that dtls has been established */
@@ -7782,7 +7783,7 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 	 * negotiation has been completed.
 	 */
 	if (parent_rtp->dtls.connection == AST_RTP_DTLS_CONNECTION_EXISTING) {
-		dtls_srtp_add_local_ssrc(parent_rtp, ast_rtp_instance_get_srtp(parent, 0), parent, 0, child_rtp->ssrc, 0);
+		dtls_srtp_add_local_ssrc(parent_rtp, parent, 0, child_rtp->ssrc, 0);
 	}
 #endif
 
