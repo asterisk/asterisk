@@ -69,7 +69,6 @@ pipeline {
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."
 						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
-						sh "printenv | sort"
 
 						/*
 						 * Jenkins has already automatically checked out the base branch
@@ -84,8 +83,10 @@ pipeline {
 						 * We need to retrieve the jenkins2 gerrit https credentials
 						 * in case this review is in a restricted project.
 						 */
-						withCredentials([usernamePassword(credentialsId: env.JENKINS_GERRIT_CREDS,
-							usernameVariable: 'gerrit_user')]) {
+						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
+							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
+
+							sh "printenv | sort"
 
 							checkout scm: [$class: 'GitSCM',
 								branches: [[name: env.GERRIT_BRANCH ]],
@@ -113,7 +114,7 @@ pipeline {
 									credentialsId: env.JENKINS_GERRIT_CREDS,
 									name: env.GERRIT_NAME,
 									refspec: env.GERRIT_REFSPEC,
-									url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${gerrit_user}@")
+									url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
 									]
 								]
 							]
