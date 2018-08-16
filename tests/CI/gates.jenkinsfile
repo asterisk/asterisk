@@ -79,33 +79,44 @@ pipeline {
 						 *
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
+						 *
+						 * We need to retrieve the jenkins2 gerrit https credentials
+						 * in case this review is in a restricted project.
 						 */
-						checkout scm: [$class: 'GitSCM',
-							branches: [[name: env.GERRIT_BRANCH ]],
-							extensions: [
-								[$class: 'ScmName', name: 'gerrit-public'],
-								[$class: 'CleanBeforeCheckout'],
-								[$class: 'PreBuildMerge', options: [
-									mergeRemote: 'gerrit-public',
-									fastForwardMode: 'NO_FF',
-									mergeStrategy: 'RECURSIVE',
-									mergeTarget: env.GERRIT_BRANCH]],
-								[$class: 'CloneOption',
-									honorRefspec: true,
-									noTags: true,
-									depth: 10,
-									shallow: true
-								],
-								[$class: 'PruneStaleBranch'],
-								[$class: 'BuildChooserSetting',
-									buildChooser: [$class: 'GerritTriggerBuildChooser']
-								]
-							],
-							userRemoteConfigs: [
-								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GERRIT_PROJECT_URL ]
-							]
-						]
+						withCredentials([usernamePassword(credentialsId: env.JENKINS_GERRIT_CREDS,
+							usernameVariable: 'gerrit_user')]) {
 
+							checkout scm: [$class: 'GitSCM',
+								branches: [[name: env.GERRIT_BRANCH ]],
+								extensions: [
+									[$class: 'ScmName', name: 'gerrit-public'],
+									[$class: 'CleanBeforeCheckout'],
+									[$class: 'PreBuildMerge', options: [
+										mergeRemote: 'gerrit-public',
+										fastForwardMode: 'NO_FF',
+										mergeStrategy: 'RECURSIVE',
+										mergeTarget: env.GERRIT_BRANCH]],
+									[$class: 'CloneOption',
+										honorRefspec: true,
+										noTags: true,
+										depth: 10,
+										shallow: true
+									],
+									[$class: 'PruneStaleBranch'],
+									[$class: 'BuildChooserSetting',
+										buildChooser: [$class: 'GerritTriggerBuildChooser']
+									]
+								],
+								userRemoteConfigs: [
+									[
+									credentialsId: env.JENKINS_GERRIT_CREDS,
+									name: env.GERRIT_NAME,
+									refspec: env.GERRIT_REFSPEC,
+									url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${gerrit_user}@")
+									]
+								]
+							]
+						}
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
