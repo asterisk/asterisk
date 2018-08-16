@@ -83,8 +83,8 @@ pipeline {
 						 * We need to retrieve the jenkins2 gerrit https credentials
 						 * in case this review is in a restricted project.
 						 */
-						withCredentials([usernamePassword(credentialsId: env.JENKINS_GERRIT_CREDS,
-							usernameVariable: 'GERRIT_USER_NAME')]) {
+						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
+							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
 
 							sh "printenv | sort"
 
@@ -114,12 +114,11 @@ pipeline {
 									credentialsId: env.JENKINS_GERRIT_CREDS,
 									name: env.GERRIT_NAME,
 									refspec: env.GERRIT_REFSPEC,
-									url: env.GERRIT_PROJECT_URL
+									url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
 									]
 								]
 							]
 						}
-//						url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${env.GERRIT_USER_NAME}@")
 
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
