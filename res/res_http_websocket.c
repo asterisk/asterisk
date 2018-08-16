@@ -736,7 +736,8 @@ static void websocket_bad_request(struct ast_tcptls_session_instance *ser)
 int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
-	char *upgrade = NULL, *key = NULL, *key1 = NULL, *key2 = NULL, *protos = NULL, *requested_protocols = NULL, *protocol = NULL;
+	const char *upgrade = NULL, *key = NULL, *key1 = NULL, *key2 = NULL, *protos = NULL;
+	char *requested_protocols = NULL, *protocol = NULL;
 	int version = 0, flags = 1;
 	struct ast_websocket_protocol *protocol_handler = NULL;
 	struct ast_websocket *session;
@@ -755,16 +756,15 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	/* Get the minimum headers required to satisfy our needs */
 	for (v = headers; v; v = v->next) {
 		if (!strcasecmp(v->name, "Upgrade")) {
-			upgrade = ast_strip(ast_strdupa(v->value));
+			upgrade = v->value;
 		} else if (!strcasecmp(v->name, "Sec-WebSocket-Key")) {
-			key = ast_strip(ast_strdupa(v->value));
+			key = v->value;
 		} else if (!strcasecmp(v->name, "Sec-WebSocket-Key1")) {
-			key1 = ast_strip(ast_strdupa(v->value));
+			key1 = v->value;
 		} else if (!strcasecmp(v->name, "Sec-WebSocket-Key2")) {
-			key2 = ast_strip(ast_strdupa(v->value));
+			key2 = v->value;
 		} else if (!strcasecmp(v->name, "Sec-WebSocket-Protocol")) {
-			requested_protocols = ast_strip(ast_strdupa(v->value));
-			protos = ast_strdupa(requested_protocols);
+			protos = v->value;
 		} else if (!strcasecmp(v->name, "Sec-WebSocket-Version")) {
 			if (sscanf(v->value, "%30d", &version) != 1) {
 				version = 0;
@@ -778,7 +778,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			ast_sockaddr_stringify(&ser->remote_address));
 		ast_http_error(ser, 426, "Upgrade Required", NULL);
 		return 0;
-	} else if (ast_strlen_zero(requested_protocols)) {
+	} else if (ast_strlen_zero(protos)) {
 		/* If there's only a single protocol registered, and the
 		 * client doesn't specify what protocol it's using, go ahead
 		 * and accept the connection */
@@ -799,9 +799,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		return 0;
 	}
 
-	/* Iterate through the requested protocols trying to find one that we have a handler for */
-	while (!protocol_handler && (protocol = strsep(&requested_protocols, ","))) {
-		protocol_handler = ao2_find(server->protocols, ast_strip(protocol), OBJ_KEY);
+	if (!protocol_handler && protos) {
+		requested_protocols = ast_strdupa(protos);
+		/* Iterate through the requested protocols trying to find one that we have a handler for */
+		while (!protocol_handler && (protocol = strsep(&requested_protocols, ","))) {
+			protocol_handler = ao2_find(server->protocols, ast_strip(protocol), OBJ_KEY);
+		}
 	}
 
 	/* If no protocol handler exists bump this back to the requester */
