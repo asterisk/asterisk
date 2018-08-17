@@ -113,6 +113,13 @@ if [ $TESTED_ONLY -eq 1 ] ; then
 	mod_disables+=" res_ael_share res_calendar res_config_ldap res_config_pgsql res_corosync"
 	mod_disables+=" res_http_post res_pktccops res_rtp_multicast res_snmp res_xmpp"
 fi
+if [ $REF_DEBUG -eq 1 ] ; then
+	# res_odbc does not unload at shutdown, including it with REF_DEBUG testing would cause
+	# every test to fail due to that leak.
+	# Note: --ref-debug and --realtime cannot be used together in this version of Asterisk.
+	# To test for reference leaks with realtime usage you must test against Asterisk 16+.
+	mod_disables+=" res_odbc"
+fi
 [ "$BRANCH_NAME" == "master" ] && mod_disables+=" codec_opus codec_silk codec_g729a codec_siren7 codec_siren14"
 runner menuselect/menuselect `gen_mods disable $mod_disables` menuselect.makeopts
 
