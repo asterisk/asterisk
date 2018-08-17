@@ -119,10 +119,8 @@ static void *keepalive_transport_thread(void *data)
 
 AST_THREADSTORAGE(desc_storage);
 
-static int idle_sched_cb(const void *data)
+static int idle_sched_init_pj_thread(void)
 {
-	struct monitored_transport *monitored = (struct monitored_transport *) data;
-
 	if (!pj_thread_is_registered()) {
 		pj_thread_t *thread;
 		pj_thread_desc *desc;
@@ -130,13 +128,24 @@ static int idle_sched_cb(const void *data)
 		desc = ast_threadstorage_get(&desc_storage, sizeof(pj_thread_desc));
 		if (!desc) {
 			ast_log(LOG_ERROR, "Could not get thread desc from thread-local storage.\n");
-			ao2_ref(monitored, -1);
-			return 0;
+			return -1;
 		}
 
 		pj_bzero(*desc, sizeof(*desc));
 
 		pj_thread_register("Transport Monitor", *desc, &thread);
+	}
+
+	return 0;
+}
+
+static int idle_sched_cb(const void *data)
+{
+	struct monitored_transport *monitored = (struct monitored_transport *) data;
+
+	if (idle_sched_init_pj_thread()) {
+		ao2_ref(monitored, -1);
+		return 0;
 	}
 
 	if (!monitored->sip_received) {
@@ -146,6 +155,18 @@ static int idle_sched_cb(const void *data)
 	}
 
 	ao2_ref(monitored, -1);
+	return 0;
+}
+
+static int idle_sched_cleanup(const void *data)
+{
+	struct monitored_transport *monitored = (struct monitored_transport *) data;
+
+	if (!idle_sched_init_pj_thread()) {
+		pjsip_transport_shutdown(monitored->transport);
+	}
+	ao2_ref(monitored, -1);
+
 	return 0;
 }
 
@@ -384,6 +405,7 @@ void ast_sip_destroy_transport_management(void)
 
 	internal_sip_unregister_service(&idle_monitor_module);
 
+	ast_sched_clean_by_callback(sched, idle_sched_cb, idle_sched_cleanup);
 	ast_sched_context_destroy(sched);
 	sched = NULL;
 
