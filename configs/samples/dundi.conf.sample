@@ -30,27 +30,27 @@
 ; See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for a description of the tos parameter.
 ;tos=ef
 ;
-; Our entity identifier (Should generally be the MAC address of the
+; Our entity identifier.  (It should generally be the MAC address of the
 ; machine it's running on.  Defaults to the first eth address, but you
 ; can override it here, as long as you set it to the MAC of *something*
-; you own!)  The EID can be overridden by a setting in asterisk.conf,
+; you own!)  The EID can be overridden by a setting in asterisk.conf
 ; or by setting this option.
 ;
 ;entityid=00:07:E9:3B:76:60
 ;
-; Peers shall cache our query responses for the specified time,
-; given in seconds. Default is 3600.
+; Peers shall cache our query responses for the specified time
+; in seconds. Default is 3600.
 ;
 ;cachetime=3600
 ;
-; This defines the max depth in which to search the DUNDi system.
+; This defines the max depth (hops) in which to search the DUNDi system.
 ; Note that the maximum time that we will wait for a response is
 ; (2000 + 200 * ttl) ms.
 ;
 ttl=32
 ;
-; If we don't get ACK to our DPDISCOVER within 2000ms, and autokill is set
-; to yes, then we cancel the whole thing (that's enough time for one
+; If we don't get ACK to our DPDISCOVER within 2000ms and autokill is set
+; to yes then we cancel the whole thing (that's enough time for one
 ; retransmission only).  This is used to keep things from stalling for a long
 ; time for a host that is not available, but would be ill advised for bad
 ; connections.  In addition to 'yes' or 'no' you can also specify a number
@@ -66,7 +66,7 @@ autokill=yes
 ;secretpath=dundi
 ;
 ; The 'storehistory' option (also changeable at runtime with
-; 'dundi store history' and 'dundi no store history') will
+; 'dundi store history on' and 'dundi store history off') will
 ; cause the DUNDi engine to keep track of the last several
 ; queries and the amount of time each query took to execute
 ; for the purpose of tracking slow nodes.  This option is
@@ -83,7 +83,7 @@ autokill=yes
 ; Agreement (GPA) if you are a member of the DUNDi E.164
 ; Peering System.
 ;
-; dundi_context => local_context,weight,tech,dest[,options]]
+; dundi_context => [local_context,weight,tech,dest{,options}]
 ;
 ; 'dundi_context' is the name of the context being requested
 ; within the DUNDi request
@@ -97,14 +97,14 @@ autokill=yes
 ; with a lower weight are tried first.  Note that the weight has a
 ; special meaning in the e164 context - see the GPA for more details.
 ;
-; 'tech' is the technology to use (IAX, SIP, H323)
+; 'tech' is the technology to use (IAX2, SIP, H323)
 ;
-; 'dest' is the destination to supply for reaching that number.  The
-; following variables can be used in the destination string and will
-; be automatically substituted:
+; 'dest' is the Dial application's channel technology resource destination
+; to supply for reaching that number.  The following variables can be used
+; in the destination string and will be automatically substituted:
 ; ${NUMBER}: The number being requested
 ; ${IPADDR}: The IP address to connect to
-; ${SECRET}: The current rotating secret key to be used
+; ${SECRET}: The current IAX2 rotating secret key to be used
 ;
 ; Further options may include:
 ;
@@ -122,12 +122,13 @@ autokill=yes
 ; There *must* exist an entry in mappings for DUNDi to respond
 ; to any request, although it may be empty.
 ;
+;empty_context =>
+;
 ;e164 => dundi-e164-canonical,0,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
 ;e164 => dundi-e164-customers,100,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
 ;e164 => dundi-e164-via-pstn,400,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
-
+;
 ;digexten => default,0,IAX2,guest@lappy/${NUMBER}
-;asdf =>
 
 ;
 ; Weights for mappings can be set a few different ways:
@@ -140,34 +141,34 @@ autokill=yes
 ;
 ; 3) It can be retrieved using a dialplan function.  This can be extremely
 ;    useful if you want to let an external script decide what the weight
-;    in a response shouuld be.
+;    in a response should be.
 ;testmap3 => context3,${SHELL(echo 123)},IAX2,guest@peer3/${NUMBER}
 ;
 ; The built in variables ${SECRET}, ${IPADDR} and ${NUMBER} can also be
 ; passed to the weight. For example, you could pass the ${NUMBER} value
 ; to your SHELL() script and use that to dynamically return a weight.
 ;
-; Note than when using a global variable or dialplan function to set the
-; weight for a mapping, that response caching should be disabled if you
+; Note when using a global variable or dialplan function to set the
+; weight for a mapping that response caching should be disabled if you
 ; plan for these values to change frequently at all.  If the results are
-; cached, then any change in value will not take effect until the cache
+; cached then any change in value will not take effect until the cache
 ; has expired.
 ;
 
 ;
-; The remaining sections represent the peers
-; that we fundamentally trust.  The section name
-; represents the name and optionally at a specific
-; DUNDi context if you want the trust to be established
-; for only a specific DUNDi context.
+; The remaining sections represent the peers that we fundamentally trust.
+; The section name specifies the peer's entityid.  You can specify which
+; DUNDi contexts with which you want the trust to be established.
 ;
 ; inkey - What key they will be authenticating to us with
 ;
 ; outkey - What key we use to authenticate to them
 ;
-; host - What their host is
+; host - What their host is (DNS name, IP address, or dynamic)
 ;
 ; port - The port where their host is listening (default: 4520)
+;
+; ustothem - Explicitly specify the entityid we use with this peer.
 ;
 ; order - What search order to use.  May be 'primary', 'secondary',
 ;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
@@ -199,7 +200,7 @@ autokill=yes
 ; precache - Utilize/Permit precaching with this peer (to pre
 ;            cache means to provide an answer when no request
 ;            was made and is used so that machines with few
-;            routes can push those routes up a to a higher level).
+;            routes can push those routes up to a higher level).
 ;            outgoing means we send precache routes to this peer,
 ;            incoming means we permit this peer to send us
 ;            precache routes.  symmetric means we do both.
@@ -208,6 +209,12 @@ autokill=yes
 ; precache, nor can you mix symmetric/inbound model with symmetric/outbound
 ; precache.
 ;
+; qualify - Enable qualifying the peer to determine reachable status.
+;           Set to yes, no, or number of milliseconds for qualifying
+;           the peer's reachable status.
+;
+; register - Enable registering with the peer.  This presupposes that the
+;            peer's host option for us is dynamic.  (yes/no value)
 ;
 ; The '*' peer is special and matches an unspecified entity
 ;
