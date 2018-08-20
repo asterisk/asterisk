@@ -300,6 +300,15 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 		return 0;
 	}
 
+	if (session->t38state != T38_LOCAL_REINVITE) {
+		/* Do nothing.  We have already processed a final response. */
+		ast_debug(3, "Received %d response to T.38 re-invite on '%s' but already had a final response (T.38 state:%d)\n",
+			status.code,
+			session->channel ? ast_channel_name(session->channel) : "unknown channel",
+			session->t38state);
+		return 0;
+	}
+
 	state = t38_state_get_or_alloc(session);
 	if (!session->channel || !state) {
 		ast_log(LOG_WARNING, "Received %d response to T.38 re-invite on '%s' but state unavailable\n",
