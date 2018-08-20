@@ -2804,6 +2804,34 @@ const char *astman_get_header(const struct message *m, char *var)
 }
 
 /*!
+ * \brief Append additional headers into the message structure from params.
+ *
+ * \note You likely want to initialize m->hdrcount to 0 before calling this.
+ */
+static void astman_append_headers(struct message *m, const struct ast_variable *params)
+{
+	const struct ast_variable *v;
+
+	for (v = params; v && m->hdrcount < ARRAY_LEN(m->headers); v = v->next) {
+		if (ast_asprintf((char**)&m->headers[m->hdrcount], "%s: %s", v->name, v->value) > -1) {
+			++m->hdrcount;
+		}
+	}
+}
+
+/*!
+ * \brief Free headers inside message structure, but not the message structure itself.
+ */
+static void astman_free_headers(struct message *m)
+{
+	while (m->hdrcount) {
+		--m->hdrcount;
+		ast_free((void *) m->headers[m->hdrcount]);
+		m->headers[m->hdrcount] = NULL;
+	}
+}
+
+/*!
  * \internal
  * \brief Process one "Variable:" header value string.
  *
@@ -6658,7 +6686,6 @@ static int do_message(struct mansession *s)
 	struct message m = { 0 };
 	char header_buf[sizeof(s->session->inbuf)] = { '\0' };
 	int res;
-	int idx;
 	int hdr_loss;
 	time_t now;
 
@@ -6726,10 +6753,8 @@ static int do_message(struct mansession *s)
 		}
 	}
 
-	/* Free AMI request headers. */
-	for (idx = 0; idx < m.hdrcount; ++idx) {
-		ast_free((void *) m.headers[idx]);
-	}
+	astman_free_headers(&m);
+
 	return res;
 }
 
@@ -7723,13 +7748,10 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	uint32_t ident;
 	int fd;
 	int blastaway = 0;
-	struct ast_variable *v;
 	struct ast_variable *params = get_params;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 	struct ast_str *http_header = NULL, *out = NULL;
 	struct message m = { 0 };
-	unsigned int idx;
-	size_t hdrlen;
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD && method != AST_HTTP_POST) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
@@ -7812,17 +7834,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		}
 	}
 
-	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
-		hdrlen = strlen(v->name) + strlen(v->value) + 3;
-		m.headers[m.hdrcount] = ast_malloc(hdrlen);
-		if (!m.headers[m.hdrcount]) {
-			/* Allocation failure */
-			continue;
-		}
-		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
-		ast_debug(1, "HTTP Manager add header %s\n", m.headers[m.hdrcount]);
-		++m.hdrcount;
-	}
+	astman_append_headers(&m, params);
 
 	if (process_message(&s, &m)) {
 		if (session->authenticated) {
@@ -7837,11 +7849,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		session->needdestroy = 1;
 	}
 
-	/* Free request headers. */
-	for (idx = 0; idx < m.hdrcount; ++idx) {
-		ast_free((void *) m.headers[idx]);
-		m.headers[idx] = NULL;
-	}
+	astman_free_headers(&m);
 
 	ast_str_append(&http_header, 0,
 		"Content-type: text/%s\r\n"
@@ -7952,8 +7960,6 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	struct ast_str *http_header = NULL, *out = NULL;
 	size_t result_size;
 	struct message m = { 0 };
-	unsigned int idx;
-	size_t hdrlen;
 	int fd;
 
 	time_t time_now = time(NULL);
@@ -8176,17 +8182,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		}
 	}
 
-	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
-		hdrlen = strlen(v->name) + strlen(v->value) + 3;
-		m.headers[m.hdrcount] = ast_malloc(hdrlen);
-		if (!m.headers[m.hdrcount]) {
-			/* Allocation failure */
-			continue;
-		}
-		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
-		ast_verb(4, "HTTP Manager add header %s\n", m.headers[m.hdrcount]);
-		++m.hdrcount;
-	}
+	astman_append_headers(&m, params);
 
 	if (process_message(&s, &m)) {
 		if (u_displayconnects) {
@@ -8196,11 +8192,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		session->needdestroy = 1;
 	}
 
-	/* Free request headers. */
-	for (idx = 0; idx < m.hdrcount; ++idx) {
-		ast_free((void *) m.headers[idx]);
-		m.headers[idx] = NULL;
-	}
+	astman_free_headers(&m);
 
 	result_size = lseek(ast_iostream_get_fd(s.stream), 0, SEEK_CUR); /* Calculate approx. size of result */
 
