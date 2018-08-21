@@ -2213,7 +2213,6 @@ static void *network_thread(void *ignore)
 	}
 
 	ast_io_remove(io, socket_read_id);
-	netthreadid = AST_PTHREADT_NULL;
 
 	return NULL;
 }
@@ -2248,7 +2247,6 @@ static void *process_clearcache(void *ignore)
 		pthread_testcancel();
 	}
 
-	clearcachethreadid = AST_PTHREADT_NULL;
 	return NULL;
 }
 
@@ -2283,8 +2281,6 @@ static void *process_precache(void *ign)
 		} else
 			sleep(1);
 	}
-
-	precachethreadid = AST_PTHREADT_NULL;
 
 	return NULL;
 }
@@ -4988,8 +4984,6 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 
 static int unload_module(void)
 {
-	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid, previous_clearcachethreadid = clearcachethreadid;
-
 	ast_cli_unregister_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
@@ -4998,17 +4992,20 @@ static int unload_module(void)
 
 	/* Stop all currently running threads */
 	dundi_shutdown = 1;
-	if (previous_netthreadid != AST_PTHREADT_NULL) {
-		pthread_kill(previous_netthreadid, SIGURG);
-		pthread_join(previous_netthreadid, NULL);
+	if (netthreadid != AST_PTHREADT_NULL) {
+		pthread_kill(netthreadid, SIGURG);
+		pthread_join(netthreadid, NULL);
+		netthreadid = AST_PTHREADT_NULL;
 	}
-	if (previous_precachethreadid != AST_PTHREADT_NULL) {
-		pthread_kill(previous_precachethreadid, SIGURG);
-		pthread_join(previous_precachethreadid, NULL);
+	if (precachethreadid != AST_PTHREADT_NULL) {
+		pthread_kill(precachethreadid, SIGURG);
+		pthread_join(precachethreadid, NULL);
+		precachethreadid = AST_PTHREADT_NULL;
 	}
- 	if (previous_clearcachethreadid != AST_PTHREADT_NULL) {
- 		pthread_cancel(previous_clearcachethreadid);
- 		pthread_join(previous_clearcachethreadid, NULL);
+ 	if (clearcachethreadid != AST_PTHREADT_NULL) {
+ 		pthread_cancel(clearcachethreadid);
+ 		pthread_join(clearcachethreadid, NULL);
+		clearcachethreadid = AST_PTHREADT_NULL;
  	}
 
 	mark_mappings();
