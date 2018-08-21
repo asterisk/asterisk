@@ -18740,7 +18740,6 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 				S_OR(transferer->context, NULL));
 			pbx_builtin_setvar_helper(peer, "__SIPREFERREDBYHDR",
 				S_OR(p_referred_by, NULL));
-			ast_channel_unlock(peer);
 		}
 
 		owner_relock = sip_pvt_lock_full(transferer);
