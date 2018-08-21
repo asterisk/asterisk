@@ -1318,7 +1318,9 @@ static int do_register_expire(const void *data)
 {
 	struct dundi_peer *peer = (struct dundi_peer *)data;
 	char eid_str[20];
+
 	ast_debug(1, "Register expired for '%s'\n", ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+	ast_db_del("dundi/dpeers", dundi_eid_to_str_short(eid_str, sizeof(eid_str), &peer->eid));
 	peer->registerexpire = -1;
 	peer->lastms = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
@@ -1540,7 +1542,18 @@ static void deep_copy_peer(struct dundi_peer *peer_dst, const struct dundi_peer 
 {
 	struct permission *cur, *perm;
 
-	memcpy(peer_dst, peer_src, sizeof(*peer_dst));
+	*peer_dst = *peer_src;
+	AST_LIST_NEXT(peer_dst, list) = NULL;
+
+	/* Scheduled items cannot go with the copy */
+	peer_dst->registerid = -1;
+	peer_dst->qualifyid = -1;
+	peer_dst->registerexpire = -1;
+
+	/* Transactions and lookup history cannot go with the copy either */
+	peer_dst->regtrans = NULL;
+	peer_dst->qualtrans = NULL;
+	memset(&peer_dst->lookups, 0, sizeof(peer_dst->lookups));
 
 	memset(&peer_dst->permit, 0, sizeof(peer_dst->permit));
 	memset(&peer_dst->include, 0, sizeof(peer_dst->permit));
@@ -2363,8 +2376,7 @@ static char *dundi_flush(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		AST_LIST_LOCK(&peers);
 		AST_LIST_TRAVERSE(&peers, p, list) {
 			for (x = 0;x < DUNDI_TIMING_HISTORY; x++) {
-				if (p->lookups[x])
-					ast_free(p->lookups[x]);
+				ast_free(p->lookups[x]);
 				p->lookups[x] = NULL;
 				p->lookuptimes[x] = 0;
 			}
@@ -3176,8 +3188,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 					if (!ast_eid_cmp(&trans->them_eid, &peer->eid)) {
 						peer->avgms = 0;
 						cnt = 0;
-						if (peer->lookups[DUNDI_TIMING_HISTORY-1])
-							ast_free(peer->lookups[DUNDI_TIMING_HISTORY-1]);
+						ast_free(peer->lookups[DUNDI_TIMING_HISTORY - 1]);
 						for (x=DUNDI_TIMING_HISTORY-1;x>0;x--) {
 							peer->lookuptimes[x] = peer->lookuptimes[x-1];
 							peer->lookups[x] = peer->lookups[x-1];
@@ -4323,19 +4334,31 @@ static void destroy_permissions(struct permissionlist *permlist)
 
 static void destroy_peer(struct dundi_peer *peer)
 {
+	int idx;
+
+	AST_SCHED_DEL(sched, peer->registerexpire);
 	AST_SCHED_DEL(sched, peer->registerid);
-	if (peer->regtrans)
+	if (peer->regtrans) {
 		destroy_trans(peer->regtrans, 0);
+	}
 	AST_SCHED_DEL(sched, peer->qualifyid);
+	if (peer->qualtrans) {
+		destroy_trans(peer->qualtrans, 0);
+	}
 	destroy_permissions(&peer->permit);
 	destroy_permissions(&peer->include);
+
+	/* Release lookup history */
+	for (idx = 0; idx < ARRAY_LEN(peer->lookups); ++idx) {
+		ast_free(peer->lookups[idx]);
+	}
+
 	ast_free(peer);
 }
 
 static void destroy_map(struct dundi_mapping *map)
 {
-	if (map->weightstr)
-		ast_free(map->weightstr);
+	ast_free(map->weightstr);
 	ast_free(map);
 }
 
@@ -4679,10 +4702,11 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 		ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n",
 			ast_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 	} else {
-		if (needregister) {
-			peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
-		}
 		if (ast_eid_cmp(&peer->eid, &empty_eid)) {
+			/* Schedule any items for explicitly configured peers. */
+			if (needregister) {
+				peer->registerid = ast_sched_add(sched, 2000, do_register, peer);
+			}
 			qualify_peer(peer, 1);
 		}
 	}
@@ -4921,13 +4945,17 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		v = v->next;
 	}
 	AST_LIST_UNLOCK(&peers);
+
 	mark_mappings();
 	v = ast_variable_browse(cfg, "mappings");
-	while(v) {
+	while (v) {
+		AST_LIST_LOCK(&peers);
 		build_mapping(v->name, v->value);
+		AST_LIST_UNLOCK(&peers);
 		v = v->next;
 	}
 	prune_mappings();
+
 	mark_peers();
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
@@ -4944,6 +4972,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		cat = ast_category_browse(cfg, cat);
 	}
 	prune_peers();
+
 	ast_config_destroy(cfg);
 	load_password();
 	if (globalpcmodel & DUNDI_MODEL_OUTBOUND)
@@ -4977,15 +5006,24 @@ static int unload_module(void)
 		clearcachethreadid = AST_PTHREADT_NULL;
  	}
 
-	close(netsocket);
-	io_context_destroy(io);
-
 	mark_mappings();
 	prune_mappings();
 	mark_peers();
 	prune_peers();
 
-	ast_sched_context_destroy(sched);
+	if (-1 < netsocket) {
+		close(netsocket);
+		netsocket = -1;
+	}
+	if (io) {
+		io_context_destroy(io);
+		io = NULL;
+	}
+
+	if (sched) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+	}
 
 	return 0;
 }
