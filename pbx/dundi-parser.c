@@ -448,7 +448,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		"INVALID     ",
 		"UNKNOWN CMD ",
 		"NULL        ",
-		"REQREQ      ",
+		"REGREQ      ",
 		"REGRESPONSE ",
 		"CANCEL      ",
 		"ENCRYPT     ",
@@ -458,15 +458,15 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	char subclass2[20];
 	char *subclass;
 	char tmp[256];
-	if ((fhi->cmdresp & 0x3f) > (int)sizeof(commands)/(int)sizeof(char *)) {
-		snprintf(class2, (int)sizeof(class2), "(%d?)", fhi->cmdresp);
+	if ((fhi->cmdresp & 0x3f) >= ARRAY_LEN(commands)) {
+		snprintf(class2, sizeof(class2), "(%d?)", fhi->cmdresp & 0x3f);
 		class = class2;
 	} else {
-		class = commands[(int)(fhi->cmdresp & 0x3f)];
+		class = commands[fhi->cmdresp & 0x3f];
 	}
-	snprintf(subclass2, (int)sizeof(subclass2), "%02hhx", (unsigned char)fhi->cmdflags);
+	snprintf(subclass2, sizeof(subclass2), "%02hhx", (unsigned char)fhi->cmdflags);
 	subclass = subclass2;
-	snprintf(tmp, (int)sizeof(tmp),
+	snprintf(tmp, sizeof(tmp),
 		"%s-Frame -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",
 		pref[rx],
 		fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
