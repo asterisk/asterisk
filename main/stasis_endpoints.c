@@ -98,18 +98,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="RoundtripUsec">
 					<para>The RTT measured during the last qualify.</para>
 				</parameter>
-				<parameter name="UserAgent">
-					<para>Content of the User-Agent header in REGISTER request</para>
-				</parameter>
-				<parameter name="RegExpire">
-					<para>Absolute time that this contact is no longer valid after</para>
-				</parameter>
-				<parameter name="ViaAddress">
-					<para>IP address:port of the last Via header in REGISTER request</para>
-				</parameter>
-				<parameter name="CallID">
-					<para>Content of the Call-ID header in REGISTER request</para>
-				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
