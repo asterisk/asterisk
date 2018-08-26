@@ -1,5 +1,6 @@
 <member name="res_digium_phone" displayname="Download the Digium Phone Module for Asterisk.  See http://downloads.digium.com/pub/telephony/res_digium_phone/README.">
 	<support_level>external</support_level>
+	<conflict>no_binary_modules</conflict>
 	<depend>xmlstarlet</depend>
 	<depend>bash</depend>
 	<defaultenabled>no</defaultenabled>
