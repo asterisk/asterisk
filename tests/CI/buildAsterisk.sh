@@ -3,6 +3,7 @@
 CIDIR=$(dirname $(readlink -fn $0))
 COVERAGE=0
 REF_DEBUG=0
+DISABLE_BINARY_MODULES=0
 source $CIDIR/ci.functions
 
 gen_cats() {
@@ -76,6 +77,10 @@ common_config_args+=" --enable-dev-mode"
 if [ $COVERAGE -eq 1 ] ; then
 	common_config_args+=" --enable-coverage"
 fi
+if [ "$BRANCH_NAME" == "master" -o $DISABLE_BINARY_MODULES -eq 1 ] ; then
+	common_config_args+=" --disable-binary-modules"
+fi
+
 export WGET_EXTRA_ARGS="--quiet"
 
 runner ./configure ${common_config_args} > ${OUTPUT_DIR:+${OUTPUT_DIR}/}configure.txt
@@ -120,7 +125,7 @@ if [ $REF_DEBUG -eq 1 ] ; then
 	# To test for reference leaks with realtime usage you must test against Asterisk 16+.
 	mod_disables+=" res_odbc"
 fi
-[ "$BRANCH_NAME" == "master" ] && mod_disables+=" codec_opus codec_silk codec_g729a codec_siren7 codec_siren14"
+
 runner menuselect/menuselect `gen_mods disable $mod_disables` menuselect.makeopts
 
 mod_enables="app_voicemail app_directory FILE_STORAGE"
