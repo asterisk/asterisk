@@ -1201,6 +1201,7 @@ AST_DOWNLOAD_CACHE
 AST_DEVMODE_STRICT
 AST_DEVMODE
 NOISY_BUILD
+PBX_NO_BINARY_MODULES
 PTHREAD_CFLAGS
 PTHREAD_LIBS
 PTHREAD_CC
@@ -1351,6 +1352,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_gnu_ld
+enable_binary_modules
 enable_dev_mode
 with_download_cache
 with_sounds_cache
@@ -2089,6 +2091,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --disable-binary-modules
+                          Block installation of binary modules.
   --enable-dev-mode       Turn on developer mode
   --enable-coverage       Turn on code coverage tracking (for gcov)
   --disable-xmldoc        Explicitly disable XML documentation
@@ -8912,6 +8916,18 @@ ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
+PBX_NO_BINARY_MODULES=0
+# Check whether --enable-binary-modules was given.
+if test "${enable_binary_modules+set}" = set; then :
+  enableval=$enable_binary_modules; case "${enableval}" in
+	      y|ye|yes) PBX_NO_BINARY_MODULES=0 ;;
+	      n|no)  PBX_NO_BINARY_MODULES=1 ;;
+	      *) as_fn_error $? "bad value ${enableval} for --disable-binary-modules" "$LINENO" 5  ;;
+	esac
+fi
+
 
 
 # Check whether --enable-dev-mode was given.

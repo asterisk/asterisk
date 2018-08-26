@@ -385,6 +385,17 @@ AX_PTHREAD
 
 AC_LANG(C)
 
+PBX_NO_BINARY_MODULES=0
+AC_ARG_ENABLE([binary-modules],
+	[AS_HELP_STRING([--disable-binary-modules],
+		[Block installation of binary modules.])],
+	[case "${enableval}" in
+	      y|ye|yes) PBX_NO_BINARY_MODULES=0 ;;
+	      n|no)  PBX_NO_BINARY_MODULES=1 ;;
+	      *) AC_MSG_ERROR(bad value ${enableval} for --disable-binary-modules)  ;;
+	esac])
+AC_SUBST(PBX_NO_BINARY_MODULES)
+
 AC_ARG_ENABLE([dev-mode],
 	[AS_HELP_STRING([--enable-dev-mode],
 		[Turn on developer mode])],
