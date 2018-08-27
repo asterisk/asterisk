@@ -125,6 +125,10 @@ format_jpeg
 ------------------
  * The format_jpeg module has been removed.
 
+pbx_dundi
+------------------
+ * DUNDi now supports IPv6
+
 Core:
 ------------------
  * libedit is no longer available as an embedded library and must be provided
