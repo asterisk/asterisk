@@ -37,6 +37,7 @@
 #include "asterisk/dundi.h"
 #include "dundi-parser.h"
 
+
 static void internaloutput(const char *str)
 {
 	fputs(str, stdout);
@@ -428,7 +429,7 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 	outputf("\n");
 }
 
-void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
+void dundi_showframe(struct dundi_hdr *fhi, int rx, struct ast_sockaddr *sin, int datalen)
 {
 	char *pref[] = {
 		"Tx",
@@ -469,11 +470,13 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		pref[rx],
 		fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
 	outputf(tmp);
+
 	snprintf(tmp, (int)sizeof(tmp),
-		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
+		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s]%s\n", (rx > 1) ? "     " : "",
 		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
-		ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port),
+		ast_sockaddr_stringify(sin),
 		fhi->cmdresp & 0x80 ? " (Final)" : "");
+
 	outputf(tmp);
 	dump_ies(fhi->ies, rx > 1, datalen);
 }
