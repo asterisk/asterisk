@@ -42,4 +42,8 @@ load => res_musiconhold.so
 noload => chan_alsa.so
 ;noload => chan_oss.so
 noload => chan_console.so
+
+noload => res_hep.so
+noload => res_hep_pjsip.so
+noload => res_hep_rtcp.so
 ;
