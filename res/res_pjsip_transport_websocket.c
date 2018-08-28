@@ -293,7 +293,7 @@ static int transport_read(void *data)
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ast_sockaddr_stringify(ast_websocket_remote_address(session))), &rdata->pkt_info.src_addr);
 	rdata->pkt_info.src_addr_len = sizeof(rdata->pkt_info.src_addr);
 
-	pj_ansi_strcpy(rdata->pkt_info.src_name, ast_sockaddr_stringify_host(ast_websocket_remote_address(session)));
+	pj_ansi_strcpy(rdata->pkt_info.src_name, ast_sockaddr_stringify_addr(ast_websocket_remote_address(session)));
 	rdata->pkt_info.src_port = ast_sockaddr_port(ast_websocket_remote_address(session));
 
 	recvd = pjsip_tpmgr_receive_packet(rdata->tp_info.transport->tpmgr, rdata);
