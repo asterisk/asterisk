@@ -1,6 +1,6 @@
 {
 	global:
-		LINKER_SYMBOL_PREFIXast_pjproject_*;
+		LINKER_SYMBOL_PREFIXast_*;
 	local:
 		*;
 };
