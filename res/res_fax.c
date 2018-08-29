@@ -2914,6 +2914,11 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	struct ast_fax_session *s;
 	int start_res;
 
+	/* if the fax gateway is already started then do nothing */
+	if (gateway->s && gateway->s->state != AST_FAX_STATE_RESERVED) {
+		return 0;
+	}
+
 	/* create the FAX session */
 	if (!(s = fax_session_new(details, chan, gateway->s, gateway->token))) {
 		gateway->token = NULL;
