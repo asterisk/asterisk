@@ -949,7 +949,7 @@ config:
 		if [ -z "$(DESTDIR)" ] ; then \
 			/sbin/chkconfig --add asterisk ; \
 		fi ; \
-	elif [ -f /etc/os-release ] && [ "opensuse" = "$(shell . /etc/os-release && echo $$ID)" ] ; then \
+	elif [ -f /etc/os-release ] && [ "opensuse" = "$(shell . /etc/os-release 2>/dev/null && echo $$ID)" ] ; then \
 		./build_tools/install_subst contrib/init.d/rc.suse.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
 		if [ ! -f /etc/sysconfig/asterisk ] ; then \
 			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
@@ -961,7 +961,7 @@ config:
 		./build_tools/install_subst contrib/init.d/rc.archlinux.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
 	elif [ -f /etc/slackware-version ]; then \
 		./build_tools/install_subst contrib/init.d/rc.slackware.asterisk  "$(DESTDIR)/etc/rc.d/rc.asterisk"; \
-	elif [ -f /etc/os-release ] && [ "slackware" = "$(shell . /etc/os-release && echo $$ID)" ] ; then \
+	elif [ -f /etc/os-release ] && [ "slackware" = "$(shell . /etc/os-release 2>/dev/null && echo $$ID)" ] ; then \
 		./build_tools/install_subst contrib/init.d/rc.slackware.asterisk  "$(DESTDIR)/etc/rc.d/rc.asterisk"; \
 	elif [ -d "$(DESTDIR)/Library/LaunchDaemons" ]; then \
 		if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist" ]; then \
