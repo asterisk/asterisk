@@ -64,6 +64,10 @@ AMI
    and ContactStatusDetail are now set to "NonQualified" when a contact exists
    but has not been qualified.
 
+ * The "Newexten" event is now part of the "dialplan" class. The documentation
+   for Asterisk 15 already specified this, but the implementation was actually
+   using the "call" class instead.
+
 ARI
 ------------------
  * The ContactInfo event's contact_status field is now set to "NonQualified"
