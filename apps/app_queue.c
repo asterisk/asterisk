@@ -8145,13 +8145,14 @@ check_turns:
 			break;
 		}
 
-		/* If using dynamic realtime members, we should regenerate the member list for this queue */
-		update_realtime_members(qe.parent);
 		/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 		res = wait_a_bit(&qe);
 		if (res) {
 			goto stop;
 		}
+
+		/* If using dynamic realtime members, we should regenerate the member list for this queue */
+		update_realtime_members(qe.parent);
 
 		/* Since this is a priority queue and
 		 * it is not sure that we are still at the head
