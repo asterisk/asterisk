@@ -2852,7 +2852,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			chans[0] = chan;
 			chans[1] = peer;
 
-			/* we need to stream the announcement while monitoring the caller for a hangup */
+			/* we need to stream the announcement to the called party when the OPT_ARG_ANNOUNCE (-A) is setted */
 
 			/* stream the file */
 			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], ast_channel_language(peer));
