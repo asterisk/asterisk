@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.23.0-rc1
+                                asterisk-13.23.0
 
-                                Date: 2018-08-28
+                                Date: 2018-09-05
 
                            <asteriskteam@digium.com>
 
@@ -56,14 +56,14 @@
    10 Joshua Colp                                    2 Emmanuel BUU           
    8 Alexander Traud                                 2 Nick French            
    3 Torrey Searle                                   2 Ross Beer              
-   2 Jaco Kroon                                      2 George Joseph          
-   2 Emmanuel BUU                                    1 Alexei Gradinari       
-   2 Nick French                                     1 rleasure               
-   2 Florian Floimair                                1 Samuel Owens           
-   1 Kevin Harwell                                   1 Siruja Maharjan        
-   1 Matthew Fredrickson                             1 Eric Dantie            
-   1 Sean Bright                                     1 Salah Ahmed            
-   1 Salah Ahmed                                     1 Emmanuel BUU           
+   2 Kevin Harwell                                   2 George Joseph          
+   2 Jaco Kroon                                      1 Alexei Gradinari       
+   2 Emmanuel BUU                                    1 rleasure               
+   2 Nick French                                     1 Samuel Owens           
+   2 Florian Floimair                                1 Siruja Maharjan        
+   1 Salah Ahmed                                     1 Eric Dantie            
+   1 Matthew Fredrickson                             1 Salah Ahmed            
+   1 Sean Bright                                     1 Emmanuel BUU           
    1 Chris-Savinovich                                1 Ross Beer              
    1 Ivan Poddubny                                   1 Valentin Safonov       
    1 Alexei Gradinari                                1 Florian Floimair       
@@ -372,6 +372,8 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | 53bc933737 | Kevin Harwell    | Update for 13.23.0-rc1                 |
+   |------------+------------------+----------------------------------------|
    | b528715fa0 | Jaco Kroon       | AMI: be less verbose when adding HTTP  |
    |            |                  | headers to AMI/HTTP messages.          |
    |------------+------------------+----------------------------------------|
@@ -570,17 +572,18 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                   |    1
- .version                                                                                     |    1
- ChangeLog                                                                                    |60881 ----------
- asterisk-13.22.0-summary.html                                                                |  314
- asterisk-13.22.0-summary.txt                                                                 |  784
+ asterisk-13.22.0-summary.html                                                                |  314 --
+ asterisk-13.22.0-summary.txt                                                                 |  784 -----
  b/.gitignore                                                                                 |    2
+ b/.version                                                                                   |    2
  b/CHANGES                                                                                    |   18
+ b/ChangeLog                                                                                  | 1397 +++++++++-
  b/Makefile                                                                                   |   15
  b/addons/chan_ooh323.c                                                                       |    4
  b/addons/ooh323c/src/ooSocket.c                                                              |    4
  b/apps/app_queue.c                                                                           |    8
+ b/asterisk-13.23.0-rc1-summary.html                                                          |  285 ++
+ b/asterisk-13.23.0-rc1-summary.txt                                                           |  696 ++++
  b/autoconf/libcurl.m4                                                                        |    3
  b/build_tools/make_version                                                                   |    2
  b/channels/chan_sip.c                                                                        |   68
@@ -590,10 +593,14 @@
  b/configs/samples/modules.conf.sample                                                        |    4
  b/configs/samples/pjsip.conf.sample                                                          |   18
  b/configs/samples/pjsip_wizard.conf.sample                                                   |    8
- b/configure                                                                                  |  394
+ b/configure                                                                                  |  394 +-
  b/configure.ac                                                                               |   32
  b/contrib/ast-db-manage/config/versions/19b00bc19b7b_add_suppress_q850_reason_headers_to_.py |   27
  b/contrib/ast-db-manage/config/versions/1d3ed26d9978_increase_uri_column_size.py             |   22
+ b/contrib/realtime/mssql/mssql_config.sql                                                    |   24
+ b/contrib/realtime/mysql/mysql_config.sql                                                    |   12
+ b/contrib/realtime/oracle/oracle_config.sql                                                  |   24
+ b/contrib/realtime/postgresql/postgresql_config.sql                                          |   12
  b/include/asterisk/autoconfig.h.in                                                           |    2
  b/include/asterisk/res_pjsip.h                                                               |   19
  b/include/asterisk/res_pjsip_session.h                                                       |    4
@@ -614,7 +621,7 @@
  b/main/xmldoc.c                                                                              |   46
  b/makeopts.in                                                                                |    1
  b/menuselect/Makefile                                                                        |    4
- b/menuselect/configure                                                                       |  175
+ b/menuselect/configure                                                                       |  175 +
  b/menuselect/configure.ac                                                                    |   13
  b/menuselect/makeopts.in                                                                     |    1
  b/menuselect/menuselect_curses.c                                                             |    8
@@ -630,10 +637,10 @@
  b/res/res_pjsip/pjsip_outbound_auth.c                                                        |    3
  b/res/res_pjsip/pjsip_transport_management.c                                                 |   67
  b/res/res_pjsip_caller_id.c                                                                  |   29
- b/res/res_pjsip_endpoint_identifier_ip.c                                                     |  156
+ b/res/res_pjsip_endpoint_identifier_ip.c                                                     |  156 -
  b/res/res_pjsip_messaging.c                                                                  |    2
  b/res/res_pjsip_pubsub.c                                                                     |    4
- b/res/res_pjsip_registrar.c                                                                  |  149
+ b/res/res_pjsip_registrar.c                                                                  |  149 -
  b/res/res_pjsip_rfc3326.c                                                                    |   11
  b/res/res_pjsip_sdp_rtp.c                                                                    |   38
  b/res/res_pjsip_session.c                                                                    |    2
@@ -641,23 +648,23 @@
  b/res/res_rtp_asterisk.c                                                                     |   64
  b/res/res_sorcery_config.c                                                                   |  103
  b/res/res_sorcery_realtime.c                                                                 |    3
- b/tests/CI/buildAsterisk.sh                                                                  |  187
+ b/tests/CI/buildAsterisk.sh                                                                  |  187 +
  b/tests/CI/ci.functions                                                                      |   30
  b/tests/CI/gateTestGroups.json                                                               |   47
- b/tests/CI/gates.jenkinsfile                                                                 |  256
+ b/tests/CI/gates.jenkinsfile                                                                 |  256 +
  b/tests/CI/installAsterisk.sh                                                                |   33
  b/tests/CI/periodic-dailyTestGroups.json                                                     |   38
- b/tests/CI/periodics-daily.jenkinsfile                                                       |  156
+ b/tests/CI/periodics-daily.jenkinsfile                                                       |  156 +
  b/tests/CI/processCoverage.sh                                                                |   45
- b/tests/CI/publishAsteriskDocs.sh                                                            |  144
+ b/tests/CI/publishAsteriskDocs.sh                                                            |  144 +
  b/tests/CI/ref_debug.jenkinsfile                                                             |  131
  b/tests/CI/ref_debugTestGroups.json                                                          |   32
  b/tests/CI/runTestsuite.sh                                                                   |   29
  b/tests/CI/runUnittests.sh                                                                   |   76
  b/tests/CI/setupJenkinsEnvironment.sh                                                        |    7
- b/tests/CI/setupRealtime.sh                                                                  |  179
+ b/tests/CI/setupRealtime.sh                                                                  |  179 +
  b/tests/CI/teardownRealtime.sh                                                               |   12
- b/tests/CI/unittests.jenkinsfile                                                             |  219
+ b/tests/CI/unittests.jenkinsfile                                                             |  219 +
  b/tests/test_astobj2.c                                                                       |    5
  b/third-party/Makefile                                                                       |    4
  b/third-party/Makefile.rules                                                                 |   22
@@ -674,23 +681,8 @@
  b/third-party/pjproject/Makefile.rules                                                       |    5
  b/third-party/pjproject/configure.m4                                                         |   17
  b/third-party/pjproject/patches/0000-configure-ssl-library-path.patch                        |   18
- b/third-party/pjproject/patches/0000-solaris.patch                                           |  149
+ b/third-party/pjproject/patches/0000-solaris.patch                                           |  149 +
  b/third-party/pjproject/patches/0060-sip_msg-Prevent-crash-on-header-without-vptr.patch      |   49
- b/third-party/pjproject/patches/0110_fix_tdata_rexmit_deadlock.patch                         |  203
- b/third-party/pjproject/patches/config_site.h                                                |    8
- b/third-party/pjproject/pjproject-2.7.2.tar.bz2.md5                                          |    2
- b/third-party/versions.mak                                                                   |    2
- contrib/realtime/mssql/mssql_cdr.sql                                                         |   44
- contrib/realtime/mssql/mssql_config.sql                                                      | 1901
- contrib/realtime/mssql/mssql_voicemail.sql                                                   |   54
- contrib/realtime/mysql/mysql_cdr.sql                                                         |   32
- contrib/realtime/mysql/mysql_config.sql                                                      | 1118
- contrib/realtime/mysql/mysql_voicemail.sql                                                   |   34
- contrib/realtime/oracle/oracle_cdr.sql                                                       |   38
- contrib/realtime/oracle/oracle_config.sql                                                    | 1867
- contrib/realtime/oracle/oracle_voicemail.sql                                                 |   48
- contrib/realtime/postgresql/postgresql_cdr.sql                                               |   36
- contrib/realtime/postgresql/postgresql_config.sql                                            | 1210
- contrib/realtime/postgresql/postgresql_voicemail.sql                                         |   38
+ b/third-party/pjproject/patches/0110_fix_tdata_rexmit_deadlock.patch                         |  134
  third-party/pjproject/apply_patches                                                          |   33
- 123 files changed, 4116 insertions(+), 69064 deletions(-)
+ 113 files changed, 6485 insertions(+), 1763 deletions(-)
