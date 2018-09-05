@@ -285,46 +285,59 @@ ssize_t ast_iostream_read(struct ast_iostream *stream, void *buffer, size_t coun
 
 ssize_t ast_iostream_gets(struct ast_iostream *stream, char *buffer, size_t size)
 {
-	ssize_t r;
+	size_t remaining = size;
+	ssize_t accum_size = 0;
+	ssize_t len;
 	char *newline;
 
-	do {
+	for (;;) {
 		/* Search for newline */
 		newline = memchr(stream->rbufhead, '\n', stream->rbuflen);
 		if (newline) {
-			r = newline - stream->rbufhead + 1;
-			if (r > size-1) {
-				r = size-1;
+			len = newline - stream->rbufhead + 1;
+			if (len > remaining - 1) {
+				len = remaining - 1;
 			}
 			break;
 		}
 
-		/* Enough data? */
-		if (stream->rbuflen >= size - 1) {
-			r = size - 1;
+		/* Enough buffered line data to fill request buffer? */
+		if (stream->rbuflen >= remaining - 1) {
+			len = remaining - 1;
 			break;
 		}
-
-		/* Try to fill in line buffer */
-		if (stream->rbuflen && stream->rbuf != stream->rbufhead) {
-			memmove(&stream->rbuf, stream->rbufhead, stream->rbuflen);
+		if (stream->rbuflen) {
+			/* Put leftover buffered line data into request buffer */
+			memcpy(buffer + accum_size, stream->rbufhead, stream->rbuflen);
+			remaining -= stream->rbuflen;
+			accum_size += stream->rbuflen;
+			stream->rbuflen = 0;
 		}
 		stream->rbufhead = stream->rbuf;
 
-		r = iostream_read(stream, stream->rbufhead + stream->rbuflen, sizeof(stream->rbuf) - stream->rbuflen);
-		if (r <= 0) {
-			return r;
+		len = iostream_read(stream, stream->rbuf, sizeof(stream->rbuf));
+		if (len == 0) {
+			/* Nothing new was read.  Return whatever we have accumulated. */
+			break;
 		}
-		stream->rbuflen += r;
-	} while (1);
+		if (len < 0) {
+			if (accum_size) {
+				/* We have an accumulated buffer so return that instead. */
+				len = 0;
+				break;
+			}
+			return len;
+		}
+		stream->rbuflen += len;
+	}
 
-	/* Return r bytes with termination byte */
-	memcpy(buffer, stream->rbufhead, r);
-	buffer[r] = 0;
-	stream->rbuflen -= r;
-	stream->rbufhead += r;
+	/* Return read buffer string length */
+	memcpy(buffer + accum_size, stream->rbufhead, len);
+	buffer[accum_size + len] = 0;
+	stream->rbuflen -= len;
+	stream->rbufhead += len;
 
-	return r;
+	return accum_size + len;
 }
 
 ssize_t ast_iostream_discard(struct ast_iostream *stream, size_t size)
