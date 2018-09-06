@@ -1740,11 +1740,19 @@ static int http_request_headers_get(struct ast_tcptls_session_instance *ser, str
 
 	remaining_headers = MAX_HTTP_REQUEST_HEADERS;
 	for (;;) {
+		ssize_t len;
 		char *name;
 		char *value;
 
-		if (ast_iostream_gets(ser->stream, header_line, sizeof(header_line)) <= 0) {
+		len = ast_iostream_gets(ser->stream, header_line, sizeof(header_line));
+		if (len <= 0) {
 			ast_http_error(ser, 400, "Bad Request", "Timeout");
+			return -1;
+		}
+		if (header_line[len - 1] != '\n') {
+			/* We didn't get a full line */
+			ast_http_error(ser, 400, "Bad Request",
+				(len == sizeof(header_line) - 1) ? "Header line too long" : "Timeout");
 			return -1;
 		}
 
@@ -1815,15 +1823,24 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 	struct http_worker_private_data *request;
 	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
 	int res;
+	ssize_t len;
 	char request_line[MAX_HTTP_LINE_LENGTH];
 
-	if (ast_iostream_gets(ser->stream, request_line, sizeof(request_line)) <= 0) {
+	len = ast_iostream_gets(ser->stream, request_line, sizeof(request_line));
+	if (len <= 0) {
 		return -1;
 	}
 
 	/* Re-initialize the request body tracking data. */
 	request = ser->private_data;
 	http_request_tracking_init(request);
+
+	if (request_line[len - 1] != '\n') {
+		/* We didn't get a full line */
+		ast_http_error(ser, 400, "Bad Request",
+			(len == sizeof(request_line) - 1) ? "Request line too long" : "Timeout");
+		return -1;
+	}
 
 	/* Get method */
 	method = ast_skip_blanks(request_line);
