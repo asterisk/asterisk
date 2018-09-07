@@ -5051,7 +5051,7 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		goto done;
 	}
 
-	if (ast_channel_generatordata(chan) && (!fr->src || strcasecmp(fr->src, "ast_prod"))) {
+	if (ast_channel_generatordata(chan) && (fr->frametype != AST_FRAME_RTCP) && (!fr->src || strcasecmp(fr->src, "ast_prod"))) {
 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_WRITE_INT)) {
 				ast_deactivate_generator(chan);
 		} else {
