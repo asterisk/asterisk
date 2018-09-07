@@ -31,6 +31,18 @@ extern "C" {
 
 #include <netinet/in.h>
 
+/*
+ * String buffer size that can accommodate a fully stringified representation of a
+ * supported IP address & port:
+ *
+ * - 45 bytes for an IPv6 address
+ * -  2 bytes for brackets around an IPv6 address
+ * -  1 byte for the port separator (a colon)
+ * -  5 bytes for the port
+ * -  1 byte for the zero-terminator
+ */
+#define AST_SOCKADDR_BUFLEN (45 + 2 + 1 + 5 + 1)
+
 /*!
  * Values for address families that we support. This is reproduced from socket.h
  * because we do not want users to include that file. Only netsock2.c should
