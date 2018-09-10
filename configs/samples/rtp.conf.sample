@@ -31,6 +31,10 @@ rtpend=20000
 ; seconds after starting learning mode.  Once learning mode completes the
 ; current stream is locked in and cannot change until the next
 ; renegotiation.
+; Valid options are "no" to disable strictrtp, "yes" to enable strictrtp,
+; and "seqno", which does the same thing as strictrtp=yes, but only checks
+; to make sure the sequence number is correct rather than checking the time
+; interval as well.
 ; This option is enabled by default.
 ; strictrtp=yes
 ;
