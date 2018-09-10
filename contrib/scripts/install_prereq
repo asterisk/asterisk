@@ -164,8 +164,6 @@ PACKAGES_DBSD="$PACKAGES_DBSD bzip2 patch python"
 
 KVERS=`uname -r`
 
-JANSSON_VER=2.11
-
 case "$1" in
 test)
 	testcmd=echo
@@ -347,22 +345,6 @@ install_unpackaged() {
 		./configure
 		make all install
 		cd ..
-	fi
-
-	# Only install Jansson if it wasn't installed via package
-	if ! test -f /usr/include/jansson.h; then
-		echo "*** Installing jansson ***"
-		wget -O - http://www.digip.org/jansson/releases/jansson-${JANSSON_VER}.tar.gz | zcat | tar -xf -
-		cd jansson-${JANSSON_VER}
-		./configure
-		make all install
-		cd ..
-		if test -d /etc/ld.so.conf.d; then
-			echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
-		else # for example: Slackware 14.2
-			echo "/usr/local/lib" > /etc/ld.so.conf
-		fi
-		/sbin/ldconfig
 	fi
 
 	# Only install libsrtp2 if it wasn't installed via package
