@@ -157,6 +157,12 @@ enum strict_rtp_state {
 	STRICT_RTP_CLOSED,   /*! Drop all RTP packets not coming from source that was learned */
 };
 
+enum strict_rtp_mode {
+	STRICT_RTP_NO = 0,	/*! Don't adhere to any strict RTP rules */
+	STRICT_RTP_YES,		/*! Strict RTP that restricts packets based on time and sequence number */
+	STRICT_RTP_SEQNO,	/*! Strict RTP that restricts packets based on sequence number */
+};
+
 /*!
  * \brief Strict RTP learning timeout time in milliseconds
  *
@@ -166,7 +172,7 @@ enum strict_rtp_state {
  */
 #define STRICT_RTP_LEARN_TIMEOUT	5000
 
-#define DEFAULT_STRICT_RTP -1	/*!< Enabled */
+#define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
 #define DEFAULT_ICESUPPORT 1
 
 extern struct ast_srtp_res *res_srtp;
@@ -3154,28 +3160,31 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 		info->received = ast_tvnow();
 	}
 
-	switch (info->stream_type) {
-	case AST_MEDIA_TYPE_UNKNOWN:
-	case AST_MEDIA_TYPE_AUDIO:
-		/*
-		 * Protect against packet floods by checking that we
-		 * received the packet sequence in at least the minimum
-		 * allowed time.
-		 */
-		if (ast_tvzero(info->received)) {
-			info->received = ast_tvnow();
-		} else if (!info->packets
-			&& ast_tvdiff_ms(ast_tvnow(), info->received) < learning_min_duration) {
-			/* Packet flood; reset */
-			info->packets = learning_min_sequential - 1;
-			info->received = ast_tvnow();
+	/* Only check time if strictrtp is set to yes. Otherwise, we only needed to check seqno */
+	if (strictrtp == STRICT_RTP_YES) {
+		switch (info->stream_type) {
+		case AST_MEDIA_TYPE_UNKNOWN:
+		case AST_MEDIA_TYPE_AUDIO:
+			/*
+			 * Protect against packet floods by checking that we
+			 * received the packet sequence in at least the minimum
+			 * allowed time.
+			 */
+			if (ast_tvzero(info->received)) {
+				info->received = ast_tvnow();
+			} else if (!info->packets
+				&& ast_tvdiff_ms(ast_tvnow(), info->received) < learning_min_duration) {
+				/* Packet flood; reset */
+				info->packets = learning_min_sequential - 1;
+				info->received = ast_tvnow();
+			}
+			break;
+		case AST_MEDIA_TYPE_VIDEO:
+		case AST_MEDIA_TYPE_IMAGE:
+		case AST_MEDIA_TYPE_TEXT:
+		case AST_MEDIA_TYPE_END:
+			break;
 		}
-		break;
-	case AST_MEDIA_TYPE_VIDEO:
-	case AST_MEDIA_TYPE_IMAGE:
-	case AST_MEDIA_TYPE_TEXT:
-	case AST_MEDIA_TYPE_END:
-		break;
 	}
 
 	info->max_seq = seq;
@@ -6736,6 +6745,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			&& STRICT_RTP_LEARN_TIMEOUT < ast_tvdiff_ms(ast_tvnow(), rtp->rtp_source_learn.start)) {
 			ast_verb(4, "%p -- Strict RTP learning complete - Locking on source address %s\n",
 				rtp, ast_sockaddr_stringify(&rtp->strict_rtp_address));
+			ast_test_suite_event_notify("STRICT_RTP_LEARN", "Source: %s",
+				ast_sockaddr_stringify(&rtp->strict_rtp_address));
 			rtp->strict_rtp_state = STRICT_RTP_CLOSED;
 		} else {
 			struct ast_sockaddr target_address;
@@ -6822,6 +6833,16 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		}
 		ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection.\n",
 			rtp, ast_sockaddr_stringify(&addr));
+#ifdef TEST_FRAMEWORK
+	{
+		static int strict_rtp_test_event = 1;
+		if (strict_rtp_test_event) {
+			ast_test_suite_event_notify("STRICT_RTP_CLOSED", "Source: %s",
+				ast_sockaddr_stringify(&addr));
+			strict_rtp_test_event = 0; /* Only run this event once to prevent possible spam */
+		}
+	}
+#endif
 		return &ast_null_frame;
 	case STRICT_RTP_OPEN:
 		break;
@@ -8110,7 +8131,13 @@ static int rtp_reload(int reload)
 		};
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "strictrtp"))) {
-		strictrtp = ast_true(s);
+		if (ast_true(s)) {
+			strictrtp = STRICT_RTP_YES;
+		} else if (!strcasecmp(s, "seqno")) {
+			strictrtp = STRICT_RTP_SEQNO;
+		} else {
+			strictrtp = STRICT_RTP_NO;
+		}
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "probation"))) {
 		if ((sscanf(s, "%d", &learning_min_sequential) != 1) || learning_min_sequential <= 1) {
