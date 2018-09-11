@@ -40,8 +40,8 @@
 /*!
  * Wrapper of ast_test_validate_int() so an external function pointer is not used.
  *
- * \note Must do this because using an external function pointer
- * does not play nicely when loading with RTLD_LAZY.
+ * \note We do this because using an external function pointer
+ * did not play nicely when we loaded with RTLD_LAZY.
  */
 static int wrap_ast_ari_validate_int(struct ast_json *json)
 {
@@ -53,8 +53,8 @@ static int wrap_ast_ari_validate_int(struct ast_json *json)
 /*!
  * Wrapper of ast_ari_validate_string() so an external function pointer is not used.
  *
- * \note Must do this because using an external function pointer
- * does not play nicely when loading with RTLD_LAZY.
+ * \note We do this because using an external function pointer
+ * did not play nicely when we loaded with RTLD_LAZY.
  */
 static int wrap_ast_ari_validate_string(struct ast_json *json)
 {
