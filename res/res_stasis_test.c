@@ -104,8 +104,7 @@ struct stasis_message_sink *stasis_message_sink_create(void)
  * it has to do with how we load modules.
  *
  * Modules have their own metadata compiled into them in the module info block
- * at the end of the file.  This includes dependency information in the
- * \c nonoptreq field.
+ * at the end of the file.
  *
  * Asterisk loads the module, inspects the field, then loads any needed
  * dependencies. This works because Asterisk passes \c RTLD_LAZY to the initial
