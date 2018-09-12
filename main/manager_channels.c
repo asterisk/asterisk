@@ -638,7 +638,7 @@ static struct ast_manager_event_blob *channel_newexten(
 
 	/* DEPRECATED: Extension field deprecated in 12; remove in 14 */
 	return ast_manager_event_blob_create(
-		EVENT_FLAG_CALL, "Newexten",
+		EVENT_FLAG_DIALPLAN, "Newexten",
 		"Extension: %s\r\n"
 		"Application: %s\r\n"
 		"AppData: %s\r\n",
