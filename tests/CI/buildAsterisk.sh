@@ -6,6 +6,10 @@ REF_DEBUG=0
 DISABLE_BINARY_MODULES=0
 source $CIDIR/ci.functions
 
+if [ -z $BRANCH_NAME ]; then
+	BRANCH_NAME=$(git config -f .gitreview --get gerrit.defaultbranch)
+fi
+
 gen_cats() {
 	set +x
 	action=$1
