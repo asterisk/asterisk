@@ -1610,12 +1610,11 @@ static struct ast_cli_entry cli_pbx_config[] = {
 	AST_CLI_DEFINE(handle_cli_dialplan_remove_ignorepat, "Remove ignore pattern from context"),
 	AST_CLI_DEFINE(handle_cli_dialplan_add_include,      "Include context in other context"),
 	AST_CLI_DEFINE(handle_cli_dialplan_remove_include,   "Remove a specified include from context"),
-	AST_CLI_DEFINE(handle_cli_dialplan_reload,           "Reload extensions and *only* extensions"),
-	AST_CLI_DEFINE(handle_cli_dialplan_save,             "Save current dialplan into a file")
+	AST_CLI_DEFINE(handle_cli_dialplan_reload,           "Reload extensions and *only* extensions")
 };
 
 static struct ast_cli_entry cli_dialplan_save =
-	AST_CLI_DEFINE(handle_cli_dialplan_save, "Save dialplan");
+	AST_CLI_DEFINE(handle_cli_dialplan_save,             "Save current dialplan into a file");
 
 #define AMI_EXTENSION_ADD "DialplanExtensionAdd"
 #define AMI_EXTENSION_REMOVE "DialplanExtensionRemove"
