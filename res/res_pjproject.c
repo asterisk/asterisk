@@ -478,7 +478,11 @@ int ast_sockaddr_to_pj_sockaddr(const struct ast_sockaddr *addr, pj_sockaddr *pj
 	if (addr->ss.ss_family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *) &addr->ss;
 		pjaddr->ipv4.sin_family = pj_AF_INET();
-		pjaddr->ipv4.sin_addr   = sin->sin_addr;
+#ifdef HAVE_PJPROJECT_BUNDLED
+		pjaddr->ipv4.sin_addr = sin->sin_addr;
+#else
+		pjaddr->ipv4.sin_addr.s_addr = sin->sin_addr.s_addr;
+#endif
 		pjaddr->ipv4.sin_port   = sin->sin_port;
 	} else if (addr->ss.ss_family == AF_INET6) {
 		struct sockaddr_in6 *sin = (struct sockaddr_in6 *) &addr->ss;
@@ -499,7 +503,11 @@ int ast_sockaddr_from_pj_sockaddr(struct ast_sockaddr *addr, const pj_sockaddr *
 	if (pjaddr->addr.sa_family == pj_AF_INET()) {
 		struct sockaddr_in *sin = (struct sockaddr_in *) &addr->ss;
 		sin->sin_family = AF_INET;
-		sin->sin_addr   = pjaddr->ipv4.sin_addr;
+#ifdef HAVE_PJPROJECT_BUNDLED
+		sin->sin_addr = pjaddr->ipv4.sin_addr;
+#else
+		sin->sin_addr.s_addr = pjaddr->ipv4.sin_addr.s_addr;
+#endif
 		sin->sin_port   = pjaddr->ipv4.sin_port;
 		addr->len = sizeof(struct sockaddr_in);
 	} else if (pjaddr->addr.sa_family == pj_AF_INET6()) {
