@@ -341,9 +341,8 @@ struct ast_module_info {
 	 *  on load. */
 	unsigned char load_pri;
 
-	/*! Modules which should be loaded first, in comma-separated string format.
-	 * These are only required for loading, when the optional_api header file
-	 * detects that the compiler does not support the optional API featureset. */
+	/*! Obsolete! This is not used since the optional_api portability rework.
+	 * This field does nothing and will be removed in future version of Asterisk. */
 	const char *nonoptreq;
 	/*! The support level for the given module */
 	enum ast_module_support_level support_level;
