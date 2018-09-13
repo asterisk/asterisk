@@ -387,17 +387,6 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 ; defaults to being off
 ; backupdeleted=100
 
-; Asterisk Task Processor Queue Size
-; On heavy loaded system you may need to increase 'app_voicemail' taskprocessor queue.
-; If the taskprocessor queue size reached high water level, the alert is triggered.
-; If the alert is set then some modules (for example pjsip) slow down its production
-; until the alert is cleared.
-; The alert is cleared when taskprocessor queue size drops to the low water clear level.
-; The next options set taskprocessor queue levels for this module.
-; tps_queue_high=500	; Taskprocessor high water alert trigger level.
-; tps_queue_low=450	; Taskprocessor low water clear alert level.
-			; The default is -1 for 90% of high water level.
-
 [zonemessages]
 ; Users may be located in different timezones, or may have different
 ; message announcements for their introductory message when they enter
