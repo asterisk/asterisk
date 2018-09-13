@@ -23,11 +23,10 @@
  * the validator's function pointer.
  *
  * The reason for this seamingly useless indirection is the way function
- * pointers interfere with module loading. Asterisk attempts to dlopen() each
- * module using \c RTLD_LAZY in order to read some metadata from the module.
- * Unfortunately, if you take the address of a function, the function has to be
- * resolvable at load time, even if \c RTLD_LAZY is specified. By moving the
- * function-address-taking into this module, we can once again be lazy.
+ * pointers used to interfere with module loading. Previously, Asterisk
+ * attempted to dlopen() each module using \c RTLD_LAZY in order to read some
+ * metadata from the module. Using functions to get the function pointer
+ * allowed us to be lazy.
  */
 
  /*

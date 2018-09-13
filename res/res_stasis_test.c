@@ -100,23 +100,10 @@ struct stasis_message_sink *stasis_message_sink_create(void)
  * \brief Implementation of the stasis_message_sink_cb() callback.
  *
  * Why the roundabout way of exposing this via stasis_message_sink_cb()? Well,
- * it has to do with how we load modules.
+ * it has to do with how we previously loaded modules, using \c RTLD_LAZY.
  *
- * Modules have their own metadata compiled into them in the module info block
- * at the end of the file.  This includes dependency information in the
- * \c nonoptreq field.
- *
- * Asterisk loads the module, inspects the field, then loads any needed
- * dependencies. This works because Asterisk passes \c RTLD_LAZY to the initial
- * dlopen(), which defers binding function references until they are called.
- *
- * But when you take the address of a function, that function needs to be
- * available at load time. So if some module used the address of
- * message_sink_cb() directly, and \c res_stasis_test.so wasn't loaded yet, then
- * that module would fail to load.
- *
- * The stasis_message_sink_cb() function gives us a layer of indirection so that
- * the initial lazy binding will still work as expected.
+ * The stasis_message_sink_cb() function gave us a layer of indirection so that
+ * the initial lazy binding would still work as expected.
  */
 static void message_sink_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
