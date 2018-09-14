@@ -170,8 +170,10 @@ pipeline {
 
 									sh "sudo rm -rf ${groupDir} || : "
 									
-									checkout scm: [$class: 'GitSCM',
-										branches: [[name: "${BRANCH_NAME}"]],
+									withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
+										passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
+										checkout scm: [$class: 'GitSCM',
+											branches: [[name: "${BRANCH_NAME}"]],
 											extensions: [
 												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
 												[$class: 'CloneOption',
@@ -181,8 +183,12 @@ pipeline {
 													shallow: true
 												],
 											],
-											userRemoteConfigs: [[name: env.GERRIT_NAME, url: testsuiteUrl]]
+											userRemoteConfigs: [[
+												name: env.GERRIT_NAME,
+												url: testsuiteUrl,replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
+											]]
 										]
+									}
 
 									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --testsuite-command='${groupTestcmd}'"
 
