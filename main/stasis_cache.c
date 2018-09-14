@@ -156,7 +156,6 @@ static void cache_entry_dtor(void *obj)
 	struct stasis_cache_entry *entry = obj;
 	size_t idx;
 
-	ao2_cleanup(entry->key.type);
 	entry->key.type = NULL;
 	ast_free((char *) entry->key.id);
 	entry->key.id = NULL;
@@ -204,7 +203,16 @@ static struct stasis_cache_entry *cache_entry_create(struct stasis_message_type 
 		ao2_cleanup(entry);
 		return NULL;
 	}
-	entry->key.type = ao2_bump(type);
+	/*
+	 * Normal ao2 ref counting rules says we should increment the message
+	 * type ref here and decrement it in cache_entry_dtor().  However, the
+	 * stasis message snapshot is cached here, will always have the same type
+	 * as the cache entry, and can legitimately cause the type ref count to
+	 * hit the excessive ref count assertion.  Since the cache entry will
+	 * always have a snapshot we can get away with not holding a ref here.
+	 */
+	ast_assert(type == stasis_message_type(snapshot));
+	entry->key.type = type;
 	cache_entry_compute_hash(&entry->key);
 
 	is_remote = ast_eid_cmp(&ast_eid_default, stasis_message_eid(snapshot)) ? 1 : 0;

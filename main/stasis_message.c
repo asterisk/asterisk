@@ -110,7 +110,6 @@ struct stasis_message {
 static void stasis_message_dtor(void *obj)
 {
 	struct stasis_message *message = obj;
-	ao2_cleanup(message->type);
 	ao2_cleanup(message->data);
 }
 
@@ -129,7 +128,14 @@ struct stasis_message *stasis_message_create_full(struct stasis_message_type *ty
 	}
 
 	message->timestamp = ast_tvnow();
-	ao2_ref(type, +1);
+	/*
+	 * XXX Normal ao2 ref counting rules says we should increment the message
+	 * type ref here and decrement it in stasis_message_dtor().  However, the
+	 * stasis message could be cached and legitimately cause the type ref count
+	 * to hit the excessive ref count assertion.  Since the message type
+	 * practically has to be a global object anyway, we can get away with not
+	 * holding a ref in the stasis message.
+	 */
 	message->type = type;
 	ao2_ref(data, +1);
 	message->data = data;
