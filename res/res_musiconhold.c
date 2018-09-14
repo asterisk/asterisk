@@ -402,11 +402,28 @@ static int ast_moh_files_next(struct ast_channel *chan)
 
 static struct ast_frame *moh_files_readframe(struct ast_channel *chan)
 {
-	struct ast_frame *f = NULL;
+	struct ast_frame *f;
 
-	if (!(ast_channel_stream(chan) && (f = ast_readframe(ast_channel_stream(chan))))) {
-		if (!ast_moh_files_next(chan))
+	f = ast_readframe(ast_channel_stream(chan));
+	if (!f) {
+		/* Either there was no file stream setup or we reached EOF. */
+		if (!ast_moh_files_next(chan)) {
+			/*
+			 * Either we resetup the previously saved file stream position
+			 * or we started a new file stream.
+			 */
 			f = ast_readframe(ast_channel_stream(chan));
+			if (!f) {
+				/*
+				 * We can get here if we were very unlucky because the
+				 * resetup file stream was saved at EOF when MOH was
+				 * previously stopped.
+				 */
+				if (!ast_moh_files_next(chan)) {
+					f = ast_readframe(ast_channel_stream(chan));
+				}
+			}
+		}
 	}
 
 	return f;
