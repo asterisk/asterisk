@@ -63,7 +63,8 @@ int stasis_message_type_create(const char *name,
 		return STASIS_MESSAGE_TYPE_DECLINED;
 	}
 
-	type = ao2_t_alloc(sizeof(*type), message_type_dtor, name);
+	type = ao2_t_alloc_options(sizeof(*type), message_type_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK, name ?: "");
 	if (!type) {
 		return STASIS_MESSAGE_TYPE_ERROR;
 	}
@@ -123,7 +124,8 @@ struct stasis_message *stasis_message_create_full(struct stasis_message_type *ty
 		return NULL;
 	}
 
-	message = ao2_t_alloc(sizeof(*message), stasis_message_dtor, type->name);
+	message = ao2_t_alloc_options(sizeof(*message), stasis_message_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK, type->name);
 	if (message == NULL) {
 		return NULL;
 	}
