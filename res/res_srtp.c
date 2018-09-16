@@ -601,6 +601,8 @@ static int res_srtp_init(void)
 		return -1;
 	}
 
+	ast_verb(2, "%s initialized\n", srtp_get_version_string());
+
 	g_initialized = 1;
 	return 0;
 }
