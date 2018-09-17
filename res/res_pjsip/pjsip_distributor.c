@@ -648,16 +648,21 @@ static void log_failed_request(pjsip_rx_data *rdata, char *msg, unsigned int cou
 	char from_buf[PJSIP_MAX_URL_SIZE];
 	char callid_buf[PJSIP_MAX_URL_SIZE];
 	char method_buf[PJSIP_MAX_URL_SIZE];
+	char src_addr_buf[AST_SOCKADDR_BUFLEN];
 	pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
 	ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
 	ast_copy_pj_str(method_buf, &rdata->msg_info.msg->line.req.method.name, PJSIP_MAX_URL_SIZE);
 	if (count) {
-		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s:%d' (callid: %s) - %s"
+		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s' (callid: %s) - %s"
 			" after %u tries in %.3f ms\n",
-			method_buf, from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, msg, count, period / 1000.0);
+			method_buf, from_buf,
+			pj_sockaddr_print(&rdata->pkt_info.src_addr, src_addr_buf, sizeof(src_addr_buf), 3),
+			callid_buf, msg, count, period / 1000.0);
 	} else {
-		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s:%d' (callid: %s) - %s\n",
-			method_buf, from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, msg);
+		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s' (callid: %s) - %s\n",
+			method_buf, from_buf,
+			pj_sockaddr_print(&rdata->pkt_info.src_addr, src_addr_buf, sizeof(src_addr_buf), 3),
+			callid_buf, msg);
 	}
 }
 
