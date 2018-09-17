@@ -40,7 +40,6 @@ Updated by ASTERISK-27997
 ---
  pjlib/include/pj/sock.h          | 8 +++++++-
  pjlib/src/pj/sock_bsd.c          | 2 +-
- pjlib/src/pj/sock_linux_kernel.c | 2 +-
  pjlib/src/pj/sock_symbian.cpp    | 2 +-
  pjlib/src/pj/sock_uwp.cpp        | 2 +-
  pjsip/src/test/transport_test.c  | 2 +-
@@ -92,19 +91,6 @@ index 95c3804..daefc54 100644
  {
      char tempaddr[PJ_INET_ADDRSTRLEN];
  
-diff --git a/pjlib/src/pj/sock_linux_kernel.c b/pjlib/src/pj/sock_linux_kernel.c
-index 899b486..10d84cd 100644
---- a/pjlib/src/pj/sock_linux_kernel.c
-+++ b/pjlib/src/pj/sock_linux_kernel.c
-@@ -149,7 +149,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr in)
-  * numbers-and-dots notation into binary data and stores it in the structure
-  * that inp points to. 
-  */
--PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, struct pj_in_addr *addr)
-+PJ_DEF(int) pj_inet_aton(const pj_str_t *ccp, pj_in_addr *addr)
- {
-     pj_uint32_t val;
-     int base, n;
 diff --git a/pjlib/src/pj/sock_symbian.cpp b/pjlib/src/pj/sock_symbian.cpp
 index 09239b0..e72bbda 100644
 --- a/pjlib/src/pj/sock_symbian.cpp
