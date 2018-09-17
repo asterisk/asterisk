@@ -1212,7 +1212,11 @@ static int res_srtp_init(void)
 		return -1;
 	}
 
+#ifdef HAVE_SRTP_GET_VERSION
 	ast_verb(2, "%s initialized\n", srtp_get_version_string());
+#else
+	ast_verb(2, "libsrtp initialized\n");
+#endif
 
 	g_initialized = 1;
 	return 0;

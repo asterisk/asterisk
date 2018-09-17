@@ -762,6 +762,10 @@ PBX_OPENSSL
 OPENSSL_DIR
 OPENSSL_INCLUDE
 OPENSSL_LIB
+PBX_SRTP_GET_VERSION
+SRTP_GET_VERSION_DIR
+SRTP_GET_VERSION_INCLUDE
+SRTP_GET_VERSION_LIB
 PBX_SRTP_SHUTDOWN
 SRTP_SHUTDOWN_DIR
 SRTP_SHUTDOWN_INCLUDE
@@ -1329,6 +1333,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1516,6 +1521,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1768,6 +1774,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1905,7 +1920,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2058,6 +2073,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -12416,6 +12432,18 @@ PBX_SRTP_SHUTDOWN=0
 
 
 
+SRTP_GET_VERSION_DESCRIP="SRTP Library Version Function"
+SRTP_GET_VERSION_OPTION=srtp
+SRTP_GET_VERSION_DIR=${SRTP_DIR}
+
+PBX_SRTP_GET_VERSION=0
+
+
+
+
+
+
+
     OPENSSL_DESCRIP="OpenSSL Secure Sockets Layer"
     OPENSSL_OPTION="ssl"
     PBX_OPENSSL=0
@@ -14768,7 +14796,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14814,7 +14842,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14838,7 +14866,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14883,7 +14911,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14907,7 +14935,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16207,6 +16235,8 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
+  free (data);
+  free (data3);
   return 0;
 }
 _ACEOF
@@ -31476,6 +31506,102 @@ fi
 
 
 
+if test "x${PBX_SRTP_GET_VERSION}" != "x1" -a "${USE_SRTP_GET_VERSION}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_GET_VERSION=DIR has been specified, use it.
+   if test "x${SRTP_GET_VERSION_DIR}" != "x"; then
+      if test -d ${SRTP_GET_VERSION_DIR}/lib; then
+         pbxlibdir="-L${SRTP_GET_VERSION_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_GET_VERSION_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for srtp_get_version_string in -lsrtp2" >&5
+$as_echo_n "checking for srtp_get_version_string in -lsrtp2... " >&6; }
+if ${ac_cv_lib_srtp2_srtp_get_version_string+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char srtp_get_version_string ();
+int
+main ()
+{
+return srtp_get_version_string ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_srtp2_srtp_get_version_string=yes
+else
+  ac_cv_lib_srtp2_srtp_get_version_string=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_srtp2_srtp_get_version_string" >&5
+$as_echo "$ac_cv_lib_srtp2_srtp_get_version_string" >&6; }
+if test "x$ac_cv_lib_srtp2_srtp_get_version_string" = xyes; then :
+  AST_SRTP_GET_VERSION_FOUND=yes
+else
+  AST_SRTP_GET_VERSION_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_SRTP_GET_VERSION_FOUND}" = "yes"; then
+      SRTP_GET_VERSION_LIB="${pbxlibdir} -lsrtp2 "
+      # if --with-SRTP_GET_VERSION=DIR has been specified, use it.
+      if test "x${SRTP_GET_VERSION_DIR}" != "x"; then
+         SRTP_GET_VERSION_INCLUDE="-I${SRTP_GET_VERSION_DIR}/include"
+      fi
+      SRTP_GET_VERSION_INCLUDE="${SRTP_GET_VERSION_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_GET_VERSION_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "srtp2/srtp.h" "ac_cv_header_srtp2_srtp_h" "$ac_includes_default"
+if test "x$ac_cv_header_srtp2_srtp_h" = xyes; then :
+  SRTP_GET_VERSION_HEADER_FOUND=1
+else
+  SRTP_GET_VERSION_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${SRTP_GET_VERSION_HEADER_FOUND}" = "x0" ; then
+         SRTP_GET_VERSION_LIB=""
+         SRTP_GET_VERSION_INCLUDE=""
+      else
+
+         PBX_SRTP_GET_VERSION=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_GET_VERSION 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
     # libsrtp2 removed support for PRNG, so we require OpenSSL
     if test "x$PBX_OPENSSL" != x1;
     then
@@ -32008,6 +32134,102 @@ fi
          PBX_SRTP_SHUTDOWN=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_SRTP_SHUTDOWN 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_SRTP_GET_VERSION}" != "x1" -a "${USE_SRTP_GET_VERSION}" != "no"; then
+   pbxlibdir=""
+   # if --with-SRTP_GET_VERSION=DIR has been specified, use it.
+   if test "x${SRTP_GET_VERSION_DIR}" != "x"; then
+      if test -d ${SRTP_GET_VERSION_DIR}/lib; then
+         pbxlibdir="-L${SRTP_GET_VERSION_DIR}/lib"
+      else
+         pbxlibdir="-L${SRTP_GET_VERSION_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for srtp_get_version_string in -lsrtp" >&5
+$as_echo_n "checking for srtp_get_version_string in -lsrtp... " >&6; }
+if ${ac_cv_lib_srtp_srtp_get_version_string+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsrtp ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char srtp_get_version_string ();
+int
+main ()
+{
+return srtp_get_version_string ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_srtp_srtp_get_version_string=yes
+else
+  ac_cv_lib_srtp_srtp_get_version_string=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_srtp_srtp_get_version_string" >&5
+$as_echo "$ac_cv_lib_srtp_srtp_get_version_string" >&6; }
+if test "x$ac_cv_lib_srtp_srtp_get_version_string" = xyes; then :
+  AST_SRTP_GET_VERSION_FOUND=yes
+else
+  AST_SRTP_GET_VERSION_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_SRTP_GET_VERSION_FOUND}" = "yes"; then
+      SRTP_GET_VERSION_LIB="${pbxlibdir} -lsrtp "
+      # if --with-SRTP_GET_VERSION=DIR has been specified, use it.
+      if test "x${SRTP_GET_VERSION_DIR}" != "x"; then
+         SRTP_GET_VERSION_INCLUDE="-I${SRTP_GET_VERSION_DIR}/include"
+      fi
+      SRTP_GET_VERSION_INCLUDE="${SRTP_GET_VERSION_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SRTP_GET_VERSION_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "srtp/srtp.h" "ac_cv_header_srtp_srtp_h" "$ac_includes_default"
+if test "x$ac_cv_header_srtp_srtp_h" = xyes; then :
+  SRTP_GET_VERSION_HEADER_FOUND=1
+else
+  SRTP_GET_VERSION_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${SRTP_GET_VERSION_HEADER_FOUND}" = "x0" ; then
+         SRTP_GET_VERSION_LIB=""
+         SRTP_GET_VERSION_INCLUDE=""
+      else
+
+         PBX_SRTP_GET_VERSION=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SRTP_GET_VERSION 1
 _ACEOF
 
       fi

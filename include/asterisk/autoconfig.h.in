@@ -905,6 +905,9 @@
    feature. */
 #undef HAVE_SRTP_GCM
 
+/* Define to 1 if SRTP has the SRTP Library Version Function feature. */
+#undef HAVE_SRTP_GET_VERSION
+
 /* Define to 1 if SRTP has the SRTP Library Shutdown Function feature. */
 #undef HAVE_SRTP_SHUTDOWN
 
