@@ -2931,6 +2931,7 @@ static int new_invite(struct new_invite *invite)
 	pjsip_timer_setting timer;
 	pjsip_rdata_sdp_info *sdp_info;
 	pjmedia_sdp_session *local = NULL;
+	char buffer[AST_SOCKADDR_BUFLEN];
 
 	/* From this point on, any calls to pjsip_inv_terminate have the last argument as PJ_TRUE
 	 * so that we will be notified so we can destroy the session properly
@@ -2958,8 +2959,11 @@ static int new_invite(struct new_invite *invite)
 		}
 		goto end;
 	case SIP_GET_DEST_EXTEN_PARTIAL:
-		ast_debug(1, "Call from '%s' (%s:%s:%d) to extension '%s' - partial match\n", ast_sorcery_object_get_id(invite->session->endpoint),
-			invite->rdata->tp_info.transport->type_name, invite->rdata->pkt_info.src_name, invite->rdata->pkt_info.src_port, invite->session->exten);
+		ast_debug(1, "Call from '%s' (%s:%s) to extension '%s' - partial match\n",
+			ast_sorcery_object_get_id(invite->session->endpoint),
+			invite->rdata->tp_info.transport->type_name,
+			pj_sockaddr_print(&invite->rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
+			invite->session->exten);
 
 		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 484, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			ast_sip_session_send_response(invite->session, tdata);
@@ -2969,9 +2973,12 @@ static int new_invite(struct new_invite *invite)
 		goto end;
 	case SIP_GET_DEST_EXTEN_NOT_FOUND:
 	default:
-		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s:%d) to extension '%s' rejected because extension not found in context '%s'.\n",
-			ast_sorcery_object_get_id(invite->session->endpoint), invite->rdata->tp_info.transport->type_name, invite->rdata->pkt_info.src_name,
-			invite->rdata->pkt_info.src_port, invite->session->exten, invite->session->endpoint->context);
+		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s) to extension '%s' rejected because extension not found in context '%s'.\n",
+			ast_sorcery_object_get_id(invite->session->endpoint),
+			invite->rdata->tp_info.transport->type_name,
+			pj_sockaddr_print(&invite->rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
+			invite->session->exten,
+			invite->session->endpoint->context);
 
 		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 404, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			ast_sip_session_send_response(invite->session, tdata);
