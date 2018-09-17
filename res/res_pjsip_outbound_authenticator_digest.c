@@ -118,8 +118,8 @@ static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_ve
 	}
 	/* If there was no dialog, then this is probably a REGISTER so no endpoint */
 	if (!id) {
-		id = ast_alloca(strlen(challenge->pkt_info.src_name) + 7 /* ':' + port + NULL */);
-		sprintf(id, "%s:%d", challenge->pkt_info.src_name, challenge->pkt_info.src_port);
+		id = ast_alloca(AST_SOCKADDR_BUFLEN);
+		pj_sockaddr_print(&challenge->pkt_info.src_addr, id, AST_SOCKADDR_BUFLEN, 3);
 		id_type = "Host";
 	}
 

@@ -101,22 +101,25 @@ static inline int pjsip_log_test_addr(const char *address, int port)
 
 static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 {
+	char buffer[AST_SOCKADDR_BUFLEN];
+
 	if (!pjsip_log_test_addr(tdata->tp_info.dst_name, tdata->tp_info.dst_port)) {
 		return PJ_SUCCESS;
 	}
 
-	ast_verbose("<--- Transmitting SIP %s (%d bytes) to %s:%s:%d --->\n%.*s\n",
+	ast_verbose("<--- Transmitting SIP %s (%d bytes) to %s:%s --->\n%.*s\n",
 		    tdata->msg->type == PJSIP_REQUEST_MSG ? "request" : "response",
 		    (int) (tdata->buf.cur - tdata->buf.start),
 		    tdata->tp_info.transport->type_name,
-		    tdata->tp_info.dst_name,
-		    tdata->tp_info.dst_port,
+		    pj_sockaddr_print(&tdata->tp_info.dst_addr, buffer, sizeof(buffer), 3),
 		    (int) (tdata->buf.end - tdata->buf.start), tdata->buf.start);
 	return PJ_SUCCESS;
 }
 
 static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 {
+	char buffer[AST_SOCKADDR_BUFLEN];
+
 	if (!pjsip_log_test_addr(rdata->pkt_info.src_name, rdata->pkt_info.src_port)) {
 		return PJ_FALSE;
 	}
@@ -125,12 +128,11 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	ast_verbose("<--- Received SIP %s (%d bytes) from %s:%s:%d --->\n%s\n",
+	ast_verbose("<--- Received SIP %s (%d bytes) from %s:%s --->\n%s\n",
 		    rdata->msg_info.msg->type == PJSIP_REQUEST_MSG ? "request" : "response",
 		    rdata->msg_info.len,
 		    rdata->tp_info.transport->type_name,
-		    rdata->pkt_info.src_name,
-		    rdata->pkt_info.src_port,
+		    pj_sockaddr_print(&rdata->pkt_info.src_addr, buffer, sizeof(buffer), 3),
 		    rdata->pkt_info.packet);
 	return PJ_FALSE;
 }

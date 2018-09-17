@@ -3450,6 +3450,8 @@ int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet, const 
 	ast_copy_string(rdata->pkt_info.packet, packet, sizeof(rdata->pkt_info.packet));
 	ast_copy_string(rdata->pkt_info.src_name, src_name, sizeof(rdata->pkt_info.src_name));
 	rdata->pkt_info.src_port = src_port;
+	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&tmp, src_name), &rdata->pkt_info.src_addr);
+	pj_sockaddr_set_port(&rdata->pkt_info.src_addr, src_port);
 
 	pjsip_parse_rdata(packet, strlen(packet), rdata);
 	if (!rdata->msg_info.msg || !pj_list_empty(&rdata->msg_info.parse_err)) {
