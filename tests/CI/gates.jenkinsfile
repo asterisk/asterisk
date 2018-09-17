@@ -183,10 +183,13 @@ pipeline {
 													shallow: true
 												],
 											],
-											userRemoteConfigs: [[
+											userRemoteConfigs: [
+												[
+												credentialsId: env.JENKINS_GERRIT_CREDS,
 												name: env.GERRIT_NAME,
-												url: testsuiteUrl,replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
-											]]
+												url: testsuiteUrl.replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
+												]
+											]
 										]
 									}
 
