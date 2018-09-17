@@ -74,6 +74,9 @@ AC_DEFUN([_JANSSON_CONFIGURE],
 	JANSSON_LIB="-L${JANSSON_DIR}/dest/lib -ljansson"
 	PBX_JANSSON=1
 
+	# We haven't run install yet
+	JANSSON_DEFINE_JSON_INT([$JANSSON_DIR]/source/src/)
+
 	AC_SUBST([JANSSON_BUNDLED])
 	AC_SUBST([PBX_JANSSON])
 	AC_SUBST([JANSSON_LIB])
@@ -86,4 +89,20 @@ AC_DEFUN([JANSSON_CONFIGURE],
 	if test "$JANSSON_BUNDLED" = "yes" ; then
 		_JANSSON_CONFIGURE()
 	fi
+])
+
+AC_DEFUN([JANSSON_DEFINE_JSON_INT],
+[
+	# Define the ast_json_int_t (large integer type) to match jansson's
+	saved_cppflags="${CPPFLAGS}"
+	CPPFLAGS="${CPPFLAGS} ${JANSSON_INCLUDE}"
+	AC_COMPILE_IFELSE(
+		[AC_LANG_PROGRAM([#include <$1jansson.h>],
+		[#if !JSON_INTEGER_IS_LONG_LONG
+		#error "not long long"
+		#endif
+		])],
+		[AC_DEFINE([AST_JSON_INT_T], [long long], [Define to 'long' or 'long long'])],
+		[AC_DEFINE([AST_JSON_INT_T], [long], [Define to 'long' or 'long long'])])
+	CPPFLAGS="${saved_cppflags}"
 ])
