@@ -580,6 +580,7 @@ AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
 AST_EXT_LIB_SETUP([SQLITE3], [SQLite], [sqlite3])
 AST_EXT_LIB_SETUP([SRTP], [Secure RTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_SHUTDOWN], [SRTP Library Shutdown Function], [SRTP], [srtp])
+AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GET_VERSION], [SRTP Library Version Function], [SRTP], [srtp])
 AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP_OPTIONAL([RT], [Realtime functions], [rt])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
@@ -2555,6 +2556,7 @@ AST_EXT_LIB_CHECK_SHARED([SRTP], [srtp2], [srtp_init], [srtp2/srtp.h], [], [], [
 if test "x$PBX_SRTP" = x1;
 then
     AST_EXT_LIB_CHECK([SRTP_SHUTDOWN], [srtp2], [srtp_shutdown], [srtp2/srtp.h])
+    AST_EXT_LIB_CHECK([SRTP_GET_VERSION], [srtp2], [srtp_get_version_string], [srtp2/srtp.h])
 
     # libsrtp2 removed support for PRNG, so we require OpenSSL
     if test "x$PBX_OPENSSL" != x1;
@@ -2586,6 +2588,7 @@ then
     if test "x$PBX_SRTP" = x1;
     then
         AST_EXT_LIB_CHECK([SRTP_SHUTDOWN], [srtp], [srtp_shutdown], [srtp/srtp.h])
+        AST_EXT_LIB_CHECK([SRTP_GET_VERSION], [srtp], [srtp_get_version_string], [srtp/srtp.h])
     fi
 fi
 
