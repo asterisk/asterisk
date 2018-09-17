@@ -516,7 +516,11 @@ static int set_caps(struct ast_sip_session *session,
 static pjmedia_sdp_attr* generate_rtpmap_attr(struct ast_sip_session *session, pjmedia_sdp_media *media, pj_pool_t *pool,
 					      int rtp_code, int asterisk_format, struct ast_format *format, int code)
 {
+#ifndef HAVE_PJSIP_ENDPOINT_COMPACT_FORM
 	extern pj_bool_t pjsip_use_compact_form;
+#else
+	pj_bool_t pjsip_use_compact_form = pjsip_cfg()->endpt.use_compact_form;
+#endif
 	pjmedia_sdp_rtpmap rtpmap;
 	pjmedia_sdp_attr *attr = NULL;
 	char tmp[64];
