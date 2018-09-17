@@ -584,6 +584,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([SRTP_256], [SRTP Library AES-256 (ICM)], [SRTP], [sr
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_192], [SRTP Library AES-192 (ICM)], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GCM], [SRTP Library AES-128 (GCM) and AES-256 (GCM)], [SRTP], [srtp])
 AST_EXT_LIB_SETUP_OPTIONAL([SRTP_SHUTDOWN], [SRTP Library Shutdown Function], [SRTP], [srtp])
+AST_EXT_LIB_SETUP_OPTIONAL([SRTP_GET_VERSION], [SRTP Library Version Function], [SRTP], [srtp])
 AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer], [ssl])
 AST_EXT_LIB_SETUP_OPTIONAL([RT], [Realtime functions], [rt])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
@@ -2573,6 +2574,7 @@ then
     AST_EXT_LIB_CHECK([SRTP_192], [srtp2], [srtp_crypto_policy_set_aes_cm_192_hmac_sha1_80])
     AST_EXT_LIB_CHECK([SRTP_GCM], [srtp2], [srtp_crypto_policy_set_aes_gcm_128_8_auth])
     AST_EXT_LIB_CHECK([SRTP_SHUTDOWN], [srtp2], [srtp_shutdown], [srtp2/srtp.h])
+    AST_EXT_LIB_CHECK([SRTP_GET_VERSION], [srtp2], [srtp_get_version_string], [srtp2/srtp.h])
 
     # libsrtp2 removed support for PRNG, so we require OpenSSL
     if test "x$PBX_OPENSSL" != x1;
@@ -2607,6 +2609,7 @@ then
         AST_EXT_LIB_CHECK([SRTP_192], [srtp], [crypto_policy_set_aes_cm_192_hmac_sha1_80])
         AST_EXT_LIB_CHECK([SRTP_GCM], [srtp], [crypto_policy_set_aes_gcm_128_8_auth])
         AST_EXT_LIB_CHECK([SRTP_SHUTDOWN], [srtp], [srtp_shutdown], [srtp/srtp.h])
+        AST_EXT_LIB_CHECK([SRTP_GET_VERSION], [srtp], [srtp_get_version_string], [srtp/srtp.h])
     fi
 fi
 
