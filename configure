@@ -916,6 +916,10 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_ENDPOINT_COMPACT_FORM
+PJSIP_ENDPOINT_COMPACT_FORM_DIR
+PJSIP_ENDPOINT_COMPACT_FORM_INCLUDE
+PJSIP_ENDPOINT_COMPACT_FORM_LIB
 PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS
 PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR
 PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_INCLUDE
@@ -9422,6 +9426,9 @@ $as_echo "#define HAVE_PJSIP_TSX_LAYER_FIND_TSX2 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJSIP_ENDPOINT_COMPACT_FORM 1" >>confdefs.h
+
+
 
 
 
@@ -11558,6 +11565,18 @@ PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_OPTION=pjsip
 PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS=0
+
+
+
+
+
+
+
+PJSIP_ENDPOINT_COMPACT_FORM_DESCRIP="PJSIP Compact Form Support on Endpoint"
+PJSIP_ENDPOINT_COMPACT_FORM_OPTION=pjsip
+PJSIP_ENDPOINT_COMPACT_FORM_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_ENDPOINT_COMPACT_FORM=0
 
 
 
@@ -25442,6 +25461,46 @@ $as_echo "yes" >&6; }
 		PBX_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS=1
 
 $as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_ENDPOINT_COMPACT_FORM}" != "x1" -a "${USE_PJSIP_ENDPOINT_COMPACT_FORM}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_ENDPOINT_COMPACT_FORM_DIR}" != "x"; then
+	    PJSIP_ENDPOINT_COMPACT_FORM_INCLUDE="-I${PJSIP_ENDPOINT_COMPACT_FORM_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_ENDPOINT_COMPACT_FORM_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_ENDPOINT_COMPACT_FORM=1
+
+$as_echo "#define HAVE_PJSIP_ENDPOINT_COMPACT_FORM 1" >>confdefs.h
 
 
 
