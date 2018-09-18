@@ -1,18 +1,47 @@
---- a/aconfigure.ac	(PJSIP 2.7.2)
-+++ b/aconfigure.ac	(working copy)
-@@ -1571 +1571,5 @@
+From e8000cc80e5f8ba02cc52852edc02cdb0e949525 Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Mon, 6 Aug 2018 11:24:25 -0500
+Subject: [PATCH 1/5] 0000-configure-ssl-library-path.patch
+
+---
+ aconfigure    | 6 +++++-
+ aconfigure.ac | 6 +++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/aconfigure b/aconfigure
+index 1c449b8..c4c6060 100755
+--- a/aconfigure
++++ b/aconfigure
+@@ -7954,7 +7954,11 @@ else
+                 if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
+                     CFLAGS="$CFLAGS -I$with_ssl/include"
+                     CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
 -                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
 +                    if test -d $with_ssl/lib; then
 +                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
 +                    else
 +                        LDFLAGS="$LDFLAGS -L$with_ssl"
 +                    fi
---- a/aconfigure	(PJSIP 2.7.2)
-+++ b/aconfigure	(working copy)
-@@ -7884 +7884,5 @@
+                     { $as_echo "$as_me:${as_lineno-$LINENO}: result: Using SSL prefix... $with_ssl" >&5
+ $as_echo "Using SSL prefix... $with_ssl" >&6; }
+                 fi
+diff --git a/aconfigure.ac b/aconfigure.ac
+index 2c272cd..a5d6d97 100644
+--- a/aconfigure.ac
++++ b/aconfigure.ac
+@@ -1580,7 +1580,11 @@ AC_ARG_ENABLE(ssl,
+                 if test "x$with_ssl" != "xno" -a "x$with_ssl" != "x"; then
+                     CFLAGS="$CFLAGS -I$with_ssl/include"
+                     CPPFLAGS="$CPPFLAGS -I$with_ssl/include"
 -                    LDFLAGS="$LDFLAGS -L$with_ssl/lib"
 +                    if test -d $with_ssl/lib; then
 +                        LDFLAGS="$LDFLAGS -L$with_ssl/lib"
 +                    else
 +                        LDFLAGS="$LDFLAGS -L$with_ssl"
 +                    fi
+                     AC_MSG_RESULT([Using SSL prefix... $with_ssl])
+                 fi
+ 
+-- 
+2.7.4
+
