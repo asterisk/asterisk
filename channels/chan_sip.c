@@ -15639,7 +15639,7 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 			return 0;
 		}
 
-		if (create_addr(p, channame, NULL, 0)) {
+		if (create_addr(p, channame, NULL, 1)) {
 			/* Maybe they're not registered, etc. */
 			dialog_unlink_all(p);
 			dialog_unref(p, "unref dialog inside for loop" );
