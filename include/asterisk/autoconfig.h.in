@@ -613,6 +613,9 @@
    Lock feature. */
 #undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 
+/* Define if your system has the PJSIP_ENDPOINT_COMPACT_FORM headers. */
+#undef HAVE_PJSIP_ENDPOINT_COMPACT_FORM
+
 /* Define to 1 if PJPROJECT has the PJSIP EVSUB Group Lock support feature. */
 #undef HAVE_PJSIP_EVSUB_GRP_LOCK
 

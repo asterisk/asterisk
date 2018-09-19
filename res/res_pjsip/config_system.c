@@ -114,9 +114,13 @@ static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
 #endif
 
 	if (system->compactheaders) {
+#ifdef HAVE_PJSIP_ENDPOINT_COMPACT_FORM
+		pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;
+#else
 		extern pj_bool_t pjsip_use_compact_form;
 
 		pjsip_use_compact_form = PJ_TRUE;
+#endif
 	}
 
 	sip_threadpool_options.initial_size = system->threadpool.initial_size;
