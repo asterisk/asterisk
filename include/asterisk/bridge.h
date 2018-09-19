@@ -75,6 +75,7 @@ extern "C" {
 #include "asterisk/dsp.h"
 #include "asterisk/uuid.h"
 
+struct a02_container;
 struct ast_bridge_technology;
 struct ast_bridge;
 struct ast_bridge_tech_optimizations;
@@ -300,6 +301,39 @@ struct ast_bridge_softmix {
 AST_LIST_HEAD_NOLOCK(ast_bridge_channels_list, ast_bridge_channel);
 
 /*!
+ * \brief Structure that contains a snapshot of information about a bridge
+ */
+struct ast_bridge_snapshot {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Immutable bridge UUID. */
+		AST_STRING_FIELD(uniqueid);
+		/*! Bridge technology that is handling the bridge */
+		AST_STRING_FIELD(technology);
+		/*! Bridge subclass that is handling the bridge */
+		AST_STRING_FIELD(subclass);
+		/*! Creator of the bridge */
+		AST_STRING_FIELD(creator);
+		/*! Name given to the bridge by its creator */
+		AST_STRING_FIELD(name);
+		/*! Unique ID of the channel providing video, if one exists */
+		AST_STRING_FIELD(video_source_id);
+	);
+	/*! AO2 container of bare channel uniqueid strings participating in the bridge.
+	 * Allocated from ast_str_container_alloc() */
+	struct ao2_container *channels;
+	/*! Bridge flags to tweak behavior */
+	struct ast_flags feature_flags;
+	/*! Bridge capabilities */
+	uint32_t capabilities;
+	/*! Number of channels participating in the bridge */
+	unsigned int num_channels;
+	/*! Number of active channels in the bridge. */
+	unsigned int num_active;
+	/*! The video mode of the bridge */
+	enum ast_bridge_video_mode_type video_mode;
+};
+
+/*!
  * \brief Structure that contains information about a bridge
  */
 struct ast_bridge {
@@ -312,7 +346,7 @@ struct ast_bridge {
 	/*! Private information unique to the bridge technology */
 	void *tech_pvt;
 	/*! Per-bridge topics */
-	struct stasis_cp_single *topics;
+	struct stasis_topic *topic;
 	/*! Call ID associated with the bridge */
 	ast_callid callid;
 	/*! Linked list of channels participating in the bridge */
@@ -358,10 +392,25 @@ struct ast_bridge {
 
 	/*! Type mapping used for media routing */
 	struct ast_vector_int media_types;
+	/*! Current bridge snapshot */
+	struct ast_bridge_snapshot *current_snapshot;
 };
 
 /*! \brief Bridge base class virtual method table. */
 extern struct ast_bridge_methods ast_bridge_base_v_table;
+
+/*!
+ * \brief Returns the global bridges container
+ * \since 17.0
+ *
+ * \retval a pointer to the bridges container success
+ * \retval NULL on failure
+ *
+ * \note You must use ao2_ref(<container>, -1) when done with it
+ *
+ * \warning You must not attempt to modify the container returned.
+ */
+struct ao2_container *ast_bridges(void);
 
 /*!
  * \brief Create a new base class bridge

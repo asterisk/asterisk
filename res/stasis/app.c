@@ -172,16 +172,9 @@ static struct app_forwards *forwards_create_bridge(struct stasis_app *app,
 	}
 
 	forwards->forward_type = FORWARD_BRIDGE;
-	if (bridge) {
-		forwards->topic_forward = stasis_forward_all(ast_bridge_topic(bridge),
-			app->topic);
-	}
-	forwards->topic_cached_forward = stasis_forward_all(
-		bridge ? ast_bridge_topic_cached(bridge) : ast_bridge_topic_all_cached(),
-		app->topic);
+	forwards->topic_forward = stasis_forward_all(ast_bridge_topic(bridge), app->topic);
 
-	if ((!forwards->topic_forward && bridge) || !forwards->topic_cached_forward) {
-		/* Half-subscribed is a bad thing */
+	if (!forwards->topic_forward && bridge) {
 		forwards_unsubscribe(forwards);
 		ao2_ref(forwards, -1);
 		return NULL;
@@ -666,33 +659,23 @@ static void sub_bridge_update_handler(void *data,
 {
 	struct ast_json *json = NULL;
 	struct stasis_app *app = data;
-	struct stasis_cache_update *update;
-	struct ast_bridge_snapshot *new_snapshot;
-	struct ast_bridge_snapshot *old_snapshot;
+	struct ast_bridge_snapshot_update *update;
 	const struct timeval *tv;
-
-	ast_assert(stasis_message_type(message) == stasis_cache_update_type());
 
 	update = stasis_message_data(message);
 
-	ast_assert(update->type == ast_bridge_snapshot_type());
+	tv = stasis_message_timestamp(message);
 
-	new_snapshot = stasis_message_data(update->new_snapshot);
-	old_snapshot = stasis_message_data(update->old_snapshot);
-	tv = update->new_snapshot ?
-		stasis_message_timestamp(update->new_snapshot) :
-		stasis_message_timestamp(message);
-
-	if (!new_snapshot) {
-		json = simple_bridge_event("BridgeDestroyed", old_snapshot, tv);
-	} else if (!old_snapshot) {
-		json = simple_bridge_event("BridgeCreated", new_snapshot, tv);
-	} else if (new_snapshot && old_snapshot
-		&& strcmp(new_snapshot->video_source_id, old_snapshot->video_source_id)) {
-		json = simple_bridge_event("BridgeVideoSourceChanged", new_snapshot, tv);
-		if (json && !ast_strlen_zero(old_snapshot->video_source_id)) {
+	if (!update->new_snapshot) {
+		json = simple_bridge_event("BridgeDestroyed", update->old_snapshot, tv);
+	} else if (!update->old_snapshot) {
+		json = simple_bridge_event("BridgeCreated", update->new_snapshot, tv);
+	} else if (update->new_snapshot && update->old_snapshot
+		&& strcmp(update->new_snapshot->video_source_id, update->old_snapshot->video_source_id)) {
+		json = simple_bridge_event("BridgeVideoSourceChanged", update->new_snapshot, tv);
+		if (json && !ast_strlen_zero(update->old_snapshot->video_source_id)) {
 			ast_json_object_set(json, "old_video_source_id",
-				ast_json_string_create(old_snapshot->video_source_id));
+				ast_json_string_create(update->old_snapshot->video_source_id));
 		}
 	}
 
@@ -701,8 +684,8 @@ static void sub_bridge_update_handler(void *data,
 		ast_json_unref(json);
 	}
 
-	if (!new_snapshot && old_snapshot) {
-		unsubscribe(app, "bridge", old_snapshot->uniqueid, 1);
+	if (!update->new_snapshot && update->old_snapshot) {
+		unsubscribe(app, "bridge", update->old_snapshot->uniqueid, 1);
 	}
 }
 
@@ -961,7 +944,7 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 		return NULL;
 	}
 
-	res |= stasis_message_router_add_cache_update(app->router,
+	res |= stasis_message_router_add(app->router,
 		ast_bridge_snapshot_type(), sub_bridge_update_handler, app);
 
 	res |= stasis_message_router_add(app->router,

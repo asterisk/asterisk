@@ -31,37 +31,9 @@ extern "C" {
 #include "asterisk/bridge.h"
 #include "asterisk/pbx.h"
 
-/*!
- * \brief Structure that contains a snapshot of information about a bridge
- */
-struct ast_bridge_snapshot {
-	AST_DECLARE_STRING_FIELDS(
-		/*! Immutable bridge UUID. */
-		AST_STRING_FIELD(uniqueid);
-		/*! Bridge technology that is handling the bridge */
-		AST_STRING_FIELD(technology);
-		/*! Bridge subclass that is handling the bridge */
-		AST_STRING_FIELD(subclass);
-		/*! Creator of the bridge */
-		AST_STRING_FIELD(creator);
-		/*! Name given to the bridge by its creator */
-		AST_STRING_FIELD(name);
-		/*! Unique ID of the channel providing video, if one exists */
-		AST_STRING_FIELD(video_source_id);
-	);
-	/*! AO2 container of bare channel uniqueid strings participating in the bridge.
-	 * Allocated from ast_str_container_alloc() */
-	struct ao2_container *channels;
-	/*! Bridge flags to tweak behavior */
-	struct ast_flags feature_flags;
-	/*! Bridge capabilities */
-	uint32_t capabilities;
-	/*! Number of channels participating in the bridge */
-	unsigned int num_channels;
-	/*! Number of active channels in the bridge. */
-	unsigned int num_active;
-	/*! The video mode of the bridge */
-	enum ast_bridge_video_mode_type video_mode;
+struct ast_bridge_snapshot_update {
+	struct ast_bridge_snapshot *old_snapshot;
+	struct ast_bridge_snapshot *new_snapshot;
 };
 
 /*!
@@ -101,42 +73,10 @@ struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge);
 
 /*!
  * \since 12
- * \brief A topic which publishes the events for a particular bridge.
- *
- * \ref ast_bridge_snapshot messages are replaced with stasis_cache_update
- * messages.
- *
- * If the given \a bridge is \c NULL, ast_bridge_topic_all_cached() is returned.
- *
- * \param bridge Bridge for which to get a topic or \c NULL.
- *
- * \retval Topic for bridge's events.
- * \retval ast_bridge_topic_all() if \a bridge is \c NULL.
- */
-struct stasis_topic *ast_bridge_topic_cached(struct ast_bridge *bridge);
-
-/*!
- * \since 12
  * \brief A topic which publishes the events for all bridges.
  * \retval Topic for all bridge events.
  */
 struct stasis_topic *ast_bridge_topic_all(void);
-
-/*!
- * \since 12
- * \brief A caching topic which caches \ref ast_bridge_snapshot messages from
- * ast_bridge_events_all(void).
- *
- * \retval Caching topic for all bridge events.
- */
-struct stasis_topic *ast_bridge_topic_all_cached(void);
-
-/*!
- * \since 12
- * \brief Backend cache for ast_bridge_topic_all_cached().
- * \retval Cache of \ref ast_bridge_snapshot.
- */
-struct stasis_cache *ast_bridge_cache(void);
 
 /*!
  * \since 12
@@ -490,16 +430,30 @@ void ast_bridge_publish_attended_transfer(struct ast_attended_transfer_message *
 struct stasis_message_type *ast_attended_transfer_type(void);
 
 /*!
- * \brief Returns the most recent snapshot for the bridge.
+ * \brief Returns the current snapshot for the bridge.
+ * \since 17.0
  *
  * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
  *
- * \param bridge_id Uniqueid of the bridge for which to get the snapshot.
+ * \param bridge_id Uniqueid of the bridge from which to get the snapshot.
  * \return Most recent snapshot. ao2_cleanup() when done.
- * \return \c NULL if channel isn't in cache.
+ * \return \c NULL if bridge or snapshot doesn't exist.
  */
-struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(
+struct ast_bridge_snapshot *ast_bridge_get_snapshot_by_uniqueid(
 	const char *bridge_id);
+
+/*!
+ * \brief Returns the current snapshot for the bridge.
+ * \since 17.0
+ *
+ * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
+ *
+ * \param bridge The bridge from which to get the snapshot.
+ * \return Most recent snapshot. ao2_cleanup() when done.
+ * \return \c NULL if there isn't a snapshot.
+ */
+struct ast_bridge_snapshot *ast_bridge_get_snapshot(
+	struct ast_bridge *bridge);
 
 /*!
  * \internal
@@ -508,6 +462,15 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(
  * \return Non-zero on error.
  */
 int bridge_topics_init(struct ast_bridge *bridge);
+
+/*!
+ * \internal
+ * \since 17.0
+ * \brief Publish destroy then cleanup topics.
+ *
+ * \param bridge The bridge to clean up
+ */
+void bridge_topics_destroy(struct ast_bridge *bridge);
 
 /*!
  * \internal

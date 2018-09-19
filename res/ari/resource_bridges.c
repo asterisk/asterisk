@@ -65,7 +65,7 @@ static struct ast_bridge *find_bridge(
 	bridge = stasis_app_bridge_find_by_id(bridge_id);
 	if (bridge == NULL) {
 		RAII_VAR(struct ast_bridge_snapshot *, snapshot,
-			ast_bridge_snapshot_get_latest(bridge_id), ao2_cleanup);
+			ast_bridge_get_snapshot_by_uniqueid(bridge_id), ao2_cleanup);
 		if (!snapshot) {
 			ast_ari_response_error(response, 404, "Not found",
 				"Bridge not found");
@@ -856,7 +856,7 @@ void ast_ari_bridges_get(struct ast_variable *headers,
 	struct ast_ari_bridges_get_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_bridge_snapshot *, snapshot, ast_bridge_snapshot_get_latest(args->bridge_id), ao2_cleanup);
+	RAII_VAR(struct ast_bridge_snapshot *, snapshot, ast_bridge_get_snapshot_by_uniqueid(args->bridge_id), ao2_cleanup);
 	if (!snapshot) {
 		ast_ari_response_error(
 			response, 404, "Not Found",
@@ -885,23 +885,13 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 	struct ast_ari_bridges_list_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, snapshots, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, bridges, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ao2_iterator i;
-	void *obj;
+	struct ast_bridge *bridge;
 
-	cache = ast_bridge_cache();
-	if (!cache) {
-		ast_ari_response_error(
-			response, 500, "Internal Server Error",
-			"Message bus not initialized");
-		return;
-	}
-	ao2_ref(cache, +1);
-
-	snapshots = stasis_cache_dump(cache, ast_bridge_snapshot_type());
-	if (!snapshots) {
+	bridges = ast_bridges();
+	if (!bridges) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
@@ -912,12 +902,14 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 		return;
 	}
 
-	i = ao2_iterator_init(snapshots, 0);
-	while ((obj = ao2_iterator_next(&i))) {
-		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
-		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
+	i = ao2_iterator_init(bridges, 0);
+	while ((bridge = ao2_iterator_next(&i))) {
+		struct ast_bridge_snapshot *snapshot = ast_bridge_get_snapshot(bridge);
+		/* ast_bridge_snapshot_to_json will return NULL if snapshot is NULL */
 		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
 
+		ao2_ref(bridge, -1);
+		ao2_cleanup(snapshot);
 		if (!json_bridge || ast_json_array_append(json, json_bridge)) {
 			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);

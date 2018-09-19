@@ -167,6 +167,7 @@ options.o: _ASTCFLAGS+=$(call get_menuselect_cflags,REF_DEBUG)
 sched.o: _ASTCFLAGS+=$(call get_menuselect_cflags,DEBUG_SCHEDULER DUMP_SCHEDULER)
 tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE) -Wno-deprecated-declarations
 uuid.o: _ASTCFLAGS+=$(UUID_INCLUDE)
+stasis.o: _ASTCFLAGS+=$(call get_menuselect_cflags,AO2_DEBUG)
 
 
 OBJS:=$(sort $(OBJS))
