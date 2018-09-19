@@ -1573,6 +1573,11 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 
 				/* No need to do anything with stream if it's media state is removed */
 				if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+					/* If there is no existing stream we can just not have this stream in the topology at all. */
+					if (!existing_stream) {
+						ast_stream_topology_del_stream(media_state->topology, index);
+						index -= 1;
+					}
 					continue;
 				}
 
