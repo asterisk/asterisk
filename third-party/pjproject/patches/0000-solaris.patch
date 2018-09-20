@@ -1,7 +1,7 @@
-From 8f8a9dc7203bfcd5557ad5c2f15359308535c4bb Mon Sep 17 00:00:00 2001
+From 1ac599a0f29500a15faf0dbbdc2565cc7dce2420 Mon Sep 17 00:00:00 2001
 From: Shaun Ruffell <sruffell@digium.com>
 Date: Fri, 7 Sep 2012 14:31:19 -0500
-Subject: [PATCH] pjproject: Fix for Solaris builds. Do not undef s_addr.
+Subject: [PATCH 4/5] pjproject: Fix for Solaris builds. Do not undef s_addr.
 
 pjproject, in order to solve build problems on Windows [1], undefines s_addr in
 one of it's headers that is included in res_rtp_asterisk.c. On Solaris s_addr is
@@ -38,15 +38,15 @@ Reported-by: Ben Klang
 
 Updated by ASTERISK-27997
 ---
- pjlib/include/pj/sock.h          | 8 +++++++-
- pjlib/src/pj/sock_bsd.c          | 2 +-
- pjlib/src/pj/sock_symbian.cpp    | 2 +-
- pjlib/src/pj/sock_uwp.cpp        | 2 +-
- pjsip/src/test/transport_test.c  | 2 +-
- 6 files changed, 12 insertions(+), 6 deletions(-)
+ pjlib/include/pj/sock.h         | 8 +++++++-
+ pjlib/src/pj/sock_bsd.c         | 2 +-
+ pjlib/src/pj/sock_symbian.cpp   | 2 +-
+ pjlib/src/pj/sock_uwp.cpp       | 2 +-
+ pjsip/src/test/transport_test.c | 2 +-
+ 5 files changed, 11 insertions(+), 5 deletions(-)
 
 diff --git a/pjlib/include/pj/sock.h b/pjlib/include/pj/sock.h
-index 8fc833c..c415358 100644
+index 4daf298..c35833c 100644
 --- a/pjlib/include/pj/sock.h
 +++ b/pjlib/include/pj/sock.h
 @@ -484,6 +484,7 @@ typedef enum pj_socket_sd_type
@@ -69,7 +69,7 @@ index 8fc833c..c415358 100644
  
  /**
   * Maximum length of text representation of an IPv4 address.
-@@ -714,7 +720,7 @@ PJ_DECL(char*) pj_inet_ntoa(pj_in_addr inaddr);
+@@ -712,7 +718,7 @@ PJ_DECL(char*) pj_inet_ntoa(pj_in_addr inaddr);
   *
   * @return	nonzero if the address is valid, zero if not.
   */
@@ -79,7 +79,7 @@ index 8fc833c..c415358 100644
  /**
   * This function converts an address in its standard text presentation form
 diff --git a/pjlib/src/pj/sock_bsd.c b/pjlib/src/pj/sock_bsd.c
-index 95c3804..daefc54 100644
+index e416991..940fce1 100644
 --- a/pjlib/src/pj/sock_bsd.c
 +++ b/pjlib/src/pj/sock_bsd.c
 @@ -244,7 +244,7 @@ PJ_DEF(char*) pj_inet_ntoa(pj_in_addr inaddr)

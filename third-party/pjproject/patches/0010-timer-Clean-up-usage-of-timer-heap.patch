@@ -1,7 +1,7 @@
-From 853005378de2ffecee7774e095d8cbfbfa0ab706 Mon Sep 17 00:00:00 2001
+From f7d91ca2a3c562066f95db066381a8b956ded98f Mon Sep 17 00:00:00 2001
 From: George Joseph <gjoseph@digium.com>
 Date: Tue, 2 Jan 2018 06:36:46 -0700
-Subject: [PATCH] timer: Clean up usage of timer heap
+Subject: [PATCH 5/5] timer: Clean up usage of timer heap
 
 Added a new pj_timer_entry_reset function that resets a timer_entry
 for re-use.
@@ -29,14 +29,13 @@ Fixed issues where timers were being rescheduled incorrectly.
  15 files changed, 64 insertions(+), 25 deletions(-)
 
 diff --git a/pjlib/include/pj/timer.h b/pjlib/include/pj/timer.h
-index df6155a81..90fc8ac85 100644
+index df6155a..90fc8ac 100644
 --- a/pjlib/include/pj/timer.h
 +++ b/pjlib/include/pj/timer.h
-@@ -212,6 +212,20 @@ PJ_DECL(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
-                                               void *user_data,
+@@ -213,6 +213,20 @@ PJ_DECL(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
                                                pj_timer_heap_callback *cb );
  
-+/**
+ /**
 + * Reset a timer entry. Application should call this function before reusing
 + * the timer entry.
 + *
@@ -50,14 +49,15 @@ index df6155a81..90fc8ac85 100644
 +PJ_DECL(pj_timer_entry*) pj_timer_entry_reset( pj_timer_entry *entry,
 +                                             int id);
 +
- /**
++/**
   * Queries whether a timer entry is currently running.
   *
+  * @param entry     The timer entry to query.
 diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
-index 969cc1420..ead1a8fbb 100644
+index 738fb8b..fb3b359 100644
 --- a/pjlib/src/pj/ssl_sock_ossl.c
 +++ b/pjlib/src/pj/ssl_sock_ossl.c
-@@ -291,6 +291,7 @@ struct pj_ssl_cert_t
+@@ -304,6 +304,7 @@ struct pj_ssl_cert_t
  static write_data_t* alloc_send_data(pj_ssl_sock_t *ssock, pj_size_t len);
  static void free_send_data(pj_ssl_sock_t *ssock, write_data_t *wdata);
  static pj_status_t flush_delayed_send(pj_ssl_sock_t *ssock);
@@ -65,7 +65,7 @@ index 969cc1420..ead1a8fbb 100644
  
  /*
   *******************************************************************
-@@ -1621,7 +1622,8 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
+@@ -1726,7 +1727,8 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
  		    pj_timer_heap_cancel(ssock->param.timer_heap,
  					 &ssock->timer);
  		}
@@ -75,7 +75,7 @@ index 969cc1420..ead1a8fbb 100644
  		pj_time_val_normalize(&interval);
  		if (pj_timer_heap_schedule(ssock->param.timer_heap, 
  					   &ssock->timer, &interval) != 0)
-@@ -2387,7 +2389,7 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+@@ -2492,7 +2494,7 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
  	ssock->param.timeout.msec != 0))
      {
  	pj_assert(ssock->timer.id == TIMER_NONE);
@@ -84,7 +84,7 @@ index 969cc1420..ead1a8fbb 100644
  	status = pj_timer_heap_schedule(ssock->param.timer_heap, 
  				        &ssock->timer,
  					&ssock->param.timeout);
-@@ -3405,7 +3407,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_connect( pj_ssl_sock_t *ssock,
+@@ -3538,7 +3540,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_connect( pj_ssl_sock_t *ssock,
  	ssock->param.timeout.msec != 0))
      {
  	pj_assert(ssock->timer.id == TIMER_NONE);
@@ -94,7 +94,7 @@ index 969cc1420..ead1a8fbb 100644
  					&ssock->timer,
  				        &ssock->param.timeout);
 diff --git a/pjlib/src/pj/timer.c b/pjlib/src/pj/timer.c
-index 90a95e37b..13126116f 100644
+index 90a95e3..1312611 100644
 --- a/pjlib/src/pj/timer.c
 +++ b/pjlib/src/pj/timer.c
 @@ -472,6 +472,18 @@ PJ_DEF(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
@@ -117,7 +117,7 @@ index 90a95e37b..13126116f 100644
  {
      return (entry->_timer_id >= 1);
 diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
-index 63a0d1c9c..6d0e6abc9 100644
+index c51dba7..cbee91d 100644
 --- a/pjnath/src/pjnath/ice_session.c
 +++ b/pjnath/src/pjnath/ice_session.c
 @@ -1246,6 +1246,7 @@ done:
@@ -179,7 +179,7 @@ index 63a0d1c9c..6d0e6abc9 100644
                                                 &clist->timer, &delay,
                                                 PJ_TRUE, ice->grp_lock);
 diff --git a/pjnath/src/pjnath/nat_detect.c b/pjnath/src/pjnath/nat_detect.c
-index 8a2408374..7bb364798 100644
+index 31b06c3..d1d7373 100644
 --- a/pjnath/src/pjnath/nat_detect.c
 +++ b/pjnath/src/pjnath/nat_detect.c
 @@ -414,6 +414,7 @@ static void end_session(nat_detect_session *sess,
@@ -199,10 +199,10 @@ index 8a2408374..7bb364798 100644
  	} else {
  	    te->id = 0;
 diff --git a/pjnath/src/pjnath/stun_sock.c b/pjnath/src/pjnath/stun_sock.c
-index 6028e0c47..3aab27a1d 100644
+index 4031bb3..af3cc4a 100644
 --- a/pjnath/src/pjnath/stun_sock.c
 +++ b/pjnath/src/pjnath/stun_sock.c
-@@ -864,7 +864,7 @@ static void start_ka_timer(pj_stun_sock *stun_sock)
+@@ -880,7 +880,7 @@ static void start_ka_timer(pj_stun_sock *stun_sock)
  
  	delay.sec = stun_sock->ka_interval;
  	delay.msec = 0;
@@ -212,7 +212,7 @@ index 6028e0c47..3aab27a1d 100644
  	                                  &stun_sock->ka_timer,
  	                                  &delay, PJ_TRUE,
 diff --git a/pjnath/src/pjnath/stun_transaction.c b/pjnath/src/pjnath/stun_transaction.c
-index 28f623005..ad87b7b6c 100644
+index 28f6230..ad87b7b 100644
 --- a/pjnath/src/pjnath/stun_transaction.c
 +++ b/pjnath/src/pjnath/stun_transaction.c
 @@ -86,11 +86,8 @@ PJ_DEF(pj_status_t) pj_stun_client_tsx_create(pj_stun_config *cfg,
@@ -254,7 +254,7 @@ index 28f623005..ad87b7b6c 100644
  	                                           &tsx->retransmit_timer,
  	                                           &tsx->retransmit_time,
 diff --git a/pjnath/src/pjnath/turn_session.c b/pjnath/src/pjnath/turn_session.c
-index bbea027f3..e4685e625 100644
+index bbea027..e4685e6 100644
 --- a/pjnath/src/pjnath/turn_session.c
 +++ b/pjnath/src/pjnath/turn_session.c
 @@ -431,6 +431,7 @@ static void sess_shutdown(pj_turn_session *sess,
@@ -282,7 +282,7 @@ index bbea027f3..e4685e625 100644
  	                                      &delay, TIMER_KEEP_ALIVE,
  	                                      sess->grp_lock);
 diff --git a/pjnath/src/pjnath/turn_sock.c b/pjnath/src/pjnath/turn_sock.c
-index a30ab5153..507858048 100644
+index a30ab51..5078580 100644
 --- a/pjnath/src/pjnath/turn_sock.c
 +++ b/pjnath/src/pjnath/turn_sock.c
 @@ -928,6 +928,7 @@ static void turn_on_state(pj_turn_session *sess,
@@ -294,7 +294,7 @@ index a30ab5153..507858048 100644
  	                                  &turn_sock->timer,
  	                                  &delay, TIMER_DESTROY,
 diff --git a/pjnath/src/pjturn-srv/allocation.c b/pjnath/src/pjturn-srv/allocation.c
-index 6c9c9ce11..88533926b 100644
+index 6c9c9ce..8853392 100644
 --- a/pjnath/src/pjturn-srv/allocation.c
 +++ b/pjnath/src/pjturn-srv/allocation.c
 @@ -513,7 +513,7 @@ static void alloc_shutdown(pj_turn_allocation *alloc)
@@ -316,7 +316,7 @@ index 6c9c9ce11..88533926b 100644
  				    &alloc->relay.timer, &delay);
      if (status != PJ_SUCCESS) {
 diff --git a/pjnath/src/pjturn-srv/listener_tcp.c b/pjnath/src/pjturn-srv/listener_tcp.c
-index 796ed471b..4a9550c2e 100644
+index 796ed47..4a9550c 100644
 --- a/pjnath/src/pjturn-srv/listener_tcp.c
 +++ b/pjnath/src/pjturn-srv/listener_tcp.c
 @@ -475,7 +475,7 @@ static void tcp_dec_ref(pj_turn_transport *tp,
@@ -329,7 +329,7 @@ index 796ed471b..4a9550c2e 100644
  			       &tcp->timer, &delay);
      }
 diff --git a/pjsip/src/pjsip-simple/evsub.c b/pjsip/src/pjsip-simple/evsub.c
-index eb666654f..7748853d2 100644
+index eb66665..7748853 100644
 --- a/pjsip/src/pjsip-simple/evsub.c
 +++ b/pjsip/src/pjsip-simple/evsub.c
 @@ -518,6 +518,7 @@ static void set_timer( pjsip_evsub *sub, int timer_id,
@@ -360,7 +360,7 @@ index eb666654f..7748853d2 100644
      /* Set name. */
      pj_ansi_snprintf(sub->obj_name, PJ_ARRAY_SIZE(sub->obj_name),
 diff --git a/pjsip/src/pjsip/sip_endpoint.c b/pjsip/src/pjsip/sip_endpoint.c
-index d810781d5..5c98a5bf6 100644
+index d810781..5c98a5b 100644
 --- a/pjsip/src/pjsip/sip_endpoint.c
 +++ b/pjsip/src/pjsip/sip_endpoint.c
 @@ -788,6 +788,7 @@ PJ_DEF(pj_status_t) pjsip_endpt_schedule_timer_dbg(pjsip_endpoint *endpt,
@@ -389,7 +389,7 @@ index d810781d5..5c98a5bf6 100644
  
  /*
 diff --git a/pjsip/src/pjsip/sip_transaction.c b/pjsip/src/pjsip/sip_transaction.c
-index d52b12a72..5236e63f7 100644
+index 4b7f852..173bd6a 100644
 --- a/pjsip/src/pjsip/sip_transaction.c
 +++ b/pjsip/src/pjsip/sip_transaction.c
 @@ -978,6 +978,7 @@ static pj_status_t tsx_schedule_timer(pjsip_transaction *tsx,
@@ -416,10 +416,10 @@ index d52b12a72..5236e63f7 100644
      if (grp_lock) {
  	tsx->grp_lock = grp_lock;
 diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
-index 3d27d5d71..834babeae 100644
+index 17e9142..22f4dc1 100644
 --- a/pjsip/src/pjsip/sip_transport.c
 +++ b/pjsip/src/pjsip/sip_transport.c
-@@ -1092,8 +1092,7 @@ PJ_DEF(pj_status_t) pjsip_transport_register( pjsip_tpmgr *mgr,
+@@ -1139,8 +1139,7 @@ PJ_DEF(pj_status_t) pjsip_transport_register( pjsip_tpmgr *mgr,
      /* Init. */
      tp->tpmgr = mgr;
      pj_bzero(&tp->idle_timer, sizeof(tp->idle_timer));
@@ -430,5 +430,5 @@ index 3d27d5d71..834babeae 100644
      /* 
       * Register to hash table (see Trac ticket #42).
 -- 
-2.14.3
+2.7.4
 
