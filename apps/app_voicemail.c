@@ -2002,6 +2002,10 @@ static void free_user(struct ast_vm_user *vmu)
 		return;
 	}
 
+	if (!ast_strlen_zero(vmu->mailbox)) {
+		ast_delete_mwi_state_full(vmu->mailbox, vmu->context, NULL);
+	}
+
 	ast_free(vmu->email);
 	vmu->email = NULL;
 	ast_free(vmu->emailbody);
