@@ -8035,8 +8035,13 @@ static int rtp_reload(int reload)
 		return 0;
 	}
 
+#ifdef SO_NO_CHECK
+	nochecksums = 0;
+#endif
+
 	rtpstart = DEFAULT_RTP_START;
 	rtpend = DEFAULT_RTP_END;
+	rtcpinterval = RTCP_DEFAULT_INTERVALMS;
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
