@@ -1079,6 +1079,15 @@ static void topic_pool_dtor(void *obj)
 {
 	struct stasis_topic_pool *pool = obj;
 
+#ifdef AO2_DEBUG
+	{
+		char *container_name =
+			ast_alloca(strlen(stasis_topic_name(pool->pool_topic)) + strlen("-pool") + 1);
+		sprintf(container_name, "%s-pool", stasis_topic_name(pool->pool_topic));
+		ao2_container_unregister(container_name);
+	}
+#endif
+
 	ao2_cleanup(pool->pool_container);
 	pool->pool_container = NULL;
 	ao2_cleanup(pool->pool_topic);
@@ -1143,6 +1152,18 @@ static int topic_pool_entry_cmp(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+#ifdef AO2_DEBUG
+static void topic_pool_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct topic_pool_entry *entry = v_obj;
+
+	if (!entry) {
+		return;
+	}
+	prnt(where, "%s", stasis_topic_name(entry->topic));
+}
+#endif
+
 struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_topic)
 {
 	struct stasis_topic_pool *pool;
@@ -1158,10 +1179,25 @@ struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_t
 		ao2_cleanup(pool);
 		return NULL;
 	}
+
+#ifdef AO2_DEBUG
+	{
+		char *container_name =
+			ast_alloca(strlen(stasis_topic_name(pooled_topic)) + strlen("-pool") + 1);
+		sprintf(container_name, "%s-pool", stasis_topic_name(pooled_topic));
+		ao2_container_register(container_name, pool->pool_container, topic_pool_prnt_obj);
+	}
+#endif
+
 	ao2_ref(pooled_topic, +1);
 	pool->pool_topic = pooled_topic;
 
 	return pool;
+}
+
+void stasis_topic_pool_delete_topic(struct stasis_topic_pool *pool, const char *topic_name)
+{
+	ao2_find(pool->pool_container, topic_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 }
 
 struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name)
