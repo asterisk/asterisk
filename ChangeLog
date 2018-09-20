@@ -1,3 +1,54 @@
+2018-09-20 18:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.7.8 Released.
+
+2018-08-16 10:45 +0000 [31bde10351]  Sean Bright <sean.bright@gmail.com>
+
+	* AST-2018-009: Fix crash processing websocket HTTP Upgrade requests
+
+	  The HTTP request processing in res_http_websocket allocates additional
+	  space on the stack for various headers received during an Upgrade request.
+	  An attacker could send a specially crafted request that causes this code
+	  to overflow the stack, resulting in a crash.
+
+	  * No longer allocate memory from the stack in a loop to parse the header
+	  values.  NOTE: There is a slight API change when using the passed in
+	  strings as is.  We now require the passed in strings to no longer have
+	  leading or trailing whitespace.  This isn't a problem as the only callers
+	  have already done this before passing the strings to the affected
+	  function.
+
+	  ASTERISK-28013 #close
+
+	  Change-Id: Ia564825a8a95e085fd17e658cb777fe1afa8091a
+
+2018-06-11 21:11 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.7.7 Released.
+
+2018-06-11 16:11 +0000 [a562192fa4]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 14.7.7
+
+2018-04-30 17:38 +0000 [b67fe624c6]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2018-008: Fix enumeration of endpoints from ACL rejected addresses.
+
+	  When endpoint specific ACL rules block a SIP request they respond with a
+	  403 forbidden.  However, if an endpoint is not identified then a 401
+	  unauthorized response is sent.  This vulnerability just discloses which
+	  requests hit a defined endpoint.  The ACL rules cannot be bypassed to gain
+	  access to the disclosed endpoints.
+
+	  * Made endpoint specific ACL rules now respond with a 401 unauthorized
+	  which is the same as if an endpoint were not identified.  The fix is
+	  accomplished by replacing the found endpoint with the artificial endpoint
+	  which always fails authentication.
+
+	  ASTERISK-27818
+
+	  Change-Id: Icb275a54ff8e2df6c671a6d9bda37b5d732b3b32
+
 2018-02-21 18:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.7.6 Released.
