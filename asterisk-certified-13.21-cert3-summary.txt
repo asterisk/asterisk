@@ -1,0 +1,258 @@
+                                Release Summary
+
+                         asterisk-certified/13.21-cert3
+
+                                Date: 2018-09-20
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2018-009
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.21-cert2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                           Testers          Reporters                
+   21 George Joseph                                  2 George Joseph          
+   3 Richard Mudgett                                 1 Ross Beer              
+   1 Sean Bright                                     1 Jaco Kroon             
+   1 Joshua Colp                                     1 Sean Bright            
+   1 Jaco Kroon                                      1 Joshua C. Colp         
+   1 Alexander Traud (License 6520)                  1 Alexander Traud        
+   1 Corey Farrell                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-28013: res_http_websocket: Crash when reading HTTP Upgrade
+   requests
+   Reported by: Sean Bright
+     * [34af3753ae] Sean Bright -- AST-2018-009: Fix crash processing
+       websocket HTTP Upgrade requests
+
+  Bug
+
+    Category: Core/BuildSystem
+
+   ASTERISK-27563: pjsip modules always get -O2 even when DONT_OPTIMIZE is
+   set
+   Reported by: George Joseph
+     * [56a8a36c66] Richard Mudgett -- Build: Fix modules getting their
+       optimization setting overridden.
+   ASTERISK-27824: Fix issues exposed by GCC 8
+   Reported by: George Joseph
+     * [f4c13e8170] Corey Farrell -- Fix GCC 8 build issues.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-27841: digest over for manager (ami) over http fails on too long
+   uris
+   Reported by: Jaco Kroon
+     * [44e9bdec61] Jaco Kroon -- manager: fix digest auth for ami/http
+       mechanism.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-27978: res_pjsip: Change default transport keepalive to preserve
+   behavior
+   Reported by: Joshua C. Colp
+     * [9635a64fd8] Joshua Colp -- res_pjsip: Update default keepalive
+       interval to 90 seconds.
+   ASTERISK-26686: res_pjsip: Lock inversion in transport management
+   Reported by: Ross Beer
+     * [51616b277d] Richard Mudgett --
+       res_pjsip/pjsip_transport_management.c: Fix deadlock with transport
+       keep alive.
+
+    Category: Resources/res_pjsip_keepalive
+
+   ASTERISK-27347: [patch] pjproject_bundled: Disable TCP/TLS keep-alives.
+   Reported by: Alexander Traud
+     * [8f56ba5479] Alexander Traud -- Bundled PJPROJECT: Disable internal
+       connection oriented keep-alive.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 3e6272b0f6 | George Joseph   | CI: Fix merge strategy                  |
+   |------------+-----------------+-----------------------------------------|
+   | a8744add75 | George Joseph   | CI: Fix regex in daily and ref_debug    |
+   |            |                 | jobs                                    |
+   |------------+-----------------+-----------------------------------------|
+   | 89acb71caa | Richard Mudgett | res_config_ldap.c: Fix mem leak in CLI  |
+   |            |                 | "realtime show ldap status"             |
+   |------------+-----------------+-----------------------------------------|
+   | aa2ab27041 | George Joseph   | CI: Add pre-build merge back in as      |
+   |            |                 | RECURSIVE                               |
+   |------------+-----------------+-----------------------------------------|
+   | 4b69db4b66 | George Joseph   | CI: Remove pre-build merge from gates   |
+   |            |                 | and checks                              |
+   |------------+-----------------+-----------------------------------------|
+   | 7bd8bbfd35 | George Joseph   | CI: Fix logic inversion in runTestsuite |
+   |------------+-----------------+-----------------------------------------|
+   | 4435cfdd4c | George Joseph   | CI: Add teardownRealtime                |
+   |------------+-----------------+-----------------------------------------|
+   | c98c6051c6 | George Joseph   | CI: Prevent Jenkins from triggering     |
+   |            |                 | jobs back to itself                     |
+   |------------+-----------------+-----------------------------------------|
+   | ee063a35eb | George Joseph   | CI: runUnittests: loop a few times on   |
+   |            |                 | waitfullybooted                         |
+   |------------+-----------------+-----------------------------------------|
+   | 5ec8f5b353 | George Joseph   | CI: Add realtime checks to dailies      |
+   |------------+-----------------+-----------------------------------------|
+   | 282312eb96 | George Joseph   | CI: Add weekly REF_DEBUG testsuite run  |
+   |------------+-----------------+-----------------------------------------|
+   | 62345d444f | George Joseph   | CI: Fix bad reporting of status by the  |
+   |            |                 | verification pub                        |
+   |------------+-----------------+-----------------------------------------|
+   | ecc1c14a22 | George Joseph   | CI: Make build tag an acceptable docker |
+   |            |                 | name                                    |
+   |------------+-----------------+-----------------------------------------|
+   | 9246fc9dd7 | George Joseph   | CI: Add daily periodics to CI           |
+   |------------+-----------------+-----------------------------------------|
+   | dae51bddbd | George Joseph   | CI: Add Asterisk Gates                  |
+   |------------+-----------------+-----------------------------------------|
+   | ac2a1db043 | George Joseph   | CI: Remove duplicate checkout           |
+   |------------+-----------------+-----------------------------------------|
+   | 602ded78d4 | George Joseph   | CI: Update cleanup steps and            |
+   |            |                 | permissions                             |
+   |------------+-----------------+-----------------------------------------|
+   | ca168ba901 | George Joseph   | CI: Fix log artifact paths              |
+   |------------+-----------------+-----------------------------------------|
+   | 19c481a184 | George Joseph   | CI: Remove CleanBeforeCheckout option   |
+   |            |                 | for testsuite                           |
+   |------------+-----------------+-----------------------------------------|
+   | a05056c759 | George Joseph   | CI: Move gates into source repo         |
+   |------------+-----------------+-----------------------------------------|
+   | 5dffbe11ab | George Joseph   | CI: Initial commit for moving CI into   |
+   |            |                 | source repo                             |
+   |------------+-----------------+-----------------------------------------|
+   | 8273b8cbf3 | George Joseph   | test.c: Make output jUnit compatible    |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-certified-13.21-cert2-summary.html   |   19
+ asterisk-certified-13.21-cert2-summary.txt    |   89
+ b/.gitignore                                  |    2
+ b/.version                                    |    2
+ b/ChangeLog                                   |55790 ++++++++++----------------
+ b/addons/Makefile                             |    1
+ b/apps/Makefile                               |    4
+ b/apps/app_minivm.c                           |    4
+ b/apps/app_queue.c                            |    2
+ b/apps/app_sms.c                              |    2
+ b/apps/app_test.c                             |    3
+ b/apps/app_voicemail.c                        |    4
+ b/asterisk-13.21.0-rc1-summary.html           |  348
+ b/asterisk-13.21.0-rc1-summary.txt            |  825
+ b/channels/Makefile                           |    3
+ b/channels/chan_dahdi.c                       |    2
+ b/channels/chan_iax2.c                        |    2
+ b/channels/chan_sip.c                         |   25
+ b/channels/chan_skinny.c                      |   32
+ b/channels/iax2/parser.c                      |    2
+ b/configure                                   |   14
+ b/configure.ac                                |   10
+ b/funcs/Makefile                              |    2
+ b/main/config.c                               |   10
+ b/main/manager.c                              |   14
+ b/main/pbx.c                                  |    2
+ b/main/test.c                                 |   81
+ b/makeopts.in                                 |    1
+ b/pbx/dundi-parser.c                          |    2
+ b/pbx/pbx_dundi.c                             |    3
+ b/res/Makefile                                |    4
+ b/res/res_config_ldap.c                       |   30
+ b/res/res_http_websocket.c                    |   25
+ b/res/res_musiconhold.c                       |    2
+ b/res/res_pjsip.c                             |    2
+ b/res/res_pjsip/config_global.c               |    2
+ b/res/res_pjsip/pjsip_transport_management.c  |   35
+ b/tests/CI/buildAsterisk.sh                   |  133
+ b/tests/CI/ci.functions                       |   30
+ b/tests/CI/gateTestGroups.json                |   47
+ b/tests/CI/gates.jenkinsfile                  |  239
+ b/tests/CI/installAsterisk.sh                 |   28
+ b/tests/CI/periodic-dailyTestGroups.json      |   38
+ b/tests/CI/periodics-daily.jenkinsfile        |  131
+ b/tests/CI/ref_debug.jenkinsfile              |  127
+ b/tests/CI/ref_debugTestGroups.json           |   32
+ b/tests/CI/runTestsuite.sh                    |   29
+ b/tests/CI/runUnittests.sh                    |   73
+ b/tests/CI/setupJenkinsEnvironment.sh         |    7
+ b/tests/CI/setupRealtime.sh                   |  123
+ b/tests/CI/teardownRealtime.sh                |    6
+ b/tests/CI/unittests.jenkinsfile              |  202
+ b/tests/Makefile                              |    3
+ b/third-party/pjproject/Makefile              |    5
+ b/third-party/pjproject/patches/config_site.h |    8
+ b/utils/Makefile                              |    2
+ b/utils/ael_main.c                            |    2
+ b/utils/astman.c                              |    3
+ 58 files changed, 25292 insertions(+), 33376 deletions(-)
