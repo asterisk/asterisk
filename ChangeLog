@@ -1,3 +1,46 @@
+2018-09-20 18:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.23.1 Released.
+
+2018-08-16 10:45 +0000 [e6b0c4d27e]  Sean Bright <sean.bright@gmail.com>
+
+	* AST-2018-009: Fix crash processing websocket HTTP Upgrade requests
+
+	  The HTTP request processing in res_http_websocket allocates additional
+	  space on the stack for various headers received during an Upgrade request.
+	  An attacker could send a specially crafted request that causes this code
+	  to overflow the stack, resulting in a crash.
+
+	  * No longer allocate memory from the stack in a loop to parse the header
+	  values.  NOTE: There is a slight API change when using the passed in
+	  strings as is.  We now require the passed in strings to no longer have
+	  leading or trailing whitespace.  This isn't a problem as the only callers
+	  have already done this before passing the strings to the affected
+	  function.
+
+	  ASTERISK-28013 #close
+
+	  Change-Id: Ia564825a8a95e085fd17e658cb777fe1afa8091a
+
+2018-09-17 07:10 +0000 [43e816ead9]  George Joseph <gjoseph@digium.com>
+
+	* CI: Fix typo in testsuite git checkout
+
+	  Change-Id: I30024515e5b00a5044fd39fbff27d818f016b719
+
+2018-09-14 12:31 +0000 [5f777e483a]  George Joseph <gjoseph@digium.com>
+
+	* CI: Use proper credentials for Security testsuite checkout
+
+	  Can't do anonymous http checkout from Security-testsuite.
+	  Need to use same credentials as the gerrit review checkout.
+
+	  Change-Id: I87af68c995cb8926f5e87f9af245600d76984f05
+
+2018-09-05 17:12 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.23.0 Released.
+
 2018-08-28 19:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.23.0-rc1 Released.
