@@ -431,23 +431,20 @@ struct ast_str *ast_odbc_print_errors(SQLSMALLINT handle_type, SQLHANDLE handle,
 {
 	struct ast_str *errors = ast_str_thread_get(&errors_buf, 16);
 	SQLINTEGER nativeerror = 0;
-	SQLINTEGER numfields = 0;
 	SQLSMALLINT diagbytes = 0;
 	SQLSMALLINT i;
 	unsigned char state[10];
 	unsigned char diagnostic[256];
 
 	ast_str_reset(errors);
-	SQLGetDiagField(handle_type, handle, 1, SQL_DIAG_NUMBER, &numfields,
-			SQL_IS_INTEGER, &diagbytes);
-	for (i = 0; i < numfields; i++) {
-		SQLGetDiagRec(handle_type, handle, i + 1, state, &nativeerror,
-				diagnostic, sizeof(diagnostic), &diagbytes);
+	i = 0;
+	while (SQLGetDiagRec(handle_type, handle, ++i, state, &nativeerror,
+		diagnostic, sizeof(diagnostic), &diagbytes) == SQL_SUCCESS) {
 		ast_str_append(&errors, 0, "%s%s", ast_str_strlen(errors) ? "," : "", state);
 		ast_log(LOG_WARNING, "%s returned an error: %s: %s\n", operation, state, diagnostic);
 		/* XXX Why is this here? */
 		if (i > 10) {
-			ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+			ast_log(LOG_WARNING, "There are more than 10 diagnostic records! Ignore the rest.\n");
 			break;
 		}
 	}
