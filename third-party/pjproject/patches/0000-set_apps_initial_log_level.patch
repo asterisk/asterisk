@@ -1,7 +1,7 @@
-From 34f25c67f17be80814ddb16edc6c76d30213ca1b Mon Sep 17 00:00:00 2001
+From c40ad6ba454fdf6456d8ffa92faa4cd49f2c807d Mon Sep 17 00:00:00 2001
 From: Richard Mudgett <rmudgett@digium.com>
 Date: Thu, 23 Feb 2017 17:11:00 -0600
-Subject: [PATCH 2/3] 0000-set_apps_initial_log_level.patch
+Subject: [PATCH 3/5] 0000-set_apps_initial_log_level.patch
 
 ---
  pjsip-apps/src/pjsua/main.c             | 2 ++
@@ -35,10 +35,10 @@ index 122cdc7..dc79eab 100644
  	return 1;
  
 diff --git a/pjsip-apps/src/python/_pjsua.c b/pjsip-apps/src/python/_pjsua.c
-index fb80e23..c9b21d8 100644
+index 31b835e..3e15030 100644
 --- a/pjsip-apps/src/python/_pjsua.c
 +++ b/pjsip-apps/src/python/_pjsua.c
-@@ -4437,7 +4437,8 @@ init_pjsua(void)
+@@ -4434,7 +4434,8 @@ init_pjsua(void)
      PyObject* m = NULL;
  #define ADD_CONSTANT(mod,name)	PyModule_AddIntConstant(mod,#name,name)
  
