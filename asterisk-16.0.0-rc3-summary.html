@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.0.0-rc3</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.0.0-rc3</h3><h3 align="center">Date: 2018-09-20</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is the first release of a major new version of Asterisk. For a list of new features that have been included with this release, please see the CHANGES file inside the source package. Since this is a new major release, users are encouraged to do extended testing before upgrading to this version in a production environment.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.0.0-rc2.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">2 George Joseph <gjoseph@digium.com><br/>1 Sean Bright <sean.bright@gmail.com><br/></td><td width="33%"><td width="33%">1 Sean Bright <sean.bright@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28013">ASTERISK-28013</a>: res_http_websocket: Crash when reading HTTP Upgrade requests<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=94c3846a93de6eaf318d82ed9ac0c4df7fb71913">[94c3846a93]</a> Sean Bright -- AST-2018-009: Fix crash processing websocket HTTP Upgrade requests</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9f71668f4f2ce606006638efc7e3fd66846a072b">9f71668f4f</a></td><td>George Joseph</td><td>CI: Fix typo in testsuite git checkout</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72432ab502153559c77f9e51b05586221e599ecc">72432ab502</a></td><td>George Joseph</td><td>CI: Use proper credentials for Security testsuite checkout</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                           |    1
+.version                                             |    1
+ChangeLog                                            |78913 -------------------
+asterisk-16.0.0-rc2-summary.html                     |   57
+asterisk-16.0.0-rc2-summary.txt                      |  167
+b/res/res_http_websocket.c                           |   25
+b/tests/CI/gates.jenkinsfile                         |    6
+contrib/realtime/mssql/mssql_cdr.sql                 |   58
+contrib/realtime/mssql/mssql_config.sql              | 2055
+contrib/realtime/mssql/mssql_voicemail.sql           |   54
+contrib/realtime/mysql/mysql_cdr.sql                 |   40
+contrib/realtime/mysql/mysql_config.sql              | 1192
+contrib/realtime/mysql/mysql_voicemail.sql           |   34
+contrib/realtime/oracle/oracle_cdr.sql               |   52
+contrib/realtime/oracle/oracle_config.sql            | 2021
+contrib/realtime/oracle/oracle_voicemail.sql         |   48
+contrib/realtime/postgresql/postgresql_cdr.sql       |   44
+contrib/realtime/postgresql/postgresql_config.sql    | 1286
+contrib/realtime/postgresql/postgresql_voicemail.sql |   38
+19 files changed, 18 insertions(+), 86074 deletions(-)</pre><br></html>
