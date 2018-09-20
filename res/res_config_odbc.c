@@ -118,6 +118,9 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 
 	res = SQLPrepare(stmt, (unsigned char *)cps->sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (res == SQL_ERROR) {
+			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
+		}
 		ast_log(LOG_WARNING, "SQL Prepare failed! [%s]\n", cps->sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
@@ -633,6 +636,9 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 
 	res = SQLPrepare(stmt, (unsigned char *)ast_str_buffer(sql), SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		if (res == SQL_ERROR) {
+			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
+		}
 		ast_log(LOG_WARNING, "SQL Prepare failed! [%s]\n", ast_str_buffer(sql));
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		return NULL;
