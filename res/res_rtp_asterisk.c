@@ -3504,6 +3504,7 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 		if (x == startplace || (errno != EADDRINUSE && errno != EACCES)) {
 			ast_log(LOG_ERROR, "Oh dear... we couldn't allocate a port for RTP instance '%p'\n", instance);
 			close(rtp->s);
+			rtp->s = -1;
 			return -1;
 		}
 	}
@@ -3650,7 +3651,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	ast_rtp_instance_set_data(instance, rtp);
 
 	if (rtp_allocate_transport(instance, rtp)) {
-		ast_free(rtp);
+		return -1;
+	}
+
+	if (AST_VECTOR_INIT(&rtp->ssrc_mapping, 1)) {
 		return -1;
 	}
 
@@ -3658,7 +3662,6 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	rtp->lastrxformat = ao2_bump(ast_format_none);
 	rtp->lasttxformat = ao2_bump(ast_format_none);
 	rtp->stream_num = -1;
-	AST_VECTOR_INIT(&rtp->ssrc_mapping, 1);
 
 	return 0;
 }
