@@ -810,11 +810,16 @@ struct baseio {
 	unsigned char iobuf[BASEMAXINLINE];
 };
 
+#define MAX_VM_MBOX_ID_LEN (AST_MAX_EXTENSION)
+#define MAX_VM_CONTEXT_LEN (AST_MAX_CONTEXT)
+/* MAX_VM_MAILBOX_LEN allows enough room for the '@' and NULL terminator */
+#define MAX_VM_MAILBOX_LEN (MAX_VM_MBOX_ID_LEN + MAX_VM_CONTEXT_LEN)
+
 /*! Structure for linked list of users
  * Use ast_vm_user_destroy() to free one of these structures. */
 struct ast_vm_user {
-	char context[AST_MAX_CONTEXT];   /*!< Voicemail context */
-	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox id, unique within vm context */
+	char context[MAX_VM_CONTEXT_LEN];/*!< Voicemail context */
+	char mailbox[MAX_VM_MBOX_ID_LEN];/*!< Mailbox id, unique within vm context */
 	char password[80];               /*!< Secret pin code, numbers only */
 	char fullname[80];               /*!< Full name, for directory app */
 	char *email;                     /*!< E-mail address */
@@ -12305,23 +12310,21 @@ static int mark_or_create_poll_state(struct ast_vm_user *vmu)
 {
 	size_t len;
 	struct poll_state *poll_state;
-	char *mailbox;
+	char mailbox_full[MAX_VM_MAILBOX_LEN];
 
 	if (ast_strlen_zero(vmu->mailbox)) {
 		ast_log(LOG_ERROR, "Mailbox can't be empty\n");
 		return -1;
 	}
 
-	len = sizeof(vmu->mailbox) + sizeof(vmu->context) + sizeof('@') + 1;
-	mailbox = ast_alloca(len);
-	len = snprintf(mailbox, len, "%s%s%s",
+	len = snprintf(mailbox_full, MAX_VM_MAILBOX_LEN, "%s%s%s",
 		vmu->mailbox,
 		ast_strlen_zero(vmu->context) ? "" : "@",
 		vmu->context);
 
 	len++; /* For NULL terminator */
 
-	poll_state = ao2_find(poll_list, mailbox, OBJ_SEARCH_KEY);
+	poll_state = ao2_find(poll_list, mailbox_full, OBJ_SEARCH_KEY);
 	if (poll_state) {
 		poll_state->marked_used = 1;
 		ao2_ref(poll_state, -1);
@@ -12333,7 +12336,7 @@ static int mark_or_create_poll_state(struct ast_vm_user *vmu)
 	if (!poll_state) {
 		return -1;
 	}
-	strcpy(poll_state->mailbox, mailbox); /* Safe */
+	strcpy(poll_state->mailbox, mailbox_full); /* Safe */
 	poll_state->marked_used = 1;
 
 	ao2_link_flags(poll_list, poll_state, OBJ_NOLOCK);
@@ -12398,7 +12401,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
-	char *mailbox_full;
+	char mailbox_full[MAX_VM_MAILBOX_LEN];
 	int new = 0, old = 0, urgent = 0;
 	char secretfn[PATH_MAX] = "";
 
@@ -12437,10 +12440,10 @@ static int append_mailbox(const char *context, const char *box, const char *data
 		read_password_from_file(secretfn, vmu->password, sizeof(vmu->password));
 	}
 
-	mailbox_full = ast_alloca(strlen(box) + strlen(context) + 1);
-	strcpy(mailbox_full, box);
-	strcat(mailbox_full, "@");
-	strcat(mailbox_full, context);
+	snprintf(mailbox_full, MAX_VM_MAILBOX_LEN, "%s%s%s",
+		box,
+		ast_strlen_zero(context) ? "" : "@",
+		context);
 
 	inboxcount2(mailbox_full, &urgent, &new, &old);
 #ifdef IMAP_STORAGE
