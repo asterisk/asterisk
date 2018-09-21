@@ -771,7 +771,7 @@ static int ast_channel_by_uniqueid_cb(void *obj, void *arg, void *data, int flag
 static int does_id_conflict(const char *uniqueid)
 {
 	struct ast_channel *conflict;
-	int length = 0;
+	size_t length = 0;
 
 	if (ast_strlen_zero(uniqueid)) {
 		return 0;
