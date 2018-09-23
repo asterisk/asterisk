@@ -12594,6 +12594,8 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				 * knows that we care about it.  Then, chan_dahdi will get the MWI from the
 				 * event cache instead of checking the mailbox directly. */
 				tmp->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
+				stasis_subscription_accept_message_type(tmp->mwi_event_sub, ast_mwi_state_type());
+				stasis_subscription_set_filter(tmp->mwi_event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 			}
 		}
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI

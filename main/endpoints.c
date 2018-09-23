@@ -202,7 +202,7 @@ static void endpoint_cache_clear(void *data,
 	endpoint_publish_snapshot(endpoint);
 }
 
-static void endpoint_default(void *data,
+static void endpoint_subscription_change(void *data,
 	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -263,6 +263,8 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		if (!endpoint->topics) {
 			return NULL;
 		}
+		stasis_cp_single_accept_message_type(endpoint->topics, ast_endpoint_snapshot_type());
+		stasis_cp_single_set_filter(endpoint->topics, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 		endpoint->router = stasis_message_router_create_pool(ast_endpoint_topic(endpoint));
 		if (!endpoint->router) {
@@ -271,8 +273,9 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		r |= stasis_message_router_add(endpoint->router,
 			stasis_cache_clear_type(), endpoint_cache_clear,
 			endpoint);
-		r |= stasis_message_router_set_default(endpoint->router,
-			endpoint_default, endpoint);
+		r |= stasis_message_router_add(endpoint->router,
+			stasis_subscription_change_type(), endpoint_subscription_change,
+			endpoint);
 		if (r) {
 			return NULL;
 		}
@@ -288,6 +291,8 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		if (!endpoint->topics) {
 			return NULL;
 		}
+		stasis_cp_single_accept_message_type(endpoint->topics, ast_endpoint_snapshot_type());
+		stasis_cp_single_set_filter(endpoint->topics, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 		ao2_link(tech_endpoints, endpoint);
 	}

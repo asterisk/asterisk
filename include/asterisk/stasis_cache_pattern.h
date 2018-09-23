@@ -169,4 +169,39 @@ struct stasis_topic *stasis_cp_single_topic(struct stasis_cp_single *one);
 struct stasis_topic *stasis_cp_single_topic_cached(
 	struct stasis_cp_single *one);
 
+/*!
+ * \brief Indicate to an instance that we are interested in a message type.
+ *
+ * This will cause the caching topic to receive messages of the given message
+ * type. This enables internal filtering in the stasis message bus to reduce
+ * messages.
+ *
+ * \param one One side of the cache pattern.
+ * \param type The message type we wish to receive.
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_cp_single_accept_message_type(struct stasis_cp_single *one,
+	struct stasis_message_type *type);
+
+/*!
+ * \brief Set the message type filtering level on a cache
+ *
+ * This will cause the underlying subscription to filter messages according to the
+ * provided filter level. For example if selective is used then only
+ * messages matching those provided to \ref stasis_subscription_accept_message_type
+ * will be raised to the subscription callback.
+ *
+ * \param one One side of the cache pattern.
+ * \param filter What filter to use
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_cp_single_set_filter(struct stasis_cp_single *one,
+	enum stasis_subscription_message_filter filter);
+
 #endif /* _ASTERISK_STASIS_CACHE_PATTERN_H */

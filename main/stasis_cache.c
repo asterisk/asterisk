@@ -87,6 +87,35 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
 	return caching_topic->topic;
 }
 
+int stasis_caching_accept_message_type(struct stasis_caching_topic *caching_topic,
+	struct stasis_message_type *type)
+{
+	int res;
+
+	if (!caching_topic) {
+		return -1;
+	}
+
+	/* We wait to accept the stasis specific message types until now so that by default everything
+	 * will flow to us.
+	 */
+	res = stasis_subscription_accept_message_type(caching_topic->sub, stasis_cache_clear_type());
+	res |= stasis_subscription_accept_message_type(caching_topic->sub, stasis_subscription_change_type());
+	res |= stasis_subscription_accept_message_type(caching_topic->sub, type);
+
+	return res;
+}
+
+int stasis_caching_set_filter(struct stasis_caching_topic *caching_topic,
+	enum stasis_subscription_message_filter filter)
+{
+	if (!caching_topic) {
+		return -1;
+	}
+	return stasis_subscription_set_filter(caching_topic->sub, filter);
+}
+
+
 struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
 {
 	if (!caching_topic) {
@@ -856,11 +885,13 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 		/* Update the cache */
 		snapshots = cache_put(caching_topic->cache, msg_type, msg_id, msg_eid, msg_put);
 		if (snapshots.old || msg_put) {
-			update = update_create(snapshots.old, msg_put);
-			if (update) {
-				stasis_publish(caching_topic->topic, update);
+			if (stasis_topic_subscribers(caching_topic->topic)) {
+				update = update_create(snapshots.old, msg_put);
+				if (update) {
+					stasis_publish(caching_topic->topic, update);
+					ao2_ref(update, -1);
+				}
 			}
-			ao2_cleanup(update);
 		} else {
 			ast_debug(1,
 				"Attempting to remove an item from the %s cache that isn't there: %s %s\n",
@@ -873,11 +904,13 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 				caching_topic->cache->aggregate_publish_fn(caching_topic->original_topic,
 					snapshots.aggregate_new);
 			}
-			update = update_create(snapshots.aggregate_old, snapshots.aggregate_new);
-			if (update) {
-				stasis_publish(caching_topic->topic, update);
+			if (stasis_topic_subscribers(caching_topic->topic)) {
+				update = update_create(snapshots.aggregate_old, snapshots.aggregate_new);
+				if (update) {
+					stasis_publish(caching_topic->topic, update);
+					ao2_ref(update, -1);
+				}
 			}
-			ao2_cleanup(update);
 		}
 
 		ao2_cleanup(snapshots.old);

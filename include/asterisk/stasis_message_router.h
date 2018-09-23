@@ -233,6 +233,10 @@ void stasis_message_router_remove_cache_update(
  * \retval -1 on failure
  *
  * \since 12
+ *
+ * \note Setting a default callback will automatically cause the underlying
+ * subscription to receive all messages and not be filtered. If filtering is
+ * desired then a specific route for each message type should be provided.
  */
 int stasis_message_router_set_default(struct stasis_message_router *router,
 				      stasis_subscription_cb callback,
