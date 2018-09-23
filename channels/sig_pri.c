@@ -9143,6 +9143,9 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 		if (!pri->mbox[i].sub) {
 			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s(%s).\n",
 				sig_pri_cc_type_name, pri->span, pri->mbox[i].vm_box, mbox_id);
+		} else {
+			stasis_subscription_accept_message_type(pri->mbox[i].sub, ast_mwi_state_type());
+			stasis_subscription_set_filter(pri->mbox[i].sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 		}
 #if defined(HAVE_PRI_MWI_V2)
 		if (ast_strlen_zero(pri->mbox[i].vm_number)) {

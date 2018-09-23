@@ -294,6 +294,15 @@ enum stasis_message_type_result {
 };
 
 /*!
+ * \brief Stasis subscription message filters
+ */
+enum stasis_subscription_message_filter {
+	STASIS_SUBSCRIPTION_FILTER_NONE = 0,    /*!< No filter is in place, all messages are raised */
+	STASIS_SUBSCRIPTION_FILTER_FORCED_NONE, /*!< No filter is in place or can be set, all messages are raised */
+	STASIS_SUBSCRIPTION_FILTER_SELECTIVE,   /*!< Only messages of allowed message types are raised */
+};
+
+/*!
  * \brief Create a new message type.
  *
  * \ref stasis_message_type is an AO2 object, so ao2_cleanup() when you're done
@@ -327,6 +336,14 @@ const char *stasis_message_type_name(const struct stasis_message_type *type);
  * \since 13.24.0
  */
 unsigned int stasis_message_type_hash(const struct stasis_message_type *type);
+
+/*!
+ * \brief Gets the id of a given message type
+ * \param type The type to get the id of.
+ * \return The id
+ * \since 17.0.0
+ */
+int stasis_message_type_id(const struct stasis_message_type *type);
 
 /*!
  * \brief Check whether a message type is declined
@@ -501,6 +518,14 @@ struct stasis_topic *stasis_topic_create(const char *name);
 const char *stasis_topic_name(const struct stasis_topic *topic);
 
 /*!
+ * \brief Return the number of subscribers of a topic.
+ * \param topic Topic.
+ * \return Number of subscribers of the topic.
+ * \since 17.0.0
+ */
+size_t stasis_topic_subscribers(const struct stasis_topic *topic);
+
+/*!
  * \brief Publish a message to a topic's subscribers.
  * \param topic Topic.
  * \param message Message to publish.
@@ -569,6 +594,10 @@ void stasis_subscription_cb_noop(void *data, struct stasis_subscription *sub, st
  * \return New \ref stasis_subscription object.
  * \return \c NULL on error.
  * \since 12
+ *
+ * \note This callback will receive a callback with a message indicating it
+ * has been subscribed. This occurs immediately before accepted message
+ * types can be set and the callback must expect to receive it.
  */
 struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic,
 	stasis_subscription_cb callback, void *data);
@@ -594,9 +623,67 @@ struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic,
  * \return New \ref stasis_subscription object.
  * \return \c NULL on error.
  * \since 12.8.0
+ *
+ * \note This callback will receive a callback with a message indicating it
+ * has been subscribed. This occurs immediately before accepted message
+ * types can be set and the callback must expect to receive it.
  */
 struct stasis_subscription *stasis_subscribe_pool(struct stasis_topic *topic,
 	stasis_subscription_cb callback, void *data);
+
+/*!
+ * \brief Indicate to a subscription that we are interested in a message type.
+ *
+ * This will cause the subscription to allow the given message type to be
+ * raised to our subscription callback. This enables internal filtering in
+ * the stasis message bus to reduce messages.
+ *
+ * \param subscription Subscription to add message type to.
+ * \param type The message type we wish to receive.
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ *
+ * \note If you are wanting to use stasis_final_message you will need to accept
+ * \ref stasis_subscription_change_type as a message type.
+ *
+ * \note Until the subscription is set to selective filtering it is possible for it
+ * to receive messages of message types that would not normally be accepted.
+ */
+int stasis_subscription_accept_message_type(struct stasis_subscription *subscription,
+	const struct stasis_message_type *type);
+
+/*!
+ * \brief Indicate to a subscription that we are not interested in a message type.
+ *
+ * \param subscription Subscription to remove message type from.
+ * \param type The message type we don't wish to receive.
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_subscription_decline_message_type(struct stasis_subscription *subscription,
+	const struct stasis_message_type *type);
+
+/*!
+ * \brief Set the message type filtering level on a subscription
+ *
+ * This will cause the subscription to filter messages according to the
+ * provided filter level. For example if selective is used then only
+ * messages matching those provided to \ref stasis_subscription_accept_message_type
+ * will be raised to the subscription callback.
+ *
+ * \param subscription Subscription that should receive all messages.
+ * \param filter What filter to use
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_subscription_set_filter(struct stasis_subscription *subscription,
+	enum stasis_subscription_message_filter filter);
 
 /*!
  * \brief Cancel a subscription.
@@ -1051,6 +1138,41 @@ struct stasis_caching_topic *stasis_caching_unsubscribe_and_join(
  */
 struct stasis_topic *stasis_caching_get_topic(
 	struct stasis_caching_topic *caching_topic);
+
+/*!
+ * \brief Indicate to a caching topic that we are interested in a message type.
+ *
+ * This will cause the caching topic to receive messages of the given message
+ * type. This enables internal filtering in the stasis message bus to reduce
+ * messages.
+ *
+ * \param caching_topic The caching topic.
+ * \param type The message type we wish to receive.
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_caching_accept_message_type(struct stasis_caching_topic *caching_topic,
+	struct stasis_message_type *type);
+
+/*!
+ * \brief Set the message type filtering level on a cache
+ *
+ * This will cause the underlying subscription to filter messages according to the
+ * provided filter level. For example if selective is used then only
+ * messages matching those provided to \ref stasis_subscription_accept_message_type
+ * will be raised to the subscription callback.
+ *
+ * \param caching_topic The caching topic.
+ * \param filter What filter to use
+ * \retval 0 on success
+ * \retval -1 failure
+ *
+ * \since 17.0.0
+ */
+int stasis_caching_set_filter(struct stasis_caching_topic *caching_topic,
+	enum stasis_subscription_message_filter filter);
 
 /*!
  * \brief A message which instructs the caching topic to remove an entry from

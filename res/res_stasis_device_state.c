@@ -396,6 +396,9 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 		ao2_ref(sub, -1);
 		return -1;
 	}
+	stasis_subscription_accept_message_type(sub->sub, ast_device_state_message_type());
+	stasis_subscription_accept_message_type(sub->sub, stasis_subscription_change_type());
+	stasis_subscription_set_filter(sub->sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	ao2_link_flags(device_state_subscriptions, sub, OBJ_NOLOCK);
 	ao2_unlock(device_state_subscriptions);

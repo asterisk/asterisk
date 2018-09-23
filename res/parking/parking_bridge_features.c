@@ -195,6 +195,9 @@ static int create_parked_subscription_full(struct ast_channel *chan, const char 
 	if (!(parked_datastore->parked_subscription = stasis_subscribe_pool(ast_parking_topic(), parker_update_cb, subscription_data))) {
 		return -1;
 	}
+	stasis_subscription_accept_message_type(parked_datastore->parked_subscription, ast_parked_call_type());
+	stasis_subscription_accept_message_type(parked_datastore->parked_subscription, stasis_subscription_change_type());
+	stasis_subscription_set_filter(parked_datastore->parked_subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	datastore->data = parked_datastore;
 

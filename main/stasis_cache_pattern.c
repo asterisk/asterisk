@@ -219,3 +219,21 @@ struct stasis_topic *stasis_cp_single_topic_cached(
 	}
 	return stasis_caching_get_topic(one->topic_cached);
 }
+
+int stasis_cp_single_accept_message_type(struct stasis_cp_single *one,
+	struct stasis_message_type *type)
+{
+	if (!one) {
+		return -1;
+	}
+	return stasis_caching_accept_message_type(one->topic_cached, type);
+}
+
+int stasis_cp_single_set_filter(struct stasis_cp_single *one,
+	enum stasis_subscription_message_filter filter)
+{
+	if (!one) {
+		return -1;
+	}
+	return stasis_caching_set_filter(one->topic_cached, filter);
+}

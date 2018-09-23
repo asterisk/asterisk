@@ -389,6 +389,8 @@ int ast_presence_state_engine_init(void)
 	if (!presence_state_topic_cached) {
 		return -1;
 	}
+	stasis_caching_accept_message_type(presence_state_topic_cached, ast_presence_state_message_type());
+	stasis_caching_set_filter(presence_state_topic_cached, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	return 0;
 }

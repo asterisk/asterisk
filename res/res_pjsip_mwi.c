@@ -269,6 +269,9 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 		ao2_ref(mwi_sub, -1);
 		mwi_stasis_sub = NULL;
 	}
+	stasis_subscription_accept_message_type(mwi_stasis_sub->stasis_sub, ast_mwi_state_type());
+	stasis_subscription_accept_message_type(mwi_stasis_sub->stasis_sub, stasis_subscription_change_type());
+	stasis_subscription_set_filter(mwi_stasis_sub->stasis_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	return mwi_stasis_sub;
 }
 
@@ -1366,7 +1369,11 @@ static int load_module(void)
 		if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 			ast_sip_push_task(NULL, send_initial_notify_all, NULL);
 		} else {
-			stasis_subscribe_pool(ast_manager_get_topic(), mwi_startup_event_cb, NULL);
+			struct stasis_subscription *sub;
+
+			sub = stasis_subscribe_pool(ast_manager_get_topic(), mwi_startup_event_cb, NULL);
+			stasis_subscription_accept_message_type(sub, ast_manager_get_generic_type());
+			stasis_subscription_set_filter(sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 		}
 	}
 

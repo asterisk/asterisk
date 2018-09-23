@@ -143,6 +143,8 @@ static int load_module(void)
 		LOG_SECURITY = -1;
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	stasis_subscription_accept_message_type(security_stasis_sub, ast_security_event_type());
+	stasis_subscription_set_filter(security_stasis_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	ast_verb(3, "Security Logging Enabled\n");
 
