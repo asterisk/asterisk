@@ -167,6 +167,9 @@ static int load_module(void)
 	if (!stasis_rtp_subscription) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	stasis_subscription_accept_message_type(stasis_rtp_subscription, ast_rtp_rtcp_sent_type());
+	stasis_subscription_accept_message_type(stasis_rtp_subscription, ast_rtp_rtcp_received_type());
+	stasis_subscription_set_filter(stasis_rtp_subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

@@ -1433,6 +1433,8 @@ static struct generic_monitor_instance_list *create_new_generic_list(struct ast_
 		cc_unref(generic_list, "Failed to subscribe to device state");
 		return NULL;
 	}
+	stasis_subscription_accept_message_type(generic_list->sub, ast_device_state_message_type());
+	stasis_subscription_set_filter(generic_list->sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	generic_list->current_state = ast_device_state(monitor->interface->device_name);
 	ao2_t_link(generic_monitors, generic_list, "linking new generic monitor instance list");
 	return generic_list;
@@ -2804,6 +2806,9 @@ static int cc_generic_agent_start_monitoring(struct ast_cc_agent *agent)
 	if (!(generic_pvt->sub = stasis_subscribe(device_specific_topic, generic_agent_devstate_cb, agent))) {
 		return -1;
 	}
+	stasis_subscription_accept_message_type(generic_pvt->sub, ast_device_state_message_type());
+	stasis_subscription_accept_message_type(generic_pvt->sub, stasis_subscription_change_type());
+	stasis_subscription_set_filter(generic_pvt->sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	cc_ref(agent, "Ref agent for subscription");
 	return 0;
 }

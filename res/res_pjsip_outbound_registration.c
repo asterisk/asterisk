@@ -2282,6 +2282,8 @@ static int load_module(void)
 
 	network_change_sub = stasis_subscribe(ast_system_topic(),
 		network_change_stasis_cb, NULL);
+	stasis_subscription_accept_message_type(network_change_sub, ast_network_change_type());
+	stasis_subscription_set_filter(network_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
