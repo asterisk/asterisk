@@ -765,6 +765,18 @@ struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_t
 struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name);
 
 /*!
+ * \brief Delete a topic from the topic pool
+ *
+ * \param pool Pool from which to delete the topic
+ * \param topic_name Name of the topic to delete
+ *
+ * \since 13.24
+ * \since 15.6
+ * \since 16.1
+ */
+void stasis_topic_pool_delete_topic(struct stasis_topic_pool *pool, const char *topic_name);
+
+/*!
  * \brief Check if a topic exists in a pool
  * \param pool Pool to check
  * \param topic_name Name of the topic to check
