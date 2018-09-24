@@ -1351,7 +1351,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1542,7 +1541,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1795,15 +1793,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1941,7 +1930,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2094,7 +2083,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -15335,7 +15323,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15381,7 +15369,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15405,7 +15393,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15450,7 +15438,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -15474,7 +15462,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16774,8 +16762,6 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
-  free (data);
-  free (data3);
   return 0;
 }
 _ACEOF
@@ -24003,13 +23989,7 @@ fi
 
 
 
-# libunbound v1.5.0 added the ub_ctx_add_ta_autr() API call that we can
-# detect as a useable version so that is going to be the minimum version
-# that we will require.
-# Technically v1.4.21 and later could be used but v1.4.21 has a configure
-# script bug which does not find the ldns library.  The bug is fixed in
-# v1.4.22 but that version is not easily detectable.
-#
+# Check that unbound is installed and the version code fragment compiles
 
 if test "x${PBX_UNBOUND}" != "x1" -a "${USE_UNBOUND}" != "no"; then
    pbxlibdir=""
@@ -24091,63 +24071,77 @@ fi
 
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
 
-      if test "x${UNBOUND_HEADER_FOUND}" = "x0" ; then
-         UNBOUND_LIB=""
-         UNBOUND_INCLUDE=""
-      else
-
-         PBX_UNBOUND=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_UNBOUND 1
-_ACEOF
-
-      fi
    fi
-fi
-
-
-
-    if test "x${PBX_UNBOUND_CONST_PARAMS}" != "x1" -a "${USE_UNBOUND_CONST_PARAMS}" != "no"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for UNBOUND_VERSION_MAJOR declared in unbound.h" >&5
-$as_echo_n "checking for UNBOUND_VERSION_MAJOR declared in unbound.h... " >&6; }
-        saved_cppflags="${CPPFLAGS}"
-        if test "x${UNBOUND_CONST_PARAMS_DIR}" != "x"; then
-            UNBOUND_CONST_PARAMS_INCLUDE="-I${UNBOUND_CONST_PARAMS_DIR}/include"
-        fi
-        CPPFLAGS="${CPPFLAGS} ${UNBOUND_CONST_PARAMS_INCLUDE}"
-
-        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+   # Validate the package with the supplied code.
+   if test "x${UNBOUND_HEADER_FOUND}" = "x1" ; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for unbound version >= 1.5" >&5
+$as_echo_n "checking for unbound version >= 1.5... " >&6; }
+      ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+      CPPFLAGS="${CPPFLAGS} ${UNBOUND_INCLUDE}"
+      ast_ext_lib_check_saved_LIBS="${LIBS}"
+      LIBS="${UNBOUND_LIB}"
+      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- #include <unbound.h>
+
+      #include <unbound.h>
 int
 main ()
 {
-#if !defined(UNBOUND_VERSION_MAJOR)
-                                    (void) UNBOUND_VERSION_MAJOR;
-                                #endif
+
+            #if (UNBOUND_VERSION_MAJOR < 1 || (UNBOUND_VERSION_MAJOR == 1 && UNBOUND_VERSION_MINOR < 5 ))
+            #error "Unbound version must be >= 1.5"
+            #endif
+
 
   ;
   return 0;
 }
+
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+if ac_fn_c_try_link "$LINENO"; then :
+
+            if test "x${cross_compiling}" = "xyes" ; then
+               UNBOUND_VALIDATED="1"
+               { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes (guessed for cross-compile)" >&5
+$as_echo "yes (guessed for cross-compile)" >&6; }
+            else
+               ./conftest$EXEEXT
+               if test $? -eq 0 ; then
+                  UNBOUND_VALIDATED="1"
+                  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-                PBX_UNBOUND_CONST_PARAMS=1
-
-$as_echo "#define HAVE_UNBOUND_CONST_PARAMS 1" >>confdefs.h
-
-
+               else
+                  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+               fi
+            fi
 
 else
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
-        CPPFLAGS="${saved_cppflags}"
-    fi
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+      CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      LIBS="${ast_ext_lib_check_saved_LIBS}"
+   fi
+
+   if test "x${UNBOUND_VALIDATED}" = "x1" ; then
+
+      PBX_UNBOUND=1
+      cat >>confdefs.h <<_ACEOF
+#define HAVE_UNBOUND 1
+_ACEOF
+
+   else
+      UNBOUND_LIB=""
+      UNBOUND_INCLUDE=""
+   fi
+fi
+
 
 
 

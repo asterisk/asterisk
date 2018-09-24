@@ -77,17 +77,6 @@
 	</configInfo>
  ***/
 
-/*!
- * Unbound versions <= 1.4.20 declare string function parameters as 'char *'
- * but versions >= 1.4.21 declare them as 'const char *'.  Since CentOS6 is still
- * at 1.4.20, we need to cast away the 'const' if we detect the earlier version.
- */
-#ifdef HAVE_UNBOUND_CONST_PARAMS
-#define UNBOUND_CHAR const char
-#else
-#define UNBOUND_CHAR char
-#endif
-
 /*! \brief Structure for an unbound resolver */
 struct unbound_resolver {
 	/*! \brief Resolver context itself */
@@ -309,7 +298,7 @@ static int unbound_resolver_resolve(struct ast_dns_query *query)
 	data->resolver = ao2_bump(cfg->global->state->resolver);
 	ast_dns_resolver_set_data(query, data);
 
-	res = ub_resolve_async(data->resolver->context, (UNBOUND_CHAR *)ast_dns_query_get_name(query),
+	res = ub_resolve_async(data->resolver->context, ast_dns_query_get_name(query),
 		ast_dns_query_get_rr_type(query), ast_dns_query_get_rr_class(query),
 		ao2_bump(query), unbound_resolver_callback, &data->id);
 
@@ -421,7 +410,7 @@ static int unbound_config_preapply(struct unbound_config *cfg)
 	if (!strcmp(cfg->global->hosts, "system")) {
 		res = ub_ctx_hosts(cfg->global->state->resolver->context, NULL);
 	} else if (!ast_strlen_zero(cfg->global->hosts)) {
-		res = ub_ctx_hosts(cfg->global->state->resolver->context, (UNBOUND_CHAR *)cfg->global->hosts);
+		res = ub_ctx_hosts(cfg->global->state->resolver->context, cfg->global->hosts);
 	}
 
 	if (res) {
@@ -436,7 +425,7 @@ static int unbound_config_preapply(struct unbound_config *cfg)
 
 		it_nameservers = ao2_iterator_init(cfg->global->nameservers, 0);
 		while (!res && (nameserver = ao2_iterator_next(&it_nameservers))) {
-			res = ub_ctx_set_fwd(cfg->global->state->resolver->context, (UNBOUND_CHAR *)nameserver);
+			res = ub_ctx_set_fwd(cfg->global->state->resolver->context, nameserver);
 
 			if (res) {
 				ast_log(LOG_ERROR, "Failed to add nameserver '%s' to unbound resolver: %s\n",
@@ -453,7 +442,7 @@ static int unbound_config_preapply(struct unbound_config *cfg)
 	if (!strcmp(cfg->global->resolv, "system")) {
 		res = ub_ctx_resolvconf(cfg->global->state->resolver->context, NULL);
 	} else if (!ast_strlen_zero(cfg->global->resolv)) {
-		res = ub_ctx_resolvconf(cfg->global->state->resolver->context, (UNBOUND_CHAR *)cfg->global->resolv);
+		res = ub_ctx_resolvconf(cfg->global->state->resolver->context, cfg->global->resolv);
 	}
 
 	if (res) {
@@ -463,7 +452,7 @@ static int unbound_config_preapply(struct unbound_config *cfg)
 	}
 
 	if (!ast_strlen_zero(cfg->global->ta_file)) {
-		res = ub_ctx_add_ta_file(cfg->global->state->resolver->context, (UNBOUND_CHAR *)cfg->global->ta_file);
+		res = ub_ctx_add_ta_file(cfg->global->state->resolver->context, cfg->global->ta_file);
 
 		if (res) {
 			ast_log(LOG_ERROR, "Failed to set trusted anchor file to '%s' in unbound resolver: %s\n",
@@ -759,13 +748,13 @@ static enum ast_test_result_state nominal_test(struct ast_test *test, resolve_fn
 	static const size_t V4_SIZE = sizeof(struct in_addr);
 	static const size_t V6_SIZE = sizeof(struct in6_addr);
 
-	static UNBOUND_CHAR *DOMAIN1 = "goose.feathers";
-	static UNBOUND_CHAR *DOMAIN2 = "duck.feathers";
+	static const char *DOMAIN1 = "goose.feathers";
+	static const char *DOMAIN2 = "duck.feathers";
 
-	static UNBOUND_CHAR *ADDR1 = "127.0.0.2";
-	static UNBOUND_CHAR *ADDR2 = "127.0.0.3";
-	static UNBOUND_CHAR *ADDR3 = "::1";
-	static UNBOUND_CHAR *ADDR4 = "127.0.0.4";
+	static const char *ADDR1 = "127.0.0.2";
+	static const char *ADDR2 = "127.0.0.3";
+	static const char *ADDR3 = "::1";
+	static const char *ADDR4 = "127.0.0.4";
 
 	char addr1_buf[V4_SIZE];
 	char addr2_buf[V4_SIZE];
@@ -805,7 +794,7 @@ static enum ast_test_result_state nominal_test(struct ast_test *test, resolve_fn
 	ub_ctx_zone_add(resolver->context, DOMAIN2, "static");
 
 	for (i = 0; i < ARRAY_LEN(records); ++i) {
-		ub_ctx_data_add(resolver->context, (UNBOUND_CHAR *)records[i].as_string);
+		ub_ctx_data_add(resolver->context, records[i].as_string);
 	}
 
 	for (i = 0; i < ARRAY_LEN(runs); ++i) {
@@ -827,7 +816,7 @@ static enum ast_test_result_state nominal_test(struct ast_test *test, resolve_fn
 
 cleanup:
 	for (i = 0; i < ARRAY_LEN(records); ++i) {
-		ub_ctx_data_remove(resolver->context, (UNBOUND_CHAR *)records[i].as_string);
+		ub_ctx_data_remove(resolver->context, records[i].as_string);
 	}
 	ub_ctx_zone_remove(resolver->context, DOMAIN1);
 	ub_ctx_zone_remove(resolver->context, DOMAIN2);
@@ -1031,10 +1020,10 @@ static enum ast_test_result_state off_nominal_test(struct ast_test *test,
 
 	static const size_t V4_SIZE = sizeof(struct in_addr);
 
-	static UNBOUND_CHAR *DOMAIN1 = "goose.feathers";
-	static UNBOUND_CHAR *DOMAIN2 = "duck.feathers";
+	static const char *DOMAIN1 = "goose.feathers";
+	static const char *DOMAIN2 = "duck.feathers";
 
-	static UNBOUND_CHAR *ADDR1 = "127.0.0.2";
+	static const char *ADDR1 = "127.0.0.2";
 
 	char addr1_buf[V4_SIZE];
 
@@ -1065,7 +1054,7 @@ static enum ast_test_result_state off_nominal_test(struct ast_test *test,
 	ub_ctx_zone_add(resolver->context, DOMAIN2, "static");
 
 	for (i = 0; i < ARRAY_LEN(records); ++i) {
-		ub_ctx_data_add(resolver->context, (UNBOUND_CHAR *)records[i].as_string);
+		ub_ctx_data_add(resolver->context, records[i].as_string);
 	}
 
 	for (i = 0; i < ARRAY_LEN(runs); ++i) {
@@ -1253,7 +1242,7 @@ AST_TEST_DEFINE(resolve_naptr)
 	ub_ctx_zone_add(resolver->context, DOMAIN1, "static");
 
 	for (i = 0; i < ARRAY_LEN(records); ++i) {
-		ub_ctx_data_add(resolver->context, (UNBOUND_CHAR *)records[i].zone_entry);
+		ub_ctx_data_add(resolver->context, records[i].zone_entry);
 	}
 
 	if (ast_dns_resolve(DOMAIN1, ns_t_naptr, ns_c_in, &result)) {
@@ -1330,8 +1319,8 @@ AST_TEST_DEFINE(resolve_srv)
 	RAII_VAR(struct unbound_config *, cfg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_dns_result *, result, NULL, ast_dns_result_free);
 	const struct ast_dns_record *record;
-	static UNBOUND_CHAR *DOMAIN1 = "taco.bananas";
-	static UNBOUND_CHAR *DOMAIN1_SRV = "taco.bananas 12345 IN SRV 10 20 5060 sip.taco.bananas";
+	static const char *DOMAIN1 = "taco.bananas";
+	static const char *DOMAIN1_SRV = "taco.bananas 12345 IN SRV 10 20 5060 sip.taco.bananas";
 	enum ast_test_result_state res = AST_TEST_PASS;
 
 	switch (cmd) {

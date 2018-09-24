@@ -2295,15 +2295,17 @@ AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
-# libunbound v1.5.0 added the ub_ctx_add_ta_autr() API call that we can
-# detect as a useable version so that is going to be the minimum version
-# that we will require.
-# Technically v1.4.21 and later could be used but v1.4.21 has a configure
-# script bug which does not find the ldns library.  The bug is fixed in
-# v1.4.22 but that version is not easily detectable.
-#
-AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_delete], [unbound.h])
-AST_C_DECLARE_CHECK([UNBOUND_CONST_PARAMS], [UNBOUND_VERSION_MAJOR], [unbound.h])
+# Check that unbound is installed and the version code fragment compiles
+AST_EXT_LIB_EXTRA_CHECK([UNBOUND], [unbound], [ub_ctx_delete], [unbound.h],
+   [], [], [
+      AC_LANG_PROGRAM( [#include <unbound.h>],
+         [
+            #if (UNBOUND_VERSION_MAJOR < 1 || (UNBOUND_VERSION_MAJOR == 1 && UNBOUND_VERSION_MINOR < 5 ))
+            #error "Unbound version must be >= 1.5"
+            #endif
+         ]
+      )
+   ], [unbound version >= 1.5])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h])
 
