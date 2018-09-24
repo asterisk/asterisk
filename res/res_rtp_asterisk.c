@@ -3184,6 +3184,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 		if (!ast_bind(rtp->s, addr)) {
 			ast_debug(1, "Allocated port %d for RTP instance '%p'\n", x, instance);
 			ast_rtp_instance_set_local_address(instance, addr);
+			ast_test_suite_event_notify("RTP_PORT_ALLOCATED", "Port: %d", x);
 			break;
 		}
 
