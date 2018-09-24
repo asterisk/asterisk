@@ -1174,9 +1174,6 @@
 /* Define to 1 if you have the unbound library. */
 #undef HAVE_UNBOUND
 
-/* Define if your system has UNBOUND_VERSION_MAJOR declared. */
-#undef HAVE_UNBOUND_CONST_PARAMS
-
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 

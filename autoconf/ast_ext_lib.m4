@@ -203,3 +203,105 @@ if test "x${PBX_$1}" = "x1"; then
    LIBS="${ast_ext_lib_check_shared_saved_libs}"
 fi
 ])
+
+# Check for existence of a given package ($1), either looking up a function
+# in a library, or, if no function is supplied, only check for the
+# existence of the header files.  Then compile, link and run the supplied
+# code fragment to make the final determination.
+
+# AST_EXT_LIB_EXTRA_CHECK([package], [library], [function], [header],
+#	 [extra libs], [extra cflags], [AC_LANG_PROGRAM(extra check code...)],
+#    ["checking for" display string], ["HAVE_package_" extra variable to set])
+AC_DEFUN([AST_EXT_LIB_EXTRA_CHECK],
+[
+if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
+   pbxlibdir=""
+   # if --with-$1=DIR has been specified, use it.
+   if test "x${$1_DIR}" != "x"; then
+      if test -d ${$1_DIR}/lib; then
+         pbxlibdir="-L${$1_DIR}/lib"
+      else
+         pbxlibdir="-L${$1_DIR}"
+      fi
+   fi
+   m4_ifval([$3], [
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $6"
+      AC_CHECK_LIB([$2], [$3], [AST_$1_FOUND=yes], [AST_$1_FOUND=no], [${pbxlibdir} $5])
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   ], [
+      # empty lib, assume only headers
+      AST_$1_FOUND=yes
+   ])
+
+   # now check for the header.
+   if test "${AST_$1_FOUND}" = "yes"; then
+      $1_LIB="${pbxlibdir} -l$2 $5"
+      # if --with-$1=DIR has been specified, use it.
+      if test "x${$1_DIR}" != "x"; then
+         $1_INCLUDE="-I${$1_DIR}/include"
+      fi
+      $1_INCLUDE="${$1_INCLUDE} $6"
+      m4_ifval([$4], [
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+         AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      ], [
+         # no header, assume found
+         $1_HEADER_FOUND="1"
+      ])
+   fi
+   # Validate the package with the supplied code.
+   if test "x${$1_HEADER_FOUND}" = "x1" ; then
+      AC_MSG_CHECKING(for $8)
+      ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+      CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
+      ast_ext_lib_check_saved_LIBS="${LIBS}"
+      LIBS="${$1_LIB}"
+      AC_LINK_IFELSE(
+         [$7],
+         [
+            if test "x${cross_compiling}" = "xyes" ; then
+               $1_VALIDATED="1"
+               AC_MSG_RESULT([yes (guessed for cross-compile)])
+            else
+               ./conftest$EXEEXT
+               if test $? -eq 0 ; then
+                  $1_VALIDATED="1"
+                  AC_MSG_RESULT(yes)
+               else
+                  AC_MSG_RESULT(no)
+               fi
+            fi
+         ],
+         [
+            AC_MSG_RESULT(no)
+         ]
+      )
+      CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      LIBS="${ast_ext_lib_check_saved_LIBS}"
+   fi
+
+   if test "x${$1_VALIDATED}" = "x1" ; then
+      m4_ifval([$3], [], [
+         # only checking headers -> no library
+         $1_LIB=""
+      ])
+      PBX_$1=1
+      cat >>confdefs.h <<_ACEOF
+[@%:@define] HAVE_$1 1
+_ACEOF
+      m4_ifval([$9], [
+      cat >>confdefs.h <<_ACEOF
+[@%:@define] HAVE_$1_$9 1
+_ACEOF
+            ])
+   else
+      $1_LIB=""
+      $1_INCLUDE=""
+   fi
+fi
+m4_ifval([$9], [AH_TEMPLATE(m4_bpatsubst([[HAVE_$1_$9]], [(.*)]), [Define if $8])])
+])
