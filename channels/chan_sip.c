@@ -2617,7 +2617,8 @@ static int sip_tcptls_write(struct ast_tcptls_session_instance *tcptls_session, 
 
 	ao2_lock(tcptls_session);
 
-	if (!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
+	if (!tcptls_session->stream ||
+		!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
 		!(packet = ao2_alloc(sizeof(*packet), tcptls_packet_destructor)) ||
 		!(packet->data = ast_str_create(len))) {
 		goto tcptls_write_setup_error;
@@ -3139,7 +3140,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 
 			if (read(me->alert_pipe[0], &alert, sizeof(alert)) == -1) {
 				ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
-				continue;
+				goto cleanup;
 			}
 
 			switch (alert) {
@@ -3157,10 +3158,13 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 						ast_log(LOG_WARNING, "Failure to write to tcp/tls socket\n");
 					}
 					ao2_t_ref(packet, -1, "tcptls packet sent, this is no longer needed");
+				} else {
+					goto cleanup;
 				}
 				break;
 			default:
 				ast_log(LOG_ERROR, "Unknown tcptls thread alert '%u'\n", alert);
+				goto cleanup;
 			}
 		}
 	}
