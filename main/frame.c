@@ -259,7 +259,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		/* The original frame has a non-malloced data buffer. */
-		if (!fr->datalen) {
+		if (!fr->datalen && fr->frametype != AST_FRAME_TEXT) {
 			/* Actually it's just an int so we can simply copy it. */
 			out->data.uint32 = fr->data.uint32;
 			return out;
@@ -356,7 +356,8 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	 */
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
-	if (out->datalen) {
+	/* Make sure that empty text frames have a valid data.ptr */
+	if (out->datalen || f->frametype == AST_FRAME_TEXT) {
 		out->data.ptr = buf + sizeof(*out) + AST_FRIENDLY_OFFSET;
 		memcpy(out->data.ptr, f->data.ptr, out->datalen);
 	} else {
