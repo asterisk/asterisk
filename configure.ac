@@ -698,6 +698,7 @@ if test "$JANSSON_BUNDLED" = "no" ; then
 		AC_MSG_NOTICE(*** use './configure --with-jansson-bundled')
 		exit 1
 	fi
+	JANSSON_DEFINE_JSON_INT()
 else
 	PBX_JANSSON=1
 fi

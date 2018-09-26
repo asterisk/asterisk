@@ -7,6 +7,9 @@
 
 
 
+/* Define to 'long' or 'long long' */
+#undef AST_JSON_INT_T
+
 /* Define to 1 if internal poll should be used. */
 #undef AST_POLL_COMPAT
 
