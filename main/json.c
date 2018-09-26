@@ -477,16 +477,25 @@ struct ast_json *ast_json_stringf(const char *format, ...)
 
 struct ast_json *ast_json_vstringf(const char *format, va_list args)
 {
-	char *str = NULL;
 	json_t *ret = NULL;
 
 	if (format) {
+		/* json_pack was not introduced until jansson-2.0 so Asterisk could never
+		 * be compiled against older versions.  The version check can never match
+		 * anything older than 2.12. */
+#if defined(HAVE_JANSSON_BUNDLED) || JANSSON_MAJOR_VERSION > 2 || JANSSON_MINOR_VERSION > 11
+		ret = json_vsprintf(format, args);
+#else
+		char *str = NULL;
 		int err = ast_vasprintf(&str, format, args);
+
 		if (err >= 0) {
 			ret = json_string(str);
 			ast_free(str);
 		}
+#endif
 	}
+
 	return (struct ast_json *)ret;
 }
 

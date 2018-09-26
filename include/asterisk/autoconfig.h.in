@@ -389,6 +389,9 @@
 /* Define if your system has the JANSSON libraries. */
 #undef HAVE_JANSSON
 
+/* Define if your system has JANSSON_BUNDLED */
+#undef HAVE_JANSSON_BUNDLED
+
 /* Define to 1 if you have the `kevent64' function. */
 #undef HAVE_KEVENT64
 
