@@ -915,6 +915,11 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						/* Ignore going off hook and flash */
 						break;
 					case AST_CONTROL_CONNECTED_LINE:
+						if (ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_IGNORE_CONNECTEDLINE)) {
+							ast_verb(3, "Connected line update from %s prevented.\n",
+								ast_channel_name(winner));
+							break;
+						}
 						if (!tmpuser) {
 							/*
 							 * Hold connected line update from caller until we have a
@@ -930,11 +935,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								tpargs->pending_in_connected_update = 1;
 							}
 							ast_party_connected_line_free(&connected);
-							break;
-						}
-						if (ast_test_flag(&tpargs->followmeflags, FOLLOWMEFLAG_IGNORE_CONNECTEDLINE)) {
-							ast_verb(3, "Connected line update from %s prevented.\n",
-								ast_channel_name(winner));
 						} else {
 							ast_verb(3,
 								"%s connected line has changed. Saving it until answer.\n",
