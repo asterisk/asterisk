@@ -2,46 +2,55 @@
 	{
 		"name": "ari1",
 		"dir": "tests/CI/output/ari1",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/rest_api/[Ca-d]"
 	},
 	{
 		"name": "ari2",
 		"dir": "tests/CI/output/ari2",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/rest_api/[e-z]"
 	},
 	{
 		"name": "pjs1",
 		"dir": "tests/CI/output/pjsip1",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/channels/pjsip/[a-f]"
 	},
 	{
 		"name": "pjs2",
 		"dir": "tests/CI/output/pjsip2",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/channels/pjsip/[g-r]"
 	},
 	{
 		"name": "pjs3",
 		"dir": "tests/CI/output/pjsip3",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/channels/pjsip/[s-z]"
 	},
 	{
 		"name": "sip1",
 		"dir": "tests/CI/output/sip1",
+		"runTestsuiteOptions": "--test-timeout=240",
 		"testcmd": "--test-regex=tests/channels/SIP/[Sa-r]"
 	},
 	{
 		"name": "sip2",
 		"dir": "tests/CI/output/sip2",
+		"runTestsuiteOptions": "--test-timeout=240",
 		"testcmd": "--test-regex=tests/channels/SIP/[s-z]"
 	},
 	{
 		"name": "iax ",
 		"dir": "tests/CI/output/iax2_local",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": " -t tests/channels/iax2 -t tests/channels/local"
 	},
 	{
 		"name": "mwi ",
 		"dir": "tests/CI/output/extmwi",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "--test-regex=tests/channels/pjsip/.*mwi"
 	}
 ]
