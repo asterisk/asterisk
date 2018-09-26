@@ -1,0 +1,38 @@
+From aed855e6920923898b94a1b922fbace27a34ddf2 Mon Sep 17 00:00:00 2001
+From: Petri Lehtinen <petri@digip.org>
+Date: Mon, 9 Jul 2018 22:26:35 +0300
+Subject: [PATCH 22/29] Avoid invalid memory read in json_pack()
+
+Initial patch by @bharjoc-bitdefender
+
+Fixes #421
+---
+ src/pack_unpack.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pack_unpack.c b/src/pack_unpack.c
+index 6461c06..b842772 100644
+--- a/src/pack_unpack.c
++++ b/src/pack_unpack.c
+@@ -75,6 +75,9 @@ static void next_token(scanner_t *s)
+         return;
+     }
+ 
++    if (!token(s) && !*s->fmt)
++        return;
++
+     t = s->fmt;
+     s->column++;
+     s->pos++;
+@@ -97,7 +100,7 @@ static void next_token(scanner_t *s)
+     s->token.column = s->column;
+     s->token.pos = s->pos;
+ 
+-    t++;
++    if (*t) t++;
+     s->fmt = t;
+ }
+ 
+-- 
+2.17.1
+

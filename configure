@@ -9325,6 +9325,9 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
+$as_echo "#define HAVE_JANSSON_BUNDLED 1" >>confdefs.h
+
+
 	fi
 
 
