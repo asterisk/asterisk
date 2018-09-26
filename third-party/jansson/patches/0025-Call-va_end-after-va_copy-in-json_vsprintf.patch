@@ -1,0 +1,64 @@
+From 66e4ee795d21a30118f8503c966e9f9ae87db315 Mon Sep 17 00:00:00 2001
+From: Xin Long <lucien.xin@gmail.com>
+Date: Wed, 25 Jul 2018 17:39:33 +0800
+Subject: [PATCH 25/29] Call va_end after va_copy in json_vsprintf
+
+As said in man doc:
+  "Each  invocation  of va_copy() must be matched by a corresponding
+   invocation of va_end() in the same function."
+
+va_copy may alloc memory in some system, it's necessay to free it by
+va_end.
+
+Fixes: efe6c7b3f2b3 ("Add json_sprintf and json_vsprintf")
+Signed-off-by: Xin Long <lucien.xin@gmail.com>
+---
+ src/value.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/value.c b/src/value.c
+index 29a978c..861dce8 100644
+--- a/src/value.c
++++ b/src/value.c
+@@ -781,26 +781,33 @@ static json_t *json_string_copy(const json_t *string)
+ }
+ 
+ json_t *json_vsprintf(const char *fmt, va_list ap) {
++    json_t *json = NULL;
+     int length;
+     char *buf;
+     va_list aq;
+     va_copy(aq, ap);
+ 
+     length = vsnprintf(NULL, 0, fmt, ap);
+-    if (length == 0)
+-        return json_string("");
++    if (length == 0) {
++        json = json_string("");
++        goto out;
++    }
+ 
+     buf = jsonp_malloc(length + 1);
+     if (!buf)
+-        return NULL;
++        goto out;
+ 
+     vsnprintf(buf, length + 1, fmt, aq);
+     if (!utf8_check_string(buf, length)) {
+         jsonp_free(buf);
+-        return NULL;
++        goto out;
+     }
+ 
+-    return jsonp_stringn_nocheck_own(buf, length);
++    json = jsonp_stringn_nocheck_own(buf, length);
++
++out:
++    va_end(aq);
++    return json;
+ }
+ 
+ json_t *json_sprintf(const char *fmt, ...) {
+-- 
+2.17.1
+
