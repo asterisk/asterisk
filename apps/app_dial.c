@@ -1733,12 +1733,20 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_indicate(o->chan, f->subclass.integer);
 						break;
 					case AST_CONTROL_CONNECTED_LINE:
+						if (ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+							ast_verb(3, "Connected line update to %s prevented.\n", ast_channel_name(o->chan));
+							break;
+						}
 						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
 							ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
 					case AST_CONTROL_REDIRECTING:
+						if (ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+							ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(o->chan));
+							break;
+						}
 						if (ast_channel_redirecting_sub(in, o->chan, f, 1) &&
 							ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
