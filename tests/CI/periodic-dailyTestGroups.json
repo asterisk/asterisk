@@ -2,37 +2,43 @@
 	{
 		"name": "ari ",
 		"dir": "tests/CI/output/ari",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "-t tests/rest_api/"
 	},
 	{
 		"name": "pjs ",
 		"dir": "tests/CI/output/pjsip",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": "-t tests/channels/pjsip"
 	},
 	{
 		"name": "sip ",
 		"dir": "tests/CI/output/sip",
+		"runTestsuiteOptions": "--test-timeout=240",
 		"testcmd": "-t tests/channels/SIP"
 	},
 	{
 		"name": "iax ",
 		"dir": "tests/CI/output/iax2_local",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": " -t tests/channels/iax2 -t tests/channels/local"
 	},
 	{
 		"name": "apps",
 		"dir": "tests/CI/output/agi-apps",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": " -t tests/agi -t tests/apps -t blind-transfer-parkingtimeout"
 	},
 	{
 		"name": "othr",
 		"dir": "tests/CI/output/other",
+		"runTestsuiteOptions": "--test-timeout=180",
 		"testcmd": " -T tests/(apps|agi|blind-transfer-parkingtimeout|rest_api|channels|realtime|example|skeleton_test|remote-test)"
 	},
 	{
 		"name": "real",
 		"dir": "tests/CI/output/realtime",
-		"runTestsuiteOptions": "--realtime --initialize-db --cleanup-db",
+		"runTestsuiteOptions": "--test-timeout=180 --realtime --initialize-db --cleanup-db",
 		"testcmd": " -t tests/channels/pjsip -G realtime-incompatible"
 	}
 ]
