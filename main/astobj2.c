@@ -887,16 +887,17 @@ int astobj2_init(void)
 	}
 #endif
 
+	ast_register_cleanup(astobj2_cleanup);
+
 	if (container_init() != 0) {
 		fclose(ref_log);
+		ref_log = NULL;
 		return -1;
 	}
 
 #if defined(AO2_DEBUG)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 #endif	/* defined(AO2_DEBUG) */
-
-	ast_register_cleanup(astobj2_cleanup);
 
 	return 0;
 }
