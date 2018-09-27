@@ -48,7 +48,6 @@ static FILE *ref_log;
  * The magic number is used for consistency check.
  */
 struct __priv_data {
-	int ref_counter;
 	ao2_destructor_fn destructor_fn;
 	/*! This field is used for astobj2 and ao2_weakproxy objects to reference each other */
 	void *weakptr;
@@ -56,15 +55,17 @@ struct __priv_data {
 	/*! User data size for stats */
 	size_t data_size;
 #endif
+	/*! Number of references held for this object */
+	int ref_counter;
 	/*! The ao2 object option flags */
-	uint32_t options;
+	uint32_t options:2;
 	/*! magic number.  This is used to verify that a pointer passed in is a
 	 *  valid astobj2 or ao2_weak reference */
-	uint32_t magic;
+	uint32_t magic:30;
 };
 
-#define	AO2_MAGIC	0xa570b123
-#define	AO2_WEAK	0xa570b122
+#define	AO2_MAGIC	0x3a70b123
+#define	AO2_WEAK	0x3a70b122
 #define IS_AO2_MAGIC_BAD(p) (AO2_MAGIC != (p->priv_data.magic | 1))
 
 /*!
@@ -692,8 +693,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	}
 
 	/* Initialize common ao2 values. */
-	obj->priv_data.ref_counter = 1;
 	obj->priv_data.destructor_fn = destructor_fn;	/* can be NULL */
+	obj->priv_data.ref_counter = 1;
 	obj->priv_data.options = options;
 	obj->priv_data.magic = AO2_MAGIC;
 
