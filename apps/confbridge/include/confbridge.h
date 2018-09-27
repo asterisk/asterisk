@@ -701,6 +701,16 @@ int conf_announce_channel_push(struct ast_channel *ast);
  */
 struct confbridge_conference *conf_find_bridge(const char *conference_name);
 
-
+/*!
+ * \brief Send events to bridge participants.
+ * \since 15.7
+ * \since 16.1
+ *
+ * \param conference The conference bridge
+ * \param chan The channel triggering the action
+ * \param msg The stasis message describing the event
+ */
+void conf_send_event_to_participants(struct confbridge_conference *conference,
+	struct ast_channel *chan, struct stasis_message *msg);
 
 #endif
