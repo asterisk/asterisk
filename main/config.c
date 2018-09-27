@@ -48,8 +48,6 @@
 #include <math.h>	/* HUGE_VAL */
 #include <regex.h>
 
-#define AST_INCLUDE_GLOB 1
-
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
@@ -2047,10 +2045,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	/*! Growable string buffer */
 	struct ast_str *comment_buffer = NULL;	/*!< this will be a comment collector.*/
 	struct ast_str *lline_buffer = NULL;	/*!< A buffer for stuff behind the ; */
-#ifdef AST_INCLUDE_GLOB
 	int glob_ret;
 	glob_t globbuf;
-#endif
 
 	if (cfg) {
 		cat = ast_config_get_current_category(cfg);
@@ -2073,7 +2069,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			return NULL;
 		}
 	}
-#ifdef AST_INCLUDE_GLOB
+
 	globbuf.gl_offs = 0;	/* initialize it to silence gcc */
 	glob_ret = glob(fn, MY_GLOB_FLAGS, NULL, &globbuf);
 	if (glob_ret == GLOB_NOSPACE) {
@@ -2101,7 +2097,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 		for (i=0; i<globbuf.gl_pathc; i++) {
 			ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
-#endif
+
 			/*
 			 * The following is not a loop, but just a convenient way to define a block
 			 * (using do { } while(0) ), and be able to exit from it with 'continue'
@@ -2160,9 +2156,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 
 					if (unchanged) {
 						AST_LIST_UNLOCK(&cfmtime_head);
-#ifdef AST_INCLUDE_GLOB
 						globfree(&globbuf);
-#endif
 						ast_free(comment_buffer);
 						ast_free(lline_buffer);
 						return CONFIG_STATUS_FILEUNCHANGED;
@@ -2336,14 +2330,12 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			if (comment) {
 				ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);
 			}
-#ifdef AST_INCLUDE_GLOB
 			if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 				break;
 			}
 		}
 		globfree(&globbuf);
 	}
-#endif
 
 	ast_free(comment_buffer);
 	ast_free(lline_buffer);
