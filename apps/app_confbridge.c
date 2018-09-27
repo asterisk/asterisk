@@ -576,6 +576,10 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 		return;
 	}
 
+	if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_ENABLE_EVENTS)) {
+		conf_send_event_to_participants(conference, chan, msg);
+	}
+
 	if (channel_topic) {
 		stasis_publish(ast_channel_topic(chan), msg);
 	} else {
@@ -2311,6 +2315,25 @@ static int join_callback(struct ast_bridge_channel *bridge_channel, void *ignore
 	return 0;
 }
 
+struct confbridge_hook_data {
+	struct confbridge_conference *conference;
+	struct confbridge_user *user;
+	enum ast_bridge_hook_type hook_type;
+};
+
+static int send_event_hook_callback(struct ast_bridge_channel *bridge_channel, void *data)
+{
+	struct confbridge_hook_data *hook_data = data;
+
+	if (hook_data->hook_type == AST_BRIDGE_HOOK_TYPE_JOIN) {
+		send_join_event(hook_data->user, hook_data->conference);
+	} else {
+		send_leave_event(hook_data->user, hook_data->conference);
+	}
+
+	return 0;
+}
+
 /*! \brief The ConfBridge application */
 static int confbridge_exec(struct ast_channel *chan, const char *data)
 {
@@ -2328,6 +2351,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		.tech_args.silence_threshold = DEFAULT_SILENCE_THRESHOLD,
 		.tech_args.drop_silence = 0,
 	};
+	struct confbridge_hook_data *join_hook_data;
+	struct confbridge_hook_data *leave_hook_data;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(conf_name);
 		AST_APP_ARG(b_profile_name);
@@ -2510,8 +2536,39 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	conf_moh_unsuspend(&user);
 
-	/* Join our conference bridge for real */
-	send_join_event(&user, conference);
+	join_hook_data = ast_malloc(sizeof(*join_hook_data));
+	if (!join_hook_data) {
+		res = -1;
+		goto confbridge_cleanup;
+	}
+	join_hook_data->user = &user;
+	join_hook_data->conference = conference;
+	join_hook_data->hook_type = AST_BRIDGE_HOOK_TYPE_JOIN;
+	res = ast_bridge_join_hook(&user.features, send_event_hook_callback,
+		join_hook_data, ast_free_ptr, 0);
+	if (res) {
+		ast_free(join_hook_data);
+		ast_log(LOG_ERROR, "Couldn't add bridge join hook for channel '%s'\n", ast_channel_name(chan));
+		goto confbridge_cleanup;
+	}
+
+	leave_hook_data = ast_malloc(sizeof(*leave_hook_data));
+	if (!leave_hook_data) {
+		/* join_hook_data is cleaned up by ast_bridge_features_cleanup via the goto */
+		res = -1;
+		goto confbridge_cleanup;
+	}
+	leave_hook_data->user = &user;
+	leave_hook_data->conference = conference;
+	leave_hook_data->hook_type = AST_BRIDGE_HOOK_TYPE_LEAVE;
+	res = ast_bridge_leave_hook(&user.features, send_event_hook_callback,
+		leave_hook_data, ast_free_ptr, 0);
+	if (res) {
+		/* join_hook_data is cleaned up by ast_bridge_features_cleanup via the goto */
+		ast_free(leave_hook_data);
+		ast_log(LOG_ERROR, "Couldn't add bridge leave hook for channel '%s'\n", ast_channel_name(chan));
+		goto confbridge_cleanup;
+	}
 
 	if (ast_bridge_join_hook(&user.features, join_callback, NULL, NULL, 0)) {
 		async_play_sound_ready(user.chan);
@@ -2532,8 +2589,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (!user.kicked && ast_check_hangup(chan)) {
 		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "HANGUP");
 	}
-
-	send_leave_event(&user, conference);
 
 	/* if we're shutting down, don't attempt to do further processing */
 	if (ast_shutting_down()) {
