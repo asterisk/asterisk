@@ -48,7 +48,6 @@ static FILE *ref_log;
  * The magic number is used for consistency check.
  */
 struct __priv_data {
-	int ref_counter;
 	ao2_destructor_fn destructor_fn;
 	/*! This field is used for astobj2 and ao2_weakproxy objects to reference each other */
 	void *weakptr;
@@ -56,15 +55,17 @@ struct __priv_data {
 	/*! User data size for stats */
 	size_t data_size;
 #endif
+	/*! Number of references held for this object */
+	int32_t ref_counter;
 	/*! The ao2 object option flags */
-	uint32_t options;
+	uint32_t options:2;
 	/*! magic number.  This is used to verify that a pointer passed in is a
 	 *  valid astobj2 or ao2_weak reference */
-	uint32_t magic;
+	uint32_t magic:30;
 };
 
-#define	AO2_MAGIC	0xa570b123
-#define	AO2_WEAK	0xa570b122
+#define	AO2_MAGIC	0x3a70b123
+#define	AO2_WEAK	0x3a70b122
 #define IS_AO2_MAGIC_BAD(p) (AO2_MAGIC != (p->priv_data.magic | 1))
 
 /*!
@@ -465,8 +466,8 @@ int __ao2_ref(void *user_data, int delta,
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	struct astobj2_lockobj *obj_lockobj;
-	int current_value;
-	int ret;
+	int32_t current_value;
+	int32_t ret;
 	struct ao2_weakproxy *weakproxy = NULL;
 
 	if (obj == NULL) {
@@ -488,7 +489,7 @@ int __ao2_ref(void *user_data, int delta,
 	}
 
 	/* we modify with an atomic operation the reference counter */
-	ret = ast_atomic_fetchadd_int(&obj->priv_data.ref_counter, delta);
+	ret = ast_atomic_fetch_add(&obj->priv_data.ref_counter, delta, __ATOMIC_RELAXED);
 	current_value = ret + delta;
 
 #ifdef AO2_DEBUG
@@ -541,7 +542,7 @@ int __ao2_ref(void *user_data, int delta,
 			/* We just reached or went over the excessive ref count trigger */
 			snprintf(excessive_ref_buf, sizeof(excessive_ref_buf),
 				"Excessive refcount %d reached on ao2 object %p",
-				current_value, user_data);
+				(int)current_value, user_data);
 			ast_log(__LOG_ERROR, file, line, func, "%s\n", excessive_ref_buf);
 
 			__ast_assert_failed(0, excessive_ref_buf, file, line, func);
@@ -550,7 +551,7 @@ int __ao2_ref(void *user_data, int delta,
 		if (ref_log && tag) {
 			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
 				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
-				file, line, func, ret, tag);
+				file, line, func, (int)ret, tag);
 			fflush(ref_log);
 		}
 		return ret;
@@ -559,7 +560,7 @@ int __ao2_ref(void *user_data, int delta,
 	/* this case must never happen */
 	if (current_value < 0) {
 		ast_log(__LOG_ERROR, file, line, func,
-			"Invalid refcount %d on ao2 object %p\n", current_value, user_data);
+			"Invalid refcount %d on ao2 object %p\n", (int)current_value, user_data);
 		if (ref_log) {
 			/* Log to ref_log invalid even if (tag == NULL) */
 			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
@@ -692,8 +693,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	}
 
 	/* Initialize common ao2 values. */
-	obj->priv_data.ref_counter = 1;
 	obj->priv_data.destructor_fn = destructor_fn;	/* can be NULL */
+	obj->priv_data.ref_counter = 1;
 	obj->priv_data.options = options;
 	obj->priv_data.magic = AO2_MAGIC;
 
