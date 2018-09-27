@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 CIDIR=$(dirname $(readlink -fn $0))
 REALTIME=0
+TEST_TIMEOUT=600
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
 
@@ -14,7 +15,7 @@ fi
 
 export PYTHONPATH=./lib/python/
 echo "Running tests ${TESTSUITE_COMMAND}"
-./runtests.py --cleanup ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
+./runtests.py --cleanup --timeout=${TEST_TIMEOUT} ${TESTSUITE_COMMAND} | contrib/scripts/pretty_print --no-color --no-timer --term-width=120 --show-errors || :
 
 if [ $REALTIME -eq 1 ] ; then
 	$CIDIR/teardownRealtime.sh --cleanup-db=${CLEANUP_DB:?0}
