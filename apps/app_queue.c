@@ -6987,6 +6987,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 
 				ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 				ast_autoservice_chan_hangup_peer(qe->chan, peer);
+				pending_members_remove(member);
 				ao2_ref(member, -1);
 				goto out;
 			} else if (ast_check_hangup(qe->chan)) {
@@ -6997,6 +6998,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				qe->handled = -1;
 				ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 				ast_autoservice_chan_hangup_peer(qe->chan, peer);
+				pending_members_remove(member);
 				ao2_ref(member, -1);
 				return -1;
 			}
@@ -7016,6 +7018,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			record_abandoned(qe);
 			ast_channel_publish_dial(qe->chan, peer, member->interface, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(peer)));
 			ast_autoservice_chan_hangup_peer(qe->chan, peer);
+			pending_members_remove(member);
 			ao2_ref(member, -1);
 			return -1;
 		}
