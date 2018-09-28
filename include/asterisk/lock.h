@@ -241,8 +241,6 @@ int __ast_rwlock_trywrlock(const char *filename, int lineno, const char *func, a
 
 #ifdef DEBUG_THREADS
 
-#define __ast_mutex_logger(...)  do { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); } while (0)
-
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
 #else
