@@ -75,16 +75,6 @@
 static void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 void ast_verbose(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-#define ASINCLUDE_GLOB 1
-#ifdef AST_INCLUDE_GLOB
-
-#if !defined(GLOB_ABORTED)
-#define GLOB_ABORTED GLOB_ABEND
-#endif
-
-# include <glob.h>
-#endif
-
 #define AST_API_MODULE  1 /* gimme the inline defs! */
 struct ast_channel
 {
@@ -3379,29 +3369,6 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		CB_INIT();
 	}
 
-#ifdef AST_INCLUDE_GLOB
-	{
-		int glob_ret;
-		glob_t globbuf;
-
-		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-#ifdef SOLARIS
-		glob_ret = glob(fn, GLOB_NOCHECK, NULL, &globbuf);
-#else
-		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
-#endif
-		if (glob_ret == GLOB_NOSPACE)
-			ast_log(LOG_WARNING,
-				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
-		else if (glob_ret  == GLOB_ABORTED)
-			ast_log(LOG_WARNING,
-				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
-		else  {
-			/* loop over expanded files */
-			int i;
-			for (i=0; i<globbuf.gl_pathc; i++) {
-				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
-#endif
 	do {
 		if (stat(fn, &statbuf))
 			continue;
@@ -3511,14 +3478,6 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	if (comment) {
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
-#ifdef AST_INCLUDE_GLOB
-					if (!cfg)
-						break;
-				}
-				globfree(&globbuf);
-			}
-		}
-#endif
 	if (cfg && cfg->include_level == 1 && withcomments && comment_buffer) {
 		if (comment_buffer) {
 			free(comment_buffer);
