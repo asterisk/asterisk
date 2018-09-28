@@ -139,8 +139,38 @@ static char buildopt_sum[33] = AST_BUILDOPT_SUM;
 
 AST_VECTOR(module_vector, struct ast_module *);
 
+/*! Used with AST_VECTOR_CALLBACK_VOID to create a
+ * comma separated list of module names for error messages. */
+#define STR_APPEND_TEXT(txt, str) \
+	ast_str_append(str, 0, "%s%s", \
+		ast_str_strlen(*(str)) > 0 ? ", " : "", \
+		txt)
+
 /* Built-in module registrations need special handling at startup */
 static unsigned int loader_ready;
+
+/*! String container for deferring output of startup errors. */
+static struct ast_vector_string startup_errors;
+static struct ast_str *startup_error_builder;
+
+static __attribute__((format(printf, 1, 2))) void module_load_error(const char *fmt, ...)
+{
+	char *copy = NULL;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (startup_error_builder) {
+		ast_str_set_va(&startup_error_builder, 0, fmt, ap);
+		copy = ast_strdup(ast_str_buffer(startup_error_builder));
+		if (!copy || AST_VECTOR_APPEND(&startup_errors, copy)) {
+			ast_log(LOG_ERROR, "%s", ast_str_buffer(startup_error_builder));
+			ast_free(copy);
+		}
+	} else {
+		ast_log_ap(LOG_ERROR, fmt, ap);
+	}
+	va_end(ap);
+}
 
 /*!
  * \brief Internal flag to indicate all modules have been initially loaded.
@@ -873,6 +903,22 @@ static void unload_dynamic_module(struct ast_module *mod)
 #endif
 }
 
+static int load_dlopen_missing(struct ast_str **list, struct ast_vector_string *deps)
+{
+	int i;
+	int c = 0;
+
+	for (i = 0; i < AST_VECTOR_SIZE(deps); i++) {
+		const char *dep = AST_VECTOR_GET(deps, i);
+		if (!find_resource(dep, 0)) {
+			STR_APPEND_TEXT(dep, list);
+			c++;
+		}
+	}
+
+	return c;
+}
+
 /*!
  * \internal
  * \brief Attempt to dlopen a module.
@@ -904,13 +950,60 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 	resource_being_loaded = mod;
 	mod->lib = dlopen(filename, flags);
 	if (resource_being_loaded) {
+		struct ast_str *list;
+		int c = 0;
+		const char *dlerror_msg = ast_strdupa(dlerror());
+
 		resource_being_loaded = NULL;
 		if (mod->lib) {
-			ast_log(LOG_ERROR, "Module '%s' did not register itself during load\n", resource_in);
+			module_load_error("Module '%s' did not register itself during load\n", resource_in);
 			logged_dlclose(resource_in, mod->lib);
-		} else if (!suppress_logging) {
-			ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
+
+			goto error_return;
 		}
+
+		if (suppress_logging) {
+			goto error_return;
+		}
+
+		resource_being_loaded = mod;
+		mod->lib = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
+		if (resource_being_loaded) {
+			resource_being_loaded = NULL;
+
+			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror_msg);
+			logged_dlclose(resource_in, mod->lib);
+
+			goto error_return;
+		}
+
+		list = ast_str_create(64);
+		if (list) {
+			if (module_post_register(mod)) {
+				goto loaded_error;
+			}
+
+			c = load_dlopen_missing(&list, &mod->requires);
+			c += load_dlopen_missing(&list, &mod->enhances);
+#ifndef OPTIONAL_API
+			c += load_dlopen_missing(&list, &mod->optional_modules);
+#endif
+		}
+
+		if (list && ast_str_strlen(list)) {
+			module_load_error("Error loading module '%s', missing %s: %s\n",
+				resource_in, c == 1 ? "dependency" : "dependencies", ast_str_buffer(list));
+		} else {
+			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror_msg);
+		}
+
+loaded_error:
+		ast_free(list);
+		unload_dynamic_module(mod);
+
+		return NULL;
+
+error_return:
 		ast_free(mod);
 
 		return NULL;
@@ -1416,24 +1509,24 @@ module_reload_exit:
 static unsigned int inspect_module(const struct ast_module *mod)
 {
 	if (!mod->info->description) {
-		ast_log(LOG_WARNING, "Module '%s' does not provide a description.\n", mod->resource);
+		module_load_error("Module '%s' does not provide a description.\n", mod->resource);
 		return 1;
 	}
 
 	if (!mod->info->key) {
-		ast_log(LOG_WARNING, "Module '%s' does not provide a license key.\n", mod->resource);
+		module_load_error("Module '%s' does not provide a license key.\n", mod->resource);
 		return 1;
 	}
 
 	if (verify_key((unsigned char *) mod->info->key)) {
-		ast_log(LOG_WARNING, "Module '%s' did not provide a valid license key.\n", mod->resource);
+		module_load_error("Module '%s' did not provide a valid license key.\n", mod->resource);
 		return 1;
 	}
 
 	if (!ast_strlen_zero(mod->info->buildopt_sum) &&
 	    strcmp(buildopt_sum, mod->info->buildopt_sum)) {
-		ast_log(LOG_WARNING, "Module '%s' was not compiled with the same compile-time options as this version of Asterisk.\n", mod->resource);
-		ast_log(LOG_WARNING, "Module '%s' will not be initialized as it may cause instability.\n", mod->resource);
+		module_load_error("Module '%s' was not compiled with the same compile-time options as this version of Asterisk.\n", mod->resource);
+		module_load_error("Module '%s' will not be initialized as it may cause instability.\n", mod->resource);
 		return 1;
 	}
 
@@ -1459,10 +1552,10 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 
 		AST_VECTOR_INIT(&missing, 0);
 		if (module_deps_missing_recursive(mod, &missing)) {
-			ast_log(LOG_ERROR, "%s has one or more unknown dependencies.\n", mod->info->name);
+			module_load_error("%s has one or more unknown dependencies.\n", mod->info->name);
 		}
 		for (i = 0; i < AST_VECTOR_SIZE(&missing); i++) {
-			ast_log(LOG_ERROR, "%s loaded before dependency %s!\n", mod->info->name,
+			module_load_error("%s loaded before dependency %s!\n", mod->info->name,
 				AST_VECTOR_GET(&missing, i)->info->name);
 		}
 		AST_VECTOR_FREE(&missing);
@@ -1568,7 +1661,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	return res;
 
 prestart_error:
-	ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
+	module_load_error("Module '%s' could not be loaded.\n", resource_name);
 	unload_dynamic_module(mod);
 	res = required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 	if (ast_fully_booted && !ast_shutdown_final()) {
@@ -1656,21 +1749,92 @@ static enum ast_module_load_result start_resource_attempt(struct ast_module *mod
 	if (lres == AST_MODULE_LOAD_SUCCESS) {
 		(*count)++;
 	} else if (lres == AST_MODULE_LOAD_FAILURE) {
-		ast_log(LOG_ERROR, "*** Failed to load module %s\n", mod->resource);
+		module_load_error("*** Failed to load %smodule %s\n",
+			mod->flags.required ? "required " : "",
+			mod->resource);
 	}
 
 	return lres;
+}
+
+static int resource_list_recursive_decline(struct module_vector *resources, struct ast_module *mod,
+	struct ast_str **printmissing)
+{
+	struct module_vector missingdeps;
+	struct ast_vector_const_string localdeps;
+	int i = 0;
+	int res = -1;
+
+	mod->flags.declined = 1;
+	if (mod->flags.required) {
+		module_load_error("Required module %s declined to load.\n", ast_module_name(mod));
+
+		return -2;
+	}
+
+	module_load_error("%s declined to load.\n", ast_module_name(mod));
+
+	if (!*printmissing) {
+		*printmissing = ast_str_create(64);
+		if (!*printmissing) {
+			return -1;
+		}
+	} else {
+		ast_str_reset(*printmissing);
+	}
+
+	AST_VECTOR_INIT(&missingdeps, 0);
+	AST_VECTOR_INIT(&localdeps, 0);
+
+	/* Decline everything that depends on 'mod' from resources so we can
+	 * print a concise list. */
+	while (res != -2 && i < AST_VECTOR_SIZE(resources)) {
+		struct ast_module *dep = AST_VECTOR_GET(resources, i);
+		i++;
+
+		AST_VECTOR_RESET(&missingdeps, AST_VECTOR_ELEM_CLEANUP_NOOP);
+		if (dep->flags.declined || module_deps_missing_recursive(dep, &missingdeps)) {
+			continue;
+		}
+
+		if (AST_VECTOR_GET_CMP(&missingdeps, mod, AST_VECTOR_ELEM_DEFAULT_CMP)) {
+			dep->flags.declined = 1;
+			if (dep->flags.required) {
+				module_load_error("Cannot load required module %s that depends on %s\n",
+					ast_module_name(dep), ast_module_name(mod));
+				res = -2;
+			} else {
+				AST_VECTOR_APPEND(&localdeps, ast_module_name(dep));
+			}
+		}
+	}
+	AST_VECTOR_FREE(&missingdeps);
+
+	if (res != -2 && AST_VECTOR_SIZE(&localdeps)) {
+		AST_VECTOR_CALLBACK_VOID(&localdeps, STR_APPEND_TEXT, printmissing);
+		module_load_error("Declined modules which depend on %s: %s\n",
+			ast_module_name(mod), ast_str_buffer(*printmissing));
+	}
+	AST_VECTOR_FREE(&localdeps);
+
+	return res;
 }
 
 static int start_resource_list(struct module_vector *resources, int *mod_count)
 {
 	struct module_vector missingdeps;
 	int res = 0;
+	struct ast_str *printmissing = NULL;
 
 	AST_VECTOR_INIT(&missingdeps, 0);
-	while (AST_VECTOR_SIZE(resources)) {
+	while (res != -2 && AST_VECTOR_SIZE(resources)) {
 		struct ast_module *mod = AST_VECTOR_REMOVE(resources, 0, 1);
 		enum ast_module_load_result lres;
+
+		if (mod->flags.declined) {
+			ast_debug(1, "%s is already declined, skipping\n", ast_module_name(mod));
+			continue;
+		}
 
 retry_load:
 		lres = start_resource_attempt(mod, mod_count);
@@ -1680,31 +1844,29 @@ retry_load:
 		}
 
 		if (lres == AST_MODULE_LOAD_FAILURE) {
-			ast_log(LOG_ERROR, "Failed to load %s.\n", ast_module_name(mod));
 			res = -2;
 			break;
 		}
 
 		if (lres == AST_MODULE_LOAD_DECLINE) {
+			res = resource_list_recursive_decline(resources, mod, &printmissing);
 			continue;
 		}
 
-		res = module_deps_missing_recursive(mod, &missingdeps);
-		if (res) {
+		if (module_deps_missing_recursive(mod, &missingdeps)) {
 			AST_VECTOR_RESET(&missingdeps, AST_VECTOR_ELEM_CLEANUP_NOOP);
-			ast_log(LOG_ERROR, "Failed to resolve dependencies for %s\n", ast_module_name(mod));
-			mod->flags.declined = 1;
-
+			module_load_error("Failed to resolve dependencies for %s\n", ast_module_name(mod));
+			res = resource_list_recursive_decline(resources, mod, &printmissing);
 			continue;
 		}
 
 		if (!AST_VECTOR_SIZE(&missingdeps)) {
-			ast_log(LOG_WARNING, "%s load function returned an invalid result. "
+			module_load_error("%s load function returned an invalid result. "
 				"This is a bug in the module.\n", ast_module_name(mod));
 			/* Dependencies were met but the module failed to start and the result
 			 * code was not AST_MODULE_LOAD_FAILURE or AST_MODULE_LOAD_DECLINE. */
-			res = -1;
-			break;
+			res = resource_list_recursive_decline(resources, mod, &printmissing);
+			continue;
 		}
 
 		ast_debug(1, "%s has %d dependencies\n",
@@ -1716,8 +1878,16 @@ retry_load:
 			while (i < AST_VECTOR_SIZE(&missingdeps)) {
 				struct ast_module *dep = AST_VECTOR_GET(&missingdeps, i);
 
+				if (dep->flags.declined) {
+					ast_debug(1, "%s tried to start %s but it's already declined\n",
+						ast_module_name(mod), ast_module_name(dep));
+					i++;
+					continue;
+				}
+
 				ast_debug(1, "%s trying to start %s\n", ast_module_name(mod), ast_module_name(dep));
-				if (!start_resource_attempt(dep, mod_count)) {
+				lres = start_resource_attempt(dep, mod_count);
+				if (lres == AST_MODULE_LOAD_SUCCESS) {
 					ast_debug(1, "%s started %s\n", ast_module_name(mod), ast_module_name(dep));
 					AST_VECTOR_REMOVE(&missingdeps, i, 1);
 					AST_VECTOR_REMOVE_CMP_ORDERED(resources, dep,
@@ -1725,6 +1895,13 @@ retry_load:
 					didwork++;
 					continue;
 				}
+
+				if (lres == AST_MODULE_LOAD_FAILURE) {
+					module_load_error("Failed to load %s.\n", ast_module_name(dep));
+					res = -2;
+					goto exitpoint;
+				}
+
 				ast_debug(1, "%s failed to start %s\n", ast_module_name(mod), ast_module_name(dep));
 				i++;
 			}
@@ -1735,9 +1912,26 @@ retry_load:
 		}
 
 		if (AST_VECTOR_SIZE(&missingdeps)) {
-			ast_log(LOG_WARNING, "Failed to load %s due to unfilled dependencies.\n",
-				ast_module_name(mod));
-			mod->flags.declined = 1;
+			if (!printmissing) {
+				printmissing = ast_str_create(64);
+			} else {
+				ast_str_reset(printmissing);
+			}
+
+			if (printmissing) {
+				struct ast_vector_const_string localdeps;
+
+				AST_VECTOR_INIT(&localdeps, 0);
+				module_deps_reference(mod, &localdeps);
+				AST_VECTOR_CALLBACK_VOID(&localdeps, STR_APPEND_TEXT, &printmissing);
+				AST_VECTOR_FREE(&localdeps);
+			}
+
+			module_load_error("Failed to load %s due to dependencies: %s.\n",
+				ast_module_name(mod),
+				printmissing ? ast_str_buffer(printmissing) : "allocation failure creating list");
+			res = resource_list_recursive_decline(resources, mod, &printmissing);
+
 			AST_VECTOR_RESET(&missingdeps, AST_VECTOR_ELEM_CLEANUP_NOOP);
 
 			continue;
@@ -1748,6 +1942,8 @@ retry_load:
 		goto retry_load;
 	}
 
+exitpoint:
+	ast_free(printmissing);
 	AST_VECTOR_FREE(&missingdeps);
 
 	return res;
@@ -1772,7 +1968,7 @@ static int load_resource_list(struct load_order *load_order, int *mod_count)
 		return -1;
 	}
 
-	while (!res) {
+	while (res != -2) {
 		didwork = 0;
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
@@ -1789,12 +1985,13 @@ static int load_resource_list(struct load_order *load_order, int *mod_count)
 				 * module that is missing dependencies. */
 				break;
 			case AST_MODULE_LOAD_DECLINE:
+				res = -1;
 				break;
 			case AST_MODULE_LOAD_FAILURE:
 				/* LOAD_FAILURE only happens for required modules */
 				if (lasttry) {
 					/* This run is just to print errors. */
-					ast_log(LOG_ERROR, "*** Failed to load module %s - Required\n", order->resource);
+					module_load_error("*** Failed to load module %s - Required\n", order->resource);
 					fprintf(stderr, "*** Failed to load module %s - Required\n", order->resource);
 					res =  -2;
 				}
@@ -1821,7 +2018,7 @@ static int load_resource_list(struct load_order *load_order, int *mod_count)
 		attempt++;
 	}
 
-	if (!res) {
+	if (res != -2) {
 		res = start_resource_list(&module_priorities, &count);
 	}
 
@@ -1999,11 +2196,15 @@ int load_modules(void)
 	struct load_order load_order;
 	int res = 0;
 	int modulecount = 0;
+	int i;
 
 	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 	AST_DLLIST_LOCK(&module_list);
+
+	AST_VECTOR_INIT(&startup_errors, 0);
+	startup_error_builder = ast_str_create(64);
 
 	res = loader_builtin_init(&load_order);
 	if (res) {
@@ -2023,6 +2224,10 @@ int load_modules(void)
 		ast_log(LOG_NOTICE, "%u modules will be loaded.\n", load_count);
 
 	res = load_resource_list(&load_order, &modulecount);
+	if (res == -1) {
+		ast_log(LOG_WARNING, "Some non-required modules failed to load.\n");
+		res = 0;
+	}
 
 done:
 	while ((order = AST_LIST_REMOVE_HEAD(&load_order, entry))) {
@@ -2031,6 +2236,18 @@ done:
 	}
 
 	AST_DLLIST_UNLOCK(&module_list);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&startup_errors); i++) {
+		char *str = AST_VECTOR_GET(&startup_errors, i);
+
+		ast_log(LOG_ERROR, "%s", str);
+		ast_free(str);
+	}
+	AST_VECTOR_FREE(&startup_errors);
+
+	ast_free(startup_error_builder);
+	startup_error_builder = NULL;
+
 	return res;
 }
 
