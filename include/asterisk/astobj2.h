@@ -752,6 +752,9 @@ int __ao2_trylock(void *a, enum ao2_lock_req lock_how, const char *file, const c
  * lock address, this allows you to correlate against
  * object address, to match objects to reported locks.
  *
+ * \warning AO2 lock objects do not include tracking fields when
+ * DEBUG_THREADS is not enabled.
+ *
  * \since 1.6.1
  */
 void *ao2_object_get_lockaddr(void *obj);
