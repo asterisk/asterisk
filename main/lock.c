@@ -72,26 +72,26 @@ static void __dump_backtrace(struct ast_bt *bt, int canlog)
 #ifdef DEBUG_THREADS
 AST_MUTEX_DEFINE_STATIC(reentrancy_lock);
 
-static inline struct ast_lock_track *ast_get_reentrancy(struct ast_lock_track **plt)
+static inline struct ast_lock_track *ast_get_reentrancy(struct ast_lock_track **plt,
+	struct ast_lock_track_flags *flags, int no_setup)
 {
 	pthread_mutexattr_t reentr_attr;
 	struct ast_lock_track *lt;
 
-	/* It's a bit painful to lock a global mutex for every access to the
-	 * reentrancy structure, but it's necessary to ensure that we don't
-	 * double-allocate the structure or double-initialize the reentr_mutex.
-	 *
-	 * If you'd like to replace this with a double-checked lock, be sure to
-	 * properly volatile-ize everything to avoid optimizer bugs.
-	 *
-	 * We also have to use the underlying pthread calls for manipulating
-	 * the mutex, because this is called from the Asterisk mutex code.
-	 */
+	if (!flags->tracking || flags->setup) {
+		return *plt;
+	}
+
 	pthread_mutex_lock(&reentrancy_lock.mutex);
 
 	if (*plt) {
 		pthread_mutex_unlock(&reentrancy_lock.mutex);
 		return *plt;
+	}
+
+	if (no_setup) {
+		pthread_mutex_unlock(&reentrancy_lock.mutex);
+		return NULL;
 	}
 
 	lt = *plt = ast_std_calloc(1, sizeof(*lt));
@@ -110,6 +110,7 @@ static inline struct ast_lock_track *ast_get_reentrancy(struct ast_lock_track **
 	pthread_mutex_init(&lt->reentr_mutex, &reentr_attr);
 	pthread_mutexattr_destroy(&reentr_attr);
 
+	flags->setup = 1;
 	pthread_mutex_unlock(&reentrancy_lock.mutex);
 	return lt;
 }
@@ -148,7 +149,8 @@ int __ast_pthread_mutex_init(int tracking, const char *filename, int lineno, con
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	t->track = NULL;
-	t->tracking = tracking;
+	t->flags.tracking = tracking;
+	t->flags.setup = 0;
 #endif /* DEBUG_THREADS */
 
 	pthread_mutexattr_init(&attr);
@@ -165,8 +167,8 @@ int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *fu
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = t->track;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 1);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
@@ -243,13 +245,9 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -360,13 +358,9 @@ int __ast_pthread_mutex_trylock(const char *filename, int lineno, const char *fu
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -420,7 +414,7 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 
 #ifdef DEBUG_THREADS
 	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
@@ -432,10 +426,7 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
-
+	lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	if (lt) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
@@ -543,7 +534,7 @@ int __ast_cond_wait(const char *filename, int lineno, const char *func,
 #ifdef DEBUG_THREADS
 	struct ast_lock_track *lt = NULL;
 	struct ast_lock_track lt_orig;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
@@ -554,10 +545,7 @@ int __ast_cond_wait(const char *filename, int lineno, const char *func,
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
-
+	lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	if (lt) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
@@ -611,7 +599,7 @@ int __ast_cond_timedwait(const char *filename, int lineno, const char *func,
 #ifdef DEBUG_THREADS
 	struct ast_lock_track *lt = NULL;
 	struct ast_lock_track lt_orig;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
@@ -622,10 +610,7 @@ int __ast_cond_timedwait(const char *filename, int lineno, const char *func,
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
-
+	lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	if (lt) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
@@ -688,7 +673,8 @@ int __ast_rwlock_init(int tracking, const char *filename, int lineno, const char
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 	t->track = NULL;
-	t->tracking = tracking;
+	t->flags.tracking = tracking;
+	t->flags.setup = 0;
 #endif /* DEBUG_THREADS */
 
 	pthread_rwlockattr_init(&attr);
@@ -706,8 +692,8 @@ int __ast_rwlock_destroy(const char *filename, int lineno, const char *func, con
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = t->track;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 1);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) && defined(CAN_COMPARE_MUTEX_TO_INIT_VALUE)
 	if (t->lock == ((pthread_rwlock_t) __AST_RWLOCK_INIT_VALUE)) {
@@ -754,7 +740,7 @@ int __ast_rwlock_unlock(const char *filename, int line, const char *func, ast_rw
 
 #ifdef DEBUG_THREADS
 	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
 	int lock_found = 0;
 
@@ -767,10 +753,7 @@ int __ast_rwlock_unlock(const char *filename, int line, const char *func, ast_rw
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
-
+	lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	if (lt) {
 		ast_reentrancy_lock(lt);
 		if (lt->reentrancy) {
@@ -827,13 +810,9 @@ int __ast_rwlock_rdlock(const char *filename, int line, const char *func, ast_rw
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -929,13 +908,9 @@ int __ast_rwlock_wrlock(const char *filename, int line, const char *func, ast_rw
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -1031,13 +1006,9 @@ int __ast_rwlock_timedrdlock(const char *filename, int line, const char *func, a
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -1117,13 +1088,9 @@ int __ast_rwlock_timedwrlock(const char *filename, int line, const char *func, a
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
-	int canlog = t->tracking && strcmp(filename, "logger.c");
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
+	int canlog = t->flags.tracking && strcmp(filename, "logger.c");
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -1202,12 +1169,8 @@ int __ast_rwlock_tryrdlock(const char *filename, int line, const char *func, ast
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR
@@ -1256,12 +1219,8 @@ int __ast_rwlock_trywrlock(const char *filename, int line, const char *func, ast
 	int res;
 
 #ifdef DEBUG_THREADS
-	struct ast_lock_track *lt = NULL;
+	struct ast_lock_track *lt = ast_get_reentrancy(&t->track, &t->flags, 0);
 	struct ast_bt *bt = NULL;
-
-	if (t->tracking) {
-		lt = ast_get_reentrancy(&t->track);
-	}
 
 	if (lt) {
 #ifdef HAVE_BKTR

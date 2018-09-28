@@ -25,6 +25,10 @@
 	<support_level>core</support_level>
  ***/
 
+/* This reduces the size of lock structures within astobj2 objects when
+ * DEBUG_THREADS is not defined. */
+#define DEBUG_THREADS_LOOSE_ABI
+
 #include "asterisk.h"
 
 #include "asterisk/_private.h"
