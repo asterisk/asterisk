@@ -77,3 +77,10 @@ res_monitor:
 Core:
  - libedit is no longer available as an embedded library and must be provided
    by the system.
+ - The module loader now enforces inter-module dependencies.  This ensures that
+   a module is not started before another it depends on, even if preload is used.
+   If a dependency is not available or fails to startup this will block any
+   dependants from startup.
+ - Parts of the Asterisk core which can load configuration from realtime are now
+   built-in modules.  It is no longer necessary to preload realtime drivers as
+   they are always initialized before the built-in modules.
