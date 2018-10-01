@@ -23556,13 +23556,7 @@ fi
 
 
 
-# libunbound v1.5.0 added the ub_ctx_add_ta_autr() API call that we can
-# detect as a useable version so that is going to be the minimum version
-# that we will require.
-# Technically v1.4.21 and later could be used but v1.4.21 has a configure
-# script bug which does not find the ldns library.  The bug is fixed in
-# v1.4.22 but that version is not easily detectable.
-#
+# Check that unbound is installed and the version code fragment compiles
 
 if test "x${PBX_UNBOUND}" != "x1" -a "${USE_UNBOUND}" != "no"; then
    pbxlibdir=""
@@ -23644,63 +23638,77 @@ fi
 
          CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
 
-      if test "x${UNBOUND_HEADER_FOUND}" = "x0" ; then
-         UNBOUND_LIB=""
-         UNBOUND_INCLUDE=""
-      else
-
-         PBX_UNBOUND=1
-         cat >>confdefs.h <<_ACEOF
-#define HAVE_UNBOUND 1
-_ACEOF
-
-      fi
    fi
-fi
-
-
-
-    if test "x${PBX_UNBOUND_CONST_PARAMS}" != "x1" -a "${USE_UNBOUND_CONST_PARAMS}" != "no"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for UNBOUND_VERSION_MAJOR declared in unbound.h" >&5
-$as_echo_n "checking for UNBOUND_VERSION_MAJOR declared in unbound.h... " >&6; }
-        saved_cppflags="${CPPFLAGS}"
-        if test "x${UNBOUND_CONST_PARAMS_DIR}" != "x"; then
-            UNBOUND_CONST_PARAMS_INCLUDE="-I${UNBOUND_CONST_PARAMS_DIR}/include"
-        fi
-        CPPFLAGS="${CPPFLAGS} ${UNBOUND_CONST_PARAMS_INCLUDE}"
-
-        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+   # Validate the package with the supplied code.
+   if test "x${UNBOUND_HEADER_FOUND}" = "x1" ; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for unbound version >= 1.5" >&5
+$as_echo_n "checking for unbound version >= 1.5... " >&6; }
+      ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+      CPPFLAGS="${CPPFLAGS} ${UNBOUND_INCLUDE}"
+      ast_ext_lib_check_saved_LIBS="${LIBS}"
+      LIBS="${UNBOUND_LIB}"
+      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- #include <unbound.h>
+
+      #include <unbound.h>
 int
 main ()
 {
-#if !defined(UNBOUND_VERSION_MAJOR)
-                                    (void) UNBOUND_VERSION_MAJOR;
-                                #endif
+
+            #if (UNBOUND_VERSION_MAJOR < 1 || (UNBOUND_VERSION_MAJOR == 1 && UNBOUND_VERSION_MINOR < 5 ))
+            #error "Unbound version must be >= 1.5"
+            #endif
+
 
   ;
   return 0;
 }
+
 _ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+if ac_fn_c_try_link "$LINENO"; then :
+
+            if test "x${cross_compiling}" = "xyes" ; then
+               UNBOUND_VALIDATED="1"
+               { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes (guessed for cross-compile)" >&5
+$as_echo "yes (guessed for cross-compile)" >&6; }
+            else
+               ./conftest$EXEEXT
+               if test $? -eq 0 ; then
+                  UNBOUND_VALIDATED="1"
+                  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-                PBX_UNBOUND_CONST_PARAMS=1
-
-$as_echo "#define HAVE_UNBOUND_CONST_PARAMS 1" >>confdefs.h
-
-
+               else
+                  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+               fi
+            fi
 
 else
-     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
-        CPPFLAGS="${saved_cppflags}"
-    fi
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+      CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      LIBS="${ast_ext_lib_check_saved_LIBS}"
+   fi
+
+   if test "x${UNBOUND_VALIDATED}" = "x1" ; then
+
+      PBX_UNBOUND=1
+      cat >>confdefs.h <<_ACEOF
+#define HAVE_UNBOUND 1
+_ACEOF
+
+   else
+      UNBOUND_LIB=""
+      UNBOUND_INCLUDE=""
+   fi
+fi
+
 
 
 
