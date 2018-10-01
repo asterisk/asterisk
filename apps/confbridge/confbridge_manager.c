@@ -395,6 +395,9 @@ static void set_media_labels(struct confbridge_conference *conference,
 	struct ast_stream *stream;
 	struct ast_channel *chan = dir == LABEL_DIRECTION_SRC ? dest_chan : src_chan;
 
+	if (!chan) {
+		return;
+	}
 	topology = ast_channel_get_stream_topology(chan);
 	stream = get_stream(topology, AST_MEDIA_TYPE_VIDEO);
 	if (stream) {
@@ -458,8 +461,8 @@ static void send_message(const char *msg_name, char *conf_name, struct ast_json 
 	ast_json_free(json);
 }
 
-static void send_event_to_participants(struct confbridge_conference *conference,
-	struct ast_channel *chan, struct stasis_message * msg)
+void conf_send_event_to_participants(struct confbridge_conference *conference,
+	struct ast_channel *chan, struct stasis_message *msg)
 {
 	struct ast_bridge_blob *obj = stasis_message_data(msg);
 	struct ast_json *extras = obj->blob;
@@ -597,13 +600,6 @@ static void confbridge_publish_manager_event(
 		struct confbridge_conference *conference = conf_find_bridge(conference_name);
 
 		channel_text = ast_manager_build_channel_state_string(blob->channel);
-
-		if (conference && ast_test_flag(&conference->b_profile, BRIDGE_OPT_ENABLE_EVENTS)) {
-			struct ast_channel *chan = ast_channel_get_by_name(blob->channel->name);
-
-			send_event_to_participants(conference, chan, message);
-			ast_channel_cleanup(chan);
-		}
 		ao2_cleanup(conference);
 	}
 
