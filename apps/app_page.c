@@ -440,4 +440,9 @@ static int load_module(void)
 	return ast_register_application_xml(app_page, page_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Page Multiple Phones");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Page Multiple Phones",
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.requires = "app_confbridge",
+);
