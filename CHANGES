@@ -139,6 +139,13 @@ Core:
    by the system.
  * The STATIC_BUILD functionality has been removed as it has not been maintained
    and has not worked in quite some time.
+ * The module loader now enforces inter-module dependencies.  This ensures that
+   a module is not started before another it depends on, even if preload is used.
+   If a dependency is not available or fails to startup this will block any
+   dependants from startup.
+ * Parts of the Asterisk core which can load configuration from realtime are now
+   built-in modules.  It is no longer necessary to preload realtime drivers as
+   they are always initialized before the built-in modules.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 15.5.0 to Asterisk 15.6.0 ------------
