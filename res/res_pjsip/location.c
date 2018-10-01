@@ -990,35 +990,83 @@ static int cli_filter_contacts(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+static int cli_gather_contact(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	RAII_VAR(struct ast_sip_contact_wrapper *, wrapper, NULL, ao2_cleanup);
+
+	if (strcmp(contact->reg_server, ast_config_AST_SYSTEM_NAME ?: "")) {
+		return 0;
+	}
+
+	wrapper = ao2_alloc_options(sizeof(struct ast_sip_contact_wrapper),
+		contact_wrapper_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!wrapper) {
+		return -1;
+	}
+
+	wrapper->contact_id = ast_malloc(strlen(contact->aor) + strlen(contact->uri) + 2);
+	if (!wrapper->contact_id) {
+		return -1;
+	}
+	sprintf(wrapper->contact_id, "%s/%s", contact->aor, contact->uri);
+
+	wrapper->aor_id = ast_strdup(contact->aor);
+	if (!wrapper->aor_id) {
+		return -1;
+	}
+
+	wrapper->contact = ao2_bump(contact);
+
+	ao2_link(arg, wrapper);
+
+	return 0;
+}
+
 static struct ao2_container *cli_contact_get_container(const char *regex)
 {
-	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
-	struct ao2_container *child_container;
+	RAII_VAR(struct ao2_container *, aors, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, var_aor, NULL, ast_variables_destroy);
+	struct ao2_container *contacts_container;
 	regex_t regexbuf;
 
-	parent_container = cli_aor_get_container("");
-	if (!parent_container) {
+	if (!(var_aor = ast_variable_new("contact !=", "", ""))) {
 		return NULL;
 	}
 
-	child_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+	contacts_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
 		cli_contact_sort, cli_contact_compare);
-	if (!child_container) {
+	if (!contacts_container) {
 		return NULL;
 	}
 
-	ao2_callback(parent_container, OBJ_NODATA, cli_aor_gather_contacts, child_container);
+	contacts = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "contact", regex);
+	if (!contacts) {
+		ao2_ref(contacts_container, -1);
+		return NULL;
+	}
+	ao2_callback(contacts, OBJ_NODATA, cli_gather_contact, contacts_container);
+
+	aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+		"aor", AST_RETRIEVE_FLAG_MULTIPLE, var_aor);
+	if (!aors) {
+		ao2_ref(contacts_container, -1);
+		return NULL;
+	}
+
+	ao2_callback(aors, OBJ_NODATA, cli_aor_gather_contacts, contacts_container);
 
 	if (!ast_strlen_zero(regex)) {
 		if (regcomp(&regexbuf, regex, REG_EXTENDED | REG_NOSUB)) {
-			ao2_ref(child_container, -1);
+			ao2_ref(contacts_container, -1);
 			return NULL;
 		}
-		ao2_callback(child_container, OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA, cli_filter_contacts, &regexbuf);
+		ao2_callback(contacts_container, OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA, cli_filter_contacts, &regexbuf);
 		regfree(&regexbuf);
 	}
 
-	return child_container;
+	return contacts_container;
 }
 
 static void *cli_contact_retrieve_by_id(const char *id)
