@@ -92,11 +92,11 @@
 #define AST_LOCK_TRACK_INIT_VALUE { { NULL }, { 0 }, 0, { NULL }, { 0 }, PTHREAD_MUTEX_INIT_VALUE }
 #endif
 
-#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, NULL, 1 }
-#define AST_MUTEX_INIT_VALUE_NOTRACKING { PTHREAD_MUTEX_INIT_VALUE, NULL, 0 }
+#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, NULL, {1, 0} }
+#define AST_MUTEX_INIT_VALUE_NOTRACKING { PTHREAD_MUTEX_INIT_VALUE, NULL, {0, 0} }
 
-#define AST_RWLOCK_INIT_VALUE { __AST_RWLOCK_INIT_VALUE, NULL, 1 }
-#define AST_RWLOCK_INIT_VALUE_NOTRACKING { __AST_RWLOCK_INIT_VALUE, NULL, 0 }
+#define AST_RWLOCK_INIT_VALUE { __AST_RWLOCK_INIT_VALUE, NULL, {1, 0} }
+#define AST_RWLOCK_INIT_VALUE_NOTRACKING { __AST_RWLOCK_INIT_VALUE, NULL, {0, 0} }
 
 #define AST_MAX_REENTRANCY 10
 
@@ -120,6 +120,13 @@ struct ast_lock_track {
 	pthread_mutex_t reentr_mutex;
 };
 
+struct ast_lock_track_flags {
+	/*! non-zero if lock tracking is enabled */
+	unsigned int tracking:1;
+	/*! non-zero if track is setup */
+	volatile unsigned int setup:1;
+};
+
 /*! \brief Structure for mutex and tracking information.
  *
  * We have tracking information in this structure regardless of DEBUG_THREADS being enabled.
@@ -127,9 +134,18 @@ struct ast_lock_track {
  */
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
-	/*! Track which thread holds this mutex */
+#if !defined(DEBUG_THREADS) && !defined(DEBUG_THREADS_LOOSE_ABI)
+	/*!
+	 * These fields are renamed to ensure they are never used when
+	 * DEBUG_THREADS is not defined.
+	 */
+	struct ast_lock_track *_track;
+	struct ast_lock_track_flags _flags;
+#elif defined(DEBUG_THREADS)
+	/*! Track which thread holds this mutex. */
 	struct ast_lock_track *track;
-	unsigned int tracking:1;
+	struct ast_lock_track_flags flags;
+#endif
 };
 
 /*! \brief Structure for rwlock and tracking information.
@@ -139,9 +155,18 @@ struct ast_mutex_info {
  */
 struct ast_rwlock_info {
 	pthread_rwlock_t lock;
+#if !defined(DEBUG_THREADS) && !defined(DEBUG_THREADS_LOOSE_ABI)
+	/*!
+	 * These fields are renamed to ensure they are never used when
+	 * DEBUG_THREADS is not defined.
+	 */
+	struct ast_lock_track *_track;
+	struct ast_lock_track_flags _flags;
+#elif defined(DEBUG_THREADS)
 	/*! Track which thread holds this lock */
 	struct ast_lock_track *track;
-	unsigned int tracking:1;
+	struct ast_lock_track_flags flags;
+#endif
 };
 
 typedef struct ast_mutex_info ast_mutex_t;
