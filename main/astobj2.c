@@ -54,20 +54,21 @@ static FILE *ref_log;
  * The magic number is used for consistency check.
  */
 struct __priv_data {
-	int ref_counter;
 	ao2_destructor_fn destructor_fn;
 #if defined(AO2_DEBUG)
 	/*! User data size for stats */
 	size_t data_size;
 #endif
+	/*! Number of references held for this object */
+	int ref_counter;
 	/*! The ao2 object option flags */
-	uint32_t options;
+	uint32_t options:2;
 	/*! magic number.  This is used to verify that a pointer passed in is a
 	 *  valid astobj2 */
-	uint32_t magic;
+	uint32_t magic:30;
 };
 
-#define	AO2_MAGIC	0xa570b123
+#define	AO2_MAGIC	0x3a70b123
 
 /*!
  * What an astobj2 object looks like: fixed-size private data
@@ -587,8 +588,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	}
 
 	/* Initialize common ao2 values. */
-	obj->priv_data.ref_counter = 1;
 	obj->priv_data.destructor_fn = destructor_fn;	/* can be NULL */
+	obj->priv_data.ref_counter = 1;
 	obj->priv_data.options = options;
 	obj->priv_data.magic = AO2_MAGIC;
 
