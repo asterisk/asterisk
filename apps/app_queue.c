@@ -2255,6 +2255,7 @@ static void queue_publish_member_blob(struct stasis_message_type *type, struct a
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	if (!blob || !type) {
+		ast_json_unref(blob);
 		return;
 	}
 
