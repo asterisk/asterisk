@@ -64,7 +64,8 @@ static struct media_variant *media_variant_alloc(const char *variant_str)
 	size_t str_sz = strlen(variant_str) + 1;
 	struct media_variant *variant;
 
-	variant = ao2_alloc(sizeof(*variant) + str_sz, media_variant_destroy);
+	variant = ao2_alloc_options(sizeof(*variant) + str_sz, media_variant_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!variant) {
 		return NULL;
 	}
@@ -110,8 +111,10 @@ static void media_info_destroy(void *obj)
 static struct media_info *media_info_alloc(const char *name)
 {
 	size_t name_sz = strlen(name) + 1;
-	struct media_info *info = ao2_alloc(sizeof(*info) + name_sz, media_info_destroy);
+	struct media_info *info;
 
+	info = ao2_alloc_options(sizeof(*info) + name_sz, media_info_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!info) {
 		return NULL;
 	}

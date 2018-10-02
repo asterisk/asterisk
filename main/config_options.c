@@ -222,7 +222,8 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
 		return -1;
 	}
 
-	if (!(opt = ao2_alloc(sizeof(*opt), config_option_destroy))) {
+	opt = ao2_alloc_options(sizeof(*opt), config_option_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!opt) {
 		return -1;
 	}
 
@@ -313,7 +314,9 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 		return -1;
 	}
 
-	if (!(opt = ao2_alloc(sizeof(*opt) + argc * sizeof(opt->args[0]), config_option_destroy))) {
+	opt = ao2_alloc_options(sizeof(*opt) + argc * sizeof(opt->args[0]),
+		config_option_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!opt) {
 		return -1;
 	}
 
