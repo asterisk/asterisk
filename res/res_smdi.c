@@ -162,7 +162,6 @@
  ***/
 
 static const char config_file[] = "smdi.conf";
-static int smdi_loaded;
 
 struct ast_smdi_interface {
 	char name[SMDI_MAX_FILENAME_LEN];
@@ -1035,7 +1034,7 @@ static int smdi_load(int reload)
 		} else if (!strcasecmp(v->name, "twostopbits")) {
 			stopbits = ast_true(v->name);
 		} else if (!strcasecmp(v->name, "smdiport")) {
-			if (reload) {
+			if (reload && old_ifaces) {
 				/* we are reloading, check if we are already
 				 * monitoring this interface, if we are we do
 				 * not want to start it again.  This also has
@@ -1371,7 +1370,26 @@ static struct ast_custom_function smdi_msg_function = {
 	.read = smdi_msg_read,
 };
 
-static int _unload_module(int fromload);
+static int unload_module(void)
+{
+	ao2_global_obj_release(smdi_ifaces);
+
+	destroy_all_mailbox_mappings();
+
+	ast_mutex_lock(&mwi_monitor.lock);
+	mwi_monitor.stop = 1;
+	ast_cond_signal(&mwi_monitor.cond);
+	ast_mutex_unlock(&mwi_monitor.lock);
+
+	if (mwi_monitor.thread != AST_PTHREADT_NULL) {
+		pthread_join(mwi_monitor.thread, NULL);
+	}
+
+	ast_custom_function_unregister(&smdi_msg_retrieve_function);
+	ast_custom_function_unregister(&smdi_msg_function);
+
+	return 0;
+}
 
 /*!
  * \brief Load the module
@@ -1386,7 +1404,6 @@ static int _unload_module(int fromload);
 static int load_module(void)
 {
 	int res;
-	smdi_loaded = 1;
 
 	ast_mutex_init(&mwi_monitor.lock);
 	ast_cond_init(&mwi_monitor.cond, NULL);
@@ -1394,12 +1411,10 @@ static int load_module(void)
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
 	if (res < 0) {
-		_unload_module(1);
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	} else if (res == 1) {
-		_unload_module(1);
 		ast_log(LOG_NOTICE, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
-		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_custom_function_register(&smdi_msg_retrieve_function);
@@ -1408,53 +1423,17 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int _unload_module(int fromload)
-{
-	if (!smdi_loaded) {
-		return 0;
-	}
-
-	ao2_global_obj_release(smdi_ifaces);
-
-	destroy_all_mailbox_mappings();
-
-	ast_mutex_lock(&mwi_monitor.lock);
-	mwi_monitor.stop = 1;
-	ast_cond_signal(&mwi_monitor.cond);
-	ast_mutex_unlock(&mwi_monitor.lock);
-
-	if (mwi_monitor.thread != AST_PTHREADT_NULL) {
-		pthread_join(mwi_monitor.thread, NULL);
-	}
-
-	if (!fromload) {
-		ast_custom_function_unregister(&smdi_msg_retrieve_function);
-		ast_custom_function_unregister(&smdi_msg_function);
-	}
-
-	smdi_loaded = 0;
-
-	return 0;
-}
-
-static int unload_module(void)
-{
-	return _unload_module(0);
-}
-
 static int reload(void)
 {
 	int res;
 
 	res = smdi_load(1);
-
 	if (res < 0) {
 		return res;
 	} else if (res == 1) {
 		ast_log(LOG_WARNING, "No SMDI interfaces were specified to listen on, not starting SDMI listener.\n");
-		return 0;
-	} else
-		return 0;
+	}
+	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Simplified Message Desk Interface (SMDI) Resource",
