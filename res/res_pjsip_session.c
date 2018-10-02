@@ -761,8 +761,10 @@ static void set_from_header(struct ast_sip_session *session)
 	struct ast_party_id connected_id;
 	pj_pool_t *dlg_pool;
 	pjsip_fromto_hdr *dlg_info;
+	pjsip_contact_hdr *dlg_contact;
 	pjsip_name_addr *dlg_info_name_addr;
 	pjsip_sip_uri *dlg_info_uri;
+	pjsip_sip_uri *dlg_contact_uri;
 	int restricted;
 
 	if (!session->channel || session->saved_from_hdr) {
@@ -783,11 +785,16 @@ static void set_from_header(struct ast_sip_session *session)
 
 	dlg_pool = session->inv_session->dlg->pool;
 	dlg_info = session->inv_session->dlg->local.info;
+	dlg_contact = session->inv_session->dlg->local.contact;
 	dlg_info_name_addr = (pjsip_name_addr *) dlg_info->uri;
 	dlg_info_uri = pjsip_uri_get_uri(dlg_info_name_addr);
+	dlg_contact_uri = (pjsip_sip_uri*)pjsip_uri_get_uri(dlg_contact->uri);
 
 	if (session->endpoint->id.trust_outbound || !restricted) {
 		ast_sip_modify_id_header(dlg_pool, dlg_info, &connected_id);
+		if (ast_sip_get_use_callerid_contact() && ast_strlen_zero(session->endpoint->contact_user)) {
+			pj_strdup2(dlg_pool, &dlg_contact_uri->user, S_COR(connected_id.number.valid, connected_id.number.str, ""));
+		}
 	}
 
 	ast_party_id_free(&connected_id);
@@ -815,6 +822,10 @@ static void set_from_header(struct ast_sip_session *session)
 
 		if (ast_strlen_zero(session->endpoint->fromuser)) {
 			pj_strdup2(dlg_pool, &dlg_info_uri->user, "anonymous");
+		}
+
+		if (ast_sip_get_use_callerid_contact() && ast_strlen_zero(session->endpoint->contact_user)) {
+			pj_strdup2(dlg_pool, &dlg_contact_uri->user, "anonymous");
 		}
 
 		if (ast_strlen_zero(session->endpoint->fromdomain)) {
