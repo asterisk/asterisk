@@ -604,7 +604,9 @@ static int ast_register_indication(struct ast_tone_zone *zone, const char *indic
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	if (!(ts = ao2_alloc(sizeof(*ts), ast_tone_zone_sound_destructor))) {
+	ts = ao2_alloc_options(sizeof(*ts), ast_tone_zone_sound_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!ts) {
 		return -1;
 	}
 

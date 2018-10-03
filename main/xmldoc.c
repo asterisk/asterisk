@@ -2292,7 +2292,9 @@ static struct ast_xml_doc_item *ast_xml_doc_item_alloc(const char *name, const c
 {
 	struct ast_xml_doc_item *item;
 
-	if (!(item = ao2_alloc(sizeof(*item), ast_xml_doc_item_destructor))) {
+	item = ao2_alloc_options(sizeof(*item), ast_xml_doc_item_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!item) {
 		ast_log(AST_LOG_ERROR, "Failed to allocate memory for ast_xml_doc_item instance\n");
 		return NULL;
 	}
