@@ -108,6 +108,10 @@ def process_file(options):
             else:
                 current_objects[obj]['curcount'] += int(parsed_line['delta'])
 
+            if 'destructor' in parsed_line['state']:
+                # refcounter.py doesn't care about lock-state.
+                parsed_line['state'] = '**destructor**'
+
             current_objects[obj]['log'].append(
                 "[%s] %s:%s %s: %s %s - [%s]" % (
                     parsed_line['thread_id'],
