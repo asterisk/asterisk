@@ -3,6 +3,17 @@ CIDIR=$(dirname $(readlink -fn $0))
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
 
+asterisk_corefile_glob() {
+	local pattern=$(/sbin/sysctl -n kernel.core_pattern)
+
+	# If core_pattern is a pipe there isn't much we can do
+	if [[ ${pattern:0:1} == "|" ]] ; then
+		echo "core*"
+	else
+		echo "${pattern%%%*}*"
+	fi
+}
+
 cat <<-EOF > "$ASTETCDIR/logger.conf"
 	[logfiles]
 	full => notice,warning,error,debug,verbose
@@ -69,8 +80,14 @@ runner rsync -vaH $DESTDIR/var/log/asterisk/. $OUTPUTDIR
 set +x
 
 [ x"$USER_GROUP" != x ] && sudo chown -R $USER_GROUP $OUTPUTDIR
-if [ -f core* ] ; then
-	echo "*** Found a core file after running unit tests ***"
-	$DESTDIR/var/lib/asterisk/scripts/ast_coredumper --no-default-search core*
-	exit 1
-fi
+
+for core in $(asterisk_corefile_glob)
+do
+	if [ -f $core ]
+	then
+		echo "*** Found a core file ($core) after running unit tests ***"
+		sudo OUTPUTDIR=$OUTPUTDIR $DESTDIR/var/lib/asterisk/scripts/ast_coredumper --no-default-search $core
+	fi
+done
+
+exit 0
