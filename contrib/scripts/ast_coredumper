@@ -419,8 +419,12 @@ fi
 # Extract the gdb scripts from the end of this script
 # and save them to /tmp/.gdbinit
 
+gdbinit=${OUTPUTDIR:-/tmp}/.ast_coredumper.gdbinit
+
+trap "rm $gdbinit" EXIT
+
 ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
-tail -n +${ss} $0 >${OUTPUTDIR:-/tmp}/.ast_coredumper.gdbinit
+tail -n +${ss} $0 >$gdbinit
 
 # Now iterate over the coredumps and dump the debugging info
 for i in ${!COREDUMPS[@]} ; do
@@ -431,7 +435,7 @@ for i in ${!COREDUMPS[@]} ; do
 	cfname=`basename ${cf}`
 	outputdir=${OUTPUTDIR:-${cfdir}}
 
-	${GDB} -n --batch -q --ex "source ${OUTPUTDIR:-/tmp}/.ast_coredumper.gdbinit" "$asterisk_bin" "$cf" 2>/dev/null | (
+	${GDB} -n --batch -q --ex "source $gdbinit" "$asterisk_bin" "$cf" 2>/dev/null | (
 		of=/dev/null
 		while IFS= read line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
