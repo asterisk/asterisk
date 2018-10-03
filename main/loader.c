@@ -997,14 +997,14 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 
 	if (ast_opt_lock_confdir) {
 		int try;
-		int res;
-		for (try = 1, res = AST_LOCK_TIMEOUT; try < 6 && (res == AST_LOCK_TIMEOUT); try++) {
-			res = ast_lock_path(ast_config_AST_CONFIG_DIR);
-			if (res == AST_LOCK_TIMEOUT) {
+		int lockres;
+		for (try = 1, lockres = AST_LOCK_TIMEOUT; try < 6 && (lockres == AST_LOCK_TIMEOUT); try++) {
+			lockres = ast_lock_path(ast_config_AST_CONFIG_DIR);
+			if (lockres == AST_LOCK_TIMEOUT) {
 				ast_log(LOG_WARNING, "Failed to grab lock on %s, try %d\n", ast_config_AST_CONFIG_DIR, try);
 			}
 		}
-		if (res != AST_LOCK_SUCCESS) {
+		if (lockres != AST_LOCK_SUCCESS) {
 			ast_log(AST_LOG_WARNING, "Cannot grab lock on %s\n", ast_config_AST_CONFIG_DIR);
 			res = AST_MODULE_RELOAD_ERROR;
 			goto module_reload_done;
@@ -1016,6 +1016,8 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 		if (!name || !strcasecmp(name, reload_classes[i].name)) {
 			if (reload_classes[i].reload_fn() == AST_MODULE_LOAD_SUCCESS) {
 				res = AST_MODULE_RELOAD_SUCCESS;
+			} else if (res == AST_MODULE_RELOAD_NOT_FOUND) {
+				res = AST_MODULE_RELOAD_ERROR;
 			}
 		}
 	}
@@ -1057,6 +1059,8 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 		ast_verb(3, "Reloading module '%s' (%s)\n", cur->resource, info->description);
 		if (info->reload() == AST_MODULE_LOAD_SUCCESS) {
 			res = AST_MODULE_RELOAD_SUCCESS;
+		} else if (res == AST_MODULE_RELOAD_NOT_FOUND) {
+			res = AST_MODULE_RELOAD_ERROR;
 		}
 		if (name) {
 			break;
