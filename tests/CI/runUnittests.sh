@@ -55,7 +55,7 @@ rm -rf $ASTETCDIR/extensions.{ael,lua} || :
 
 set -x
 sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
-for n in `seq 1 5` ; do
+for n in {1..5} ; do
 	sleep 3
 	$ASTERISK -rx "core waitfullybooted" -C $CONFFILE && break
 done
