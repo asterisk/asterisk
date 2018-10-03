@@ -235,8 +235,8 @@ declare -a ARGS_COREDUMPS
 
 readconf() {
 	while read line ; do
-		declare -n v=${line%%=*}
-		[ -z "${v}" ] && eval $line || :
+		v=${line%%=*}
+		[ -z "${!v}" ] && eval $line || :
 	done <<EOF
 $( sed -r -e "/\s*#/d" -e "/^\s*$/d" $1 )
 EOF
