@@ -584,7 +584,7 @@ void ast_module_register(const struct ast_module_info *info)
 
 	mod->info = info;
 	if (ast_opt_ref_debug) {
-		mod->ref_debug = ao2_t_alloc(0, NULL, info->name);
+		mod->ref_debug = ao2_t_alloc_options(0, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK, info->name);
 	}
 	AST_LIST_HEAD_INIT(&mod->users);
 	AST_VECTOR_INIT(&mod->requires, 0);
