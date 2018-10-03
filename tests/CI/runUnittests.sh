@@ -26,7 +26,7 @@ cat <<-EOF > "$ASTETCDIR/http.conf"
 	[general]
 	enabled=yes
 	bindaddr=127.0.0.1
-	port=8088
+	bindport=8088
 EOF
 
 cat <<-EOF > "$ASTETCDIR/modules.conf"
