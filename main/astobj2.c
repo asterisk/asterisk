@@ -473,6 +473,9 @@ int __ao2_ref(void *user_data, int delta,
 	int current_value;
 	int ret;
 	struct ao2_weakproxy *weakproxy = NULL;
+#ifdef DEBUG_THREADS
+	const char *lock_state;
+#endif
 
 	if (obj == NULL) {
 		if (ref_log && user_data) {
@@ -592,21 +595,33 @@ int __ao2_ref(void *user_data, int delta,
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
 		obj_mutex = INTERNAL_OBJ_MUTEX(user_data);
+#ifdef DEBUG_THREADS
+		lock_state = obj_mutex->mutex.lock.flags.setup ? "used" : "unused";
+#endif
 		ast_mutex_destroy(&obj_mutex->mutex.lock);
 
 		ast_free(obj_mutex);
 		break;
 	case AO2_ALLOC_OPT_LOCK_RWLOCK:
 		obj_rwlock = INTERNAL_OBJ_RWLOCK(user_data);
+#ifdef DEBUG_THREADS
+		lock_state = obj_rwlock->rwlock.lock.flags.setup ? "used" : "unused";
+#endif
 		ast_rwlock_destroy(&obj_rwlock->rwlock.lock);
 
 		ast_free(obj_rwlock);
 		break;
 	case AO2_ALLOC_OPT_LOCK_NOLOCK:
+#ifdef DEBUG_THREADS
+		lock_state = "none";
+#endif
 		ast_free(obj);
 		break;
 	case AO2_ALLOC_OPT_LOCK_OBJ:
 		obj_lockobj = INTERNAL_OBJ_LOCKOBJ(user_data);
+#ifdef DEBUG_THREADS
+		lock_state = "lockobj";
+#endif
 		ao2_t_ref(obj_lockobj->lockobj.lock, -1, "release lockobj");
 
 		ast_free(obj_lockobj);
@@ -614,12 +629,22 @@ int __ao2_ref(void *user_data, int delta,
 	default:
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid lock option on ao2 object %p\n", user_data);
+#ifdef DEBUG_THREADS
+		lock_state = "invalid";
+#endif
 		break;
 	}
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
-			user_data, delta, ast_get_tid(), file, line, func, tag);
+		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor%s%s**,%s\n",
+			user_data, delta, ast_get_tid(), file, line, func,
+#ifdef DEBUG_THREADS
+			"**lock-state:",
+			lock_state,
+#else
+			"", "",
+#endif
+			tag);
 		fflush(ref_log);
 	}
 
