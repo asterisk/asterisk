@@ -2066,7 +2066,15 @@ static int __ast_http_load(int reload)
 	int http_tls_was_enabled = 0;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
-	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEINVALID) {
+		return 0;
+	}
+
+	/* Even if the http.conf hasn't been updated, the TLS certs/keys may have been */
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		if (http_tls_cfg.enabled && ast_ssl_setup(https_desc.tls_cfg)) {
+			ast_tcptls_server_start(&https_desc);
+		}
 		return 0;
 	}
 
