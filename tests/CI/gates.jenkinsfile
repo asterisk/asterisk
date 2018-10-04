@@ -12,7 +12,7 @@
  */
 pipeline {
 	options {
-		timestamps
+		timestamps()
 		timeout(time: 60, unit: 'MINUTES')
 	}
 	triggers {
