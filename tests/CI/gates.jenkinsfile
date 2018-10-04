@@ -11,6 +11,10 @@
  * you can't do that in a delcarative pipeline.
  */
 pipeline {
+	options {
+		timestamps
+		timeout(time: 60, unit: 'MINUTES')
+	}
 	triggers {
 		/*
 		 * This trigger will match either the "asterisk" or "Security-asterisk"
