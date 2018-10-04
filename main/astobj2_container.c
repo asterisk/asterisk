@@ -718,6 +718,9 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 		return NULL;
 	}
 
+	/* This test is correct.  clone must be locked before calling
+	 * ao2_container_dup when the OBJ_NOLOCK flag is set, otherwise
+	 * we could have errors in __adjust_lock. */
 	if (flags & OBJ_NOLOCK) {
 		ao2_wrlock(clone);
 	}
