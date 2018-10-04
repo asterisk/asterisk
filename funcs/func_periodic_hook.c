@@ -446,7 +446,8 @@ static int unload_module(void)
 {
 	ast_context_destroy(NULL, AST_MODULE);
 
-	return ast_custom_function_unregister(&hook_function);
+	ast_custom_function_unregister(&hook_function);
+	return 0;
 }
 
 static int load_module(void)
@@ -461,32 +462,36 @@ static int load_module(void)
 	/*
 	 * Based on a handy recipe from the Asterisk Cookbook.
 	 */
-	ast_add_extension(context_name, 1, exten_name, 1, "", "",
+	res = ast_add_extension(context_name, 1, exten_name, 1, "", "",
 			"Set", "EncodedChannel=${CUT(HOOK_CHANNEL,-,1-2)}",
 			NULL, AST_MODULE);
-	ast_add_extension(context_name, 1, exten_name, 2, "", "",
+	res |= ast_add_extension(context_name, 1, exten_name, 2, "", "",
 			"Set", "GROUP_NAME=${EncodedChannel}${HOOK_ID}",
 			NULL, AST_MODULE);
-	ast_add_extension(context_name, 1, exten_name, 3, "", "",
+	res |= ast_add_extension(context_name, 1, exten_name, 3, "", "",
 			"Set", "GROUP(periodic-hook)=${GROUP_NAME}",
 			NULL, AST_MODULE);
-	ast_add_extension(context_name, 1, exten_name, 4, "", "", "ExecIf",
+	res |= ast_add_extension(context_name, 1, exten_name, 4, "", "", "ExecIf",
 			"$[${GROUP_COUNT(${GROUP_NAME}@periodic-hook)} > 1]?Hangup()",
 			NULL, AST_MODULE);
-	ast_add_extension(context_name, 1, exten_name, 5, "", "",
+	res |= ast_add_extension(context_name, 1, exten_name, 5, "", "",
 			"Set", "ChannelToSpy=${URIDECODE(${EncodedChannel})}",
 			NULL, AST_MODULE);
-	ast_add_extension(context_name, 1, exten_name, 6, "", "",
+	res |= ast_add_extension(context_name, 1, exten_name, 6, "", "",
 			"ChanSpy", "${ChannelToSpy},qEB", NULL, AST_MODULE);
 
-	res = ast_add_extension(context_name, 1, beep_exten, 1, "", "",
+	res |= ast_add_extension(context_name, 1, beep_exten, 1, "", "",
 			"Answer", "", NULL, AST_MODULE);
 	res |= ast_add_extension(context_name, 1, beep_exten, 2, "", "",
 			"Playback", "beep", NULL, AST_MODULE);
 
-	res = ast_custom_function_register_escalating(&hook_function, AST_CFE_BOTH);
+	res |= ast_custom_function_register_escalating(&hook_function, AST_CFE_BOTH);
 
-	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 int AST_OPTIONAL_API_NAME(ast_beep_start)(struct ast_channel *chan,
