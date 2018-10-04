@@ -169,8 +169,8 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean 2&>/dev/null || : "
-			sh "sudo rm -rf tests/CI/output 2&>/dev/null || : "
+			sh "sudo make distclean >/dev/null 2>&1 || : "
+			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back
