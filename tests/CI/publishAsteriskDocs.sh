@@ -1,7 +1,7 @@
+#!/usr/bin/env bash
 #
 # Publish Asterisk documentation to the wiki
 #
-#!/usr/bin/env bash
 CIDIR=$(dirname $(readlink -fn $0))
 source $CIDIR/ci.functions
 ASTETCDIR=$DESTDIR/etc/asterisk
@@ -113,7 +113,7 @@ ${OUTPUTDIR}/publish-rest-api.py --username="${CONFLUENCE_USER}" \
 rm -f ${OUTPUTDIR}/full-en_US.xml
 
 sudo $ASTERISK ${USER_GROUP:+-U ${USER_GROUP%%:*} -G ${USER_GROUP##*:}} -gn -C $CONFFILE
-for n in `seq 1 5` ; do
+for n in {1..5} ; do
 	sleep 3
 	$ASTERISK -rx "core waitfullybooted" -C $CONFFILE && break
 done
