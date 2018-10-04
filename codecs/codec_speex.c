@@ -689,39 +689,37 @@ static int reload(void)
 
 static int unload_module(void)
 {
-	int res = 0;
+	ast_unregister_translator(&speextolin);
+	ast_unregister_translator(&lintospeex);
+	ast_unregister_translator(&speexwbtolin16);
+	ast_unregister_translator(&lin16tospeexwb);
+	ast_unregister_translator(&speexuwbtolin32);
+	ast_unregister_translator(&lin32tospeexuwb);
 
-	res |= ast_unregister_translator(&speextolin);
-	res |= ast_unregister_translator(&lintospeex);
-	res |= ast_unregister_translator(&speexwbtolin16);
-	res |= ast_unregister_translator(&lin16tospeexwb);
-	res |= ast_unregister_translator(&speexuwbtolin32);
-	res |= ast_unregister_translator(&lin32tospeexuwb);
-
-
-	return res;
+	return 0;
 }
 
 static int load_module(void)
 {
 	int res = 0;
 
-	if (parse_config(0))
+	if (parse_config(0)) {
 		return AST_MODULE_LOAD_DECLINE;
+	}
 
+	/* XXX It is most likely a bug in this module if we fail to register a translator */
 	res |= ast_register_translator(&speextolin);
 	res |= ast_register_translator(&lintospeex);
 	res |= ast_register_translator(&speexwbtolin16);
 	res |= ast_register_translator(&lin16tospeexwb);
 	res |= ast_register_translator(&speexuwbtolin32);
 	res |= ast_register_translator(&lin32tospeexuwb);
-
 	if (res) {
 		unload_module();
-		return res;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",
