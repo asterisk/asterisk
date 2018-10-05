@@ -339,9 +339,25 @@ static int load_module(void)
 		"", OPT_CHAR_ARRAY_T, 0,
 		CHARFLDSET(struct conf_global_options, prefix));
 
-	if (aco_process_config(&cfg_info, 0)) {
-		aco_info_destroy(&cfg_info);
-		return AST_MODULE_LOAD_DECLINE;
+	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
+		struct conf *cfg;
+
+		ast_log(LOG_NOTICE, "Could not load statsd config; using defaults\n");
+		cfg = conf_alloc();
+		if (!cfg) {
+			aco_info_destroy(&cfg_info);
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
+		if (aco_set_defaults(&global_option, "general", cfg->global)) {
+			ast_log(LOG_ERROR, "Failed to initialize statsd defaults.\n");
+			ao2_ref(cfg, -1);
+			aco_info_destroy(&cfg_info);
+			return AST_MODULE_LOAD_DECLINE;
+		}
+
+		ao2_global_obj_replace_unref(confs, cfg);
+		ao2_ref(cfg, -1);
 	}
 
 	if (!is_enabled()) {
