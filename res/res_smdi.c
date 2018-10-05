@@ -223,10 +223,12 @@ static struct {
 static void smdi_interface_destroy(void *obj)
 {
 	struct ast_smdi_interface *iface = obj;
+	int mod_unref_defer = 0;
 
 	if (iface->thread != AST_PTHREADT_NULL && iface->thread != AST_PTHREADT_STOP) {
 		pthread_cancel(iface->thread);
 		pthread_join(iface->thread, NULL);
+		mod_unref_defer = 1;
 	}
 
 	iface->thread = AST_PTHREADT_STOP;
@@ -243,9 +245,9 @@ static void smdi_interface_destroy(void *obj)
 	ast_mutex_destroy(&iface->mwi_q_lock);
 	ast_cond_destroy(&iface->mwi_q_cond);
 
-	ast_free(iface);
-
-	ast_module_unref(ast_module_info->self);
+	if (mod_unref_defer) {
+		ast_module_unref(ast_module_info->self);
+	}
 }
 
 /*!
@@ -608,7 +610,6 @@ static void *smdi_read(void *iface_p)
 
 			md_msg = ao2_alloc(sizeof(*md_msg), NULL);
 			if (!md_msg) {
-				ao2_ref(iface, -1);
 				return NULL;
 			}
 
@@ -618,7 +619,6 @@ static void *smdi_read(void *iface_p)
 				if (c == EOF) {
 					ast_log(LOG_ERROR, "Unexpected EOF while reading MD message\n");
 					ao2_ref(md_msg, -1);
-					ao2_ref(iface, -1);
 					return NULL;
 				}
 				md_msg->mesg_desk_num[i] = (char) c;
@@ -635,7 +635,6 @@ static void *smdi_read(void *iface_p)
 				if (c == EOF) {
 					ast_log(LOG_ERROR, "Unexpected EOF while reading SMDI message\n");
 					ao2_ref(md_msg, -1);
-					ao2_ref(iface, -1);
 					return NULL;
 				}
 				md_msg->mesg_desk_term[i] = (char) c;
@@ -651,7 +650,6 @@ static void *smdi_read(void *iface_p)
 			if (c == EOF) {
 				ast_log(LOG_ERROR, "Unexpected EOF while reading SMDI message\n");
 				ao2_ref(md_msg, -1);
-				ao2_ref(iface, -1);
 				return NULL;
 			}
 			md_msg->type = (char) c;
@@ -730,7 +728,6 @@ static void *smdi_read(void *iface_p)
 
 			mwi_msg = ao2_alloc(sizeof(*mwi_msg), NULL);
 			if (!mwi_msg) {
-				ao2_ref(iface, -1);
 				return NULL;
 			}
 
@@ -764,7 +761,6 @@ static void *smdi_read(void *iface_p)
 				if (c == EOF) {
 					ast_log(LOG_ERROR, "Unexpected EOF while reading MWI message\n");
 					ao2_ref(mwi_msg, -1);
-					ao2_ref(iface, -1);
 					return NULL;
 				}
 				mwi_msg->cause[i] = (char) c;
@@ -785,7 +781,6 @@ static void *smdi_read(void *iface_p)
 	}
 
 	ast_log(LOG_ERROR, "Error reading from SMDI interface %s, stopping listener thread\n", iface->name);
-	ao2_ref(iface, -1);
 	return NULL;
 }
 
@@ -982,6 +977,11 @@ static int smdi_load(int reload)
 		return 0;
 
 	new_ifaces = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, smdi_ifaces_cmp_fn);
+	if (!new_ifaces) {
+		ast_config_destroy(conf);
+		return -1;
+	}
+
 	for (v = ast_variable_browse(conf, "interfaces"); v; v = v->next) {
 		RAII_VAR(struct ast_smdi_interface *, iface, NULL, ao2_cleanup);
 
@@ -1104,7 +1104,13 @@ static int smdi_load(int reload)
 			/* set the message expiry time */
 			iface->msg_expiry = msg_expiry;
 
-			/* start the listener thread */
+			/*
+			 * start the listener thread
+			 *
+			 * The listener thread does not actually hold a ref to iface.  When all
+			 * external refs go away, the destructor will stop the listener thread
+			 * before actually destroying the iface object.
+			 */
 			ast_verb(3, "Starting SMDI monitor thread for %s\n", iface->name);
 			if (ast_pthread_create_background(&iface->thread, NULL, smdi_read, iface)) {
 				ast_log(LOG_ERROR, "Error starting SMDI monitor thread for %s\n", iface->name);
@@ -1154,7 +1160,7 @@ static int smdi_load(int reload)
 		return -1;
 	}
 
-	if (ao2_container_count(new_ifaces)) {
+	if (!ao2_container_count(new_ifaces)) {
 		res = 1;
 	}
 
