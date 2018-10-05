@@ -69,6 +69,9 @@ enum ast_logger_results {
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
 
+void ast_log_ap(int level, const char *file, int line, const char *function, const char *fmt, va_list ap)
+	 __attribute__((format(printf, 5, 0)));
+
 /*!
  * \brief Used for sending a log message with protection against recursion.
  *

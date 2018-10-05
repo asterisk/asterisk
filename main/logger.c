@@ -2004,18 +2004,24 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	ast_callid callid;
 	va_list ap;
+
+	va_start(ap, fmt);
+	ast_log_ap(level, file, line, function, fmt, ap);
+	va_end(ap);
+}
+
+void ast_log_ap(int level, const char *file, int line, const char *function, const char *fmt, va_list ap)
+{
+	ast_callid callid;
 
 	callid = ast_read_threadstorage_callid();
 
-	va_start(ap, fmt);
 	if (level == __LOG_VERBOSE) {
 		__ast_verbose_ap(file, line, function, 0, callid, fmt, ap);
 	} else {
 		ast_log_full(level, -1, file, line, function, callid, fmt, ap);
 	}
-	va_end(ap);
 }
 
 void ast_log_safe(int level, const char *file, int line, const char *function, const char *fmt, ...)
