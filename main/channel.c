@@ -4678,7 +4678,8 @@ int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 		&& (ast_strlen_zero(content_type) || ast_begins_with(content_type, "text/"))
 		&& (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
 		struct ast_frame f;
-		size_t body_len = strlen(body) + 1;
+		/* T.140 payload does not include the null byte terminator */
+		size_t body_len = strlen(body);
 
 		/* Process as T.140 text (moved here from ast_sendtext() */
 		memset(&f, 0, sizeof(f));
