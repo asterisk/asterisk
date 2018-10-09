@@ -25684,7 +25684,13 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 		}
 		ao2_ref(bridge, -1);
 	} else {
-		ast_channel_move(replaces_chan, c);
+		int pickedup;
+		ast_channel_lock(replaces_chan);
+		pickedup = ast_can_pickup(replaces_chan) && !ast_do_pickup(c, replaces_chan);
+		ast_channel_unlock(replaces_chan);
+		if (!pickedup) {
+			ast_channel_move(replaces_chan, c);
+		}
 		ast_hangup(c);
 	}
 	ast_channel_unref(c);
