@@ -1545,7 +1545,9 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 	}
 
 	if (!mod->info->load) {
-		return AST_MODULE_LOAD_FAILURE;
+		mod->flags.declined = 1;
+
+		return mod->flags.required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (module_deps_reference(mod, NULL)) {
@@ -1593,6 +1595,8 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 		}
 		break;
 	case AST_MODULE_LOAD_FAILURE:
+		mod->flags.declined = 1;
+		break;
 	case AST_MODULE_LOAD_SKIP: /* modules should never return this value */
 	case AST_MODULE_LOAD_PRIORITY:
 		break;
