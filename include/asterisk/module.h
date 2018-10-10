@@ -66,11 +66,40 @@ enum ast_module_unload_mode {
 };
 
 enum ast_module_load_result {
-	AST_MODULE_LOAD_SUCCESS = 0,    /*!< Module loaded and configured */
-	AST_MODULE_LOAD_DECLINE = 1,    /*!< Module is not configured */
-	AST_MODULE_LOAD_SKIP = 2,       /*!< Module was skipped for some reason (For loader.c use only. Should never be returned by modules)*/
-	AST_MODULE_LOAD_PRIORITY = 3,   /*!< Module is not loaded yet, but is added to priority list */
-	AST_MODULE_LOAD_FAILURE = -1,   /*!< Module could not be loaded properly */
+	/*! Module is loaded and configured. */
+	AST_MODULE_LOAD_SUCCESS = 0,
+	/*!
+	 * \brief Module has failed to load, may be in an inconsistent state.
+	 *
+	 * This value is used when a module fails to start but does not risk
+	 * system-wide stability.  Declined modules will prevent any other
+	 * dependent module from starting.
+	 */
+	AST_MODULE_LOAD_DECLINE = 1,
+	/*! \internal
+	 * \brief Module was skipped for some reason.
+	 *
+	 * \note For loader.c use only. Should never be returned by modules.
+	 */
+	AST_MODULE_LOAD_SKIP = 2,
+	/*! \internal
+	 * \brief Module is not loaded yet, but is added to priority list.
+	 *
+	 * \note For loader.c use only. Should never be returned by modules.
+	 */
+	AST_MODULE_LOAD_PRIORITY = 3,
+	/*!
+	 * \brief Module could not be loaded properly.
+	 *
+	 * This return should only be returned by modules for unrecoverable
+	 * failures that cause the whole system to become unstable.  In almost
+	 * all cases \ref AST_MODULE_LOAD_DECLINE should be used instead.
+	 *
+	 * \warning Returning this code from any module will cause startup to abort.
+	 * If startup is already completed this code has the same effect as
+	 * \ref AST_MODULE_LOAD_DECLINE.
+	 */
+	AST_MODULE_LOAD_FAILURE = -1,
 };
 
 /*!
