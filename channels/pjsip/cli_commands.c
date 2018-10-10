@@ -169,9 +169,8 @@ static int cli_channelstats_compare(void *obj, void *arg, int flags)
 
 static int cli_message_to_snapshot(void *obj, void *arg, int flags)
 {
-	struct stasis_message *message = obj;
+	struct ast_channel_snapshot *snapshot = obj;
 	struct ao2_container *snapshots = arg;
-	struct ast_channel_snapshot *snapshot = stasis_message_data(message);
 
 	if (!strcmp(snapshot->type, "PJSIP")) {
 		ao2_link(snapshots, snapshot);
@@ -198,8 +197,7 @@ static struct ao2_container *get_container(const char *regex, ao2_sort_fn sort_f
 {
 	struct ao2_container *child_container;
 	regex_t regexbuf;
-	RAII_VAR(struct ao2_container *, parent_container,
-		stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()), ao2_cleanup);
+	RAII_VAR(struct ao2_container *, parent_container, ast_channel_cache_by_name(), ao2_cleanup);
 
 	if (!parent_container) {
 		return NULL;

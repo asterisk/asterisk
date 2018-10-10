@@ -528,17 +528,14 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 	char *uniqueid = obj;
 	struct mansession *s = arg;
 	struct bridge_list_data *list_data = data;
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_channel_snapshot *snapshot;
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
 
-	msg = stasis_cache_get(ast_channel_cache(),
-		ast_channel_snapshot_type(), uniqueid);
-	if (!msg) {
+	snapshot = ast_channel_snapshot_get_latest(uniqueid);
+	if (!snapshot) {
 		return 0;
 	}
 
-	snapshot = stasis_message_data(msg);
 	if (snapshot->tech_properties & AST_CHAN_TP_INTERNAL) {
 		return 0;
 	}

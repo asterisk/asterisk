@@ -1849,7 +1849,9 @@ static void aoc_publish_blob(struct ast_channel *chan, struct stasis_message_typ
 	}
 
 	if (chan) {
-		aoc_event->snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
+		ast_channel_lock(chan);
+		aoc_event->snapshot = ao2_bump(ast_channel_snapshot(chan));
+		ast_channel_unlock(chan);
 		if (!aoc_event->snapshot) {
 			ao2_ref(aoc_event, -1);
 			return;

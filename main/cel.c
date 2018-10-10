@@ -888,14 +888,6 @@ static void cel_channel_state_change(
 {
 	int is_hungup, was_hungup;
 
-	if (!new_snapshot) {
-		cel_report_event(old_snapshot, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
-		if (ast_cel_track_event(AST_CEL_LINKEDID_END)) {
-			check_retire_linkedid(old_snapshot);
-		}
-		return;
-	}
-
 	if (!old_snapshot) {
 		cel_report_event(new_snapshot, AST_CEL_CHANNEL_START, NULL, NULL, NULL);
 		return;
@@ -915,6 +907,11 @@ static void cel_channel_state_change(
 		cel_report_event(new_snapshot, AST_CEL_HANGUP, NULL, extra, NULL);
 		ast_json_unref(extra);
 		ao2_cleanup(dialstatus);
+
+		cel_report_event(new_snapshot, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
+		if (ast_cel_track_event(AST_CEL_LINKEDID_END)) {
+			check_retire_linkedid(new_snapshot);
+		}
 		return;
 	}
 
@@ -928,7 +925,7 @@ static void cel_channel_linkedid_change(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
-	if (!old_snapshot || !new_snapshot) {
+	if (!old_snapshot) {
 		return;
 	}
 
@@ -946,8 +943,7 @@ static void cel_channel_app_change(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
-	if (new_snapshot && old_snapshot
-		&& !strcmp(old_snapshot->appl, new_snapshot->appl)) {
+	if (old_snapshot && !strcmp(old_snapshot->appl, new_snapshot->appl)) {
 		return;
 	}
 
@@ -957,7 +953,7 @@ static void cel_channel_app_change(
 	}
 
 	/* new snapshot has an application, start it */
-	if (new_snapshot && !ast_strlen_zero(new_snapshot->appl)) {
+	if (!ast_strlen_zero(new_snapshot->appl)) {
 		cel_report_event(new_snapshot, AST_CEL_APP_START, NULL, NULL, NULL);
 	}
 }
@@ -984,22 +980,15 @@ static int cel_filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	struct stasis_cache_update *update = stasis_message_data(message);
-	if (ast_channel_snapshot_type() == update->type) {
-		struct ast_channel_snapshot *old_snapshot;
-		struct ast_channel_snapshot *new_snapshot;
-		size_t i;
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
+	size_t i;
 
-		old_snapshot = stasis_message_data(update->old_snapshot);
-		new_snapshot = stasis_message_data(update->new_snapshot);
+	if (cel_filter_channel_snapshot(update->old_snapshot) || cel_filter_channel_snapshot(update->new_snapshot)) {
+		return;
+	}
 
-		if (cel_filter_channel_snapshot(old_snapshot) || cel_filter_channel_snapshot(new_snapshot)) {
-			return;
-		}
-
-		for (i = 0; i < ARRAY_LEN(cel_channel_monitors); ++i) {
-			cel_channel_monitors[i](old_snapshot, new_snapshot);
-		}
+	for (i = 0; i < ARRAY_LEN(cel_channel_monitors); ++i) {
+		cel_channel_monitors[i](update->old_snapshot, update->new_snapshot);
 	}
 }
 
@@ -1453,7 +1442,7 @@ static int create_subscriptions(void)
 	}
 
 	cel_channel_forwarder = stasis_forward_all(
-		ast_channel_topic_all_cached(),
+		ast_channel_topic_all(),
 		cel_aggregation_topic);
 	if (!cel_channel_forwarder) {
 		return -1;
@@ -1498,7 +1487,7 @@ static int create_routes(void)
 		6 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	ret |= stasis_message_router_add(cel_state_router,
-		stasis_cache_update_type(),
+		ast_channel_snapshot_type(),
 		cel_snapshot_update_cb,
 		NULL);
 

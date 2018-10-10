@@ -148,6 +148,15 @@ extern "C" {
 #define AST_MAX_PUBLIC_UNIQUEID 149
 
 /*!
+ * The number of buckets to store channels or channel information
+ */
+#ifdef LOW_MEMORY
+#define AST_NUM_CHANNEL_BUCKETS 61
+#else
+#define AST_NUM_CHANNEL_BUCKETS 1567
+#endif
+
+/*!
  * Maximum size of an internal Asterisk channel unique ID.
  *
  * \details
@@ -2650,6 +2659,17 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
 void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel *b);
 
 /*!
+ * \brief Swap snapshots beteween two channels
+ * \param a First channel
+ * \param b Second channel
+ * \return void
+ *
+ * \note
+ * This is used in masquerade to exchange snapshots
+ */
+void ast_channel_internal_swap_snapshots(struct ast_channel *a, struct ast_channel *b);
+
+/*!
  * \brief Set uniqueid and linkedid string value only (not time)
  * \param chan The channel to set the uniqueid to
  * \param uniqueid The uniqueid to set
@@ -4236,6 +4256,8 @@ enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
 ast_callid ast_channel_callid(const struct ast_channel *chan);
+struct ast_channel_snapshot *ast_channel_snapshot(const struct ast_channel *chan);
+void ast_channel_snapshot_set(struct ast_channel *chan, struct ast_channel_snapshot *snapshot);
 
 /*!
  * \pre chan is locked
@@ -4560,21 +4582,6 @@ struct varshead *ast_channel_get_vars(struct ast_channel *chan);
  * \retval ast_channel_topic_all() if \a chan is \c NULL.
  */
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan);
-
-/*!
- * \since 12
- * \brief A topic which publishes the events for a particular channel.
- *
- * \ref ast_channel_snapshot messages are replaced with \ref stasis_cache_update
- *
- * If the given \a chan is \c NULL, ast_channel_topic_all_cached() is returned.
- *
- * \param chan Channel, or \c NULL.
- *
- * \retval Topic for channel's events.
- * \retval ast_channel_topic_all() if \a chan is \c NULL.
- */
-struct stasis_topic *ast_channel_topic_cached(struct ast_channel *chan);
 
 /*!
  * \brief Get the bridge associated with a channel

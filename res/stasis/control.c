@@ -773,22 +773,7 @@ void stasis_app_control_silence_stop(struct stasis_app_control *control)
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	const struct stasis_app_control *control)
 {
-	struct stasis_message *msg;
-	struct ast_channel_snapshot *snapshot;
-
-	msg = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
-		stasis_app_control_get_channel_id(control));
-	if (!msg) {
-		return NULL;
-	}
-
-	snapshot = stasis_message_data(msg);
-	ast_assert(snapshot != NULL);
-
-	ao2_ref(snapshot, +1);
-	ao2_ref(msg, -1);
-
-	return snapshot;
+	return ast_channel_snapshot_get_latest(stasis_app_control_get_channel_id(control));
 }
 
 static int app_send_command_on_condition(struct stasis_app_control *control,

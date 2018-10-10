@@ -6250,7 +6250,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	int numchans = 0;
 	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
-	struct stasis_message *msg;
+	struct ast_channel_snapshot *cs;
 
 	if (!ast_strlen_zero(actionid)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
@@ -6258,17 +6258,12 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		idText[0] = '\0';
 	}
 
-	channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type());
-	if (!channels) {
-		astman_send_error(s, m, "Could not get cached channels");
-		return 0;
-	}
+	channels = ast_channel_cache_by_name();
 
 	astman_send_listack(s, m, "Channels will follow", "start");
 
 	it_chans = ao2_iterator_init(channels, 0);
-	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
-		struct ast_channel_snapshot *cs = stasis_message_data(msg);
+	for (; (cs = ao2_iterator_next(&it_chans)); ao2_ref(cs, -1)) {
 		struct ast_str *built = ast_manager_build_channel_state_string_prefix(cs, "");
 		char durbuf[16] = "";
 

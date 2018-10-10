@@ -76,6 +76,23 @@ struct ast_channel_snapshot {
 };
 
 /*!
+ * \since 17
+ * \brief Structure representing a change of snapshot of channel state.
+ *
+ * While not enforced programmatically, this object is shared across multiple
+ * threads, and should be treated as an immutable object.
+ *
+ * \note This structure will not have a transition of an old snapshot with no
+ * new snapshot to indicate that a channel has gone away. A new snapshot will
+ * always exist and a channel going away can be determined by checking for the
+ * AST_FLAG_DEAD flag on the new snapshot.
+ */
+struct ast_channel_snapshot_update {
+	struct ast_channel_snapshot *old_snapshot; /*!< The old channel snapshot */
+	struct ast_channel_snapshot *new_snapshot; /*!< The new channel snapshot */
+};
+
+/*!
  * \since 12
  * \brief Blob of data associated with a channel.
  *
@@ -94,7 +111,7 @@ struct ast_channel_blob {
  */
 struct ast_multi_channel_blob;
 
-struct stasis_cp_all *ast_channel_cache_all(void);
+struct ao2_container *ast_channel_cache_all(void);
 
 /*!
  * \since 12
@@ -105,34 +122,17 @@ struct stasis_topic *ast_channel_topic_all(void);
 
 /*!
  * \since 12
- * \brief A caching topic which caches \ref ast_channel_snapshot messages from
- * ast_channel_events_all(void).
- *
- * \retval Topic for all channel events.
- */
-struct stasis_topic *ast_channel_topic_all_cached(void);
-
-/*!
- * \since 12
- * \brief Primary channel cache, indexed by Uniqueid.
- *
- * \retval Cache of \ref ast_channel_snapshot.
- */
-struct stasis_cache *ast_channel_cache(void);
-
-/*!
- * \since 12
  * \brief Secondary channel cache, indexed by name.
  *
  * \retval Cache of \ref ast_channel_snapshot.
  */
-struct stasis_cache *ast_channel_cache_by_name(void);
+struct ao2_container *ast_channel_cache_by_name(void);
 
 /*!
  * \since 12
- * \brief Message type for \ref ast_channel_snapshot.
+ * \brief Message type for \ref ast_channel_snapshot_update.
  *
- * \retval Message type for \ref ast_channel_snapshot.
+ * \retval Message type for \ref ast_channel_snapshot_update.
  */
 struct stasis_message_type *ast_channel_snapshot_type(void);
 
@@ -174,6 +174,18 @@ struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniquei
  * \retval NULL on error
  */
 struct ast_channel_snapshot *ast_channel_snapshot_get_latest_by_name(const char *name);
+
+/*!
+ * \since 17
+ * \brief Send the final channel snapshot for a channel, thus removing it from cache
+ *
+ * \pre chan is locked
+ *
+ * \param chan The channel to send the final channel snapshot for
+ *
+ * \note This will also remove the cached snapshot from the channel itself
+ */
+void ast_channel_publish_final_snapshot(struct ast_channel *chan);
 
 /*!
  * \since 12
@@ -302,6 +314,8 @@ void ast_multi_channel_blob_add_channel(struct ast_multi_channel_blob *obj,
  * \param chan Channel publishing the blob.
  * \param type Type of stasis message.
  * \param blob The blob being published. (NULL if no blob)
+ *
+ * \note This will use the current snapshot on the channel and will not generate a new one.
  *
  * \return Nothing
  */
@@ -556,17 +570,6 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller,
 		const char *dialstring,
 		const char *dialstatus,
 		const char *forward);
-
-/*!
- * \since 12
- * \brief Publish in the \ref ast_channel_topic a \ref ast_channel_snapshot
- * message indicating a change in channel state
- *
- * \pre chan is locked
- *
- * \param chan The channel whose state has changed
- */
-void ast_publish_channel_state(struct ast_channel *chan);
 
 /*! @} */
 

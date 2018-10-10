@@ -3182,13 +3182,13 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 		ast_agi_send(agi->fd, chan, "200 result=%u\n", ast_channel_state(chan));
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
-		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+		struct ast_channel_snapshot *snapshot;
 
 		/* one argument: look for info on the specified channel */
-		if ((msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), argv[2]))) {
-			struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
-
+		snapshot = ast_channel_snapshot_get_latest_by_name(argv[2]);
+		if (snapshot) {
 			ast_agi_send(agi->fd, chan, "200 result=%u\n", snapshot->state);
+			ao2_ref(snapshot, -1);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */

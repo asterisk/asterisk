@@ -116,12 +116,6 @@ struct chanlist {
 /*! \brief the list of registered channel types */
 static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 
-#ifdef LOW_MEMORY
-#define NUM_CHANNEL_BUCKETS 61
-#else
-#define NUM_CHANNEL_BUCKETS 1567
-#endif
-
 /*! \brief All active channels on the system */
 static struct ao2_container *channels;
 
@@ -633,38 +627,6 @@ int ast_str2cause(const char *name)
 			return causes[x].cause;
 
 	return -1;
-}
-
-static struct stasis_message *create_channel_snapshot_message(struct ast_channel *channel)
-{
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-
-	if (!ast_channel_snapshot_type()) {
-		return NULL;
-	}
-
-	ast_channel_lock(channel);
-	snapshot = ast_channel_snapshot_create(channel);
-	ast_channel_unlock(channel);
-	if (!snapshot) {
-		return NULL;
-	}
-
-	return stasis_message_create(ast_channel_snapshot_type(), snapshot);
-}
-
-static void publish_cache_clear(struct ast_channel *chan)
-{
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, clear_msg, NULL, ao2_cleanup);
-
-	clear_msg = create_channel_snapshot_message(chan);
-	if (!clear_msg) {
-		return;
-	}
-
-	message = stasis_cache_clear_create(clear_msg);
-	stasis_publish(ast_channel_topic(chan), message);
 }
 
 /*! \brief Gives the string form of a given channel state.
@@ -1236,7 +1198,9 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 				     "musicclass", musicclass);
 	}
 
-	ast_channel_publish_cached_blob(chan, ast_channel_hold_type(), blob);
+	ast_channel_lock(chan);
+	ast_channel_publish_blob(chan, ast_channel_hold_type(), blob);
+	ast_channel_unlock(chan);
 
 	res = ast_queue_frame(chan, &f);
 
@@ -1250,7 +1214,9 @@ int ast_queue_unhold(struct ast_channel *chan)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_UNHOLD };
 	int res;
 
-	ast_channel_publish_cached_blob(chan, ast_channel_unhold_type(), NULL);
+	ast_channel_lock(chan);
+	ast_channel_publish_blob(chan, ast_channel_unhold_type(), NULL);
+	ast_channel_unlock(chan);
 
 	res = ast_queue_frame(chan, &f);
 
@@ -2230,9 +2196,8 @@ static void ast_channel_destructor(void *obj)
 		ast_assert(!ast_test_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE));
 
 		ast_channel_lock(chan);
-		ast_channel_publish_snapshot(chan);
+		ast_channel_publish_final_snapshot(chan);
 		ast_channel_unlock(chan);
-		publish_cache_clear(chan);
 	}
 
 	ast_channel_lock(chan);
@@ -3344,7 +3309,7 @@ static void send_dtmf_begin_event(struct ast_channel *chan,
 		return;
 	}
 
-	ast_channel_publish_cached_blob(chan, ast_channel_dtmf_begin_type(), blob);
+	ast_channel_publish_blob(chan, ast_channel_dtmf_begin_type(), blob);
 }
 
 static void send_dtmf_end_event(struct ast_channel *chan,
@@ -3361,7 +3326,7 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 		return;
 	}
 
-	ast_channel_publish_cached_blob(chan, ast_channel_dtmf_end_type(), blob);
+	ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), blob);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -6819,6 +6784,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Make sure the Stasis topic on the channel is updated appropriately */
 	ast_channel_internal_swap_topics(clonechan, original);
 
+	/* The old snapshots need to follow the channels so the snapshot update is correct */
+	ast_channel_internal_swap_snapshots(clonechan, original);
+
 	/* Swap channel names. This uses ast_channel_name_set directly, so we
 	 * don't get any spurious rename events.
 	 */
@@ -7246,7 +7214,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 
 	ast_channel_state_set(chan, state);
 
-	ast_publish_channel_state(chan);
+	ast_channel_publish_snapshot(chan);
 
 	/* We have to pass AST_DEVICE_UNKNOWN here because it is entirely possible that the channel driver
 	 * for this channel is using the callback method for device state. If we pass in an actual state here
@@ -7856,7 +7824,7 @@ static void channels_shutdown(void)
 
 int ast_channels_init(void)
 {
-	channels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NUM_CHANNEL_BUCKETS,
+	channels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, AST_NUM_CHANNEL_BUCKETS,
 		ast_channel_hash_cb, NULL, ast_channel_cmp_cb);
 	if (!channels) {
 		return -1;

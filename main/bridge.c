@@ -5150,16 +5150,15 @@ static int bridge_show_specific_print_channel(void *obj, void *arg, int flags)
 {
 	const char *uniqueid = obj;
 	struct ast_cli_args *a = arg;
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_channel_snapshot *snapshot;
 
-	msg = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(), uniqueid);
-	if (!msg) {
+	snapshot = ast_channel_snapshot_get_latest(uniqueid);
+	if (!snapshot) {
 		return 0;
 	}
-	snapshot = stasis_message_data(msg);
 
 	ast_cli(a->fd, "Channel: %s\n", snapshot->name);
+	ao2_ref(snapshot, -1);
 
 	return 0;
 }

@@ -783,7 +783,7 @@ int manager_confbridge_init(void)
 	}
 
 	channel_state_router = stasis_message_router_create(
-		ast_channel_topic_all_cached());
+		ast_channel_topic_all());
 
 	if (!channel_state_router) {
 		manager_confbridge_shutdown();

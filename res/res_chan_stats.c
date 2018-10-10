@@ -78,7 +78,7 @@ static void statsmaker(void *data, struct stasis_subscription *sub,
 }
 
 /*!
- * \brief Router callback for \ref stasis_cache_update messages.
+ * \brief Router callback for \ref ast_channel_snapshot_update messages.
  * \param data Data pointer given when added to router.
  * \param sub This subscription.
  * \param topic The topic the message was posted to. This is not necessarily the
@@ -92,34 +92,25 @@ static void updates(void *data, struct stasis_subscription *sub,
 	/* Since this came from a message router, we know the type of the
 	 * message. We can cast the data without checking its type.
 	 */
-	struct stasis_cache_update *update = stasis_message_data(message);
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
 
-	/* We're only interested in channel snapshots, so check the type
-	 * of the underlying message.
-	 */
-	if (ast_channel_snapshot_type() != update->type) {
-		return;
-	}
-
-	/* There are three types of cache updates.
-	 * !old && new -> Initial cache entry
-	 * old && new -> Updated cache entry
-	 * old && !new -> Cache entry removed.
+	/* There are three types of channel snapshot updates.
+	 * !old && new -> Initial channel creation
+	 * old && new -> Updated channel snapshot
+	 * old && dead -> Final channel snapshot
 	 */
 
 	if (!update->old_snapshot && update->new_snapshot) {
-		/* Initial cache entry; count a channel creation */
+		/* Initial channel snapshot; count a channel creation */
 		ast_statsd_log_string("channels.count", AST_STATSD_GAUGE, "+1", 1.0);
-	} else if (update->old_snapshot && !update->new_snapshot) {
-		/* Cache entry removed. Compute the age of the channel and post
+	} else if (update->old_snapshot && ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
+		/* Channel is gone. Compute the age of the channel and post
 		 * that, as well as decrementing the channel count.
 		 */
-		struct ast_channel_snapshot *last;
 		int64_t age;
 
-		last = stasis_message_data(update->old_snapshot);
 		age = ast_tvdiff_ms(*stasis_message_timestamp(message),
-			last->creationtime);
+			update->new_snapshot->creationtime);
 		ast_statsd_log("channels.calltime", AST_STATSD_TIMER, age);
 
 		/* And decrement the channel count */
@@ -161,11 +152,11 @@ static int load_module(void)
 {
 	/* You can create a message router to route messages by type */
 	router = stasis_message_router_create(
-		ast_channel_topic_all_cached());
+		ast_channel_topic_all());
 	if (!router) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	stasis_message_router_add(router, stasis_cache_update_type(),
+	stasis_message_router_add(router, ast_channel_snapshot_type(),
 		updates, NULL);
 	stasis_message_router_set_default(router, default_route, NULL);
 

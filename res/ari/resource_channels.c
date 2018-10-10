@@ -833,32 +833,19 @@ void ast_ari_channels_get(struct ast_variable *headers,
 	struct ast_ari_channels_get_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct stasis_cache *cache;
 	struct ast_channel_snapshot *snapshot;
 
-	cache = ast_channel_cache();
-	if (!cache) {
-		ast_ari_response_error(
-			response, 500, "Internal Server Error",
-			"Message bus not initialized");
-		return;
-	}
-
-	msg = stasis_cache_get(cache, ast_channel_snapshot_type(),
-				   args->channel_id);
-	if (!msg) {
+	snapshot = ast_channel_snapshot_get_latest(args->channel_id);
+	if (!snapshot) {
 		ast_ari_response_error(
 			response, 404, "Not Found",
 			"Channel not found");
 		return;
 	}
 
-	snapshot = stasis_message_data(msg);
-	ast_assert(snapshot != NULL);
-
 	ast_ari_response_ok(response,
 				ast_channel_snapshot_to_json(snapshot, NULL));
+	ao2_ref(snapshot, -1);
 }
 
 void ast_ari_channels_hangup(struct ast_variable *headers,
@@ -903,27 +890,13 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	struct ast_ari_channels_list_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, snapshots, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ao2_iterator i;
 	void *obj;
 	struct stasis_message_sanitizer *sanitize = stasis_app_get_sanitizer();
 
-	cache = ast_channel_cache();
-	if (!cache) {
-		ast_ari_response_error(
-			response, 500, "Internal Server Error",
-			"Message bus not initialized");
-		return;
-	}
-	ao2_ref(cache, +1);
-
-	snapshots = stasis_cache_dump(cache, ast_channel_snapshot_type());
-	if (!snapshots) {
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
+	snapshots = ast_channel_cache_all();
 
 	json = ast_json_array_create();
 	if (!json) {
@@ -933,12 +906,12 @@ void ast_ari_channels_list(struct ast_variable *headers,
 
 	i = ao2_iterator_init(snapshots, 0);
 	while ((obj = ao2_iterator_next(&i))) {
-		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
-		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
+		struct ast_channel_snapshot *snapshot = obj;
 		int r;
 
 		if (sanitize && sanitize->channel_snapshot
 			&& sanitize->channel_snapshot(snapshot)) {
+			ao2_ref(snapshot, -1);
 			continue;
 		}
 
@@ -947,8 +920,10 @@ void ast_ari_channels_list(struct ast_variable *headers,
 		if (r != 0) {
 			ast_ari_response_alloc_failed(response);
 			ao2_iterator_destroy(&i);
+			ao2_ref(snapshot, -1);
 			return;
 		}
+		ao2_ref(snapshot, -1);
 	}
 	ao2_iterator_destroy(&i);
 

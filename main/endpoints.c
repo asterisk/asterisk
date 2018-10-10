@@ -179,25 +179,23 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 	return 0;
 }
 
-/*! \brief Handler for channel snapshot cache clears */
+/*! \brief Handler for channel snapshot update */
 static void endpoint_cache_clear(void *data,
 	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_endpoint *endpoint = data;
-	struct stasis_message *clear_msg = stasis_message_data(message);
-	struct ast_channel_snapshot *clear_snapshot;
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
 
-	if (stasis_message_type(clear_msg) != ast_channel_snapshot_type()) {
+	/* Only when the channel is dead do we remove it */
+	if (!ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
 		return;
 	}
-
-	clear_snapshot = stasis_message_data(clear_msg);
 
 	ast_assert(endpoint != NULL);
 
 	ao2_lock(endpoint);
-	ast_str_container_remove(endpoint->channel_ids, clear_snapshot->uniqueid);
+	ast_str_container_remove(endpoint->channel_ids, update->new_snapshot->uniqueid);
 	ao2_unlock(endpoint);
 	endpoint_publish_snapshot(endpoint);
 }
@@ -271,7 +269,7 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 			return NULL;
 		}
 		r |= stasis_message_router_add(endpoint->router,
-			stasis_cache_clear_type(), endpoint_cache_clear,
+			ast_channel_snapshot_type(), endpoint_cache_clear,
 			endpoint);
 		r |= stasis_message_router_add(endpoint->router,
 			stasis_subscription_change_type(), endpoint_subscription_change,

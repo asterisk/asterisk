@@ -36,7 +36,6 @@
 #include "asterisk/bridge.h"
 #include "asterisk/translate.h"
 #include "asterisk/stasis.h"
-#include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/dial.h"
 #include "asterisk/linkedlists.h"
@@ -117,53 +116,23 @@
 
 #define NUM_MULTI_CHANNEL_BLOB_BUCKETS 7
 
-static struct stasis_cp_all *channel_cache_all;
-static struct stasis_cache *channel_cache_by_name;
-static struct stasis_caching_topic *channel_by_name_topic;
+static struct stasis_topic *channel_topic_all;
+static struct ao2_container *channel_cache;
+static struct ao2_container *channel_cache_by_name;
 
-struct stasis_cp_all *ast_channel_cache_all(void)
+struct ao2_container *ast_channel_cache_all(void)
 {
-	return channel_cache_all;
-}
-
-struct stasis_cache *ast_channel_cache(void)
-{
-	return stasis_cp_all_cache(channel_cache_all);
+	return ao2_bump(channel_cache);
 }
 
 struct stasis_topic *ast_channel_topic_all(void)
 {
-	return stasis_cp_all_topic(channel_cache_all);
+	return channel_topic_all;
 }
 
-struct stasis_topic *ast_channel_topic_all_cached(void)
+struct ao2_container *ast_channel_cache_by_name(void)
 {
-	return stasis_cp_all_topic_cached(channel_cache_all);
-}
-
-struct stasis_cache *ast_channel_cache_by_name(void)
-{
-	return channel_cache_by_name;
-}
-
-static const char *channel_snapshot_get_id(struct stasis_message *message)
-{
-	struct ast_channel_snapshot *snapshot;
-	if (ast_channel_snapshot_type() != stasis_message_type(message)) {
-		return NULL;
-	}
-	snapshot = stasis_message_data(message);
-	return snapshot->uniqueid;
-}
-
-static const char *channel_snapshot_get_name(struct stasis_message *message)
-{
-	struct ast_channel_snapshot *snapshot;
-	if (ast_channel_snapshot_type() != stasis_message_type(message)) {
-		return NULL;
-	}
-	snapshot = stasis_message_data(message);
-	return snapshot->name;
+	return ao2_bump(channel_cache_by_name);
 }
 
 /*!
@@ -208,6 +177,59 @@ static int channel_snapshot_cmp_cb(void *obj, void *arg, int flags)
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
 		cmp = strncasecmp(object_left->name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+/*!
+ * \internal
+ * \brief Hash function (using uniqueid) for \ref ast_channel_snapshot objects
+ */
+static int channel_snapshot_uniqueid_hash_cb(const void *obj, const int flags)
+{
+	const struct ast_channel_snapshot *object = obj;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		key = object->uniqueid;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_case_hash(key);
+}
+
+/*!
+ * \internal
+ * \brief Comparison function (using uniqueid) for \ref ast_channel_snapshot objects
+ */
+static int channel_snapshot_uniqueid_cmp_cb(void *obj, void *arg, int flags)
+{
+	const struct ast_channel_snapshot *object_left = obj;
+	const struct ast_channel_snapshot *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->uniqueid;
+	case OBJ_SEARCH_KEY:
+		cmp = strcasecmp(object_left->uniqueid, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncasecmp(object_left->uniqueid, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -307,6 +329,34 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	snapshot->tech_properties = ast_channel_tech(chan)->properties;
 
 	return snapshot;
+}
+
+static void channel_snapshot_update_dtor(void *obj)
+{
+	struct ast_channel_snapshot_update *update = obj;
+
+	ao2_cleanup(update->old_snapshot);
+	ao2_cleanup(update->new_snapshot);
+}
+
+static struct ast_channel_snapshot_update *channel_snapshot_update_create(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot_update *update;
+
+	update = ao2_alloc_options(sizeof(*update), channel_snapshot_update_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!update) {
+		return NULL;
+	}
+
+	update->old_snapshot = ao2_bump(ast_channel_snapshot(chan));
+	update->new_snapshot = ast_channel_snapshot_create(chan);
+	if (!update->new_snapshot) {
+		ao2_ref(update, -1);
+		return NULL;
+	}
+
+	return update;
 }
 
 static void publish_message_for_channel_topics(struct stasis_message *message, struct ast_channel *chan)
@@ -521,7 +571,7 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 		return NULL;
 	}
 
-	snapshot = chan ? ast_channel_snapshot_create(chan) : NULL;
+	snapshot = chan ? ao2_bump(ast_channel_snapshot(chan)) : NULL;
 	msg = create_channel_blob_message(snapshot, type, blob);
 	ao2_cleanup(snapshot);
 	return msg;
@@ -628,38 +678,48 @@ struct ast_multi_channel_blob *ast_multi_channel_blob_create(struct ast_json *bl
 
 struct ast_channel_snapshot *ast_channel_snapshot_get_latest(const char *uniqueid)
 {
-	struct stasis_message *message;
-	struct ast_channel_snapshot *snapshot;
-
 	ast_assert(!ast_strlen_zero(uniqueid));
 
-	message = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
-		uniqueid);
-	if (!message) {
-		return NULL;
-	}
-
-	snapshot = ao2_bump(stasis_message_data(message));
-	ao2_ref(message, -1);
-	return snapshot;
+	return ao2_find(channel_cache, uniqueid, OBJ_SEARCH_KEY);
 }
 
 struct ast_channel_snapshot *ast_channel_snapshot_get_latest_by_name(const char *name)
 {
-	struct stasis_message *message;
-	struct ast_channel_snapshot *snapshot;
-
 	ast_assert(!ast_strlen_zero(name));
 
-	message = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(),
-		name);
-	if (!message) {
-		return NULL;
+	return ao2_find(channel_cache_by_name, name, OBJ_SEARCH_KEY);
+}
+
+void ast_channel_publish_final_snapshot(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot_update *update;
+	struct stasis_message *message;
+
+	if (!ast_channel_snapshot_type()) {
+		return;
 	}
 
-	snapshot = ao2_bump(stasis_message_data(message));
+	update = channel_snapshot_update_create(chan);
+	if (!update) {
+		return;
+	}
+
+	message = stasis_message_create(ast_channel_snapshot_type(), update);
+	/* In the success path message holds a reference to update so it will be valid
+	 * for the lifetime of this function until the end.
+	 */
+	ao2_ref(update, -1);
+	if (!message) {
+		return;
+	}
+
+	ao2_unlink(channel_cache, update->old_snapshot);
+	ao2_unlink(channel_cache_by_name, update->old_snapshot);
+
+	ast_channel_snapshot_set(chan, NULL);
+
+	stasis_publish(ast_channel_topic(chan), message);
 	ao2_ref(message, -1);
-	return snapshot;
 }
 
 static void channel_role_snapshot_dtor(void *obj)
@@ -764,7 +824,7 @@ void ast_channel_stage_snapshot_done(struct ast_channel *chan)
 
 void ast_channel_publish_snapshot(struct ast_channel *chan)
 {
-	struct ast_channel_snapshot *snapshot;
+	struct ast_channel_snapshot_update *update;
 	struct stasis_message *message;
 
 	if (!ast_channel_snapshot_type()) {
@@ -775,16 +835,39 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 		return;
 	}
 
-	snapshot = ast_channel_snapshot_create(chan);
-	if (!snapshot) {
+	update = channel_snapshot_update_create(chan);
+	if (!update) {
 		return;
 	}
 
-	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-	ao2_ref(snapshot, -1);
+	message = stasis_message_create(ast_channel_snapshot_type(), update);
+	/* In the success path message holds a reference to update so it will be valid
+	 * for the lifetime of this function until the end.
+	 */
+	ao2_ref(update, -1);
 	if (!message) {
 		return;
 	}
+
+	/* We lock these ourselves so that the update is atomic and there isn't time where a
+	 * snapshot is not in the cache.
+	 */
+	ao2_wrlock(channel_cache);
+	if (update->old_snapshot) {
+		ao2_unlink_flags(channel_cache, update->old_snapshot, OBJ_NOLOCK);
+	}
+	ao2_link_flags(channel_cache, update->new_snapshot, OBJ_NOLOCK);
+	ao2_unlock(channel_cache);
+
+	/* The same applies here. */
+	ao2_wrlock(channel_cache_by_name);
+	if (update->old_snapshot) {
+		ao2_unlink_flags(channel_cache_by_name, update->old_snapshot, OBJ_NOLOCK);
+	}
+	ao2_link_flags(channel_cache_by_name, update->new_snapshot, OBJ_NOLOCK);
+	ao2_unlock(channel_cache_by_name);
+
+	ast_channel_snapshot_set(chan, update->new_snapshot);
 
 	ast_assert(ast_channel_topic(chan) != NULL);
 	stasis_publish(ast_channel_topic(chan), message);
@@ -841,13 +924,8 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 		ast_channel_publish_snapshot(chan);
 	}
 
-	if (chan) {
-		ast_channel_publish_cached_blob(chan, ast_channel_varset_type(), blob);
-	} else {
-		/* This function is NULL safe for global variables */
-		ast_channel_publish_blob(NULL, ast_channel_varset_type(), blob);
-	}
-
+	/* This function is NULL safe for global variables */
+	ast_channel_publish_blob(chan, ast_channel_varset_type(), blob);
 	ast_json_unref(blob);
 }
 
@@ -929,36 +1007,6 @@ static struct ast_manager_event_blob *agent_logoff_to_ami(struct stasis_message 
 		ast_str_buffer(channel_string), agent, logintime);
 	ast_free(channel_string);
 	return ev;
-}
-
-void ast_publish_channel_state(struct ast_channel *chan)
-{
-	struct ast_channel_snapshot *snapshot;
-	struct stasis_message *message;
-
-	if (!ast_channel_snapshot_type()) {
-		return;
-	}
-
-	ast_assert(chan != NULL);
-	if (!chan) {
-		return;
-	}
-
-	snapshot = ast_channel_snapshot_create(chan);
-	if (!snapshot) {
-		return;
-	}
-
-	message = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-	ao2_ref(snapshot, -1);
-	if (!message) {
-		return;
-	}
-
-	ast_assert(ast_channel_topic(chan) != NULL);
-	stasis_publish(ast_channel_topic(chan), message);
-	ao2_ref(message, -1);
 }
 
 struct ast_json *ast_channel_snapshot_to_json(
@@ -1332,12 +1380,12 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_talking_stop,
 
 static void stasis_channels_cleanup(void)
 {
-	stasis_caching_unsubscribe_and_join(channel_by_name_topic);
-	channel_by_name_topic = NULL;
+	ao2_cleanup(channel_topic_all);
+	channel_topic_all = NULL;
+	ao2_cleanup(channel_cache);
+	channel_cache = NULL;
 	ao2_cleanup(channel_cache_by_name);
 	channel_cache_by_name = NULL;
-	ao2_cleanup(channel_cache_all);
-	channel_cache_all = NULL;
 
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dial_type);
@@ -1367,29 +1415,28 @@ int ast_stasis_channels_init(void)
 
 	ast_register_cleanup(stasis_channels_cleanup);
 
-	channel_cache_all = stasis_cp_all_create("ast_channel_topic_all",
-		channel_snapshot_get_id);
-	if (!channel_cache_all) {
+	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
+	if (!channel_topic_all) {
 		return -1;
 	}
-	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_login_type);
-	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_logoff_type);
 
-	channel_cache_by_name = stasis_cache_create(channel_snapshot_get_name);
+	channel_cache = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
+		0, AST_NUM_CHANNEL_BUCKETS, channel_snapshot_uniqueid_hash_cb,
+		NULL, channel_snapshot_uniqueid_cmp_cb);
+	if (!channel_cache) {
+		return -1;
+	}
+
+	channel_cache_by_name = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
+		0, AST_NUM_CHANNEL_BUCKETS, channel_snapshot_hash_cb,
+		NULL, channel_snapshot_cmp_cb);
 	if (!channel_cache_by_name) {
 		return -1;
 	}
 
-	/* This should be initialized before the caching topic */
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_login_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_logoff_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_snapshot_type);
-
-	channel_by_name_topic = stasis_caching_topic_create(
-		stasis_cp_all_topic(channel_cache_all),
-		channel_cache_by_name);
-	if (!channel_by_name_topic) {
-		return -1;
-	}
-
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dial_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_varset_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);

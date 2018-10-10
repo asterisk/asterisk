@@ -3244,15 +3244,7 @@ static struct stasis_message *mwi_state_create_message(
 	mwi_state->old_msgs = old_msgs;
 
 	if (!ast_strlen_zero(channel_id)) {
-		struct stasis_message *chan_message;
-
-		chan_message = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
-			channel_id);
-		if (chan_message) {
-			mwi_state->snapshot = stasis_message_data(chan_message);
-			ao2_ref(mwi_state->snapshot, +1);
-		}
-		ao2_cleanup(chan_message);
+		mwi_state->snapshot = ast_channel_snapshot_get_latest(channel_id);
 	}
 
 	if (eid) {

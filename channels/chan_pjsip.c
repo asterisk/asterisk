@@ -1135,7 +1135,6 @@ static int chan_pjsip_devicestate(const char *data)
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", data), ao2_cleanup);
 	enum ast_device_state state = AST_DEVICE_UNKNOWN;
 	RAII_VAR(struct ast_endpoint_snapshot *, endpoint_snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	struct ast_devstate_aggregate aggregate;
 	int num, inuse = 0;
 
@@ -1156,26 +1155,19 @@ static int chan_pjsip_devicestate(const char *data)
 		state = AST_DEVICE_NOT_INUSE;
 	}
 
-	if (!endpoint_snapshot->num_channels || !(cache = ast_channel_cache())) {
+	if (!endpoint_snapshot->num_channels) {
 		return state;
 	}
 
 	ast_devstate_aggregate_init(&aggregate);
 
-	ao2_ref(cache, +1);
-
 	for (num = 0; num < endpoint_snapshot->num_channels; num++) {
-		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 		struct ast_channel_snapshot *snapshot;
 
-		msg = stasis_cache_get(cache, ast_channel_snapshot_type(),
-			endpoint_snapshot->channel_ids[num]);
-
-		if (!msg) {
+		snapshot = ast_channel_snapshot_get_latest(endpoint_snapshot->channel_ids[num]);
+		if (!snapshot) {
 			continue;
 		}
-
-		snapshot = stasis_message_data(msg);
 
 		if (chan_pjsip_get_hold(snapshot->uniqueid)) {
 			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_ONHOLD);
@@ -1187,6 +1179,8 @@ static int chan_pjsip_devicestate(const char *data)
 			(snapshot->state == AST_STATE_BUSY)) {
 			inuse++;
 		}
+
+		ao2_ref(snapshot, -1);
 	}
 
 	if (endpoint->devicestate_busy_at && (inuse == endpoint->devicestate_busy_at)) {

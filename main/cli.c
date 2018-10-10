@@ -956,7 +956,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
-	struct stasis_message *msg;
+	struct ast_channel_snapshot *cs;
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
 
 	switch (cmd) {
@@ -989,11 +989,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	} else if (a->argc != e->args - 1)
 		return CLI_SHOWUSAGE;
 
-
-	if (!(channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()))) {
-		ast_cli(a->fd, "Failed to retrieve cached channels\n");
-		return CLI_SUCCESS;
-	}
+	channels = ast_channel_cache_by_name();
 
 	if (!count) {
 		if (!concise && !verbose)
@@ -1004,8 +1000,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	}
 
 	it_chans = ao2_iterator_init(channels, 0);
-	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
-		struct ast_channel_snapshot *cs = stasis_message_data(msg);
+	for (; (cs = ao2_iterator_next(&it_chans)); ao2_ref(cs, -1)) {
 		char durbuf[16] = "-";
 
 		if (!count) {
@@ -1679,29 +1674,25 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 	struct ao2_container *cached_channels;
 	char *ret = NULL;
 	struct ao2_iterator iter;
-	struct stasis_message *msg;
+	struct ast_channel_snapshot *snapshot;
 
 	if (pos != rpos) {
 		return NULL;
 	}
 
-	if (!(cached_channels = stasis_cache_dump(ast_channel_cache(), ast_channel_snapshot_type()))) {
-		return NULL;
-	}
+	cached_channels = ast_channel_cache_all();
 
 	iter = ao2_iterator_init(cached_channels, 0);
-	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
-		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
-
+	for (; (snapshot = ao2_iterator_next(&iter)); ao2_ref(snapshot, -1)) {
 		if (!strncasecmp(word, snapshot->name, wordlen) && (++which > state)) {
 			if (state != -1) {
 				ret = ast_strdup(snapshot->name);
-				ao2_ref(msg, -1);
+				ao2_ref(snapshot, -1);
 				break;
 			}
 
 			if (ast_cli_completion_add(ast_strdup(snapshot->name))) {
-				ao2_ref(msg, -1);
+				ao2_ref(snapshot, -1);
 				break;
 			}
 		}

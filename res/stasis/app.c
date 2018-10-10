@@ -144,17 +144,11 @@ static struct app_forwards *forwards_create_channel(struct stasis_app *app,
 	}
 
 	forwards->forward_type = FORWARD_CHANNEL;
-	if (chan) {
-		forwards->topic_forward = stasis_forward_all(ast_channel_topic(chan),
-			app->topic);
-	}
-	forwards->topic_cached_forward = stasis_forward_all(
-		chan ? ast_channel_topic_cached(chan) : ast_channel_topic_all_cached(),
+	forwards->topic_forward = stasis_forward_all(
+		chan ? ast_channel_topic(chan) : ast_channel_topic_all(),
 		app->topic);
 
-	if ((!forwards->topic_forward && chan) || !forwards->topic_cached_forward) {
-		/* Half-subscribed is a bad thing */
-		forwards_unsubscribe(forwards);
+	if (!forwards->topic_forward) {
 		ao2_ref(forwards, -1);
 		return NULL;
 	}
@@ -420,7 +414,7 @@ static struct ast_json *channel_state(
 
 	if (!old_snapshot) {
 		return channel_created_event(snapshot, tv);
-	} else if (!new_snapshot) {
+	} else if (ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD)) {
 		return channel_destroyed_event(snapshot, tv);
 	} else if (old_snapshot->state != new_snapshot->state) {
 		return channel_state_change_event(snapshot, tv);
@@ -436,8 +430,8 @@ static struct ast_json *channel_dialplan(
 {
 	struct ast_json *json_channel;
 
-	/* No Newexten event on cache clear or first event */
-	if (!old_snapshot || !new_snapshot) {
+	/* No Newexten event on first channel snapshot */
+	if (!old_snapshot) {
 		return NULL;
 	}
 
@@ -470,8 +464,8 @@ static struct ast_json *channel_callerid(
 {
 	struct ast_json *json_channel;
 
-	/* No NewCallerid event on cache clear or first event */
-	if (!old_snapshot || !new_snapshot) {
+	/* No NewCallerid event on first channel snapshot */
+	if (!old_snapshot) {
 		return NULL;
 	}
 
@@ -500,8 +494,8 @@ static struct ast_json *channel_connected_line(
 {
 	struct ast_json *json_channel;
 
-	/* No ChannelConnectedLine event on cache clear or first event */
-	if (!old_snapshot || !new_snapshot) {
+	/* No ChannelConnectedLine event on first channel snapshot */
+	if (!old_snapshot) {
 		return NULL;
 	}
 
@@ -532,39 +526,22 @@ static void sub_channel_update_handler(void *data,
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
-	struct stasis_cache_update *update;
-	struct ast_channel_snapshot *new_snapshot;
-	struct ast_channel_snapshot *old_snapshot;
-	const struct timeval *tv;
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
 	int i;
-
-	ast_assert(stasis_message_type(message) == stasis_cache_update_type());
-
-	update = stasis_message_data(message);
-
-	ast_assert(update->type == ast_channel_snapshot_type());
-
-	new_snapshot = stasis_message_data(update->new_snapshot);
-	old_snapshot = stasis_message_data(update->old_snapshot);
-
-	/* Pull timestamp from the new snapshot, or from the update message
-	 * when there isn't one. */
-	tv = update->new_snapshot ?
-		stasis_message_timestamp(update->new_snapshot) :
-		stasis_message_timestamp(message);
 
 	for (i = 0; i < ARRAY_LEN(channel_monitors); ++i) {
 		struct ast_json *msg;
 
-		msg = channel_monitors[i](old_snapshot, new_snapshot, tv);
+		msg = channel_monitors[i](update->old_snapshot, update->new_snapshot,
+			stasis_message_timestamp(message));
 		if (msg) {
 			app_send(app, msg);
 			ast_json_unref(msg);
 		}
 	}
 
-	if (!new_snapshot && old_snapshot) {
-		unsubscribe(app, "channel", old_snapshot->uniqueid, 1);
+	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
+		unsubscribe(app, "channel", update->new_snapshot->uniqueid, 1);
 	}
 }
 
@@ -987,7 +964,7 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	res |= stasis_message_router_add_cache_update(app->router,
 		ast_bridge_snapshot_type(), sub_bridge_update_handler, app);
 
-	res |= stasis_message_router_add_cache_update(app->router,
+	res |= stasis_message_router_add(app->router,
 		ast_channel_snapshot_type(), sub_channel_update_handler, app);
 
 	res |= stasis_message_router_add_cache_update(app->router,

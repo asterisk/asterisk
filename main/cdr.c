@@ -186,14 +186,6 @@
 	</configInfo>
  ***/
 
-
-/* The prime here should be similar in size to the channel container. */
-#ifdef LOW_MEMORY
-#define NUM_CDR_BUCKETS 61
-#else
-#define NUM_CDR_BUCKETS 769
-#endif
-
 #define DEFAULT_ENABLED "1"
 #define DEFAULT_BATCHMODE "0"
 #define DEFAULT_UNANSWERED "0"
@@ -2056,9 +2048,9 @@ static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 
 /*!
  * \internal
- * \brief Filter a channel cache update
+ * \brief Filter a channel snapshot update
  */
-static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapshot,
+static int filter_channel_snapshot_message(struct ast_channel_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
 	int ret = 0;
@@ -2256,52 +2248,38 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 }
 
 /*!
- * \brief Handler for Stasis-Core channel cache update messages
+ * \brief Handler for channel snapshot update messages
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
  * \param topic The topic this message was published for
  * \param message The message
  */
-static void handle_channel_cache_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+static void handle_channel_snapshot_update_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	struct cdr_object *cdr;
-	struct stasis_cache_update *update = stasis_message_data(message);
-	struct ast_channel_snapshot *old_snapshot;
-	struct ast_channel_snapshot *new_snapshot;
+	struct ast_channel_snapshot_update *update = stasis_message_data(message);
 	struct cdr_object *it_cdr;
 
-	ast_assert(update != NULL);
-	ast_assert(ast_channel_snapshot_type() == update->type);
-
-	old_snapshot = stasis_message_data(update->old_snapshot);
-	new_snapshot = stasis_message_data(update->new_snapshot);
-
-	if (filter_channel_cache_message(old_snapshot, new_snapshot)) {
+	if (filter_channel_snapshot_message(update->old_snapshot, update->new_snapshot)) {
 		return;
 	}
 
-	if (new_snapshot && !old_snapshot) {
-		cdr = cdr_object_alloc(new_snapshot);
+	if (update->new_snapshot && !update->old_snapshot) {
+		cdr = cdr_object_alloc(update->new_snapshot);
 		if (!cdr) {
 			return;
 		}
 		cdr->is_root = 1;
 		ao2_link(active_cdrs_master, cdr);
 	} else {
-		const char *uniqueid;
-
-		uniqueid = new_snapshot ? new_snapshot->uniqueid : old_snapshot->uniqueid;
-		cdr = ao2_find(active_cdrs_master, uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, update->new_snapshot->uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	/* Handle Party A */
 	if (!cdr) {
-		const char *name;
-
-		name = new_snapshot ? new_snapshot->name : old_snapshot->name;
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", update->new_snapshot->name);
 		ast_assert(0);
-	} else if (new_snapshot) {
+	} else {
 		int all_reject = 1;
 
 		ao2_lock(cdr);
@@ -2309,21 +2287,23 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 			if (!it_cdr->fn_table->process_party_a) {
 				continue;
 			}
-			all_reject &= it_cdr->fn_table->process_party_a(it_cdr, new_snapshot);
+			all_reject &= it_cdr->fn_table->process_party_a(it_cdr, update->new_snapshot);
 		}
-		if (all_reject && check_new_cdr_needed(old_snapshot, new_snapshot)) {
+		if (all_reject && check_new_cdr_needed(update->old_snapshot, update->new_snapshot)) {
 			/* We're not hung up and we have a new snapshot - we need a new CDR */
 			struct cdr_object *new_cdr;
 
 			new_cdr = cdr_object_create_and_append(cdr);
 			if (new_cdr) {
-				new_cdr->fn_table->process_party_a(new_cdr, new_snapshot);
+				new_cdr->fn_table->process_party_a(new_cdr, update->new_snapshot);
 			}
 		}
 		ao2_unlock(cdr);
-	} else {
+	}
+
+	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
 		ao2_lock(cdr);
-		CDR_DEBUG("%p - Beginning finalize/dispatch for %s\n", cdr, old_snapshot->name);
+		CDR_DEBUG("%p - Beginning finalize/dispatch for %s\n", cdr, update->old_snapshot->name);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 			cdr_object_finalize(it_cdr);
 		}
@@ -2335,12 +2315,14 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	}
 
 	/* Handle Party B */
-	if (new_snapshot) {
+	if (update->new_snapshot) {
 		ao2_callback_data(active_cdrs_all, OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
-			cdr_object_update_party_b, (char *) new_snapshot->name, new_snapshot);
-	} else {
+			cdr_object_update_party_b, (char *) update->new_snapshot->name, update->new_snapshot);
+	}
+
+	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
 		ao2_callback_data(active_cdrs_all, OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
-			cdr_object_finalize_party_b, (char *) old_snapshot->name, old_snapshot);
+			cdr_object_finalize_party_b, (char *) update->new_snapshot->name, update->new_snapshot);
 	}
 
 	ao2_cleanup(cdr);
@@ -4302,7 +4284,7 @@ static int create_subscriptions(void)
 		return 0;
 	}
 
-	channel_subscription = stasis_forward_all(ast_channel_topic_all_cached(), cdr_topic);
+	channel_subscription = stasis_forward_all(ast_channel_topic_all(), cdr_topic);
 	if (!channel_subscription) {
 		return -1;
 	}
@@ -4522,7 +4504,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_snapshot_type(), handle_channel_snapshot_update_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
@@ -4530,14 +4512,14 @@ static int load_module(void)
 	stasis_message_router_add(stasis_router, cdr_sync_message_type(), handle_cdr_sync_message, NULL);
 
 	active_cdrs_master = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		NUM_CDR_BUCKETS, cdr_master_hash_fn, NULL, cdr_master_cmp_fn);
+		AST_NUM_CHANNEL_BUCKETS, cdr_master_hash_fn, NULL, cdr_master_cmp_fn);
 	if (!active_cdrs_master) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ao2_container_register("cdrs_master", active_cdrs_master, cdr_master_print_fn);
 
 	active_cdrs_all = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		NUM_CDR_BUCKETS, cdr_all_hash_fn, NULL, cdr_all_cmp_fn);
+		AST_NUM_CHANNEL_BUCKETS, cdr_all_hash_fn, NULL, cdr_all_cmp_fn);
 	if (!active_cdrs_all) {
 		return AST_MODULE_LOAD_FAILURE;
 	}

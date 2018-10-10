@@ -42,7 +42,6 @@
 #include "asterisk/channel_internal.h"
 #include "asterisk/endpoints.h"
 #include "asterisk/indications.h"
-#include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stringfields.h"
@@ -215,12 +214,13 @@ struct ast_channel {
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
-	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
+	struct stasis_topic *topic;		/*!< Topic for trhis channel */
+	struct stasis_forward *channel_forward; /*!< Subscription for event forwarding to all channel topic */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
-	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
 	struct ast_stream_topology *stream_topology; /*!< Stream topology */
 	void *stream_topology_change_source; /*!< Source that initiated a stream topology change */
 	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
+	struct ast_channel_snapshot *snapshot; /*!< The current up to date snapshot of the channel */
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -1381,11 +1381,25 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
 
 void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel *b)
 {
-	struct stasis_cp_single *temp;
+	struct stasis_topic *topic;
+	struct stasis_forward *forward;
 
-	temp = a->topics;
-	a->topics = b->topics;
-	b->topics = temp;
+	topic = a->topic;
+	a->topic = b->topic;
+	b->topic = topic;
+
+	forward = a->channel_forward;
+	a->channel_forward = b->channel_forward;
+	b->channel_forward = forward;
+}
+
+void ast_channel_internal_swap_snapshots(struct ast_channel *a, struct ast_channel *b)
+{
+	struct ast_channel_snapshot *snapshot;
+
+	snapshot = a->snapshot;
+	a->snapshot = b->snapshot;
+	b->snapshot = snapshot;
 }
 
 void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
@@ -1404,11 +1418,11 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 
 	ast_string_field_free_memory(chan);
 
+	chan->channel_forward = stasis_forward_cancel(chan->channel_forward);
 	chan->endpoint_forward = stasis_forward_cancel(chan->endpoint_forward);
-	chan->endpoint_cache_forward = stasis_forward_cancel(chan->endpoint_cache_forward);
 
-	stasis_cp_single_unsubscribe(chan->topics);
-	chan->topics = NULL;
+	ao2_cleanup(chan->topic);
+	chan->topic = NULL;
 
 	ast_channel_internal_set_stream_topology(chan, NULL);
 
@@ -1431,16 +1445,7 @@ struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 		return ast_channel_topic_all();
 	}
 
-	return stasis_cp_single_topic(chan->topics);
-}
-
-struct stasis_topic *ast_channel_topic_cached(struct ast_channel *chan)
-{
-	if (!chan) {
-		return ast_channel_topic_all_cached();
-	}
-
-	return stasis_cp_single_topic_cached(chan->topics);
+	return chan->topic;
 }
 
 int ast_channel_forward_endpoint(struct ast_channel *chan,
@@ -1456,28 +1461,28 @@ int ast_channel_forward_endpoint(struct ast_channel *chan,
 		return -1;
 	}
 
-	chan->endpoint_cache_forward = stasis_forward_all(ast_channel_topic_cached(chan),
-		ast_endpoint_topic(endpoint));
-	if (!chan->endpoint_cache_forward) {
-		chan->endpoint_forward = stasis_forward_cancel(chan->endpoint_forward);
-		return -1;
-	}
-
 	return 0;
 }
 
 int ast_channel_internal_setup_topics(struct ast_channel *chan)
 {
 	const char *topic_name = chan->uniqueid.unique_id;
-	ast_assert(chan->topics == NULL);
+	ast_assert(chan->topic == NULL);
 
 	if (ast_strlen_zero(topic_name)) {
 		topic_name = "<dummy-channel>";
 	}
 
-	chan->topics = stasis_cp_single_create(
-		ast_channel_cache_all(), topic_name);
-	if (!chan->topics) {
+	chan->topic = stasis_topic_create(topic_name);
+	if (!chan->topic) {
+		return -1;
+	}
+
+	chan->channel_forward = stasis_forward_all(ast_channel_topic(chan),
+		ast_channel_topic_all());
+	if (!chan->channel_forward) {
+		ao2_ref(chan->topic, -1);
+		chan->topic = NULL;
 		return -1;
 	}
 
@@ -1567,4 +1572,15 @@ void ast_channel_internal_swap_stream_topology(struct ast_channel *chan1,
 int ast_channel_is_multistream(struct ast_channel *chan)
 {
 	return (chan->tech && chan->tech->read_stream && chan->tech->write_stream);
+}
+
+struct ast_channel_snapshot *ast_channel_snapshot(const struct ast_channel *chan)
+{
+	return chan->snapshot;
+}
+
+void ast_channel_snapshot_set(struct ast_channel *chan, struct ast_channel_snapshot *snapshot)
+{
+	ao2_cleanup(chan->snapshot);
+	chan->snapshot = ao2_bump(snapshot);
 }
