@@ -108,8 +108,10 @@ def process_file(options):
             else:
                 current_objects[obj]['curcount'] += int(parsed_line['delta'])
 
-            if 'destructor' in parsed_line['state']:
-                # refcounter.py doesn't care about lock-state.
+            # Suppress object sizes and lock-state from output logs.
+            if 'constructor' in parsed_line['state']:
+                parsed_line['state'] = '**constructor**'
+            elif 'destructor' in parsed_line['state']:
                 parsed_line['state'] = '**destructor**'
 
             current_objects[obj]['log'].append(

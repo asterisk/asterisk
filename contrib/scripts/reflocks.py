@@ -48,7 +48,6 @@ def process_file(options):
                     object_types[obj_type] = {
                         'used': 0,
                         'unused': 0,
-                        'lockobj': 0,
                         'none': 0
                     }
                 objects[addr] = obj_type
@@ -62,8 +61,6 @@ def process_file(options):
                     object_types[obj_type]['unused'] += 1
                 elif '**lock-state:used**' in state:
                     object_types[obj_type]['used'] += 1
-                elif '**lock-state:lockobj**' in state:
-                    object_types[obj_type]['lockobj'] += 1
                 elif '**lock-state:none**' in state:
                     object_types[obj_type]['none'] += 1
 
@@ -75,8 +72,6 @@ def process_file(options):
             stats.append("%d used" % info['used'])
         if info['unused'] > 0:
             stats.append("%d unused" % info['unused'])
-        if info['lockobj'] > 0 and options.lockobj:
-            stats.append("%d lockobj" % info['lockobj'])
         if info['none'] > 0 and options.none:
             stats.append("%d none" % info['none'])
         if len(stats) == 0:
@@ -103,9 +98,6 @@ def main(argv=None):
     parser.add_option("-n", "--show-none", action="store_true",
                       dest="none", default=False,
                       help="Show counts of objects with no locking.")
-    parser.add_option("-o", "--show-lockobj", action="store_true",
-                      dest="lockobj", default=False,
-                      help="Show counts of objects with a lockobj.")
 
     (options, args) = parser.parse_args(argv)
 

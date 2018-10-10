@@ -25,9 +25,13 @@ install:
 	$(INSTALL) -m 755 scripts/ast_loggrabber "$(DESTDIR)$(ASTDATADIR)/scripts/ast_loggrabber"
 	$(INSTALL) -m 755 scripts/ast_coredumper "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
 	$(INSTALL) -m 755 scripts/refcounter.py "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
+	$(INSTALL) -m 755 scripts/refstats.py "$(DESTDIR)$(ASTDATADIR)/scripts/refstats.py"
+	$(INSTALL) -m 755 scripts/reflocks.py "$(DESTDIR)$(ASTDATADIR)/scripts/reflocks.py"
 
 uninstall:
 	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_logescalator"
 	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_loggrabber"
 	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
 	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
+	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/refstats.py"
+	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/reflocks.py"
