@@ -27,6 +27,12 @@
 
 New in 17.0.0:
 
+chan_sip:
+ - The chan_sip module is now deprecated, users should migrate to the
+   replacement module chan_pjsip.  See guides at the Asterisk Wiki:
+     https://wiki.asterisk.org/wiki/x/tAHOAQ
+     https://wiki.asterisk.org/wiki/x/hYCLAQ
+
 func_callerid:
  - The CALLERPRES() dialplan function, deprecated in Asterisk 1.8, has been
    removed.

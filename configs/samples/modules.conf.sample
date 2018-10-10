@@ -41,4 +41,6 @@ noload => chan_console.so
 noload => res_hep.so
 noload => res_hep_pjsip.so
 noload => res_hep_rtcp.so
-;
+
+; Do not load chan_sip by default, it may conflict with res_pjsip.
+noload => chan_sip.so
