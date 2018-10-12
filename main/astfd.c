@@ -53,7 +53,7 @@ static struct fdleaks {
 	unsigned int isopen:1;
 	char file[40];
 	char function[25];
-	char callargs[60];
+	char callargs[100];
 	struct timeval now;
 } fdleaks[1024] = { { "", }, };
 
