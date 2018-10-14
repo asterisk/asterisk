@@ -1094,13 +1094,15 @@ static void destroy_conference_bridge(void *obj)
 		if (conference->playback_queue) {
 			struct hangup_data hangup;
 			hangup_data_init(&hangup, conference);
-			ast_taskprocessor_push(conference->playback_queue, hangup_playback, &hangup);
 
-			ast_mutex_lock(&hangup.lock);
-			while (!hangup.hungup) {
-				ast_cond_wait(&hangup.cond, &hangup.lock);
+			if (!ast_taskprocessor_push(conference->playback_queue, hangup_playback, &hangup)) {
+				ast_mutex_lock(&hangup.lock);
+				while (!hangup.hungup) {
+					ast_cond_wait(&hangup.cond, &hangup.lock);
+				}
+				ast_mutex_unlock(&hangup.lock);
 			}
-			ast_mutex_unlock(&hangup.lock);
+
 			hangup_data_destroy(&hangup);
 		} else {
 			/* Playback queue is not yet allocated. Just hang up the channel straight */

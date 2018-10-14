@@ -658,7 +658,9 @@ static void threadpool_tps_emptied(struct ast_taskprocessor_listener *listener)
 	}
 
 	if (pool->listener && pool->listener->callbacks->emptied) {
-		ast_taskprocessor_push(pool->control_tps, queued_emptied, pool);
+		if (ast_taskprocessor_push(pool->control_tps, queued_emptied, pool)) {
+			/* Nothing to do here but we need the check to keep the compiler happy. */
+		}
 	}
 }
 

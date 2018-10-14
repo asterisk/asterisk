@@ -213,7 +213,8 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
  * \retval -1 failure
  * \since 1.6.1
  */
-int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
+int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap)
+	attribute_warn_unused_result;
 
 /*! \brief Local data parameter */
 struct ast_taskprocessor_local {
@@ -239,7 +240,8 @@ struct ast_taskprocessor_local {
  * \since 12.0.0
  */
 int ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
-	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap);
+	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap)
+	attribute_warn_unused_result;
 
 /*!
  * \brief Indicate the taskprocessor is suspended.
