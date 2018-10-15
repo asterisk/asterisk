@@ -53,7 +53,7 @@ static struct fdleaks {
 	unsigned int isopen:1;
 	char file[40];
 	char function[25];
-	char callargs[60];
+	char callargs[100];
 } fdleaks[1024] = { { "", }, };
 
 /* COPY does ast_copy_string(dst, src, sizeof(dst)), except:
