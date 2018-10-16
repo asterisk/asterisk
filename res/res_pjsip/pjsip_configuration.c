@@ -590,6 +590,13 @@ static int caller_id_handler(const struct aco_option *opt, struct ast_variable *
 	char cid_name[80] = { '\0' };
 	char cid_num[80] = { '\0' };
 
+	ast_free(endpoint->id.self.name.str);
+	endpoint->id.self.name.str = NULL;
+	endpoint->id.self.name.valid = 0;
+	ast_free(endpoint->id.self.number.str);
+	endpoint->id.self.number.str = NULL;
+	endpoint->id.self.number.valid = 0;
+
 	ast_callerid_split(var->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 	if (!ast_strlen_zero(cid_name)) {
 		endpoint->id.self.name.str = ast_strdup(cid_name);
@@ -656,7 +663,10 @@ static int caller_id_privacy_to_str(const void *obj, const intptr_t *args, char 
 static int caller_id_tag_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
+
+	ast_free(endpoint->id.self.tag);
 	endpoint->id.self.tag = ast_strdup(var->value);
+
 	return endpoint->id.self.tag ? 0 : -1;
 }
 
@@ -1059,6 +1069,7 @@ static int voicemail_extension_handler(const struct aco_option *opt, struct ast_
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
+	ast_free(endpoint->subscription.mwi.voicemail_extension);
 	endpoint->subscription.mwi.voicemail_extension = ast_strdup(var->value);
 
 	return endpoint->subscription.mwi.voicemail_extension ? 0 : -1;
@@ -1078,12 +1089,10 @@ static int contact_user_handler(const struct aco_option *opt,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
+	ast_free(endpoint->contact_user);
 	endpoint->contact_user = ast_strdup(var->value);
-	if (!endpoint->contact_user) {
-		return -1;
-	}
 
-	return 0;
+	return endpoint->contact_user ? 0 : -1;
 }
 
 static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf)
@@ -2028,7 +2037,9 @@ void *ast_sip_endpoint_alloc(const char *name)
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
+
 	ast_party_id_init(&endpoint->id.self);
+	endpoint->id.self.tag = ast_strdup("");
 
 	if (AST_VECTOR_INIT(&endpoint->ident_method_order, 1)) {
 		return NULL;
