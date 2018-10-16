@@ -1298,6 +1298,7 @@ typedef int (ao2_sort_fn)(const void *obj_left, const void *obj_right, int flags
 struct ao2_container;
 
 /*!
+ * \deprecated
  * \brief Allocate and initialize a hash container with the desired number of buckets.
  *
  * \details
@@ -1315,16 +1316,20 @@ struct ao2_container;
  * \note Destructor is set implicitly.
  * \note This is legacy container creation that is mapped to the new method.
  */
+#define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
+	ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, (n_buckets), (hash_fn), NULL, (cmp_fn))
 
+#ifndef AST_IN_CORE
+/* These macros are removed from Asterisk 17.  They are still available to modules
+ * but should only be used by third party modules that have not been updated. */
 #define ao2_t_container_alloc_options(options, n_buckets, hash_fn, cmp_fn, tag) \
 	ao2_t_container_alloc_hash((options), 0, (n_buckets), (hash_fn), NULL, (cmp_fn), (tag))
 #define ao2_container_alloc_options(options, n_buckets, hash_fn, cmp_fn) \
 	ao2_container_alloc_hash((options), 0, (n_buckets), (hash_fn), NULL, (cmp_fn))
 
 #define ao2_t_container_alloc(n_buckets, hash_fn, cmp_fn, tag) \
-	ao2_t_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), (tag))
-#define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn))
+	ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, (n_buckets), (hash_fn), NULL, (cmp_fn), (tag))
+#endif
 
 /*!
  * \brief Allocate and initialize a hash container with the desired number of buckets.

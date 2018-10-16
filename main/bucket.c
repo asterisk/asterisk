@@ -649,8 +649,8 @@ static void *bucket_file_alloc(const char *name)
 		return NULL;
 	}
 
-	file->metadata = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, METADATA_BUCKETS,
-		ast_bucket_metadata_hash_fn, ast_bucket_metadata_cmp_fn);
+	file->metadata = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, METADATA_BUCKETS,
+		ast_bucket_metadata_hash_fn, NULL, ast_bucket_metadata_cmp_fn);
 	if (!file->metadata) {
 		return NULL;
 	}
@@ -954,8 +954,8 @@ int ast_bucket_init(void)
 {
 	ast_register_cleanup(&bucket_cleanup);
 
-	schemes = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, SCHEME_BUCKETS,
-		ast_bucket_scheme_hash_fn, ast_bucket_scheme_cmp_fn);
+	schemes = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, SCHEME_BUCKETS,
+		ast_bucket_scheme_hash_fn, NULL, ast_bucket_scheme_cmp_fn);
 	if (!schemes) {
 		ast_log(LOG_ERROR, "Failed to create container for Bucket schemes\n");
 		return -1;

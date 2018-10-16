@@ -759,8 +759,8 @@ static struct features_config *__features_config_alloc(int allocate_applicationm
 			return NULL;
 		}
 
-		cfg->featuregroups = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 11, featuregroup_hash,
-			featuregroup_cmp);
+		cfg->featuregroups = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 11,
+			featuregroup_hash, NULL, featuregroup_cmp);
 		if (!cfg->featuregroups) {
 			return NULL;
 		}
