@@ -1200,9 +1200,9 @@ static int sip_outbound_publish_apply(const struct ast_sorcery *sorcery, void *o
 	 * object if created/updated, or keep the old object if an error occurs.
 	 */
 	if (!new_states) {
-		new_states = ao2_container_alloc_options(
-			AO2_ALLOC_OPT_LOCK_NOLOCK, DEFAULT_STATE_BUCKETS,
-			outbound_publish_state_hash, outbound_publish_state_cmp);
+		new_states = ao2_container_alloc_hash(
+			AO2_ALLOC_OPT_LOCK_NOLOCK, 0, DEFAULT_STATE_BUCKETS,
+			outbound_publish_state_hash, NULL, outbound_publish_state_cmp);
 
 		if (!new_states) {
 			ast_log(LOG_ERROR, "Unable to allocate new states container\n");

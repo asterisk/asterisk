@@ -1556,9 +1556,9 @@ static void *sorcery_memory_cache_open(const char *data)
 		}
 	}
 
-	cache->objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK,
+	cache->objects = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0,
 		cache->maximum_objects ? cache->maximum_objects : CACHE_CONTAINER_BUCKET_SIZE,
-		sorcery_memory_cached_object_hash, sorcery_memory_cached_object_cmp);
+		sorcery_memory_cached_object_hash, NULL, sorcery_memory_cached_object_cmp);
 	if (!cache->objects) {
 		ast_log(LOG_ERROR, "Could not create a container to hold cached objects for memory cache\n");
 		return NULL;

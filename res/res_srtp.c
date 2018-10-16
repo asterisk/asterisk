@@ -192,7 +192,9 @@ static struct ast_srtp *res_srtp_new(void)
 		return NULL;
 	}
 
-	if (!(srtp->policies = ao2_t_container_alloc(5, policy_hash_fn, policy_cmp_fn, "SRTP policy container"))) {
+	srtp->policies = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 5,
+		policy_hash_fn, NULL, policy_cmp_fn, "SRTP policy container");
+	if (!srtp->policies) {
 		ast_free(srtp);
 		return NULL;
 	}
