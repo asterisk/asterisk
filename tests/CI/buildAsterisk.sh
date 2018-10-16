@@ -83,6 +83,12 @@ common_config_args+=" --enable-dev-mode"
 if [ $COVERAGE -eq 1 ] ; then
 	common_config_args+=" --enable-coverage"
 fi
+if [ $REF_DEBUG -eq 1 ] ; then
+	# Binary modules are not compiled with REF_DEBUG in Asterisk 13.
+	# This doesn't break the ABI but these binary modules fail to
+	# record entries causing false leaks to be reported.
+	DISABLE_BINARY_MODULES=1
+fi
 if [ "$BRANCH_NAME" == "master" -o $DISABLE_BINARY_MODULES -eq 1 ] ; then
 	common_config_args+=" --disable-binary-modules"
 fi
