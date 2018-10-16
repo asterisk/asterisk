@@ -61,15 +61,40 @@ struct __priv_data {
 #endif
 	/*! Number of references held for this object */
 	int32_t ref_counter;
-	/*! The ao2 object option flags */
+	/*!
+	 * \brief The ao2 object option flags.
+	 *
+	 * \note This field is constant after object creation.  It shares
+	 *       a uint32_t with \ref lockused and \ref magic.
+	 */
 	uint32_t options:2;
-	/*! magic number.  This is used to verify that a pointer passed in is a
-	 *  valid astobj2 or ao2_weak reference */
-	uint32_t magic:30;
+	/*!
+	 * \brief Set to 1 when the lock is used if refdebug is enabled.
+	 *
+	 * \note This bit-field may be modified after object creation.  It
+	 *       shares a uint32_t with \ref options and \ref magic.
+	 */
+	uint32_t lockused:1;
+	/*!
+	 * \brief Magic number.
+	 *
+	 * This is used to verify that a pointer is a valid astobj2 or ao2_weak
+	 * reference.
+	 *
+	 * \note This field is constant after object creation.  It shares
+	 *       a uint32_t with \ref options and \ref lockused.
+	 *
+	 * \warning Stealing bits for any additional writable fields would cause
+	 *          reentrancy issues if using bitfields.  If any additional
+	 *          writable bits are required in the future we will need to put
+	 *          all bitfields into a single 'uint32_t flags' field and use
+	 *          atomic operations from \file lock.h to perform writes.
+	 */
+	uint32_t magic:29;
 };
 
-#define	AO2_MAGIC	0x3a70b123
-#define	AO2_WEAK	0x3a70b122
+#define	AO2_MAGIC	0x1a70b123
+#define	AO2_WEAK	0x1a70b122
 #define IS_AO2_MAGIC_BAD(p) (AO2_MAGIC != (p->priv_data.magic | 1))
 
 /*!
@@ -206,6 +231,10 @@ int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, co
 		return -1;
 	}
 
+	if (ref_log) {
+		obj->priv_data.lockused  = 1;
+	}
+
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
 		obj_mutex = INTERNAL_OBJ_MUTEX(user_data);
@@ -322,6 +351,10 @@ int __ao2_trylock(void *user_data, enum ao2_lock_req lock_how, const char *file,
 		return -1;
 	}
 
+	if (ref_log) {
+		obj->priv_data.lockused  = 1;
+	}
+
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
 		obj_mutex = INTERNAL_OBJ_MUTEX(user_data);
@@ -368,7 +401,6 @@ int __ao2_trylock(void *user_data, enum ao2_lock_req lock_how, const char *file,
 			user_data);
 		return -1;
 	}
-
 
 	return res;
 }
@@ -473,9 +505,7 @@ int __ao2_ref(void *user_data, int delta,
 	int32_t current_value;
 	int32_t ret;
 	struct ao2_weakproxy *weakproxy = NULL;
-#ifdef DEBUG_THREADS
 	const char *lock_state;
-#endif
 
 	if (obj == NULL) {
 		if (ref_log && user_data) {
@@ -595,33 +625,25 @@ int __ao2_ref(void *user_data, int delta,
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
 		obj_mutex = INTERNAL_OBJ_MUTEX(user_data);
-#ifdef DEBUG_THREADS
-		lock_state = obj_mutex->mutex.lock.flags.setup ? "used" : "unused";
-#endif
+		lock_state = obj->priv_data.lockused ? "used" : "unused";
 		ast_mutex_destroy(&obj_mutex->mutex.lock);
 
 		ast_free(obj_mutex);
 		break;
 	case AO2_ALLOC_OPT_LOCK_RWLOCK:
 		obj_rwlock = INTERNAL_OBJ_RWLOCK(user_data);
-#ifdef DEBUG_THREADS
-		lock_state = obj_rwlock->rwlock.lock.flags.setup ? "used" : "unused";
-#endif
+		lock_state = obj->priv_data.lockused ? "used" : "unused";
 		ast_rwlock_destroy(&obj_rwlock->rwlock.lock);
 
 		ast_free(obj_rwlock);
 		break;
 	case AO2_ALLOC_OPT_LOCK_NOLOCK:
-#ifdef DEBUG_THREADS
 		lock_state = "none";
-#endif
 		ast_free(obj);
 		break;
 	case AO2_ALLOC_OPT_LOCK_OBJ:
 		obj_lockobj = INTERNAL_OBJ_LOCKOBJ(user_data);
-#ifdef DEBUG_THREADS
-		lock_state = "lockobj";
-#endif
+		lock_state = obj->priv_data.lockused ? "used" : "unused";
 		ao2_t_ref(obj_lockobj->lockobj.lock, -1, "release lockobj");
 
 		ast_free(obj_lockobj);
@@ -629,22 +651,13 @@ int __ao2_ref(void *user_data, int delta,
 	default:
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid lock option on ao2 object %p\n", user_data);
-#ifdef DEBUG_THREADS
 		lock_state = "invalid";
-#endif
 		break;
 	}
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor%s%s**,%s\n",
-			user_data, delta, ast_get_tid(), file, line, func,
-#ifdef DEBUG_THREADS
-			"**lock-state:",
-			lock_state,
-#else
-			"", "",
-#endif
-			tag);
+		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**lock-state:%s**,%s\n",
+			user_data, delta, ast_get_tid(), file, line, func, lock_state, tag);
 		fflush(ref_log);
 	}
 
@@ -673,10 +686,12 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	struct astobj2_lockobj *obj_lockobj;
+	size_t overhead;
 
 	switch (options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
-		obj_mutex = __ast_calloc(1, sizeof(*obj_mutex) + data_size, file, line, func);
+		overhead = sizeof(*obj_mutex);
+		obj_mutex = __ast_calloc(1, overhead + data_size, file, line, func);
 		if (obj_mutex == NULL) {
 			return NULL;
 		}
@@ -685,7 +700,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 		obj = (struct astobj2 *) &obj_mutex->priv_data;
 		break;
 	case AO2_ALLOC_OPT_LOCK_RWLOCK:
-		obj_rwlock = __ast_calloc(1, sizeof(*obj_rwlock) + data_size, file, line, func);
+		overhead = sizeof(*obj_rwlock);
+		obj_rwlock = __ast_calloc(1, overhead + data_size, file, line, func);
 		if (obj_rwlock == NULL) {
 			return NULL;
 		}
@@ -694,7 +710,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 		obj = (struct astobj2 *) &obj_rwlock->priv_data;
 		break;
 	case AO2_ALLOC_OPT_LOCK_NOLOCK:
-		obj = __ast_calloc(1, sizeof(*obj) + data_size, file, line, func);
+		overhead = sizeof(*obj);
+		obj = __ast_calloc(1, overhead + data_size, file, line, func);
 		if (obj == NULL) {
 			return NULL;
 		}
@@ -706,7 +723,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 			return NULL;
 		}
 
-		obj_lockobj = __ast_calloc(1, sizeof(*obj_lockobj) + data_size, file, line, func);
+		overhead = sizeof(*obj_lockobj);
+		obj_lockobj = __ast_calloc(1, overhead + data_size, file, line, func);
 		if (obj_lockobj == NULL) {
 			ao2_t_ref(lockobj, -1, "release lockobj for failed alloc");
 			return NULL;
@@ -735,8 +753,8 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 #endif
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n",
-			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, tag);
+		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**%zu**%zu**,%s\n",
+			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, overhead, data_size, tag);
 		fflush(ref_log);
 	}
 
