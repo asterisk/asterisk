@@ -456,7 +456,7 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 			test_sort_cb, test_cmp_cb, "test");
 		break;
 	}
-	c2 = ao2_t_container_alloc(1, NULL, NULL, "test");
+	c2 = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL, "test");
 
 	if (!c1 || !c2) {
 		ast_test_status_update(test, "ao2_container_alloc failed.\n");

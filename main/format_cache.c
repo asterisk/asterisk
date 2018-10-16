@@ -363,8 +363,8 @@ static void format_cache_shutdown(void)
 
 int ast_format_cache_init(void)
 {
-	formats = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CACHE_BUCKETS,
-		format_hash_cb, format_cmp_cb);
+	formats = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, CACHE_BUCKETS,
+		format_hash_cb, NULL, format_cmp_cb);
 	if (!formats) {
 		return -1;
 	}

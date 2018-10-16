@@ -1298,33 +1298,24 @@ typedef int (ao2_sort_fn)(const void *obj_left, const void *obj_right, int flags
 struct ao2_container;
 
 /*!
+ * \deprecated
  * \brief Allocate and initialize a hash container with the desired number of buckets.
  *
  * \details
  * We allocate space for a struct astobj_container, struct container
  * and the buckets[] array.
  *
- * \param options Container ao2 object options (See enum ao2_alloc_opts)
  * \param n_buckets Number of buckets for hash
  * \param hash_fn Pointer to a function computing a hash value. (NULL if everyting goes in first bucket.)
  * \param cmp_fn Pointer to a compare function used by ao2_find. (NULL to match everything)
- * \param tag used for debugging.
  *
  * \return A pointer to a struct container.
  *
  * \note Destructor is set implicitly.
  * \note This is legacy container creation that is mapped to the new method.
  */
-
-#define ao2_t_container_alloc_options(options, n_buckets, hash_fn, cmp_fn, tag) \
-	ao2_t_container_alloc_hash((options), 0, (n_buckets), (hash_fn), NULL, (cmp_fn), (tag))
-#define ao2_container_alloc_options(options, n_buckets, hash_fn, cmp_fn) \
-	ao2_container_alloc_hash((options), 0, (n_buckets), (hash_fn), NULL, (cmp_fn))
-
-#define ao2_t_container_alloc(n_buckets, hash_fn, cmp_fn, tag) \
-	ao2_t_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn), (tag))
 #define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, (n_buckets), (hash_fn), (cmp_fn))
+	ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, (n_buckets), (hash_fn), NULL, (cmp_fn))
 
 /*!
  * \brief Allocate and initialize a hash container with the desired number of buckets.
