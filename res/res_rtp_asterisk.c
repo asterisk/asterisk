@@ -8330,4 +8330,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk RTP Stack",
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
+#ifdef HAVE_PJPROJECT
+	.requires = "res_pjproject",
+#endif
 );
