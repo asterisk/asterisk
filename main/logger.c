@@ -621,7 +621,8 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	return chan;
 }
 
-/* \brief Read config, setup channels.
+/*!
+ * \brief Read config, setup channels.
  * \param altconf Alternate configuration file to read.
  *
  * \pre logchannels list is write locked
@@ -663,14 +664,11 @@ static int init_logger_chain(const char *altconf)
 
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
-		if (!(chan = ast_calloc(1, sizeof(*chan) + 1))) {
-			fprintf(stderr, "Failed to initialize default logging\n");
+		chan = make_logchannel("console", "error,warning,notice,verbose", 0, 0);
+		if (!chan) {
+			fprintf(stderr, "ERROR: Failed to initialize default logging\n");
 			return -1;
 		}
-		chan->type = LOGTYPE_CONSOLE;
-		chan->logmask = (1 << __LOG_WARNING) | (1 << __LOG_NOTICE) | (1 << __LOG_ERROR)
-			| (1 << __LOG_VERBOSE);
-		memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
 
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
@@ -738,7 +736,8 @@ static int init_logger_chain(const char *altconf)
 
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
-		if (!(chan = make_logchannel(var->name, var->value, var->lineno, 0))) {
+		chan = make_logchannel(var->name, var->value, var->lineno, 0);
+		if (!chan) {
 			/* Print error message directly to the consoles since the lock is held
 			 * and we don't want to unlock with the list partially built */
 			ast_console_puts_mutable("ERROR: Unable to create log channel '", __LOG_ERROR);
