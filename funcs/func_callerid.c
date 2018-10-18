@@ -150,19 +150,9 @@
 				<enum name = "bmp"><para>ISO10646 Bmp String</para></enum>
 				<enum name = "utf8"><para>ISO10646 UTF-8 String</para></enum>
 			</enumlist>
-		</description>
-	</function>
-	<function name="CALLERPRES" language="en_US">
-		<synopsis>
-			Gets or sets Caller*ID presentation on the channel.
-		</synopsis>
-		<syntax />
-		<description>
-			<para>Gets or sets Caller*ID presentation on the channel.
-			This function is deprecated in favor of CALLERID(num-pres)
-			and CALLERID(name-pres) or CALLERID(pres) to get/set both
-			at once.
-			The following values are valid:</para>
+			<para>The allowable values for the <replaceable>num-pres</replaceable>,
+			<replaceable>name-pres</replaceable>, and <replaceable>pres</replaceable>
+			fields are the following:</para>
 			<enumlist>
 				<enum name="allowed_not_screened">
 					<para>Presentation Allowed, Not Screened.</para>
@@ -256,6 +246,38 @@
 				<enum name = "iso8859-7"><para>ISO8859-7</para></enum>
 				<enum name = "bmp"><para>ISO10646 Bmp String</para></enum>
 				<enum name = "utf8"><para>ISO10646 UTF-8 String</para></enum>
+			</enumlist>
+			<para>The allowable values for the <replaceable>num-pres</replaceable>,
+			<replaceable>name-pres</replaceable>, and <replaceable>pres</replaceable>
+			fields are the following:</para>
+			<enumlist>
+				<enum name="allowed_not_screened">
+					<para>Presentation Allowed, Not Screened.</para>
+				</enum>
+				<enum name="allowed_passed_screen">
+					<para>Presentation Allowed, Passed Screen.</para>
+				</enum>
+				<enum name="allowed_failed_screen">
+					<para>Presentation Allowed, Failed Screen.</para>
+				</enum>
+				<enum name="allowed">
+					<para>Presentation Allowed, Network Number.</para>
+				</enum>
+				<enum name="prohib_not_screened">
+					<para>Presentation Prohibited, Not Screened.</para>
+				</enum>
+				<enum name="prohib_passed_screen">
+					<para>Presentation Prohibited, Passed Screen.</para>
+				</enum>
+				<enum name="prohib_failed_screen">
+					<para>Presentation Prohibited, Failed Screen.</para>
+				</enum>
+				<enum name="prohib">
+					<para>Presentation Prohibited, Network Number.</para>
+				</enum>
+				<enum name="unavailable">
+					<para>Number Unavailable.</para>
+				</enum>
 			</enumlist>
 		</description>
 	</function>
@@ -890,76 +912,6 @@ static enum ID_FIELD_STATUS party_id_write(struct ast_party_id *id, int argc, ch
 	}
 
 	return status;
-}
-
-/*! TRUE if we have already notified about CALLERPRES being deprecated. */
-static int callerpres_deprecate_notify;
-
-/*!
- * \internal
- * \brief Read values from the caller-id presentation information struct.
- *
- * \param chan Asterisk channel to read
- * \param cmd Not used
- * \param data Caller-id presentation function datatype string
- * \param buf Buffer to fill with read value.
- * \param len Length of the buffer
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	if (!chan) {
-		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
-		return -1;
-	}
-
-	if (!callerpres_deprecate_notify) {
-		callerpres_deprecate_notify = 1;
-		ast_log(LOG_WARNING, "CALLERPRES is deprecated."
-			"  Use CALLERID(name-pres) or CALLERID(num-pres) instead.\n");
-	}
-	ast_copy_string(buf,
-		ast_named_caller_presentation(ast_party_id_presentation(&ast_channel_caller(chan)->id)), len);
-	return 0;
-}
-
-/*!
- * \internal
- * \brief Write new values to the caller-id presentation information struct.
- *
- * \param chan Asterisk channel to update
- * \param cmd Not used
- * \param data Caller-id presentation function datatype string
- * \param value Value to assign to the caller-id presentation information struct.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int callerpres_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
-{
-	int pres;
-
-	if (!chan) {
-		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
-		return -1;
-	}
-
-	if (!callerpres_deprecate_notify) {
-		callerpres_deprecate_notify = 1;
-		ast_log(LOG_WARNING, "CALLERPRES is deprecated."
-			"  Use CALLERID(name-pres) or CALLERID(num-pres) instead.\n");
-	}
-
-	pres = ast_parse_caller_presentation(value);
-	if (pres < 0) {
-		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show function CALLERPRES')\n", value);
-	} else {
-		ast_channel_caller(chan)->id.name.presentation = pres;
-		ast_channel_caller(chan)->id.number.presentation = pres;
-	}
-	return 0;
 }
 
 /*!
@@ -1825,13 +1777,6 @@ static struct ast_custom_function callerid_function = {
 	.write = callerid_write,
 };
 
-static struct ast_custom_function callerpres_function = {
-	.name = "CALLERPRES",
-	.read = callerpres_read,
-	.read_max = 50,
-	.write = callerpres_write,
-};
-
 static struct ast_custom_function connectedline_function = {
 	.name = "CONNECTEDLINE",
 	.read = connectedline_read,
@@ -1853,13 +1798,10 @@ static struct ast_custom_function redirecting_function = {
  */
 static int unload_module(void)
 {
-	int res;
-
-	res = ast_custom_function_unregister(&callerpres_function);
-	res |= ast_custom_function_unregister(&callerid_function);
-	res |= ast_custom_function_unregister(&connectedline_function);
-	res |= ast_custom_function_unregister(&redirecting_function);
-	return res;
+	ast_custom_function_unregister(&callerid_function);
+	ast_custom_function_unregister(&connectedline_function);
+	ast_custom_function_unregister(&redirecting_function);
+	return 0;
 }
 
 /*!
@@ -1873,11 +1815,16 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_custom_function_register(&callerpres_function);
-	res |= ast_custom_function_register(&callerid_function);
+	res = ast_custom_function_register(&callerid_function);
 	res |= ast_custom_function_register(&connectedline_function);
 	res |= ast_custom_function_register(&redirecting_function);
-	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
+
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /* Do not wrap the following line. */
