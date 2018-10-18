@@ -189,8 +189,8 @@ static void clean_statements(void)
 
 static int init_statements(void)
 {
-	/* Don't initialize create_astdb_statment here as the astdb table needs to exist
-	 * brefore these statments can be initialized */
+	/* Don't initialize create_astdb_statement here as the astdb table needs to exist
+	 * brefore these statements can be initialized */
 	return init_stmt(&get_stmt, get_stmt_sql, sizeof(get_stmt_sql))
 	|| init_stmt(&del_stmt, del_stmt_sql, sizeof(del_stmt_sql))
 	|| init_stmt(&deltree_stmt, deltree_stmt_sql, sizeof(deltree_stmt_sql))
@@ -345,7 +345,7 @@ int ast_db_put(const char *family, const char *key, const char *value)
 		ast_log(LOG_WARNING, "Couldn't bind value to stmt: %s\n", sqlite3_errmsg(astdb));
 		res = -1;
 	} else if (sqlite3_step(put_stmt) != SQLITE_DONE) {
-		ast_log(LOG_WARNING, "Couldn't execute statment: %s\n", sqlite3_errmsg(astdb));
+		ast_log(LOG_WARNING, "Couldn't execute statement: %s\n", sqlite3_errmsg(astdb));
 		res = -1;
 	}
 

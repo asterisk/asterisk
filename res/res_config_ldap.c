@@ -87,7 +87,7 @@ struct category_and_metric {
 	int metric;
 	const char *variable_name;
 	const char *variable_value;
-	int var_metric; /*!< For organizing variables (particularly includes and switch statments) within a context */
+	int var_metric; /*!< For organizing variables (particularly includes and switch statements) within a context */
 };
 
 /*! \brief Table configuration
@@ -1030,7 +1030,7 @@ static struct ast_variable *realtime_ldap(const char *basedn,
 
 /*! \brief See Asterisk doc
  *
- * this function will be called for the switch statment if no match is found with the realtime_ldap function(i.e. it is a failover);
+ * this function will be called for the switch statement if no match is found with the realtime_ldap function(i.e. it is a failover);
  * however, the ast_load_realtime wil match on wildcharacters also depending on what the mode is set to
  * this is an area of asterisk that could do with a lot of modification
  * I think this function returns Realtime dynamic objects
