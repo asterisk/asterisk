@@ -664,7 +664,7 @@ EXTERN int setPERBufferUsingCtxt (OOCTXT* pTarget, OOCTXT* pSource);
 /**
  * This function adds an integer parameter to an error information structure.
  * Parameter substitution is done in much the same way as it is done in C
- * printf statments. The base error message specification that goes along with
+ * printf statements. The base error message specification that goes along with
  * a particular status code may have variable fields built in using '%'
  * modifiers. These would be replaced with actual parameter data.
  *
@@ -680,7 +680,7 @@ EXTERN int errAddIntParm (ASN1ErrInfo* pErrInfo, int errParm);
 /**
  * This function adds an string parameter to an error information structure.
  * Parameter substitution is done in much the same way as it is done in C
- * printf statments. The base error message specification that goes along with
+ * printf statements. The base error message specification that goes along with
  * a particular status code may have variable fields built in using '%'
  * modifiers. These would be replaced with actual parameter data.
  *
@@ -697,7 +697,7 @@ EXTERN int errAddStrParm (ASN1ErrInfo* pErrInfo,
 /**
  * This function adds an unsigned integer parameter to an error information
  * structure. Parameter substitution is done in much the same way as it is done
- * in C printf statments. The base error message specification that goes along
+ * in C printf statements. The base error message specification that goes along
  * with a particular status code may have variable fields built in using '%'
  * modifiers. These would be replaced with actual parameter data.
  *

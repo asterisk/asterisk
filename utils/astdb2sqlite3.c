@@ -95,7 +95,7 @@ static int db_put_raw(const char *key, size_t keylen, const char *value, size_t 
 		fprintf(stderr, "Couldn't bind value to stmt: %s\n", sqlite3_errmsg(astdb));
 		res = -1;
 	} else if (sqlite3_step(put_stmt) != SQLITE_DONE) {
-		fprintf(stderr, "Couldn't execute statment: %s\n", sqlite3_errmsg(astdb));
+		fprintf(stderr, "Couldn't execute statement: %s\n", sqlite3_errmsg(astdb));
 		res = -1;
 	}
 	sqlite3_reset(put_stmt);
@@ -168,8 +168,8 @@ static int db_create_astdb(void)
 
 static int init_statements(void)
 {
-	/* Don't initialize create_astdb_statment here as the astdb table needs to exist
-	 * brefore these statments can be initialized */
+	/* Don't initialize create_astdb_statement here as the astdb table needs to exist
+	 * brefore these statements can be initialized */
 	return init_stmt(&put_stmt, put_stmt_sql, sizeof(put_stmt_sql));
 }
 
