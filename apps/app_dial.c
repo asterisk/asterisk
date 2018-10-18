@@ -143,11 +143,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					a call to be answered. Exit to that extension if it exists in the
 					current context, or the context defined in the <variable>EXITCONTEXT</variable> variable,
 					if it exists.</para>
-					<note>
-						<para>Many SIP and ISDN phones cannot send DTMF digits until the call is
-						connected.  If you wish to use this option with these phones, you
-						can use the <literal>Answer</literal> application before dialing.</para>
-					</note>
+					<para>NOTE: Many SIP and ISDN phones cannot send DTMF digits until the call is
+					connected.  If you wish to use this option with these phones, you
+					can use the <literal>Answer</literal> application before dialing.</para>
 				</option>
 				<option name="D" argsep=":">
 					<argument name="called" />
@@ -178,21 +176,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="priority" required="true" />
 					<para>When the caller hangs up, transfer the <emphasis>called</emphasis> party
 					to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
-					<note>
-						<para>Any channel variables you want the called channel to inherit from the caller channel must be
-						prefixed with one or two underbars ('_').</para>
-					</note>
+					<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
+					prefixed with one or two underbars ('_').</para>
 				</option>
 				<option name="F">
 					<para>When the caller hangs up, transfer the <emphasis>called</emphasis> party to the next priority of the current extension
 					and <emphasis>start</emphasis> execution at that location.</para>
-					<note>
-						<para>Any channel variables you want the called channel to inherit from the caller channel must be
-						prefixed with one or two underbars ('_').</para>
-					</note>
-					<note>
-						<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
-					</note>
+					<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
+					prefixed with one or two underbars ('_').</para>
+					<para>NOTE: Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
 				</option>
 				<option name="g">
 					<para>Proceed with dialplan execution at the next priority in the current extension if the
@@ -205,9 +197,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>If the call is answered, transfer the calling party to
 					the specified <replaceable>priority</replaceable> and the called party to the specified
 					<replaceable>priority</replaceable> plus one.</para>
-					<note>
-						<para>You cannot use any additional action post answer options in conjunction with this option.</para>
-					</note>
+					<para>NOTE: You cannot use any additional action post answer options in conjunction with this option.</para>
 				</option>
 				<option name="h">
 					<para>Allow the called party to hang up by sending the DTMF sequence
@@ -216,12 +206,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<option name="H">
 					<para>Allow the calling party to hang up by sending the DTMF sequence
 					defined for disconnect in <filename>features.conf</filename>.</para>
-					<note>
-						<para>Many SIP and ISDN phones cannot send DTMF digits until the call is
-						connected.  If you wish to allow DTMF disconnect before the dialed
-						party answers with these phones, you can use the <literal>Answer</literal>
-						application before dialing.</para>
-					</note>
+					<para>NOTE: Many SIP and ISDN phones cannot send DTMF digits until the call is
+					connected.  If you wish to allow DTMF disconnect before the dialed
+					party answers with these phones, you can use the <literal>Answer</literal>
+					application before dialing.</para>
 				</option>
 				<option name="i">
 					<para>Asterisk will ignore any forwarding requests it may receive on this dial attempt.</para>
@@ -317,14 +305,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 							</value>
 						</variable>
 					</variablelist>
-					<note>
-						<para>You cannot use any additional action post answer options in conjunction
-						with this option. Also, pbx services are run on the peer (called) channel,
-						so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this macro.</para>
-					</note>
-					<warning><para>Be aware of the limitations that macros have, specifically with regards to use of
+					<para>NOTE: You cannot use any additional action post answer options in conjunction
+					with this option. Also, pbx services are run on the peer (called) channel,
+					so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this macro.</para>
+					<para>WARNING: Be aware of the limitations that macros have, specifically with regards to use of
 					the <literal>WaitExten</literal> application. For more information, see the documentation for
-					<literal>Macro()</literal>.</para></warning>
+					<literal>Macro()</literal>.</para>
 				</option>
 				<option name="n">
 					<argument name="delete">
@@ -389,10 +375,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						to send no cause.  See the <filename>causes.h</filename> file for the
 						full list of valid causes and names.
 						</para>
-					<note>
-						<para>chan_sip does not support setting the cause on a CANCEL to anything
-						other than ANSWERED_ELSEWHERE.</para>
-					</note>
+					<para>NOTE: chan_sip does not support setting the cause on a CANCEL to anything
+					other than ANSWERED_ELSEWHERE.</para>
 				</option>
 				<option name="r">
 					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling
@@ -427,7 +411,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</option>
 				<option name="U" argsep="^">
 					<argument name="x" required="true">
-						<para>Name of the subroutine to execute via <literal>Gosub</literal></para>
+						<para>Name of the subroutine context to execute via <literal>Gosub</literal>.
+						The subroutine execution starts in the named context at the s exten and priority 1.</para>
 					</argument>
 					<argument name="arg" multiple="true" required="false">
 						<para>Arguments for the <literal>Gosub</literal> routine</para>
@@ -456,11 +441,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 							</value>
 						</variable>
 					</variablelist>
-					<note>
-						<para>You cannot use any additional action post answer options in conjunction
-						with this option. Also, pbx services are run on the peer (called) channel,
-						so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this routine.</para>
-					</note>
+					<para>NOTE: You cannot use any additional action post answer options in conjunction
+					with this option. Also, pbx services are run on the <emphasis>called</emphasis> channel,
+					so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this routine.</para>
 				</option>
 				<option name="u">
 					<argument name = "x" required="true">
@@ -545,27 +528,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<example title="Dial with pre-dial subroutines">
 			[default]
 
-			exten => callee_channel,1,NoOp()
+			exten => callee_channel,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Log(NOTICE, I'm called on channel ${CHANNEL} prior to it starting the dial attempt)
 			 same => n,Return()
 
-			exten => called_channel,1,NoOp()
+			exten => called_channel,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Log(NOTICE, I'm called on outbound channel ${CHANNEL} prior to it being used to dial someone)
 			 same => n,Return()
 
 			exten => _X.,1,NoOp()
-			 same => n,Dial(PJSIP/alice,,b(default^called_channel^1)B(default^callee_channel^1))
+			 same => n,Dial(PJSIP/alice,,b(default^called_channel^1(my_gosub_arg1^my_gosub_arg2))B(default^callee_channel^1(my_gosub_arg1^my_gosub_arg2)))
 			 same => n,Hangup()
 			</example>
 			<example title="Dial with post-answer subroutine executed on outbound channel">
-			[default]
+			[my_gosub_routine]
 
-			exten => called_channel,1,NoOp()
+			exten => s,1,NoOp(ARG1=${ARG1} ARG2=${ARG2})
 			 same => n,Playback(hello)
 			 same => n,Return()
 
+			[default]
+
 			exten => _X.,1,NoOp()
-			 same => n,Dial(PJSIP/alice,,U(default^called_channel^1))
+			 same => n,Dial(PJSIP/alice,,U(my_gosub_routine^my_gosub_arg1^my_gosub_arg2))
 			 same => n,Hangup()
 			</example>
 			<example title="Dial into ConfBridge using 'G' option">
