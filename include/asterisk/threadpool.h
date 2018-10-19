@@ -186,7 +186,8 @@ void ast_threadpool_set_size(struct ast_threadpool *threadpool, unsigned int siz
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data);
+int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), void *data)
+	attribute_warn_unused_result;
 
 /*!
  * \brief Shut down a threadpool and destroy it

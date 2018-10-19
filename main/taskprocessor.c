@@ -237,7 +237,11 @@ static void default_listener_shutdown(struct ast_taskprocessor_listener *listene
 	/* Hold a reference during shutdown */
 	ao2_t_ref(listener->tps, +1, "tps-shutdown");
 
-	ast_taskprocessor_push(listener->tps, default_listener_die, pvt);
+	if (ast_taskprocessor_push(listener->tps, default_listener_die, pvt)) {
+		/* This will cause the thread to exit early without completing tasks already
+		 * in the queue.  This is probably the least bad option in this situation. */
+		default_listener_die(pvt);
+	}
 
 	ast_assert(pvt->poll_thread != AST_PTHREADT_NULL);
 

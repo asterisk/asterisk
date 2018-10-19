@@ -563,7 +563,10 @@ struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 
 	/* When all that's done, remove the ref the mailbox has on the sub */
 	if (sub->mailbox) {
-		ast_taskprocessor_push(sub->mailbox, sub_cleanup, sub);
+		if (ast_taskprocessor_push(sub->mailbox, sub_cleanup, sub)) {
+			/* Nothing we can do here, the conditional is just to keep
+			 * the compiler happy that we're not ignoring the result. */
+		}
 	}
 
 	/* Unsubscribing unrefs the subscription */
