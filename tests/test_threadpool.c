@@ -127,6 +127,18 @@ static struct simple_task_data *simple_task_data_alloc(void)
 	return std;
 }
 
+static void simple_task_data_free(struct simple_task_data *std)
+{
+	if (!std) {
+		return;
+	}
+
+	ast_mutex_destroy(&std->lock);
+	ast_cond_destroy(&std->cond);
+
+	ast_free(std);
+}
+
 static int simple_task(void *data)
 {
 	struct simple_task_data *std = data;
@@ -319,7 +331,9 @@ AST_TEST_DEFINE(threadpool_push)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std);
+	if (ast_threadpool_push(pool, simple_task, std)) {
+		goto end;
+	}
 
 	wait_for_task_pushed(listener);
 
@@ -328,7 +342,7 @@ AST_TEST_DEFINE(threadpool_push)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std);
+	simple_task_data_free(std);
 	ast_free(tld);
 	return res;
 }
@@ -635,11 +649,13 @@ AST_TEST_DEFINE(threadpool_thread_timeout_thrash)
 		}
 		ast_mutex_unlock(&tld->lock);
 
-		ast_threadpool_push(pool, simple_task, std);
+		if (ast_threadpool_push(pool, simple_task, std)) {
+			res = AST_TEST_FAIL;
+		} else {
+			res = wait_for_completion(test, std);
+		}
 
-		res = wait_for_completion(test, std);
-
-		ast_free(std);
+		simple_task_data_free(std);
 
 		if (res == AST_TEST_FAIL) {
 			goto end;
@@ -707,7 +723,9 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std);
+	if (ast_threadpool_push(pool, simple_task, std)) {
+		goto end;
+	}
 
 	ast_threadpool_set_size(pool, 1);
 
@@ -736,7 +754,7 @@ AST_TEST_DEFINE(threadpool_one_task_one_thread)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std);
+	simple_task_data_free(std);
 	ast_free(tld);
 	return res;
 
@@ -796,7 +814,10 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std);
+	if (ast_threadpool_push(pool, simple_task, std)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 
 	res = wait_for_completion(test, std);
 	if (res == AST_TEST_FAIL) {
@@ -819,7 +840,7 @@ AST_TEST_DEFINE(threadpool_one_thread_one_task)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std);
+	simple_task_data_free(std);
 	ast_free(tld);
 	return res;
 }
@@ -882,9 +903,18 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std1);
-	ast_threadpool_push(pool, simple_task, std2);
-	ast_threadpool_push(pool, simple_task, std3);
+	res = AST_TEST_FAIL;
+	if (ast_threadpool_push(pool, simple_task, std1)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, simple_task, std2)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, simple_task, std3)) {
+		goto end;
+	}
 
 	res = wait_for_completion(test, std1);
 	if (res == AST_TEST_FAIL) {
@@ -914,9 +944,9 @@ AST_TEST_DEFINE(threadpool_one_thread_multiple_tasks)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std1);
-	ast_free(std2);
-	ast_free(std3);
+	simple_task_data_free(std1);
+	simple_task_data_free(std2);
+	simple_task_data_free(std3);
 	ast_free(tld);
 	return res;
 }
@@ -1011,7 +1041,9 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std1);
+	if (ast_threadpool_push(pool, simple_task, std1)) {
+		goto end;
+	}
 
 	/* Pushing the task should result in the threadpool growing
 	 * by three threads. This will allow the task to actually execute
@@ -1034,9 +1066,19 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 	/* Now push three tasks into the pool and ensure the pool does not
 	 * grow.
 	 */
-	ast_threadpool_push(pool, simple_task, std2);
-	ast_threadpool_push(pool, simple_task, std3);
-	ast_threadpool_push(pool, simple_task, std4);
+	res = AST_TEST_FAIL;
+
+	if (ast_threadpool_push(pool, simple_task, std2)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, simple_task, std3)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, simple_task, std4)) {
+		goto end;
+	}
 
 	res = wait_for_completion(test, std2);
 	if (res == AST_TEST_FAIL) {
@@ -1064,10 +1106,10 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std1);
-	ast_free(std2);
-	ast_free(std3);
-	ast_free(std4);
+	simple_task_data_free(std1);
+	simple_task_data_free(std2);
+	simple_task_data_free(std3);
+	simple_task_data_free(std4);
 	ast_free(tld);
 	return res;
 }
@@ -1121,7 +1163,9 @@ AST_TEST_DEFINE(threadpool_max_size)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std);
+	if (ast_threadpool_push(pool, simple_task, std)) {
+		goto end;
+	}
 
 	res = wait_for_completion(test, std);
 	if (res == AST_TEST_FAIL) {
@@ -1137,7 +1181,7 @@ AST_TEST_DEFINE(threadpool_max_size)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std);
+	simple_task_data_free(std);
 	ast_free(tld);
 	return res;
 }
@@ -1193,7 +1237,9 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, simple_task, std1);
+	if (ast_threadpool_push(pool, simple_task, std1)) {
+		goto end;
+	}
 
 	ast_threadpool_set_size(pool, 1);
 
@@ -1218,7 +1264,10 @@ AST_TEST_DEFINE(threadpool_reactivation)
 	}
 
 	/* Now make sure the threadpool reactivates when we add a second task */
-	ast_threadpool_push(pool, simple_task, std2);
+	if (ast_threadpool_push(pool, simple_task, std2)) {
+		res = AST_TEST_FAIL;
+		goto end;
+	}
 
 	res = wait_for_completion(test, std2);
 	if (res == AST_TEST_FAIL) {
@@ -1240,8 +1289,8 @@ AST_TEST_DEFINE(threadpool_reactivation)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(std1);
-	ast_free(std2);
+	simple_task_data_free(std1);
+	simple_task_data_free(std2);
 	ast_free(tld);
 	return res;
 
@@ -1267,6 +1316,19 @@ static struct complex_task_data *complex_task_data_alloc(void)
 	ast_cond_init(&ctd->stall_cond, NULL);
 	ast_cond_init(&ctd->notify_cond, NULL);
 	return ctd;
+}
+
+static void complex_task_data_free(struct complex_task_data *ctd)
+{
+	if (!ctd) {
+		return;
+	}
+
+	ast_mutex_destroy(&ctd->lock);
+	ast_cond_destroy(&ctd->stall_cond);
+	ast_cond_destroy(&ctd->notify_cond);
+
+	ast_free(ctd);
 }
 
 static int complex_task(void *data)
@@ -1400,8 +1462,13 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, complex_task, ctd1);
-	ast_threadpool_push(pool, complex_task, ctd2);
+	if (ast_threadpool_push(pool, complex_task, ctd1)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, complex_task, ctd2)) {
+		goto end;
+	}
 
 	ast_threadpool_set_size(pool, 2);
 
@@ -1438,8 +1505,8 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(ctd1);
-	ast_free(ctd2);
+	complex_task_data_free(ctd1);
+	complex_task_data_free(ctd2);
 	ast_free(tld);
 	return res;
 }
@@ -1496,8 +1563,13 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 		goto end;
 	}
 
-	ast_threadpool_push(pool, complex_task, ctd1);
-	ast_threadpool_push(pool, complex_task, ctd2);
+	if (ast_threadpool_push(pool, complex_task, ctd1)) {
+		goto end;
+	}
+
+	if (ast_threadpool_push(pool, complex_task, ctd2)) {
+		goto end;
+	}
 
 	ast_threadpool_set_size(pool, 4);
 
@@ -1549,8 +1621,8 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 end:
 	ast_threadpool_shutdown(pool);
 	ao2_cleanup(listener);
-	ast_free(ctd1);
-	ast_free(ctd2);
+	complex_task_data_free(ctd1);
+	complex_task_data_free(ctd2);
 	ast_free(tld);
 	return res;
 }
@@ -1666,9 +1738,9 @@ end:
 	poke_worker(data3);
 	ast_taskprocessor_unreference(uut);
 	ast_threadpool_shutdown(pool);
-	ast_free(data1);
-	ast_free(data2);
-	ast_free(data3);
+	complex_task_data_free(data1);
+	complex_task_data_free(data2);
+	complex_task_data_free(data3);
 	return res;
 }
 
