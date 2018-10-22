@@ -2183,7 +2183,12 @@ static void queue_publish_multi_channel_snapshot_blob(struct stasis_topic *topic
 		return;
 	}
 
-	ast_multi_channel_blob_add_channel(payload, "caller", caller_snapshot);
+	if (caller_snapshot) {
+		ast_multi_channel_blob_add_channel(payload, "caller", caller_snapshot);
+	} else {
+		ast_debug(1, "Empty caller_snapshot; sending incomplete event\n");
+	}
+
 	if (agent_snapshot) {
 		ast_multi_channel_blob_add_channel(payload, "agent", agent_snapshot);
 	}
@@ -5975,10 +5980,6 @@ struct queue_stasis_data {
 	struct local_optimization caller_optimize;
 	/*! Local channel optimization details for the member */
 	struct local_optimization member_optimize;
-	/*! Member channel */
-	struct ast_channel *member_channel;
-	/*! Caller channel */
-	struct ast_channel *caller_channel;
 };
 
 /*!
@@ -5996,9 +5997,6 @@ static void queue_stasis_data_destructor(void *obj)
 	ao2_cleanup(queue_data->member);
 	queue_unref(queue_data->queue);
 	ast_string_field_free_memory(queue_data);
-
-	ao2_ref(queue_data->member_channel, -1);
-	ao2_ref(queue_data->caller_channel, -1);
 }
 
 /*!
@@ -6046,15 +6044,6 @@ static struct queue_stasis_data *queue_stasis_data_alloc(struct queue_ent *qe,
 	ao2_ref(mem, +1);
 	queue_data->member = mem;
 
-	/*
-	 * During transfers it's possible for both the member and/or caller
-	 * channel(s) to not be available. Adding a reference here ensures
-	 * that the channels remain until app_queue is completely done with
-	 * them.
-	 */
-	queue_data->member_channel = ao2_bump(peer);
-	queue_data->caller_channel = ao2_bump(qe->chan);
-
 	return queue_data;
 }
 
@@ -6066,10 +6055,9 @@ static struct queue_stasis_data *queue_stasis_data_alloc(struct queue_ent *qe,
  * attended transfer was completed.
  *
  * \param queue_data Data pertaining to the particular call in the queue.
- * \param caller The channel snapshot for the caller channel in the queue.
  * \param atxfer_msg The stasis attended transfer message data.
  */
-static void log_attended_transfer(struct queue_stasis_data *queue_data, struct ast_channel_snapshot *caller,
+static void log_attended_transfer(struct queue_stasis_data *queue_data,
 		struct ast_attended_transfer_message *atxfer_msg)
 {
 	RAII_VAR(struct ast_str *, transfer_str, ast_str_create(32), ast_free);
@@ -6098,7 +6086,7 @@ static void log_attended_transfer(struct queue_stasis_data *queue_data, struct a
 		return;
 	}
 
-	ast_queue_log(queue_data->queue->name, caller->base->uniqueid, queue_data->member->membername, "ATTENDEDTRANSFER", "%s|%ld|%ld|%d",
+	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername, "ATTENDEDTRANSFER", "%s|%ld|%ld|%d",
 			ast_str_buffer(transfer_str),
 			(long) (queue_data->starttime - queue_data->holdstart),
 			(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
@@ -6186,7 +6174,7 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 	context = transfer_msg->context;
 
 	ast_debug(3, "Detected blind transfer in queue %s\n", queue_data->queue->name);
-	ast_queue_log(queue_data->queue->name, caller_snapshot->base->uniqueid, queue_data->member->membername,
+	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
 			"BLINDTRANSFER", "%s|%s|%ld|%ld|%d",
 			exten, context,
 			(long) (queue_data->starttime - queue_data->holdstart),
@@ -6249,8 +6237,7 @@ static void handle_attended_transfer(void *userdata, struct stasis_subscription 
 	ao2_unlock(queue_data);
 
 	ast_debug(3, "Detected attended transfer in queue %s\n", queue_data->queue->name);
-
-	log_attended_transfer(queue_data, caller_snapshot, atxfer_msg);
+	log_attended_transfer(queue_data, atxfer_msg);
 
 	send_agent_complete(queue_data->queue->name, caller_snapshot, member_snapshot, queue_data->member,
 			queue_data->holdstart, queue_data->starttime, TRANSFER);
@@ -6448,7 +6435,7 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	ast_debug(3, "Detected hangup of queue %s channel %s\n", reason == CALLER ? "caller" : "member",
 			channel_blob->snapshot->base->name);
 
-	ast_queue_log(queue_data->queue->name, caller_snapshot->base->uniqueid, queue_data->member->membername,
+	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
 			reason == CALLER ? "COMPLETECALLER" : "COMPLETEAGENT", "%ld|%ld|%d",
 		(long) (queue_data->starttime - queue_data->holdstart),
 		(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
