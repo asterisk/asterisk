@@ -593,6 +593,10 @@ struct ast_sip_endpoint_id_configuration {
 	unsigned int rpid_immediate;
 	/*! Do we add Diversion headers to applicable outgoing requests/responses? */
 	unsigned int send_diversion;
+	/*! Do we accept connected line updates from this endpoint? */
+	unsigned int trust_connected_line;
+	/*! Do we send connected line updates to this endpoint? */
+	unsigned int send_connected_line;
 	/*! When performing connected line update, which method should be used */
 	enum ast_sip_session_refresh_method refresh_method;
 };

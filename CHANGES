@@ -12,6 +12,15 @@
 --- Functionality changes from Asterisk 16.0.0 to Asterisk 16.1.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * New options 'trust_connected_line' and 'send_connected_line' have been
+   added to the endpoint. The option 'trust_connected_line' is to control
+   if connected line updates are accepted from this endpoint.
+   The option 'send_connected_line' is to control if connected line updates
+   can be sent to this endpoint.
+   The default value is 'yes' for both options.
+
 res_rtp_asterisk
 ------------------
  * The existing strictrtp option in rtp.conf has a new choice availabe, called

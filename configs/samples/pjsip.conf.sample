@@ -620,6 +620,10 @@
 ;direct_media_glare_mitigation=none     ; Mitigation of direct media re INVITE
                                         ; glare (default: "none")
 ;direct_media_method=invite     ; Direct Media method type (default: "invite")
+;trust_connected_line=yes       ; Accept Connected Line updates from this endpoint
+                                ; (default: "yes")
+;send_connected_line=yes        ; Send Connected Line updates to this endpoint
+                                ; (default: "yes")
 ;connected_line_method=invite   ; Connected line method type.
                                 ; When set to "invite", check the remote's
                                 ; Allow header and if UPDATE is allowed, send

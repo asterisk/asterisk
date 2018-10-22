@@ -341,7 +341,8 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 {
 	struct ast_party_id id;
 
-	if (!session->endpoint->id.trust_inbound) {
+	if (!session->endpoint->id.trust_connected_line
+		|| !session->endpoint->id.trust_inbound) {
 		return;
 	}
 
@@ -749,7 +750,10 @@ static void caller_id_outgoing_response(struct ast_sip_session *session, pjsip_t
 	struct ast_party_id effective_id;
 	struct ast_party_id connected_id;
 
-	if (!session->channel) {
+	if (!session->channel
+		|| (!session->endpoint->id.send_connected_line
+			&& session->inv_session
+			&& session->inv_session->state >= PJSIP_INV_STATE_EARLY)) {
 		return;
 	}
 
