@@ -102,7 +102,7 @@ context => parkedcalls          ; Which context parked calls and the default par
                                 ;         Dial() to 'SIP/0004F2040001'.
                                 ;
                                 ; During the timeout procedure, the following variables are set
-                                ; PARKINGSLOT - extension that the call was parked in prior to timing out
+                                ; PARKING_SPACE - extension that the call was parked in prior to timing out
                                 ; PARKEDLOT - name of the lot that the call was parked in prior to timing out
                                 ; PARKER - dial string to call the device that parked the call
 
