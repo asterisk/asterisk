@@ -7632,8 +7632,8 @@ struct ast_namedgroups *ast_get_namedgroups(const char *s)
 		return NULL;
 	}
 
-	namedgroups = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 19,
-		namedgroup_hash_cb, namedgroup_cmp_cb);
+	namedgroups = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 19,
+		namedgroup_hash_cb, NULL, namedgroup_cmp_cb);
 	if (!namedgroups) {
 		return NULL;
 	}

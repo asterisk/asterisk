@@ -226,9 +226,9 @@ static void *notify_cfg_alloc(void)
 		return NULL;
 	}
 
-	if (!(cfg->notify_options = ao2_container_alloc_options(
-		      AO2_ALLOC_OPT_LOCK_NOLOCK, 20, notify_option_hash,
-		      notify_option_cmp))) {
+	cfg->notify_options = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		20, notify_option_hash, NULL, notify_option_cmp);
+	if (!cfg->notify_options) {
 		ao2_cleanup(cfg);
 		return NULL;
 	}

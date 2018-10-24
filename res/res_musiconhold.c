@@ -1993,7 +1993,9 @@ static int load_module(void)
 {
 	int res;
 
-	if (!(mohclasses = ao2_t_container_alloc(53, moh_class_hash, moh_class_cmp, "Moh class container"))) {
+	mohclasses = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 53,
+		moh_class_hash, NULL, moh_class_cmp, "Moh class container");
+	if (!mohclasses) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

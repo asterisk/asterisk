@@ -76,8 +76,8 @@ static void format_shutdown(void)
 
 int ast_format_init(void)
 {
-	interfaces = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, FORMAT_INTERFACE_BUCKETS,
-		format_interface_hash_fn, format_interface_cmp_fn);
+	interfaces = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0,
+		FORMAT_INTERFACE_BUCKETS, format_interface_hash_fn, NULL, format_interface_cmp_fn);
 	if (!interfaces) {
 		return -1;
 	}

@@ -3014,7 +3014,7 @@ static void device_state_info_dt(void *obj)
 
 static struct ao2_container *alloc_device_state_info(void)
 {
-	return ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+	return ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
 }
 
 static int ast_extension_state3(struct ast_str *hint_app, struct ao2_container *device_state_info)

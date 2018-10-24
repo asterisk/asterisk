@@ -137,7 +137,7 @@ struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan)
 	struct ao2_container *candidates;/*!< Candidate channels found to pickup. */
 	struct ast_channel *target;/*!< Potential pickup target */
 
-	candidates = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+	candidates = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
 	if (!candidates) {
 		return NULL;
 	}
