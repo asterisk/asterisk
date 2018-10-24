@@ -137,14 +137,31 @@
 		</syntax>
 		<description>
 			<para>Retrieves the numeric status associated with the buddy identified
-			by <replaceable>jid</replaceable>.
-			If the buddy does not exist in the buddylist, returns 7.</para>
-			<para>Status will be 1-7.</para>
-			<para>1=Online, 2=Chatty, 3=Away, 4=XAway, 5=DND, 6=Offline</para>
-			<para>If not in roster variable will be set to 7.</para>
-			<para>Example: ${JABBER_STATUS(asterisk,bob@domain.com)} returns 1 if
-			<replaceable>bob@domain.com</replaceable> is online. <replaceable>asterisk</replaceable> is
-			the associated XMPP account configured in xmpp.conf.</para>
+			by <replaceable>jid</replaceable>. The return value will be one of the
+			following.</para>
+			<enumlist>
+				<enum name="1">
+					<para>Online</para>
+				</enum>
+				<enum name="2">
+					<para>Chatty</para>
+				</enum>
+				<enum name="3">
+					<para>Away</para>
+				</enum>
+				<enum name="4">
+					<para>Extended Away</para>
+				</enum>
+				<enum name="5">
+					<para>Do Not Disturb</para>
+				</enum>
+				<enum name="6">
+					<para>Offline</para>
+				</enum>
+				<enum name="7">
+					<para>Not In Roster</para>
+				</enum>
+			</enumlist>
 		</description>
 		<see-also>
 			<ref type="function" module="res_xmpp">JABBER_RECEIVE</ref>
@@ -211,50 +228,6 @@
 		</syntax>
 		<description>
 			<para>Allows Asterisk to leave a chat room.</para>
-		</description>
-	</application>
-	<application name="JabberStatus" language="en_US" module="res_xmpp">
-		<synopsis>
-			Retrieve the status of a jabber list member
-		</synopsis>
-		<syntax>
-			<parameter name="Jabber" required="true">
-				<para>Client or transport Asterisk users to connect to Jabber.</para>
-			</parameter>
-			<parameter name="JID" required="true">
-				<para>XMPP/Jabber JID (Name) of recipient.</para>
-			</parameter>
-			<parameter name="Variable" required="true">
-				<para>Variable to store the status of requested user.</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>This application is deprecated. Please use the JABBER_STATUS() function instead.</para>
-			<para>Retrieves the numeric status associated with the specified buddy <replaceable>JID</replaceable>.
-			The return value in the <replaceable>Variable</replaceable>will be one of the following.</para>
-			<enumlist>
-				<enum name="1">
-					<para>Online.</para>
-				</enum>
-				<enum name="2">
-					<para>Chatty.</para>
-				</enum>
-				<enum name="3">
-					<para>Away.</para>
-				</enum>
-				<enum name="4">
-					<para>Extended Away.</para>
-				</enum>
-				<enum name="5">
-					<para>Do Not Disturb.</para>
-				</enum>
-				<enum name="6">
-					<para>Offline.</para>
-				</enum>
-				<enum name="7">
-					<para>Not In Roster.</para>
-				</enum>
-			</enumlist>
 		</description>
 	</application>
 	<manager name="JabberSend" language="en_US" module="res_xmpp">
@@ -1677,64 +1650,6 @@ static int get_buddy_status(struct ast_xmpp_client_config *clientcfg, char *scre
 	ao2_cleanup(buddy);
 
 	return status;
-}
-
-/*
- * \internal
- * \brief Dial plan function status(). puts the status of watched user
- * into a channel variable.
- * \param chan ast_channel
- * \param data
- * \retval 0 success
- * \retval -1 error
- */
-static int xmpp_status_exec(struct ast_channel *chan, const char *data)
-{
-	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
-	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
-	char *s = NULL, status[2];
-	static int deprecation_warning = 0;
-	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(sender);
-			     AST_APP_ARG(jid);
-			     AST_APP_ARG(variable);
-		);
-	AST_DECLARE_APP_ARGS(jid,
-			     AST_APP_ARG(screenname);
-			     AST_APP_ARG(resource);
-		);
-
-	if (deprecation_warning++ % 10 == 0) {
-		ast_log(LOG_WARNING, "JabberStatus is deprecated.  Please use the JABBER_STATUS dialplan function in the future.\n");
-	}
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "Usage: JabberStatus(<sender>,<jid>[/<resource>],<varname>\n");
-		return 0;
-	}
-	s = ast_strdupa(data);
-	AST_STANDARD_APP_ARGS(args, s);
-
-	if (args.argc != 3) {
-		ast_log(LOG_ERROR, "JabberStatus() requires 3 arguments.\n");
-		return -1;
-	}
-
-	AST_NONSTANDARD_APP_ARGS(jid, args.jid, '/');
-	if (jid.argc < 1 || jid.argc > 2) {
-		ast_log(LOG_WARNING, "Wrong JID %s, exiting\n", args.jid);
-		return -1;
-	}
-
-	if (!cfg || !cfg->clients || !(clientcfg = xmpp_config_find(cfg->clients, args.sender))) {
-		ast_log(LOG_WARNING, "Could not find sender connection: '%s'\n", args.sender);
-		return -1;
-	}
-
-	snprintf(status, sizeof(status), "%d", get_buddy_status(clientcfg, jid.screenname, jid.resource));
-	pbx_builtin_setvar_helper(chan, args.variable, status);
-
-	return 0;
 }
 
 /*!
@@ -4748,7 +4663,6 @@ static int load_module(void)
 
 	ast_register_application_xml(app_ajisend, xmpp_send_exec);
 	ast_register_application_xml(app_ajisendgroup, xmpp_sendgroup_exec);
-	ast_register_application_xml(app_ajistatus, xmpp_status_exec);
 	ast_register_application_xml(app_ajijoin, xmpp_join_exec);
 	ast_register_application_xml(app_ajileave, xmpp_leave_exec);
 

@@ -25,3 +25,6 @@
 === UPGRADE-16.txt  -- Upgrade info for 15 to 16
 ===========================================================
 
+From 16 to 17:
+
+* The JabberStatus application, deprecated in Asterisk 12, has been removed.
