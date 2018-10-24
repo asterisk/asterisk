@@ -697,8 +697,8 @@ int ast_media_cache_init(void)
 {
 	ast_register_cleanup(media_cache_shutdown);
 
-	media_cache = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, AO2_BUCKETS,
-		ast_sorcery_object_id_hash, ast_sorcery_object_id_compare);
+	media_cache = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, AO2_BUCKETS,
+		ast_sorcery_object_id_hash, NULL, ast_sorcery_object_id_compare);
 	if (!media_cache) {
 		return -1;
 	}

@@ -4068,8 +4068,8 @@ struct ao2_container *ast_bridge_peers_nolock(struct ast_bridge *bridge)
 	struct ao2_container *channels;
 	struct ast_bridge_channel *iter;
 
-	channels = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK,
-		13, channel_hash, channel_cmp);
+	channels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		13, channel_hash, NULL, channel_cmp);
 	if (!channels) {
 		return NULL;
 	}

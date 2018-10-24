@@ -248,8 +248,8 @@ static void codec_shutdown(void)
 
 int ast_codec_init(void)
 {
-	codecs = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CODEC_BUCKETS,
-		ast_codec_hash_fn, codec_cmp);
+	codecs = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, CODEC_BUCKETS,
+		ast_codec_hash_fn, NULL, codec_cmp);
 	if (!codecs) {
 		return -1;
 	}

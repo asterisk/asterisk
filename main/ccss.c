@@ -4649,14 +4649,19 @@ static int load_module(void)
 {
 	int res;
 
-	if (!(cc_core_instances = ao2_t_container_alloc(CC_CORE_INSTANCES_BUCKETS,
-					cc_core_instance_hash_fn, cc_core_instance_cmp_fn,
-					"Create core instance container"))) {
+	cc_core_instances = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		CC_CORE_INSTANCES_BUCKETS,
+		cc_core_instance_hash_fn, NULL, cc_core_instance_cmp_fn,
+		"Create core instance container");
+	if (!cc_core_instances) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
-	if (!(generic_monitors = ao2_t_container_alloc(CC_CORE_INSTANCES_BUCKETS,
-			generic_monitor_instance_list_hash_fn, generic_monitor_instance_list_cmp_fn,
-			"Create generic monitor container"))) {
+
+	generic_monitors = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		CC_CORE_INSTANCES_BUCKETS,
+		generic_monitor_instance_list_hash_fn, NULL, generic_monitor_instance_list_cmp_fn,
+		"Create generic monitor container");
+	if (!generic_monitors) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	if (!(cc_core_taskprocessor = ast_taskprocessor_get("CCSS_core", TPS_REF_DEFAULT))) {

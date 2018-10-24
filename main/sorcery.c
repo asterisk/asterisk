@@ -621,8 +621,8 @@ struct ast_sorcery *__ast_sorcery_open(const char *module_name, const char *file
 		goto failure_cleanup;
 	}
 
-	sorcery->types = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, TYPE_BUCKETS,
-		ast_sorcery_object_type_hash_fn, ast_sorcery_object_type_cmp_fn);
+	sorcery->types = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, TYPE_BUCKETS,
+		ast_sorcery_object_type_hash_fn, NULL, ast_sorcery_object_type_cmp_fn);
 	if (!sorcery->types) {
 		goto failure_cleanup;
 	}
@@ -1792,7 +1792,8 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 
 	/* If returning multiple objects create a container to store them in */
 	if ((flags & AST_RETRIEVE_FLAG_MULTIPLE)) {
-		if (!(object = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+		object = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+		if (!object) {
 			return NULL;
 		}
 	}
@@ -1836,7 +1837,12 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 	struct ao2_container *objects;
 	int i;
 
-	if (!object_type || !(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+	if (!object_type) {
+		return NULL;
+	}
+
+	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+	if (!objects) {
 		return NULL;
 	}
 
@@ -1866,7 +1872,12 @@ struct ao2_container *ast_sorcery_retrieve_by_prefix(const struct ast_sorcery *s
 	struct ao2_container *objects;
 	int i;
 
-	if (!object_type || !(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+	if (!object_type) {
+		return NULL;
+	}
+
+	objects = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
+	if (!objects) {
 		return NULL;
 	}
 

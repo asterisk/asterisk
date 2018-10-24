@@ -35360,12 +35360,18 @@ static int load_module(void)
 
 	/* the fact that ao2_containers can't resize automatically is a major worry! */
 	/* if the number of objects gets above MAX_XXX_BUCKETS, things will slow down */
-	peers = ao2_t_container_alloc(HASH_PEER_SIZE, peer_hash_cb, peer_cmp_cb, "allocate peers");
-	peers_by_ip = ao2_t_container_alloc(HASH_PEER_SIZE, peer_iphash_cb, NULL, "allocate peers_by_ip");
-	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
-	dialogs_needdestroy = ao2_t_container_alloc(1, NULL, NULL, "allocate dialogs_needdestroy");
-	dialogs_rtpcheck = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs for rtpchecks");
-	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
+	peers = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_PEER_SIZE,
+		peer_hash_cb, NULL, peer_cmp_cb, "allocate peers");
+	peers_by_ip = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_PEER_SIZE,
+		peer_iphash_cb, NULL, NULL, "allocate peers_by_ip");
+	dialogs = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_DIALOG_SIZE,
+		dialog_hash_cb, NULL, dialog_cmp_cb, "allocate dialogs");
+	dialogs_needdestroy = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 1,
+		NULL, NULL, NULL, "allocate dialogs_needdestroy");
+	dialogs_rtpcheck = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_DIALOG_SIZE,
+		dialog_hash_cb, NULL, dialog_cmp_cb, "allocate dialogs for rtpchecks");
+	threadt = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_DIALOG_SIZE,
+		threadt_hash_cb, NULL, threadt_cmp_cb, "allocate threadt table");
 	if (!peers || !peers_by_ip || !dialogs || !dialogs_needdestroy || !dialogs_rtpcheck
 		|| !threadt) {
 		ast_log(LOG_ERROR, "Unable to create primary SIP container(s)\n");
@@ -35379,7 +35385,8 @@ static int load_module(void)
 	}
 	ast_format_cap_append_by_type(sip_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
 
-	registry_list = ao2_t_container_alloc(HASH_REGISTRY_SIZE, registry_hash_cb, registry_cmp_cb, "allocate registry_list");
+	registry_list = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, HASH_REGISTRY_SIZE,
+		registry_hash_cb, NULL, registry_cmp_cb, "allocate registry_list");
 	subscription_mwi_list = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX,
 		AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN, NULL, NULL, "allocate subscription_mwi_list");
 

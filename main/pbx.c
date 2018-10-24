@@ -3054,7 +3054,7 @@ static void device_state_info_dt(void *obj)
 
 static struct ao2_container *alloc_device_state_info(void)
 {
-	return ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+	return ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
 }
 
 static int ast_extension_state3(struct ast_str *hint_app, struct ao2_container *device_state_info)
@@ -8916,8 +8916,8 @@ int ast_pbx_init(void)
 		ao2_container_register("hintdevices", hintdevices, print_hintdevices_key);
 	}
 	/* This is protected by the context_and_merge lock */
-	autohints = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, HASH_EXTENHINT_SIZE,
-		autohint_hash_cb, autohint_cmp);
+	autohints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, HASH_EXTENHINT_SIZE,
+		autohint_hash_cb, NULL, autohint_cmp);
 	if (autohints) {
 		ao2_container_register("autohints", autohints, print_autohint_key);
 	}
