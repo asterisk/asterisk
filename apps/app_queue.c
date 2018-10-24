@@ -169,21 +169,15 @@
 						<argument name="priority" required="true" />
 						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis>
 						to the specified destination and <emphasis>start</emphasis> execution at that location.</para>
-						<note>
-							<para>Any channel variables you want the called channel to inherit from the caller channel must be
-							prefixed with one or two underbars ('_').</para>
-						</note>
+						<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
+						prefixed with one or two underbars ('_').</para>
 					</option>
 					<option name="F">
 						<para>When the caller hangs up, transfer the <emphasis>called member</emphasis> to the next priority of
 						the current extension and <emphasis>start</emphasis> execution at that location.</para>
-						<note>
-							<para>Any channel variables you want the called channel to inherit from the caller channel must be
-							prefixed with one or two underbars ('_').</para>
-						</note>
-						<note>
-							<para>Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
-						</note>
+						<para>NOTE: Any channel variables you want the called channel to inherit from the caller channel must be
+						prefixed with one or two underbars ('_').</para>
+						<para>NOTE: Using this option from a Macro() or GoSub() might not make sense as there would be no return points.</para>
 					</option>
 					<option name="h">
 						<para>Allow <emphasis>callee</emphasis> to hang up by pressing <literal>*</literal>.</para>
@@ -256,12 +250,12 @@
 			</parameter>
 			<parameter name="macro">
 				<para>Will run a macro on the called party's channel (the queue member) once the parties are connected.</para>
-				<note>
-					<para>Macros are deprecated, GoSub should be used instead.</para>
-				</note>
+				<para>NOTE: Macros are deprecated, GoSub should be used instead.</para>
 			</parameter>
 			<parameter name="gosub">
-				<para>Will run a gosub on the called party's channel (the queue member) once the parties are connected.</para>
+				<para>Will run a gosub on the called party's channel (the queue member)
+				once the parties are connected.  The subroutine execution starts in the
+				named context at the s exten and priority 1.</para>
 			</parameter>
 			<parameter name="rule">
 				<para>Will cause the queue's defaultrule to be overridden by the rule specified.</para>
