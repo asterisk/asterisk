@@ -127,7 +127,7 @@
 ;
 ;[transport-udp]
 ;type=transport
-;protocol=udp    ;udp,tcp,tls,ws,wss
+;protocol=udp    ;udp,tcp,tls,ws,wss,flow
 ;bind=0.0.0.0
 
 ; UDP transport behind NAT
@@ -158,6 +158,18 @@
 ;cipher=ADH-AES256-SHA,ADH-AES128-SHA
 ;method=tlsv1
 
+; Example flow transport
+;
+; A flow transport is used to reference a flow of signaling with a specific
+; target. All endpoints or other objects that reference the transport will use
+; the same underlying transport and can share runtime discovered transport
+; configuration (such as service routes). The protocol in use will be determined
+; based on the URI used to establish the connection. Currently only TCP and TLS
+; are supported.
+;
+;[transport-flow]
+;type=transport
+;protocol=flow
 
 ;===============OUTBOUND REGISTRATION WITH OUTBOUND AUTHENTICATION============
 ;

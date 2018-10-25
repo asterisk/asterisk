@@ -930,6 +930,14 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_OAUTH_AUTHENTICATION
+PJSIP_OAUTH_AUTHENTICATION_DIR
+PJSIP_OAUTH_AUTHENTICATION_INCLUDE
+PJSIP_OAUTH_AUTHENTICATION_LIB
+PBX_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_DIR
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_INCLUDE
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_LIB
 PBX_PJSIP_ENDPOINT_COMPACT_FORM
 PJSIP_ENDPOINT_COMPACT_FORM_DIR
 PJSIP_ENDPOINT_COMPACT_FORM_INCLUDE
@@ -9470,6 +9478,12 @@ $as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_ENDPOINT_COMPACT_FORM 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJSIP_OAUTH_AUTHENTICATION 1" >>confdefs.h
+
+
 
 
 
@@ -11618,6 +11632,30 @@ PJSIP_ENDPOINT_COMPACT_FORM_OPTION=pjsip
 PJSIP_ENDPOINT_COMPACT_FORM_DIR=${PJPROJECT_DIR}
 
 PBX_PJSIP_ENDPOINT_COMPACT_FORM=0
+
+
+
+
+
+
+
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_DESCRIP="PJSIP Transport Connection Reuse Disabling"
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_OPTION=pjsip
+PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE=0
+
+
+
+
+
+
+
+PJSIP_OAUTH_AUTHENTICATION_DESCRIP="PJSIP OAuth Authentication Support"
+PJSIP_OAUTH_AUTHENTICATION_OPTION=pjsip
+PJSIP_OAUTH_AUTHENTICATION_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_OAUTH_AUTHENTICATION=0
 
 
 
@@ -25565,6 +25603,86 @@ $as_echo "yes" >&6; }
 		PBX_PJSIP_ENDPOINT_COMPACT_FORM=1
 
 $as_echo "#define HAVE_PJSIP_ENDPOINT_COMPACT_FORM 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE}" != "x1" -a "${USE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_DIR}" != "x"; then
+	    PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_INCLUDE="-I${PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE=1
+
+$as_echo "#define HAVE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+    if test "x${PBX_PJSIP_OAUTH_AUTHENTICATION}" != "x1" -a "${USE_PJSIP_OAUTH_AUTHENTICATION}" != "no"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"struct pjsip_oauth_credential credential;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"struct pjsip_oauth_credential credential;\" compiles using pjsip.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_OAUTH_AUTHENTICATION_DIR}" != "x"; then
+	    PJSIP_OAUTH_AUTHENTICATION_INCLUDE="-I${PJSIP_OAUTH_AUTHENTICATION_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_OAUTH_AUTHENTICATION_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ struct pjsip_oauth_credential credential;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_OAUTH_AUTHENTICATION=1
+
+$as_echo "#define HAVE_PJSIP_OAUTH_AUTHENTICATION 1" >>confdefs.h
 
 
 

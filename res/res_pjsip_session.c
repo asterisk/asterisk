@@ -3344,6 +3344,9 @@ static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_da
 	struct pjsip_request_line req = tdata->msg->line.req;
 
 	ast_debug(3, "Method is %.*s\n", (int) pj_strlen(&req.method.name), pj_strbuf(&req.method.name));
+
+	ast_sip_message_apply_transport(session->endpoint->transport, tdata);
+
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
 		if (supplement->outgoing_request && does_method_match(&req.method.name, supplement->method)) {
 			supplement->outgoing_request(session, tdata);
@@ -3365,6 +3368,8 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 	ast_debug(3, "Method is %.*s, Response is %d %.*s\n", (int) pj_strlen(&cseq->method.name),
 		pj_strbuf(&cseq->method.name), status.code, (int) pj_strlen(&status.reason),
 		pj_strbuf(&status.reason));
+
+	ast_sip_message_apply_transport(session->endpoint->transport, tdata);
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
 		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {

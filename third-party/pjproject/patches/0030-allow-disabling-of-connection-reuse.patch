@@ -1,0 +1,102 @@
+diff -x '*.o' -x '*.a' -ru a/pjsip/include/pjsip/sip_transport.h b/pjsip/include/pjsip/sip_transport.h
+--- a/pjsip/include/pjsip/sip_transport.h	2017-02-19 20:16:58.000000000 -0500
++++ b/pjsip/include/pjsip/sip_transport.h	2018-09-14 16:47:25.145266710 -0400
+@@ -221,12 +221,26 @@
+  * application specificly request that a particular transport/listener
+  * should be used to send request. This structure is used when calling
+  * pjsip_tsx_set_transport() and pjsip_dlg_set_transport().
++ *
++ * If application disables connection reuse and wants to force creating
++ * a new transport, it needs to consider the following couple of things:
++ * - If it still wants to reuse an existing transport (if any), it
++ *   needs to keep a reference to that transport and specifically set
++ *   the transport to be used for sending requests.
++ * - Delete those existing transports manually when no longer needed.
+  */
+ typedef struct pjsip_tpselector
+ {
+     /** The type of data in the union */
+     pjsip_tpselector_type   type;
+ 
++    /**
++     * Whether to disable reuse of an existing connection.
++     * This setting will be ignored if (type == PJSIP_TPSELECTOR_TRANSPORT)
++     * and transport in the union below is set.
++     */
++    pj_bool_t disable_connection_reuse;
++
+     /** Union representing the transport/listener criteria to be used. */
+     union {
+ 	pjsip_transport	*transport;
+diff -x '*.o' -x '*.a' -ru a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+--- a/pjsip/src/pjsip/sip_transport.c	2017-11-07 21:58:18.000000000 -0500
++++ b/pjsip/src/pjsip/sip_transport.c	2018-09-14 16:47:25.145266710 -0400
+@@ -2118,7 +2118,7 @@
+ 	 */
+ 	pjsip_transport_key key;
+ 	int key_len;
+-	pjsip_transport *transport;
++	pjsip_transport *transport = NULL;
+ 
+ 	/* If listener is specified, verify that the listener type matches
+ 	 * the destination type.
+@@ -2131,17 +2131,21 @@
+ 	    }
+ 	}
+ 
+-	pj_bzero(&key, sizeof(key));
+-	key_len = sizeof(key.type) + addr_len;
++	if (!sel || sel->disable_connection_reuse == PJ_FALSE) {
++	    pj_bzero(&key, sizeof(key));
++	    key_len = sizeof(key.type) + addr_len;
++
++	    /* First try to get exact destination. */
++	    key.type = type;
++	    pj_memcpy(&key.rem_addr, remote, addr_len);
+ 
+-	/* First try to get exact destination. */
+-	key.type = type;
+-	pj_memcpy(&key.rem_addr, remote, addr_len);
+-
+-	transport = (pjsip_transport*)
+-		    pj_hash_get(mgr->table, &key, key_len, NULL);
++	    transport = (pjsip_transport*)
++		        pj_hash_get(mgr->table, &key, key_len, NULL);
++	}
+ 
+-	if (transport == NULL) {
++	if (transport == NULL &&
++	    (!sel || sel->disable_connection_reuse == PJ_FALSE))
++	{
+ 	    unsigned flag = pjsip_transport_get_flag_from_type(type);
+ 	    const pj_sockaddr *remote_addr = (const pj_sockaddr*)remote;
+ 
+@@ -2179,9 +2183,7 @@
+ 	    transport = NULL;
+ 	    /* This will cause a new transport to be created which will be a
+ 	     * 'duplicate' of the existing transport (same type & remote addr,
+-	     * but different factory). Any future hash lookup will return
+-	     * the new one, and eventually the old one will still be freed
+-	     * (by application or #1774).
++	     * but different factory).
+ 	     */
+ 	}
+ 
+@@ -2199,9 +2201,14 @@
+ 
+ 
+ 	/*
+-	 * Transport not found!
+-	 * So we need to create one, find factory that can create
+-	 * such transport.
++	 * Either transport not found, or we don't want to use the existing
++	 * transport (such as in the case of different factory or
++	 * if connection reuse is disabled). So we need to create one,
++	 * find factory that can create such transport.
++	 *
++	 * If there's an existing transport, its place in the hash table
++	 * will be replaced by this new one. And eventually the existing
++	 * transport will still be freed (by application or #1774).
+ 	 */
+ 	if (sel && sel->type == PJSIP_TPSELECTOR_LISTENER && sel->u.listener)
+ 	{

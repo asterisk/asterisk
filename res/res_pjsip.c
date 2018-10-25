@@ -1136,11 +1136,12 @@
 						This option specifies which of the password style config options should be read
 						when trying to authenticate an endpoint inbound request. If set to <literal>userpass</literal>
 						then we'll read from the 'password' option. For <literal>md5</literal> we'll read
-						from 'md5_cred'.
+						from 'md5_cred'. If set to <literal>google_oauth</literal> then we'll read from the refresh_token/oauth_clientid/oauth_secret fields.
 						</para>
 						<enumlist>
 							<enum name="md5"/>
 							<enum name="userpass"/>
+							<enum name="google_oauth"/>
 						</enumlist>
 					</description>
 				</configOption>
@@ -1154,6 +1155,15 @@
 				<configOption name="password">
 					<synopsis>Plain text password used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
+				</configOption>
+				<configOption name="refresh_token">
+					<synopsis>OAuth 2.0 refresh token</synopsis>
+				</configOption>
+				<configOption name="oauth_clientid">
+					<synopsis>OAuth 2.0 application's client id</synopsis>
+				</configOption>
+				<configOption name="oauth_secret">
+					<synopsis>OAuth 2.0 application's secret</synopsis>
 				</configOption>
 				<configOption name="realm">
 					<synopsis>SIP realm for endpoint</synopsis>
@@ -1307,6 +1317,7 @@
 							<enum name="tls" />
 							<enum name="ws" />
 							<enum name="wss" />
+							<enum name="flow" />
 						</enumlist>
 					</description>
 				</configOption>
@@ -3277,7 +3288,12 @@ int ast_sip_dlg_set_transport(const struct ast_sip_endpoint *endpoint, pjsip_dia
 	}
 
 	ast_sip_set_tpselector_from_ep_or_uri(endpoint, uri, selector);
+
 	pjsip_dlg_set_transport(dlg, selector);
+
+	if (selector == &sel) {
+		ast_sip_tpselector_unref(&sel);
+	}
 
 	return 0;
 }
@@ -3367,7 +3383,8 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 
 int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transport, pjsip_tpselector *selector)
 {
-	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
+	int res = 0;
+	struct ast_sip_transport_state *transport_state;
 
 	transport_state = ast_sip_get_transport_state(ast_sorcery_object_get_id(transport));
 	if (!transport_state) {
@@ -3376,9 +3393,15 @@ int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transp
 		return -1;
 	}
 
+	/* Only flows maintain dynamic state which needs protection */
+	if (transport_state->flow) {
+		ao2_lock(transport_state);
+	}
+
 	if (transport_state->transport) {
 		selector->type = PJSIP_TPSELECTOR_TRANSPORT;
 		selector->u.transport = transport_state->transport;
+		pjsip_transport_add_ref(selector->u.transport);
 	} else if (transport_state->factory) {
 		selector->type = PJSIP_TPSELECTOR_LISTENER;
 		selector->u.listener = transport_state->factory;
@@ -3387,12 +3410,25 @@ int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transp
 		 * even if an endpoint is locked to a WebSocket transport we let the PJSIP logic
 		 * find the existing connection if available and use it.
 		 */
-		return 0;
+	} else if (transport->flow) {
+		/* This is a child of another transport, so we need to establish a new connection */
+#ifdef HAVE_PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE
+		selector->disable_connection_reuse = PJ_TRUE;
+#else
+		ast_log(LOG_WARNING, "Connection reuse could not be disabled on transport '%s' as support is not available\n",
+			ast_sorcery_object_get_id(transport));
+#endif
 	} else {
-		return -1;
+		res = -1;
 	}
 
-	return 0;
+	if (transport_state->flow) {
+		ao2_unlock(transport_state);
+	}
+
+	ao2_ref(transport_state, -1);
+
+	return res;
 }
 
 int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip_tpselector *selector)
@@ -3423,6 +3459,13 @@ int ast_sip_set_tpselector_from_ep_or_uri(const struct ast_sip_endpoint *endpoin
 	}
 
 	return ast_sip_set_tpselector_from_transport_name(transport_name, selector);
+}
+
+void ast_sip_tpselector_unref(pjsip_tpselector *selector)
+{
+	if (selector->type == PJSIP_TPSELECTOR_TRANSPORT && selector->u.transport) {
+		pjsip_transport_dec_ref(selector->u.transport);
+	}
 }
 
 void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t *pool, pjsip_uri *uri)
@@ -3493,8 +3536,11 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	if (sip_dialog_create_from(dlg->pool, &local_uri, endpoint->fromuser, endpoint->fromdomain, &remote_uri, &selector)) {
 		dlg->sess_count--;
 		pjsip_dlg_terminate(dlg);
+		ast_sip_tpselector_unref(&selector);
 		return NULL;
 	}
+
+	ast_sip_tpselector_unref(&selector);
 
 	/* Update the dialog with the new local URI, we do it afterwards so we can use the dialog pool for construction */
 	pj_strdup_with_null(dlg->pool, &dlg->local.info_str, &local_uri);
@@ -3642,12 +3688,16 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 		pj_strerror(*status, err, sizeof(err));
 		ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
 				ast_sorcery_object_get_id(endpoint), err);
+		ast_sip_tpselector_unref(&selector);
 		return NULL;
 	}
 
 	dlg->sess_count++;
 	pjsip_dlg_set_transport(dlg, &selector);
 	dlg->sess_count--;
+
+	ast_sip_tpselector_unref(&selector);
+
 #ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 	pjsip_dlg_dec_lock(dlg);
 #endif
@@ -3817,6 +3867,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
 				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		ast_sip_tpselector_unref(&selector);
 		return -1;
 	}
 
@@ -3826,10 +3877,13 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
 				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		ast_sip_tpselector_unref(&selector);
 		return -1;
 	}
 
 	pjsip_tx_data_set_transport(*tdata, &selector);
+
+	ast_sip_tpselector_unref(&selector);
 
 	if (endpoint && !ast_strlen_zero(endpoint->contact_user)){
 		pjsip_contact_hdr *contact_hdr;
@@ -4385,6 +4439,10 @@ int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
 		return -1;
 	}
 
+	if (endpoint) {
+		ast_sip_message_apply_transport(endpoint->transport, tdata);
+	}
+
 	contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
 
 	AST_RWLIST_RDLOCK(&supplements);
@@ -4827,6 +4885,10 @@ static void supplement_outgoing_response(pjsip_tx_data *tdata, struct ast_sip_en
 	struct ast_sip_supplement *supplement;
 	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
 	struct ast_sip_contact *contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+
+	if (sip_endpoint) {
+		ast_sip_message_apply_transport(sip_endpoint->transport, tdata);
+	}
 
 	AST_RWLIST_RDLOCK(&supplements);
 	AST_LIST_TRAVERSE(&supplements, supplement, next) {
