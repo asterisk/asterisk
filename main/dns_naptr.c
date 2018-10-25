@@ -393,6 +393,7 @@ struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *
 	int replacement_size;
 	const char *end_of_record;
 	enum flags_result flags_res;
+	size_t naptr_len;
 
 	ptr = dns_find_record(data, size, query->result->answer, query->result->answer_size);
 	ast_assert(ptr != NULL);
@@ -435,7 +436,14 @@ struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *
 		return NULL;
 	}
 
-	replacement_size = dn_expand((unsigned char *)query->result->answer, (unsigned char *) end_of_record, (unsigned char *) ptr, replacement, sizeof(replacement) - 1);
+	/*
+	 * The return value from dn_expand represents the size of the replacement
+	 * in the buffer which MAY be compressed.  Since the expanded replacement
+	 * is NULL terminated, you can use strlen() to get the expanded size.
+	 */
+	replacement_size = dn_expand((unsigned char *)query->result->answer,
+		(unsigned char *) end_of_record, (unsigned char *) ptr,
+		replacement, sizeof(replacement) - 1);
 	if (replacement_size < 0) {
 		ast_log(LOG_ERROR, "Failed to expand domain name: %s\n", strerror(errno));
 		return NULL;
@@ -475,7 +483,9 @@ struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *
 		return NULL;
 	}
 
-	naptr = ast_calloc(1, sizeof(*naptr) + size + flags_size + 1 + services_size + 1 + regexp_size + 1 + replacement_size + 1);
+	naptr_len = sizeof(*naptr) + size + flags_size + 1 + services_size + 1
+		+ regexp_size + 1 + strlen(replacement) + 1;
+	naptr = ast_calloc(1, naptr_len);
 	if (!naptr) {
 		return NULL;
 	}
