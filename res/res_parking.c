@@ -149,9 +149,6 @@
 							<variable name="PARKING_SPACE">
 								<para>extension that the call was parked in prior to timing out.</para>
 							</variable>
-							<variable name="PARKINGSLOT">
-								<para>Deprecated.  Use <variable>PARKING_SPACE</variable> instead.</para>
-							</variable>
 							<variable name="PARKEDLOT">
 								<para>name of the lot that the call was parked in prior to timing out.</para>
 							</variable>
