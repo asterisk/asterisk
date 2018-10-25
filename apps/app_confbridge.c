@@ -1568,6 +1568,10 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			}
 		}
 
+		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_ENABLE_EVENTS)) {
+			ast_bridge_set_send_sdp_label(conference->bridge, 1);
+		}
+
 		/* Link it into the conference bridges container */
 		if (!ao2_link(conference_bridges, conference)) {
 			ao2_ref(conference, -1);

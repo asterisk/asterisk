@@ -290,6 +290,11 @@ struct ast_bridge_softmix {
 	unsigned int internal_mixing_interval;
 	/*! TRUE if binaural convolve is activated in configuration. */
 	unsigned int binaural_active;
+	/*!
+	 * Add a "label" attribute to each stream in the SDP containing
+	 * the channel uniqueid.  Used for participant info correlation.
+	 */
+	unsigned int send_sdp_label;
 };
 
 AST_LIST_HEAD_NOLOCK(ast_bridge_channels_list, ast_bridge_channel);
@@ -984,6 +989,20 @@ void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *
  * \retval A string representation of \c video_mode
  */
 const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type video_mode);
+
+/*!
+ * \brief Controls whether to send a "label" attribute in each stream in an SDP
+ * \since 16.1.0
+ *
+ * \param bridge The bridge
+ * \param send_sdp_label Whether to send the labels or not
+ *
+ * \note The label will contain the uniqueid of the channel related to the stream.
+ * This is used to allow the recipient to correlate the stream to the participant
+ * information events sent by app_confbridge.
+ * The bridge will be locked in this function.
+ */
+void ast_bridge_set_send_sdp_label(struct ast_bridge *bridge, unsigned int send_sdp_label);
 
 /*!
  * \brief Acquire the channel's bridge for transfer purposes.
