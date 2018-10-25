@@ -355,56 +355,6 @@ static struct ast_json *pack_snapshots(	struct ast_bridge_snapshot *bridge_snaps
 	return pack_bridge_and_channels(json_bridge, json_channel, msg);
 }
 
-enum label_direction {
-	LABEL_DIRECTION_SRC,
-	LABEL_DIRECTION_DEST,
-};
-
-static struct ast_stream *get_stream(struct ast_stream_topology *topology,
-	enum ast_media_type m_type)
-{
-	int count;
-	int i;
-
-	count = ast_stream_topology_get_count(topology);
-	if (count < 0) {
-		return NULL;
-	}
-
-	for (i = 0; i < count; i++) {
-		struct ast_stream *s;
-		enum ast_stream_state s_state;
-		enum ast_media_type s_type;
-
-		s = ast_stream_topology_get_stream(topology, i);
-		s_state = ast_stream_get_state(s);
-		s_type = ast_stream_get_type(s);
-		if (s_type == m_type
-			&& (s_state == AST_STREAM_STATE_SENDRECV || s_state == AST_STREAM_STATE_RECVONLY)) {
-			return s;
-		}
-	}
-
-	return NULL;
-}
-
-static void set_media_labels(struct confbridge_conference *conference,
-	struct ast_channel *src_chan, struct ast_channel *dest_chan, enum label_direction dir)
-{
-	struct ast_stream_topology *topology;
-	struct ast_stream *stream;
-	struct ast_channel *chan = dir == LABEL_DIRECTION_SRC ? dest_chan : src_chan;
-
-	if (!chan) {
-		return;
-	}
-	topology = ast_channel_get_stream_topology(chan);
-	stream = get_stream(topology, AST_MEDIA_TYPE_VIDEO);
-	if (stream) {
-		ast_stream_set_metadata(stream, "SDP:LABEL", ast_channel_uniqueid(chan));
-	}
-}
-
 static void send_message(const char *msg_name, char *conf_name, struct ast_json *json_object,
 	struct ast_channel *chan)
 {
@@ -508,7 +458,6 @@ void conf_send_event_to_participants(struct confbridge_conference *conference,
 				continue;
 			}
 
-			set_media_labels(conference, chan, user->chan, LABEL_DIRECTION_SRC);
 			target_json_channel = channel_to_json(target_snapshot, extras, NULL);
 			ao2_ref(target_snapshot, -1);
 
@@ -537,8 +486,6 @@ void conf_send_event_to_participants(struct confbridge_conference *conference,
 				ast_channel_name(user->chan));
 			continue;
 		}
-
-		set_media_labels(conference, chan, user->chan, LABEL_DIRECTION_DEST);
 
 		json_object = pack_snapshots(obj->bridge, obj->channel, extras, NULL, msg);
 

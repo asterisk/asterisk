@@ -4018,6 +4018,13 @@ const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type vide
 	}
 }
 
+void ast_bridge_set_send_sdp_label(struct ast_bridge *bridge, unsigned int send_sdp_label)
+{
+	ast_bridge_lock(bridge);
+	bridge->softmix.send_sdp_label = send_sdp_label;
+	ast_bridge_unlock(bridge);
+}
+
 static int channel_hash(const void *obj, int flags)
 {
 	const struct ast_channel *chan = obj;
