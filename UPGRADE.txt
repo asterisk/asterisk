@@ -27,10 +27,13 @@
 
 New in 17.0.0:
 
-* The CALLERPRES() dialplan function, deprecated in Asterisk 1.8, has been
-  removed.
+func_callerid:
+ - The CALLERPRES() dialplan function, deprecated in Asterisk 1.8, has been
+   removed.
 
-* The PARKINGSLOT channel variable, deprecated in Asterisk 12 in favor of the
-  PARKING_SPACE channel variable, will no longer be set.
+res_parking:
+ - The PARKINGSLOT channel variable, deprecated in Asterisk 12 in favor of the
+   PARKING_SPACE channel variable, will no longer be set.
 
-* The JabberStatus application, deprecated in Asterisk 12, has been removed.
+res_xmpp:
+ - The JabberStatus application, deprecated in Asterisk 12, has been removed.
