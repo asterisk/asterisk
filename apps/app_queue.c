@@ -5228,12 +5228,20 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				case AST_FRAME_CONTROL:
 					switch (f->subclass.integer) {
 					case AST_CONTROL_CONNECTED_LINE:
+						if (o->block_connected_update) {
+							ast_verb(3, "Connected line update to %s prevented.\n", ast_channel_name(o->chan));
+							break;
+						}
 						if (ast_channel_connected_line_sub(in, o->chan, f, 1) &&
 							ast_channel_connected_line_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
 						}
 						break;
 					case AST_CONTROL_REDIRECTING:
+						if (o->block_connected_update) {
+							ast_verb(3, "Redirecting update to %s prevented.\n", ast_channel_name(o->chan));
+							break;
+						}
 						if (ast_channel_redirecting_sub(in, o->chan, f, 1) &&
 							ast_channel_redirecting_macro(in, o->chan, f, 0, 1)) {
 							ast_indicate_data(o->chan, f->subclass.integer, f->data.ptr, f->datalen);
