@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
+import sys
 import optparse
 import socket
 try:
@@ -10,6 +13,7 @@ import astdicts
 import astconfigparser
 
 PREFIX = 'pjsip_'
+QUIET = False
 
 ###############################################################################
 ### some utility functions
@@ -106,7 +110,7 @@ def merge_codec_value(key=None, val=None, section=None, pjsip=None,
             else:
                 merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
         except LookupError:
-            print("lookup error")
+            print("lookup error", file=sys.stderr)
             merge_value(key, val, section, pjsip, nmapped, type, section_to, key_to)
             return
     elif key == 'disallow':
@@ -850,7 +854,7 @@ def create_tls(sip, pjsip, nmapped):
                   ' this was just for outbound client connections. In' \
                   ' chan_pjsip, this value is for client and server. Instead,' \
                   ' consider not to specify \'tlsclientmethod\' for chan_sip' \
-                  ' and \'method = sslv23\' for chan_pjsip.')
+                  ' and \'method = sslv23\' for chan_pjsip.', file=sys.stderr)
     except LookupError:
         """
         OpenSSL emerged during the 90s. SSLv2 and SSLv3 were the only
@@ -1267,7 +1271,7 @@ def write_pjsip(filename, pjsip, non_mappings):
             pjsip.write(fp)
 
     except IOError:
-        print("Could not open file " + filename + " for writing")
+        print("Could not open file " + filename + " for writing", file=sys.stderr)
 
 ###############################################################################
 
@@ -1278,6 +1282,7 @@ def cli_options():
     print usage information
     """
     global PREFIX
+    global QUIET
     usage = "usage: %prog [options] [input-file [output-file]]\n\n" \
         "Converts the chan_sip configuration input-file to the chan_pjsip output-file.\n" \
         "The input-file defaults to 'sip.conf'.\n" \
@@ -1285,24 +1290,35 @@ def cli_options():
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-p', '--prefix', dest='prefix', default=PREFIX,
                       help='output prefix for include files')
+    parser.add_option('-q', '--quiet', dest='quiet', default=False, action='store_true',
+                      help="don't print messages to stdout")
 
     options, args = parser.parse_args()
     PREFIX = options.prefix
+    if options.quiet:
+        QUIET = True
 
     sip_filename = args[0] if len(args) else 'sip.conf'
     pjsip_filename = args[1] if len(args) == 2 else 'pjsip.conf'
 
     return sip_filename, pjsip_filename
 
+
+def info(msg):
+    if QUIET:
+        return
+    print(msg)
+
+
 if __name__ == "__main__":
     sip_filename, pjsip_filename = cli_options()
     # configuration parser for sip.conf
     sip = astconfigparser.MultiOrderedConfigParser()
-    print('Please, report any issue at:')
-    print('    https://issues.asterisk.org/')
-    print('Reading ' + sip_filename)
+    info('Please, report any issue at:')
+    info('    https://issues.asterisk.org/')
+    info('Reading ' + sip_filename)
     sip.read(sip_filename)
-    print('Converting to PJSIP...')
+    info('Converting to PJSIP...')
     pjsip, non_mappings = convert(sip, pjsip_filename, dict(), False)
-    print('Writing ' + pjsip_filename)
+    info('Writing ' + pjsip_filename)
     write_pjsip(pjsip_filename, pjsip, non_mappings)
