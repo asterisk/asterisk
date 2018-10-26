@@ -888,30 +888,30 @@ static enum notify_result push_notify_channel(const char *channel_name, void *in
  * \internal
  * \brief Do completion on the endpoint.
  */
-static char *cli_complete_endpoint(const char *word, int state)
+static char *cli_complete_endpoint(const char *word)
 {
-	char *result = NULL;
 	int wordlen = strlen(word);
-	int which = 0;
-
+	struct ao2_container * endpoints;
 	struct ast_sip_endpoint *endpoint;
-	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_sip_get_endpoints(), ao2_cleanup);
+	struct ao2_iterator i;
 
-	struct ao2_iterator i = ao2_iterator_init(endpoints, 0);
+	endpoints = ast_sorcery_retrieve_by_prefix(ast_sip_get_sorcery(),
+		"endpoint", word, wordlen);
+	if (endpoints == NULL) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(endpoints, 0);
 	while ((endpoint = ao2_iterator_next(&i))) {
-		const char *name = ast_sorcery_object_get_id(endpoint);
-		if (!strncasecmp(word, name, wordlen) && ++which > state) {
-			result = ast_strdup(name);
-		}
-
+		ast_cli_completion_add(
+			ast_strdup(ast_sorcery_object_get_id(endpoint)));
 		ao2_cleanup(endpoint);
-		if (result) {
-			break;
-		}
 	}
 	ao2_iterator_destroy(&i);
-	return result;
+
+	ao2_ref(endpoints, -1);
+
+	return NULL;
 }
 
 /*!
@@ -967,7 +967,7 @@ static char *cli_complete_notify(const char *line, const char *word,
 		return c;
 	}
 
-	return pos > 4 && !using_uri ? cli_complete_endpoint(word, state) : NULL;
+	return pos > 4 && !using_uri ? cli_complete_endpoint(word) : NULL;
 }
 
 /*!
