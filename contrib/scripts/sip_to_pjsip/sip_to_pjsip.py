@@ -40,6 +40,11 @@ def section_by_type(section, pjsip, type):
         return sect
 
 
+def ignore(key=None, val=None, section=None, pjsip=None,
+           nmapped=None, type='endpoint'):
+    """Ignore a key and mark it as mapped"""
+
+
 def set_value(key=None, val=None, section=None, pjsip=None,
               nmapped=None, type='endpoint'):
     """Sets the key to the value within the section in pjsip.conf"""
@@ -508,6 +513,7 @@ peer_map = [
     ['dtlscapath',         set_value('dtls_ca_path')],
     ['dtlssetup',          set_value('dtls_setup')],
     ['encryption_taglen',  from_encryption_taglen],
+    ['setvar',             ignore],
 
 ############################ maps to an aor ###################################
 
@@ -1117,6 +1123,19 @@ def map_registrations(sip, pjsip, nmapped):
         reg.write(pjsip, nmapped)
 
 
+def map_setvars(sip, section, pjsip, nmapped):
+    """
+    Map all setvar in peer section to the appropriate endpoint set_var
+    """
+    try:
+        setvars = sip.section(section)[0].get('setvar')
+    except LookupError:
+        return
+
+    for setvar in setvars:
+        set_value('set_var', setvar, section, pjsip, nmapped)
+
+
 def map_peer(sip, section, pjsip, nmapped):
     """
     Map the options from a peer section in sip.conf into the appropriate
@@ -1218,6 +1237,7 @@ def convert(sip, filename, non_mappings, include):
             pass
         else:
             map_peer(sip, section, pjsip, nmapped)
+            map_setvars(sip, section, pjsip, nmapped)
 
     find_non_mapped(sip.defaults(), nmapped)
     find_non_mapped(sip.sections(), nmapped)
