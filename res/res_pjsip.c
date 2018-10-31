@@ -1834,6 +1834,13 @@
 						at the first semicolon.</para></note>
 					</description>
 				</configOption>
+				<configOption name="use_callerid_contact" default="no">
+					<synopsis>Place caller-id information into Contact header</synopsis>
+					<description><para>
+						This option will cause Asterisk to place caller-id information into
+						generated Contact headers.</para>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
