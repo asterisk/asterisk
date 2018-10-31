@@ -176,7 +176,7 @@
 /*** MODULEINFO
 	<use type="module">res_crypto</use>
 	<use type="module">res_http_websocket</use>
-	<support_level>extended</support_level>
+	<support_level>deprecated</support_level>
  ***/
 
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip
@@ -35321,6 +35321,37 @@ static const struct ast_sip_api_tech chan_sip_api_provider = {
 	.sipinfo_send = sipinfo_send,
 };
 
+static void deprecation_notice(void)
+{
+	ast_log(LOG_WARNING, "chan_sip has no official maintainer and is deprecated.  Migration to\n");
+	ast_log(LOG_WARNING, "chan_pjsip is recommended.  See guides at the Asterisk Wiki:\n");
+	ast_log(LOG_WARNING, "https://wiki.asterisk.org/wiki/x/tAHOAQ\n");
+	ast_log(LOG_WARNING, "https://wiki.asterisk.org/wiki/x/hYCLAQ\n");
+}
+
+/*! \brief Event callback which indicates we're fully booted */
+static void startup_event_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	struct ast_json_payload *payload;
+	const char *type;
+
+	if (stasis_message_type(message) != ast_manager_get_generic_type()) {
+		return;
+	}
+
+	payload = stasis_message_data(message);
+	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
+
+	if (strcmp(type, "FullyBooted")) {
+		return;
+	}
+
+	deprecation_notice();
+
+	stasis_unsubscribe(sub);
+}
+
+
 static int unload_module(void);
 
 /*!
@@ -35532,6 +35563,12 @@ static int load_module(void)
 
 	if (sip_cfg.websocket_enabled) {
 		ast_websocket_add_protocol("sip", sip_websocket_callback);
+	}
+
+	if (ast_fully_booted) {
+		deprecation_notice();
+	} else {
+		stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
@@ -35751,7 +35788,7 @@ static int unload_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Session Initiation Protocol (SIP)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
+	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,

@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16 to Asterisk 17 --------------------
+------------------------------------------------------------------------------
+
+chan_sip
+------------------
+ * The chan_sip module is now deprecated, users should migrate to the
+   replacement module chan_pjsip.  See guides at the Asterisk Wiki:
+     https://wiki.asterisk.org/wiki/x/tAHOAQ
+     https://wiki.asterisk.org/wiki/x/hYCLAQ
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.0.0 to Asterisk 16.1.0 ------------
 ------------------------------------------------------------------------------
 
