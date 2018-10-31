@@ -121,6 +121,60 @@
 		<ref type="function">PJSIP_MEDIA_OFFER</ref>
 	</see-also>
 </function>
+<function name="PJSIP_PARSE_URI" language="en_US">
+	<synopsis>
+		Parse an uri and return a type part of the URI.
+	</synopsis>
+	<syntax>
+		<parameter name="uri" required="true">
+			<para>URI to parse</para>
+		</parameter>
+		<parameter name="type" required="true">
+			<para>The <literal>type</literal> parameter specifies which URI part to read</para>
+			<enumlist>
+				<enum name="display">
+					<para>Display name.</para>
+				</enum>
+				<enum name="scheme">
+					<para>URI scheme.</para>
+				</enum>
+				<enum name="user">
+					<para>User part.</para>
+				</enum>
+				<enum name="passwd">
+					<para>Password part.</para>
+				</enum>
+				<enum name="host">
+					<para>Host part.</para>
+				</enum>
+				<enum name="port">
+					<para>Port number, or zero.</para>
+				</enum>
+				<enum name="user_param">
+					<para>User parameter.</para>
+				</enum>
+				<enum name="method_param">
+					<para>Method parameter.</para>
+				</enum>
+				<enum name="transport_param">
+					<para>Transport parameter.</para>
+				</enum>
+				<enum name="ttl_param">
+					<para>TTL param, or -1.</para>
+				</enum>
+				<enum name="lr_param">
+					<para>Loose routing param, or zero.</para>
+				</enum>
+				<enum name="maddr_param">
+					<para>Maddr param.</para>
+				</enum>
+			</enumlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>Parse an URI and return a specified part of the URI.</para>
+	</description>
+</function>
 <info name="CHANNEL" language="en_US" tech="PJSIP">
 	<enumlist>
 		<enum name="rtp">
@@ -985,6 +1039,127 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
 	ast_copy_string(buf, ast_str_buffer(dial), len);
 
 	return 0;
+}
+
+/*! \brief Struct used to push PJSIP_PARSE_URI function arguments to task processor */
+struct parse_uri_args {
+	const char *uri;
+	const char *type;
+	char *buf;
+	size_t buflen;
+	int ret;
+};
+
+/*! \internal \brief Taskprocessor callback that handles the PJSIP_PARSE_URI on a PJSIP thread */
+static int parse_uri_cb(void *data)
+{
+	struct parse_uri_args *args = data;
+	pj_pool_t *pool;
+	pjsip_name_addr *uri;
+	pjsip_sip_uri *sip_uri;
+	pj_str_t tmp;
+
+	args->ret = 0;
+
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "ParseUri", 128, 128);
+	if (!pool) {
+		ast_log(LOG_ERROR, "Failed to allocate ParseUri endpoint pool.\n");
+		args->ret = -1;
+		return 0;
+	}
+
+	pj_strdup2_with_null(pool, &tmp, args->uri);
+	uri = (pjsip_name_addr *)pjsip_parse_uri(pool, tmp.ptr, tmp.slen, PJSIP_PARSE_URI_AS_NAMEADDR);
+	if (!uri) {
+		ast_log(LOG_WARNING, "Failed to parse URI '%s'\n", args->uri);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		args->ret = -1;
+		return 0;
+	}
+
+	if (!strcmp(args->type, "scheme")) {
+		ast_copy_pj_str(args->buf, pjsip_uri_get_scheme(uri), args->buflen);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return 0;
+	} else if (!strcmp(args->type, "display")) {
+		ast_copy_pj_str(args->buf, &uri->display, args->buflen);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return 0;
+	}
+
+	sip_uri = pjsip_uri_get_uri(uri);
+	if (!sip_uri) {
+		ast_log(LOG_ERROR, "Failed to get an URI object for '%s'\n", args->uri);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		args->ret = -1;
+		return 0;
+	}
+
+	if (!strcmp(args->type, "user")) {
+		ast_copy_pj_str(args->buf, &sip_uri->user, args->buflen);
+	} else if (!strcmp(args->type, "passwd")) {
+		ast_copy_pj_str(args->buf, &sip_uri->passwd, args->buflen);
+	} else if (!strcmp(args->type, "host")) {
+		ast_copy_pj_str(args->buf, &sip_uri->host, args->buflen);
+	} else if (!strcmp(args->type, "port")) {
+		snprintf(args->buf, args->buflen, "%d", sip_uri->port);
+	} else if (!strcmp(args->type, "user_param")) {
+		ast_copy_pj_str(args->buf, &sip_uri->user_param, args->buflen);
+	} else if (!strcmp(args->type, "method_param")) {
+		ast_copy_pj_str(args->buf, &sip_uri->method_param, args->buflen);
+	} else if (!strcmp(args->type, "transport_param")) {
+		ast_copy_pj_str(args->buf, &sip_uri->transport_param, args->buflen);
+	} else if (!strcmp(args->type, "ttl_param")) {
+		snprintf(args->buf, args->buflen, "%d", sip_uri->ttl_param);
+	} else if (!strcmp(args->type, "lr_param")) {
+		snprintf(args->buf, args->buflen, "%d", sip_uri->lr_param);
+	} else if (!strcmp(args->type, "maddr_param")) {
+		ast_copy_pj_str(args->buf, &sip_uri->maddr_param, args->buflen);
+	} else {
+		ast_log(AST_LOG_WARNING, "Unknown type part '%s' specified\n", args->type);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		args->ret = -1;
+		return 0;
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+
+	return 0;
+}
+
+int pjsip_acf_parse_uri_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t buflen)
+{
+	struct parse_uri_args func_args = { 0, };
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(uri_str);
+		AST_APP_ARG(type);
+	);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (ast_strlen_zero(args.uri_str)) {
+		ast_log(LOG_WARNING, "An URI must be specified when using the '%s' dialplan function\n", cmd);
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.type)) {
+		ast_log(LOG_WARNING, "A type part of the URI must be specified when using the '%s' dialplan function\n", cmd);
+		return -1;
+	}
+
+	memset(buf, 0, buflen);
+
+	func_args.uri = args.uri_str;
+	func_args.type = args.type;
+	func_args.buf = buf;
+	func_args.buflen = buflen;
+	if (ast_sip_push_task_wait_serializer(NULL, parse_uri_cb, &func_args)) {
+		ast_log(LOG_WARNING, "Unable to parse URI: failed to push task\n");
+		return -1;
+	}
+
+	return func_args.ret;
 }
 
 static int media_offer_read_av(struct ast_sip_session *session, char *buf,
