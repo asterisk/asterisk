@@ -1380,7 +1380,8 @@ static int is_colp_update_allowed(struct ast_sip_session *session)
 	struct ast_party_id connected_id;
 	int update_allowed = 0;
 
-	if (!session->endpoint->id.send_pai && !session->endpoint->id.send_rpid) {
+	if (!session->endpoint->send_connected_line
+		|| (!session->endpoint->id.send_pai && !session->endpoint->id.send_rpid)) {
 		return 0;
 	}
 

@@ -189,6 +189,12 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="trust_connected_line">
+					<synopsis>Accept Connected Line updates from this endpoint</synopsis>
+				</configOption>
+				<configOption name="send_connected_line">
+					<synopsis>Send Connected Line updates to this endpoint</synopsis>
+				</configOption>
 				<configOption name="connected_line_method" default="invite">
 					<synopsis>Connected line method type</synopsis>
 					<description>
@@ -2172,6 +2178,12 @@
 				</parameter>
 				<parameter name="DirectMediaMethod">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='direct_media_method']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TrustConnectedLine">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='trust_connected_line']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SendConnectedLine">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='send_connected_line']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="ConnectedLineMethod">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='connected_line_method']/synopsis/node())"/></para>

@@ -814,6 +814,10 @@ struct ast_sip_endpoint {
 	unsigned int notify_early_inuse_ringing;
 	/*! Suppress Q.850 Reason headers on this endpoint */
 	unsigned int suppress_q850_reason_headers;
+	/*! Do we accept connected line updates from this endpoint? */
+	unsigned int trust_connected_line;
+	/*! Do we send connected line updates to this endpoint? */
+	unsigned int send_connected_line;
 };
 
 /*! URI parameter for symmetric transport */
