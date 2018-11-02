@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.23.0 to Asterisk 13.24.0 ----------
 ------------------------------------------------------------------------------
 
+pbx_config
+------------------
+ * pbx_config will now find and process multiple 'globals' sections from
+   extensions.conf.  Variables are processed in the order they are found
+   and duplicate variables overwrite the previous value.
+
 res_pjsip
 ------------------
  * New options 'trust_connected_line' and 'send_connected_line' have been
