@@ -40,7 +40,7 @@
 ;servicepoint=http://osptestserver.transnexus.com:5045/osp
 ;
 ; Define the "source" device for requesting OSP authorization.
-; This value is usually the domain name or IP address of the the Asterisk server.
+; This value is usually the domain name or IP address of the Asterisk server.
 ;
 ;source=domain name or [IP address in brackets]
 ;

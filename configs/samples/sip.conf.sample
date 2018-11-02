@@ -1432,7 +1432,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ; Because you might have a large number of similar sections, it is generally
 ; convenient to use templates for the common parameters, and add them
-; the the various sections. Examples are below, and we can even leave
+; the various sections. Examples are below, and we can even leave
 ; the templates uncommented as they will not harm:
 
 [basic-options](!)                ; a template

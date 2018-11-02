@@ -12,7 +12,7 @@
 ;enabled = yes
 
 ;host = 127.0.0.1    ; Specify the remote IP address of the Beanstalkd server
-;port = 11300        ; Specify the remote PORT of the the Beanstalkd server
+;port = 11300        ; Specify the remote PORT of the Beanstalkd server
 ;tube = asterisk-cdr ; Specify the default CDR job queue to use
 ;priority = 99       ; Specify the default job priority for the queue. This parameter is useful when building
                      ; platform with multiple Asterisk servers, that are used for different functions. For example,
