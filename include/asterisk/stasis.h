@@ -483,6 +483,11 @@ struct stasis_topic;
  * \return New topic instance.
  * \return \c NULL on error.
  * \since 12
+ *
+ * \note There is no explicit ability to unsubscribe all subscribers
+ * from a topic and destroy it. As a result the topic can persist until
+ * the last subscriber unsubscribes itself even if there is no
+ * publisher.
  */
 struct stasis_topic *stasis_topic_create(const char *name);
 
