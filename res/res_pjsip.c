@@ -2505,9 +2505,6 @@
 /*! Number of serializers in pool if one not supplied. */
 #define SERIALIZER_POOL_SIZE		8
 
-/*! Next serializer pool index to use. */
-static int serializer_pool_pos;
-
 /*! Pool of serializers to use if not supplied. */
 static struct ast_taskprocessor *serializer_pool[SERIALIZER_POOL_SIZE];
 
@@ -4332,22 +4329,20 @@ static int serializer_pool_setup(void)
 
 static struct ast_taskprocessor *serializer_pool_pick(void)
 {
-	struct ast_taskprocessor *serializer;
+	int idx;
+	int pos = 0;
 
-	unsigned int pos;
+	if (!serializer_pool[0]) {
+		return NULL;
+	}
 
-	/*
-	 * Pick a serializer to use from the pool.
-	 *
-	 * Note: We don't care about any reentrancy behavior
-	 * when incrementing serializer_pool_pos.  If it gets
-	 * incorrectly incremented it doesn't matter.
-	 */
-	pos = serializer_pool_pos++;
-	pos %= SERIALIZER_POOL_SIZE;
-	serializer = serializer_pool[pos];
+	for (idx = 1; idx < SERIALIZER_POOL_SIZE; ++idx) {
+		if (ast_taskprocessor_size(serializer_pool[idx]) < ast_taskprocessor_size(serializer_pool[pos])) {
+			pos = idx;
+		}
+	}
 
-	return serializer;
+	return serializer_pool[pos];
 }
 
 int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
