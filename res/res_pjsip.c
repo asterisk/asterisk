@@ -1797,7 +1797,7 @@
 					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header if not specified on endpoint or aor</synopsis>
 				</configOption>
 				<configOption name="debug" default="no">
-					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
+					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes, no, or
 						a host address</synopsis>
 				</configOption>
 				<configOption name="endpoint_identifier_order">
