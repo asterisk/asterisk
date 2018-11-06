@@ -530,12 +530,22 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 			 * we are being overloaded and need to defer adding new work to
 			 * the system.  To defer the work we will ignore the request and
 			 * rely on the peer's transport layer to retransmit the message.
-			 * We usually work off the overload within a few seconds.  The
-			 * alternative is to send back a 503 response to these requests
-			 * and be done with it.
+			 * We usually work off the overload within a few seconds.
+			 * If transport is non-UDP we send a 503 response instead.
 			 */
-			ast_debug(3, "Taskprocessor overload alert: Ignoring '%s'.\n",
-				pjsip_rx_data_get_info(rdata));
+			switch (rdata->tp_info.transport->key.type) {
+			case PJSIP_TRANSPORT_UDP6:
+			case PJSIP_TRANSPORT_UDP:
+				ast_debug(3, "Taskprocessor overload alert: Ignoring '%s'.\n",
+					pjsip_rx_data_get_info(rdata));
+				break;
+			default:
+				ast_debug(3, "Taskprocessor overload on non-udp transport. Received:'%s'. "
+					"Responding with a 503.\n", pjsip_rx_data_get_info(rdata));
+				pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
+					PJSIP_SC_SERVICE_UNAVAILABLE, NULL, NULL, NULL);
+				break;
+			}
 			ao2_cleanup(dist);
 			return PJ_TRUE;
 		}
