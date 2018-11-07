@@ -493,7 +493,7 @@ static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message
 		}
 
 		dest_uniqueid = ast_json_object_get(blob, "dest") == AST_UNREAL_OWNER ?
-				local_snapshot_one->uniqueid : local_snapshot_two->uniqueid;
+				local_snapshot_one->base->uniqueid : local_snapshot_two->base->uniqueid;
 
 		event = "LocalOptimizationBegin";
 		if (source_str) {

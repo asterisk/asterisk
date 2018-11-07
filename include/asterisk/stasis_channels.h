@@ -29,50 +29,133 @@
  */
 
 /*!
+ * \since 17
+ * \brief Channel snapshot invalidation flags, used to force generation of segments
+ */
+enum ast_channel_snapshot_segment_invalidation {
+	/*! Invalidate the bridge segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_BRIDGE = (1 << 1),
+	/*! Invalidate the dialplan segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN = (1 << 2),
+	/*! Invalidate the connected segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_CONNECTED = (1 << 3),
+	/*! Invalidate the caller segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER = (1 << 4),
+	/*! Invalidate the hangup segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_HANGUP = (1 << 5),
+	/*! Invalidate the peer segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_PEER = (1 << 6),
+	/*! Invalidate the base segment */
+	AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE = (1 << 7),
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing bridge information for a channel snapshot.
+ */
+struct ast_channel_snapshot_bridge {
+	char id[0]; /*!< Unique Bridge Identifier */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing dialplan information for a channel snapshot.
+ */
+struct ast_channel_snapshot_dialplan {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(appl);             /*!< Current application */
+		AST_STRING_FIELD(data);             /*!< Data passed to current application */
+		AST_STRING_FIELD(context);          /*!< Current extension context */
+		AST_STRING_FIELD(exten);            /*!< Current extension number */
+	);
+	int priority; /*!< Current extension priority */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing caller information for a channel snapshot.
+ */
+struct ast_channel_snapshot_caller {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);           /*!< Caller ID Name */
+		AST_STRING_FIELD(number);         /*!< Caller ID Number */
+		AST_STRING_FIELD(dnid);           /*!< Dialed ID Number */
+		AST_STRING_FIELD(dialed_subaddr); /*!< Dialed subaddress */
+		AST_STRING_FIELD(ani);            /*!< Caller ID ANI Number */
+		AST_STRING_FIELD(rdnis);          /*!< Caller ID RDNIS Number */
+		AST_STRING_FIELD(subaddr);        /*!< Caller subaddress */
+	);
+	int pres; /*!< Caller ID presentation. */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing connected information for a channel snapshot.
+ */
+struct ast_channel_snapshot_connected {
+	char *number; /*!< Connected Line Number */
+	char name[0]; /*!< Connected Line Name */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing base information for a channel snapshot.
+ */
+struct ast_channel_snapshot_base {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);        /*!< ASCII unique channel name */
+		AST_STRING_FIELD(uniqueid);    /*!< Unique Channel Identifier */
+		AST_STRING_FIELD(accountcode); /*!< Account code for billing */
+		AST_STRING_FIELD(userfield);   /*!< Userfield for CEL billing */
+		AST_STRING_FIELD(language);    /*!< The default spoken language for the channel */
+		AST_STRING_FIELD(type);        /*!< Type of channel technology */
+	);
+	struct timeval creationtime; /*!< The time of channel creation */
+	int tech_properties;         /*!< Properties of the channel's technology */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing peer information for a channel snapshot.
+ */
+struct ast_channel_snapshot_peer {
+	char *linkedid;   /*!< Linked Channel Identifier -- gets propagated by linkage */
+	char account[0]; /*!< Peer account code for billing */
+};
+
+/*!
+ * \since 17
+ * \brief Structure containing hangup information for a channel snapshot.
+ */
+struct ast_channel_snapshot_hangup {
+	int cause;      /*!< Why is the channel hanged up. See causes.h */
+	char source[0]; /*!< Who is responsible for hanging up this channel */
+};
+
+/*!
  * \since 12
  * \brief Structure representing a snapshot of channel state.
  *
  * While not enforced programmatically, this object is shared across multiple
  * threads, and should be treated as an immutable object.
+ *
+ * It is guaranteed that the segments of this snapshot will always exist
+ * when accessing the snapshot.
  */
 struct ast_channel_snapshot {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name);             /*!< ASCII unique channel name */
-		AST_STRING_FIELD(uniqueid);         /*!< Unique Channel Identifier */
-		AST_STRING_FIELD(linkedid);         /*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(appl);             /*!< Current application */
-		AST_STRING_FIELD(data);             /*!< Data passed to current application */
-		AST_STRING_FIELD(context);          /*!< Dialplan: Current extension context */
-		AST_STRING_FIELD(exten);            /*!< Dialplan: Current extension number */
-		AST_STRING_FIELD(accountcode);      /*!< Account code for billing */
-		AST_STRING_FIELD(peeraccount);      /*!< Peer account code for billing */
-		AST_STRING_FIELD(userfield);        /*!< Userfield for CEL billing */
-		AST_STRING_FIELD(hangupsource);     /*!< Who is responsible for hanging up this channel */
-		AST_STRING_FIELD(caller_name);      /*!< Caller ID Name */
-		AST_STRING_FIELD(caller_number);    /*!< Caller ID Number */
-		AST_STRING_FIELD(caller_dnid);      /*!< Dialed ID Number */
-		AST_STRING_FIELD(caller_ani);       /*!< Caller ID ANI Number */
-		AST_STRING_FIELD(caller_rdnis);     /*!< Caller ID RDNIS Number */
-		AST_STRING_FIELD(caller_subaddr);   /*!< Caller subaddress */
-		AST_STRING_FIELD(dialed_subaddr);   /*!< Dialed subaddress */
-		AST_STRING_FIELD(connected_name);   /*!< Connected Line Name */
-		AST_STRING_FIELD(connected_number); /*!< Connected Line Number */
-		AST_STRING_FIELD(language);         /*!< The default spoken language for the channel */
-		AST_STRING_FIELD(bridgeid);         /*!< Unique Bridge Identifier */
-		AST_STRING_FIELD(type);             /*!< Type of channel technology */
-	);
-
-	struct timeval creationtime;            /*!< The time of channel creation */
-	enum ast_channel_state state;           /*!< State of line */
-	int priority;                           /*!< Dialplan: Current extension priority */
-	int amaflags;                           /*!< AMA flags for billing */
-	int hangupcause;                        /*!< Why is the channel hanged up. See causes.h */
-	int caller_pres;                        /*!< Caller ID presentation. */
-	struct ast_flags flags;                 /*!< channel flags of AST_FLAG_ type */
-	struct ast_flags softhangup_flags;      /*!< softhangup channel flags */
-	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
-	int tech_properties;                    /*!< Properties of the channel's technology */
-	struct varshead *ari_vars;              /*!< Variables to be appended to ARI events */
+	struct ast_channel_snapshot_base *base;           /*!< Base information about the channel */
+	struct ast_channel_snapshot_peer *peer;           /*!< Peer information */
+	struct ast_channel_snapshot_caller *caller;       /*!< Information about the caller */
+	struct ast_channel_snapshot_connected *connected; /*!< Information about who this channel is connected to */
+	struct ast_channel_snapshot_bridge *bridge;       /*!< Information about the bridge */
+	struct ast_channel_snapshot_dialplan *dialplan;   /*!< Information about the dialplan */
+	struct ast_channel_snapshot_hangup *hangup;       /*!< Hangup information */
+	enum ast_channel_state state;                     /*!< State of line */
+	int amaflags;                                     /*!< AMA flags for billing */
+	struct ast_flags flags;                           /*!< channel flags of AST_FLAG_ type */
+	struct ast_flags softhangup_flags;                /*!< softhangup channel flags */
+	struct varshead *manager_vars;                    /*!< Variables to be appended to manager events */
+	struct varshead *ari_vars;                        /*!< Variables to be appended to ARI events */
 };
 
 /*!
@@ -358,6 +441,18 @@ void ast_channel_stage_snapshot(struct ast_channel *chan);
  * \param chan Channel being staged.
  */
 void ast_channel_stage_snapshot_done(struct ast_channel *chan);
+
+/*!
+ * \since 17
+ * \brief Invalidate a channel snapshot segment from being reused
+ *
+ * \pre chan is locked
+ *
+ * \param chan Channel to invalidate the segment on.
+ * \param segment The segment to invalidate.
+ */
+void ast_channel_snapshot_invalidate_segment(struct ast_channel *chan,
+	enum ast_channel_snapshot_segment_invalidation segment);
 
 /*!
  * \since 12

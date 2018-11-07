@@ -315,7 +315,7 @@ static void call_forwarded_handler(struct stasis_app *app, struct stasis_message
 		return;
 	}
 
-	chan = ast_channel_get_by_name(snapshot->uniqueid);
+	chan = ast_channel_get_by_name(snapshot->base->uniqueid);
 	if (!chan) {
 		return;
 	}
@@ -391,8 +391,8 @@ static struct ast_json *channel_destroyed_event(
 	return ast_json_pack("{s: s, s: o, s: i, s: s, s: o}",
 		"type", "ChannelDestroyed",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"cause", snapshot->hangupcause,
-		"cause_txt", ast_cause2str(snapshot->hangupcause),
+		"cause", snapshot->hangup->cause,
+		"cause_txt", ast_cause2str(snapshot->hangup->cause),
 		"channel", json_channel);
 }
 
@@ -436,7 +436,7 @@ static struct ast_json *channel_dialplan(
 	}
 
 	/* Empty application is not valid for a Newexten event */
-	if (ast_strlen_zero(new_snapshot->appl)) {
+	if (ast_strlen_zero(new_snapshot->dialplan->appl)) {
 		return NULL;
 	}
 
@@ -452,8 +452,8 @@ static struct ast_json *channel_dialplan(
 	return ast_json_pack("{s: s, s: o, s: s, s: s, s: o}",
 		"type", "ChannelDialplan",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"dialplan_app", new_snapshot->appl,
-		"dialplan_app_data", AST_JSON_UTF8_VALIDATE(new_snapshot->data),
+		"dialplan_app", new_snapshot->dialplan->appl,
+		"dialplan_app_data", AST_JSON_UTF8_VALIDATE(new_snapshot->dialplan->data),
 		"channel", json_channel);
 }
 
@@ -481,9 +481,9 @@ static struct ast_json *channel_callerid(
 	return ast_json_pack("{s: s, s: o, s: i, s: s, s: o}",
 		"type", "ChannelCallerId",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"caller_presentation", new_snapshot->caller_pres,
+		"caller_presentation", new_snapshot->caller->pres,
 		"caller_presentation_txt", ast_describe_caller_presentation(
-			new_snapshot->caller_pres),
+			new_snapshot->caller->pres),
 		"channel", json_channel);
 }
 
@@ -541,7 +541,7 @@ static void sub_channel_update_handler(void *data,
 	}
 
 	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
-		unsubscribe(app, "channel", update->new_snapshot->uniqueid, 1);
+		unsubscribe(app, "channel", update->new_snapshot->base->uniqueid, 1);
 	}
 }
 
@@ -768,7 +768,7 @@ static void bridge_blind_transfer_handler(void *data, struct stasis_subscription
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = transfer_msg->bridge;
 
-	if (bridge_app_subscribed(app, transfer_msg->transferer->uniqueid) ||
+	if (bridge_app_subscribed(app, transfer_msg->transferer->base->uniqueid) ||
 		(bridge && bridge_app_subscribed_involved(app, bridge))) {
 		stasis_publish(app->topic, message);
 	}
@@ -781,9 +781,9 @@ static void bridge_attended_transfer_handler(void *data, struct stasis_subscript
 	struct ast_attended_transfer_message *transfer_msg = stasis_message_data(message);
 	int subscribed = 0;
 
-	subscribed = bridge_app_subscribed(app, transfer_msg->to_transferee.channel_snapshot->uniqueid);
+	subscribed = bridge_app_subscribed(app, transfer_msg->to_transferee.channel_snapshot->base->uniqueid);
 	if (!subscribed) {
-		subscribed = bridge_app_subscribed(app, transfer_msg->to_transfer_target.channel_snapshot->uniqueid);
+		subscribed = bridge_app_subscribed(app, transfer_msg->to_transfer_target.channel_snapshot->base->uniqueid);
 	}
 	if (!subscribed && transfer_msg->to_transferee.bridge_snapshot) {
 		subscribed = bridge_app_subscribed_involved(app, transfer_msg->to_transferee.bridge_snapshot);
@@ -798,16 +798,16 @@ static void bridge_attended_transfer_handler(void *data, struct stasis_subscript
 			subscribed = bridge_app_subscribed(app, transfer_msg->dest.bridge);
 			break;
 		case AST_ATTENDED_TRANSFER_DEST_LINK:
-			subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[0]->uniqueid);
+			subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[0]->base->uniqueid);
 			if (!subscribed) {
-				subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[1]->uniqueid);
+				subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[1]->base->uniqueid);
 			}
 			break;
 		break;
 		case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
 			subscribed = bridge_app_subscribed_involved(app, transfer_msg->dest.threeway.bridge_snapshot);
 			if (!subscribed) {
-				subscribed = bridge_app_subscribed(app, transfer_msg->dest.threeway.channel_snapshot->uniqueid);
+				subscribed = bridge_app_subscribed(app, transfer_msg->dest.threeway.channel_snapshot->base->uniqueid);
 			}
 			break;
 		default:

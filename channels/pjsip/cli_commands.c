@@ -61,13 +61,13 @@ static int cli_channel_sort(const void *obj, const void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = right_obj->name;
+		right_key = right_obj->base->name;
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
-		cmp = strcmp(left_obj->name, right_key);
+		cmp = strcmp(left_obj->base->name, right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(left_obj->name, right_key, strlen(right_key));
+		cmp = strncmp(left_obj->base->name, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -86,17 +86,17 @@ static int cli_channelstats_sort(const void *obj, const void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		cmp = strcmp(left_obj->bridgeid, right_obj->bridgeid);
+		cmp = strcmp(left_obj->bridge->id, right_obj->bridge->id);
 		if (cmp) {
 			return cmp;
 		}
-		right_key = right_obj->name;
+		right_key = right_obj->base->name;
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
-		cmp = strcmp(left_obj->name, right_key);
+		cmp = strcmp(left_obj->base->name, right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(left_obj->name, right_key, strlen(right_key));
+		cmp = strncmp(left_obj->base->name, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -115,15 +115,15 @@ static int cli_channel_compare(void *obj, void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = right_obj->name;
+		right_key = right_obj->base->name;
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
-		if (strcmp(left_obj->name, right_key) == 0) {
+		if (strcmp(left_obj->base->name, right_key) == 0) {
 			cmp = CMP_MATCH | CMP_STOP;
 		}
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		if (strncmp(left_obj->name, right_key, strlen(right_key)) == 0) {
+		if (strncmp(left_obj->base->name, right_key, strlen(right_key)) == 0) {
 			cmp = CMP_MATCH;
 		}
 		break;
@@ -144,18 +144,18 @@ static int cli_channelstats_compare(void *obj, void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		if (strcmp(left_obj->bridgeid, right_obj->bridgeid) == 0
-			&& strcmp(left_obj->name, right_obj->name) == 0) {
+		if (strcmp(left_obj->bridge->id, right_obj->bridge->id) == 0
+			&& strcmp(left_obj->base->name, right_obj->base->name) == 0) {
 			return CMP_MATCH | CMP_STOP;
 		}
 		break;
 	case OBJ_SEARCH_KEY:
-		if (strcmp(left_obj->name, right_key) == 0) {
+		if (strcmp(left_obj->base->name, right_key) == 0) {
 			cmp = CMP_MATCH | CMP_STOP;
 		}
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		if (strncmp(left_obj->name, right_key, strlen(right_key)) == 0) {
+		if (strncmp(left_obj->base->name, right_key, strlen(right_key)) == 0) {
 			cmp = CMP_MATCH;
 		}
 		break;
@@ -172,7 +172,7 @@ static int cli_message_to_snapshot(void *obj, void *arg, int flags)
 	struct ast_channel_snapshot *snapshot = obj;
 	struct ao2_container *snapshots = arg;
 
-	if (!strcmp(snapshot->type, "PJSIP")) {
+	if (!strcmp(snapshot->base->type, "PJSIP")) {
 		ao2_link(snapshots, snapshot);
 		return CMP_MATCH;
 	}
@@ -185,8 +185,8 @@ static int cli_filter_channels(void *obj, void *arg, int flags)
 	struct ast_channel_snapshot *channel = obj;
 	regex_t *regexbuf = arg;
 
-	if (!regexec(regexbuf, channel->name, 0, NULL, 0)
-		|| !regexec(regexbuf, channel->appl, 0, NULL, 0)) {
+	if (!regexec(regexbuf, channel->base->name, 0, NULL, 0)
+		|| !regexec(regexbuf, channel->dialplan->appl, 0, NULL, 0)) {
 		return 0;
 	}
 
@@ -236,7 +236,7 @@ static const char *cli_channel_get_id(const void *obj)
 {
 	const struct ast_channel_snapshot *snapshot = obj;
 
-	return snapshot->name;
+	return snapshot->base->name;
 }
 
 static void *cli_channel_retrieve_by_id(const char *id)
@@ -280,16 +280,16 @@ static int cli_channel_print_body(void *obj, void *arg, int flags)
 
 	ast_assert(context->output_buffer != NULL);
 
-	print_name_len = strlen(snapshot->name) + strlen(snapshot->appl) + 2;
+	print_name_len = strlen(snapshot->base->name) + strlen(snapshot->dialplan->appl) + 2;
 	print_name = alloca(print_name_len);
 
 	/* Append the application */
-	snprintf(print_name, print_name_len, "%s/%s", snapshot->name, snapshot->appl);
+	snprintf(print_name, print_name_len, "%s/%s", snapshot->base->name, snapshot->dialplan->appl);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	flexwidth = CLI_LAST_TABSTOP - indent;
 
-	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, 32);
+	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->base->creationtime.tv_sec, print_time, 32);
 
 	ast_str_append(&context->output_buffer, 0, "%*s: %-*.*s %-12.12s  %-11.11s\n",
 		CLI_INDENT_TO_SPACES(context->indent_level), "Channel",
@@ -307,9 +307,9 @@ static int cli_channel_print_body(void *obj, void *arg, int flags)
 			"%*s: %-*.*s  CLCID: \"%s\" <%s>\n",
 			indent, "Exten",
 			flexwidth, flexwidth,
-			snapshot->exten,
-			snapshot->connected_name,
-			snapshot->connected_number
+			snapshot->dialplan->exten,
+			snapshot->connected->name,
+			snapshot->connected->number
 			);
 		context->indent_level--;
 		if (context->indent_level == 0) {
@@ -338,7 +338,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	const struct ast_channel_snapshot *snapshot = obj;
-	struct ast_channel *channel = ast_channel_get_by_name(snapshot->name);
+	struct ast_channel *channel = ast_channel_get_by_name(snapshot->base->name);
 	struct ast_sip_channel_pvt *cpvt = channel ? ast_channel_tech_pvt(channel) : NULL;
 	struct ast_sip_session *session;
 	struct ast_sip_session_media *media;
@@ -351,7 +351,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	if (!channel) {
-		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
 		return -1;
 	}
 
@@ -359,7 +359,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	session = cpvt->session;
 	if (!session) {
-		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
 		return -1;
@@ -367,7 +367,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
 	if (!media || !media->rtp) {
-		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
+		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
 		return -1;
@@ -383,18 +383,18 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	ast_channel_unlock(channel);
 
-	print_name = ast_strdupa(snapshot->name);
+	print_name = ast_strdupa(snapshot->base->name);
 	/* Skip the PJSIP/.  We know what channel type it is and we need the space. */
 	print_name += 6;
 
-	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, 32);
+	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->base->creationtime.tv_sec, print_time, 32);
 
 	if (ast_rtp_instance_get_stats(rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
-		ast_str_append(&context->output_buffer, 0, "%s direct media\n", snapshot->name);
+		ast_str_append(&context->output_buffer, 0, "%s direct media\n", snapshot->base->name);
 	} else {
 		ast_str_append(&context->output_buffer, 0,
 			" %8.8s %-18.18s %-8.8s %-6.6s %6u%s %6u%s %3u %7.3f %6u%s %6u%s %3u %7.3f %7.3f\n",
-			snapshot->bridgeid,
+			snapshot->bridge->id,
 			print_name,
 			print_time,
 			codec_in_use,

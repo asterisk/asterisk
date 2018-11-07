@@ -1004,8 +1004,8 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		char durbuf[16] = "-";
 
 		if (!count) {
-			if ((concise || verbose)  && !ast_tvzero(cs->creationtime)) {
-				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->creationtime) / 1000);
+			if ((concise || verbose)  && !ast_tvzero(cs->base->creationtime)) {
+				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->base->creationtime) / 1000);
 				if (verbose) {
 					int durh = duration / 3600;
 					int durm = (duration % 3600) / 60;
@@ -1016,36 +1016,36 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				}
 			}
 			if (concise) {
-				ast_cli(a->fd, CONCISE_FORMAT_STRING, cs->name, cs->context, cs->exten, cs->priority, ast_state2str(cs->state),
-					S_OR(cs->appl, "(None)"),
-					cs->data,
-					cs->caller_number,
-					cs->accountcode,
-					cs->peeraccount,
+				ast_cli(a->fd, CONCISE_FORMAT_STRING, cs->base->name, cs->dialplan->context, cs->dialplan->exten, cs->dialplan->priority, ast_state2str(cs->state),
+					S_OR(cs->dialplan->appl, "(None)"),
+					cs->dialplan->data,
+					cs->caller->number,
+					cs->base->accountcode,
+					cs->peer->account,
 					cs->amaflags,
 					durbuf,
-					cs->bridgeid,
-					cs->uniqueid);
+					cs->bridge->id,
+					cs->base->uniqueid);
 			} else if (verbose) {
-				ast_cli(a->fd, VERBOSE_FORMAT_STRING, cs->name, cs->context, cs->exten, cs->priority, ast_state2str(cs->state),
-					S_OR(cs->appl, "(None)"),
-					S_OR(cs->data, "(Empty)"),
-					cs->caller_number,
+				ast_cli(a->fd, VERBOSE_FORMAT_STRING, cs->base->name, cs->dialplan->context, cs->dialplan->exten, cs->dialplan->priority, ast_state2str(cs->state),
+					S_OR(cs->dialplan->appl, "(None)"),
+					S_OR(cs->dialplan->data, "(Empty)"),
+					cs->caller->number,
 					durbuf,
-					cs->accountcode,
-					cs->peeraccount,
-					cs->bridgeid);
+					cs->base->accountcode,
+					cs->peer->account,
+					cs->bridge->id);
 			} else {
 				char locbuf[40] = "(None)";
 				char appdata[40] = "(None)";
 
-				if (!ast_strlen_zero(cs->context) && !ast_strlen_zero(cs->exten)) {
-					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", cs->exten, cs->context, cs->priority);
+				if (!ast_strlen_zero(cs->dialplan->context) && !ast_strlen_zero(cs->dialplan->exten)) {
+					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", cs->dialplan->exten, cs->dialplan->context, cs->dialplan->priority);
 				}
-				if (!ast_strlen_zero(cs->appl)) {
-					snprintf(appdata, sizeof(appdata), "%s(%s)", cs->appl, S_OR(cs->data, ""));
+				if (!ast_strlen_zero(cs->dialplan->appl)) {
+					snprintf(appdata, sizeof(appdata), "%s(%s)", cs->dialplan->appl, S_OR(cs->dialplan->data, ""));
 				}
-				ast_cli(a->fd, FORMAT_STRING, cs->name, locbuf, ast_state2str(cs->state), appdata);
+				ast_cli(a->fd, FORMAT_STRING, cs->base->name, locbuf, ast_state2str(cs->state), appdata);
 			}
 		}
 	}
@@ -1684,14 +1684,14 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 
 	iter = ao2_iterator_init(cached_channels, 0);
 	for (; (snapshot = ao2_iterator_next(&iter)); ao2_ref(snapshot, -1)) {
-		if (!strncasecmp(word, snapshot->name, wordlen) && (++which > state)) {
+		if (!strncasecmp(word, snapshot->base->name, wordlen) && (++which > state)) {
 			if (state != -1) {
-				ret = ast_strdup(snapshot->name);
+				ret = ast_strdup(snapshot->base->name);
 				ao2_ref(snapshot, -1);
 				break;
 			}
 
-			if (ast_cli_completion_add(ast_strdup(snapshot->name))) {
+			if (ast_cli_completion_add(ast_strdup(snapshot->base->name))) {
 				ao2_ref(snapshot, -1);
 				break;
 			}

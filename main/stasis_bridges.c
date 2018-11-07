@@ -1069,7 +1069,7 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
 		ast_str_append(&variable_data, 0, "DestType: Threeway\r\n");
 		ast_str_append(&variable_data, 0, "DestBridgeUniqueid: %s\r\n", transfer_msg->dest.threeway.bridge_snapshot->uniqueid);
-		ast_str_append(&variable_data, 0, "DestTransfererChannel: %s\r\n", transfer_msg->dest.threeway.channel_snapshot->name);
+		ast_str_append(&variable_data, 0, "DestTransfererChannel: %s\r\n", transfer_msg->dest.threeway.channel_snapshot->base->name);
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_FAIL:
 		ast_str_append(&variable_data, 0, "DestType: Fail\r\n");
@@ -1189,7 +1189,7 @@ int ast_attended_transfer_message_add_threeway(struct ast_attended_transfer_mess
 {
 	transfer_msg->dest_type = AST_ATTENDED_TRANSFER_DEST_THREEWAY;
 
-	if (!strcmp(ast_channel_uniqueid(survivor_channel), transfer_msg->to_transferee.channel_snapshot->uniqueid)) {
+	if (!strcmp(ast_channel_uniqueid(survivor_channel), transfer_msg->to_transferee.channel_snapshot->base->uniqueid)) {
 		transfer_msg->dest.threeway.channel_snapshot = transfer_msg->to_transferee.channel_snapshot;
 	} else {
 		transfer_msg->dest.threeway.channel_snapshot = transfer_msg->to_transfer_target.channel_snapshot;

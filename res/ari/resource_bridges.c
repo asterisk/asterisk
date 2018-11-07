@@ -377,7 +377,7 @@ static int ari_bridges_play_helper(const char **args_media,
 		return -1;
 	}
 
-	language = S_OR(args_lang, snapshot->language);
+	language = S_OR(args_lang, snapshot->base->language);
 
 	playback = stasis_app_control_play_uri(control, args_media, args_media_count,
 		language, bridge->uniqueid, STASIS_PLAYBACK_TARGET_BRIDGE, args_skipms,

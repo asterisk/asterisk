@@ -149,7 +149,7 @@ static int channel_snapshot_hash_cb(const void *obj, const int flags)
 		key = obj;
 		break;
 	case OBJ_SEARCH_OBJECT:
-		key = object->name;
+		key = object->base->name;
 		break;
 	default:
 		ast_assert(0);
@@ -171,12 +171,12 @@ static int channel_snapshot_cmp_cb(void *obj, void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->name;
+		right_key = object_right->base->name;
 	case OBJ_SEARCH_KEY:
-		cmp = strcasecmp(object_left->name, right_key);
+		cmp = strcasecmp(object_left->base->name, right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncasecmp(object_left->name, right_key, strlen(right_key));
+		cmp = strncasecmp(object_left->base->name, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -202,7 +202,7 @@ static int channel_snapshot_uniqueid_hash_cb(const void *obj, const int flags)
 		key = obj;
 		break;
 	case OBJ_SEARCH_OBJECT:
-		key = object->uniqueid;
+		key = object->base->uniqueid;
 		break;
 	default:
 		ast_assert(0);
@@ -224,12 +224,12 @@ static int channel_snapshot_uniqueid_cmp_cb(void *obj, void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->uniqueid;
+		right_key = object_right->base->uniqueid;
 	case OBJ_SEARCH_KEY:
-		cmp = strcasecmp(object_left->uniqueid, right_key);
+		cmp = strcasecmp(object_left->base->uniqueid, right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncasecmp(object_left->uniqueid, right_key, strlen(right_key));
+		cmp = strncasecmp(object_left->base->uniqueid, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -245,36 +245,180 @@ static void channel_snapshot_dtor(void *obj)
 {
 	struct ast_channel_snapshot *snapshot = obj;
 
-	ast_string_field_free_memory(snapshot);
+	ao2_cleanup(snapshot->base);
+	ao2_cleanup(snapshot->peer);
+	ao2_cleanup(snapshot->caller);
+	ao2_cleanup(snapshot->connected);
+	ao2_cleanup(snapshot->bridge);
+	ao2_cleanup(snapshot->dialplan);
+	ao2_cleanup(snapshot->hangup);
 	ao2_cleanup(snapshot->manager_vars);
 	ao2_cleanup(snapshot->ari_vars);
 }
 
-struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
+static void channel_snapshot_base_dtor(void *obj)
 {
-	struct ast_channel_snapshot *snapshot;
-	struct ast_bridge *bridge;
+	struct ast_channel_snapshot_base *snapshot = obj;
 
-	/* no snapshots for dummy channels */
-	if (!ast_channel_tech(chan)) {
+	ast_string_field_free_memory(snapshot);
+}
+
+static struct ast_channel_snapshot_base *channel_snapshot_base_create(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot_base *snapshot;
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_base_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
 		return NULL;
 	}
 
-	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_dtor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!snapshot || ast_string_field_init(snapshot, 1024)) {
-		ao2_cleanup(snapshot);
+	if (ast_string_field_init(snapshot, 256)) {
+		ao2_ref(snapshot, -1);
 		return NULL;
 	}
 
 	ast_string_field_set(snapshot, name, ast_channel_name(chan));
 	ast_string_field_set(snapshot, type, ast_channel_tech(chan)->type);
 	ast_string_field_set(snapshot, accountcode, ast_channel_accountcode(chan));
-	ast_string_field_set(snapshot, peeraccount, ast_channel_peeraccount(chan));
 	ast_string_field_set(snapshot, userfield, ast_channel_userfield(chan));
 	ast_string_field_set(snapshot, uniqueid, ast_channel_uniqueid(chan));
-	ast_string_field_set(snapshot, linkedid, ast_channel_linkedid(chan));
-	ast_string_field_set(snapshot, hangupsource, ast_channel_hangupsource(chan));
+	ast_string_field_set(snapshot, language, ast_channel_language(chan));
+
+	snapshot->creationtime = ast_channel_creationtime(chan);
+	snapshot->tech_properties = ast_channel_tech(chan)->properties;
+
+	return snapshot;
+}
+
+static struct ast_channel_snapshot_peer *channel_snapshot_peer_create(struct ast_channel *chan)
+{
+	const char *linkedid = S_OR(ast_channel_linkedid(chan), "");
+	const char *peeraccount = S_OR(ast_channel_peeraccount(chan), "");
+	size_t linkedid_len = strlen(linkedid) + 1;
+	size_t peeraccount_len = strlen(peeraccount) + 1;
+	struct ast_channel_snapshot_peer *snapshot;
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot) + linkedid_len + peeraccount_len, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	strcpy(snapshot->account, peeraccount); /* Safe */
+	snapshot->linkedid = snapshot->account + peeraccount_len;
+	strcpy(snapshot->linkedid, linkedid); /* Safe */
+
+	return snapshot;
+}
+
+static void channel_snapshot_caller_dtor(void *obj)
+{
+	struct ast_channel_snapshot_caller *snapshot = obj;
+
+	ast_string_field_free_memory(snapshot);
+}
+
+static struct ast_channel_snapshot_caller *channel_snapshot_caller_create(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot_caller *snapshot;
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_caller_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(snapshot, 256)) {
+		ao2_ref(snapshot, -1);
+		return NULL;
+	}
+
+	ast_string_field_set(snapshot, name,
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
+	ast_string_field_set(snapshot, number,
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
+	ast_string_field_set(snapshot, subaddr,
+		S_COR(ast_channel_caller(chan)->id.subaddress.valid, ast_channel_caller(chan)->id.subaddress.str, ""));
+	ast_string_field_set(snapshot, ani,
+		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""));
+
+	ast_string_field_set(snapshot, rdnis,
+		S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, ""));
+
+	ast_string_field_set(snapshot, dnid,
+		S_OR(ast_channel_dialed(chan)->number.str, ""));
+	ast_string_field_set(snapshot, dialed_subaddr,
+		S_COR(ast_channel_dialed(chan)->subaddress.valid, ast_channel_dialed(chan)->subaddress.str, ""));
+
+	snapshot->pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
+
+	return snapshot;
+}
+
+static struct ast_channel_snapshot_connected *channel_snapshot_connected_create(struct ast_channel *chan)
+{
+	const char *name = S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, "");
+	const char *number = S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, "");
+	size_t name_len = strlen(name) + 1;
+	size_t number_len = strlen(number) + 1;
+	struct ast_channel_snapshot_connected *snapshot;
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot) + name_len + number_len, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	strcpy(snapshot->name, name); /* Safe */
+	snapshot->number = snapshot->name + name_len;
+	strcpy(snapshot->number, number); /* Safe */
+
+	return snapshot;
+}
+
+static struct ast_channel_snapshot_bridge *channel_snapshot_bridge_create(struct ast_channel *chan)
+{
+	const char *uniqueid = "";
+	struct ast_bridge *bridge;
+	struct ast_channel_snapshot_bridge *snapshot;
+
+	bridge = ast_channel_get_bridge(chan);
+	if (bridge && !ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+		uniqueid = bridge->uniqueid;
+	}
+	ao2_cleanup(bridge);
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot) + strlen(uniqueid) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	strcpy(snapshot->id, uniqueid); /* Safe */
+
+	return snapshot;
+}
+
+static void channel_snapshot_dialplan_dtor(void *obj)
+{
+	struct ast_channel_snapshot_dialplan *snapshot = obj;
+
+	ast_string_field_free_memory(snapshot);
+}
+
+static struct ast_channel_snapshot_dialplan *channel_snapshot_dialplan_create(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot_dialplan *snapshot;
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_dialplan_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(snapshot, 256)) {
+		ao2_ref(snapshot, -1);
+		return NULL;
+	}
+
 	if (ast_channel_appl(chan)) {
 		ast_string_field_set(snapshot, appl, ast_channel_appl(chan));
 	}
@@ -283,50 +427,130 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	}
 	ast_string_field_set(snapshot, context, ast_channel_context(chan));
 	ast_string_field_set(snapshot, exten, ast_channel_exten(chan));
+	snapshot->priority = ast_channel_priority(chan);
 
-	ast_string_field_set(snapshot, caller_name,
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
-	ast_string_field_set(snapshot, caller_number,
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
-	ast_string_field_set(snapshot, caller_subaddr,
-		S_COR(ast_channel_caller(chan)->id.subaddress.valid, ast_channel_caller(chan)->id.subaddress.str, ""));
-	ast_string_field_set(snapshot, caller_ani,
-		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""));
+	return snapshot;
+}
 
-	ast_string_field_set(snapshot, caller_rdnis,
-		S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, ""));
+static struct ast_channel_snapshot_hangup *channel_snapshot_hangup_create(struct ast_channel *chan)
+{
+	const char *hangupsource = S_OR(ast_channel_hangupsource(chan), "");
+	struct ast_channel_snapshot_hangup *snapshot;
 
-	ast_string_field_set(snapshot, caller_dnid,
-		S_OR(ast_channel_dialed(chan)->number.str, ""));
-	ast_string_field_set(snapshot, dialed_subaddr,
-		S_COR(ast_channel_dialed(chan)->subaddress.valid, ast_channel_dialed(chan)->subaddress.str, ""));
-
-	ast_string_field_set(snapshot, connected_name,
-		S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, ""));
-	ast_string_field_set(snapshot, connected_number,
-		S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, ""));
-
-	ast_string_field_set(snapshot, language, ast_channel_language(chan));
-
-	if ((bridge = ast_channel_get_bridge(chan))) {
-		if (!ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
-			ast_string_field_set(snapshot, bridgeid, bridge->uniqueid);
-		}
-		ao2_cleanup(bridge);
+	snapshot = ao2_alloc_options(sizeof(*snapshot) + strlen(hangupsource) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
 	}
 
-	snapshot->creationtime = ast_channel_creationtime(chan);
+	snapshot->cause = ast_channel_hangupcause(chan);
+	strcpy(snapshot->source, hangupsource); /* Safe */
+
+	return snapshot;
+}
+
+struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
+{
+	struct ast_channel_snapshot *old_snapshot;
+	struct ast_channel_snapshot *snapshot;
+
+	/* no snapshots for dummy channels */
+	if (!ast_channel_tech(chan)) {
+		return NULL;
+	}
+
+	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!snapshot) {
+		return NULL;
+	}
+
+	old_snapshot = ast_channel_snapshot(chan);
+
+	/* Channels automatically have all segments invalidated on them initially so a check for an old
+	 * snapshot existing before usage is not done here, as it can not happen. If the stored snapshot
+	 * on the channel is updated as a result of this then all segments marked as invalidated will be
+	 * cleared.
+	 */
+	if (ast_test_flag(ast_channel_snapshot_segment_flags(chan), AST_CHANNEL_SNAPSHOT_INVALIDATE_BASE)) {
+		/* The base information has changed so update our snapshot */
+		snapshot->base = channel_snapshot_base_create(chan);
+		if (!snapshot->base) {
+			ao2_ref(snapshot, -1);
+			return NULL;
+		}
+	} else {
+		snapshot->base = ao2_bump(old_snapshot->base);
+	}
+
+	if (ast_test_flag(ast_channel_snapshot_segment_flags(chan), AST_CHANNEL_SNAPSHOT_INVALIDATE_PEER)) {
+		/* The peer information has changed so update our snapshot */
+		snapshot->peer = channel_snapshot_peer_create(chan);
+		if (!snapshot->peer) {
+			ao2_ref(snapshot, -1);
+			return NULL;
+		}
+	} else {
+		snapshot->peer = ao2_bump(old_snapshot->peer);
+	}
+
+	/* Unfortunately both caller and connected information do not have an enforced contract with
+	 * the channel API. This has allowed consumers to directly get the caller or connected structure
+	 * and manipulate it. Until such time as there is an enforced contract (which is being tracked under
+	 * ASTERISK-28164) they are each regenerated every time a channel snapshot is created.
+	 */
+	snapshot->caller = channel_snapshot_caller_create(chan);
+	if (!snapshot->caller) {
+		ao2_ref(snapshot, -1);
+		return NULL;
+	}
+
+	snapshot->connected = channel_snapshot_connected_create(chan);
+	if (!snapshot->connected) {
+		ao2_ref(snapshot, -1);
+		return NULL;
+	}
+
+	if (ast_test_flag(ast_channel_snapshot_segment_flags(chan), AST_CHANNEL_SNAPSHOT_INVALIDATE_BRIDGE)) {
+		/* The bridge has changed so update our snapshot */
+		snapshot->bridge = channel_snapshot_bridge_create(chan);
+		if (!snapshot->bridge) {
+			ao2_ref(snapshot, -1);
+			return NULL;
+		}
+	} else {
+		snapshot->bridge = ao2_bump(old_snapshot->bridge);
+	}
+
+	if (ast_test_flag(ast_channel_snapshot_segment_flags(chan), AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN)) {
+		/* The dialplan information has changed so update our snapshot */
+		snapshot->dialplan = channel_snapshot_dialplan_create(chan);
+		if (!snapshot->dialplan) {
+			ao2_ref(snapshot, -1);
+			return NULL;
+		}
+	} else {
+		snapshot->dialplan = ao2_bump(old_snapshot->dialplan);
+	}
+
+	if (ast_test_flag(ast_channel_snapshot_segment_flags(chan), AST_CHANNEL_SNAPSHOT_INVALIDATE_HANGUP)) {
+		/* The hangup information has changed so update our snapshot */
+		snapshot->hangup = channel_snapshot_hangup_create(chan);
+		if (!snapshot->hangup) {
+			ao2_ref(snapshot, -1);
+			return NULL;
+		}
+	} else {
+		snapshot->hangup = ao2_bump(old_snapshot->hangup);
+	}
+
 	snapshot->state = ast_channel_state(chan);
-	snapshot->priority = ast_channel_priority(chan);
 	snapshot->amaflags = ast_channel_amaflags(chan);
-	snapshot->hangupcause = ast_channel_hangupcause(chan);
 	ast_copy_flags(&snapshot->flags, ast_channel_flags(chan), 0xFFFFFFFF);
-	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
 	ast_set_flag(&snapshot->softhangup_flags, ast_channel_softhangup_internal_flag(chan));
 
+	/* These have to be recreated as they may have changed, unfortunately */
 	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
 	snapshot->ari_vars = ast_channel_get_ari_vars(chan);
-	snapshot->tech_properties = ast_channel_tech(chan)->properties;
 
 	return snapshot;
 }
@@ -822,6 +1046,12 @@ void ast_channel_stage_snapshot_done(struct ast_channel *chan)
 	ast_channel_publish_snapshot(chan);
 }
 
+void ast_channel_snapshot_invalidate_segment(struct ast_channel *chan,
+	enum ast_channel_snapshot_segment_invalidation segment)
+{
+	ast_set_flag(ast_channel_snapshot_segment_flags(chan), segment);
+}
+
 void ast_channel_publish_snapshot(struct ast_channel *chan)
 {
 	struct ast_channel_snapshot_update *update;
@@ -837,6 +1067,14 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 
 	update = channel_snapshot_update_create(chan);
 	if (!update) {
+		return;
+	}
+
+	/* If an old snapshot exists and is the same as this newly created one don't bother
+	 * raising a message as it hasn't changed.
+	 */
+	if (update->old_snapshot && !memcmp(update->old_snapshot, update->new_snapshot, sizeof(struct ast_channel_snapshot))) {
+		ao2_ref(update, -1);
 		return;
 	}
 
@@ -868,6 +1106,11 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 	ao2_unlock(channel_cache_by_name);
 
 	ast_channel_snapshot_set(chan, update->new_snapshot);
+
+	/* As this is now the new snapshot any existing invalidated segments have been
+	 * created fresh and are up to date.
+	 */
+	ast_clear_flag(ast_channel_snapshot_segment_flags(chan), AST_FLAGS_ALL);
 
 	ast_assert(ast_channel_topic(chan) != NULL);
 	stasis_publish(ast_channel_topic(chan), message);
@@ -1028,20 +1271,20 @@ struct ast_json *ast_channel_snapshot_to_json(
 		"  s: o, s: o, s: s,"
 		"  s: o, s: o, s: s }",
 		/* First line */
-		"id", snapshot->uniqueid,
-		"name", snapshot->name,
+		"id", snapshot->base->uniqueid,
+		"name", snapshot->base->name,
 		"state", ast_state2str(snapshot->state),
 		/* Second line */
 		"caller", ast_json_name_number(
-			snapshot->caller_name, snapshot->caller_number),
+			snapshot->caller->name, snapshot->caller->number),
 		"connected", ast_json_name_number(
-			snapshot->connected_name, snapshot->connected_number),
-		"accountcode", snapshot->accountcode,
+			snapshot->connected->name, snapshot->connected->number),
+		"accountcode", snapshot->base->accountcode,
 		/* Third line */
 		"dialplan", ast_json_dialplan_cep(
-			snapshot->context, snapshot->exten, snapshot->priority),
-		"creationtime", ast_json_timeval(snapshot->creationtime, NULL),
-		"language", snapshot->language);
+			snapshot->dialplan->context, snapshot->dialplan->exten, snapshot->dialplan->priority),
+		"creationtime", ast_json_timeval(snapshot->base->creationtime, NULL),
+		"language", snapshot->base->language);
 
 	if (snapshot->ari_vars && !AST_LIST_EMPTY(snapshot->ari_vars)) {
 		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(snapshot->ari_vars));
@@ -1061,14 +1304,14 @@ int ast_channel_snapshot_cep_equal(
 	 * application is set. Since empty application is invalid, we treat
 	 * setting the application from nothing as a CEP change.
 	 */
-	if (ast_strlen_zero(old_snapshot->appl) &&
-	    !ast_strlen_zero(new_snapshot->appl)) {
+	if (ast_strlen_zero(old_snapshot->dialplan->appl) &&
+	    !ast_strlen_zero(new_snapshot->dialplan->appl)) {
 		return 0;
 	}
 
-	return old_snapshot->priority == new_snapshot->priority &&
-		strcmp(old_snapshot->context, new_snapshot->context) == 0 &&
-		strcmp(old_snapshot->exten, new_snapshot->exten) == 0;
+	return old_snapshot->dialplan->priority == new_snapshot->dialplan->priority &&
+		strcmp(old_snapshot->dialplan->context, new_snapshot->dialplan->context) == 0 &&
+		strcmp(old_snapshot->dialplan->exten, new_snapshot->dialplan->exten) == 0;
 }
 
 int ast_channel_snapshot_caller_id_equal(
@@ -1077,8 +1320,8 @@ int ast_channel_snapshot_caller_id_equal(
 {
 	ast_assert(old_snapshot != NULL);
 	ast_assert(new_snapshot != NULL);
-	return strcmp(old_snapshot->caller_number, new_snapshot->caller_number) == 0 &&
-		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
+	return strcmp(old_snapshot->caller->number, new_snapshot->caller->number) == 0 &&
+		strcmp(old_snapshot->caller->name, new_snapshot->caller->name) == 0;
 }
 
 int ast_channel_snapshot_connected_line_equal(
@@ -1087,8 +1330,8 @@ int ast_channel_snapshot_connected_line_equal(
 {
 	ast_assert(old_snapshot != NULL);
 	ast_assert(new_snapshot != NULL);
-	return strcmp(old_snapshot->connected_number, new_snapshot->connected_number) == 0 &&
-		strcmp(old_snapshot->connected_name, new_snapshot->connected_name) == 0;
+	return strcmp(old_snapshot->connected->number, new_snapshot->connected->number) == 0 &&
+		strcmp(old_snapshot->connected->name, new_snapshot->connected->name) == 0;
 }
 
 static struct ast_json *channel_blob_to_json(

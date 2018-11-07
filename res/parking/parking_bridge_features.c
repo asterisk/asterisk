@@ -111,7 +111,7 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 	RAII_VAR(struct ast_channel *, parker, NULL, ast_channel_cleanup);
 	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 
-	if (strcmp(parkee_to_act_on, parkee_snapshot->uniqueid)) {
+	if (strcmp(parkee_to_act_on, parkee_snapshot->base->uniqueid)) {
 		return;
 	}
 

@@ -819,12 +819,12 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 	snprintf(buf, sizeof(buf), "%d", parkingspace);
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
 
-	inherit_channel_vars_from_id(&oh, parkee_snapshot->uniqueid);
+	inherit_channel_vars_from_id(&oh, parkee_snapshot->base->uniqueid);
 
 	dchan = __ast_request_and_dial(dial_tech, cap_slin, NULL, NULL, dial_string, 30000,
 		&outstate,
-		parkee_snapshot->caller_number,
-		parkee_snapshot->caller_name,
+		parkee_snapshot->caller->number,
+		parkee_snapshot->caller->name,
 		&oh);
 
 	ast_variables_destroy(oh.vars);
@@ -877,7 +877,7 @@ static void park_announce_update_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
-	if (strcmp(payload->parkee->uniqueid, pa_data->parkee_uuid)) {
+	if (strcmp(payload->parkee->base->uniqueid, pa_data->parkee_uuid)) {
 		/* We are only concerned with the parkee we are subscribed for. */
 		return;
 	}

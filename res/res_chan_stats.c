@@ -110,7 +110,7 @@ static void updates(void *data, struct stasis_subscription *sub,
 		int64_t age;
 
 		age = ast_tvdiff_ms(*stasis_message_timestamp(message),
-			update->new_snapshot->creationtime);
+			update->new_snapshot->base->creationtime);
 		ast_statsd_log("channels.calltime", AST_STATSD_TIMER, age);
 
 		/* And decrement the channel count */

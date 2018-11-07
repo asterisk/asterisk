@@ -195,7 +195,7 @@ static void endpoint_cache_clear(void *data,
 	ast_assert(endpoint != NULL);
 
 	ao2_lock(endpoint);
-	ast_str_container_remove(endpoint->channel_ids, update->new_snapshot->uniqueid);
+	ast_str_container_remove(endpoint->channel_ids, update->new_snapshot->base->uniqueid);
 	ao2_unlock(endpoint);
 	endpoint_publish_snapshot(endpoint);
 }

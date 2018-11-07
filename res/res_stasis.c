@@ -1019,7 +1019,7 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 	}
 
 	if (replace_channel_snapshot) {
-		app_unsubscribe_channel_id(app, replace_channel_snapshot->uniqueid);
+		app_unsubscribe_channel_id(app, replace_channel_snapshot->base->uniqueid);
 	}
 	stasis_publish(ast_app_get_topic(app), msg);
 	ao2_ref(msg, -1);
@@ -2051,7 +2051,7 @@ static int unload_module(void)
 /* \brief Sanitization callback for channel snapshots */
 static int channel_snapshot_sanitizer(const struct ast_channel_snapshot *snapshot)
 {
-	if (!snapshot || !(snapshot->tech_properties & AST_CHAN_TP_INTERNAL)) {
+	if (!snapshot || !(snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL)) {
 		return 0;
 	}
 	return 1;

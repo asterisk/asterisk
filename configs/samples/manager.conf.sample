@@ -55,6 +55,8 @@ bindaddr = 0.0.0.0
 ; Display certain channel variables every time a channel-oriented
 ; event is emitted:
 ;
+; Note that this does incur a performance penalty and should be avoided if possible.
+;
 ;channelvars = var1,var2,var3
 
 ; debug = on	; enable some debugging info in AMI messages (default off).

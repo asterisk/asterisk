@@ -803,7 +803,7 @@ static void cdr_object_snapshot_copy(struct cdr_object_snapshot *dst, struct cdr
 static void cdr_object_transition_state(struct cdr_object *cdr, struct cdr_object_fn_table *fn_table)
 {
 	CDR_DEBUG("%p - Transitioning CDR for %s from state %s to %s\n",
-		cdr, cdr->party_a.snapshot->name,
+		cdr, cdr->party_a.snapshot->base->name,
 		cdr->fn_table ? cdr->fn_table->name : "NONE", fn_table->name);
 	cdr->fn_table = fn_table;
 	if (cdr->fn_table->init_function) {
@@ -938,9 +938,9 @@ static void cdr_all_relink(struct cdr_object *cdr)
 {
 	ao2_lock(active_cdrs_all);
 	if (cdr->party_b.snapshot) {
-		if (strcasecmp(cdr->party_b_name, cdr->party_b.snapshot->name)) {
+		if (strcasecmp(cdr->party_b_name, cdr->party_b.snapshot->base->name)) {
 			ao2_unlink_flags(active_cdrs_all, cdr, OBJ_NOLOCK);
-			ast_string_field_set(cdr, party_b_name, cdr->party_b.snapshot->name);
+			ast_string_field_set(cdr, party_b_name, cdr->party_b.snapshot->base->name);
 			ao2_link_flags(active_cdrs_all, cdr, OBJ_NOLOCK);
 		}
 	} else {
@@ -1039,16 +1039,16 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
 		ao2_cleanup(cdr);
 		return NULL;
 	}
-	ast_string_field_set(cdr, uniqueid, chan->uniqueid);
-	ast_string_field_set(cdr, name, chan->name);
-	ast_string_field_set(cdr, linkedid, chan->linkedid);
+	ast_string_field_set(cdr, uniqueid, chan->base->uniqueid);
+	ast_string_field_set(cdr, name, chan->base->name);
+	ast_string_field_set(cdr, linkedid, chan->peer->linkedid);
 	cdr->disposition = AST_CDR_NULL;
 	cdr->sequence = ast_atomic_fetchadd_int(&global_cdr_sequence, +1);
 
 	cdr->party_a.snapshot = chan;
 	ao2_t_ref(cdr->party_a.snapshot, +1, "bump snapshot during CDR creation");
 
-	CDR_DEBUG("%p - Created CDR for channel %s\n", cdr, chan->name);
+	CDR_DEBUG("%p - Created CDR for channel %s\n", cdr, chan->base->name);
 
 	cdr_object_transition_state(cdr, &single_state_fn_table);
 
@@ -1145,11 +1145,11 @@ static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 	 * will attempt to clear the application and restore the dummy originate application
 	 * of "AppDialX". Ignore application changes to AppDialX as a result.
 	 */
-	if (strcmp(new_snapshot->appl, old_snapshot->appl)
-		&& strncasecmp(new_snapshot->appl, "appdial", 7)
-		&& (strcmp(new_snapshot->context, old_snapshot->context)
-			|| strcmp(new_snapshot->exten, old_snapshot->exten)
-			|| new_snapshot->priority != old_snapshot->priority)) {
+	if (strcmp(new_snapshot->dialplan->appl, old_snapshot->dialplan->appl)
+		&& strncasecmp(new_snapshot->dialplan->appl, "appdial", 7)
+		&& (strcmp(new_snapshot->dialplan->context, old_snapshot->dialplan->context)
+			|| strcmp(new_snapshot->dialplan->exten, old_snapshot->dialplan->exten)
+			|| new_snapshot->dialplan->priority != old_snapshot->dialplan->priority)) {
 		return 1;
 	}
 
@@ -1196,11 +1196,11 @@ static struct cdr_object_snapshot *cdr_object_pick_party_a(struct cdr_object_sna
 
 	/* Neither party is dialed and neither has the Party A flag - defer to
 	 * creation time */
-	if (left->snapshot->creationtime.tv_sec < right->snapshot->creationtime.tv_sec) {
+	if (left->snapshot->base->creationtime.tv_sec < right->snapshot->base->creationtime.tv_sec) {
 		return left;
-	} else if (left->snapshot->creationtime.tv_sec > right->snapshot->creationtime.tv_sec) {
+	} else if (left->snapshot->base->creationtime.tv_sec > right->snapshot->base->creationtime.tv_sec) {
 		return right;
-	} else if (left->snapshot->creationtime.tv_usec > right->snapshot->creationtime.tv_usec) {
+	} else if (left->snapshot->base->creationtime.tv_usec > right->snapshot->base->creationtime.tv_usec) {
 		return right;
 	} else {
 		/* Okay, fine, take the left one */
@@ -1285,7 +1285,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 		/* Don't create records for CDRs where the party A was a dialed channel */
 		if (snapshot_is_dialed(it_cdr->party_a.snapshot) && !it_cdr->party_b.snapshot) {
 			ast_debug(1, "CDR for %s is dialed and has no Party B; discarding\n",
-				it_cdr->party_a.snapshot->name);
+				it_cdr->party_a.snapshot->base->name);
 			continue;
 		}
 
@@ -1300,12 +1300,12 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 
 		/* Party A */
 		ast_assert(party_a != NULL);
-		ast_copy_string(cdr_copy->accountcode, party_a->accountcode, sizeof(cdr_copy->accountcode));
+		ast_copy_string(cdr_copy->accountcode, party_a->base->accountcode, sizeof(cdr_copy->accountcode));
 		cdr_copy->amaflags = party_a->amaflags;
-		ast_copy_string(cdr_copy->channel, party_a->name, sizeof(cdr_copy->channel));
-		ast_callerid_merge(cdr_copy->clid, sizeof(cdr_copy->clid), party_a->caller_name, party_a->caller_number, "");
-		ast_copy_string(cdr_copy->src, party_a->caller_number, sizeof(cdr_copy->src));
-		ast_copy_string(cdr_copy->uniqueid, party_a->uniqueid, sizeof(cdr_copy->uniqueid));
+		ast_copy_string(cdr_copy->channel, party_a->base->name, sizeof(cdr_copy->channel));
+		ast_callerid_merge(cdr_copy->clid, sizeof(cdr_copy->clid), party_a->caller->name, party_a->caller->number, "");
+		ast_copy_string(cdr_copy->src, party_a->caller->number, sizeof(cdr_copy->src));
+		ast_copy_string(cdr_copy->uniqueid, party_a->base->uniqueid, sizeof(cdr_copy->uniqueid));
 		ast_copy_string(cdr_copy->lastapp, it_cdr->appl, sizeof(cdr_copy->lastapp));
 		ast_copy_string(cdr_copy->lastdata, it_cdr->data, sizeof(cdr_copy->lastdata));
 		ast_copy_string(cdr_copy->dst, it_cdr->exten, sizeof(cdr_copy->dst));
@@ -1313,8 +1313,8 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 
 		/* Party B */
 		if (party_b) {
-			ast_copy_string(cdr_copy->dstchannel, party_b->name, sizeof(cdr_copy->dstchannel));
-			ast_copy_string(cdr_copy->peeraccount, party_b->accountcode, sizeof(cdr_copy->peeraccount));
+			ast_copy_string(cdr_copy->dstchannel, party_b->base->name, sizeof(cdr_copy->dstchannel));
+			ast_copy_string(cdr_copy->peeraccount, party_b->base->accountcode, sizeof(cdr_copy->peeraccount));
 			if (!ast_strlen_zero(it_cdr->party_b.userfield)) {
 				snprintf(cdr_copy->userfield, sizeof(cdr_copy->userfield), "%s;%s", it_cdr->party_a.userfield, it_cdr->party_b.userfield);
 			}
@@ -1375,8 +1375,8 @@ static void cdr_object_dispatch(struct cdr_object *cdr)
 	struct ast_cdr *pub_cdr;
 
 	CDR_DEBUG("%p - Dispatching CDR for Party A %s, Party B %s\n", cdr,
-		cdr->party_a.snapshot->name,
-		cdr->party_b.snapshot ? cdr->party_b.snapshot->name : "<none>");
+		cdr->party_a.snapshot->base->name,
+		cdr->party_b.snapshot ? cdr->party_b.snapshot->base->name : "<none>");
 	pub_cdr = cdr_object_create_public_records(cdr);
 	cdr_detach(pub_cdr);
 }
@@ -1434,10 +1434,10 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 	if (cdr->disposition == AST_CDR_NULL) {
 		if (!ast_tvzero(cdr->answer)) {
 			cdr->disposition = AST_CDR_ANSWERED;
-		} else if (cdr->party_a.snapshot->hangupcause) {
-			cdr_object_set_disposition(cdr, cdr->party_a.snapshot->hangupcause);
-		} else if (cdr->party_b.snapshot && cdr->party_b.snapshot->hangupcause) {
-			cdr_object_set_disposition(cdr, cdr->party_b.snapshot->hangupcause);
+		} else if (cdr->party_a.snapshot->hangup->cause) {
+			cdr_object_set_disposition(cdr, cdr->party_a.snapshot->hangup->cause);
+		} else if (cdr->party_b.snapshot && cdr->party_b.snapshot->hangup->cause) {
+			cdr_object_set_disposition(cdr, cdr->party_b.snapshot->hangup->cause);
 		} else {
 			cdr->disposition = AST_CDR_FAILED;
 		}
@@ -1445,7 +1445,7 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 
 	/* tv_usec is suseconds_t, which could be int or long */
 	ast_debug(1, "Finalized CDR for %s - start %ld.%06ld answer %ld.%06ld end %ld.%06ld dispo %s\n",
-			cdr->party_a.snapshot->name,
+			cdr->party_a.snapshot->base->name,
 			(long)cdr->start.tv_sec,
 			(long)cdr->start.tv_usec,
 			(long)cdr->answer.tv_sec,
@@ -1491,19 +1491,19 @@ static void cdr_object_check_party_a_answer(struct cdr_object *cdr)
 static void cdr_object_update_cid(struct cdr_object_snapshot *old_snapshot, struct ast_channel_snapshot *new_snapshot)
 {
 	if (!old_snapshot->snapshot) {
-		set_variable(&old_snapshot->variables, "dnid", new_snapshot->caller_dnid);
-		set_variable(&old_snapshot->variables, "callingsubaddr", new_snapshot->caller_subaddr);
-		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->dialed_subaddr);
+		set_variable(&old_snapshot->variables, "dnid", new_snapshot->caller->dnid);
+		set_variable(&old_snapshot->variables, "callingsubaddr", new_snapshot->caller->subaddr);
+		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->caller->dialed_subaddr);
 		return;
 	}
-	if (strcmp(old_snapshot->snapshot->caller_dnid, new_snapshot->caller_dnid)) {
-		set_variable(&old_snapshot->variables, "dnid", new_snapshot->caller_dnid);
+	if (strcmp(old_snapshot->snapshot->caller->dnid, new_snapshot->caller->dnid)) {
+		set_variable(&old_snapshot->variables, "dnid", new_snapshot->caller->dnid);
 	}
-	if (strcmp(old_snapshot->snapshot->caller_subaddr, new_snapshot->caller_subaddr)) {
-		set_variable(&old_snapshot->variables, "callingsubaddr", new_snapshot->caller_subaddr);
+	if (strcmp(old_snapshot->snapshot->caller->subaddr, new_snapshot->caller->subaddr)) {
+		set_variable(&old_snapshot->variables, "callingsubaddr", new_snapshot->caller->subaddr);
 	}
-	if (strcmp(old_snapshot->snapshot->dialed_subaddr, new_snapshot->dialed_subaddr)) {
-		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->dialed_subaddr);
+	if (strcmp(old_snapshot->snapshot->caller->dialed_subaddr, new_snapshot->caller->dialed_subaddr)) {
+		set_variable(&old_snapshot->variables, "calledsubaddr", new_snapshot->caller->dialed_subaddr);
 	}
 }
 
@@ -1524,7 +1524,7 @@ static void cdr_object_swap_snapshot(struct cdr_object_snapshot *old_snapshot,
 
 static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
+	ast_assert(strcasecmp(snapshot->base->name, cdr->party_a.snapshot->base->name) == 0);
 
 	/* Finalize the CDR if we're in hangup logic and we're set to do so */
 	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
@@ -1539,11 +1539,11 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	 */
 	if (!ast_test_flag(&snapshot->flags, AST_FLAG_SUBROUTINE_EXEC)
 		|| ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
-		if (strcmp(cdr->context, snapshot->context)) {
-			ast_string_field_set(cdr, context, snapshot->context);
+		if (strcmp(cdr->context, snapshot->dialplan->context)) {
+			ast_string_field_set(cdr, context, snapshot->dialplan->context);
 		}
-		if (strcmp(cdr->exten, snapshot->exten)) {
-			ast_string_field_set(cdr, exten, snapshot->exten);
+		if (strcmp(cdr->exten, snapshot->dialplan->exten)) {
+			ast_string_field_set(cdr, exten, snapshot->dialplan->exten);
 		}
 	}
 
@@ -1555,13 +1555,13 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	 * here.
 	 */
 	if (!ast_test_flag(&cdr->flags, AST_CDR_LOCK_APP)
-		&& !ast_strlen_zero(snapshot->appl)
-		&& (strncasecmp(snapshot->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))) {
-		if (strcmp(cdr->appl, snapshot->appl)) {
-			ast_string_field_set(cdr, appl, snapshot->appl);
+		&& !ast_strlen_zero(snapshot->dialplan->appl)
+		&& (strncasecmp(snapshot->dialplan->appl, "appdial", 7) || ast_strlen_zero(cdr->appl))) {
+		if (strcmp(cdr->appl, snapshot->dialplan->appl)) {
+			ast_string_field_set(cdr, appl, snapshot->dialplan->appl);
 		}
-		if (strcmp(cdr->data, snapshot->data)) {
-			ast_string_field_set(cdr, data, snapshot->data);
+		if (strcmp(cdr->data, snapshot->dialplan->data)) {
+			ast_string_field_set(cdr, data, snapshot->dialplan->data);
 		}
 
 		/* Dial (app_dial) is a special case. Because pre-dial handlers, which
@@ -1569,13 +1569,13 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 		 * something people typically don't want to see, if we see a channel enter
 		 * into Dial here, we set the appl/data accordingly and lock it.
 		 */
-		if (!strcmp(snapshot->appl, "Dial")) {
+		if (!strcmp(snapshot->dialplan->appl, "Dial")) {
 			ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
 		}
 	}
 
-	if (strcmp(cdr->linkedid, snapshot->linkedid)) {
-		ast_string_field_set(cdr, linkedid, snapshot->linkedid);
+	if (strcmp(cdr->linkedid, snapshot->peer->linkedid)) {
+		ast_string_field_set(cdr, linkedid, snapshot->peer->linkedid);
 	}
 	cdr_object_check_party_a_answer(cdr);
 	cdr_object_check_party_a_hangup(cdr);
@@ -1603,7 +1603,7 @@ static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked
 {
 	char park_info[128];
 
-	ast_assert(!strcasecmp(parking_info->parkee->name, cdr->party_a.snapshot->name));
+	ast_assert(!strcasecmp(parking_info->parkee->base->name, cdr->party_a.snapshot->base->name));
 
 	/* Update Party A information regardless */
 	cdr->fn_table->process_party_a(cdr, parking_info->parkee);
@@ -1637,25 +1637,25 @@ static void single_state_process_party_b(struct cdr_object *cdr, struct ast_chan
 
 static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer)
 {
-	if (caller && !strcasecmp(cdr->party_a.snapshot->name, caller->name)) {
+	if (caller && !strcasecmp(cdr->party_a.snapshot->base->name, caller->base->name)) {
 		base_process_party_a(cdr, caller);
 		CDR_DEBUG("%p - Updated Party A %s snapshot\n", cdr,
-			cdr->party_a.snapshot->name);
+			cdr->party_a.snapshot->base->name);
 		cdr_object_swap_snapshot(&cdr->party_b, peer);
 		cdr_all_relink(cdr);
 		CDR_DEBUG("%p - Updated Party B %s snapshot\n", cdr,
-			cdr->party_b.snapshot->name);
+			cdr->party_b.snapshot->base->name);
 
 		/* If we have two parties, lock the application that caused the
 		 * two parties to be associated. This prevents mid-call event
 		 * macros/gosubs from perturbing the CDR application/data
 		 */
 		ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
-	} else if (!strcasecmp(cdr->party_a.snapshot->name, peer->name)) {
+	} else if (!strcasecmp(cdr->party_a.snapshot->base->name, peer->base->name)) {
 		/* We're the entity being dialed, i.e., outbound origination */
 		base_process_party_a(cdr, peer);
 		CDR_DEBUG("%p - Updated Party A %s snapshot\n", cdr,
-			cdr->party_a.snapshot->name);
+			cdr->party_a.snapshot->base->name);
 	}
 
 	cdr_object_transition_state(cdr, &dial_state_fn_table);
@@ -1680,15 +1680,15 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 	struct cdr_object_snapshot *party_a;
 
 	/* Don't match on ourselves */
-	if (!strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(cdr->party_a.snapshot->base->name, cand_cdr->party_a.snapshot->base->name)) {
 		return 1;
 	}
 
 	/* Try the candidate CDR's Party A first */
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
-	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(party_a->snapshot->base->name, cdr->party_a.snapshot->base->name)) {
 		CDR_DEBUG("%p - Party A %s has new Party B %s\n",
-			cdr, cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name);
+			cdr, cdr->party_a.snapshot->base->name, cand_cdr->party_a.snapshot->base->name);
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_a);
 		cdr_all_relink(cdr);
 		if (!cand_cdr->party_b.snapshot) {
@@ -1703,13 +1703,13 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 
 	/* Try their Party B, unless it's us */
 	if (!cand_cdr->party_b.snapshot
-		|| !strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_b.snapshot->name)) {
+		|| !strcasecmp(cdr->party_a.snapshot->base->name, cand_cdr->party_b.snapshot->base->name)) {
 		return 1;
 	}
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_b);
-	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(party_a->snapshot->base->name, cdr->party_a.snapshot->base->name)) {
 		CDR_DEBUG("%p - Party A %s has new Party B %s\n",
-			cdr, cdr->party_a.snapshot->name, cand_cdr->party_b.snapshot->name);
+			cdr, cdr->party_a.snapshot->base->name, cand_cdr->party_b.snapshot->base->name);
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_b);
 		cdr_all_relink(cdr);
 		return 0;
@@ -1788,7 +1788,7 @@ static void dial_state_process_party_b(struct cdr_object *cdr, struct ast_channe
 {
 	ast_assert(snapshot != NULL);
 	ast_assert(cdr->party_b.snapshot
-		&& !strcasecmp(cdr->party_b.snapshot->name, snapshot->name));
+		&& !strcasecmp(cdr->party_b.snapshot->base->name, snapshot->base->name));
 
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
 
@@ -1839,11 +1839,11 @@ static int dial_state_process_dial_end(struct cdr_object *cdr, struct ast_channe
 	} else {
 		party_a = peer;
 	}
-	ast_assert(!strcasecmp(cdr->party_a.snapshot->name, party_a->name));
+	ast_assert(!strcasecmp(cdr->party_a.snapshot->base->name, party_a->base->name));
 	cdr_object_swap_snapshot(&cdr->party_a, party_a);
 
 	if (cdr->party_b.snapshot) {
-		if (strcasecmp(cdr->party_b.snapshot->name, peer->name)) {
+		if (strcasecmp(cdr->party_b.snapshot->base->name, peer->base->name)) {
 			/* Not the status for this CDR - defer back to the message router */
 			return 1;
 		}
@@ -1901,7 +1901,7 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 				}
 
 				/* Skip any records that aren't our Party B */
-				if (strcasecmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name)) {
+				if (strcasecmp(cdr->party_b.snapshot->base->name, cand_cdr->party_a.snapshot->base->name)) {
 					continue;
 				}
 				cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_a);
@@ -1982,7 +1982,7 @@ static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struc
 static void bridge_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
 	ast_assert(cdr->party_b.snapshot
-		&& !strcasecmp(cdr->party_b.snapshot->name, snapshot->name));
+		&& !strcasecmp(cdr->party_b.snapshot->base->name, snapshot->base->name));
 
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
 
@@ -1997,9 +1997,9 @@ static int bridge_state_process_bridge_leave(struct cdr_object *cdr, struct ast_
 	if (strcmp(cdr->bridge, bridge->uniqueid)) {
 		return 1;
 	}
-	if (strcasecmp(cdr->party_a.snapshot->name, channel->name)
+	if (strcasecmp(cdr->party_a.snapshot->base->name, channel->base->name)
 		&& cdr->party_b.snapshot
-		&& strcasecmp(cdr->party_b.snapshot->name, channel->name)) {
+		&& strcasecmp(cdr->party_b.snapshot->base->name, channel->base->name)) {
 		return 1;
 	}
 	cdr_object_transition_state(cdr, &finalized_state_fn_table);
@@ -2011,7 +2011,7 @@ static int bridge_state_process_bridge_leave(struct cdr_object *cdr, struct ast_
 
 static int parked_state_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	if (strcasecmp(cdr->party_a.snapshot->name, channel->name)) {
+	if (strcasecmp(cdr->party_a.snapshot->base->name, channel->base->name)) {
 		return 1;
 	}
 	cdr_object_transition_state(cdr, &finalized_state_fn_table);
@@ -2043,7 +2043,7 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
  */
 static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 {
-	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
+	return snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL;
 }
 
 /*!
@@ -2114,19 +2114,19 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	CDR_DEBUG("Dial %s message for %s, %s: %u.%08u\n",
 		ast_strlen_zero(dial_status) ? "Begin" : "End",
-		caller ? caller->name : "(none)",
-		peer ? peer->name : "(none)",
+		caller ? caller->base->name : "(none)",
+		peer ? peer->base->name : "(none)",
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
 	/* Figure out who is running this show */
 	if (caller) {
-		cdr = ao2_find(active_cdrs_master, caller->uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, caller->base->uniqueid, OBJ_SEARCH_KEY);
 	} else {
-		cdr = ao2_find(active_cdrs_master, peer->uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, peer->base->uniqueid, OBJ_SEARCH_KEY);
 	}
 	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->name : peer->name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->base->name : peer->base->name);
 		ast_assert(0);
 		return;
 	}
@@ -2139,8 +2139,8 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			}
 			CDR_DEBUG("%p - Processing Dial Begin message for channel %s, peer %s\n",
 				it_cdr,
-				caller ? caller->name : "(none)",
-				peer ? peer->name : "(none)");
+				caller ? caller->base->name : "(none)",
+				peer ? peer->base->name : "(none)");
 			res &= it_cdr->fn_table->process_dial_begin(it_cdr,
 					caller,
 					peer);
@@ -2150,8 +2150,8 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			}
 			CDR_DEBUG("%p - Processing Dial End message for channel %s, peer %s\n",
 				it_cdr,
-				caller ? caller->name : "(none)",
-				peer ? peer->name : "(none)");
+				caller ? caller->base->name : "(none)",
+				peer ? peer->base->name : "(none)");
 			it_cdr->fn_table->process_dial_end(it_cdr,
 					caller,
 					peer,
@@ -2185,7 +2185,7 @@ static int cdr_object_finalize_party_b(void *obj, void *arg, void *data, int fla
 		 * is consistent with the key.
 		 */
 		ast_assert(cdr->party_b.snapshot
-			&& !strcasecmp(cdr->party_b.snapshot->name, party_b->name));
+			&& !strcasecmp(cdr->party_b.snapshot->base->name, party_b->base->name));
 #endif
 
 		/* Don't transition to the finalized state - let the Party A do
@@ -2210,11 +2210,11 @@ static int cdr_object_update_party_b(void *obj, void *arg, void *data, int flags
 		 * asserts the snapshot to be this way.
 		 */
 		if (!cdr->party_b.snapshot
-			|| strcasecmp(cdr->party_b.snapshot->name, party_b->name)) {
+			|| strcasecmp(cdr->party_b.snapshot->base->name, party_b->base->name)) {
 			ast_log(LOG_NOTICE,
 				"CDR for Party A %s(%s) has inconsistent Party B %s name.  Message can be ignored but this shouldn't happen.\n",
 				cdr->linkedid,
-				cdr->party_a.snapshot->name,
+				cdr->party_a.snapshot->base->name,
 				cdr->party_b_name);
 			return 0;
 		}
@@ -2236,7 +2236,7 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 	}
 
 	/* Auto-fall through will increment the priority but have no application */
-	if (ast_strlen_zero(new_snapshot->appl)) {
+	if (ast_strlen_zero(new_snapshot->dialplan->appl)) {
 		return 0;
 	}
 
@@ -2272,12 +2272,12 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 		cdr->is_root = 1;
 		ao2_link(active_cdrs_master, cdr);
 	} else {
-		cdr = ao2_find(active_cdrs_master, update->new_snapshot->uniqueid, OBJ_SEARCH_KEY);
+		cdr = ao2_find(active_cdrs_master, update->new_snapshot->base->uniqueid, OBJ_SEARCH_KEY);
 	}
 
 	/* Handle Party A */
 	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", update->new_snapshot->name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", update->new_snapshot->base->name);
 		ast_assert(0);
 	} else {
 		int all_reject = 1;
@@ -2303,7 +2303,7 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 
 	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
 		ao2_lock(cdr);
-		CDR_DEBUG("%p - Beginning finalize/dispatch for %s\n", cdr, update->old_snapshot->name);
+		CDR_DEBUG("%p - Beginning finalize/dispatch for %s\n", cdr, update->old_snapshot->base->name);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 			cdr_object_finalize(it_cdr);
 		}
@@ -2317,12 +2317,12 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 	/* Handle Party B */
 	if (update->new_snapshot) {
 		ao2_callback_data(active_cdrs_all, OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
-			cdr_object_update_party_b, (char *) update->new_snapshot->name, update->new_snapshot);
+			cdr_object_update_party_b, (char *) update->new_snapshot->base->name, update->new_snapshot);
 	}
 
 	if (ast_test_flag(&update->new_snapshot->flags, AST_FLAG_DEAD)) {
 		ao2_callback_data(active_cdrs_all, OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
-			cdr_object_finalize_party_b, (char *) update->new_snapshot->name, update->new_snapshot);
+			cdr_object_finalize_party_b, (char *) update->new_snapshot->base->name, update->new_snapshot);
 	}
 
 	ao2_cleanup(cdr);
@@ -2347,7 +2347,7 @@ static int cdr_object_party_b_left_bridge_cb(void *obj, void *arg, void *data, i
 		 * is consistent with the key.
 		 */
 		ast_assert(cdr->party_b.snapshot
-			&& !strcasecmp(cdr->party_b.snapshot->name, leave_data->channel->name));
+			&& !strcasecmp(cdr->party_b.snapshot->base->name, leave_data->channel->base->name));
 
 		/* It is our Party B, in our bridge. Set the end time and let the handler
 		 * transition our CDR appropriately when we leave the bridge.
@@ -2399,13 +2399,13 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	}
 
 	CDR_DEBUG("Bridge Leave message for %s: %u.%08u\n",
-		channel->name,
+		channel->base->name,
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->base->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->base->name);
 		ast_assert(0);
 		return;
 	}
@@ -2417,7 +2417,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 			continue;
 		}
 		CDR_DEBUG("%p - Processing Bridge Leave for %s\n",
-			it_cdr, channel->name);
+			it_cdr, channel->base->name);
 		if (!it_cdr->fn_table->process_bridge_leave(it_cdr, bridge, channel)) {
 			ast_string_field_set(it_cdr, bridge, "");
 			left_bridge = 1;
@@ -2429,7 +2429,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	if (left_bridge
 		&& strcmp(bridge->subclass, "parking")) {
 		ao2_callback_data(active_cdrs_all, OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
-			cdr_object_party_b_left_bridge_cb, (char *) leave_data.channel->name,
+			cdr_object_party_b_left_bridge_cb, (char *) leave_data.channel->base->name,
 			&leave_data);
 	}
 
@@ -2457,8 +2457,8 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 	ast_string_field_set(new_cdr, bridge, cdr->bridge);
 	cdr_object_transition_state(new_cdr, &bridge_state_fn_table);
 	CDR_DEBUG("%p - Party A %s has new Party B %s\n",
-		new_cdr, new_cdr->party_a.snapshot->name,
-		party_b->snapshot->name);
+		new_cdr, new_cdr->party_a.snapshot->base->name,
+		party_b->snapshot->base->name);
 }
 
 /*!
@@ -2487,16 +2487,16 @@ static void bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *
 		}
 
 		/* If the candidate is us or someone we've taken on, pass on by */
-		if (!strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)
+		if (!strcasecmp(cdr->party_a.snapshot->base->name, cand_cdr->party_a.snapshot->base->name)
 			|| (cdr->party_b.snapshot
-				&& !strcasecmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name))) {
+				&& !strcasecmp(cdr->party_b.snapshot->base->name, cand_cdr->party_a.snapshot->base->name))) {
 			break;
 		}
 
 		party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
 		/* We're party A - make a new CDR, append it to us, and set the candidate as
 		 * Party B */
-		if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+		if (!strcasecmp(party_a->snapshot->base->name, cdr->party_a.snapshot->base->name)) {
 			bridge_candidate_add_to_cdr(cdr, &cand_cdr->party_a);
 			break;
 		}
@@ -2504,12 +2504,12 @@ static void bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *
 		/* We're Party B. Check if we can add ourselves immediately or if we need
 		 * a new CDR for them (they already have a Party B) */
 		if (cand_cdr->party_b.snapshot
-			&& strcasecmp(cand_cdr->party_b.snapshot->name, cdr->party_a.snapshot->name)) {
+			&& strcasecmp(cand_cdr->party_b.snapshot->base->name, cdr->party_a.snapshot->base->name)) {
 			bridge_candidate_add_to_cdr(cand_cdr, &cdr->party_a);
 		} else {
 			CDR_DEBUG("%p - Party A %s has new Party B %s\n",
-				cand_cdr, cand_cdr->party_a.snapshot->name,
-				cdr->party_a.snapshot->name);
+				cand_cdr, cand_cdr->party_a.snapshot->base->name,
+				cdr->party_a.snapshot->base->name);
 			cdr_object_snapshot_copy(&cand_cdr->party_b, &cdr->party_a);
 			cdr_all_relink(cand_cdr);
 			/* It's possible that this joined at one point and was never chosen
@@ -2572,7 +2572,7 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 		}
 		if (it_cdr->fn_table->process_party_a) {
 			CDR_DEBUG("%p - Updating Party A %s snapshot\n", it_cdr,
-				channel->name);
+				channel->base->name);
 			it_cdr->fn_table->process_party_a(it_cdr, channel);
 		}
 	}
@@ -2609,14 +2609,14 @@ try_again:
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (it_cdr->fn_table->process_party_a) {
 			CDR_DEBUG("%p - Updating Party A %s snapshot\n", it_cdr,
-				channel->name);
+				channel->base->name);
 			it_cdr->fn_table->process_party_a(it_cdr, channel);
 		}
 
 		/* Notify all states that they have entered a bridge */
 		if (it_cdr->fn_table->process_bridge_enter) {
 			CDR_DEBUG("%p - Processing bridge enter for %s\n", it_cdr,
-				channel->name);
+				channel->base->name);
 			result = it_cdr->fn_table->process_bridge_enter(it_cdr, bridge, channel);
 			switch (result) {
 			case BRIDGE_ENTER_ONLY_PARTY:
@@ -2689,13 +2689,13 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	}
 
 	CDR_DEBUG("Bridge Enter message for channel %s: %u.%08u\n",
-		channel->name,
+		channel->base->name,
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->base->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->base->name);
 		ast_assert(0);
 		return;
 	}
@@ -2739,13 +2739,13 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	}
 
 	CDR_DEBUG("Parked Call message for channel %s: %u.%08u\n",
-		channel->name,
+		channel->base->name,
 		(unsigned int)stasis_message_timestamp(message)->tv_sec,
 		(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
+	cdr = ao2_find(active_cdrs_master, channel->base->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
-		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->base->name);
 		ast_assert(0);
 		return;
 	}
@@ -3094,8 +3094,8 @@ static int cdr_object_select_all_by_name_cb(void *obj, void *arg, int flags)
 	struct cdr_object *cdr = obj;
 	const char *name = arg;
 
-	if (!strcasecmp(cdr->party_a.snapshot->name, name) ||
-			(cdr->party_b.snapshot && !strcasecmp(cdr->party_b.snapshot->name, name))) {
+	if (!strcasecmp(cdr->party_a.snapshot->base->name, name) ||
+			(cdr->party_b.snapshot && !strcasecmp(cdr->party_b.snapshot->base->name, name))) {
 		return CMP_MATCH;
 	}
 	return 0;
@@ -3110,7 +3110,7 @@ static int cdr_object_get_by_name_cb(void *obj, void *arg, int flags)
 	struct cdr_object *cdr = obj;
 	const char *name = arg;
 
-	if (!strcasecmp(cdr->party_a.snapshot->name, name)) {
+	if (!strcasecmp(cdr->party_a.snapshot->base->name, name)) {
 		return CMP_MATCH;
 	}
 	return 0;
@@ -3170,10 +3170,10 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 			if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 				continue;
 			}
-			if (!strcasecmp(channel_name, it_cdr->party_a.snapshot->name)) {
+			if (!strcasecmp(channel_name, it_cdr->party_a.snapshot->base->name)) {
 				headp = &it_cdr->party_a.variables;
 			} else if (it_cdr->party_b.snapshot
-				&& !strcasecmp(channel_name, it_cdr->party_b.snapshot->name)) {
+				&& !strcasecmp(channel_name, it_cdr->party_b.snapshot->base->name)) {
 				headp = &it_cdr->party_b.variables;
 			}
 			if (headp) {
@@ -3212,25 +3212,25 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 	struct ast_channel_snapshot *party_b = cdr_obj->party_b.snapshot;
 
 	if (!strcasecmp(name, "clid")) {
-		ast_callerid_merge(value, length, party_a->caller_name, party_a->caller_number, "");
+		ast_callerid_merge(value, length, party_a->caller->name, party_a->caller->number, "");
 	} else if (!strcasecmp(name, "src")) {
-		ast_copy_string(value, party_a->caller_number, length);
+		ast_copy_string(value, party_a->caller->number, length);
 	} else if (!strcasecmp(name, "dst")) {
-		ast_copy_string(value, party_a->exten, length);
+		ast_copy_string(value, party_a->dialplan->exten, length);
 	} else if (!strcasecmp(name, "dcontext")) {
-		ast_copy_string(value, party_a->context, length);
+		ast_copy_string(value, party_a->dialplan->context, length);
 	} else if (!strcasecmp(name, "channel")) {
-		ast_copy_string(value, party_a->name, length);
+		ast_copy_string(value, party_a->base->name, length);
 	} else if (!strcasecmp(name, "dstchannel")) {
 		if (party_b) {
-			ast_copy_string(value, party_b->name, length);
+			ast_copy_string(value, party_b->base->name, length);
 		} else {
 			ast_copy_string(value, "", length);
 		}
 	} else if (!strcasecmp(name, "lastapp")) {
-		ast_copy_string(value, party_a->appl, length);
+		ast_copy_string(value, party_a->dialplan->appl, length);
 	} else if (!strcasecmp(name, "lastdata")) {
-		ast_copy_string(value, party_a->data, length);
+		ast_copy_string(value, party_a->dialplan->data, length);
 	} else if (!strcasecmp(name, "start")) {
 		cdr_get_tv(cdr_obj->start, NULL, value, length);
 	} else if (!strcasecmp(name, "answer")) {
@@ -3246,15 +3246,15 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 	} else if (!strcasecmp(name, "amaflags")) {
 		snprintf(value, length, "%d", party_a->amaflags);
 	} else if (!strcasecmp(name, "accountcode")) {
-		ast_copy_string(value, party_a->accountcode, length);
+		ast_copy_string(value, party_a->base->accountcode, length);
 	} else if (!strcasecmp(name, "peeraccount")) {
 		if (party_b) {
-			ast_copy_string(value, party_b->accountcode, length);
+			ast_copy_string(value, party_b->base->accountcode, length);
 		} else {
 			ast_copy_string(value, "", length);
 		}
 	} else if (!strcasecmp(name, "uniqueid")) {
-		ast_copy_string(value, party_a->uniqueid, length);
+		ast_copy_string(value, party_a->base->uniqueid, length);
 	} else if (!strcasecmp(name, "linkedid")) {
 		ast_copy_string(value, cdr_obj->linkedid, length);
 	} else if (!strcasecmp(name, "userfield")) {
@@ -3431,7 +3431,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, void *da
 		 * is consistent with the key.
 		 */
 		ast_assert(cdr->party_b.snapshot
-			&& !strcasecmp(cdr->party_b.snapshot->name, info->channel_name));
+			&& !strcasecmp(cdr->party_b.snapshot->base->name, info->channel_name));
 
 		ast_copy_string(cdr->party_b.userfield, info->userfield,
 			sizeof(cdr->party_b.userfield));
@@ -3624,7 +3624,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 		/* Copy over the basic CDR information. The Party A information is
 		 * copied over automatically as part of the append
 		 */
-		ast_debug(1, "Forking CDR for channel %s\n", cdr->party_a.snapshot->name);
+		ast_debug(1, "Forking CDR for channel %s\n", cdr->party_a.snapshot->base->name);
 		new_cdr = cdr_object_create_and_append(cdr);
 		if (!new_cdr) {
 			return -1;
@@ -3938,8 +3938,8 @@ static char *cli_complete_show(struct ast_cli_args *a)
 
 	it_cdrs = ao2_iterator_init(active_cdrs_master, 0);
 	while ((cdr = ao2_iterator_next(&it_cdrs))) {
-		if (!strncasecmp(a->word, cdr->party_a.snapshot->name, wordlen)) {
-			if (ast_cli_completion_add(ast_strdup(cdr->party_a.snapshot->name))) {
+		if (!strncasecmp(a->word, cdr->party_a.snapshot->base->name, wordlen)) {
+			if (ast_cli_completion_add(ast_strdup(cdr->party_a.snapshot->base->name))) {
 				ao2_ref(cdr, -1);
 				break;
 			}
@@ -4001,8 +4001,8 @@ static void cli_show_channels(struct ast_cli_args *a)
 		cdr_get_tv(start_time, "%T", start_time_buffer, sizeof(start_time_buffer));
 		cdr_get_tv(answer_time, "%T", answer_time_buffer, sizeof(answer_time_buffer));
 		cdr_get_tv(end_time, "%T", end_time_buffer, sizeof(end_time_buffer));
-		ast_cli(a->fd, FORMAT_STRING, it_cdr->party_a.snapshot->name,
-				it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->name : "<none>",
+		ast_cli(a->fd, FORMAT_STRING, it_cdr->party_a.snapshot->base->name,
+				it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->base->name : "<none>",
 				it_cdr->appl,
 				start_time_buffer,
 				answer_time_buffer,
@@ -4046,7 +4046,7 @@ static void cli_show_channel(struct ast_cli_args *a)
 		if (snapshot_is_dialed(it_cdr->party_a.snapshot)) {
 			continue;
 		}
-		ast_callerid_merge(clid, sizeof(clid), it_cdr->party_a.snapshot->caller_name, it_cdr->party_a.snapshot->caller_number, "");
+		ast_callerid_merge(clid, sizeof(clid), it_cdr->party_a.snapshot->caller->name, it_cdr->party_a.snapshot->caller->number, "");
 		if (ast_tvzero(it_cdr->end)) {
 			end = ast_tvnow();
 		} else {
@@ -4056,9 +4056,9 @@ static void cli_show_channel(struct ast_cli_args *a)
 		cdr_get_tv(it_cdr->answer, "%T", answer_time_buffer, sizeof(answer_time_buffer));
 		cdr_get_tv(end, "%T", end_time_buffer, sizeof(end_time_buffer));
 		ast_cli(a->fd, FORMAT_STRING,
-				it_cdr->party_a.snapshot->accountcode,
+				it_cdr->party_a.snapshot->base->accountcode,
 				clid,
-				it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->name : "<none>",
+				it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->base->name : "<none>",
 				it_cdr->appl,
 				it_cdr->data,
 				start_time_buffer,
@@ -4415,8 +4415,8 @@ static void cdr_master_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 	}
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		prnt(where, "Party A: %s; Party B: %s; Bridge %s\n",
-			it_cdr->party_a.snapshot->name,
-			it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->name : "<unknown>",
+			it_cdr->party_a.snapshot->base->name,
+			it_cdr->party_b.snapshot ? it_cdr->party_b.snapshot->base->name : "<unknown>",
 			it_cdr->bridge);
 	}
 }
@@ -4440,8 +4440,8 @@ static void cdr_all_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 		return;
 	}
 	prnt(where, "Party A: %s; Party B: %s; Bridge %s",
-		cdr->party_a.snapshot->name,
-		cdr->party_b.snapshot ? cdr->party_b.snapshot->name : "<unknown>",
+		cdr->party_a.snapshot->base->name,
+		cdr->party_b.snapshot ? cdr->party_b.snapshot->base->name : "<unknown>",
 		cdr->bridge);
 }
 

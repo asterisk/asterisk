@@ -528,22 +528,22 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
 		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
 		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, S_OR(userdefevname, ""),
-		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_name,
-		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_number,
-		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_ani,
-		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_rdnis,
-		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_dnid,
-		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, snapshot->exten,
-		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, snapshot->context,
-		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->name,
-		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->appl,
-		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, snapshot->data,
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->caller->name,
+		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, snapshot->caller->number,
+		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, snapshot->caller->ani,
+		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, snapshot->caller->rdnis,
+		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, snapshot->caller->dnid,
+		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, snapshot->dialplan->exten,
+		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, snapshot->dialplan->context,
+		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->base->name,
+		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->dialplan->appl,
+		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, snapshot->dialplan->data,
 		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, snapshot->amaflags,
-		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, snapshot->accountcode,
-		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, snapshot->peeraccount,
-		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->uniqueid,
-		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->linkedid,
-		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->userfield,
+		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, snapshot->base->accountcode,
+		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, snapshot->peer->account,
+		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->base->uniqueid,
+		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->peer->linkedid,
+		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->base->userfield,
 		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra_txt, ""),
 		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, S_OR(peer, ""),
 		AST_EVENT_IE_END);
@@ -573,7 +573,7 @@ static int cel_report_event(struct ast_channel_snapshot *snapshot,
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
 	if (event_type == AST_CEL_CHANNEL_START
 		&& ast_cel_track_event(AST_CEL_LINKEDID_END)) {
-		if (cel_linkedid_ref(snapshot->linkedid)) {
+		if (cel_linkedid_ref(snapshot->peer->linkedid)) {
 			return -1;
 		}
 	}
@@ -583,7 +583,7 @@ static int cel_report_event(struct ast_channel_snapshot *snapshot,
 	}
 
 	if ((event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END)
-		&& !cel_track_app(snapshot->appl)) {
+		&& !cel_track_app(snapshot->dialplan->appl)) {
 		return 0;
 	}
 
@@ -606,14 +606,14 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 	RAII_VAR(struct ao2_container *, linkedids, ao2_global_obj_ref(cel_linkedids), ao2_cleanup);
 	struct cel_linkedid *lid;
 
-	if (!linkedids || ast_strlen_zero(snapshot->linkedid)) {
+	if (!linkedids || ast_strlen_zero(snapshot->peer->linkedid)) {
 		/* The CEL module is shutdown.  Abort. */
 		return;
 	}
 
 	ao2_lock(linkedids);
 
-	lid = ao2_find(linkedids, (void *) snapshot->linkedid, OBJ_SEARCH_KEY);
+	lid = ao2_find(linkedids, (void *) snapshot->peer->linkedid, OBJ_SEARCH_KEY);
 	if (!lid) {
 		ao2_unlock(linkedids);
 
@@ -623,7 +623,7 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 		 * of change to make after starting Asterisk.
 		 */
 		ast_log(LOG_ERROR, "Something weird happened, couldn't find linkedid %s\n",
-			snapshot->linkedid);
+			snapshot->peer->linkedid);
 		return;
 	}
 
@@ -898,11 +898,11 @@ static void cel_channel_state_change(
 
 	if (!was_hungup && is_hungup) {
 		struct ast_json *extra;
-		struct cel_dialstatus *dialstatus = get_dialstatus(new_snapshot->uniqueid);
+		struct cel_dialstatus *dialstatus = get_dialstatus(new_snapshot->base->uniqueid);
 
 		extra = ast_json_pack("{s: i, s: s, s: s}",
-			"hangupcause", new_snapshot->hangupcause,
-			"hangupsource", new_snapshot->hangupsource,
+			"hangupcause", new_snapshot->hangup->cause,
+			"hangupsource", new_snapshot->hangup->source,
 			"dialstatus", dialstatus ? dialstatus->dialstatus : "");
 		cel_report_event(new_snapshot, AST_CEL_HANGUP, NULL, extra, NULL);
 		ast_json_unref(extra);
@@ -929,12 +929,12 @@ static void cel_channel_linkedid_change(
 		return;
 	}
 
-	ast_assert(!ast_strlen_zero(new_snapshot->linkedid));
-	ast_assert(!ast_strlen_zero(old_snapshot->linkedid));
+	ast_assert(!ast_strlen_zero(new_snapshot->peer->linkedid));
+	ast_assert(!ast_strlen_zero(old_snapshot->peer->linkedid));
 
 	if (ast_cel_track_event(AST_CEL_LINKEDID_END)
-		&& strcmp(old_snapshot->linkedid, new_snapshot->linkedid)) {
-		cel_linkedid_ref(new_snapshot->linkedid);
+		&& strcmp(old_snapshot->peer->linkedid, new_snapshot->peer->linkedid)) {
+		cel_linkedid_ref(new_snapshot->peer->linkedid);
 		check_retire_linkedid(old_snapshot);
 	}
 }
@@ -943,17 +943,17 @@ static void cel_channel_app_change(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
-	if (old_snapshot && !strcmp(old_snapshot->appl, new_snapshot->appl)) {
+	if (old_snapshot && !strcmp(old_snapshot->dialplan->appl, new_snapshot->dialplan->appl)) {
 		return;
 	}
 
 	/* old snapshot has an application, end it */
-	if (old_snapshot && !ast_strlen_zero(old_snapshot->appl)) {
+	if (old_snapshot && !ast_strlen_zero(old_snapshot->dialplan->appl)) {
 		cel_report_event(old_snapshot, AST_CEL_APP_END, NULL, NULL, NULL);
 	}
 
 	/* new snapshot has an application, start it */
-	if (!ast_strlen_zero(new_snapshot->appl)) {
+	if (!ast_strlen_zero(new_snapshot->dialplan->appl)) {
 		cel_report_event(new_snapshot, AST_CEL_APP_START, NULL, NULL, NULL);
 	}
 }
@@ -974,7 +974,7 @@ static int cel_filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 	if (!snapshot) {
 		return 0;
 	}
-	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
+	return snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL;
 }
 
 static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
@@ -1010,7 +1010,7 @@ static struct ast_str *cel_generate_peer_str(
 		struct ast_channel_snapshot *current_snapshot;
 
 		/* Don't add the channel for which this message is being generated */
-		if (!strcmp(current_chan, chan->uniqueid)) {
+		if (!strcmp(current_chan, chan->base->uniqueid)) {
 			continue;
 		}
 
@@ -1019,7 +1019,7 @@ static struct ast_str *cel_generate_peer_str(
 			continue;
 		}
 
-		ast_str_append(&peer_str, 0, "%s,", current_snapshot->name);
+		ast_str_append(&peer_str, 0, "%s,", current_snapshot->base->name);
 		ao2_cleanup(current_snapshot);
 	}
 	ao2_iterator_destroy(&i);
@@ -1125,7 +1125,7 @@ static void cel_parking_cb(
 	if (parked_payload->retriever) {
 		extra = ast_json_pack("{s: s, s: s}",
 			"reason", reason ?: "",
-			"retriever", parked_payload->retriever->name);
+			"retriever", parked_payload->retriever->base->name);
 	} else {
 		extra = ast_json_pack("{s: s}", "reason", reason ?: "");
 	}
@@ -1147,7 +1147,7 @@ static void save_dialstatus(struct ast_multi_channel_blob *blob, struct ast_chan
 		return;
 	}
 
-	dialstatus = ao2_find(dial_statuses, snapshot->uniqueid, OBJ_SEARCH_KEY);
+	dialstatus = ao2_find(dial_statuses, snapshot->base->uniqueid, OBJ_SEARCH_KEY);
 	if (dialstatus) {
 		if (!strcasecmp(dialstatus_string, "ANSWER") && strcasecmp(dialstatus->dialstatus, "ANSWER")) {
 			/* In the case of an answer after we already have a dial status we give
@@ -1171,7 +1171,7 @@ static void save_dialstatus(struct ast_multi_channel_blob *blob, struct ast_chan
 		return;
 	}
 
-	ast_copy_string(dialstatus->uniqueid, snapshot->uniqueid, sizeof(dialstatus->uniqueid));
+	ast_copy_string(dialstatus->uniqueid, snapshot->base->uniqueid, sizeof(dialstatus->uniqueid));
 	ast_copy_string(dialstatus->dialstatus, dialstatus_string, dialstatus_string_len);
 
 	ao2_link(dial_statuses, dialstatus);
@@ -1273,8 +1273,8 @@ static void cel_blind_transfer_cb(
 		"extension", transfer_msg->exten,
 		"context", transfer_msg->context,
 		"bridge_id", bridge_snapshot->uniqueid,
-		"transferee_channel_name", transfer_msg->transferee ? transfer_msg->transferee->name : "N/A",
-		"transferee_channel_uniqueid", transfer_msg->transferee ? transfer_msg->transferee->uniqueid  : "N/A");
+		"transferee_channel_name", transfer_msg->transferee ? transfer_msg->transferee->base->name : "N/A",
+		"transferee_channel_uniqueid", transfer_msg->transferee ? transfer_msg->transferee->base->uniqueid  : "N/A");
 	if (extra) {
 		cel_report_event(chan_snapshot, AST_CEL_BLINDTRANSFER, NULL, extra, NULL);
 		ast_json_unref(extra);
@@ -1312,13 +1312,13 @@ static void cel_attended_transfer_cb(
 	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
 		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
-			"channel2_name", channel2->name,
-			"channel2_uniqueid", channel2->uniqueid,
+			"channel2_name", channel2->base->name,
+			"channel2_uniqueid", channel2->base->uniqueid,
 			"bridge2_id", bridge2->uniqueid,
-			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
-			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->uniqueid : "N/A",
-			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A",
-			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->uniqueid : "N/A");
+			"transferee_channel_name", xfer->transferee ? xfer->transferee->base->name : "N/A",
+			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->base->uniqueid : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->base->name : "N/A",
+			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->base->uniqueid : "N/A");
 		if (!extra) {
 			return;
 		}
@@ -1327,13 +1327,13 @@ static void cel_attended_transfer_cb(
 	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
 		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
-			"channel2_name", channel2->name,
-			"channel2_uniqueid", channel2->uniqueid,
+			"channel2_name", channel2->base->name,
+			"channel2_uniqueid", channel2->base->uniqueid,
 			"app", xfer->dest.app,
-			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
-			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->uniqueid : "N/A",
-			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A",
-			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->uniqueid : "N/A");
+			"transferee_channel_name", xfer->transferee ? xfer->transferee->base->name : "N/A",
+			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->base->uniqueid : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->base->name : "N/A",
+			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->base->uniqueid : "N/A");
 		if (!extra) {
 			return;
 		}
@@ -1357,8 +1357,8 @@ static void cel_pickup_cb(
 	}
 
 	extra = ast_json_pack("{s: s, s: s}",
-		"pickup_channel", channel->name,
-		"pickup_channel_uniqueid", channel->uniqueid);
+		"pickup_channel", channel->base->name,
+		"pickup_channel_uniqueid", channel->base->uniqueid);
 	if (!extra) {
 		return;
 	}
@@ -1381,8 +1381,8 @@ static void cel_local_cb(
 	}
 
 	extra = ast_json_pack("{s: s, s: s}",
-		"local_two", localtwo->name,
-		"local_two_uniqueid", localtwo->uniqueid);
+		"local_two", localtwo->base->name,
+		"local_two_uniqueid", localtwo->base->uniqueid);
 	if (!extra) {
 		return;
 	}
