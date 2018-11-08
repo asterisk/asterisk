@@ -34,6 +34,11 @@ chan_pjsip
  * New dialplan function PJSIP_PARSE_URI added to parse an URI and return
    a specified part of the URI.
 
+Core
+------------------
+ * ast_bt_get_symbols() now returns a vector of strings instead of an
+   array of strings.  This must be freed with ast_bt_free_symbols.
+
 res_pjsip
 ------------------
  * New options 'trust_connected_line' and 'send_connected_line' have been

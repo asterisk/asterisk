@@ -33,11 +33,13 @@
 #define ast_bt_create() __ast_bt_create()
 #define ast_bt_destroy(bt) __ast_bt_destroy((bt))
 #define ast_bt_get_symbols(addresses, num_frames) __ast_bt_get_symbols((addresses), (num_frames))
+#define ast_bt_free_symbols(string_vector) __ast_bt_free_symbols((string_vector))
 #else
 #define ast_bt_get_addresses(bt) 0
 #define ast_bt_create() NULL
 #define ast_bt_destroy(bt) NULL
 #define ast_bt_get_symbols(addresses, num_frames) NULL
+#define ast_bt_free_symbols(string_vector) NULL
 #endif
 
 /* \brief
@@ -86,11 +88,24 @@ void *__ast_bt_destroy(struct ast_bt *bt);
  *
  * \param addresses A list of addresses, such as the ->addresses structure element of struct ast_bt.
  * \param num_frames Number of addresses in the addresses list
+ *
  * \retval NULL Unable to allocate memory
- * \return List of strings. Free the entire list with a single ast_std_free call.
+ * \return Vector of strings. Free with ast_bt_free_symbols
+ *
+ * \note The first frame in the addresses array will usually point to __ast_bt_create
+ * so when printing the symbols you may wish to start at position 1 rather than 0.
+ *
  * \since 1.6.2.16
  */
-char **__ast_bt_get_symbols(void **addresses, size_t num_frames);
+struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames);
+
+/* \brief Free symbols returned from ast_bt_get_symbols
+ *
+ * \param symbols The symbol string vector
+ *
+ * \since 13.24.0
+ */
+void __ast_bt_free_symbols(struct ast_vector_string *symbols);
 
 #endif /* HAVE_BKTR */
 

@@ -967,7 +967,7 @@ static const char *locktype2str(enum ast_lock_type type)
 #ifdef HAVE_BKTR
 static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt)
 {
-	char **symbols;
+	struct ast_vector_string *symbols;
 	int num_frames;
 
 	if (!bt) {
@@ -981,11 +981,11 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 	if ((symbols = ast_bt_get_symbols(bt->addresses, num_frames))) {
 		int frame_iterator;
 
-		for (frame_iterator = 0; frame_iterator < num_frames; ++frame_iterator) {
-			ast_str_append(str, 0, "\t%s\n", symbols[frame_iterator]);
+		for (frame_iterator = 1; frame_iterator < AST_VECTOR_SIZE(symbols); ++frame_iterator) {
+			ast_str_append(str, 0, "\t%s\n", AST_VECTOR_GET(symbols, frame_iterator));
 		}
 
-		ast_std_free(symbols);
+		ast_bt_free_symbols(symbols);
 	} else {
 		ast_str_append(str, 0, "\tCouldn't retrieve backtrace symbols\n");
 	}

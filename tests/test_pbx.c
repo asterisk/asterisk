@@ -343,8 +343,50 @@ AST_TEST_DEFINE(segv)
 	return AST_TEST_FAIL;
 }
 
+AST_TEST_DEFINE(call_assert)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "CALL_ASSERT";
+		info->category = "/DO_NOT_RUN/";
+		info->summary = "Calls ast_asert()!!! (will only be run if explicitly called)";
+		info->description = "Calls ast_asert()!!! (will only be run if explicitly called). "
+			"This test is mainly used for testing CI and tool failure scenarios.";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_assert(0);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(call_backtrace)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "CALL_BACKTRACE";
+		info->category = "/DO_NOT_RUN/";
+		info->summary = "Calls ast_log_backtrace()!!! (will only be run if explicitly called)";
+		info->description = "Calls ast_log_backtrace()!!! (will only be run if explicitly called). "
+			"This test is mainly used for testing CI and tool failure scenarios.";
+		info->explicit_only = 1;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_log_backtrace();
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(call_backtrace);
+	AST_TEST_UNREGISTER(call_assert);
 	AST_TEST_UNREGISTER(segv);
 	AST_TEST_UNREGISTER(pattern_match_test);
 	return 0;
@@ -354,6 +396,8 @@ static int load_module(void)
 {
 	AST_TEST_REGISTER(pattern_match_test);
 	AST_TEST_REGISTER(segv);
+	AST_TEST_REGISTER(call_assert);
+	AST_TEST_REGISTER(call_backtrace);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
