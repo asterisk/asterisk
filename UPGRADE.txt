@@ -24,6 +24,12 @@
 === UPGRADE-15.txt  -- Upgrade info for 14 to 15
 ===========================================================
 
+From 16.0.0 to 16.1.0:
+
+Core:
+ - ast_bt_get_symbols() now returns a vector of strings instead of an
+   array of strings.  This must be freed with ast_bt_free_symbols.
+
 New in 16.0.0:
 
 app_fax:

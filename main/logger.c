@@ -385,6 +385,9 @@ static int format_log_default(struct logchannel *chan, struct logmsg *msg, char 
 	case LOGTYPE_CONSOLE:
 		{
 			char linestr[32];
+			int has_file = !ast_strlen_zero(msg->file);
+			int has_line = (msg->line > 0);
+			int has_func = !ast_strlen_zero(msg->function);
 
 			/*
 			 * Verbose messages are interpreted by console channels in their own
@@ -394,18 +397,20 @@ static int format_log_default(struct logchannel *chan, struct logmsg *msg, char 
 				return logger_add_verbose_magic(msg, buf, size);
 			}
 
-			/* Turn the numeric line number into a string for colorization */
+			/* Turn the numerical line number into a string */
 			snprintf(linestr, sizeof(linestr), "%d", msg->line);
-
-			snprintf(buf, size, "[%s] " COLORIZE_FMT "[%d]%s: " COLORIZE_FMT ":" COLORIZE_FMT " " COLORIZE_FMT ": %s",
-				 msg->date,
-				 COLORIZE(colors[msg->level], 0, msg->level_name),
-				 msg->lwp,
-				 call_identifier_str,
-				 COLORIZE(COLOR_BRWHITE, 0, msg->file),
-				 COLORIZE(COLOR_BRWHITE, 0, linestr),
-				 COLORIZE(COLOR_BRWHITE, 0, msg->function),
-				 msg->message);
+			/* Build string to print out */
+			snprintf(buf, size, "[%s] " COLORIZE_FMT "[%d]%s: " COLORIZE_FMT "%s" COLORIZE_FMT " " COLORIZE_FMT "%s %s",
+				msg->date,
+				COLORIZE(colors[msg->level], 0, msg->level_name),
+				msg->lwp,
+				call_identifier_str,
+				COLORIZE(COLOR_BRWHITE, 0, has_file ? msg->file : ""),
+				has_file ? ":" : "",
+				COLORIZE(COLOR_BRWHITE, 0, has_line ? linestr : ""),
+				COLORIZE(COLOR_BRWHITE, 0, has_func ? msg->function : ""),
+				has_func ? ":" : "",
+				msg->message);
 		}
 		break;
 	}
@@ -2063,7 +2068,7 @@ void ast_log_backtrace(void)
 #ifdef HAVE_BKTR
 	struct ast_bt *bt;
 	int i = 0;
-	char **strings;
+	struct ast_vector_string *strings;
 
 	if (!(bt = ast_bt_create())) {
 		ast_log(LOG_WARNING, "Unable to allocate space for backtrace structure\n");
@@ -2071,14 +2076,21 @@ void ast_log_backtrace(void)
 	}
 
 	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
-		ast_verbose("Got %d backtrace record%c\n", bt->num_frames, bt->num_frames != 1 ? 's' : ' ');
-		for (i = 3; i < bt->num_frames - 2; i++) {
-			ast_verbose("#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
+		int count = AST_VECTOR_SIZE(strings);
+		struct ast_str *buf = ast_str_create(bt->num_frames * 64);
+
+		if (buf) {
+			ast_str_append(&buf, 0, "Got %d backtrace record%c\n", count - 3, count - 3 != 1 ? 's' : ' ');
+			for (i = 3; i < AST_VECTOR_SIZE(strings); i++) {
+				ast_str_append(&buf, 0, "#%2d: %s\n", i - 3, AST_VECTOR_GET(strings, i));
+			}
+			ast_log_safe(__LOG_ERROR, NULL, 0, NULL, "%s\n", ast_str_buffer(buf));
+			ast_free(buf);
 		}
 
-		ast_std_free(strings);
+		ast_bt_free_symbols(strings);
 	} else {
-		ast_verbose("Could not allocate memory for backtrace\n");
+		ast_log(LOG_ERROR, "Could not allocate memory for backtrace\n");
 	}
 	ast_bt_destroy(bt);
 #else
