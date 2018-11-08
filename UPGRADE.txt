@@ -21,6 +21,13 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 13.23.1 to 13.24.0:
+
+Core
+------------------
+ * ast_bt_get_symbols() now returns a vector of strings instead of an
+   array of strings.  This must be freed with ast_bt_free_symbols.
+
 From 13.20.0 to 13.21.0:
 
 app_dial

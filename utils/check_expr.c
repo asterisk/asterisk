@@ -78,17 +78,10 @@ int __ast_bt_get_addresses(struct ast_bt *bt)
 	/* Suck it, you stupid utils directory! */
 	return 0;
 }
-char **__ast_bt_get_symbols(void **addresses, size_t num_frames);
-char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
+struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames);
+struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
-	char **foo = calloc(num_frames, sizeof(char *) + 1);
-	if (foo) {
-		int i;
-		for (i = 0; i < num_frames; i++) {
-			foo[i] = (char *) foo + sizeof(char *) * num_frames;
-		}
-	}
-	return foo;
+	return NULL;
 }
 #else
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
