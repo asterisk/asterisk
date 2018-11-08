@@ -188,7 +188,7 @@ void ast_free_ptr(void *ptr)
 static void print_backtrace(struct ast_bt *bt)
 {
 	int i = 0;
-	char **strings;
+	struct ast_vector_string *strings;
 
 	if (!bt) {
 		return;
@@ -196,10 +196,10 @@ static void print_backtrace(struct ast_bt *bt)
 
 	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
 		astmm_log("Memory allocation backtrace:\n");
-		for (i = 3; i < bt->num_frames - 2; i++) {
-			astmm_log("#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
+		for (i = 3; i < AST_VECTOR_SIZE(strings) - 2; i++) {
+			astmm_log("#%d: %s\n", i - 3, AST_VECTOR_GET(strings, i));
 		}
-		ast_std_free(strings);
+		ast_bt_free_symbols(strings);
 	}
 }
 

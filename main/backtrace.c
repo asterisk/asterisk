@@ -26,12 +26,38 @@
 	<support_level>core</support_level>
  ***/
 
-#include "asterisk.h"
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
+/*
+ * Block automatic include of asterisk/lock.h to allow use of pthread_mutex
+ * functions directly.  We don't need or want the lock.h overhead.
+ */
+#define _ASTERISK_LOCK_H
 
+#include "asterisk.h"
 #include "asterisk/backtrace.h"
-#include "asterisk/utils.h"
-#include "asterisk/strings.h"
+
+/*
+ * The astmm ast_ memory management functions can cause ast_bt_get_symbols
+ * to be invoked so we must not use them.  To use the libc functions, we
+ * could call the ast_std_ functions but the vector macros call ast_calloc,
+ * ast_free and ast_malloc so it just makes sense to undef the standard
+ * function overrides and use them directly.
+ */
+#undef malloc
+#undef calloc
+#undef strdup
+#undef free
+/*
+ * As stated above, the vector macros call the ast_ functions so
+ * we need to remap those back to the libc ones.
+ */
+#undef ast_free
+#undef ast_calloc
+#undef ast_malloc
+#define ast_free(x) free(x)
+#define ast_calloc(n, x) calloc(n, x)
+#define ast_malloc(x) malloc(x)
+
+#include "asterisk/vector.h"
 
 #ifdef HAVE_BKTR
 #include <execinfo.h>
@@ -40,9 +66,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include <bfd.h>
 #endif
 
+#include <pthread.h>
+
+/* simple definition of S_OR so we don't have include strings.h */
+#define S_OR(a, b) (a && a[0] != '\0') ? a : b
+
 struct ast_bt *__ast_bt_create(void)
 {
-	struct ast_bt *bt = ast_std_calloc(1, sizeof(*bt));
+	struct ast_bt *bt = calloc(1, sizeof(*bt));
 
 	if (!bt) {
 		return NULL;
@@ -63,164 +94,217 @@ int __ast_bt_get_addresses(struct ast_bt *bt)
 void *__ast_bt_destroy(struct ast_bt *bt)
 {
 	if (bt && bt->alloced) {
-		ast_std_free(bt);
+		free(bt);
 	}
 	return NULL;
 }
 
-char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
-{
-	char **strings;
-#if defined(BETTER_BACKTRACES)
-	int stackfr;
-	bfd *bfdobj;           /* bfd.h */
+#ifdef BETTER_BACKTRACES
+
+struct bfd_data {
+	struct ast_vector_string *return_strings;
+	bfd_vma pc;            /* bfd.h */
+	asymbol **syms;        /* bfd.h */
 	Dl_info dli;           /* dlfcn.h */
-	long allocsize;
-	asymbol **syms = NULL; /* bfd.h */
-	bfd_vma offset;        /* bfd.h */
-	const char *lastslash;
-	asection *section;
+	const char *libname;
+	int dynamic;
+	int has_syms;
+	char *msg;
+	int found;
+};
+
+#define MSG_BUFF_LEN 1024
+
+static void process_section(bfd *bfdobj, asection *section, void *obj)
+{
+	struct bfd_data *data = obj;
 	const char *file, *func;
 	unsigned int line;
-	char address_str[128];
-	char msg[1024];
-	size_t strings_size;
-	size_t *eachlen;
-#endif
+	bfd_vma offset;
+	bfd_vma vma;
+	bfd_size_type size;
+	bfd_boolean line_found = 0;
+	char *fn;
+	int inlined = 0;
 
-#if defined(BETTER_BACKTRACES)
-	strings_size = num_frames * sizeof(*strings);
+	offset = data->pc - (data->dynamic ? (bfd_vma) data->dli.dli_fbase : 0);
 
-	eachlen = ast_std_calloc(num_frames, sizeof(*eachlen));
-	strings = ast_std_calloc(num_frames, sizeof(*strings));
-	if (!eachlen || !strings) {
-		ast_std_free(eachlen);
-		ast_std_free(strings);
+	if (!(bfd_get_section_flags(bfdobj, section) & SEC_ALLOC)) {
+		return;
+	}
+
+	vma = bfd_get_section_vma(bfdobj, section);
+	size = bfd_get_section_size(section);
+
+	if (offset < vma || offset >= vma + size) {
+		/* Not in this section */
+		return;
+	}
+
+	line_found = bfd_find_nearest_line(bfdobj, section, data->syms, offset - vma, &file,
+		&func, &line);
+	if (!line_found) {
+		return;
+	}
+
+	/*
+	 * If we find a line, we will want to continue calling bfd_find_inliner_info
+	 * to capture any inlined functions that don't have their own stack frames.
+	 */
+	do {
+		data->found++;
+		/* file can possibly be null even with a success result from bfd_find_nearest_line */
+		file = file ? file : "";
+		fn = strrchr(file, '/');
+#define FMT_INLINED "[%s] %s %s:%u %s()"
+#define FMT_NOT_INLINED "[%p] %s %s:%u %s()"
+
+		snprintf(data->msg, MSG_BUFF_LEN, inlined ? FMT_INLINED : FMT_NOT_INLINED,
+			inlined ? "inlined" : (char *)data->pc,
+			data->libname,
+			fn ? fn + 1 : file,
+			line, S_OR(func, "???"));
+
+		if (AST_VECTOR_APPEND(data->return_strings, strdup(data->msg))) {
+			return;
+		}
+
+		inlined++;
+		/* Let's see if there are any inlined functions */
+	} while (bfd_find_inliner_info(bfdobj, &file, &func, &line));
+}
+
+struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames)
+{
+	struct ast_vector_string *return_strings;
+	int stackfr;
+	bfd *bfdobj;
+	long allocsize;
+	char msg[MSG_BUFF_LEN];
+	static pthread_mutex_t bfd_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	return_strings = malloc(sizeof(struct ast_vector_string));
+	if (!return_strings) {
+		return NULL;
+	}
+	if (AST_VECTOR_INIT(return_strings, num_frames)) {
+		free(return_strings);
 		return NULL;
 	}
 
 	for (stackfr = 0; stackfr < num_frames; stackfr++) {
-		int found = 0, symbolcount;
+		int symbolcount;
+		struct bfd_data data = {
+			.return_strings = return_strings,
+			.msg = msg,
+			.pc = (bfd_vma)addresses[stackfr],
+			.found = 0,
+			.dynamic = 0,
+		};
 
 		msg[0] = '\0';
 
-		if (!dladdr(addresses[stackfr], &dli)) {
+		if (!dladdr((void *)data.pc, &data.dli)) {
 			continue;
 		}
-
-		if (strcmp(dli.dli_fname, "asterisk") == 0) {
-			char asteriskpath[256];
-
-			if (!(dli.dli_fname = ast_utils_which("asterisk", asteriskpath, sizeof(asteriskpath)))) {
-				/* This will fail to find symbols */
-				dli.dli_fname = "asterisk";
-			}
+		data.libname = strrchr(data.dli.dli_fname, '/');
+		if (!data.libname) {
+			data.libname = data.dli.dli_fname;
+		} else {
+			data.libname++;
 		}
 
-		lastslash = strrchr(dli.dli_fname, '/');
-		if ((bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
-			bfd_check_format(bfdobj, bfd_object) &&
-			(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
-			(syms = ast_std_malloc(allocsize)) &&
-			(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
-
-			if (bfdobj->flags & DYNAMIC) {
-				offset = addresses[stackfr] - dli.dli_fbase;
-			} else {
-				offset = addresses[stackfr] - (void *) 0;
+		pthread_mutex_lock(&bfd_mutex);
+		/* Using do while(0) here makes it easier to escape and clean up */
+		do {
+			bfdobj = bfd_openr(data.dli.dli_fname, NULL);
+			if (!bfdobj) {
+				break;
 			}
 
-			for (section = bfdobj->sections; section; section = section->next) {
-				if (!(bfd_get_section_flags(bfdobj, section) & SEC_ALLOC) ||
-					section->vma > offset ||
-					section->size + section->vma < offset) {
-					continue;
-				}
-
-				if (!bfd_find_nearest_line(bfdobj, section, syms, offset - section->vma, &file, &func, &line)) {
-					continue;
-				}
-
-				/* file can possibly be null even with a success result from bfd_find_nearest_line */
-				file = file ? file : "";
-
-				/* Stack trace output */
-				found++;
-				if ((lastslash = strrchr(file, '/'))) {
-					const char *prevslash;
-
-					for (prevslash = lastslash - 1; *prevslash != '/' && prevslash >= file; prevslash--) {
-					}
-					if (prevslash >= file) {
-						lastslash = prevslash;
-					}
-				}
-				if (dli.dli_saddr == NULL) {
-					address_str[0] = '\0';
-				} else {
-					snprintf(address_str, sizeof(address_str), " (%p+%lX)",
-						dli.dli_saddr,
-						(unsigned long) (addresses[stackfr] - dli.dli_saddr));
-				}
-				snprintf(msg, sizeof(msg), "%s:%u %s()%s",
-					lastslash ? lastslash + 1 : file, line,
-					S_OR(func, "???"),
-					address_str);
-
-				break; /* out of section iteration */
+			/* bfd_check_format does more than check.  It HAS to be called */
+			if (!bfd_check_format(bfdobj, bfd_object)) {
+				break;
 			}
-		}
+
+			data.has_syms = !!(bfd_get_file_flags(bfdobj) & HAS_SYMS);
+			data.dynamic = !!(bfd_get_file_flags(bfdobj) & DYNAMIC);
+
+			if (!data.has_syms) {
+				break;
+			}
+
+			allocsize = data.dynamic ?
+				bfd_get_dynamic_symtab_upper_bound(bfdobj) : bfd_get_symtab_upper_bound(bfdobj);
+			if (allocsize < 0) {
+				break;
+			}
+
+			data.syms = malloc(allocsize);
+			if (!data.syms) {
+				break;
+			}
+
+			symbolcount = data.dynamic ?
+				bfd_canonicalize_dynamic_symtab(bfdobj, data.syms) : bfd_canonicalize_symtab(bfdobj, data.syms);
+			if (symbolcount < 0) {
+				break;
+			}
+
+			bfd_map_over_sections(bfdobj, process_section, &data);
+		} while(0);
+
 		if (bfdobj) {
 			bfd_close(bfdobj);
-			ast_std_free(syms);
-			syms = NULL;
+			free(data.syms);
+			data.syms = NULL;
 		}
+		pthread_mutex_unlock(&bfd_mutex);
 
 		/* Default output, if we cannot find the information within BFD */
-		if (!found) {
-			if (dli.dli_saddr == NULL) {
-				address_str[0] = '\0';
-			} else {
-				snprintf(address_str, sizeof(address_str), " (%p+%lX)",
-					dli.dli_saddr,
-					(unsigned long) (addresses[stackfr] - dli.dli_saddr));
-			}
-			snprintf(msg, sizeof(msg), "%s %s()%s",
-				lastslash ? lastslash + 1 : dli.dli_fname,
-				S_OR(dli.dli_sname, "<unknown>"),
-				address_str);
-		}
-
-		if (!ast_strlen_zero(msg)) {
-			char **tmp;
-
-			eachlen[stackfr] = strlen(msg) + 1;
-			if (!(tmp = ast_std_realloc(strings, strings_size + eachlen[stackfr]))) {
-				ast_std_free(strings);
-				strings = NULL;
-				break; /* out of stack frame iteration */
-			}
-			strings = tmp;
-			strings[stackfr] = (char *) strings + strings_size;
-			strcpy(strings[stackfr], msg);/* Safe since we just allocated the room. */
-			strings_size += eachlen[stackfr];
+		if (!data.found) {
+			snprintf(msg, sizeof(msg), "%s %s()",
+				data.libname,
+				S_OR(data.dli.dli_sname, "<unknown>"));
+			AST_VECTOR_APPEND(return_strings, strdup(msg));
 		}
 	}
 
-	if (strings) {
-		/* Recalculate the offset pointers because of the reallocs. */
-		strings[0] = (char *) strings + num_frames * sizeof(*strings);
-		for (stackfr = 1; stackfr < num_frames; stackfr++) {
-			strings[stackfr] = strings[stackfr - 1] + eachlen[stackfr - 1];
-		}
-	}
-	ast_std_free(eachlen);
+	return return_strings;
+}
 
-#else /* !defined(BETTER_BACKTRACES) */
+#else
+struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_frames)
+{
+	char **strings;
+	struct ast_vector_string *return_strings;
+	int i;
+
+	return_strings = malloc(sizeof(struct ast_vector_string));
+	if (!return_strings) {
+		return NULL;
+	}
+	if (AST_VECTOR_INIT(return_strings, num_frames)) {
+		free(return_strings);
+		return NULL;
+	}
 
 	strings = backtrace_symbols(addresses, num_frames);
-#endif /* defined(BETTER_BACKTRACES) */
-	return strings;
+	if (strings) {
+		for (i = 0; i < num_frames; i++) {
+			AST_VECTOR_APPEND(return_strings, strdup(strings[i]));
+		}
+		free(strings);
+	}
+
+	return return_strings;
+}
+#endif /* BETTER_BACKTRACES */
+
+void __ast_bt_free_symbols(struct ast_vector_string *symbols)
+{
+	AST_VECTOR_CALLBACK_VOID(symbols, free);
+	AST_VECTOR_PTR_FREE(symbols);
 }
 
 #endif /* HAVE_BKTR */
