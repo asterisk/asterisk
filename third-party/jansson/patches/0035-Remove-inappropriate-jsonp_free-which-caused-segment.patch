@@ -1,0 +1,58 @@
+From e262ea5fcd789d20d5d20d5d6d9c7ec06e3c00fd Mon Sep 17 00:00:00 2001
+From: Corey Farrell <git@cfware.com>
+Date: Mon, 5 Nov 2018 16:43:10 -0500
+Subject: [PATCH 35/35] Remove inappropriate jsonp_free which caused
+ segmentation fault.
+
+pack_string should never free str on error.  This wouldn't be a problem
+except the check for `ours` was inverted.  Just remove the check for
+ours since the true condition is unreachable.
+
+json_vpack_ex also had an error check for s.has_error.  This can never
+be true unless value is NULL.
+
+Test changes removed for merging into Asterisk bundled copy.
+
+Fixes #444
+---
+ src/pack_unpack.c           |  9 ++-------
+ test/suites/api/test_pack.c | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/pack_unpack.c b/src/pack_unpack.c
+index ec04bc3..3b99776 100644
+--- a/src/pack_unpack.c
++++ b/src/pack_unpack.c
+@@ -359,9 +359,7 @@ static json_t *pack_string(scanner_t *s, va_list *ap)
+         return t == '?' && !s->has_error ? json_null() : NULL;
+ 
+     if (s->has_error) {
+-        if (!ours)
+-            jsonp_free(str);
+-
++        /* It's impossible to reach this point if ours != 0, do not free str. */
+         return NULL;
+     }
+ 
+@@ -853,6 +851,7 @@ json_t *json_vpack_ex(json_error_t *error, size_t flags,
+     value = pack(&s, &ap_copy);
+     va_end(ap_copy);
+ 
++    /* This will cover all situations where s.has_error is true */
+     if(!value)
+         return NULL;
+ 
+@@ -862,10 +861,6 @@ json_t *json_vpack_ex(json_error_t *error, size_t flags,
+         set_error(&s, "<format>", json_error_invalid_format, "Garbage after format string");
+         return NULL;
+     }
+-    if(s.has_error) {
+-        json_decref(value);
+-        return NULL;
+-    }
+ 
+     return value;
+ }
+-- 
+2.17.2
+
