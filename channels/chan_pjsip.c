@@ -3052,6 +3052,11 @@ static struct ast_custom_function chan_pjsip_dial_contacts_function = {
 	.read = pjsip_acf_dial_contacts_read,
 };
 
+static struct ast_custom_function chan_pjsip_parse_uri_function = {
+	.name = "PJSIP_PARSE_URI",
+	.read = pjsip_acf_parse_uri_read,
+};
+
 static struct ast_custom_function media_offer_function = {
 	.name = "PJSIP_MEDIA_OFFER",
 	.read = pjsip_acf_media_offer_read,
@@ -3098,6 +3103,11 @@ static int load_module(void)
 
 	if (ast_custom_function_register(&chan_pjsip_dial_contacts_function)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP_DIAL_CONTACTS dialplan function\n");
+		goto end;
+	}
+
+	if (ast_custom_function_register(&chan_pjsip_parse_uri_function)) {
+		ast_log(LOG_ERROR, "Unable to register PJSIP_PARSE_URI dialplan function\n");
 		goto end;
 	}
 
@@ -3155,6 +3165,7 @@ end:
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
+	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&session_refresh_function);
 	ast_channel_unregister(&chan_pjsip_tech);
 	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
@@ -3179,6 +3190,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
+	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
 	ast_custom_function_unregister(&session_refresh_function);
 
 	ast_channel_unregister(&chan_pjsip_tech);

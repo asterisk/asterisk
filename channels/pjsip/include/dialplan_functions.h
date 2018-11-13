@@ -110,4 +110,17 @@ int pjsip_acf_session_refresh_write(struct ast_channel *chan, const char *cmd, c
  */
 int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
 
+/*!
+ * \brief PJSIP_PARSE_URI function read callback
+ * \param chan The channel the function is called on
+ * \param cmd The name of the function
+ * \param data Arguments passed to the function
+ * \param buf Out buffer that should be populated with the data
+ * \param len Size of the buffer
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int pjsip_acf_parse_uri_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len);
+
 #endif /* _PJSIP_DIALPLAN_FUNCTIONS */

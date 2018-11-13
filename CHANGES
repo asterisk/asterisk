@@ -29,6 +29,11 @@ pbx_config
    extensions.conf.  Variables are processed in the order they are found
    and duplicate variables overwrite the previous value.
 
+chan_pjsip
+------------------
+ * New dialplan function PJSIP_PARSE_URI added to parse an URI and return
+   a specified part of the URI.
+
 res_pjsip
 ------------------
  * New options 'trust_connected_line' and 'send_connected_line' have been
