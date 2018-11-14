@@ -697,6 +697,59 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
 	return res;
 }
 
+/*!
+ * \brief Copy obj associated with a weakproxy into the arg container.
+ *
+ * \param proxy pointer to the weakproxy.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \retval 0 on success.
+ * \retval CMP_STOP|CMP_MATCH on error.
+ */
+static int dup_weakproxy_cb(void *proxy, void *arg, int flags)
+{
+	void *obj = ao2_weakproxy_get_object(proxy, 0);
+	struct ao2_container *dest = arg;
+	int ret;
+
+	if (!obj) {
+		return 0;
+	}
+
+	ret = ao2_t_link_flags(dest, obj, OBJ_NOLOCK, NULL) ? 0 : (CMP_MATCH | CMP_STOP);
+	ao2_ref(obj, -1);
+
+	return ret;
+}
+
+int ao2_container_dup_weakproxy_objs(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags)
+{
+	void *obj;
+	int res = 0;
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_rdlock(src);
+		ao2_wrlock(dest);
+	}
+	obj = ao2_callback(src, OBJ_NOLOCK, dup_weakproxy_cb, dest);
+	if (obj) {
+		/* Failed to put this obj into the dest container. */
+		ao2_t_ref(obj, -1, "Failed to put this object into the dest container.");
+
+		/* Remove all items from the dest container. */
+		ao2_t_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
+			NULL, NULL);
+		res = -1;
+	}
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(dest);
+		ao2_unlock(src);
+	}
+
+	return res;
+}
+
 struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags, const char *tag, const char *file, int line, const char *func)
 {
 	struct ao2_container *clone;
