@@ -262,9 +262,166 @@ fail_cleanup:
 	return AST_TEST_FAIL;
 }
 
+struct strong_str {
+	char *value;
+};
+
+struct weakproxy_str {
+	AO2_WEAKPROXY();
+	char value[0];
+};
+
+static struct strong_str *alloc_str(struct ao2_container *weakcontainer, const char *value)
+{
+	struct strong_str *strong = ao2_t_alloc(sizeof(*strong), NULL, value);
+	struct weakproxy_str *weak = ao2_weakproxy_alloc(sizeof(*weak) + strlen(value) + 1, NULL);
+
+	if (!weak || !strong) {
+		goto error_return;
+	}
+
+	strcpy(weak->value, value); /*SAFE*/
+	strong->value = weak->value;
+
+	if (ao2_weakproxy_set_object(weak, strong, 0)) {
+		goto error_return;
+	}
+
+	if (!ao2_link(weakcontainer, weak)) {
+		goto error_return;
+	}
+
+	ao2_ref(weak, -1);
+	return strong;
+
+error_return:
+	ao2_cleanup(weak);
+	ao2_cleanup(strong);
+
+	return NULL;
+}
+
+AO2_STRING_FIELD_HASH_FN(weakproxy_str, value);
+AO2_STRING_FIELD_CMP_FN(weakproxy_str, value);
+AO2_STRING_FIELD_SORT_FN(strong_str, value);
+
+#define ITERATOR_CHECK_NEXT(iter, var, expected) \
+	do { \
+		var = ao2_iterator_next(iter); \
+		ast_test_validate_cleanup(test, var == expected, ret, cleanup); \
+		ao2_cleanup(var); \
+	} while (0)
+
+#define WEAKFIND_CHECK(c, key, var, expected) \
+	do { \
+		var = ao2_weakproxy_find(c, key, OBJ_SEARCH_KEY, ""); \
+		ast_test_validate_cleanup(test, var == expected, ret, cleanup); \
+		ao2_cleanup(var); \
+	} while (0)
+
+AST_TEST_DEFINE(astobj2_weak_container)
+{
+	int ret = AST_TEST_FAIL;
+
+	struct strong_str *strong1 = NULL;
+	struct strong_str *strong2 = NULL;
+	struct strong_str *strong3 = NULL;
+
+	struct strong_str *strong = NULL;
+
+	struct ao2_container *weakcontainer = NULL;
+	struct ao2_container *dupcontainer = NULL;
+
+	struct ao2_iterator iter;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "astobj2_weak_container";
+		info->category = "/main/astobj2/";
+		info->summary = "Test ao2 weak containers";
+		info->description = "Test ao2 weak containers.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	weakcontainer = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 7,
+		weakproxy_str_hash_fn, NULL, weakproxy_str_cmp_fn);
+	dupcontainer = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		strong_str_sort_fn, NULL);
+
+	if (!weakcontainer || !dupcontainer) {
+		goto cleanup;
+	}
+
+	strong1 = alloc_str(weakcontainer, "obj1");
+	strong2 = alloc_str(weakcontainer, "obj2");
+	strong3 = alloc_str(weakcontainer, "obj3");
+
+	if (!strong1 || !strong2 || !strong3) {
+		goto cleanup;
+	}
+
+	if (ao2_container_dup_weakproxy_objs(dupcontainer, weakcontainer, 0)) {
+		goto cleanup;
+	}
+
+	iter = ao2_iterator_init(dupcontainer, 0);
+	ITERATOR_CHECK_NEXT(&iter, strong, strong1);
+	ITERATOR_CHECK_NEXT(&iter, strong, strong2);
+	ITERATOR_CHECK_NEXT(&iter, strong, strong3);
+	ITERATOR_CHECK_NEXT(&iter, strong, NULL);
+	ao2_iterator_cleanup(&iter);
+
+	ao2_callback(dupcontainer, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, NULL, NULL);
+
+	WEAKFIND_CHECK(weakcontainer, "obj1", strong, strong1);
+	WEAKFIND_CHECK(weakcontainer, "obj2", strong, strong2);
+	WEAKFIND_CHECK(weakcontainer, "obj3", strong, strong3);
+	WEAKFIND_CHECK(weakcontainer, "unknown", strong, NULL);
+
+	/* This will orphan "obj2" in weakcontainer. */
+	ao2_replace(strong2, NULL);
+
+	if (ao2_container_dup_weakproxy_objs(dupcontainer, weakcontainer, 0)) {
+		goto cleanup;
+	}
+
+	ast_test_validate_cleanup(test,
+		ao2_container_count(weakcontainer) == ao2_container_count(dupcontainer) + 1,
+		ret,
+		cleanup);
+
+	iter = ao2_iterator_init(dupcontainer, 0);
+	ITERATOR_CHECK_NEXT(&iter, strong, strong1);
+	ITERATOR_CHECK_NEXT(&iter, strong, strong3);
+	ITERATOR_CHECK_NEXT(&iter, strong, NULL);
+	ao2_iterator_cleanup(&iter);
+
+	WEAKFIND_CHECK(weakcontainer, "obj1", strong, strong1);
+	WEAKFIND_CHECK(weakcontainer, "obj2", strong, NULL);
+	WEAKFIND_CHECK(weakcontainer, "obj3", strong, strong3);
+	WEAKFIND_CHECK(weakcontainer, "unknown", strong, NULL);
+
+	ret = AST_TEST_PASS;
+
+cleanup:
+	ao2_cleanup(strong1);
+	ao2_cleanup(strong2);
+	ao2_cleanup(strong3);
+
+	ao2_cleanup(weakcontainer);
+	ao2_cleanup(dupcontainer);
+
+	ao2_cleanup(strong);
+
+	return ret;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(astobj2_weak1);
+	AST_TEST_UNREGISTER(astobj2_weak_container);
 
 	return 0;
 }
@@ -272,6 +429,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(astobj2_weak1);
+	AST_TEST_REGISTER(astobj2_weak_container);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
