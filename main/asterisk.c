@@ -392,6 +392,7 @@ static struct {
 	 unsigned int need_reload:1;
 	 unsigned int need_quit:1;
 	 unsigned int need_quit_handler:1;
+	 unsigned int need_el_end:1;
 } sig_flags;
 
 #if !defined(LOW_MEMORY)
@@ -2018,10 +2019,9 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			if (el_hist != NULL) {
 				history_end(el_hist);
 			}
-		} else if (mon_sig_flags == pthread_self()) {
-			if (consolethread != AST_PTHREADT_NULL) {
-				pthread_kill(consolethread, SIGURG);
-			}
+		} else {
+			sig_flags.need_el_end = 1;
+			pthread_kill(consolethread, SIGURG);
 		}
 	}
 	active_channels = ast_active_channels();
@@ -2638,7 +2638,7 @@ static int ast_el_read_char(EditLine *editline, CHAR_T_LIBEDIT *cp)
 		}
 		res = ast_poll(fds, max, -1);
 		if (res < 0) {
-			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler || sig_flags.need_el_end) {
 				break;
 			}
 			if (errno == EINTR) {
@@ -3166,7 +3166,7 @@ static void ast_remotecontrol(char *data)
 		sprintf(tmp, "%s%s", prefix, data);
 		if (write(ast_consock, tmp, strlen(tmp) + 1) < 0) {
 			ast_log(LOG_ERROR, "write() failed: %s\n", strerror(errno));
-			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler || sig_flags.need_el_end) {
 				return;
 			}
 		}
@@ -3198,7 +3198,7 @@ static void ast_remotecontrol(char *data)
 			char buffer[512] = "", *curline = buffer, *nextline;
 			int not_written = 1;
 
-			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
+			if (sig_flags.need_quit || sig_flags.need_quit_handler || sig_flags.need_el_end) {
 				break;
 			}
 
@@ -3258,7 +3258,7 @@ static void ast_remotecontrol(char *data)
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (sig_flags.need_quit || sig_flags.need_quit_handler) {
+		if (sig_flags.need_quit || sig_flags.need_quit_handler || sig_flags.need_el_end) {
 			break;
 		}
 
@@ -4201,6 +4201,12 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		el_set(el, EL_GETCFN, ast_el_read_char);
 
 		for (;;) {
+			if (sig_flags.need_el_end) {
+				el_end(el);
+
+				return;
+			}
+
 			if (sig_flags.need_quit || sig_flags.need_quit_handler) {
 				quit_handler(0, SHUTDOWN_FAST, 0);
 				break;
