@@ -67,10 +67,8 @@ struct tps_taskprocessor_stats {
 
 /*! \brief A ast_taskprocessor structure is a singleton by name */
 struct ast_taskprocessor {
-	/*! \brief Friendly name of the taskprocessor */
-	const char *name;
 	/*! \brief Taskprocessor statistics */
-	struct tps_taskprocessor_stats *stats;
+	struct tps_taskprocessor_stats stats;
 	void *local_data;
 	/*! \brief Taskprocessor current queue size */
 	long tps_queue_size;
@@ -91,6 +89,8 @@ struct ast_taskprocessor {
 	unsigned int high_water_alert:1;
 	/*! Indicates if the taskprocessor is currently suspended */
 	unsigned int suspended:1;
+	/*! \brief Friendly name of the taskprocessor */
+	char name[0];
 };
 
 /*!
@@ -515,13 +515,8 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	while ((tps = ao2_iterator_next(&iter))) {
 		ast_copy_string(name, tps->name, sizeof(name));
 		qsize = tps->tps_queue_size;
-		if (tps->stats) {
-			maxqsize = tps->stats->max_qsize;
-			processed = tps->stats->_tasks_processed_count;
-		} else {
-			maxqsize = 0;
-			processed = 0;
-		}
+		maxqsize = tps->stats.max_qsize;
+		processed = tps->stats._tasks_processed_count;
 		ast_cli(a->fd, FMT_FIELDS, name, processed, qsize, maxqsize,
 			tps->tps_queue_low, tps->tps_queue_high);
 		ast_taskprocessor_unreference(tps);
@@ -645,10 +640,6 @@ static void tps_taskprocessor_dtor(void *tps)
 		tps_alert_add(t, -1);
 	}
 
-	ast_free(t->stats);
-	t->stats = NULL;
-	ast_free((char *) t->name);
-	t->name = NULL;
 	ao2_cleanup(t->listener);
 	t->listener = NULL;
 }
@@ -744,7 +735,7 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 {
 	struct ast_taskprocessor *p;
 
-	p = ao2_alloc(sizeof(*p), tps_taskprocessor_dtor);
+	p = ao2_alloc(sizeof(*p) + strlen(name) + 1, tps_taskprocessor_dtor);
 	if (!p) {
 		ast_log(LOG_WARNING, "failed to create taskprocessor '%s'\n", name);
 		return NULL;
@@ -754,12 +745,7 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 	p->tps_queue_low = (AST_TASKPROCESSOR_HIGH_WATER_LEVEL * 9) / 10;
 	p->tps_queue_high = AST_TASKPROCESSOR_HIGH_WATER_LEVEL;
 
-	p->stats = ast_calloc(1, sizeof(*p->stats));
-	p->name = ast_strdup(name);
-	if (!p->stats || !p->name) {
-		ao2_ref(p, -1);
-		return NULL;
-	}
+	strcpy(p->name, name); /*SAFE*/
 
 	ao2_ref(listener, +1);
 	p->listener = listener;
@@ -985,13 +971,11 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	size = ast_taskprocessor_size(tps);
 
 	/* Update the stats */
-	if (tps->stats) {
-		++tps->stats->_tasks_processed_count;
+	++tps->stats._tasks_processed_count;
 
-		/* Include the task we just executed as part of the queue size. */
-		if (size >= tps->stats->max_qsize) {
-			tps->stats->max_qsize = size + 1;
-		}
+	/* Include the task we just executed as part of the queue size. */
+	if (size >= tps->stats.max_qsize) {
+		tps->stats.max_qsize = size + 1;
 	}
 	ao2_unlock(tps);
 
