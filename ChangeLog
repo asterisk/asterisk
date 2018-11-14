@@ -1,3 +1,36 @@
+2018-11-14 16:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.6.2 Released.
+
+2018-10-25 10:25 +0000 [ae857488d9]  Jan Hoffmann <jan@3e8.eu> (license 6986)
+
+	* AST-2018-010: Fix length of buffer needed for SRV and NAPTR results
+
+	  When dn_expand was being called on SRV and NAPTR results, the
+	  return value was being used to calculate the size of the buffer
+	  needed to store the host names.  Since dn_expand returns the
+	  length of the COMPRESSED name the buffer could be too short
+	  to hold the EXPANDED name.  The expanded name is NULL terminated
+	  so using strlen() is the correct way to determine the length
+	  actually needed for the buffer.
+
+	  ASTERISK-28127
+	  Reported by: Jan Hoffmann
+
+	  patches:
+	    patch.diff submitted by janhoffmann (license 6986)
+
+	  Change-Id: I4d35d6c431c6c6836cb61d37b1378cc47f0b414d
+
+2018-09-26 08:12 +0000 [50bc875be6]  George Joseph <gjoseph@digium.com>
+
+	* CI:  Add --test-timeout option to runTestsuite.sh
+
+	  The default is 600 seconds.
+	  Also added timeouts to the *TestGroups.json files.
+
+	  Change-Id: I8ab6a69e704b6a10f06a0e52ede02312a2b72fe0
+
 2018-08-28 19:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.6.0-rc1 Released.
