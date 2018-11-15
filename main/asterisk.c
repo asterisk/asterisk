@@ -1676,9 +1676,15 @@ static struct sigaction urg_handler = {
 static void _hup_handler(int num)
 {
 	int save_errno = errno;
-	printf("Received HUP signal -- Reloading configs\n");
-	if (restartnow)
+
+	if (restartnow) {
+		if (el) {
+			el_end(el);
+		}
 		execvp(_argv[0], _argv);
+	}
+
+	printf("Received HUP signal -- Reloading configs\n");
 	sig_flags.need_reload = 1;
 	if (ast_alertpipe_write(sig_alert_pipe)) {
 		fprintf(stderr, "hup_handler: write() failed: %s\n", strerror(errno));
@@ -2019,7 +2025,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 			if (el_hist != NULL) {
 				history_end(el_hist);
 			}
-		} else {
+		} else if (!restart) {
 			sig_flags.need_el_end = 1;
 			pthread_kill(consolethread, SIGURG);
 		}
