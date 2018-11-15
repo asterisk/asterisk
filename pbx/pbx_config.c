@@ -1688,10 +1688,20 @@ static int pbx_load_config(const char *config_file)
 
 	ast_copy_string(userscontext, ast_variable_retrieve(cfg, "general", "userscontext") ?: "default", sizeof(userscontext));
 
-	for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
-		pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-		pbx_builtin_setvar_helper(NULL, v->name, realvalue);
+	/* ast_variable_browse does not merge multiple [globals] sections */
+	for (cxt = ast_category_browse(cfg, NULL);
+	     cxt;
+	     cxt = ast_category_browse(cfg, cxt)) {
+		if (strcasecmp(cxt, "globals")) {
+			continue;
+		}
+
+		for (v = ast_variable_browse(cfg, cxt); v; v = v->next) {
+			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
+		}
 	}
+
 	for (cxt = ast_category_browse(cfg, NULL);
 	     cxt;
 	     cxt = ast_category_browse(cfg, cxt)) {
