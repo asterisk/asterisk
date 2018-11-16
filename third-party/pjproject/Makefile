@@ -54,7 +54,7 @@ ifeq ($(SPECIAL_TARGETS),)
         include source/build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
         CF := $(filter-out -I%,$(CF))
-        ifeq ($(findstring TEST_FRAMEWORK,$(MENUSELECT_CFLAGS)),TEST_FRAMEWORK)
+        ifeq ($(AST_DEVMODE),yes)
             apps := source/pjsip-apps/bin/pjsua-$(TARGET_NAME) source/pjsip-apps/bin/pjsystest-$(TARGET_NAME)
             TARGETS += $(apps)
             ifneq ($(PYTHONDEV_LIB),)
