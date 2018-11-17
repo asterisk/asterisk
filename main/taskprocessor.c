@@ -733,6 +733,17 @@ static void *default_listener_pvt_alloc(void)
 	return pvt;
 }
 
+/*!
+ * \internal
+ * \brief Allocate a task processor structure
+ *
+ * \param name Name of the task processor.
+ * \param listener Listener to associate with the task processor.
+ *
+ * \return The newly allocated task processor.
+ *
+ * \pre tps_singletons must be locked by the caller.
+ */
 static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, struct ast_taskprocessor_listener *listener)
 {
 	struct ast_taskprocessor *p;
@@ -757,17 +768,23 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 	ao2_ref(p, +1);
 	listener->tps = p;
 
-	if (!(ao2_link(tps_singletons, p))) {
+	if (!(ao2_link_flags(tps_singletons, p, OBJ_NOLOCK))) {
 		ast_log(LOG_ERROR, "Failed to add taskprocessor '%s' to container\n", p->name);
 		listener->tps = NULL;
 		ao2_ref(p, -2);
 		return NULL;
 	}
 
-	if (p->listener->callbacks->start(p->listener)) {
+	return p;
+}
+
+static struct ast_taskprocessor *__start_taskprocessor(struct ast_taskprocessor *p)
+{
+	if (p && p->listener->callbacks->start(p->listener)) {
 		ast_log(LOG_ERROR, "Unable to start taskprocessor listener for taskprocessor %s\n",
 			p->name);
 		ast_taskprocessor_unreference(p);
+
 		return NULL;
 	}
 
@@ -787,40 +804,51 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 		ast_log(LOG_ERROR, "requesting a nameless taskprocessor!!!\n");
 		return NULL;
 	}
-	p = ao2_find(tps_singletons, name, OBJ_KEY);
-	if (p) {
+	ao2_lock(tps_singletons);
+	p = ao2_find(tps_singletons, name, OBJ_KEY | OBJ_NOLOCK);
+	if (p || (create & TPS_REF_IF_EXISTS)) {
+		/* calling function does not want a new taskprocessor to be created if it doesn't already exist */
+		ao2_unlock(tps_singletons);
 		return p;
 	}
-	if (create & TPS_REF_IF_EXISTS) {
-		/* calling function does not want a new taskprocessor to be created if it doesn't already exist */
-		return NULL;
-	}
+
 	/* Create a new taskprocessor. Start by creating a default listener */
 	pvt = default_listener_pvt_alloc();
 	if (!pvt) {
+		ao2_unlock(tps_singletons);
 		return NULL;
 	}
 	listener = ast_taskprocessor_listener_alloc(&default_listener_callbacks, pvt);
 	if (!listener) {
+		ao2_unlock(tps_singletons);
 		default_listener_pvt_destroy(pvt);
 		return NULL;
 	}
 
 	p = __allocate_taskprocessor(name, listener);
-
+	ao2_unlock(tps_singletons);
+	p = __start_taskprocessor(p);
 	ao2_ref(listener, -1);
+
 	return p;
 }
 
 struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener)
 {
-	struct ast_taskprocessor *p = ao2_find(tps_singletons, name, OBJ_KEY);
+	struct ast_taskprocessor *p;
 
+	ao2_lock(tps_singletons);
+	p = ao2_find(tps_singletons, name, OBJ_KEY | OBJ_NOLOCK);
 	if (p) {
+		ao2_unlock(tps_singletons);
 		ast_taskprocessor_unreference(p);
 		return NULL;
 	}
-	return __allocate_taskprocessor(name, listener);
+
+	p = __allocate_taskprocessor(name, listener);
+	ao2_unlock(tps_singletons);
+
+	return __start_taskprocessor(p);
 }
 
 void ast_taskprocessor_set_local(struct ast_taskprocessor *tps,
