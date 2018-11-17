@@ -129,8 +129,9 @@ pipeline {
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
+					/* FYI... Jenkins takes care of mouting the workspace for the container */
 					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
-						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+						" --mount type=tmpfs,tmpfs-size=1g,dst=/tmp -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint=''"
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
 					def outputdir = "tests/CI/output/Testsuite"
@@ -197,7 +198,7 @@ pipeline {
 										]
 									}
 
-									sh "sudo tests/CI/runTestsuite.sh --work-dir='${groupDir}/astroot' --testsuite-dir='${groupDir}' --testsuite-command='${groupTestcmd}'"
+									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --testsuite-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
