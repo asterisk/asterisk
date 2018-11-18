@@ -806,11 +806,9 @@ int stasis_subscription_final_message(struct stasis_subscription *sub, struct st
  * \since 12
  */
 struct stasis_subscription_change {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(uniqueid);	/*!< The unique ID associated with this subscription */
-		AST_STRING_FIELD(description);	/*!< The description of the change to the subscription associated with the uniqueid */
-	);
-	struct stasis_topic *topic;		/*!< The topic the subscription is/was subscribing to */
+	struct stasis_topic *topic; /*!< The topic the subscription is/was subscribing to */
+	char *uniqueid;             /*!< The unique ID associated with this subscription */
+	char description[0];        /*!< The description of the change to the subscription associated with the uniqueid */
 };
 
 /*!
