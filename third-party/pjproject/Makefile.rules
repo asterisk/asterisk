@@ -39,7 +39,7 @@ PJPROJECT_CONFIG_OPTS = $(PJPROJECT_CONFIGURE_OPTS) --prefix=/opt/pjproject \
 	--without-external-pa \
 	--without-external-srtp
 
-ifeq ($(findstring TEST_FRAMEWORK,$(MENUSELECT_CFLAGS)),)
+ifneq ($(AST_DEVMODE),yes)
     PJPROJECT_CONFIG_OPTS += --disable-resample --disable-g711-codec
 endif
 
