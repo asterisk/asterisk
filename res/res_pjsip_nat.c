@@ -45,10 +45,42 @@ static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 	}
 }
 
+/*
+ * Update the Record-Route headers in the request or response and in the dialog
+ * object if exists.
+ *
+ * When NAT is in use, the address of the next hop in the SIP may be incorrect.
+ * To address this  asterisk uses two strategies in parallel:
+ *  1. intercept the messages at the transaction level and rewrite the
+ *     messages before arriving at the dialog layer
+ *  2. after the application processing, update the dialog object with the
+ *     correct information
+ *
+ * The first strategy has a limitation that the SIP message may not have all
+ * the information required to determine if the next hop is in the route set
+ * or in the contact. Causing risk that asterisk will update the Contact on
+ * receipt of an in-dialog message despite there being a route set saved in
+ * the dialog.
+ *
+ * The second strategy has a limitation that not all UAC layers have interfaces
+ * available to invoke this module after dialog creation.  (pjsip_sesion does
+ * but pjsip_pubsub does not), thus this strategy can't update the dialog in
+ * all cases needed.
+ *
+ * The ideal solution would be to implement an "incomming_request" event
+ * in pubsub module that can then pass the dialog object to this module
+ * on SUBSCRIBE, this module then should add itself as a listener to the dialog
+ * for the subsequent requests and responses & then be able to properly update
+ * the dialog object for all required events.
+ */
+
 static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 {
 	pjsip_rr_hdr *rr = NULL;
 	pjsip_sip_uri *uri;
+	int res = -1;
+	int ignore_rr = 0;
+	int pubsub = 0;
 
 	if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
 		pjsip_hdr *iter;
@@ -60,21 +92,49 @@ static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 		}
 	} else if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method)) {
 		rr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_RECORD_ROUTE, NULL);
+	} else {
+		/**
+		 * Record-Route header has no meaning in REGISTER requests
+		 * and should be ignored
+		 */
+		ignore_rr = 1;
+	}
+
+	if (!pjsip_method_cmp(&rdata->msg_info.cseq->method, &pjsip_subscribe_method) ||
+		!pjsip_method_cmp(&rdata->msg_info.cseq->method, &pjsip_notify_method)) {
+		/**
+		 * There is currently no good way to get the dlg object for a pubsub dialog
+		 * so we will just look at the rr & contact of the current message and
+		 * hope for the best
+		 */
+		pubsub = 1;
 	}
 
 	if (rr) {
 		uri = pjsip_uri_get_uri(&rr->name_addr);
 		rewrite_uri(rdata, uri);
-		if (dlg && !pj_list_empty(&dlg->route_set) && !dlg->route_set_frozen) {
-			pjsip_routing_hdr *route = dlg->route_set.next;
-			uri = pjsip_uri_get_uri(&route->name_addr);
-			rewrite_uri(rdata, uri);
-		}
-
-		return 0;
+		res = 0;
 	}
 
-	return -1;
+	if (dlg && !pj_list_empty(&dlg->route_set) && !dlg->route_set_frozen) {
+		pjsip_routing_hdr *route = dlg->route_set.next;
+		uri = pjsip_uri_get_uri(&route->name_addr);
+		rewrite_uri(rdata, uri);
+		res = 0;
+	}
+
+	if (!dlg && !rr && !ignore_rr  && !pubsub && rdata->msg_info.to->tag.slen){
+		/**
+		 * Even if this message doesn't have any route headers
+		 * the dialog may, so wait until a later invocation that
+		 * has a dialog reference to make sure there isn't a
+		 * previously saved routset in the dialog before deciding
+		 * the contact needs to be modified
+		 */
+		res = 0;
+	}
+
+	return res;
 }
 
 static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
