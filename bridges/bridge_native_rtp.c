@@ -703,6 +703,18 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 		return 0;
 	}
 
+	if (glue0->audio.instance && glue1->audio.instance) {
+		unsigned int framing_inst0, framing_inst1;
+		framing_inst0 = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(glue0->audio.instance));
+		framing_inst1 = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(glue1->audio.instance));
+		if (framing_inst0 != framing_inst1) {
+			/* ptimes are asymmetric on the two call legs so we can't use the native bridge */
+			ast_debug(1, "Asymmetric ptimes on the two call legs (%u != %u). Cannot native bridge in RTP\n",
+				framing_inst0, framing_inst1);
+			return 0;
+		}
+	}
+
 	read_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawreadformat(bc0->chan));
 	read_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawreadformat(bc1->chan));
 	write_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawwriteformat(bc0->chan));
