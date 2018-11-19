@@ -55,6 +55,7 @@ struct test_data {
 	int interval;
 	int sleep;
 	int done;
+	int no_clear_done;
 	struct ast_test *test;
 };
 
@@ -65,7 +66,9 @@ static int task_1(void *data)
 {
 	struct test_data *test = data;
 
-	test->done = 0;
+	if (!test->no_clear_done) {
+		test->done = 0;
+	}
 	test->task_start = ast_tvnow();
 	test->tid = pthread_self();
 	test->is_servant = ast_sip_thread_is_servant();
@@ -73,7 +76,7 @@ static int task_1(void *data)
 	test->task_end = ast_tvnow();
 
 	ast_mutex_lock(&test->lock);
-	test->done = 1;
+	test->done++;
 	ast_mutex_unlock(&test->lock);
 	ast_cond_signal(&test->cond);
 
@@ -347,11 +350,12 @@ AST_TEST_DEFINE(scheduler_policy)
 	test_data1->test_start = ast_tvnow();
 	test_data1->interval = 1000;
 	test_data1->sleep = 500;
+	test_data1->no_clear_done = 1;
 	ast_mutex_init(&test_data1->lock);
 	ast_cond_init(&test_data1->cond, NULL);
 
 	ast_test_status_update(test, "This test will take about %3.1f seconds\n",
-		((test_data1->interval * 3) + test_data1->sleep) / 1000.0);
+		((test_data1->interval * 4) + test_data1->sleep) / 1000.0);
 
 	task = ast_sip_schedule_task(NULL, test_data1->interval, task_1, "test_1", test_data1,
 		AST_SIP_SCHED_TASK_DATA_NO_CLEANUP | AST_SIP_SCHED_TASK_PERIODIC);
@@ -370,8 +374,33 @@ AST_TEST_DEFINE(scheduler_policy)
 	ast_test_validate(test, when > test_data1->interval * 3 * 0.9 && when < test_data1->interval * 3 * 1.1);
 
 	ast_sip_sched_task_cancel(task);
-	ao2_ref(task, -1);
-	task = NULL;
+
+	/* Wait a full interval in case a 4th call to test_1 happened before the cancel */
+	usleep(M2U(test_data1->interval));
+
+	ast_mutex_lock(&test_data1->lock);
+	if (test_data1->done) {
+		int done = test_data1->done;
+
+		test_data1->done = 0;
+		ast_mutex_unlock(&test_data1->lock);
+
+		ast_test_validate(test, done == 1);
+
+		/* Wait two full intervals to be certain no further calls to test_1. */
+		usleep(M2U(test_data1->interval * 2));
+
+		ast_mutex_lock(&test_data1->lock);
+		if (test_data1->done != 0) {
+			ast_mutex_unlock(&test_data1->lock);
+			/* The cancelation failed so we need to prevent cleanup of
+			 * test_data1 to prevent a crash from write-after-free. */
+			test_data1 = NULL;
+			ast_test_status_update(test, "Failed to cancel task");
+			return AST_TEST_FAIL;
+		}
+	}
+	ast_mutex_unlock(&test_data1->lock);
 
 	return AST_TEST_PASS;
 }
