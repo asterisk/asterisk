@@ -643,7 +643,9 @@ static struct ast_xmpp_client *xmpp_client_alloc(const char *name)
 		return NULL;
 	}
 
-	if (!(client->buddies = ao2_container_alloc(BUDDY_BUCKETS, xmpp_buddy_hash, xmpp_buddy_cmp))) {
+	client->buddies = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, BUDDY_BUCKETS,
+		xmpp_buddy_hash, NULL, xmpp_buddy_cmp);
+	if (!client->buddies) {
 		ast_log(LOG_ERROR, "Could not initialize buddy container for '%s'\n", name);
 		ao2_ref(client, -1);
 		return NULL;
@@ -709,7 +711,9 @@ static void *ast_xmpp_client_config_alloc(const char *cat)
 		return NULL;
 	}
 
-	if (!(cfg->buddies = ao2_container_alloc(BUDDY_BUCKETS, xmpp_buddy_hash, xmpp_buddy_cmp))) {
+	cfg->buddies = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, BUDDY_BUCKETS,
+		xmpp_buddy_hash, NULL, xmpp_buddy_cmp);
+	if (!cfg->buddies) {
 		ao2_ref(cfg, -1);
 		return NULL;
 	}
@@ -725,14 +729,6 @@ static void xmpp_config_destructor(void *obj)
 	struct xmpp_config *cfg = obj;
 	ao2_cleanup(cfg->global);
 	ao2_cleanup(cfg->clients);
-}
-
-/*! \brief Hashing function for configuration */
-static int xmpp_config_hash(const void *obj, const int flags)
-{
-	const struct ast_xmpp_client_config *cfg = obj;
-	const char *name = (flags & OBJ_KEY) ? obj : cfg->name;
-	return ast_str_case_hash(name);
 }
 
 /*! \brief Comparator function for configuration */
@@ -756,7 +752,9 @@ static void *xmpp_config_alloc(void)
 		goto error;
 	}
 
-	if (!(cfg->clients = ao2_container_alloc(1, xmpp_config_hash, xmpp_config_cmp))) {
+	cfg->clients = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NULL, xmpp_config_cmp);
+	if (!cfg->clients) {
 		goto error;
 	}
 
@@ -2256,7 +2254,9 @@ static struct ast_xmpp_buddy *xmpp_client_create_buddy(struct ao2_container *con
 		return NULL;
 	}
 
-	if (!(buddy->resources = ao2_container_alloc(RESOURCE_BUCKETS, xmpp_resource_hash, xmpp_resource_cmp))) {
+	buddy->resources = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		RESOURCE_BUCKETS, xmpp_resource_hash, NULL, xmpp_resource_cmp);
+	if (!buddy->resources) {
 		ao2_ref(buddy, -1);
 		return NULL;
 	}

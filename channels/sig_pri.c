@@ -10146,8 +10146,8 @@ int sig_pri_load(const char *cc_type_name)
 
 #if defined(HAVE_PRI_CCSS)
 	sig_pri_cc_type_name = cc_type_name;
-	sig_pri_cc_monitors = ao2_container_alloc(37, sig_pri_cc_monitor_instance_hash_fn,
-		sig_pri_cc_monitor_instance_cmp_fn);
+	sig_pri_cc_monitors = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+		sig_pri_cc_monitor_instance_hash_fn, NULL, sig_pri_cc_monitor_instance_cmp_fn);
 	if (!sig_pri_cc_monitors) {
 		return -1;
 	}

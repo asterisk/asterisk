@@ -613,8 +613,8 @@ struct ast_multi_channel_blob *ast_multi_channel_blob_create(struct ast_json *bl
 		return NULL;
 	}
 
-	obj->channel_snapshots = ao2_container_alloc(NUM_MULTI_CHANNEL_BLOB_BUCKETS,
-		channel_role_hash_cb, channel_role_cmp_cb);
+	obj->channel_snapshots = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_MULTI_CHANNEL_BLOB_BUCKETS, channel_role_hash_cb, NULL, channel_role_cmp_cb);
 	if (!obj->channel_snapshots) {
 		ao2_ref(obj, -1);
 		return NULL;
@@ -717,8 +717,9 @@ struct ao2_container *ast_multi_channel_blob_get_channels(struct ast_multi_chann
 		return NULL;
 	}
 
-	ret_container = ao2_container_alloc(NUM_MULTI_CHANNEL_BLOB_BUCKETS,
-		channel_snapshot_hash_cb, channel_snapshot_cmp_cb);
+	ret_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_MULTI_CHANNEL_BLOB_BUCKETS,
+		channel_snapshot_hash_cb, NULL, channel_snapshot_cmp_cb);
 	if (!ret_container) {
 		return NULL;
 	}

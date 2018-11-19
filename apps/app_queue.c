@@ -2699,10 +2699,11 @@ static void init_queue(struct call_queue *q)
 	q->autopausedelay = 0;
 	if (!q->members) {
 		if (q->strategy == QUEUE_STRATEGY_LINEAR || q->strategy == QUEUE_STRATEGY_RRORDERED) {
-			/* linear strategy depends on order, so we have to place all members in a single bucket */
-			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
+			/* linear strategy depends on order, so we have to place all members in a list */
+			q->members = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, member_cmp_fn);
 		} else {
-			q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+			q->members = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+				member_hash_fn, NULL, member_cmp_fn);
 		}
 	}
 	q->found = 1;
@@ -10925,13 +10926,14 @@ static int load_module(void)
 	struct stasis_topic *queue_topic;
 	struct stasis_topic *manager_topic;
 
-	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
+	queues = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_QUEUE_BUCKETS,
+		queue_hash_cb, NULL, queue_cmp_cb);
 	if (!queues) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	pending_members = ao2_container_alloc(
-		MAX_CALL_ATTEMPT_BUCKETS, pending_members_hash, pending_members_cmp);
+	pending_members = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_CALL_ATTEMPT_BUCKETS, pending_members_hash, NULL, pending_members_cmp);
 	if (!pending_members) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;

@@ -387,7 +387,9 @@ static void *parking_config_alloc(void)
 		return NULL;
 	}
 
-	if (!(cfg->parking_lots = ao2_container_alloc(37, parking_lot_cfg_hash_fn, parking_lot_cfg_cmp_fn))) {
+	cfg->parking_lots = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+		parking_lot_cfg_hash_fn, NULL, parking_lot_cfg_cmp_fn);
+	if (!cfg->parking_lots) {
 		return NULL;
 	}
 

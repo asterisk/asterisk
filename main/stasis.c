@@ -1286,8 +1286,8 @@ struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_t
 		return NULL;
 	}
 
-	pool->pool_container = ao2_container_alloc(TOPIC_POOL_BUCKETS,
-		topic_pool_entry_hash, topic_pool_entry_cmp);
+	pool->pool_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		TOPIC_POOL_BUCKETS, topic_pool_entry_hash, NULL, topic_pool_entry_cmp);
 	if (!pool->pool_container) {
 		ao2_cleanup(pool);
 		return NULL;

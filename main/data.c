@@ -323,8 +323,9 @@ static struct data_provider *data_provider_new(const char *name,
 	strcpy(node->name, name);
 
 	/* initialize the childrens container. */
-	if (!(node->children = ao2_container_alloc(NUM_DATA_NODE_BUCKETS,
-			data_provider_hash, data_provider_cmp))) {
+	node->children = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DATA_NODE_BUCKETS, data_provider_hash, NULL, data_provider_cmp);
+	if (!node->children) {
 		ao2_ref(node, -1);
 		return NULL;
 	}
@@ -698,8 +699,8 @@ static struct ast_data_search *data_search_alloc(const char *name)
 		return NULL;
 	}
 
-	res->children = ao2_container_alloc(NUM_DATA_SEARCH_BUCKETS, data_search_hash,
-		data_search_cmp);
+	res->children = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DATA_SEARCH_BUCKETS, data_search_hash, NULL, data_search_cmp);
 
 	if (!res->children) {
 		ao2_ref(res, -1);
@@ -1418,8 +1419,8 @@ static struct ast_data *data_result_create(const char *name)
 	strcpy(res->name, namelen ? name : "");
 
 	/* initialize the children container */
-	res->children = ao2_container_alloc(NUM_DATA_RESULT_BUCKETS, data_result_hash,
-		data_result_cmp);
+	res->children = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DATA_RESULT_BUCKETS, data_result_hash, NULL, data_result_cmp);
 	if (!res->children) {
 		ao2_ref(res, -1);
 		return NULL;
@@ -1656,8 +1657,8 @@ static struct data_filter *data_filter_alloc(const char *name)
 		return NULL;
 	}
 
-	res->children = ao2_container_alloc(NUM_DATA_FILTER_BUCKETS, data_filter_hash,
-		data_filter_cmp);
+	res->children = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DATA_FILTER_BUCKETS, data_filter_hash, NULL, data_filter_cmp);
 
 	if (!res->children) {
 		ao2_ref(res, -1);
@@ -3335,8 +3336,9 @@ int ast_data_init(void)
 
 	ast_rwlock_init(&root_data.lock);
 
-	if (!(root_data.container = ao2_container_alloc(NUM_DATA_NODE_BUCKETS,
-		data_provider_hash, data_provider_cmp))) {
+	root_data.container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DATA_NODE_BUCKETS, data_provider_hash, NULL, data_provider_cmp);
+	if (!root_data.container) {
 		return -1;
 	}
 

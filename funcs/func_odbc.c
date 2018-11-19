@@ -1795,7 +1795,8 @@ static int load_module(void)
 	dsns = NULL;
 
 	if (single_db_connection) {
-		dsns = ao2_container_alloc(DSN_BUCKETS, dsn_hash, dsn_cmp);
+		dsns = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, DSN_BUCKETS,
+			dsn_hash, NULL, dsn_cmp);
 		if (!dsns) {
 			ast_log(LOG_ERROR, "Could not initialize DSN container\n");
 			ast_rwlock_unlock(&single_db_connection_lock);
@@ -1893,7 +1894,8 @@ static int reload(void)
 	}
 
 	if (single_db_connection) {
-		dsns = ao2_container_alloc(DSN_BUCKETS, dsn_hash, dsn_cmp);
+		dsns = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, DSN_BUCKETS,
+			dsn_hash, NULL, dsn_cmp);
 		if (!dsns) {
 			ast_log(LOG_ERROR, "Could not initialize DSN container\n");
 			ast_rwlock_unlock(&single_db_connection_lock);

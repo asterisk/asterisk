@@ -1251,7 +1251,8 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 	}
 	strcpy(sub->resource, resource); /* Safe */
 
-	sub->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	sub->datastores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, datastore_hash, NULL, datastore_cmp);
 	if (!sub->datastores) {
 		destroy_subscription(sub);
 		return NULL;
@@ -2741,8 +2742,9 @@ int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
 		return -1;
 	}
 
-	if (!(handler->publications = ao2_container_alloc(PUBLICATIONS_BUCKETS,
-		publication_hash_fn, publication_cmp_fn))) {
+	handler->publications = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		PUBLICATIONS_BUCKETS, publication_hash_fn, NULL, publication_cmp_fn);
+	if (!handler->publications) {
 		ast_log(LOG_ERROR, "Could not allocate publications container for event '%s'\n",
 			handler->event_name);
 		return -1;
@@ -3181,7 +3183,9 @@ static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoin
 
 	ast_module_ref(ast_module_info->self);
 
-	if (!(publication->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp))) {
+	publication->datastores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, datastore_hash, NULL, datastore_cmp);
+	if (!publication->datastores) {
 		ao2_ref(publication, -1);
 		return NULL;
 	}
