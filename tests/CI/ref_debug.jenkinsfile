@@ -10,10 +10,18 @@
  * we need to dynamically determine which docker image we're going to use and
  * you can't do that in a delcarative pipeline.
  */
+def timeoutTime = 24
+def timeoutUnits = 'HOURS'
+if (env.TIMEOUT_REF_DEBUG) {
+	def _timeout = env.TIMEOUT_REF_DEBUG.split()
+	timeoutTime = _timeout[0].toInteger()
+	timeoutUnits = _timeout[1]
+}
+
 pipeline {
 	options {
 		timestamps()
-		timeout(time: 1, unit: 'DAYS')
+		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
 	triggers {
 		cron 'H H(0-4) * * 0'
