@@ -235,6 +235,9 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 		return NULL;
 	}
 
+	/* We need to receive subscription change messages so we know when our subscription goes away */
+	stasis_subscription_accept_message_type(router->subscription, stasis_subscription_change_type());
+
 	return router;
 }
 
@@ -316,6 +319,14 @@ int stasis_message_router_add(struct stasis_message_router *router,
 	}
 	ao2_lock(router);
 	res = route_table_add(&router->routes, message_type, callback, data);
+	if (!res) {
+		stasis_subscription_accept_message_type(router->subscription, message_type);
+		/* Until a specific message type was added we would already drop the message, so being
+		 * selective now doesn't harm us. If we have a default route then we are already forced
+		 * to filter nothing and messages will come in regardless.
+		 */
+		stasis_subscription_set_filter(router->subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+	}
 	ao2_unlock(router);
 	return res;
 }
@@ -334,6 +345,10 @@ int stasis_message_router_add_cache_update(struct stasis_message_router *router,
 	}
 	ao2_lock(router);
 	res = route_table_add(&router->cache_routes, message_type, callback, data);
+	if (!res) {
+		stasis_subscription_accept_message_type(router->subscription, stasis_cache_update_type());
+		stasis_subscription_set_filter(router->subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+	}
 	ao2_unlock(router);
 	return res;
 }
@@ -378,6 +393,9 @@ int stasis_message_router_set_default(struct stasis_message_router *router,
 	router->default_route.callback = callback;
 	router->default_route.data = data;
 	ao2_unlock(router);
+
+	stasis_subscription_set_filter(router->subscription, STASIS_SUBSCRIPTION_FILTER_FORCED_NONE);
+
 	/* While this implementation can never fail, it used to be able to */
 	return 0;
 }

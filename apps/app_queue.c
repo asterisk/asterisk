@@ -11336,6 +11336,8 @@ static int load_module(void)
 	if (!device_state_sub) {
 		err = -1;
 	}
+	stasis_subscription_accept_message_type(device_state_sub, ast_device_state_message_type());
+	stasis_subscription_set_filter(device_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	manager_topic = ast_manager_get_topic();
 	queue_topic = ast_queue_topic_all();

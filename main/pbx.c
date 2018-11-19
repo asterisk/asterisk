@@ -8416,10 +8416,15 @@ int load_pbx(void)
 	if (!(device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL))) {
 		return -1;
 	}
+	stasis_subscription_accept_message_type(device_state_sub, ast_device_state_message_type());
+	stasis_subscription_accept_message_type(device_state_sub, hint_change_message_type());
+	stasis_subscription_set_filter(device_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	if (!(presence_state_sub = stasis_subscribe(ast_presence_state_topic_all(), presence_state_cb, NULL))) {
 		return -1;
 	}
+	stasis_subscription_accept_message_type(presence_state_sub, ast_presence_state_message_type());
+	stasis_subscription_set_filter(presence_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	return 0;
 }

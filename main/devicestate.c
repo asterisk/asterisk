@@ -920,6 +920,8 @@ int devstate_init(void)
 	if (!device_state_topic_cached) {
 		return -1;
 	}
+	stasis_caching_accept_message_type(device_state_topic_cached, ast_device_state_message_type());
+	stasis_caching_set_filter(device_state_topic_cached, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	devstate_message_sub = stasis_subscribe(ast_device_state_topic_all(),
 		devstate_change_cb, NULL);
@@ -927,6 +929,8 @@ int devstate_init(void)
 		ast_log(LOG_ERROR, "Failed to create subscription creating uncached device state aggregate events.\n");
 		return -1;
 	}
+	stasis_subscription_accept_message_type(devstate_message_sub, ast_device_state_message_type());
+	stasis_subscription_set_filter(devstate_message_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	return 0;
 }
