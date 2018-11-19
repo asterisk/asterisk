@@ -688,6 +688,8 @@ static void parking_manager_enable_stasis(void)
 {
 	if (!parking_sub) {
 		parking_sub = stasis_subscribe(ast_parking_topic(), parking_event_cb, NULL);
+		stasis_subscription_accept_message_type(parking_sub, ast_parked_call_type());
+		stasis_subscription_set_filter(parking_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	}
 }
 

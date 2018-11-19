@@ -1628,11 +1628,15 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 	if (!(client->mwi_sub = stasis_subscribe_pool(ast_mwi_topic_all(), xmpp_pubsub_mwi_cb, client))) {
 		return;
 	}
+	stasis_subscription_accept_message_type(client->mwi_sub, ast_mwi_state_type());
+	stasis_subscription_set_filter(client->mwi_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	if (!(client->device_state_sub = stasis_subscribe(ast_device_state_topic_all(), xmpp_pubsub_devstate_cb, client))) {
 		client->mwi_sub = stasis_unsubscribe(client->mwi_sub);
 		return;
 	}
+	stasis_subscription_accept_message_type(client->device_state_sub, ast_device_state_message_type());
+	stasis_subscription_set_filter(client->device_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	cached = stasis_cache_dump(ast_device_state_cache(), NULL);
 	ao2_callback(cached, OBJ_NODATA, cached_devstate_cb, client);

@@ -17384,6 +17384,8 @@ static void network_change_stasis_subscribe(void)
 	if (!network_change_sub) {
 		network_change_sub = stasis_subscribe(ast_system_topic(),
 			network_change_stasis_cb, NULL);
+		stasis_subscription_accept_message_type(network_change_sub, ast_network_change_type());
+		stasis_subscription_set_filter(network_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	}
 }
 
@@ -17397,6 +17399,8 @@ static void acl_change_stasis_subscribe(void)
 	if (!acl_change_sub) {
 		acl_change_sub = stasis_subscribe(ast_security_topic(),
 			acl_change_stasis_cb, NULL);
+		stasis_subscription_accept_message_type(acl_change_sub, ast_named_acl_change_type());
+		stasis_subscription_set_filter(acl_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 	}
 
 }
@@ -28163,6 +28167,9 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 		mailbox_specific_topic = ast_mwi_topic(mailbox->id);
 		if (mailbox_specific_topic) {
 			mailbox->event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, peer);
+			stasis_subscription_accept_message_type(mailbox->event_sub, ast_mwi_state_type());
+			stasis_subscription_accept_message_type(mailbox->event_sub, stasis_subscription_change_type());
+			stasis_subscription_set_filter(mailbox->event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 		}
 	}
 }

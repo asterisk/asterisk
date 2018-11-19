@@ -360,6 +360,9 @@ static int asterisk_start_devicestate_publishing(struct ast_sip_outbound_publish
 		ao2_ref(datastore, -1);
 		return -1;
 	}
+	stasis_subscription_accept_message_type(publisher_state->device_state_subscription, ast_device_state_message_type());
+	stasis_subscription_accept_message_type(publisher_state->device_state_subscription, stasis_subscription_change_type());
+	stasis_subscription_set_filter(publisher_state->device_state_subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	cached = stasis_cache_dump(ast_device_state_cache(), NULL);
 	ao2_callback(cached, OBJ_NODATA, cached_devstate_cb, datastore);
@@ -435,6 +438,9 @@ static int asterisk_start_mwi_publishing(struct ast_sip_outbound_publish *config
 		ao2_ref(datastore, -1);
 		return -1;
 	}
+	stasis_subscription_accept_message_type(publisher_state->mailbox_state_subscription, ast_mwi_state_type());
+	stasis_subscription_accept_message_type(publisher_state->mailbox_state_subscription, stasis_subscription_change_type());
+	stasis_subscription_set_filter(publisher_state->mailbox_state_subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	cached = stasis_cache_dump(ast_mwi_state_cache(), NULL);
 	ao2_callback(cached, OBJ_NODATA, cached_mwistate_cb, datastore);

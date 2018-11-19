@@ -870,6 +870,10 @@ static void park_announce_update_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
+	if (ast_parked_call_type() != stasis_message_type(message)) {
+		return;
+	}
+
 	if (payload->event_type != PARKED_CALL) {
 		/* We are only concerned with calls parked */
 		return;
@@ -955,6 +959,10 @@ static int park_and_announce_app_exec(struct ast_channel *chan, const char *data
 		park_announce_subscription_data_destroy(pa_data);
 		return -1;
 	}
+
+	stasis_subscription_accept_message_type(parking_subscription, ast_parked_call_type());
+	stasis_subscription_accept_message_type(parking_subscription, stasis_subscription_change_type());
+	stasis_subscription_set_filter(parking_subscription, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	/* Now for the fun part... park it! */
 	ast_bridge_join(parking_bridge, chan, NULL, &chan_features, NULL, 0);
