@@ -10,10 +10,18 @@
  * we need to dynamically determine which docker image we're going to use and
  * you can't do that in a delcarative pipeline.
  */
+def timeoutTime = 30
+def timeoutUnits = 'MINUTES'
+if (env.TIMEOUT_UNITTESTS) {
+	def _timeout = env.TIMEOUT_UNITTESTS.split()
+	timeoutTime = _timeout[0].toInteger()
+	timeoutUnits = _timeout[1]
+}
+
 pipeline {
 	options {
 		timestamps()
-		timeout(time: 30, unit: 'MINUTES')
+		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
 	triggers {
 		/*
