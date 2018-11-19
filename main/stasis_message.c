@@ -39,9 +39,11 @@ struct stasis_message_type {
 	struct stasis_message_vtable *vtable;
 	char *name;
 	unsigned int hash;
+	int id;
 };
 
 static struct stasis_message_vtable null_vtable = {};
+static int message_type_id;
 
 static void message_type_dtor(void *obj)
 {
@@ -78,6 +80,7 @@ int stasis_message_type_create(const char *name,
 	}
 	type->hash = ast_hashtab_hash_string(name);
 	type->vtable = vtable;
+	type->id = ast_atomic_fetchadd_int(&message_type_id, +1);
 	*result = type;
 
 	return STASIS_MESSAGE_TYPE_SUCCESS;
@@ -91,6 +94,11 @@ const char *stasis_message_type_name(const struct stasis_message_type *type)
 unsigned int stasis_message_type_hash(const struct stasis_message_type *type)
 {
 	return type->hash;
+}
+
+int stasis_message_type_id(const struct stasis_message_type *type)
+{
+	return type->id;
 }
 
 /*! \internal */
