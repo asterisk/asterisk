@@ -431,8 +431,7 @@ static pjsip_fromto_hdr *create_new_id_hdr(const pj_str_t *hdr_name, pjsip_fromt
 
 	id_hdr = pjsip_from_hdr_create(tdata->pool);
 	id_hdr->type = PJSIP_H_OTHER;
-	pj_strdup(tdata->pool, &id_hdr->name, hdr_name);
-	id_hdr->sname = id_hdr->name;
+	id_hdr->sname = id_hdr->name = *hdr_name;
 
 	id_name_addr = pjsip_uri_clone(tdata->pool, base->uri);
 	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
@@ -782,6 +781,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
+	ast_module_shutdown_ref(ast_module_info->self);
 	ast_sip_session_register_supplement(&caller_id_supplement);
 	return AST_MODULE_LOAD_SUCCESS;
 }
