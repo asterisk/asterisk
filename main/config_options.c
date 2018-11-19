@@ -405,7 +405,8 @@ static struct aco_option *aco_option_find(struct aco_type *type, const char *nam
 
 struct ao2_container *aco_option_container_alloc(void)
 {
-	return ao2_container_alloc(CONFIG_OPT_BUCKETS, config_opt_hash, config_opt_cmp);
+	return ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, CONFIG_OPT_BUCKETS,
+		config_opt_hash, NULL, config_opt_cmp);
 }
 
 static int internal_aco_type_category_check(struct aco_type *match, const char *category)

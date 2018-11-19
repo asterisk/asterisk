@@ -4724,7 +4724,9 @@ static int load_module(void)
 	/* initialize the registry */
 	faxregistry.active_sessions = 0;
 	faxregistry.reserved_sessions = 0;
-	if (!(faxregistry.container = ao2_container_alloc(FAX_MAXBUCKETS, session_hash_cb, session_cmp_cb))) {
+	faxregistry.container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		FAX_MAXBUCKETS, session_hash_cb, NULL, session_cmp_cb);
+	if (!faxregistry.container) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

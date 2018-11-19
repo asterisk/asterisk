@@ -461,9 +461,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (!(device_state_subscriptions = ao2_container_alloc(
-		      DEVICE_STATE_BUCKETS, device_state_subscriptions_hash,
-		      device_state_subscriptions_cmp))) {
+	device_state_subscriptions = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DEVICE_STATE_BUCKETS, device_state_subscriptions_hash, NULL,
+		device_state_subscriptions_cmp);
+	if (!device_state_subscriptions) {
 		ast_devstate_prov_del(DEVICE_STATE_PROVIDER_STASIS);
 		return AST_MODULE_LOAD_DECLINE;
 	}

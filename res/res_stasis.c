@@ -2167,9 +2167,12 @@ static int load_module(void)
 	if (STASIS_MESSAGE_TYPE_INIT(end_message_type) != 0) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	apps_registry = ao2_container_alloc(APPS_NUM_BUCKETS, app_hash, app_compare);
-	app_controls = ao2_container_alloc(CONTROLS_NUM_BUCKETS, control_hash, control_compare);
-	app_bridges = ao2_container_alloc(BRIDGES_NUM_BUCKETS, bridges_hash, bridges_compare);
+	apps_registry = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		APPS_NUM_BUCKETS, app_hash, NULL, app_compare);
+	app_controls = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		CONTROLS_NUM_BUCKETS, control_hash, NULL, control_compare);
+	app_bridges = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		BRIDGES_NUM_BUCKETS, bridges_hash, NULL, bridges_compare);
 	app_bridges_moh = ao2_container_alloc_hash(
 		AO2_ALLOC_OPT_LOCK_MUTEX, 0,
 		37, bridges_channel_hash_fn, NULL, NULL);

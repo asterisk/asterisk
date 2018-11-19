@@ -959,8 +959,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	publishers = ao2_container_alloc(PUBLISHER_BUCKETS, exten_state_publisher_hash,
-		exten_state_publisher_cmp);
+	publishers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		PUBLISHER_BUCKETS, exten_state_publisher_hash, NULL, exten_state_publisher_cmp);
 	if (!publishers) {
 		ast_log(LOG_WARNING, "Unable to create container to store extension state publishers\n");
 		return AST_MODULE_LOAD_DECLINE;

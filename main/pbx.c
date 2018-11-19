@@ -3953,7 +3953,7 @@ static int ast_add_hint(struct ast_exten *e)
 	AST_VECTOR_INIT(&hint_new->devices, 8);
 
 	/* Initialize new hint. */
-	hint_new->callbacks = ao2_container_alloc(1, NULL, hint_id_cmp);
+	hint_new->callbacks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, hint_id_cmp);
 	if (!hint_new->callbacks) {
 		ao2_ref(hint_new, -1);
 		return -1;
@@ -8912,11 +8912,13 @@ static void print_statecbs_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 
 int ast_pbx_init(void)
 {
-	hints = ao2_container_alloc(HASH_EXTENHINT_SIZE, hint_hash, hint_cmp);
+	hints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		HASH_EXTENHINT_SIZE, hint_hash, NULL, hint_cmp);
 	if (hints) {
 		ao2_container_register("hints", hints, print_hints_key);
 	}
-	hintdevices = ao2_container_alloc(HASH_EXTENHINT_SIZE, hintdevice_hash_cb, hintdevice_cmp_multiple);
+	hintdevices = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		HASH_EXTENHINT_SIZE, hintdevice_hash_cb, NULL, hintdevice_cmp_multiple);
 	if (hintdevices) {
 		ao2_container_register("hintdevices", hintdevices, print_hintdevices_key);
 	}
@@ -8926,7 +8928,7 @@ int ast_pbx_init(void)
 	if (autohints) {
 		ao2_container_register("autohints", autohints, print_autohint_key);
 	}
-	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
+	statecbs = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, statecbs_cmp);
 	if (statecbs) {
 		ao2_container_register("statecbs", statecbs, print_statecbs_key);
 	}

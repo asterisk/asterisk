@@ -1624,8 +1624,14 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 
 	ast_format_cap_append(cap_slin, ast_format_slin, 0);
 	/* Make a new one */
-	if (!(cnf = ast_calloc(1, sizeof(*cnf))) ||
-		!(cnf->usercontainer = ao2_container_alloc(1, NULL, user_no_cmp))) {
+	cnf = ast_calloc(1, sizeof(*cnf));
+	if (!cnf) {
+		goto cnfout;
+	}
+
+	cnf->usercontainer = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NULL, user_no_cmp);
+	if (!cnf->usercontainer) {
 		goto cnfout;
 	}
 
@@ -7395,25 +7401,11 @@ static void sla_station_destructor(void *obj)
 	ast_string_field_free_memory(station);
 }
 
-static int sla_trunk_hash(const void *obj, const int flags)
-{
-	const struct sla_trunk *trunk = obj;
-
-	return ast_str_case_hash(trunk->name);
-}
-
 static int sla_trunk_cmp(void *obj, void *arg, int flags)
 {
 	struct sla_trunk *trunk = obj, *trunk2 = arg;
 
 	return !strcasecmp(trunk->name, trunk2->name) ? CMP_MATCH | CMP_STOP : 0;
-}
-
-static int sla_station_hash(const void *obj, const int flags)
-{
-	const struct sla_station *station = obj;
-
-	return ast_str_case_hash(station->name);
 }
 
 static int sla_station_cmp(void *obj, void *arg, int flags)
@@ -7869,8 +7861,10 @@ static int sla_load_config(int reload)
 	if (!reload) {
 		ast_mutex_init(&sla.lock);
 		ast_cond_init(&sla.cond, NULL);
-		sla_trunks = ao2_container_alloc(1, sla_trunk_hash, sla_trunk_cmp);
-		sla_stations = ao2_container_alloc(1, sla_station_hash, sla_station_cmp);
+		sla_trunks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			NULL, sla_trunk_cmp);
+		sla_stations = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			NULL, sla_station_cmp);
 	}
 
 	if (!(cfg = ast_config_load(SLA_CONFIG_FILE, config_flags))) {

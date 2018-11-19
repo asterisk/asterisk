@@ -471,7 +471,9 @@ static struct jingle_endpoint_state *jingle_endpoint_state_create(void)
 		return NULL;
 	}
 
-	if (!(state->sessions = ao2_container_alloc(SESSION_BUCKETS, jingle_session_hash, jingle_session_cmp))) {
+	state->sessions = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		SESSION_BUCKETS, jingle_session_hash, NULL, jingle_session_cmp);
+	if (!state->sessions) {
 		ao2_ref(state, -1);
 		return NULL;
 	}
@@ -601,7 +603,9 @@ static void *jingle_config_alloc(void)
 		return NULL;
 	}
 
-	if (!(cfg->endpoints = ao2_container_alloc(ENDPOINT_BUCKETS, jingle_endpoint_hash, jingle_endpoint_cmp))) {
+	cfg->endpoints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		ENDPOINT_BUCKETS, jingle_endpoint_hash, NULL, jingle_endpoint_cmp);
+	if (!cfg->endpoints) {
 		ao2_ref(cfg, -1);
 		return NULL;
 	}

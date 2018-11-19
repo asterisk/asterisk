@@ -178,11 +178,6 @@ static void odbc_class_destructor(void *data)
 	ast_cond_destroy(&class->cond);
 }
 
-static int null_hash_fn(const void *obj, const int flags)
-{
-	return 0;
-}
-
 static void odbc_obj_destructor(void *data)
 {
 	struct odbc_obj *obj = data;
@@ -1001,7 +996,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(class_container = ao2_container_alloc(1, null_hash_fn, ao2_match_by_addr))) {
+	class_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, ao2_match_by_addr);
+	if (!class_container) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

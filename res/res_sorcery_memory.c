@@ -250,7 +250,8 @@ static int sorcery_memory_delete(const struct ast_sorcery *sorcery, void *data, 
 
 static void *sorcery_memory_open(const char *data)
 {
-	return ao2_container_alloc(OBJECT_BUCKETS, sorcery_memory_hash, sorcery_memory_cmp);
+	return ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, OBJECT_BUCKETS,
+		sorcery_memory_hash, NULL, sorcery_memory_cmp);
 }
 
 static void sorcery_memory_close(void *data)

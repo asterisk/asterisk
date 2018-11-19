@@ -440,8 +440,9 @@ static int init_timing_thread(void)
 
 static int load_module(void)
 {
-	if (!(pthread_timers = ao2_container_alloc(PTHREAD_TIMER_BUCKETS,
-		pthread_timer_hash, pthread_timer_cmp))) {
+	pthread_timers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		PTHREAD_TIMER_BUCKETS, pthread_timer_hash, NULL, pthread_timer_cmp);
+	if (!pthread_timers) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

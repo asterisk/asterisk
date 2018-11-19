@@ -282,7 +282,9 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	if (!(cli_aliases = ao2_container_alloc(MAX_ALIAS_BUCKETS, alias_hash_cb, alias_cmp_cb))) {
+	cli_aliases = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_ALIAS_BUCKETS, alias_hash_cb, NULL, alias_cmp_cb);
+	if (!cli_aliases) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

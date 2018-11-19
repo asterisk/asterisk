@@ -1364,12 +1364,6 @@ struct test_config {
 	struct ao2_container *items;
 };
 
-static int test_item_hash(const void *obj, const int flags)
-{
-	const struct test_item *item = obj;
-	const char *name = (flags & OBJ_KEY) ? obj : item->name;
-	return ast_str_case_hash(name);
-}
 static int test_item_cmp(void *obj, void *arg, int flags)
 {
 	struct test_item *one = obj, *two = arg;
@@ -1422,7 +1416,8 @@ static void *test_config_alloc(void)
 	if (!(cfg->global_defaults = test_item_alloc("global_defaults"))) {
 		goto error;
 	}
-	if (!(cfg->items = ao2_container_alloc(1, test_item_hash, test_item_cmp))) {
+	cfg->items = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, test_item_cmp);
+	if (!cfg->items) {
 		goto error;
 	}
 	return cfg;

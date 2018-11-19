@@ -634,8 +634,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	recordings = ao2_container_alloc(RECORDING_BUCKETS, recording_hash,
-		recording_cmp);
+	recordings = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, RECORDING_BUCKETS,
+		recording_hash, NULL, recording_cmp);
 	if (!recordings) {
 		STASIS_MESSAGE_TYPE_CLEANUP(stasis_app_recording_snapshot_type);
 		return AST_MODULE_LOAD_DECLINE;

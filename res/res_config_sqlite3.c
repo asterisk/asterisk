@@ -1194,7 +1194,9 @@ static int realtime_sqlite3_require(const char *database, const char *table, va_
 		return -1;
 	}
 
-	if (!(columns = ao2_container_alloc(31, str_hash_fn, str_cmp_fn))) {
+	columns = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 31,
+		str_hash_fn, NULL, str_cmp_fn);
+	if (!columns) {
 		unref_db(&db);
 	   return -1;
 	}
@@ -1369,7 +1371,9 @@ static int load_module(void)
 {
 	discover_sqlite3_caps();
 
-	if (!((databases = ao2_container_alloc(DB_BUCKETS, db_hash_fn, db_cmp_fn)))) {
+	databases = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, DB_BUCKETS,
+		db_hash_fn, NULL, db_cmp_fn);
+	if (!databases) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

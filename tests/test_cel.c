@@ -1837,8 +1837,8 @@ static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 	ast_cel_set_config(cel_test_config);
 
 	/* init CEL event storage (degenerate hash table becomes a linked list) */
-	cel_received_events = ao2_container_alloc(1, NULL, NULL);
-	cel_expected_events = ao2_container_alloc(1, NULL, NULL);
+	cel_received_events = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	cel_expected_events = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 
 	/* start the CEL event callback */
 	if (ast_cel_backend_register(TEST_BACKEND_NAME, test_sub)) {

@@ -147,7 +147,8 @@ static struct ast_websocket_server *websocket_server_create_impl(void)
 		return NULL;
 	}
 
-	server->protocols = ao2_container_alloc(MAX_PROTOCOL_BUCKETS, protocol_hash_fn, protocol_cmp_fn);
+	server->protocols = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_PROTOCOL_BUCKETS, protocol_hash_fn, NULL, protocol_cmp_fn);
 	if (!server->protocols) {
 		return NULL;
 	}

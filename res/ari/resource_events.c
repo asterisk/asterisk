@@ -467,9 +467,8 @@ void ast_ari_websocket_events_event_websocket_dtor(void)
 int ast_ari_websocket_events_event_websocket_init(void)
 {
 	/* Try to instantiate the registry */
-	event_session_registry = ao2_container_alloc(EVENT_SESSION_NUM_BUCKETS,
-	                                             event_session_hash,
-	                                             event_session_compare);
+	event_session_registry = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		EVENT_SESSION_NUM_BUCKETS, event_session_hash, NULL, event_session_compare);
 	if (!event_session_registry) {
 		/* This is bad, bad. */
 		ast_log(LOG_WARNING,

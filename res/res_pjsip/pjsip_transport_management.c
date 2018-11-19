@@ -354,8 +354,8 @@ int ast_sip_initialize_transport_management(void)
 {
 	struct ao2_container *transports;
 
-	transports = ao2_container_alloc(TRANSPORTS_BUCKETS, monitored_transport_hash_fn,
-		monitored_transport_cmp_fn);
+	transports = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, TRANSPORTS_BUCKETS,
+		monitored_transport_hash_fn, NULL, monitored_transport_cmp_fn);
 	if (!transports) {
 		ast_log(LOG_ERROR, "Could not create container for transports to perform keepalive on.\n");
 		return AST_MODULE_LOAD_DECLINE;

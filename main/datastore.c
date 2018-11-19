@@ -94,7 +94,8 @@ AO2_STRING_FIELD_CMP_FN(ast_datastore, uid);
 
 struct ao2_container *ast_datastores_alloc(void)
 {
-	return ao2_container_alloc(DATASTORE_BUCKETS, ast_datastore_hash_fn, ast_datastore_cmp_fn);
+	return ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, ast_datastore_hash_fn, NULL, ast_datastore_cmp_fn);
 }
 
 int ast_datastores_add(struct ao2_container *datastores, struct ast_datastore *datastore)

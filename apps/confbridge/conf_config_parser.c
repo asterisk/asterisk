@@ -1987,15 +1987,21 @@ void *confbridge_cfg_alloc(void)
 		return NULL;
 	}
 
-	if (!(cfg->user_profiles = ao2_container_alloc(283, user_hash_cb, user_cmp_cb))) {
+	cfg->user_profiles = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 283,
+		user_hash_cb, NULL, user_cmp_cb);
+	if (!cfg->user_profiles) {
 		goto error;
 	}
 
-	if (!(cfg->bridge_profiles = ao2_container_alloc(283, bridge_hash_cb, bridge_cmp_cb))) {
+	cfg->bridge_profiles = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 283,
+		bridge_hash_cb, NULL, bridge_cmp_cb);
+	if (!cfg->bridge_profiles) {
 		goto error;
 	}
 
-	if (!(cfg->menus = ao2_container_alloc(283, menu_hash_cb, menu_cmp_cb))) {
+	cfg->menus = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 283,
+		menu_hash_cb, NULL, menu_cmp_cb);
+	if (!cfg->menus) {
 		goto error;
 	}
 

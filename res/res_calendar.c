@@ -415,7 +415,9 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 			return NULL;
 		}
 
-		if (!(cal->events = ao2_container_alloc(CALENDAR_BUCKETS, event_hash_fn, event_cmp_fn))) {
+		cal->events = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			CALENDAR_BUCKETS, event_hash_fn, NULL, event_cmp_fn);
+		if (!cal->events) {
 			ast_log(LOG_ERROR, "Could not allocate events container for %s\n", cat);
 			cal = unref_calendar(cal);
 			return NULL;
@@ -686,7 +688,8 @@ struct ast_calendar_event *ast_calendar_event_alloc(struct ast_calendar *cal)
 
 struct ao2_container *ast_calendar_event_container_alloc(void)
 {
-	return ao2_container_alloc(CALENDAR_BUCKETS, event_hash_fn, event_cmp_fn);
+	return ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, CALENDAR_BUCKETS,
+		event_hash_fn, NULL, event_cmp_fn);
 }
 
 static void event_notification_destroy(void *data)
@@ -1896,7 +1899,9 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	if (!(calendars = ao2_container_alloc(CALENDAR_BUCKETS, calendar_hash_fn, calendar_cmp_fn))) {
+	calendars = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, CALENDAR_BUCKETS,
+		calendar_hash_fn, NULL, calendar_cmp_fn);
+	if (!calendars) {
 		ast_log(LOG_ERROR, "Unable to allocate calendars container!\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}

@@ -482,14 +482,14 @@ int ast_endpoint_init(void)
 {
 	ast_register_cleanup(endpoint_cleanup);
 
-	endpoints = ao2_container_alloc(ENDPOINT_BUCKETS, ast_endpoint_hash_fn,
-		ast_endpoint_cmp_fn);
+	endpoints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, ENDPOINT_BUCKETS,
+		ast_endpoint_hash_fn, NULL, ast_endpoint_cmp_fn);
 	if (!endpoints) {
 		return -1;
 	}
 
-	tech_endpoints = ao2_container_alloc(TECH_ENDPOINT_BUCKETS, ast_endpoint_hash_fn,
-		ast_endpoint_cmp_fn);
+	tech_endpoints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		TECH_ENDPOINT_BUCKETS, ast_endpoint_hash_fn, NULL, ast_endpoint_cmp_fn);
 	if (!tech_endpoints) {
 		return -1;
 	}

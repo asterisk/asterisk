@@ -2181,7 +2181,8 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	if (!session->direct_media_cap) {
 		return NULL;
 	}
-	session->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	session->datastores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, datastore_hash, NULL, datastore_cmp);
 	if (!session->datastores) {
 		return NULL;
 	}
@@ -4266,8 +4267,8 @@ static int load_module(void)
 	}
 	nat_hook->outgoing_external_message = session_outgoing_nat_hook;
 	ast_sorcery_create(ast_sip_get_sorcery(), nat_hook);
-	sdp_handlers = ao2_container_alloc(SDP_HANDLER_BUCKETS,
-			sdp_handler_list_hash, sdp_handler_list_cmp);
+	sdp_handlers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		SDP_HANDLER_BUCKETS, sdp_handler_list_hash, NULL, sdp_handler_list_cmp);
 	if (!sdp_handlers) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

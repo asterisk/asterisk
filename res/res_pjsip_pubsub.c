@@ -2676,8 +2676,9 @@ int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
 		return -1;
 	}
 
-	if (!(handler->publications = ao2_container_alloc(PUBLICATIONS_BUCKETS,
-		publication_hash_fn, publication_cmp_fn))) {
+	handler->publications = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		PUBLICATIONS_BUCKETS, publication_hash_fn, NULL, publication_cmp_fn);
+	if (!handler->publications) {
 		ast_log(LOG_ERROR, "Could not allocate publications container for event '%s'\n",
 			handler->event_name);
 		return -1;
