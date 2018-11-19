@@ -278,7 +278,9 @@ static void tps_shutdown(void)
 /* initialize the taskprocessor container and register CLI operations */
 int ast_tps_init(void)
 {
-	if (!(tps_singletons = ao2_container_alloc(TPS_MAX_BUCKETS, tps_hash_cb, tps_cmp_cb))) {
+	tps_singletons = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		TPS_MAX_BUCKETS, tps_hash_cb, NULL, tps_cmp_cb);
+	if (!tps_singletons) {
 		ast_log(LOG_ERROR, "taskprocessor container failed to initialize!\n");
 		return -1;
 	}

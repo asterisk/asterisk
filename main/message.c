@@ -367,12 +367,6 @@ static void msg_ds_destroy(void *data)
 	ao2_ref(msg, -1);
 }
 
-static int msg_data_hash_fn(const void *obj, const int flags)
-{
-	const struct msg_data *data = obj;
-	return ast_str_case_hash(data->name);
-}
-
 static int msg_data_cmp_fn(void *obj, void *arg, int flags)
 {
 	const struct msg_data *one = obj, *two = arg;
@@ -406,7 +400,9 @@ struct ast_msg *ast_msg_alloc(void)
 		return NULL;
 	}
 
-	if (!(msg->vars = ao2_container_alloc(1, msg_data_hash_fn, msg_data_cmp_fn))) {
+	msg->vars = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NULL, msg_data_cmp_fn);
+	if (!msg->vars) {
 		ao2_ref(msg, -1);
 		return NULL;
 	}

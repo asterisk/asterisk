@@ -580,7 +580,9 @@ static void *skel_config_alloc(void)
 		goto error;
 	}
 
-	if (!(cfg->levels = ao2_container_alloc(LEVEL_BUCKETS, skel_level_hash, skel_level_cmp))) {
+	cfg->levels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, LEVEL_BUCKETS,
+		skel_level_hash, NULL, skel_level_cmp);
+	if (!cfg->levels) {
 		goto error;
 	}
 
@@ -725,7 +727,9 @@ static int load_module(void)
 	if (aco_info_init(&cfg_info)) {
 		goto error;
 	}
-	if (!(games = ao2_container_alloc(1, NULL, NULL))) {
+
+	games = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	if (!games) {
 		goto error;
 	}
 

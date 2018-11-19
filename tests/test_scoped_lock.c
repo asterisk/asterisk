@@ -199,8 +199,8 @@ AST_TEST_DEFINE(cleanup_order)
 	enum ast_test_result_state res = AST_TEST_PASS;
 	struct ao2_iterator iter;
 	struct test_struct *object_iter;
-	RAII_VAR(struct ao2_container*, container, ao2_container_alloc(13, NULL, NULL), ao2_cleanup);
-	RAII_VAR(struct test_struct *, object, ao2_alloc(sizeof(*object), NULL), ao2_cleanup);
+	RAII_VAR(struct ao2_container*, container, NULL, ao2_cleanup);
+	RAII_VAR(struct test_struct *, object, NULL, ao2_cleanup);
 
 	switch(cmd) {
 	case TEST_INIT:
@@ -216,6 +216,8 @@ AST_TEST_DEFINE(cleanup_order)
 	}
 	current_test = test;
 
+	container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 13, NULL, NULL, NULL);
+	object = ao2_alloc(sizeof(*object), NULL);
 	if (!object || !container) {
 		/* Allocation failure. We can't even pretend to do this test properly */
 		return AST_TEST_FAIL;

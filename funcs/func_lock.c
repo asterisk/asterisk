@@ -215,12 +215,6 @@ static void *lock_broker(void *unused)
 	return NULL;
 }
 
-static int ast_channel_hash_cb(const void *obj, const int flags)
-{
-	const struct ast_channel *chan = obj;
-	return ast_str_case_hash(ast_channel_name(chan));
-}
-
 static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_channel *chan = obj, *cmp_args = arg;
@@ -296,7 +290,9 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 			AST_LIST_UNLOCK(&locklist);
 			return -1;
 		}
-		if (!(current->requesters = ao2_container_alloc(1, ast_channel_hash_cb, ast_channel_cmp_cb))) {
+		current->requesters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			NULL, ast_channel_cmp_cb);
+		if (!current->requesters) {
 			ast_mutex_destroy(&current->mutex);
 			ast_cond_destroy(&current->cond);
 			ast_free(current);

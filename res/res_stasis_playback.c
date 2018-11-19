@@ -738,8 +738,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	playbacks = ao2_container_alloc(PLAYBACK_BUCKETS, playback_hash,
-		playback_cmp);
+	playbacks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, PLAYBACK_BUCKETS,
+		playback_hash, NULL, playback_cmp);
 	if (!playbacks) {
 		STASIS_MESSAGE_TYPE_CLEANUP(stasis_app_playback_snapshot_type);
 		return AST_MODULE_LOAD_DECLINE;

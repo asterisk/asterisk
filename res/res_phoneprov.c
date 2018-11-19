@@ -1413,13 +1413,15 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	profiles = ao2_container_alloc(MAX_PROFILE_BUCKETS, phone_profile_hash_fn, phone_profile_cmp_fn);
+	profiles = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_PROFILE_BUCKETS,
+		phone_profile_hash_fn, NULL, phone_profile_cmp_fn);
 	if (!profiles) {
 		ast_log(LOG_ERROR, "Unable to allocate profiles container.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	http_routes = ao2_container_alloc(MAX_ROUTE_BUCKETS, http_route_hash_fn, http_route_cmp_fn);
+	http_routes = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_ROUTE_BUCKETS,
+		http_route_hash_fn, NULL, http_route_cmp_fn);
 	if (!http_routes) {
 		ast_log(LOG_ERROR, "Unable to allocate routes container.\n");
 		goto error;
@@ -1430,13 +1432,15 @@ static int load_module(void)
 		goto error;
 	}
 
-	users = ao2_container_alloc(MAX_USER_BUCKETS, user_hash_fn, user_cmp_fn);
+	users = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_USER_BUCKETS,
+		user_hash_fn, NULL, user_cmp_fn);
 	if (!users) {
 		ast_log(LOG_ERROR, "Unable to allocate users container.\n");
 		goto error;
 	}
 
-	providers = ao2_container_alloc(MAX_PROVIDER_BUCKETS, phoneprov_provider_hash_fn, phoneprov_provider_cmp_fn);
+	providers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_PROVIDER_BUCKETS, phoneprov_provider_hash_fn, NULL, phoneprov_provider_cmp_fn);
 	if (!providers) {
 		ast_log(LOG_ERROR, "Unable to allocate providers container.\n");
 		goto error;

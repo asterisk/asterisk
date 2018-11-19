@@ -686,9 +686,12 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 		return;
 	}
 
-	if (!rtp->ice_proposed_remote_candidates &&
-			!(rtp->ice_proposed_remote_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
-		return;
+	if (!rtp->ice_proposed_remote_candidates) {
+		rtp->ice_proposed_remote_candidates = ao2_container_alloc_list(
+			AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, ice_candidate_cmp);
+		if (!rtp->ice_proposed_remote_candidates) {
+			return;
+		}
 	}
 
 	/* If this is going to exceed the maximum number of ICE candidates don't even add it */
@@ -1103,8 +1106,12 @@ static void ast_rtp_ice_add_cand(struct ast_rtp_instance *instance, struct ast_r
 
 	pj_ice_calc_foundation(rtp->ice->real_ice->pool, &foundation, type, addr);
 
-	if (!rtp->ice_local_candidates && !(rtp->ice_local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
-		return;
+	if (!rtp->ice_local_candidates) {
+		rtp->ice_local_candidates = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+			NULL, ice_candidate_cmp);
+		if (!rtp->ice_local_candidates) {
+			return;
+		}
 	}
 
 	if (!(candidate = ao2_alloc(sizeof(*candidate), ast_rtp_ice_candidate_destroy))) {

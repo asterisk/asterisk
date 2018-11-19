@@ -93,7 +93,8 @@ parameters. At the moment, this is done as follows:
 
     struct ao2_container *c;
 
-    c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn);
+    c = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_BUCKETS,
+        my_hash_fn, NULL, my_cmp_fn);
     \endcode
 
 where
@@ -109,7 +110,7 @@ A container knows little or nothing about the objects it stores,
 other than the fact that they have been created by ao2_alloc().
 All knowledge of the (user-defined) internals of the objects
 is left to the (user-supplied) functions passed as arguments
-to ao2_container_alloc().
+to ao2_container_alloc_hash().
 
 If we want to insert an object in a container, we should
 initialize its fields -- especially, those used by my_hash_fn() --
@@ -936,19 +937,7 @@ and perform various operations on them.
 Internally, objects are stored in lists, hash tables or other
 data structures depending on the needs.
 
-\note NOTA BENE: at the moment the only container we support is the
-    hash table and its degenerate form, the list.
-
 Operations on container include:
-
-  -  c = \b ao2_container_alloc(size, hash_fn, cmp_fn)
-    allocate a container with desired size and default compare
-    and hash function
-         -The compare function returns an int, which
-         can be 0 for not found, CMP_STOP to stop end a traversal,
-         or CMP_MATCH if they are equal
-         -The hash function returns an int. The hash function
-         takes two argument, the object pointer and a flags field,
 
   -  \b ao2_find(c, arg, flags)
     returns zero or more elements matching a given criteria
@@ -1296,26 +1285,6 @@ typedef int (ao2_sort_fn)(const void *obj_left, const void *obj_right, int flags
  */
 /*@{ */
 struct ao2_container;
-
-/*!
- * \deprecated
- * \brief Allocate and initialize a hash container with the desired number of buckets.
- *
- * \details
- * We allocate space for a struct astobj_container, struct container
- * and the buckets[] array.
- *
- * \param n_buckets Number of buckets for hash
- * \param hash_fn Pointer to a function computing a hash value. (NULL if everyting goes in first bucket.)
- * \param cmp_fn Pointer to a compare function used by ao2_find. (NULL to match everything)
- *
- * \return A pointer to a struct container.
- *
- * \note Destructor is set implicitly.
- * \note This is legacy container creation that is mapped to the new method.
- */
-#define ao2_container_alloc(n_buckets, hash_fn, cmp_fn) \
-	ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, (n_buckets), (hash_fn), NULL, (cmp_fn))
 
 /*!
  * \brief Allocate and initialize a hash container with the desired number of buckets.

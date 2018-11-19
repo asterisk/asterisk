@@ -361,7 +361,8 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 		sub->sip_sub = sip_sub;
 	}
 
-	sub->stasis_subs = ao2_container_alloc(STASIS_BUCKETS, stasis_sub_hash, stasis_sub_cmp);
+	sub->stasis_subs = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		STASIS_BUCKETS, stasis_sub_hash, NULL, stasis_sub_cmp);
 	if (!sub->stasis_subs) {
 		ao2_cleanup(sub);
 		return NULL;

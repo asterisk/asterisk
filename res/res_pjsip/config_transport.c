@@ -1575,7 +1575,8 @@ static int populate_transport_states(void *obj, void *arg, int flags)
 
 struct ao2_container *ast_sip_get_transport_states(void)
 {
-	struct ao2_container *states = ao2_container_alloc(DEFAULT_STATE_BUCKETS, transport_state_hash, transport_state_cmp);
+	struct ao2_container *states = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DEFAULT_STATE_BUCKETS, transport_state_hash, NULL, transport_state_cmp);
 
 	if (!states) {
 		return NULL;
@@ -1592,7 +1593,8 @@ int ast_sip_initialize_sorcery_transport(void)
 	struct ao2_container *transports = NULL;
 
 	/* Create outbound registration states container. */
-	transport_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS, internal_state_hash, internal_state_cmp);
+	transport_states = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DEFAULT_STATE_BUCKETS, internal_state_hash, NULL, internal_state_cmp);
 	if (!transport_states) {
 		ast_log(LOG_ERROR, "Unable to allocate transport states container\n");
 		return -1;

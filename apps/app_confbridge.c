@@ -4196,8 +4196,9 @@ static int load_module(void)
 	}
 
 	/* Create a container to hold the conference bridges */
-	conference_bridges = ao2_container_alloc(CONFERENCE_BRIDGE_BUCKETS,
-		conference_bridge_hash_cb, conference_bridge_cmp_cb);
+	conference_bridges = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		CONFERENCE_BRIDGE_BUCKETS,
+		conference_bridge_hash_cb, NULL, conference_bridge_cmp_cb);
 	if (!conference_bridges) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;

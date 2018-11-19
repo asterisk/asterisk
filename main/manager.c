@@ -2224,8 +2224,8 @@ static struct mansession_session *build_mansession(const struct ast_sockaddr *ad
 		return NULL;
 	}
 
-	newsession->whitefilters = ao2_container_alloc(1, NULL, NULL);
-	newsession->blackfilters = ao2_container_alloc(1, NULL, NULL);
+	newsession->whitefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	newsession->blackfilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 	if (!newsession->whitefilters || !newsession->blackfilters) {
 		ao2_ref(newsession, -1);
 		return NULL;
@@ -7639,7 +7639,8 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *g
 			if (xml) {
 				ast_str_append(out, 0, "<response type='object' id='%s'><%s", dest, objtype);
 			}
-			vco = ao2_container_alloc(37, variable_count_hash_fn, variable_count_cmp_fn);
+			vco = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+				variable_count_hash_fn, NULL, variable_count_cmp_fn);
 			inobj = 1;
 		}
 
@@ -9067,7 +9068,7 @@ static int __init_manager(int reload, int by_external_config)
 #endif
 
 		/* If you have a NULL hash fn, you only need a single bucket */
-		sessions = ao2_container_alloc(1, NULL, mansession_cmp_fn);
+		sessions = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, mansession_cmp_fn);
 		if (!sessions) {
 			return -1;
 		}
@@ -9323,8 +9324,8 @@ static int __init_manager(int reload, int by_external_config)
 			/* Default allowmultiplelogin from [general] */
 			user->allowmultiplelogin = allowmultiplelogin;
 			user->writetimeout = 100;
-			user->whitefilters = ao2_container_alloc(1, NULL, NULL);
-			user->blackfilters = ao2_container_alloc(1, NULL, NULL);
+			user->whitefilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+			user->blackfilters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 			if (!user->whitefilters || !user->blackfilters) {
 				manager_free_user(user);
 				break;

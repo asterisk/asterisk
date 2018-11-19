@@ -401,7 +401,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(cache = ao2_container_alloc(573, cache_hash, cache_cmp))) {
+	cache = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 573,
+		cache_hash, NULL, cache_cmp);
+	if (!cache) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

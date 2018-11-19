@@ -813,7 +813,9 @@ static const char *ustmtext(const char *str, struct unistimsession *pte)
 		char tmp[1024], *p, *p_orig = NULL, *p_trans = NULL;
 		FILE *f;
 
-		if (!(lang->trans = ao2_container_alloc(8, lang_hash_fn, lang_cmp_fn))) {
+		lang->trans = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 8,
+			lang_hash_fn, NULL, lang_cmp_fn);
+		if (!lang->trans) {
 			ast_log(LOG_ERROR, "Unable to allocate container for translation!\n");
 			return str;
 		}

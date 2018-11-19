@@ -1534,7 +1534,9 @@ static int load_module(void)
 
 	init_pvt(&globals, NULL);
 
-	if (!(pvts = ao2_container_alloc(NUM_PVT_BUCKETS, pvt_hash_cb, pvt_cmp_cb)))
+	pvts = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NUM_PVT_BUCKETS,
+		pvt_hash_cb, NULL, pvt_cmp_cb);
+	if (!pvts)
 		goto return_error;
 
 	if (load_config(0))

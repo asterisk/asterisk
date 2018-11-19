@@ -1815,8 +1815,9 @@ static int initialize_escs(void)
 {
 	int i, res = 0;
 	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		if (!((event_state_compositors[i].compositor) =
-					ao2_container_alloc(ESC_MAX_BUCKETS, esc_hash_fn, esc_cmp_fn))) {
+		event_state_compositors[i].compositor = ao2_container_alloc_hash(
+			AO2_ALLOC_OPT_LOCK_MUTEX, 0, ESC_MAX_BUCKETS, esc_hash_fn, NULL, esc_cmp_fn);
+		if (!event_state_compositors[i].compositor) {
 			res = -1;
 		}
 	}
@@ -35548,7 +35549,9 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!(sip_monitor_instances = ao2_container_alloc(37, sip_monitor_instance_hash_fn, sip_monitor_instance_cmp_fn))) {
+	sip_monitor_instances = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+		sip_monitor_instance_hash_fn, NULL, sip_monitor_instance_cmp_fn);
+	if (!sip_monitor_instances) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}

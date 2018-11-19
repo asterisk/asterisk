@@ -15066,11 +15066,14 @@ static int load_module(void)
 	my_umask = umask(0);
 	umask(my_umask);
 
-	if (!(inprocess_container = ao2_container_alloc(573, inprocess_hash_fn, inprocess_cmp_fn))) {
+	inprocess_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 573,
+		inprocess_hash_fn, NULL, inprocess_cmp_fn);
+	if (!inprocess_container) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	poll_list = ao2_container_alloc(POLL_LIST_BUCKETS, poll_state_hash_fn, poll_state_cmp_fn);
+	poll_list = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, POLL_LIST_BUCKETS,
+		poll_state_hash_fn, NULL, poll_state_cmp_fn);
 	if (!poll_list) {
 		ast_log(LOG_ERROR, "Unable to create poll_list container\n");
 		ao2_cleanup(inprocess_container);

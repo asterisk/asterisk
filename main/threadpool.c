@@ -420,15 +420,18 @@ static struct ast_threadpool *threadpool_alloc(const char *name, const struct as
 	if (!pool->control_tps) {
 		return NULL;
 	}
-	pool->active_threads = ao2_container_alloc(THREAD_BUCKETS, worker_thread_hash, worker_thread_cmp);
+	pool->active_threads = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		THREAD_BUCKETS, worker_thread_hash, NULL, worker_thread_cmp);
 	if (!pool->active_threads) {
 		return NULL;
 	}
-	pool->idle_threads = ao2_container_alloc(THREAD_BUCKETS, worker_thread_hash, worker_thread_cmp);
+	pool->idle_threads = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		THREAD_BUCKETS, worker_thread_hash, NULL, worker_thread_cmp);
 	if (!pool->idle_threads) {
 		return NULL;
 	}
-	pool->zombie_threads = ao2_container_alloc(THREAD_BUCKETS, worker_thread_hash, worker_thread_cmp);
+	pool->zombie_threads = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		THREAD_BUCKETS, worker_thread_hash, NULL, worker_thread_cmp);
 	if (!pool->zombie_threads) {
 		return NULL;
 	}
