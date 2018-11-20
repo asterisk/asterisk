@@ -346,6 +346,7 @@ struct ast_hint {
 };
 
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(hint_change_message_type);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(hint_remove_message_type);
 
 #define HINTDEVICE_DATA_LENGTH 16
 AST_THREADSTORAGE(hintdevice_data);
@@ -3570,6 +3571,30 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		return;
 	}
 
+	if (hint_remove_message_type() == stasis_message_type(msg)) {
+		/* The extension has already been destroyed */
+		struct ast_state_cb *state_cb;
+		struct ao2_iterator cb_iter;
+		struct ast_hint *hint = stasis_message_data(msg);
+
+		ao2_lock(hint);
+		hint->laststate = AST_EXTENSION_DEACTIVATED;
+		ao2_unlock(hint);
+
+		cb_iter = ao2_iterator_init(hint->callbacks, 0);
+		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
+			execute_state_callback(state_cb->change_cb,
+			        hint->context_name,
+			        hint->exten_name,
+			        state_cb->data,
+			        AST_HINT_UPDATE_DEVICE,
+			        hint,
+			        NULL);
+		}
+		ao2_iterator_destroy(&cb_iter);
+		return;
+	}
+
 	if (ast_device_state_message_type() != stasis_message_type(msg)) {
 		return;
 	}
@@ -3855,34 +3880,7 @@ static void destroy_hint(void *obj)
 	struct ast_hint *hint = obj;
 	int i;
 
-	if (hint->callbacks) {
-		struct ast_state_cb *state_cb;
-		const char *context_name;
-		const char *exten_name;
-
-		if (hint->exten) {
-			context_name = ast_get_context_name(ast_get_extension_context(hint->exten));
-			exten_name = ast_get_extension_name(hint->exten);
-			hint->exten = NULL;
-		} else {
-			/* The extension has already been destroyed */
-			context_name = hint->context_name;
-			exten_name = hint->exten_name;
-		}
-		hint->laststate = AST_EXTENSION_DEACTIVATED;
-		while ((state_cb = ao2_callback(hint->callbacks, OBJ_UNLINK, NULL, NULL))) {
-			/* Notify with -1 and remove all callbacks */
-			execute_state_callback(state_cb->change_cb,
-				context_name,
-				exten_name,
-				state_cb->data,
-				AST_HINT_UPDATE_DEVICE,
-				hint,
-				NULL);
-			ao2_ref(state_cb, -1);
-		}
-		ao2_ref(hint->callbacks, -1);
-	}
+	ao2_cleanup(hint->callbacks);
 
 	for (i = 0; i < AST_VECTOR_SIZE(&hint->devices); i++) {
 		char *device = AST_VECTOR_GET(&hint->devices, i);
@@ -3891,6 +3889,27 @@ static void destroy_hint(void *obj)
 	AST_VECTOR_FREE(&hint->devices);
 	ast_free(hint->last_presence_subtype);
 	ast_free(hint->last_presence_message);
+}
+
+/*! \brief Publish a hint removed event  */
+static int publish_hint_remove(struct ast_hint *hint)
+{
+	struct stasis_message *message;
+
+	if (!hint_remove_message_type()) {
+		return -1;
+	}
+
+	if (!(message = stasis_message_create(hint_remove_message_type(), hint))) {
+		ao2_ref(hint, -1);
+		return -1;
+	}
+
+	stasis_publish(ast_device_state_topic_all(), message);
+
+	ao2_ref(message, -1);
+
+	return 0;
 }
 
 /*! \brief Remove hint from extension */
@@ -3922,6 +3941,8 @@ static int ast_remove_hint(struct ast_exten *e)
 		sizeof(hint->exten_name));
 	hint->exten = NULL;
 	ao2_unlock(hint);
+
+	publish_hint_remove(hint);
 
 	ao2_ref(hint, -1);
 
@@ -4029,8 +4050,7 @@ static int publish_hint_change(struct ast_hint *hint, struct ast_exten *ne)
 		return -1;
 	}
 
-	/* The message is going to be published to two topics so the hint needs two refs */
-	if (!(message = stasis_message_create(hint_change_message_type(), ao2_bump(hint)))) {
+	if (!(message = stasis_message_create(hint_change_message_type(), hint))) {
 		ao2_ref(hint, -1);
 		return -1;
 	}
@@ -8418,6 +8438,7 @@ int load_pbx(void)
 	}
 	stasis_subscription_accept_message_type(device_state_sub, ast_device_state_message_type());
 	stasis_subscription_accept_message_type(device_state_sub, hint_change_message_type());
+	stasis_subscription_accept_message_type(device_state_sub, hint_remove_message_type());
 	stasis_subscription_set_filter(device_state_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 
 	if (!(presence_state_sub = stasis_subscribe(ast_presence_state_topic_all(), presence_state_cb, NULL))) {
@@ -8841,6 +8862,7 @@ static int statecbs_cmp(void *obj, void *arg, int flags)
 static void pbx_shutdown(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(hint_change_message_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(hint_remove_message_type);
 
 	if (hints) {
 		ao2_container_unregister("hints");
@@ -8936,6 +8958,9 @@ int ast_pbx_init(void)
 	ast_register_cleanup(pbx_shutdown);
 
 	if (STASIS_MESSAGE_TYPE_INIT(hint_change_message_type) != 0) {
+		return -1;
+	}
+	if (STASIS_MESSAGE_TYPE_INIT(hint_remove_message_type) != 0) {
 		return -1;
 	}
 
