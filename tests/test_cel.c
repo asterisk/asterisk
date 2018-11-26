@@ -1792,7 +1792,7 @@ static int append_expected_event(
 
 static void test_sub(struct ast_event *event)
 {
-	struct ast_event *event_dup = ao2_dup_event(event);
+	RAII_VAR(struct ast_event *, event_dup, ao2_dup_event(event), ao2_cleanup);
 	const char *chan_name;
 	SCOPED_MUTEX(mid_test_lock, &mid_test_sync_lock);
 
@@ -1857,10 +1857,14 @@ static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
  */
 static int test_cel_peer_strings_match(const char *str1, const char *str2)
 {
-	struct ao2_container *intersection = ast_str_container_alloc(11);
+	RAII_VAR(struct ao2_container *, intersection, ast_str_container_alloc(11), ao2_cleanup);
 	RAII_VAR(char *, str1_dup, ast_strdup(str1), ast_free);
 	RAII_VAR(char *, str2_dup, ast_strdup(str2), ast_free);
 	char *chan;
+
+	if (!intersection) {
+		return 1;
+	}
 
 	while ((chan = strsep(&str1_dup, ","))) {
 		ast_str_container_add(intersection, chan);
@@ -2142,6 +2146,10 @@ static int unload_module(void)
 
 	ast_channel_unregister(&test_cel_chan_tech);
 
+	ao2_cleanup(cel_expected_events);
+	cel_expected_events = NULL;
+	ao2_cleanup(cel_received_events);
+	cel_received_events = NULL;
 	ao2_cleanup(cel_test_config);
 	cel_test_config = NULL;
 
