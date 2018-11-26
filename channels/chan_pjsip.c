@@ -1169,7 +1169,7 @@ static int chan_pjsip_devicestate(const char *data)
 			continue;
 		}
 
-		if (chan_pjsip_get_hold(snapshot->uniqueid)) {
+		if (chan_pjsip_get_hold(snapshot->base->uniqueid)) {
 			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_ONHOLD);
 		} else {
 			ast_devstate_aggregate_add(&aggregate, ast_state_chan2dev(snapshot->state));

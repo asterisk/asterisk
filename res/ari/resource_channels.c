@@ -170,8 +170,8 @@ void ast_ari_channels_continue_in_dialplan(
 	}
 
 	if (ast_strlen_zero(args->context)) {
-		context = snapshot->context;
-		exten = S_OR(args->extension, snapshot->exten);
+		context = snapshot->dialplan->context;
+		exten = S_OR(args->extension, snapshot->dialplan->exten);
 	} else {
 		context = args->context;
 		exten = S_OR(args->extension, "s");
@@ -203,7 +203,7 @@ void ast_ari_channels_continue_in_dialplan(
 		ipri = args->priority;
 	} else if (ast_strlen_zero(args->context) && ast_strlen_zero(args->extension)) {
 		/* Special case. No exten, context, or priority provided, then move on to the next priority */
-		ipri = snapshot->priority + 1;
+		ipri = snapshot->dialplan->priority + 1;
 	} else {
 		ipri = 1;
 	}
@@ -263,10 +263,10 @@ void ast_ari_channels_redirect(struct ast_variable *headers,
 		return;
 	}
 
-	if (strncasecmp(chan_snapshot->type, tech, tech_len)) {
+	if (strncasecmp(chan_snapshot->base->type, tech, tech_len)) {
 		ast_ari_response_error(response, 422, "Unprocessable Entity",
 			"Endpoint technology '%s' does not match channel technology '%s'",
-			tech, chan_snapshot->type);
+			tech, chan_snapshot->base->type);
 		return;
 	}
 
@@ -628,7 +628,7 @@ static void ari_channels_handle_play(
 		return;
 	}
 
-	language = S_OR(args_lang, snapshot->language);
+	language = S_OR(args_lang, snapshot->base->language);
 
 	playback = stasis_app_control_play_uri(control, args_media, args_media_count, language,
 		args_channel_id, STASIS_PLAYBACK_TARGET_CHANNEL, args_skipms, args_offsetms, args_playback_id);

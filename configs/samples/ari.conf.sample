@@ -17,6 +17,8 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ; Display certain channel variables every time a channel-oriented
 ; event is emitted:
 ;
+; Note that this does incur a performance penalty and should be avoided if possible.
+;
 ;channelvars = var1,var2,var3
 
 ;[username]

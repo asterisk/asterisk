@@ -1351,7 +1351,7 @@ static int active_channels_to_str_cb(void *object, void *arg, int flags)
 {
 	const struct ast_channel_snapshot *snapshot = object;
 	struct ast_str **buf = arg;
-	ast_str_append(buf, 0, "%s,", snapshot->name);
+	ast_str_append(buf, 0, "%s,", snapshot->base->name);
 	return 0;
 }
 

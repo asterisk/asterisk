@@ -4258,6 +4258,7 @@ enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
 ast_callid ast_channel_callid(const struct ast_channel *chan);
 struct ast_channel_snapshot *ast_channel_snapshot(const struct ast_channel *chan);
 void ast_channel_snapshot_set(struct ast_channel *chan, struct ast_channel_snapshot *snapshot);
+struct ast_flags *ast_channel_snapshot_segment_flags(struct ast_channel *chan);
 
 /*!
  * \pre chan is locked

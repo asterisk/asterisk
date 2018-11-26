@@ -6271,10 +6271,10 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			continue;
 		}
 
-		if (!ast_tvzero(cs->creationtime)) {
+		if (!ast_tvzero(cs->base->creationtime)) {
 			int duration, durh, durm, durs;
 
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->creationtime) / 1000);
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->base->creationtime) / 1000);
 			durh = duration / 3600;
 			durm = (duration % 3600) / 60;
 			durs = duration % 60;
@@ -6292,10 +6292,10 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"\r\n",
 			idText,
 			ast_str_buffer(built),
-			cs->appl,
-			cs->data,
+			cs->dialplan->appl,
+			cs->dialplan->data,
 			durbuf,
-			cs->bridgeid);
+			cs->bridge->id);
 
 		numchans++;
 

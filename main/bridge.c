@@ -5157,7 +5157,7 @@ static int bridge_show_specific_print_channel(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	ast_cli(a->fd, "Channel: %s\n", snapshot->name);
+	ast_cli(a->fd, "Channel: %s\n", snapshot->base->name);
 	ao2_ref(snapshot, -1);
 
 	return 0;

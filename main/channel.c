@@ -6761,6 +6761,12 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		ast_channel_name(clonechan), ast_channel_state(clonechan),
 		ast_channel_name(original), ast_channel_state(original));
 
+	/* When all is said and done force new snapshot segments so they are
+	 * up to date.
+	 */
+	ast_set_flag(ast_channel_snapshot_segment_flags(original), AST_FLAGS_ALL);
+	ast_set_flag(ast_channel_snapshot_segment_flags(clonechan), AST_FLAGS_ALL);
+
 	/*
 	 * Remember the original read/write formats.  We turn off any
 	 * translation on either one
@@ -7183,6 +7189,7 @@ void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_cal
 
 	ast_channel_lock(chan);
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER);
 	ast_channel_unlock(chan);
 }
 
@@ -7195,6 +7202,7 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 
 	ast_channel_lock(chan);
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER);
 	ast_channel_publish_snapshot(chan);
 	ast_channel_unlock(chan);
 }
@@ -8120,6 +8128,7 @@ void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_p
 
 	ast_channel_lock(chan);
 	ast_party_connected_line_set(ast_channel_connected(chan), connected, update);
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CONNECTED);
 	ast_channel_publish_snapshot(chan);
 	ast_channel_unlock(chan);
 }
@@ -8930,6 +8939,7 @@ void ast_channel_set_redirecting(struct ast_channel *chan, const struct ast_part
 
 	ast_channel_lock(chan);
 	ast_party_redirecting_set(ast_channel_redirecting(chan), redirecting, update);
+	ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_CALLER);
 	ast_channel_unlock(chan);
 }
 

@@ -329,7 +329,7 @@ static struct ast_str *__test_cel_generate_peer_str(struct ast_channel_snapshot 
 			ao2_cleanup);
 
 		/* Don't add the channel for which this message is being generated */
-		if (!strcmp(current_chan, chan->uniqueid)) {
+		if (!strcmp(current_chan, chan->base->uniqueid)) {
 			continue;
 		}
 
@@ -338,7 +338,7 @@ static struct ast_str *__test_cel_generate_peer_str(struct ast_channel_snapshot 
 			continue;
 		}
 
-		ast_str_append(&peer_str, 0, "%s,", current_snapshot->name);
+		ast_str_append(&peer_str, 0, "%s,", current_snapshot->base->name);
 	}
 	ao2_iterator_destroy(&i);
 
@@ -1668,8 +1668,8 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_begin);
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_end);
 
-	extra = ast_json_pack("{s: s, s: s}", "local_two", bob_snapshot->name,
-		"local_two_uniqueid", bob_snapshot->uniqueid);
+	extra = ast_json_pack("{s: s, s: s}", "local_two", bob_snapshot->base->name,
+		"local_two_uniqueid", bob_snapshot->base->uniqueid);
 	ast_test_validate(test, extra != NULL);
 
 	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, extra, NULL);

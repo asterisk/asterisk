@@ -536,7 +536,7 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 		return 0;
 	}
 
-	if (snapshot->tech_properties & AST_CHAN_TP_INTERNAL) {
+	if (snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL) {
 		return 0;
 	}
 

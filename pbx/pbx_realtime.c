@@ -344,6 +344,11 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 				if (ast_channel_snapshot_type()) {
 					ast_channel_lock(chan);
+					/* Force a new dialplan segment that will be unique to use so we can update it with the
+					 * information we want. In the future when a channel snapshot is published this will
+					 * occur again and unset this flag.
+					 */
+					ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN);
 					snapshot = ast_channel_snapshot_create(chan);
 					ast_channel_unlock(chan);
 				}
@@ -351,8 +356,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 					/* pbx_exec sets application name and data, but we don't want to log
 					 * every exec. Just update the snapshot here instead.
 					 */
-					ast_string_field_set(snapshot, appl, app);
-					ast_string_field_set(snapshot, data, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
+					ast_string_field_set(snapshot->dialplan, appl, app);
+					ast_string_field_set(snapshot->dialplan, data, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
 					msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
 					if (msg) {
 						stasis_publish(ast_channel_topic(chan), msg);

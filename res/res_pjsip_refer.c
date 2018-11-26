@@ -179,7 +179,7 @@ static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
 	}
 
 	enter_blob = stasis_message_data(message);
-	if (strcmp(enter_blob->channel->uniqueid, progress->transferee)) {
+	if (strcmp(enter_blob->channel->base->uniqueid, progress->transferee)) {
 		/* Don't care */
 		return;
 	}

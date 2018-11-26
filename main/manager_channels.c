@@ -493,7 +493,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 	char *connected_name;
 	int res;
 
-	if (snapshot->tech_properties & AST_CHAN_TP_INTERNAL) {
+	if (snapshot->base->tech_properties & AST_CHAN_TP_INTERNAL) {
 		return NULL;
 	}
 
@@ -502,8 +502,8 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		return NULL;
 	}
 
-	caller_name = ast_escape_c_alloc(snapshot->caller_name);
-	connected_name = ast_escape_c_alloc(snapshot->connected_name);
+	caller_name = ast_escape_c_alloc(snapshot->caller->name);
+	connected_name = ast_escape_c_alloc(snapshot->connected->name);
 
 	res = ast_str_set(&out, 0,
 		"%sChannel: %s\r\n"
@@ -520,20 +520,20 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		"%sPriority: %d\r\n"
 		"%sUniqueid: %s\r\n"
 		"%sLinkedid: %s\r\n",
-		prefix, snapshot->name,
+		prefix, snapshot->base->name,
 		prefix, snapshot->state,
 		prefix, ast_state2str(snapshot->state),
-		prefix, S_OR(snapshot->caller_number, "<unknown>"),
+		prefix, S_OR(snapshot->caller->number, "<unknown>"),
 		prefix, S_OR(caller_name, "<unknown>"),
-		prefix, S_OR(snapshot->connected_number, "<unknown>"),
+		prefix, S_OR(snapshot->connected->number, "<unknown>"),
 		prefix, S_OR(connected_name, "<unknown>"),
-		prefix, snapshot->language,
-		prefix, snapshot->accountcode,
-		prefix, snapshot->context,
-		prefix, snapshot->exten,
-		prefix, snapshot->priority,
-		prefix, snapshot->uniqueid,
-		prefix, snapshot->linkedid);
+		prefix, snapshot->base->language,
+		prefix, snapshot->base->accountcode,
+		prefix, snapshot->dialplan->context,
+		prefix, snapshot->dialplan->exten,
+		prefix, snapshot->dialplan->priority,
+		prefix, snapshot->base->uniqueid,
+		prefix, snapshot->peer->linkedid);
 
 	ast_free(caller_name);
 	ast_free(connected_name);
@@ -594,8 +594,8 @@ static struct ast_manager_event_blob *channel_state_change(
 			EVENT_FLAG_CALL, "Hangup",
 			"Cause: %d\r\n"
 			"Cause-txt: %s\r\n",
-			new_snapshot->hangupcause,
-			ast_cause2str(new_snapshot->hangupcause));
+			new_snapshot->hangup->cause,
+			ast_cause2str(new_snapshot->hangup->cause));
 	}
 
 	if (old_snapshot->state != new_snapshot->state) {
@@ -612,7 +612,7 @@ static struct ast_manager_event_blob *channel_newexten(
 	struct ast_channel_snapshot *new_snapshot)
 {
 	/* Empty application is not valid for a Newexten event */
-	if (ast_strlen_zero(new_snapshot->appl)) {
+	if (ast_strlen_zero(new_snapshot->dialplan->appl)) {
 		return NULL;
 	}
 
@@ -632,9 +632,9 @@ static struct ast_manager_event_blob *channel_newexten(
 		"Extension: %s\r\n"
 		"Application: %s\r\n"
 		"AppData: %s\r\n",
-		new_snapshot->exten,
-		new_snapshot->appl,
-		new_snapshot->data);
+		new_snapshot->dialplan->exten,
+		new_snapshot->dialplan->appl,
+		new_snapshot->dialplan->data);
 }
 
 static struct ast_manager_event_blob *channel_new_callerid(
@@ -654,14 +654,14 @@ static struct ast_manager_event_blob *channel_new_callerid(
 	}
 
 	if (!(callerid = ast_escape_c_alloc(
-		      ast_describe_caller_presentation(new_snapshot->caller_pres)))) {
+		      ast_describe_caller_presentation(new_snapshot->caller->pres)))) {
 		return NULL;
 	}
 
 	res = ast_manager_event_blob_create(
 		EVENT_FLAG_CALL, "NewCallerid",
 		"CID-CallingPres: %d (%s)\r\n",
-		new_snapshot->caller_pres,
+		new_snapshot->caller->pres,
 		callerid);
 
 	ast_free(callerid);
@@ -693,13 +693,13 @@ static struct ast_manager_event_blob *channel_new_accountcode(
 		return NULL;
 	}
 
-	if (!strcmp(old_snapshot->accountcode, new_snapshot->accountcode)) {
+	if (!strcmp(old_snapshot->base->accountcode, new_snapshot->base->accountcode)) {
 		return NULL;
 	}
 
 	return ast_manager_event_blob_create(
 		EVENT_FLAG_CALL, "NewAccountCode",
-		"OldAccountCode: %s\r\n", old_snapshot->accountcode);
+		"OldAccountCode: %s\r\n", old_snapshot->base->accountcode);
 }
 
 channel_snapshot_monitor channel_monitors[] = {
