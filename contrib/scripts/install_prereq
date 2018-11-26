@@ -164,7 +164,7 @@ PACKAGES_DBSD="$PACKAGES_DBSD bzip2 patch python"
 
 KVERS=`uname -r`
 
-JANSSON_VER=2.11
+JANSSON_VER=2.12
 
 case "$1" in
 test)
