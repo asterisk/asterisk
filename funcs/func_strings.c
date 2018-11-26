@@ -1089,10 +1089,33 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	return 0;
 }
 
+static const char *get_key(const struct ast_str *prefix, const struct ast_var_t *var)
+{
+	const char *prefix_name = ast_str_buffer(prefix);
+	const char *var_name = ast_var_name(var);
+	int prefix_len;
+	int var_len;
+
+	if (ast_strlen_zero(var_name)) {
+		return NULL;
+	}
+
+	prefix_len = ast_str_strlen(prefix);
+	var_len = strlen(var_name);
+
+	/*
+	 * Make sure we only match on non-empty, hash function created keys. If valid
+	 * then return a pointer to the variable that's just after the prefix.
+	 */
+	return var_len > (prefix_len + 1) && var_name[var_len - 1] == '~' &&
+		strncmp(prefix_name, var_name, prefix_len) == 0 ? var_name + prefix_len : NULL;
+}
+
 static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_var_t *newvar;
 	struct ast_str *prefix = ast_str_alloca(80);
+	size_t buf_len;
 
 	if (!chan) {
 		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
@@ -1103,15 +1126,19 @@ static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, 
 	memset(buf, 0, len);
 
 	AST_LIST_TRAVERSE(ast_channel_varshead(chan), newvar, entries) {
-		if (strncmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
-			/* Copy everything after the prefix */
-			strncat(buf, ast_var_name(newvar) + ast_str_strlen(prefix), len - strlen(buf) - 1);
-			/* Trim the trailing ~ */
+		const char *key = get_key(prefix, newvar);
+
+		if (key) {
+			strncat(buf, key, len - strlen(buf) - 1);
+			/* Replace the trailing ~ */
 			buf[strlen(buf) - 1] = ',';
 		}
 	}
 	/* Trim the trailing comma */
-	buf[strlen(buf) - 1] = '\0';
+	buf_len = strlen(buf);
+	if (buf_len) {
+		buf[buf_len - 1] = '\0';
+	}
 	return 0;
 }
 
@@ -1119,7 +1146,6 @@ static int hashkeys_read2(struct ast_channel *chan, const char *cmd, char *data,
 {
 	struct ast_var_t *newvar;
 	struct ast_str *prefix = ast_str_alloca(80);
-	char *tmp;
 
 	if (!chan) {
 		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
@@ -1129,17 +1155,19 @@ static int hashkeys_read2(struct ast_channel *chan, const char *cmd, char *data,
 	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 
 	AST_LIST_TRAVERSE(ast_channel_varshead(chan), newvar, entries) {
-		if (strncmp(ast_str_buffer(prefix), ast_var_name(newvar), ast_str_strlen(prefix)) == 0) {
-			/* Copy everything after the prefix */
-			ast_str_append(buf, len, "%s", ast_var_name(newvar) + ast_str_strlen(prefix));
-			/* Trim the trailing ~ */
+		const char *key = get_key(prefix, newvar);
+
+		if (key) {
+			char *tmp;
+
+			ast_str_append(buf, len, "%s", key);
+			/* Replace the trailing ~ */
 			tmp = ast_str_buffer(*buf);
 			tmp[ast_str_strlen(*buf) - 1] = ',';
 		}
 	}
-	/* Trim the trailing comma */
-	tmp = ast_str_buffer(*buf);
-	tmp[ast_str_strlen(*buf) - 1] = '\0';
+
+	ast_str_truncate(*buf, -1);
 	return 0;
 }
 
