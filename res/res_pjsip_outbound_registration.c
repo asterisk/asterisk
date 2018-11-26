@@ -2197,8 +2197,8 @@ static int load_module(void)
 	}
 
 	/* Create outbound registration states container. */
-	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
-		registration_state_hash, registration_state_cmp);
+	new_states = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DEFAULT_STATE_BUCKETS, registration_state_hash, NULL, registration_state_cmp);
 	if (!new_states) {
 		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
 		unload_module();

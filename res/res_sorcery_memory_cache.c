@@ -3528,7 +3528,8 @@ static int load_module(void)
 {
 	int res;
 
-	caches = ao2_container_alloc(CACHES_CONTAINER_BUCKET_SIZE, sorcery_memory_cache_hash,
+	caches = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		CACHES_CONTAINER_BUCKET_SIZE, sorcery_memory_cache_hash, NULL,
 		sorcery_memory_cache_cmp);
 	if (!caches) {
 		ast_log(LOG_ERROR, "Failed to create container for configured caches\n");

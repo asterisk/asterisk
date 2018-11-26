@@ -1174,8 +1174,8 @@ static void indications_shutdown(void)
 /*! \brief Load indications module */
 int ast_indications_init(void)
 {
-	ast_tone_zones = ao2_container_alloc(NUM_TONE_ZONE_BUCKETS,
-			ast_tone_zone_hash, ast_tone_zone_cmp);
+	ast_tone_zones = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_TONE_ZONE_BUCKETS, ast_tone_zone_hash, NULL, ast_tone_zone_cmp);
 	if (!ast_tone_zones) {
 		return -1;
 	}

@@ -2545,7 +2545,8 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 	struct ao2_container *fileset;
 	struct inclfile *fi;
 
-	fileset = ao2_container_alloc(1023, hash_string, hashtab_compare_strings);
+	fileset = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 1023,
+		hash_string, NULL, hashtab_compare_strings);
 	if (!fileset) {
 		/* Container creation failed. */
 		return -1;
@@ -4112,8 +4113,12 @@ int ast_config_hook_register(const char *name,
 		config_hook_cb hook_cb)
 {
 	struct cfg_hook *hook;
-	if (!cfg_hooks && !(cfg_hooks = ao2_container_alloc(17, hook_hash, hook_cmp))) {
-		return -1;
+	if (!cfg_hooks) {
+		cfg_hooks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 17,
+			hook_hash, NULL, hook_cmp);
+		if (!cfg_hooks) {
+			return -1;
+		}
 	}
 
 	if (!(hook = ao2_alloc(sizeof(*hook), hook_destroy))) {

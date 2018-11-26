@@ -14858,23 +14858,54 @@ static int load_objects(void)
 	peers = users = iax_peercallno_pvts = iax_transfercallno_pvts = NULL;
 	peercnts = callno_limits = calltoken_ignores = NULL;
 
-	if (!(peers = ao2_container_alloc(MAX_PEER_BUCKETS, peer_hash_cb, peer_cmp_cb))) {
+	peers = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_PEER_BUCKETS,
+		peer_hash_cb, NULL, peer_cmp_cb);
+	if (!peers) {
 		goto container_fail;
-	} else if (!(users = ao2_container_alloc(MAX_USER_BUCKETS, user_hash_cb, user_cmp_cb))) {
+	}
+
+	users = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_USER_BUCKETS,
+		user_hash_cb, NULL, user_cmp_cb);
+	if (!users) {
 		goto container_fail;
-	} else if (!(iax_peercallno_pvts = ao2_container_alloc(IAX_MAX_CALLS, pvt_hash_cb, pvt_cmp_cb))) {
+	}
+
+	iax_peercallno_pvts = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		IAX_MAX_CALLS, pvt_hash_cb, NULL, pvt_cmp_cb);
+	if (!iax_peercallno_pvts) {
 		goto container_fail;
-	} else if (!(iax_transfercallno_pvts = ao2_container_alloc(IAX_MAX_CALLS, transfercallno_pvt_hash_cb, transfercallno_pvt_cmp_cb))) {
+	}
+
+	iax_transfercallno_pvts = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		IAX_MAX_CALLS, transfercallno_pvt_hash_cb, NULL, transfercallno_pvt_cmp_cb);
+	if (!iax_transfercallno_pvts) {
 		goto container_fail;
-	} else if (!(peercnts = ao2_container_alloc(MAX_PEER_BUCKETS, peercnt_hash_cb, peercnt_cmp_cb))) {
+	}
+
+	peercnts = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAX_PEER_BUCKETS,
+		peercnt_hash_cb, NULL, peercnt_cmp_cb);
+	if (!peercnts) {
 		goto container_fail;
-	} else if (!(callno_limits = ao2_container_alloc(MAX_PEER_BUCKETS, addr_range_hash_cb, addr_range_cmp_cb))) {
+	}
+
+	callno_limits = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_PEER_BUCKETS, addr_range_hash_cb, NULL, addr_range_cmp_cb);
+	if (!callno_limits) {
 		goto container_fail;
-	} else if (!(calltoken_ignores = ao2_container_alloc(MAX_PEER_BUCKETS, addr_range_hash_cb, addr_range_cmp_cb))) {
+	}
+
+	calltoken_ignores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MAX_PEER_BUCKETS, addr_range_hash_cb, NULL, addr_range_cmp_cb);
+	if (!calltoken_ignores) {
 		goto container_fail;
-	} else if (create_callno_pools()) {
+	}
+
+	if (create_callno_pools()) {
 		goto container_fail;
-	} else if  (!(transmit_processor = ast_taskprocessor_get("iax2_transmit", TPS_REF_DEFAULT))) {
+	}
+
+	transmit_processor = ast_taskprocessor_get("iax2_transmit", TPS_REF_DEFAULT);
+	if (!transmit_processor) {
 		goto container_fail;
 	}
 

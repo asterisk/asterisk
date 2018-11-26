@@ -1074,7 +1074,8 @@ static struct ast_sip_outbound_publish_state *sip_outbound_publish_state_alloc(
 		return NULL;
 	}
 
-	state->client->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	state->client->datastores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, datastore_hash, NULL, datastore_cmp);
 	if (!state->client->datastores) {
 		ao2_ref(state, -1);
 		return NULL;

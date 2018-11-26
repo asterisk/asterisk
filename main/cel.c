@@ -1561,15 +1561,16 @@ int ast_cel_engine_init(void)
 {
 	struct ao2_container *container;
 
-	container = ao2_container_alloc(NUM_APP_BUCKETS, cel_linkedid_hash_fn, cel_linkedid_cmp_fn);
+	container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NUM_APP_BUCKETS,
+		cel_linkedid_hash_fn, NULL, cel_linkedid_cmp_fn);
 	ao2_global_obj_replace_unref(cel_linkedids, container);
 	ao2_cleanup(container);
 	if (!container) {
 		return -1;
 	}
 
-	container = ao2_container_alloc(NUM_DIALSTATUS_BUCKETS,
-		cel_dialstatus_hash_fn, cel_dialstatus_cmp_fn);
+	container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NUM_DIALSTATUS_BUCKETS, cel_dialstatus_hash_fn, NULL, cel_dialstatus_cmp_fn);
 	ao2_global_obj_replace_unref(cel_dialstatus_store, container);
 	ao2_cleanup(container);
 	if (!container) {
@@ -1584,7 +1585,8 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	container = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash_fn, cel_backend_cmp_fn);
+	container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, BACKEND_BUCKETS,
+		cel_backend_hash_fn, NULL, cel_backend_cmp_fn);
 	ao2_global_obj_replace_unref(cel_backends, container);
 	ao2_cleanup(container);
 	if (!container) {

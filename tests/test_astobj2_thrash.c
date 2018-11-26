@@ -268,8 +268,8 @@ AST_TEST_DEFINE(hash_test)
 	data.preload = MAX_HASH_ENTRIES / 2;
 	data.max_grow = MAX_HASH_ENTRIES - data.preload;
 	data.deadline = ast_tvadd(ast_tvnow(), ast_tv(MAX_TEST_SECONDS, 0));
-	data.to_be_thrashed = ao2_container_alloc(HASH_BUCKETS, hash_string,
-		compare_strings);
+	data.to_be_thrashed = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		HASH_BUCKETS, hash_string, NULL, compare_strings);
 
 	if (data.to_be_thrashed == NULL) {
 		ast_test_status_update(test, "Allocation failed\n");

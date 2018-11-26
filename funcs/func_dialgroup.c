@@ -223,7 +223,8 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 		grhead = ao2_alloc(sizeof(*grhead), group_destroy);
 		if (!grhead)
 			return -1;
-		grhead->entries = ao2_container_alloc(37, entry_hash_fn, entry_cmp_fn);
+		grhead->entries = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+			entry_hash_fn, NULL, entry_cmp_fn);
 		if (!grhead->entries) {
 			ao2_ref(grhead, -1);
 			return -1;
@@ -238,7 +239,9 @@ static int dialgroup_write(struct ast_channel *chan, const char *cmd, char *data
 
 		/* Remove all existing */
 		ao2_ref(grhead->entries, -1);
-		if (!(grhead->entries = ao2_container_alloc(37, entry_hash_fn, entry_cmp_fn))) {
+		grhead->entries = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+			entry_hash_fn, NULL, entry_cmp_fn);
+		if (!grhead->entries) {
 			ao2_unlink(group_container, grhead);
 			ao2_ref(grhead, -1);
 			return -1;
@@ -299,7 +302,9 @@ static int load_module(void)
 	struct ast_db_entry *dbtree, *tmp;
 	char groupname[AST_MAX_EXTENSION], *ptr;
 
-	if ((group_container = ao2_container_alloc(37, group_hash_fn, group_cmp_fn))) {
+	group_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 37,
+		group_hash_fn, NULL, group_cmp_fn);
+	if (group_container) {
 		/* Refresh groups from astdb */
 		if ((dbtree = ast_db_gettree("dialgroup", NULL))) {
 			for (tmp = dbtree; tmp; tmp = tmp->next) {

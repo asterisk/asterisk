@@ -8056,8 +8056,8 @@ static void channels_shutdown(void)
 
 int ast_channels_init(void)
 {
-	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
-			ast_channel_hash_cb, ast_channel_cmp_cb);
+	channels = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NUM_CHANNEL_BUCKETS,
+		ast_channel_hash_cb, NULL, ast_channel_cmp_cb);
 	if (!channels) {
 		return -1;
 	}
