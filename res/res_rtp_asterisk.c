@@ -5732,6 +5732,16 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	switch (ast_format_get_type(rtp->f.subclass.format)) {
 	case AST_MEDIA_TYPE_AUDIO:
 		rtp->f.frametype = AST_FRAME_VOICE;
+
+		/* The marker bit set on the voice packet indicates the start
+		 * of a new stream and a new time stamp. Need to reset the DTMF
+		 * last sequence number and the timestamp of the last END packet.
+		 */
+		if (mark) {
+			rtp->last_seqno = 0;
+			rtp->last_end_timestamp = 0;
+		}
+
 		break;
 	case AST_MEDIA_TYPE_VIDEO:
 		rtp->f.frametype = AST_FRAME_VIDEO;
