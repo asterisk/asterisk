@@ -1423,6 +1423,28 @@ int ao2_container_count(struct ao2_container *c);
 int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags);
 
 /*!
+ * \brief Copy object references associated with src container weakproxies into the dest container.
+ *
+ * \param dest Container to copy src strong object references into.
+ * \param src Container to copy all weak object references from.
+ * \param flags OBJ_NOLOCK if a lock is already held on both containers.
+ *    Otherwise, the src container is locked first.
+ *
+ * \pre The dest container must be empty.  If the duplication fails, the
+ * dest container will be returned empty.
+ *
+ * \note This can potentially be expensive because a malloc is
+ * needed for every object in the src container.
+ *
+ * \note Every object inside the container is locked by \ref ao2_weakproxy_get_object.
+ *       Any weakproxy in \ref src with no associated object is ignored.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ao2_container_dup_weakproxy_objs(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags);
+
+/*!
  * \brief Create a clone/copy of the given container.
  * \since 11.0
  *
