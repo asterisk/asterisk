@@ -533,10 +533,14 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
  * a module could reject an incoming request if desired.
  *
  * \param supplement The supplement to register
+ * \param module Referenced module(NULL safe)
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
+int ast_sip_session_register_supplement_with_module(struct ast_module *module, struct ast_sip_session_supplement *supplement);
+
+#define ast_sip_session_register_supplement(supplement) \
+		ast_sip_session_register_supplement_with_module(ast_module_info->self, supplement)
 
 /*!
  * \brief Unregister a an supplement to SIP session processing

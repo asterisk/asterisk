@@ -56,10 +56,11 @@ void internal_sip_session_register_supplement(struct ast_sip_session_supplement 
 	}
 }
 
-int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
+int ast_sip_session_register_supplement_with_module(struct ast_module *module, struct ast_sip_session_supplement *supplement)
 {
 	internal_sip_session_register_supplement(supplement);
 	internal_res_pjsip_ref();
+	ast_module_shutdown_ref(module);
 
 	return 0;
 }
@@ -117,4 +118,12 @@ int ast_sip_session_add_supplements(struct ast_sip_session *session)
 	}
 
 	return 0;
+}
+
+/* This stub is for ABI compatibility. */
+#undef ast_sip_session_register_supplement
+int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
+int ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
+{
+	return ast_sip_session_register_supplement_with_module(NULL, supplement);
 }
