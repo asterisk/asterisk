@@ -399,6 +399,8 @@ struct stasis_subscription {
 
 	/*! The message types this subscription is accepting */
 	AST_VECTOR(, char) accepted_message_types;
+	/*! The message formatters this subscription is accepting */
+	enum stasis_subscription_message_formatters accepted_formatters;
 	/*! The message filter currently in use */
 	enum stasis_subscription_message_filter filter;
 };
@@ -443,6 +445,10 @@ static void subscription_invoke(struct stasis_subscription *sub,
 		ao2_unlock(sub);
 	}
 
+	/*
+	 * If filtering is turned on and this is a 'final' message, we only invoke the callback
+	 * if the subscriber accepts subscription_change message types.
+	 */
 	if (!final || sub->filter != STASIS_SUBSCRIPTION_FILTER_SELECTIVE ||
 		(message_type_id < AST_VECTOR_SIZE(&sub->accepted_message_types) && AST_VECTOR_GET(&sub->accepted_message_types, message_type_id))) {
 		/* Since sub is mostly immutable, no need to lock sub */
@@ -520,6 +526,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 	ast_cond_init(&sub->join_cond, NULL);
 	sub->filter = STASIS_SUBSCRIPTION_FILTER_NONE;
 	AST_VECTOR_INIT(&sub->accepted_message_types, 0);
+	sub->accepted_formatters = STASIS_SUBSCRIPTION_FORMATTER_NONE;
 
 	if (topic_add_subscription(topic, sub) != 0) {
 		ao2_ref(sub, -1);
@@ -674,6 +681,18 @@ int stasis_subscription_set_filter(struct stasis_subscription *subscription,
 	ao2_unlock(subscription->topic);
 
 	return 0;
+}
+
+void stasis_subscription_accept_formatters(struct stasis_subscription *subscription,
+	enum stasis_subscription_message_formatters formatters)
+{
+	ast_assert(subscription != NULL);
+
+	ao2_lock(subscription->topic);
+	subscription->accepted_formatters = formatters;
+	ao2_unlock(subscription->topic);
+
+	return;
 }
 
 void stasis_subscription_join(struct stasis_subscription *subscription)
@@ -871,17 +890,57 @@ static void dispatch_message(struct stasis_subscription *sub,
 	struct stasis_message *message,
 	int synchronous)
 {
-	/* Determine if this subscription is interested in this message. Note that final
-	 * messages are special and are always invoked on the subscription.
+	int is_final = stasis_subscription_final_message(sub, message);
+
+	/*
+	 * The 'do while' gives us an easy way to skip remaining logic once
+	 * we determine the message should be accepted.
+	 * The code looks more verbose than it needs to be but it optimizes
+	 * down very nicely.  It's just easier to understand and debug this way.
 	 */
-	if (sub->filter == STASIS_SUBSCRIPTION_FILTER_SELECTIVE) {
-		int message_type_id = stasis_message_type_id(stasis_message_type(message));
-		if ((message_type_id >= AST_VECTOR_SIZE(&sub->accepted_message_types) ||
-			!AST_VECTOR_GET(&sub->accepted_message_types, message_type_id)) &&
-			!stasis_subscription_final_message(sub, message)) {
-			return;
+	do {
+		struct stasis_message_type *message_type = stasis_message_type(message);
+		int type_id = stasis_message_type_id(message_type);
+		int type_filter_specified = 0;
+		int formatter_filter_specified = 0;
+		int type_filter_passed = 0;
+		int formatter_filter_passed = 0;
+
+		/* We always accept final messages so only run the filter logic if not final */
+		if (is_final) {
+			break;
 		}
-	}
+
+		type_filter_specified = sub->filter & STASIS_SUBSCRIPTION_FILTER_SELECTIVE;
+		formatter_filter_specified = sub->accepted_formatters != STASIS_SUBSCRIPTION_FORMATTER_NONE;
+
+		/* Accept if no filters of either type were specified */
+		if (!type_filter_specified && !formatter_filter_specified) {
+			break;
+		}
+
+		type_filter_passed = type_filter_specified
+			&& type_id < AST_VECTOR_SIZE(&sub->accepted_message_types)
+			&& AST_VECTOR_GET(&sub->accepted_message_types, type_id);
+
+		/*
+		 * Since the type and formatter filters are OR'd, we can skip
+		 * the formatter check if the type check passes.
+		 */
+		if (type_filter_passed) {
+			break;
+		}
+
+		formatter_filter_passed = formatter_filter_specified
+			&& (sub->accepted_formatters & stasis_message_type_available_formatters(message_type));
+
+		if (formatter_filter_passed) {
+			break;
+		}
+
+		return;
+
+	} while (0);
 
 	if (!sub->mailbox) {
 		/* Dispatch directly */
