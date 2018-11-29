@@ -1449,7 +1449,7 @@ static int create_subscriptions(void)
 	}
 
 	cel_bridge_forwarder = stasis_forward_all(
-		ast_bridge_topic_all_cached(),
+		ast_bridge_topic_all(),
 		cel_aggregation_topic);
 	if (!cel_bridge_forwarder) {
 		return -1;

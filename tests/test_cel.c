@@ -351,7 +351,7 @@ static struct ast_str *__test_cel_generate_peer_str(struct ast_channel_snapshot 
 static struct ast_str *test_cel_generate_peer_str_snapshot(struct ast_channel_snapshot *chan, struct ast_bridge *bridge)
 {
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot,
-		ast_bridge_snapshot_get_latest(bridge->uniqueid),
+		ast_bridge_get_snapshot(bridge),
 		ao2_cleanup);
 
 	if (!snapshot) {

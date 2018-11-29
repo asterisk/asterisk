@@ -1974,7 +1974,7 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 			have_channel = 1;
 		} else if (ast_begins_with(uri, "bridge:")) {
 			type = STASIS_UMOS_BRIDGE;
-			snapshot = ast_bridge_snapshot_get_latest(uri + 7);
+			snapshot = ast_bridge_get_snapshot_by_uniqueid(uri + 7);
 		} else if (ast_begins_with(uri, "endpoint:")) {
 			type = STASIS_UMOS_ENDPOINT;
 			snapshot = ast_endpoint_latest_snapshot(uri + 9, NULL);

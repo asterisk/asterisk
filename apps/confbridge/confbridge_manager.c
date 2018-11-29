@@ -712,7 +712,7 @@ int manager_confbridge_init(void)
 	STASIS_MESSAGE_TYPE_INIT(confbridge_welcome_type);
 
 	bridge_state_router = stasis_message_router_create(
-		ast_bridge_topic_all_cached());
+		ast_bridge_topic_all());
 
 	if (!bridge_state_router) {
 		return -1;

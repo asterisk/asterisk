@@ -4288,7 +4288,7 @@ static int create_subscriptions(void)
 	if (!channel_subscription) {
 		return -1;
 	}
-	bridge_subscription = stasis_forward_all(ast_bridge_topic_all_cached(), cdr_topic);
+	bridge_subscription = stasis_forward_all(ast_bridge_topic_all(), cdr_topic);
 	if (!bridge_subscription) {
 		return -1;
 	}
