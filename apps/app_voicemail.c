@@ -999,24 +999,42 @@ static ast_cond_t poll_cond = PTHREAD_COND_INITIALIZER;
 static pthread_t poll_thread = AST_PTHREADT_NULL;
 static unsigned char poll_thread_run;
 
+/*! Subscription to MWI event subscription changes */
+static struct stasis_subscription *mwi_sub_sub;
+
 /*!
- * \brief A mailbox to be polled
+ * \brief An MWI subscription
  *
+ * This is so we can keep track of which mailboxes are subscribed to.
  * This way, we know which mailboxes to poll when the pollmailboxes
  * option is being used.
  */
-struct poll_state {
-	int marked_used;
+struct mwi_sub {
+	AST_RWLIST_ENTRY(mwi_sub) entry;
 	int old_urgent;
 	int old_new;
 	int old_old;
+	char *uniqueid;
 	char mailbox[0];
 };
 
-#define POLL_LIST_BUCKETS 511
-static struct ao2_container *poll_list;
-AO2_STRING_FIELD_HASH_FN(poll_state, mailbox);
-AO2_STRING_FIELD_CMP_FN(poll_state, mailbox);
+struct mwi_sub_task {
+	const char *mailbox;
+	const char *context;
+	const char *uniqueid;
+};
+
+static void mwi_sub_task_dtor(struct mwi_sub_task *mwist)
+{
+	ast_free((void *) mwist->mailbox);
+	ast_free((void *) mwist->context);
+	ast_free((void *) mwist->uniqueid);
+	ast_free(mwist);
+}
+
+static struct ast_taskprocessor *mwi_subscription_tps;
+
+static AST_RWLIST_HEAD_STATIC(mwi_subs, mwi_sub);
 
 /* custom audio control prompts for voicemail playback */
 static char listen_control_forward_key[12];
@@ -1093,7 +1111,6 @@ static int write_password_to_file(const char *secretfn, const char *password);
 static const char *substitute_escapes(const char *value);
 static int message_range_and_existence_check(struct vm_state *vms, const char *msg_ids [], size_t num_msgs, int *msg_nums, struct ast_vm_user *vmu);
 static void notify_new_state(struct ast_vm_user *vmu);
-static int poll_mailbox(void *obj, void *arg, int flags);
 
 /*!
  * Place a message in the indicated folder
@@ -12188,57 +12205,6 @@ static int add_message_id(struct ast_config *msg_cfg, char *dir, int msg, char *
 	return 0;
 }
 
-static void poll_state_dtor(void *obj)
-{
-	struct poll_state *poll_state = obj;
-
-	ast_debug(3, "DTOR: Mailbox: %s New: %d  Old: %d  Urgent: %d  Marked Used: %d\n", poll_state->mailbox,
-		poll_state->old_new, poll_state->old_old, poll_state->old_urgent,
-		poll_state->marked_used);
-}
-
-static int mark_or_create_poll_state(struct ast_vm_user *vmu)
-{
-	size_t len;
-	struct poll_state *poll_state;
-	char mailbox_full[MAX_VM_MAILBOX_LEN];
-
-	if (ast_strlen_zero(vmu->mailbox)) {
-		ast_log(LOG_ERROR, "Mailbox can't be empty\n");
-		return -1;
-	}
-
-	len = snprintf(mailbox_full, MAX_VM_MAILBOX_LEN, "%s%s%s",
-		vmu->mailbox,
-		ast_strlen_zero(vmu->context) ? "" : "@",
-		vmu->context);
-
-	len++; /* For NULL terminator */
-
-	poll_state = ao2_find(poll_list, mailbox_full, OBJ_SEARCH_KEY);
-	if (poll_state) {
-		poll_state->marked_used = 1;
-		ao2_ref(poll_state, -1);
-		return 0;
-	}
-
-	poll_state = ao2_alloc_options(len + sizeof(*poll_state), poll_state_dtor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!poll_state) {
-		return -1;
-	}
-	strcpy(poll_state->mailbox, mailbox_full); /* Safe */
-	poll_state->marked_used = 1;
-
-	ao2_link_flags(poll_list, poll_state, OBJ_NOLOCK);
-
-	poll_mailbox(poll_state, NULL, 0);
-
-	ao2_ref(poll_state, -1);
-
-	return 0;
-}
-
 static struct ast_vm_user *find_or_create(const char *context, const char *box)
 {
 	struct ast_vm_user *vmu;
@@ -12268,17 +12234,11 @@ static struct ast_vm_user *find_or_create(const char *context, const char *box)
 		}
 	}
 
-	if (!(vmu = ast_calloc(1, sizeof(*vmu)))) {
+	if (!(vmu = ast_calloc(1, sizeof(*vmu))))
 		return NULL;
-	}
 
 	ast_copy_string(vmu->context, context, sizeof(vmu->context));
 	ast_copy_string(vmu->mailbox, box, sizeof(vmu->mailbox));
-
-	if (mark_or_create_poll_state(vmu)) {
-		ast_free(vmu);
-		return NULL;
-	}
 
 	AST_LIST_INSERT_TAIL(&users, vmu, list);
 
@@ -12535,7 +12495,6 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 #endif
 
 	free_user(vmu);
-
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 #endif
@@ -13087,33 +13046,38 @@ static const struct ast_data_entry vm_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/application/voicemail/list", &vm_users_data_provider)
 };
 
-static int poll_mailbox(void *obj, void *arg, int flags)
+static void poll_subscribed_mailbox(struct mwi_sub *mwi_sub)
 {
-	struct poll_state *poll_state = obj;
 	int new = 0, old = 0, urgent = 0;
 
-
-	inboxcount2(poll_state->mailbox, &urgent, &new, &old);
-	ast_debug(4, "Polled mailbox '%s' urgent: %d  new: %d  old: %d\n",
-		poll_state->mailbox, urgent, new, old);
+	inboxcount2(mwi_sub->mailbox, &urgent, &new, &old);
 
 #ifdef IMAP_STORAGE
 	if (imap_poll_logout) {
-		imap_logout(poll_state->mailbox);
+		imap_logout(mwi_sub->mailbox);
 	}
 #endif
 
-	if (urgent != poll_state->old_urgent || new != poll_state->old_new || old != poll_state->old_old) {
-		ast_debug(4, "Notifying subscribers of mailbox '%s' urgent: %d  new: %d  old: %d\n",
-			poll_state->mailbox, urgent, new, old);
-		poll_state->old_urgent = urgent;
-		poll_state->old_new = new;
-		poll_state->old_old = old;
-		queue_mwi_event(NULL, poll_state->mailbox, urgent, new, old);
-		run_externnotify(NULL, poll_state->mailbox, NULL);
+	if (urgent != mwi_sub->old_urgent || new != mwi_sub->old_new || old != mwi_sub->old_old) {
+		mwi_sub->old_urgent = urgent;
+		mwi_sub->old_new = new;
+		mwi_sub->old_old = old;
+		queue_mwi_event(NULL, mwi_sub->mailbox, urgent, new, old);
+		run_externnotify(NULL, mwi_sub->mailbox, NULL);
 	}
+}
 
-	return 0;
+static void poll_subscribed_mailboxes(void)
+{
+	struct mwi_sub *mwi_sub;
+
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			poll_subscribed_mailbox(mwi_sub);
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
 }
 
 static void *mb_poll_thread(void *data)
@@ -13133,11 +13097,16 @@ static void *mb_poll_thread(void *data)
 		if (!poll_thread_run)
 			break;
 
-		ast_debug(3, "Polling mailboxes\n");
-		ao2_callback(poll_list, OBJ_NODATA | OBJ_MULTIPLE, poll_mailbox, NULL);
+		poll_subscribed_mailboxes();
 	}
 
 	return NULL;
+}
+
+static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
+{
+	ast_free(mwi_sub->uniqueid);
+	ast_free(mwi_sub);
 }
 
 #ifdef IMAP_STORAGE
@@ -13175,22 +13144,155 @@ static void imap_logout(const char *mailbox_id)
 	vmstate_delete(vms);
 }
 
-static int imap_close_subscribed_mailboxes_cb(void *obj, void *arg, int flags)
-{
-	struct poll_state *poll_state = obj;
-	imap_logout(poll_state->mailbox);
-
-	return 0;
-}
 static void imap_close_subscribed_mailboxes(void)
 {
-	ao2_callback(poll_list, OBJ_NODATA | OBJ_MULTIPLE, imap_close_subscribed_mailboxes_cb, NULL);
+	struct mwi_sub *mwi_sub;
+
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			imap_logout(mwi_sub->mailbox);
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
 }
 #endif
+
+static int handle_unsubscribe(void *datap)
+{
+	struct mwi_sub *mwi_sub;
+	char *uniqueid = datap;
+
+	AST_RWLIST_WRLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mwi_subs, mwi_sub, entry) {
+		if (!strcmp(mwi_sub->uniqueid, uniqueid)) {
+			AST_LIST_REMOVE_CURRENT(entry);
+			/* Don't break here since a duplicate uniqueid
+			 * may have been added as a result of a cache dump. */
+#ifdef IMAP_STORAGE
+			imap_logout(mwi_sub->mailbox);
+#endif
+			mwi_sub_destroy(mwi_sub);
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&mwi_subs);
+
+	ast_free(uniqueid);
+	return 0;
+}
+
+static int handle_subscribe(void *datap)
+{
+	unsigned int len;
+	struct mwi_sub *mwi_sub;
+	struct mwi_sub_task *p = datap;
+
+	len = sizeof(*mwi_sub) + 1;
+	if (!ast_strlen_zero(p->mailbox))
+		len += strlen(p->mailbox);
+
+	if (!ast_strlen_zero(p->context))
+		len += strlen(p->context) + 1; /* Allow for seperator */
+
+	if (!(mwi_sub = ast_calloc(1, len)))
+		return -1;
+
+	mwi_sub->uniqueid = ast_strdup(p->uniqueid);
+	if (!ast_strlen_zero(p->mailbox))
+		strcpy(mwi_sub->mailbox, p->mailbox);
+
+	if (!ast_strlen_zero(p->context)) {
+		strcat(mwi_sub->mailbox, "@");
+		strcat(mwi_sub->mailbox, p->context);
+	}
+
+	AST_RWLIST_WRLOCK(&mwi_subs);
+	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
+	AST_RWLIST_UNLOCK(&mwi_subs);
+	mwi_sub_task_dtor(p);
+	poll_subscribed_mailbox(mwi_sub);
+	return 0;
+}
+
+static void mwi_unsub_event_cb(struct stasis_subscription_change *change)
+{
+	char *uniqueid = ast_strdup(change->uniqueid);
+
+	if (!uniqueid) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for uniqueid\n");
+		return;
+	}
+
+	if (ast_taskprocessor_push(mwi_subscription_tps, handle_unsubscribe, uniqueid) < 0) {
+		ast_free(uniqueid);
+	}
+}
+
+static void mwi_sub_event_cb(struct stasis_subscription_change *change)
+{
+	struct mwi_sub_task *mwist;
+	char *context;
+	char *mailbox;
+
+	mwist = ast_calloc(1, (sizeof(*mwist)));
+	if (!mwist) {
+		return;
+	}
+
+	if (separate_mailbox(ast_strdupa(stasis_topic_name(change->topic)), &mailbox, &context)) {
+		ast_free(mwist);
+		return;
+	}
+
+	mwist->mailbox = ast_strdup(mailbox);
+	mwist->context = ast_strdup(context);
+	mwist->uniqueid = ast_strdup(change->uniqueid);
+
+	if (ast_taskprocessor_push(mwi_subscription_tps, handle_subscribe, mwist) < 0) {
+		mwi_sub_task_dtor(mwist);
+	}
+}
+
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
+{
+	struct stasis_subscription_change *change;
+	/* Only looking for subscription change notices here */
+	if (stasis_message_type(msg) != stasis_subscription_change_type()) {
+		return;
+	}
+
+	change = stasis_message_data(msg);
+	if (change->topic == ast_mwi_topic_all()) {
+		return;
+	}
+
+	if (!strcmp(change->description, "Subscribe")) {
+		mwi_sub_event_cb(change);
+	} else if (!strcmp(change->description, "Unsubscribe")) {
+		mwi_unsub_event_cb(change);
+	}
+}
+
+static int dump_cache(void *obj, void *arg, int flags)
+{
+	struct stasis_message *msg = obj;
+	mwi_event_cb(NULL, NULL, msg);
+	return 0;
+}
 
 static void start_poll_thread(void)
 {
 	int errcode;
+	mwi_sub_sub = stasis_subscribe(ast_mwi_topic_all(), mwi_event_cb, NULL);
+
+	if (mwi_sub_sub) {
+		struct ao2_container *cached = stasis_cache_dump(ast_mwi_state_cache(), stasis_subscription_change_type());
+		if (cached) {
+			ao2_callback(cached, OBJ_MULTIPLE | OBJ_NODATA, dump_cache, NULL);
+		}
+		ao2_cleanup(cached);
+	}
 
 	poll_thread_run = 1;
 
@@ -13203,6 +13305,8 @@ static void stop_poll_thread(void)
 {
 	poll_thread_run = 0;
 
+	mwi_sub_sub = stasis_unsubscribe_and_join(mwi_sub_sub);
+
 	ast_mutex_lock(&poll_lock);
 	ast_cond_signal(&poll_cond);
 	ast_mutex_unlock(&poll_lock);
@@ -13212,50 +13316,38 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
-struct refresh_data {
-	const char *context;
-	const char *mailbox;
-};
-
-static int refresh_match(void *obj, void *arg, int gflags)
-{
-	struct poll_state *poll_state = obj;
-	struct refresh_data *data = arg;
-	const char *at;
-
-	if (!ast_strlen_zero(poll_state->mailbox)) {
-		if (
-			/* First case: everything matches */
-			(ast_strlen_zero(data->context) && ast_strlen_zero(data->mailbox)) ||
-			/* Second case: match the mailbox only */
-			(ast_strlen_zero(data->context) && !ast_strlen_zero(data->mailbox) &&
-				(at = strchr(poll_state->mailbox, '@')) &&
-				strncmp(data->mailbox, poll_state->mailbox, at - poll_state->mailbox) == 0) ||
-			/* Third case: match the context only */
-			(!ast_strlen_zero(data->context) && ast_strlen_zero(data->mailbox) &&
-				(at = strchr(poll_state->mailbox, '@')) &&
-				strcmp(data->context, at + 1) == 0) ||
-			/* Final case: match an exact specified mailbox */
-			(!ast_strlen_zero(data->context) && !ast_strlen_zero(data->mailbox) &&
-				(at = strchr(poll_state->mailbox, '@')) &&
-				strncmp(data->mailbox, poll_state->mailbox, at - poll_state->mailbox) == 0 &&
-				strcmp(data->context, at + 1) == 0)
-		) {
-			poll_mailbox(poll_state, NULL, 0);
-		}
-	}
-
-	return 0;
-}
-
 static int manager_voicemail_refresh(struct mansession *s, const struct message *m)
 {
-	struct refresh_data data = {
-		.context = astman_get_header(m, "Context"),
-		.mailbox = astman_get_header(m, "Mailbox"),
-	};
+	const char *context = astman_get_header(m, "Context");
+	const char *mailbox = astman_get_header(m, "Mailbox");
+	struct mwi_sub *mwi_sub;
+	const char *at;
 
-	ao2_callback(poll_list, OBJ_NODATA | OBJ_MULTIPLE, refresh_match, (void *)&data);
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		if (!ast_strlen_zero(mwi_sub->mailbox)) {
+			if (
+				/* First case: everything matches */
+				(ast_strlen_zero(context) && ast_strlen_zero(mailbox)) ||
+				/* Second case: match the mailbox only */
+				(ast_strlen_zero(context) && !ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strncmp(mailbox, mwi_sub->mailbox, at - mwi_sub->mailbox) == 0) ||
+				/* Third case: match the context only */
+				(!ast_strlen_zero(context) && ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strcmp(context, at + 1) == 0) ||
+				/* Final case: match an exact specified mailbox */
+				(!ast_strlen_zero(context) && !ast_strlen_zero(mailbox) &&
+					(at = strchr(mwi_sub->mailbox, '@')) &&
+					strncmp(mailbox, mwi_sub->mailbox, at - mwi_sub->mailbox) == 0 &&
+					strcmp(context, at + 1) == 0)
+			) {
+				poll_subscribed_mailbox(mwi_sub);
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
 	astman_send_ack(s, m, "Refresh sent");
 	return RESULT_SUCCESS;
 }
@@ -13511,26 +13603,6 @@ static int load_config_from_memory(int reload, struct ast_config *cfg, struct as
 }
 #endif
 
-static int unmark_poll_state(void *obj, void*arg, int flags)
-{
-	struct poll_state *poll_state = obj;
-
-	poll_state->marked_used = 0;
-
-	return 0;
-}
-
-static int unmarked_poll_state(void *obj, void*arg, int flags)
-{
-	struct poll_state *poll_state = obj;
-
-	if (!poll_state->marked_used) {
-		return CMP_MATCH;
-	}
-
-	return 0;
-}
-
 static int actual_load_config(int reload, struct ast_config *cfg, struct ast_config *ucfg)
 {
 	struct ast_vm_user *current;
@@ -13541,6 +13613,8 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	int x;
 	unsigned int tmpadsi[4];
 	char secretfn[PATH_MAX] = "";
+	long tps_queue_low;
+	long tps_queue_high;
 
 #ifdef IMAP_STORAGE
 	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
@@ -13555,17 +13629,6 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 #ifdef IMAP_STORAGE
 	imap_close_subscribed_mailboxes();
 #endif
-
-	if (poll_thread != AST_PTHREADT_NULL) {
-		stop_poll_thread();
-	}
-
-	/*
-	 * Unmark all current poll states.  As mailboxes are (re)loaded,
-	 * the state will be marked as used.  Any not marked after the
-	 * (re)load, will be removed.
-	 */
-	ao2_callback(poll_list, OBJ_NODATA | OBJ_MULTIPLE, unmark_poll_state, NULL);
 
 	/* Free all the users structure */
 	free_vm_users();
@@ -14140,11 +14203,23 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 			pagerbody = ast_strdup(substitute_escapes(val));
 		}
 
+		tps_queue_high = AST_TASKPROCESSOR_HIGH_WATER_LEVEL;
 		if ((val = ast_variable_retrieve(cfg, "general", "tps_queue_high"))) {
-			ast_log(LOG_NOTICE, "Parameter tps_queue_high is obsolete and will be ignored\n");
+			if (sscanf(val, "%30ld", &tps_queue_high) != 1 || tps_queue_high <= 0) {
+				ast_log(AST_LOG_WARNING, "Invalid the taskprocessor high water alert trigger level '%s'\n", val);
+				tps_queue_high = AST_TASKPROCESSOR_HIGH_WATER_LEVEL;
+			}
 		}
+		tps_queue_low = -1;
 		if ((val = ast_variable_retrieve(cfg, "general", "tps_queue_low"))) {
-			ast_log(LOG_NOTICE, "Parameter tps_queue_low is obsolete and will be ignored\n");
+			if (sscanf(val, "%30ld", &tps_queue_low) != 1 ||
+				tps_queue_low < -1 || tps_queue_high < tps_queue_low) {
+				ast_log(AST_LOG_WARNING, "Invalid the taskprocessor low water clear alert level '%s'\n", val);
+				tps_queue_low = -1;
+			}
+		}
+		if (ast_taskprocessor_alert_set_levels(mwi_subscription_tps, tps_queue_low, tps_queue_high)) {
+			ast_log(AST_LOG_WARNING, "Failed to set alert levels for voicemail taskprocessor.\n");
 		}
 
 		/* load mailboxes from users.conf */
@@ -14214,16 +14289,15 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 		}
 
 		AST_LIST_UNLOCK(&users);
-		/* Remove any left over unmarked poll states */
-		ao2_callback(poll_list, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unmarked_poll_state, NULL);
 
 		if (poll_mailboxes && poll_thread == AST_PTHREADT_NULL)
 			start_poll_thread();
+		if (!poll_mailboxes && poll_thread != AST_PTHREADT_NULL)
+			stop_poll_thread();;
 
 		return 0;
 	} else {
 		AST_LIST_UNLOCK(&users);
-		ao2_callback(poll_list, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unmarked_poll_state, NULL);
 		ast_log(AST_LOG_WARNING, "Failed to load configuration file.\n");
 		return 0;
 	}
@@ -14444,6 +14518,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 {
 	int i, j, res = AST_TEST_PASS, syserr;
 	struct ast_vm_user *vmu;
+	struct ast_vm_user svm;
 	struct vm_state vms;
 #ifdef IMAP_STORAGE
 	struct ast_channel *chan = NULL;
@@ -14496,11 +14571,9 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 #endif
 
-	AST_LIST_LOCK(&users);
-	vmu = find_or_create(testcontext, testmailbox);
-	AST_LIST_UNLOCK(&users);
-
-	if (!vmu) {
+	memset(&svm, 0, sizeof(svm));
+	if (!(vmu = find_user(&svm, testcontext, testmailbox)) &&
+		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
 		ast_unreplace_sigchld();
 #ifdef IMAP_STORAGE
@@ -14528,8 +14601,8 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 #ifdef IMAP_STORAGE
 				chan = ast_channel_unref(chan);
 #endif
-				res = AST_TEST_FAIL;
-				break;
+				free_user(vmu);
+				return AST_TEST_FAIL;
 			}
 		}
 
@@ -14553,34 +14626,27 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 				res = AST_TEST_FAIL;
 			}
 		}
-		if (res) {
-			break;
-		}
 
 		new = old = urgent = 0;
 		if (ast_app_inboxcount(testspec, &new, &old)) {
 			ast_test_status_update(test, "inboxcount returned failure\n");
 			res = AST_TEST_FAIL;
-			break;
 		} else if (old != expected_results[i][3 + 0] || new != expected_results[i][3 + 2]) {
 			ast_test_status_update(test, "inboxcount(%s) returned old=%d (expected %d) and new=%d (expected %d)\n",
 				testspec, old, expected_results[i][3 + 0], new, expected_results[i][3 + 2]);
 			res = AST_TEST_FAIL;
-			break;
 		}
 
 		new = old = urgent = 0;
 		if (ast_app_inboxcount2(testspec, &urgent, &new, &old)) {
 			ast_test_status_update(test, "inboxcount2 returned failure\n");
 			res = AST_TEST_FAIL;
-			break;
 		} else if (old != expected_results[i][6 + 0] ||
 				urgent != expected_results[i][6 + 1] ||
 				   new != expected_results[i][6 + 2]    ) {
 			ast_test_status_update(test, "inboxcount2(%s) returned old=%d (expected %d), urgent=%d (expected %d), and new=%d (expected %d)\n",
 				testspec, old, expected_results[i][6 + 0], urgent, expected_results[i][6 + 1], new, expected_results[i][6 + 2]);
 			res = AST_TEST_FAIL;
-			break;
 		}
 
 		new = old = urgent = 0;
@@ -14590,9 +14656,6 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 					testspec, folders[j], ast_app_messagecount(testspec, folders[j]), expected_results[i][9 + j]);
 				res = AST_TEST_FAIL;
 			}
-		}
-		if (res) {
-			break;
 		}
 	}
 
@@ -14622,9 +14685,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 			syserr > 0 ? strerror(syserr) : "unable to fork()");
 	}
 
-	/* restore config */
-	load_config(0); /* this might say "Failed to load configuration file." */
-
+	free_user(vmu);
 	return res;
 }
 
@@ -14675,13 +14736,15 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	snprintf(attach, sizeof(attach), "%s/sounds/en/tt-weasels", ast_config_AST_DATA_DIR);
 	snprintf(attach2, sizeof(attach2), "%s/sounds/en/tt-somethingwrong", ast_config_AST_DATA_DIR);
 
-	AST_LIST_LOCK(&users);
-	vmu = find_or_create(testcontext, testmailbox);
-	AST_LIST_UNLOCK(&users);
-
-	if (!vmu) {
+	if (!(vmu = find_user(&vmus, testcontext, testmailbox)) &&
+		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
-		return AST_TEST_FAIL;
+		return AST_TEST_NOT_RUN;
+	}
+
+	if (vmu != &vmus && !(vmu = find_user(&vmus, testcontext, testmailbox))) {
+		ast_test_status_update(test, "Cannot find vmu structure?!!\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	populate_defaults(vmu);
@@ -14732,10 +14795,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 		}
 	}
 	fclose(file);
-
-	/* restore config */
-	load_config(0); /* this might say "Failed to load configuration file." */
-
+	free_user(vmu);
 	return res;
 }
 
@@ -14809,7 +14869,7 @@ AST_TEST_DEFINE(test_voicemail_load_config)
 #undef CHECK
 
 	/* restore config */
-	load_config(0); /* this might say "Failed to load configuration file." */
+	load_config(1); /* this might say "Failed to load configuration file." */
 
 cleanup:
 	unlink(config_filename);
@@ -14865,11 +14925,8 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 		return AST_TEST_FAIL;
 	}
 
-	AST_LIST_LOCK(&users);
-	vmu = find_or_create(testcontext, testmailbox);
-	AST_LIST_UNLOCK(&users);
-
-	if (!vmu) {
+	if (!(vmu = find_user(NULL, testcontext, testmailbox)) &&
+			!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
 		chan = ast_channel_unref(chan);
 		return AST_TEST_FAIL;
@@ -14899,10 +14956,7 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 	}
 
 	chan = ast_channel_unref(chan);
-
-	/* restore config */
-	load_config(0); /* this might say "Failed to load configuration file." */
-
+	free_user(vmu);
 	return res;
 }
 #endif /* defined(TEST_FRAMEWORK) */
@@ -14968,13 +15022,10 @@ static int unload_module(void)
 #endif
 	ao2_ref(inprocess_container, -1);
 
-	if (poll_thread != AST_PTHREADT_NULL) {
+	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();
-	}
 
-	ao2_container_unregister("voicemail_poll_list");
-	ao2_cleanup(poll_list);
-
+	mwi_subscription_tps = ast_taskprocessor_unreference(mwi_subscription_tps);
 	ast_unload_realtime("voicemail");
 	ast_unload_realtime("voicemail_data");
 
@@ -14984,18 +15035,6 @@ static int unload_module(void)
 	free_vm_users();
 	free_vm_zones();
 	return res;
-}
-
-static void print_poll_state(void *v_obj, void *where, ao2_prnt_fn *prnt)
-{
-	struct poll_state *poll_state = v_obj;
-
-	if (!poll_state) {
-		return;
-	}
-	prnt(where, "Mailbox: %s New: %d  Old: %d  Urgent: %d  Marked Used: %d", poll_state->mailbox,
-		poll_state->old_new, poll_state->old_old, poll_state->old_urgent,
-		poll_state->marked_used);
 }
 
 /*!
@@ -15024,23 +15063,12 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	poll_list = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, POLL_LIST_BUCKETS,
-		poll_state_hash_fn, NULL, poll_state_cmp_fn);
-	if (!poll_list) {
-		ast_log(LOG_ERROR, "Unable to create poll_list container\n");
-		ao2_cleanup(inprocess_container);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-	res = ao2_container_register("voicemail_poll_list", poll_list, print_poll_state);
-	if (res) {
-		ast_log(LOG_ERROR, "Unable to register poll_list container\n");
-		ao2_cleanup(inprocess_container);
-		ao2_cleanup(poll_list);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
+
+	if (!(mwi_subscription_tps = ast_taskprocessor_get("app_voicemail", 0))) {
+		ast_log(AST_LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
+	}
 
 	if ((res = load_config(0))) {
 		unload_module();
