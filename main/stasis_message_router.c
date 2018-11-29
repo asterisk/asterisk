@@ -401,3 +401,13 @@ int stasis_message_router_set_default(struct stasis_message_router *router,
 	/* While this implementation can never fail, it used to be able to */
 	return 0;
 }
+
+void stasis_message_router_accept_formatters(struct stasis_message_router *router,
+	enum stasis_subscription_message_formatters formatters)
+{
+	ast_assert(router != NULL);
+
+	stasis_subscription_accept_formatters(router->subscription, formatters);
+
+	return;
+}
