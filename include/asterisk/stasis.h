@@ -301,6 +301,21 @@ enum stasis_subscription_message_filter {
 };
 
 /*!
+ * \brief Stasis subscription formatter filters
+ *
+ * There should be an entry here for each member of \ref stasis_message_vtable
+ *
+ * \since 13.25.0
+ * \since 16.2.0
+ */
+enum stasis_subscription_message_formatters {
+	STASIS_SUBSCRIPTION_FORMATTER_NONE =  0,
+	STASIS_SUBSCRIPTION_FORMATTER_JSON =  1 << 0,  /*!< Allow messages with a to_json formatter */
+	STASIS_SUBSCRIPTION_FORMATTER_AMI =   1 << 1,  /*!< Allow messages with a to_ami formatter */
+	STASIS_SUBSCRIPTION_FORMATTER_EVENT = 1 << 2,  /*!< Allow messages with a to_event formatter */
+};
+
+/*!
  * \brief Create a new message type.
  *
  * \ref stasis_message_type is an AO2 object, so ao2_cleanup() when you're done
@@ -674,6 +689,30 @@ int stasis_subscription_decline_message_type(struct stasis_subscription *subscri
  */
 int stasis_subscription_set_filter(struct stasis_subscription *subscription,
 	enum stasis_subscription_message_filter filter);
+
+/*!
+ * \brief Indicate to a subscription that we are interested in messages with one or more formatters.
+ *
+ * \param subscription Subscription to alter.
+ * \param formatters A bitmap of \ref stasis_subscription_message_formatters we wish to receive.
+ *
+ * \since 13.25.0
+ * \since 16.2.0
+ */
+void stasis_subscription_accept_formatters(struct stasis_subscription *subscription,
+	enum stasis_subscription_message_formatters formatters);
+
+/*!
+ * \brief Get a bitmap of available formatters for a message type
+ *
+ * \param message_type Message type
+ * \return A bitmap of \ref stasis_subscription_message_formatters
+ *
+ * \since 13.25.0
+ * \since 16.2.0
+ */
+enum stasis_subscription_message_formatters stasis_message_type_available_formatters(
+	const struct stasis_message_type *message_type);
 
 /*!
  * \brief Cancel a subscription.
