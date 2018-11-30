@@ -206,8 +206,14 @@ static void router_dispatch(void *data,
 	}
 }
 
+#ifdef AST_DEVMODE
+static struct stasis_message_router *stasis_message_router_create_internal(
+	struct stasis_topic *topic, int use_thread_pool, const char *file, int lineno,
+	const char *func)
+#else
 static struct stasis_message_router *stasis_message_router_create_internal(
 	struct stasis_topic *topic, int use_thread_pool)
+#endif
 {
 	int res;
 	struct stasis_message_router *router;
@@ -226,11 +232,20 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 		return NULL;
 	}
 
+#ifdef AST_DEVMODE
+	if (use_thread_pool) {
+		router->subscription = __stasis_subscribe_pool(topic, router_dispatch, router, file, lineno, func);
+	} else {
+		router->subscription = __stasis_subscribe(topic, router_dispatch, router, file, lineno, func);
+	}
+#else
 	if (use_thread_pool) {
 		router->subscription = stasis_subscribe_pool(topic, router_dispatch, router);
 	} else {
 		router->subscription = stasis_subscribe(topic, router_dispatch, router);
 	}
+#endif
+
 	if (!router->subscription) {
 		ao2_ref(router, -1);
 
@@ -243,17 +258,33 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 	return router;
 }
 
+#ifdef AST_DEVMODE
+struct stasis_message_router *__stasis_message_router_create(
+	struct stasis_topic *topic, const char *file, int lineno, const char *func)
+{
+	return stasis_message_router_create_internal(topic, 0, file, lineno, func);
+}
+#else
 struct stasis_message_router *stasis_message_router_create(
 	struct stasis_topic *topic)
 {
 	return stasis_message_router_create_internal(topic, 0);
 }
+#endif
 
+#ifdef AST_DEVMODE
+struct stasis_message_router *__stasis_message_router_create_pool(
+	struct stasis_topic *topic, const char *file, int lineno, const char *func)
+{
+	return stasis_message_router_create_internal(topic, 1, file, lineno, func);
+}
+#else
 struct stasis_message_router *stasis_message_router_create_pool(
 	struct stasis_topic *topic)
 {
 	return stasis_message_router_create_internal(topic, 1);
 }
+#endif
 
 void stasis_message_router_unsubscribe(struct stasis_message_router *router)
 {
