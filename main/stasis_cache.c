@@ -971,7 +971,11 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 	}
 	ast_free(new_name);
 
+#ifdef AST_DEVMODE
+	caching_topic->sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0, 0, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+#else
 	caching_topic->sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0, 0);
+#endif
 	if (caching_topic->sub == NULL) {
 		ao2_ref(caching_topic, -1);
 
