@@ -52,6 +52,7 @@ AST_TEST_DEFINE(websocket_client_create_and_connect)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = __func__;
+		info->explicit_only = 1;
 		info->category = CATEGORY;
 		info->summary = "test creation and connection of a client websocket";
 		info->description = "test creation and connection of a client websocket";
