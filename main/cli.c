@@ -1781,30 +1781,43 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 
 
 #ifdef HAVE_MALLOC_TRIM
-	/* BUGBUG malloc_trim() is a libc specific function.  Non-portable. */
-	static char *handle_cli_malloc_trim(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-	{
-		extern int malloc_trim(size_t __pad) __THROW;
 
-		switch (cmd) {
-		case CLI_INIT:
-			e->command = "malloc trim";
-			e->usage =
-				"Usage: malloc trim\n"
-				"       Try to give excess memory back to the OS.\n";
-			return NULL;
-		case CLI_GENERATE:
-			return NULL;
-		}
+/*!
+ * \internal
+ * \brief Attempt to reclaim unused heap memory.
+ *
+ * Users have reported that asterisk will sometimes be killed because it can't allocate
+ * more than around 3G of memory on a 32 bit system.
+ *
+ * Using malloc_trim() will help us to determine if it's because there's a leak or because
+ * the heap is so fragmented that there isn't enough contiguous memory available.
+ *
+ * \note malloc_trim() is a GNU extension and is therefore not portable.
+ */
+static char *handle_cli_malloc_trim(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	extern int malloc_trim(size_t __pad) __THROW;
 
-		if (malloc_trim(0)) {
-			ast_cli(a->fd, "Returned some memory to the OS.\n");
-		} else {
-			ast_cli(a->fd, "No memory returned to the OS.\n");
-		}
-
-		return CLI_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "malloc trim";
+		e->usage =
+			"Usage: malloc trim\n"
+			"       Try to give excess memory back to the OS.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
+
+	if (malloc_trim(0)) {
+		ast_cli(a->fd, "Returned some memory to the OS.\n");
+	} else {
+		ast_cli(a->fd, "No memory returned to the OS.\n");
+	}
+
+	return CLI_SUCCESS;
+}
+
 #endif
 
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
