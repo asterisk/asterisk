@@ -1788,6 +1788,34 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+
+#ifdef HAVE_MALLOC_TRIM
+	/* BUGBUG malloc_trim() is a libc specific function.  Non-portable. */
+	static char *handle_cli_malloc_trim(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+	{
+		extern int malloc_trim(size_t __pad) __THROW;
+
+		switch (cmd) {
+		case CLI_INIT:
+			e->command = "malloc trim";
+			e->usage =
+				"Usage: malloc trim\n"
+				"       Try to give excess memory back to the OS.\n";
+			return NULL;
+		case CLI_GENERATE:
+			return NULL;
+		}
+
+		if (malloc_trim(0)) {
+			ast_cli(a->fd, "Returned some memory to the OS.\n");
+		} else {
+			ast_cli(a->fd, "No memory returned to the OS.\n");
+		}
+
+		return CLI_SUCCESS;
+	}
+#endif
+
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
@@ -1833,6 +1861,11 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_cli_check_permissions, "Try a permissions config for a user"),
 
 	AST_CLI_DEFINE(handle_cli_wait_fullybooted, "Wait for Asterisk to be fully booted"),
+
+#ifdef HAVE_MALLOC_TRIM
+	AST_CLI_DEFINE(handle_cli_malloc_trim, "Return excess memory to the OS"),
+#endif
+
 };
 
 /*!
