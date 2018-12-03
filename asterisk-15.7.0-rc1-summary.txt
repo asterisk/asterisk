@@ -1,0 +1,598 @@
+                                Release Summary
+
+                              asterisk-15.7.0-rc1
+
+                                Date: 2018-12-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-15.6.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                        Testers              Reporters               
+   14 Corey Farrell              1 Cao Minh Hiep      4 Joshua C. Colp        
+   12 George Joseph              1 Emmanuel BUU       3 Sergej Kasumovic      
+   11 Sean Bright                                     2 Alexei Gradinari      
+   8 Richard Mudgett                                  2 Sean Bright           
+   6 Joshua Colp                                      1 Jan Hoffmann          
+   2 Alexei Gradinari                                 1 Jan Hoffmann          
+   2 Rodrigo RamArez Norambuena                       1 Cameron               
+   2 Florian Floimair                                 1 Walter Doekes         
+   1 Jan Hoffmann (license 6986)                      1 David Hajek           
+   1 Walter Doekes                                    1 Will                  
+   1 Frederic LE FOLL                                 1 Emmanuel BUU          
+   1 David Hajek                                      1 pasandev              
+   1 Moritz Fain                                      1 Samuel Galarneau      
+   1 Kevin Harwell                                    1 Emmanuel BUU          
+   1 Cao Minh Hiep                                    1 Cao Minh Hiep         
+   1 Chris-Savinovich                                 1 David Hajek           
+   1 Ben Ford                                         1 Samuel Galarneau      
+   1 Emmanuel BUU                                     1 Jaco Kroon            
+   1 lvl                                              1 Florian Floimair      
+   1 Peter Katzmann                                   1 Frederic LE FOLL      
+                                                      1 Cao Minh Hiep         
+                                                      1 Andrej                
+                                                      1 lvl                   
+                                                      1 Peter Katzmann        
+                                                      1 Hajek Michal          
+                                                      1 Lei Fu                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Core/DNS
+
+   ASTERISK-28127: Buffer overflow for DNS SRV/NAPTR records
+   Reported by: Jan Hoffmann
+     * [e5a59484bf] Jan Hoffmann -- AST-2018-010: Fix length of buffer needed
+       for SRV and NAPTR results
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-28013: res_http_websocket: Crash when reading HTTP Upgrade
+   requests
+   Reported by: Sean Bright
+     * [fd87b8e49c] Sean Bright -- AST-2018-009: Fix crash processing
+       websocket HTTP Upgrade requests
+
+  Bug
+
+    Category: Applications/app_queue
+
+   ASTERISK-27920: app_queue: Queue member considered inuse after immediately
+   hanging up during dialing.
+   Reported by: Cao Minh Hiep
+     * [fc842169d4] Cao Minh Hiep -- app_queue: Fix Attended transfer hangup
+       with removing pending member.
+   ASTERISK-28032: Realtime queuemembers are not updated during retry phase
+   Reported by: lvl
+     * [feb9e72b04] lvl -- app_queue: Update realtime queuemembers after
+       wait_a_bit(), not before
+
+    Category: Channels/chan_sip/Messaging
+
+   ASTERISK-28057: chan_sip: SipNotify via AMI behaves differently to CLI
+   Reported by: Peter Katzmann
+     * [f3539d1d07] Peter Katzmann -- chan_sip: SipNotify on Chan_Sip vi AMI
+       behave different to CLI
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-28057: chan_sip: SipNotify via AMI behaves differently to CLI
+   Reported by: Peter Katzmann
+     * [f3539d1d07] Peter Katzmann -- chan_sip: SipNotify on Chan_Sip vi AMI
+       behave different to CLI
+   ASTERISK-28034: chan_sip unstable with TLS after asterisk start or reloads
+   Reported by: David Hajek
+     * [cb197d76e4] David Hajek -- chan_sip.c: chan_sip unstable with TLS
+       after asterisk start or reloads
+
+    Category: Core/Bridging
+
+   ASTERISK-28076: bridging: Asterisk crashes when receiving an empty
+   realtime text frame
+   Reported by: Emmanuel BUU
+     * [633ac0e928] Emmanuel BUU -- core/frame: Fix ast_frdup() and
+       ast_frisolate() for empty text frames
+
+    Category: Core/General
+
+   ASTERISK-28005: channel.c: ARI ring only once
+   Reported by: Hajek Michal
+     * [86e079fab9] Joshua Colp -- core: Don't stop generators when writing
+       RTCP frames.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-28084: app_queue: QueueMemberStatus Event flooding AMI
+   Reported by: Andrej
+     * [308c3f9cf6] Richard Mudgett -- app_queue.c: Fix json ref leak
+
+    Category: Core/RTP
+
+   ASTERISK-27854: rtp: Crash in off-nominal case where RTP instance can't be
+   set up
+   Reported by: Lei Fu
+     * [21f472355e] Corey Farrell -- res_rtp_asterisk: Fix crash on
+       ast_rtp_new failure.
+
+    Category: Core/Stasis
+
+   ASTERISK-28084: app_queue: QueueMemberStatus Event flooding AMI
+   Reported by: Andrej
+     * [308c3f9cf6] Richard Mudgett -- app_queue.c: Fix json ref leak
+
+    Category: Resources/General
+
+   ASTERISK-28045: configure script does not enforce libunbound2 version
+   Reported by: Samuel Galarneau
+     * [4c636f5377] George Joseph -- configure.ac: Check for unbound version
+       >= 1.5
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-28029: [patch] res_musiconhold : music on hold will not start if
+   previous hold just reached end of file
+   Reported by: Frederic LE FOLL
+     * [d22c4d1999] Frederic LE FOLL -- res_musiconhold.c: Restart MOH if
+       previous hold just reached end-of-file
+
+    Category: Resources/res_odbc
+
+   ASTERISK-28065: res_odbc: missing SQL error diagnostic
+   Reported by: Alexei Gradinari
+     * [d03661bcaf] Alexei Gradinari -- res_odbc: fix missing SQL error
+       diagnostic
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28077: res_pjsip: improve realtime performance on CLI 'pjsip show
+   contacts'
+   Reported by: Alexei Gradinari
+     * [625b329f4e] Alexei Gradinari -- res_pjsip: improve realtime
+       performance on CLI 'pjsip show contacts'
+   ASTERISK-27988: alembic: PJSIP "mwi_subscribe_replaces_unsolicited" field
+   is integer not boolean
+   Reported by: Joshua C. Colp
+     * [4f30cd4b52] Richard Mudgett -- res_pjsip: Fix
+       mwi_subscribe_replaces_unsolicited type mismatch
+   ASTERISK-28022: res_pjsip realtime: uri column in ps_contacts table can be
+   too short
+   Reported by: Florian Floimair
+     * [40416ccaa7] Florian Floimair -- alembic: increase uri column size
+
+    Category: Resources/res_pjsip/Bundling
+
+   ASTERISK-28059: PJSIP: Update bundled PJPROJECT to version 2.8
+   Reported by: Joshua C. Colp
+     * [03c759d91a] Richard Mudgett -- pjproject: Update initial 2.8 patches
+       to apply cleanly.
+     * [b5959113f6] Joshua Colp -- pjproject: Upgrade to 2.8.
+
+    Category: Resources/res_pjsip_mwi
+
+   ASTERISK-27121: res_pjsip_mwi: Memory leak on reload
+   Reported by: Sergej Kasumovic
+     * [82f9f2db6b] George Joseph -- app_voicemail: Remove need to subscribe
+       to stasis
+     * [ad961fd7c3] George Joseph -- stasis_cache: Stop caching stasis
+       subscription change messages
+     * [21ea7c870c] George Joseph -- stasis_cache: Prune
+       stasis_subscription_change messages
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28047: chan_pjsip: Declined video stream is added when no video
+   codecs configured and session refresh with removed video stream occurs
+   Reported by: Will
+     * [5626b8ecae] Joshua Colp -- res_pjsip_session: Don't add declined
+       stream if one does not exist.
+
+    Category: Resources/res_pjsip_transport_websocket
+
+   ASTERISK-28020: res_pjsip_transport_websocket: Properly set 'received' for
+   IPv6
+   Reported by: Sean Bright
+     * [7ec4f0cb6a] Sean Bright -- res_pjsip_transport_websocket: Properly
+       set src_name for IPv6
+
+    Category: Resources/res_stasis
+
+   ASTERISK-26094: stasis: Playing MOH to bridge with ARI does not work
+   Reported by: Cameron
+     * [dfa926337c] Moritz Fain -- res_stasis: Fix stale data in ARI bridges
+
+    Category: Tests/General
+
+   ASTERISK-28070: testsuite: Sniffer assumes pjmedia will use ports below
+   10000
+   Reported by: Joshua C. Colp
+     * [af090e4fad] Joshua Colp -- res_rtp_asterisk: Raise event when RTP
+       port is allocated
+
+    Category: pjproject/pjsip
+
+   ASTERISK-28049: res_pjproject build failure
+   Reported by: Jaco Kroon
+     * [b4cb51ca63] Sean Bright -- res_pjproject: Fix sockaddr conversion
+       routines for non-bundled PJSIP
+
+  Improvement
+
+    Category: General
+
+   ASTERISK-28046: Remove stale nonoptreq references
+   Reported by: Walter Doekes
+     * [4616c6508a] Walter Doekes -- optional_api: Remove unused nonoptreq
+       fields
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_fax
+
+   ASTERISK-27981: res_fax: Fax session leak with fax gatewaying
+   Reported by: pasandev
+     * [58968366fc] Joshua Colp -- res_fax: Handle fax gateway being started
+       more than once.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | dd35905c23 | Corey Farrell    | astobj2: Comment on OBJ_NOLOCK in      |
+   |            |                  | ao2_container_clone.                   |
+   |------------+------------------+----------------------------------------|
+   | 4371743ba2 | Sean Bright      | CI: Use bindport instead of port in    |
+   |            |                  | test http.conf                         |
+   |------------+------------------+----------------------------------------|
+   | 53fe191708 | Sean Bright      | http.c: Reload TLS even if http.conf   |
+   |            |                  | hasn't changed                         |
+   |------------+------------------+----------------------------------------|
+   | fa08aed784 | Corey Farrell    | core: Disable astobj2 locking for some |
+   |            |                  | common objects.                        |
+   |------------+------------------+----------------------------------------|
+   | a2b6bbfc9e | Richard Mudgett  | res_smdi.c: Fix module ref counting    |
+   |            |                  | and inverted test.                     |
+   |------------+------------------+----------------------------------------|
+   | f8b71fadab | Corey Farrell    | Resolve warning about duplicate        |
+   |            |                  | 'dialplan' CLI.                        |
+   |------------+------------------+----------------------------------------|
+   | 2c43e5bad4 | Corey Farrell    | loader: Fix result of module reload    |
+   |            |                  | error.                                 |
+   |------------+------------------+----------------------------------------|
+   | 078459b3f2 | Corey Farrell    | astobj2: Record lock usage to refs log |
+   |            |                  | when DEBUG_THREADS is enabled.         |
+   |------------+------------------+----------------------------------------|
+   | 288bf43eed | Corey Farrell    | jansson-bundled: Add patches to        |
+   |            |                  | improve json_pack error reporting.     |
+   |------------+------------------+----------------------------------------|
+   | 1ffbec4672 | Corey Farrell    | lock: Improve performance of           |
+   |            |                  | DEBUG_THREADS.                         |
+   |------------+------------------+----------------------------------------|
+   | 48cf548654 | George Joseph    | app_confbridge: Use bridge join hook   |
+   |            |                  | to send join and leave events          |
+   |------------+------------------+----------------------------------------|
+   | 4afcd37d15 | Corey Farrell    | astobj2: Reduce memory overhead.       |
+   |------------+------------------+----------------------------------------|
+   | 066cade82b | Sean Bright      | config.c: Cleanup AST_INCLUDE_GLOB     |
+   |------------+------------------+----------------------------------------|
+   | 427c3e3152 | Corey Farrell    | astobj2: Fix shutdown order.           |
+   |------------+------------------+----------------------------------------|
+   | 166c130eac | Ben Ford         | res_rtp_asterisk.c: Add "seqno"        |
+   |            |                  | strictrtp option                       |
+   |------------+------------------+----------------------------------------|
+   | 4927be3523 | George Joseph    | CI: Add --test-timeout option to       |
+   |            |                  | runTestsuite.sh                        |
+   |------------+------------------+----------------------------------------|
+   | 86ae100016 | Corey Farrell    | jansson: Backport fixes to bundled,    |
+   |            |                  | use json_vsprintf if available.        |
+   |------------+------------------+----------------------------------------|
+   | 720f76def0 | Kevin Harwell    | rtp_engine: rtcp_report_to_json can    |
+   |            |                  | overflow the ssrc integer value        |
+   |------------+------------------+----------------------------------------|
+   | 47214d4de1 | George Joseph    | app_voicemail: Fix stack overrun in    |
+   |            |                  | append_mailbox                         |
+   |------------+------------------+----------------------------------------|
+   | 670fbbd702 | George Joseph    | channel.c: Address stack overflow in   |
+   |            |                  | does_id_conflict()                     |
+   |------------+------------------+----------------------------------------|
+   | 65f63bd678 | Sean Bright      | res_rtp_asterisk: Reset all settings   |
+   |            |                  | on module reload                       |
+   |------------+------------------+----------------------------------------|
+   | 4181fa6772 | George Joseph    | app_voicemail: Cleanup mailbox topic   |
+   |            |                  | and cache                              |
+   |------------+------------------+----------------------------------------|
+   | 80cc691252 | George Joseph    | stasis: Add function to delete topic   |
+   |            |                  | from pool                              |
+   |------------+------------------+----------------------------------------|
+   | 87bac2057e | Joshua Colp      | res_remb_modifier: Add module for      |
+   |            |                  | controlling REMB from CLI.             |
+   |------------+------------------+----------------------------------------|
+   | f43463d0d3 | Richard Mudgett  | stasis: No need to keep a stasis type  |
+   |            |                  | ref in a stasis msg or cache object.   |
+   |------------+------------------+----------------------------------------|
+   | a966a23023 | Richard Mudgett  | stasis_message.c: Don't create         |
+   |            |                  | immutable stasis objects with locks.   |
+   |------------+------------------+----------------------------------------|
+   |            |                  | alembic: fix                           |
+   | 36ce08fa7d | Florian Floimair | suppress_q850_reason_headers column    |
+   |            |                  | name                                   |
+   |------------+------------------+----------------------------------------|
+   |            |                  | autoconf: Check for                    |
+   | 5713fc0b49 | Sean Bright      | srtp_get_version_string() before using |
+   |            |                  | it                                     |
+   |------------+------------------+----------------------------------------|
+   | cb19ca981d | George Joseph    | CI: Fix typo in testsuite git checkout |
+   |------------+------------------+----------------------------------------|
+   | 644f7ef413 | Sean Bright      | res_srtp.c: Show linked version of     |
+   |            |                  | libsrtp on module init                 |
+   |------------+------------------+----------------------------------------|
+   | 5f6bef4e5b | Sean Bright      | res_pjsip: Log IPv6 addresses          |
+   |            |                  | correctly                              |
+   |------------+------------------+----------------------------------------|
+   | 07d6e2bf16 | George Joseph    | CI: Use proper credentials for         |
+   |            |                  | Security testsuite checkout            |
+   |------------+------------------+----------------------------------------|
+   | a2b76625aa | Corey Farrell    | CI: Use .gitreview to default          |
+   |            |                  | BRANCH_NAME.                           |
+   |------------+------------------+----------------------------------------|
+   | 214b1545b1 | Corey Farrell    | Build System: Resolve conflict between |
+   |            |                  | DESTDIR and bundled jansson.           |
+   |------------+------------------+----------------------------------------|
+   | 9624cbff4f | Sean Bright      | res_pjproject: Add utility functions   |
+   |            |                  | to convert between socket structures   |
+   |------------+------------------+----------------------------------------|
+   |            | Rodrigo RamArez  | app_dial: set the comment for          |
+   | dc307a67d8 | Norambuena       | OPT_ARG_ANNOUNCE to really what is     |
+   |            |                  | done                                   |
+   |------------+------------------+----------------------------------------|
+   | ce99f0c692 | Chris-Savinovich | pbx_config.c: Fix reloading module if  |
+   |            |                  | initially declined to load             |
+   |------------+------------------+----------------------------------------|
+   | bf530e032d | Richard Mudgett  | http.c: Give HTTP error response when  |
+   |            |                  | received lines are too long.           |
+   |------------+------------------+----------------------------------------|
+   | 781e78fe0e | Richard Mudgett  | iostream.c: Fix ast_iostream_gets()    |
+   |            |                  | needlessly returning failure.          |
+   |------------+------------------+----------------------------------------|
+   | 0dab630533 | Rodrigo RamArez  | make config: os-release output error.  |
+   |            | Norambuena       |                                        |
+   |------------+------------------+----------------------------------------|
+   | 588e4ecf50 | Corey Farrell    | Create --disable-binary-modules        |
+   |            |                  | option.                                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                                    |    1
+ .version                                                                                      |    1
+ ChangeLog                                                                                     |78505 ----------
+ asterisk-15.6.0-summary.html                                                                  |  296
+ asterisk-15.6.0-summary.txt                                                                   |  730
+ b/CHANGES                                                                                     |   11
+ b/Makefile                                                                                    |    4
+ b/apps/app_adsiprog.c                                                                         |    1
+ b/apps/app_confbridge.c                                                                       |   63
+ b/apps/app_dial.c                                                                             |    2
+ b/apps/app_getcpeid.c                                                                         |    1
+ b/apps/app_queue.c                                                                            |   10
+ b/apps/app_speech_utils.c                                                                     |    1
+ b/apps/app_stack.c                                                                            |    1
+ b/apps/app_stasis.c                                                                           |    1
+ b/apps/app_voicemail.c                                                                        |  527
+ b/apps/confbridge/confbridge_manager.c                                                        |   14
+ b/apps/confbridge/include/confbridge.h                                                        |   12
+ b/autoconf/ast_ext_lib.m4                                                                     |  102
+ b/build_tools/menuselect-deps.in                                                              |    1
+ b/channels/chan_dahdi.c                                                                       |    1
+ b/channels/chan_iax2.c                                                                        |    1
+ b/channels/chan_mgcp.c                                                                        |    1
+ b/channels/chan_sip.c                                                                         |   11
+ b/codecs/codecs.xml                                                                           |    5
+ b/configs/samples/rtp.conf.sample                                                             |    4
+ b/configs/samples/voicemail.conf.sample                                                       |   11
+ b/configure                                                                                   |  448
+ b/configure.ac                                                                                |   37
+ b/contrib/ast-db-manage/config/versions/1d3ed26d9978_increase_uri_column_size.py              |   22
+ b/contrib/ast-db-manage/config/versions/7f85dd44c775_fix_suppress_q850_reason_headers.py      |   43
+ b/contrib/ast-db-manage/config/versions/fe6592859b85_fix_mwi_subscribe_replaces_.py           |   61
+ b/contrib/scripts/refcounter.py                                                               |    4
+ b/contrib/scripts/reflocks.py                                                                 |  126
+ b/funcs/func_aes.c                                                                            |    1
+ b/include/asterisk/astobj2.h                                                                  |    3
+ b/include/asterisk/autoconfig.h.in                                                            |   15
+ b/include/asterisk/json.h                                                                     |    5
+ b/include/asterisk/lock.h                                                                     |   39
+ b/include/asterisk/module.h                                                                   |    5
+ b/include/asterisk/netsock2.h                                                                 |   12
+ b/include/asterisk/res_pjproject.h                                                            |   26
+ b/include/asterisk/stasis.h                                                                   |   12
+ b/main/app.c                                                                                  |    3
+ b/main/astobj2.c                                                                              |   51
+ b/main/astobj2_container.c                                                                    |    3
+ b/main/channel.c                                                                              |    4
+ b/main/config.c                                                                               |   12
+ b/main/config_options.c                                                                       |    7
+ b/main/dns_naptr.c                                                                            |   14
+ b/main/dns_srv.c                                                                              |   12
+ b/main/frame.c                                                                                |    5
+ b/main/http.c                                                                                 |   31
+ b/main/indications.c                                                                          |    4
+ b/main/iostream.c                                                                             |   59
+ b/main/json.c                                                                                 |   11
+ b/main/loader.c                                                                               |   16
+ b/main/lock.c                                                                                 |  125
+ b/main/media_index.c                                                                          |    7
+ b/main/rtp_engine.c                                                                           |    8
+ b/main/stasis.c                                                                               |   36
+ b/main/stasis_cache.c                                                                         |   50
+ b/main/stasis_message.c                                                                       |   16
+ b/main/xmldoc.c                                                                               |    4
+ b/pbx/pbx_config.c                                                                            |   32
+ b/pbx/pbx_dundi.c                                                                             |    1
+ b/res/ari/resource_bridges.c                                                                  |    1
+ b/res/res.xml                                                                                 |    1
+ b/res/res_ari.c                                                                               |    1
+ b/res/res_ari_applications.c                                                                  |    1
+ b/res/res_ari_asterisk.c                                                                      |    1
+ b/res/res_ari_bridges.c                                                                       |    1
+ b/res/res_ari_channels.c                                                                      |    1
+ b/res/res_ari_device_states.c                                                                 |    1
+ b/res/res_ari_endpoints.c                                                                     |    1
+ b/res/res_ari_events.c                                                                        |    1
+ b/res/res_ari_mailboxes.c                                                                     |    1
+ b/res/res_ari_playbacks.c                                                                     |    1
+ b/res/res_ari_recordings.c                                                                    |    1
+ b/res/res_ari_sounds.c                                                                        |    1
+ b/res/res_chan_stats.c                                                                        |    1
+ b/res/res_config_odbc.c                                                                       |    6
+ b/res/res_endpoint_stats.c                                                                    |    1
+ b/res/res_fax.c                                                                               |    5
+ b/res/res_http_websocket.c                                                                    |   25
+ b/res/res_musiconhold.c                                                                       |   25
+ b/res/res_odbc.c                                                                              |   11
+ b/res/res_pjproject.c                                                                         |  186
+ b/res/res_pjproject.exports.in                                                                |    2
+ b/res/res_pjsip.c                                                                             |    2
+ b/res/res_pjsip/config_system.c                                                               |    4
+ b/res/res_pjsip/location.c                                                                    |   68
+ b/res/res_pjsip/pjsip_configuration.c                                                         |    2
+ b/res/res_pjsip/pjsip_distributor.c                                                           |   13
+ b/res/res_pjsip_logger.c                                                                      |   14
+ b/res/res_pjsip_outbound_authenticator_digest.c                                               |    4
+ b/res/res_pjsip_sdp_rtp.c                                                                     |    4
+ b/res/res_pjsip_session.c                                                                     |   22
+ b/res/res_pjsip_transport_websocket.c                                                         |   25
+ b/res/res_remb_modifier.c                                                                     |  225
+ b/res/res_resolver_unbound.c                                                                  |   51
+ b/res/res_rtp_asterisk.c                                                                      |   86
+ b/res/res_smdi.c                                                                              |   30
+ b/res/res_srtp.c                                                                              |    6
+ b/res/res_stasis.c                                                                            |   81
+ b/res/res_stasis_answer.c                                                                     |    1
+ b/res/res_stasis_device_state.c                                                               |    1
+ b/res/res_stasis_mailbox.c                                                                    |    1
+ b/res/res_stasis_playback.c                                                                   |    1
+ b/res/res_stasis_recording.c                                                                  |    3
+ b/res/res_stasis_snoop.c                                                                      |    1
+ b/res/res_stasis_test.c                                                                       |    3
+ b/rest-api-templates/res_ari_resource.c.mustache                                              |    1
+ b/tests/CI/buildAsterisk.sh                                                                   |   11
+ b/tests/CI/gateTestGroups.json                                                                |    9
+ b/tests/CI/gates.jenkinsfile                                                                  |   15
+ b/tests/CI/periodic-dailyTestGroups.json                                                      |    8
+ b/tests/CI/runTestsuite.sh                                                                    |    3
+ b/tests/CI/runUnittests.sh                                                                    |    2
+ b/tests/test_ari.c                                                                            |    1
+ b/tests/test_res_stasis.c                                                                     |    1
+ b/tests/test_stasis_endpoints.c                                                               |    1
+ b/third-party/jansson/Makefile                                                                |    2
+ b/third-party/jansson/configure.m4                                                            |   20
+ b/third-party/jansson/patches/0022-Avoid-invalid-memory-read-in-json_pack.patch               |   38
+ b/third-party/jansson/patches/0025-Call-va_end-after-va_copy-in-json_vsprintf.patch           |   64
+ b/third-party/jansson/patches/0027-Rename-a-varialble-that-shadows-another-one.patch          |   56
+ b/third-party/jansson/patches/0029-json_pack-Improve-handling-of-formats-with-and.patch       |  217
+ b/third-party/jansson/patches/0030-More-work-on-json_pack-error-reporting.patch               |  100
+ b/third-party/pjproject/Makefile.rules                                                        |    1
+ b/third-party/pjproject/configure.m4                                                          |    1
+ b/third-party/pjproject/patches/0000-configure-ssl-library-path.patch                         |   41
+ b/third-party/pjproject/patches/0000-remove-third-party.patch                                 |   24
+ b/third-party/pjproject/patches/0000-set_apps_initial_log_level.patch                         |    8
+ b/third-party/pjproject/patches/0000-solaris.patch                                            |   36
+ b/third-party/pjproject/patches/0010-timer-Clean-up-usage-of-timer-heap.patch                 |  434
+ contrib/realtime/mssql/mssql_cdr.sql                                                          |   58
+ contrib/realtime/mssql/mssql_config.sql                                                       | 2017
+ contrib/realtime/mssql/mssql_voicemail.sql                                                    |   54
+ contrib/realtime/mysql/mysql_cdr.sql                                                          |   40
+ contrib/realtime/mysql/mysql_config.sql                                                       | 1172
+ contrib/realtime/mysql/mysql_voicemail.sql                                                    |   34
+ contrib/realtime/oracle/oracle_cdr.sql                                                        |   52
+ contrib/realtime/oracle/oracle_config.sql                                                     | 1983
+ contrib/realtime/oracle/oracle_voicemail.sql                                                  |   48
+ contrib/realtime/postgresql/postgresql_cdr.sql                                                |   44
+ contrib/realtime/postgresql/postgresql_config.sql                                             | 1264
+ contrib/realtime/postgresql/postgresql_voicemail.sql                                          |   38
+ third-party/pjproject/patches/0021-sip_parser-Fix-return-code-in-pjsip_find_msg-and-add.patch |   41
+ third-party/pjproject/patches/0030-sip_transport-Destroy-transports-not-in-hash.patch         |   27
+ third-party/pjproject/patches/0040-183_without_to_tag.patch                                   |   17
+ third-party/pjproject/patches/0050-dont_terminate_session_early.patch                         |   71
+ third-party/pjproject/patches/0060-sip_msg-Prevent-crash-on-header-without-vptr.patch         |   56
+ third-party/pjproject/patches/0070-os_core_unix-Set-mutex-NULL-in-atomic-destroy-and-ad.patch |  114
+ third-party/pjproject/patches/0080-timer-Clean-up-usage-of-timer-heap.patch                   |  434
+ third-party/pjproject/patches/0090-sip_transaction-In-tsx_timer_callback-check-if-tsx-i.patch |   31
+ third-party/pjproject/patches/0100-sip_inv-Add-option-to-accept-updated-SDP-on-same-To-.patch |  215
+ third-party/pjproject/patches/0110_fix_tdata_rexmit_deadlock.patch                            |  202
+ 158 files changed, 3351 insertions(+), 88367 deletions(-)
