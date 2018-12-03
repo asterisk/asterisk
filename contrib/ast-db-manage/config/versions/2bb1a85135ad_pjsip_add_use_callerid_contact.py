@@ -30,7 +30,7 @@ def upgrade():
     # type to get around "already created" issue - works okay with mysql
     ast_bool_values = ENUM(*AST_BOOL_VALUES, name=AST_BOOL_NAME, create_type=False)
 
-    op.add_column('ps_globals', sa.Column('use_callerid_contact', yesno_values))
+    op.add_column('ps_globals', sa.Column('use_callerid_contact', ast_bool_values))
 
 
 def downgrade():
