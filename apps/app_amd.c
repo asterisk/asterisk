@@ -282,7 +282,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		int ms = 0;
 
 		/* Figure out how long we waited */
-		if (res > 0) {
+		if (res >= 0) {
 			ms = 2 * maxWaitTimeForFrame - res;
 		}
 
@@ -411,6 +411,14 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 					inGreeting = 1;
 				}
 
+			}
+		} else {
+			iTotalTime += ms;
+			if (iTotalTime >= totalAnalysisTime) {
+				ast_frfree(f);
+				strcpy(amdStatus , "NOTSURE");
+				sprintf(amdCause , "TOOLONG-%d", iTotalTime);
+				break;
 			}
 		}
 		ast_frfree(f);
