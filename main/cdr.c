@@ -803,19 +803,30 @@ static void cdr_object_snapshot_copy(struct cdr_object_snapshot *dst, struct cdr
 }
 
 /*!
+ * \brief Transition a \ref cdr_object to a new state with initiation flag
+ * \param cdr The \ref cdr_object to transition
+ * \param fn_table The \ref cdr_object_fn_table state to go to
+ */
+static void cdr_object_transition_state_init(struct cdr_object *cdr, struct cdr_object_fn_table *fn_table, int do_init)
+{
+	CDR_DEBUG("%p - Transitioning CDR for %s from state %s to %s\n",
+		cdr, cdr->party_a.snapshot->name,
+		cdr->fn_table ? cdr->fn_table->name : "NONE", fn_table->name);
+	cdr->fn_table = fn_table;
+
+	if (cdr->fn_table->init_function && do_init) {
+		cdr->fn_table->init_function(cdr);
+	}
+}
+
+/*!
  * \brief Transition a \ref cdr_object to a new state
  * \param cdr The \ref cdr_object to transition
  * \param fn_table The \ref cdr_object_fn_table state to go to
  */
 static void cdr_object_transition_state(struct cdr_object *cdr, struct cdr_object_fn_table *fn_table)
 {
-	CDR_DEBUG("%p - Transitioning CDR for %s from state %s to %s\n",
-		cdr, cdr->party_a.snapshot->name,
-		cdr->fn_table ? cdr->fn_table->name : "NONE", fn_table->name);
-	cdr->fn_table = fn_table;
-	if (cdr->fn_table->init_function) {
-		cdr->fn_table->init_function(cdr);
-	}
+	cdr_object_transition_state_init(cdr, fn_table, 1);
 }
 
 /*!
@@ -1955,7 +1966,12 @@ static int dialed_pending_state_process_party_a(struct cdr_object *cdr, struct a
 			cdr->fn_table->process_party_a(cdr, snapshot);
 			return 1;
 		} else {
-			cdr_object_transition_state(cdr, &single_state_fn_table);
+			/* The CDR does not need to be reinitialized when transitioning
+			 * to its single state as this would overwrite the start time,
+			 * causing potentially both the answer and the start time to be
+			 * the same which is incorrect.
+			 */
+			cdr_object_transition_state_init(cdr, &single_state_fn_table, 0);
 			cdr->fn_table->process_party_a(cdr, snapshot);
 			return 0;
 		}
