@@ -5317,6 +5317,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	register_peer_exten(peer, FALSE);
 	ast_free_acl_list(peer->acl);
+	ast_free_acl_list(peer->contactacl);
 	ast_free_acl_list(peer->directmediaacl);
 	if (peer->selfdestruct)
 		ast_atomic_fetchadd_int(&apeerobjs, -1);
@@ -21178,6 +21179,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Force rport  : %s\n", force_rport_string(peer->flags));
 		ast_cli(fd, "  Symmetric RTP: %s\n", comedia_string(peer->flags));
 		ast_cli(fd, "  ACL          : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(peer->acl) == 0));
+		ast_cli(fd, "  ContactACL   : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(peer->contactacl) == 0));
 		ast_cli(fd, "  DirectMedACL : %s\n", AST_CLI_YESNO(ast_acl_list_is_empty(peer->directmediaacl) == 0));
 		ast_cli(fd, "  T.38 support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
@@ -31524,6 +31526,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 	struct ast_variable *v = v_head;
 	struct sip_peer *peer = NULL;
 	struct ast_acl_list *oldacl = NULL;
+	struct ast_acl_list *oldcontactacl = NULL;
 	struct ast_acl_list *olddirectmediaacl = NULL;
 	int found = 0;
 	int firstpass = 1;
@@ -31601,6 +31604,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 	if (firstpass) {
 		oldacl = peer->acl;
 		peer->acl = NULL;
+		oldcontactacl = peer->contactacl;
+		peer->contactacl = NULL;
 		olddirectmediaacl = peer->directmediaacl;
 		peer->directmediaacl = NULL;
 		set_peer_defaults(peer);	/* Set peer defaults */
@@ -32283,6 +32288,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 	peer->the_mark = 0;
 
 	oldacl = ast_free_acl_list(oldacl);
+	oldcontactacl = ast_free_acl_list(oldcontactacl);
 	olddirectmediaacl = ast_free_acl_list(olddirectmediaacl);
 	if (!ast_strlen_zero(peer->callback)) { /* build string from peer info */
 		char *reg_string;
