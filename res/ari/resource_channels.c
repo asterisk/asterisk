@@ -884,6 +884,22 @@ void ast_ari_channels_hangup(struct ast_variable *headers,
 		cause = AST_CAUSE_CONGESTION;
 	} else if (!strcmp(args->reason, "no_answer")) {
 		cause = AST_CAUSE_NOANSWER;
+	} else if (!strcmp(args->reason, "timeout")) {
+		cause = AST_CAUSE_NO_USER_RESPONSE;
+	} else if (!strcmp(args->reason, "rejected")) {
+		cause = AST_CAUSE_CALL_REJECTED;
+	} else if (!strcmp(args->reason, "unallocated")) {
+		cause = AST_CAUSE_UNALLOCATED;
+	} else if (!strcmp(args->reason, "normal_unspecified")) {
+		cause = AST_CAUSE_NORMAL_UNSPECIFIED;
+	} else if (!strcmp(args->reason, "number_incomplete")) {
+		cause = AST_CAUSE_INVALID_NUMBER_FORMAT;
+	} else if (!strcmp(args->reason, "codec_mismatch")) {
+		cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+	} else if (!strcmp(args->reason, "interworking")) {
+		cause = AST_CAUSE_INTERWORKING;
+	} else if (!strcmp(args->reason, "failure")) {
+		cause = AST_CAUSE_FAILURE;
 	} else if(!strcmp(args->reason, "answered_elsewhere")) {
 		cause = AST_CAUSE_ANSWERED_ELSEWHERE;
 	} else {
