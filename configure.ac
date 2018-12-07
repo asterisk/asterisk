@@ -786,7 +786,7 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob ioperm inet_ntoa isascii memchr memmove memset mkdir mkdtemp munmap newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv uselocale utime vasprintf getpeereid sysctl swapctl malloc_trim])
+AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob ioperm inet_ntoa isascii memchr memmove memset mkdir mkdtemp munmap newlocale pipe2 ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv uselocale utime vasprintf getpeereid sysctl swapctl malloc_trim])
 
 AC_MSG_CHECKING(for htonll)
 AC_LINK_IFELSE(
@@ -1124,6 +1124,27 @@ AC_RUN_IFELSE(
 	AC_MSG_RESULT(no),
 	# It's unlikely an embedded system will have this.
 	AC_MSG_RESULT(unknown)
+)
+
+AC_MSG_CHECKING([if socket() accepts SOCK_NONBLOCK])
+AC_RUN_IFELSE(
+[AC_LANG_PROGRAM([
+	#ifdef HAVE_SYS_TYPES_H
+	# include <sys/types.h>
+	#endif
+	#ifdef HAVE_SYS_SOCKET_H
+	# include <sys/socket.h>
+	#endif
+	], [
+	   if (socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0) < 0) {
+	      return 1;
+	   }
+	   return 0;
+	])],
+	AC_MSG_RESULT(yes)
+	AC_DEFINE([HAVE_SOCK_NONBLOCK], 1, [Define to 1 if your socket() implementation can accept SOCK_NONBLOCK.]),
+	AC_MSG_RESULT(no),
+	AC_MSG_RESULT(cross-compile)
 )
 
 AC_MSG_CHECKING(if we can increase the maximum select-able file descriptor)

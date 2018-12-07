@@ -2750,6 +2750,42 @@ int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
 	return 0;
 }
 
+#ifndef HAVE_SOCK_NONBLOCK
+int ast_socket_nonblock(int domain, int type, int protocol)
+{
+	int s = socket(domain, type, protocol);
+	if (s < 0) {
+		return -1;
+	}
+
+	if (ast_fd_set_flags(s, O_NONBLOCK)) {
+		close(s);
+		return -1;
+	}
+
+	return s;
+}
+#endif
+
+#ifndef HAVE_PIPE2
+int ast_pipe_nonblock(int filedes[2])
+{
+	int p = pipe(filedes);
+	if (p < 0) {
+		return -1;
+	}
+
+	if (ast_fd_set_flags(filedes[0], O_NONBLOCK)
+	   || ast_fd_set_flags(filedes[1], O_NONBLOCK)) {
+		close(filedes[0]);
+		close(filedes[1]);
+		return -1;
+	}
+
+	return 0;
+}
+#endif
+
 /*!
  * \brief A thread local indicating whether the current thread is a user interface.
  */
