@@ -51,7 +51,7 @@ struct confbridge_state *CONF_STATE_INACTIVE = &STATE_INACTIVE;
 static void join_unmarked(struct confbridge_user *user)
 {
 	conf_add_user_active(user->conference, user);
-	conf_add_post_join_action(user, conf_handle_only_unmarked);
+	conf_add_post_join_action(user, conf_handle_only_person);
 
 	conf_change_state(user, CONF_STATE_SINGLE);
 }

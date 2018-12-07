@@ -490,13 +490,11 @@ void conf_handle_first_join(struct confbridge_conference *conference);
  */
 int conf_handle_inactive_waitmarked(struct confbridge_user *user);
 
-/*! \brief Handle actions whenever an unmarked user joins an inactive conference
- * \note These actions seem like they could apply just as well to a marked user
- * and possibly be made to happen any time transitioning to a single state.
+/*! \brief Handle actions whenever an user joins an empty conference
  *
- * \param user The unmarked user
+ * \param user The user
  */
-int conf_handle_only_unmarked(struct confbridge_user *user);
+int conf_handle_only_person(struct confbridge_user *user);
 
 /*! \brief Handle when a conference moves to having more than one active participant
  * \param conference The conference bridge with more than one active participant

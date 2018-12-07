@@ -1360,7 +1360,7 @@ int conf_handle_inactive_waitmarked(struct confbridge_user *user)
 	return 0;
 }
 
-int conf_handle_only_unmarked(struct confbridge_user *user)
+int conf_handle_only_person(struct confbridge_user *user)
 {
 	/* If audio prompts have not been quieted or this prompt quieted play it on out */
 	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET | USER_OPT_NOONLYPERSON)) {
