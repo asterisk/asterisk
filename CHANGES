@@ -25,6 +25,12 @@ Features
    The previous behavior has been restored so both channels receive the
    channel variable when one of these features is invoked.
 
+app_voicemail
+------------------
+ * You can now specify a special context with the "aliasescontext" parameter
+   in voicemail.conf which will allow you to create aliases for physical
+   mailboxes.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.23.0 to Asterisk 13.24.0 ----------
 ------------------------------------------------------------------------------

@@ -984,6 +984,7 @@ static int skipms;
 static int maxlogins;
 static int minpassword;
 static int passwordlocation;
+static char aliasescontext[MAX_VM_CONTEXT_LEN];
 
 /*! Poll mailboxes for changes since there is something external to
  *  app_voicemail that may change them. */
@@ -1035,6 +1036,27 @@ static void mwi_sub_task_dtor(struct mwi_sub_task *mwist)
 static struct ast_taskprocessor *mwi_subscription_tps;
 
 static AST_RWLIST_HEAD_STATIC(mwi_subs, mwi_sub);
+
+struct alias_mailbox_mapping {
+	char *alias;
+	char *mailbox;
+	char buf[0];
+};
+
+struct mailbox_alias_mapping {
+	char *alias;
+	char *mailbox;
+	char buf[0];
+};
+
+#define MAPPING_BUCKETS 511
+static struct ao2_container *alias_mailbox_mappings;
+AO2_STRING_FIELD_HASH_FN(alias_mailbox_mapping, alias);
+AO2_STRING_FIELD_CMP_FN(alias_mailbox_mapping, alias);
+
+static struct ao2_container *mailbox_alias_mappings;
+AO2_STRING_FIELD_HASH_FN(mailbox_alias_mapping, mailbox);
+AO2_STRING_FIELD_CMP_FN(mailbox_alias_mapping, mailbox);
 
 /* custom audio control prompts for voicemail playback */
 static char listen_control_forward_key[12];
@@ -1748,9 +1770,31 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 			ast_set2_flag(vmu, !ivm, VM_ALLOCED);
 			AST_LIST_NEXT(vmu, list) = NULL;
 		}
-	} else
-		vmu = find_user_realtime(ivm, context, mailbox);
+	}
 	AST_LIST_UNLOCK(&users);
+	if (!vmu) {
+		vmu = find_user_realtime(ivm, context, mailbox);
+	}
+	if (!vmu && !ast_strlen_zero(aliasescontext)) {
+		struct alias_mailbox_mapping *mapping;
+		char *search_string = ast_alloca(MAX_VM_MAILBOX_LEN);
+
+		snprintf(search_string, MAX_VM_MAILBOX_LEN, "%s%s%s",
+			mailbox,
+			ast_strlen_zero(context) ? "" : "@",
+			S_OR(context, ""));
+
+		mapping = ao2_find(alias_mailbox_mappings, search_string, OBJ_SEARCH_KEY);
+		if (mapping) {
+			char *search_mailbox = NULL;
+			char *search_context = NULL;
+
+			separate_mailbox(ast_strdupa(mapping->mailbox), &search_mailbox, &search_context);
+			ao2_ref(mapping, -1);
+			vmu = find_user(ivm, search_mailbox, search_context);
+		}
+	}
+
 	return vmu;
 }
 
@@ -6039,6 +6083,9 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 	struct dirent *de;
 	char fn[256];
 	int ret = 0;
+	struct alias_mailbox_mapping *mapping;
+	char *c;
+	char *m;
 
 	/* If no mailbox, return immediately */
 	if (ast_strlen_zero(mailbox))
@@ -6049,7 +6096,21 @@ static int __has_voicemail(const char *context, const char *mailbox, const char 
 	if (ast_strlen_zero(context))
 		context = "default";
 
-	snprintf(fn, sizeof(fn), "%s%s/%s/%s", VM_SPOOL_DIR, context, mailbox, folder);
+	c = (char *)context;
+	m = (char *)mailbox;
+
+	if (!ast_strlen_zero(aliasescontext)) {
+		char tmp[MAX_VM_MAILBOX_LEN];
+
+		snprintf(tmp, MAX_VM_MAILBOX_LEN, "%s@%s", mailbox, context);
+		mapping = ao2_find(alias_mailbox_mappings, tmp, OBJ_SEARCH_KEY);
+		if (mapping) {
+			separate_mailbox(ast_strdupa(mapping->mailbox), &m, &c);
+			ao2_ref(mapping, -1);
+		}
+	}
+
+	snprintf(fn, sizeof(fn), "%s%s/%s/%s", VM_SPOOL_DIR, c, m, folder);
 
 	if (!(dir = opendir(fn)))
 		return 0;
@@ -8060,7 +8121,24 @@ static void queue_mwi_event(const char *channel_id, const char *box, int urgent,
 		return;
 	}
 
+	ast_debug(3, "Queueing event for mailbox %s  New: %d   Old: %d\n", box, new + urgent, old);
 	ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
+
+	if (!ast_strlen_zero(aliasescontext)) {
+		struct ao2_iterator *aliases;
+		struct mailbox_alias_mapping *mapping;
+
+		aliases = ao2_find(mailbox_alias_mappings, box, OBJ_SEARCH_KEY | OBJ_MULTIPLE);
+		while ((mapping = ao2_iterator_next(aliases))) {
+			mailbox = NULL;
+			context = NULL;
+			ast_debug(3, "Found alias mapping: %s -> %s\n", mapping->alias, box);
+			separate_mailbox(ast_strdupa(mapping->alias), &mailbox, &context);
+			ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
+			ao2_ref(mapping, -1);
+		}
+		ao2_iterator_destroy(aliases);
+	}
 }
 
 /*!
@@ -12885,6 +12963,46 @@ static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struc
 	return res;
 }
 
+/*! \brief Show a list of voicemail zones in the CLI */
+static char *handle_voicemail_show_aliases(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_iterator aliases;
+	struct alias_mailbox_mapping *mapping;
+#define ALIASES_OUTPUT_FORMAT "%-32s %-32s\n"
+	char *res = CLI_SUCCESS;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "voicemail show aliases";
+		e->usage =
+			"Usage: voicemail show aliases\n"
+			"       Lists mailbox aliases\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	if (ast_strlen_zero(aliasescontext)) {
+		ast_cli(a->fd, "Aliases are not enabled\n");
+		return res;
+	}
+
+	ast_cli(a->fd, "Aliases context: %s\n", aliasescontext);
+	ast_cli(a->fd, ALIASES_OUTPUT_FORMAT, "Alias", "Mailbox");
+
+	aliases = ao2_iterator_init(alias_mailbox_mappings, 0);
+	while ((mapping = ao2_iterator_next(&aliases))) {
+		ast_cli(a->fd, ALIASES_OUTPUT_FORMAT, mapping->alias, mapping->mailbox);
+		ao2_ref(mapping, -1);
+	}
+	ao2_iterator_destroy(&aliases);
+
+	return res;
+}
+
 /*! \brief Reload voicemail configuration from the CLI */
 static char *handle_voicemail_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -12911,6 +13029,7 @@ static char *handle_voicemail_reload(struct ast_cli_entry *e, int cmd, struct as
 static struct ast_cli_entry cli_voicemail[] = {
 	AST_CLI_DEFINE(handle_voicemail_show_users, "List defined voicemail boxes"),
 	AST_CLI_DEFINE(handle_voicemail_show_zones, "List zone message formats"),
+	AST_CLI_DEFINE(handle_voicemail_show_aliases, "List mailbox aliases"),
 	AST_CLI_DEFINE(handle_voicemail_reload, "Reload voicemail configuration"),
 };
 
@@ -13270,7 +13389,6 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 	if (stasis_message_type(msg) != stasis_subscription_change_type()) {
 		return;
 	}
-
 	change = stasis_message_data(msg);
 	if (change->topic == ast_mwi_topic_all()) {
 		return;
@@ -13612,11 +13730,98 @@ static int load_config_from_memory(int reload, struct ast_config *cfg, struct as
 }
 #endif
 
+static struct alias_mailbox_mapping *alias_mailbox_mapping_create(const char *alias, const char *mailbox)
+{
+	struct alias_mailbox_mapping *mapping;
+	size_t from_len = strlen(alias) + 1;
+	size_t to_len = strlen(mailbox) + 1;
+
+	mapping = ao2_alloc(sizeof(*mapping) + from_len + to_len, NULL);
+	if (!mapping) {
+		return NULL;
+	}
+	mapping->alias = mapping->buf;
+	mapping->mailbox = mapping->buf + from_len;
+	strcpy(mapping->alias, alias); /* Safe */
+	strcpy(mapping->mailbox, mailbox); /* Safe */
+
+	return mapping;
+}
+
+static void load_aliases(struct ast_config *cfg)
+{
+	struct ast_variable *var;
+
+	if (ast_strlen_zero(aliasescontext)) {
+		return;
+	}
+	var = ast_variable_browse(cfg, aliasescontext);
+	while (var) {
+		struct alias_mailbox_mapping *mapping = alias_mailbox_mapping_create(var->name, var->value);
+		if (mapping) {
+			ao2_link(alias_mailbox_mappings, mapping);
+			ao2_link(mailbox_alias_mappings, mapping);
+			ao2_ref(mapping, -1);
+		}
+		var = var->next;
+	}
+}
+
+static void load_zonemessages(struct ast_config *cfg)
+{
+	struct ast_variable *var;
+
+	var = ast_variable_browse(cfg, "zonemessages");
+	while (var) {
+		struct vm_zone *z;
+		char *msg_format, *tzone;
+
+		z = ast_malloc(sizeof(*z));
+		if (!z) {
+			return;
+		}
+
+		msg_format = ast_strdupa(var->value);
+		tzone = strsep(&msg_format, "|,");
+		if (msg_format) {
+			ast_copy_string(z->name, var->name, sizeof(z->name));
+			ast_copy_string(z->timezone, tzone, sizeof(z->timezone));
+			ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
+			AST_LIST_LOCK(&zones);
+			AST_LIST_INSERT_HEAD(&zones, z, list);
+			AST_LIST_UNLOCK(&zones);
+		} else {
+			ast_log(AST_LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
+			ast_free(z);
+		}
+		var = var->next;
+	}
+}
+
+static void load_users(struct ast_config *cfg)
+{
+	struct ast_variable *var;
+	char *cat = NULL;
+
+	while ((cat = ast_category_browse(cfg, cat))) {
+		if (strcasecmp(cat, "general") == 0
+			|| strcasecmp(cat, aliasescontext) == 0
+			|| strcasecmp(cat, "zonemessages") == 0) {
+			continue;
+		}
+
+		var = ast_variable_browse(cfg, cat);
+		while (var) {
+			append_mailbox(cat, var->name, var->value);
+			var = var->next;
+		}
+	}
+}
+
 static int actual_load_config(int reload, struct ast_config *cfg, struct ast_config *ucfg)
 {
 	struct ast_vm_user *current;
 	char *cat;
-	struct ast_variable *var;
 	const char *val;
 	char *q, *stringp, *tmp;
 	int x;
@@ -13645,6 +13850,10 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	/* Free all the zones structure */
 	free_vm_zones();
 
+	/* Remove all aliases */
+	ao2_callback(alias_mailbox_mappings, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+	ao2_callback(mailbox_alias_mappings, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+
 	AST_LIST_LOCK(&users);
 
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
@@ -13656,6 +13865,11 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 		if (!(val = ast_variable_retrieve(cfg, "general", "userscontext")))
 			val = "default";
 		ast_copy_string(userscontext, val, sizeof(userscontext));
+
+		aliasescontext[0] = '\0';
+		val = ast_variable_retrieve(cfg, "general", "aliasescontext");
+		ast_copy_string(aliasescontext, S_OR(val, ""), sizeof(aliasescontext));
+
 		/* Attach voice message to mail message ? */
 		if (!(val = ast_variable_retrieve(cfg, "general", "attach")))
 			val = "yes";
@@ -14257,45 +14471,16 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 		}
 
 		/* load mailboxes from voicemail.conf */
-		cat = ast_category_browse(cfg, NULL);
-		while (cat) {
-			if (strcasecmp(cat, "general")) {
-				var = ast_variable_browse(cfg, cat);
-				if (strcasecmp(cat, "zonemessages")) {
-					/* Process mailboxes in this context */
-					while (var) {
-						append_mailbox(cat, var->name, var->value);
-						var = var->next;
-					}
-				} else {
-					/* Timezones in this context */
-					while (var) {
-						struct vm_zone *z;
-						if ((z = ast_malloc(sizeof(*z)))) {
-							char *msg_format, *tzone;
-							msg_format = ast_strdupa(var->value);
-							tzone = strsep(&msg_format, "|,");
-							if (msg_format) {
-								ast_copy_string(z->name, var->name, sizeof(z->name));
-								ast_copy_string(z->timezone, tzone, sizeof(z->timezone));
-								ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-								AST_LIST_LOCK(&zones);
-								AST_LIST_INSERT_HEAD(&zones, z, list);
-								AST_LIST_UNLOCK(&zones);
-							} else {
-								ast_log(AST_LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-								ast_free(z);
-							}
-						} else {
-							AST_LIST_UNLOCK(&users);
-							return -1;
-						}
-						var = var->next;
-					}
-				}
-			}
-			cat = ast_category_browse(cfg, cat);
-		}
+
+		/*
+		 * Aliases must be loaded before users or the aliases won't be notified
+		 * if there's existing voicemail in the user mailbox.
+		 */
+		load_aliases(cfg);
+
+		load_zonemessages(cfg);
+
+		load_users(cfg);
 
 		AST_LIST_UNLOCK(&users);
 
@@ -15046,6 +15231,16 @@ static int unload_module(void)
 	return res;
 }
 
+static void print_mappings(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct alias_mailbox_mapping *mapping = v_obj;
+
+	if (!mapping) {
+		return;
+	}
+	prnt(where, "Alias: %s Mailbox: %s", mapping->alias, mapping->mailbox);
+}
+
 /*!
  * \brief Load the module
  *
@@ -15069,6 +15264,38 @@ static int load_module(void)
 	inprocess_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, 573,
 		inprocess_hash_fn, NULL, inprocess_cmp_fn);
 	if (!inprocess_container) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	alias_mailbox_mappings = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAPPING_BUCKETS,
+		alias_mailbox_mapping_hash_fn, NULL, alias_mailbox_mapping_cmp_fn);
+	if (!alias_mailbox_mappings) {
+		ast_log(LOG_ERROR, "Unable to create alias_mailbox_mappings container\n");
+		ao2_cleanup(inprocess_container);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	res = ao2_container_register("voicemail_alias_mailbox_mappings", alias_mailbox_mappings, print_mappings);
+	if (res) {
+		ast_log(LOG_ERROR, "Unable to register alias_mailbox_mappings container\n");
+		ao2_cleanup(inprocess_container);
+		ao2_cleanup(alias_mailbox_mappings);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	mailbox_alias_mappings = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MAPPING_BUCKETS,
+		mailbox_alias_mapping_hash_fn, NULL, mailbox_alias_mapping_cmp_fn);
+	if (!mailbox_alias_mappings) {
+		ast_log(LOG_ERROR, "Unable to create mailbox_alias_mappings container\n");
+		ao2_cleanup(inprocess_container);
+		ao2_cleanup(alias_mailbox_mappings);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	res = ao2_container_register("voicemail_mailbox_alias_mappings", mailbox_alias_mappings, print_mappings);
+	if (res) {
+		ast_log(LOG_ERROR, "Unable to register mailbox_alias_mappings container\n");
+		ao2_cleanup(inprocess_container);
+		ao2_cleanup(alias_mailbox_mappings);
+		ao2_cleanup(mailbox_alias_mappings);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
