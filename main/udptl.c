@@ -1037,13 +1037,12 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 		udptl->tx[i].buf_len = -1;
 	}
 
-	if ((udptl->fd = socket(ast_sockaddr_is_ipv6(addr) ?
+	if ((udptl->fd = ast_socket_nonblock(ast_sockaddr_is_ipv6(addr) ?
 					AF_INET6 : AF_INET, SOCK_DGRAM, 0)) < 0) {
 		ast_free(udptl);
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
-	ast_fd_set_flags(udptl->fd, O_NONBLOCK);
 
 #ifdef SO_NO_CHECK
 	if (cfg->general->nochecksums)
