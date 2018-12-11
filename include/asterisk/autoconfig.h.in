@@ -609,6 +609,9 @@
 /* Define to indicate presence of the pg_encoding_to_char API. */
 #undef HAVE_PGSQL_pg_encoding_to_char
 
+/* Define to 1 if you have the `pipe2' function. */
+#undef HAVE_PIPE2
+
 /* Define if your system has the PJPROJECT libraries. */
 #undef HAVE_PJPROJECT
 
@@ -876,6 +879,9 @@
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
+
+/* Define to 1 if your socket() implementation can accept SOCK_NONBLOCK. */
+#undef HAVE_SOCK_NONBLOCK
 
 /* Define to 1 if your system has soxmix application. */
 #undef HAVE_SOXMIX

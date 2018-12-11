@@ -51,6 +51,15 @@ int ast_alertpipe_init(int alert_pipe[2])
 
 #endif
 
+#ifdef HAVE_PIPE2
+
+	if (pipe2(alert_pipe, O_NONBLOCK)) {
+		ast_log(LOG_WARNING, "Failed to create alert pipe: %s\n", strerror(errno));
+		return -1;
+	}
+
+#else
+
 	if (pipe(alert_pipe)) {
 		ast_log(LOG_WARNING, "Failed to create alert pipe: %s\n", strerror(errno));
 		return -1;
@@ -61,6 +70,8 @@ int ast_alertpipe_init(int alert_pipe[2])
 			return -1;
 		}
 	}
+
+#endif
 
 	return 0;
 }
