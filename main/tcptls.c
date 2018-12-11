@@ -746,7 +746,7 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 		return;
 	}
 
-	desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->local_address) ?
+	desc->accept_fd = ast_socket_nonblock(ast_sockaddr_is_ipv6(&desc->local_address) ?
 				 AF_INET6 : AF_INET, SOCK_STREAM, 0);
 	if (desc->accept_fd < 0) {
 		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n", desc->name, strerror(errno));
@@ -767,7 +767,6 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 	}
 
 systemd_socket_activation:
-	ast_fd_set_flags(desc->accept_fd, O_NONBLOCK);
 	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
 		ast_log(LOG_ERROR, "Unable to launch thread for %s on %s: %s\n",
 			desc->name,
