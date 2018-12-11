@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.24.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.24.0-rc1</h3><h3 align="center">Date: 2018-12-03</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.24.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.24.0</h3><h3 align="center">Date: 2018-12-11</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,7 +7,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-13.23.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">33 Corey Farrell <git@cfware.com><br/>21 George Joseph <gjoseph@digium.com><br/>16 Richard Mudgett <rmudgett@digium.com><br/>16 Sean Bright <sean.bright@gmail.com><br/>9 Alexei Gradinari <alex2grad@gmail.com><br/>6 Joshua Colp <jcolp@digium.com><br/>3 Chris-Savinovich <csavinovich@digium.com><br/>2 Torrey Searle <torrey@voxbone.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>2 Pascal Cadotte Michaud <pcm@wazo.io><br/>2 Emmanuel BUU <emmanuel.buu@ives.fr><br/>2 lvl <digium@lvlconsultancy.nl><br/>1 Michael Walton (license 6502)<br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Florian Floimair <f.floimair@commend.com><br/>1 Robert Cripps <rcripps@voxbone.com><br/>1 Moritz Fain <moritz@fain.io><br/>1 Cao Minh Hiep <chiep@infinitalk.co.jp><br/>1 Jasper Hafkenscheid <jasper.hafkenscheid@wearespindle.com><br/>1 Ben Ford <bford@digium.com><br/>1 Peter Katzmann <peter.katzmann@edag.de><br/></td><td width="33%">2 Emmanuel BUU<br/>1 Cao Minh Hiep<br/></td><td width="33%">6 Alexei Gradinari <alex2grad@gmail.com><br/>5 Joshua C. Colp <jcolp@digium.com><br/>4 Torrey Searle <tsearle@gmail.com><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 Corey Farrell <git@cfware.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 Emmanuel BUU <emmanuel.buu@ives.fr><br/>2 Emmanuel BUU<br/>2 lvl <digium@lvlconsultancy.nl><br/>1 Cameron <cbanta@gmail.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 sungtae kim <pchero21@gmail.com><br/>1 pasandev <pasandev@ymail.com><br/>1 Eyal Hasson <eyal@kolhl.com><br/>1 Cao Minh Hiep <chiep@infinitalk.co.jp><br/>1 Pascal Cadotte Michaud <pascal.cadotte@gmail.com><br/>1 Ronald Raikes<br/>1 Robert Cripps <rcripps@voxbone.com><br/>1 Luit van Drongelen<br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Michael Walton <mike@farsouthnet.com><br/>1 Luit van Drongelen <luitvd@gmail.com><br/>1 Ronald Raikes <reraikes@avweb.com><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Cao Minh Hiep<br/>1 Andrej <andrej@grom.biz><br/>1 Peter Katzmann <peter.katzmann@edag.de><br/></td></tr>
+<tr valign="top"><td width="33%">33 Corey Farrell <git@cfware.com><br/>22 George Joseph <gjoseph@digium.com><br/>16 Richard Mudgett <rmudgett@digium.com><br/>16 Sean Bright <sean.bright@gmail.com><br/>9 Alexei Gradinari <alex2grad@gmail.com><br/>6 Joshua Colp <jcolp@digium.com><br/>3 Kevin Harwell <kharwell@digium.com><br/>3 Chris-Savinovich <csavinovich@digium.com><br/>2 Torrey Searle <torrey@voxbone.com><br/>2 Rodrigo Ramírez Norambuena <a@rodrigoramirez.com><br/>2 Pascal Cadotte Michaud <pcm@wazo.io><br/>2 Emmanuel BUU <emmanuel.buu@ives.fr><br/>2 lvl <digium@lvlconsultancy.nl><br/>1 Michael Walton (license 6502)<br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Florian Floimair <f.floimair@commend.com><br/>1 Robert Cripps <rcripps@voxbone.com><br/>1 Moritz Fain <moritz@fain.io><br/>1 Cao Minh Hiep <chiep@infinitalk.co.jp><br/>1 Jasper Hafkenscheid <jasper.hafkenscheid@wearespindle.com><br/>1 Ben Ford <bford@digium.com><br/>1 Peter Katzmann <peter.katzmann@edag.de><br/></td><td width="33%">2 Emmanuel BUU<br/>1 Cao Minh Hiep<br/></td><td width="33%">6 Alexei Gradinari <alex2grad@gmail.com><br/>5 Joshua C. Colp <jcolp@digium.com><br/>4 Torrey Searle <tsearle@gmail.com><br/>3 Sergej Kasumovic <sergej@bicomsystems.com><br/>3 Corey Farrell <git@cfware.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 Emmanuel BUU <emmanuel.buu@ives.fr><br/>2 Emmanuel BUU<br/>2 lvl <digium@lvlconsultancy.nl><br/>1 Cameron <cbanta@gmail.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 sungtae kim <pchero21@gmail.com><br/>1 pasandev <pasandev@ymail.com><br/>1 Eyal Hasson <eyal@kolhl.com><br/>1 Cao Minh Hiep <chiep@infinitalk.co.jp><br/>1 Pascal Cadotte Michaud <pascal.cadotte@gmail.com><br/>1 Ronald Raikes<br/>1 Robert Cripps <rcripps@voxbone.com><br/>1 Luit van Drongelen<br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Michael Walton <mike@farsouthnet.com><br/>1 Luit van Drongelen <luitvd@gmail.com><br/>1 Ronald Raikes <reraikes@avweb.com><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Cao Minh Hiep<br/>1 Andrej <andrej@grom.biz><br/>1 Peter Katzmann <peter.katzmann@edag.de><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28013">ASTERISK-28013</a>: res_http_websocket: Crash when reading HTTP Upgrade requests<br/>Reported by: Sean Bright<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=33ca3664ca28b12de0f113784a10c537b2d807ba">[33ca3664ca]</a> Sean Bright -- AST-2018-009: Fix crash processing websocket HTTP Upgrade requests</li>
 </ul><br><h3>New Feature</h3><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28087">ASTERISK-28087</a>: add flag to allow CALLERID(num) to be placed in Contact header in chan_pjsip<br/>Reported by: Torrey Searle<ul>
@@ -105,6 +105,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fa71f498ce7ea076c5fda732e9036c1bcf1f20af">[fa71f498ce]</a> Joshua Colp -- res_fax: Handle fax gateway being started more than once.</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cd37229829fdef61debfd5b8575106ff892161e5">cd37229829</a></td><td>George Joseph</td><td>Revert "RTP: reset DTMF last seqno/timestamp on voice packet with marker bit"</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0e89602771e2c2896cd9fa763307989c3829da6">d0e8960277</a></td><td>Kevin Harwell</td><td>Update for 13.24.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=44c8868fb16c37e2b3d655488fad3c92a5378202">44c8868fb1</a></td><td>Sean Bright</td><td>core: Add some documentation to the malloc_trim code</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=40ab571e0d07f7e1854c0f924b0fbda2da36c5a5">40ab571e0d</a></td><td>Chris-Savinovich</td><td>core: Merge malloc_trim patch</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=922fbafda0f9ba90098a881371a73ccba4508bcd">922fbafda0</a></td><td>George Joseph</td><td>test_cel:  Plug a few ref leaks</td></tr>
@@ -189,12 +191,11 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4e20fe9f061cfe34118bc12a96842f8f5f162d3b">4e20fe9f06</a></td><td>Richard Mudgett</td><td>http.c: Give HTTP error response when received lines are too long.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=00e5c7d0ffb89ba784a5bcaab43fd05c5f4f7b96">00e5c7d0ff</a></td><td>Rodrigo Ramírez Norambuena</td><td>make config: os-release output error.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=abb04622f7667cf10af3399a104b62bf409244d6">abb04622f7</a></td><td>Corey Farrell</td><td>Create --disable-binary-modules option.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                    |    1
-.version                                                                                      |    1
-ChangeLog                                                                                     |62278 ----------
-asterisk-13.23.0-summary.html                                                                 |  276
-asterisk-13.23.0-summary.txt                                                                  |  688
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-13.23.0-summary.html                                                                 |  276 -
+asterisk-13.23.0-summary.txt                                                                  |  688 ----
+b/.version                                                                                    |    2
 b/CHANGES                                                                                     |   36
+b/ChangeLog                                                                                   | 1660 +++++++++-
 b/Makefile                                                                                    |    4
 b/UPGRADE.txt                                                                                 |    7
 b/addons/ooh323c/src/ooasn1.h                                                                 |    6
@@ -211,6 +212,8 @@ b/apps/app_stack.c                                                              
 b/apps/app_stasis.c                                                                           |    1
 b/apps/app_voicemail.c                                                                        |   28
 b/apps/confbridge/conf_config_parser.c                                                        |   12
+b/asterisk-13.24.0-rc1-summary.html                                                           |  462 ++
+b/asterisk-13.24.0-rc1-summary.txt                                                            |  969 +++++
 b/bridges/bridge_native_rtp.c                                                                 |   12
 b/build_tools/menuselect-deps.in                                                              |    1
 b/channels/chan_console.c                                                                     |    4
@@ -222,7 +225,7 @@ b/channels/chan_pjsip.c                                                         
 b/channels/chan_sip.c                                                                         |   50
 b/channels/chan_skinny.c                                                                      |    2
 b/channels/chan_unistim.c                                                                     |    4
-b/channels/pjsip/dialplan_functions.c                                                         |  175
+b/channels/pjsip/dialplan_functions.c                                                         |  175 +
 b/channels/pjsip/include/dialplan_functions.h                                                 |   13
 b/channels/sig_pri.c                                                                          |    7
 b/codecs/codec_speex.c                                                                        |   26
@@ -230,12 +233,16 @@ b/codecs/codecs.xml                                                             
 b/configs/samples/pjsip.conf.sample                                                           |    4
 b/configs/samples/res_parking.conf.sample                                                     |    2
 b/configs/samples/rtp.conf.sample                                                             |    4
-b/configure                                                                                   |  352
+b/configure                                                                                   |  352 ++
 b/configure.ac                                                                                |   19
 b/contrib/ast-db-manage/config/versions/1ac563b350a8_add_pjsip_trust_send__connected_line.py  |   40
 b/contrib/ast-db-manage/config/versions/2bb1a85135ad_pjsip_add_use_callerid_contact.py        |   39
 b/contrib/ast-db-manage/config/versions/7f85dd44c775_fix_suppress_q850_reason_headers.py      |   43
 b/contrib/ast-db-manage/config/versions/fe6592859b85_fix_mwi_subscribe_replaces_.py           |   61
+b/contrib/realtime/mssql/mssql_config.sql                                                     |   80
+b/contrib/realtime/mysql/mysql_config.sql                                                     |   28
+b/contrib/realtime/oracle/oracle_config.sql                                                   |   72
+b/contrib/realtime/postgresql/postgresql_config.sql                                           |   32
 b/contrib/scripts/ast_coredumper                                                              |   12
 b/contrib/scripts/install_prereq                                                              |    2
 b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                                |   52
@@ -266,7 +273,7 @@ b/main/astfd.c                                                                  
 b/main/astmm.c                                                                                |    8
 b/main/astobj2.c                                                                              |   20
 b/main/astobj2_container.c                                                                    |    3
-b/main/backtrace.c                                                                            |  330
+b/main/backtrace.c                                                                            |  330 +
 b/main/bridge.c                                                                               |    4
 b/main/bucket.c                                                                               |    8
 b/main/ccss.c                                                                                 |   22
@@ -289,7 +296,7 @@ b/main/http.c                                                                   
 b/main/indications.c                                                                          |    8
 b/main/json.c                                                                                 |   11
 b/main/loader.c                                                                               |   16
-b/main/lock.c                                                                                 |  218
+b/main/lock.c                                                                                 |  218 -
 b/main/logger.c                                                                               |   55
 b/main/manager.c                                                                              |   15
 b/main/media_index.c                                                                          |   13
@@ -301,7 +308,7 @@ b/main/pickup.c                                                                 
 b/main/presencestate.c                                                                        |    2
 b/main/rtp_engine.c                                                                           |    8
 b/main/sorcery.c                                                                              |   21
-b/main/stasis.c                                                                               |  173
+b/main/stasis.c                                                                               |  173 -
 b/main/stasis_cache.c                                                                         |   99
 b/main/stasis_cache_pattern.c                                                                 |   18
 b/main/stasis_channels.c                                                                      |    9
@@ -346,7 +353,7 @@ b/res/res_musiconhold.c                                                         
 b/res/res_odbc.c                                                                              |   19
 b/res/res_parking.c                                                                           |    4
 b/res/res_phoneprov.c                                                                         |   12
-b/res/res_pjproject.c                                                                         |  186
+b/res/res_pjproject.c                                                                         |  186 +
 b/res/res_pjproject.exports.in                                                                |    2
 b/res/res_pjsip.c                                                                             |   50
 b/res/res_pjsip/config_global.c                                                               |   21
@@ -370,7 +377,7 @@ b/res/res_pjsip_pubsub.c                                                        
 b/res/res_pjsip_refer.c                                                                       |    4
 b/res/res_pjsip_session.c                                                                     |   38
 b/res/res_pjsip_transport_websocket.c                                                         |   25
-b/res/res_rtp_asterisk.c                                                                      |  104
+b/res/res_rtp_asterisk.c                                                                      |   94
 b/res/res_security_log.c                                                                      |    2
 b/res/res_smdi.c                                                                              |   30
 b/res/res_sorcery_memory.c                                                                    |    3
@@ -432,19 +439,7 @@ b/utils/ael_main.c                                                              
 b/utils/astdb2sqlite3.c                                                                       |    6
 b/utils/check_expr.c                                                                          |   13
 b/utils/conf2ael.c                                                                            |   12
-b/utils/extconf.c                                                                             |   38
-contrib/realtime/mssql/mssql_cdr.sql                                                          |   44
-contrib/realtime/mssql/mssql_config.sql                                                       | 1925
-contrib/realtime/mssql/mssql_voicemail.sql                                                    |   54
-contrib/realtime/mysql/mysql_cdr.sql                                                          |   32
-contrib/realtime/mysql/mysql_config.sql                                                       | 1130
-contrib/realtime/mysql/mysql_voicemail.sql                                                    |   34
-contrib/realtime/oracle/oracle_cdr.sql                                                        |   38
-contrib/realtime/oracle/oracle_config.sql                                                     | 1891
-contrib/realtime/oracle/oracle_voicemail.sql                                                  |   48
-contrib/realtime/postgresql/postgresql_cdr.sql                                                |   36
-contrib/realtime/postgresql/postgresql_config.sql                                             | 1222
-contrib/realtime/postgresql/postgresql_voicemail.sql                                          |   38
+b/utils/extconf.c                                                                             |   74
 third-party/jansson/jansson-2.11.tar.bz2.md5                                                  |    1
 third-party/jansson/patches/0001-Improve-test-coverage.patch                                  |  128
 third-party/jansson/patches/0017-Fix-error-handling-in-json_pack.patch                        |  103
@@ -454,9 +449,9 @@ third-party/pjproject/patches/0040-183_without_to_tag.patch                     
 third-party/pjproject/patches/0050-dont_terminate_session_early.patch                         |   71
 third-party/pjproject/patches/0060-sip_msg-Prevent-crash-on-header-without-vptr.patch         |   56
 third-party/pjproject/patches/0070-os_core_unix-Set-mutex-NULL-in-atomic-destroy-and-ad.patch |  114
-third-party/pjproject/patches/0080-timer-Clean-up-usage-of-timer-heap.patch                   |  434
+third-party/pjproject/patches/0080-timer-Clean-up-usage-of-timer-heap.patch                   |  434 --
 third-party/pjproject/patches/0090-sip_transaction-In-tsx_timer_callback-check-if-tsx-i.patch |   31
-third-party/pjproject/patches/0100-sip_inv-Add-option-to-accept-updated-SDP-on-same-To-.patch |  215
-third-party/pjproject/patches/0110_fix_tdata_rexmit_deadlock.patch                            |  203
+third-party/pjproject/patches/0100-sip_inv-Add-option-to-accept-updated-SDP-on-same-To-.patch |  215 -
+third-party/pjproject/patches/0110_fix_tdata_rexmit_deadlock.patch                            |  203 -
 third-party/pjproject/pjproject-2.7.2.tar.bz2.md5                                             |    2
-270 files changed, 4095 insertions(+), 72536 deletions(-)</pre><br></html>
+263 files changed, 7394 insertions(+), 3796 deletions(-)</pre><br></html>
