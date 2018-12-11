@@ -914,6 +914,40 @@ int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
 	const char *file, int lineno, const char *function);
 
 /*!
+ * \brief Create a non-blocking socket
+ * \since 13.25
+ *
+ * Wrapper around socket(2) that sets the O_NONBLOCK flag on the resulting
+ * socket.
+ *
+ * \details
+ * For parameter and return information, see the man page for
+ * socket(2).
+ */
+#ifdef HAVE_SOCK_NONBLOCK
+# define ast_socket_nonblock(domain, type, protocol) socket((domain), (type) | SOCK_NONBLOCK, (protocol))
+#else
+int ast_socket_nonblock(int domain, int type, int protocol);
+#endif
+
+/*!
+ * \brief Create a non-blocking pipe
+ * \since 13.25
+ *
+ * Wrapper around pipe(2) that sets the O_NONBLOCK flag on the resulting
+ * file descriptors.
+ *
+ * \details
+ * For parameter and return information, see the man page for
+ * pipe(2).
+ */
+#ifdef HAVE_PIPE2
+# define ast_pipe_nonblock(filedes) pipe2((filedes), O_NONBLOCK)
+#else
+int ast_pipe_nonblock(int filedes[2]);
+#endif
+
+/*!
  * \brief Set the current thread's user interface status.
  *
  * \param is_user_interface Non-zero to mark the thread as a user interface.
