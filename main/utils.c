@@ -2730,9 +2730,17 @@ int __ast_fd_set_flags(int fd, int flags, enum ast_fd_flag_operation op,
 
 	switch (op) {
 	case AST_FD_FLAG_SET:
+		if ((f & flags) == flags) {
+			/* There is nothing to set */
+			return 0;
+		}
 		f |= flags;
 		break;
 	case AST_FD_FLAG_CLEAR:
+		if (!(f & flags)) {
+			/* There is nothing to clear */
+			return 0;
+		}
 		f &= ~flags;
 		break;
 	default:
