@@ -2792,21 +2792,18 @@ static double stddev_compute(double stddev, double sample, double normdev, doubl
 
 static int create_new_socket(const char *type, int af)
 {
-	int sock = socket(af, SOCK_DGRAM, 0);
+	int sock = ast_socket_nonblock(af, SOCK_DGRAM, 0);
 
 	if (sock < 0) {
-		if (!type) {
-			type = "RTP/RTCP";
-		}
 		ast_log(LOG_WARNING, "Unable to allocate %s socket: %s\n", type, strerror(errno));
-	} else {
-		ast_fd_set_flags(sock, O_NONBLOCK);
-#ifdef SO_NO_CHECK
-		if (nochecksums) {
-			setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
-		}
-#endif
+		return sock;
 	}
+
+#ifdef SO_NO_CHECK
+	if (nochecksums) {
+		setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
+	}
+#endif
 
 	return sock;
 }
