@@ -4067,6 +4067,8 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_tps_init(), "Task Processor Core");
 	check_init(ast_fd_init(), "File Descriptor Debugging");
 	check_init(ast_pbx_init(), "ast_pbx_init");
+	check_init(aco_init(), "Configuration Option Framework");
+	check_init(stasis_init(), "Stasis");
 #ifdef TEST_FRAMEWORK
 	check_init(ast_test_init(), "Test Framework");
 #endif
@@ -4079,9 +4081,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_format_init(), "Formats");
 	check_init(ast_format_cache_init(), "Format Cache");
 	check_init(ast_codec_builtin_init(), "Built-in Codecs");
-	check_init(aco_init(), "Configuration Option Framework");
 	check_init(ast_bucket_init(), "Bucket API");
-	check_init(stasis_init(), "Stasis");
 	check_init(ast_stasis_system_init(), "Stasis system-level information");
 	check_init(ast_endpoint_stasis_init(), "Stasis Endpoint");
 
