@@ -40,6 +40,7 @@ struct stasis_message_type {
 	char *name;
 	unsigned int hash;
 	int id;
+	enum stasis_subscription_message_formatters available_formatters;
 };
 
 static struct stasis_message_vtable null_vtable = {};
@@ -80,6 +81,15 @@ int stasis_message_type_create(const char *name,
 	}
 	type->hash = ast_hashtab_hash_string(name);
 	type->vtable = vtable;
+	if (vtable->to_json) {
+		type->available_formatters |= STASIS_SUBSCRIPTION_FORMATTER_JSON;
+	}
+	if (vtable->to_ami) {
+		type->available_formatters |= STASIS_SUBSCRIPTION_FORMATTER_AMI;
+	}
+	if (vtable->to_event) {
+		type->available_formatters |= STASIS_SUBSCRIPTION_FORMATTER_EVENT;
+	}
 	type->id = ast_atomic_fetchadd_int(&message_type_id, +1);
 	*result = type;
 
@@ -99,6 +109,12 @@ unsigned int stasis_message_type_hash(const struct stasis_message_type *type)
 int stasis_message_type_id(const struct stasis_message_type *type)
 {
 	return type->id;
+}
+
+enum stasis_subscription_message_formatters stasis_message_type_available_formatters(
+	const struct stasis_message_type *type)
+{
+	return type->available_formatters;
 }
 
 /*! \internal */
