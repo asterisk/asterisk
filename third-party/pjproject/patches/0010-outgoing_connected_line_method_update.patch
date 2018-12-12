@@ -1,0 +1,33 @@
+diff --git a/pjsip/src/pjsip-ua/sip_inv.c b/pjsip/src/pjsip-ua/sip_inv.c
+--- a/pjsip/src/pjsip-ua/sip_inv.c
++++ b/pjsip/src/pjsip-ua/sip_inv.c
+@@ -4185,6 +4185,29 @@
+ 
+ 	    if (tsx->status_code != 100) {
+ 
++		if (inv->role == PJSIP_ROLE_UAC) {
++		    pjsip_rx_data *rdata = e->body.tsx_state.src.rdata;
++		    pjsip_allow_hdr *allow = NULL;
++		    pjsip_msg *msg = rdata->msg_info.msg;
++
++		    if (msg) {
++			allow = (pjsip_allow_hdr*) pjsip_msg_find_hdr(msg, PJSIP_H_ALLOW,
++				NULL);
++		    }
++		    if (allow) {
++			unsigned i;
++			const pj_str_t STR_UPDATE = { "UPDATE", 6 };
++
++			for (i=0; i<allow->count; ++i) {
++			    if (pj_stricmp(&allow->values[i], &STR_UPDATE)==0) {
++				/* UPDATE is present in Allow */
++				inv->options |= PJSIP_INV_SUPPORT_UPDATE;
++				break;
++			    }
++			}
++		    }
++		}
++
+ 		if (dlg->remote.info->tag.slen)
+ 		    inv_set_state(inv, PJSIP_INV_STATE_EARLY, e);
+ 
