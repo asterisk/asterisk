@@ -242,4 +242,23 @@ int stasis_message_router_set_default(struct stasis_message_router *router,
 				      stasis_subscription_cb callback,
 				      void *data);
 
+/*!
+ * \brief Indicate to a message router that we are interested in messages with one or more formatters.
+ *
+ * The formatters are passed on to the underlying subscription.
+ *
+ * \warning With direct subscriptions, adding a formatter filter is an OR operation
+ * with any message type filters.  In the current implementation of message router however,
+ * it's an AND operation.  Even when setting a default route, the callback will only get
+ * messages that have the formatters provides in this call.
+ *
+ * \param router Router to set the formatters of.
+ * \param formatters A bitmap of \ref stasis_subscription_message_formatters we wish to receive.
+ *
+ * \since 13.25.0
+ * \since 16.2.0
+ */
+void stasis_message_router_accept_formatters(struct stasis_message_router *router,
+	enum stasis_subscription_message_formatters formatters);
+
 #endif /* _ASTERISK_STASIS_MESSAGE_ROUTER_H */
