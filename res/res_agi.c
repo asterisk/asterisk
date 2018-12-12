@@ -2071,13 +2071,8 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds)
 			ast_sockaddr_set_port(&addrs[i], AGI_PORT);
 		}
 
-		if ((s = socket(addrs[i].ss.ss_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+		if ((s = ast_socket_nonblock(addrs[i].ss.ss_family, SOCK_STREAM, IPPROTO_TCP)) < 0) {
 			ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-			continue;
-		}
-
-		if (ast_fd_set_flags(s, O_NONBLOCK)) {
-			close(s);
 			continue;
 		}
 

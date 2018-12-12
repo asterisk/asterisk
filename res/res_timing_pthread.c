@@ -114,7 +114,6 @@ static struct {
 static void *pthread_timer_open(void)
 {
 	struct pthread_timer *timer;
-	int i;
 
 	if (!(timer = ao2_alloc(sizeof(*timer), pthread_timer_destructor))) {
 		errno = ENOMEM;
@@ -124,13 +123,9 @@ static void *pthread_timer_open(void)
 	timer->pipe[PIPE_READ] = timer->pipe[PIPE_WRITE] = -1;
 	timer->state = TIMER_STATE_IDLE;
 
-	if (pipe(timer->pipe)) {
+	if (ast_pipe_nonblock(timer->pipe)) {
 		ao2_ref(timer, -1);
 		return NULL;
-	}
-
-	for (i = 0; i < ARRAY_LEN(timer->pipe); ++i) {
-		ast_fd_set_flags(timer->pipe[i], O_NONBLOCK);
 	}
 
 	ao2_lock(pthread_timers);
