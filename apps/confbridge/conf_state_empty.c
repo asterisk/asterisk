@@ -56,7 +56,7 @@ static void join_unmarked(struct confbridge_user *user)
 {
 	conf_add_user_active(user->conference, user);
 	conf_handle_first_join(user->conference);
-	conf_add_post_join_action(user, conf_handle_only_unmarked);
+	conf_add_post_join_action(user, conf_handle_only_person);
 
 	conf_change_state(user, CONF_STATE_SINGLE);
 }
@@ -73,6 +73,7 @@ static void join_marked(struct confbridge_user *user)
 {
 	conf_add_user_marked(user->conference, user);
 	conf_handle_first_join(user->conference);
+	conf_add_post_join_action(user, conf_handle_only_person);
 
 	conf_change_state(user, CONF_STATE_SINGLE_MARKED);
 }
