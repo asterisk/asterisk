@@ -213,6 +213,7 @@ static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct 
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, start_message, NULL);
 	}
 
+	pbx_builtin_setvar_helper(bridge_channel->chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 }
 
@@ -400,6 +401,7 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, start_message, NULL);
 	}
 
+	pbx_builtin_setvar_helper(bridge_channel->chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
 }
 
