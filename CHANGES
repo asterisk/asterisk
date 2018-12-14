@@ -71,6 +71,19 @@ Bridging
    ast_bridge_snapshot_update structure as it's data.  It contains
    the last snapshot and the new one.
 
+Features
+------------------
+ * Before Asterisk 12, when using the automon or automixmon features defined
+   in features.conf, a channel variable (TOUCH_MIXMONITOR_OUTPUT) was set on
+   both channels, indicating the filename of the recording.
+
+   When bridging was overhauled in Asterisk 12, the behavior was changed such
+   that the variable was only set on the peer channel and not on the channel
+   that initiated the automon or automixmon.
+
+   The previous behavior has been restored so both channels receive the
+   channel variable when one of these features is invoked.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.0.0 to Asterisk 16.1.0 ------------
 ------------------------------------------------------------------------------
