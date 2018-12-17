@@ -282,7 +282,7 @@ static void h264_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 	APPEND_IF_NOT_H264_UNSET(attr->PACKETIZATION_MODE, str, "packetization-mode");
 	APPEND_IF_NOT_H264_UNSET(attr->LEVEL_ASYMMETRY_ALLOWED, str, "level-asymmetry-allowed");
 
-	if (attr->PROFILE_IDC && attr->PROFILE_IOP && attr->LEVEL) {
+	if (attr->PROFILE_IDC && attr->LEVEL) {
 		if (added) {
 			ast_str_append(str, 0, ";");
 		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
