@@ -32,11 +32,15 @@
 
 AST_RWLIST_HEAD_STATIC(session_supplements, ast_sip_session_supplement);
 
-void ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement)
+void ast_sip_session_register_supplement_with_module(struct ast_module *module, struct ast_sip_session_supplement *supplement)
 {
 	struct ast_sip_session_supplement *iter;
 	int inserted = 0;
 	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	ast_assert(supplement != NULL);
+
+	supplement->module = module;
 
 	if (!supplement->response_priority) {
 		supplement->response_priority = AST_SIP_SESSION_BEFORE_MEDIA;
@@ -94,8 +98,34 @@ int ast_sip_session_add_supplements(struct ast_sip_session *session)
 		if (!copy) {
 			return -1;
 		}
+
+		/* referenced session created. increasing module reference. */
+		ast_module_ref(copy->module);
+
 		AST_LIST_INSERT_TAIL(&session->supplements, copy, next);
 	}
 
 	return 0;
 }
+
+void ast_sip_session_remove_supplements(struct ast_sip_session *session)
+{
+	struct ast_sip_session_supplement *iter;
+
+	if (!session) {
+		return;
+	}
+
+	/* free the supplements */
+	while ((iter = AST_LIST_REMOVE_HEAD(&session->supplements, next))) {
+		if (iter->module) {
+			/* referenced session closed. decreasing modue reference. */
+			ast_module_unref(iter->module);
+		}
+
+		ast_free(iter);
+	}
+
+	return;
+}
+
