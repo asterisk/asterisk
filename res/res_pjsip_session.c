@@ -58,6 +58,9 @@
 #define DEFAULT_NUM_SESSION_MEDIA 2
 
 /* Some forward declarations */
+static void handle_session_begin(struct ast_sip_session *session);
+static void handle_session_end(struct ast_sip_session *session);
+static void handle_session_destroy(struct ast_sip_session *session);
 static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata);
 static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata,
 		enum ast_sip_session_response_priority response_priority);
@@ -2088,7 +2091,6 @@ static int datastore_cmp(void *obj, void *arg, int flags)
 static void session_destructor(void *obj)
 {
 	struct ast_sip_session *session = obj;
-	struct ast_sip_session_supplement *supplement;
 	struct ast_sip_session_delayed_request *delay;
 	const char *endpoint_name = session->endpoint ?
 		ast_sorcery_object_get_id(session->endpoint) : "<none>";
@@ -2104,19 +2106,18 @@ static void session_destructor(void *obj)
 		, session->contact ? ast_sorcery_object_get_id(session->contact) : "<none>"
 		);
 
-	while ((supplement = AST_LIST_REMOVE_HEAD(&session->supplements, next))) {
-		if (supplement->session_destroy) {
-			supplement->session_destroy(session);
-		}
-		ast_free(supplement);
-	}
+	/* fire session destroy handler */
+	handle_session_destroy(session);
+
+	/* remove all registered supplements */
+	ast_sip_session_remove_supplements(session);
+	AST_LIST_HEAD_DESTROY(&session->supplements);
 
 	ast_taskprocessor_unreference(session->serializer);
 	ao2_cleanup(session->datastores);
 	ast_sip_session_media_state_free(session->active_media_state);
 	ast_sip_session_media_state_free(session->pending_media_state);
 
-	AST_LIST_HEAD_DESTROY(&session->supplements);
 	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
 		delayed_request_free(delay);
 	}
@@ -2165,7 +2166,6 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 {
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	struct ast_sip_session *ret_session;
-	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
 
 	session = ao2_alloc(sizeof(*session), session_destructor);
@@ -2247,11 +2247,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 		ao2_ref(session, -1);
 		return NULL;
 	}
-	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
-		if (iter->session_begin) {
-			iter->session_begin(session);
-		}
-	}
+
+	/* Fire seesion begin handlers */
+	handle_session_begin(session);
 
 	/* Avoid unnecessary ref manipulation to return a session */
 	ret_session = session;
@@ -3316,6 +3314,40 @@ static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_da
 	}
 }
 
+static void handle_session_begin(struct ast_sip_session *session)
+{
+	struct ast_sip_session_supplement *iter;
+
+	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
+		if (iter->session_begin) {
+			iter->session_begin(session);
+		}
+	}
+}
+
+static void handle_session_destroy(struct ast_sip_session *session)
+{
+	struct ast_sip_session_supplement *iter;
+
+	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
+		if (iter->session_destroy) {
+			iter->session_destroy(session);
+		}
+	}
+}
+
+static void handle_session_end(struct ast_sip_session *session)
+{
+	struct ast_sip_session_supplement *iter;
+
+	/* Session is dead.  Notify the supplements. */
+	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
+		if (iter->session_end) {
+			iter->session_end(session);
+		}
+	}
+}
+
 static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata,
 		enum ast_sip_session_response_priority response_priority)
 {
@@ -3388,17 +3420,13 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 static int session_end(void *vsession)
 {
 	struct ast_sip_session *session = vsession;
-	struct ast_sip_session_supplement *iter;
 
 	/* Stop the scheduled termination */
 	sip_session_defer_termination_stop_timer(session);
 
 	/* Session is dead.  Notify the supplements. */
-	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
-		if (iter->session_end) {
-			iter->session_end(session);
-		}
-	}
+	handle_session_end(session);
+
 	return 0;
 }
 

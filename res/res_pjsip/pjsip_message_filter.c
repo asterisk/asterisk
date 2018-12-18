@@ -24,6 +24,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/module.h"
 
 #define MOD_DATA_RESTRICTIONS "restrictions"
 

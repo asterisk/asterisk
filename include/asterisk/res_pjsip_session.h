@@ -580,9 +580,13 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
  * set channel data based on headers in an incoming message. Similarly,
  * a module could reject an incoming request if desired.
  *
+ * \param module Referenced module(NULL safe)
  * \param supplement The supplement to register
  */
-void ast_sip_session_register_supplement(struct ast_sip_session_supplement *supplement);
+void ast_sip_session_register_supplement_with_module(struct ast_module *module, struct ast_sip_session_supplement *supplement);
+
+#define ast_sip_session_register_supplement(supplement) \
+		ast_sip_session_register_supplement_with_module(AST_MODULE_SELF, supplement)
 
 /*!
  * \brief Unregister a an supplement to SIP session processing
@@ -597,6 +601,13 @@ void ast_sip_session_unregister_supplement(struct ast_sip_session_supplement *su
  * \param session The session to initialize
  */
 int ast_sip_session_add_supplements(struct ast_sip_session *session);
+
+/*!
+ * \brief Remove supplements from a SIP session
+ *
+ * \param session The session to remove
+ */
+void ast_sip_session_remove_supplements(struct ast_sip_session *session);
 
 /*!
  * \brief Alternative for ast_datastore_alloc()
