@@ -2026,10 +2026,6 @@ static void free_user(struct ast_vm_user *vmu)
 		return;
 	}
 
-	if (!ast_strlen_zero(vmu->mailbox)) {
-		ast_delete_mwi_state_full(vmu->mailbox, vmu->context, NULL);
-	}
-
 	ast_free(vmu->email);
 	vmu->email = NULL;
 	ast_free(vmu->emailbody);
@@ -2040,6 +2036,19 @@ static void free_user(struct ast_vm_user *vmu)
 	if (ast_test_flag(vmu, VM_ALLOCED)) {
 		ast_free(vmu);
 	}
+}
+
+static void free_user_final(struct ast_vm_user *vmu)
+{
+	if (!vmu) {
+		return;
+	}
+
+	if (!ast_strlen_zero(vmu->mailbox)) {
+		ast_delete_mwi_state_full(vmu->mailbox, vmu->context, NULL);
+	}
+
+	free_user(vmu);
 }
 
 static int vm_allocate_dh(struct vm_state *vms, struct ast_vm_user *vmu, int count_msg) {
@@ -13491,7 +13500,7 @@ static void free_vm_users(void)
 	AST_LIST_LOCK(&users);
 	while ((current = AST_LIST_REMOVE_HEAD(&users, list))) {
 		ast_set_flag(current, VM_ALLOCED);
-		free_user(current);
+		free_user_final(current);
 	}
 	AST_LIST_UNLOCK(&users);
 }
