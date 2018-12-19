@@ -421,6 +421,14 @@
 									"busy",
 									"congestion",
 									"no_answer",
+									"timeout",
+									"rejected",
+									"unallocated",
+									"normal_unspecified",
+									"number_incomplete",
+									"codec_mismatch",
+									"interworking",
+									"failure",
 									"answered_elsewhere"
 								]
 							}
