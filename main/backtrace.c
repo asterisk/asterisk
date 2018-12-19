@@ -122,7 +122,7 @@ static void process_section(bfd *bfdobj, asection *section, void *obj)
 	char *fn;
 	int inlined = 0;
 
-	offset = data->pc - (data->dynamic ? (bfd_vma) data->dli.dli_fbase : 0);
+	offset = data->pc - (data->dynamic ? (bfd_vma)(uintptr_t) data->dli.dli_fbase : 0);
 
 	if (!(bfd_get_section_flags(bfdobj, section) & SEC_ALLOC)) {
 		return;
@@ -151,11 +151,11 @@ static void process_section(bfd *bfdobj, asection *section, void *obj)
 		/* file can possibly be null even with a success result from bfd_find_nearest_line */
 		file = file ? file : "";
 		fn = strrchr(file, '/');
-#define FMT_INLINED "[%s] %s %s:%u %s()"
+#define FMT_INLINED     "[%s] %s %s:%u %s()"
 #define FMT_NOT_INLINED "[%p] %s %s:%u %s()"
 
 		snprintf(data->msg, MSG_BUFF_LEN, inlined ? FMT_INLINED : FMT_NOT_INLINED,
-			inlined ? "inlined" : (char *)data->pc,
+			inlined ? "inlined" : (char *)(uintptr_t) data->pc,
 			data->libname,
 			fn ? fn + 1 : file,
 			line, S_OR(func, "???"));
@@ -192,14 +192,14 @@ struct ast_vector_string *__ast_bt_get_symbols(void **addresses, size_t num_fram
 		struct bfd_data data = {
 			.return_strings = return_strings,
 			.msg = msg,
-			.pc = (bfd_vma)addresses[stackfr],
+			.pc = (bfd_vma)(uintptr_t) addresses[stackfr],
 			.found = 0,
 			.dynamic = 0,
 		};
 
 		msg[0] = '\0';
 
-		if (!dladdr((void *)data.pc, &data.dli)) {
+		if (!dladdr((void *)(uintptr_t) data.pc, &data.dli)) {
 			continue;
 		}
 		data.libname = strrchr(data.dli.dli_fname, '/');
