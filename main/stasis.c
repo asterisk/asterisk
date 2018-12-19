@@ -341,14 +341,14 @@ static AST_VECTOR(, struct stasis_message_type_statistics) message_type_statisti
 
 /*! \internal */
 struct stasis_topic_statistics {
+	/*! \brief Highest time spent dispatching messages to subscribers */
+	long highest_time_dispatched;
+	/*! \brief Lowest time spent dispatching messages to subscribers */
+	long lowest_time_dispatched;
 	/*! \brief The number of messages that were not dispatched to any subscriber */
 	int messages_not_dispatched;
 	/*! \brief The number of messages that were dispatched to at least 1 subscriber */
 	int messages_dispatched;
-	/*! \brief Highest time spent dispatching messages to subscribers */
-	int64_t highest_time_dispatched;
-	/*! \brief Lowest time spent dispatching messages to subscribers */
-	int64_t lowest_time_dispatched;
 	/*! \brief The number of subscribers to this topic */
 	int subscriber_count;
 	/*! \brief Name of the topic */
@@ -463,26 +463,26 @@ size_t stasis_topic_subscribers(const struct stasis_topic *topic)
 struct stasis_subscription_statistics {
 	/*! \brief The filename where the subscription originates */
 	const char *file;
-	/*! \brief The line number where the subscription originates */
-	int lineno;
 	/*! \brief The function where the subscription originates */
 	const char *func;
+	/*! \brief Name of the topic we subscribed to */
+	char *topic;
+	/*! \brief The message type that currently took the longest to process */
+	struct stasis_message_type *highest_time_message_type;
+	/*! \brief Highest time spent invoking a message */
+	long highest_time_invoked;
+	/*! \brief Lowest time spent invoking a message */
+	long lowest_time_invoked;
 	/*! \brief The number of messages that were filtered out */
 	int messages_dropped;
 	/*! \brief The number of messages that passed filtering */
 	int messages_passed;
-	/*! \brief Highest time spent invoking a message */
-	int64_t highest_time_invoked;
-	/*! \brief The message type that currently took the longest to process */
-	struct stasis_message_type *highest_time_message_type;
-	/*! \brief Lowest time spent invoking a message */
-	int64_t lowest_time_invoked;
 	/*! \brief Using a mailbox to queue messages */
 	int uses_mailbox;
 	/*! \brief Using stasis threadpool for handling messages */
 	int uses_threadpool;
-	/*! \brief Name of the topic we subscribed to */
-	char *topic;
+	/*! \brief The line number where the subscription originates */
+	int lineno;
 	/*! \brief Unique ID of the subscription */
 	char uniqueid[0];
 };
@@ -563,7 +563,7 @@ static void subscription_invoke(struct stasis_subscription *sub,
 	int message_type_id = stasis_message_type_id(stasis_subscription_change_type());
 #ifdef AST_DEVMODE
 	struct timeval start;
-	int elapsed;
+	long elapsed;
 
 	start = ast_tvnow();
 #endif
@@ -1245,7 +1245,7 @@ static void publish_msg(struct stasis_topic *topic,
 	int message_type_id = stasis_message_type_id(stasis_message_type(message));
 	struct stasis_message_type_statistics *statistics;
 	struct timeval start;
-	int elapsed;
+	long elapsed;
 #endif
 
 	ast_assert(topic != NULL);
