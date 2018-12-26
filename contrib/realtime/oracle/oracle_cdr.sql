@@ -1,5 +1,6 @@
 CREATE TABLE alembic_version (
-    version_num VARCHAR2(32 CHAR) NOT NULL
+    version_num VARCHAR2(32 CHAR) NOT NULL, 
+    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
 )
 
 /
