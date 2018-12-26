@@ -55,9 +55,9 @@ struct stasis_message_router;
  *
  * \since 12
  */
-#ifdef AST_DEVMODE
 struct stasis_message_router *__stasis_message_router_create(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
+#ifdef AST_DEVMODE
 #define stasis_message_router_create(topic) __stasis_message_router_create(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 struct stasis_message_router *stasis_message_router_create(
@@ -77,9 +77,9 @@ struct stasis_message_router *stasis_message_router_create(
  *
  * \since 12.8.0
  */
-#ifdef AST_DEVMODE
 struct stasis_message_router *__stasis_message_router_create_pool(
 	struct stasis_topic *topic, const char *file, int lineno, const char *func);
+#ifdef AST_DEVMODE
 #define stasis_message_router_create_pool(topic) __stasis_message_router_create_pool(topic, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 struct stasis_message_router *stasis_message_router_create_pool(
