@@ -854,16 +854,29 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 
 	msg_type = stasis_message_type(message);
 
-	/*
-	 * app_voicemail used to rely on the cache containing every topic subscribe and
-	 * unsubscribe in order to determine if anyone was currently subscribed to a
-	 * particular mailbox.  This caused the cache to grow unabated for the life of
-	 * the asterisk instance.  Since it no longer needs the cache of these message
-	 * types, and no other function needs them, we no longer cache them.
-	 */
 	if (stasis_subscription_change_type() == msg_type) {
-		ao2_cleanup(caching_topic_needs_unref);
-		return;
+		struct stasis_subscription_change *change = stasis_message_data(message);
+
+		/*
+		 * If this change type is an unsubscribe, we need to find the original
+		 * subscribe and remove it from the cache otherwise the cache will
+		 * continue to grow unabated.
+		 */
+		if (strcmp(change->description, "Unsubscribe") == 0) {
+			struct stasis_cache_entry *sub;
+
+			ao2_wrlock(caching_topic->cache->entries);
+			sub = cache_find(caching_topic->cache->entries, stasis_subscription_change_type(), change->uniqueid);
+			if (sub) {
+				cache_remove(caching_topic->cache->entries, sub, stasis_message_eid(message));
+				ao2_cleanup(sub);
+			}
+			ao2_unlock(caching_topic->cache->entries);
+			ao2_cleanup(caching_topic_needs_unref);
+			return;
+		}
+		msg_put = message;
+		msg = message;
 	} else if (stasis_cache_clear_type() == msg_type) {
 		/* Cache clear event. */
 		msg_put = NULL;
