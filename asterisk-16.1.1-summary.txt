@@ -1,0 +1,100 @@
+                                Release Summary
+
+                                asterisk-16.1.1
+
+                                Date: 2018-12-26
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.1.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   1 George Joseph                                   1 abelbeck               
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-28222: Regression: MWI polling no longer works
+   Reported by: abelbeck
+     * [227c8bb802] George Joseph -- Revert "stasis_cache: Stop caching
+       stasis subscription change messages"
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-16.1.0-summary.html                           |  620 -------
+ asterisk-16.1.0-summary.txt                            | 1442 ----------------
+ b/.version                                             |    2
+ b/ChangeLog                                            |    4
+ b/asterisk-16.1.0-rc1-summary.html                     |  625 +++++++
+ b/asterisk-16.1.0-rc1-summary.txt                      | 1443 +++++++++++++++++
+ b/contrib/realtime/mssql/mssql_cdr.sql                 |    3
+ b/contrib/realtime/mssql/mssql_config.sql              |    3
+ b/contrib/realtime/mssql/mssql_voicemail.sql           |    3
+ b/contrib/realtime/mysql/mysql_cdr.sql                 |    3
+ b/contrib/realtime/mysql/mysql_config.sql              |    3
+ b/contrib/realtime/mysql/mysql_voicemail.sql           |    3
+ b/contrib/realtime/oracle/oracle_cdr.sql               |    3
+ b/contrib/realtime/oracle/oracle_config.sql            |    3
+ b/contrib/realtime/oracle/oracle_voicemail.sql         |    3
+ b/contrib/realtime/postgresql/postgresql_cdr.sql       |    3
+ b/contrib/realtime/postgresql/postgresql_config.sql    |    3
+ b/contrib/realtime/postgresql/postgresql_voicemail.sql |    3
+ b/main/stasis_cache.c                                  |   21
+ 19 files changed, 2093 insertions(+), 2100 deletions(-)

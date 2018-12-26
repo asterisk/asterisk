@@ -1,3 +1,25 @@
+2018-12-26 18:45 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.1.1 Released.
+
+2018-12-26 10:24 +0000 [227c8bb802]  George Joseph <gjoseph@digium.com>
+
+	* Revert "stasis_cache:  Stop caching stasis subscription change messages"
+
+	  This commit caused issues with polling when combined with
+	  the revert commit "Revert "app_voicemail: Remove need to subscribe to stasis"
+
+	  This reverts commit 17d6d9e1e7d0db04ebd8d2e0cd9e087ec5462e2f.
+
+	  ASTERISK-28222
+	  Reported by: abelbeck
+
+	  Change-Id: Ib6a16cbe2c0b74c76c64264f525ab647959c1483
+
+2018-12-11 20:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.1.0 Released.
+
 2018-12-04 00:03 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.1.0-rc1 Released.
