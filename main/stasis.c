@@ -438,10 +438,11 @@ struct stasis_topic *stasis_topic_create(const char *name)
 	res |= AST_VECTOR_INIT(&topic->upstream_topics, 0);
 #ifdef AST_DEVMODE
 	topic->statistics = stasis_topic_statistics_create(name);
-	if (!topic->name || !topic->statistics || res) {
+	if (!topic->name || !topic->statistics || res)
 #else
-	if (!topic->name || res) {
+	if (!topic->name || res)
 #endif
+	{
 		ao2_ref(topic, -1);
 		return NULL;
 	}
@@ -642,7 +643,6 @@ static struct stasis_subscription_statistics *stasis_subscription_statistics_cre
 }
 #endif
 
-#ifdef AST_DEVMODE
 struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
@@ -652,14 +652,6 @@ struct stasis_subscription *internal_stasis_subscribe(
 	const char *file,
 	int lineno,
 	const char *func)
-#else
-struct stasis_subscription *internal_stasis_subscribe(
-	struct stasis_topic *topic,
-	stasis_subscription_cb callback,
-	void *data,
-	int needs_mailbox,
-	int use_thread_pool)
-#endif
 {
 	struct stasis_subscription *sub;
 
@@ -730,7 +722,6 @@ struct stasis_subscription *internal_stasis_subscribe(
 	return sub;
 }
 
-#ifdef AST_DEVMODE
 struct stasis_subscription *__stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
@@ -741,17 +732,7 @@ struct stasis_subscription *__stasis_subscribe(
 {
 	return internal_stasis_subscribe(topic, callback, data, 1, 0, file, lineno, func);
 }
-#else
-struct stasis_subscription *stasis_subscribe(
-	struct stasis_topic *topic,
-	stasis_subscription_cb callback,
-	void *data)
-{
-	return internal_stasis_subscribe(topic, callback, data, 1, 0);
-}
-#endif
 
-#ifdef AST_DEVMODE
 struct stasis_subscription *__stasis_subscribe_pool(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
@@ -762,15 +743,6 @@ struct stasis_subscription *__stasis_subscribe_pool(
 {
 	return internal_stasis_subscribe(topic, callback, data, 1, 1, file, lineno, func);
 }
-#else
-struct stasis_subscription *stasis_subscribe_pool(
-	struct stasis_topic *topic,
-	stasis_subscription_cb callback,
-	void *data)
-{
-	return internal_stasis_subscribe(topic, callback, data, 1, 1);
-}
-#endif
 
 static int sub_cleanup(void *data)
 {
@@ -2667,4 +2639,32 @@ int stasis_init(void)
 #endif
 
 	return 0;
+}
+
+#ifdef AST_DEVMODE
+#undef stasis_subscribe
+struct stasis_subscription *stasis_subscribe(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data);
+#undef stasis_subscribe_pool
+struct stasis_subscription *stasis_subscribe_pool(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data);
+#endif
+struct stasis_subscription *stasis_subscribe(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data)
+{
+	return internal_stasis_subscribe(topic, callback, data, 1, 0, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+}
+
+struct stasis_subscription *stasis_subscribe_pool(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data)
+{
+	return internal_stasis_subscribe(topic, callback, data, 1, 1, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
