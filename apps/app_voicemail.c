@@ -7091,6 +7091,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						RENAME(dir, msgnum, vmu->mailbox, vmu->context, urgdir, x, sfn, dfn);
 						/* Notification must happen for this new message in Urgent folder, not INBOX */
 						ast_copy_string(fn, dfn, sizeof(fn));
+						pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
 						msgnum = x;
 					}
 #endif
