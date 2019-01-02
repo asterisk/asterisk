@@ -4667,7 +4667,7 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 			/* Ring just the best channel */
 			ast_debug(1, "Trying '%s' with metric %d\n", best->interface, best->metric);
 			ret = ring_entry(qe, best, busies);
-			if (qe->predial_callee && cur->chan) {
+			if (qe->predial_callee && best->chan) {
 				ast_autoservice_start(best->chan);
 			}
 		}
