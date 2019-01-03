@@ -154,7 +154,6 @@ static void endpoints_scrape_cb(struct ast_str **response)
 				AST_LIST_INSERT_TAIL(&endpoint_metrics[j].children, &endpoint_metrics[index], entry);
 			}
 		}
-		ao2_ref(snapshot, -1);
 	}
 	ao2_iterator_destroy(&it_endpoints);
 

@@ -139,6 +139,8 @@ AST_VECTOR(, struct prometheus_callback *) callbacks;
 
 AST_VECTOR(, const struct prometheus_metrics_provider *) providers;
 
+static struct timeval last_scrape;
+
 /*! \brief The actual module config */
 struct module_config {
 	/*! \brief General settings */
@@ -556,6 +558,36 @@ void prometheus_callback_unregister(struct prometheus_callback *callback)
 	}
 }
 
+static void scrape_metrics(struct ast_str **response)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&callbacks); i++) {
+		struct prometheus_callback *callback = AST_VECTOR_GET(&callbacks, i);
+
+		if (!callback) {
+			continue;
+		}
+
+		callback->callback_fn(response);
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&metrics); i++) {
+		struct prometheus_metric *metric = AST_VECTOR_GET(&metrics, i);
+
+		if (!metric) {
+			continue;
+		}
+
+		ast_mutex_lock(&metric->lock);
+		if (metric->get_metric_value) {
+			metric->get_metric_value(metric);
+		}
+		prometheus_metric_to_string(metric, response);
+		ast_mutex_unlock(&metric->lock);
+	}
+}
+
 static int http_callback(struct ast_tcptls_session_instance *ser,
 	const struct ast_http_uri *urih, const char *uri, enum ast_http_method method,
 	struct ast_variable *get_params, struct ast_variable *headers)
@@ -564,7 +596,6 @@ static int http_callback(struct ast_tcptls_session_instance *ser,
 	struct ast_str *response = NULL;
 	struct timeval start;
 	struct timeval end;
-	int i;
 
 	/* If there is no module config or we're not enabled, we can't handle requests */
 	if (!mod_cfg || !mod_cfg->general->enabled) {
@@ -599,27 +630,12 @@ static int http_callback(struct ast_tcptls_session_instance *ser,
 		goto err500;
 	}
 
-	if (mod_cfg->general->core_metrics_enabled) {
-		start = ast_tvnow();
-	}
+	start = ast_tvnow();
 
 	ast_mutex_lock(&scrape_lock);
-	for (i = 0; i < AST_VECTOR_SIZE(&callbacks); i++) {
-		struct prometheus_callback *callback = AST_VECTOR_GET(&callbacks, i);
 
-		callback->callback_fn(&response);
-	}
-
-	for (i = 0; i < AST_VECTOR_SIZE(&metrics); i++) {
-		struct prometheus_metric *metric = AST_VECTOR_GET(&metrics, i);
-
-		ast_mutex_lock(&metric->lock);
-		if (metric->get_metric_value) {
-			metric->get_metric_value(metric);
-		}
-		prometheus_metric_to_string(metric, &response);
-		ast_mutex_unlock(&metric->lock);
-	}
+	last_scrape = start;
+	scrape_metrics(&response);
 
 	if (mod_cfg->general->core_metrics_enabled) {
 		int64_t duration;
@@ -662,6 +678,40 @@ err500:
 	ast_http_send(ser, method, 500, "Server Error", NULL, NULL, 0, 1);
 	ast_free(response);
 	return 0;
+}
+
+struct ast_str *prometheus_scrape_to_string(void)
+{
+	struct ast_str *response;
+
+	response = ast_str_create(512);
+	if (!response) {
+		return NULL;
+	}
+
+	ast_mutex_lock(&scrape_lock);
+	scrape_metrics(&response);
+	ast_mutex_unlock(&scrape_lock);
+
+	return response;
+}
+
+int64_t prometheus_last_scrape_duration_get(void)
+{
+	int64_t duration;
+
+	if (sscanf(core_scrape_metric.value, "%" PRIu64, &duration) != 1) {
+		return -1;
+	}
+
+	return duration;
+}
+
+struct timeval prometheus_last_scrape_time_get(void)
+{
+	SCOPED_MUTEX(lock, &scrape_lock);
+
+	return last_scrape;
 }
 
 static void prometheus_general_config_dtor(void *obj)
@@ -846,7 +896,9 @@ static int unload_module(void)
 	AST_VECTOR_FREE(&metrics);
 
 	AST_VECTOR_FREE(&callbacks);
+
 	AST_VECTOR_FREE(&providers);
+
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(global_config);
 
@@ -917,7 +969,8 @@ static int load_module(void)
 		goto cleanup;
 	}
 
-	if (channel_metrics_init()
+	if (cli_init()
+		|| channel_metrics_init()
 		|| endpoint_metrics_init()
 		|| bridge_metrics_init()) {
 		goto cleanup;

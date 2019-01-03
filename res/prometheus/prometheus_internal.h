@@ -31,6 +31,43 @@
  */
 
 /*!
+ * \brief Retrieve the amount of time it took to perform the last scrape
+ *
+ * \details Time returned is in milliseconds
+ *
+ * \retval The scrape duration, in milliseconds
+ */
+int64_t prometheus_last_scrape_duration_get(void);
+
+/*!
+ * \brief Retrieve the timestamp when the last scrape occurred
+ *
+ * \retval The time when the last scrape occurred
+ */
+struct timeval prometheus_last_scrape_time_get(void);
+
+/*!
+ * \brief Get the raw output of what a scrape would produce
+ *
+ * \details
+ * It can be useful to dump what a scrape will look like.
+ * This function returns the raw string representation
+ * of the metrics.
+ *
+ * \retval NULL on error
+ * \retval Malloc'd ast_str on success
+ */
+struct ast_str *prometheus_scrape_to_string(void);
+
+/*!
+ * \brief Initialize CLI command
+ *
+ * \retval 0 success
+ * \retval -1 error
+ */
+int cli_init(void);
+
+/*!
  * \brief Initialize channel metrics
  *
  * \retval 0 success

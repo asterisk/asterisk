@@ -145,7 +145,6 @@ static void bridges_scrape_cb(struct ast_str **response)
 		prometheus_metric_to_string(&bridge_metrics[j], response);
 	}
 
-
 	ast_free(bridge_metrics);
 	ao2_ref(bridges, -1);
 }
