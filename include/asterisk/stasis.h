@@ -604,9 +604,9 @@ void stasis_subscription_cb_noop(void *data, struct stasis_subscription *sub, st
  * has been subscribed. This occurs immediately before accepted message
  * types can be set and the callback must expect to receive it.
  */
-#ifdef AST_DEVMODE
 struct stasis_subscription *__stasis_subscribe(struct stasis_topic *topic,
 	stasis_subscription_cb callback, void *data, const char *file, int lineno, const char *func);
+#ifdef AST_DEVMODE
 #define stasis_subscribe(topic, callback, data) __stasis_subscribe(topic, callback, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic,
@@ -639,9 +639,9 @@ struct stasis_subscription *stasis_subscribe(struct stasis_topic *topic,
  * has been subscribed. This occurs immediately before accepted message
  * types can be set and the callback must expect to receive it.
  */
-#ifdef AST_DEVMODE
 struct stasis_subscription *__stasis_subscribe_pool(struct stasis_topic *topic,
 	stasis_subscription_cb callback, void *data, const char *file, int lineno, const char *func);
+#ifdef AST_DEVMODE
 #define stasis_subscribe_pool(topic, callback, data) __stasis_subscribe_pool(topic, callback, data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 struct stasis_subscription *stasis_subscribe_pool(struct stasis_topic *topic,
