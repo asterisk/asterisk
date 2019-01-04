@@ -396,7 +396,9 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 		}
 
 		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
-			ast_sip_push_task_wait_serializer(serializer, transport_read, &read_data);
+			if (read_data.payload_len) {
+				ast_sip_push_task_wait_serializer(serializer, transport_read, &read_data);
+			}
 		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 			break;
 		}
