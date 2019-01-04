@@ -60,7 +60,6 @@
  * \return \c NULL on error.
  * \since 12
  */
-#ifdef AST_DEVMODE
 struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
@@ -70,13 +69,5 @@ struct stasis_subscription *internal_stasis_subscribe(
 	const char *file,
 	int lineno,
 	const char *func);
-#else
-struct stasis_subscription *internal_stasis_subscribe(
-	struct stasis_topic *topic,
-	stasis_subscription_cb callback,
-	void *data,
-	int needs_mailbox,
-	int use_thread_pool);
-#endif
 
 #endif /* STASIS_INTERNAL_H_ */
