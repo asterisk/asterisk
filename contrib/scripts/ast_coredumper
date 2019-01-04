@@ -372,42 +372,97 @@ fi
 # Timestamp to use for output files
 df=${tarball_uniqueid:-$(${DATEFORMAT})}
 
-if [ -z "$asterisk_bin" ]; then
+if [ x"$asterisk_bin" = x ]; then
 	asterisk_bin=$(which asterisk)
 fi
 
 if $running || $RUNNING ; then
 	# We need to go through some gyrations to find the pid of the running
 	# MAIN asterisk process and not someone or something running asterisk -r.
-	# The pid file may NOT be in /var/run/asterisk so we need to find any
-	# running asterisk process and see if -C was specified on the command
-	# line.  The chances of more than 1 asterisk instance running with
-	# different -C options is so unlikely that we're going to ignore it.
-	#
-	# 'ps axo command' should work on Linux (back to CentOS6) and FreeBSD.
-	# If asterisk was started with -C, get the asterisk.conf file.
-	# If it wasn't, assume /etc/asterisk/asterisk.conf
-	astetcconf=`ps axo command | sed -n -r -e "s/.*asterisk\s+.*-C\s+([^ ]+).*/\1/gp" | tail -1`
-	[ x$astetcconf = x ] && astetcconf=/etc/asterisk/asterisk.conf
-	# Now parse out astrundir and cat asterisk.pid
-	astrundir=$(sed -n -r -e "s/astrundir\s+[=>]+\s+(.*)/\1/gp" $astetcconf)
-	pid=$(cat $astrundir/asterisk.pid 2>/dev/null || : )
-	if [ x$pid = x ] ; then
-		echo "Asterisk is not running"
+
+	unset pid
+
+	# Simplest case first...
+	pids=$(pgrep -f "$asterisk_bin")
+	pidcount=$(echo $pids | wc -w)
+
+	if [ $pidcount -eq 0 ] ; then
+		>&2 echo "Asterisk is not running"
+		exit 1
+	fi
+
+	# Single process, great.
+	if [ $pidcount -eq 1 ] ; then
+		pid=$pids
+		echo "Found a single asterisk instance running as process $pid"
+	fi
+
+	# More than 1 asterisk process running
+	if [ x"$pid" = x ] ; then
+		# More than 1 process running, let's try asking asterisk for it's
+		# pidfile
+		pidfile=$("$asterisk_bin" -rx "core show settings" 2>/dev/null | sed -n -r -e "s/^\s*pid file:\s+(.*)/\1/gpi")
+		# We found it
+		if [ x"$pidfile" != x -a -f "$pidfile" ] ; then
+			pid=$(cat "$pidfile")
+			echo "Found pidfile $pidfile with process $pid"
+		fi
+	fi
+
+	# It's possible that asterisk was started with the -C option which means the
+	# control socket and pidfile might not be where we expect.  We're going to
+	# have to parse the process arguments to see if -C was specified.
+	# The first process that has a -C argument determines which config
+	# file to use to find the pidfile of the main process.
+	# NOTE: The ps command doesn't quote command line arguments that it
+	# displays so we need to look in /proc/<pid>/cmdline.
+
+	if [ x"$pid" = x ] ; then
+		# BSDs might not mount /proc by default :(
+		mounted_proc=0
+		if uname -o | grep -qi "bsd" ; then
+			if ! mount | grep -qi "/proc" ; then
+				echo "Temporarily mounting /proc"
+				mounted_proc=1
+				mount -t procfs proc /proc
+			fi
+		fi
+
+		for p in $pids ; do
+			# Fields in cmdline are delimited by NULLs
+			astetcconf=$(sed -n -r -e "s/.*\x00-C\x00([^\x00]+).*/\1/gp" /proc/$p/cmdline)
+			if [ x"$astetcconf" != x ] ; then
+				pidfile=$("$asterisk_bin" -C "$astetcconf" -rx "core show settings" 2>/dev/null | sed -n -r -e "s/^\s*pid file:\s+(.*)/\1/gpi")
+				if [ x"$pidfile" != x -a -f "$pidfile" ] ; then
+					pid=$(cat "$pidfile")
+					echo "Found pidfile $pidfile the hard way with process $pid"
+					break
+				fi
+			fi
+		done
+		if [ $mounted_proc -eq 1 ] ; then
+			echo "Unmounting /proc"
+			umount /proc
+		fi
+	fi
+
+	if [ x"$pid" = x ] ; then
+		>&2 echo "Can't determine pid of the running asterisk instance"
+		exit 1
+	fi
+
+	if $RUNNING ; then
+		answer=Y
 	else
-		if $RUNNING ; then
-			answer=Y
-		else
-			read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
-		fi
-		if [[ "$answer" =~ ^[Yy] ]] ; then
-			cf="${OUTPUTDIR:-/tmp}/core-asterisk-running-$df"
-			echo "Dumping running asterisk process to $cf"
-			${GDB} ${asterisk_bin} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
-			COREDUMPS+=("$cf")
-		else
-			echo "Skipping dump of running process"
-		fi
+		read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
+	fi
+	if [[ "$answer" =~ ^[Yy] ]] ; then
+		cf="${OUTPUTDIR:-/tmp}/core-asterisk-running-$df"
+		echo "Dumping running asterisk process to $cf"
+		${GDB} ${asterisk_bin} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
+		COREDUMPS+=("$cf")
+	else
+		echo "Skipping dump of running process"
 	fi
 fi
 
