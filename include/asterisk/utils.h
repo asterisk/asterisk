@@ -1068,10 +1068,10 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
 typedef void (^_raii_cleanup_block_t)(void);
 static inline void _raii_cleanup_block(_raii_cleanup_block_t *b) { (*b)(); }
 
-#define RAII_VAR(vartype, varname, initval, dtor)                                                                \
-    _raii_cleanup_block_t _raii_cleanup_ ## varname __attribute__((cleanup(_raii_cleanup_block),unused)) = NULL; \
-    __block vartype varname = initval;                                                                           \
-    _raii_cleanup_ ## varname = ^{ {(void)dtor(varname);} }
+#define RAII_VAR(vartype, varname, initval, dtor)                                                              \
+    __block vartype varname = initval;                                                                         \
+    _raii_cleanup_block_t _raii_cleanup_ ## varname __attribute__((cleanup(_raii_cleanup_block),unused)) =     \
+        ^{ {(void)dtor(varname);} };
 
 #elif defined(__GNUC__)
 
