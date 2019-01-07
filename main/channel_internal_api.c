@@ -1388,6 +1388,18 @@ void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel 
 	b->topics = temp;
 }
 
+void ast_channel_internal_swap_endpoint_forward_and_endpoint_cache_forward(struct ast_channel *a, struct ast_channel *b)
+{
+	struct stasis_forward *temp;
+	temp = a->endpoint_forward;
+	a->endpoint_forward = b->endpoint_forward;
+	b->endpoint_forward = temp;
+
+	temp = a->endpoint_cache_forward;
+	a->endpoint_cache_forward = b->endpoint_cache_forward;
+	b->endpoint_cache_forward = temp;
+}
+
 void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
 {
 	ast_copy_string(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
