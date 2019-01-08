@@ -21,8 +21,10 @@
 ;phone=+12565551212
 ;
 ;
-; Specify bind address and port number.  Default is
-; 4520
+; Specify bind address. IPv6 addresses are accepted. Default is 0.0.0.0
+; You can specify 'bindaddr2' to bind to another address however
+; 'bindaddr and 'bindaddr2' need to be different IP protocols.
+; Specify port number. Default is 4520.
 ;
 ;bindaddr=0.0.0.0
 ;port=4520
