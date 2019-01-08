@@ -100,6 +100,7 @@ struct ast_websocket {
 	unsigned int closing:1;             /*!< Bit to indicate that the session is in the process of being closed */
 	unsigned int close_sent:1;          /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
 	struct websocket_client *client;    /*!< Client object when connected as a client websocket */
+	uint16_t close_status_code;         /*!< Status code sent in a CLOSE frame upon shutdown */
 };
 
 /*! \brief Hashing function for protocols */
@@ -181,7 +182,7 @@ static void session_destroy_fn(void *obj)
 	struct ast_websocket *session = obj;
 
 	if (session->f) {
-		ast_websocket_close(session, 0);
+		ast_websocket_close(session, session->close_status_code);
 		if (session->f) {
 			fclose(session->f);
 			ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
@@ -566,7 +567,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 	*opcode = buf[0] & 0xf;
 	*payload_len = buf[1] & 0x7f;
 	if (*opcode == AST_WEBSOCKET_OPCODE_TEXT || *opcode == AST_WEBSOCKET_OPCODE_BINARY || *opcode == AST_WEBSOCKET_OPCODE_CONTINUATION ||
-	    *opcode == AST_WEBSOCKET_OPCODE_PING || *opcode == AST_WEBSOCKET_OPCODE_PONG) {
+	    *opcode == AST_WEBSOCKET_OPCODE_PING || *opcode == AST_WEBSOCKET_OPCODE_PONG  || *opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 		fin = (buf[0] >> 7) & 1;
 		mask_present = (buf[1] >> 7) & 1;
 
@@ -622,6 +623,16 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			return 0;
 		}
 
+		/* Save the CLOSE status code which will be sent in our own CLOSE in the destructor */
+		if (*opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+			session->closing = 1;
+			if (*payload_len >= 2) {
+				session->close_status_code = ntohs(get_unaligned_uint16(*payload));
+			}
+			*payload_len = 0;
+			return 0;
+		}
+
 		if (*payload_len) {
 			if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
 				ast_log(LOG_WARNING, "Failed allocation: %p, %zu, %"PRIu64"\n",
@@ -661,28 +672,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			*payload = session->payload;
 			session->payload_len = 0;
 		}
-	} else if (*opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
-		session->closing = 1;
-
-		/* Make the payload available so the user can look at the reason code if they so desire */
-		if (!*payload_len) {
-			return 0;
-		}
-
-		if (!(new_payload = ast_realloc(session->payload, *payload_len))) {
-			ast_log(LOG_WARNING, "Failed allocation: %p, %"PRIu64"\n",
-					session->payload, *payload_len);
-			*payload_len = 0;
-			return -1;
-		}
-
-		session->payload = new_payload;
-		if (ws_safe_read(session, &buf[frame_size], *payload_len, opcode)) {
-			return -1;
-		}
-		memcpy(session->payload, &buf[frame_size], *payload_len);
-		*payload = session->payload;
-		frame_size += *payload_len;
 	} else {
 		ast_log(LOG_WARNING, "WebSocket unknown opcode %u\n", *opcode);
 		/* We received an opcode that we don't understand, the RFC states that 1003 is for a type of data that can't be accepted... opcodes
