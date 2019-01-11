@@ -12,6 +12,11 @@
 --- Functionality changes from Asterisk 13.24.0 to Asterisk 13.25.0 ----------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * Added "send_contact_status_on_update_registration" global configuration option
+   to enable sending AMI ContactStatus event when a device refreshes its registration.
+
 Features
 ------------------
  * Before Asterisk 12, when using the automon or automixmon features defined
