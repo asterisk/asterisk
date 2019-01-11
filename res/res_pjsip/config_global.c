@@ -49,6 +49,7 @@
 #define DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED 0
 #define DEFAULT_IGNORE_URI_USER_OPTIONS 0
 #define DEFAULT_USE_CALLERID_CONTACT 0
+#define DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION 0
 
 /*!
  * \brief Cached global config object
@@ -106,6 +107,8 @@ struct global_config {
 	unsigned int ignore_uri_user_options;
 	/*! Nonzero if CALLERID(num) is to be used as the default contact username instead of default_from_user */
 	unsigned int use_callerid_contact;
+	/*! Nonzero if need to send AMI ContactStatus event when a contact is updated */
+	unsigned int send_contact_status_on_update_registration;
 };
 
 static void global_destructor(void *obj)
@@ -420,6 +423,21 @@ unsigned int ast_sip_get_use_callerid_contact(void)
 	return use_callerid_contact;
 }
 
+unsigned int ast_sip_get_send_contact_status_on_update_registration(void)
+{
+	unsigned int send_contact_status_on_update_registration;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION;
+	}
+
+	send_contact_status_on_update_registration = cfg->send_contact_status_on_update_registration;
+	ao2_ref(cfg, -1);
+	return send_contact_status_on_update_registration;
+}
+
 /*!
  * \internal
  * \brief Observer to set default global object if none exist.
@@ -574,6 +592,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "use_callerid_contact",
 		DEFAULT_USE_CALLERID_CONTACT ? "yes" : "no",
 		OPT_YESNO_T, 1, FLDSET(struct global_config, use_callerid_contact));
+	ast_sorcery_object_field_register(sorcery, "global", "send_contact_status_on_update_registration",
+		DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION ? "yes" : "no",
+		OPT_YESNO_T, 1, FLDSET(struct global_config, send_contact_status_on_update_registration));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
