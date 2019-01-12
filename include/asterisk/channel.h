@@ -2659,6 +2659,18 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
 void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel *b);
 
 /*!
+ * \brief Swap endpoint_forward between two channels
+ * \param a First channel
+ * \param b Second channel
+ * \return void
+ *
+ * \note
+ * This is used in masquerade to exchange endpoint details if one of the two or both
+ * the channels were created with endpoint
+ */
+void ast_channel_internal_swap_endpoint_forward(struct ast_channel *a, struct ast_channel *b);
+
+/*!
  * \brief Swap snapshots beteween two channels
  * \param a First channel
  * \param b Second channel

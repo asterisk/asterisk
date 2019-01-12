@@ -6790,6 +6790,11 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Make sure the Stasis topic on the channel is updated appropriately */
 	ast_channel_internal_swap_topics(clonechan, original);
 
+	/* Swap endpoint forward so channel created with endpoint exchanges its state
+	 * with other channel for proper endpoint cleanup.
+	 */
+	ast_channel_internal_swap_endpoint_forward(clonechan, original);
+
 	/* The old snapshots need to follow the channels so the snapshot update is correct */
 	ast_channel_internal_swap_snapshots(clonechan, original);
 
