@@ -1438,6 +1438,15 @@ void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel 
 	b->channel_forward = forward;
 }
 
+void ast_channel_internal_swap_endpoint_forward(struct ast_channel *a, struct ast_channel *b)
+{
+	struct stasis_forward *temp;
+
+	temp = a->endpoint_forward;
+	a->endpoint_forward = b->endpoint_forward;
+	b->endpoint_forward = temp;
+}
+
 void ast_channel_internal_swap_snapshots(struct ast_channel *a, struct ast_channel *b)
 {
 	struct ast_channel_snapshot *snapshot;
