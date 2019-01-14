@@ -272,7 +272,9 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_RECV, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RETRANS_SEND, session->endpoint->media.webrtc);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_REMB, session->endpoint->media.webrtc);
-		enable_rtp_extension(session, session_media, AST_RTP_EXTENSION_ABS_SEND_TIME, AST_RTP_EXTENSION_DIRECTION_SENDRECV, sdp);
+		if (session->endpoint->media.webrtc) {
+			enable_rtp_extension(session, session_media, AST_RTP_EXTENSION_ABS_SEND_TIME, AST_RTP_EXTENSION_DIRECTION_SENDRECV, sdp);
+		}
 		if (session->endpoint->media.tos_video || session->endpoint->media.cos_video) {
 			ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
 					session->endpoint->media.cos_video, "SIP RTP Video");
