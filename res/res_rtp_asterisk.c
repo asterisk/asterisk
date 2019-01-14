@@ -7369,6 +7369,10 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 		ast_rtp_instance_set_remote_address(mapping->instance, addr);
 	}
 
+	/* Need to reset the DTMF last sequence number and the timestamp of the last END packet */
+	rtp->last_seqno = 0;
+	rtp->last_end_timestamp = 0;
+
 	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN
 		&& !ast_sockaddr_isnull(addr) && ast_sockaddr_cmp(addr, &rtp->strict_rtp_address)) {
 		/* We only need to learn a new strict source address if we've been told the source is
