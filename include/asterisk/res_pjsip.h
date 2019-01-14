@@ -2768,6 +2768,15 @@ unsigned int ast_sip_get_use_callerid_contact(void);
 unsigned int ast_sip_get_ignore_uri_user_options(void);
 
 /*!
+ * \brief Retrieve the global setting 'send_contact_status_on_update_registration'.
+ * \since 16.2.0
+ *
+ * \retval non zero if need to send AMI ContactStatus event when a contact is updated.
+ */
+unsigned int ast_sip_get_send_contact_status_on_update_registration(void);
+
+
+/*!
  * \brief Truncate the URI user field options string if enabled.
  * \since 13.12.0
  *

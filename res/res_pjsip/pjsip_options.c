@@ -2186,6 +2186,37 @@ static void contact_observer_created(const void *obj)
 		sip_options_contact_add_management_task, (void *) obj);
 }
 
+/*!
+ * \brief Task which updates a dynamic contact to an AOR
+ * \note Run by aor_options->serializer
+ */
+static int sip_options_contact_update_task(void *obj)
+{
+	struct sip_options_contact_observer_task_data *task_data = obj;
+	struct ast_sip_contact_status *contact_status;
+
+	contact_status = ast_sip_get_contact_status(task_data->contact);
+	if (contact_status) {
+		switch (contact_status->status) {
+		case CREATED:
+		case UNAVAILABLE:
+		case AVAILABLE:
+		case UNKNOWN:
+			/* Refresh the ContactStatus AMI events. */
+			sip_options_contact_status_update(contact_status);
+			break;
+		case REMOVED:
+			break;
+		}
+		ao2_ref(contact_status, -1);
+	}
+
+	ao2_ref(task_data->contact, -1);
+	ao2_ref(task_data->aor_options, -1);
+	ast_free(task_data);
+	return 0;
+}
+
 /*! \brief Observer callback invoked on contact update */
 static void contact_observer_updated(const void *obj)
 {
@@ -2206,7 +2237,29 @@ static void contact_observer_updated(const void *obj)
 		}
 	}
 
-	ao2_cleanup(aor_options);
+	if (aor_options && ast_sip_get_send_contact_status_on_update_registration()) {
+		struct sip_options_contact_observer_task_data *task_data;
+
+		task_data = ast_malloc(sizeof(*task_data));
+		if (!task_data) {
+			ao2_ref(aor_options, -1);
+			return;
+		}
+
+		task_data->contact = (struct ast_sip_contact *) contact;
+		/* task_data takes ownership of aor_options and will take care of releasing the ref */
+		task_data->aor_options = aor_options;
+
+		ao2_ref(task_data->contact, +1);
+		if (ast_sip_push_task(task_data->aor_options->serializer,
+			sip_options_contact_update_task, task_data)) {
+			ao2_ref(task_data->contact, -1);
+			ao2_ref(task_data->aor_options, -1);
+			ast_free(task_data);
+		}
+	} else {
+		ao2_cleanup(aor_options);
+	}
 }
 
 /*!

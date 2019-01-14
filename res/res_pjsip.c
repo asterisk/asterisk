@@ -1894,6 +1894,9 @@
 						generated Contact headers.</para>
 					</description>
 				</configOption>
+				<configOption name="send_contact_status_on_update_registration" default="no">
+					<synopsis>Enable sending AMI ContactStatus event when a device refreshes its registration.</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>

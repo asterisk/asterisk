@@ -1133,6 +1133,11 @@
                     ; from incoming SIP URI user fields are always truncated at the
                     ; first semicolon.
 
+;send_contact_status_on_update_registration=no ; Enable sending AMI ContactStatus
+                    ; event when a device refreshes its registration
+                    ; (default: "no")
+
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]
