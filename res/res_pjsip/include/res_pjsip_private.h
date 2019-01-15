@@ -398,4 +398,14 @@ int ast_sip_initialize_transport_management(void);
  */
 void ast_sip_destroy_transport_management(void);
 
+/*!
+ * \internal
+ * \brief Add online persistent endpoints to the given regcontext
+ *
+ * \param regcontext The context to add endpoints to
+ *
+ * \retval -1 on error, 0 on success
+ */
+int ast_sip_persistent_endpoint_add_to_regcontext(const char *regcontext);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */

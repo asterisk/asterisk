@@ -1128,6 +1128,39 @@ static void persistent_endpoint_destroy(void *obj)
 	ast_endpoint_shutdown(persistent->endpoint);
 }
 
+static int add_to_regcontext(void *obj, void *arg, int flags)
+{
+	struct sip_persistent_endpoint *persistent = obj;
+	const char *regcontext = arg;
+
+	if (ast_endpoint_get_state(persistent->endpoint) == AST_ENDPOINT_ONLINE) {
+		if (!ast_exists_extension(NULL, regcontext, ast_endpoint_get_resource(
+				persistent->endpoint), 1, NULL)) {
+			ast_add_extension(regcontext, 1, ast_endpoint_get_resource(persistent->endpoint), 1, NULL, NULL,
+				"Noop", ast_strdup(ast_endpoint_get_resource(persistent->endpoint)), ast_free_ptr, "PJSIP");
+		}
+	}
+
+	return 0;
+}
+
+int ast_sip_persistent_endpoint_add_to_regcontext(const char *regcontext)
+{
+	if (ast_strlen_zero(regcontext)) {
+		return 0;
+	}
+
+	/* Make sure the regcontext exists */
+	if (!ast_context_find_or_create(NULL, NULL, regcontext, "PJSIP")) {
+		ast_log(LOG_ERROR, "Failed to create regcontext '%s'\n", regcontext);
+		return -1;
+	}
+
+	/* Add any online endpoints */
+	ao2_callback(persistent_endpoints, OBJ_NODATA, add_to_regcontext, (void *)regcontext);
+	return 0;
+}
+
 int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast_endpoint_state state)
 {
 	struct sip_persistent_endpoint *persistent;
@@ -1154,7 +1187,7 @@ int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast
 		if (!ast_strlen_zero(regcontext)) {
 			if (!ast_exists_extension(NULL, regcontext, ast_endpoint_get_resource(persistent->endpoint), 1, NULL)) {
 				ast_add_extension(regcontext, 1, ast_endpoint_get_resource(persistent->endpoint), 1, NULL, NULL,
-					"Noop", ast_strdup(ast_endpoint_get_resource(persistent->endpoint)), ast_free_ptr, "SIP");
+					"Noop", ast_strdup(ast_endpoint_get_resource(persistent->endpoint)), ast_free_ptr, "PJSIP");
 			}
 		}
 
