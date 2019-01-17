@@ -483,7 +483,7 @@ static void schedule(struct ast_sched_context *con, struct sched *s)
  * given the last event *tv and the offset in milliseconds 'when',
  * computes the next value,
  */
-static int sched_settime(struct timeval *t, int when)
+static void sched_settime(struct timeval *t, int when)
 {
 	struct timeval now = ast_tvnow();
 
@@ -505,7 +505,6 @@ static int sched_settime(struct timeval *t, int when)
 	if (ast_tvcmp(*t, now) < 0) {
 		*t = now;
 	}
-	return 0;
 }
 
 int ast_sched_replace_variable(int old_id, struct ast_sched_context *con, int when, ast_sched_cb callback, const void *data, int variable)
@@ -536,12 +535,10 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 		tmp->variable = variable;
 		tmp->when = ast_tv(0, 0);
 		tmp->deleted = 0;
-		if (sched_settime(&tmp->when, when)) {
-			sched_release(con, tmp);
-		} else {
-			schedule(con, tmp);
-			res = tmp->sched_id->id;
-		}
+
+		sched_settime(&tmp->when, when);
+		schedule(con, tmp);
+		res = tmp->sched_id->id;
 	}
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
@@ -787,11 +784,8 @@ int ast_sched_runq(struct ast_sched_context *con)
 			 * If they return non-zero, we should schedule them to be
 			 * run again.
 			 */
-			if (sched_settime(&current->when, current->variable? res : current->resched)) {
-				sched_release(con, current);
-			} else {
-				schedule(con, current);
-			}
+			sched_settime(&current->when, current->variable ? res : current->resched);
+			schedule(con, current);
 		} else {
 			/* No longer needed, so release it */
 			sched_release(con, current);
