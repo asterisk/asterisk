@@ -1212,19 +1212,7 @@ static force_inline int attribute_pure ast_str_case_hash(const char *str)
  *
  * \retval str for convenience
  */
-static force_inline char *attribute_pure ast_str_to_lower(char *str)
-{
-	char *str_orig = str;
-	if (!str) {
-		return str;
-	}
-
-	for (; *str; ++str) {
-		*str = tolower(*str);
-	}
-
-	return str_orig;
-}
+char *attribute_pure ast_str_to_lower(char *str);
 
 /*!
  * \brief Convert a string to all upper-case
