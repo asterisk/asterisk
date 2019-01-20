@@ -5260,7 +5260,7 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 				if (jump >= 0) {
 					jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
 					                         ast_format_get_sample_rate(f->subclass.format),
-					                         ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
+					                         ast_format_get_sample_rate(ast_channel_monitor(chan)->write_stream->fmt->format));
 					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump, SEEK_FORCECUR) == -1) {
 						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 					}
@@ -5271,7 +5271,7 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 #else
 				int jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
 				                             ast_format_get_sample_rate(f->subclass.format),
-				                             ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
+				                             ast_format_get_sample_rate(ast_channel_monitor(chan)->write_stream->fmt->format));
 				if (jump - MONITOR_DELAY >= 0) {
 					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump - cur->samples, SEEK_FORCECUR) == -1) {
 						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
