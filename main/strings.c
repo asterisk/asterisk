@@ -391,3 +391,17 @@ char *ast_read_line_from_buffer(char **buffer)
 
 	return start;
 }
+
+char *attribute_pure ast_str_to_lower(char *str)
+{
+	char *str_orig = str;
+	if (!str) {
+		return str;
+	}
+
+	for (; *str; ++str) {
+		*str = tolower(*str);
+	}
+
+	return str_orig;
+}
