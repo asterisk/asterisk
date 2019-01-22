@@ -318,6 +318,8 @@ struct contact_transport_monitor {
 	 * \note Stored after aor_name in space reserved when struct allocated.
 	 */
 	char *contact_name;
+	/*! Indicates that the monitor is in the process of removing a contact */
+	int removing;
 	/*! AOR name the contact is associated */
 	char aor_name[0];
 };
@@ -344,6 +346,20 @@ static int register_contact_transport_remove_cb(void *data)
 	}
 
 	ao2_lock(lock);
+
+	/*
+	 * We're now locked so check again to make sure some other thread is not
+	 * currently removing the contact, or already has.
+	 */
+	if (monitor->removing) {
+		ao2_unlock(lock);
+		ast_named_lock_put(lock);
+		ao2_ref(monitor, -1);
+		return 0;
+	}
+
+	monitor->removing = 1;
+
 	contact = ast_sip_location_retrieve_contact(monitor->contact_name);
 	if (contact) {
 		ast_sip_location_delete_contact(contact);
@@ -358,6 +374,7 @@ static int register_contact_transport_remove_cb(void *data)
 			contact->user_agent);
 		ao2_ref(contact, -1);
 	}
+
 	ao2_unlock(lock);
 	ast_named_lock_put(lock);
 
@@ -378,6 +395,19 @@ static int register_contact_transport_remove_cb(void *data)
 static void register_contact_transport_shutdown_cb(void *data)
 {
 	struct contact_transport_monitor *monitor = data;
+
+	/*
+	 * It's possible for this shutdown handler to get called multiple times for the
+	 * same monitor from different threads. Only one of the calls needs to do the
+	 * actual removing of the contact, so if one is currently removing then any
+	 * subsequent calls can skip.
+	 *
+	 * We'll call it non locked here, but check again once locked just in case the
+	 * flag was updated (see register_contact_transport_remove_cb).
+	 */
+	if (monitor->removing) {
+		return;
+	}
 
 	/*
 	 * Push off to a default serializer.  This is in case sorcery
