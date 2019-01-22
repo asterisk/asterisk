@@ -40,13 +40,13 @@ struct lang_format_info {
 };
 
 /*! \brief Add format/lang pairs to the array embedded in the sound object */
-static int add_format_information_cb(void *obj, void *arg, int flags)
+static int add_format_information_cb(void *obj, void *arg, void *data, int flags)
 {
 	char *language = obj;
 	struct lang_format_info *args = arg;
 	int idx;
 	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_media_index *, sounds_index, ast_sounds_get_index(), ao2_cleanup);
+	struct ast_media_index *sounds_index = data;
 
 	if (!sounds_index) {
 		return CMP_STOP;
@@ -95,14 +95,13 @@ static int filter_langs_cb(void *obj, void *arg, int flags)
 
 /*! \brief Generate a Sound structure as documented in sounds.json for the specified filename */
 static struct ast_json *create_sound_blob(const char *filename,
-	struct ast_ari_sounds_list_args *args)
+	struct ast_ari_sounds_list_args *args, struct ast_media_index *sounds_index)
 {
 	RAII_VAR(struct ast_json *, sound, NULL, ast_json_unref);
 	RAII_VAR(struct ao2_container *, languages, NULL, ao2_cleanup);
 	const char *description;
 	struct ast_json *format_lang_list;
 	struct lang_format_info info;
-	RAII_VAR(struct ast_media_index *, sounds_index, ast_sounds_get_index(), ao2_cleanup);
 
 	if (!sounds_index) {
 		return NULL;
@@ -148,7 +147,7 @@ static struct ast_json *create_sound_blob(const char *filename,
 	if (args) {
 		info.format_filter = args->format;
 	}
-	ao2_callback(languages, OBJ_NODATA, add_format_information_cb, &info);
+	ao2_callback_data(languages, OBJ_NODATA, add_format_information_cb, &info, sounds_index);
 
 	/* no format/lang pairs for this sound so nothing to return */
 	if (!ast_json_array_size(format_lang_list)) {
@@ -158,13 +157,18 @@ static struct ast_json *create_sound_blob(const char *filename,
 	return ast_json_ref(sound);
 }
 
+struct sounds_cb_data {
+	struct ast_ari_sounds_list_args *args;
+	struct ast_media_index *index;
+};
+
 /*! \brief Generate a Sound structure and append it to the output blob */
 static int append_sound_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_json *sounds_array = arg;
 	char *filename = obj;
-	struct ast_ari_sounds_list_args *args = data;
-	struct ast_json *sound_blob = create_sound_blob(filename, args);
+	struct sounds_cb_data *cb_data = data;
+	struct ast_json *sound_blob = create_sound_blob(filename, cb_data->args, cb_data->index);
 	if (!sound_blob) {
 		return 0;
 	}
@@ -180,6 +184,10 @@ void ast_ari_sounds_list(struct ast_variable *headers,
 	RAII_VAR(struct ao2_container *, sound_files, NULL, ao2_cleanup);
 	struct ast_json *sounds_blob;
 	RAII_VAR(struct ast_media_index *, sounds_index, ast_sounds_get_index(), ao2_cleanup);
+	struct sounds_cb_data cb_data = {
+		.args = args,
+		.index = sounds_index,
+	};
 
 	if (!sounds_index) {
 		ast_ari_response_error(response, 500, "Internal Error", "Sounds index not available");
@@ -198,7 +206,7 @@ void ast_ari_sounds_list(struct ast_variable *headers,
 		return;
 	}
 
-	ao2_callback_data(sound_files, OBJ_NODATA, append_sound_cb, sounds_blob, args);
+	ao2_callback_data(sound_files, OBJ_NODATA, append_sound_cb, sounds_blob, &cb_data);
 
 	if (!ast_json_array_size(sounds_blob)) {
 		ast_ari_response_error(response, 404, "Not Found", "No sounds found that matched the query");
@@ -214,8 +222,10 @@ void ast_ari_sounds_get(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	struct ast_json *sound_blob;
+	struct ast_media_index *sounds_index = ast_sounds_get_index_for_file(args->sound_id);
 
-	sound_blob = create_sound_blob(args->sound_id, NULL);
+	sound_blob = create_sound_blob(args->sound_id, NULL, sounds_index);
+	ao2_cleanup(sounds_index);
 	if (!sound_blob) {
 		ast_ari_response_error(response, 404, "Not Found", "Sound not found");
 		return;

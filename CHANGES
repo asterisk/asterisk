@@ -80,6 +80,19 @@ res_pjsip
  * Added "send_contact_status_on_update_registration" global configuration option
    to enable sending AMI ContactStatus event when a device refreshes its registration.
 
+Core
+------------------
+ * Reworked the media indexer so it doesn't cache the index.  Testing revealed
+   that the cache added no benefit but that it could consume excessive memory.
+   Two new index related functions were created: ast_sounds_get_index_for_file()
+   and ast_media_index_update_for_file() which restrict index updating to
+   specific sound files.  The original ast_sounds_get_index() and
+   ast_media_index_update() calls are still available but since they no longer
+   cache the results internally, developers should re-use an index they may
+   already have instead of calling ast_sounds_get_index() repeatedly.  If
+   information for only a single file is needed, ast_sounds_get_index_for_file()
+   should be called instead of ast_sounds_get_index().
+
 Features
 ------------------
  * Before Asterisk 12, when using the automon or automixmon features defined
