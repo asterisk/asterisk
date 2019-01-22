@@ -215,6 +215,8 @@ struct ast_sip_session {
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
 	pjsip_uri *request_uri;
+	/* Media statistics for negotiated RTP streams */
+	AST_VECTOR(, struct ast_rtp_instance_stats *) media_stats;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
@@ -829,6 +831,13 @@ struct ast_sip_session_media_state *ast_sip_session_media_state_alloc(void);
  */
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
 	struct ast_sip_session_media_state *media_state, enum ast_media_type type, int position);
+
+/*!
+ * \brief Save a media stats.
+ *
+ * \param media_state The media state to save
+ */
+void ast_sip_session_media_stats_save(struct ast_sip_session *sip_session, struct ast_sip_session_media_state *media_state);
 
 /*!
  * \brief Reset a media state to a clean state
