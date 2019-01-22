@@ -48,6 +48,7 @@
 #include "asterisk/pickup.h"
 #include "asterisk/test.h"
 #include "asterisk/stream.h"
+#include "asterisk/vector.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
@@ -176,6 +177,16 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
 	ao2_callback_data(sdp_handlers, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, remove_handler, (void *)stream_type, handler);
 }
 
+static int media_stats_local_ssrc_cmp(
+		const struct ast_rtp_instance_stats *vec_elem, const struct ast_rtp_instance_stats *srch)
+{
+	if (vec_elem->local_ssrc == srch->local_ssrc) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static struct ast_sip_session_media_state *internal_sip_session_media_state_alloc(
 	size_t sessions, size_t read_callbacks)
 {
@@ -204,6 +215,40 @@ struct ast_sip_session_media_state *ast_sip_session_media_state_alloc(void)
 {
 	return internal_sip_session_media_state_alloc(
 		DEFAULT_NUM_SESSION_MEDIA, DEFAULT_NUM_SESSION_MEDIA);
+}
+
+void ast_sip_session_media_stats_save(struct ast_sip_session *sip_session, struct ast_sip_session_media_state *media_state)
+{
+	int i;
+	int ret;
+
+	if (!media_state || !sip_session) {
+		return;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&media_state->sessions); i++) {
+		struct ast_rtp_instance_stats *stats_tmp = NULL;
+		struct ast_sip_session_media *media = AST_VECTOR_GET(&media_state->sessions, i);
+		if (!media || !media->rtp) {
+			continue;
+		}
+
+		stats_tmp = ast_calloc(1, sizeof(struct ast_rtp_instance_stats));
+		if (!stats_tmp) {
+			return;
+		}
+
+		ret = ast_rtp_instance_get_stats(media->rtp, stats_tmp, AST_RTP_INSTANCE_STAT_ALL);
+		if (ret) {
+			ast_free(stats_tmp);
+			continue;
+		}
+
+		/* remove all the duplicated stats if exist */
+		AST_VECTOR_REMOVE_CMP_UNORDERED(&sip_session->media_stats, stats_tmp, media_stats_local_ssrc_cmp, ast_free);
+
+		AST_VECTOR_APPEND(&sip_session->media_stats, stats_tmp);
+	}
 }
 
 void ast_sip_session_media_state_reset(struct ast_sip_session_media_state *media_state)
@@ -1010,6 +1055,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	}
 
 	/* Active and pending flip flop as needed */
+	ast_sip_session_media_stats_save(session, session->active_media_state);
 	SWAP(session->active_media_state, session->pending_media_state);
 	ast_sip_session_media_state_reset(session->pending_media_state);
 
@@ -2113,6 +2159,10 @@ static void session_destructor(void *obj)
 	ast_sip_session_remove_supplements(session);
 	AST_LIST_HEAD_DESTROY(&session->supplements);
 
+	/* remove all saved media stats */
+	AST_VECTOR_RESET(&session->media_stats, ast_free);
+	AST_VECTOR_FREE(&session->media_stats);
+
 	ast_taskprocessor_unreference(session->serializer);
 	ao2_cleanup(session->datastores);
 	ast_sip_session_media_state_free(session->active_media_state);
@@ -2192,6 +2242,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 	session->pending_media_state = ast_sip_session_media_state_alloc();
 	if (!session->pending_media_state) {
+		return NULL;
+	}
+	if (AST_VECTOR_INIT(&session->media_stats, 1) < 0) {
 		return NULL;
 	}
 
@@ -2637,6 +2690,7 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 	 * places when the session is to be terminated we terminate any existing
 	 * media sessions here.
 	 */
+	ast_sip_session_media_stats_save(session, session->active_media_state);
 	SWAP(session->active_media_state, session->pending_media_state);
 	ast_sip_session_media_state_reset(session->pending_media_state);
 
