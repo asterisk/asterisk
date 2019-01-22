@@ -380,7 +380,8 @@ static int process_media_file(struct ast_media_index *index, const char *variant
 static int process_description_file(struct ast_media_index *index,
 	const char *subdir,
 	const char *variant_str,
-	const char *filename)
+	const char *filename,
+	const char *match_filename)
 {
 	RAII_VAR(struct ast_str *, description_file_path, ast_str_create(64), ast_free);
 	RAII_VAR(struct ast_str *, cumulative_description, ast_str_create(64), ast_free);
@@ -450,16 +451,21 @@ static int process_description_file(struct ast_media_index *index,
 			if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
 				struct media_variant *variant;
 
-				variant = alloc_variant(index, file_id_persist, variant_str);
-				if (!variant) {
-					res = -1;
-					break;
+				/*
+				 * If we were only searching for a specific sound filename
+				 * don't include others.
+				 */
+				if (ast_strlen_zero(match_filename) || strcmp(match_filename, file_id_persist) == 0) {
+					variant = alloc_variant(index, file_id_persist, variant_str);
+					if (!variant) {
+						res = -1;
+						break;
+					}
+					ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
+					ao2_ref(variant, -1);
 				}
 
-				ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
-
 				ast_str_reset(cumulative_description);
-				ao2_ref(variant, -1);
 			}
 
 			ast_free(file_id_persist);
@@ -473,12 +479,18 @@ static int process_description_file(struct ast_media_index *index,
 	if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
 		struct media_variant *variant;
 
-		variant = alloc_variant(index, file_id_persist, variant_str);
-		if (variant) {
-			ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
-			ao2_ref(variant, -1);
-		} else {
-			res = -1;
+		/*
+		 * If we were only searching for a specific sound filename
+		 * don't include others.
+		 */
+		if (ast_strlen_zero(match_filename) || strcmp(match_filename, file_id_persist) == 0) {
+			variant = alloc_variant(index, file_id_persist, variant_str);
+			if (variant) {
+				ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
+				ao2_ref(variant, -1);
+			} else {
+				res = -1;
+			}
 		}
 	}
 
@@ -487,110 +499,121 @@ static int process_description_file(struct ast_media_index *index,
 	return res;
 }
 
-/*! \brief process an individual file listing */
-static int process_file(struct ast_media_index *index, const char *variant_str, const char *subdir, const char *filename)
-{
-	RAII_VAR(char *, filename_stripped, ast_strdup(filename), ast_free);
-	char *ext;
+struct read_dirs_data {
+	const char *search_filename;
+	size_t search_filename_len;
+	const char *search_variant;
+	struct ast_media_index *index;
+	size_t dirname_len;
+};
 
-	if (!filename_stripped) {
-		return -1;
+static int read_dirs_cb(const char *dir_name, const char *filename, void *obj)
+{
+	struct read_dirs_data *data = obj;
+	char *ext;
+	size_t match_len;
+	char *match;
+	size_t match_base_len;
+	char *subdirs = (char *)dir_name + data->dirname_len;
+
+	/*
+	 * Example:
+	 * From the filesystem:
+	 * 	  index's base_dir = "/var/lib/asterisk/sounds"
+	 * 	  search_variant = "en"
+	 * 	  search directory base = "/var/lib/asterisk/sounds/en"
+	 * 	  dirname_len = 27
+	 *    current dir_name = "/var/lib/asterisk/sounds/en/digits"
+	 *    subdirs =                                     "/digits"
+	 *    filename = "1.ulaw"
+	 *
+	 * From the search criteria:
+	 *    search_filename = "digits/1"
+	 *    search_filename_len = 8
+	 */
+
+	if (*subdirs == '/') {
+		subdirs++;
 	}
 
-	ext = strrchr(filename_stripped, '.');
+	/* subdirs = "digits" */
+
+	match_len = strlen(subdirs) + strlen(filename) + 2;
+	match = ast_alloca(match_len);
+	snprintf(match, match_len, "%s%s%s", subdirs,
+		ast_strlen_zero(subdirs) ? "" : "/", filename);
+
+	/* match = discovered filename relative to language = "digits/1.ulaw" */
+
+	ext = strrchr(match, '.');
 	if (!ext) {
-		/* file has no extension */
 		return 0;
 	}
 
-	*ext++ = '\0';
-	if (!strcmp(ext, "txt")) {
-		if (process_description_file(index, subdir, variant_str, filename)) {
-			return -1;
-		}
-	} else {
-		if (process_media_file(index, variant_str, subdir, filename_stripped, ext)) {
-			return -1;
+	/* ext = ".ulaw" */
+
+	if (data->search_filename_len > 0) {
+		match_base_len = ext - match;
+		/*
+		 * match_base_len = length of "digits/1" = 8 which
+		 * happens to match the length of search_filename.
+		 * However if the discovered filename was 11.ulaw
+		 * it would be length of "digits/11" = 9.
+		 * We need to use the larger during the compare to
+		 * make sure we don't match just search_filename
+		 * as a substring of the discovered filename.
+		 */
+		if (data->search_filename_len > match_base_len) {
+			match_base_len = data->search_filename_len;
 		}
 	}
+
+	/* We always process txt files because they should contain description. */
+	if (strcmp(ext, ".txt") == 0) {
+		if (process_description_file(data->index, NULL, data->search_variant,
+			match, data->search_filename)) {
+			return -1;
+		}
+	} else if (data->search_filename_len == 0
+		|| strncmp(data->search_filename, match, match_base_len	) == 0) {
+		*ext = '\0';
+		ext++;
+		process_media_file(data->index, data->search_variant, NULL, match, ext);
+	}
+
 	return 0;
 }
 
-/*! \brief internal function for updating the index, recursive */
-static int media_index_update(struct ast_media_index *index,
-	const char *variant,
-	const char *subdir)
+int ast_media_index_update_for_file(struct ast_media_index *index,
+	const char *variant, const char *filename)
 {
-	struct dirent* dent;
-	DIR* srcdir;
-	RAII_VAR(struct ast_str *, index_dir, ast_str_create(64), ast_free);
-	RAII_VAR(struct ast_str *, statfile, ast_str_create(64), ast_free);
-	int res = 0;
+	struct timeval start;
+	struct timeval end;
+	int64_t elapsed;
+	int rc;
+	size_t dirname_len = strlen(index->base_dir) + strlen(S_OR(variant, "")) + 1;
+	struct read_dirs_data data = {
+		.search_filename = S_OR(filename, ""),
+		.search_filename_len = strlen(S_OR(filename, "")),
+		.search_variant = S_OR(variant, ""),
+		.index = index,
+		.dirname_len = dirname_len,
+	};
+	char *search_dir = ast_alloca(dirname_len + 1);
 
-	if (!index_dir) {
-		return 0;
-	}
+	sprintf(search_dir, "%s%s%s", index->base_dir, ast_strlen_zero(variant) ? "" : "/",
+		data.search_variant);
 
-	ast_str_set(&index_dir, 0, "%s", index->base_dir);
-	if (!ast_strlen_zero(variant)) {
-		ast_str_append(&index_dir, 0, "/%s", variant);
-	}
-	if (!ast_strlen_zero(subdir)) {
-		ast_str_append(&index_dir, 0, "/%s", subdir);
-	}
+	gettimeofday(&start, NULL);
+	rc = ast_file_read_dirs(search_dir, read_dirs_cb, &data, -1);
+	gettimeofday(&end, NULL);
+	elapsed = ast_tvdiff_us(end, start);
+	ast_debug(1, "Media for language '%s' indexed in %8.6f seconds\n", data.search_variant, elapsed / 1E6);
 
-	srcdir = opendir(ast_str_buffer(index_dir));
-	if (srcdir == NULL) {
-		ast_log(LOG_ERROR, "Failed to open %s: %s\n", ast_str_buffer(index_dir), strerror(errno));
-		return -1;
-	}
-
-	while((dent = readdir(srcdir)) != NULL) {
-		struct stat st;
-
-		if(!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) {
-			continue;
-		}
-
-		ast_str_reset(statfile);
-		ast_str_set(&statfile, 0, "%s/%s", ast_str_buffer(index_dir), dent->d_name);
-
-		if (stat(ast_str_buffer(statfile), &st) < 0) {
-			ast_log(LOG_WARNING, "Failed to stat %s: %s\n", ast_str_buffer(statfile), strerror(errno));
-			continue;
-		}
-
-		if (S_ISDIR(st.st_mode)) {
-			if (ast_strlen_zero(subdir)) {
-				res = media_index_update(index, variant, dent->d_name);
-			} else {
-				RAII_VAR(struct ast_str *, new_subdir, ast_str_create(64), ast_free);
-				ast_str_set(&new_subdir, 0, "%s/%s", subdir, dent->d_name);
-				res = media_index_update(index, variant, ast_str_buffer(new_subdir));
-			}
-
-			if (res) {
-				break;
-			}
-			continue;
-		}
-
-		if (!S_ISREG(st.st_mode)) {
-			continue;
-		}
-
-		if (process_file(index, variant, subdir, dent->d_name)) {
-			res = -1;
-			break;
-		}
-	}
-
-	closedir(srcdir);
-	return res;
+	return rc;
 }
 
-int ast_media_index_update(struct ast_media_index *index,
-	const char *variant)
+int ast_media_index_update(struct ast_media_index *index, const char *variant)
 {
-	return media_index_update(index, variant, NULL);
+	return ast_media_index_update_for_file(index, variant, NULL);
 }
