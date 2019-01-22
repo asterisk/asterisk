@@ -988,11 +988,11 @@ static void channel_hangup_handler_cb(void *data, struct stasis_subscription *su
 		return;
 	}
 
-	if (!strcmp(action, "type")) {
+	if (!strcmp(action, "run")) {
 		event = "HangupHandlerRun";
-	} else if (!strcmp(action, "type")) {
+	} else if (!strcmp(action, "pop")) {
 		event = "HangupHandlerPop";
-	} else if (!strcmp(action, "type")) {
+	} else if (!strcmp(action, "push")) {
 		event = "HangupHandlerPush";
 	} else {
 		return;
