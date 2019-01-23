@@ -9270,10 +9270,10 @@ $as_echo "configuring" >&6; }
 
 	this_host=$(./config.sub $(./config.guess))
 	if test "$build" != "$this_host" ; then
-		JANSSON_CONFIGURE_OPTS+=" --build=$build"
+		JANSSON_CONFIGURE_OPTS+=" --build=$build_alias"
 	fi
 	if test "$host" != "$this_host" ; then
-		JANSSON_CONFIGURE_OPTS+=" --host=$host"
+		JANSSON_CONFIGURE_OPTS+=" --host=$host_alias"
 	fi
 
 	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
@@ -9391,10 +9391,10 @@ $as_echo "configuring" >&6; }
 
 	this_host=$(./config.sub $(./config.guess))
 	if test "$build" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --build=$build"
+		PJPROJECT_CONFIGURE_OPTS+=" --build=$build_alias"
 	fi
 	if test "$host" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --host=$host"
+		PJPROJECT_CONFIGURE_OPTS+=" --host=$host_alias"
 	fi
 	# This was a copy of the autoconf generated code from the root ./configure.
 	# Hopefully, when you read this, the code is still the same.
@@ -34577,7 +34577,9 @@ else
 fi
 
 # conf_bridge (binaural rendering): check if HRIRs are available
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bridges/bridge_softmix/include/hrirs.h" >&5
+# this check does not work when cross-compiling
+if test "${cross_compiling}" = "no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bridges/bridge_softmix/include/hrirs.h" >&5
 $as_echo_n "checking for bridges/bridge_softmix/include/hrirs.h... " >&6; }
 if ${ac_cv_file_bridges_bridge_softmix_include_hrirs_h+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -34600,6 +34602,7 @@ _ACEOF
 
 fi
 
+fi
 
 ac_config_files="$ac_config_files build_tools/menuselect-deps makeopts"
 

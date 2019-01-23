@@ -2811,7 +2811,10 @@ else
 fi
 
 # conf_bridge (binaural rendering): check if HRIRs are available
-AC_CHECK_FILES([bridges/bridge_softmix/include/hrirs.h])
+# this check does not work when cross-compiling
+if test "${cross_compiling}" = "no"; then
+    AC_CHECK_FILES([bridges/bridge_softmix/include/hrirs.h])
+fi
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AST_CHECK_MANDATORY
