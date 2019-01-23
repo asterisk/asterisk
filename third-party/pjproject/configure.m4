@@ -49,10 +49,10 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	AC_ARG_VAR([PJPROJECT_CONFIGURE_OPTS],[Additional configure options to pass to bundled pjproject])
 	this_host=$(./config.sub $(./config.guess))
 	if test "$build" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --build=$build"
+		PJPROJECT_CONFIGURE_OPTS+=" --build=$build_alias"
 	fi
 	if test "$host" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --host=$host"
+		PJPROJECT_CONFIGURE_OPTS+=" --host=$host_alias"
 	fi
 	# This was a copy of the autoconf generated code from the root ./configure.
 	# Hopefully, when you read this, the code is still the same.
