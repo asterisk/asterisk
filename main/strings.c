@@ -421,3 +421,18 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 
 	return 0;
 }
+
+char *attribute_pure ast_str_to_lower(char *str)
+{
+	char *str_orig = str;
+	if (!str) {
+		return str;
+	}
+
+	for (; *str; ++str) {
+		*str = tolower(*str);
+	}
+
+	return str_orig;
+}
+
