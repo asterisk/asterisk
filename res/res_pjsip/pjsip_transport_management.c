@@ -139,34 +139,62 @@ static int idle_sched_init_pj_thread(void)
 	return 0;
 }
 
+static struct monitored_transport *get_monitored_transport_by_name(const char *obj_name)
+{
+	struct ao2_container *transports;
+	struct monitored_transport *monitored = NULL;
+
+	transports = ao2_global_obj_ref(monitored_transports);
+	if (transports) {
+		monitored = ao2_find(transports, obj_name, OBJ_SEARCH_KEY);
+	}
+	ao2_cleanup(transports);
+
+	/* Caller is responsible for cleaning up reference */
+	return monitored;
+}
+
 static int idle_sched_cb(const void *data)
 {
-	struct monitored_transport *monitored = (struct monitored_transport *) data;
+	char *obj_name = (char *) data;
+	struct monitored_transport *monitored;
 
 	if (idle_sched_init_pj_thread()) {
-		ao2_ref(monitored, -1);
+		ast_free(obj_name);
 		return 0;
 	}
 
-	if (!monitored->sip_received) {
-		ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
-			monitored->transport->info, IDLE_TIMEOUT / 1000);
-		pjsip_transport_shutdown(monitored->transport);
+	monitored = get_monitored_transport_by_name(obj_name);
+	if (monitored) {
+		if (!monitored->sip_received) {
+			ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
+				monitored->transport->info, IDLE_TIMEOUT / 1000);
+			pjsip_transport_shutdown(monitored->transport);
+		}
+		ao2_ref(monitored, -1);
 	}
 
-	ao2_ref(monitored, -1);
+	ast_free(obj_name);
 	return 0;
 }
 
 static int idle_sched_cleanup(const void *data)
 {
-	struct monitored_transport *monitored = (struct monitored_transport *) data;
+	char *obj_name = (char *) data;
+	struct monitored_transport *monitored;
 
-	if (!idle_sched_init_pj_thread()) {
-		pjsip_transport_shutdown(monitored->transport);
+	if (idle_sched_init_pj_thread()) {
+		ast_free(obj_name);
+		return 0;
 	}
-	ao2_ref(monitored, -1);
 
+	monitored = get_monitored_transport_by_name(obj_name);
+	if (monitored) {
+		pjsip_transport_shutdown(monitored->transport);
+		ao2_ref(monitored, -1);
+	}
+
+	ast_free(obj_name);
 	return 0;
 }
 
@@ -203,13 +231,13 @@ static void monitored_transport_state_callback(pjsip_transport *transport, pjsip
 			ao2_link(transports, monitored);
 
 			if (transport->dir == PJSIP_TP_DIR_INCOMING) {
-				/* Let the scheduler inherit the reference from allocation */
-				if (ast_sched_add_variable(sched, IDLE_TIMEOUT, idle_sched_cb, monitored, 1) < 0) {
-					/* Uh Oh.  Could not schedule the idle check.  Kill the transport. */
+				char *obj_name = ast_strdup(transport->obj_name);
+
+				if (!obj_name
+				   || ast_sched_add_variable(sched, IDLE_TIMEOUT, idle_sched_cb, obj_name, 1) < 0) {
+					/* Shut down the transport if anything fails */
 					pjsip_transport_shutdown(transport);
-				} else {
-					/* monitored ref successfully passed to idle_sched_cb() */
-					break;
+					ast_free(obj_name);
 				}
 			}
 			ao2_ref(monitored, -1);
@@ -324,22 +352,13 @@ static struct ast_sorcery_observer keepalive_global_observer = {
  */
 static pj_bool_t idle_monitor_on_rx_request(pjsip_rx_data *rdata)
 {
-	struct ao2_container *transports;
 	struct monitored_transport *idle_trans;
 
-	transports = ao2_global_obj_ref(monitored_transports);
-	if (!transports) {
-		return PJ_FALSE;
+	idle_trans = get_monitored_transport_by_name(rdata->tp_info.transport->obj_name);
+	if (idle_trans) {
+		idle_trans->sip_received = 1;
+		ao2_ref(idle_trans, -1);
 	}
-
-	idle_trans = ao2_find(transports, rdata->tp_info.transport->obj_name, OBJ_SEARCH_KEY);
-	ao2_ref(transports, -1);
-	if (!idle_trans) {
-		return PJ_FALSE;
-	}
-
-	idle_trans->sip_received = 1;
-	ao2_ref(idle_trans, -1);
 
 	return PJ_FALSE;
 }
