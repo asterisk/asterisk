@@ -8904,8 +8904,8 @@ static int manager_subscriptions_init(void)
 	stasis_message_router_set_congestion_limits(stasis_router, -1,
 		6 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
-	res |= stasis_message_router_set_default(stasis_router,
-		manager_default_msg_cb, NULL);
+	stasis_message_router_set_formatters_default(stasis_router,
+		manager_default_msg_cb, NULL, STASIS_SUBSCRIPTION_FORMATTER_AMI);
 
 	res |= stasis_message_router_add(stasis_router,
 		ast_manager_get_generic_type(), manager_generic_msg_cb, NULL);

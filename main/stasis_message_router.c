@@ -388,18 +388,33 @@ int stasis_message_router_set_default(struct stasis_message_router *router,
 	stasis_subscription_cb callback,
 	void *data)
 {
+	stasis_message_router_set_formatters_default(router, callback, data, STASIS_SUBSCRIPTION_FORMATTER_NONE);
+
+	/* While this implementation can never fail, it used to be able to */
+	return 0;
+}
+
+void stasis_message_router_set_formatters_default(struct stasis_message_router *router,
+	stasis_subscription_cb callback,
+	void *data,
+	enum stasis_subscription_message_formatters formatters)
+{
 	ast_assert(router != NULL);
 	ast_assert(callback != NULL);
+
+	stasis_subscription_accept_formatters(router->subscription, formatters);
 
 	ao2_lock(router);
 	router->default_route.callback = callback;
 	router->default_route.data = data;
 	ao2_unlock(router);
 
-	stasis_subscription_set_filter(router->subscription, STASIS_SUBSCRIPTION_FILTER_FORCED_NONE);
-
-	/* While this implementation can never fail, it used to be able to */
-	return 0;
+	if (formatters == STASIS_SUBSCRIPTION_FORMATTER_NONE) {
+		/* Formatters govern what messages the default callback get, so it is only if none is
+		 * specified that we accept all messages regardless.
+		 */
+		stasis_subscription_set_filter(router->subscription, STASIS_SUBSCRIPTION_FILTER_FORCED_NONE);
+	}
 }
 
 void stasis_message_router_accept_formatters(struct stasis_message_router *router,

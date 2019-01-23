@@ -330,16 +330,25 @@ static void call_forwarded_handler(struct stasis_app *app, struct stasis_message
 	ast_channel_unref(chan);
 }
 
+static void sub_subscription_change_handler(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct stasis_app *app = data;
+
+	if (stasis_subscription_final_message(sub, message)) {
+		ao2_cleanup(app);
+	}
+}
+
 static void sub_default_handler(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
 	struct ast_json *json;
 
-	if (stasis_subscription_final_message(sub, message)) {
-		ao2_cleanup(app);
-	}
-
+	/* The dial type can be converted to JSON so it will always be passed
+	 * here.
+	 */
 	if (stasis_message_type(message) == ast_channel_dial_type()) {
 		call_forwarded_handler(app, message);
 	}
@@ -843,7 +852,7 @@ static void bridge_attended_transfer_handler(void *data, struct stasis_subscript
 	}
 }
 
-static void bridge_default_handler(void *data, struct stasis_subscription *sub,
+static void bridge_subscription_change_handler(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
@@ -970,8 +979,8 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	res |= stasis_message_router_add(app->bridge_router,
 		ast_attended_transfer_type(), bridge_attended_transfer_handler, app);
 
-	res |= stasis_message_router_set_default(app->bridge_router,
-		bridge_default_handler, app);
+	res |= stasis_message_router_add(app->bridge_router,
+		stasis_subscription_change_type(), bridge_subscription_change_handler, app);
 
 	if (res != 0) {
 		return NULL;
@@ -993,8 +1002,11 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	res |= stasis_message_router_add_cache_update(app->router,
 		ast_endpoint_snapshot_type(), sub_endpoint_update_handler, app);
 
-	res |= stasis_message_router_set_default(app->router,
-		sub_default_handler, app);
+	res |= stasis_message_router_add(app->router,
+		stasis_subscription_change_type(), sub_subscription_change_handler, app);
+
+	stasis_message_router_set_formatters_default(app->router,
+		sub_default_handler, app, STASIS_SUBSCRIPTION_FORMATTER_JSON);
 
 	if (res != 0) {
 		return NULL;
