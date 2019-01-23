@@ -228,7 +228,7 @@ void stasis_message_router_remove_cache_update(
  * \brief Sets the default route of a router.
  *
  * \param router Router to set the default route of.
- * \param callback Callback to forard messages which otherwise have no home.
+ * \param callback Callback to forward messages which otherwise have no home.
  * \param data Data pointer to pass to \a callback.
  *
  * \retval 0 on success
@@ -243,6 +243,27 @@ void stasis_message_router_remove_cache_update(
 int stasis_message_router_set_default(struct stasis_message_router *router,
 				      stasis_subscription_cb callback,
 				      void *data);
+
+/*!
+ * \brief Sets the default route of a router with formatters.
+ *
+ * \param router Router to set the default route of.
+ * \param callback Callback to forward messages which otherwise have no home.
+ * \param data Data pointer to pass to \a callback.
+ * \param formatters A bitmap of \ref stasis_subscription_message_formatters we wish to receive.
+ *
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \note If formatters are specified then the message router will remain in a selective
+ * filtering state. Any explicit routes will receive messages of their message type and
+ * the default callback will only receive messages that have one of the given formatters.
+ * Explicit routes will not be filtered according to the given formatters.
+ */
+void stasis_message_router_set_formatters_default(struct stasis_message_router *router,
+	stasis_subscription_cb callback,
+	void *data,
+	enum stasis_subscription_message_formatters formatters);
 
 /*!
  * \brief Indicate to a message router that we are interested in messages with one or more formatters.
