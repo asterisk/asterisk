@@ -1157,7 +1157,9 @@ static void add_msid_to_stream(struct ast_sip_session *session,
 	}
 
 	if (ast_strlen_zero(session_media->label)) {
-			ast_uuid_generate_str(session_media->label, sizeof(session_media->label));
+		ast_uuid_generate_str(session_media->label, sizeof(session_media->label));
+		/* add for stream identification to replace stream_name */
+		ast_stream_set_metadata(stream, "MSID:LABEL", session_media->label);
 	}
 
 	snprintf(msid, sizeof(msid), "%s %s", session_media->mslabel, session_media->label);

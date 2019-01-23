@@ -502,6 +502,7 @@ static int append_source_streams(struct ast_stream_topology *dest,
 	const struct ast_stream_topology *source)
 {
 	int i;
+	const char *stream_identify;
 
 	for (i = 0; i < ast_stream_topology_get_count(source); ++i) {
 		struct ast_stream *stream;
@@ -513,8 +514,13 @@ static int append_source_streams(struct ast_stream_topology *dest,
 			continue;
 		}
 
+		stream_identify = ast_stream_get_metadata(stream, "MSID:LABEL");
+		if (!stream_identify) {
+			stream_identify = ast_stream_get_name(stream);
+		}
+
 		if (ast_asprintf(&stream_clone_name, "%s_%s_%s", SOFTBRIDGE_VIDEO_DEST_PREFIX,
-			channel_name, ast_stream_get_name(stream)) < 0) {
+			channel_name, stream_identify) < 0) {
 			return -1;
 		}
 
@@ -2186,6 +2192,7 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 
 		for (i = 0; i < ast_stream_topology_get_count(topology); ++i) {
 			struct ast_stream *stream = ast_stream_topology_get_stream(topology, i);
+			const char *stream_identify;
 
 			if (is_video_source(stream)) {
 				AST_VECTOR_APPEND(&media_types, AST_MEDIA_TYPE_VIDEO);
@@ -2202,7 +2209,12 @@ static void softmix_bridge_stream_topology_changed(struct ast_bridge *bridge, st
 				 */
 				ast_channel_unlock(participant->chan);
 				ast_bridge_channel_unlock(participant);
-				map_source_to_destinations(ast_stream_get_name(stream), ast_channel_name(participant->chan),
+
+				stream_identify = ast_stream_get_metadata(stream, "MSID:LABEL");
+				if (!stream_identify) {
+					stream_identify = ast_stream_get_name(stream);
+				}
+				map_source_to_destinations(stream_identify, ast_channel_name(participant->chan),
 					AST_VECTOR_SIZE(&media_types) - 1, &bridge->channels);
 				ast_bridge_channel_lock(participant);
 				ast_channel_lock(participant->chan);
