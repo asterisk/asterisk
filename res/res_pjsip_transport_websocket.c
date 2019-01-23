@@ -42,6 +42,11 @@ static int transport_type_wss;
 static int transport_type_wss_ipv6;
 
 /*!
+ * Used to ensure uniqueness among WS transport names
+ */
+static int ws_obj_name_serial;
+
+/*!
  * \brief Wrapper for pjsip_transport, for storing the WebSocket session
  */
 struct ws_transport {
@@ -163,8 +168,8 @@ static int transport_create(void *data)
 	}
 
 	/* Give websocket transport a unique name for its lifetime */
-	snprintf(newtransport->transport.obj_name, PJ_MAX_OBJ_NAME, "ws%p",
-		&newtransport->transport);
+	snprintf(newtransport->transport.obj_name, PJ_MAX_OBJ_NAME, "ws%p-%d",
+		&newtransport->transport, ast_atomic_fetchadd_int(&ws_obj_name_serial, 1));
 
 	newtransport->transport.endpt = endpt;
 
