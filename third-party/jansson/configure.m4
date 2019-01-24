@@ -49,10 +49,10 @@ AC_DEFUN([_JANSSON_CONFIGURE],
 	AC_ARG_VAR([JANSSON_CONFIGURE_OPTS],[Additional configure options to pass to bundled jansson])
 	this_host=$(./config.sub $(./config.guess))
 	if test "$build" != "$this_host" ; then
-		JANSSON_CONFIGURE_OPTS+=" --build=$build"
+		JANSSON_CONFIGURE_OPTS+=" --build=$build_alias"
 	fi
 	if test "$host" != "$this_host" ; then
-		JANSSON_CONFIGURE_OPTS+=" --host=$host"
+		JANSSON_CONFIGURE_OPTS+=" --host=$host_alias"
 	fi
 
 	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
