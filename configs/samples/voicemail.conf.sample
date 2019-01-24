@@ -73,6 +73,10 @@ maxlogins=3
 ;
 ;userscontext=default
 ;
+; Aliases allow a mailbox to be referenced by an alias.  The aliases are
+; specified in the special context named here.  There is no default.
+;aliasescontext=myaliases
+;
 ; If you need to have an external program, i.e. /usr/bin/myapp
 ; called when a voicemail is left, delivered, or your voicemailbox
 ; is checked, uncomment this.
@@ -233,7 +237,6 @@ pagerdateformat=%A, %B %d, %Y at %r
                          ; Default: no
 
 ; -----------------------------------------------------------------------------
-;
 
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; If email is specified, a message will be sent when a voicemail is received, to
@@ -451,6 +454,13 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
 ;4235 => 1234,Jim Holmes,jim@astricon.ips,,Tz=european
 
+;
+; Aliases allow alternate references to mailboxes.  See the "aliasescontext"
+; parameter in the "general" section.
+;
+[myaliases]
+1234@devices => 1234@default
+;6200@devices => 4200@default
 
 ;
 ; Mailboxes may be organized into multiple contexts for
