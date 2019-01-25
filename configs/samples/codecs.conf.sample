@@ -164,6 +164,11 @@ packetloss_percentage=10;
 
 ;============================ OPUS Section Options ============================
 ;
+; NOTE: Accurate documentation corresponding to your downloaded version of
+;       codec_opus is available from Asterisk's CLI:
+;
+;       *CLI> config show help codec_opus opus
+;
 ;[opus]
 ;type= ; Must be of type "opus" (default: "")
 ;packet_loss= ; Encoder's packet loss percentage. Can be any number between 0
@@ -182,35 +187,28 @@ packetloss_percentage=10;
 ;max_playback_rate= ; Override the maximum playback rate in the offer's SDP.
                     ; Any value between 8000 and 48000 (inclusive) is valid,
                     ; however typically it should match one of the usual opus
-                    ; bandwidths. A value of "sdp" is also allowed. When set
-                    ; to "sdp" then the value from the offer's SDP is used.
-                    ; (default: "sdp")
+                    ; bandwidths. (default: 48000)
 ;bitrate= ; Override the maximum average bitrate in the offer's SDP. Any value
           ; between 500 and 512000 is valid. The following values are also
-          ; allowed: auto, max, sdp. When set to "sdp" then the value from
-          ; the offer's sdp is used. (default: "sdp")
+          ; allowed: auto, max. (default: auto)
 ;cbr= ; Override the constant bit rate parameter in the offer's SDP. A value of
       ; 0/false/no represents a variable bit rate whereas 1/true/yes represents
-      ; a constant bit rate. A value of "sdp" is also allowed. When set to "sdp"
-      ; then the value from the offer's sdp is used. (default: "sdp")
+      ; a constant bit rate. (default: no)
 ;fec= ; Override the use inband fec parameter in the offer's SDP. A value of
       ; 0/false/no represents disabled whereas 1/true/yes represents enabled.
-      ; A value of "sdp" is also allowed. When set to "sdp" then the value from
-      ; the offer's sdp is used. (default: "sdp")
+      ; (default: yes)
 ;dtx= ; Override the use dtx parameter in the offer's SDP. A value of 0/false/no
-      ; represents disabled whereas 1/true/yes represents enabled. A value of
-      ; "sdp" is also allowed. When set to "sdp" then the value from the offer's
-      ; sdp is used. (default: "sdp")
+      ; represents disabled whereas 1/true/yes represents enabled. (default: no)
 
 ;=============================== OPUS Examples ================================
 ;
 ;[opus]
 ;type=opus
 ;max_playback_rate=8000 ; Limit the maximum playback rate on the encoder
-;fec=no ; Force no inband fec on the encoder (i.e don't use what's on the SDP)
+;fec=no ; No inband fec
 
 ;[myopus]
 ;type=opus
 ;max_bandwidth=wide ; Maximum encoded bandwidth set to wide band (0-8000 Hz
 ;                   ; audio bandwidth at 16Khz sample rate)
-;cbr=yes ; Force a constant bit rate (i.e don't use what's on the SDP)
+;cbr=yes ; Negotiate a constant bit rate
