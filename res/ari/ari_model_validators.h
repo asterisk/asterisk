@@ -170,6 +170,24 @@ int ast_ari_validate_asterisk_info(struct ast_json *json);
 ari_validator ast_ari_validate_asterisk_info_fn(void);
 
 /*!
+ * \brief Validator for AsteriskPing.
+ *
+ * Asterisk ping information
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_asterisk_ping(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_asterisk_ping().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_asterisk_ping_fn(void);
+
+/*!
  * \brief Validator for BuildInfo.
  *
  * Info about how Asterisk was built
@@ -1391,6 +1409,10 @@ ari_validator ast_ari_validate_application_fn(void);
  * - config: ConfigInfo
  * - status: StatusInfo
  * - system: SystemInfo
+ * AsteriskPing
+ * - asterisk_id: string (required)
+ * - ping: string (required)
+ * - timestamp: string (required)
  * BuildInfo
  * - date: string (required)
  * - kernel: string (required)
