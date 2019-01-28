@@ -617,9 +617,17 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		/* Per the RFC for PING we need to send back an opcode with the application data as received */
-		if ((*opcode == AST_WEBSOCKET_OPCODE_PING) && (ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PONG, *payload, *payload_len))) {
+		if (*opcode == AST_WEBSOCKET_OPCODE_PING) {
+			if (ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PONG, *payload, *payload_len)) {
+				ast_websocket_close(session, 1009);
+			}
 			*payload_len = 0;
-			ast_websocket_close(session, 1009);
+			return 0;
+		}
+
+		/* Stop PONG processing here */
+		if (*opcode == AST_WEBSOCKET_OPCODE_PONG) {
+			*payload_len = 0;
 			return 0;
 		}
 
@@ -633,6 +641,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			return 0;
 		}
 
+		/* Below this point we are handling TEXT, BINARY or CONTINUATION opcodes */
 		if (*payload_len) {
 			if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
 				ast_log(LOG_WARNING, "Failed allocation: %p, %zu, %"PRIu64"\n",
