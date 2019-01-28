@@ -155,7 +155,38 @@ static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 
 static int g726_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 {
-	return -1;
+	off_t offset = 0, min = 0, cur, max, distance;
+
+	if ((cur = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine current position in g726 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if (fseeko(fs->f, 0, SEEK_END) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to seek to end of g726 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	if ((max = ftello(fs->f)) < 0) {
+		ast_log(AST_LOG_WARNING, "Unable to determine max position in g726 filestream %p: %s\n", fs, strerror(errno));
+		return -1;
+	}
+
+	/* have to fudge to frame here, so not fully to sample */
+	distance = sample_offset / 2;
+	if (whence == SEEK_SET) {
+		offset = distance;
+	} else if (whence == SEEK_CUR || whence == SEEK_FORCECUR) {
+		offset = distance + cur;
+	} else if (whence == SEEK_END) {
+		offset = max - distance;
+	}
+
+	if (whence != SEEK_FORCECUR) {
+		offset = offset > max ? max : offset;
+		offset = offset < min ? min : offset;
+	}
+	return fseeko(fs->f, offset, SEEK_SET);
 }
 
 static int g726_trunc(struct ast_filestream *fs)
@@ -165,7 +196,7 @@ static int g726_trunc(struct ast_filestream *fs)
 
 static off_t g726_tell(struct ast_filestream *fs)
 {
-	return -1;
+	return ftello(fs->f) << 1;
 }
 
 static struct ast_format_def f[] = {
