@@ -1945,7 +1945,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 	}
 
 	if (set_caps(session, session_media, session_media_transport, remote_stream, 0, asterisk_stream)) {
-		return 1;
+		return -1;
 	}
 
 	/* Set the channel uniqueid on the RTP instance now that it is becoming active */
