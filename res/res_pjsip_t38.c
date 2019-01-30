@@ -79,6 +79,17 @@ static const struct ast_datastore_info t38_datastore = {
 	.destroy = t38_state_destroy,
 };
 
+static void session_media_dec(void *obj)
+{
+	ao2_cleanup(obj);
+}
+
+/*! \brief Datastore for T.38 session_media information */
+static const struct ast_datastore_info session_media_datastore = {
+	.type = "t38_session_media",
+	.destroy = session_media_dec,
+};
+
 /*! \brief Structure for T.38 parameters task data */
 struct t38_parameters_task_data {
 	/*! \brief Session itself */
@@ -118,6 +129,36 @@ static struct t38_parameters_task_data *t38_parameters_task_data_alloc(struct as
 	}
 
 	return data;
+}
+
+/*! \brief Helper function which retrieves a T.38 session_media from datastore */
+static struct ast_sip_session_media *session_media_from_datastore_addref(struct ast_sip_session *session)
+{
+	struct ast_datastore *datastore = NULL;
+	struct ast_sip_session_media *session_media = NULL;
+
+	if ((datastore = ast_sip_session_get_datastore(session, "t38_session_media"))) {
+		session_media = datastore->data;
+		ao2_ref(session_media, +1);
+		ao2_ref(datastore, -1);
+	}
+
+	return session_media;
+}
+
+/*! \brief Helper function which allocates datastore with a session media */
+static struct ast_datastore *create_datastore_session_media(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
+{
+	struct ast_datastore *datastore = NULL;
+
+	if (!(datastore = ast_sip_session_alloc_datastore(&session_media_datastore, "t38_session_media"))
+		|| ast_sip_session_add_datastore(session, datastore)) {
+		return NULL;
+	}
+
+	datastore->data = session_media;
+	ao2_bump(session_media);
+	return datastore;
 }
 
 /*! \brief Helper function for changing the T.38 state */
@@ -198,7 +239,7 @@ static int t38_automatic_reject(void *obj)
 {
 	RAII_VAR(struct ast_sip_session *, session, obj, ao2_cleanup);
 	RAII_VAR(struct ast_datastore *, datastore, ast_sip_session_get_datastore(session, "t38"), ao2_cleanup);
-	RAII_VAR(struct ast_sip_session_media *, session_media, ao2_find(session->media, "image", OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sip_session_media *, session_media, session_media_from_datastore_addref(session), ao2_cleanup);
 
 	if (!datastore) {
 		return 0;
@@ -255,6 +296,10 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 		return 0;
 	}
 
+	if (!create_datastore_session_media(session, session_media)) {
+		return -1;
+	}
+
 	if (!(session_media->udptl = ast_udptl_new_with_bindaddr(NULL, NULL, 0, &address))) {
 		return -1;
 	}
@@ -292,7 +337,8 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 {
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
 	struct t38_state *state;
-	struct ast_sip_session_media *session_media = NULL;
+	RAII_VAR(struct ast_sip_session_media *, session_media,
+		session_media_from_datastore_addref(session), ao2_cleanup);
 
 	if (status.code / 100 <= 1) {
 		/* Ignore any non-final responses (1xx) */
@@ -300,7 +346,7 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 	}
 
 	if (!session->channel || !(state = t38_state_get_or_alloc(session)) ||
-		!(session_media = ao2_find(session->media, "image", OBJ_KEY))) {
+		!session_media) {
 		ast_log(LOG_WARNING, "Received %d response to T.38 re-invite on '%s' but state unavailable\n",
 			status.code,
 			session->channel ? ast_channel_name(session->channel) : "unknown channel");
@@ -311,7 +357,6 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 	t38_change_state(session, session_media, state,
 		(status.code / 100 == 2) ? T38_ENABLED : T38_REJECTED);
 
-	ao2_cleanup(session_media);
 	return 0;
 }
 
@@ -446,10 +491,7 @@ static struct ast_frame *t38_framehook_write(struct ast_channel *chan,
 	} else if (f->frametype == AST_FRAME_MODEM) {
 		struct ast_sip_session_media *session_media;
 
-		/* Avoid deadlock between chan and the session->media container lock */
-		ast_channel_unlock(chan);
-		session_media = ao2_find(session->media, "image", OBJ_SEARCH_KEY);
-		ast_channel_lock(chan);
+		session_media =	session_media_from_datastore_addref(session);
 		if (session_media && session_media->udptl) {
 			ast_udptl_write(session_media->udptl, f);
 		}
@@ -466,10 +508,7 @@ static struct ast_frame *t38_framehook_read(struct ast_channel *chan,
 	if (ast_channel_fdno(session->channel) == 5) {
 		struct ast_sip_session_media *session_media;
 
-		/* Avoid deadlock between chan and the session->media container lock */
-		ast_channel_unlock(chan);
-		session_media = ao2_find(session->media, "image", OBJ_SEARCH_KEY);
-		ast_channel_lock(chan);
+		session_media =	session_media_from_datastore_addref(session);
 		if (session_media && session_media->udptl) {
 			f = ast_udptl_read(session_media->udptl);
 		}
