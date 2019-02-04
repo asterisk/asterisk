@@ -81,7 +81,8 @@ source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
 
 source/config.status: source/.unpacked Makefile.rules .rebuild_needed
 	$(ECHO_PREFIX) Configuring
-	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(JANSSON_CONFIG_OPTS) --disable-shared --enable-static --prefix=$(JANSSON_DIR)/dest)
+	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(JANSSON_CONFIG_OPTS) --disable-shared \
+		--enable-static --prefix=$(JANSSON_DIR)/dest --libdir=$(JANSSON_DIR)/dest/lib)
 
 configure: source/config.status
 
