@@ -56,7 +56,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/vector.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
-#include "asterisk/sounds_index.h"
 #include "asterisk/cli.h"
 
 #include <dlfcn.h>
@@ -376,7 +375,6 @@ static struct reload_classes {
 	{ "logger",      logger_reload },
 	{ "manager",     reload_manager },
 	{ "plc",         ast_plc_reload },
-	{ "sounds",      ast_sounds_reindex },
 	{ "udptl",       ast_udptl_reload },
 	{ NULL,          NULL }
 };

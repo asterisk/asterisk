@@ -34,9 +34,11 @@ struct ast_media_index;
 
 /*!
  * \brief Reload the sounds index
+ * \deprecated
  *
- * \retval zero on success
- * \retval non-zero on failure
+ * This function is a NoOp and will be removed in a future release.
+ *
+ * \retval zero
  */
 int ast_sounds_reindex(void);
 
@@ -47,6 +49,19 @@ int ast_sounds_reindex(void);
  * \retval NULL on failure
  */
 struct ast_media_index *ast_sounds_get_index(void);
+
+/*!
+ * \brief Get the index for a specific sound file
+ * \since 13.25.0
+ * \since 16.2.0
+ *
+ * \param filename Sound file name without extension
+ *
+ * \retval sounds index (must be ao2_cleanup()'ed)
+ * \retval NULL on failure
+ */
+struct ast_media_index *ast_sounds_get_index_for_file(const char *filename);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
