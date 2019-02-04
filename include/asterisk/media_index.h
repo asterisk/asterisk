@@ -101,6 +101,26 @@ struct ao2_container *ast_media_get_media(struct ast_media_index *index);
  */
 int ast_media_index_update(struct ast_media_index *index,
 	const char *variant);
+
+/*!
+ * \brief Update a media index for a specific sound file
+ *
+ * \since 13.25.0
+ * \since 16.2.0
+ *
+ * \param index Media index in which to query information
+ * \param variant Media variant for which to get the description
+ * \param filename Sound file name without extension
+ *
+ * \note If filename is NULL, this function will act as
+ * \ref ast_media_index_update and add all sound files to the index.
+ *
+ * \retval non-zero on error
+ * \return zero on success
+ */
+int ast_media_index_update_for_file(struct ast_media_index *index,
+	const char *variant, const char *filename);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

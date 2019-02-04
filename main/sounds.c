@@ -45,10 +45,6 @@
 /*! \brief The number of buckets to be used for storing language-keyed objects */
 #define LANGUAGE_BUCKETS 7
 
-static struct ast_media_index *sounds_index;
-
-static struct stasis_message_router *sounds_system_router;
-
 /*! \brief Get the languages in which sound files are available */
 static struct ao2_container *get_languages(void)
 {
@@ -97,55 +93,6 @@ static struct ao2_container *get_languages(void)
 	return lang_dirs;
 }
 
-/*! \brief Callback to process an individual language directory or subdirectory */
-static int update_index_cb(void *obj, void *arg, int flags)
-{
-	char *lang = obj;
-	struct ast_media_index *index = arg;
-
-	if (ast_media_index_update(index, lang)) {
-		return CMP_MATCH;
-	}
-	return 0;
-}
-
-AST_MUTEX_DEFINE_STATIC(reload_lock);
-
-static int reload_module(void)
-{
-	RAII_VAR(struct ast_str *, sounds_dir, NULL, ast_free);
-	RAII_VAR(struct ao2_container *, languages, NULL, ao2_cleanup);
-	RAII_VAR(char *, failed_index, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_media_index *, new_index, NULL, ao2_cleanup);
-	struct ast_media_index *old_index;
-
-	SCOPED_MUTEX(lock, &reload_lock);
-
-	old_index = sounds_index;
-	languages = get_languages();
-	sounds_dir = ast_str_create(64);
-
-	if (!languages || !sounds_dir) {
-		return -1;
-	}
-
-	ast_str_set(&sounds_dir, 0, "%s/sounds", ast_config_AST_DATA_DIR);
-	new_index = ast_media_index_create(ast_str_buffer(sounds_dir));
-	if (!new_index) {
-		return -1;
-	}
-
-	failed_index = ao2_callback(languages, 0, update_index_cb, new_index);
-	if (failed_index) {
-		return -1;
-	}
-
-	ao2_ref(new_index, +1);
-	sounds_index = new_index;
-	ao2_cleanup(old_index);
-	return 0;
-}
-
 static int show_sounds_cb(void *obj, void *arg, int flags)
 {
 	char *name = obj;
@@ -154,13 +101,13 @@ static int show_sounds_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static int show_sound_info_cb(void *obj, void *arg, int flags)
+static int show_sound_info_cb(void *obj, void *arg, void *data, int flags)
 {
 	char *language = obj;
 	struct ast_cli_args *a = arg;
 	struct ast_format *format;
 	int formats_shown = 0;
-	RAII_VAR(struct ast_media_index *, local_index, ast_sounds_get_index(), ao2_cleanup);
+	struct ast_media_index *local_index = data;
 	struct ast_format_cap *cap;
 	const char *description = ast_media_get_description(local_index, a->argv[3], language);
 
@@ -203,13 +150,23 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 	}
 
 	if (a->argc == 3) {
-		RAII_VAR(struct ao2_container *, sound_files, ast_media_get_media(sounds_index), ao2_cleanup);
+		struct ast_media_index *sounds_index = ast_sounds_get_index();
+		struct ao2_container *sound_files;
+
+		if (!sounds_index) {
+			return CLI_FAILURE;
+		}
+
+		sound_files = ast_media_get_media(sounds_index);
+		ao2_ref(sounds_index, -1);
 		if (!sound_files) {
 			return CLI_FAILURE;
 		}
 
 		ast_cli(a->fd, "Available audio files:\n");
 		ao2_callback(sound_files, OBJ_MULTIPLE | OBJ_NODATA, show_sounds_cb, a);
+		ao2_ref(sound_files, -1);
+
 		return CLI_SUCCESS;
 	}
 
@@ -222,6 +179,7 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 	int length;
 	struct ao2_iterator it_sounds;
 	char *filename;
+	struct ast_media_index *sounds_index;
 	struct ao2_container *sound_files;
 
 	switch (cmd) {
@@ -236,7 +194,13 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 			return NULL;
 		}
 
+		sounds_index = ast_sounds_get_index();
+		if (!sounds_index) {
+			return NULL;
+		}
+
 		sound_files = ast_media_get_media(sounds_index);
+		ao2_ref(sounds_index, -1);
 		if (!sound_files) {
 			return NULL;
 		}
@@ -259,14 +223,27 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 	}
 
 	if (a->argc == 4) {
-		RAII_VAR(struct ao2_container *, variants, ast_media_get_variants(sounds_index, a->argv[3]), ao2_cleanup);
+		struct ao2_container *variants;
+
+		sounds_index = ast_sounds_get_index_for_file(a->argv[3]);
+		if (!sounds_index) {
+			return NULL;
+		}
+
+		variants = ast_media_get_variants(sounds_index, a->argv[3]);
+
 		if (!variants || !ao2_container_count(variants)) {
+			ao2_ref(sounds_index, -1);
+			ao2_cleanup(variants);
 			ast_cli(a->fd, "ERROR: File %s not found in index\n", a->argv[3]);
 			return CLI_FAILURE;
 		}
 
 		ast_cli(a->fd, "Indexed Information for %s:\n", a->argv[3]);
-		ao2_callback(variants, OBJ_MULTIPLE | OBJ_NODATA, show_sound_info_cb, a);
+		ao2_callback_data(variants, OBJ_MULTIPLE | OBJ_NODATA, show_sound_info_cb, a, sounds_index);
+		ao2_ref(sounds_index, -1);
+		ao2_ref(variants, -1);
+
 		return CLI_SUCCESS;
 	}
 
@@ -281,67 +258,81 @@ static struct ast_cli_entry cli_sounds[] = {
 
 static int unload_module(void)
 {
-	stasis_message_router_unsubscribe_and_join(sounds_system_router);
-	sounds_system_router = NULL;
 	ast_cli_unregister_multiple(cli_sounds, ARRAY_LEN(cli_sounds));
-	ao2_cleanup(sounds_index);
-	sounds_index = NULL;
 
 	return 0;
 }
 
-static void format_update_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_message *message)
-{
-	/* Reindexing during shutdown is pointless. */
-	if (!ast_shutting_down()) {
-		reload_module();
-	}
-}
-
 static int load_module(void)
 {
-	int res = 0;
-	if (reload_module()) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	res |= ast_cli_register_multiple(cli_sounds, ARRAY_LEN(cli_sounds));
+	int res;
 
-	sounds_system_router = stasis_message_router_create(ast_system_topic());
-	if (!sounds_system_router) {
-		return AST_MODULE_LOAD_FAILURE;
+	res = ast_cli_register_multiple(cli_sounds, ARRAY_LEN(cli_sounds));
+	if (res) {
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (ast_format_register_type()) {
-		res |= stasis_message_router_add(
-			sounds_system_router,
-			ast_format_register_type(),
-			format_update_cb,
-			NULL);
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+/*! \brief Callback to process an individual language directory or subdirectory */
+static int update_index_cb(void *obj, void *arg, void *data, int flags)
+{
+	char *lang = obj;
+	char *filename = data;
+	struct ast_media_index *index = arg;
+
+	if (ast_media_index_update_for_file(index, lang, filename)) {
+		return CMP_MATCH;
 	}
 
-	if (ast_format_unregister_type()) {
-		res |= stasis_message_router_add(
-			sounds_system_router,
-			ast_format_unregister_type(),
-			format_update_cb,
-			NULL);
-	}
-
-	return res ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
+	return 0;
 }
 
 struct ast_media_index *ast_sounds_get_index(void)
 {
-	return ao2_bump(sounds_index);
+	return ast_sounds_get_index_for_file(NULL);
+}
+
+struct ast_media_index *ast_sounds_get_index_for_file(const char *filename)
+{
+	struct ast_str *sounds_dir = ast_str_create(64);
+	struct ao2_container *languages;
+	char *failed_index;
+	struct ast_media_index *new_index;
+
+	if (!sounds_dir) {
+		return NULL;
+	}
+
+	ast_str_set(&sounds_dir, 0, "%s/sounds", ast_config_AST_DATA_DIR);
+	new_index = ast_media_index_create(ast_str_buffer(sounds_dir));
+	ast_free(sounds_dir);
+	if (!new_index) {
+		return NULL;
+	}
+
+	languages = get_languages();
+	if (!languages) {
+		ao2_ref(new_index, -1);
+		return NULL;
+	}
+
+	failed_index = ao2_callback_data(languages, 0, update_index_cb, new_index, (void *)filename);
+	ao2_ref(languages, -1);
+	if (failed_index) {
+		ao2_ref(failed_index, -1);
+		ao2_ref(new_index, -1);
+		new_index = NULL;
+	}
+
+	return new_index;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Sounds Index",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
-	/* This reload doesn't use config so this module doesn't require "extconfig". */
-	.reload = reload_module,
 	/* Load after the format modules to reduce processing during startup. */
 	.load_pri = AST_MODPRI_APP_DEPEND + 1,
 );
