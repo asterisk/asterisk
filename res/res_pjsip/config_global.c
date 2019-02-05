@@ -23,6 +23,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/pbx.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/ast_version.h"
@@ -131,6 +132,46 @@ static void *global_alloc(const char *name)
 	return cfg;
 }
 
+/*
+ * There is ever only one global section, so we can use a single global
+ * value here to track the regcontext through reloads.
+ */
+static char *previous_regcontext = NULL;
+
+static int check_regcontext(const struct global_config *cfg)
+{
+	char *current = NULL;
+
+	if (previous_regcontext && !strcmp(previous_regcontext, cfg->regcontext)) {
+		/* Nothing changed so nothing to do */
+		return 0;
+	}
+
+	if (!ast_strlen_zero(cfg->regcontext)) {
+		current = ast_strdup(cfg->regcontext);
+		if (!current) {
+			return -1;
+		}
+
+		if (ast_sip_persistent_endpoint_add_to_regcontext(cfg->regcontext)) {
+			ast_free(current);
+			return -1;
+		}
+	}
+
+	if (!ast_strlen_zero(previous_regcontext)) {
+		ast_context_destroy_by_name(previous_regcontext, "PJSIP");
+		ast_free(previous_regcontext);
+		previous_regcontext = NULL;
+	}
+
+	if (current) {
+		previous_regcontext = current;
+	}
+
+	return 0;
+}
+
 static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	struct global_config *cfg = obj;
@@ -153,6 +194,10 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 	ast_sip_add_global_request_header("Max-Forwards", max_forwards, 1);
 	ast_sip_add_global_request_header("User-Agent", cfg->useragent, 1);
 	ast_sip_add_global_response_header("Server", cfg->useragent, 1);
+
+	if (check_regcontext(cfg)) {
+		return -1;
+	}
 
 	ao2_t_global_obj_replace_unref(global_cfg, cfg, "Applying global settings");
 	return 0;
@@ -515,10 +560,16 @@ int ast_sip_destroy_sorcery_global(void)
 
 	ast_sorcery_instance_observer_remove(sorcery, &observer_callbacks_global);
 
+	if (previous_regcontext) {
+		ast_context_destroy_by_name(previous_regcontext, "PJSIP");
+		ast_free(previous_regcontext);
+	}
+
 	ao2_t_global_obj_release(global_cfg, "Module is unloading");
 
 	return 0;
 }
+
 
 int ast_sip_initialize_sorcery_global(void)
 {
