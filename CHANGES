@@ -75,6 +75,14 @@ Bridging
 --- Functionality changes from Asterisk 16.1.0 to Asterisk 16.2.0 ------------
 ------------------------------------------------------------------------------
 
+ARI
+------------------
+ * Whenever an ARI application is started, a context will be created for it
+   automatically as long as one does not already exist, following the format
+   'stasis-<app_name>'. Two extensions are also added to this context: a match-all
+   extension, and the 'h' extension. Any phone that registers under this context
+   will place all calls to the corresponding Stasis application.
+
 res_pjsip
 ------------------
  * Added "send_contact_status_on_update_registration" global configuration option
