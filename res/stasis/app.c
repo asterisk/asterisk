@@ -299,12 +299,19 @@ static int forwards_sort(const void *obj_left, const void *obj_right, int flags)
 static void app_dtor(void *obj)
 {
 	struct stasis_app *app = obj;
+	size_t size = strlen("stasis-") + strlen(app->name) + 1;
+	char context_name[size];
 
 	ast_verb(1, "Destroying Stasis app %s\n", app->name);
 
 	ast_assert(app->router == NULL);
 	ast_assert(app->bridge_router == NULL);
 	ast_assert(app->endpoint_router == NULL);
+
+	/* If we created a context for this application, remove it */
+	strcpy(context_name, "stasis-");
+	strcat(context_name, app->name);
+	ast_context_destroy_by_name(context_name, "res_stasis");
 
 	ao2_cleanup(app->topic);
 	app->topic = NULL;
@@ -943,6 +950,8 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 	size_t size;
 	int res = 0;
+	size_t context_size = strlen("stasis-") + strlen(name) + 1;
+	char context_name[context_size];
 
 	ast_assert(name != NULL);
 	ast_assert(handler != NULL);
@@ -1020,6 +1029,22 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	strncpy(app->name, name, size - sizeof(*app));
 	app->handler = handler;
 	app->data = ao2_bump(data);
+
+	/* Create a context, a match-all extension, and a 'h' extension for this application. Note that
+	 * this should only be done if a context does not already exist. */
+	strcpy(context_name, "stasis-");
+	strcat(context_name, name);
+	if (!ast_context_find(context_name)) {
+		if (!ast_context_find_or_create(NULL, NULL, context_name, "res_stasis")) {
+			ast_log(LOG_WARNING, "Could not create context '%s' for Stasis application '%s'\n", context_name, name);
+		} else {
+			ast_add_extension(context_name, 0, "_.", 1, NULL, NULL, "Stasis", ast_strdup(name), ast_free_ptr, "res_stasis");
+			ast_add_extension(context_name, 0, "h", 1, NULL, NULL, "NoOp", NULL, NULL, "res_stasis");
+		}
+	} else {
+		ast_log(LOG_WARNING, "Not creating context '%s' for Stasis application '%s' because it already exists\n",
+			context_name, name);
+	}
 
 	ao2_ref(app, +1);
 	return app;
