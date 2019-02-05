@@ -131,6 +131,17 @@ int ast_ari_asterisk_get_info_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_asterisk_get_info(struct ast_variable *headers, struct ast_ari_asterisk_get_info_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_asterisk_ping() */
+struct ast_ari_asterisk_ping_args {
+};
+/*!
+ * \brief Response pong message.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_asterisk_ping(struct ast_variable *headers, struct ast_ari_asterisk_ping_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_asterisk_list_modules() */
 struct ast_ari_asterisk_list_modules_args {
 };
