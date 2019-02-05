@@ -179,6 +179,18 @@
 			]
 		},
 		{
+			"path": "/asterisk/ping",
+			"description": "Asterisk ping",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Response pong message.",
+					"nickname": "ping",
+					"responseClass": "AsteriskPing"
+				}
+			]
+		},
+		{
 			"path": "/asterisk/modules",
 			"description": "Asterisk modules",
 			"operations": [
@@ -601,6 +613,27 @@
 					"required": false,
 					"type": "StatusInfo",
 					"description": "Info about Asterisk status"
+				}
+			}
+		},
+		"AsteriskPing": {
+			"id": "AsteriskPing",
+			"description": "Asterisk ping information",
+			"properties": {
+				"asterisk_id": {
+					"required": true,
+					"type": "string",
+					"description": "Asterisk id info"
+				},
+				"ping": {
+					"required": true,
+					"type": "string",
+					"description": "Always string value is pong"
+				},
+				"timestamp": {
+					"required": true,
+					"type": "string",
+					"description": "The timestamp string of request received time"
 				}
 			}
 		},

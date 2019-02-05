@@ -91,6 +91,76 @@ ari_validator ast_ari_validate_asterisk_info_fn(void)
 	return ast_ari_validate_asterisk_info;
 }
 
+int ast_ari_validate_asterisk_ping(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_asterisk_id = 0;
+	int has_ping = 0;
+	int has_timestamp = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_asterisk_id = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskPing field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("ping", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_ping = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskPing field ping failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_timestamp = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskPing field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI AsteriskPing has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_asterisk_id) {
+		ast_log(LOG_ERROR, "ARI AsteriskPing missing required field asterisk_id\n");
+		res = 0;
+	}
+
+	if (!has_ping) {
+		ast_log(LOG_ERROR, "ARI AsteriskPing missing required field ping\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI AsteriskPing missing required field timestamp\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_asterisk_ping_fn(void)
+{
+	return ast_ari_validate_asterisk_ping;
+}
+
 int ast_ari_validate_build_info(struct ast_json *json)
 {
 	int res = 1;

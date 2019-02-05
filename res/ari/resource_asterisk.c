@@ -631,6 +631,24 @@ void ast_ari_asterisk_reload_module(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_asterisk_ping(struct ast_variable *headers,
+	struct ast_ari_asterisk_ping_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_json *json;
+	char eid[20];
+
+	ast_assert(response != NULL);
+
+	json = ast_json_pack("{s: s, s: o, s: s}",
+			"ping",	"pong",
+			"timestamp", ast_json_timeval(ast_tvnow(), NULL),
+			"asterisk_id", ast_eid_to_str(eid, sizeof(eid), &ast_eid_default)
+			);
+
+	ast_ari_response_ok(response, json);
+}
+
 /*!
  * \brief Process logger information and append to a json array
  * \param channel Resource logger channel name path
