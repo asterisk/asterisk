@@ -51,6 +51,7 @@ struct odbc_obj {
 	char function[80];
 	int lineno;
 #endif
+	char *sql_text;					/*!< The SQL text currently executing */
 	AST_LIST_ENTRY(odbc_obj) list;
 };
 
@@ -159,6 +160,22 @@ SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struc
  * \retval NULL on error
  */
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
+
+/*!
+ * \brief Prepares a SQL query on a statement.
+ * \param obj The ODBC object
+ * \param stmt The statement
+ * \parma sql The SQL query
+ * \note This should be used in place of SQLPrepare
+ */
+int ast_odbc_prepare(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql);
+
+/*! \brief Execute a nonprepared SQL query.
+ * \param obj The ODBC object
+ * \param sql The SQL query
+ * \note This should be used in place of SQLExecDirect
+ */
+SQLRETURN ast_odbc_execute_sql(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql);
 
 /*!
  * \brief Find or create an entry describing the table specified.
