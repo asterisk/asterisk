@@ -3855,7 +3855,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 		ast_log(AST_LOG_WARNING, "SQL Alloc Handle failed!\n");
 		return NULL;
 	}
-	res = SQLPrepare(stmt, (unsigned char *) gps->sql, SQL_NTS);
+	res = ast_odbc_prepare(obj, stmt, gps->sql);
 	if (!SQL_SUCCEEDED(res)) {
 		ast_log(AST_LOG_WARNING, "SQL Prepare failed![%s]\n", gps->sql);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -4378,7 +4378,7 @@ static SQLHSTMT insert_data_cb(struct odbc_obj *obj, void *vdata)
 	if (!ast_strlen_zero(data->category)) {
 		SQLBindParameter(stmt, 13, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(data->category), 0, (void *) data->category, 0, NULL);
 	}
-	res = SQLExecDirect(stmt, (unsigned char *) data->sql, SQL_NTS);
+	res = ast_odbc_execute_sql(obj, stmt, data->sql);
 	if (!SQL_SUCCEEDED(res)) {
 		ast_log(AST_LOG_WARNING, "SQL Direct Execute failed!\n");
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
