@@ -116,7 +116,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 
 	ast_debug(1, "Skip: %llu; SQL: %s\n", cps->skip, cps->sql);
 
-	res = SQLPrepare(stmt, (unsigned char *)cps->sql, SQL_NTS);
+	res = ast_odbc_prepare(obj, stmt, cps->sql);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
@@ -634,7 +634,7 @@ static SQLHSTMT update2_prepare(struct odbc_obj *obj, void *data)
 	/* Done with the table metadata */
 	ast_odbc_release_table(tableptr);
 
-	res = SQLPrepare(stmt, (unsigned char *)ast_str_buffer(sql), SQL_NTS);
+	res = ast_odbc_prepare(obj, stmt, ast_str_buffer(sql));
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Prepare");
@@ -872,7 +872,7 @@ static SQLHSTMT length_determination_odbc_prepare(struct odbc_obj *obj, void *da
 		return NULL;
 	}
 
-	res = SQLPrepare(sth, (unsigned char *)q->sql, SQL_NTS);
+	res = ast_odbc_prepare(obj, sth, q->sql);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_verb(4, "Error in PREPARE %d\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, sth);
@@ -896,7 +896,7 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
-	res = SQLPrepare(sth, (unsigned char *)q->sql, SQL_NTS);
+	res = ast_odbc_prepare(obj, sth, q->sql);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_verb(4, "Error in PREPARE %d\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, sth);

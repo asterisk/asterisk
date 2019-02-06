@@ -464,7 +464,7 @@ static SQLHSTMT execute(struct odbc_obj *obj, void *data, int silent)
 		return NULL;
 	}
 
-	res = SQLExecDirect(stmt, (unsigned char *)sql, SQL_NTS);
+	res = ast_odbc_execute_sql(obj, stmt, sql);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR && !silent) {
 			int i;
