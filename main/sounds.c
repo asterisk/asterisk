@@ -135,6 +135,11 @@ static int show_sound_info_cb(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
+static int sound_sorter(const void *obj_left, const void *obj_right, int flags)
+{
+	return strcmp(obj_left, obj_right);
+}
+
 /*! \brief Show a list of sounds available on the system */
 static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -152,6 +157,7 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 	if (a->argc == 3) {
 		struct ast_media_index *sounds_index = ast_sounds_get_index();
 		struct ao2_container *sound_files;
+		struct ao2_container *sorted;
 
 		if (!sounds_index) {
 			return CLI_FAILURE;
@@ -163,8 +169,18 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 			return CLI_FAILURE;
 		}
 
+		sorted = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+			sound_sorter, NULL);
+		if (!sorted
+		   || ao2_container_dup(sorted, sound_files, 0)) {
+			ao2_cleanup(sorted);
+			ao2_cleanup(sound_files);
+			return CLI_FAILURE;
+		}
+
 		ast_cli(a->fd, "Available audio files:\n");
-		ao2_callback(sound_files, OBJ_MULTIPLE | OBJ_NODATA, show_sounds_cb, a);
+		ao2_callback(sorted, OBJ_MULTIPLE | OBJ_NODATA, show_sounds_cb, a);
+		ao2_ref(sorted, -1);
 		ao2_ref(sound_files, -1);
 
 		return CLI_SUCCESS;
