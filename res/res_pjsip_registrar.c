@@ -341,24 +341,14 @@ static int register_contact_transport_remove_cb(void *data)
 
 	aor = ast_sip_location_retrieve_aor(monitor->aor_name);
 	if (!aor) {
+		ao2_lock(monitor);
+		monitor->removing = 0;
+		ao2_unlock(monitor);
 		ao2_ref(monitor, -1);
 		return 0;
 	}
 
 	ao2_lock(aor);
-
-	/*
-	 * We're now locked so check again to make sure some other thread is not
-	 * currently removing the contact, or already has.
-	 */
-	if (monitor->removing) {
-		ao2_unlock(aor);
-		ao2_ref(aor, -1);
-		ao2_ref(monitor, -1);
-		return 0;
-	}
-
-	monitor->removing = 1;
 
 	contact = ast_sip_location_retrieve_contact(monitor->contact_name);
 	if (contact) {
@@ -400,13 +390,14 @@ static void register_contact_transport_shutdown_cb(void *data)
 	 * same monitor from different threads. Only one of the calls needs to do the
 	 * actual removing of the contact, so if one is currently removing then any
 	 * subsequent calls can skip.
-	 *
-	 * We'll call it non locked here, but check again once locked just in case the
-	 * flag was updated (see register_contact_transport_remove_cb).
 	 */
+	ao2_lock(monitor);
 	if (monitor->removing) {
+		ao2_unlock(monitor);
 		return;
 	}
+
+	monitor->removing = 1;
 
 	/*
 	 * Push off to a default serializer.  This is in case sorcery
@@ -416,8 +407,11 @@ static void register_contact_transport_shutdown_cb(void *data)
 	 */
 	ao2_ref(monitor, +1);
 	if (ast_sip_push_task(NULL, register_contact_transport_remove_cb, monitor)) {
+		monitor->removing = 0;
 		ao2_ref(monitor, -1);
 	}
+
+	ao2_unlock(monitor);
 }
 
 AST_VECTOR(excess_contact_vector, struct ast_sip_contact *);
@@ -728,8 +722,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 				 * the contact won't be valid anymore if that happens.
 				 */
 				contact_name = ast_sorcery_object_get_id(contact);
-				monitor = ao2_alloc_options(sizeof(*monitor) + 2 + strlen(aor_name)
-					+ strlen(contact_name), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+				monitor = ao2_alloc(sizeof(*monitor) + 2 + strlen(aor_name)
+					+ strlen(contact_name), NULL);
 				if (monitor) {
 					strcpy(monitor->aor_name, aor_name);/* Safe */
 					monitor->contact_name = monitor->aor_name + strlen(aor_name) + 1;
