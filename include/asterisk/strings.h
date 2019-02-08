@@ -1310,6 +1310,21 @@ void ast_str_container_remove(struct ao2_container *str_container, const char *r
 char *ast_generate_random_string(char *buf, size_t size);
 
 /*!
+ * \brief Compare strings for equality checking for NULL.
+ * \since 16.3.0
+ *
+ * This function considers NULL values as non-strings, thus a false condition.
+ * This means that it will return false if one, or both of the given values are
+ * NULL (i.e. two NULLs are not equal strings).
+ *
+ * \param str1 The string to compare to str2
+ * \param str2 The string to compare to str1
+ *
+ * \return true if valid strings and equal, false otherwise.
+ */
+int ast_strings_equal(const char *str1, const char *str2);
+
+/*!
  * \brief Compares 2 strings using realtime-style operators
  * \since 13.9.0
  *
