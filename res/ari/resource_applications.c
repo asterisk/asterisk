@@ -168,3 +168,23 @@ void ast_ari_applications_unsubscribe(struct ast_variable *headers,
 			"Error processing request");
 	}
 }
+
+void ast_ari_applications_filter(struct ast_variable *headers,
+	struct ast_ari_applications_filter_args *args,
+	struct ast_ari_response *response)
+{
+	struct stasis_app *app = stasis_app_get_by_name(args->application_name);
+
+	if (!app) {
+		ast_ari_response_error(response, 404, "Not Found", "Application not found");
+		return;
+	}
+
+	if (stasis_app_event_filter_set(app, args->filter)) {
+		ast_ari_response_error(response, 400, "Bad Request", "Invalid format definition");
+	} else {
+		ast_ari_response_ok(response, stasis_app_object_to_json(app));
+	}
+
+	ao2_ref(app, -1);
+}

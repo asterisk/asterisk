@@ -1689,13 +1689,14 @@ static struct ast_json *app_event_sources_to_json(
 	return json;
 }
 
-static struct ast_json *stasis_app_object_to_json(struct stasis_app *app)
+struct ast_json *stasis_app_object_to_json(struct stasis_app *app)
 {
 	if (!app) {
 		return NULL;
 	}
 
-	return app_event_sources_to_json(app, app_to_json(app));
+	return stasis_app_event_filter_to_json(
+		app, app_event_sources_to_json(app, app_to_json(app)));
 }
 
 struct ast_json *stasis_app_to_json(const char *app_name)
