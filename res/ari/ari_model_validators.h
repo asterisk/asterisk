@@ -1488,6 +1488,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - bridge_class: string (required)
  * - bridge_type: string (required)
  * - channels: List[string] (required)
+ * - creationtime: Date (required)
  * - creator: string (required)
  * - id: string (required)
  * - name: string (required)

@@ -358,6 +358,8 @@ struct ast_bridge {
 
 	/*! Type mapping used for media routing */
 	struct ast_vector_int media_types;
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*! \brief Bridge base class virtual method table. */

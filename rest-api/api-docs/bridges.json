@@ -753,6 +753,11 @@
 					"type": "string",
 					"description": "The ID of the channel that is the source of video in this bridge, if one exists.",
 					"required": false
+				},
+				"creationtime": {
+					"required": true,
+					"type": "Date",
+					"description": "Timestamp when bridge was created"
 				}
 			}
 		}
