@@ -813,6 +813,8 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 		return NULL;
 	}
 
+	self->creationtime = ast_tvnow();
+
 	return self;
 }
 
@@ -5012,8 +5014,8 @@ static char *complete_bridge_stasis(const char *word)
 
 static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT_HDR "%-36s %5s %-15s %s\n"
-#define FORMAT_ROW "%-36s %5u %-15s %s\n"
+#define FORMAT_HDR "%-36s %5s %-15s %-15s %s\n"
+#define FORMAT_ROW "%-36s %5u %-15s %-15s %s\n"
 
 	RAII_VAR(struct ao2_container *, cached_bridges, NULL, ao2_cleanup);
 	struct ao2_iterator iter;
@@ -5036,17 +5038,21 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 		return CLI_SUCCESS;
 	}
 
-	ast_cli(a->fd, FORMAT_HDR, "Bridge-ID", "Chans", "Type", "Technology");
+	ast_cli(a->fd, FORMAT_HDR, "Bridge-ID", "Chans", "Type", "Technology", "Duration");
 
 	iter = ao2_iterator_init(cached_bridges, 0);
 	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
 		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
+		char print_time[32];
+
+		ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, sizeof(print_time));
 
 		ast_cli(a->fd, FORMAT_ROW,
 			snapshot->uniqueid,
 			snapshot->num_channels,
 			S_OR(snapshot->subclass, "<unknown>"),
-			S_OR(snapshot->technology, "<unknown>"));
+			S_OR(snapshot->technology, "<unknown>"),
+			print_time);
 	}
 	ao2_iterator_destroy(&iter);
 	return CLI_SUCCESS;
@@ -5078,6 +5084,7 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_bridge_snapshot *snapshot;
+	char print_time[32];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -5104,10 +5111,18 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 	}
 
 	snapshot = stasis_message_data(msg);
+	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, sizeof(print_time));
+
 	ast_cli(a->fd, "Id: %s\n", snapshot->uniqueid);
 	ast_cli(a->fd, "Type: %s\n", S_OR(snapshot->subclass, "<unknown>"));
 	ast_cli(a->fd, "Technology: %s\n", S_OR(snapshot->technology, "<unknown>"));
+	ast_cli(a->fd, "Subclass: %s\n", snapshot->subclass);
+	ast_cli(a->fd, "Creator: %s\n", snapshot->creator);
+	ast_cli(a->fd, "Name: %s\n", snapshot->name);
+	ast_cli(a->fd, "Video-Source-Id: %s\n", snapshot->video_source_id);
 	ast_cli(a->fd, "Num-Channels: %u\n", snapshot->num_channels);
+	ast_cli(a->fd, "Num-Active: %u\n", snapshot->num_active);
+	ast_cli(a->fd, "Duration: %s\n", print_time);
 	ao2_callback(snapshot->channels, OBJ_NODATA, bridge_show_specific_print_channel, a);
 
 	return CLI_SUCCESS;

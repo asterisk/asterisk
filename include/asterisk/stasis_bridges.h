@@ -62,6 +62,8 @@ struct ast_bridge_snapshot {
 	enum ast_bridge_video_mode_type video_mode;
 	/*! Unique ID of the channel providing video, if one exists */
 	AST_STRING_FIELD_EXTENDED(video_source_id);
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*!
