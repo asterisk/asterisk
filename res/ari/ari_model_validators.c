@@ -6534,6 +6534,8 @@ int ast_ari_validate_application(struct ast_json *json)
 	int has_channel_ids = 0;
 	int has_device_names = 0;
 	int has_endpoint_ids = 0;
+	int has_events_allowed = 0;
+	int has_events_disallowed = 0;
 	int has_name = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6581,6 +6583,28 @@ int ast_ari_validate_application(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("events_allowed", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_events_allowed = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_object);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field events_allowed failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("events_disallowed", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_events_disallowed = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_object);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field events_disallowed failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_name = 1;
@@ -6616,6 +6640,16 @@ int ast_ari_validate_application(struct ast_json *json)
 
 	if (!has_endpoint_ids) {
 		ast_log(LOG_ERROR, "ARI Application missing required field endpoint_ids\n");
+		res = 0;
+	}
+
+	if (!has_events_allowed) {
+		ast_log(LOG_ERROR, "ARI Application missing required field events_allowed\n");
+		res = 0;
+	}
+
+	if (!has_events_disallowed) {
+		ast_log(LOG_ERROR, "ARI Application missing required field events_disallowed\n");
 		res = 0;
 	}
 

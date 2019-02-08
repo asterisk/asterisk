@@ -114,7 +114,7 @@ static void stasis_app_message_handler(
 				"Queued '%s' message for Stasis app '%s'; websocket is not ready\n",
 				msg_type,
 				msg_application);
-	} else {
+	} else if (stasis_app_event_allowed(app_name, message)) {
 		if (stasis_app_get_debug_by_name(app_name)) {
 			char *str = ast_json_dump_string_format(message, ast_ari_json_format());
 

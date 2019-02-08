@@ -1830,6 +1830,8 @@ ari_validator ast_ari_validate_application_fn(void);
  * - channel_ids: List[string] (required)
  * - device_names: List[string] (required)
  * - endpoint_ids: List[string] (required)
+ * - events_allowed: List[object] (required)
+ * - events_disallowed: List[object] (required)
  * - name: string (required)
  */
 
