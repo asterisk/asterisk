@@ -9,6 +9,18 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.25.0 to Asterisk 13.26.0 ----------
+------------------------------------------------------------------------------
+
+ARI
+------------------
+ * Application event filtering is now supported. An application can now specify
+   an "allowed" and/or "disallowed" list(s) of event types. Only those types
+   indicated in the "allowed" list are sent to the application. Conversely, any
+   types defined in the "disallowed" list are not sent to the application. Note
+   that if a type is specified in both lists "disallowed" takes precedence.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.24.0 to Asterisk 13.25.0 ----------
 ------------------------------------------------------------------------------
 

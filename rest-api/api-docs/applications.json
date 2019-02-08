@@ -134,6 +134,47 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/applications/{applicationName}/eventFilter",
+			"description": "Stasis application",
+			"operations": [
+				{
+					"httpMethod": "PUT",
+					"summary": "Filter application events types.",
+					"notes": "Allowed and/or disallowed event type filtering can be done. The body (parameter) should specify a JSON key/value object that describes the type of event filtering needed. One, or both of the following keys can be designated:<br /><br />\"allowed\" - Specifies an allowed list of event types<br />\"disallowed\" - Specifies a disallowed list of event types<br /><br />Further, each of those key's value should be a JSON array that holds zero, or more JSON key/value objects. Each of these objects must contain the following key with an associated value:<br /><br />\"type\" - The type name of the event to filter<br /><br />The value must be the string name (case sensitive) of the event type that needs filtering. For example:<br /><br />{ \"allowed\": [ { \"type\": \"StasisStart\" }, { \"type\": \"StasisEnd\" } ] }<br /><br />As this specifies only an allowed list, then only those two event type messages are sent to the application. No other event messages are sent.<br /><br />The following rules apply:<br /><br />* If the body is empty, both the allowed and disallowed filters are set empty.<br />* If both list types are given then both are set to their respective values (note, specifying an empty array for a given type sets that type to empty).<br />* If only one list type is given then only that type is set. The other type is not updated.<br />* An empty \"allowed\" list means all events are allowed.<br />* An empty \"disallowed\" list means no events are disallowed.<br />* Disallowed events take precedence over allowed events if the event type is specified in both lists.",
+					"nickname": "filter",
+					"responseClass": "Application",
+					"parameters": [
+						{
+							"name": "applicationName",
+							"description": "Application's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "filter",
+							"description": "Specify which event types to allow/disallow",
+							"paramType": "body",
+							"required": false,
+							"dataType": "object",
+							"allowMultiple": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Bad request."
+						},
+						{
+							"code": 404,
+							"reason": "Application does not exist."
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
@@ -164,6 +205,16 @@
 				"device_names": {
 					"type": "List[string]",
 					"description": "Names of the devices subscribed to.",
+					"required": true
+				},
+				"events_allowed": {
+					"type": "List[object]",
+					"description": "Event types sent to the application.",
+					"required": true
+				},
+				"events_disallowed": {
+					"type": "List[object]",
+					"description": "Event types not sent to the application.",
 					"required": true
 				}
 			}
