@@ -46,7 +46,7 @@ pipeline {
 			triggerOnEvents: [
 				commentAddedContains('^recheck$'),
 				patchsetCreated(excludeDrafts: false,
-								excludeNoCodeChange: true,
+								excludeNoCodeChange: false,
 								excludeTrivialRebase: false),
 				draftPublished()
 			],
