@@ -65,6 +65,20 @@ pre-connect => yes
 ; information before we attempt another connection?  This increases
 ; responsiveness, when a database resource is not working.
 ;negative_connection_cache => 300
+;
+; Enable query logging. This keeps track of the number of prepared queries
+; and executed queries as well as the query that has taken the longest to
+; execute. This can be useful for determining the latency with a database.
+; The data can be viewed using the "odbc show" CLI command.
+; Note that only successful queries are logged currently.
+;logging => yes
+;
+; Slow query limit. If a query exceeds the given amount of time (in milliseconds)
+; when executing then a WARNING message will be output to indicate that there
+; may be a problem. Note that logging must be set to "yes" for this to occur. By
+; default this is set to 5000 milliseconds (or 5 seconds). If you would like to
+; disable the WARNING message it can be set to "0".
+;slow_query_limit => 5000
 
 [mysql2]
 enabled => no
