@@ -155,7 +155,7 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 		SQLBindParameter(stmt, i + 2, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->sequence, 0, NULL);
 	}
 
-	ODBC_res = SQLExecDirect(stmt, (unsigned char *)sqlcmd, SQL_NTS);
+	ODBC_res = ast_odbc_execute_sql(obj, stmt, sqlcmd);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "cdr_odbc: Error in ExecDirect: %d, query is: %s\n", ODBC_res, sqlcmd);
