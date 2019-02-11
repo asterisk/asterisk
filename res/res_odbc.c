@@ -88,6 +88,18 @@ struct odbc_class
 	ast_cond_t cond;
 	/*! The total number of current connections */
 	size_t connection_cnt;
+	/*! Whether logging is enabled on this class or not */
+	unsigned int logging;
+	/*! The number of prepares executed on this class (total from all connections */
+	int prepares_executed;
+	/*! The number of queries executed on this class (total from all connections) */
+	int queries_executed;
+	/*! The longest execution time for a query executed on this class */
+	long longest_query_execution_time;
+	/*! The SQL query that took the longest to execute */
+	char *sql_text;
+	/*! Slow query limit (in milliseconds) */
+	unsigned int slowquerylimit;
 };
 
 static struct ao2_container *class_container;
@@ -176,6 +188,7 @@ static void odbc_class_destructor(void *data)
 	SQLFreeHandle(SQL_HANDLE_ENV, class->env);
 	ast_mutex_destroy(&class->lock);
 	ast_cond_destroy(&class->cond);
+	ast_free(class->sql_text);
 }
 
 static void odbc_obj_destructor(void *data)
@@ -355,17 +368,51 @@ int ast_odbc_clear_cache(const char *database, const char *tablename)
 
 SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data)
 {
+	struct timeval start;
 	SQLHSTMT stmt;
 
+	if (obj->parent->logging) {
+		start = ast_tvnow();
+	}
+
 	stmt = exec_cb(obj, data);
+
+	if (obj->parent->logging) {
+		long execution_time = ast_tvdiff_ms(ast_tvnow(), start);
+
+		if (obj->parent->slowquerylimit && execution_time > obj->parent->slowquerylimit) {
+			ast_log(LOG_WARNING, "SQL query '%s' took %ld milliseconds to execute on class '%s', this may indicate a database problem\n",
+				obj->sql_text, execution_time, obj->parent->name);
+		}
+
+		ast_mutex_lock(&obj->parent->lock);
+		if (execution_time > obj->parent->longest_query_execution_time || !obj->parent->sql_text) {
+			obj->parent->longest_query_execution_time = execution_time;
+			/* Due to the callback nature of the res_odbc API it's not possible to ensure that
+			 * the SQL text is removed from the connection in all cases, so only if it becomes the
+			 * new longest executing query do we steal the SQL text. In other cases what will happen
+			 * is that the SQL text will be freed if the connection is released back to the class or
+			 * if a new query is done on the connection.
+			 */
+			ast_free(obj->parent->sql_text);
+			obj->parent->sql_text = obj->sql_text;
+			obj->sql_text = NULL;
+		}
+		ast_mutex_unlock(&obj->parent->lock);
+	}
 
 	return stmt;
 }
 
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data)
 {
+	struct timeval start;
 	int res = 0;
 	SQLHSTMT stmt;
+
+	if (obj->parent->logging) {
+		start = ast_tvnow();
+	}
 
 	/* This prepare callback may do more than just prepare -- it may also
 	 * bind parameters, bind results, etc.  The real key, here, is that
@@ -386,9 +433,57 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 		ast_log(LOG_WARNING, "SQL Execute error %d!\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		stmt = NULL;
+	} else if (obj->parent->logging) {
+		long execution_time = ast_tvdiff_ms(ast_tvnow(), start);
+
+		if (obj->parent->slowquerylimit && execution_time > obj->parent->slowquerylimit) {
+			ast_log(LOG_WARNING, "SQL query '%s' took %ld milliseconds to execute on class '%s', this may indicate a database problem\n",
+				obj->sql_text, execution_time, obj->parent->name);
+		}
+
+		ast_mutex_lock(&obj->parent->lock);
+
+		/* If this takes the record on longest query execution time, update the parent class
+		 * with the information.
+		 */
+		if (execution_time > obj->parent->longest_query_execution_time || !obj->parent->sql_text) {
+			obj->parent->longest_query_execution_time = execution_time;
+			ast_free(obj->parent->sql_text);
+			obj->parent->sql_text = obj->sql_text;
+			obj->sql_text = NULL;
+		}
+		ast_mutex_unlock(&obj->parent->lock);
+
+		ast_atomic_fetchadd_int(&obj->parent->queries_executed, +1);
 	}
 
 	return stmt;
+}
+
+int ast_odbc_prepare(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql)
+{
+	if (obj->parent->logging) {
+		/* It is possible for this connection to be reused without being
+		 * released back to the class, so we free what may already exist
+		 * and place the new SQL in.
+		 */
+		ast_free(obj->sql_text);
+		obj->sql_text = ast_strdup(sql);
+		ast_atomic_fetchadd_int(&obj->parent->prepares_executed, +1);
+	}
+
+	return SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
+}
+
+SQLRETURN ast_odbc_execute_sql(struct odbc_obj *obj, SQLHSTMT *stmt, const char *sql)
+{
+	if (obj->parent->logging) {
+		ast_free(obj->sql_text);
+		obj->sql_text = ast_strdup(sql);
+		ast_atomic_fetchadd_int(&obj->parent->queries_executed, +1);
+	}
+
+	return SQLExecDirect(stmt, (unsigned char *)sql, SQL_NTS);
 }
 
 int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
@@ -400,6 +495,10 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 		if (res == SQL_ERROR) {
 			ast_odbc_print_errors(SQL_HANDLE_STMT, stmt, "SQL Execute");
 		}
+	}
+
+	if (obj->parent->logging) {
+		ast_atomic_fetchadd_int(&obj->parent->queries_executed, +1);
 	}
 
 	return res;
@@ -469,7 +568,7 @@ static int load_odbc_config(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, bse, conntimeout, forcecommit, isolation, maxconnections;
+	int enabled, bse, conntimeout, forcecommit, isolation, maxconnections, logging, slowquerylimit;
 	struct timeval ncache = { 0, 0 };
 	int preconnect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
@@ -497,6 +596,8 @@ static int load_odbc_config(void)
 			forcecommit = 0;
 			isolation = SQL_TXN_READ_COMMITTED;
 			maxconnections = 1;
+			logging = 0;
+			slowquerylimit = 5000;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling") ||
 						!strncasecmp(v->name, "share", 5) ||
@@ -545,6 +646,13 @@ static int load_odbc_config(void)
 						ast_log(LOG_WARNING, "max_connections must be a positive integer\n");
 						maxconnections = 1;
                                         }
+				} else if (!strcasecmp(v->name, "logging")) {
+					logging = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "slow_query_limit")) {
+					if (sscanf(v->value, "%30d", &slowquerylimit) != 1) {
+						ast_log(LOG_WARNING, "slow_query_limit must be a positive integer\n");
+						slowquerylimit = 5000;
+					}
 				}
 			}
 
@@ -571,6 +679,8 @@ static int load_odbc_config(void)
 				new->conntimeout = conntimeout;
 				new->negative_connection_cache = ncache;
 				new->maxconnections = maxconnections;
+				new->logging = logging;
+				new->slowquerylimit = slowquerylimit;
 
 				if (cat)
 					ast_copy_string(new->name, cat, sizeof(new->name));
@@ -657,6 +767,16 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 			}
 
 			ast_cli(a->fd, "    Number of active connections: %zd (out of %d)\n", class->connection_cnt, class->maxconnections);
+			ast_cli(a->fd, "    Logging: %s\n", class->logging ? "Enabled" : "Disabled");
+			if (class->logging) {
+				ast_cli(a->fd, "    Number of prepares executed: %d\n", class->prepares_executed);
+				ast_cli(a->fd, "    Number of queries executed: %d\n", class->queries_executed);
+				ast_mutex_lock(&class->lock);
+				if (class->sql_text) {
+					ast_cli(a->fd, "    Longest running SQL query: %s (%ld milliseconds)\n", class->sql_text, class->longest_query_execution_time);
+				}
+				ast_mutex_unlock(&class->lock);
+			}
 			ast_cli(a->fd, "\n");
 		}
 		ao2_ref(class, -1);
@@ -704,6 +824,12 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 	 * released back.
 	 */
 	obj->parent = NULL;
+
+	/* Free the SQL text so that the next user of this connection has
+	 * a fresh start.
+	 */
+	ast_free(obj->sql_text);
+	obj->sql_text = NULL;
 
 	ast_mutex_lock(&class->lock);
 	AST_LIST_INSERT_HEAD(&class->connections, obj, list);
