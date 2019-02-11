@@ -1,3 +1,25 @@
+2019-02-11 11:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.25.0-rc2 Released.
+
+2019-01-31 13:29 +0000 [933a7ac262]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_registrar: lock transport monitor when setting 'removing' flag
+
+	  A previous patch attempt to mitigate blocked threads on transport shutdown for
+	  a given contact. It was thought that a second lock could be avoided by checking
+	  the 'removing' flag on the transport monitor twice (once before and once after
+	  the normal named aor locking). However as with usual threading issues if the
+	  timing was right the original problem still occured.
+
+	  This patch adds locking around the first 'removing' flag check and set, thus
+	  nullifying the secondary check, so it was removed.
+
+	  ASTERISK-28213
+
+	  Change-Id: Iaa8e36e5311789549b76d8de42dfcea96013b2ed
+	  (cherry picked from commit 3974633c00fa81573065e415f61f44be2b032f2a)
+
 2019-02-06 11:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.25.0-rc1 Released.
