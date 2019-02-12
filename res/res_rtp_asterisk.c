@@ -6153,6 +6153,10 @@ static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_r
 
 	ao2_lock(instance0);
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT | FLAG_REQ_LOCAL_BRIDGE_BIT);
+	if (rtp->smoother) {
+		ast_smoother_free(rtp->smoother);
+		rtp->smoother = NULL;
+	}
 	ao2_unlock(instance0);
 
 	return 0;
