@@ -147,18 +147,23 @@ static struct ast_sip_session_media *session_media_from_datastore_addref(struct 
 }
 
 /*! \brief Helper function which allocates datastore with a session media */
-static struct ast_datastore *create_datastore_session_media(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
+static int create_datastore_session_media(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
 	struct ast_datastore *datastore = NULL;
 
-	if (!(datastore = ast_sip_session_alloc_datastore(&session_media_datastore, "t38_session_media"))
-		|| ast_sip_session_add_datastore(session, datastore)) {
-		return NULL;
+	if (!(datastore = ast_sip_session_alloc_datastore(&session_media_datastore, "t38_session_media"))) {
+		return -1;
+	}
+
+	if (ast_sip_session_add_datastore(session, datastore)) {
+		ao2_ref(datastore, -1);
+		return -1;
 	}
 
 	datastore->data = session_media;
 	ao2_bump(session_media);
-	return datastore;
+	ao2_ref(datastore, -1);
+	return 0;
 }
 
 /*! \brief Helper function for changing the T.38 state */
@@ -296,7 +301,7 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 		return 0;
 	}
 
-	if (!create_datastore_session_media(session, session_media)) {
+	if (create_datastore_session_media(session, session_media)) {
 		return -1;
 	}
 
