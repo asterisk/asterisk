@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.25.0-rc2
+                              asterisk-13.25.0-rc3
 
-                                Date: 2019-02-11
+                                Date: 2019-02-13
 
                            <asteriskteam@digium.com>
 
@@ -31,7 +31,7 @@
    to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-13.25.0-rc1.
+   previous release, asterisk-13.25.0-rc2.
 
      ----------------------------------------------------------------------
 
@@ -49,7 +49,7 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Kevin Harwell                                   1 Ross Beer              
+   1 Paulo Vicentini                                 1 Paulo Vicentini        
 
      ----------------------------------------------------------------------
 
@@ -64,10 +64,10 @@
 
     Category: Channels/chan_pjsip
 
-   ASTERISK-28213: res_pjsip: Threads pile up needlessly when AOR is blocked
-   Reported by: Ross Beer
-     * [933a7ac262] Kevin Harwell -- res_pjsip_registrar: lock transport
-       monitor when setting 'removing' flag
+   ASTERISK-28288: Resources (udptl fd) leaking for T.38 calls
+   Reported by: Paulo Vicentini
+     * [13b58ce3ea] Paulo Vicentini -- res/res_pjsip: Resources (udptl fd)
+       are leaking for T.38 calls
 
      ----------------------------------------------------------------------
 

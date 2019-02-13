@@ -1,3 +1,17 @@
+2019-02-13 17:47 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.25.0-rc3 Released.
+
+2019-02-13 07:36 +0000 [13b58ce3ea]  Paulo Vicentini <paulo.vicentini@gmail.com>
+
+	* res/res_pjsip: Resources (udptl fd) are leaking for T.38 calls
+
+	  Fix unbalanced references for datastore t38_session_media
+
+	  ASTERISK-28288
+
+	  Change-Id: Id6dceceb06651b03f611bf33deb3061022fe5d0c
+
 2019-02-11 11:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.25.0-rc2 Released.
