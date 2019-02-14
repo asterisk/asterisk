@@ -356,7 +356,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	if (!media || !media->rtp) {
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
 		ao2_cleanup(channel);
-		return -1;
+		return 0;
 	}
 
 	codec_in_use[0] = '\0';
