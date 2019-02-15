@@ -375,7 +375,7 @@ int ast_sorcery_init(void)
 	};
 	ast_assert(wizards == NULL);
 
-	threadpool = ast_threadpool_create("Sorcery", NULL, &options);
+	threadpool = ast_threadpool_create("sorcery", NULL, &options);
 	if (!threadpool) {
 		return -1;
 	}

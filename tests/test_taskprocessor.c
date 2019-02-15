@@ -46,6 +46,8 @@ struct task_data {
 	ast_mutex_t lock;
 	/*! Boolean indicating that the task was run */
 	int task_complete;
+	/*! Milliseconds to wait before returning */
+	unsigned long wait_time;
 };
 
 static void task_data_dtor(void *obj)
@@ -69,6 +71,7 @@ static struct task_data *task_data_create(void)
 	ast_cond_init(&task_data->cond, NULL);
 	ast_mutex_init(&task_data->lock);
 	task_data->task_complete = 0;
+	task_data->wait_time = 0;
 
 	return task_data;
 }
@@ -83,7 +86,11 @@ static struct task_data *task_data_create(void)
 static int task(void *data)
 {
 	struct task_data *task_data = data;
+
 	SCOPED_MUTEX(lock, &task_data->lock);
+	if (task_data->wait_time > 0) {
+		usleep(task_data->wait_time * 1000);
+	}
 	task_data->task_complete = 1;
 	ast_cond_signal(&task_data->cond);
 	return 0;
@@ -163,6 +170,143 @@ AST_TEST_DEFINE(default_taskprocessor)
 	}
 
 	return AST_TEST_PASS;
+}
+
+/*!
+ * \brief Baseline test for subsystem alert
+ */
+AST_TEST_DEFINE(subsystem_alert)
+{
+	RAII_VAR(struct ast_taskprocessor *, tps, NULL, ast_taskprocessor_unreference);
+#define TEST_DATA_ARRAY_SIZE 10
+#define LOW_WATER_MARK 3
+#define HIGH_WATER_MARK 6
+	struct task_data *task_data[(TEST_DATA_ARRAY_SIZE + 1)] = { 0 };
+	int res;
+	int i;
+	long queue_count;
+	unsigned int alert_level;
+	unsigned int subsystem_alert_level;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "subsystem_alert";
+		info->category = "/main/taskprocessor/";
+		info->summary = "Test of subsystem alerts";
+		info->description =
+			"Ensures alerts are generated properly.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	tps = ast_taskprocessor_get("test_subsystem/test", TPS_REF_DEFAULT);
+
+	if (!tps) {
+		ast_test_status_update(test, "Unable to create test taskprocessor\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_taskprocessor_alert_set_levels(tps, LOW_WATER_MARK, HIGH_WATER_MARK);
+	ast_taskprocessor_suspend(tps);
+
+	for (i = 1; i <= TEST_DATA_ARRAY_SIZE; i++) {
+		task_data[i] = task_data_create();
+		if (!task_data[i]) {
+			ast_test_status_update(test, "Unable to create task_data\n");
+			res = -1;
+			goto data_cleanup;
+		}
+		task_data[i]->wait_time = 500;
+
+		ast_test_status_update(test, "Pushing task %d\n", i);
+		if (ast_taskprocessor_push(tps, task, task_data[i])) {
+			ast_test_status_update(test, "Failed to queue task\n");
+			res = -1;
+			goto data_cleanup;
+		}
+
+		queue_count = ast_taskprocessor_size(tps);
+		alert_level = ast_taskprocessor_alert_get();
+		subsystem_alert_level = ast_taskprocessor_get_subsystem_alert("test_subsystem");
+
+		if (queue_count == HIGH_WATER_MARK) {
+			if (subsystem_alert_level) {
+				ast_test_status_update(test, "Subsystem alert triggered correctly at %ld\n", queue_count);
+			}
+			if (alert_level) {
+				ast_test_status_update(test, "Global alert triggered correctly at %ld\n", queue_count);
+			}
+		} else if (queue_count < HIGH_WATER_MARK) {
+			if (subsystem_alert_level > 0) {
+				ast_test_status_update(test, "Subsystem alert triggered unexpectedly at %ld\n", queue_count);
+				res = -1;
+			}
+			if (alert_level > 0) {
+				ast_test_status_update(test, "Global alert triggered unexpectedly at %ld\n", queue_count);
+				res = -1;
+			}
+		} else {
+			if (subsystem_alert_level == 0) {
+				ast_test_status_update(test, "Subsystem alert failed to trigger at %ld\n", queue_count);
+				res = -1;
+			}
+			if (alert_level == 0) {
+				ast_test_status_update(test, "Global alert failed to trigger at %ld\n", queue_count);
+				res = -1;
+			}
+		}
+	}
+
+	ast_taskprocessor_unsuspend(tps);
+
+	for (i = 1; i <= TEST_DATA_ARRAY_SIZE; i++) {
+		ast_test_status_update(test, "Waiting on task %d\n", i);
+		if (task_wait(task_data[i])) {
+			ast_test_status_update(test, "Queued task '%d' did not execute!\n", i);
+			res = -1;
+			goto data_cleanup;
+		}
+
+		queue_count = ast_taskprocessor_size(tps);
+		alert_level = ast_taskprocessor_alert_get();
+		subsystem_alert_level = ast_taskprocessor_get_subsystem_alert("test_subsystem");
+
+		if (queue_count == LOW_WATER_MARK) {
+			if (!subsystem_alert_level) {
+				ast_test_status_update(test, "Subsystem alert cleared correctly at %ld\n", queue_count);
+			}
+			if (!alert_level) {
+				ast_test_status_update(test, "Global alert cleared correctly at %ld\n", queue_count);
+			}
+		} else if (queue_count > LOW_WATER_MARK) {
+			if (subsystem_alert_level == 0) {
+				ast_test_status_update(test, "Subsystem alert cleared unexpectedly at %ld\n", queue_count);
+				res = -1;
+			}
+			if (alert_level == 0) {
+				ast_test_status_update(test, "Global alert cleared unexpectedly at %ld\n", queue_count);
+				res = -1;
+			}
+		} else {
+			if (subsystem_alert_level > 0) {
+				ast_test_status_update(test, "Subsystem alert failed to clear at %ld\n", queue_count);
+				res = -1;
+			}
+			if (alert_level > 0) {
+				ast_test_status_update(test, "Global alert failed to clear at %ld\n", queue_count);
+				res = -1;
+			}
+		}
+
+	}
+
+data_cleanup:
+	for (i = 1; i <= TEST_DATA_ARRAY_SIZE; i++) {
+		ao2_cleanup(task_data[i]);
+	}
+
+	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 
 #define NUM_TASKS 20000
@@ -749,6 +893,7 @@ static int unload_module(void)
 {
 	ast_test_unregister(default_taskprocessor);
 	ast_test_unregister(default_taskprocessor_load);
+	ast_test_unregister(subsystem_alert);
 	ast_test_unregister(taskprocessor_listener);
 	ast_test_unregister(taskprocessor_shutdown);
 	ast_test_unregister(taskprocessor_push_local);
@@ -759,6 +904,7 @@ static int load_module(void)
 {
 	ast_test_register(default_taskprocessor);
 	ast_test_register(default_taskprocessor_load);
+	ast_test_register(subsystem_alert);
 	ast_test_register(taskprocessor_listener);
 	ast_test_register(taskprocessor_shutdown);
 	ast_test_register(taskprocessor_push_local);
