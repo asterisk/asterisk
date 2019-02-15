@@ -1897,6 +1897,26 @@
 				<configOption name="send_contact_status_on_update_registration" default="no">
 					<synopsis>Enable sending AMI ContactStatus event when a device refreshes its registration.</synopsis>
 				</configOption>
+				<configOption name="taskprocessor_overload_trigger">
+					<synopsis>Trigger scope for taskprocessor overloads</synopsis>
+					<description><para>
+						This option specifies the trigger the distributor will use for
+						detecting taskprocessor overloads.  When it detects an overload condition,
+						the distrubutor will stop accepting new requests until the overload is
+						cleared.
+						</para>
+						<enumlist>
+							<enum name="global"><para>(default) Any taskprocessor overload will trigger.</para></enum>
+							<enum name="pjsip_only"><para>Only pjsip taskprocessor overloads will trigger.</para></enum>
+							<enum name="none"><para>No overload detection will be performed.</para></enum>
+						</enumlist>
+						<warning><para>
+						The "none" and "pjsip_only" options should be used
+						with extreme caution and only to mitigate specific issues.
+						Under certain conditions they could make things worse.
+						</para></warning>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -5236,7 +5256,7 @@ static int load_module(void)
 	/* The serializer needs threadpool and threadpool needs pjproject to be initialized so it's next */
 	sip_get_threadpool_options(&options);
 	options.thread_start = sip_thread_start;
-	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
+	sip_threadpool = ast_threadpool_create("pjsip", NULL, &options);
 	if (!sip_threadpool) {
 		goto error;
 	}
