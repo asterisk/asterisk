@@ -51,6 +51,7 @@ static unsigned int unidentified_count;
 static unsigned int unidentified_period;
 static unsigned int unidentified_prune_interval;
 static int using_auth_username;
+static enum ast_sip_taskprocessor_overload_trigger overload_trigger;
 
 struct unidentified_request{
 	struct timeval first_seen;
@@ -534,7 +535,10 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		ao2_cleanup(dist);
 		return PJ_TRUE;
 	} else {
-		if (ast_taskprocessor_alert_get()) {
+		if ((overload_trigger == TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL &&
+			ast_taskprocessor_alert_get())
+			|| (overload_trigger == TASKPROCESSOR_OVERLOAD_TRIGGER_PJSIP_ONLY &&
+			ast_taskprocessor_get_subsystem_alert("pjsip"))) {
 			/*
 			 * When taskprocessors get backed up, there is a good chance that
 			 * we are being overloaded and need to defer adding new work to
@@ -1195,6 +1199,8 @@ static void global_loaded(const char *object_type)
 	ao2_cleanup(fake_auth);
 
 	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
+
+	overload_trigger = ast_sip_get_taskprocessor_overload_trigger();
 
 	/* Clean out the old task, if any */
 	ast_sched_clean_by_callback(prune_context, prune_task, clean_task);

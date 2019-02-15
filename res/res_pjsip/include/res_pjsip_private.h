@@ -408,4 +408,14 @@ void ast_sip_destroy_transport_management(void);
  */
 int ast_sip_persistent_endpoint_add_to_regcontext(const char *regcontext);
 
+enum ast_sip_taskprocessor_overload_trigger {
+	TASKPROCESSOR_OVERLOAD_TRIGGER_NONE = 0,
+	TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL,
+	TASKPROCESSOR_OVERLOAD_TRIGGER_PJSIP_ONLY
+};
+
+enum ast_sip_taskprocessor_overload_trigger ast_sip_get_taskprocessor_overload_trigger(void);
+
+const char *ast_sip_overload_trigger_to_str(enum ast_sip_taskprocessor_overload_trigger trigger);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */
