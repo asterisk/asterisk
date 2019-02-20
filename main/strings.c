@@ -236,6 +236,15 @@ char *ast_generate_random_string(char *buf, size_t size)
 	return buf;
 }
 
+int ast_strings_equal(const char *str1, const char *str2)
+{
+	if (!str1 || !str2) {
+		return 0;
+	}
+
+	return str1 == str2 || !strcmp(str1, str2);
+}
+
 int ast_strings_match(const char *left, const char *op, const char *right)
 {
 	char *internal_op = (char *)op;
