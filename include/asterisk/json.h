@@ -591,6 +591,17 @@ size_t ast_json_object_size(struct ast_json *object);
 struct ast_json *ast_json_object_get(struct ast_json *object, const char *key);
 
 /*!
+ * \brief Get a string field from a JSON object.
+ * \since 13.26.0
+ *
+ * \param object JSON object.
+ * \param key Key of string field to look up.
+ * \return String value of given \a key.
+ * \return \c NULL on error, or key value is not a string.
+ */
+#define ast_json_object_string_get(object, key) ast_json_string_get(ast_json_object_get(object, key))
+
+/*!
  * \brief Set a field in a JSON object.
  * \since 12.0.0
  *
