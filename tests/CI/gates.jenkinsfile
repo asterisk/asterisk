@@ -139,7 +139,7 @@ pipeline {
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
 					/* FYI... Jenkins takes care of mouting the workspace for the container */
 					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
-						" --mount type=tmpfs,tmpfs-size=1g,dst=/tmp -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+						" --tmpfs /tmp:exec,size=1G -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint=''"
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
 					def outputdir = "tests/CI/output/Testsuite"
