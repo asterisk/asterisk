@@ -354,7 +354,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	if (!channel) {
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
-		return -1;
+		return 0;
 	}
 
 	ast_channel_lock(channel);
@@ -364,7 +364,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
-		return -1;
+		return 0;
 	}
 
 	media = session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
@@ -372,7 +372,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
 		ast_channel_unlock(channel);
 		ao2_cleanup(channel);
-		return -1;
+		return 0;
 	}
 
 	rtp = ao2_bump(media->rtp);
