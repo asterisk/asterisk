@@ -349,8 +349,8 @@ struct stasis_topic_statistics {
 	int messages_not_dispatched;
 	/*! \brief The number of messages that were dispatched to at least 1 subscriber */
 	int messages_dispatched;
-	/*! \brief The number of subscribers to this topic */
-	int subscriber_count;
+	/*! \brief The ids of the subscribers to this topic */
+	struct ao2_container *subscribers;
 	/*! \brief Name of the topic */
 	char name[0];
 };
@@ -407,12 +407,25 @@ static void topic_dtor(void *obj)
 }
 
 #ifdef AST_DEVMODE
+static void topic_statistics_destroy(void *obj)
+{
+	struct stasis_topic_statistics *statistics = obj;
+
+	ao2_cleanup(statistics->subscribers);
+}
+
 static struct stasis_topic_statistics *stasis_topic_statistics_create(const char *name)
 {
 	struct stasis_topic_statistics *statistics;
 
-	statistics = ao2_alloc(sizeof(*statistics) + strlen(name) + 1, NULL);
+	statistics = ao2_alloc(sizeof(*statistics) + strlen(name) + 1, topic_statistics_destroy);
 	if (!statistics) {
+		return NULL;
+	}
+
+	statistics->subscribers = ast_str_container_alloc(1);
+	if (!statistics->subscribers) {
+		ao2_ref(statistics, -1);
 		return NULL;
 	}
 
@@ -1000,7 +1013,7 @@ static int topic_add_subscription(struct stasis_topic *topic, struct stasis_subs
 	}
 
 #ifdef AST_DEVMODE
-	topic->statistics->subscriber_count += 1;
+	ast_str_container_add(topic->statistics->subscribers, stasis_subscription_uniqueid(sub));
 #endif
 
 	ao2_unlock(topic);
@@ -1023,7 +1036,7 @@ static int topic_remove_subscription(struct stasis_topic *topic, struct stasis_s
 
 #ifdef AST_DEVMODE
 	if (!res) {
-		topic->statistics->subscriber_count -= 1;
+		ast_str_container_remove(topic->statistics->subscribers, stasis_subscription_uniqueid(sub));
 	}
 #endif
 
@@ -2294,6 +2307,8 @@ static char *topic_statistics_complete_name(const char *word, int state)
 static char *statistics_show_topic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct stasis_topic_statistics *statistics;
+	struct ao2_iterator i;
+	char *uniqueid;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2325,7 +2340,15 @@ static char *statistics_show_topic(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_cli(a->fd, "Number of messages that went to at least one subscriber: %d\n", statistics->messages_dispatched);
 	ast_cli(a->fd, "Lowest amount of time (in milliseconds) spent dispatching message: %ld\n", statistics->lowest_time_dispatched);
 	ast_cli(a->fd, "Highest amount of time (in milliseconds) spent dispatching messages: %ld\n", statistics->highest_time_dispatched);
-	ast_cli(a->fd, "Number of subscribers: %d\n", statistics->subscriber_count);
+	ast_cli(a->fd, "Number of subscribers: %d\n", ao2_container_count(statistics->subscribers));
+
+	ast_cli(a->fd, "Subscribers:\n");
+	i = ao2_iterator_init(statistics->subscribers, 0);
+	while ((uniqueid = ao2_iterator_next(&i))) {
+		ast_cli(a->fd, "\t%s\n", uniqueid);
+		ao2_ref(uniqueid, -1);
+	}
+	ao2_iterator_destroy(&i);
 
 	ao2_ref(statistics, -1);
 
