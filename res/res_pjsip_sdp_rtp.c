@@ -1127,6 +1127,7 @@ static void process_ssrc_attributes(struct ast_sip_session *session, struct ast_
 		}
 
 		ast_rtp_instance_set_remote_ssrc(session_media->rtp, ssrc);
+		break;
 	}
 }
 
