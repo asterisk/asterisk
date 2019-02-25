@@ -46,6 +46,8 @@ def wikify(str):
 
     @param str: String to escape
     """
+    # Replace all line breaks with line feeds
+    str = re.sub(r'<br\s*/?>', '\n', str)
     return re.sub(r'([{}\[\]])', r'\\\1', str)
 
 
