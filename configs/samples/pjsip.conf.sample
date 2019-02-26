@@ -1137,6 +1137,17 @@
                     ; event when a device refreshes its registration
                     ; (default: "no")
 
+;taskprocessor_overload_trigger=global
+                ; Set the trigger the distributor will use to detect
+                ; taskprocessor overloads.  When triggered, the distributor
+                ; will not accept any new requests until the overload has
+                ; cleared.
+                : "global": (default) Any taskprocessor overload will trigger.
+                ; "pjsip_only": Only pjsip taskprocessor overloads will trigger.
+                ; "none":  No overload detection will be performed.
+                ; WARNING: The "none" and "pjsip_only" options should be used
+                ; with extreme caution and only to mitigate specific issues.
+                ; Under certain conditions they could make things worse.
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
