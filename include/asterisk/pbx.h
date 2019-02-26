@@ -1602,7 +1602,12 @@ enum ext_match_t {
 #define STATUS_NO_PRIORITY	3
 #define STATUS_NO_LABEL		4
 #define STATUS_SUCCESS		5
+
+#ifdef LOW_MEMORY
 #define AST_PBX_MAX_STACK  128
+#else
+#define AST_PBX_MAX_STACK  512
+#endif
 
 /* request and result for pbx_find_extension */
 struct pbx_find_info {

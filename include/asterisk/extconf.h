@@ -220,7 +220,11 @@ enum ext_match_t {
 	E_SPAWN =	0x12,	/* want to spawn an extension. Requires exact match */
 	E_FINDLABEL =	0x22	/* returns the priority for a given label. Requires exact match */
 };
+#ifdef LOW_MEMORY
 #define AST_PBX_MAX_STACK  128
+#else
+#define AST_PBX_MAX_STACK  512
+#endif
 
 /* request and result for pbx_find_extension */
 struct pbx_find_info {
