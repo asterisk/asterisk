@@ -60,7 +60,7 @@ void ast_ari_applications_list(struct ast_variable *headers,
 	ao2_lock(apps);
 	count = ao2_container_count(apps);
 	ao2_callback(apps, OBJ_NOLOCK | OBJ_NODATA, append_json, json);
-	ao2_lock(apps);
+	ao2_unlock(apps);
 
 	if (count != ast_json_array_size(json)) {
 		ast_ari_response_error(response, 500, "Internal Server Error",
