@@ -51,6 +51,7 @@
 #define DEFAULT_IGNORE_URI_USER_OPTIONS 0
 #define DEFAULT_USE_CALLERID_CONTACT 0
 #define DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION 1
+#define DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL
 
 /*!
  * \brief Cached global config object
@@ -110,6 +111,8 @@ struct global_config {
 	unsigned int use_callerid_contact;
 	/*! Nonzero if need to send AMI ContactStatus event when a contact is updated */
 	unsigned int send_contact_status_on_update_registration;
+	/*! Trigger the distributor should use to pause accepting new dialogs */
+	enum ast_sip_taskprocessor_overload_trigger overload_trigger;
 };
 
 static void global_destructor(void *obj)
@@ -483,6 +486,58 @@ unsigned int ast_sip_get_send_contact_status_on_update_registration(void)
 	return send_contact_status_on_update_registration;
 }
 
+enum ast_sip_taskprocessor_overload_trigger ast_sip_get_taskprocessor_overload_trigger(void)
+{
+	enum ast_sip_taskprocessor_overload_trigger trigger;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER;
+	}
+
+	trigger = cfg->overload_trigger;
+	ao2_ref(cfg, -1);
+	return trigger;
+}
+
+static int overload_trigger_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct global_config *cfg = obj;
+	if (!strcasecmp(var->value, "none")) {
+		cfg->overload_trigger = TASKPROCESSOR_OVERLOAD_TRIGGER_NONE;
+	} else if (!strcasecmp(var->value, "global")) {
+		cfg->overload_trigger = TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL;
+	} else if (!strcasecmp(var->value, "pjsip_only")) {
+		cfg->overload_trigger = TASKPROCESSOR_OVERLOAD_TRIGGER_PJSIP_ONLY;
+	} else {
+		ast_log(LOG_WARNING, "Unknown overload trigger '%s' specified for %s\n",
+				var->value, var->name);
+		return -1;
+	}
+	return 0;
+}
+
+static const char *overload_trigger_map[] = {
+	[TASKPROCESSOR_OVERLOAD_TRIGGER_NONE] = "none",
+	[TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL] = "global",
+	[TASKPROCESSOR_OVERLOAD_TRIGGER_PJSIP_ONLY] = "pjsip_only"
+};
+
+const char *ast_sip_overload_trigger_to_str(enum ast_sip_taskprocessor_overload_trigger trigger)
+{
+	return ARRAY_IN_BOUNDS(trigger, overload_trigger_map) ?
+		overload_trigger_map[trigger] : "";
+}
+
+static int overload_trigger_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct global_config *cfg = obj;
+	*buf = ast_strdup(ast_sip_overload_trigger_to_str(cfg->overload_trigger));
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Observer to set default global object if none exist.
@@ -646,6 +701,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "send_contact_status_on_update_registration",
 		DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION ? "yes" : "no",
 		OPT_YESNO_T, 1, FLDSET(struct global_config, send_contact_status_on_update_registration));
+	ast_sorcery_object_field_register_custom(sorcery, "global", "taskprocessor_overload_trigger",
+		overload_trigger_map[DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER],
+		overload_trigger_handler, overload_trigger_to_str, NULL, 0, 0);
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;

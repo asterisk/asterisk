@@ -413,7 +413,7 @@ static struct ast_threadpool *threadpool_alloc(const char *name, const struct as
 		return NULL;
 	}
 
-	ast_str_set(&control_tps_name, 0, "%s-control", name);
+	ast_str_set(&control_tps_name, 0, "%s/pool-control", name);
 
 	pool->control_tps = ast_taskprocessor_get(ast_str_buffer(control_tps_name), TPS_REF_DEFAULT);
 	ast_free(control_tps_name);
@@ -919,6 +919,7 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 	struct ast_taskprocessor *tps;
 	RAII_VAR(struct ast_taskprocessor_listener *, tps_listener, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_threadpool *, pool, NULL, ao2_cleanup);
+	char *fullname;
 
 	pool = threadpool_alloc(name, options);
 	if (!pool) {
@@ -935,7 +936,9 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 		return NULL;
 	}
 
-	tps = ast_taskprocessor_create_with_listener(name, tps_listener);
+	fullname = ast_alloca(strlen(name) + strlen("/pool") + 1);
+	sprintf(fullname, "%s/pool", name); /* Safe */
+	tps = ast_taskprocessor_create_with_listener(fullname, tps_listener);
 	if (!tps) {
 		return NULL;
 	}

@@ -20,6 +20,15 @@ ARI
    types defined in the "disallowed" list are not sent to the application. Note
    that if a type is specified in both lists "disallowed" takes precedence.
 
+res_pjsip
+------------------
+ * A new configuration parameter "taskprocessor_overload_trigger" has been
+   added to the pjsip.conf "globals" section.  The distributor currently stops
+   accepting new requests when any taskprocessor overload is triggered.  The
+   new option allows you to completely disable overload detection (NOT
+   RECOMMENDED), keep the current behavior, or trigger only on pjsip
+   taskprocessor overloads.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.24.0 to Asterisk 13.25.0 ----------
 ------------------------------------------------------------------------------
