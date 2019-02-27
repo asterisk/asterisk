@@ -79,7 +79,7 @@ pipeline {
 
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
-						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
+						env.GERRIT_PROJECT_URL = env.GIT_URL.replaceAll(/[^\/]+$/, env.GERRIT_PROJECT)
 					
 						/*
 						 * Jenkins has already automatically checked out the base branch
@@ -102,10 +102,10 @@ pipeline {
 							checkout scm: [$class: 'GitSCM',
 								branches: [[name: env.GERRIT_BRANCH ]],
 								extensions: [
-									[$class: 'ScmName', name: 'gerrit-public'],
+									[$class: 'ScmName', name: env.GERRIT_NAME],
 									[$class: 'CleanBeforeCheckout'],
 									[$class: 'PreBuildMerge', options: [
-										mergeRemote: 'gerrit-public',
+										mergeRemote: env.GERRIT_NAME,
 										fastForwardMode: 'NO_FF',
 										mergeStrategy: 'RECURSIVE',
 										mergeTarget: env.GERRIT_BRANCH]],
