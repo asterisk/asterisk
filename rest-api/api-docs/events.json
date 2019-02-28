@@ -155,6 +155,7 @@
 				"RecordingStarted",
 				"RecordingFinished",
 				"RecordingFailed",
+				"ApplicationMoveFailed",
 				"ApplicationReplaced",
 				"BridgeCreated",
 				"BridgeDestroyed",
@@ -317,6 +318,25 @@
 					"type": "LiveRecording",
 					"description": "Recording control object",
 					"required": true
+				}
+			}
+		},
+		"ApplicationMoveFailed": {
+			"id": "ApplicationMoveFailed",
+			"description": "Notification that trying to move a channel to another Stasis application failed.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel"
+				},
+				"destination": {
+					"required": true,
+					"type": "string"
+				},
+				"args": {
+					"required": true,
+					"type": "List[string]",
+					"description": "Arguments to the application"
 				}
 			}
 		},

@@ -159,6 +159,26 @@ void ast_ari_channels_continue_in_dialplan(
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_move(struct ast_variable *headers,
+	struct ast_ari_channels_move_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (!control) {
+		return;
+	}
+
+	if (stasis_app_control_move(control, args->app, args->app_args)) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Failed to switch Stasis applications");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_channels_redirect(struct ast_variable *headers,
 	struct ast_ari_channels_redirect_args *args,
 	struct ast_ari_response *response)
