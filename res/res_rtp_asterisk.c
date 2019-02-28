@@ -3566,6 +3566,12 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 
 	/* Oh and we can't forget to turn off the stuff that says we are sending DTMF */
 	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
+
+	/* Reset the smoother as the delivery time stored in it is now out of date */
+	if (rtp->smoother) {
+		ast_smoother_free(rtp->smoother);
+		rtp->smoother = NULL;
+	}
 cleanup:
 	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
