@@ -912,8 +912,12 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 		client_uri_pattern = "sip:${USERNAME}@${REMOTE_HOST}";
 	}
 
-	if(is_variable_true(wizvars, "sends_auth")) {
-		username = ast_variable_find_last_in_list(wizvars, "outbound_auth/username");
+	if (is_variable_true(wizvars, "sends_auth")) {
+		if (!(username = ast_variable_find_last_in_list(wizvars, "outbound_auth/username"))) {
+			ast_log(LOG_ERROR, "Wizard '%s' must have 'outbound_auth/username' if it sends"
+				" authentication.\n", id);
+			return -1;
+		}
 	} else {
 		username = id;
 	}
