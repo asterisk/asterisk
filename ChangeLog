@@ -1,3 +1,60 @@
+2019-02-28 18:40 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.7.2 Released.
+
+2019-01-30 13:25 +0000 [e436aab179]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_sdp_rtp:  Fix return code from apply_negotiated_sdp_stream
+
+	  apply_negotiated_sdp_stream was returning a "1" when no joint
+	  capabilities were found on an outgoing call instead of a "-1".
+	  This indicated to res_pjsip_session that the handler DID handle
+	  the sdp when in fact it didn't.  Without the appropriate setup,
+	  a subsequent media frame coming in would have an invalid stream_num
+	  and cause a seg fault when the stream was attempted to be retrieved.
+
+	  apply_negotiated_sdp_stream now returns the correct "-1" and any
+	  media is now discarded before it reaches the core stream processing.
+
+	  ASTERISK-28260
+	  Reported by: Sotiris Ganouris
+
+	  Change-Id: Ia095cb16b4862f2f6ad6d2d2a77453fa2542371f
+
+2019-02-27 10:37 +0000 [735c0a3942]  George Joseph <gjoseph@digium.com>
+
+	* CI: Update jenkinsfiles with new Gerrit URLs
+
+	  The recent upgrade of Gerrit to 2.16 elimiated referencing a
+	  repository in a way the jenkinsfiles were relying on so
+	  the URL references were changed to a more consistent and supported
+	  format.
+
+	  Change-Id: I2e8e3f213b9a96bb1b27665eca4a9a24bc49820e
+	  (cherry picked from commit 5ce084579f897096163b4e0c2ed4e8e1a8558cca)
+
+2018-12-26 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.7.1 Released.
+
+2018-12-26 10:25 +0000 [58041fc9c8]  George Joseph <gjoseph@digium.com>
+
+	* Revert "stasis_cache:  Stop caching stasis subscription change messages"
+
+	  This reverts commit ad961fd7c3313f989d6fa16ba2fc9b138cee4cb5.
+
+	  This commit caused issues with polling when combined with
+	  the revert commit "Revert "app_voicemail: Remove need to subscribe to stasis"
+
+	  ASTERISK-28222
+	  Reported by: abelbeck
+
+	  Change-Id: I582534ef730923b16e137021e24f6f87dad0d2b4
+
+2018-12-11 20:06 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.7.0 Released.
+
 2018-12-03 23:17 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.7.0-rc1 Released.
