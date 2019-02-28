@@ -29,6 +29,12 @@ res_pjsip
    RECOMMENDED), keep the current behavior, or trigger only on pjsip
    taskprocessor overloads.
 
+MWI
+------------------
+ * A new module "res_mwi_devstate" has been added that allows subscriptions
+   to voicemail boxes using "presence" events.  This allows common BLF keys
+   to act as voicemail waiting indicators.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.1.0 to Asterisk 16.2.0 ------------
 ------------------------------------------------------------------------------
