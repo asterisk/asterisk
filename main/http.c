@@ -84,16 +84,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! Maximum application/json or application/x-www-form-urlencoded body content length. */
 #if !defined(LOW_MEMORY)
-#define MAX_CONTENT_LENGTH 40960
+#define MAX_CONTENT_LENGTH 4096
 #else
 #define MAX_CONTENT_LENGTH 1024
-#endif	/* !defined(LOW_MEMORY) */
-
-/*! Initial response body length. */
-#if !defined(LOW_MEMORY)
-#define INITIAL_RESPONSE_BODY_BUFFER 1024
-#else
-#define INITIAL_RESPONSE_BODY_BUFFER 512
 #endif	/* !defined(LOW_MEMORY) */
 
 /*! Maximum line length for HTTP requests. */
@@ -570,7 +563,7 @@ void ast_http_create_response(struct ast_tcptls_session_instance *ser, int statu
 {
 	char server_name[MAX_SERVER_NAME_LENGTH];
 	struct ast_str *server_address = ast_str_create(MAX_SERVER_NAME_LENGTH);
-	struct ast_str *out = ast_str_create(INITIAL_RESPONSE_BODY_BUFFER);
+	struct ast_str *out = ast_str_create(MAX_CONTENT_LENGTH);
 
 	if (!http_header_data || !server_address || !out) {
 		ast_free(http_header_data);
@@ -929,30 +922,19 @@ void ast_http_body_read_status(struct ast_tcptls_session_instance *ser, int read
 static int http_body_read_contents(struct ast_tcptls_session_instance *ser, char *buf, int length, const char *what_getting)
 {
 	int res;
-	int total = 0;
 
-	/* Stream is in exclusive mode so we get it all if possible. */
-	while (total != length) {
-		/*
-		 * NOTE: Because ser->f is a non-standard FILE *, fread() does not behave as
-		 * documented.
-		 */
+	/*
+	 * NOTE: Because ser->f is a non-standard FILE *, fread() does not behave as
+	 * documented.
+	 */
 
-		/* Stay in fread until get all the expected data or timeout. */
-		res = fread(buf + total, length - total, 1, ser->f);
-		if (res <= 0) {
-			break;
-		}
-
-		total += res;
-	}
-
-	if (total != length) {
-		ast_log(LOG_WARNING, "Wrong HTTP content read. Request %s (Wanted %d, Read %d)\n",
-			what_getting, length, res);
+	/* Stay in fread until get all the expected data or timeout. */
+	res = fread(buf, length, 1, ser->f);
+	if (res < 1) {
+		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d)\n",
+			what_getting, length);
 		return -1;
 	}
-
 	return 0;
 }
 
