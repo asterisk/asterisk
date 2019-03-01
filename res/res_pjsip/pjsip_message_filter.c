@@ -236,7 +236,7 @@ static pj_status_t filter_on_tx_message(pjsip_tx_data *tdata)
 	pjsip_tpmgr_fla2_param_default(&prm);
 	prm.tp_type = tdata->tp_info.transport->key.type;
 	pj_strset2(&prm.dst_host, tdata->tp_info.dst_name);
-	prm.local_if = is_bound_any(tdata->tp_info.transport);
+	prm.local_if = PJ_TRUE;
 
 	/* If we can't get the local address use best effort and let it pass */
 	if (pjsip_tpmgr_find_local_addr2(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()), tdata->pool, &prm) != PJ_SUCCESS) {
