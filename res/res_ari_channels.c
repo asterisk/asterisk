@@ -2749,6 +2749,64 @@ static void ast_ari_channels_dial_cb(
 fin: __attribute__((unused))
 	return;
 }
+/*!
+ * \brief Parameter parsing callback for /channels/{channelId}/rtp_statistics.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_channels_rtpstatistics_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_channels_rtpstatistics_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		{}
+	}
+	ast_ari_channels_rtpstatistics(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Channel cannot be found. */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_rtpstat(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/rtp_statistics\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/rtp_statistics\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 
 /*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_create = {
@@ -2921,6 +2979,15 @@ static struct stasis_rest_handlers channels_channelId_dial = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/channels.json */
+static struct stasis_rest_handlers channels_channelId_rtp_statistics = {
+	.path_segment = "rtp_statistics",
+	.callbacks = {
+		[AST_HTTP_GET] = ast_ari_channels_rtpstatistics_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId = {
 	.path_segment = "channelId",
 	.is_wildcard = 1,
@@ -2929,8 +2996,8 @@ static struct stasis_rest_handlers channels_channelId = {
 		[AST_HTTP_POST] = ast_ari_channels_originate_with_id_cb,
 		[AST_HTTP_DELETE] = ast_ari_channels_hangup_cb,
 	},
-	.num_children = 15,
-	.children = { &channels_channelId_continue,&channels_channelId_move,&channels_channelId_redirect,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_silence,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable,&channels_channelId_snoop,&channels_channelId_dial, }
+	.num_children = 16,
+	.children = { &channels_channelId_continue,&channels_channelId_move,&channels_channelId_redirect,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_silence,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable,&channels_channelId_snoop,&channels_channelId_dial,&channels_channelId_rtp_statistics, }
 };
 /*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels = {

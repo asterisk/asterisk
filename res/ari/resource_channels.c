@@ -43,9 +43,11 @@
 #include "asterisk/core_local.h"
 #include "asterisk/dial.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/rtp_engine.h"
 #include "resource_channels.h"
 
 #include <limits.h>
+
 
 /*!
  * \brief Ensure channel is in a state that allows operation to be performed.
@@ -1965,4 +1967,60 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 	}
 
 	ast_ari_response_no_content(response);
+}
+
+void ast_ari_channels_rtpstatistics(struct ast_variable *headers,
+		struct ast_ari_channels_rtpstatistics_args *args,
+		struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_channel_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, rtp, NULL, ao2_cleanup);
+	struct ast_json *j_res;
+	const struct ast_channel_tech *tech;
+	struct ast_rtp_glue *glue;
+
+	chan = ast_channel_get_by_name(args->channel_id);
+	if (!chan) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Channel not found");
+		return;
+	}
+
+	ast_channel_lock(chan);
+	tech = ast_channel_tech(chan);
+	if (!tech) {
+		ast_channel_unlock(chan);
+		ast_ari_response_error(response, 404, "Not Found",
+			"Channel's tech not found");
+		return;
+	}
+
+	glue = ast_rtp_instance_get_glue(tech->type);
+	if (!glue) {
+		ast_channel_unlock(chan);
+		ast_ari_response_error(response, 403, "Forbidden",
+			"Unsupported channel type");
+		return;
+	}
+
+	glue->get_rtp_info(chan, &rtp);
+	if (!rtp) {
+		ast_channel_unlock(chan);
+		ast_ari_response_error(response, 404, "Not Found",
+			"RTP info not found");
+		return;
+	}
+
+	j_res = ast_rtp_instance_get_stats_all_json(rtp);
+	if (!j_res) {
+		ast_channel_unlock(chan);
+		ast_ari_response_error(response, 404, "Not Found",
+			"Statistics not found");
+		return;
+	}
+
+	ast_channel_unlock(chan);
+	ast_ari_response_ok(response, j_res);
+
+	return;
 }
