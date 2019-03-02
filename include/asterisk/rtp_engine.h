@@ -2683,6 +2683,20 @@ struct stasis_message_type *ast_rtp_rtcp_sent_type(void);
 struct stasis_message_type *ast_rtp_rtcp_received_type(void);
 
 /*!
+ * \brief Convert given stat instance into json format
+ * \param stats
+ * \retval A json format stat
+ */
+struct ast_json *ast_rtp_convert_stats_json(const struct ast_rtp_instance_stats *stats);
+
+/*!
+ * \brief Retrieve statistics about an RTP instance in json format
+ * \param instance
+ * \retval json object of stats
+ */
+struct ast_json *ast_rtp_instance_get_stats_all_json(struct ast_rtp_instance *instance);
+
+/*!
  * \since 12
  * \brief \ref stasis topic for RTP and RTCP related messages
  *

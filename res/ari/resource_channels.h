@@ -809,5 +809,18 @@ int ast_ari_channels_dial_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_dial(struct ast_variable *headers, struct ast_ari_channels_dial_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_rtpstatistics() */
+struct ast_ari_channels_rtpstatistics_args {
+	/*! Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief RTP stats on a channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_rtpstatistics(struct ast_variable *headers, struct ast_ari_channels_rtpstatistics_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

@@ -278,6 +278,20 @@ static struct stasis_topic *rtp_topic;
 
 
 /*!
+ * \brief Set given json object into target with name
+ *
+ * \param target Target json.
+ * \param name key of given object.
+ * \param obj Json value will be set.
+ */
+#define SET_AST_JSON_OBJ(target, name, obj) ({					\
+	struct ast_json *j_tmp = obj;						\
+	if (j_tmp) {						\
+		ast_json_object_set(target, name, j_tmp);						\
+	}						\
+})
+
+/*!
  * \internal
  * \brief Destructor for \c ast_rtp_payload_type
  */
@@ -3739,4 +3753,78 @@ void ast_rtp_instance_set_stream_num(struct ast_rtp_instance *rtp, int stream_nu
 		rtp->engine->set_stream_num(rtp, stream_num);
 	}
 	ao2_unlock(rtp);
+}
+
+struct ast_json *ast_rtp_convert_stats_json(const struct ast_rtp_instance_stats *stats)
+{
+	struct ast_json *j_res;
+	int ret;
+
+	j_res = ast_json_object_create();
+	if (!j_res) {
+		return NULL;
+	}
+
+	/* set mandatory items */
+	ret = ast_json_object_set(j_res, "txcount", ast_json_integer_create(stats->txcount));
+	ret |= ast_json_object_set(j_res, "rxcount", ast_json_integer_create(stats->rxcount));
+
+	ret |= ast_json_object_set(j_res, "txploss", ast_json_integer_create(stats->txploss));
+	ret |= ast_json_object_set(j_res, "rxploss", ast_json_integer_create(stats->rxploss));
+
+	ret |= ast_json_object_set(j_res, "local_ssrc", ast_json_integer_create(stats->local_ssrc));
+	ret |= ast_json_object_set(j_res, "remote_ssrc", ast_json_integer_create(stats->remote_ssrc));
+
+	ret |= ast_json_object_set(j_res, "txoctetcount", ast_json_integer_create(stats->txoctetcount));
+	ret |= ast_json_object_set(j_res, "rxoctetcount", ast_json_integer_create(stats->rxoctetcount));
+
+	ret |= ast_json_object_set(j_res, "channel_uniqueid", ast_json_string_create(stats->channel_uniqueid));
+	if (ret) {
+		ast_log(LOG_WARNING, "Could not create rtp statistics info. channel: %s\n", stats->channel_uniqueid);
+		ast_json_unref(j_res);
+		return NULL;
+	}
+
+	/* set other items */
+	SET_AST_JSON_OBJ(j_res, "txjitter", ast_json_real_create(stats->txjitter));
+	SET_AST_JSON_OBJ(j_res, "rxjitter", ast_json_real_create(stats->rxjitter));
+
+	SET_AST_JSON_OBJ(j_res, "remote_maxjitter", ast_json_real_create(stats->remote_maxjitter));
+	SET_AST_JSON_OBJ(j_res, "remote_minjitter", ast_json_real_create(stats->remote_minjitter));
+	SET_AST_JSON_OBJ(j_res, "remote_normdevjitter", ast_json_real_create(stats->remote_normdevjitter));
+	SET_AST_JSON_OBJ(j_res, "remote_stdevjitter", ast_json_real_create(stats->remote_stdevjitter));
+
+	SET_AST_JSON_OBJ(j_res, "local_maxjitter", ast_json_real_create(stats->local_maxjitter));
+	SET_AST_JSON_OBJ(j_res, "local_minjitter", ast_json_real_create(stats->local_minjitter));
+	SET_AST_JSON_OBJ(j_res, "local_normdevjitter", ast_json_real_create(stats->local_normdevjitter));
+	SET_AST_JSON_OBJ(j_res, "local_stdevjitter", ast_json_real_create(stats->local_stdevjitter));
+
+	SET_AST_JSON_OBJ(j_res, "remote_maxrxploss", ast_json_real_create(stats->remote_maxrxploss));
+	SET_AST_JSON_OBJ(j_res, "remote_minrxploss", ast_json_real_create(stats->remote_minrxploss));
+	SET_AST_JSON_OBJ(j_res, "remote_normdevrxploss", ast_json_real_create(stats->remote_normdevrxploss));
+	SET_AST_JSON_OBJ(j_res, "remote_stdevrxploss", ast_json_real_create(stats->remote_stdevrxploss));
+
+	SET_AST_JSON_OBJ(j_res, "local_maxrxploss", ast_json_real_create(stats->local_maxrxploss));
+	SET_AST_JSON_OBJ(j_res, "local_minrxploss", ast_json_real_create(stats->local_minrxploss));
+	SET_AST_JSON_OBJ(j_res, "local_normdevrxploss", ast_json_real_create(stats->local_normdevrxploss));
+	SET_AST_JSON_OBJ(j_res, "local_stdevrxploss", ast_json_real_create(stats->local_stdevrxploss));
+
+	SET_AST_JSON_OBJ(j_res, "rtt", ast_json_real_create(stats->rtt));
+	SET_AST_JSON_OBJ(j_res, "maxrtt", ast_json_real_create(stats->maxrtt));
+	SET_AST_JSON_OBJ(j_res, "minrtt", ast_json_real_create(stats->minrtt));
+	SET_AST_JSON_OBJ(j_res, "normdevrtt", ast_json_real_create(stats->normdevrtt));
+	SET_AST_JSON_OBJ(j_res, "stdevrtt", ast_json_real_create(stats->stdevrtt));
+
+	return j_res;
+}
+
+struct ast_json *ast_rtp_instance_get_stats_all_json(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_instance_stats stats = {0,};
+
+	if(ast_rtp_instance_get_stats(instance, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
+		return NULL;
+	}
+
+	return ast_rtp_convert_stats_json(&stats);
 }
