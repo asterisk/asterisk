@@ -2755,6 +2755,14 @@ static double normdev_compute(double normdev, double sample, unsigned int sample
 	normdev = normdev * sample_count + sample;
 	sample_count++;
 
+	/*
+	 It's possible the sample_count hits the maximum value and back to 0.
+	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
+	 */
+	if (sample_count == 0) {
+		sample_count = 1;
+	}
+
 	return normdev / sample_count;
 }
 
@@ -2770,6 +2778,14 @@ static double stddev_compute(double stddev, double sample, double normdev, doubl
 
 	stddev = sample_count * stddev;
 	sample_count++;
+
+	/*
+	 It's possible the sample_count hits the maximum value and back to 0.
+	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
+	 */
+	if (sample_count == 0) {
+		sample_count = 1;
+	}
 
 	return stddev +
 		( sample_count * SQUARE( (sample - normdev) / sample_count ) ) +
