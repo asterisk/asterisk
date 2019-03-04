@@ -846,6 +846,15 @@
                            ; headers are received.  This option allows the
                            ; 'Q.850' Reason header to be suppressed.
                            ; (default: no)
+;ignore_183_without_sdp =
+                           ; Do not forward 183 when it doesn't contain SDP.
+                           ; Certain SS7 internetworking scenarios can result in
+                           ; a 183 to be generated for reasons other than early
+                           ; media.  Forwarding this 183 can cause loss of
+                           ; ringback tone.  This flag emulates the behavior of
+                           ; chan_sip and prevents these 183 responses from
+                           ; being forwarded.
+                           ; (default: no)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

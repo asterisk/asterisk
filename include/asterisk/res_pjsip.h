@@ -818,6 +818,8 @@ struct ast_sip_endpoint {
 	unsigned int trust_connected_line;
 	/*! Do we send connected line updates to this endpoint? */
 	unsigned int send_connected_line;
+	/*! Ignore 183 if no SDP is present */
+	unsigned int ignore_183_without_sdp;
 };
 
 /*! URI parameter for symmetric transport */
