@@ -106,6 +106,13 @@ res_pjsip
    RECOMMENDED), keep the current behavior, or trigger only on pjsip
    taskprocessor overloads.
 
+chan_pjsip
+------------------
+ * A new configuration parameter 'ignore_183_without_sdp' has been added
+   to the pjsip.conf "endpoints" section.  If enabled, will make chan_pjsip
+   discard 183s that do not contain an SDP body, which can resolve no
+   ringback tone issues as well as making the behavior match chan_sip.
+
 MWI
 ------------------
  * A new module "res_mwi_devstate" has been added that allows subscriptions
