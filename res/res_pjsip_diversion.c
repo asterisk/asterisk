@@ -325,8 +325,7 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 
 	hdr = pjsip_from_hdr_create(tdata->pool);
 	hdr->type = PJSIP_H_OTHER;
-	pj_strdup(tdata->pool, &hdr->name, &diversion_name);
-	hdr->sname = hdr->name;
+	hdr->sname = hdr->name = diversion_name;
 
 	name_addr = pjsip_uri_clone(tdata->pool, base);
 	uri = pjsip_uri_get_uri(name_addr->uri);
@@ -411,6 +410,9 @@ static struct ast_sip_session_supplement diversion_supplement = {
 
 static int load_module(void)
 {
+	/* Because we are passing static memory to pjsip, we need to make sure it
+	 * stays valid while we potentially have active sessions */
+	ast_module_shutdown_ref(ast_module_info->self);
 	ast_sip_session_register_supplement(&diversion_supplement);
 	return AST_MODULE_LOAD_SUCCESS;
 }
