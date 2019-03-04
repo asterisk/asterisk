@@ -2742,7 +2742,14 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 		ast_channel_unlock(session->channel);
 		break;
 	case 183:
-		ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
+		if (session->endpoint->ignore_183_without_sdp) {
+			pjsip_rdata_sdp_info *sdp = pjsip_rdata_get_sdp_info(rdata);
+			if (sdp && sdp->body.ptr) {
+				ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
+			}
+		} else {
+			ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
+		}
 		break;
 	case 200:
 		ast_queue_control(session->channel, AST_CONTROL_ANSWER);
