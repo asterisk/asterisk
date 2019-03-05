@@ -3410,7 +3410,14 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 	const char *wrapuptime_str = ast_variable_retrieve(member_config, category, "wrapuptime");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
-		ast_log(LOG_WARNING, "Realtime field uniqueid is empty for member %s\n", S_OR(membername, "NULL"));
+		ast_log(LOG_WARNING, "Realtime field 'uniqueid' is empty for member %s\n",
+			S_OR(membername, "NULL"));
+		return;
+	}
+
+	if (ast_strlen_zero(interface)) {
+		ast_log(LOG_WARNING, "Realtime field 'interface' is empty for member %s\n",
+			S_OR(membername, "NULL"));
 		return;
 	}
 
