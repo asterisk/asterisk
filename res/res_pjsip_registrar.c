@@ -197,30 +197,22 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, pj_pool_t *po
 	return 0;
 }
 
+enum contact_delete_type {
+	CONTACT_DELETE_ERROR,
+	CONTACT_DELETE_EXISTING,
+	CONTACT_DELETE_EXPIRE,
+	CONTACT_DELETE_REQUEST,
+	CONTACT_DELETE_SHUTDOWN,
+};
+
+static int registrar_contact_delete(enum contact_delete_type type, pjsip_transport *transport,
+	struct ast_sip_contact *contact, const char *aor_name);
+
 /*! \brief Internal function used to delete a contact from an AOR */
 static int registrar_delete_contact(void *obj, void *arg, int flags)
 {
-	struct ast_sip_contact *contact = obj;
-	const char *aor_name = arg;
-
-	/* Permanent contacts can't be deleted */
-	if (ast_tvzero(contact->expiration_time)) {
-		return 0;
-	}
-
-	ast_sip_location_delete_contact(contact);
-	if (!ast_strlen_zero(aor_name)) {
-		ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact->uri, aor_name);
-		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
-				"Contact: %s\r\n"
-				"AOR: %s\r\n"
-				"UserAgent: %s",
-				contact->uri,
-				aor_name,
-				contact->user_agent);
-	}
-
-	return CMP_MATCH;
+	return registrar_contact_delete(
+		CONTACT_DELETE_REQUEST, NULL, obj, arg) ? 0 : CMP_MATCH;
 }
 
 /*! \brief Internal function which adds a contact to a response */
@@ -352,16 +344,7 @@ static int register_contact_transport_remove_cb(void *data)
 
 	contact = ast_sip_location_retrieve_contact(monitor->contact_name);
 	if (contact) {
-		ast_sip_location_delete_contact(contact);
-		ast_verb(3, "Removed contact '%s' from AOR '%s' due to transport shutdown\n",
-			contact->uri, monitor->aor_name);
-		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
-			"Contact: %s\r\n"
-			"AOR: %s\r\n"
-			"UserAgent: %s",
-			contact->uri,
-			monitor->aor_name,
-			contact->user_agent);
+		registrar_contact_delete(CONTACT_DELETE_SHUTDOWN, NULL, contact, monitor->aor_name);
 		ao2_ref(contact, -1);
 	}
 
@@ -413,6 +396,81 @@ static void register_contact_transport_shutdown_cb(void *data)
 	}
 
 	ao2_unlock(monitor);
+}
+
+
+static int registrar_contact_delete(enum contact_delete_type type, pjsip_transport *transport,
+	struct ast_sip_contact *contact, const char *aor_name)
+{
+	int aor_size;
+
+	/* Permanent contacts can't be deleted */
+	if (ast_tvzero(contact->expiration_time)) {
+		return -1;
+	}
+
+	aor_size = aor_name ? strlen(aor_name) : 0;
+	if (contact->prune_on_boot && type != CONTACT_DELETE_SHUTDOWN && aor_size) {
+		const char *contact_name = ast_sorcery_object_get_id(contact);
+		struct contact_transport_monitor *monitor = ast_alloca(
+			sizeof(*monitor) + 2 + aor_size + strlen(contact_name));
+
+		strcpy(monitor->aor_name, aor_name); /* Safe */
+		monitor->contact_name = monitor->aor_name + aor_size + 1;
+		strcpy(monitor->contact_name, contact_name); /* Safe */
+
+		if (transport) {
+			ast_sip_transport_monitor_unregister(transport,
+				register_contact_transport_shutdown_cb,	monitor,
+				contact_transport_monitor_matcher);
+		} else {
+			/*
+			 * If a specific transport is not supplied then unregister the matching
+			 * monitor from all reliable transports.
+			 */
+			ast_sip_transport_monitor_unregister_all(register_contact_transport_shutdown_cb,
+				monitor, contact_transport_monitor_matcher);
+		}
+	}
+
+	ast_sip_location_delete_contact(contact);
+
+	if (aor_size) {
+		if (VERBOSITY_ATLEAST(3)) {
+			const char *reason = "none";
+
+			switch (type) {
+			case CONTACT_DELETE_ERROR:
+				reason = "registration failure";
+				break;
+			case CONTACT_DELETE_EXISTING:
+				reason = "remove existing";
+				break;
+			case CONTACT_DELETE_EXPIRE:
+				reason = "expiration";
+				break;
+			case CONTACT_DELETE_REQUEST:
+				reason = "request";
+				break;
+			case CONTACT_DELETE_SHUTDOWN:
+				reason = "shutdown";
+				break;
+			}
+
+			ast_verb(3, "Removed contact '%s' from AOR '%s' due to %s\n",
+					 contact->uri, aor_name, reason);
+		}
+
+		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
+				"Contact: %s\r\n"
+				"AOR: %s\r\n"
+				"UserAgent: %s",
+				contact->uri,
+				aor_name,
+				contact->user_agent);
+	}
+
+	return 0;
 }
 
 AST_VECTOR(excess_contact_vector, struct ast_sip_contact *);
@@ -491,16 +549,7 @@ static void remove_excess_contacts(struct ao2_container *contacts, struct ao2_co
 
 		contact = AST_VECTOR_GET(&contact_vec, to_remove);
 
-		ast_sip_location_delete_contact(contact);
-		ast_verb(3, "Removed contact '%s' from AOR '%s' due to remove_existing\n",
-			contact->uri, contact->aor);
-		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
-			"Contact: %s\r\n"
-			"AOR: %s\r\n"
-			"UserAgent: %s",
-			contact->uri,
-			contact->aor,
-			contact->user_agent);
+		registrar_contact_delete(CONTACT_DELETE_EXISTING, NULL, contact, contact->aor);
 
 		ao2_unlink(response_contacts, contact);
 	}
@@ -730,8 +779,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 					monitor->contact_name = monitor->aor_name + strlen(aor_name) + 1;
 					strcpy(monitor->contact_name, contact_name);/* Safe */
 
-					ast_sip_transport_monitor_register(rdata->tp_info.transport,
-						register_contact_transport_shutdown_cb, monitor);
+					ast_sip_transport_monitor_register_replace(rdata->tp_info.transport,
+						register_contact_transport_shutdown_cb, monitor, contact_transport_monitor_matcher);
 					ao2_ref(monitor, -1);
 				}
 			}
@@ -775,7 +824,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 			if (ast_sip_location_update_contact(contact_update)) {
 				ast_log(LOG_ERROR, "Failed to update contact '%s' expiration time to %d seconds.\n",
 					contact->uri, expiration);
-				ast_sip_location_delete_contact(contact);
+				registrar_contact_delete(CONTACT_DELETE_ERROR, rdata->tp_info.transport,
+					contact, aor_name);
 				continue;
 			}
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
@@ -792,31 +842,8 @@ static void register_aor_core(pjsip_rx_data *rdata,
 			ao2_link(contacts, contact_update);
 			ao2_cleanup(contact_update);
 		} else {
-			if (contact->prune_on_boot) {
-				struct contact_transport_monitor *monitor;
-				const char *contact_name =
-					ast_sorcery_object_get_id(contact);
-
-				monitor = ast_alloca(sizeof(*monitor) + 2 + strlen(aor_name)
-					+ strlen(contact_name));
-				strcpy(monitor->aor_name, aor_name);/* Safe */
-				monitor->contact_name = monitor->aor_name + strlen(aor_name) + 1;
-				strcpy(monitor->contact_name, contact_name);/* Safe */
-
-				ast_sip_transport_monitor_unregister(rdata->tp_info.transport,
-					register_contact_transport_shutdown_cb, monitor, contact_transport_monitor_matcher);
-			}
-
-			/* We want to report the user agent that was actually in the removed contact */
-			ast_sip_location_delete_contact(contact);
-			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
-			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
-					"Contact: %s\r\n"
-					"AOR: %s\r\n"
-					"UserAgent: %s",
-					contact_uri,
-					aor_name,
-					contact->user_agent);
+			registrar_contact_delete(CONTACT_DELETE_REQUEST, rdata->tp_info.transport,
+					contact, aor_name);
 		}
 	}
 
@@ -1223,20 +1250,7 @@ static int expire_contact(void *obj, void *arg, int flags)
 	 */
 	ao2_lock(lock);
 	if (ast_tvdiff_ms(ast_tvnow(), contact->expiration_time) > 0) {
-		if (contact->prune_on_boot) {
-			struct contact_transport_monitor *monitor;
-			const char *contact_name = ast_sorcery_object_get_id(contact);
-
-			monitor = ast_alloca(sizeof(*monitor) + 2 + strlen(contact->aor)
-				+ strlen(contact_name));
-			strcpy(monitor->aor_name, contact->aor);/* Safe */
-			monitor->contact_name = monitor->aor_name + strlen(contact->aor) + 1;
-			strcpy(monitor->contact_name, contact_name);/* Safe */
-
-			ast_sip_transport_monitor_unregister_all(register_contact_transport_shutdown_cb,
-				monitor, contact_transport_monitor_matcher);
-		}
-		ast_sip_location_delete_contact(contact);
+		registrar_contact_delete(CONTACT_DELETE_EXPIRE, NULL, contact, contact->aor);
 	}
 	ao2_unlock(lock);
 	ast_named_lock_put(lock);

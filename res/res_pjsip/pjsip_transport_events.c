@@ -306,6 +306,12 @@ void ast_sip_transport_monitor_unregister(pjsip_transport *transport,
 enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transport *transport,
 	ast_transport_monitor_shutdown_cb cb, void *ao2_data)
 {
+	return ast_sip_transport_monitor_register_replace(transport, cb, ao2_data, NULL);
+}
+
+enum ast_transport_monitor_reg ast_sip_transport_monitor_register_replace(pjsip_transport *transport,
+	ast_transport_monitor_shutdown_cb cb, void *ao2_data, ast_transport_monitor_data_matcher matches)
+{
 	struct ao2_container *transports;
 	struct transport_monitor *monitored;
 	enum ast_transport_monitor_reg res = AST_TRANSPORT_MONITOR_REG_NOT_FOUND;
@@ -321,6 +327,13 @@ enum ast_transport_monitor_reg ast_sip_transport_monitor_register(pjsip_transpor
 	monitored = ao2_find(transports, transport->obj_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (monitored) {
 		struct transport_monitor_notifier new_monitor;
+		struct callback_data cb_data = {
+			.cb = cb,
+			.data = ao2_data,
+			.matches = matches ?: ptr_matcher,
+		};
+
+		transport_monitor_unregister_cb(monitored, &cb_data, 0);
 
 		/* Add new monitor to vector */
 		new_monitor.cb = cb;
