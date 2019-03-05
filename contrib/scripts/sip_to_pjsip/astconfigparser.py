@@ -180,7 +180,7 @@ def remove_comment(line, is_comment):
         return "", True
 
     part = line.partition(COMMENT_START)
-    if part[1]:
+    if part[1] and not part[2].startswith('-'):
         # found multi-line comment start check string before
         # it to make sure there wasn't an eol comment in it
         has_comment = part[0].partition(COMMENT)
