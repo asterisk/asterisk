@@ -167,7 +167,10 @@ AST_TEST_DEFINE(app_replaced)
 	res = stasis_app_send(app_name, message);
 	ast_test_validate(test, 0 == res);
 	ast_test_validate(test, 1 == app_data1->invocations);
+	ast_test_validate(test, ast_json_object_get(ast_json_array_get(app_data1->messages, 0), "timestamp")? 1: 0);
+	ast_json_object_del(ast_json_array_get(app_data1->messages, 0), "timestamp");
 	ast_test_validate(test, ast_json_equal(expected_message1, app_data1->messages));
+
 	ast_test_validate(test, 1 == app_data2->invocations);
 	ast_test_validate(test, ast_json_equal(expected_message2, app_data2->messages));
 
