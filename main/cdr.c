@@ -4504,7 +4504,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	cdr_topic = stasis_topic_create("cdr_engine");
+	cdr_topic = stasis_topic_create("cdr:aggregator");
 	if (!cdr_topic) {
 		return AST_MODULE_LOAD_FAILURE;
 	}

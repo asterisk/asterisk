@@ -1658,7 +1658,7 @@ int ast_stasis_channels_init(void)
 
 	ast_register_cleanup(stasis_channels_cleanup);
 
-	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
+	channel_topic_all = stasis_topic_create("channel:all");
 	if (!channel_topic_all) {
 		return -1;
 	}

@@ -3337,7 +3337,7 @@ int ast_delete_mwi_state_full(const char *mailbox, const char *context, struct a
 		stasis_publish(mailbox_specific_topic, clear_msg);
 	}
 
-	stasis_topic_pool_delete_topic(mwi_topic_pool, stasis_topic_name(mailbox_specific_topic));
+	stasis_topic_pool_delete_topic(mwi_topic_pool, mwi_state->uniqueid);
 
 	ao2_cleanup(clear_msg);
 	return 0;
@@ -3430,7 +3430,7 @@ int app_init(void)
 	if (STASIS_MESSAGE_TYPE_INIT(ast_mwi_vm_app_type) != 0) {
 		return -1;
 	}
-	mwi_topic_all = stasis_topic_create("stasis_mwi_topic");
+	mwi_topic_all = stasis_topic_create("mwi:all");
 	if (!mwi_topic_all) {
 		return -1;
 	}
@@ -3446,7 +3446,7 @@ int app_init(void)
 	if (!mwi_topic_pool) {
 		return -1;
 	}
-	queue_topic_all = stasis_topic_create("stasis_queue_topic");
+	queue_topic_all = stasis_topic_create("queue:all");
 	if (!queue_topic_all) {
 		return -1;
 	}

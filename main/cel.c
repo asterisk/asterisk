@@ -1431,12 +1431,12 @@ static int unload_module(void)
  */
 static int create_subscriptions(void)
 {
-	cel_aggregation_topic = stasis_topic_create("cel_aggregation_topic");
+	cel_aggregation_topic = stasis_topic_create("cel:aggregator");
 	if (!cel_aggregation_topic) {
 		return -1;
 	}
 
-	cel_topic = stasis_topic_create("cel_topic");
+	cel_topic = stasis_topic_create("cel:misc");
 	if (!cel_topic) {
 		return -1;
 	}
