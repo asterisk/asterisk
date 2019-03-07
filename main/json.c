@@ -693,10 +693,28 @@ struct ast_json *ast_json_ipaddr(const struct ast_sockaddr *addr, enum ast_trans
 	return ast_json_string_create(ast_str_buffer(string));
 }
 
-void ast_json_init(void)
+int ast_json_init(void)
 {
+	json_t *version_check;
+
 	/* Setup to use Asterisk custom allocators */
 	ast_json_reset_alloc_funcs();
+
+	/* We depend on functionality of jansson-2.11 but don't actually use
+	 * any symbols.  If we link at runtime to less than 2.11 this json_pack
+	 * will return NULL. */
+	version_check = json_pack("{s: o?, s: o*}",
+		"JSON", NULL,
+		"Bourne", NULL);
+	if (!version_check) {
+		ast_log(LOG_ERROR, "There was a problem finding jansson 2.11 runtime libraries.\n"
+			"Please rebuild Asterisk using ./configure --with-jansson-bundled.\n");
+		return -1;
+	}
+
+	json_decref(version_check);
+
+	return 0;
 }
 
 static void json_payload_destructor(void *obj)
