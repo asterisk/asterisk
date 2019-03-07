@@ -4059,7 +4059,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	}
 	ast_verb(0, "PBX UUID: %s\n", pbx_uuid);
 
-	ast_json_init();
+	check_init(ast_json_init(), "libjansson");
 	ast_ulaw_init();
 	ast_alaw_init();
 	tdd_init();
