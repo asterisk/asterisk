@@ -1133,7 +1133,7 @@ static int load_module(void)
 		goto failed;
 	}
 
-	corosync_aggregate_topic = stasis_topic_create("corosync_aggregate_topic");
+	corosync_aggregate_topic = stasis_topic_create("corosync:aggregator");
 	if (!corosync_aggregate_topic) {
 		ast_log(AST_LOG_ERROR, "Failed to create stasis topic for corosync\n");
 		goto failed;

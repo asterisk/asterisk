@@ -2681,7 +2681,7 @@ int ast_rtp_engine_init(void)
 	ast_rwlock_init(&mime_types_lock);
 	ast_rwlock_init(&static_RTP_PT_lock);
 
-	rtp_topic = stasis_topic_create("rtp_topic");
+	rtp_topic = stasis_topic_create("rtp:all");
 	if (!rtp_topic) {
 		return -1;
 	}

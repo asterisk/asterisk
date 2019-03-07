@@ -950,10 +950,11 @@ static void print_cache_entry(void *v_obj, void *where, ao2_prnt_fn *prnt)
 struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *original_topic, struct stasis_cache *cache)
 {
 	struct stasis_caching_topic *caching_topic;
+	static int caching_id;
 	char *new_name;
 	int ret;
 
-	ret = ast_asprintf(&new_name, "%s-cached", stasis_topic_name(original_topic));
+	ret = ast_asprintf(&new_name, "cache:%d/%s", ast_atomic_fetchadd_int(&caching_id, +1), stasis_topic_name(original_topic));
 	if (ret < 0) {
 		return NULL;
 	}

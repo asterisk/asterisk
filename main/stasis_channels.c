@@ -1361,7 +1361,7 @@ int ast_stasis_channels_init(void)
 
 	ast_register_cleanup(stasis_channels_cleanup);
 
-	channel_cache_all = stasis_cp_all_create("ast_channel_topic_all",
+	channel_cache_all = stasis_cp_all_create("channel:all",
 		channel_snapshot_get_id);
 	if (!channel_cache_all) {
 		return -1;
