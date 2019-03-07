@@ -56,7 +56,7 @@ int ast_parking_stasis_init(void)
 		return -1;
 	}
 
-	parking_topic = stasis_topic_create("ast_parking");
+	parking_topic = stasis_topic_create("parking:all");
 	if (!parking_topic) {
 		return -1;
 	}

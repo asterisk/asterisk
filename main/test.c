@@ -1224,7 +1224,7 @@ int ast_test_init(void)
 	ast_register_cleanup(test_cleanup);
 
 	/* Create stasis topic */
-	test_suite_topic = stasis_topic_create("test_suite_topic");
+	test_suite_topic = stasis_topic_create("testsuite:all");
 	if (!test_suite_topic) {
 		return -1;
 	}

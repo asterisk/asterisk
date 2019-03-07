@@ -1480,15 +1480,24 @@ int ast_channel_forward_endpoint(struct ast_channel *chan,
 
 int ast_channel_internal_setup_topics(struct ast_channel *chan)
 {
-	const char *topic_name = chan->uniqueid.unique_id;
+	char *topic_name;
+	int ret;
 	ast_assert(chan->topics == NULL);
 
-	if (ast_strlen_zero(topic_name)) {
-		topic_name = "<dummy-channel>";
+	if (ast_strlen_zero(chan->uniqueid.unique_id)) {
+		static int dummy_id;
+		ret = ast_asprintf(&topic_name, "channel:dummy-%d", ast_atomic_fetchadd_int(&dummy_id, +1));
+	} else {
+		ret = ast_asprintf(&topic_name, "channel:%s", chan->uniqueid.unique_id);
+	}
+
+	if (ret < 0) {
+		return -1;
 	}
 
 	chan->topics = stasis_cp_single_create(
 		ast_channel_cache_all(), topic_name);
+	ast_free(topic_name);
 	if (!chan->topics) {
 		return -1;
 	}
