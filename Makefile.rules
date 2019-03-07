@@ -67,6 +67,12 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   endif
 endif
 
+# gcc version 8.2.1 and above must have partial-inlining disabled to avoid documented bug
+GCC_VER_GTE821:=$(shell expr `gcc --version | grep ^gcc | cut -d ' ' -f 3 | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 80201)
+ifeq ($(GCC_VER_GTE821),1)
+    OPTIMIZE+=-fno-partial-inlining
+endif
+
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)
     _ASTCFLAGS+=$(OPTIMIZE)
 else
