@@ -1154,7 +1154,7 @@
                 ; taskprocessor overloads.  When triggered, the distributor
                 ; will not accept any new requests until the overload has
                 ; cleared.
-                : "global": (default) Any taskprocessor overload will trigger.
+                ; "global": (default) Any taskprocessor overload will trigger.
                 ; "pjsip_only": Only pjsip taskprocessor overloads will trigger.
                 ; "none":  No overload detection will be performed.
                 ; WARNING: The "none" and "pjsip_only" options should be used
