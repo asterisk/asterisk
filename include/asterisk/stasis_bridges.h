@@ -62,6 +62,8 @@ struct ast_bridge_snapshot {
 	unsigned int num_active;
 	/*! The video mode of the bridge */
 	enum ast_bridge_video_mode_type video_mode;
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*!

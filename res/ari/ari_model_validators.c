@@ -1360,6 +1360,7 @@ int ast_ari_validate_bridge(struct ast_json *json)
 	int has_bridge_class = 0;
 	int has_bridge_type = 0;
 	int has_channels = 0;
+	int has_creationtime = 0;
 	int has_creator = 0;
 	int has_id = 0;
 	int has_name = 0;
@@ -1394,6 +1395,16 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				ast_ari_validate_string);
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI Bridge field channels failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("creationtime", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_creationtime = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field creationtime failed validation\n");
 				res = 0;
 			}
 		} else
@@ -1475,6 +1486,11 @@ int ast_ari_validate_bridge(struct ast_json *json)
 
 	if (!has_channels) {
 		ast_log(LOG_ERROR, "ARI Bridge missing required field channels\n");
+		res = 0;
+	}
+
+	if (!has_creationtime) {
+		ast_log(LOG_ERROR, "ARI Bridge missing required field creationtime\n");
 		res = 0;
 	}
 
