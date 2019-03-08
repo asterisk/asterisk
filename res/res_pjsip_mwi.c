@@ -259,10 +259,12 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 	/* Safe strcpy */
 	strcpy(mwi_stasis_sub->mailbox, mailbox);
 
-	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s\n",
-		mailbox, mwi_sub->id);
+	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s.  Topic: '%s':%p %d\n",
+		mailbox, mwi_sub->id, stasis_topic_name(topic), topic, (int)ao2_ref(topic, 0));
 	ao2_ref(mwi_sub, +1);
 	mwi_stasis_sub->stasis_sub = stasis_subscribe_pool(topic, mwi_stasis_cb, mwi_sub);
+	ao2_ref(topic, -1);
+
 	if (!mwi_stasis_sub->stasis_sub) {
 		/* Failed to subscribe. */
 		ao2_ref(mwi_stasis_sub, -1);
