@@ -83,9 +83,19 @@ struct stasis_app_control {
 	 */
 	struct ast_silence_generator *silgen;
 	/*!
-	 * The app for which this control was created
+	 * The app for which this control is currently controlling.
+	 * This can change through the use of the /channels/{channelId}/move
+	 * command.
 	 */
 	struct stasis_app *app;
+	/*!
+	 * The name of the next Stasis application to move to.
+	 */
+	char *next_app;
+	/*!
+	 * The list of arguments to pass to StasisStart when moving to another app.
+	 */
+	AST_VECTOR(, char *) next_app_args;
 	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
@@ -100,6 +110,8 @@ static void control_dtor(void *obj)
 
 	ast_channel_cleanup(control->channel);
 	ao2_cleanup(control->app);
+
+	control_move_cleanup(control);
 
 	ast_cond_destroy(&control->wait_cond);
 	AST_LIST_HEAD_DESTROY(&control->add_rules);
@@ -140,6 +152,9 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 		ao2_ref(control, -1);
 		return NULL;
 	}
+
+	control->next_app = NULL;
+	AST_VECTOR_INIT(&control->next_app_args, 0);
 
 	return control;
 }
@@ -387,6 +402,73 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	}
 
 	stasis_app_send_command_async(control, app_control_continue, continue_data, ast_free_ptr);
+
+	return 0;
+}
+
+struct stasis_app_control_move_data {
+	char *app_name;
+	char *app_args;
+};
+
+static int app_control_move(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	struct stasis_app_control_move_data *move_data = data;
+
+	control->next_app = ast_strdup(move_data->app_name);
+	if (!control->next_app) {
+		ast_log(LOG_ERROR, "Allocation failed for next app\n");
+		return -1;
+	}
+
+	if (move_data->app_args) {
+		char *token;
+
+		while ((token = strtok_r(move_data->app_args, ",", &move_data->app_args))) {
+			int res;
+			char *arg;
+
+			if (!(arg = ast_strdup(token))) {
+				ast_log(LOG_ERROR, "Allocation failed for next app arg\n");
+				control_move_cleanup(control);
+				return -1;
+			}
+
+			res = AST_VECTOR_APPEND(&control->next_app_args, arg);
+			if (res) {
+				ast_log(LOG_ERROR, "Failed to append arg to next app args\n");
+				ast_free(arg);
+				control_move_cleanup(control);
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int stasis_app_control_move(struct stasis_app_control *control, const char *app_name, const char *app_args)
+{
+	struct stasis_app_control_move_data *move_data;
+	size_t size;
+
+	size = sizeof(*move_data) + strlen(app_name) + strlen(app_args) + 2;
+	if (!(move_data = ast_calloc(1, size))) {
+		return -1;
+	}
+
+	move_data->app_name = (char *)move_data + sizeof(*move_data);
+	move_data->app_args = move_data->app_name + strlen(app_name) + 1;
+
+	strcpy(move_data->app_name, app_name); /* Safe */
+	if (app_args) {
+		strcpy(move_data->app_args, app_args); /* Safe */
+	} else {
+		move_data->app_args = NULL;
+	}
+
+	stasis_app_send_command_async(control, app_control_move, move_data, ast_free_ptr);
 
 	return 0;
 }
@@ -1589,4 +1671,33 @@ void stasis_app_control_shutdown(void)
 		dial_bridge = NULL;
 	}
 	ast_mutex_unlock(&dial_bridge_lock);
+}
+
+void control_set_app(struct stasis_app_control *control, struct stasis_app *app)
+{
+	ao2_cleanup(control->app);
+	control->app = ao2_bump(app);
+}
+
+char *control_next_app(struct stasis_app_control *control)
+{
+	return control->next_app;
+}
+
+void control_move_cleanup(struct stasis_app_control *control)
+{
+	ast_free(control->next_app);
+	control->next_app = NULL;
+
+	AST_VECTOR_RESET(&control->next_app_args, ast_free_ptr);
+}
+
+char **control_next_app_args(struct stasis_app_control *control)
+{
+	return AST_VECTOR_STEAL_ELEMENTS(&control->next_app_args);
+}
+
+int control_next_app_args_size(struct stasis_app_control *control)
+{
+	return AST_VECTOR_SIZE(&control->next_app_args);
 }

@@ -502,6 +502,20 @@ void stasis_app_control_clear_roles(struct stasis_app_control *control);
 int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority);
 
 /*!
+ * \brief Exit \c res_stasis and move to another Stasis application.
+ *
+ * If the channel is no longer in \c res_stasis, this function does nothing.
+ *
+ * \param control Control for \c res_stasis
+ * \param app_name The name of the application to switch to
+ * \param app_args The list of arguments to pass to the application
+ *
+ * \return 0 for success
+ * \return -1 for error
+ */
+int stasis_app_control_move(struct stasis_app_control *control, const char *app_name, const char *app_args);
+
+/*!
  * \brief Redirect a channel in \c res_stasis to a particular endpoint
  *
  * \param control Control for \c res_stasis

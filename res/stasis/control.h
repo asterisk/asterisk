@@ -108,6 +108,58 @@ int control_prestart_dispatch_all(struct stasis_app_control *control,
 struct stasis_app *control_app(struct stasis_app_control *control);
 
 /*!
+ * \brief Set the application the control object belongs to
+ *
+ * \param control The control for the channel
+ * \param app The application this control will now belong to
+ *
+ * \note This will unref control's previous app by 1, and bump app by 1
+ */
+void control_set_app(struct stasis_app_control *control, struct stasis_app *app);
+
+/*!
+ * \brief Returns the name of the application we are moving to
+ *
+ * \param control The control for the channel
+ *
+ * \return The name of the application we are moving to
+ */
+char *control_next_app(struct stasis_app_control *control);
+
+/*!
+ * \brief Free any memory that was allocated for switching applications via
+ * /channels/{channelId}/move
+ *
+ * \param control The control for the channel
+ */
+void control_move_cleanup(struct stasis_app_control *control);
+
+/*!
+ * \brief Returns the list of arguments to pass to the application we are moving to
+ *
+ * \note If you wish to get the size of the list, control_next_app_args_size should be
+ * called before this, as this function will steal the elements from the string vector
+ * and set the size to 0.
+ *
+ * \param control The control for the channel
+ *
+ * \return The arguments to pass to the application we are moving to
+ */
+char **control_next_app_args(struct stasis_app_control *control);
+
+/*!
+ * \brief Returns the number of arguments to be passed to the application we are moving to
+ *
+ * \note This should always be called before control_next_app_args, as calling that function
+ * will steal all elements from the string vector and set the size to 0.
+ *
+ * \param control The control for the channel
+ *
+ * \return The number of arguments to be passed to the application we are moving to
+ */
+int control_next_app_args_size(struct stasis_app_control *control);
+
+/*!
  * \brief Command callback for adding a channel to a bridge
  *
  * \param control The control for chan
