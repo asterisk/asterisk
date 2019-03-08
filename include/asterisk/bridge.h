@@ -321,6 +321,8 @@ struct ast_bridge {
 		/*! Immutable bridge UUID. */
 		AST_STRING_FIELD(uniqueid);
 	);
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*! \brief Bridge base class virtual method table. */
