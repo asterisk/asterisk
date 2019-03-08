@@ -11637,15 +11637,16 @@ static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_c
 				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
 	} else if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
+		char *rest;
 		/* count numbers of generations in fmtp */
 		red_cp = &red_fmtp[strlen(red_fmtp)];
 		strncpy(red_fmtp, a, 100);
 
 		sscanf(red_cp, "%30u", (unsigned *)&red_data_pt[*red_num_gen]);
-		red_cp = strtok(red_cp, "/");
+		red_cp = strtok_r(red_cp, "/", &rest);
 		while (red_cp && (*red_num_gen)++ < AST_RED_MAX_GENERATION) {
 			sscanf(red_cp, "%30u", (unsigned *)&red_data_pt[*red_num_gen]);
-			red_cp = strtok(NULL, "/");
+			red_cp = strtok_r(NULL, "/", &rest);
 		}
 		red_cp = red_fmtp;
 		found = TRUE;
