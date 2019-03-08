@@ -400,6 +400,7 @@ static void topic_dtor(void *obj)
 
 	AST_VECTOR_FREE(&topic->subscribers);
 	AST_VECTOR_FREE(&topic->upstream_topics);
+	ast_debug(1, "Topic '%s': %p destroyed\n", topic->name, topic);
 
 #ifdef AST_DEVMODE
 	if (topic->statistics) {
@@ -454,6 +455,8 @@ struct stasis_topic *stasis_topic_create(const char *name)
 	strcpy(topic->name, name); /* SAFE */
 	res |= AST_VECTOR_INIT(&topic->subscribers, INITIAL_SUBSCRIBERS_MAX);
 	res |= AST_VECTOR_INIT(&topic->upstream_topics, 0);
+	ast_debug(1, "Topic '%s': %p created\n", topic->name, topic);
+
 #ifdef AST_DEVMODE
 	topic->statistics = stasis_topic_statistics_create(topic);
 	if (!topic->name || !topic->statistics || res)
@@ -752,6 +755,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 
 	if (topic_add_subscription(topic, sub) != 0) {
 		ao2_ref(sub, -1);
+		ao2_ref(topic, -1);
 
 		return NULL;
 	}
