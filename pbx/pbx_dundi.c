@@ -2977,6 +2977,8 @@ static char *dundi_show_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	db_tree = ast_db_gettree("dundi/cache", NULL);
 	ast_cli(a->fd, FORMAT2, "Number", "Context", "Expiration", "From", "Weight", "Destination (Flags)");
 	for (db_entry = db_tree; db_entry; db_entry = db_entry->next) {
+		char *rest;
+
 		if ((strncmp(db_entry->key, "/dundi/cache/hint/", 18) == 0) || ast_get_time_t(db_entry->data, &ts, 0, &length)) {
 			continue;
 		}
@@ -2988,10 +2990,10 @@ static char *dundi_show_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		}
 
 		ptr = db_entry->key + sizeof("/dundi/cache");
-		strtok(ptr, "/");
-		number = strtok(NULL, "/");
-		context = strtok(NULL, "/");
-		ptr = strtok(NULL, "/");
+		strtok_r(ptr, "/", &rest);
+		number = strtok_r(NULL, "/", &rest);
+		context = strtok_r(NULL, "/", &rest);
+		ptr = strtok_r(NULL, "/", &rest);
 
 		if (*ptr != 'e') {
 			continue;
@@ -3069,6 +3071,8 @@ static char *dundi_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ast_cli(a->fd, FORMAT2, "Prefix", "Context", "Expiration", "From");
 
 	for (db_entry = db_tree; db_entry; db_entry = db_entry->next) {
+		char *rest;
+
 		if (ast_get_time_t(db_entry->data, &ts, 0, &length)) {
 			continue;
 		}
@@ -3080,10 +3084,10 @@ static char *dundi_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		}
 
 		ptr = db_entry->key + sizeof("/dundi/cache/hint");
-		src = strtok(ptr, "/");
-		number = strtok(NULL, "/");
-		context = strtok(NULL, "/");
-		ptr = strtok(NULL, "/");
+		src = strtok_r(ptr, "/", &rest);
+		number = strtok_r(NULL, "/", &rest);
+		context = strtok_r(NULL, "/", &rest);
+		ptr = strtok_r(NULL, "/", &rest);
 
 		if (*ptr != 'e') {
 			continue;
