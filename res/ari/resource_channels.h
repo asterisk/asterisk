@@ -225,6 +225,34 @@ int ast_ari_channels_continue_in_dialplan_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_continue_in_dialplan(struct ast_variable *headers, struct ast_ari_channels_continue_in_dialplan_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_move() */
+struct ast_ari_channels_move_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! The channel will be passed to this Stasis application. */
+	const char *app;
+	/*! The application arguments to pass to the Stasis application provided by 'app'. */
+	const char *app_args;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/move.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_move_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_move_args *args);
+
+/*!
+ * \brief Move the channel from one Stasis application to another.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_move(struct ast_variable *headers, struct ast_ari_channels_move_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_channels_redirect() */
 struct ast_ari_channels_redirect_args {
 	/*! Channel's id */

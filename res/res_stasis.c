@@ -1297,7 +1297,17 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 	control = control_create(chan, app);
 	if (!control) {
-		ast_log(LOG_ERROR, "Allocated failed\n");
+		ast_log(LOG_ERROR, "Control allocation failed or Stasis app '%s' not registered\n", app_name);
+		return -1;
+	}
+
+	if (!control_app(control)) {
+		ast_log(LOG_ERROR, "Stasis app '%s' not registered\n", app_name);
+		return -1;
+	}
+
+	if (!app_is_active(control_app(control))) {
+		ast_log(LOG_ERROR, "Stasis app '%s' not active\n", app_name);
 		return -1;
 	}
 	ao2_link(app_controls, control);
@@ -1307,7 +1317,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		return -1;
 	}
 
-	res = send_start_msg(app, chan, argc, argv);
+	res = send_start_msg(control_app(control), chan, argc, argv);
 	if (res != 0) {
 		ast_log(LOG_ERROR,
 			"Error sending start message to '%s'\n", app_name);
@@ -1330,15 +1340,138 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			break;
 		}
 
+		/* control->next_app is only modified within the control thread, so this is safe */
+		if (control_next_app(control)) {
+			struct stasis_app *next_app = ao2_find(apps_registry, control_next_app(control), OBJ_SEARCH_KEY);
+
+			if (next_app && app_is_active(next_app)) {
+				int idx;
+				int next_argc;
+				char **next_argv;
+
+				/* If something goes wrong in this conditional, res will need to be non-zero
+				 * so that the code below the exec loop knows something went wrong during a move.
+				 */
+				if (!stasis_app_channel_is_stasis_end_published(chan)) {
+					res = has_masquerade_store(chan) && app_send_end_msg(control_app(control), chan);
+					if (res != 0) {
+						ast_log(LOG_ERROR,
+							"Error sending end message to %s\n", stasis_app_name(control_app(control)));
+						control_mark_done(control);
+						ao2_ref(next_app, -1);
+						break;
+					}
+				} else {
+					remove_stasis_end_published(chan);
+				}
+
+				/* This will ao2_bump next_app, and unref the previous app by 1 */
+				control_set_app(control, next_app);
+
+				/* There's a chance that the previous application is ready for clean up, so go ahead
+				 * and do that now.
+				 */
+				cleanup();
+
+				/* We need to add another masquerade store, otherwise the leave message will
+				 * not show up for the correct application.
+				 */
+				if (add_masquerade_store(chan)) {
+					ast_log(LOG_ERROR, "Failed to attach masquerade detector\n");
+					res = -1;
+					control_mark_done(control);
+					ao2_ref(next_app, -1);
+					break;
+				}
+
+				/* We MUST get the size before the list, as control_next_app_args steals the elements
+				 * from the string vector.
+				 */
+				next_argc = control_next_app_args_size(control);
+				next_argv = control_next_app_args(control);
+
+				res = send_start_msg(control_app(control), chan, next_argc, next_argv);
+
+				/* Even if res != 0, we still need to free the memory we got from control_argv */
+				if (next_argv) {
+					for (idx = 0; idx < next_argc; idx++) {
+						ast_free(next_argv[idx]);
+					}
+					ast_free(next_argv);
+				}
+
+				if (res != 0) {
+					ast_log(LOG_ERROR,
+						"Error sending start message to '%s'\n", stasis_app_name(control_app(control)));
+					remove_masquerade_store(chan);
+					control_mark_done(control);
+					ao2_ref(next_app, -1);
+					break;
+				}
+
+				/* Done switching applications, free memory and clean up */
+				control_move_cleanup(control);
+			} else {
+				/* If we can't switch applications, do nothing */
+				struct ast_json *msg;
+				RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+				if (!next_app) {
+					ast_log(LOG_ERROR, "Could not move to Stasis app '%s' - not registered\n",
+						control_next_app(control));
+				} else {
+					ast_log(LOG_ERROR, "Could not move to Stasis app '%s' - not active\n",
+						control_next_app(control));
+				}
+
+				snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
+				if (!snapshot) {
+					ast_log(LOG_ERROR, "Could not get channel shapshot for '%s'\n",
+						ast_channel_name(chan));
+				} else {
+					struct ast_json *json_args;
+					int next_argc = control_next_app_args_size(control);
+					char **next_argv = control_next_app_args(control);
+
+					msg = ast_json_pack("{s: s, s: o, s: s, s: []}",
+						"type", "ApplicationMoveFailed",
+						"channel", ast_channel_snapshot_to_json(snapshot, NULL),
+						"destination", control_next_app(control),
+						"args");
+					json_args = ast_json_object_get(msg, "args");
+					if (!json_args) {
+						ast_log(LOG_ERROR, "Could not get args json array");
+					} else {
+						int r = 0;
+						int idx;
+						for (idx = 0; idx < next_argc; ++idx) {
+							r = ast_json_array_append(json_args,
+								ast_json_string_create(next_argv[idx]));
+							if (r != 0) {
+								ast_log(LOG_ERROR, "Error appending to ApplicationMoveFailed message\n");
+								break;
+							}
+						}
+						if (r == 0) {
+							app_send(control_app(control), msg);
+						}
+					}
+					ast_json_unref(msg);
+				}
+			}
+			control_move_cleanup(control);
+			ao2_cleanup(next_app);
+		}
+
 		last_bridge = bridge;
 		bridge = ao2_bump(stasis_app_get_bridge(control));
 
 		if (bridge != last_bridge) {
 			if (last_bridge) {
-				app_unsubscribe_bridge(app, last_bridge);
+				app_unsubscribe_bridge(control_app(control), last_bridge);
 			}
 			if (bridge) {
-				app_subscribe_bridge(app, bridge);
+				app_subscribe_bridge(control_app(control), bridge);
 			}
 		}
 
@@ -1398,18 +1531,18 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	}
 
 	if (stasis_app_get_bridge(control)) {
-		app_unsubscribe_bridge(app, stasis_app_get_bridge(control));
+		app_unsubscribe_bridge(control_app(control), stasis_app_get_bridge(control));
 	}
 	ao2_cleanup(bridge);
 
 	/* Only publish a stasis_end event if it hasn't already been published */
-	if (!stasis_app_channel_is_stasis_end_published(chan)) {
+	if (!res && !stasis_app_channel_is_stasis_end_published(chan)) {
 		/* A masquerade has occurred and this message will be wrong so it
 		 * has already been sent elsewhere. */
-		res = has_masquerade_store(chan) && app_send_end_msg(app, chan);
+		res = has_masquerade_store(chan) && app_send_end_msg(control_app(control), chan);
 		if (res != 0) {
 			ast_log(LOG_ERROR,
-				"Error sending end message to %s\n", app_name);
+				"Error sending end message to %s\n", stasis_app_name(control_app(control)));
 			return res;
 		}
 	} else {
@@ -1429,12 +1562,10 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	/* The control needs to be removed from the controls container in
 	 * case a new PBX is started and ends up coming back into Stasis.
 	 */
-	ao2_cleanup(app);
-	app = NULL;
 	control_unlink(control);
 	control = NULL;
 
-	if (!ast_channel_pbx(chan)) {
+	if (!res && !ast_channel_pbx(chan)) {
 		int chan_hungup;
 
 		/* The ASYNCGOTO softhangup flag may have broken the channel out of

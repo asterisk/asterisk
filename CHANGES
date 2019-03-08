@@ -20,6 +20,20 @@ ARI
    types defined in the "disallowed" list are not sent to the application. Note
    that if a type is specified in both lists "disallowed" takes precedence.
 
+ * A new REST API call has been added: 'move'. It follows the format
+   'channels/{channelId}/move' and can be used to move channels from one application
+   to another without needing to exit back into the dialplan. An application must be
+   specified, but the passing a list of arguments to the new application is optional.
+   An example call would look like this:
+
+   client.channels.move(channelId=chan.id, app='ari-example', appArgs='a,b,c')
+
+   If the channel was inside of a bridge when switching applications, it will
+   remain there. If the application specified cannot be moved to, then the channel
+   will remain in the current application and an event will be triggered named
+   "ApplicationMoveFailed", which will provide the destination application's name
+   and the channel information.
+
 res_pjsip
 ------------------
  * A new configuration parameter "taskprocessor_overload_trigger" has been

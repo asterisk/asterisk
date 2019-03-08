@@ -420,6 +420,54 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/move",
+			"description": "Move the channel from one Stasis application to another.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Move the channel from one Stasis application to another.",
+					"nickname": "move",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "app",
+							"description": "The channel will be passed to this Stasis application.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "appArgs",
+							"description": "The application arguments to pass to the Stasis application provided by 'app'.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": "404",
+							"reason": "Channel not found"
+						},
+						{
+							"code": "409",
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}/redirect",
 			"description": "Inform the channel that it should redirect itself to a different location. Note that this will almost certainly cause the channel to exit the application.",
 			"operations": [
