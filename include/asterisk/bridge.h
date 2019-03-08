@@ -331,6 +331,8 @@ struct ast_bridge_snapshot {
 	unsigned int num_active;
 	/*! The video mode of the bridge */
 	enum ast_bridge_video_mode_type video_mode;
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*!
@@ -394,6 +396,8 @@ struct ast_bridge {
 	struct ast_vector_int media_types;
 	/*! Current bridge snapshot */
 	struct ast_bridge_snapshot *current_snapshot;
+	/*! The time of bridge creation */
+	struct timeval creationtime;
 };
 
 /*! \brief Bridge base class virtual method table. */

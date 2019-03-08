@@ -246,6 +246,7 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	snapshot->capabilities = bridge->technology->capabilities;
 	snapshot->num_channels = bridge->num_channels;
 	snapshot->num_active = bridge->num_active;
+	snapshot->creationtime = bridge->creationtime;
 	snapshot->video_mode = bridge->softmix.video_mode.mode;
 	if (snapshot->video_mode == AST_BRIDGE_VIDEO_MODE_SINGLE_SRC
 		&& bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc) {
@@ -679,7 +680,7 @@ struct ast_json *ast_bridge_snapshot_to_json(
 		return NULL;
 	}
 
-	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o, s: s}",
+	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o, s: o, s: s}",
 		"id", snapshot->uniqueid,
 		"technology", snapshot->technology,
 		"bridge_type", capability2str(snapshot->capabilities),
@@ -687,6 +688,7 @@ struct ast_json *ast_bridge_snapshot_to_json(
 		"creator", snapshot->creator,
 		"name", snapshot->name,
 		"channels", json_channels,
+		"creationtime", ast_json_timeval(snapshot->creationtime, NULL),
 		"video_mode", ast_bridge_video_mode_to_string(snapshot->video_mode));
 	if (!json_bridge) {
 		return NULL;
