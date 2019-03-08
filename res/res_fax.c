@@ -809,17 +809,17 @@ unsigned int ast_fax_minrate(void)
 
 static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
 {
-	char *m[5], *tok, *v = (char *)value;
+	char *m[5], *tok, *v = (char *) value, *rest;
 	int i = 0, j;
 
 	if (!strchr(v, ',')) {
 		m[i++] = v;
 		m[i] = NULL;
 	} else {
-		tok = strtok(v, ", ");
+		tok = strtok_r(v, ", ", &rest);
 		while (tok && i < ARRAY_LEN(m) - 1) {
 			m[i++] = tok;
-			tok = strtok(NULL, ", ");
+			tok = strtok_r(NULL, ", ", &rest);
 		}
 		m[i] = NULL;
 	}
