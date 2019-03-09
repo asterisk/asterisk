@@ -85,7 +85,7 @@ case "$1" in
 		chgrp $AST_GROUP $ASTVARRUNDIR
 	fi
 	if [ $ALTCONF ]; then
-		ASTARGS="$ASTARGS -C \"$ALTCONF\""
+		ASTARGS="$ASTARGS -C $ALTCONF"
 	fi
 	if [ "x$COREDUMP" = "xyes" ]; then
 		ASTARGS="$ASTARGS -g"
