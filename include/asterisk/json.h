@@ -89,7 +89,7 @@ typedef AST_JSON_INT_T ast_json_int_t;
 /*!
  * \brief Initialize the JSON library.
  */
-void ast_json_init(void);
+int ast_json_init(void);
 
 /*!
  * \brief Set custom allocators instead of the standard ast_malloc() and ast_free().
