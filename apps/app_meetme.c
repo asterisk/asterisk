@@ -3430,7 +3430,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	user->chan = chan;
 	user->userflags = *confflags;
 	user->adminflags = ast_test_flag64(confflags, CONFFLAG_STARTMUTED) ? ADMINFLAG_SELFMUTED : 0;
-	user->adminflags |= (conf->gmuted) ? ADMINFLAG_MUTED : 0;
+	if (!ast_test_flag64(confflags, CONFFLAG_ADMIN)) {
+		user->adminflags |= (conf->gmuted) ? ADMINFLAG_MUTED : 0;
+	}
 	user->talking = -1;
 
 	ast_mutex_unlock(&conf->playlock);
