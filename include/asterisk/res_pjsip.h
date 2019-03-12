@@ -845,6 +845,8 @@ struct ast_sip_endpoint {
 	unsigned int notify_early_inuse_ringing;
 	/*! Suppress Q.850 Reason headers on this endpoint */
 	unsigned int suppress_q850_reason_headers;
+	/*! Ignore 183 if no SDP is present */
+	unsigned int ignore_183_without_sdp;
 };
 
 /*! URI parameter for symmetric transport */
