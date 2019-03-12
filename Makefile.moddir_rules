@@ -114,7 +114,7 @@ ifneq ($(findstring :,$(XMLSTARLET)$(BASH)),:)
 		EXTERNAL_MODS=$$($(XMLSTARLET) sel -t -m "/category/member[support_level = 'external']" -v "@name" -n .moduleinfo) ;\
 		for x in $${EXTERNAL_MODS} ; do \
 			if [ -z "$${DISABLED_MODS[$${x}]}" ] ; then \
-				$(ASTTOPDIR)/build_tools/download_externals $${x} ;\
+				PJPROJECT_BUNDLED=${PJPROJECT_BUNDLED} $(ASTTOPDIR)/build_tools/download_externals $${x} ;\
 			fi ;\
 		done ;\
 	fi
