@@ -453,16 +453,21 @@ int stasis_app_control_move(struct stasis_app_control *control, const char *app_
 	struct stasis_app_control_move_data *move_data;
 	size_t size;
 
-	size = sizeof(*move_data) + strlen(app_name) + strlen(app_args) + 2;
+	size = sizeof(*move_data) + strlen(app_name) + 1;
+	if (app_args) {
+		/* Application arguments are optional */
+		size += strlen(app_args) + 1;
+	}
+
 	if (!(move_data = ast_calloc(1, size))) {
 		return -1;
 	}
 
 	move_data->app_name = (char *)move_data + sizeof(*move_data);
-	move_data->app_args = move_data->app_name + strlen(app_name) + 1;
-
 	strcpy(move_data->app_name, app_name); /* Safe */
+
 	if (app_args) {
+		move_data->app_args = move_data->app_name + strlen(app_name) + 1;
 		strcpy(move_data->app_args, app_args); /* Safe */
 	} else {
 		move_data->app_args = NULL;
