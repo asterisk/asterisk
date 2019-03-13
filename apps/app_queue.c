@@ -4341,6 +4341,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char tech[256];
 	char *location;
 	const char *macrocontext, *macroexten;
+	struct ast_format_cap *nativeformats;
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	/* on entry here, we know that tmp->chan == NULL */
@@ -4357,8 +4358,13 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		location = "";
 	}
 
+	ast_channel_lock(qe->chan);
+	nativeformats = ao2_bump(ast_channel_nativeformats(qe->chan));
+	ast_channel_unlock(qe->chan);
+
 	/* Request the peer */
-	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), NULL, qe->chan, location, &status);
+	tmp->chan = ast_request(tech, nativeformats, NULL, qe->chan, location, &status);
+	ao2_cleanup(nativeformats);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
 		ao2_lock(qe->parent);
 		qe->parent->rrpos++;
