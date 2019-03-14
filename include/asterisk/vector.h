@@ -620,6 +620,34 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 })
 
 /*!
+ * \brief Resize a vector so that its capacity is the same as its size.
+ *
+ * \param vec Vector to compact.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ */
+#define AST_VECTOR_COMPACT(vec) ({ \
+	int res = 0;								\
+	do {														\
+		if ((vec)->max > (vec)->current) {						\
+			size_t new_max = (vec)->current;				\
+			typeof((vec)->elems) new_elems = ast_realloc(		\
+				(vec)->elems,									\
+				new_max * sizeof(*new_elems));					\
+			if (new_elems || (vec)->current == 0) {				\
+				(vec)->elems = new_elems;						\
+				(vec)->max = new_max;							\
+			} else {											\
+				res = -1;										\
+				break;											\
+			}													\
+		}														\
+	} while(0);													\
+	res;														\
+})
+
+/*!
  * \brief Get an address of element in a vector.
  *
  * \param vec Vector to query.
