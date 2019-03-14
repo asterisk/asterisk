@@ -67,13 +67,14 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 {
 	char *cached_name = NULL;
 	struct stasis_cp_all *all;
+	static int cache_id;
 
 	all = ao2_t_alloc(sizeof(*all), all_dtor, name);
 	if (!all) {
 		return NULL;
 	}
 
-	ast_asprintf(&cached_name, "%s-cached", name);
+	ast_asprintf(&cached_name, "cache_pattern:%d/%s", ast_atomic_fetchadd_int(&cache_id, +1), name);
 	if (!cached_name) {
 		ao2_ref(all, -1);
 
