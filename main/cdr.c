@@ -4489,7 +4489,7 @@ int ast_cdr_engine_init(void)
 		return -1;
 	}
 
-	cdr_topic = stasis_topic_create("cdr_engine");
+	cdr_topic = stasis_topic_create("cdr:aggregator");
 	if (!cdr_topic) {
 		return -1;
 	}

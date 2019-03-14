@@ -520,6 +520,8 @@ struct stasis_topic;
  * from a topic and destroy it. As a result the topic can persist until
  * the last subscriber unsubscribes itself even if there is no
  * publisher.
+ *
+ * \note Topic names should be in the form of <subsystem>:<functionality>[/<object>]
  */
 struct stasis_topic *stasis_topic_create(const char *name);
 

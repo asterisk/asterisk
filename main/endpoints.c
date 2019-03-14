@@ -259,9 +259,17 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 	}
 
 	if (!ast_strlen_zero(resource)) {
+		char *topic_name;
+		int ret;
+
+		ret = ast_asprintf(&topic_name, "endpoint:%s", endpoint->id);
+		if (ret < 0) {
+			return NULL;
+		}
 
 		endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
-			endpoint->id);
+			topic_name);
+		ast_free(topic_name);
 		if (!endpoint->topics) {
 			return NULL;
 		}
@@ -288,8 +296,17 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		endpoint_publish_snapshot(endpoint);
 		ao2_link(endpoints, endpoint);
 	} else {
+		char *topic_name;
+		int ret;
+
+		ret = ast_asprintf(&topic_name, "endpoint:%s", endpoint->id);
+		if (ret < 0) {
+			return NULL;
+		}
+
 		endpoint->topics = stasis_cp_sink_create(ast_endpoint_cache_all(),
-			endpoint->id);
+			topic_name);
+		ast_free(topic_name);
 		if (!endpoint->topics) {
 			return NULL;
 		}
