@@ -570,6 +570,169 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 		(caching), (position))
 
 /*!
+ * \brief Wizard Apply Flags
+ *
+ * These flags apply only to a wizard/object-type combination.
+ * The same wizard may be applied to a different object-type with
+ * different flags and behavior.  If ALLOW_DUPLICATE is set
+ * the wizard could even be applied to the same object-type
+ * with different flags.
+ */
+enum ast_sorcery_wizard_apply_flags {
+	/*! Apply no special behavior */
+	AST_SORCERY_WIZARD_APPLY_NONE = (0 << 0),
+	/*! This wizard will cache this object type's entries */
+	AST_SORCERY_WIZARD_APPLY_CACHING = (1 << 0),
+	/*! This wizard won't allow Create, Update or Delete operations on this object type */
+	AST_SORCERY_WIZARD_APPLY_READONLY = (1 << 1),
+	/*! This wizard will allow other instances of itself on the same object type */
+	AST_SORCERY_WIZARD_APPLY_ALLOW_DUPLICATE = (1 << 2)
+};
+
+/*!
+ * \brief Insert an additional object wizard mapping at a specific position
+ * in the wizard list returning wizard information
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object_type_name Name of the object type to apply to
+ * \param module The name of the module, typically AST_MODULE
+ * \param wizard_type_name Name of the wizard type to use
+ * \param wizard_args Opaque string to be passed to the wizard
+ *             May be NULL but see note below
+ * \param flags One or more of enum ast_sorcery_wizard_apply_flags
+ * \param position An index to insert to or one of ast_sorcery_wizard_position
+ * \param[out] wizard A variable to receive a pointer to the ast_sorcery_wizard structure.
+ *             May be NULL if not needed.
+ * \param[out] wizard_data A variable to receive a pointer to the wizard's internal data.
+ *             May be NULL if not needed.
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ *
+ * \note Although \ref wizard_args is an optional parameter it is highly
+ * recommended to supply one.  If you use the AST_SORCERY_WIZARD_APPLY_ALLOW_DUPLICATE
+ * flag, and you intend to ever remove a wizard mapping, you'll need wizard_args
+ * to remove specific instances of a wizard type.
+ */
+enum ast_sorcery_apply_result __ast_sorcery_object_type_insert_wizard(struct ast_sorcery *sorcery,
+	const char *object_type_name, const char *module, const char *wizard_type_name,
+	const char *wizard_args, enum ast_sorcery_wizard_apply_flags flags, int position,
+	struct ast_sorcery_wizard **wizard, void **wizard_data);
+
+/*!
+ * \brief Insert an additional object wizard mapping at a specific position
+ * in the wizard list returning wizard information
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object_type_name Name of the object type to apply to
+ * \param wizard_type_name Name of the wizard type to use
+ * \param wizard_args Opaque string to be passed to the wizard
+ *             May be NULL but see note below
+ * \param flags One or more of enum ast_sorcery_wizard_apply_flags
+ * \param position An index to insert to or one of ast_sorcery_wizard_position
+ * \param[out] wizard A variable to receive a pointer to the ast_sorcery_wizard structure.
+ *             May be NULL if not needed.
+ * \param[out] wizard_data A variable to receive a pointer to the wizard's internal data.
+ *             May be NULL if not needed.
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ *
+ * \note Although \ref wizard_args is an optional parameter it is highly
+ * recommended to supply one.  If you use the AST_SORCERY_WIZARD_APPLY_ALLOW_DUPLICATE
+ * flag, and you intend to ever remove a wizard mapping, you'll need wizard_args
+ * to remove specific instances.
+ */
+#define ast_sorcery_object_type_insert_wizard(sorcery, \
+	object_type_name, wizard_type_name, wizard_args, flags, \
+	position, wizard, wizard_data) \
+	__ast_sorcery_object_type_insert_wizard((sorcery), \
+		(object_type_name), AST_MODULE, (wizard_type_name), (wizard_args), (flags), \
+		position, (wizard), (wizard_data))
+
+/*!
+ * \brief Apply additional object wizard mappings returning wizard information
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object_type_name Name of the object type to apply to
+ * \param wizard_type_name Name of the wizard type to use
+ * \param wizard_args Opaque string to be passed to the wizard
+ *             May be NULL but see note below
+ * \param flags One or more of enum ast_sorcery_wizard_apply_flags
+ * \param[out] wizard A variable to receive a pointer to the ast_sorcery_wizard structure.
+ *             May be NULL if not needed.
+ * \param[out] wizard_data A variable to receive a pointer to the wizard's internal data.
+ *             May be NULL if not needed.
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ *
+ * \note Although \ref wizard_args is an optional parameter it is highly
+ * recommended to supply one.  If you use the AST_SORCERY_WIZARD_APPLY_ALLOW_DUPLICATE
+ * flag, and you intend to ever remove a wizard mapping, you'll need wizard_args
+ * to remove specific instances.
+ */
+#define ast_sorcery_object_type_apply_wizard(sorcery, \
+	object_type_name, wizard_type_name, wizard_args, flags, \
+	wizard, wizard_data) \
+	__ast_sorcery_object_type_insert_wizard((sorcery), \
+		(object_type_name), AST_MODULE, (wizard_type_name), (wizard_args), (flags), \
+		AST_SORCERY_WIZARD_POSITION_LAST, (wizard), (wizard_data))
+
+/*!
+ * \brief Remove an object wizard mapping
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object_type_name Name of the object type to remove from
+ * \param module The name of the module, typically AST_MODULE
+ * \param wizard_type_name The name of the of the wizard type to remove
+ * \param wizard_args Opaque string originally passed to the wizard
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note If there were multiple instances of the same wizard type
+ * added to this object type without using \ref wizard_args, then
+ * only the first wizard matching wizard_type will be removed.
+ */
+int __ast_sorcery_object_type_remove_wizard(struct ast_sorcery *sorcery,
+	const char *object_type_name, const char *module, const char *wizard_type_name,
+	const char *wizard_args);
+
+/*!
+ * \brief Remove an object wizard mapping
+ * \since 13.26.0
+ * \since 16.3.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object_type_name Name of the object type to remove from
+ * \param wizard_type_name The name of the of the wizard type to remove
+ * \param wizard_args Opaque string originally passed to the wizard
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note If there were multiple instances of the same wizard type
+ * added to this object type without using \ref wizard_args, then
+ * only the first wizard matching wizard_type will be removed.
+ */
+#define ast_sorcery_object_type_remove_wizard(sorcery, object_type_name, \
+	wizard_type_name, wizard_args) \
+	__ast_sorcery_object_type_remove_wizard((sorcery), (object_type_name), \
+		AST_MODULE, (wizard_type_name), (wizard_args))
+
+/*!
  * \brief Remove an object wizard mapping
  *
  * \param sorcery Pointer to a sorcery structure
