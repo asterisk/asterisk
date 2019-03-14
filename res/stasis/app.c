@@ -919,6 +919,8 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	int res = 0;
 	size_t context_size = strlen("stasis-") + strlen(name) + 1;
 	char context_name[context_size];
+	char *topic_name;
+	int ret;
 
 	ast_assert(name != NULL);
 	ast_assert(handler != NULL);
@@ -939,7 +941,13 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 		return NULL;
 	}
 
-	app->topic = stasis_topic_create(name);
+	ret = ast_asprintf(&topic_name, "ari:application/%s", name);
+	if (ret < 0) {
+		return NULL;
+	}
+
+	app->topic = stasis_topic_create(topic_name);
+	ast_free(topic_name);
 	if (!app->topic) {
 		return NULL;
 	}

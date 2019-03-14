@@ -500,7 +500,7 @@ int ast_presence_state_engine_init(void)
 		return -1;
 	}
 
-	presence_state_topic_all = stasis_topic_create("ast_presence_state_topic_all");
+	presence_state_topic_all = stasis_topic_create("presence_state:all");
 	if (!presence_state_topic_all) {
 		return -1;
 	}

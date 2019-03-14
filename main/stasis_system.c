@@ -374,7 +374,7 @@ int ast_stasis_system_init(void)
 {
 	ast_register_cleanup(stasis_system_cleanup);
 
-	system_topic = stasis_topic_create("ast_system");
+	system_topic = stasis_topic_create("system:all");
 	if (!system_topic) {
 		return 1;
 	}

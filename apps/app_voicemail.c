@@ -13334,6 +13334,7 @@ static void mwi_unsub_event_cb(struct stasis_subscription_change *change)
 static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 {
 	struct mwi_sub_task *mwist;
+	const char *topic;
 	char *context;
 	char *mailbox;
 
@@ -13342,7 +13343,9 @@ static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 		return;
 	}
 
-	if (separate_mailbox(ast_strdupa(stasis_topic_name(change->topic)), &mailbox, &context)) {
+	/* The topic name is prefixed with "mwi:all/" as this is a pool topic */
+	topic = stasis_topic_name(change->topic) + 8;
+	if (separate_mailbox(ast_strdupa(topic), &mailbox, &context)) {
 		ast_free(mwist);
 		return;
 	}

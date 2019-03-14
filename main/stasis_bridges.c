@@ -294,12 +294,21 @@ static struct ast_bridge_snapshot_update *bridge_snapshot_update_create(
 
 int bridge_topics_init(struct ast_bridge *bridge)
 {
+	char *topic_name;
+	int ret;
+
 	if (ast_strlen_zero(bridge->uniqueid)) {
 		ast_log(LOG_ERROR, "Bridge id initialization required\n");
 		return -1;
 	}
 
-	bridge->topic = stasis_topic_pool_get_topic(bridge_topic_pool, bridge->uniqueid);
+	ret = ast_asprintf(&topic_name, "bridge:%s", bridge->uniqueid);
+	if (ret < 0) {
+		return -1;
+	}
+
+	bridge->topic = stasis_topic_pool_get_topic(bridge_topic_pool, topic_name);
+	ast_free(topic_name);
 	if (!bridge->topic) {
 		return -1;
 	}
@@ -1365,7 +1374,7 @@ int ast_stasis_bridging_init(void)
 
 	ast_register_cleanup(stasis_bridging_cleanup);
 
-	bridge_topic_all = stasis_topic_create("ast_bridge_topic_all");
+	bridge_topic_all = stasis_topic_create("bridge:all");
 	if (!bridge_topic_all) {
 		return -1;
 	}

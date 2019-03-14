@@ -8996,7 +8996,7 @@ static int __init_manager(int reload, int by_external_config)
 		if (res != 0) {
 			return -1;
 		}
-		manager_topic = stasis_topic_create("manager_topic");
+		manager_topic = stasis_topic_create("manager:core");
 		if (!manager_topic) {
 			return -1;
 		}

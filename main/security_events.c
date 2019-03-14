@@ -484,7 +484,7 @@ int ast_security_stasis_init(void)
 {
 	ast_register_cleanup(security_stasis_cleanup);
 
-	security_topic = stasis_topic_create("ast_security");
+	security_topic = stasis_topic_create("security:all");
 	if (!security_topic) {
 		return -1;
 	}

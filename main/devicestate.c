@@ -902,7 +902,7 @@ int devstate_init(void)
 	if (STASIS_MESSAGE_TYPE_INIT(ast_device_state_message_type) != 0) {
 		return -1;
 	}
-	device_state_topic_all = stasis_topic_create("ast_device_state_topic");
+	device_state_topic_all = stasis_topic_create("devicestate:all");
 	if (!device_state_topic_all) {
 		return -1;
 	}
