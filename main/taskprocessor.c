@@ -714,7 +714,7 @@ static char *cli_subsystem_alert_report(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, FMT_FIELDS_SUBSYSTEM, alert->subsystem, alert->alert_count);
 	}
 
-	ast_cli(a->fd, "\n%lu subsystems\n\n", AST_VECTOR_SIZE(&sorted_subsystems));
+	ast_cli(a->fd, "\n%zu subsystems\n\n", AST_VECTOR_SIZE(&sorted_subsystems));
 
 	AST_VECTOR_CALLBACK_VOID(&sorted_subsystems, ast_free);
 	AST_VECTOR_FREE(&sorted_subsystems);
