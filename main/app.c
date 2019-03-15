@@ -3337,8 +3337,6 @@ int ast_delete_mwi_state_full(const char *mailbox, const char *context, struct a
 		stasis_publish(mailbox_specific_topic, clear_msg);
 	}
 
-	stasis_topic_pool_delete_topic(mwi_topic_pool, mwi_state->uniqueid);
-
 	ao2_cleanup(clear_msg);
 	return 0;
 }
