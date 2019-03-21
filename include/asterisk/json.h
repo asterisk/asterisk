@@ -993,6 +993,22 @@ struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone);
 struct ast_json *ast_json_ipaddr(const struct ast_sockaddr *addr, enum ast_transport transport_type);
 
 /*!
+ * \brief Construct a context/exten/priority/application/application_data as JSON.
+ *
+ * If a \c NULL is passed for \c context or \c exten or \c app_name or \c app_data,
+ * or -1 for \c priority, the fields is set to ast_json_null().
+ *
+ * \param context Context name.
+ * \param exten Extension.
+ * \param priority Dialplan priority.
+ * \param app_name Application name.
+ * \param app_data Application argument.
+ * \return JSON object with \c context, \c exten and \c priority \c app_name \c app_data fields
+ */
+struct ast_json *ast_json_dialplan_cep_app(
+		const char *context, const char *exten, int priority, const char *app_name, const char *app_data);
+
+/*!
  * \brief Construct a context/exten/priority as JSON.
  *
  * If a \c NULL is passed for \c context or \c exten, or -1 for \c priority,

@@ -1499,6 +1499,8 @@ ari_validator ast_ari_validate_application_fn(void);
  * - state: string (required)
  * Dialed
  * DialplanCEP
+ * - app_data: string (required)
+ * - app_name: string (required)
  * - context: string (required)
  * - exten: string (required)
  * - priority: long (required)
