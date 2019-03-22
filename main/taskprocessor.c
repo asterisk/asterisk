@@ -509,8 +509,8 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	struct ao2_container *sorted_tps;
 	struct ast_taskprocessor *tps;
 	struct ao2_iterator iter;
-#define FMT_HEADERS		"%-45s %10s %10s %10s %10s %10s\n"
-#define FMT_FIELDS		"%-45s %10lu %10lu %10lu %10lu %10lu\n"
+#define FMT_HEADERS		"%-70s %10s %10s %10s %10s %10s\n"
+#define FMT_FIELDS		"%-70s %10lu %10lu %10lu %10lu %10lu\n"
 
 	switch (cmd) {
 	case CLI_INIT:

@@ -57,7 +57,7 @@
 struct ast_taskprocessor;
 
 /*! \brief Suggested maximum taskprocessor name length (less null terminator). */
-#define AST_TASKPROCESSOR_MAX_NAME	45
+#define AST_TASKPROCESSOR_MAX_NAME	70
 
 /*! Default taskprocessor high water level alert trigger */
 #define AST_TASKPROCESSOR_HIGH_WATER_LEVEL 500
