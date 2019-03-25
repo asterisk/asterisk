@@ -33182,7 +33182,8 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Usage of SIP_CAUSE is deprecated.  Please use HANGUPCAUSE instead.\n");
 			}
 		} else if (!strcasecmp(v->name, "qualifygap")) {
-			if (sscanf(v->value, "%30d", &global_qualify_gap) != 1) {
+			if (sscanf(v->value, "%30d", &global_qualify_gap) != 1
+				|| global_qualify_gap < 0) {
 				ast_log(LOG_WARNING, "Invalid qualifygap '%s' at line %d of %s\n", v->value, v->lineno, config);
 				global_qualify_gap = DEFAULT_QUALIFY_GAP;
 			}
