@@ -1070,7 +1070,7 @@ static int parse_uri_cb(void *data)
 
 	pj_strdup2_with_null(pool, &tmp, args->uri);
 	uri = (pjsip_name_addr *)pjsip_parse_uri(pool, tmp.ptr, tmp.slen, PJSIP_PARSE_URI_AS_NAMEADDR);
-	if (!uri) {
+	if (!uri || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
 		ast_log(LOG_WARNING, "Failed to parse URI '%s'\n", args->uri);
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		args->ret = -1;
