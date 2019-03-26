@@ -2034,6 +2034,7 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_args = 0;
 	int has_channel = 0;
 	int has_destination = 0;
@@ -2070,6 +2071,7 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2126,6 +2128,11 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ApplicationMoveFailed missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_args) {
 		ast_log(LOG_ERROR, "ARI ApplicationMoveFailed missing required field args\n");
 		res = 0;
@@ -2155,6 +2162,7 @@ int ast_ari_validate_application_replaced(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
 		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
@@ -2188,6 +2196,7 @@ int ast_ari_validate_application_replaced(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2213,6 +2222,11 @@ int ast_ari_validate_application_replaced(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ApplicationReplaced missing required field timestamp\n");
+		res = 0;
+	}
+
 	return res;
 }
 
@@ -2227,6 +2241,7 @@ int ast_ari_validate_bridge_attended_transfer(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_destination_type = 0;
 	int has_is_external = 0;
 	int has_result = 0;
@@ -2265,6 +2280,7 @@ int ast_ari_validate_bridge_attended_transfer(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2439,6 +2455,11 @@ int ast_ari_validate_bridge_attended_transfer(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeAttendedTransfer missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_destination_type) {
 		ast_log(LOG_ERROR, "ARI BridgeAttendedTransfer missing required field destination_type\n");
 		res = 0;
@@ -2478,6 +2499,7 @@ int ast_ari_validate_bridge_blind_transfer(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 	int has_context = 0;
 	int has_exten = 0;
@@ -2516,6 +2538,7 @@ int ast_ari_validate_bridge_blind_transfer(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2618,6 +2641,11 @@ int ast_ari_validate_bridge_blind_transfer(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeBlindTransfer missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI BridgeBlindTransfer missing required field channel\n");
 		res = 0;
@@ -2657,6 +2685,7 @@ int ast_ari_validate_bridge_created(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -2691,6 +2720,7 @@ int ast_ari_validate_bridge_created(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2726,6 +2756,11 @@ int ast_ari_validate_bridge_created(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeCreated missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI BridgeCreated missing required field bridge\n");
 		res = 0;
@@ -2745,6 +2780,7 @@ int ast_ari_validate_bridge_destroyed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -2779,6 +2815,7 @@ int ast_ari_validate_bridge_destroyed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2814,6 +2851,11 @@ int ast_ari_validate_bridge_destroyed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeDestroyed missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI BridgeDestroyed missing required field bridge\n");
 		res = 0;
@@ -2833,6 +2875,7 @@ int ast_ari_validate_bridge_merged(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 	int has_bridge_from = 0;
 
@@ -2868,6 +2911,7 @@ int ast_ari_validate_bridge_merged(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2913,6 +2957,11 @@ int ast_ari_validate_bridge_merged(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeMerged missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI BridgeMerged missing required field bridge\n");
 		res = 0;
@@ -2937,6 +2986,7 @@ int ast_ari_validate_bridge_video_source_changed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -2971,6 +3021,7 @@ int ast_ari_validate_bridge_video_source_changed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3015,6 +3066,11 @@ int ast_ari_validate_bridge_video_source_changed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field bridge\n");
 		res = 0;
@@ -3034,6 +3090,7 @@ int ast_ari_validate_channel_caller_id(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_caller_presentation = 0;
 	int has_caller_presentation_txt = 0;
 	int has_channel = 0;
@@ -3070,6 +3127,7 @@ int ast_ari_validate_channel_caller_id(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3125,6 +3183,11 @@ int ast_ari_validate_channel_caller_id(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelCallerId missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_caller_presentation) {
 		ast_log(LOG_ERROR, "ARI ChannelCallerId missing required field caller_presentation\n");
 		res = 0;
@@ -3154,6 +3217,7 @@ int ast_ari_validate_channel_connected_line(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -3188,6 +3252,7 @@ int ast_ari_validate_channel_connected_line(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3223,6 +3288,11 @@ int ast_ari_validate_channel_connected_line(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelConnectedLine missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelConnectedLine missing required field channel\n");
 		res = 0;
@@ -3242,6 +3312,7 @@ int ast_ari_validate_channel_created(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -3276,6 +3347,7 @@ int ast_ari_validate_channel_created(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3311,6 +3383,11 @@ int ast_ari_validate_channel_created(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelCreated missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelCreated missing required field channel\n");
 		res = 0;
@@ -3330,6 +3407,7 @@ int ast_ari_validate_channel_destroyed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_cause = 0;
 	int has_cause_txt = 0;
 	int has_channel = 0;
@@ -3366,6 +3444,7 @@ int ast_ari_validate_channel_destroyed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3421,6 +3500,11 @@ int ast_ari_validate_channel_destroyed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelDestroyed missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_cause) {
 		ast_log(LOG_ERROR, "ARI ChannelDestroyed missing required field cause\n");
 		res = 0;
@@ -3450,6 +3534,7 @@ int ast_ari_validate_channel_dialplan(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 	int has_dialplan_app = 0;
 	int has_dialplan_app_data = 0;
@@ -3486,6 +3571,7 @@ int ast_ari_validate_channel_dialplan(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3541,6 +3627,11 @@ int ast_ari_validate_channel_dialplan(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelDialplan missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelDialplan missing required field channel\n");
 		res = 0;
@@ -3570,6 +3661,7 @@ int ast_ari_validate_channel_dtmf_received(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 	int has_digit = 0;
 	int has_duration_ms = 0;
@@ -3606,6 +3698,7 @@ int ast_ari_validate_channel_dtmf_received(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3661,6 +3754,11 @@ int ast_ari_validate_channel_dtmf_received(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelDtmfReceived missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelDtmfReceived missing required field channel\n");
 		res = 0;
@@ -3690,6 +3788,7 @@ int ast_ari_validate_channel_entered_bridge(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -3724,6 +3823,7 @@ int ast_ari_validate_channel_entered_bridge(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3768,6 +3868,11 @@ int ast_ari_validate_channel_entered_bridge(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelEnteredBridge missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI ChannelEnteredBridge missing required field bridge\n");
 		res = 0;
@@ -3787,6 +3892,7 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -3821,6 +3927,7 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3874,6 +3981,11 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelHangupRequest missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelHangupRequest missing required field channel\n");
 		res = 0;
@@ -3893,6 +4005,7 @@ int ast_ari_validate_channel_hold(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -3927,6 +4040,7 @@ int ast_ari_validate_channel_hold(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -3971,6 +4085,11 @@ int ast_ari_validate_channel_hold(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelHold missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelHold missing required field channel\n");
 		res = 0;
@@ -3990,6 +4109,7 @@ int ast_ari_validate_channel_left_bridge(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_bridge = 0;
 	int has_channel = 0;
 
@@ -4025,6 +4145,7 @@ int ast_ari_validate_channel_left_bridge(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4070,6 +4191,11 @@ int ast_ari_validate_channel_left_bridge(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelLeftBridge missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_bridge) {
 		ast_log(LOG_ERROR, "ARI ChannelLeftBridge missing required field bridge\n");
 		res = 0;
@@ -4094,6 +4220,7 @@ int ast_ari_validate_channel_state_change(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -4128,6 +4255,7 @@ int ast_ari_validate_channel_state_change(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4163,6 +4291,11 @@ int ast_ari_validate_channel_state_change(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelStateChange missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelStateChange missing required field channel\n");
 		res = 0;
@@ -4182,6 +4315,7 @@ int ast_ari_validate_channel_talking_finished(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 	int has_duration = 0;
 
@@ -4217,6 +4351,7 @@ int ast_ari_validate_channel_talking_finished(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4262,6 +4397,11 @@ int ast_ari_validate_channel_talking_finished(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field channel\n");
 		res = 0;
@@ -4286,6 +4426,7 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -4320,6 +4461,7 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4355,6 +4497,11 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingStarted missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelTalkingStarted missing required field channel\n");
 		res = 0;
@@ -4374,6 +4521,7 @@ int ast_ari_validate_channel_unhold(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -4408,6 +4556,7 @@ int ast_ari_validate_channel_unhold(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4443,6 +4592,11 @@ int ast_ari_validate_channel_unhold(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelUnhold missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI ChannelUnhold missing required field channel\n");
 		res = 0;
@@ -4462,6 +4616,7 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_eventname = 0;
 	int has_userevent = 0;
 
@@ -4497,6 +4652,7 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4569,6 +4725,11 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_eventname) {
 		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field eventname\n");
 		res = 0;
@@ -4593,6 +4754,7 @@ int ast_ari_validate_channel_varset(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_value = 0;
 	int has_variable = 0;
 
@@ -4628,6 +4790,7 @@ int ast_ari_validate_channel_varset(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4679,6 +4842,11 @@ int ast_ari_validate_channel_varset(struct ast_json *json)
 
 	if (!has_application) {
 		ast_log(LOG_ERROR, "ARI ChannelVarset missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ChannelVarset missing required field timestamp\n");
 		res = 0;
 	}
 
@@ -4785,6 +4953,7 @@ int ast_ari_validate_contact_status_change(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_contact_info = 0;
 	int has_endpoint = 0;
 
@@ -4820,6 +4989,7 @@ int ast_ari_validate_contact_status_change(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4865,6 +5035,11 @@ int ast_ari_validate_contact_status_change(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_contact_info) {
 		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field contact_info\n");
 		res = 0;
@@ -4889,6 +5064,7 @@ int ast_ari_validate_device_state_changed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_device_state = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -4923,6 +5099,7 @@ int ast_ari_validate_device_state_changed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -4958,6 +5135,11 @@ int ast_ari_validate_device_state_changed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI DeviceStateChanged missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_device_state) {
 		ast_log(LOG_ERROR, "ARI DeviceStateChanged missing required field device_state\n");
 		res = 0;
@@ -4977,6 +5159,7 @@ int ast_ari_validate_dial(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_dialstatus = 0;
 	int has_peer = 0;
 
@@ -5012,6 +5195,7 @@ int ast_ari_validate_dial(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5093,6 +5277,11 @@ int ast_ari_validate_dial(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI Dial missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_dialstatus) {
 		ast_log(LOG_ERROR, "ARI Dial missing required field dialstatus\n");
 		res = 0;
@@ -5117,6 +5306,7 @@ int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_endpoint = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -5151,6 +5341,7 @@ int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5186,6 +5377,11 @@ int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI EndpointStateChange missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_endpoint) {
 		ast_log(LOG_ERROR, "ARI EndpointStateChange missing required field endpoint\n");
 		res = 0;
@@ -5205,6 +5401,7 @@ int ast_ari_validate_event(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	const char *discriminator;
 
 	discriminator = ast_json_string_get(ast_json_object_get(json, "type"));
@@ -5365,6 +5562,7 @@ int ast_ari_validate_event(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5387,6 +5585,11 @@ int ast_ari_validate_event(struct ast_json *json)
 
 	if (!has_application) {
 		ast_log(LOG_ERROR, "ARI Event missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI Event missing required field timestamp\n");
 		res = 0;
 	}
 
@@ -5722,6 +5925,7 @@ int ast_ari_validate_peer_status_change(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_endpoint = 0;
 	int has_peer = 0;
 
@@ -5757,6 +5961,7 @@ int ast_ari_validate_peer_status_change(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5802,6 +6007,11 @@ int ast_ari_validate_peer_status_change(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_endpoint) {
 		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field endpoint\n");
 		res = 0;
@@ -5826,6 +6036,7 @@ int ast_ari_validate_playback_finished(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -5860,6 +6071,7 @@ int ast_ari_validate_playback_finished(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5895,6 +6107,11 @@ int ast_ari_validate_playback_finished(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI PlaybackFinished missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_playback) {
 		ast_log(LOG_ERROR, "ARI PlaybackFinished missing required field playback\n");
 		res = 0;
@@ -5914,6 +6131,7 @@ int ast_ari_validate_playback_started(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -5948,6 +6166,7 @@ int ast_ari_validate_playback_started(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -5983,6 +6202,11 @@ int ast_ari_validate_playback_started(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI PlaybackStarted missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_playback) {
 		ast_log(LOG_ERROR, "ARI PlaybackStarted missing required field playback\n");
 		res = 0;
@@ -6002,6 +6226,7 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6036,6 +6261,7 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6071,6 +6297,11 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_recording) {
 		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field recording\n");
 		res = 0;
@@ -6090,6 +6321,7 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6124,6 +6356,7 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6159,6 +6392,11 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI RecordingFinished missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_recording) {
 		ast_log(LOG_ERROR, "ARI RecordingFinished missing required field recording\n");
 		res = 0;
@@ -6178,6 +6416,7 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6212,6 +6451,7 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6247,6 +6487,11 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI RecordingStarted missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_recording) {
 		ast_log(LOG_ERROR, "ARI RecordingStarted missing required field recording\n");
 		res = 0;
@@ -6266,6 +6511,7 @@ int ast_ari_validate_stasis_end(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_channel = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6300,6 +6546,7 @@ int ast_ari_validate_stasis_end(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6335,6 +6582,11 @@ int ast_ari_validate_stasis_end(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI StasisEnd missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_channel) {
 		ast_log(LOG_ERROR, "ARI StasisEnd missing required field channel\n");
 		res = 0;
@@ -6354,6 +6606,7 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_args = 0;
 	int has_channel = 0;
 
@@ -6389,6 +6642,7 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6444,6 +6698,11 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI StasisStart missing required field timestamp\n");
+		res = 0;
+	}
+
 	if (!has_args) {
 		ast_log(LOG_ERROR, "ARI StasisStart missing required field args\n");
 		res = 0;
@@ -6468,6 +6727,7 @@ int ast_ari_validate_text_message_received(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_message = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -6502,6 +6762,7 @@ int ast_ari_validate_text_message_received(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -6543,6 +6804,11 @@ int ast_ari_validate_text_message_received(struct ast_json *json)
 
 	if (!has_application) {
 		ast_log(LOG_ERROR, "ARI TextMessageReceived missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI TextMessageReceived missing required field timestamp\n");
 		res = 0;
 	}
 

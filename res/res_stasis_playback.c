@@ -105,9 +105,10 @@ static struct ast_json *playback_to_json(struct stasis_message *message,
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: o}",
+	return ast_json_pack("{s: s, s: o?, s: O}",
 		"type", type,
-		"playback", ast_json_deep_copy(blob));
+		"timestamp", ast_json_timeval(*stasis_message_timestamp(message), NULL),
+		"playback", blob);
 }
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_app_playback_snapshot_type,
