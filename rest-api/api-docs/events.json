@@ -148,7 +148,7 @@
 				"timestamp": {
 					"type": "Date",
 					"description": "Time at which this event was created.",
-					"required": false
+					"required": true
 				}
 			},
 			"subTypes": [

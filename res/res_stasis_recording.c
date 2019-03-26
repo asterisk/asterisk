@@ -89,8 +89,9 @@ static struct ast_json *recording_to_json(struct stasis_message *message,
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: O}",
+	return ast_json_pack("{s: s, s: o?, s: O}",
 		"type", type,
+		"timestamp", ast_json_timeval(*stasis_message_timestamp(message), NULL),
 		"recording", blob);
 }
 
