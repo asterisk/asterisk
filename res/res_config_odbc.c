@@ -287,19 +287,34 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		}
 
 		stringp = ast_str_buffer(rowdata);
-		while (stringp) {
-			chunk = strsep(&stringp, ";");
-			if (!ast_strlen_zero(ast_strip(chunk))) {
-				if (strchr(chunk, '^')) {
-					decode_chunk(chunk);
+		if (!strncmp(coltitle, "@", 1)) {
+			/* The '@' prefix indicates it's a sorcery extended field.
+			 * Because ast_load_realtime_fields eliminates empty entries and makes blank (single whitespace)
+			 * entries empty and keeps them, the empty or NULL values are encoded
+			 * as a string containing a single whitespace. */
+			if (prev) {
+				prev->next = ast_variable_new(coltitle, S_OR(stringp," "), "");
+				if (prev->next) {
+					prev = prev->next;
 				}
-				if (prev) {
-					prev->next = ast_variable_new(coltitle, chunk, "");
-					if (prev->next) {
-						prev = prev->next;
+			} else {
+				prev = var = ast_variable_new(coltitle, S_OR(stringp," "), "");
+			}
+		} else {
+			while (stringp) {
+				chunk = strsep(&stringp, ";");
+				if (!ast_strlen_zero(ast_strip(chunk))) {
+					if (strchr(chunk, '^')) {
+						decode_chunk(chunk);
 					}
-				} else {
-					prev = var = ast_variable_new(coltitle, chunk, "");
+					if (prev) {
+						prev->next = ast_variable_new(coltitle, chunk, "");
+						if (prev->next) {
+							prev = prev->next;
+						}
+					} else {
+						prev = var = ast_variable_new(coltitle, chunk, "");
+					}
 				}
 			}
 		}
@@ -451,17 +466,26 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				goto next_sql_fetch;
 			}
 			stringp = ast_str_buffer(rowdata);
-			while (stringp) {
-				chunk = strsep(&stringp, ";");
-				if (!ast_strlen_zero(ast_strip(chunk))) {
-					if (strchr(chunk, '^')) {
-						decode_chunk(chunk);
+			if (!strncmp(coltitle, "@", 1)) {
+				/* The '@' prefix indicates it's a sorcery extended field.
+				 * Because ast_load_realtime_fields eliminates empty entries and makes blank (single whitespace)
+				 * entries empty and keeps them, the empty or NULL values are encoded
+				 * as a string containing a single whitespace. */
+				var = ast_variable_new(coltitle, S_OR(stringp," "), "");
+				ast_variable_append(cat, var);
+			} else {
+				while (stringp) {
+					chunk = strsep(&stringp, ";");
+					if (!ast_strlen_zero(ast_strip(chunk))) {
+						if (strchr(chunk, '^')) {
+							decode_chunk(chunk);
+						}
+						if (!strcmp(initfield, coltitle)) {
+							ast_category_rename(cat, chunk);
+						}
+						var = ast_variable_new(coltitle, chunk, "");
+						ast_variable_append(cat, var);
 					}
-					if (!strcmp(initfield, coltitle)) {
-						ast_category_rename(cat, chunk);
-					}
-					var = ast_variable_new(coltitle, chunk, "");
-					ast_variable_append(cat, var);
 				}
 			}
 		}
