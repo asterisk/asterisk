@@ -28,11 +28,12 @@ def upgrade():
     op.add_column('ps_globals',
         sa.Column('taskprocessor_overload_trigger',
             sa.Enum(*PJSIP_TASKPROCESSOR_OVERLOAD_TRIGGER_VALUES,
-            name=PJSIP_TASKPROCESSOR_OVERLOAD_TRIGGER_NAME,
-            create_type=False)))
+            name=PJSIP_TASKPROCESSOR_OVERLOAD_TRIGGER_NAME)))
 
 def downgrade():
-    if op.get_context().bind.dialect.name == 'mssql':
+    context = op.get_context()
+
+    if context.bind.dialect.name == 'mssql':
         op.drop_constraint('ck_ps_globals_taskprocessor_overload_trigger_pjsip_taskprocessor_overload_trigger_values', 'ps_globals')
     op.drop_column('ps_globals', 'taskprocessor_overload_trigger')
 
