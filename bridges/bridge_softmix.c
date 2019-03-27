@@ -33,6 +33,8 @@
 
 #include "asterisk.h"
 
+#include <math.h>
+
 #include "asterisk/stream.h"
 #include "asterisk/test.h"
 #include "asterisk/vector.h"
@@ -75,8 +77,8 @@ struct softmix_remb_collector {
 	struct ast_frame frame;
 	/*! The REMB to send to the source which is collecting REMB reports */
 	struct ast_rtp_rtcp_feedback feedback;
-	/*! The maximum bitrate */
-	unsigned int bitrate;
+	/*! The maximum bitrate (A single precision floating point is big enough) */
+	float bitrate;
 };
 
 struct softmix_stats {
@@ -1334,7 +1336,7 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 	struct softmix_bridge_data *softmix_data, struct softmix_channel *sc)
 {
 	int i;
-	unsigned int bitrate;
+	float bitrate;
 
 	/* If there are no video sources that we are a receiver of then we have noone to
 	 * report REMB to.
@@ -1391,6 +1393,7 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct softmix_channel *sc)
 {
 	int i;
+	int exp;
 
 	if (!sc->remb_collector) {
 		return;
@@ -1398,17 +1401,52 @@ static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct s
 
 	/* We always do this calculation as even when the bitrate is zero the browser
 	 * still prefers it to be accurate instead of lying.
+	 *
+	 * The mantissa only has 18 bits available, so make sure it fits. Adjust the
+	 * value and exponent for those values that don't.
+	 *
+	 * For example given the following:
+	 *
+	 * bitrate = 123456789.0
+	 * frexp(bitrate, &exp);
+	 *
+	 * 'exp' should now equal 27 (number of bits needed to represent the value). Since
+	 * the mantissa must fit into an 18-bit unsigned integer, and the given bitrate is
+	 * too large to fit, we must subtract 18 from the exponent in order to get the
+	 * number of times the bitrate will fit into that size integer.
+	 *
+	 * exp -= 18;
+	 *
+	 * 'exp' is now equal to 9. Now we can get the mantissa that fits into an 18-bit
+	 * unsigned integer by dividing the bitrate by 2^exp:
+	 *
+	 * mantissa = 123456789.0 / 2^9
+	 *
+	 * This makes the final mantissa equal to 241126 (implicitly cast), which is less
+	 * than 262143 (the max value that can be put into an unsigned 18-bit integer).
+	 * So now we have the following:
+	 *
+	 * exp = 9;
+	 * mantissa = 241126;
+	 *
+	 * If we multiply that back we should come up with something close to the original
+	 * bit rate:
+	 *
+	 * 241126 * 2^9 = 123456512
+	 *
+	 * Precision is lost due to the nature of floating point values. Easier to why from
+	 * the binary:
+	 *
+	 * 241126 * 2^9 = 241126 << 9 = 111010110111100110 << 9 = 111010110111100110000000000
+	 *
+	 * Precision on the "lower" end is lost due to zeros being shifted in. This loss is
+	 * both expected and acceptable.
 	 */
-	sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate;
-	sc->remb_collector->feedback.remb.br_exp = 0;
+	frexp(sc->remb_collector->bitrate, &exp);
+	exp = exp > 18 ? exp - 18 : 0;
 
-	/* The mantissa only has 18 bits available, so while it exceeds them we bump
-	 * up the exp.
-	 */
-	while (sc->remb_collector->feedback.remb.br_mantissa > 0x3ffff) {
-		sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->feedback.remb.br_mantissa >> 1;
-		sc->remb_collector->feedback.remb.br_exp++;
-	}
+	sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate / (1 << exp);
+	sc->remb_collector->feedback.remb.br_exp = exp;
 
 	for (i = 0; i < AST_VECTOR_SIZE(&bridge_channel->stream_map.to_bridge); ++i) {
 		int bridge_num = AST_VECTOR_GET(&bridge_channel->stream_map.to_bridge, i);
