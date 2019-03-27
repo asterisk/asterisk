@@ -583,7 +583,8 @@
 	</function>
 	<function name="QUEUE_MEMBER" language="en_US">
 		<synopsis>
-			Count number of members answering a queue.
+			Provides a count of queue members based on the provided criteria, or updates a
+			queue member's settings.
 		</synopsis>
 		<syntax>
 			<parameter name="queuename" required="false" />
