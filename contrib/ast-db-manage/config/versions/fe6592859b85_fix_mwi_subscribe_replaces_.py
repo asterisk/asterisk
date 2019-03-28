@@ -34,7 +34,7 @@ def upgrade():
     op.alter_column('ps_endpoints', 'mwi_subscribe_replaces_unsolicited',
                     type_=sa.String(5))
     op.alter_column('ps_endpoints', 'mwi_subscribe_replaces_unsolicited',
-                    type_=ast_bool_values)
+            type_=ast_bool_values, postgresql_using='mwi_subscribe_replaces_unsolicited::{0}'.format(AST_BOOL_NAME))
 
 
 def downgrade():
@@ -55,7 +55,7 @@ def downgrade():
     op.alter_column('ps_endpoints', 'mwi_subscribe_replaces_unsolicited',
                     type_=sa.String(5))
     op.alter_column('ps_endpoints', 'mwi_subscribe_replaces_unsolicited',
-                    type_=sa.Integer)
+            type_=sa.Integer, postgresql_using='mwi_subscribe_replaces_unsolicited::Integer')
 
     if op.get_context().bind.dialect.name == 'postgresql':
         ENUM(name=AST_BOOL_NAME).drop(op.get_bind(), checkfirst=False)
