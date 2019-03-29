@@ -2941,24 +2941,34 @@ inline int ast_auto_answer(struct ast_channel *chan)
 	return ast_answer(chan);
 }
 
-int ast_channel_get_duration(struct ast_channel *chan)
+int64_t ast_channel_get_duration_ms(struct ast_channel *chan)
 {
 	ast_assert(NULL != chan);
 
 	if (ast_tvzero(ast_channel_creationtime(chan))) {
 		return 0;
 	}
-	return (ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(chan)) / 1000);
+	return ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(chan));
 }
 
-int ast_channel_get_up_time(struct ast_channel *chan)
+int ast_channel_get_duration(struct ast_channel *chan)
+{
+	return (ast_channel_get_duration_ms(chan) / 1000);
+}
+
+int64_t ast_channel_get_up_time_ms(struct ast_channel *chan)
 {
 	ast_assert(NULL != chan);
 
 	if (ast_tvzero(ast_channel_answertime(chan))) {
 		return 0;
 	}
-	return (ast_tvdiff_ms(ast_tvnow(), ast_channel_answertime(chan)) / 1000);
+	return ast_tvdiff_ms(ast_tvnow(), ast_channel_answertime(chan));
+}
+
+int ast_channel_get_up_time(struct ast_channel *chan)
+{
+	return (ast_channel_get_up_time_ms(chan) / 1000);
 }
 
 static void deactivate_generator_nolock(struct ast_channel *chan)
