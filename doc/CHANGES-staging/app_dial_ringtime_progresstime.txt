@@ -1,0 +1,12 @@
+Subject: Dial
+
+Add RINGTIME and RINGTIME_MS variables containing respectively seconds and
+milliseconds between creation of the dialing channel and receiving the first
+RINGING signal
+
+Add PROGRESSTIME and PROGRESSTIME_MS variables analogous to the above with respect to
+the PROGRESS signal. Shorter of these two times should be equivalent to
+the PDD (Post Dial Delay) value
+
+Add DIALEDTIME_MS and ANSWEREDTIME_MS variables to get millisecond resolution
+versions of DIALEDTIME and ANSWEREDTIME
