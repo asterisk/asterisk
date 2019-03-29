@@ -3463,6 +3463,9 @@ static void rt_handle_member_record(struct call_queue *q, char *category, struct
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			if (paused_str) {
 				m->paused = paused;
+				if (paused) {
+					time(&m->lastpause); /* XXX: Should this come from realtime? */
+				}
 				ast_devstate_changed(m->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
 					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
 			}
@@ -9749,14 +9752,14 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 					mem->dynamic ? ast_term_color(COLOR_CYAN, COLOR_BLACK) : "", mem->dynamic ? " (dynamic)" : "", ast_term_reset(),
 					mem->realtime ? ast_term_color(COLOR_MAGENTA, COLOR_BLACK) : "", mem->realtime ? " (realtime)" : "", ast_term_reset(),
 					mem->starttime ? ast_term_color(COLOR_BROWN, COLOR_BLACK) : "", mem->starttime ? " (in call)" : "", ast_term_reset());
+
 				if (mem->paused) {
-					if (ast_strlen_zero(mem->reason_paused)) {
-						ast_str_append(&out, 0, " %s(paused was %ld secs ago)%s",
-							ast_term_color(COLOR_BROWN, COLOR_BLACK), (long) (time(NULL) - mem->lastpause), ast_term_reset());
-					} else {
-						ast_str_append(&out, 0, " %s(paused:%s was %ld secs ago)%s", ast_term_color(COLOR_BROWN, COLOR_BLACK),
-							mem->reason_paused,  (long) (time(NULL) - mem->lastcall), ast_term_reset());
-					}
+					ast_str_append(&out, 0, " %s(paused%s%s was %ld secs ago)%s",
+						ast_term_color(COLOR_BROWN, COLOR_BLACK),
+						ast_strlen_zero(mem->reason_paused) ? "" : ":",
+						ast_strlen_zero(mem->reason_paused) ? "" : mem->reason_paused,
+						(long) (now - mem->lastpause),
+						ast_term_reset());
 				}
 
 				ast_str_append(&out, 0, " (%s%s%s)",
@@ -9766,7 +9769,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 						ast_devstate2str(mem->status), ast_term_reset());
 				if (mem->calls) {
 					ast_str_append(&out, 0, " has taken %d calls (last was %ld secs ago)",
-						mem->calls, (long) (time(NULL) - mem->lastcall));
+						mem->calls, (long) (now - mem->lastcall));
 				} else {
 					ast_str_append(&out, 0, " has taken no calls yet");
 				}
