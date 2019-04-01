@@ -1,0 +1,36 @@
+Subject: Bridging
+Master-Only: true
+
+The bridging core no longer uses the stasis cache for bridge
+snapshots.  The latest bridge snapshot is now stored on the
+ast_bridge structure itself.
+
+The following APIs are no longer available since the stasis cache
+is no longer used:
+  ast_bridge_topic_cached()
+  ast_bridge_topic_all_cached()
+
+A topic pool is now used for individual bridge topics.
+
+The ast_bridge_cache() function was removed since there's no
+longer a separate container of snapshots.
+
+A new function "ast_bridges()" was created to retrieve the
+container of all bridges.  Users formerly calling
+ast_bridge_cache() can use the new function to iterate over
+bridges and retrieve the latest snapshot directly from the
+bridge.
+
+The ast_bridge_snapshot_get_latest() function was renamed to
+ast_bridge_get_snapshot_by_uniqueid().
+
+A new function "ast_bridge_get_snapshot()" was created to retrieve
+the bridge snapshot directly from the bridge structure.
+
+The ast_bridge_topic_all() function now returns a normal topic
+not a cached one so you can't use stasis cache functions on it
+either.
+
+The ast_bridge_snapshot_type() stasis message now has the
+ast_bridge_snapshot_update structure as it's data.  It contains
+the last snapshot and the new one.
