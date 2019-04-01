@@ -5,23 +5,27 @@ used by the release script to update the UPGRADE.txt file automatically. The
 only time that it is necessary to add something to the UPGRADE-staging directory
 is if you are making a breaking change to an existing feature in Asterisk. The
 file does not need to have a meaningful name, but it probably should. If there
-are multiple items that need documenting, each can be separated with a subject
-line, which should always start with "Subject:", followed by the subject of the
-change. This is case sensitive! For example, if you are making a change to PJSIP,
-then you might add the file "res_pjsip_breaking_change" to this directory, with
-a short description of what it does. If you are adding multiple entries, they
-should be done in the same commit to avoid merge conflicts. Here's an example:
+are multiple items that need documenting, you can add multiple files, each with
+their own description. If the message is going to be the same for each subject,
+then you can add multiple subject headers to one file. The "Subject: xxx" line
+is case sensitive! For example, if you are making a change to PJSIP, then you
+might add the file "res_pjsip_my_cool_feature" to this directory, with a short
+description of what it does. If you are adding multiple entries, they should be
+done in the same commit to avoid merge conflicts. Here's an example:
 
 > Subject: res_pjsip
+> Subject: Core
 >
-> Here's a pretty good description of what I changed that explains exactly what
-> it does and why it breaks things (and why they needed to be broken).
+> Here's a pretty good description of my new feature that explains exactly what
+> it does and how to use it.
+
+Here's a master-only example:
+
+> Subject: res_ari
+> Master-Only: True
 >
-> Subject: core
-> Master-Only: true
->
-> Here's another description of something else I added that is a big enough
-> change to warrant another entry in the UPDATE.txt file.
+> This change will only go into the master branch. The "Master-Only" header
+> will never be in a change not in master.
 
 Note that the second subject has another header: "Master-Only". Changes that go
 into the master branch and ONLY the master branch are the only ones that should
