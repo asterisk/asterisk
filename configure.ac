@@ -729,6 +729,20 @@ if test "${DISABLE_XMLDOC}" != "yes"; then
 
 fi
 
+AC_ARG_ENABLE([permanent-dlopen],
+	[AS_HELP_STRING([--enable-permanent-dlopen],
+		[Enable when your libc has a permanent dlopen like musl])],
+	[case "${enableval}" in
+		y|ye|yes) PERMANENT_DLOPEN=yes ;;
+		n|no)  PERMANENT_DLOPEN=no ;;
+		*) AC_MSG_ERROR(bad value ${enableval} for --enable-permanent-dlopen)  ;;
+	esac], [PERMANENT_DLOPEN=no])
+
+AC_SUBST([PERMANENT_DLOPEN])
+if test "${PERMANENT_DLOPEN}" == "yes"; then
+	AC_DEFINE([HAVE_PERMANENT_DLOPEN], 1, [Define to support libc with permanent dlopen.])
+fi
+
 # some embedded systems omit internationalization (locale) support
 AC_CHECK_HEADERS([xlocale.h])
 
