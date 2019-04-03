@@ -3071,7 +3071,7 @@ static char *dundi_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ast_cli(a->fd, FORMAT2, "Prefix", "Context", "Expiration", "From");
 
 	for (db_entry = db_tree; db_entry; db_entry = db_entry->next) {
-		char *rest;
+		char *rest = NULL;
 
 		if (ast_get_time_t(db_entry->data, &ts, 0, &length)) {
 			continue;

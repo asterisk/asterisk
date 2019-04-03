@@ -11637,7 +11637,7 @@ static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_c
 				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
 	} else if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
-		char *rest;
+		char *rest = NULL;
 		/* count numbers of generations in fmtp */
 		red_cp = &red_fmtp[strlen(red_fmtp)];
 		strncpy(red_fmtp, a, 100);
