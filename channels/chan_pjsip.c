@@ -1758,7 +1758,7 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 		break;
 	case AST_SIP_DTMF_AUTO_INFO:
 		if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_NONE)) {
-			return -1;
+			return 0;
 		}
 		ast_rtp_instance_dtmf_begin(media->rtp, digit);
 		break;
