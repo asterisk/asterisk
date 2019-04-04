@@ -31,6 +31,8 @@
 
 #include "asterisk.h"
 
+#include <math.h>
+
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
@@ -39,9 +41,9 @@
 
 struct remb_values {
 	/*! \brief The amount of bitrate to use for REMB received from the channel */
-	unsigned int receive_bitrate;
+	float receive_bitrate;
 	/*! \brief The amount of bitrate to use for REMB sent to the channel */
-	unsigned int send_bitrate;
+	float send_bitrate;
 };
 
 static void remb_values_free(void *data)
@@ -59,6 +61,8 @@ static struct ast_frame *remb_hook_event_cb(struct ast_channel *chan, struct ast
 	struct ast_rtp_rtcp_feedback *feedback;
 	struct ast_datastore *remb_store;
 	struct remb_values *remb_values;
+	int exp;
+	float bitrate;
 
 	if (!frame) {
 		return NULL;
@@ -91,20 +95,57 @@ static struct ast_frame *remb_hook_event_cb(struct ast_channel *chan, struct ast
 
 	/* If a bitrate override has been set apply it to the REMB Frame */
 	if (event == AST_FRAMEHOOK_EVENT_READ && remb_values->receive_bitrate) {
-		feedback->remb.br_mantissa = remb_values->receive_bitrate;
-		feedback->remb.br_exp = 0;
+		bitrate = remb_values->receive_bitrate;
 	} else if (event == AST_FRAMEHOOK_EVENT_WRITE && remb_values->send_bitrate) {
-		feedback->remb.br_mantissa = remb_values->send_bitrate;
-		feedback->remb.br_exp = 0;
+		bitrate = remb_values->send_bitrate;
 	}
 
-	/* The mantissa only has 18 bits available, so while it exceeds them we bump
-	 * up the exp.
+	/*
+	 * The mantissa only has 18 bits available, so make sure it fits. Adjust the
+	 * value and exponent for those values that don't.
+	 *
+	 * For example given the following:
+	 *
+	 * bitrate = 123456789.0
+	 * frexp(bitrate, &exp);
+	 *
+	 * 'exp' should now equal 27 (number of bits needed to represent the value). Since
+	 * the mantissa must fit into an 18-bit unsigned integer, and the given bitrate is
+	 * too large to fit, we must subtract 18 from the exponent in order to get the
+	 * number of times the bitrate will fit into that size integer.
+	 *
+	 * exp -= 18;
+	 *
+	 * 'exp' is now equal to 9. Now we can get the mantissa that fits into an 18-bit
+	 * unsigned integer by dividing the bitrate by 2^exp:
+	 *
+	 * mantissa = 123456789.0 / 2^9
+	 *
+	 * This makes the final mantissa equal to 241126 (implicitly cast), which is less
+	 * than 262143 (the max value that can be put into an unsigned 18-bit integer).
+	 * So now we have the following:
+	 *
+	 * exp = 9;
+	 * mantissa = 241126;
+	 *
+	 * If we multiply that back we should come up with something close to the original
+	 * bit rate:
+	 *
+	 * 241126 * 2^9 = 123456512
+	 *
+	 * Precision is lost due to the nature of floating point values. Easier to why from
+	 * the binary:
+	 *
+	 * 241126 * 2^9 = 241126 << 9 = 111010110111100110 << 9 = 111010110111100110000000000
+	 *
+	 * Precision on the "lower" end is lost due to zeros being shifted in. This loss is
+	 * both expected and acceptable.
 	 */
-	while (feedback->remb.br_mantissa > 0x3ffff) {
-		feedback->remb.br_mantissa = feedback->remb.br_mantissa >> 1;
-		feedback->remb.br_exp++;
-	}
+	frexp(bitrate, &exp);
+	exp = exp > 18 ? exp - 18 : 0;
+
+	feedback->remb.br_mantissa = bitrate / (1 << exp);
+	feedback->remb.br_exp = exp;
 
 	return frame;
 }
