@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.26.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.26.0-rc1</h3><h3 align="center">Date: 2019-04-01</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.26.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.26.0</h3><h3 align="center">Date: 2019-04-04</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,7 +7,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-13.25.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">14 Sean Bright <sean.bright@gmail.com><br/>8 Joshua Colp <jcolp@digium.com><br/>7 George Joseph <gjoseph@digium.com><br/>6 Kevin Harwell <kharwell@digium.com><br/>5 sungtae kim <sungtae@messagebird.com><br/>3 Torrey Searle <torrey@voxbone.com><br/>3 Ben Ford <bford@digium.com><br/>2 Sungtae Kim <sungtae@messagebird.com><br/>2 Alexei Gradinari <alex2grad@gmail.com><br/>2 cirillor <cirillor@lbv.org.br><br/>2 Joshua C. Colp <jcolp@digium.com><br/>1 Matthew Fredrickson <creslin@digium.com><br/>1 Dömsödi Gergely <doome@uhusystems.com><br/>1 Chris-Savinovich <csavinovich@digium.com><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Chris Savinovich <csavinovich@digium.com><br/>1 Paulo Vicentini <paulo.vicentini@gmail.com><br/></td><td width="33%"><td width="33%">7 sungtae kim <pchero21@gmail.com><br/>5 George Joseph <gjoseph@digium.com><br/>3 Joshua C. Colp <jcolp@digium.com><br/>3 Torrey Searle <tsearle@gmail.com><br/>2 Stefan Repke <stefffan@gmx.de><br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>2 Michael <ringo@vianet.ca><br/>2 Cirillo Ferreira <cirillor@lbv.org.br><br/>1 Alex Odrov <suroviy@gmail.com><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Philip Mott <ptm@nexbridge.co.uk><br/>1 Benjamin Keith Ford <bford@digium.com><br/>1 Nikolay shakin <post@itprofit32.ru><br/>1 Olivier Krief<br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Francisco Seratti <fseratti@gmail.com><br/>1 Paul Sandys <myj@nyct.net><br/>1 Francisco Seratti<br/>1 Paul Sandys<br/>1 Jared Hull <programmerjared@yahoo.com><br/>1 Jonathan Harris <lardconcepts@gmail.com><br/>1 Jared Hull<br/>1 Paulo Vicentini <paulo.vicentini@gmail.com><br/>1 Olivier Krief <olivier.krief@gmail.com><br/>1 Guido Weckwerth <gweckwerth@gmx.de><br/></td></tr>
+<tr valign="top"><td width="33%">14 Sean Bright <sean.bright@gmail.com><br/>8 Joshua Colp <jcolp@digium.com><br/>7 George Joseph <gjoseph@digium.com><br/>6 Kevin Harwell <kharwell@digium.com><br/>5 sungtae kim <sungtae@messagebird.com><br/>4 Ben Ford <bford@digium.com><br/>3 Torrey Searle <torrey@voxbone.com><br/>2 Sungtae Kim <sungtae@messagebird.com><br/>2 Alexei Gradinari <alex2grad@gmail.com><br/>2 cirillor <cirillor@lbv.org.br><br/>2 Joshua C. Colp <jcolp@digium.com><br/>1 Matthew Fredrickson <creslin@digium.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Dömsödi Gergely <doome@uhusystems.com><br/>1 Chris-Savinovich <csavinovich@digium.com><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Chris Savinovich <csavinovich@digium.com><br/>1 Paulo Vicentini <paulo.vicentini@gmail.com><br/></td><td width="33%"><td width="33%">8 sungtae kim <pchero21@gmail.com><br/>5 George Joseph <gjoseph@digium.com><br/>3 Joshua C. Colp <jcolp@digium.com><br/>3 Torrey Searle <tsearle@gmail.com><br/>2 Stefan Repke <stefffan@gmx.de><br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>2 Michael <ringo@vianet.ca><br/>2 Cirillo Ferreira <cirillor@lbv.org.br><br/>1 Alex Odrov <suroviy@gmail.com><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Philip Mott <ptm@nexbridge.co.uk><br/>1 Benjamin Keith Ford <bford@digium.com><br/>1 Nikolay shakin <post@itprofit32.ru><br/>1 Olivier Krief<br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Francisco Seratti <fseratti@gmail.com><br/>1 Paul Sandys <myj@nyct.net><br/>1 Francisco Seratti<br/>1 Paul Sandys<br/>1 Jared Hull <programmerjared@yahoo.com><br/>1 Jonathan Harris <lardconcepts@gmail.com><br/>1 Jared Hull<br/>1 Paulo Vicentini <paulo.vicentini@gmail.com><br/>1 Olivier Krief <olivier.krief@gmail.com><br/>1 Guido Weckwerth <gweckwerth@gmx.de><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Resources/res_ari</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28267">ASTERISK-28267</a>: res_stasis: Add ability to switch applications<br/>Reported by: Benjamin Keith Ford<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=65170ba8f012b745d637f668ea165480417ace5d">[65170ba8f0]</a> Ben Ford -- res_stasis: Add ability to switch applications.</li>
 </ul><br><h3>Bug</h3><h4>Category: Applications/app_meetme</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28328">ASTERISK-28328</a>: MeetMe global non-admin mute is muting admins that subsequently join<br/>Reported by: Philip Mott<ul>
@@ -29,7 +29,9 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3974633c00fa81573065e415f61f44be2b032f2a">[3974633c00]</a> Kevin Harwell -- res_pjsip_registrar: lock transport monitor when setting 'removing' flag</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28288">ASTERISK-28288</a>: Resources (udptl fd) leaking for T.38 calls<br/>Reported by: Paulo Vicentini<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2db81ee2b465c1c8f9c9e20359310b61e2f5e0f6">[2db81ee2b4]</a> Paulo Vicentini -- res/res_pjsip: Resources (udptl fd) are leaking for T.38 calls</li>
-</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25792">ASTERISK-25792</a>: chan_sip: qualifygap bounds checking<br/>Reported by: Paul Sandys<ul>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28362">ASTERISK-28362</a>: strtok_r() makes gcc compile warning<br/>Reported by: sungtae kim<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1b70b5c45ab8fb98c673e3a589fa3c182a9948da">[1b70b5c45a]</a> Ben Ford -- build: Fix compiler warnings/errors.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25792">ASTERISK-25792</a>: chan_sip: qualifygap bounds checking<br/>Reported by: Paul Sandys<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53aa750839e63d5c9804dfc25e5e0c2ac7f405ea">[53aa750839]</a> Sean Bright -- chan_sip: Ensure 'qualifygap' isn't negative</li>
 </ul><br><h4>Category: Configs/Basic-PBX</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28272">ASTERISK-28272</a>: The basic-pbx config samples don't produce a running asterisk<br/>Reported by: George Joseph<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1f3d6e1ebf89654b1593707ecd18be78e5070acb">[1f3d6e1ebf]</a> Joshua Colp -- basic-pbx: Update configuration to work with current modules.</li>
@@ -95,6 +97,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=148ddfba9afc83b102fadabecf67d48a65e30e4a">[148ddfba9a]</a> Sungtae Kim -- http.c: Support separated HTTP request</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0ed0c92cabab0a3b5de5ccfe871811233b459d88">0ed0c92cab</a></td><td>Asterisk Development Team</td><td>Update for 13.26.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4de27f332dd23ac7874778b476cdd01794efc3ea">4de27f332d</a></td><td>Ben Ford</td><td>alembic: Fix errors during upgrade head.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=90c16539975f9047e8b69566110f75c62d6c6fdb">90c1653997</a></td><td>Ben Ford</td><td>build: Add staging directories for future changes.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6e20e071a9fb95c8b13aa19a4ccd7592b0b82521">6e20e071a9</a></td><td>Alexei Gradinari</td><td>pjsip: restrict function PJSIP_PARSE_URI to parse only SIP/SIPS URIs</td></tr>
@@ -116,17 +119,18 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b2d3c9d2ded7eee5305aef17abca2b5bb134556a">b2d3c9d2de</a></td><td>Kevin Harwell</td><td>json.c/strings.c - Add a couple of utility functions</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3e922adcc1854141e2842966cc0dcd160ba77ad9">3e922adcc1</a></td><td>Chris Savinovich</td><td>Revert "Test_cel: Fails when DONT_OPTIMIZE is off"</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e70f8f7c209dc8439d133b8486bc12c12c081321">e70f8f7c20</a></td><td>Sean Bright</td><td>sounds: Sort 'core show sounds' output</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                   |    1
-.version                                                                                     |    1
-ChangeLog                                                                                    |64711 ----------
-asterisk-13.25.0-summary.html                                                                |  189
-asterisk-13.25.0-summary.txt                                                                 |  481
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-13.25.0-summary.html                                                                |  189
+asterisk-13.25.0-summary.txt                                                                 |  481 --
+b/.version                                                                                   |    2
 b/CHANGES                                                                                    |   48
+b/ChangeLog                                                                                  |  904 ++++
 b/Makefile.moddir_rules                                                                      |    2
 b/Makefile.rules                                                                             |    6
 b/apps/app_meetme.c                                                                          |    4
 b/apps/app_queue.c                                                                           |   20
 b/apps/app_voicemail.c                                                                       |    9
+b/asterisk-13.26.0-rc1-summary.html                                                          |  249 +
+b/asterisk-13.26.0-rc1-summary.txt                                                           |  604 ++
 b/cdr/cdr_adaptive_odbc.c                                                                    |    2
 b/cdr/cdr_odbc.c                                                                             |    2
 b/cel/cel_odbc.c                                                                             |    2
@@ -144,6 +148,8 @@ b/contrib/ast-db-manage/config/versions/ef7efc2d3964_ps_contacts_add_endpoint_an
 b/contrib/ast-db-manage/config/versions/f3c0b8695b66_taskprocessor_overload_trigger.py       |   43
 b/contrib/ast-db-manage/config/versions/fe6592859b85_fix_mwi_subscribe_replaces_.py          |    4
 b/contrib/init.d/rc.debian.asterisk                                                          |    2
+b/contrib/realtime/mysql/mysql_config.sql                                                    |   12
+b/contrib/realtime/postgresql/postgresql_config.sql                                          |   16
 b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                            |    2
 b/doc/CHANGES-staging/README.md                                                              |   33
 b/doc/UPGRADE-staging/README.md                                                              |   32
@@ -176,7 +182,7 @@ b/main/rtp_engine.c                                                             
 b/main/security_events.c                                                                     |    2
 b/main/sorcery.c                                                                             |  127
 b/main/sounds.c                                                                              |   18
-b/main/stasis.c                                                                              |  211
+b/main/stasis.c                                                                              |  211 -
 b/main/stasis_bridges.c                                                                      |   18
 b/main/stasis_cache.c                                                                        |    3
 b/main/stasis_cache_pattern.c                                                                |    3
@@ -184,12 +190,12 @@ b/main/stasis_channels.c                                                        
 b/main/stasis_endpoints.c                                                                    |    2
 b/main/stasis_system.c                                                                       |    2
 b/main/strings.c                                                                             |    9
-b/main/taskprocessor.c                                                                       |  205
+b/main/taskprocessor.c                                                                       |  205 -
 b/main/test.c                                                                                |    2
 b/main/threadpool.c                                                                          |    7
 b/menuselect/menuselect_gtk.c                                                                |   26
 b/pbx/pbx_dundi.c                                                                            |   20
-b/res/ari/ari_model_validators.c                                                             |  443
+b/res/ari/ari_model_validators.c                                                             |  443 ++
 b/res/ari/ari_model_validators.h                                                             |  103
 b/res/ari/resource_applications.c                                                            |   22
 b/res/ari/resource_applications.h                                                            |   28
@@ -233,17 +239,11 @@ b/tests/CI/ref_debug.jenkinsfile                                                
 b/tests/CI/unittests.jenkinsfile                                                             |   10
 b/tests/test_res_stasis.c                                                                    |    3
 b/tests/test_sorcery.c                                                                       |   76
-b/tests/test_taskprocessor.c                                                                 |   40
+b/tests/test_taskprocessor.c                                                                 |  126
 contrib/realtime/mssql/mssql_cdr.sql                                                         |   45
-contrib/realtime/mssql/mssql_config.sql                                                      | 2020
+contrib/realtime/mssql/mssql_config.sql                                                      | 2020 ----------
 contrib/realtime/mssql/mssql_voicemail.sql                                                   |   55
-contrib/realtime/mysql/mysql_cdr.sql                                                         |   33
-contrib/realtime/mysql/mysql_config.sql                                                      | 1165
-contrib/realtime/mysql/mysql_voicemail.sql                                                   |   35
 contrib/realtime/oracle/oracle_cdr.sql                                                       |   39
-contrib/realtime/oracle/oracle_config.sql                                                    | 1978
+contrib/realtime/oracle/oracle_config.sql                                                    | 1978 ---------
 contrib/realtime/oracle/oracle_voicemail.sql                                                 |   49
-contrib/realtime/postgresql/postgresql_cdr.sql                                               |   37
-contrib/realtime/postgresql/postgresql_config.sql                                            | 1261
-contrib/realtime/postgresql/postgresql_voicemail.sql                                         |   39
-130 files changed, 3470 insertions(+), 72526 deletions(-)</pre><br></html>
+127 files changed, 5332 insertions(+), 5254 deletions(-)</pre><br></html>
