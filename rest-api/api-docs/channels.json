@@ -1511,6 +1511,34 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/channels/{channelId}/rtp_statistics",
+			"description": "Get RTP statistics information for RTP on a channel",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "RTP stats on a channel.",
+					"nickname": "rtpstatistics",
+					"responseClass": "RTPstat",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel cannot be found."
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
@@ -1551,6 +1579,172 @@
 				"number": {
 					"required": true,
 					"type": "string"
+				}
+			}
+		},
+		"RTPstat": {
+			"id": "RTPstat",
+			"description": "A statistics of a RTP.",
+			"properties": {
+				"txcount": {
+					"required": true,
+					"type": "int",
+					"description": "Number of packets transmitted."
+				},
+				"rxcount": {
+					"required": true,
+					"type": "int",
+					"description": "Number of packets received."
+				},
+				"txjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Jitter on transmitted packets."
+				},
+				"rxjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Jitter on received packets."
+				},
+				"remote_maxjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum jitter on remote side."
+				},
+				"remote_minjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Minimum jitter on remote side."
+				},
+				"remote_normdevjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Average jitter on remote side."
+				},
+				"remote_stdevjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Standard deviation jitter on remote side."
+				},
+				"local_maxjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum jitter on local side."
+				},
+				"local_minjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Minimum jitter on local side."
+				},
+				"local_normdevjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Average jitter on local side."
+				},
+				"local_stdevjitter": {
+					"required": false,
+					"type": "double",
+					"description": "Standard deviation jitter on local side."
+				},
+				"txploss": {
+					"required": true,
+					"type": "int",
+					"description": "Number of transmitted packets lost."
+				},
+				"rxploss": {
+					"required": true,
+					"type": "int",
+					"description": "Number of received packets lost."
+				},
+				"remote_maxrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum number of packets lost on remote side."
+				},
+				"remote_minrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Minimum number of packets lost on remote side."
+				},
+				"remote_normdevrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Average number of packets lost on remote side."
+				},
+				"remote_stdevrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Standard deviation packets lost on remote side."
+				},
+				"local_maxrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum number of packets lost on local side."
+				},
+				"local_minrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Minimum number of packets lost on local side."
+				},
+				"local_normdevrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Average number of packets lost on local side."
+				},
+				"local_stdevrxploss": {
+					"required": false,
+					"type": "double",
+					"description": "Standard deviation packets lost on local side."
+				},
+				"rtt": {
+					"required": false,
+					"type": "double",
+					"description": "Total round trip time."
+				},
+				"maxrtt": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum round trip time."
+				},
+				"minrtt": {
+					"required": false,
+					"type": "double",
+					"description": "Minimum round trip time."
+				},
+				"normdevrtt": {
+					"required": false,
+					"type": "double",
+					"description": "Average round trip time."
+				},
+				"stdevrtt": {
+					"required": false,
+					"type": "double",
+					"description": "Standard deviation round trip time."
+				},
+				"local_ssrc": {
+					"required": true,
+					"type": "int",
+					"description": "Our SSRC."
+				},
+				"remote_ssrc": {
+					"required": true,
+					"type": "int",
+					"description": "Their SSRC."
+				},
+				"txoctetcount": {
+					"required": true,
+					"type": "int",
+					"description": "Number of octets transmitted."
+				},
+				"rxoctetcount": {
+					"required": true,
+					"type": "int",
+					"description": "Number of octets received."
+				},
+				"channel_uniqueid": {
+					"required": true,
+					"type": "string",
+					"description": "The Asterisk channel's unique ID that owns this instance."
 				}
 			}
 		},
