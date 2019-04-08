@@ -2788,6 +2788,13 @@ unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void);
 unsigned int ast_sip_get_use_callerid_contact(void);
 
 /*!
+ * \brief Retrieve the global setting 'norefersub'.
+ *
+ * \retval non zero if norefersub is to be sent in "Supported" Headers
+ */
+unsigned int ast_sip_get_norefersub(void);
+
+/*!
  * \brief Retrieve the global setting 'ignore_uri_user_options'.
  * \since 13.12.0
  *

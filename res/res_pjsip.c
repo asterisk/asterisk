@@ -1874,6 +1874,9 @@
 						</para></warning>
 					</description>
 				</configOption>
+				<configOption name="norefersub" default="yes">
+					<synopsis>Advertise support for RFC4488 REFER subscription suppression</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>

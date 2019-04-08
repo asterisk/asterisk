@@ -1232,7 +1232,10 @@ static int load_module(void)
 
 	pjsip_replaces_init_module(ast_sip_get_pjsip_endpoint());
 	pjsip_xfer_init_module(ast_sip_get_pjsip_endpoint());
-	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub);
+
+	if (ast_sip_get_norefersub()) {
+		pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub);
+	}
 
 	ast_sip_register_service(&refer_progress_module);
 	ast_sip_session_register_supplement(&refer_supplement);

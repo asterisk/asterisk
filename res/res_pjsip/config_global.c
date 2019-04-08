@@ -52,6 +52,7 @@
 #define DEFAULT_USE_CALLERID_CONTACT 0
 #define DEFAULT_SEND_CONTACT_STATUS_ON_UPDATE_REGISTRATION 1
 #define DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER TASKPROCESSOR_OVERLOAD_TRIGGER_GLOBAL
+#define DEFAULT_NOREFERSUB 1
 
 /*!
  * \brief Cached global config object
@@ -113,6 +114,8 @@ struct global_config {
 	unsigned int send_contact_status_on_update_registration;
 	/*! Trigger the distributor should use to pause accepting new dialogs */
 	enum ast_sip_taskprocessor_overload_trigger overload_trigger;
+	/*! Nonzero if norefersub is to be sent in Supported header */
+	unsigned int norefersub;
 };
 
 static void global_destructor(void *obj)
@@ -501,6 +504,21 @@ enum ast_sip_taskprocessor_overload_trigger ast_sip_get_taskprocessor_overload_t
 	return trigger;
 }
 
+unsigned int ast_sip_get_norefersub(void)
+{
+	unsigned int norefersub;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_NOREFERSUB;
+	}
+
+	norefersub = cfg->norefersub;
+	ao2_ref(cfg, -1);
+	return norefersub;
+}
+
 static int overload_trigger_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -704,6 +722,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register_custom(sorcery, "global", "taskprocessor_overload_trigger",
 		overload_trigger_map[DEFAULT_TASKPROCESSOR_OVERLOAD_TRIGGER],
 		overload_trigger_handler, overload_trigger_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "global", "norefersub",
+		DEFAULT_NOREFERSUB ? "yes" : "no",
+		OPT_YESNO_T, 1, FLDSET(struct global_config, norefersub));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;

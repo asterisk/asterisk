@@ -1132,6 +1132,11 @@
                 ; with extreme caution and only to mitigate specific issues.
                 ; Under certain conditions they could make things worse.
 
+;norefersub=yes     ; Enable sending norefersub option tag in Supported header to advertise
+                    ; that the User Agent is capable of accepting a REFER request with
+                    ; creating an implicit subscription (see RFC 4488).
+                    ; (default: "yes")
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]
