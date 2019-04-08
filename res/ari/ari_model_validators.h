@@ -478,6 +478,24 @@ int ast_ari_validate_dialplan_cep(struct ast_json *json);
 ari_validator ast_ari_validate_dialplan_cep_fn(void);
 
 /*!
+ * \brief Validator for RTPstat.
+ *
+ * A statistics of a RTP.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_rtpstat(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_rtpstat().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_rtpstat_fn(void);
+
+/*!
  * \brief Validator for Bridge.
  *
  * The merging of media from one or more channels.
@@ -1504,6 +1522,39 @@ ari_validator ast_ari_validate_application_fn(void);
  * - context: string (required)
  * - exten: string (required)
  * - priority: long (required)
+ * RTPstat
+ * - channel_uniqueid: string (required)
+ * - local_maxjitter: double
+ * - local_maxrxploss: double
+ * - local_minjitter: double
+ * - local_minrxploss: double
+ * - local_normdevjitter: double
+ * - local_normdevrxploss: double
+ * - local_ssrc: int (required)
+ * - local_stdevjitter: double
+ * - local_stdevrxploss: double
+ * - maxrtt: double
+ * - minrtt: double
+ * - normdevrtt: double
+ * - remote_maxjitter: double
+ * - remote_maxrxploss: double
+ * - remote_minjitter: double
+ * - remote_minrxploss: double
+ * - remote_normdevjitter: double
+ * - remote_normdevrxploss: double
+ * - remote_ssrc: int (required)
+ * - remote_stdevjitter: double
+ * - remote_stdevrxploss: double
+ * - rtt: double
+ * - rxcount: int (required)
+ * - rxjitter: double
+ * - rxoctetcount: int (required)
+ * - rxploss: int (required)
+ * - stdevrtt: double
+ * - txcount: int (required)
+ * - txjitter: double
+ * - txoctetcount: int (required)
+ * - txploss: int (required)
  * Bridge
  * - bridge_class: string (required)
  * - bridge_type: string (required)

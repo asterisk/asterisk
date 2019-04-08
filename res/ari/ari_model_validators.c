@@ -1385,6 +1385,379 @@ ari_validator ast_ari_validate_dialplan_cep_fn(void)
 	return ast_ari_validate_dialplan_cep;
 }
 
+int ast_ari_validate_rtpstat(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_channel_uniqueid = 0;
+	int has_local_ssrc = 0;
+	int has_remote_ssrc = 0;
+	int has_rxcount = 0;
+	int has_rxoctetcount = 0;
+	int has_rxploss = 0;
+	int has_txcount = 0;
+	int has_txoctetcount = 0;
+	int has_txploss = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("channel_uniqueid", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel_uniqueid = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field channel_uniqueid failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_maxjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_maxjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_maxrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_maxrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_minjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_minjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_minrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_minrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_normdevjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_normdevjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_normdevrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_normdevrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_ssrc", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_local_ssrc = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_ssrc failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_stdevjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_stdevjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("local_stdevrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field local_stdevrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("maxrtt", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field maxrtt failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("minrtt", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field minrtt failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("normdevrtt", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field normdevrtt failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_maxjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_maxjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_maxrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_maxrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_minjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_minjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_minrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_minrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_normdevjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_normdevjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_normdevrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_normdevrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_ssrc", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_remote_ssrc = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_ssrc failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_stdevjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_stdevjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("remote_stdevrxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field remote_stdevrxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("rtt", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field rtt failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("rxcount", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_rxcount = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field rxcount failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("rxjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field rxjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("rxoctetcount", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_rxoctetcount = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field rxoctetcount failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("rxploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_rxploss = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field rxploss failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("stdevrtt", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field stdevrtt failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("txcount", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_txcount = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field txcount failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("txjitter", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field txjitter failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("txoctetcount", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_txoctetcount = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field txoctetcount failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("txploss", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_txploss = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RTPstat field txploss failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RTPstat has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_channel_uniqueid) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field channel_uniqueid\n");
+		res = 0;
+	}
+
+	if (!has_local_ssrc) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field local_ssrc\n");
+		res = 0;
+	}
+
+	if (!has_remote_ssrc) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field remote_ssrc\n");
+		res = 0;
+	}
+
+	if (!has_rxcount) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field rxcount\n");
+		res = 0;
+	}
+
+	if (!has_rxoctetcount) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field rxoctetcount\n");
+		res = 0;
+	}
+
+	if (!has_rxploss) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field rxploss\n");
+		res = 0;
+	}
+
+	if (!has_txcount) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field txcount\n");
+		res = 0;
+	}
+
+	if (!has_txoctetcount) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field txoctetcount\n");
+		res = 0;
+	}
+
+	if (!has_txploss) {
+		ast_log(LOG_ERROR, "ARI RTPstat missing required field txploss\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_rtpstat_fn(void)
+{
+	return ast_ari_validate_rtpstat;
+}
+
 int ast_ari_validate_bridge(struct ast_json *json)
 {
 	int res = 1;
