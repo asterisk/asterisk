@@ -8,6 +8,7 @@ NO_CONFIGURE=0
 NO_MENUSELECT=0
 NO_MAKE=0
 NO_ALEMBIC=0
+NO_DEV_MODE=0
 source $CIDIR/ci.functions
 
 set -e
@@ -93,7 +94,9 @@ PKGCONFIG=`which pkg-config`
 common_config_args="--prefix=/usr ${_libdir:+--libdir=${_libdir}} --sysconfdir=/etc --with-pjproject-bundled"
 $PKGCONFIG 'jansson >= 2.11' || common_config_args+=" --with-jansson-bundled"
 common_config_args+=" ${CACHE_DIR:+--with-sounds-cache=${CACHE_DIR}/sounds --with-externals-cache=${CACHE_DIR}/externals}"
-common_config_args+=" --enable-dev-mode"
+if [ $NO_DEV_MODE -eq 0 ] ; then
+	common_config_args+=" --enable-dev-mode"
+fi
 if [ $COVERAGE -eq 1 ] ; then
 	common_config_args+=" --enable-coverage"
 fi
@@ -110,7 +113,10 @@ fi
 if [ $NO_MENUSELECT -eq 0 ] ; then
 	runner ${MAKE} menuselect.makeopts
 
-	runner menuselect/menuselect `gen_mods enable DONT_OPTIMIZE BETTER_BACKTRACES MALLOC_DEBUG DO_CRASH TEST_FRAMEWORK` menuselect.makeopts
+	runner menuselect/menuselect `gen_mods enable DONT_OPTIMIZE BETTER_BACKTRACES` menuselect.makeopts
+	if [ $NO_DEV_MODE -eq 0 ] ; then
+		runner menuselect/menuselect `gen_mods enable MALLOC_DEBUG DO_CRASH TEST_FRAMEWORK` menuselect.makeopts
+	fi
 	runner menuselect/menuselect `gen_mods disable COMPILE_DOUBLE BUILD_NATIVE` menuselect.makeopts
 	if [ $REF_DEBUG -eq 1 ] ; then
 		runner menuselect/menuselect --enable REF_DEBUG menuselect.makeopts
@@ -119,6 +125,10 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 	cat_enables="MENUSELECT_BRIDGES MENUSELECT_CEL MENUSELECT_CDR"
 	cat_enables+=" MENUSELECT_CHANNELS MENUSELECT_CODECS MENUSELECT_FORMATS MENUSELECT_FUNCS"
 	cat_enables+=" MENUSELECT_PBX MENUSELECT_RES MENUSELECT_UTILS MENUSELECT_TESTS"
+
+	if [ $NO_DEV_MODE -eq 0 ] ; then
+		cat_enables+=" MENUSELECT_TESTS"
+	fi
 	runner menuselect/menuselect `gen_cats enable $cat_enables` menuselect.makeopts
 
 	mod_disables="res_digium_phone chan_vpb"
@@ -208,5 +218,3 @@ fi
 if [ -f "doc/core-en_US.xml" ] ; then
 	runner ${MAKE} validate-docs || ${MAKE} NOISY_BUILD=yes validate-docs
 fi
-
-
