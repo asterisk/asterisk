@@ -1565,6 +1565,16 @@
 					"required": true,
 					"type": "long",
 					"description": "Priority in the dialplan"
+				},
+				"app_name": {
+					"required": true,
+					"type": "string",
+					"description": "Name of current dialplan application"
+				},
+				"app_data": {
+					"required": true,
+					"type": "string",
+					"description": "Parameter of current dialplan application"
 				}
 			}
 		},

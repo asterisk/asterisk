@@ -275,7 +275,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 
 	actual = ast_channel_snapshot_to_json(snapshot, NULL);
 	expected = ast_json_pack("{ s: s, s: s, s: s, s: s,"
-				 "  s: { s: s, s: s, s: i },"
+				 "  s: { s: s, s: s, s: i, s: s, s: s },"
 				 "  s: { s: s, s: s },"
 				 "  s: { s: s, s: s },"
 				 "  s: s"
@@ -289,6 +289,8 @@ AST_TEST_DEFINE(channel_snapshot_json)
 				 "context", "context",
 				 "exten", "exten",
 				 "priority", 1,
+				 "app_name", "",
+				 "app_data", "",
 				 "caller",
 				 "name", "cid_name",
 				 "number", "cid_num",

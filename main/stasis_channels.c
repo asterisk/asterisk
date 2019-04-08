@@ -988,8 +988,9 @@ struct ast_json *ast_channel_snapshot_to_json(
 			snapshot->connected_name, snapshot->connected_number),
 		"accountcode", snapshot->accountcode,
 		/* Third line */
-		"dialplan", ast_json_dialplan_cep(
-			snapshot->context, snapshot->exten, snapshot->priority),
+		"dialplan", ast_json_dialplan_cep_app(
+			snapshot->context, snapshot->exten, snapshot->priority,
+			snapshot->appl, snapshot->data),
 		"creationtime", ast_json_timeval(snapshot->creationtime, NULL),
 		"language", snapshot->language);
 
