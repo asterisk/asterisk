@@ -122,6 +122,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/adsi.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/manager.h"
 #include "asterisk/dsp.h"
 #include "asterisk/localtime.h"

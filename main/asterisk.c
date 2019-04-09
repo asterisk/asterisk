@@ -217,6 +217,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/http.h"
 #include "asterisk/udptl.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
@@ -4245,6 +4246,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	read_pjproject_startup_options();
 	check_init(ast_pj_init(), "Embedded PJProject");
 	check_init(app_init(), "App Core");
+	check_init(mwi_init(), "MWI Core");
 	check_init(devstate_init(), "Device State Core");
 	check_init(ast_msg_init(), "Messaging API");
 	check_init(ast_data_init(), "Data Retrieval API");

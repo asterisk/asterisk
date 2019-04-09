@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/pbx.h"
 #include "asterisk/channel.h"
 

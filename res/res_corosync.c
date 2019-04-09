@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/event.h"
 #include "asterisk/cli.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/stasis_system.h"

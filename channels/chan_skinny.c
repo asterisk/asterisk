@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/pickup.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"
 #include "asterisk/dsp.h"

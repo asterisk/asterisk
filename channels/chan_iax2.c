@@ -95,6 +95,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/callerid.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/astdb.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/features.h"
