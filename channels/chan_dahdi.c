@@ -107,7 +107,7 @@
 #include "asterisk/musiconhold.h"
 #include "asterisk/say.h"
 #include "asterisk/tdd.h"
-#include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/dsp.h"
 #include "asterisk/astdb.h"
 #include "asterisk/manager.h"

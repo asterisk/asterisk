@@ -164,6 +164,7 @@
 #include "asterisk/say.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/dsp.h"
 #include "asterisk/localtime.h"
 #include "asterisk/cli.h"
