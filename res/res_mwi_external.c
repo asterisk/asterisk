@@ -55,6 +55,7 @@
 #include "asterisk.h"
 
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/module.h"
 #include "asterisk/res_mwi_external.h"
 #include "asterisk/sorcery.h"
