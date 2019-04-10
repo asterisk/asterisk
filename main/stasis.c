@@ -2369,6 +2369,7 @@ static char *stasis_show_topic(struct ast_cli_entry *e, int cmd, struct ast_cli_
 {
 	struct stasis_topic *topic;
 	char print_time[32];
+	int i;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2401,6 +2402,21 @@ static char *stasis_show_topic(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "Forwarding topic count: %lu\n", AST_VECTOR_SIZE(&topic->upstream_topics));
 	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - topic->creationtime->tv_sec, print_time, sizeof(print_time));
 	ast_cli(a->fd, "Duration time: %s\n", print_time);
+
+	ao2_lock(topic);
+	ast_cli(a->fd, "\nSubscribers:\n");
+	for (i = 0; i < AST_VECTOR_SIZE(&topic->subscribers); i++) {
+		struct stasis_subscription *subscription_tmp = AST_VECTOR_GET(&topic->subscribers, i);
+		ast_cli(a->fd, "  UniqueID: %s, Topic: %s, Detail: %s\n",
+				subscription_tmp->uniqueid, subscription_tmp->topic->name, subscription_tmp->topic->detail);
+	}
+
+	ast_cli(a->fd, "\nForwarded topics:\n");
+	for (i = 0; i < AST_VECTOR_SIZE(&topic->upstream_topics); i++) {
+		struct stasis_topic *topic_tmp = AST_VECTOR_GET(&topic->upstream_topics, i);
+		ast_cli(a->fd, "  Topic: %s, Detail: %s\n", topic_tmp->name, topic_tmp->detail);
+	}
+	ao2_unlock(topic);
 
 	ao2_ref(topic, -1);
 
