@@ -1953,6 +1953,7 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 	res = bridge_impart_internal(bridge, chan, swap, features, flags, &cond);
 	if (res) {
 		/* Impart failed.  Signal any other waiting impart threads */
+		ast_bridge_discard_after_callback(chan, AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED);
 		bridge_channel_impart_signal(chan);
 	}
 
