@@ -163,7 +163,7 @@ typedef struct OOH323EndPoint {
  * @return               OO_OK, on success. OO_FAILED, on failure
  */
 EXTERN int ooH323EpInitialize
-   (enum OOCallMode callMode, const char* tracefile);
+   (enum OOCallMode callMode, const char* tracefile, char* errstr, int errstr_max);
 
 /**
  * This function is used to represent the H.323 application endpoint as
