@@ -2913,7 +2913,10 @@ int read_config_maps(void)
 		ast_copy_string(buf, v->value, sizeof(buf));
 		stringp = buf;
 		driver = strsep(&stringp, ",");
-
+		if (!stringp) {
+			ast_log(LOG_WARNING, "extconfig.conf: value '%s' ignored due to wrong format\n", v->value);
+			continue;
+		}
 		if ((tmp = strchr(stringp, '\"')))
 			stringp = tmp;
 
