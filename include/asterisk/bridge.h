@@ -645,6 +645,9 @@ enum ast_bridge_impart_flags {
  * it were placed into the bridge by ast_bridge_join().
  * Channels placed into a bridge by ast_bridge_join() are
  * removed by a third party using ast_bridge_remove().
+ *
+ * \note Any callbacks on the channel will be invoked on failure
+ * with the reason as AST_BRIDGE_AFTER_CB_REASON_IMPART_FAILED.
  */
 int ast_bridge_impart(struct ast_bridge *bridge,
 	struct ast_channel *chan,
