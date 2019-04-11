@@ -2924,7 +2924,7 @@ void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_not
 /* "CODE" GENERATOR -- Convert the AEL representation to asterisk extension language */
 /* =============================================================================================== */
 
-static int control_statement_count = 0;
+static int control_statement_count;
 
 struct ael_priority *new_prio(void)
 {
@@ -4426,6 +4426,9 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *lo
 	char buf[2000];
 	struct ael_extension *exten;
 	struct ael_extension *exten_list = 0;
+
+	/* Reset the counter so that we get consistent labels between reloads */
+	control_statement_count = 0;
 
 	for (p=root; p; p=p->next ) { /* do the globals first, so they'll be there
 									 when we try to eval them */
