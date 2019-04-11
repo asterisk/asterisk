@@ -8760,6 +8760,7 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 	char *stringp;
 	int ipri;
 	int mode = 0;
+	char rest[2] = "";
 
 	if (ast_strlen_zero(goto_string)) {
 		ast_log(LOG_WARNING, "Goto requires an argument ([[context,]extension,]priority)\n");
@@ -8785,7 +8786,7 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 		mode = -1;
 		pri++;
 	}
-	if (sscanf(pri, "%30d", &ipri) != 1) {
+	if (sscanf(pri, "%30d%1s", &ipri, rest) != 1) {
 		ipri = ast_findlabel_extension(chan, context ? context : ast_channel_context(chan),
 			exten ? exten : ast_channel_exten(chan), pri,
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
