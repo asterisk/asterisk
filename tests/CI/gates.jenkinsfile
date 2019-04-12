@@ -159,7 +159,16 @@ pipeline {
 						}
 					}
 
-					def testGroups = readJSON file: "tests/CI/gateTestGroups.json"
+					def testGroups
+					configFileProvider([configFile(fileId: 'asterisk_gate_test_groups', variable: 'GATE_TEST_GROUPS')]) {
+					echo "Retrieved config file from ${env.GATE_TEST_GROUPS}"
+						testGroups = readJSON file: env.GATE_TEST_GROUPS
+					}
+					echo "Running test groups:"
+					for (def testGroup in testGroups) {
+						echo "${testGroup.name} ${testGroup.dir} ${testGroup.testcmd}"
+					}
+
 					def parallelTasks = [ : ]
 
 					for (def testGroup in testGroups) {
