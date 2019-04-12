@@ -1,3 +1,9 @@
+/*
+ * This file is for reference/documentation only.
+ * The live configuration is defined in the Config Files
+ * settings of the Asterisk Gates Jenkins job.
+ * This allows is to alter the parameters at runtime.
+ */
 [
 	{
 		"name": "ari ",
