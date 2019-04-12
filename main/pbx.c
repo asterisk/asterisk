@@ -1216,6 +1216,18 @@ static char *action2str(enum ext_match_t action)
 
 #endif
 
+static const char *candidate_exten_advance(const char *str)
+{
+	str++;
+	while (*str == '-') {
+		str++;
+	}
+	return str;
+}
+
+#define MORE(s) (*candidate_exten_advance(s))
+#define ADVANCE(s) candidate_exten_advance(s)
+
 static void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid, const char *label, enum ext_match_t action)
 {
 	struct match_char *p; /* note minimal stack storage requirements */
@@ -1231,7 +1243,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 			if (p->x[0] == 'N') {
 				if (p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
 #define	NEW_MATCHER_CHK_MATCH	       \
-					if (p->exten && !(*(str + 1))) { /* if a shorter pattern matches along the way, might as well report it */             \
+					if (p->exten && !MORE(str)) { /* if a shorter pattern matches along the way, might as well report it */             \
 						if (action == E_MATCH || action == E_SPAWN || action == E_FINDLABEL) { /* if in CANMATCH/MATCHMORE, don't let matches get in the way */   \
 							update_scoreboard(score, length + 1, spec + p->specificity, p->exten, 0, callerid, p->deleted, p);                 \
 							if (!p->deleted) {                                                                                           \
@@ -1249,10 +1261,10 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 					}
 
 #define	NEW_MATCHER_RECURSE	           \
-					if (p->next_char && (*(str + 1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0)                 \
+					if (p->next_char && (MORE(str) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0)                 \
 		                                       || p->next_char->x[0] == '!')) {                                          \
-						if (*(str + 1) || p->next_char->x[0] == '!') {                                                         \
-							new_find_extension(str + 1, score, p->next_char, length + 1, spec + p->specificity, callerid, label, action); \
+						if (MORE(str) || p->next_char->x[0] == '!') {                                                         \
+							new_find_extension(ADVANCE(str), score, p->next_char, length + 1, spec + p->specificity, callerid, label, action); \
 							if (score->exten)  {                                                                             \
 						        ast_debug(4 ,"returning an exact match-- %s\n", score->exten->name);                         \
 								return; /* the first match is all we need */                                                 \
@@ -1265,7 +1277,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 								return; /* the first match is all we need */                                                 \
 							}												                                                 \
 						}                                                                                                    \
-					} else if ((p->next_char || action == E_CANMATCH) && !*(str + 1)) {                                                                  \
+					} else if ((p->next_char || action == E_CANMATCH) && !MORE(str)) {                                                                  \
 						score->canmatch = 1;                                                                                 \
 						score->canmatch_exten = get_canmatch_exten(p);                                                       \
 						if (action == E_CANMATCH || action == E_MATCHMORE) {                                                 \
@@ -1361,6 +1373,9 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 	}
 	ast_debug(4, "return at end of func\n");
 }
+
+#undef MORE
+#undef ADVANCE
 
 /* the algorithm for forming the extension pattern tree is also a bit simple; you
  * traverse all the extensions in a context, and for each char of the extension,
