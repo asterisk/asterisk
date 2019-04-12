@@ -82,7 +82,7 @@
 /* Defaults */
 #define DEFAULT_CONTEXT "default"
 #define DEFAULT_H323ID "Asterisk PBX"
-#define DEFAULT_LOGFILE "/var/log/asterisk/h323_log"
+#define DEFAULT_LOGFILE "h323_log"
 #define DEFAULT_H323ACCNT "ast_h323"
 
 /* Flags */
@@ -346,7 +346,8 @@ void onModeChanged(ooCallData *call, int t38mode);
 
 extern OOH323EndPoint gH323ep;
 
-static char gLogFile[256] = DEFAULT_LOGFILE;
+static char gLogFile[PATH_MAX] = DEFAULT_LOGFILE;
+static char gInitError[256] = "";
 static int  gPort = 1720;
 static char gIP[2+8*4+7];	/* Max for IPv6 addr */
 struct ast_sockaddr bindaddr;
@@ -2856,7 +2857,7 @@ int reload_config(int reload)
 	}
 
 	/* Inintialize everything to default */
-	strcpy(gLogFile, DEFAULT_LOGFILE);
+	snprintf(gLogFile, sizeof(gLogFile), "%s/%s", ast_config_AST_LOG_DIR, DEFAULT_LOGFILE);
 	gPort = 1720;
 	gIP[0] = '\0';
 	strcpy(gCallerID, DEFAULT_H323ID);
@@ -3034,7 +3035,11 @@ int reload_config(int reload)
 		        ast_copy_string(gRASIP, v->value, sizeof(gRASIP));
 			ast_verb(3, "  == Setting RAS IP to %s\n", gRASIP);
 		} else if (!strcasecmp(v->name, "logfile")) {
-         		ast_copy_string(gLogFile, v->value, sizeof(gLogFile));
+			if (v->value[0] == '/') {
+				ast_copy_string(gLogFile, v->value, sizeof(gLogFile));
+			} else {
+				snprintf(gLogFile, sizeof(gLogFile), "%s/%s", ast_config_AST_LOG_DIR, v->value);
+			}
 		} else if (!strcasecmp(v->name, "context")) {
          		ast_copy_string(gContext, v->value, sizeof(gContext));
          		ast_verb(3, "  == Setting default context to %s\n", gContext);
@@ -3838,9 +3843,9 @@ static int load_module(void)
 	if (!reload_config(0)) {
 
 		/* fire up the H.323 Endpoint */
-		if (OO_OK != ooH323EpInitialize(OO_CALLMODE_AUDIOCALL, gLogFile)) {
-         		ast_log(LOG_ERROR, "Failed to initialize OOH323 endpoint-"
-                            "OOH323 Disabled\n");
+		if (OO_OK != ooH323EpInitialize(OO_CALLMODE_AUDIOCALL, gLogFile, gInitError, sizeof(gInitError))) {
+			ast_log(LOG_ERROR, "Failed to initialize OOH323 endpoint: %s"
+				"OOH323 Disabled\n", gInitError);
 			ao2_ref(gCap, -1);
 			gCap = NULL;
 			ao2_ref(ooh323_tech.capabilities, -1);

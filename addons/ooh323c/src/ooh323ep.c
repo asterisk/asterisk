@@ -34,7 +34,7 @@ ast_mutex_t bindPortLock;
 extern DList g_TimerList;
 
 int ooH323EpInitialize
-   (enum OOCallMode callMode, const char* tracefile)
+   (enum OOCallMode callMode, const char* tracefile, char* errstr, int errstr_max)
 {
 
    memset(&gH323ep, 0, sizeof(ooEndPoint));
@@ -46,7 +46,7 @@ int ooH323EpInitialize
    {
       if(strlen(tracefile)>= MAXFILENAME)
       {
-         printf("Error:File name longer than allowed maximum %d\n",
+         snprintf(errstr, errstr_max, "Error:File name longer than allowed maximum %d\n",
                  MAXFILENAME-1);
          return OO_FAILED;
       }
@@ -59,7 +59,7 @@ int ooH323EpInitialize
    gH323ep.fptraceFile = fopen(gH323ep.traceFile, "a");
    if(gH323ep.fptraceFile == NULL)
    {
-      printf("Error:Failed to open trace file %s for write.\n",
+      snprintf(errstr, errstr_max, "Error:Failed to open trace file %s for write.\n",
                   gH323ep.traceFile);
       return OO_FAILED;
    }
