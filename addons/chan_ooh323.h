@@ -65,6 +65,7 @@
 #include "asterisk/udptl.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/paths.h"
 
 #include "ootypes.h"
 #include "ooUtils.h"
