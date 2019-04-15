@@ -49,6 +49,40 @@
 #include <limits.h>
 
 
+/*! \brief Return the corresponded hangup code of the given reason */
+static int convert_reason_to_hangup_code(const char* reason)
+{
+	if (!strcmp(reason, "normal")) {
+		return AST_CAUSE_NORMAL;
+	} else if (!strcmp(reason, "busy")) {
+		return AST_CAUSE_BUSY;
+	} else if (!strcmp(reason, "congestion")) {
+		return AST_CAUSE_CONGESTION;
+	} else if (!strcmp(reason, "no_answer")) {
+		return AST_CAUSE_NOANSWER;
+	} else if (!strcmp(reason, "timeout")) {
+		return AST_CAUSE_NO_USER_RESPONSE;
+	} else if (!strcmp(reason, "rejected")) {
+		return AST_CAUSE_CALL_REJECTED;
+	} else if (!strcmp(reason, "unallocated")) {
+		return AST_CAUSE_UNALLOCATED;
+	} else if (!strcmp(reason, "normal_unspecified")) {
+		return AST_CAUSE_NORMAL_UNSPECIFIED;
+	} else if (!strcmp(reason, "number_incomplete")) {
+		return AST_CAUSE_INVALID_NUMBER_FORMAT;
+	} else if (!strcmp(reason, "codec_mismatch")) {
+		return AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
+	} else if (!strcmp(reason, "interworking")) {
+		return AST_CAUSE_INTERWORKING;
+	} else if (!strcmp(reason, "failure")) {
+		return AST_CAUSE_FAILURE;
+	} else if(!strcmp(reason, "answered_elsewhere")) {
+		return AST_CAUSE_ANSWERED_ELSEWHERE;
+	}
+
+	return -1;
+}
+
 /*!
  * \brief Ensure channel is in a state that allows operation to be performed.
  *
@@ -885,37 +919,32 @@ void ast_ari_channels_hangup(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_strlen_zero(args->reason) || !strcmp(args->reason, "normal")) {
-		cause = AST_CAUSE_NORMAL;
-	} else if (!strcmp(args->reason, "busy")) {
-		cause = AST_CAUSE_BUSY;
-	} else if (!strcmp(args->reason, "congestion")) {
-		cause = AST_CAUSE_CONGESTION;
-	} else if (!strcmp(args->reason, "no_answer")) {
-		cause = AST_CAUSE_NOANSWER;
-	} else if (!strcmp(args->reason, "timeout")) {
-		cause = AST_CAUSE_NO_USER_RESPONSE;
-	} else if (!strcmp(args->reason, "rejected")) {
-		cause = AST_CAUSE_CALL_REJECTED;
-	} else if (!strcmp(args->reason, "unallocated")) {
-		cause = AST_CAUSE_UNALLOCATED;
-	} else if (!strcmp(args->reason, "normal_unspecified")) {
-		cause = AST_CAUSE_NORMAL_UNSPECIFIED;
-	} else if (!strcmp(args->reason, "number_incomplete")) {
-		cause = AST_CAUSE_INVALID_NUMBER_FORMAT;
-	} else if (!strcmp(args->reason, "codec_mismatch")) {
-		cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-	} else if (!strcmp(args->reason, "interworking")) {
-		cause = AST_CAUSE_INTERWORKING;
-	} else if (!strcmp(args->reason, "failure")) {
-		cause = AST_CAUSE_FAILURE;
-	} else if(!strcmp(args->reason, "answered_elsewhere")) {
-		cause = AST_CAUSE_ANSWERED_ELSEWHERE;
-	} else {
-		ast_ari_response_error(
-			response, 400, "Invalid Reason",
-			"Invalid reason for hangup provided");
+	if (!ast_strlen_zero(args->reason) && !ast_strlen_zero(args->reason_code)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"The reason and reason_code can't both be specified");
 		return;
+	}
+
+	if (!ast_strlen_zero(args->reason_code)) {
+		/* reason_code allows any hangup code */
+		if (sscanf(args->reason_code, "%30d", &cause) != 1) {
+			ast_ari_response_error(
+				response, 400, "Invalid Reason Code",
+				"Invalid reason for hangup reason code provided");
+			return;
+		}
+	} else if (!ast_strlen_zero(args->reason)) {
+		/* reason allows only listed hangup reason */
+		cause = convert_reason_to_hangup_code(args->reason);
+		if (cause == -1) {
+			ast_ari_response_error(
+				response, 400, "Invalid Reason",
+				"Invalid reason for hangup reason provided");
+			return;
+		}
+	} else {
+		/* not specified. set default hangup */
+		cause = AST_CAUSE_NORMAL;
 	}
 
 	ast_channel_hangupcause_set(chan, cause);
