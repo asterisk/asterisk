@@ -91,7 +91,12 @@ pipeline {
 						}
 					}
 
-					def testGroups = readJSON file: "tests/CI/periodic-dailyTestGroups.json"
+					def testGroups
+					configFileProvider([configFile(fileId: 'asterisk_daily_test_groups', variable: 'DAILY_TEST_GROUPS')]) {
+					echo "Retrieved config file from ${env.DAILY_TEST_GROUPS}"
+						testGroups = readJSON file: env.DAILY_TEST_GROUPS
+					}
+
 					def parallelTasks = [ : ]
 
 					for (def testGroup in testGroups) {
