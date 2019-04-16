@@ -12531,8 +12531,8 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	if (stringp && (s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
 	}
-	if (stringp && (s = strsep(&stringp, ","))) {
-		apply_options(vmu, s);
+	if (stringp) {
+		apply_options(vmu, stringp);
 	}
 
 	switch (vmu->passwordlocation) {
