@@ -3536,18 +3536,14 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 					strcpy(buf2, strp3);
 					strp3 = strchr(buf2,'(');
 					if (strp3) {
-						*strp3 = '|';
-					}
-					while ((strp3=strchr(buf2,','))) {
-						*strp3 = '|';
+						*strp3 = ',';
 					}
 					strp3 = strrchr(buf2, ')');
 					if (strp3)
 						*strp3 = 0; /* remove the closing paren */
-
 					for_init->appargs = strdup(buf2);
 					free(for_init->app);
-					for_init->app = strdup("Macro");
+					for_init->app = strdup("Gosub");
 				} else {  /* must be a regular app call */
 					char *strp3;
 					strcpy(buf2, strp2);
@@ -3594,7 +3590,7 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 
 					for_inc->appargs = strdup(buf2);
 
-					for_inc->app = strdup("Macro");
+					for_inc->app = strdup("Gosub");
 				} else {  /* must be a regular app call */
 					char *strp3;
 					strcpy(buf2, strp2);
