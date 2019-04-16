@@ -760,10 +760,10 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 				*r++ = '.';
 				*r++ = '*';
 				break;
-			case '*':
+			case '*': /* regex metacharacter */
+			case '+': /* regex metacharacter */
 				*r++ = '\\';
-				*r++ = '*';
-				break;
+				/* fall through */
 			default:
 				*r++ = *p;
 				break;
@@ -793,14 +793,9 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 			   exten, pattern); */
 			return 1;
 		}
-
-
-	} else {
-		if ( strcmp(exten,pattern) == 0 ) {
-			return 1;
-		} else
-			return 0;
 	}
+
+	return 0;
 }
 
 
