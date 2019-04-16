@@ -2455,6 +2455,7 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
+	int has_timestamp = 0;
 	int has_args = 0;
 	int has_channel = 0;
 	int has_destination = 0;
@@ -2491,6 +2492,7 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 		} else
 		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
+			has_timestamp = 1;
 			prop_is_valid = ast_ari_validate_date(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
@@ -2544,6 +2546,11 @@ int ast_ari_validate_application_move_failed(struct ast_json *json)
 
 	if (!has_application) {
 		ast_log(LOG_ERROR, "ARI ApplicationMoveFailed missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_timestamp) {
+		ast_log(LOG_ERROR, "ARI ApplicationMoveFailed missing required field timestamp\n");
 		res = 0;
 	}
 

@@ -1603,7 +1603,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - asterisk_id: string
  * - type: string (required)
  * - application: string (required)
- * - timestamp: Date
+ * - timestamp: Date (required)
  * - args: List[string] (required)
  * - channel: Channel (required)
  * - destination: string (required)
