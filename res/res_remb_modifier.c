@@ -62,7 +62,7 @@ static struct ast_frame *remb_hook_event_cb(struct ast_channel *chan, struct ast
 	struct ast_datastore *remb_store;
 	struct remb_values *remb_values;
 	int exp;
-	float bitrate;
+	float bitrate = 0.0;
 
 	if (!frame) {
 		return NULL;
@@ -98,6 +98,8 @@ static struct ast_frame *remb_hook_event_cb(struct ast_channel *chan, struct ast
 		bitrate = remb_values->receive_bitrate;
 	} else if (event == AST_FRAMEHOOK_EVENT_WRITE && remb_values->send_bitrate) {
 		bitrate = remb_values->send_bitrate;
+	} else {
+		return frame;
 	}
 
 	/*
