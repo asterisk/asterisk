@@ -1,0 +1,13 @@
+res_pjsip:  Added a norefersub configuration setting
+
+Added a new PJSIP global setting called norefersub.
+Default is true to keep support working as before.
+
+res_pjsip_refer:  Configures PJSIP norefersub capability accordingly.
+
+Checks the PJSIP global setting value.
+If it is true (default) it adds the norefersub capability to PJSIP.
+If it is false (disabled) it does not add the norefersub capability
+to PJSIP.
+
+This is useful for Cisco switches that do not follow RFC4488.
