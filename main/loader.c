@@ -153,6 +153,117 @@ static unsigned int loader_ready;
 static struct ast_vector_string startup_errors;
 static struct ast_str *startup_error_builder;
 
+#if defined(HAVE_PERMANENT_DLOPEN)
+#define FIRST_DLOPEN 999
+
+struct ao2_container *info_list = NULL;
+
+struct info_list_obj {
+	const struct ast_module_info *info;
+	int dlopened;
+	char name[0];
+};
+
+static struct info_list_obj *info_list_obj_alloc(const char *name,
+	const struct ast_module_info *info)
+{
+	struct info_list_obj *new_entry;
+
+	new_entry = ao2_alloc(sizeof(*new_entry) + strlen(name) + 1, NULL);
+
+	if (!new_entry) {
+		return NULL;
+	}
+
+	strcpy(new_entry->name, name); /* SAFE */
+	new_entry->info = info;
+	new_entry->dlopened = FIRST_DLOPEN;
+
+	return new_entry;
+}
+
+AO2_STRING_FIELD_CMP_FN(info_list_obj, name)
+
+static char *get_name_from_resource(const char *resource)
+{
+	int len;
+	const char *last_three;
+	char *mod_name;
+
+	if (!resource) {
+		return NULL;
+	}
+
+	len = strlen(resource);
+	if (len > 3) {
+		last_three = &resource[len-3];
+		if (!strcasecmp(last_three, ".so")) {
+			mod_name = ast_calloc(1, len - 2);
+			if (mod_name) {
+				ast_copy_string(mod_name, resource, len - 2);
+				return mod_name;
+			} else {
+				/* Unable to allocate memory. */
+				return NULL;
+			}
+		}
+	}
+
+	/* Resource is the name - happens when manually unloading a module. */
+	mod_name = ast_calloc(1, len + 1);
+	if (mod_name) {
+		ast_copy_string(mod_name, resource, len + 1);
+		return mod_name;
+	}
+
+	/* Unable to allocate memory. */
+	return NULL;
+}
+
+static void manual_mod_reg(const void *lib, const char *resource)
+{
+	struct info_list_obj *obj_tmp;
+	char *mod_name;
+
+	if (lib) {
+		mod_name = get_name_from_resource(resource);
+		if (mod_name) {
+			obj_tmp = ao2_find(info_list, mod_name, OBJ_SEARCH_KEY);
+			if (obj_tmp) {
+				if (obj_tmp->dlopened == FIRST_DLOPEN) {
+					obj_tmp->dlopened = 1;
+				} else {
+					ast_module_register(obj_tmp->info);
+				}
+				ao2_ref(obj_tmp, -1);
+			}
+			ast_free(mod_name);
+		}
+	}
+}
+
+static void manual_mod_unreg(const char *resource)
+{
+	struct info_list_obj *obj_tmp;
+	char *mod_name;
+
+	/* When Asterisk shuts down the destructor is called automatically. */
+	if (ast_shutdown_final()) {
+		return;
+	}
+
+	mod_name = get_name_from_resource(resource);
+	if (mod_name) {
+		obj_tmp = ao2_find(info_list, mod_name, OBJ_SEARCH_KEY);
+		if (obj_tmp) {
+			ast_module_unregister(obj_tmp->info);
+			ao2_ref(obj_tmp, -1);
+		}
+		ast_free(mod_name);
+	}
+}
+#endif
+
 static __attribute__((format(printf, 1, 2))) void module_load_error(const char *fmt, ...)
 {
 	char *copy = NULL;
@@ -597,6 +708,23 @@ void ast_module_register(const struct ast_module_info *info)
 
 	/* give the module a copy of its own handle, for later use in registrations and the like */
 	*((struct ast_module **) &(info->self)) = mod;
+
+#if defined(HAVE_PERMANENT_DLOPEN)
+	if (mod->flags.builtin != 1) {
+		struct info_list_obj *obj_tmp = ao2_find(info_list, info->name,
+			OBJ_SEARCH_KEY);
+
+		if (!obj_tmp) {
+			obj_tmp = info_list_obj_alloc(info->name, info);
+			if (obj_tmp) {
+				ao2_link(info_list, obj_tmp);
+				ao2_ref(obj_tmp, -1);
+			}
+		} else {
+			ao2_ref(obj_tmp, -1);
+		}
+	}
+#endif
 }
 
 static int module_post_register(struct ast_module *mod)
@@ -843,6 +971,10 @@ static void logged_dlclose(const char *name, void *lib)
 		error = dlerror();
 		ast_log(AST_LOG_ERROR, "Failure in dlclose for module '%s': %s\n",
 			S_OR(name, "unknown"), S_OR(error, "Unknown error"));
+#if defined(HAVE_PERMANENT_DLOPEN)
+	} else {
+		manual_mod_unreg(name);
+#endif
 	}
 }
 
@@ -949,6 +1081,9 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 
 	resource_being_loaded = mod;
 	mod->lib = dlopen(filename, flags);
+#if defined(HAVE_PERMANENT_DLOPEN)
+	manual_mod_reg(mod->lib, mod->resource);
+#endif
 	if (resource_being_loaded) {
 		struct ast_str *list;
 		int c = 0;
@@ -968,6 +1103,9 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 
 		resource_being_loaded = mod;
 		mod->lib = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
+#if defined(HAVE_PERMANENT_DLOPEN)
+		manual_mod_reg(mod->lib, mod->resource);
+#endif
 		if (resource_being_loaded) {
 			resource_being_loaded = NULL;
 
@@ -2205,6 +2343,15 @@ int load_modules(void)
 	int i;
 
 	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
+
+#if defined(HAVE_PERMANENT_DLOPEN)
+	info_list = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL,
+		info_list_obj_cmp_fn); /* must not be cleaned at shutdown */
+	if (!info_list) {
+		fprintf(stderr, "Module info list allocation failure.\n");
+		return 1;
+	}
+#endif
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 	AST_DLLIST_LOCK(&module_list);

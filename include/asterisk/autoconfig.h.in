@@ -603,6 +603,9 @@
 /* Define to 1 if your system defines the file flag O_SYMLINK in fcntl.h */
 #undef HAVE_O_SYMLINK
 
+/* Define to support libc with permanent dlopen. */
+#undef HAVE_PERMANENT_DLOPEN
+
 /* Define to indicate the PostgreSQL library */
 #undef HAVE_PGSQL
 
