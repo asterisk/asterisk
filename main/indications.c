@@ -780,9 +780,11 @@ static char *handle_cli_indication_remove(struct ast_cli_entry *e, int cmd, stru
 	case CLI_GENERATE:
 		if (a->pos == 2) {
 			return complete_country(a);
-		} else if (a->pos == 3) {
+		}
+		if (a->pos == 3) {
 			return complete_indications(a);
 		}
+		return NULL;
 	}
 
 	if (a->argc != 3 && a->argc != 4) {
