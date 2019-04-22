@@ -761,6 +761,7 @@ struct dahdi_mfcr2 {
 	openr2_context_t *protocol_context;    /*!< OpenR2 context handle */
 	struct dahdi_pvt *pvts[SIG_MFCR2_MAX_CHANNELS];     /*!< Member channel pvt structs */
 	int numchans;                          /*!< Number of channels in this R2 block */
+	int nodev;                             /*!< Link disconnected? */
 	struct dahdi_mfcr2_conf conf;         /*!< Configuration used to setup this pseudo-link */
 };
 
@@ -3703,7 +3704,19 @@ static void dahdi_r2_on_hardware_alarm(openr2_chan_t *r2chan, int alarm)
 
 static void dahdi_r2_on_os_error(openr2_chan_t *r2chan, int errorcode)
 {
+	struct dahdi_pvt *p = openr2_chan_get_client_data(r2chan);
+
 	ast_log(LOG_ERROR, "OS error on chan %d: %s\n", openr2_chan_get_number(r2chan), strerror(errorcode));
+	ast_mutex_lock(&p->lock);
+	/* Disconnected? */
+	if (errorcode == ENODEV) {
+		struct dahdi_mfcr2 *r2link = p->mfcr2;
+		p->mfcr2call = 0;
+		if (r2link) {
+			r2link->nodev = 1;
+		}
+	}
+	ast_mutex_unlock(&p->lock);
 }
 
 static void dahdi_r2_on_protocol_error(openr2_chan_t *r2chan, openr2_protocol_error_t reason)
@@ -13842,6 +13855,9 @@ static void *mfcr2_monitor(void *data)
 			pollers[i].revents = 0;
 			pollers[i].events = 0;
 			if (mfcr2->pvts[i]->owner) {
+				continue;
+			}
+			if (mfcr2->nodev) {
 				continue;
 			}
 			if (!mfcr2->pvts[i]->r2chan) {
