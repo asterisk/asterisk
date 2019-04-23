@@ -235,6 +235,7 @@ struct ast_rtp_instance {
 static const char * const rtp_extension_uris[AST_RTP_EXTENSION_MAX] = {
 	[AST_RTP_EXTENSION_UNSUPPORTED]		= "",
 	[AST_RTP_EXTENSION_ABS_SEND_TIME]	= "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+	[AST_RTP_EXTENSION_TRANSPORT_WIDE_CC]	= "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 };
 
 /*! List of RTP engines that are currently registered */

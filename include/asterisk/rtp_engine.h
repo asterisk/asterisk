@@ -306,6 +306,8 @@ struct ast_rtp_payload_type {
 #define AST_RTP_RTCP_FMT_FIR	4
 /*! REMB Information (From draft-alvestrand-rmcat-remb-03) */
 #define AST_RTP_RTCP_FMT_REMB	15
+/*! Transport-wide congestion control feedback (From draft-holmer-rmcat-transport-wide-cc-extensions-01) */
+#define AST_RTP_RTCP_FMT_TRANSPORT_WIDE_CC 15
 
 /*!
  * \since 12
@@ -541,6 +543,8 @@ enum ast_rtp_extension {
 	AST_RTP_EXTENSION_UNSUPPORTED = 0,
 	/*! abs-send-time from https://tools.ietf.org/html/draft-alvestrand-rmcat-remb-03 */
 	AST_RTP_EXTENSION_ABS_SEND_TIME,
+	/*! transport-cc from https://tools.ietf.org/html/draft-holmer-rmcat-transport-wide-cc-extensions-01 */
+	AST_RTP_EXTENSION_TRANSPORT_WIDE_CC,
 	/*! The maximum number of known RTP extensions */
 	AST_RTP_EXTENSION_MAX,
 };
