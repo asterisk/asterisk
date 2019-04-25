@@ -2339,6 +2339,18 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 void ast_deactivate_generator(struct ast_channel *chan);
 
 /*!
+ * \since 13.27.0
+ * \since 16.4.0
+ * \brief Obtain how long it's been, in milliseconds, since the channel was created
+ *
+ * \param chan The channel object
+ *
+ * \retval 0 if the time value cannot be computed (or you called this really fast)
+ * \retval The number of milliseconds since channel creation
+ */
+int64_t ast_channel_get_duration_ms(struct ast_channel *chan);
+
+/*!
  * \since 12
  * \brief Obtain how long the channel since the channel was created
  *
@@ -2348,6 +2360,18 @@ void ast_deactivate_generator(struct ast_channel *chan);
  * \retval The number of seconds the channel has been up
  */
 int ast_channel_get_duration(struct ast_channel *chan);
+
+/*!
+ * \since 13.27.0
+ * \since 16.4.0
+ * \brief Obtain how long it has been since the channel was answered in ms
+ *
+ * \param chan The channel object
+ *
+ * \retval 0 if the channel isn't answered (or you called this really fast)
+ * \retval The number of milliseconds the channel has been up
+ */
+int64_t ast_channel_get_up_time_ms(struct ast_channel *chan);
 
 /*!
  * \since 12
