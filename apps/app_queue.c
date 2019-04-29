@@ -1478,7 +1478,7 @@ static int autofill_default = 1;
 static int montype_default = 0;
 
 /*! \brief queues.conf [general] option */
-static int shared_lastcall = 1;
+static int shared_lastcall = 0;
 
 /*! \brief queuesrules.conf [general] option */
 static int realtime_rules = 0;

@@ -59,7 +59,7 @@ monitor-type = MixMonitor
 ; respect the wrapuptime of another queue for a shared member.
 ; The default value is no.
 ;
-;shared_lastcall=no
+;shared_lastcall=yes
 ;
 ; Negative_penalty_invalid will treat members with a negative penalty as logged off
 ;
