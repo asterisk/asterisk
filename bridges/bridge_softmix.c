@@ -1332,6 +1332,36 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	return res;
 }
 
+static void remb_collect_report_all(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data,
+	float bitrate)
+{
+	if (!softmix_data->bitrate) {
+		softmix_data->bitrate = bitrate;
+		return;
+	}
+
+	switch (bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior) {
+	case AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE_ALL:
+		softmix_data->bitrate = (softmix_data->bitrate + bitrate) / 2;
+		break;
+	case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL:
+		if (bitrate < softmix_data->bitrate) {
+			softmix_data->bitrate = bitrate;
+		}
+		break;
+	case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL:
+		if (bitrate > softmix_data->bitrate) {
+			softmix_data->bitrate = bitrate;
+		}
+		break;
+	case AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE:
+	case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST:
+	case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST:
+		/* These will never actually get hit due to being handled by remb_collect_report below */
+		break;
+	}
+}
+
 static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel,
 	struct softmix_bridge_data *softmix_data, struct softmix_channel *sc)
 {
@@ -1352,6 +1382,14 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 
 	/* If this receiver has no bitrate yet ignore it */
 	if (!bitrate) {
+		return;
+	}
+
+	/* If we are using the "all" variants then we should use the bridge bitrate to store information */
+	if (bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior == AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE_ALL ||
+		bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior == AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL ||
+		bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior == AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL) {
+		remb_collect_report_all(bridge, softmix_data, bitrate);
 		return;
 	}
 
@@ -1380,6 +1418,11 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 				collector->bitrate = bitrate;
 			}
 			break;
+		case AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE_ALL:
+		case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL:
+		case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL:
+			/* These will never actually get hit due to being handled by remb_collect_report_all above */
+			break;
 		}
 	}
 
@@ -1390,13 +1433,21 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 	sc->remb.br_exp = 0;
 }
 
-static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct softmix_channel *sc)
+static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct softmix_bridge_data *softmix_data,
+	struct softmix_channel *sc)
 {
+	float bitrate = softmix_data->bitrate;
 	int i;
 	int exp;
 
 	if (!sc->remb_collector) {
 		return;
+	}
+
+	/* If there is no bridge level bitrate fall back to collector level */
+	if (!bitrate) {
+		bitrate = sc->remb_collector->bitrate;
+		sc->remb_collector->bitrate = 0;
 	}
 
 	/* We always do this calculation as even when the bitrate is zero the browser
@@ -1442,10 +1493,10 @@ static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct s
 	 * Precision on the "lower" end is lost due to zeros being shifted in. This loss is
 	 * both expected and acceptable.
 	 */
-	frexp(sc->remb_collector->bitrate, &exp);
+	frexp(bitrate, &exp);
 	exp = exp > 18 ? exp - 18 : 0;
 
-	sc->remb_collector->feedback.remb.br_mantissa = sc->remb_collector->bitrate / (1 << exp);
+	sc->remb_collector->feedback.remb.br_mantissa = bitrate / (1 << exp);
 	sc->remb_collector->feedback.remb.br_exp = exp;
 
 	for (i = 0; i < AST_VECTOR_SIZE(&bridge_channel->stream_map.to_bridge); ++i) {
@@ -1466,8 +1517,6 @@ static void remb_send_report(struct ast_bridge_channel *bridge_channel, struct s
 		sc->remb_collector->frame.stream_num = bridge_num;
 		ast_bridge_channel_queue_frame(bridge_channel, &sc->remb_collector->frame);
 	}
-
-	sc->remb_collector->bitrate = 0;
 }
 
 static void gather_softmix_stats(struct softmix_stats *stats,
@@ -1827,8 +1876,13 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			ast_bridge_channel_queue_frame(bridge_channel, &sc->write_frame);
 
 			if (remb_update) {
-				remb_send_report(bridge_channel, sc);
+				remb_send_report(bridge_channel, softmix_data, sc);
 			}
+		}
+
+		if (remb_update) {
+			/* In case we are doing bridge level REMB reset the bitrate so we start fresh */
+			softmix_data->bitrate = 0;
 		}
 
 		update_all_rates = 0;

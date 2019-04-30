@@ -505,6 +505,18 @@
 							<enum name="highest">
 								<para>The highest estimated maximum bitrate is forwarded to the sender.</para>
 							</enum>
+							<enum name="average_all">
+								<para>The average of all estimated maximum bitrates is taken from all
+								receivers in the bridge and a single value is sent to each sender.</para>
+							</enum>
+							<enum name="lowest_all">
+								<para>The lowest estimated maximum bitrate of all receivers in the bridge
+								is taken and sent to each sender.</para>
+							</enum>
+							<enum name="highest_all">
+								<para>The highest estimated maximum bitrate of all receivers in the bridge
+								is taken and sent to each sender.</para>
+							</enum>
 						</enumlist>
 					</description>
 				</configOption>
@@ -1737,7 +1749,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 
 	switch (b_profile.flags
 		& (BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE | BRIDGE_OPT_REMB_BEHAVIOR_LOWEST
-			| BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST)) {
+			| BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST | BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL
+			| BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL | BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL)) {
 	case BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE:
 		ast_cli(a->fd, "REMB Behavior:           average\n");
 		break;
@@ -1746,6 +1759,15 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		break;
 	case BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST:
 		ast_cli(a->fd, "REMB Behavior:           highest\n");
+		break;
+	case BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL:
+		ast_cli(a->fd, "REMB Behavior:           average_all\n");
+		break;
+	case BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL:
+		ast_cli(a->fd, "REMB Behavior:           lowest_all\n");
+		break;
+	case BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL:
+		ast_cli(a->fd, "REMB Behavior:           highest_all\n");
 		break;
 	default:
 		ast_assert(0);
@@ -2108,7 +2130,10 @@ static int remb_behavior_handler(const struct aco_option *opt, struct ast_variab
 
 	ast_clear_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE |
 		BRIDGE_OPT_REMB_BEHAVIOR_LOWEST |
-		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST);
+		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST |
+		BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL |
+		BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL |
+		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL);
 
 	if (!strcasecmp(var->value, "average")) {
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE);
@@ -2116,6 +2141,12 @@ static int remb_behavior_handler(const struct aco_option *opt, struct ast_variab
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_LOWEST);
 	} else if (!strcasecmp(var->value, "highest")) {
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST);
+	} else if (!strcasecmp(var->value, "average_all")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL);
+	} else if (!strcasecmp(var->value, "lowest_all")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL);
+	} else if (!strcasecmp(var->value, "highest_all")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL);
 	} else {
 		return -1;
 	}
