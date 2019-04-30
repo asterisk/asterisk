@@ -1070,7 +1070,11 @@ static int depart_channel(struct stasis_app_control *control, struct ast_channel
 {
 	ast_bridge_depart(chan);
 
-	if (!ast_check_hangup(chan) && ast_channel_state(chan) != AST_STATE_UP) {
+	/* Channels which have a PBX are not ones that have been created and dialed from ARI. They
+	 * have externally come in from the dialplan, and thus should not be placed into the dial
+	 * bridge. Only channels which are created and dialed in ARI should go into the dial bridge.
+	 */
+	if (!ast_check_hangup(chan) && ast_channel_state(chan) != AST_STATE_UP && !ast_channel_pbx(chan)) {
 		/* Channel is still being dialed, so put it back in the dialing bridge */
 		add_to_dial_bridge(control, chan);
 	}
