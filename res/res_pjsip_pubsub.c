@@ -31,7 +31,7 @@
 #include <pjsip_simple.h>
 #include <pjlib.h>
 
-#include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/res_pjsip_pubsub.h"
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
