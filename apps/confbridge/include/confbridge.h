@@ -82,6 +82,9 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST = (1 << 9), /*!< The lowest estimated maximum bitrate is sent to the sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST = (1 << 10), /*!< The highest estimated maximum bitrate is sent to the sender */
 	BRIDGE_OPT_ENABLE_EVENTS = (1 << 11), /*!< Enable sending events to participants */
+	BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL = (1 << 12), /*!< The average of all REMB reports in the entire bridge is sent to each sender */
+	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL = (1 << 13), /*!< The lowest estimated maximum bitrate from all receivers is sent to each sender */
+	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL = (1 << 14), /*!< The highest estimated maximum bitrate from all receivers is sent to each sender */
 };
 
 enum conf_menu_action_id {
