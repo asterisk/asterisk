@@ -36,7 +36,7 @@
 #include "asterisk/res_pjsip_pubsub.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
-#include "asterisk/app.h"
+#include "asterisk/mwi.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_publish_asterisk" language="en_US">

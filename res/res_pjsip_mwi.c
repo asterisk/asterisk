@@ -38,7 +38,7 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
-#include "asterisk/app.h"
+#include "asterisk/mwi.h"
 
 struct mwi_subscription;
 static struct ao2_container *unsolicited_mwi;
