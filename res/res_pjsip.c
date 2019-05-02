@@ -3741,6 +3741,10 @@ int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet, const 
 		if (contact_hdr) {
 			contact_hdr->uri = pjsip_parse_uri(rdata->tp_info.pool, (char *)contact,
 				strlen(contact), PJSIP_PARSE_URI_AS_NAMEADDR);
+			if (!contact_hdr->uri) {
+				ast_log(LOG_WARNING, "Unable to parse contact URI from '%s'.\n", contact);
+				return -1;
+			}
 		}
 	}
 

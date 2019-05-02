@@ -129,6 +129,10 @@ static int registrar_find_contact(void *obj, void *arg, int flags)
 	}
 
 	contact_uri = pjsip_parse_uri(details->pool, (char*)contact->uri, strlen(contact->uri), 0);
+	if (!contact_uri) {
+		ast_log(LOG_WARNING, "Unable to parse contact URI from '%s'.\n", contact->uri);
+		return 0;
+	}
 
 	return (pjsip_uri_cmp(PJSIP_URI_IN_CONTACT_HDR, details->uri, contact_uri) == PJ_SUCCESS) ? CMP_MATCH : 0;
 }
