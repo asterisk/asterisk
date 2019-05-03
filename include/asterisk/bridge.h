@@ -135,6 +135,12 @@ enum ast_bridge_video_sfu_remb_behavior {
 	AST_BRIDGE_VIDEO_SFU_REMB_LOWEST,
 	/*! The highest reported bitrate is forwarded to the sender */
 	AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST,
+	/*! The average of all reports WITHIN the bridge is sent to each sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE_ALL,
+	/*! The lowest reported bitrate from all channels in the bridge is forwarded to each sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL,
+	/*! The highest reported bitrate from all channels in the bridge is forwarded to each sender */
+	AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL,
 };
 
 /*! \brief This is used for selective forwarding unit configuration */

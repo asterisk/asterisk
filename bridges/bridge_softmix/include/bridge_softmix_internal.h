@@ -216,6 +216,8 @@ struct softmix_bridge_data {
 	struct timeval last_remb_update;
 	/*! Per-bridge stream REMB collectors, which flow back to video source */
 	AST_VECTOR(, struct softmix_remb_collector *) remb_collectors;
+	/*! Per-bridge REMB bitrate */
+	float bitrate;
 };
 
 struct softmix_mixing_array {
