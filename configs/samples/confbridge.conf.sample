@@ -254,7 +254,11 @@ type=bridge
 ;remb_behavior=average     ; How the combined REMB report for an SFU video bridge is constructed. If set to "average" then
                            ; the estimated maximum bitrate of each receiver is used to construct an average bitrate. If
                            ; set to "lowest" the lowest maximum bitrate is forwarded to the sender. If set to "highest"
-                           ; the highest maximum bitrate is forwarded to the sender. This defaults to "average".
+                           ; the highest maximum bitrate is forwarded to the sender. If set to "average_all" a single average
+                           ; is generated from every receiver and the same value is sent to every sender. If set to
+                           ; "lowest_all" the lowest maximum bitrate of all receivers is sent to every sender. If set to
+                           ; "highest_all" the highest maximum bitrate of all receivers is sent to every sender. This
+                           ; defaults to "average".
 
 ;enable_events=no          ; If enabled, recipients who joined the bridge via a channel driver
                            ; that supports Enhanced Messaging (currently only chan_pjsip) will
