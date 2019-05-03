@@ -128,12 +128,16 @@
 #include "asterisk/buildinfo.h"
 #include "asterisk/res_prometheus.h"
 
+#include "prometheus/prometheus_internal.h"
+
 /*! \brief Lock that protects data structures during an HTTP scrape */
 AST_MUTEX_DEFINE_STATIC(scrape_lock);
 
 AST_VECTOR(, struct prometheus_metric *) metrics;
 
 AST_VECTOR(, struct prometheus_callback *) callbacks;
+
+AST_VECTOR(, const struct prometheus_metrics_provider *) providers;
 
 /*! \brief The actual module config */
 struct module_config {
@@ -812,12 +816,27 @@ static void prometheus_config_post_apply(void)
 	}
 }
 
+void prometheus_metrics_provider_register(const struct prometheus_metrics_provider *provider)
+{
+	AST_VECTOR_APPEND(&providers, provider);
+}
+
 static int unload_module(void)
 {
 	SCOPED_MUTEX(lock, &scrape_lock);
 	int i;
 
 	ast_http_uri_unlink(&prometheus_uri);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&providers); i++) {
+		const struct prometheus_metrics_provider *provider = AST_VECTOR_GET(&providers, i);
+
+		if (!provider->unload_cb) {
+			continue;
+		}
+
+		provider->unload_cb();
+	}
 
 	for (i = 0; i < AST_VECTOR_SIZE(&metrics); i++) {
 		struct prometheus_metric *metric = AST_VECTOR_GET(&metrics, i);
@@ -827,7 +846,7 @@ static int unload_module(void)
 	AST_VECTOR_FREE(&metrics);
 
 	AST_VECTOR_FREE(&callbacks);
-
+	AST_VECTOR_FREE(&providers);
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(global_config);
 
@@ -836,11 +855,31 @@ static int unload_module(void)
 
 static int reload_module(void) {
 	SCOPED_MUTEX(lock, &scrape_lock);
+	int i;
+	struct prometheus_general_config *general_config;
 
 	ast_http_uri_unlink(&prometheus_uri);
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return -1;
 	}
+
+	/* Our config should be all reloaded now */
+	general_config = prometheus_general_config_get();
+	for (i = 0; i < AST_VECTOR_SIZE(&providers); i++) {
+		const struct prometheus_metrics_provider *provider = AST_VECTOR_GET(&providers, i);
+
+		if (!provider->reload_cb) {
+			continue;
+		}
+
+		if (provider->reload_cb(general_config)) {
+			ast_log(AST_LOG_WARNING, "Failed to reload metrics provider %s\n", provider->name);
+			ao2_ref(general_config, -1);
+			return -1;
+		}
+	}
+	ao2_ref(general_config, -1);
+
 	if (ast_http_uri_link(&prometheus_uri)) {
 		ast_log(AST_LOG_WARNING, "Failed to re-register Prometheus Metrics URI during reload\n");
 		return -1;
@@ -861,6 +900,10 @@ static int load_module(void)
 		goto cleanup;
 	}
 
+	if (AST_VECTOR_INIT(&providers, 8)) {
+		goto cleanup;
+	}
+
 	if (aco_info_init(&cfg_info)) {
 		goto cleanup;
 	}
@@ -871,6 +914,10 @@ static int load_module(void)
 	aco_option_register(&cfg_info, "auth_password", ACO_EXACT, global_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_password));
 	aco_option_register(&cfg_info, "auth_realm", ACO_EXACT, global_options, "Asterisk Prometheus Metrics", OPT_STRINGFIELD_T, 0, STRFLDSET(struct prometheus_general_config, auth_realm));
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
+		goto cleanup;
+	}
+
+	if (channel_metrics_init()) {
 		goto cleanup;
 	}
 
@@ -885,6 +932,7 @@ cleanup:
 	aco_info_destroy(&cfg_info);
 	AST_VECTOR_FREE(&metrics);
 	AST_VECTOR_FREE(&callbacks);
+	AST_VECTOR_FREE(&providers);
 
 	return AST_MODULE_LOAD_DECLINE;
 }

@@ -173,13 +173,13 @@ AST_TEST_DEFINE(metric_values)
 	}
 
 	ast_test_status_update(test, " -> Retrieved: %s\n", ast_str_buffer(buffer));
-	ast_test_validate_cleanup(test, strcmp(ast_str_buffer(buffer),
+	ast_test_validate_cleanup(test, strstr(ast_str_buffer(buffer),
 		"# HELP test_counter_one A test counter\n"
 		"# TYPE test_counter_one counter\n"
 		"test_counter_one 1\n"
 		"# HELP test_counter_two A test counter\n"
 		"# TYPE test_counter_two counter\n"
-		"test_counter_two 2\n") == 0, result, metric_values_cleanup);
+		"test_counter_two 2\n") != NULL, result, metric_values_cleanup);
 
 metric_values_cleanup:
 	prometheus_metric_unregister(&test_counter_one);
@@ -247,10 +247,10 @@ AST_TEST_DEFINE(metric_callback_register)
 	}
 
 	ast_test_status_update(test, " -> Retrieved: %s\n", ast_str_buffer(buffer));
-	ast_test_validate(test, strcmp(ast_str_buffer(buffer),
+	ast_test_validate(test, strstr(ast_str_buffer(buffer),
 		"# HELP test_counter A test counter\n"
 		"# TYPE test_counter counter\n"
-		"test_counter 0\n") == 0);
+		"test_counter 0\n") != NULL);
 
 	prometheus_callback_unregister(&callback);
 

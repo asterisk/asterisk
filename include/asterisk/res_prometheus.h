@@ -84,6 +84,36 @@ struct prometheus_general_config {
 };
 
 /*!
+ * \brief A function table for a metrics provider
+ *
+ * \details
+ * It's generally nice to separate out things that provide metrics
+ * from the core of this module. For those that want to be notified
+ * when things happen in the core module, they can provide an instance
+ * of this function table using \c prometheus_metrics_provider_register
+ * and be notified when module affecting changes occur.
+ */
+struct prometheus_metrics_provider {
+	/*!
+	 * \brief Handy name of the provider for debugging purposes
+	 */
+	const char *name;
+	/*!
+	 * \brief Reload callback
+	 *
+	 * \param config The reloaded config
+	 *
+	 * \retval 0 success
+	 * \retval -1 error
+	 */
+	int (* const reload_cb)(struct prometheus_general_config *config);
+	/*!
+	 * \brief Unload callback.
+	 */
+	void (* const unload_cb)(void);
+};
+
+/*!
  * \brief Prometheus metric type
  *
  * \note
@@ -436,6 +466,13 @@ int prometheus_callback_register(struct prometheus_callback *callback);
  * \param callback The callback to unregister
  */
 void prometheus_callback_unregister(struct prometheus_callback *callback);
+
+/*!
+ * \brief Register a metrics provider
+ *
+ * \param provider The provider function table to register
+ */
+void prometheus_metrics_provider_register(const struct prometheus_metrics_provider *provider);
 
 /*!
  * \brief Retrieve the current configuration of the module
