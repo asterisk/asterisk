@@ -1649,6 +1649,17 @@ static int app_control_dial(struct stasis_app_control *control,
 	}
 
 	if (ast_call(chan, args->dialstring, 0)) {
+		/* If call fails normally this channel would then just be normally hung up and destroyed.
+		 * In this case though the channel is being handled by the ARI control thread and dial
+		 * bridge which needs to be notified that the channel should be hung up. To do this we
+		 * queue a soft hangup which will cause each to wake up, see that the channel has been
+		 * hung up, and then destroy it.
+		 */
+		int hangup_flag;
+		hangup_flag = ast_bridge_setup_after_goto(chan) ? AST_SOFTHANGUP_DEV : AST_SOFTHANGUP_ASYNCGOTO;
+		ast_channel_lock(chan);
+		ast_softhangup_nolock(chan, hangup_flag);
+		ast_channel_unlock(chan);
 		return -1;
 	}
 
