@@ -26,22 +26,26 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdlib.h>
+#include <inttypes.h>
+#include <stdio.h>
 
 #include "asterisk/conversions.h"
 
-static int str_is_negative(const char *str)
+static int str_is_negative(const char **str)
 {
-	/* Ignore any preceding white space */
-	while (isspace(*str) && *++str);
-	return *str == '-';
+	/*
+	 * Ignore any preceding white space. It's okay to move the pointer here
+	 * since the converting function would do the same, i.e. skip white space.
+	 */
+	while (isspace(**str)) ++*str;
+	return **str == '-';
 }
 
 int ast_str_to_uint(const char *str, unsigned int *res)
 {
-	unsigned long val;
+	uintmax_t val;
 
-	if (ast_str_to_ulong(str, &val) || val > UINT_MAX) {
+	if (ast_str_to_umax(str, &val) || val > UINT_MAX) {
 		return -1;
 	}
 
@@ -51,15 +55,27 @@ int ast_str_to_uint(const char *str, unsigned int *res)
 
 int ast_str_to_ulong(const char *str, unsigned long *res)
 {
-	char *end;
-	unsigned long val;
+	uintmax_t val;
 
-	if (!str || str_is_negative(str)) {
+	if (ast_str_to_umax(str, &val) || val > ULONG_MAX) {
+		return -1;
+	}
+
+	*res = val;
+	return 0;
+}
+
+int ast_str_to_umax(const char *str, uintmax_t *res)
+{
+	char *end;
+	uintmax_t val;
+
+	if (!str || str_is_negative(&str)) {
 		return -1;
 	}
 
 	errno = 0;
-	val = strtoul(str, &end, 0);
+	val = strtoumax(str, &end, 0);
 
 	/*
 	 * If str equals end then no digits were found. If end is not pointing to
@@ -67,11 +83,10 @@ int ast_str_to_ulong(const char *str, unsigned long *res)
 	 * converted, but some characters that could not, which we'll consider
 	 * invalid.
 	 */
-	if ((str == end || *end != '\0' || (errno == ERANGE && val == ULONG_MAX))) {
+	if ((str == end || *end != '\0' || (errno == ERANGE && val == UINTMAX_MAX))) {
 		return -1;
 	}
 
 	*res = val;
 	return 0;
-
 }
