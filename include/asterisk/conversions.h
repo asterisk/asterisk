@@ -23,6 +23,8 @@
 #ifndef _ASTERISK_CONVERSIONS_H
 #define _ASTERISK_CONVERSIONS_H
 
+#include <stdint.h>
+
 /*!
  * \brief Convert the given string to an unsigned integer
  *
@@ -58,5 +60,23 @@ int ast_str_to_uint(const char *str, unsigned int *res);
  * \returns -1 if it fails to convert, 0 on success
  */
 int ast_str_to_ulong(const char *str, unsigned long *res);
+
+/*!
+ * \brief Convert the given string to an unsigned max size integer
+ *
+ * This function will return failure for the following reasons:
+ *
+ *   The given string to convert is NULL
+ *   The given string to convert is empty.
+ *   The given string to convert is negative (starts with a '-')
+ *   The given string to convert contains non numeric values
+ *   Once converted the number is out of range (greater than UINTMAX_MAX)
+ *
+ * \param str The string to convert
+ * \param res [out] The converted value
+ *
+ * \returns -1 if it fails to convert, 0 on success
+ */
+int ast_str_to_umax(const char *str, uintmax_t *res);
 
 #endif /* _ASTERISK_CONVERSIONS_H */

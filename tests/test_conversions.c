@@ -62,6 +62,7 @@ AST_TEST_DEFINE(str_to_uint)
 	}
 
 	ast_test_validate(test, ast_str_to_uint(NULL, &val));
+	ast_test_validate(test, ast_str_to_uint("\0", &val));
 	ast_test_validate(test, ast_str_to_uint(invalid, &val));
 	ast_test_validate(test, ast_str_to_uint(invalid_partial, &val));
 	ast_test_validate(test, ast_str_to_uint(negative, &val));
@@ -103,6 +104,7 @@ AST_TEST_DEFINE(str_to_ulong)
 	}
 
 	ast_test_validate(test, ast_str_to_ulong(NULL, &val));
+	ast_test_validate(test, ast_str_to_ulong("\0", &val));
 	ast_test_validate(test, ast_str_to_ulong(invalid, &val));
 	ast_test_validate(test, ast_str_to_ulong(invalid_partial, &val));
 	ast_test_validate(test, ast_str_to_ulong(negative, &val));
@@ -119,10 +121,53 @@ AST_TEST_DEFINE(str_to_ulong)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(str_to_umax)
+{
+	const char *invalid = "abc";
+	const char *invalid_partial = "7abc";
+	const char *negative = "-7";
+	const char *negative_spaces = "  -7";
+	const char *out_of_range = "99999999999999999999999999999999999999999999999999";
+	const char *spaces = "  ";
+	const char *valid = "7";
+	const char *valid_spaces = "  7";
+	uintmax_t val;
+	char str[64];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = CATEGORY;
+		info->summary = "convert a string to an unsigned max size integer";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, ast_str_to_umax(NULL, &val));
+	ast_test_validate(test, ast_str_to_umax("\0", &val));
+	ast_test_validate(test, ast_str_to_umax(invalid, &val));
+	ast_test_validate(test, ast_str_to_umax(invalid_partial, &val));
+	ast_test_validate(test, ast_str_to_umax(negative, &val));
+	ast_test_validate(test, ast_str_to_umax(negative_spaces, &val));
+	ast_test_validate(test, ast_str_to_umax(out_of_range, &val));
+	ast_test_validate(test, ast_str_to_umax(spaces, &val));
+	ast_test_validate(test, !ast_str_to_umax(valid, &val));
+	ast_test_validate(test, !ast_str_to_umax(valid_spaces, &val));
+
+	ast_test_validate(test, snprintf(str, sizeof(str), "%lu", UINTMAX_MAX) > 0);
+	ast_test_validate(test, !ast_str_to_umax(str, &val));
+	ast_test_validate(test, val == UINTMAX_MAX);
+
+	return AST_TEST_PASS;
+}
+
 static int load_module(void)
 {
 	AST_TEST_REGISTER(str_to_uint);
 	AST_TEST_REGISTER(str_to_ulong);
+	AST_TEST_REGISTER(str_to_umax);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -130,7 +175,8 @@ static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_to_uint);
 	AST_TEST_UNREGISTER(str_to_ulong);
+	AST_TEST_UNREGISTER(str_to_umax);
 	return 0;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "URI test module");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Conversions test module");
