@@ -4126,6 +4126,14 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	*lost_packets = expected_packets - rtp->rxcount;
 	expected_interval = expected_packets - rtp->rtcp->expected_prior;
 	received_interval = rtp->rxcount - rtp->rtcp->received_prior;
+	if (received_interval > expected_interval) {
+		/* If we receive some late packets it is possible for the packets
+		 * we received in this interval to exceed the number we expected.
+		 * We update the expected so that the packet loss calculations
+		 * show that no packets are lost.
+		 */
+		expected_interval = received_interval;
+	}
 	lost_interval = expected_interval - received_interval;
 	if (expected_interval == 0 || lost_interval <= 0) {
 		*fraction_lost = 0;
@@ -6801,7 +6809,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 			ast_log(LOG_WARNING, "scheduling RTCP transmission failed.\n");
 		}
 	}
-	if ((int)rtp->lastrxseqno - (int)seqno  > 100) /* if so it would indicate that the sender cycled; allow for misordering */
+	if ((int)prev_seqno - (int)seqno  > 100) /* if so it would indicate that the sender cycled; allow for misordering */
 		rtp->cycles += RTP_SEQ_MOD;
 
 	/* If we are directly bridged to another instance send the audio directly out,
