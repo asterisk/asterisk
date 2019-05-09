@@ -136,8 +136,9 @@ static void endpoints_scrape_cb(struct ast_str **response)
 	/* Endpoint dependent values */
 	it_endpoints = ao2_iterator_init(endpoints, 0);
 	for (i = 0; (message = ao2_iterator_next(&it_endpoints)); ao2_ref(message, -1), i++) {
+		struct ast_endpoint_snapshot *snapshot = stasis_message_data(message);
+
 		for (j = 0; j < ARRAY_LEN(endpoint_metric_defs); j++) {
-			struct ast_endpoint_snapshot *snapshot = stasis_message_data(message);
 			int index = i * ARRAY_LEN(endpoint_metric_defs) + j;
 
 			endpoint_metrics[index].type = PROMETHEUS_METRIC_GAUGE;
@@ -153,8 +154,9 @@ static void endpoints_scrape_cb(struct ast_str **response)
 				AST_LIST_INSERT_TAIL(&endpoint_metrics[j].children, &endpoint_metrics[index], entry);
 			}
 		}
-		ao2_iterator_destroy(&it_endpoints);
+		ao2_ref(snapshot, -1);
 	}
+	ao2_iterator_destroy(&it_endpoints);
 
 	for (j = 0; j < ARRAY_LEN(endpoint_metric_defs); j++) {
 		prometheus_metric_to_string(&endpoint_metrics[j], response);
