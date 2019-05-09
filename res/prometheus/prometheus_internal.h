@@ -38,4 +38,12 @@
  */
 int channel_metrics_init(void);
 
+/*!
+ * \brief Initialize endpoint metrics
+ *
+ * \retval 0 success
+ * \retval -1 error
+ */
+int endpoint_metrics_init(void);
+
 #endif /* #define PROMETHEUS_INTERNAL_H__ */

@@ -917,7 +917,7 @@ static int load_module(void)
 		goto cleanup;
 	}
 
-	if (channel_metrics_init()) {
+	if (channel_metrics_init() || endpoint_metrics_init()) {
 		goto cleanup;
 	}
 
