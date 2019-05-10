@@ -3814,7 +3814,7 @@ static int peer_status(struct iax2_peer *peer, char *status, int statuslen)
 /*! \brief Show one peer in detail */
 static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char status[30];
+	char status[64];
 	char cbuf[256];
 	struct iax2_peer *peer;
 	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
@@ -6836,7 +6836,7 @@ struct show_peers_context {
 static void _iax2_show_peers_one(int fd, struct mansession *s, struct show_peers_context *cont, struct iax2_peer *peer)
 {
 	char name[256] = "";
-	char status[20];
+	char status[64];
 	int retstatus;
 	struct ast_str *encmethods = ast_str_alloca(256);
 
