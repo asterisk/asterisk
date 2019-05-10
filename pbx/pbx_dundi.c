@@ -2124,7 +2124,7 @@ static void build_secret(char *secret, int seclen)
 
 static void save_secret(const char *newkey, const char *oldkey)
 {
-	char tmp[256];
+	char tmp[350];
 	if (oldkey)
 		snprintf(tmp, sizeof(tmp), "%s;%s", oldkey, newkey);
 	else
@@ -2703,7 +2703,7 @@ static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	AST_LIST_LOCK(&peers);
 	ast_cli(a->fd, FORMAT2, "EID", "Host", "Port", "Model", "AvgTime", "Status");
 	AST_LIST_TRAVERSE(&peers, peer, list) {
-		char status[20];
+		char status[64];
 		int print_line = -1;
 		char srch[2000];
 		total_peers++;

@@ -222,7 +222,7 @@ struct findme_user {
 	long digts;
 	int ynidx;
 	int state;
-	char dialarg[256];
+	char dialarg[768];
 	/*! Collected digits to accept/decline the call. */
 	char yn[MAX_YN_STRING];
 	/*! TRUE if the outgoing call is answered. */
