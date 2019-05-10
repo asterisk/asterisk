@@ -588,7 +588,7 @@ static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name
 	}
 
 	if (state->numsubs > 127) {
-		ast_log(LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, script);
+		ast_log(LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, S_OR(script, "unknown"));
 		return NULL;
 	}
 

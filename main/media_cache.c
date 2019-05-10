@@ -160,8 +160,8 @@ static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 			sizeof(bucket_file->path));
 	} else if (!strchr(bucket_file->path, '.') && (ext = strrchr(ast_sorcery_object_get_id(bucket_file), '.'))) {
 		/* If we don't have a file extension and were provided one in the URI, use it */
-		char new_path[PATH_MAX];
-		char found_ext[PATH_MAX];
+		char found_ext[32];
+		char new_path[PATH_MAX + sizeof(found_ext)];
 
 		ast_bucket_file_metadata_set(bucket_file, "ext", ext);
 

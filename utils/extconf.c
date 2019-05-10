@@ -3005,7 +3005,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		if (do_include || do_exec) {
 			if (c) {
 				char *cur2;
-				char real_inclusion_name[256];
+				char real_inclusion_name[525];
 
 				/* Strip off leading and trailing "'s and <>'s */
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
