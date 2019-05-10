@@ -91,4 +91,12 @@ int endpoint_metrics_init(void);
  */
 int bridge_metrics_init(void);
 
+/*!
+ * \brief Initialize PJSIP outbound registration metrics
+ *
+ * \retval 0 success
+ * \retval -1 error
+ */
+int pjsip_outbound_registration_metrics_init(void);
+
 #endif /* #define PROMETHEUS_INTERNAL_H__ */

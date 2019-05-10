@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<use>pjproject</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -972,7 +973,8 @@ static int load_module(void)
 	if (cli_init()
 		|| channel_metrics_init()
 		|| endpoint_metrics_init()
-		|| bridge_metrics_init()) {
+		|| bridge_metrics_init()
+		|| pjsip_outbound_registration_metrics_init()) {
 		goto cleanup;
 	}
 
