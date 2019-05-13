@@ -2106,30 +2106,31 @@ static int sip_options_contact_add_task(void *obj)
 	}
 
 	if (task_data->aor_options->qualify_frequency) {
-		/* If this is the first contact we need to schedule up qualification */
-		if (ao2_container_count(task_data->aor_options->contacts) == 1) {
-			ast_debug(3, "Starting scheduled callback on AOR '%s' for qualifying as there is now a contact on it\n",
+		/* There will always be a contact here, and we need to immediately schedule
+		 * a qualify so that contacts are not waiting for the qualify_frequency
+		 * timer duration before qualifying.
+		 */
+		ast_debug(3, "Starting scheduled callback on AOR '%s' for qualifying as there is now a contact on it\n",
+			task_data->aor_options->name);
+		/*
+		 * We immediately schedule the initial qualify so that we get
+		 * reachable/unreachable as soon as possible.  Realistically
+		 * since they pretty much just registered they should be
+		 * reachable.
+		 */
+		if (task_data->aor_options->sched_task) {
+			ast_sip_sched_task_cancel(task_data->aor_options->sched_task);
+			ao2_ref(task_data->aor_options->sched_task, -1);
+			task_data->aor_options->sched_task = NULL;
+		}
+		task_data->aor_options->sched_task = ast_sip_schedule_task(
+			task_data->aor_options->serializer, 1, sip_options_qualify_aor,
+			ast_taskprocessor_name(task_data->aor_options->serializer),
+			task_data->aor_options,
+			AST_SIP_SCHED_TASK_VARIABLE | AST_SIP_SCHED_TASK_DATA_AO2);
+		if (!task_data->aor_options->sched_task) {
+			ast_log(LOG_ERROR, "Unable to schedule qualify for contacts of AOR '%s'\n",
 				task_data->aor_options->name);
-			/*
-			 * We immediately schedule the initial qualify so that we get
-			 * reachable/unreachable as soon as possible.  Realistically
-			 * since they pretty much just registered they should be
-			 * reachable.
-			 */
-			if (task_data->aor_options->sched_task) {
-				ast_sip_sched_task_cancel(task_data->aor_options->sched_task);
-				ao2_ref(task_data->aor_options->sched_task, -1);
-				task_data->aor_options->sched_task = NULL;
-			}
-			task_data->aor_options->sched_task = ast_sip_schedule_task(
-				task_data->aor_options->serializer, 1, sip_options_qualify_aor,
-				ast_taskprocessor_name(task_data->aor_options->serializer),
-				task_data->aor_options,
-				AST_SIP_SCHED_TASK_VARIABLE | AST_SIP_SCHED_TASK_DATA_AO2);
-			if (!task_data->aor_options->sched_task) {
-				ast_log(LOG_ERROR, "Unable to schedule qualify for contacts of AOR '%s'\n",
-					task_data->aor_options->name);
-			}
 		}
 	} else {
 		/*
