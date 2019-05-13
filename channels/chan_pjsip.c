@@ -1592,7 +1592,9 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	switch (condition) {
 	case AST_CONTROL_RINGING:
 		if (ast_channel_state(ast) == AST_STATE_RING) {
-			if (channel->session->endpoint->inband_progress) {
+			if (channel->session->endpoint->inband_progress ||
+				(channel->session->inv_session && channel->session->inv_session->neg &&
+				pjmedia_sdp_neg_get_state(channel->session->inv_session->neg) == PJMEDIA_SDP_NEG_STATE_DONE)) {
 				response_code = 183;
 				res = -1;
 			} else {
