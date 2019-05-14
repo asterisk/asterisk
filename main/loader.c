@@ -1087,7 +1087,9 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 	if (resource_being_loaded) {
 		struct ast_str *list;
 		int c = 0;
-		const char *dlerror_msg = ast_strdupa(dlerror());
+
+    // if  dlerror() return NULL then Segment falut
+		// const char *dlerror_msg = ast_strdupa(dlerror());
 
 		resource_being_loaded = NULL;
 		if (mod->lib) {
@@ -1109,7 +1111,7 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 		if (resource_being_loaded) {
 			resource_being_loaded = NULL;
 
-			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror_msg);
+			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror());
 			logged_dlclose(resource_in, mod->lib);
 
 			goto error_return;
@@ -1132,7 +1134,7 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 			module_load_error("Error loading module '%s', missing %s: %s\n",
 				resource_in, c == 1 ? "dependency" : "dependencies", ast_str_buffer(list));
 		} else {
-			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror_msg);
+			module_load_error("Error loading module '%s': %s\n", resource_in, dlerror());
 		}
 
 loaded_error:
