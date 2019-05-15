@@ -98,7 +98,7 @@ static int utf8decode (unsigned char **pp)
 */
 static char txqcheck (char *dir, char *queue, char subaddress, char *channel, char *callerid, int wait, int delay, int retries, int concurrent)
 {
-   char ogname[100],
+   char ogname[300],
      temp[100],
      dirname[100],
     *p=NULL;
