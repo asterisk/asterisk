@@ -49,6 +49,11 @@ include ../../Makefile.rules
 include ../Makefile.rules
 include Makefile.rules
 
+OPTIMIZE_CFLAGS = -g3
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
+    OPTIMIZE_CFLAGS += $(OPTIMIZE)
+endif
+
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[jansson] '
 SHELL_ECHO_PREFIX := echo '[jansson] '
 
@@ -82,7 +87,7 @@ source/.unpacked: $(DOWNLOAD_DIR)/$(TARBALL_FILE)
 source/config.status: source/.unpacked Makefile.rules .rebuild_needed
 	$(ECHO_PREFIX) Configuring
 	$(CMD_PREFIX) (cd source ; ./configure $(QUIET_CONFIGURE) $(JANSSON_CONFIG_OPTS) --disable-shared \
-		--enable-static --prefix=$(JANSSON_DIR)/dest --libdir=$(JANSSON_DIR)/dest/lib)
+		--enable-static --prefix=$(JANSSON_DIR)/dest --libdir=$(JANSSON_DIR)/dest/lib CFLAGS="$(OPTIMIZE_CFLAGS)")
 
 configure: source/config.status
 
