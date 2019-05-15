@@ -849,10 +849,10 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc == e->args + 1) {
 		char *ext = NULL, *con = NULL;
 		s = ast_ext_ctx(pvt, a->argv[e->args], &ext, &con);
-		ast_debug(1, "provided '%s', exten '%s' context '%s'\n",
-			a->argv[e->args], mye, myc);
 		mye = ext;
 		myc = con;
+		ast_debug(1, "provided '%s', exten '%s' context '%s'\n",
+			a->argv[e->args], mye, myc);
 	}
 
 	/* supply default values if needed */
