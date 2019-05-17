@@ -244,6 +244,7 @@ static AST_LIST_HEAD_STATIC(ioqueues, ast_rtp_ioqueue_thread);
 struct ast_ice_host_candidate {
 	pj_sockaddr local;
 	pj_sockaddr advertised;
+	unsigned int include_local;
 	AST_RWLIST_ENTRY(ast_ice_host_candidate) next;
 };
 
@@ -543,21 +544,26 @@ static void host_candidate_overrides_clear(void)
 }
 
 /*! \brief Applies the ICE host candidate mapping */
-static void host_candidate_overrides_apply(unsigned int count, pj_sockaddr addrs[])
+static unsigned int host_candidate_overrides_apply(unsigned int count, unsigned int max_count, pj_sockaddr addrs[])
 {
 	int pos;
 	struct ast_ice_host_candidate *candidate;
+	unsigned int added = 0;
 
 	AST_RWLIST_RDLOCK(&host_candidates);
 	for (pos = 0; pos < count; pos++) {
 		AST_LIST_TRAVERSE(&host_candidates, candidate, next) {
 			if (!pj_sockaddr_cmp(&candidate->local, &addrs[pos])) {
 				pj_sockaddr_copy_addr(&addrs[pos], &candidate->advertised);
+				if (candidate->include_local && (count + (++added)) <= max_count) {
+					pj_sockaddr_cp(&addrs[count + (added - 1)], &candidate->local);
+				}
 				break;
 			}
 		}
 	}
 	AST_RWLIST_UNLOCK(&host_candidates);
+	return added;
 }
 
 /*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
@@ -2954,6 +2960,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 {
 	pj_sockaddr address[PJ_ICE_MAX_CAND];
 	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
+	unsigned int max_count = PJ_ARRAY_SIZE(address);
 	int basepos = -1;
 
 	/* Add all the local interface IP addresses */
@@ -2965,7 +2972,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		pj_enum_ip_interface(pj_AF_INET6(), &count, address);
 	}
 
-	host_candidate_overrides_apply(count, address);
+	count += host_candidate_overrides_apply(count, max_count, address);
 
 	for (pos = 0; pos < count; pos++) {
 		if (!rtp_address_is_ice_blacklisted(&address[pos])) {
@@ -6744,6 +6751,8 @@ static int rtp_reload(int reload)
 	for (var = ast_variable_browse(cfg, "ice_host_candidates"); var; var = var->next) {
 		struct ast_sockaddr local_addr, advertised_addr;
 		pj_str_t address;
+		unsigned int include_local_address = 0;
+		char *sep;
 
 		ast_sockaddr_setnull(&local_addr);
 		ast_sockaddr_setnull(&advertised_addr);
@@ -6751,6 +6760,14 @@ static int rtp_reload(int reload)
 		if (ast_parse_arg(var->name, PARSE_ADDR | PARSE_PORT_IGNORE, &local_addr)) {
 			ast_log(LOG_WARNING, "Invalid local ICE host address: %s\n", var->name);
 			continue;
+		}
+
+		sep = strchr(var->value,',');
+		if (sep) {
+			*sep = '\0';
+			sep++;
+			sep = ast_skip_blanks(sep);
+			include_local_address = strcmp(sep, "include_local_address") == 0;
 		}
 
 		if (ast_parse_arg(var->value, PARSE_ADDR | PARSE_PORT_IGNORE, &advertised_addr)) {
@@ -6762,6 +6779,8 @@ static int rtp_reload(int reload)
 			ast_log(LOG_ERROR, "Failed to allocate ICE host candidate mapping.\n");
 			break;
 		}
+
+		candidate->include_local = include_local_address;
 
 		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&local_addr)), &candidate->local);
 		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&advertised_addr)), &candidate->advertised);
