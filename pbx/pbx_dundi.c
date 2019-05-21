@@ -35,6 +35,7 @@
 	<use type="module">res_crypto</use>
 	<use type="external">crypto</use>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

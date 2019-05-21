@@ -24,6 +24,7 @@
 	<depend>res_calendar</depend>
 	<depend>neon29</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
 ***/
 
 #include "asterisk.h"

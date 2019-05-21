@@ -26,6 +26,7 @@
 /*** MODULEINFO
 	<use type="module">func_periodic_hook</use>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
 	<replacement>app_mixmonitor</replacement>
  ***/
 

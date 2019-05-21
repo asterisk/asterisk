@@ -28,6 +28,7 @@
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

@@ -37,6 +37,7 @@
 /*** MODULEINFO
 	<depend>res_adsi</depend>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

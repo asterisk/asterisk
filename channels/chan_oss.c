@@ -41,6 +41,7 @@
 /*** MODULEINFO
 	<depend>oss</depend>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

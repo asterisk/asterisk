@@ -177,6 +177,7 @@
 	<use type="module">res_crypto</use>
 	<use type="module">res_http_websocket</use>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 /*!  \page sip_session_timers SIP Session Timers in Asterisk Chan_sip

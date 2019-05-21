@@ -77,6 +77,7 @@
 	<depend>misdn</depend>
 	<depend>suppserv</depend>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
 	<replacement>chan_dahdi</replacement>
  ***/
 
