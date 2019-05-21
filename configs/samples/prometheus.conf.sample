@@ -1,0 +1,61 @@
+;
+; res_prometheus Module configuration for Asterisk
+;
+
+;
+; Note that this configuration file is consumed by res_prometheus, which
+; provides core functionality for serving up Asterisk statistics to a
+; Prometheus server. By default, this only includes basic information about
+; the Asterisk instance that is running. Additional modules can be loaded to
+; provide specific statistics. In all cases, configuration of said statistics
+; is done through this configuration file.
+;
+; Because Prometheus scrapes statistics from HTTP servers, this module requires
+; Asterisk's built-in HTTP server to be enabled and configured properly.
+;
+
+; Settings that affect all statistic generation
+[general]
+enabled = no                      ; Enable/disable all statistic generation.
+                                  ; Default is "no", as enabling this without
+                                  ; proper securing of your Asterisk system
+                                  ; may result in external systems learning
+                                  ; a lot about your Asterisk system.
+                                  ; Note #1: If Asterisk's HTTP server is
+                                  ; disabled, this setting won't matter.
+                                  ; Note #2: It is highly recommended that you
+                                  ; set up Basic Auth and configure your
+                                  ; Prometheus server to authenticate with
+                                  ; Asterisk. Failing to do so will make it easy
+                                  ; for external systems to scrape your Asterisk
+                                  ; instance and learn things about your system
+                                  ; that you may not want them to. While the
+                                  ; metrics exposed by this module do not
+                                  ; necessarily contain information that can
+                                  ; lead to an exploit, an ounce of prevention
+                                  ; goes a long way. Particularly for those out
+                                  ; there who are exceedingly lax in updating
+                                  ; your Asterisk system. You are updating on a
+                                  ; regular cadence, aren't you???
+core_metrics_enabled = yes        ; Enable/disable core metrics. Core metrics
+                                  ; include various properties such as the
+                                  ; version of Asterisk, uptime, last reload
+                                  ; time, and the overall time it takes to
+                                  ; scrape metrics. Default is "yes"
+uri = metrics                     ; The HTTP route to expose metrics on.
+                                  ; Default is "metrics".
+
+; auth_username = Asterisk        ; If provided, Basic Auth will be enabled on
+                                  ; the metrics route. Failure to provide both
+                                  ; auth_username and auth_password will result
+                                  ; in a module load error.
+; auth_password =                 ; The password to use for Basic Auth. Note
+                                  ; that I'm leaving this blank to prevent
+                                  ; you from merely uncommenting the line and
+                                  ; running with a config provided password.
+                                  ; Because yes, people actually *do* that.
+                                  ; I mean, if you're going to do that, just
+                                  ; run unsecured. Fake security is usually
+                                  ; worse than no security.
+; auth_realm =                    ; Realm to use for authentication. Defaults
+                                  ; to Asterisk Prometheus Metrics
