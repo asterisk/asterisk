@@ -6728,7 +6728,8 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	unsigned int *rtpheader = (unsigned int*)(read_area);
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_rtp_instance *instance1;
-	int res = length, hdrlen = 12, seqno, timestamp, payloadtype, padding, mark, ext, cc;
+	int res = length, hdrlen = 12, seqno, payloadtype, padding, mark, ext, cc;
+	unsigned int timestamp;
 	RAII_VAR(struct ast_rtp_payload_type *, payload, NULL, ao2_cleanup);
 	struct frame_list frames;
 
