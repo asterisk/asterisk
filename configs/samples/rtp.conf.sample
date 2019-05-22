@@ -118,12 +118,18 @@ rtpend=20000
 ;
 ; The format for these overrides is:
 ;
-;    <local address> => <advertised address>
+;    <local address> => <advertised address>,[include_local_address]
 ;
 ; The following will replace 192.168.1.10 with 1.2.3.4 during ICE
 ; negotiation:
 ;
 ;192.168.1.10 => 1.2.3.4
+;
+; The following will include BOTH 192.168.1.10 and 1.2.3.4 during ICE
+; negotiation instead of replacing 192.168.1.10.  This can make it easier
+; to serve both local and remote clients.
+;
+;192.168.1.10 => 1.2.3.4,include_local_address
 ;
 ; You can define an override for more than 1 interface if you have a multihomed
 ; server. Any local interface that is not matched will be passed through
