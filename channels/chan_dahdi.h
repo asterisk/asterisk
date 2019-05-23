@@ -39,6 +39,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

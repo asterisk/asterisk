@@ -101,6 +101,7 @@
 #include "asterisk/options.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
+#include "asterisk/mwi.h"
 #include "asterisk/file.h"
 #include "asterisk/callerid.h"
 #include "asterisk/say.h"
