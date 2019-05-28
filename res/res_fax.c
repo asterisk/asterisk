@@ -1110,6 +1110,7 @@ static void destroy_session(void *session)
 			s->details->caps &= ~AST_FAX_TECH_GATEWAY;
 		}
 		ao2_ref(s->details, -1);
+		s->details = NULL;
 	}
 
 	if (s->debug_info) {
@@ -2915,7 +2916,8 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	int start_res;
 
 	/* if the fax gateway is already started then do nothing */
-	if (gateway->s && gateway->s->state != AST_FAX_STATE_RESERVED) {
+	if (gateway->s &&
+		gateway->s->state != AST_FAX_STATE_RESERVED && gateway->s->state != AST_FAX_STATE_INACTIVE) {
 		return 0;
 	}
 
@@ -3510,6 +3512,12 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	/* in gateway mode, gateway some packets */
 	if (gateway->t38_state == T38_STATE_NEGOTIATED) {
 		struct ast_trans_pvt *readtrans;
+
+		if (!gateway->s || !gateway->s->tech_pvt) {
+			ast_log(LOG_ERROR, "no FAX session on chan %s for T.38 gateway session, odd", ast_channel_name(chan));
+			return f;
+		}
+
 		/* framehooks are called in __ast_read() before frame format
 		 * translation is done, so we need to translate here */
 		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
