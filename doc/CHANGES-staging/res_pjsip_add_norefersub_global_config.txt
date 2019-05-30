@@ -1,9 +1,9 @@
-res_pjsip:  Added a norefersub configuration setting
+Subject: res_pjsip
 
 Added a new PJSIP global setting called norefersub.
 Default is true to keep support working as before.
 
-res_pjsip_refer:  Configures PJSIP norefersub capability accordingly.
+res_pjsip_refer configures PJSIP norefersub capability accordingly.
 
 Checks the PJSIP global setting value.
 If it is true (default) it adds the norefersub capability to PJSIP.
