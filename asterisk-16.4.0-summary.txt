@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.4.0-rc1
+                                asterisk-16.4.0
 
-                                Date: 2019-05-22
+                                Date: 2019-05-30
 
                            <asteriskteam@digium.com>
 
@@ -13,8 +13,9 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Other Changes
-    5. Diffstat
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -52,23 +53,23 @@
    Coders                       Testers       Reporters                       
    9 George Joseph              1 Abhay Gupta 4 sungtae kim                   
    9 Sean Bright                              4 Joshua C. Colp                
-   4 Joshua Colp                              3 Ross Beer                     
-   4 Ben Ford                                 3 Abhay Gupta                   
+   5 Ben Ford                                 3 Ross Beer                     
+   4 Joshua Colp                              3 Abhay Gupta                   
    3 Abhay Gupta                              3 Ross Beer                     
-   3 Kevin Harwell                            2 George Joseph                 
-   3 sungtae kim                              1 klaus3000                     
-   1 Holger Hans Peter Freyther               1 test011                       
+   3 Kevin Harwell                            2 Guido Falsi                   
+   3 sungtae kim                              2 George Joseph                 
+   2 Asterisk Development Team                1 klaus3000                     
+   2 Guido Falsi                              1 test011                       
    1 Salah Ahmed                              1 Janu                          
-   1 Matthew Fredrickson                      1 Marin Odrljin                 
-   1 Alexei Gradinari                         1 SÃ©bastien Duthil             
-   1 Sebastian Kemper                         1 Salah Ahmed                   
-   1 Lucas Mendes                             1 the CC variable, instead of   
-   1 Chris-Savinovich                         unconditionally                 
-   1 Dan Cropp                                1 Guido Falsi                   
-   1 Guido Falsi                              1 Steven Wheeler                
-   1 Antoni Goldstein                         1 Dmitry Shubin                 
-   1 Alexander Anikin                         1 Vyrva Igor                    
-                                              1 Corey Farrell                 
+   1 Holger Hans Peter Freyther               1 Marin Odrljin                 
+   1 Matthew Fredrickson                      1 SÃ©bastien Duthil             
+   1 Alexei Gradinari                         1 Salah Ahmed                   
+   1 Sebastian Kemper                         1 the CC variable, instead of   
+   1 Lucas Mendes                             unconditionally                 
+   1 Chris-Savinovich                         1 Steven Wheeler                
+   1 Dan Cropp                                1 Dmitry Shubin                 
+   1 Antoni Goldstein                         1 Abhay Gupta                   
+   1 Alexander Anikin                         1 Corey Farrell                 
                                               1 Dan Cropp                     
                                               1 Steven Wheeler                
                                               1 Kirill Katsnelson             
@@ -76,7 +77,7 @@
                                               1 Dmitry Shubin                 
                                               1 Sebastian Kemper              
                                               1 Janu                          
-                                              1 Abhay Gupta                   
+                                              1 Vyrva Igor                    
                                               1 Luke-Jr                       
                                               1 Dan Cropp                     
                                               1 Lucas Mendes                  
@@ -139,6 +140,13 @@
    Reported by: SÃ©bastien Duthil
      * [d0a8334e4f] Sean Bright -- app_voicemail: Don't split mailbox options
        on comma
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-28427: new mwi.h include missing from some dahdi source files,
+   causes build failure
+   Reported by: Guido Falsi
+     * [e1977f4e85] Guido Falsi -- chan_dahdi: add missing include.
 
     Category: Channels/chan_local
 
@@ -230,15 +238,6 @@
    Reported by: Lucas Mendes
      * [daed593cfa] Lucas Mendes -- res_indications: Fix indications remove
        command autocomplete
-
-    Category: Resources/res_pjsip
-
-   ASTERISK-28161: Removal of Previous Patch Causes PJSIP Timer Issues
-   Reported by: Ross Beer
-     * [33ed2e1bb8] Joshua Colp -- pjproject-bundled: Add upstream timer
-       fixes
-     * [d4cd2a9706] Sean Bright -- pjproject: Add timer patch from pjproject
-       r5934
 
     Category: Resources/res_pjsip_registrar
 
@@ -357,6 +356,26 @@
 
      ----------------------------------------------------------------------
 
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28161: Removal of Previous Patch Causes PJSIP Timer Issues
+   Reported by: Ross Beer
+     * [33ed2e1bb8] Joshua Colp -- pjproject-bundled: Add upstream timer
+       fixes
+     * [d4cd2a9706] Sean Bright -- pjproject: Add timer patch from pjproject
+       r5934
+
+     ----------------------------------------------------------------------
+
                       Commits Not Associated with an Issue
 
                                  [Back to Top]
@@ -365,46 +384,55 @@
    reference a JIRA issue.
 
    +------------------------------------------------------------------------+
-   | Revision   | Author              | Summary                             |
-   |------------+---------------------+-------------------------------------|
-   | 79b15d0b30 | George Joseph       | res_rtp_asterisk: Add ability to    |
-   |            |                     | propose local address in ICE        |
-   |------------+---------------------+-------------------------------------|
-   | 941dead08d | Ben Ford            | pjsip_options.c: Allow immediate    |
-   |            |                     | qualifies for new contacts.         |
-   |------------+---------------------+-------------------------------------|
-   | edc3e0df1a | Kevin Harwell       | conversions.c: Add conversions for  |
-   |            |                     | largest max sized integer           |
-   |------------+---------------------+-------------------------------------|
-   | e3a758975d | Kevin Harwell       | mwi core: Move core MWI             |
-   |            |                     | functionality into its own files    |
-   |------------+---------------------+-------------------------------------|
-   | e281911667 | George Joseph       | ARI: Bump non-breaking version      |
-   |            |                     | number to 4.0.2                     |
-   |------------+---------------------+-------------------------------------|
-   | 7487fc88d2 | George Joseph       | res_remb_modifier: Propertly        |
-   |            |                     | initialize bitrate to 0.0           |
-   |------------+---------------------+-------------------------------------|
-   |            |                     | res_mwi_devstate: Specify           |
-   | 022e784b7a | Sean Bright         | AST_MODFLAG_LOAD_ORDER to enable    |
-   |            |                     | load priority                       |
-   |------------+---------------------+-------------------------------------|
-   | 18fe583d12 | George Joseph       | CI: Move test group config files to |
-   |            |                     | Jenkins                             |
-   |------------+---------------------+-------------------------------------|
-   | 898765d919 | George Joseph       | ARI: Run 'make ari-stubs'           |
-   |------------+---------------------+-------------------------------------|
-   | acfbfef8ad | Alexei Gradinari    | res_pjsip: Fix transport_states ref |
-   |            |                     | leak                                |
-   |------------+---------------------+-------------------------------------|
-   | 85bbb7a3e8 | Chris-Savinovich    | config.c: Fix a crash in extconfig  |
-   |            |                     | parsing                             |
-   |------------+---------------------+-------------------------------------|
-   | 1464a6b80f | George Joseph       | CI: Add --no-dev-mode option to     |
-   |            |                     | buildAsterisk.sh                    |
-   |------------+---------------------+-------------------------------------|
-   | ae1aeb930e | Matthew Fredrickson | res/res_rtp_asterisk: Enable        |
-   |            |                     | rxjitter calculation for video      |
+   | Revision   | Author               | Summary                            |
+   |------------+----------------------+------------------------------------|
+   | 05f2b24110 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 16.4.0                             |
+   |------------+----------------------+------------------------------------|
+   | f23d0002c6 | Ben Ford             | build: Fix file format in          |
+   |            |                      | CHANGES-staging.                   |
+   |------------+----------------------+------------------------------------|
+   | 5af18dc5e3 | Asterisk Development | Update for 16.4.0-rc1              |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
+   | 79b15d0b30 | George Joseph        | res_rtp_asterisk: Add ability to   |
+   |            |                      | propose local address in ICE       |
+   |------------+----------------------+------------------------------------|
+   | 941dead08d | Ben Ford             | pjsip_options.c: Allow immediate   |
+   |            |                      | qualifies for new contacts.        |
+   |------------+----------------------+------------------------------------|
+   | edc3e0df1a | Kevin Harwell        | conversions.c: Add conversions for |
+   |            |                      | largest max sized integer          |
+   |------------+----------------------+------------------------------------|
+   | e3a758975d | Kevin Harwell        | mwi core: Move core MWI            |
+   |            |                      | functionality into its own files   |
+   |------------+----------------------+------------------------------------|
+   | e281911667 | George Joseph        | ARI: Bump non-breaking version     |
+   |            |                      | number to 4.0.2                    |
+   |------------+----------------------+------------------------------------|
+   | 7487fc88d2 | George Joseph        | res_remb_modifier: Propertly       |
+   |            |                      | initialize bitrate to 0.0          |
+   |------------+----------------------+------------------------------------|
+   |            |                      | res_mwi_devstate: Specify          |
+   | 022e784b7a | Sean Bright          | AST_MODFLAG_LOAD_ORDER to enable   |
+   |            |                      | load priority                      |
+   |------------+----------------------+------------------------------------|
+   | 18fe583d12 | George Joseph        | CI: Move test group config files   |
+   |            |                      | to Jenkins                         |
+   |------------+----------------------+------------------------------------|
+   | 898765d919 | George Joseph        | ARI: Run 'make ari-stubs'          |
+   |------------+----------------------+------------------------------------|
+   | acfbfef8ad | Alexei Gradinari     | res_pjsip: Fix transport_states    |
+   |            |                      | ref leak                           |
+   |------------+----------------------+------------------------------------|
+   | 85bbb7a3e8 | Chris-Savinovich     | config.c: Fix a crash in extconfig |
+   |            |                      | parsing                            |
+   |------------+----------------------+------------------------------------|
+   | 1464a6b80f | George Joseph        | CI: Add --no-dev-mode option to    |
+   |            |                      | buildAsterisk.sh                   |
+   |------------+----------------------+------------------------------------|
+   | ae1aeb930e | Matthew Fredrickson  | res/res_rtp_asterisk: Enable       |
+   |            |                      | rxjitter calculation for video     |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -416,24 +444,23 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |83723 ----------
  UPGRADE-1.2.txt                                                                                 |  218
- UPGRADE-1.4.txt                                                                                 |  497
- UPGRADE-1.6.txt                                                                                 |  277
- UPGRADE-1.8.txt                                                                                 |  343
+ UPGRADE-1.4.txt                                                                                 |  497 -
+ UPGRADE-1.6.txt                                                                                 |  277 -
+ UPGRADE-1.8.txt                                                                                 |  343 -
  UPGRADE-10.txt                                                                                  |   92
- UPGRADE-11.txt                                                                                  |  280
- UPGRADE-12.txt                                                                                  |  478
- UPGRADE-13.txt                                                                                  |  399
+ UPGRADE-11.txt                                                                                  |  280 -
+ UPGRADE-12.txt                                                                                  |  478 -
+ UPGRADE-13.txt                                                                                  |  399 -
  UPGRADE-14.txt                                                                                  |  115
  UPGRADE-15.txt                                                                                  |   63
- asterisk-16.3.0-summary.html                                                                    |  267
- asterisk-16.3.0-summary.txt                                                                     |  658
- b/CHANGES                                                                                       |    4
+ asterisk-16.3.0-summary.html                                                                    |  267 -
+ asterisk-16.3.0-summary.txt                                                                     |  658 --
+ b/.version                                                                                      |    2
+ b/CHANGES                                                                                       |   49
+ b/ChangeLog                                                                                     |  701 ++
  b/Makefile.rules                                                                                |    9
- b/UPGRADE.txt                                                                                   | 2587
+ b/UPGRADE.txt                                                                                   | 2587 +++++++++-
  b/addons/chan_ooh323.c                                                                          |   19
  b/addons/chan_ooh323.h                                                                          |    1
  b/addons/ooh323c/src/ooh323ep.c                                                                 |    6
@@ -447,27 +474,29 @@
  b/apps/app_voicemail.c                                                                          |   56
  b/apps/confbridge/conf_config_parser.c                                                          |   35
  b/apps/confbridge/include/confbridge.h                                                          |    3
+ b/asterisk-16.4.0-rc1-summary.html                                                              |  228
+ b/asterisk-16.4.0-rc1-summary.txt                                                               |  545 ++
  b/bridges/bridge_softmix.c                                                                      |  124
  b/bridges/bridge_softmix/include/bridge_softmix_internal.h                                      |    2
  b/channels/chan_console.c                                                                       |    4
  b/channels/chan_dahdi.c                                                                         |    2
+ b/channels/chan_dahdi.h                                                                         |    1
  b/channels/chan_iax2.c                                                                          |    5
  b/channels/chan_mgcp.c                                                                          |    1
  b/channels/chan_pjsip.c                                                                         |    2
  b/channels/chan_sip.c                                                                           |    2
  b/channels/chan_skinny.c                                                                        |    1
  b/channels/chan_unistim.c                                                                       |    1
+ b/channels/sig_pri.c                                                                            |    1
  b/configs/samples/confbridge.conf.sample                                                        |    6
  b/configs/samples/pjsip.conf.sample                                                             |    5
  b/configs/samples/rtp.conf.sample                                                               |    8
  b/configure                                                                                     |   50
  b/configure.ac                                                                                  |   14
  b/contrib/ast-db-manage/config/versions/3a094a18e75b_pjsip_add_norefersub.py                    |   39
+ b/contrib/realtime/mysql/mysql_config.sql                                                       |    6
+ b/contrib/realtime/postgresql/postgresql_config.sql                                             |    6
  b/doc/CHANGES-staging/README.md                                                                 |   28
- b/doc/CHANGES-staging/app_confbridge_remb_behavior_all.txt                                      |    7
- b/doc/CHANGES-staging/app_dial_ringtime_progresstime.txt                                        |   12
- b/doc/CHANGES-staging/res_pjsip_add_norefersub_global_config.txt                                |   13
- b/doc/CHANGES-staging/rtp_ice_include_local_address.txt                                         |    5
  b/doc/UPGRADE-staging/README.md                                                                 |   30
  b/include/asterisk/app.h                                                                        |  195
  b/include/asterisk/autoconfig.h.in                                                              |    3
@@ -479,7 +508,7 @@
  b/include/asterisk/res_pjsip.h                                                                  |    7
  b/include/asterisk/rtp_engine.h                                                                 |   18
  b/include/asterisk/stasis.h                                                                     |   43
- b/main/app.c                                                                                    |  329
+ b/main/app.c                                                                                    |  329 -
  b/main/asterisk.c                                                                               |    2
  b/main/bridge.c                                                                                 |    1
  b/main/channel.c                                                                                |   18
@@ -491,14 +520,14 @@
  b/main/manager.c                                                                                |    1
  b/main/manager_mwi.c                                                                            |    1
  b/main/media_cache.c                                                                            |    4
- b/main/mwi.c                                                                                    |  369
+ b/main/mwi.c                                                                                    |  369 +
  b/main/pbx.c                                                                                    |   28
  b/main/rtp_engine.c                                                                             |   89
- b/main/stasis.c                                                                                 |  448
+ b/main/stasis.c                                                                                 |  448 +
  b/main/stasis_channels.c                                                                        |    5
  b/pbx/pbx_dundi.c                                                                               |    4
  b/res/ael/pval.c                                                                                |   30
- b/res/ari/ari_model_validators.c                                                                |  412
+ b/res/ari/ari_model_validators.c                                                                |  412 +
  b/res/ari/ari_model_validators.h                                                                |   55
  b/res/ari/resource_channels.c                                                                   |   58
  b/res/ari/resource_channels.h                                                                   |   13
@@ -517,7 +546,7 @@
  b/res/res_pjsip_registrar.c                                                                     |    4
  b/res/res_pjsip_sdp_rtp.c                                                                       |   14
  b/res/res_remb_modifier.c                                                                       |   67
- b/res/res_rtp_asterisk.c                                                                        |  480
+ b/res/res_rtp_asterisk.c                                                                        |  480 +
  b/res/res_smdi.c                                                                                |    1
  b/res/res_xmpp.c                                                                                |    1
  b/res/stasis/control.c                                                                          |   17
@@ -534,12 +563,6 @@
  b/third-party/jansson/Makefile                                                                  |    7
  b/third-party/pjproject/Makefile                                                                |   18
  b/third-party/pjproject/patches/0030-Re-2176-Removed-pop_freelist-push_freelist-after-rem.patch |   37
- b/third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                      |  372
- b/third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch |   69
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   41
- contrib/realtime/mysql/mysql_config.sql                                                         | 1231
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   45
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1329
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
- 126 files changed, 6621 insertions(+), 90945 deletions(-)
+ b/third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                      |  372 +
+ b/third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch |  117
+ 121 files changed, 8164 insertions(+), 4503 deletions(-)
