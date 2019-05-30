@@ -13,6 +13,43 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.26.0 to Asterisk 13.27.0 ----------
+------------------------------------------------------------------------------
+
+Dial
+------------------
+ * Add RINGTIME and RINGTIME_MS variables containing respectively seconds and
+   milliseconds between creation of the dialing channel and receiving the first
+   RINGING signal
+
+   Add PROGRESSTIME and PROGRESSTIME_MS variables analogous to the above with respect to
+   the PROGRESS signal. Shorter of these two times should be equivalent to
+   the PDD (Post Dial Delay) value
+
+   Add DIALEDTIME_MS and ANSWEREDTIME_MS variables to get millisecond resolution
+   versions of DIALEDTIME and ANSWEREDTIME
+
+RTP/ICE
+------------------
+ * You can now indicate that you'd like an ice_host_candidate's local address
+   to be published as well as the mapped address.  See the sample rtp.conf
+   for more information.
+
+res_pjsip
+------------------
+ * Added a new PJSIP global setting called norefersub.
+   Default is true to keep support working as before.
+
+   res_pjsip_refer configures PJSIP norefersub capability accordingly.
+
+   Checks the PJSIP global setting value.
+   If it is true (default) it adds the norefersub capability to PJSIP.
+   If it is false (disabled) it does not add the norefersub capability
+   to PJSIP.
+
+   This is useful for Cisco switches that do not follow RFC4488.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.25.0 to Asterisk 13.26.0 ----------
 ------------------------------------------------------------------------------
 
