@@ -65,6 +65,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="n">
 						<para>Read digits even if the channel is not answered.</para>
 					</option>
+					<option name="p">
+						<para>The extension entered will be considered complete when a <literal>#</literal>
+						is entered.</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="timeout">
@@ -102,12 +106,14 @@ enum readexten_option_flags {
 	OPT_SKIP = (1 << 0),
 	OPT_INDICATION = (1 << 1),
 	OPT_NOANSWER = (1 << 2),
+	OPT_POUND_TO_END = (1 << 3),
 };
 
 AST_APP_OPTIONS(readexten_app_options, {
 	AST_APP_OPTION('s', OPT_SKIP),
 	AST_APP_OPTION('i', OPT_INDICATION),
 	AST_APP_OPTION('n', OPT_NOANSWER),
+	AST_APP_OPTION('p', OPT_POUND_TO_END),
 });
 
 static char *app = "ReadExten";
@@ -225,6 +231,11 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 					pbx_builtin_setvar_helper(chan, arglist.variable, "t");
 					status = "TIMEOUT";
 				}
+				break;
+			}
+
+			if (ast_test_flag(&flags, OPT_POUND_TO_END) && res == '#') {
+				exten[x] = 0;
 				break;
 			}
 

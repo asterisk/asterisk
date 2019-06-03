@@ -1,0 +1,3 @@
+Subject: ReadExten
+
+Add 'p' option to stop reading extension if user presses '#' key.
