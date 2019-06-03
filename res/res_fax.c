@@ -4068,6 +4068,7 @@ static char *cli_fax_show_session(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "\nFAX Session Details:\n--------------------\n\n");
 	s = ao2_find(faxregistry.container, &tmp, OBJ_POINTER);
 	if (s) {
+		ast_cli(a->fd, "%-22s : %s\n", "channel", s->channame);
 		s->tech->cli_show_session(s, a->fd);
 		ao2_ref(s, -1);
 	}
@@ -4225,7 +4226,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 	}
 
 	ast_cli(a->fd, "\nCurrent FAX Sessions:\n\n");
-	ast_cli(a->fd, "%-20.20s %-10.10s %-10.10s %-5.5s %-10.10s %-15.15s %-30.30s\n",
+	ast_cli(a->fd, "%-30.30s %-10.10s %-10.10s %-5.5s %-10.10s %-15.15s %-30.30s\n",
 		"Channel", "Tech", "FAXID", "Type", "Operation", "State", "File(s)");
 	i = ao2_iterator_init(faxregistry.container, 0);
 	while ((s = ao2_iterator_next(&i))) {
@@ -4233,7 +4234,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 
 		filenames = generate_filenames_string(s->details, "", ", ");
 
-		ast_cli(a->fd, "%-20.20s %-10.10s %-10u %-5.5s %-10.10s %-15.15s %-30s\n",
+		ast_cli(a->fd, "%-30.30s %-10.10s %-10u %-5.5s %-10.10s %-15.15s %-30s\n",
 			s->channame, s->tech->type, s->id,
 			fax_session_type(s),
 			ast_fax_session_operation_str(s),
