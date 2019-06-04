@@ -197,15 +197,27 @@ static void pgsql_reconnect(void)
 		conn = NULL;
 	}
 
-	ast_str_set(&conn_info, 0, "host=%s port=%s dbname=%s user=%s",
-		pghostname, pgdbport, pgdbname, pgdbuser);
-
-	if (!ast_strlen_zero(pgappname)) {
-		ast_str_append(&conn_info, 0, " application_name=%s", pgappname);
+	if (!ast_strlen_zero(pghostname)) {
+		ast_str_append(&conn_info, 0, "host=%s ", pghostname);
 	}
-
+	if (!ast_strlen_zero(pgdbport)) {
+		ast_str_append(&conn_info, 0, "port=%s ", pgdbport);
+	}
+	if (!ast_strlen_zero(pgdbname)) {
+		ast_str_append(&conn_info, 0, "dbname=%s ", pgdbname);
+	}
+	if (!ast_strlen_zero(pgdbuser)) {
+		ast_str_append(&conn_info, 0, "user=%s ", pgdbuser);
+	}
+	if (!ast_strlen_zero(pgappname)) {
+		ast_str_append(&conn_info, 0, "application_name=%s ", pgappname);
+	}
 	if (!ast_strlen_zero(pgpassword)) {
-		ast_str_append(&conn_info, 0, " password=%s", pgpassword);
+		ast_str_append(&conn_info, 0, "password=%s", pgpassword);
+	}
+	if (ast_str_strlen(conn_info) == 0) {
+		ast_log(LOG_ERROR, "Connection string is blank.\n");
+		return;
 	}
 
 	conn = PQconnectdb(ast_str_buffer(conn_info));
