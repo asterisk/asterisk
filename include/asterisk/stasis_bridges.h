@@ -229,6 +229,29 @@ struct stasis_message *ast_bridge_blob_create(struct stasis_message_type *type,
 	struct ast_json *blob);
 
 /*!
+ * \since 13.28
+ * \since 16.5
+ * \brief Creates a \ref ast_bridge_blob message from snapshots.
+ *
+ * The \a blob JSON object requires a \c "type" field describing the blob. It
+ * should also be treated as immutable and not modified after it is put into the
+ * message.
+ *
+ * \pre bridge is locked.
+ * \pre No channels are locked.
+ *
+ * \param bridge_snapshot Bridge snapshot
+ * \param channel_snapshot Channel snapshot
+ * \param blob JSON object representing the data.
+ * \return \ref ast_bridge_blob message.
+ * \return \c NULL on error
+ */
+struct stasis_message *ast_bridge_blob_create_from_snapshots(struct stasis_message_type *type,
+	struct ast_bridge_snapshot *bridge_snapshot,
+	struct ast_channel_snapshot *chan_snapshot,
+	struct ast_json *blob);
+
+/*!
  * \since 12
  * \brief Publish a bridge channel enter event
  *

@@ -578,6 +578,43 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 	}
 }
 
+static void send_conf_stasis_snapshots(struct confbridge_conference *conference,
+	struct ast_channel_snapshot *chan_snapshot, struct stasis_message_type *type,
+	struct ast_json *extras)
+{
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	RAII_VAR(struct ast_bridge_snapshot *, bridge_snapshot, NULL, ao2_cleanup);
+
+	json_object = ast_json_pack("{s: s}",
+		"conference", conference->name);
+	if (!json_object) {
+		return;
+	}
+
+	if (extras) {
+		ast_json_object_update(json_object, extras);
+	}
+
+	ast_bridge_lock(conference->bridge);
+	bridge_snapshot = ast_bridge_snapshot_create(conference->bridge);
+	ast_bridge_unlock(conference->bridge);
+	if (!bridge_snapshot) {
+		return;
+	}
+
+	msg = ast_bridge_blob_create_from_snapshots(type,
+		bridge_snapshot,
+		chan_snapshot,
+		json_object);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_bridge_topic(conference->bridge), msg);
+}
+
+
 static void send_conf_start_event(struct confbridge_conference *conference)
 {
 	send_conf_stasis(conference, NULL, confbridge_start_type(), NULL, 0);
@@ -1460,6 +1497,126 @@ static int push_announcer(struct confbridge_conference *conference)
 
 	ast_autoservice_start(conference->playback_chan);
 	return 0;
+}
+
+static void confbridge_unlock_and_unref(void *obj)
+{
+	struct confbridge_conference *conference = obj;
+
+	if (!obj) {
+		return;
+	}
+	ao2_unlock(conference);
+	ao2_ref(conference, -1);
+}
+
+void confbridge_handle_atxfer(struct ast_attended_transfer_message *msg)
+{
+	struct ast_channel_snapshot *old_snapshot;
+	struct ast_channel_snapshot *new_snapshot;
+	char *confbr_name = NULL;
+	char *comma;
+	RAII_VAR(struct confbridge_conference *, conference, NULL, confbridge_unlock_and_unref);
+	struct confbridge_user *user = NULL;
+	int found_user = 0;
+	struct ast_json *json_object;
+
+	if (msg->to_transferee.channel_snapshot
+		&& strcmp(msg->to_transferee.channel_snapshot->appl, "ConfBridge") == 0
+		&& msg->target) {
+		/* We're transferring a bridge to an extension */
+		old_snapshot = msg->to_transferee.channel_snapshot;
+		new_snapshot = msg->target;
+	} else if (msg->to_transfer_target.channel_snapshot
+		&& strcmp(msg->to_transfer_target.channel_snapshot->appl, "ConfBridge") == 0
+		&& msg->transferee) {
+		/* We're transferring a call to a bridge */
+		old_snapshot = msg->to_transfer_target.channel_snapshot;
+		new_snapshot = msg->transferee;
+	} else {
+		ast_log(LOG_ERROR, "Could not determine proper channels\n");
+		return;
+	}
+
+	/*
+	 * old_snapshot->data should have the original parameters passed to
+	 * the ConfBridge app:
+	 * conference[,bridge_profile[,user_profile[,menu]]]
+	 * We'll use "conference" to look up the bridge.
+	 *
+	 * We _could_ use old_snapshot->bridgeid to get the bridge but
+	 * that would involve locking the conference_bridges container
+	 * and iterating over it looking for a matching bridge.
+	 */
+	if (ast_strlen_zero(old_snapshot->data)) {
+		ast_log(LOG_ERROR, "Channel '%s' didn't have app data set\n", old_snapshot->name);
+		return;
+	}
+	confbr_name = ast_strdupa(old_snapshot->data);
+	comma = strchr(confbr_name, ',');
+	if (comma) {
+		*comma = '\0';
+	}
+
+	ast_debug(1, "Confbr: %s  Leaving: %s  Joining: %s\n", confbr_name, old_snapshot->name, new_snapshot->name);
+
+	conference = ao2_find(conference_bridges, confbr_name, OBJ_SEARCH_KEY);
+	if (!conference) {
+		ast_log(LOG_ERROR, "Conference bridge '%s' not found\n", confbr_name);
+		return;
+	}
+	ao2_lock(conference);
+
+	/*
+	 * We need to grab the user profile for the departing user in order to
+	 * properly format the join/leave messages.
+	 */
+	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+		if (strcasecmp(ast_channel_name(user->chan), old_snapshot->name) == 0) {
+			found_user = 1;
+			break;
+		}
+	}
+
+	/*
+	 * If we didn't find the user in the active list, try the waiting list.
+	 */
+	if (!found_user && conference->waitingusers) {
+		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
+			if (strcasecmp(ast_channel_name(user->chan), old_snapshot->name) == 0) {
+				found_user = 1;
+				break;
+			}
+		}
+	}
+
+	if (!found_user) {
+		ast_log(LOG_ERROR, "Unable to find user profile for channel '%s' in bridge '%s'\n",
+			old_snapshot->name, confbr_name);
+		return;
+	}
+
+	/*
+	 * We're going to use the existing user profile to create the messages.
+	 */
+	json_object = ast_json_pack("{s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
+	);
+	if (!json_object) {
+		return;
+	}
+
+	send_conf_stasis_snapshots(conference, old_snapshot, confbridge_leave_type(), json_object);
+	ast_json_unref(json_object);
+
+	json_object = ast_json_pack("{s: b, s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN),
+		"muted", user->muted);
+	if (!json_object) {
+		return;
+	}
+	send_conf_stasis_snapshots(conference, new_snapshot, confbridge_join_type(), json_object);
+	ast_json_unref(json_object);
 }
 
 /*!

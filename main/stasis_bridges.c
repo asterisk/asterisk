@@ -482,6 +482,42 @@ struct stasis_message *ast_bridge_blob_create(
 	return msg;
 }
 
+struct stasis_message *ast_bridge_blob_create_from_snapshots(
+	struct stasis_message_type *message_type,
+	struct ast_bridge_snapshot *bridge_snapshot,
+	struct ast_channel_snapshot *chan_snapshot,
+	struct ast_json *blob)
+{
+	struct ast_bridge_blob *obj;
+	struct stasis_message *msg;
+
+	if (!message_type) {
+		return NULL;
+	}
+
+	obj = ao2_alloc(sizeof(*obj), bridge_blob_dtor);
+	if (!obj) {
+		return NULL;
+	}
+
+	if (bridge_snapshot) {
+		obj->bridge = ao2_bump(bridge_snapshot);
+	}
+
+	if (chan_snapshot) {
+		obj->channel = ao2_bump(chan_snapshot);
+	}
+
+	if (blob) {
+		obj->blob = ast_json_ref(blob);
+	}
+
+	msg = stasis_message_create(message_type, obj);
+	ao2_ref(obj, -1);
+
+	return msg;
+}
+
 void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan,
 		struct ast_channel *swap)
 {
