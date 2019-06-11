@@ -102,6 +102,10 @@ rtpend=20000
 ;
 ; ice_blacklist =
 ;
+; The MTU to use for DTLS packet fragmentation. This option is set to 1200
+; by default. The minimum MTU is 256.
+; dtls_mtu = 1200
+;
 [ice_host_candidates]
 ;
 ; When Asterisk is behind a static one-to-one NAT and ICE is in use, ICE will
