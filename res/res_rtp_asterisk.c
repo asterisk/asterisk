@@ -174,6 +174,7 @@ enum strict_rtp_mode {
 
 #define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
 #define DEFAULT_ICESUPPORT 1
+#define DEFAULT_DTLS_MTU 1200
 
 extern struct ast_srtp_res *res_srtp;
 extern struct ast_srtp_policy_res *res_srtp_policy;
@@ -203,6 +204,9 @@ static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+static int dtls_mtu = DEFAULT_DTLS_MTU;
+#endif
 
 static struct ast_ha *ice_blacklist = NULL;    /*!< Blacklisted ICE networks */
 static ast_rwlock_t ice_blacklist_lock = AST_RWLOCK_INIT_VALUE;
@@ -593,12 +597,100 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
-static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
+static int dtls_bio_write(BIO *bio, const char *buf, int len);
+static long dtls_bio_ctrl(BIO *bio, int cmd, long arg1, void *arg2);
+static int dtls_bio_new(BIO *bio);
+static int dtls_bio_free(BIO *bio);
+
+#ifndef HAVE_OPENSSL_BIO_METHOD
+static BIO_METHOD dtls_bio_methods = {
+	.type = BIO_TYPE_BIO,
+	.name = "rtp write",
+	.bwrite = dtls_bio_write,
+	.ctrl = dtls_bio_ctrl,
+	.create = dtls_bio_new,
+	.destroy = dtls_bio_free,
+};
+#else
+static BIO_METHOD *dtls_bio_methods;
+#endif
 #endif
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *via_ice, int use_srtp);
+
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+static int dtls_bio_new(BIO *bio)
+{
+#ifdef HAVE_OPENSSL_BIO_METHOD
+	BIO_set_init(bio, 1);
+	BIO_set_data(bio, NULL);
+	BIO_set_shutdown(bio, 0);
+#else
+	bio->init = 1;
+	bio->ptr = NULL;
+	bio->flags = 0;
+#endif
+	return 1;
+}
+
+static int dtls_bio_free(BIO *bio)
+{
+	/* The pointer on the BIO is that of the RTP instance. It is not reference counted as the BIO
+	 * lifetime is tied to the instance, and actions on the BIO are taken by the thread handling
+	 * the RTP instance - not another thread.
+	 */
+#ifdef HAVE_OPENSSL_BIO_METHOD
+	BIO_set_data(bio, NULL);
+#else
+	bio->ptr = NULL;
+#endif
+	return 1;
+}
+
+static int dtls_bio_write(BIO *bio, const char *buf, int len)
+{
+#ifdef HAVE_OPENSSL_BIO_METHOD
+	struct ast_rtp_instance *instance = BIO_get_data(bio);
+#else
+	struct ast_rtp_instance *instance = bio->ptr;
+#endif
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int rtcp = 0;
+	struct ast_sockaddr remote_address = { {0, } };
+	int ice;
+
+	if (rtp->rtcp && rtp->rtcp->dtls.write_bio == bio) {
+		rtcp = 1;
+		ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
+	} else {
+		ast_rtp_instance_get_remote_address(instance, &remote_address);
+	}
+
+	if (ast_sockaddr_isnull(&remote_address)) {
+		return 0;
+	}
+
+	return __rtp_sendto(instance, (char *)buf, len, 0, &remote_address, rtcp, &ice, 0);
+}
+
+static long dtls_bio_ctrl(BIO *bio, int cmd, long arg1, void *arg2)
+{
+	switch (cmd) {
+	case BIO_CTRL_FLUSH:
+		return 1;
+	case BIO_CTRL_DGRAM_QUERY_MTU:
+		return dtls_mtu;
+	case BIO_CTRL_WPENDING:
+	case BIO_CTRL_PENDING:
+		return 0L;
+	default:
+		return 0;
+	}
+}
+
+#endif
 
 #ifdef HAVE_PJPROJECT
 /*! \brief Helper function which clears the ICE host candidate mapping */
@@ -1630,7 +1722,7 @@ static int dtls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 }
 
 static int dtls_details_initialize(struct dtls_details *dtls, SSL_CTX *ssl_ctx,
-	enum ast_rtp_dtls_setup setup)
+	enum ast_rtp_dtls_setup setup, struct ast_rtp_instance *instance)
 {
 	dtls->dtls_setup = setup;
 
@@ -1645,12 +1737,20 @@ static int dtls_details_initialize(struct dtls_details *dtls, SSL_CTX *ssl_ctx,
 	}
 	BIO_set_mem_eof_return(dtls->read_bio, -1);
 
-	if (!(dtls->write_bio = BIO_new(BIO_s_mem()))) {
+#ifdef HAVE_OPENSSL_BIO_METHOD
+	if (!(dtls->write_bio = BIO_new(dtls_bio_methods))) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for outbound SSL traffic\n");
 		goto error;
 	}
-	BIO_set_mem_eof_return(dtls->write_bio, -1);
 
+	BIO_set_data(dtls->write_bio, instance);
+#else
+	if (!(dtls->write_bio = BIO_new(&dtls_bio_methods))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for outbound SSL traffic\n");
+		goto error;
+	}
+	dtls->write_bio->ptr = instance;
+#endif
 	SSL_set_bio(dtls->ssl, dtls->read_bio, dtls->write_bio);
 
 	if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
@@ -1688,7 +1788,7 @@ static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
 		return 0;
 	}
 
-	return dtls_details_initialize(&rtp->rtcp->dtls, rtp->ssl_ctx, rtp->dtls.dtls_setup);
+	return dtls_details_initialize(&rtp->rtcp->dtls, rtp->ssl_ctx, rtp->dtls.dtls_setup, instance);
 }
 
 static const SSL_METHOD *get_dtls_method(void)
@@ -2081,7 +2181,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 	rtp->rekey = dtls_cfg->rekey;
 	rtp->suite = dtls_cfg->suite;
 
-	res = dtls_details_initialize(&rtp->dtls, rtp->ssl_ctx, dtls_cfg->default_setup);
+	res = dtls_details_initialize(&rtp->dtls, rtp->ssl_ctx, dtls_cfg->default_setup, instance);
 	if (!res) {
 		dtls_setup_rtcp(instance);
 	}
@@ -2337,12 +2437,6 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 	 * timer before we have a chance to even start it.
 	 */
 	dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
-
-	/*
-	 * We must call dtls_srtp_check_pending() after starting the timer.
-	 * Otherwise we won't prevent the race condition.
-	 */
-	dtls_srtp_check_pending(instance, rtp, rtcp);
 }
 #endif
 
@@ -2533,7 +2627,6 @@ static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int rtcp)
 	struct timeval dtls_timeout;
 
 	DTLSv1_handle_timeout(dtls->ssl);
-	dtls_srtp_check_pending(instance, rtp, rtcp);
 
 	/* If a timeout can't be retrieved then this recurring scheduled item must stop */
 	if (!DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
@@ -2604,40 +2697,6 @@ static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, stru
 	AST_SCHED_DEL_UNREF(rtp->sched, dtls->timeout_timer, ao2_ref(instance, -1));
 }
 
-/*! \pre instance is locked */
-static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
-{
-	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
-	size_t pending;
-
-	if (!dtls->ssl || !dtls->write_bio) {
-		return;
-	}
-
-	pending = BIO_ctrl_pending(dtls->write_bio);
-
-	if (pending > 0) {
-		char outgoing[pending];
-		size_t out;
-		struct ast_sockaddr remote_address = { {0, } };
-		int ice;
-
-		if (!rtcp) {
-			ast_rtp_instance_get_remote_address(instance, &remote_address);
-		} else {
-			ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
-		}
-
-		/* If we do not yet know an address to send this to defer it until we do */
-		if (ast_sockaddr_isnull(&remote_address)) {
-			return;
-		}
-
-		out = BIO_read(dtls->write_bio, outgoing, sizeof(outgoing));
-		__rtp_sendto(instance, outgoing, out, 0, &remote_address, rtcp, &ice, 0);
-	}
-}
-
 /* Scheduler callback */
 static int dtls_srtp_renegotiate(const void *data)
 {
@@ -2648,12 +2707,10 @@ static int dtls_srtp_renegotiate(const void *data)
 
 	SSL_renegotiate(rtp->dtls.ssl);
 	SSL_do_handshake(rtp->dtls.ssl);
-	dtls_srtp_check_pending(instance, rtp, 0);
 
 	if (rtp->rtcp && rtp->rtcp->dtls.ssl && rtp->rtcp->dtls.ssl != rtp->dtls.ssl) {
 		SSL_renegotiate(rtp->rtcp->dtls.ssl);
 		SSL_do_handshake(rtp->rtcp->dtls.ssl);
-		dtls_srtp_check_pending(instance, rtp, 1);
 	}
 
 	rtp->rekeyid = -1;
@@ -2904,8 +2961,6 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			SSL_set_accept_state(dtls->ssl);
 		}
 
-		dtls_srtp_check_pending(instance, rtp, rtcp);
-
 		BIO_write(dtls->read_bio, buf, len);
 
 		len = SSL_read(dtls->ssl, buf, len);
@@ -2916,8 +2971,6 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 				instance, ERR_reason_error_string(error));
 			return -1;
 		}
-
-		dtls_srtp_check_pending(instance, rtp, rtcp);
 
 		if (SSL_is_init_finished(dtls->ssl)) {
 			/* Any further connections will be existing since this is now established */
@@ -8559,6 +8612,10 @@ static int rtp_reload(int reload)
 	blacklist_clear(&stun_blacklist_lock, &stun_blacklist);
 #endif
 
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+	dtls_mtu = DEFAULT_DTLS_MTU;
+#endif
+
 	if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 		rtpstart = atoi(s);
 		if (rtpstart < MINIMUM_RTP_PORT)
@@ -8692,6 +8749,15 @@ static int rtp_reload(int reload)
 	/* Read STUN blacklist configuration lines */
 	blacklist_config_load(cfg, "stun_blacklist", &stun_blacklist_lock, &stun_blacklist);
 #endif
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+	if ((s = ast_variable_retrieve(cfg, "general", "dtls_mtu"))) {
+		if ((sscanf(s, "%d", &dtls_mtu) != 1) || dtls_mtu < 256) {
+			ast_log(LOG_WARNING, "Value for 'dtls_mtu' could not be read, using default of '%d' instead\n",
+				DEFAULT_DTLS_MTU);
+			dtls_mtu = DEFAULT_DTLS_MTU;
+		}
+	}
+#endif
 
 	ast_config_destroy(cfg);
 
@@ -8769,7 +8835,24 @@ static int load_module(void)
 
 #endif
 
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP) && defined(HAVE_OPENSSL_BIO_METHOD)
+	dtls_bio_methods = BIO_meth_new(BIO_TYPE_BIO, "rtp write");
+	if (!dtls_bio_methods) {
+#ifdef HAVE_PJPROJECT
+		rtp_terminate_pjproject();
+#endif
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	BIO_meth_set_write(dtls_bio_methods, dtls_bio_write);
+	BIO_meth_set_ctrl(dtls_bio_methods, dtls_bio_ctrl);
+	BIO_meth_set_create(dtls_bio_methods, dtls_bio_new);
+	BIO_meth_set_destroy(dtls_bio_methods, dtls_bio_free);
+#endif
+
 	if (ast_rtp_engine_register(&asterisk_rtp_engine)) {
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP) && defined(HAVE_OPENSSL_BIO_METHOD)
+		BIO_meth_free(dtls_bio_methods);
+#endif
 #ifdef HAVE_PJPROJECT
 		rtp_terminate_pjproject();
 #endif
@@ -8777,6 +8860,9 @@ static int load_module(void)
 	}
 
 	if (ast_cli_register_multiple(cli_rtp, ARRAY_LEN(cli_rtp))) {
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP) && defined(HAVE_OPENSSL_BIO_METHOD)
+		BIO_meth_free(dtls_bio_methods);
+#endif
 #ifdef HAVE_PJPROJECT
 		ast_rtp_engine_unregister(&asterisk_rtp_engine);
 		rtp_terminate_pjproject();
@@ -8793,6 +8879,12 @@ static int unload_module(void)
 {
 	ast_rtp_engine_unregister(&asterisk_rtp_engine);
 	ast_cli_unregister_multiple(cli_rtp, ARRAY_LEN(cli_rtp));
+
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP) && defined(HAVE_OPENSSL_BIO_METHOD)
+	if (dtls_bio_methods) {
+		BIO_meth_free(dtls_bio_methods);
+	}
+#endif
 
 #ifdef HAVE_PJPROJECT
 	host_candidate_overrides_clear();
