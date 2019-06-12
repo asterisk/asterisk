@@ -10,6 +10,8 @@
 		</member>
 		<member name="app_authenticate" displayname="Authentication Application" remove_on_change="apps/app_authenticate.o apps/app_authenticate.so">
 		</member>
+		<member name="app_blind_transfer" displayname="Blind transfer by caller channel" remove_on_change="apps/app_blind_transfer.o apps/app_blind_transfer.so">
+		</member>
 		<member name="app_cdr" displayname="Tell Asterisk to not maintain a CDR for the current call" remove_on_change="apps/app_cdr.o apps/app_cdr.so">
 		</member>
 		<member name="app_chanisavail" displayname="Check channel availability" remove_on_change="apps/app_chanisavail.o apps/app_chanisavail.so">
