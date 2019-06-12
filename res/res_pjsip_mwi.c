@@ -90,7 +90,7 @@ static struct ast_sip_subscription_handler mwi_handler = {
  */
 struct mwi_stasis_subscription {
 	/*! The MWI stasis subscription */
-	struct stasis_subscription *stasis_sub;
+	struct ast_mwi_subscriber *mwi_subscriber;
 	/*! The mailbox corresponding with the MWI subscription. Used as a hash key */
 	char mailbox[1];
 };
@@ -243,7 +243,6 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
 static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char *mailbox, struct mwi_subscription *mwi_sub)
 {
 	struct mwi_stasis_subscription *mwi_stasis_sub;
-	struct stasis_topic *topic;
 
 	if (!mwi_sub) {
 		return NULL;
@@ -254,26 +253,22 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 		return NULL;
 	}
 
-	topic = ast_mwi_topic(mailbox);
-
 	/* Safe strcpy */
 	strcpy(mwi_stasis_sub->mailbox, mailbox);
 
-	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s.  Topic: '%s':%p %d\n",
-		mailbox, mwi_sub->id, stasis_topic_name(topic), topic, (int)ao2_ref(topic, 0));
 	ao2_ref(mwi_sub, +1);
-	mwi_stasis_sub->stasis_sub = stasis_subscribe_pool(topic, mwi_stasis_cb, mwi_sub);
-	ao2_ref(topic, -1);
-
-	if (!mwi_stasis_sub->stasis_sub) {
+	mwi_stasis_sub->mwi_subscriber = ast_mwi_subscribe_pool(mailbox, mwi_stasis_cb, mwi_sub);
+	if (!mwi_stasis_sub->mwi_subscriber) {
 		/* Failed to subscribe. */
 		ao2_ref(mwi_stasis_sub, -1);
 		ao2_ref(mwi_sub, -1);
-		mwi_stasis_sub = NULL;
+		return NULL;
 	}
-	stasis_subscription_accept_message_type(mwi_stasis_sub->stasis_sub, ast_mwi_state_type());
-	stasis_subscription_accept_message_type(mwi_stasis_sub->stasis_sub, stasis_subscription_change_type());
-	stasis_subscription_set_filter(mwi_stasis_sub->stasis_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+
+	stasis_subscription_accept_message_type(
+		ast_mwi_subscriber_subscription(mwi_stasis_sub->mwi_subscriber),
+		stasis_subscription_change_type());
+
 	return mwi_stasis_sub;
 }
 
@@ -433,21 +428,19 @@ static int mwi_sub_cmp(void *obj, void *arg, int flags)
 
 static int get_message_count(void *obj, void *arg, int flags)
 {
-	struct stasis_message *msg;
 	struct mwi_stasis_subscription *mwi_stasis = obj;
 	struct ast_sip_message_accumulator *counter = arg;
 	struct ast_mwi_state *mwi_state;
 
-	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), mwi_stasis->mailbox);
-	if (!msg) {
+	mwi_state = ast_mwi_subscriber_data(mwi_stasis->mwi_subscriber);
+	if (!mwi_state) {
 		return 0;
 	}
 
-	mwi_state = stasis_message_data(msg);
 	counter->old_msgs += mwi_state->old_msgs;
 	counter->new_msgs += mwi_state->new_msgs;
 
-	ao2_ref(msg, -1);
+	ao2_ref(mwi_state, -1);
 
 	return 0;
 }
@@ -683,10 +676,11 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 static int unsubscribe_stasis(void *obj, void *arg, int flags)
 {
 	struct mwi_stasis_subscription *mwi_stasis = obj;
-	if (mwi_stasis->stasis_sub) {
+	if (mwi_stasis->mwi_subscriber) {
 		ast_debug(3, "Removing stasis subscription to mailbox %s\n", mwi_stasis->mailbox);
-		mwi_stasis->stasis_sub = stasis_unsubscribe_and_join(mwi_stasis->stasis_sub);
+		mwi_stasis->mwi_subscriber = ast_mwi_unsubscribe_and_join(mwi_stasis->mwi_subscriber);
 	}
+
 	return CMP_MATCH;
 }
 

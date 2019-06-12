@@ -653,7 +653,7 @@ struct dahdi_pvt {
 	 */
 	char mailbox[AST_MAX_MAILBOX_UNIQUEID];
 	/*! \brief Opaque event subscription parameters for message waiting indication support. */
-	struct stasis_subscription *mwi_event_sub;
+	struct ast_mwi_subscriber *mwi_event_sub;
 	/*! \brief Delayed dialing for E911.  Overlap digits for ISDN. */
 	char dialdest[256];
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI

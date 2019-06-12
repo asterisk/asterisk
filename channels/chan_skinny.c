@@ -1466,7 +1466,7 @@ struct skinny_line {
 	SKINNY_LINE_OPTIONS
 	ast_mutex_t lock;
 	struct skinny_container *container;
-	struct stasis_subscription *mwi_event_sub; /* Event based MWI */
+	struct ast_mwi_subscriber *mwi_event_sub; /* Event based MWI */
 	struct skinny_subchannel *activesub;
 	AST_LIST_HEAD(, skinny_subchannel) sub;
 	AST_LIST_HEAD(, skinny_subline) sublines;
@@ -8328,16 +8328,8 @@ static struct skinny_line *config_line(const char *lname, struct ast_variable *v
 	config_parse_variables(TYPE_LINE, l, v);
 
 	if (!ast_strlen_zero(l->mailbox)) {
-		struct stasis_topic *mailbox_specific_topic;
-
 		ast_verb(3, "Setting mailbox '%s' on line %s\n", l->mailbox, l->name);
-
-		mailbox_specific_topic = ast_mwi_topic(l->mailbox);
-		if (mailbox_specific_topic) {
-			l->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, l);
-			stasis_subscription_accept_message_type(l->mwi_event_sub, ast_mwi_state_type());
-			stasis_subscription_set_filter(l->mwi_event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
-		}
+		l->mwi_event_sub = ast_mwi_subscribe_pool(l->mailbox, mwi_event_cb, l);
 	}
 
 	if (!ast_strlen_zero(vmexten) && ast_strlen_zero(l->vmexten)) {
@@ -8640,7 +8632,7 @@ int skinny_reload(void)
 		   will happen below. */
 		while ((l = AST_LIST_REMOVE_HEAD(&d->lines, list))) {
 			if (l->mwi_event_sub) {
-				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
+				l->mwi_event_sub = ast_mwi_unsubscribe(l->mwi_event_sub);
 			}
 		}
 		/* Delete all speeddials for this device */
@@ -8797,7 +8789,7 @@ static int unload_module(void)
 				skinny_unlocksub(sub);
 			}
 			if (l->mwi_event_sub) {
-				l->mwi_event_sub = stasis_unsubscribe_and_join(l->mwi_event_sub);
+				l->mwi_event_sub = ast_mwi_unsubscribe_and_join(l->mwi_event_sub);
 			}
 			ast_mutex_unlock(&l->lock);
 			unregister_exten(l);

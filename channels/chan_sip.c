@@ -5251,7 +5251,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 static void destroy_mailbox(struct sip_mailbox *mailbox)
 {
 	if (mailbox->event_sub) {
-		mailbox->event_sub = stasis_unsubscribe_and_join(mailbox->event_sub);
+		mailbox->event_sub = ast_mwi_unsubscribe_and_join(mailbox->event_sub);
 	}
 	ast_free(mailbox);
 }
@@ -28384,18 +28384,14 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 	struct sip_mailbox *mailbox;
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-		struct stasis_topic *mailbox_specific_topic;
-
 		if (mailbox->status != SIP_MAILBOX_STATUS_NEW) {
 			continue;
 		}
-
-		mailbox_specific_topic = ast_mwi_topic(mailbox->id);
-		if (mailbox_specific_topic) {
-			mailbox->event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, peer);
-			stasis_subscription_accept_message_type(mailbox->event_sub, ast_mwi_state_type());
-			stasis_subscription_accept_message_type(mailbox->event_sub, stasis_subscription_change_type());
-			stasis_subscription_set_filter(mailbox->event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+		mailbox->event_sub = ast_mwi_subscribe_pool(mailbox->id, mwi_event_cb, peer);
+		if (mailbox->event_sub) {
+			stasis_subscription_accept_message_type(
+				ast_mwi_subscriber_subscription(mailbox->event_sub),
+				stasis_subscription_change_type());
 		}
 	}
 }

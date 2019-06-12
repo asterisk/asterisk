@@ -582,7 +582,7 @@ struct iax2_peer {
 	int smoothing;					/*!< Sample over how many units to determine historic ms */
 	uint16_t maxcallno;				/*!< Max call number limit for this peer.  Set on registration */
 
-	struct stasis_subscription *mwi_event_sub;	/*!< This subscription lets pollmailboxes know which mailboxes need to be polled */
+	struct ast_mwi_subscriber *mwi_event_sub;	/*!< This subscription lets pollmailboxes know which mailboxes need to be polled */
 
 	struct ast_acl_list *acl;
 	enum calltoken_peer_enum calltoken_required;	/*!< Is calltoken validation required or not, can be YES, NO, or AUTO */
@@ -12764,7 +12764,9 @@ static void peer_destructor(void *obj)
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
 
-	peer->mwi_event_sub = stasis_unsubscribe(peer->mwi_event_sub);
+	if (peer->mwi_event_sub) {
+		peer->mwi_event_sub = ast_mwi_unsubscribe(peer->mwi_event_sub);
+	}
 
 	ast_string_field_free_memory(peer);
 
@@ -13069,17 +13071,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	}
 
 	if (!ast_strlen_zero(peer->mailbox) && !peer->mwi_event_sub) {
-		struct stasis_topic *mailbox_specific_topic;
-
-		mailbox_specific_topic = ast_mwi_topic(peer->mailbox);
-		if (mailbox_specific_topic) {
-			/* The MWI subscriptions exist just so the core knows we care about those
-			 * mailboxes.  However, we just grab the events out of the cache when it
-			 * is time to send MWI, since it is only sent with a REGACK. */
-			peer->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
-			stasis_subscription_accept_message_type(peer->mwi_event_sub, ast_mwi_state_type());
-			stasis_subscription_set_filter(peer->mwi_event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
-		}
+		/* The MWI subscriptions exist just so the core knows we care about those
+		 * mailboxes.  However, we just grab the events out of the cache when it
+		 * is time to send MWI, since it is only sent with a REGACK. */
+		peer->mwi_event_sub = ast_mwi_subscribe_pool(peer->mailbox, stasis_subscription_cb_noop, NULL);
 	}
 
 	if (subscribe_acl_change) {
