@@ -2078,19 +2078,29 @@ static int hangup(void *data)
 	struct hangup_data *h_data = data;
 	struct ast_channel *ast = h_data->chan;
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct chan_pjsip_pvt *pvt = channel->pvt;
-	struct ast_sip_session *session = channel->session;
-	int cause = h_data->cause;
 
 	/*
-	 * It's possible that session_terminate might cause the session to be destroyed
-	 * immediately so we need to keep a reference to it so we can NULL session->channel
-	 * afterwards.
+	 * Before cleaning we have to ensure that channel or its session is not NULL
+	 * we have seen rare case when taskprocessor calls hangup but channel is NULL
+	 * due to SIP session timeout and answer happening at the same time
 	 */
-	ast_sip_session_terminate(ao2_bump(session), cause);
-	clear_session_and_channel(session, ast, pvt);
-	ao2_cleanup(session);
-	ao2_cleanup(channel);
+	if (channel) {
+		struct chan_pjsip_pvt *pvt = channel->pvt;
+		struct ast_sip_session *session = channel->session;
+		if (session) {
+			int cause = h_data->cause;
+
+			/*
+	 		* It's possible that session_terminate might cause the session to be destroyed
+	 		* immediately so we need to keep a reference to it so we can NULL session->channel
+	 		* afterwards.
+	 		*/
+			ast_sip_session_terminate(ao2_bump(session), cause);
+			clear_session_and_channel(session, ast, pvt);
+			ao2_cleanup(session);
+		}
+		ao2_cleanup(channel);
+	}
 	ao2_cleanup(h_data);
 	return 0;
 }
