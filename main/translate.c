@@ -404,7 +404,10 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	pvt->f.seqno = f->seqno;
 
 	if (f->samples == 0) {
-		ast_log(LOG_WARNING, "no samples for %s\n", pvt->t->name);
+		/* Do not log empty audio frame */
+		if (strcasecmp(f->src, "ast_prod")) {
+			ast_log(LOG_WARNING, "no samples for %s\n", pvt->t->name);
+		}
 	}
 	if (pvt->t->buffer_samples) {	/* do not pass empty frames to callback */
 		if (f->datalen == 0) { /* perform native PLC if available */
