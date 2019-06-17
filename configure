@@ -1129,6 +1129,10 @@ PBX_DAHDI
 DAHDI_DIR
 DAHDI_INCLUDE
 DAHDI_LIB
+PBX_OPENSSL_BIO_METHOD
+OPENSSL_BIO_METHOD_DIR
+OPENSSL_BIO_METHOD_INCLUDE
+OPENSSL_BIO_METHOD_LIB
 PBX_OPENSSL_SRTP
 OPENSSL_SRTP_DIR
 OPENSSL_SRTP_INCLUDE
@@ -9795,6 +9799,18 @@ OPENSSL_SRTP_OPTION=crypto
 OPENSSL_SRTP_DIR=${CRYPTO_DIR}
 
 PBX_OPENSSL_SRTP=0
+
+
+
+
+
+
+
+OPENSSL_BIO_METHOD_DESCRIP="OpenSSL BIO Method Support"
+OPENSSL_BIO_METHOD_OPTION=crypto
+OPENSSL_BIO_METHOD_DIR=${CRYPTO_DIR}
+
+PBX_OPENSSL_BIO_METHOD=0
 
 
 
@@ -30712,6 +30728,102 @@ fi
          PBX_OPENSSL=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_OPENSSL 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_OPENSSL_BIO_METHOD}" != "x1" -a "${USE_OPENSSL_BIO_METHOD}" != "no"; then
+   pbxlibdir=""
+   # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
+   if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
+      if test -d ${OPENSSL_BIO_METHOD_DIR}/lib; then
+         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}/lib"
+      else
+         pbxlibdir="-L${OPENSSL_BIO_METHOD_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BIO_meth_new in -lssl" >&5
+$as_echo_n "checking for BIO_meth_new in -lssl... " >&6; }
+if ${ac_cv_lib_ssl_BIO_meth_new+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl ${pbxlibdir} -lcrypto $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char BIO_meth_new ();
+int
+main ()
+{
+return BIO_meth_new ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ssl_BIO_meth_new=yes
+else
+  ac_cv_lib_ssl_BIO_meth_new=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_BIO_meth_new" >&5
+$as_echo "$ac_cv_lib_ssl_BIO_meth_new" >&6; }
+if test "x$ac_cv_lib_ssl_BIO_meth_new" = xyes; then :
+  AST_OPENSSL_BIO_METHOD_FOUND=yes
+else
+  AST_OPENSSL_BIO_METHOD_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_OPENSSL_BIO_METHOD_FOUND}" = "yes"; then
+      OPENSSL_BIO_METHOD_LIB="${pbxlibdir} -lssl -lcrypto"
+      # if --with-OPENSSL_BIO_METHOD=DIR has been specified, use it.
+      if test "x${OPENSSL_BIO_METHOD_DIR}" != "x"; then
+         OPENSSL_BIO_METHOD_INCLUDE="-I${OPENSSL_BIO_METHOD_DIR}/include"
+      fi
+      OPENSSL_BIO_METHOD_INCLUDE="${OPENSSL_BIO_METHOD_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${OPENSSL_BIO_METHOD_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
+  OPENSSL_BIO_METHOD_HEADER_FOUND=1
+else
+  OPENSSL_BIO_METHOD_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${OPENSSL_BIO_METHOD_HEADER_FOUND}" = "x0" ; then
+         OPENSSL_BIO_METHOD_LIB=""
+         OPENSSL_BIO_METHOD_INCLUDE=""
+      else
+
+         PBX_OPENSSL_BIO_METHOD=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_BIO_METHOD 1
 _ACEOF
 
       fi
