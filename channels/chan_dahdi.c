@@ -7673,8 +7673,16 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 				c++;
 			else
 				c = p->dialdest;
-			if (*c) snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*0%s#", c);
-			else ast_copy_string(p->dop.dialstr,"M*2#", sizeof(p->dop.dialstr));
+
+			if (*c) {
+				int numchars = snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*0%s#", c);
+				if (numchars >= sizeof(p->dop.dialstr)) {
+					ast_log(LOG_WARNING, "Dial string '%s' truncated\n", c);
+				}
+			} else {
+				ast_copy_string(p->dop.dialstr,"M*2#", sizeof(p->dop.dialstr));
+			}
+
 			if (strlen(p->dop.dialstr) > 4) {
 				memset(p->echorest, 'w', sizeof(p->echorest) - 1);
 				strcpy(p->echorest + (p->echotraining / 401) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
