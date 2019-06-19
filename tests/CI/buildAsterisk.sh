@@ -89,7 +89,7 @@ runner ulimit -a
 
 MAKE=`which make`
 PKGCONFIG=`which pkg-config`
-[ -d /usr/lib64 ] && _libdir=/usr/lib64
+_libdir=`${CIDIR}/findLibdir.sh`
 
 common_config_args="--prefix=/usr ${_libdir:+--libdir=${_libdir}} --sysconfdir=/etc --with-pjproject-bundled"
 $PKGCONFIG 'jansson' || common_config_args+=" --with-jansson-bundled"
