@@ -621,6 +621,26 @@ static void confbridge_join_cb(void *data, struct stasis_subscription *sub,
 	ast_free(extra_text);
 }
 
+static void confbridge_atxfer_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct ast_attended_transfer_message *msg = stasis_message_data(message);
+
+	if (msg->result != AST_BRIDGE_TRANSFER_SUCCESS) {
+		return;
+	}
+
+	/*
+	 * This callback will get called for ALL attended transfers
+	 * so we need to make sure this transfer belongs to
+	 * a conference bridge before trying to handle it.
+	 */
+	if (msg->dest_type == AST_ATTENDED_TRANSFER_DEST_APP
+		&& strcmp(msg->dest.app, "ConfBridge") == 0) {
+		confbridge_handle_atxfer(msg);
+	}
+}
+
 static void confbridge_start_record_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -735,6 +755,13 @@ int manager_confbridge_init(void)
 	if (stasis_message_router_add(bridge_state_router,
 			confbridge_join_type(),
 			confbridge_join_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			ast_attended_transfer_type(),
+			confbridge_atxfer_cb,
 			NULL)) {
 		manager_confbridge_shutdown();
 		return -1;
