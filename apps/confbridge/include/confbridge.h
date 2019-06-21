@@ -28,6 +28,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_features.h"
+#include "asterisk/stasis_bridges.h"
 #include "conf_state.h"
 
 /* Maximum length of a conference bridge name */
@@ -649,4 +650,15 @@ struct ast_channel_tech *conf_announce_get_tech(void);
  * \retval -1 on error.
  */
 int conf_announce_channel_push(struct ast_channel *ast);
+
+/*!
+ * \brief Create join/leave events for attended transfers
+ * \since 13.28
+ * \since 16.5
+ *
+ * \param msg The attended transfer stasis message
+ *
+ */
+void confbridge_handle_atxfer(struct ast_attended_transfer_message *msg);
+
 #endif
