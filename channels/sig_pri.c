@@ -6048,11 +6048,14 @@ static void sig_pri_handle_setup(struct sig_pri_span *pri, pri_event *e)
 
 	/* Setup the user tag for party id's from this device for this call. */
 	if (pri->append_msn_to_user_tag) {
-		snprintf(pri->pvts[chanpos]->user_tag,
+		int len = snprintf(pri->pvts[chanpos]->user_tag,
 			sizeof(pri->pvts[chanpos]->user_tag), "%s_%s",
 			pri->initial_user_tag,
 			pri->nodetype == PRI_NETWORK
 				? plancallingnum : e->ring.callednum);
+		if (len >= sizeof(pri->pvts[chanpos]->user_tag)) {
+			ast_log(LOG_WARNING, "user_tag '%s' truncated\n", pri->pvts[chanpos]->user_tag);
+		}
 	} else {
 		ast_copy_string(pri->pvts[chanpos]->user_tag,
 			pri->initial_user_tag, sizeof(pri->pvts[chanpos]->user_tag));
@@ -6447,7 +6450,7 @@ static void *pri_dchannel(void *vpri)
 
 		if (e) {
 			int chanpos = -1;
-			char cause_str[35];
+			char cause_str[36];
 
 			if (pri->debug) {
 				ast_verbose("Span %d: Processing event %s(%d)\n",
