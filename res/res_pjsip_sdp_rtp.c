@@ -527,11 +527,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	struct ast_rtp_engine_ice_candidate *candidate;
 
 	if (!session->endpoint->media.rtp.ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp)) ||
-		!(candidates = ice->get_local_candidates(session_media->rtp))) {
-		return;
-	}
-
-	if (!session_media->remote_ice) {
+		!session_media->remote_ice || !(candidates = ice->get_local_candidates(session_media->rtp))) {
 		return;
 	}
 
