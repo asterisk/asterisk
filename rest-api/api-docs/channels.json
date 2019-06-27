@@ -407,13 +407,20 @@
 							"dataType": "string"
 						},
 						{
+							"name": "reason_code",
+							"description": "The reason code for hanging up the channel for detail use. Mutually exclusive with 'reason'. See detail hangup codes at here. https://wiki.asterisk.org/wiki/display/AST/Hangup+Cause+Mappings",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "reason",
-							"description": "Reason for hanging up the channel",
+							"description": "Reason for hanging up the channel for simple use. Mutually exclusive with 'reason_code'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string",
-							"defalutValue": "normal",
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [

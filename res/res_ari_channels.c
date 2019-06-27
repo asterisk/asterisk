@@ -598,6 +598,10 @@ int ast_ari_channels_hangup_parse_body(
 {
 	struct ast_json *field;
 	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "reason_code");
+	if (field) {
+		args->reason_code = ast_json_string_get(field);
+	}
 	field = ast_json_object_get(body, "reason");
 	if (field) {
 		args->reason = ast_json_string_get(field);
@@ -625,6 +629,9 @@ static void ast_ari_channels_hangup_cb(
 #endif /* AST_DEVMODE */
 
 	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "reason_code") == 0) {
+			args.reason_code = (i->value);
+		} else
 		if (strcmp(i->name, "reason") == 0) {
 			args.reason = (i->value);
 		} else
