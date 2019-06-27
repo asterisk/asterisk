@@ -295,7 +295,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 			break;
 		}
 
-		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_CNG) {
+		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_NULL || f->frametype == AST_FRAME_CNG) {
 			/* Figure out how long the frame is in milliseconds */
 			if (f->frametype == AST_FRAME_VOICE) {
 				framelength = (ast_codec_samples_count(f) / DEFAULT_SAMPLES_PER_MS);
