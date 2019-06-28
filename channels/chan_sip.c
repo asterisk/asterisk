@@ -10911,7 +10911,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			    ast_rtp_lookup_mime_multiple2(s3, NULL, newnoncodeccapability, 0, 0));
 	}
 
-	if (portno != -1 || vportno != -1 || tportno != -1) {
+	/* When UDPTL is negotiated it is expected that there are no compatible codecs as audio or
+	 * video is not being transported, thus we continue in this function further up if that is
+	 * the case. If we receive an SDP answer containing both a UDPTL stream and another media
+	 * stream however we need to check again to ensure that there is at least one joint codec
+	 * instead of assuming there is one.
+	 */
+	if ((portno != -1 || vportno != -1 || tportno != -1) && ast_format_cap_count(newjointcapability)) {
 		/* We are now ready to change the sip session and RTP structures with the offered codecs, since
 		   they are acceptable */
 		unsigned int framing;
