@@ -1,0 +1,157 @@
+From 85b28c475b5dfd3b01dafffd1d0b3dbb6f087829 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Thu, 27 Jun 2019 11:19:47 -0600
+Subject: [PATCH] ssl_sock_ossl/sip_transport_tls:  Add peer to error messages
+
+Added peer address:port to error messages in ssl_sock_ossl.
+Added peer hostname to error messages in sip_transport_tls.
+---
+ pjlib/src/pj/ssl_sock_ossl.c        | 22 +++++++++++++---------
+ pjsip/src/pjsip/sip_transport_tls.c | 17 +++++++++--------
+ 2 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index b4ac5c15f..42db8fdbe 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -210,15 +210,19 @@ static char *SSLErrorString (int err)
+     }
+ }
+ 
+-#define ERROR_LOG(msg, err) \
+-    PJ_LOG(2,("SSL", "%s (%s): Level: %d err: <%lu> <%s-%s-%s> len: %d", \
++#define ERROR_LOG(msg, err, ssock) \
++{ \
++    char buf[PJ_INET6_ADDRSTRLEN+10]; \
++    PJ_LOG(2,("SSL", "%s (%s): Level: %d err: <%lu> <%s-%s-%s> len: %d peer: %s", \
+ 	      msg, action, level, err, \
+ 	      (ERR_lib_error_string(err)? ERR_lib_error_string(err): "???"), \
+ 	      (ERR_func_error_string(err)? ERR_func_error_string(err):"???"),\
+ 	      (ERR_reason_error_string(err)? \
+-	       ERR_reason_error_string(err): "???"), len));
++	       ERR_reason_error_string(err): "???"), len, \
++	       pj_sockaddr_print(&ssock->rem_addr, buf, sizeof(buf), 3))); \
++}
+ 
+-static void SSLLogErrors(char * action, int ret, int ssl_err, int len)
++static void SSLLogErrors(char * action, int ret, int ssl_err, int len, pj_ssl_sock_t *ssock)
+ {
+     char *ssl_err_str = SSLErrorString(ssl_err);
+ 
+@@ -233,7 +237,7 @@ static void SSLLogErrors(char * action, int ret, int ssl_err, int len)
+ 	if (err2) {
+ 	    int level = 0;
+ 	    while (err2) {
+-	        ERROR_LOG("SSL_ERROR_SYSCALL", err2);
++	        ERROR_LOG("SSL_ERROR_SYSCALL", err2, ssock);
+ 		level++;
+ 		err2 = ERR_get_error();
+ 	    }
+@@ -264,7 +268,7 @@ static void SSLLogErrors(char * action, int ret, int ssl_err, int len)
+ 	int level = 0;
+ 
+ 	while (err2) {
+-	    ERROR_LOG("SSL_ERROR_SSL", err2);
++	    ERROR_LOG("SSL_ERROR_SSL", err2, ssock);
+ 	    level++;
+ 	    err2 = ERR_get_error();
+ 	}
+@@ -302,13 +306,13 @@ static pj_status_t STATUS_FROM_SSL_ERR(char *action, pj_ssl_sock_t *ssock,
+     int level = 0;
+     int len = 0; //dummy
+ 
+-    ERROR_LOG("STATUS_FROM_SSL_ERR", err);
++    ERROR_LOG("STATUS_FROM_SSL_ERR", err, ssock);
+     level++;
+ 
+     /* General SSL error, dig more from OpenSSL error queue */
+     if (err == SSL_ERROR_SSL) {
+ 	err = ERR_get_error();
+-	ERROR_LOG("STATUS_FROM_SSL_ERR", err);
++	ERROR_LOG("STATUS_FROM_SSL_ERR", err, ssock);
+     }
+ 
+     ssock->last_err = err;
+@@ -326,7 +330,7 @@ static pj_status_t STATUS_FROM_SSL_ERR2(char *action, pj_ssl_sock_t *ssock,
+     }
+ 
+     /* Dig for more from OpenSSL error queue */
+-    SSLLogErrors(action, ret, err, len);
++    SSLLogErrors(action, ret, err, len, ssock);
+ 
+     ssock->last_err = ssl_err;
+     return GET_STATUS_FROM_SSL_ERR(ssl_err);
+diff --git a/pjsip/src/pjsip/sip_transport_tls.c b/pjsip/src/pjsip/sip_transport_tls.c
+index 38349aa7a..d40bc7ea3 100644
+--- a/pjsip/src/pjsip/sip_transport_tls.c
++++ b/pjsip/src/pjsip/sip_transport_tls.c
+@@ -173,9 +173,10 @@ static void wipe_buf(pj_str_t *buf);
+ 
+ 
+ static void tls_perror(const char *sender, const char *title,
+-		       pj_status_t status)
++		       pj_status_t status, pj_str_t *remote_name)
+ {
+-    PJ_PERROR(3,(sender, status, "%s: [code=%d]", title, status));
++    PJ_PERROR(3,(sender, status, "%s: [code=%d]%s%.*s", title, status,
++        remote_name ? " peer: " : "", remote_name ? remote_name->slen : 0, remote_name ? remote_name->ptr : ""));
+ }
+ 
+ 
+@@ -730,7 +731,7 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_restart(pjsip_tpfactory *factory,
+     status = pjsip_tls_transport_lis_start(factory, local, a_name);
+     if (status != PJ_SUCCESS) {	
+ 	tls_perror(listener->factory.obj_name, 
+-		   "Unable to start listener after closing it", status);
++		   "Unable to start listener after closing it", status, NULL);
+ 
+ 	return status;
+     }
+@@ -739,7 +740,7 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_restart(pjsip_tpfactory *factory,
+ 					    &listener->factory);
+     if (status != PJ_SUCCESS) {
+ 	tls_perror(listener->factory.obj_name,
+-		    "Unable to register the transport listener", status);
++		    "Unable to register the transport listener", status, NULL);
+ 
+ 	listener->is_registered = PJ_FALSE;	
+     } else {
+@@ -1085,7 +1086,7 @@ static pj_status_t tls_start_read(struct tls_transport *tls)
+ 				   PJSIP_POOL_RDATA_LEN,
+ 				   PJSIP_POOL_RDATA_INC);
+     if (!pool) {
+-	tls_perror(tls->base.obj_name, "Unable to create pool", PJ_ENOMEM);
++	tls_perror(tls->base.obj_name, "Unable to create pool", PJ_ENOMEM, NULL);
+ 	return PJ_ENOMEM;
+     }
+ 
+@@ -1772,7 +1773,7 @@ static pj_bool_t on_connect_complete(pj_ssl_sock_t *ssock,
+     /* Check connect() status */
+     if (status != PJ_SUCCESS) {
+ 
+-	tls_perror(tls->base.obj_name, "TLS connect() error", status);
++	tls_perror(tls->base.obj_name, "TLS connect() error", status, &tls->remote_name);
+ 
+ 	/* Cancel all delayed transmits */
+ 	while (!pj_list_empty(&tls->delayed_list)) {
+@@ -1916,7 +1917,7 @@ static pj_bool_t on_connect_complete(pj_ssl_sock_t *ssock,
+     pjsip_transport_dec_ref(&tls->base);
+     if (is_shutdown) {
+ 	status = tls->close_reason;
+-	tls_perror(tls->base.obj_name, "TLS connect() error", status);
++	tls_perror(tls->base.obj_name, "TLS connect() error", status, &tls->remote_name);
+ 
+ 	/* Cancel all delayed transmits */
+ 	while (!pj_list_empty(&tls->delayed_list)) {
+@@ -2015,7 +2016,7 @@ static void tls_keep_alive_timer(pj_timer_heap_t *th, pj_timer_entry *e)
+ 
+     if (status != PJ_SUCCESS && status != PJ_EPENDING) {
+ 	tls_perror(tls->base.obj_name, 
+-		   "Error sending keep-alive packet", status);
++		   "Error sending keep-alive packet", status, &tls->remote_name);
+ 
+ 	tls_init_shutdown(tls, status);
+ 	return;
+-- 
+2.21.0
+
