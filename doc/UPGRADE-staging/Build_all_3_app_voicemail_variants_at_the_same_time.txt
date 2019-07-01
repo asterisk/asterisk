@@ -1,0 +1,9 @@
+Subject: app_voicemail.c
+
+The "Voicemail Build Options" section of menuselect has been removed along with
+the FILE_STORAGE, ODBC_STORAGE and IMAP_STORAGE menuselect options.  All 3 variants
+of the voicemail app can now be built at the same by enabling app_voicemail,
+app_voicemail_imap, and app_voicemail_odbc under the "Applications" section.
+By default, only app_voicemail is enabled.  Also, the modules.conf sample has
+been updated to "noload" app_voicemail_imap and app_voicemail_odbc should they
+all be built.  Packagers must update their build scripts appropriately.

@@ -44,3 +44,10 @@ noload => res_hep_rtcp.so
 
 ; Do not load chan_sip by default, it may conflict with res_pjsip.
 noload => chan_sip.so
+
+; The default voicemail module is app_voicemal. All voicemail modules
+; are mutually exclusive. Therefore it is better to make sure they
+; are not loaded at startup
+;
+noload => app_voicemail_odbc.so
+noload => app_voicemail_imap.so
