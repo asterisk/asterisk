@@ -1849,8 +1849,8 @@ static void publish_dahdichannel(struct ast_channel *chan, ast_group_t group, in
 
 	ast_assert(dahdi_channel != NULL);
 
-	blob = ast_json_pack("{s: i, s: i, s: s}",
-		"group", group,
+	blob = ast_json_pack("{s: I, s: i, s: s}",
+		"group", (ast_json_int_t)group,
 		"span", span,
 		"channel", dahdi_channel);
 	if (!blob) {
