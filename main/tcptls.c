@@ -128,7 +128,8 @@ static void *handle_tcptls_connection(void *data)
 	 * this seems like a good general policy.
 	 */
 	if (ast_thread_inhibit_escalations()) {
-		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection\n");
+		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection from peer '%s'\n",
+			ast_sockaddr_stringify(&tcptls_session->remote_address));
 		ast_tcptls_close_session_file(tcptls_session);
 		ao2_ref(tcptls_session, -1);
 		return NULL;
@@ -141,7 +142,8 @@ static void *handle_tcptls_connection(void *data)
 	 * the individual protocol handlers, but this seems like a good start.
 	 */
 	if (ast_thread_user_interface_set(1)) {
-		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection\n");
+		ast_log(LOG_ERROR, "Failed to set user interface status; killing connection from peer '%s'\n",
+			ast_sockaddr_stringify(&tcptls_session->remote_address));
 		ast_tcptls_close_session_file(tcptls_session);
 		ao2_ref(tcptls_session, -1);
 		return NULL;
@@ -150,6 +152,11 @@ static void *handle_tcptls_connection(void *data)
 	if (tcptls_session->parent->tls_cfg) {
 #ifdef DO_SSL
 		if (ast_iostream_start_tls(&tcptls_session->stream, tcptls_session->parent->tls_cfg->ssl_ctx, tcptls_session->client) < 0) {
+			SSL *ssl = ast_iostream_get_ssl(tcptls_session->stream);
+			if (ssl) {
+				ast_log(LOG_ERROR, "Unable to set up ssl connection with peer '%s'\n",
+					ast_sockaddr_stringify(&tcptls_session->remote_address));
+			}
 			ast_tcptls_close_session_file(tcptls_session);
 			ao2_ref(tcptls_session, -1);
 			return NULL;
@@ -162,7 +169,8 @@ static void *handle_tcptls_connection(void *data)
 			long res;
 			peer = SSL_get_peer_certificate(ssl);
 			if (!peer) {
-				ast_log(LOG_ERROR, "No peer SSL certificate to verify\n");
+				ast_log(LOG_ERROR, "No SSL certificate to verify from peer '%s'\n",
+					ast_sockaddr_stringify(&tcptls_session->remote_address));
 				ast_tcptls_close_session_file(tcptls_session);
 				ao2_ref(tcptls_session, -1);
 				return NULL;
@@ -170,7 +178,9 @@ static void *handle_tcptls_connection(void *data)
 
 			res = SSL_get_verify_result(ssl);
 			if (res != X509_V_OK) {
-				ast_log(LOG_ERROR, "Certificate did not verify: %s\n", X509_verify_cert_error_string(res));
+				ast_log(LOG_ERROR, "Certificate from peer '%s' did not verify: %s\n",
+					ast_sockaddr_stringify(&tcptls_session->remote_address),
+					X509_verify_cert_error_string(res));
 				X509_free(peer);
 				ast_tcptls_close_session_file(tcptls_session);
 				ao2_ref(tcptls_session, -1);
@@ -220,7 +230,8 @@ static void *handle_tcptls_connection(void *data)
 				}
 
 				if (!found) {
-					ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", tcptls_session->parent->hostname);
+					ast_log(LOG_ERROR, "Certificate common name from peer '%s' did not match (%s)\n",
+						ast_sockaddr_stringify(&tcptls_session->remote_address), tcptls_session->parent->hostname);
 					X509_free(peer);
 					ast_tcptls_close_session_file(tcptls_session);
 					ao2_ref(tcptls_session, -1);
@@ -307,7 +318,8 @@ void *ast_tcptls_server_root(void *data)
 
 		/* This thread is now the only place that controls the single ref to tcptls_session */
 		if (ast_pthread_create_detached_background(&launched, NULL, handle_tcptls_connection, tcptls_session)) {
-			ast_log(LOG_ERROR, "TCP/TLS unable to launch helper thread: %s\n",
+			ast_log(LOG_ERROR, "TCP/TLS unable to launch helper thread for peer '%s': %s\n",
+				ast_sockaddr_stringify(&tcptls_session->remote_address),
 				strerror(errno));
 			ao2_ref(tcptls_session, -1);
 		}
