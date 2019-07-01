@@ -382,7 +382,6 @@ static int set_caps(struct ast_sip_session *session,
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, peer, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, joint, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, endpoint_caps, NULL, ao2_cleanup);
 	enum ast_media_type media_type = session_media->type;
 	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
 	int fmts = 0;
