@@ -1,3 +1,37 @@
+2019-07-11 19:20 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.27.1 Released.
+
+2019-06-12 13:03 +0000 [86c8830b91]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_messaging:  Check for body in in-dialog message
+
+	  We now check that a body exists and it has a length > 0 before
+	  attempting to process it.
+
+	  ASTERISK-28447
+	  Reported-by: Gil Richard
+
+	  Change-Id: Ic469544b22ab848734636588d4c93426cc6f4b1f
+
+2019-06-28 11:15 +0000 [ca59da67f0]  Francesco Castellano <francesco.castellano@messagenet.it>
+
+	* chan_sip: Handle invalid SDP answer to T.38 re-invite
+
+	  The chan_sip module performs a T.38 re-invite using a single media
+	  stream of udptl, and expects the SDP answer to be the same.
+
+	  If an SDP answer is received instead that contains an additional
+	  media stream with no joint codec a crash will occur as the code
+	  assumes that at least one joint codec will exist in this
+	  scenario.
+
+	  This change removes this assumption.
+
+	  ASTERISK-28465
+
+	  Change-Id: I8b02845b53344c6babe867a3f0a5231045c7ac87
+
 2019-05-30 17:20 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.27.0 Released.
