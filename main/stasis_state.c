@@ -514,8 +514,11 @@ void *stasis_state_unsubscribe(struct stasis_state_subscriber *sub)
 
 void *stasis_state_unsubscribe_and_join(struct stasis_state_subscriber *sub)
 {
-	sub->stasis_sub = stasis_unsubscribe_and_join(sub->stasis_sub);
-	ao2_ref(sub, -1);
+	if (sub) {
+		sub->stasis_sub = stasis_unsubscribe_and_join(sub->stasis_sub);
+		ao2_ref(sub, -1);
+	}
+
 	return NULL;
 }
 
