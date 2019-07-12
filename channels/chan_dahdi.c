@@ -5540,7 +5540,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 		ao2_cleanup(p->smdi_iface);
 	}
 	if (p->mwi_event_sub) {
-		p->mwi_event_sub = stasis_unsubscribe(p->mwi_event_sub);
+		p->mwi_event_sub = ast_mwi_unsubscribe(p->mwi_event_sub);
 	}
 	if (p->vars) {
 		ast_variables_destroy(p->vars);
@@ -12607,18 +12607,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->cid_subaddr[0] = '\0';
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
-			struct stasis_topic *mailbox_specific_topic;
-
-			mailbox_specific_topic = ast_mwi_topic(tmp->mailbox);
-			if (mailbox_specific_topic) {
-				/* This module does not handle MWI in an event-based manner.  However, it
-				 * subscribes to MWI for each mailbox that is configured so that the core
-				 * knows that we care about it.  Then, chan_dahdi will get the MWI from the
-				 * event cache instead of checking the mailbox directly. */
-				tmp->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
-				stasis_subscription_accept_message_type(tmp->mwi_event_sub, ast_mwi_state_type());
-				stasis_subscription_set_filter(tmp->mwi_event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
-			}
+			/* This module does not handle MWI in an event-based manner.  However, it
+			 * subscribes to MWI for each mailbox that is configured so that the core
+			 * knows that we care about it.  Then, chan_dahdi will get the MWI from the
+			 * event cache instead of checking the mailbox directly. */
+			tmp->mwi_event_sub = ast_mwi_subscribe_pool(tmp->mailbox, stasis_subscription_cb_noop, NULL);
 		}
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 		tmp->mwisend_setting = conf->chan.mwisend_setting;

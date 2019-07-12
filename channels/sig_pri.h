@@ -424,7 +424,7 @@ struct sig_pri_mbox {
 	 * \brief MWI mailbox event subscription.
 	 * \note NULL if mailbox not configured.
 	 */
-	struct stasis_subscription *sub;
+	struct ast_mwi_subscriber *sub;
 	/*! \brief Mailbox uniqueid. */
 	const char *uniqueid;
 	/*! \brief Mailbox number sent to span. */

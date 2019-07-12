@@ -346,7 +346,7 @@ struct mgcp_endpoint {
 	char curtone[80];			/*!< Current tone */
 	char mailbox[AST_MAX_EXTENSION];
 	char parkinglot[AST_MAX_CONTEXT];   /*!< Parkinglot */
-	struct stasis_subscription *mwi_event_sub;
+	struct ast_mwi_subscriber *mwi_event_sub;
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
 	int callwaiting;
@@ -4234,18 +4234,11 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 				ast_copy_string(e->parkinglot, parkinglot, sizeof(e->parkinglot));
 				if (!ast_strlen_zero(e->mailbox)) {
-					struct stasis_topic *mailbox_specific_topic;
-
-					mailbox_specific_topic = ast_mwi_topic(e->mailbox);
-					if (mailbox_specific_topic) {
-						/* This module does not handle MWI in an event-based manner.  However, it
-						 * subscribes to MWI for each mailbox that is configured so that the core
-						 * knows that we care about it.  Then, chan_mgcp will get the MWI from the
-						 * event cache instead of checking the mailbox directly. */
-						e->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
-						stasis_subscription_accept_message_type(e->mwi_event_sub, ast_mwi_state_type());
-						stasis_subscription_set_filter(e->mwi_event_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
-					}
+					/* This module does not handle MWI in an event-based manner.  However, it
+					 * subscribes to MWI for each mailbox that is configured so that the core
+					 * knows that we care about it.  Then, chan_mgcp will get the MWI from the
+					 * event cache instead of checking the mailbox directly. */
+					e->mwi_event_sub = ast_mwi_subscribe_pool(e->mailbox, stasis_subscription_cb_noop, NULL);
 				}
 				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", (unsigned long)ast_random());
 				e->msgstate = -1;
@@ -4587,7 +4580,7 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 	}
 
 	if (e->mwi_event_sub) {
-		e->mwi_event_sub = stasis_unsubscribe(e->mwi_event_sub);
+		e->mwi_event_sub = ast_mwi_unsubscribe(e->mwi_event_sub);
 	}
 
 	if (e->chanvars) {

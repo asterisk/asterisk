@@ -8982,7 +8982,7 @@ void sig_pri_stop_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MWI)
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (pri->mbox[idx].sub) {
-			pri->mbox[idx].sub = stasis_unsubscribe_and_join(pri->mbox[idx].sub);
+			pri->mbox[idx].sub = ast_mwi_unsubscribe_and_join(pri->mbox[idx].sub);
 		}
 	}
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -9051,7 +9051,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	/* Prepare the mbox[] for use. */
 	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
 		if (pri->mbox[i].sub) {
-			pri->mbox[i].sub = stasis_unsubscribe(pri->mbox[i].sub);
+			pri->mbox[i].sub = ast_mwi_unsubscribe(pri->mbox[i].sub);
 		}
 	}
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -9108,7 +9108,6 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	saveptr = pri->mwi_mailboxes;
 	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
 		char *mbox_id;
-		struct stasis_topic *mailbox_specific_topic;
 
 		mbox_id = strsep(&saveptr, ",");
 		if (mbox_id) {
@@ -9127,16 +9126,10 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 			continue;
 		}
 
-		mailbox_specific_topic = ast_mwi_topic(mbox_id);
-		if (mailbox_specific_topic) {
-			pri->mbox[i].sub = stasis_subscribe_pool(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
-		}
+		pri->mbox[i].sub = ast_mwi_subscribe_pool(mbox_id, sig_pri_mwi_event_cb, pri);
 		if (!pri->mbox[i].sub) {
 			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s(%s).\n",
 				sig_pri_cc_type_name, pri->span, pri->mbox[i].vm_box, mbox_id);
-		} else {
-			stasis_subscription_accept_message_type(pri->mbox[i].sub, ast_mwi_state_type());
-			stasis_subscription_set_filter(pri->mbox[i].sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
 		}
 #if defined(HAVE_PRI_MWI_V2)
 		if (ast_strlen_zero(pri->mbox[i].vm_number)) {

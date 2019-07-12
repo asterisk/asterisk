@@ -1252,7 +1252,7 @@ enum sip_mailbox_status {
  */
 struct sip_mailbox {
 	/*! Associated MWI subscription */
-	struct stasis_subscription *event_sub;
+	struct ast_mwi_subscriber *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
 	struct sip_peer *peer;
 	enum sip_mailbox_status status;
