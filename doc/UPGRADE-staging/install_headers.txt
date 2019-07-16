@@ -1,0 +1,7 @@
+Subject: Build
+Master-Only: true
+
+Asterisk headers are no longer installed and uninstalled automatically when
+performing a "make install" or a "make uninstall".  To install/uninstall the
+headers, use "make install-headers" and "make uninstall-headers".  The headers
+also continue to be uninstalled when performing a "make uninstall-all".
