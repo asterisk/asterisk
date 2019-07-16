@@ -1,0 +1,9 @@
+Subject: Build
+
+Two new Makefile targets have been added... "install-headers" and
+"uninstall-headers" to separately control header installation.
+The existing behavior has not changed so "make install" and
+"make uninstall" will continue to also install/uninstall the headers.
+The new targets were added for forward compatibility with Asterisk 17
+in which the headers are no longer installed/uninstalled with the
+"install" and "uninstall" targets.
