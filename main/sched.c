@@ -116,6 +116,8 @@ struct ast_sched_context {
 	struct sched_thread *sched_thread;
 	/*! The scheduled task that is currently executing */
 	struct sched *currently_executing;
+	/*! Valid while currently_executing is not NULL */
+	pthread_t executing_thread_id;
 
 #ifdef SCHED_MAX_CACHE
 	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
@@ -625,15 +627,26 @@ int ast_sched_del(struct ast_sched_context *con, int id)
 		}
 		sched_release(con, s);
 	} else if (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
-		s = con->currently_executing;
-		s->deleted = 1;
-		/* Wait for executing task to complete so that caller of ast_sched_del() does not
-		 * free memory out from under the task.
-		 */
-		while (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
-			ast_cond_wait(&s->cond, &con->lock);
+		if (con->executing_thread_id == pthread_self()) {
+			/* The scheduled callback is trying to delete itself.
+			 * Not good as that is a deadlock. */
+			ast_log(LOG_ERROR,
+				"BUG! Trying to delete sched %d from within the callback %p.  "
+				"Ignoring so we don't deadlock\n",
+				id, con->currently_executing->callback);
+			ast_log_backtrace();
+			/* We'll return -1 below because s is NULL.
+			 * The caller will rightly assume that the unscheduling failed. */
+		} else {
+			s = con->currently_executing;
+			s->deleted = 1;
+			/* Wait for executing task to complete so that the caller of
+			 * ast_sched_del() does not free memory out from under the task. */
+			while (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
+				ast_cond_wait(&s->cond, &con->lock);
+			}
+			/* Do not sched_release() here because ast_sched_runq() will do it */
 		}
-		/* Do not sched_release() here because ast_sched_runq() will do it */
 	}
 
 #ifdef DUMP_SCHEDULER
@@ -773,6 +786,7 @@ int ast_sched_runq(struct ast_sched_context *con)
 		 */
 
 		con->currently_executing = current;
+		con->executing_thread_id = pthread_self();
 		ast_mutex_unlock(&con->lock);
 		res = current->callback(current->data);
 		ast_mutex_lock(&con->lock);
