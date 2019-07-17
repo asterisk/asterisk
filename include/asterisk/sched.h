@@ -71,20 +71,24 @@ extern "C" {
 
 /*!
  * \brief schedule task to get deleted and call unref function
+ *
+ * Only calls unref function if the delete succeeded.
+ *
  * \sa AST_SCHED_DEL
  * \since 1.6.1
  */
 #define AST_SCHED_DEL_UNREF(sched, id, refcall)			\
 	do { \
-		int _count = 0; \
-		while (id > -1 && ast_sched_del(sched, id) && ++_count < 10) { \
+		int _count = 0, _id; \
+		while ((_id = id) > -1 && ast_sched_del(sched, _id) && ++_count < 10) { \
 			usleep(1); \
 		} \
-		if (_count == 10) \
-			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
-		if (id > -1) \
+		if (_count == 10) { \
+			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", _id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
+		} else if (_id > -1) { \
 			refcall; \
-		id = -1; \
+			id = -1; \
+		} \
 	} while (0);
 
 /*!
