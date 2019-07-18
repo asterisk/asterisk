@@ -1810,7 +1810,8 @@
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [
-									"rtp"
+									"rtp",
+									"audiosocket"
 								]
 							}
 						},
@@ -1825,7 +1826,8 @@
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [
-									"udp"
+									"udp",
+									"tcp"
 								]
 							}
 						},
@@ -1866,6 +1868,14 @@
 									"both"
 								]
 							}
+						},
+						{
+							"name": "data",
+							"description": "An arbitrary data field",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
