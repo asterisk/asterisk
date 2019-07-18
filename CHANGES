@@ -13,6 +13,29 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.27.0 to Asterisk 13.28.0 ----------
+------------------------------------------------------------------------------
+
+AttendedTransfer
+------------------
+ * A new application, this will queue up attended transfer to the given extension.
+
+BlindTransfer
+------------------
+ * A new application, this will redirect all channels currently
+   bridged to the caller channel to the specified destination.
+
+ReadExten
+------------------
+ * Add 'p' option to stop reading extension if user presses '#' key.
+
+res_rtp_asterisk
+------------------
+ * DTLS packets will now be fragmented according to the MTU as set in rtp.conf. This
+   allows larger certificates to be used for the DTLS negotiation. By default this value
+   is 1200.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.26.0 to Asterisk 13.27.0 ----------
 ------------------------------------------------------------------------------
 
