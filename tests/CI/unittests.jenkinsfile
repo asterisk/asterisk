@@ -181,8 +181,7 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean >/dev/null 2>&1 || : "
-			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
+            cleanWs deleteDirs: true, notFailBuild: true
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back
