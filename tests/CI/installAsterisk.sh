@@ -16,7 +16,7 @@ destdir=${DESTDIR:+DESTDIR=$DESTDIR}
 [ $UNINSTALL_ALL -gt 0 ] && ${MAKE} ${destdir} uninstall-all
 
 ${MAKE} ${destdir} install || ${MAKE} ${destdir} NOISY_BUILD=yes install || exit 1
-${MAKE} ${destdir} samples
+${MAKE} ${destdir} samples install-headers
 if [ x"$DESTDIR" != x ] ; then
 	sed -i -r -e "s@\[directories\]\(!\)@[directories]@g" $DESTDIR/etc/asterisk/asterisk.conf
 	sed -i -r -e "s@ /(var|etc|usr)/@ $DESTDIR/\1/@g" $DESTDIR/etc/asterisk/asterisk.conf
