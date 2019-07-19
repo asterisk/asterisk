@@ -54,7 +54,7 @@ pipeline {
 				onUnstable: false
 			]
 	}
-	
+
 	agent {
 		/* All of the stages need to be performed on a docker host */
 		label "swdev-docker"
@@ -78,9 +78,9 @@ pipeline {
 					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
 
 					stage ("Checkout") {
-						sh "sudo chown -R jenkins:users ."  
+						sh "sudo chown -R jenkins:users ."
 						env.GERRIT_PROJECT_URL = env.GIT_URL.replaceAll(/[^\/]+$/, env.GERRIT_PROJECT)
-					
+
 						/*
 						 * Jenkins has already automatically checked out the base branch
 						 * for this change but we now need to check out the change itself
@@ -191,7 +191,7 @@ pipeline {
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
-									
+
 									withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
 										passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
 										checkout scm: [$class: 'GitSCM',
@@ -237,8 +237,7 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean >/dev/null 2>&1 || : "
-			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
+            cleanWs deleteDirs: true, notFailBuild: true
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back

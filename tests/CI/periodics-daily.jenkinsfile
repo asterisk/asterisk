@@ -157,8 +157,7 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean >/dev/null 2>&1 || : "
-			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
+            cleanWs deleteDirs: true, notFailBuild: true
 		}
 		success {
 			echo "Reporting ${currentBuild.currentResult} Passed"
