@@ -555,7 +555,6 @@ INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTV
 	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
 	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
 	"$(ASTSPOOLDIR)/voicemail" "$(ASTSPOOLDIR)/recording" \
-	"$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
 	"$(ASTLOGDIR)" "$(ASTLOGDIR)/cdr-csv" "$(ASTLOGDIR)/cdr-custom" \
 	"$(ASTLOGDIR)/cel-custom" "$(ASTDATADIR)" "$(ASTDATADIR)/documentation" \
 	"$(ASTDATADIR)/documentation/thirdparty" "$(ASTDATADIR)/firmware" \
@@ -580,12 +579,6 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 	$(INSTALL) -m 755 contrib/scripts/autosupport "$(DESTDIR)$(ASTSBINDIR)/"
 	if [ ! -f /sbin/launchd ]; then \
 		./build_tools/install_subst contrib/scripts/safe_asterisk "$(DESTDIR)$(ASTSBINDIR)/safe_asterisk"; \
-	fi
-	$(INSTALL) -m 644 include/asterisk.h "$(DESTDIR)$(includedir)"
-	$(INSTALL) -m 644 include/asterisk/*.h "$(DESTDIR)$(ASTHEADERDIR)"
-	$(INSTALL) -m 644 include/asterisk/doxygen/*.h "$(DESTDIR)$(ASTHEADERDIR)/doxygen"
-	if [ -n "$(OLDHEADERS)" ]; then \
-		for h in $(OLDHEADERS); do rm -f "$(DESTDIR)$(ASTHEADERDIR)/$$h"; done \
 	fi
 
 ifneq ($(DISABLE_XMLDOC),yes)
@@ -799,6 +792,16 @@ define INSTALL_CONFIGS
 	fi
 endef
 
+install-headers:
+# Will create all components of "$(DESTDIR)$(ASTHEADERDIR)/doxygen" including "$(DESTDIR)$(includedir)"
+	$(INSTALL) -d "$(DESTDIR)$(ASTHEADERDIR)/doxygen"
+	$(INSTALL) -m 644 include/asterisk.h "$(DESTDIR)$(includedir)"
+	$(INSTALL) -m 644 include/asterisk/*.h "$(DESTDIR)$(ASTHEADERDIR)"
+	$(INSTALL) -m 644 include/asterisk/doxygen/*.h "$(DESTDIR)$(ASTHEADERDIR)/doxygen"
+	if [ -n "$(OLDHEADERS)" ]; then \
+		for h in $(OLDHEADERS); do rm -f "$(DESTDIR)$(ASTHEADERDIR)/$$h"; done \
+	fi
+
 install-configs:
 	@if test -z "$(CONFIG_SRC)" -o ! -d "$(CONFIG_SRC)"; then \
 		>&2 echo "CONFIG_SRC must be set to a directory."; \
@@ -988,12 +991,15 @@ $(SUBDIRS_UNINSTALL):
 main-binuninstall:
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" ASTLIBDIR="$(ASTLIBDIR)" $(SUBMAKE) -C main binuninstall
 
+uninstall-headers:
+	rm -rf "$(DESTDIR)$(ASTHEADERDIR)"
+	rm -f "$(DESTDIR)$(includedir)/asterisk.h"
+
 _uninstall: $(SUBDIRS_UNINSTALL) main-binuninstall
 	rm -f "$(DESTDIR)$(ASTMODDIR)/"*
 	test -n "$(_oldmoddir)" -a -d "$(_oldmoddir)" && rm -f "$(_oldmoddir)/"* || :
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/astgenkey"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/autosupport"
-	rm -rf "$(DESTDIR)$(ASTHEADERDIR)"
 	rm -rf "$(DESTDIR)$(ASTDATADIR)/firmware"
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/asterisk.8"
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8"
@@ -1023,7 +1029,7 @@ uninstall: _uninstall
 	@echo " +            $(mK) uninstall-all            +"
 	@echo " +-------------------------------------------+"
 
-uninstall-all: _uninstall
+uninstall-all: _uninstall uninstall-headers
 	rm -rf "$(DESTDIR)$(ASTMODDIR)"
 	test -n "$(_oldmoddir)" -a -d "$(_oldmoddir)" && rm -rf "$(_oldmoddir)" || :
 	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
@@ -1117,6 +1123,7 @@ check-alembic: makeopts
 	@ALEMBIC=$(ALEMBIC) build_tools/make_check_alembic config cdr voicemail >&2
 
 .PHONY: install-configs
+.PHONY: install-headers
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds
@@ -1130,6 +1137,7 @@ check-alembic: makeopts
 .PHONY: uninstall
 .PHONY: _uninstall
 .PHONY: uninstall-all
+.PHONY: uninstall-headers
 .PHONY: badshell
 .PHONY: installdirs
 .PHONY: validate-docs
