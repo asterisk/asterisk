@@ -6444,6 +6444,32 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static void log_action(const struct message *m, const char *action)
+{
+	struct ast_str *buf;
+	int x;
+
+	if (!manager_debug) {
+		return;
+	}
+
+	buf = ast_str_create(256);
+	if (!buf) {
+		return;
+	}
+
+	for (x = 0; x < m->hdrcount; ++x) {
+		if (!strncasecmp(m->headers[x], "Secret", 6)) {
+			ast_str_append(&buf, 0, "Secret: <redacted from logging>\n");
+		} else {
+			ast_str_append(&buf, 0, "%s\n", m->headers[x]);
+		}
+	}
+
+	ast_verbose("<--- Examining AMI action: -->\n%s\n", ast_str_buffer(buf));
+	ast_free(buf);
+}
+
 /*
  * Done with the action handlers here, we start with the code in charge
  * of accepting connections and serving them.
@@ -6473,6 +6499,8 @@ static int process_message(struct mansession *s, const struct message *m)
 		mansession_unlock(s);
 		return 0;
 	}
+
+	log_action(m, action);
 
 	if (ast_shutting_down()) {
 		ast_log(LOG_ERROR, "Unable to process manager action '%s'. Asterisk is shutting down.\n", action);
