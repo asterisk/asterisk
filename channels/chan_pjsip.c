@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
+	<depend>res_pjsip_pubsub</depend>
 	<depend>res_pjsip_session</depend>
 	<support_level>core</support_level>
  ***/
@@ -1888,6 +1889,130 @@ static void transfer_redirect(struct ast_sip_session *session, const char *targe
 	ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
 }
 
+/*! \brief REFER Callback module, used to attach session data structure to subscription */
+static pjsip_module refer_callback_module = {
+	.name = { "REFER Callback", 14 },
+	.id = -1,
+};
+
+/*!
+ * \brief Callback function to report status of implicit REFER-NOTIFY subscription.
+ *
+ * This function will be called on any state change in the REFER-NOTIFY subscription.
+ * Its primary purpose is to report SUCCESS/FAILURE of a transfer initiated via
+ * \ref transfer_refer as well as to terminate the subscription, if necessary.
+ */
+static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
+{
+	struct ast_sip_session *session;
+	struct ast_channel *chan = NULL;
+	enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
+	int res = 0;
+
+	if (!event) {
+		return;
+	}
+
+	session = pjsip_evsub_get_mod_data(sub, refer_callback_module.id);
+	if (!session) {
+		return;
+	}
+
+	chan = session->channel;
+	if (!chan) {
+		return;
+	}
+
+	if (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_ACCEPTED) {
+		/* Check if subscription is suppressed and terminate and send completion code, if so. */
+		pjsip_rx_data *rdata;
+		pjsip_generic_string_hdr *refer_sub;
+		const pj_str_t REFER_SUB = { "Refer-Sub", 9 };
+
+		ast_debug(3, "Transfer accepted on channel %s\n", ast_channel_name(chan));
+
+		/* Check if response message */
+		if (event->type == PJSIP_EVENT_TSX_STATE && event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
+			rdata = event->body.tsx_state.src.rdata;
+
+			/* Find Refer-Sub header */
+			refer_sub = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &REFER_SUB, NULL);
+
+			/* Check if subscription is suppressed. If it is, the far end will not terminate it,
+			 * and the subscription will remain active until it times out.  Terminating it here
+			 * eliminates the unnecessary timeout.
+			 */
+			if (refer_sub && !pj_stricmp2(&refer_sub->hvalue, "false")) {
+				/* Since no subscription is desired, assume that call has been transferred successfully. */
+				/* Terminate subscription. */
+				pjsip_evsub_terminate(sub, PJ_TRUE);
+				res = -1;
+			}
+		}
+	} else if (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_ACTIVE ||
+			pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_TERMINATED) {
+		/* Check for NOTIFY complete or error. */
+		pjsip_msg *msg;
+		pjsip_msg_body *body;
+		pjsip_status_line status_line = { .code = PJSIP_SC_NULL };
+		pj_bool_t is_last;
+		pj_status_t status;
+
+		if (event->type == PJSIP_EVENT_TSX_STATE && event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
+			pjsip_rx_data *rdata;
+
+			rdata = event->body.tsx_state.src.rdata;
+			msg = rdata->msg_info.msg;
+
+			if (!pjsip_method_cmp(&msg->line.req.method, pjsip_get_notify_method())) {
+				body = msg->body;
+				if (body && !pj_stricmp2(&body->content_type.type, "message")
+					&& !pj_stricmp2(&body->content_type.subtype, "sipfrag")) {
+					pjsip_parse_status_line((char *)body->data, body->len, &status_line);
+				}
+			}
+		} else {
+			status_line.code = 500;
+			status_line.reason = *pjsip_get_status_text(500);
+		}
+
+		is_last = (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_TERMINATED);
+		/* If the status code is >= 200, the subscription is finished. */
+		if (status_line.code >= 200 || is_last) {
+			res = -1;
+
+			/* If the subscription has terminated, return AST_TRANSFER_SUCCESS for 2XX.
+			 * Any other status code returns AST_TRANSFER_FAILED.
+			 * The subscription should not terminate for any code < 200,
+			 * but if it does, that constitutes a failure. */
+			if (status_line.code < 200 || status_line.code >= 300) {
+				message = AST_TRANSFER_FAILED;
+			}
+			/* If subscription not terminated and subscription is finished (status code >= 200)
+			 * terminate it */
+			if (!is_last) {
+				pjsip_tx_data *tdata;
+
+				status = pjsip_evsub_initiate(sub, pjsip_get_subscribe_method(), 0, &tdata);
+				if (status == PJ_SUCCESS) {
+					pjsip_evsub_send_request(sub, tdata);
+				}
+			}
+			/* Finished. Remove session from subscription */
+			pjsip_evsub_set_mod_data(sub, refer_callback_module.id, NULL);
+			ast_debug(3, "Transfer channel %s completed: %d %.*s (%s)\n",
+					ast_channel_name(chan),
+					status_line.code,
+					(int)status_line.reason.slen, status_line.reason.ptr,
+					(message == AST_TRANSFER_SUCCESS) ? "Success" : "Failure");
+		}
+	}
+
+	if (res) {
+		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+	}
+}
+
 static void transfer_refer(struct ast_sip_session *session, const char *target)
 {
 	pjsip_evsub *sub;
@@ -1896,13 +2021,19 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	pjsip_tx_data *packet;
 	const char *ref_by_val;
 	char local_info[pj_strlen(&session->inv_session->dlg->local.info_str) + 1];
+	struct pjsip_evsub_user xfer_cb;
 
-	if (pjsip_xfer_create_uac(session->inv_session->dlg, NULL, &sub) != PJ_SUCCESS) {
+	pj_bzero(&xfer_cb, sizeof(xfer_cb));
+	xfer_cb.on_evsub_state = &xfer_client_on_evsub_state;
+
+	if (pjsip_xfer_create_uac(session->inv_session->dlg, &xfer_cb, &sub) != PJ_SUCCESS) {
 		message = AST_TRANSFER_FAILED;
 		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
 
 		return;
 	}
+
+	pjsip_evsub_set_mod_data(sub, refer_callback_module.id, session);
 
 	if (pjsip_xfer_initiate(sub, pj_cstr(&tmp, target), &packet) != PJ_SUCCESS) {
 		message = AST_TRANSFER_FAILED;
@@ -1921,7 +2052,6 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	}
 
 	pjsip_xfer_send_request(sub, packet);
-	ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
 }
 
 static int transfer(void *data)
@@ -3138,6 +3268,8 @@ static int load_module(void)
 		goto end;
 	}
 
+	ast_sip_register_service(&refer_callback_module);
+
 	ast_sip_session_register_supplement(&chan_pjsip_supplement);
 	ast_sip_session_register_supplement(&chan_pjsip_supplement_response);
 
@@ -3174,6 +3306,7 @@ end:
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement_response);
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
+	ast_sip_unregister_service(&refer_callback_module);
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
@@ -3199,6 +3332,8 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
+	ast_sip_unregister_service(&refer_callback_module);
+
 	ast_custom_function_unregister(&dtmf_mode_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
@@ -3217,5 +3352,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Channel Driver"
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-	.requires = "res_pjsip,res_pjsip_session",
+	.requires = "res_pjsip,res_pjsip_session,res_pjsip_pubsub",
 );
