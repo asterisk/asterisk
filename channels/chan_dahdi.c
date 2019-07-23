@@ -15021,10 +15021,111 @@ static char *handle_mfcr2_set_blocked(struct ast_cli_entry *e, int cmd, struct a
 	return CLI_SUCCESS;
 }
 
+static void mfcr2_show_links_of(struct ast_cli_args *a, struct r2links *list_head, const char *title)
+{
+#define FORMAT "%-5s %-10s %-15s %-10s %s\n"
+	AST_LIST_LOCK(list_head);
+	if (! AST_LIST_EMPTY(list_head)) {
+		int x = 0;
+		char index[5];
+		char live_chans_str[5];
+		char channel_list[R2_LINK_CAPACITY * 4];
+		struct r2link_entry *cur;
+		ast_cli(a->fd, "%s\n", title);
+		ast_cli(a->fd, FORMAT, "Index", "Thread", "Dahdi-Device", "Channels", "Channel-List");
+		AST_LIST_TRAVERSE(list_head, cur, list) {
+			struct dahdi_mfcr2 *mfcr2 = &cur->mfcr2;
+			const char *thread_status = NULL;
+			int i;
+			int len;
+			int inside_range;
+			int channo;
+			int prev_channo;
+			x++;
+			switch (mfcr2->r2master) {
+			case 0L: thread_status = "zero"; break;
+			case AST_PTHREADT_NULL: thread_status = "none"; break;
+			default: thread_status = "created"; break;
+			}
+			snprintf(index, sizeof(index), "%d", mfcr2->index);
+			snprintf(live_chans_str, sizeof(live_chans_str), "%d", mfcr2->live_chans);
+			channo = 0;
+			prev_channo = 0;
+			inside_range = 0;
+			len = 0;
+			/* Prepare nice string in channel_list[] */
+			for (i = 0; i < mfcr2->numchans; i++) {
+				struct dahdi_pvt *p = mfcr2->pvts[i];
+				if (!p) {
+					continue;
+				}
+				channo = p->channel;
+				/* Don't show a range until we know the last channel number */
+				if (prev_channo && prev_channo == channo - 1) {
+					prev_channo = channo;
+					inside_range = 1;
+					continue;
+				}
+				if (inside_range) {
+					/* Close range */
+					len += snprintf(channel_list + len, sizeof(channel_list) - len - 1, "-%d,%d", prev_channo, channo);
+					inside_range = 0;
+				} else if (prev_channo) {
+					/* Non-sequential channel numbers */
+					len += snprintf(channel_list + len, sizeof(channel_list) - len - 1, ",%d", channo);
+				} else {
+					/* First channel number */
+					len += snprintf(channel_list + len, sizeof(channel_list) - len - 1, "%d", channo);
+				}
+				prev_channo = channo;
+			}
+			/* Handle leftover channels */
+			if (inside_range) {
+				/* Close range */
+				len += snprintf(channel_list + len, sizeof(channel_list) - len - 1, "-%d", channo);
+				inside_range = 0;
+			} else if (prev_channo) {
+				/* Non-sequential channel numbers */
+				len += snprintf(channel_list + len, sizeof(channel_list) - len - 1, ",%d", channo);
+			}
+			// channel_list[len] = '\0';
+			ast_cli(a->fd, FORMAT,
+				index,
+				thread_status,
+				(mfcr2->nodev) ? "MISSING" : "OK",
+				live_chans_str,
+				channel_list);
+		}
+	}
+	AST_LIST_UNLOCK(list_head);
+#undef FORMAT
+}
+
+static char *handle_mfcr2_show_links(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mfcr2 show links";
+		e->usage =
+			"Usage: mfcr2 show links\n"
+			"       Shows the DAHDI MFC/R2 links.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+	mfcr2_show_links_of(a, &r2links, "Live links\n");
+	mfcr2_show_links_of(a, &nodev_r2links, "Links to be removed (device missing)\n");
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry dahdi_mfcr2_cli[] = {
 	AST_CLI_DEFINE(handle_mfcr2_version, "Show OpenR2 library version"),
 	AST_CLI_DEFINE(handle_mfcr2_show_variants, "Show supported MFC/R2 variants"),
 	AST_CLI_DEFINE(handle_mfcr2_show_channels, "Show MFC/R2 channels"),
+	AST_CLI_DEFINE(handle_mfcr2_show_links, "Show MFC/R2 links"),
 	AST_CLI_DEFINE(handle_mfcr2_set_debug, "Set MFC/R2 channel logging level"),
 	AST_CLI_DEFINE(handle_mfcr2_call_files, "Enable/Disable MFC/R2 call files"),
 	AST_CLI_DEFINE(handle_mfcr2_set_idle, "Reset MFC/R2 channel forcing it to IDLE"),
