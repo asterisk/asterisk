@@ -11992,7 +11992,7 @@ static int dahdi_r2_set_context(struct dahdi_mfcr2 *r2_link, const struct dahdi_
 		}
 	}
 	/* Save the configuration used to setup this link */
-	memcpy(&r2_link->conf, conf, sizeof(r2_link->conf));
+	memcpy(&r2_link->conf, &conf->mfcr2, sizeof(r2_link->conf));
 	return 0;
 }
 #endif
