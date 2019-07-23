@@ -102,6 +102,7 @@ struct realtime_sqlite3_db {
 	unsigned int debug:1;
 	unsigned int exiting:1;
 	unsigned int wakeup:1;
+	unsigned int has_batch_thread:1;
 	unsigned int batch;
 	int busy_timeout;
 };
@@ -367,13 +368,14 @@ void db_start_batch(struct realtime_sqlite3_db *db)
 	if (db->batch) {
 		ast_cond_init(&db->cond, NULL);
 		ao2_ref(db, +1);
-		ast_pthread_create_background(&db->syncthread, NULL, db_sync_thread, db);
+		db->has_batch_thread = !ast_pthread_create_background(&db->syncthread, NULL, db_sync_thread, db);
 	}
 }
 
 void db_stop_batch(struct realtime_sqlite3_db *db)
 {
-	if (db->batch) {
+	if (db->has_batch_thread) {
+		db->has_batch_thread = 0;
 		db->exiting = 1;
 		db_sync(db);
 		pthread_join(db->syncthread, NULL);
