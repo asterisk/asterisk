@@ -3042,6 +3042,15 @@ AST_THREADSTORAGE(userevent_buf);
 /*! \brief initial allocated size for the astman_append_buf and astman_send_*_va */
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
+static void astman_flush(struct mansession *s, struct ast_str *buf)
+{
+	if (s->f || s->session->f) {
+		send_string(s, ast_str_buffer(buf));
+	} else {
+		ast_verbose("fd == -1 in astman_append, should not happen\n");
+	}
+}
+
 /*!
  * utility functions for creating AMI replies
  */
@@ -3091,21 +3100,32 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 static void astman_send_response_full(struct mansession *s, const struct message *m, char *resp, char *msg, char *listflag)
 {
 	const char *id = astman_get_header(m, "ActionID");
+	struct ast_str *buf;
 
-	astman_append(s, "Response: %s\r\n", resp);
-	if (!ast_strlen_zero(id)) {
-		astman_append(s, "ActionID: %s\r\n", id);
-	}
-	if (listflag) {
-		astman_append(s, "EventList: %s\r\n", listflag);	/* Start, complete, cancelled */
-	}
-	if (msg == MSG_MOREDATA) {
+	buf = ast_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE);
+	if (!buf) {
 		return;
-	} else if (msg) {
-		astman_append(s, "Message: %s\r\n\r\n", msg);
-	} else {
-		astman_append(s, "\r\n");
 	}
+
+	ast_str_set(&buf, 0, "Response: %s\r\n", resp);
+
+	if (!ast_strlen_zero(id)) {
+		ast_str_append(&buf, 0, "ActionID: %s\r\n", id);
+	}
+
+	if (listflag) {
+		/* Start, complete, cancelled */
+		ast_str_append(&buf, 0, "EventList: %s\r\n", listflag);
+	}
+
+	if (msg != MSG_MOREDATA) {
+		if (msg) {
+			ast_str_append(&buf, 0, "Message: %s\r\n", msg);
+		}
+		ast_str_append(&buf, 0, "\r\n");
+	}
+
+	astman_flush(s, buf);
 }
 
 void astman_send_response(struct mansession *s, const struct message *m, char *resp, char *msg)
@@ -3160,18 +3180,43 @@ void astman_send_listack(struct mansession *s, const struct message *m, char *ms
 	astman_send_response_full(s, m, "Success", msg, listflag);
 }
 
-void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count)
+static struct ast_str *astman_send_list_complete_start_common(struct mansession *s, const struct message *m, const char *event_name, int count)
 {
 	const char *id = astman_get_header(m, "ActionID");
+	struct ast_str *buf;
 
-	astman_append(s, "Event: %s\r\n", event_name);
-	if (!ast_strlen_zero(id)) {
-		astman_append(s, "ActionID: %s\r\n", id);
+	buf = ast_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE);
+	if (!buf) {
+		return NULL;
 	}
-	astman_append(s,
+
+	ast_str_set(&buf, 0, "Event: %s\r\n", event_name);
+	if (!ast_strlen_zero(id)) {
+		ast_str_append(&buf, 0, "ActionID: %s\r\n", id);
+	}
+	ast_str_append(&buf, 0,
 		"EventList: Complete\r\n"
 		"ListItems: %d\r\n",
 		count);
+
+	return buf;
+}
+
+static void astman_send_list_complete(struct mansession *s, const struct message *m, const char *event_name, int count)
+{
+	struct ast_str *buf = astman_send_list_complete_start_common(s, m, event_name, count);
+	if (buf) {
+		ast_str_append(&buf, 0, "\r\n");
+		astman_flush(s, buf);
+	}
+}
+
+void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count)
+{
+	struct ast_str *buf = astman_send_list_complete_start_common(s, m, event_name, count);
+	if (buf) {
+		astman_flush(s, buf);
+	}
 }
 
 void astman_send_list_complete_end(struct mansession *s)
@@ -4483,8 +4528,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	regfree(&regexbuf);
 	ast_free(regex_string);
 
-	astman_send_list_complete_start(s, m, "ChannelsHungupListComplete", channels_matched);
-	astman_send_list_complete_end(s);
+	astman_send_list_complete(s, m, "ChannelsHungupListComplete", channels_matched);
 
 	return 0;
 }
@@ -6289,8 +6333,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	}
 	ao2_iterator_destroy(&it_chans);
 
-	astman_send_list_complete_start(s, m, "CoreShowChannelsComplete", numchans);
-	astman_send_list_complete_end(s);
+	astman_send_list_complete(s, m, "CoreShowChannelsComplete", numchans);
 
 	ao2_ref(channels, -1);
 	return 0;
