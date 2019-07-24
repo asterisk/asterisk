@@ -116,12 +116,20 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 		runner menuselect/menuselect --enable REF_DEBUG menuselect.makeopts
 	fi
 
-	cat_enables="MENUSELECT_BRIDGES MENUSELECT_CEL MENUSELECT_CDR"
-	cat_enables+=" MENUSELECT_CHANNELS MENUSELECT_CODECS MENUSELECT_FORMATS MENUSELECT_FUNCS"
-	cat_enables+=" MENUSELECT_PBX MENUSELECT_RES MENUSELECT_UTILS MENUSELECT_TESTS"
+	cat_enables="MENUSELECT_TESTS"
+	mod_disables=""
+
+	if [[ ! "${BRANCH_NAME}" =~ ^certified ]] ; then
+		cat_enables+=" MENUSELECT_BRIDGES MENUSELECT_CEL MENUSELECT_CDR"
+		cat_enables+=" MENUSELECT_CHANNELS MENUSELECT_CODECS MENUSELECT_FORMATS MENUSELECT_FUNCS"
+		cat_enables+=" MENUSELECT_PBX MENUSELECT_RES MENUSELECT_UTILS"
+	else
+		mod_disables+="test_utils"
+	fi
+
 	runner menuselect/menuselect `gen_cats enable $cat_enables` menuselect.makeopts
 
-	mod_disables="res_digium_phone chan_vpb"
+	mod_disables+=" res_digium_phone chan_vpb"
 	if [ $TESTED_ONLY -eq 1 ] ; then
 		# These modules are not tested at all.  They are loaded but nothing is ever done
 		# with them, no testsuite tests depend on them.
