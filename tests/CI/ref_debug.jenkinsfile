@@ -10,7 +10,19 @@
  * we need to dynamically determine which docker image we're going to use and
  * you can't do that in a delcarative pipeline.
  */
+def timeoutTime = 24
+def timeoutUnits = 'HOURS'
+if (env.TIMEOUT_REF_DEBUG) {
+	def _timeout = env.TIMEOUT_REF_DEBUG.split()
+	timeoutTime = _timeout[0].toInteger()
+	timeoutUnits = _timeout[1]
+}
+
 pipeline {
+	options {
+		timestamps()
+		timeout(time: timeoutTime, unit: timeoutUnits)
+	}
 	triggers {
 		cron 'H H(0-4) * * 0'
 	}
@@ -25,6 +37,8 @@ pipeline {
 			steps {
 				/* Here's where we switch to scripted pipeline */
 				script {
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."  
 						sh "printenv | sort"
@@ -35,11 +49,13 @@ pipeline {
 					def r = currentBuild.startTimeInMillis % images.length
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri
-					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
-						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
+						" --tmpfs /tmp:exec,size=1G -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint=''"
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
 					def outputdir = "tests/CI/output/Testsuite"
+
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Image: ${randomImage}", false)
 					def img = docker.image(randomImage)
 					img.pull()
 
@@ -47,7 +63,7 @@ pipeline {
 						img.inside(dockerOptions + " --name ${bt}-build") {
 							echo 'Building..'
 							env.CCACHE_DIR = "/srv/cache/ccache"
-							sh "./tests/CI/buildAsterisk.sh --ref-debug --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --ref-debug --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
@@ -65,7 +81,7 @@ pipeline {
 						def groupName = testGroup.name
 						def groupDir = testGroup.dir
 						def groupTestcmd = testGroup.testcmd
-						def testsuiteUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/1testsuite")
+						def testsuiteUrl = env.GIT_URL.replaceAll(/\/[^\/]+$/, "/testsuite")
 
 						parallelTasks[groupName] = {
 							stage (groupName) {
@@ -73,7 +89,7 @@ pipeline {
 								img.inside("${dockerOptions} --name ${bt}-${groupName}") {
 
 									lock("${JOB_NAME}.${NODE_NAME}.installer") {
-										sh 'sudo ./tests/CI/installAsterisk.sh  --user-group=jenkins:users'
+										sh "sudo ./tests/CI/installAsterisk.sh  --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
@@ -92,7 +108,7 @@ pipeline {
 											userRemoteConfigs: [[url: testsuiteUrl]]
 										]
 
-									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --test-command='${groupTestcmd}'"
+									sh "sudo tests/CI/runTestsuite.sh --testsuite-dir='${groupDir}' --testsuite-command='${groupTestcmd}'"
 
 									archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 										artifacts: "${groupDir}/asterisk-test-suite-report.xml, ${groupDir}/logs/**, ${groupDir}/core*.txt"
@@ -111,8 +127,8 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean 2&>/dev/null || : "
-			sh "sudo rm -rf tests/CI/output  2&>/dev/null || : "
+			sh "sudo make distclean >/dev/null 2>&1 || : "
+			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
 		}
 		success {
 			echo "Reporting ${currentBuild.currentResult} Passed"

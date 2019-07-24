@@ -10,7 +10,19 @@
  * we need to dynamically determine which docker image we're going to use and
  * you can't do that in a delcarative pipeline.
  */
+def timeoutTime = 30
+def timeoutUnits = 'MINUTES'
+if (env.TIMEOUT_UNITTESTS) {
+	def _timeout = env.TIMEOUT_UNITTESTS.split()
+	timeoutTime = _timeout[0].toInteger()
+	timeoutUnits = _timeout[1]
+}
+
 pipeline {
+	options {
+		timestamps()
+		timeout(time: timeoutTime, unit: timeoutUnits)
+	}
 	triggers {
 		/*
 		 * This trigger will match either the "asterisk" or "Security-asterisk"
@@ -34,7 +46,7 @@ pipeline {
 			triggerOnEvents: [
 				commentAddedContains('^recheck$'),
 				patchsetCreated(excludeDrafts: false,
-								excludeNoCodeChange: true,
+								excludeNoCodeChange: false,
 								excludeTrivialRebase: false),
 				draftPublished()
 			],
@@ -63,10 +75,12 @@ pipeline {
 			}
 			steps {
 				script {
+					manager.build.displayName = "${env.GERRIT_CHANGE_NUMBER}"
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
+
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."
-						env.GERRIT_PROJECT_URL = env.GERRIT_CHANGE_URL.replaceAll(/\/[0-9]+$/, "/${env.GERRIT_PROJECT}")
-						sh "printenv | sort"
+						env.GERRIT_PROJECT_URL = env.GIT_URL.replaceAll(/[^\/]+$/, env.GERRIT_PROJECT)
 
 						/*
 						 * Jenkins has already automatically checked out the base branch
@@ -77,32 +91,46 @@ pipeline {
 						 *
 						 * The Gerrit Trigger provides all the URLs and refspecs to
 						 * check out the change.
+						 *
+						 * We need to retrieve the jenkins2 gerrit https credentials
+						 * in case this review is in a restricted project.
 						 */
-						checkout scm: [$class: 'GitSCM',
-							branches: [[name: env.GERRIT_BRANCH ]],
-							extensions: [
-								[$class: 'ScmName', name: 'gerrit-public'],
-								[$class: 'CleanBeforeCheckout'],
-								[$class: 'PreBuildMerge', options: [
-									mergeRemote: 'gerrit-public',
-									fastForwardMode: 'NO_FF',
-									mergeStrategy: 'RECURSIVE',
-									mergeTarget: env.GERRIT_BRANCH]],
-								[$class: 'CloneOption',
-									honorRefspec: true,
-									noTags: true,
-									depth: 10,
-									shallow: true
+						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
+							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
+
+							sh "printenv | sort"
+
+							checkout scm: [$class: 'GitSCM',
+								branches: [[name: env.GERRIT_BRANCH ]],
+								extensions: [
+									[$class: 'ScmName', name: env.GERRIT_NAME],
+									[$class: 'CleanBeforeCheckout'],
+									[$class: 'PreBuildMerge', options: [
+										mergeRemote: env.GERRIT_NAME,
+										fastForwardMode: 'NO_FF',
+										mergeStrategy: 'RECURSIVE',
+										mergeTarget: env.GERRIT_BRANCH]],
+									[$class: 'CloneOption',
+										honorRefspec: true,
+										noTags: true,
+										depth: 10,
+										shallow: true
+									],
+									[$class: 'PruneStaleBranch'],
+									[$class: 'BuildChooserSetting',
+										buildChooser: [$class: 'GerritTriggerBuildChooser']
+									]
 								],
-								[$class: 'PruneStaleBranch'],
-								[$class: 'BuildChooserSetting',
-									buildChooser: [$class: 'GerritTriggerBuildChooser']
+								userRemoteConfigs: [
+									[
+									credentialsId: env.JENKINS_GERRIT_CREDS,
+									name: env.GERRIT_NAME,
+									refspec: env.GERRIT_REFSPEC,
+									url: env.GERRIT_PROJECT_URL.replaceAll("http(s)?://", "http\$1://${GERRIT_USER_NAME}@")
+									]
 								]
-							],
-							userRemoteConfigs: [
-								[name: env.GERRIT_NAME, refspec: env.GERRIT_REFSPEC, url: env.GERRIT_PROJECT_URL ]
 							]
-						]
+						}
 
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
@@ -112,11 +140,12 @@ pipeline {
 					def ri = images[(int)r]
 					def randomImage = env.DOCKER_REGISTRY + "/" + ri;
 					def bt = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
-					def dockerOptions = "--ulimit core=0 --ulimit nofile=10240 " +
-						" -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+					def dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
+						" --tmpfs /tmp:exec,size=1G -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
 						" --entrypoint='' --name ${bt}-build"
 					def outputdir = "tests/CI/output/UnitTests"
 
+					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Image: ${randomImage}", false)
 					def img = docker.image(randomImage)
 					img.pull()
 					img.inside(dockerOptions) {
@@ -124,7 +153,7 @@ pipeline {
 						stage ('Build') {
 							echo 'Building..'
 
-							sh "./tests/CI/buildAsterisk.sh --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
@@ -134,9 +163,9 @@ pipeline {
 							def outputfile = "${outputdir}/unittests-results.xml"
 							def testcmd = "test execute all"
 
-							sh 'sudo ./tests/CI/installAsterisk.sh --user-group=jenkins:users'
+							sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
 
-							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --test-command='${testcmd}'"
+							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${testcmd}'"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
 								artifacts: "${outputdir}/**"
@@ -152,8 +181,8 @@ pipeline {
 	}
 	post {
 		cleanup {
-			sh "sudo make distclean 2&>/dev/null || : "
-			sh "sudo rm -rf tests/CI/output 2&>/dev/null || : "
+			sh "sudo make distclean >/dev/null 2>&1 || : "
+			sh "sudo rm -rf tests/CI/output >/dev/null 2>&1 || : "
 		}
 		/*
 		 * The Gerrit Trigger will automatically post the "Verified" results back
