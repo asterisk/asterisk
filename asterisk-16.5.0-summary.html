@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.5.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.5.0-rc1</h3><h3 align="center">Date: 2019-07-18</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.5.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.5.0</h3><h3 align="center">Date: 2019-07-25</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.4.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">8 Alexei Gradinari <alex2grad@gmail.com><br/>7 George Joseph <gjoseph@digium.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>2 Chris-Savinovich <csavinovich@digium.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Sean Bright <sean.bright@gmail.com><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 Abhay Gupta <abhay@avissol.com><br/>1 Francesco Castellano <francesco.castellano@messagenet.it><br/>1 Ben Ford <bford@digium.com><br/>1 Morten Tryfoss <morten@tryfoss.no><br/>1 Guido Falsi <madpilot@FreeBSD.org><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/></td><td width="33%"><td width="33%">1 Gil Richard <grichard@intertalksystems.com><br/>1 Oleksandr Natalenko<br/>1 Oleksandr Natalenko <oleksandr@natalenko.name><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 Kirsty Tyerman<br/>1 abelbeck <lonnie@abelbeck.com><br/>1 Bernhard Schmidt<br/>1 Abhay Gupta <abhay@avissol.com><br/>1 Gil Richard<br/>1 vijay kumar <vijaykumar@drishti-soft.com><br/>1 Dmitry Svyatogorov <ds@vo-ix.ru><br/>1 pasandev <pasandev@ymail.com><br/>1 Francesco Castellano <francesco.castellano@messagenet.it><br/>1 Gregory Massel <greg@csurf.co.za><br/>1 Bernhard Schmidt <berni@birkenwald.de><br/>1 Morten Tryfoss <morten@tryfoss.no><br/>1 Michael Maier <m1278468@mailbox.org><br/></td></tr>
+<tr valign="top"><td width="33%">8 Alexei Gradinari <alex2grad@gmail.com><br/>7 George Joseph <gjoseph@digium.com><br/>3 Asterisk Development Team <asteriskteam@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>2 Chris-Savinovich <csavinovich@digium.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Sean Bright <sean.bright@gmail.com><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 Abhay Gupta <abhay@avissol.com><br/>1 Francesco Castellano <francesco.castellano@messagenet.it><br/>1 Ben Ford <bford@digium.com><br/>1 Morten Tryfoss <morten@tryfoss.no><br/>1 Guido Falsi <madpilot@FreeBSD.org><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/></td><td width="33%"><td width="33%">1 Gil Richard <grichard@intertalksystems.com><br/>1 Oleksandr Natalenko<br/>1 Oleksandr Natalenko <oleksandr@natalenko.name><br/>1 Nasir Iqbal <nasir@ictinnovations.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Kirsty Tyerman <kirsty.tyerman@boeing.com><br/>1 Kirsty Tyerman<br/>1 abelbeck <lonnie@abelbeck.com><br/>1 Bernhard Schmidt<br/>1 Abhay Gupta <abhay@avissol.com><br/>1 Gil Richard<br/>1 vijay kumar <vijaykumar@drishti-soft.com><br/>1 Dmitry Svyatogorov <ds@vo-ix.ru><br/>1 pasandev <pasandev@ymail.com><br/>1 Francesco Castellano <francesco.castellano@messagenet.it><br/>1 Gregory Massel <greg@csurf.co.za><br/>1 Bernhard Schmidt <berni@birkenwald.de><br/>1 Morten Tryfoss <morten@tryfoss.no><br/>1 Michael Maier <m1278468@mailbox.org><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_sip/Interoperability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28465">ASTERISK-28465</a>: Broken SDP can cause a segfault in a T.38 reINVITE<br/>Reported by: Francesco Castellano<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c59df17a55a4f91a05df3a833652e04f0853cf6">[6c59df17a5]</a> Francesco Castellano -- chan_sip: Handle invalid SDP answer to T.38 re-invite</li>
 </ul><br><h4>Category: Resources/res_pjsip_messaging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28447">ASTERISK-28447</a>: res_pjsip_messaging: In-dialog MESSAGE with no body causes crash<br/>Reported by: Gil Richard<ul>
@@ -41,6 +41,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a1c84709b868583d5d030b1ba093c1228edc0779">[a1c84709b8]</a> Kirsty Tyerman -- pbx_dundi: added IPv4/IPv6 dual bind support to DUNDi</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1ddcfe4bac62ac57106189dbb898df3612c11cac">1ddcfe4bac</a></td><td>Asterisk Development Team</td><td>Update for 16.5.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cb831a18d15a9c1434df757a23d34bd3f488af99">cb831a18d1</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 16.5.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=17560292371766a4dc0ba236f84c94a1e5d6212c">1756029237</a></td><td>Joshua Colp</td><td>res_rtp_asterisk: Move where DTLS MTU variable is defined.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31d755e8050f0dbe2b8a214625674f04767c1f87">31d755e805</a></td><td>George Joseph</td><td>sig_pri:  Address gcc9 issues</td></tr>
@@ -56,19 +57,20 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ec74fd56a7c22c858c4b7f8876b5610aab09dd3e">ec74fd56a7</a></td><td>Ben Ford</td><td>build: Fix file format in CHANGES-staging.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=db5bc0fabfb68c87e04770ba2a5ea57be7bfb117">db5bc0fabf</a></td><td>Alexei Gradinari</td><td>app_blind_transfer: new application BlindTransfer</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9516fb64c9d59437c6527a23f8d5168e0d7eaf0e">9516fb64c9</a></td><td>Alexei Gradinari</td><td>app_readexten: new option 'p' to stop reading on '#' key</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                      |    1
-.version                                                                                        |    1
-ChangeLog                                                                                       |84424 ----------
-asterisk-16.4.0-summary.html                                                                    |  229
-asterisk-16.4.0-summary.txt                                                                     |  568
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-16.4.0-summary.html                                                                    |  229 ----
+asterisk-16.4.0-summary.txt                                                                     |  568 ----------
+b/.version                                                                                      |    2
 b/CHANGES                                                                                       |   27
+b/ChangeLog                                                                                     |  474 ++++++++
 b/apps/app_amd.c                                                                                |    2
-b/apps/app_attended_transfer.c                                                                  |  143
-b/apps/app_blind_transfer.c                                                                     |  137
-b/apps/app_confbridge.c                                                                         |  157
+b/apps/app_attended_transfer.c                                                                  |  143 ++
+b/apps/app_blind_transfer.c                                                                     |  137 ++
+b/apps/app_confbridge.c                                                                         |  157 ++
 b/apps/app_readexten.c                                                                          |   11
 b/apps/confbridge/confbridge_manager.c                                                          |   27
 b/apps/confbridge/include/confbridge.h                                                          |   11
+b/asterisk-16.5.0-rc1-summary.html                                                              |  109 +
+b/asterisk-16.5.0-rc1-summary.txt                                                               |  304 +++++
 b/cdr/cdr_pgsql.c                                                                               |   24
 b/channels/chan_dahdi.c                                                                         |   16
 b/channels/chan_pjsip.c                                                                         |   33
@@ -77,7 +79,7 @@ b/channels/sig_analog.c                                                         
 b/channels/sig_pri.c                                                                            |    7
 b/configs/samples/dundi.conf.sample                                                             |    6
 b/configs/samples/rtp.conf.sample                                                               |    4
-b/configure                                                                                     |  112
+b/configure                                                                                     |  112 +
 b/configure.ac                                                                                  |    2
 b/include/asterisk/autoconfig.h.in                                                              |    3
 b/include/asterisk/stasis_bridges.h                                                             |   23
@@ -87,23 +89,17 @@ b/main/translate.c                                                              
 b/menuselect/configure                                                                          |   14
 b/menuselect/example_menuselect-tree                                                            |    4
 b/menuselect/test/menuselect-tree                                                               |    4
-b/pbx/pbx_dundi.c                                                                               |  131
-b/res/res_fax.c                                                                                 |   57
+b/pbx/pbx_dundi.c                                                                               |  131 +-
+b/res/res_fax.c                                                                                 |   57 -
 b/res/res_pjsip_messaging.c                                                                     |    9
 b/res/res_pjsip_sdp_rtp.c                                                                       |    1
-b/res/res_rtp_asterisk.c                                                                        |  201
+b/res/res_rtp_asterisk.c                                                                        |  201 ++-
 b/tests/CI/buildAsterisk.sh                                                                     |    2
 b/tests/CI/findLibdir.sh                                                                        |   14
-b/third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157
-contrib/realtime/mysql/mysql_cdr.sql                                                            |   41
-contrib/realtime/mysql/mysql_config.sql                                                         | 1237
-contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   45
-contrib/realtime/postgresql/postgresql_config.sql                                               | 1335
-contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
+b/third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157 ++
 third-party/pjproject/patches/0010-outgoing_connected_line_method_update.patch                  |   33
 third-party/pjproject/patches/0020-Fixed-2172-Avoid-double-reference-counter-decrements.patch   |   42
 third-party/pjproject/patches/0030-Re-2176-Removed-pop_freelist-push_freelist-after-rem.patch   |   37
-third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                        |  372
-third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch   |   96
-50 files changed, 1289 insertions(+), 88665 deletions(-)</pre><br></html>
+third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                        |  372 ------
+third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch   |  131 --
+45 files changed, 2175 insertions(+), 1545 deletions(-)</pre><br></html>
