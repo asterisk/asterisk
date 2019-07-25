@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.28.0-rc1
+                                asterisk-13.28.0
 
-                                Date: 2019-07-18
+                                Date: 2019-07-25
 
                            <asteriskteam@digium.com>
 
@@ -52,8 +52,8 @@
    Coders                      Testers               Reporters                
    8 Alexei Gradinari                                1 Gil Richard            
    7 George Joseph                                   1 Oleksandr Natalenko    
-   3 Joshua Colp                                     1 Oleksandr Natalenko    
-   2 Asterisk Development Team                       1 Nasir Iqbal            
+   3 Asterisk Development Team                       1 Oleksandr Natalenko    
+   3 Joshua Colp                                     1 Nasir Iqbal            
    2 Chris-Savinovich                                1 Guido Falsi            
    1 Sean Bright                                     1 abelbeck               
    1 Abhay Gupta                                     1 Bernhard Schmidt       
@@ -185,6 +185,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | b25e1231dd | Asterisk         | Update for 13.28.0-rc1                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | b3d0754f82 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
    |            | Development Team | 13.28.0                                |
    |------------+------------------+----------------------------------------|
@@ -236,19 +239,20 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |66105 ----------
- asterisk-13.27.0-summary.html                                                                   |  182
- asterisk-13.27.0-summary.txt                                                                    |  461
+ asterisk-13.27.0-summary.html                                                                   |  182 ---
+ asterisk-13.27.0-summary.txt                                                                    |  461 ----------
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   23
+ b/ChangeLog                                                                                     |  458 +++++++++
  b/apps/app_amd.c                                                                                |    2
- b/apps/app_attended_transfer.c                                                                  |  143
- b/apps/app_blind_transfer.c                                                                     |  137
- b/apps/app_confbridge.c                                                                         |  157
+ b/apps/app_attended_transfer.c                                                                  |  143 +++
+ b/apps/app_blind_transfer.c                                                                     |  137 ++
+ b/apps/app_confbridge.c                                                                         |  157 +++
  b/apps/app_readexten.c                                                                          |   11
  b/apps/confbridge/confbridge_manager.c                                                          |   27
  b/apps/confbridge/include/confbridge.h                                                          |   12
+ b/asterisk-13.28.0-rc1-summary.html                                                             |  104 ++
+ b/asterisk-13.28.0-rc1-summary.txt                                                              |  288 ++++++
  b/cdr/cdr_pgsql.c                                                                               |   24
  b/channels/chan_dahdi.c                                                                         |   16
  b/channels/chan_pjsip.c                                                                         |   34
@@ -256,7 +260,7 @@
  b/channels/sig_analog.c                                                                         |    7
  b/channels/sig_pri.c                                                                            |    7
  b/configs/samples/rtp.conf.sample                                                               |    4
- b/configure                                                                                     |  112
+ b/configure                                                                                     |  112 ++
  b/configure.ac                                                                                  |    2
  b/include/asterisk/autoconfig.h.in                                                              |    3
  b/include/asterisk/stasis_bridges.h                                                             |   23
@@ -267,22 +271,16 @@
  b/menuselect/configure                                                                          |   14
  b/menuselect/example_menuselect-tree                                                            |    4
  b/menuselect/test/menuselect-tree                                                               |    4
- b/res/res_fax.c                                                                                 |   57
+ b/res/res_fax.c                                                                                 |   57 -
  b/res/res_pjsip_messaging.c                                                                     |    9
  b/res/res_pjsip_sdp_rtp.c                                                                       |    6
- b/res/res_rtp_asterisk.c                                                                        |  198
+ b/res/res_rtp_asterisk.c                                                                        |  198 +++-
  b/tests/CI/buildAsterisk.sh                                                                     |    2
  b/tests/CI/findLibdir.sh                                                                        |   14
- b/third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   33
- contrib/realtime/mysql/mysql_config.sql                                                         | 1183
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   37
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1281
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   39
+ b/third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157 +++
  third-party/pjproject/patches/0010-outgoing_connected_line_method_update.patch                  |   33
  third-party/pjproject/patches/0020-Fixed-2172-Avoid-double-reference-counter-decrements.patch   |   42
  third-party/pjproject/patches/0030-Re-2176-Removed-pop_freelist-push_freelist-after-rem.patch   |   37
- third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                        |  372
- third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch   |   98
- 49 files changed, 1178 insertions(+), 70053 deletions(-)
+ third-party/pjproject/patches/0031-Re-2191-transport-timer-cleanup.patch                        |  372 --------
+ third-party/pjproject/patches/0032-Re-2191-Fixed-crash-in-SIP-transport-destroy-due-to-.patch   |   94 --
+ 44 files changed, 2027 insertions(+), 1337 deletions(-)
