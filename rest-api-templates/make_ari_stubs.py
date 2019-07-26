@@ -42,7 +42,7 @@ def rel(file):
     """
     return os.path.join(TOPDIR, file)
 
-WIKI_PREFIX = 'Asterisk 17'
+WIKI_PREFIX = 'Asterisk 18'
 
 API_TRANSFORMS = [
     Transform(rel('api.wiki.mustache'),
