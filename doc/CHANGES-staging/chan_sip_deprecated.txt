@@ -1,5 +1,4 @@
 Subject: chan_sip
-Master-Only: true
 
 The chan_sip module is now deprecated, users should migrate to the
 replacement module chan_pjsip.  See guides at the Asterisk Wiki:
