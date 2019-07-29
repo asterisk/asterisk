@@ -1,7 +1,0 @@
-Subject: ConfBridge
-
-Add "average_all", "highest_all", and "lowest_all" values for
-the remb_behavior option. These values operate on a bridge
-level instead of a per-source level. This means that a single
-REMB value is calculated and sent to every sender, instead of
-a REMB value that is unique for the specific sender..

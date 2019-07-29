@@ -1,5 +1,0 @@
-Subject: RTP/ICE
-
-You can now indicate that you'd like an ice_host_candidate's local address
-to be published as well as the mapped address.  See the sample rtp.conf
-for more information.

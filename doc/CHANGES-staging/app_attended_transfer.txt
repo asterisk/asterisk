@@ -1,3 +1,0 @@
-Subject: AttendedTransfer
-
-A new application, this will queue up attended transfer to the given extension.
