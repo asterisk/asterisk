@@ -1087,7 +1087,7 @@ static struct ast_module *load_dlopen(const char *resource_in, const char *so_ex
 	if (resource_being_loaded) {
 		struct ast_str *list;
 		int c = 0;
-		const char *dlerror_msg = ast_strdupa(dlerror());
+		const char *dlerror_msg = ast_strdupa(S_OR(dlerror(), ""));
 
 		resource_being_loaded = NULL;
 		if (mod->lib) {
