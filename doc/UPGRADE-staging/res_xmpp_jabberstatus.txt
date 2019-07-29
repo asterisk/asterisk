@@ -1,3 +1,4 @@
 Subject: res_xmpp
+Master-Only: true
 
 The JabberStatus application, deprecated in Asterisk 12, has been removed.
