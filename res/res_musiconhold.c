@@ -945,15 +945,11 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	if (!(moh = ast_calloc(1, sizeof(*moh))))
 		return NULL;
 
-	if (pipe(moh->pipe)) {
+	if (ast_pipe_nonblock(moh->pipe)) {
 		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
 		ast_free(moh);
 		return NULL;
 	}
-
-	/* Make entirely non-blocking */
-	ast_fd_set_flags(moh->pipe[0], O_NONBLOCK);
-	ast_fd_set_flags(moh->pipe[1], O_NONBLOCK);
 
 	moh->f.frametype = AST_FRAME_VOICE;
 	moh->f.subclass.format = cl->format;
