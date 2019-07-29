@@ -18,6 +18,118 @@
 ===
 ===========================================================
 
+------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 17.0.0 --------------------------
+------------------------------------------------------------------------------
+
+Applications
+------------------
+ * The JabberStatus application, deprecated in Asterisk 12, has been removed.
+
+Bridging
+------------------
+ * The bridging core no longer uses the stasis cache for bridge
+   snapshots.  The latest bridge snapshot is now stored on the
+   ast_bridge structure itself.
+
+   The following APIs are no longer available since the stasis cache
+   is no longer used:
+     ast_bridge_topic_cached()
+     ast_bridge_topic_all_cached()
+
+   A topic pool is now used for individual bridge topics.
+
+   The ast_bridge_cache() function was removed since there's no
+   longer a separate container of snapshots.
+
+   A new function "ast_bridges()" was created to retrieve the
+   container of all bridges.  Users formerly calling
+   ast_bridge_cache() can use the new function to iterate over
+   bridges and retrieve the latest snapshot directly from the
+   bridge.
+
+   The ast_bridge_snapshot_get_latest() function was renamed to
+   ast_bridge_get_snapshot_by_uniqueid().
+
+   A new function "ast_bridge_get_snapshot()" was created to retrieve
+   the bridge snapshot directly from the bridge structure.
+
+   The ast_bridge_topic_all() function now returns a normal topic
+   not a cached one so you can't use stasis cache functions on it
+   either.
+
+   The ast_bridge_snapshot_type() stasis message now has the
+   ast_bridge_snapshot_update structure as it's data.  It contains
+   the last snapshot and the new one.
+
+Build
+------------------
+ * Asterisk headers are no longer installed and uninstalled automatically when
+   performing a "make install" or a "make uninstall".  To install/uninstall the
+   headers, use "make install-headers" and "make uninstall-headers".  The headers
+   also continue to be uninstalled when performing a "make uninstall-all".
+
+Channels
+------------------
+ * The core no longer uses the stasis cache for channels snapshots.
+   The following APIs are no longer available:
+       ast_channel_topic_cached()
+       ast_channel_topic_all_cached()
+   The ast_channel_cache_all() and ast_channel_cache_by_name() functions
+   now returns an ao2_container of ast_channel_snapshots rather than a
+   container of stasis_messages therefore you can't call stasis_cache
+   functions on it.
+   The ast_channel_topic_all() function now returns a normal topic,
+   not a cached one so you can't use stasis cache functions on it either.
+   The ast_channel_snapshot_type() stasis message now has the
+   ast_channel_snapshot_update structure as it's data.
+   ast_channel_snapshot_get_latest() still returns the latest snapshot.
+
+chan_sip
+------------------
+ * The chan_sip module is now deprecated, users should migrate to the
+   replacement module chan_pjsip.  See guides at the Asterisk Wiki:
+     https://wiki.asterisk.org/wiki/x/tAHOAQ
+     https://wiki.asterisk.org/wiki/x/hYCLAQ
+
+func_callerid
+------------------
+ * The CALLERPRES() dialplan function, deprecated in Asterisk 1.8, has been
+   removed.
+
+res_parking
+------------------
+ * The PARKINGSLOT channel variable, deprecated in Asterisk 12 in favor of the
+   PARKING_SPACE channel variable, will no longer be set.
+
+res_xmpp
+------------------
+ * The JabberStatus application, deprecated in Asterisk 12, has been removed.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.0.0 to Asterisk 17.0.0 ------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * res_pjsip_pubsub is now required so call transfer progress can be monitored
+   and reported in the channel variable TRANSFERSTATUS.
+
+app_voicemail.c
+------------------
+ * The "Voicemail Build Options" section of menuselect has been removed along with
+   the FILE_STORAGE, ODBC_STORAGE and IMAP_STORAGE menuselect options.  All 3 variants
+   of the voicemail app can now be built at the same by enabling app_voicemail,
+   app_voicemail_imap, and app_voicemail_odbc under the "Applications" section.
+   By default, only app_voicemail is enabled.  Also, the modules.conf sample has
+   been updated to "noload" app_voicemail_imap and app_voicemail_odbc should they
+   all be built.  Packagers must update their build scripts appropriately.
+
+chan_pjsip
+------------------
+ * res_pjsip_pubsub is now required so call transfer progress can be monitored
+   and reported in the channel variable TRANSFERSTATUS.
+
 New in 16.0.0:
 
 app_fax:

@@ -13,6 +13,137 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 17.0.0 --------------------------
+------------------------------------------------------------------------------
+
+Bridging
+------------------
+ * The bridging core no longer uses the stasis cache for bridge
+   snapshots.  The latest bridge snapshot is now stored on the
+   ast_bridge structure itself.
+
+   The following APIs are no longer available since the stasis cache
+   is no longer used:
+     ast_bridge_topic_cached()
+     ast_bridge_topic_all_cached()
+
+   A topic pool is now used for individual bridge topics.
+
+   The ast_bridge_cache() function was removed since there's no
+   longer a separate container of snapshots.
+
+   A new function "ast_bridges()" was created to retrieve the
+   container of all bridges.  Users formerly calling
+   ast_bridge_cache() can use the new function to iterate over
+   bridges and retrieve the latest snapshot directly from the
+   bridge.
+
+   The ast_bridge_snapshot_get_latest() function was renamed to
+   ast_bridge_get_snapshot_by_uniqueid().
+
+   A new function "ast_bridge_get_snapshot()" was created to retrieve
+   the bridge snapshot directly from the bridge structure.
+
+   The ast_bridge_topic_all() function now returns a normal topic
+   not a cached one so you can't use stasis cache functions on it
+   either.
+
+   The ast_bridge_snapshot_type() stasis message now has the
+   ast_bridge_snapshot_update structure as it's data.  It contains
+   the last snapshot and the new one.
+
+Channels
+------------------
+ * The core no longer uses the stasis cache for channels snapshots.
+   The following APIs are no longer available:
+       ast_channel_topic_cached()
+       ast_channel_topic_all_cached()
+   The ast_channel_cache_all() and ast_channel_cache_by_name() functions
+   now returns an ao2_container of ast_channel_snapshots rather than a
+   container of stasis_messages therefore you can't call stasis_cache
+   functions on it.
+   The ast_channel_topic_all() function now returns a normal topic,
+   not a cached one so you can't use stasis cache functions on it either.
+   The ast_channel_snapshot_type() stasis message now has the
+   ast_channel_snapshot_update structure as it's data.
+   ast_channel_snapshot_get_latest() still returns the latest snapshot.
+
+chan_sip
+------------------
+ * The chan_sip module is now deprecated, users should migrate to the
+   replacement module chan_pjsip.  See guides at the Asterisk Wiki:
+     https://wiki.asterisk.org/wiki/x/tAHOAQ
+     https://wiki.asterisk.org/wiki/x/hYCLAQ
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.0.0 to Asterisk 17.0.0 ------------
+------------------------------------------------------------------------------
+
+AttendedTransfer
+------------------
+ * A new application, this will queue up attended transfer to the given extension.
+
+BlindTransfer
+------------------
+ * A new application, this will redirect all channels currently
+   bridged to the caller channel to the specified destination.
+
+ConfBridge
+------------------
+ * Add "average_all", "highest_all", and "lowest_all" values for
+   the remb_behavior option. These values operate on a bridge
+   level instead of a per-source level. This means that a single
+   REMB value is calculated and sent to every sender, instead of
+   a REMB value that is unique for the specific sender..
+
+Dial
+------------------
+ * Add RINGTIME and RINGTIME_MS variables containing respectively seconds and
+   milliseconds between creation of the dialing channel and receiving the first
+   RINGING signal
+
+   Add PROGRESSTIME and PROGRESSTIME_MS variables analogous to the above with respect to
+   the PROGRESS signal. Shorter of these two times should be equivalent to
+   the PDD (Post Dial Delay) value
+
+   Add DIALEDTIME_MS and ANSWEREDTIME_MS variables to get millisecond resolution
+   versions of DIALEDTIME and ANSWEREDTIME
+
+RTP/ICE
+------------------
+ * You can now indicate that you'd like an ice_host_candidate's local address
+   to be published as well as the mapped address.  See the sample rtp.conf
+   for more information.
+
+ReadExten
+------------------
+ * Add 'p' option to stop reading extension if user presses '#' key.
+
+pbx_dundi
+------------------
+ * The DUNDi PBX module now supports IPv4/IPv6 dual binding.
+
+res_pjsip
+------------------
+ * Added a new PJSIP global setting called norefersub.
+   Default is true to keep support working as before.
+
+   res_pjsip_refer configures PJSIP norefersub capability accordingly.
+
+   Checks the PJSIP global setting value.
+   If it is true (default) it adds the norefersub capability to PJSIP.
+   If it is false (disabled) it does not add the norefersub capability
+   to PJSIP.
+
+   This is useful for Cisco switches that do not follow RFC4488.
+
+res_rtp_asterisk
+------------------
+ * DTLS packets will now be fragmented according to the MTU as set in rtp.conf. This
+   allows larger certificates to be used for the DTLS negotiation. By default this value
+   is 1200.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.2.0 to Asterisk 16.3.0 ----------
 ------------------------------------------------------------------------------
 

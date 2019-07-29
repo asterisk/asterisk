@@ -1,5 +1,0 @@
-Subject: res_rtp_asterisk
-
-DTLS packets will now be fragmented according to the MTU as set in rtp.conf. This
-allows larger certificates to be used for the DTLS negotiation. By default this value
-is 1200.
