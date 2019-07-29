@@ -1,4 +1,0 @@
-Subject: BlindTransfer
-
-A new application, this will redirect all channels currently
-bridged to the caller channel to the specified destination.

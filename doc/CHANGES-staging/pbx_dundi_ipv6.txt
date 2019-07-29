@@ -1,3 +1,0 @@
-Subject: pbx_dundi
-
-The DUNDi PBX module now supports IPv4/IPv6 dual binding.

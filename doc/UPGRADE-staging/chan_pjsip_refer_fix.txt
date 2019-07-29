@@ -1,5 +1,0 @@
-Subject: chan_pjsip
-Subject: Core
-
-res_pjsip_pubsub is now required so call transfer progress can be monitored
-and reported in the channel variable TRANSFERSTATUS.
