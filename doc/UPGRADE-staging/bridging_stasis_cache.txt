@@ -1,4 +1,5 @@
 Subject: Bridging
+Master-Only: true
 
 The bridging core no longer uses the stasis cache for bridge
 snapshots.  The latest bridge snapshot is now stored on the

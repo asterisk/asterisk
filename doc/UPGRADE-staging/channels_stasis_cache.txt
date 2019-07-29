@@ -1,4 +1,5 @@
 Subject: Channels
+Master-Only: true
 
 The core no longer uses the stasis cache for channels snapshots.
 The following APIs are no longer available:

@@ -1,4 +1,5 @@
 Subject: func_callerid
+Master-Only: true
 
 The CALLERPRES() dialplan function, deprecated in Asterisk 1.8, has been
 removed.
