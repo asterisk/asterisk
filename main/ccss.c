@@ -1076,9 +1076,9 @@ static void cc_publish_offertimerstart(int core_id, const char *caller, unsigned
 {
 	struct ast_json *extras;
 
-	extras = ast_json_pack("{s: s, s: i}",
+	extras = ast_json_pack("{s: s, s: I}",
 		"caller", caller,
-		"expires", expires);
+		"expires", (ast_json_int_t)expires);
 
 	cc_publish(ast_cc_offertimerstart_type(), core_id, extras);
 	ast_json_unref(extras);

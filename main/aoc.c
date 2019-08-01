@@ -1738,13 +1738,13 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 				decoded->aoc_s_entries[i].rate.duration.amount,
 				decoded->aoc_s_entries[i].rate.duration.multiplier);
 
-			time = ast_json_pack("{s:i, s:i}",
-				"Length", decoded->aoc_s_entries[i].rate.duration.time,
+			time = ast_json_pack("{s:I, s:i}",
+				"Length", (ast_json_int_t)decoded->aoc_s_entries[i].rate.duration.time,
 				"Scale", decoded->aoc_s_entries[i].rate.duration.time_scale);
 
 			if (decoded->aoc_s_entries[i].rate.duration.granularity_time) {
-				granularity = ast_json_pack("{s:i, s:i}",
-					"Length", decoded->aoc_s_entries[i].rate.duration.granularity_time,
+				granularity = ast_json_pack("{s:I, s:i}",
+					"Length", (ast_json_int_t)decoded->aoc_s_entries[i].rate.duration.granularity_time,
 					"Scale", decoded->aoc_s_entries[i].rate.duration.granularity_time_scale);
 			}
 

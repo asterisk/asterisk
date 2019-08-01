@@ -394,8 +394,8 @@ static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct as
 		return;
 	}
 
-	json_object = ast_json_pack("{s: i, s: i}",
-			"dest", dest, "id", id);
+	json_object = ast_json_pack("{s: i, s: I}",
+			"dest", dest, "id", (ast_json_int_t)id);
 
 	if (!json_object) {
 		return;
@@ -436,7 +436,7 @@ static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int succ
 		return;
 	}
 
-	json_object = ast_json_pack("{s: i, s: i}", "success", success, "id", id);
+	json_object = ast_json_pack("{s: i, s: I}", "success", success, "id", (ast_json_int_t)id);
 
 	if (!json_object) {
 		return;
