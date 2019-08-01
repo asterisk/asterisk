@@ -203,7 +203,7 @@ static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_
 			int64_t diff_ms = ast_tvdiff_ms(ast_tvnow(), td_params->talking_start);
 			diff_ms -= td_params->dsp_silence_threshold;
 
-			blob = ast_json_pack("{s: i}", "duration", diff_ms);
+			blob = ast_json_pack("{s: I}", "duration", (ast_json_int_t)diff_ms);
 			if (!blob) {
 				return 1;
 			}
