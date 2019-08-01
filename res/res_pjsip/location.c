@@ -1035,7 +1035,11 @@ static struct ao2_container *cli_contact_get_container(const char *regex)
 		return NULL;
 	}
 
-	contacts_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+	/* Retrieving all the contacts may result in finding the same contact multiple
+	 * times. So that they don't get displayed multiple times we only allow a
+	 * single one to be placed into the container.
+	 */
+	contacts_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
 		cli_contact_sort, cli_contact_compare);
 	if (!contacts_container) {
 		return NULL;
