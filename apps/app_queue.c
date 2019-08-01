@@ -5679,12 +5679,12 @@ static void send_agent_complete(const char *queuename, struct ast_channel_snapsh
 		break;
 	}
 
-	blob = ast_json_pack("{s: s, s: s, s: s, s: i, s: i, s: s}",
+	blob = ast_json_pack("{s: s, s: s, s: s, s: I, s: I, s: s}",
 		"Queue", queuename,
 		"Interface", member->interface,
 		"MemberName", member->membername,
-		"HoldTime", (long)(callstart - holdstart),
-		"TalkTime", (long)(time(NULL) - callstart),
+		"HoldTime", (ast_json_int_t)(callstart - holdstart),
+		"TalkTime", (ast_json_int_t)(time(NULL) - callstart),
 		"Reason", reason ?: "");
 
 	queue_publish_multi_channel_snapshot_blob(ast_queue_topic(queuename), caller, peer,
@@ -6955,12 +6955,12 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "CONNECT", "%ld|%s|%ld", (long) (time(NULL) - qe->start), ast_channel_uniqueid(peer),
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
 
-		blob = ast_json_pack("{s: s, s: s, s: s, s: i, s: i}",
+		blob = ast_json_pack("{s: s, s: s, s: s, s: I, s: I}",
 				     "Queue", queuename,
 				     "Interface", member->interface,
 				     "MemberName", member->membername,
-				     "HoldTime", (long) (time(NULL) - qe->start),
-				     "RingTime", (long)(orig - to > 0 ? (orig - to) / 1000 : 0));
+				     "HoldTime", (ast_json_int_t)(time(NULL) - qe->start),
+				     "RingTime", (ast_json_int_t)(orig - to > 0 ? (orig - to) / 1000 : 0));
 		queue_publish_multi_channel_blob(qe->chan, peer, queue_agent_connect_type(), blob);
 
 		ast_copy_string(oldcontext, ast_channel_context(qe->chan), sizeof(oldcontext));

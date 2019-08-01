@@ -1111,11 +1111,11 @@ static struct ast_json *dtmf_end_to_json(
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: o, s: s, s: i, s: o}",
+	return ast_json_pack("{s: s, s: o, s: s, s: I, s: o}",
 		"type", "ChannelDtmfReceived",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"digit", digit,
-		"duration_ms", duration_ms,
+		"duration_ms", (ast_json_int_t)duration_ms,
 		"channel", json_channel);
 }
 

@@ -3688,10 +3688,10 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	char digit_str[] = { digit, '\0' };
 
-	blob = ast_json_pack("{ s: s, s: s, s: i }",
+	blob = ast_json_pack("{ s: s, s: s, s: I }",
 		"digit", digit_str,
 		"direction", dtmf_direction_to_string(direction),
-		"duration_ms", duration_ms);
+		"duration_ms", (ast_json_int_t)duration_ms);
 	if (!blob) {
 		return;
 	}

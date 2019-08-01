@@ -11137,18 +11137,18 @@ static int socket_process_helper(struct iax2_thread *thread)
 						if (iaxs[fr->callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %u\n", peer->name, iaxs[fr->callno]->pingtime);
 							ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
-							blob = ast_json_pack("{s: s, s: i}",
+							blob = ast_json_pack("{s: s, s: I}",
 								"peer_status", "Reachable",
-								"time", iaxs[fr->callno]->pingtime);
+								"time", (ast_json_int_t)iaxs[fr->callno]->pingtime);
 							ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%u ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
 							ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
-							blob = ast_json_pack("{s: s, s: i}",
+							blob = ast_json_pack("{s: s, s: I}",
 								"peer_status", "Lagged",
-								"time", iaxs[fr->callno]->pingtime);
+								"time", (ast_json_int_t)iaxs[fr->callno]->pingtime);
 							ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					}

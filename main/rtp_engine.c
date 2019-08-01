@@ -2535,14 +2535,14 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 		char str_lsr[32];
 
 		snprintf(str_lsr, sizeof(str_lsr), "%u", payload->report->report_block[i]->lsr);
-		json_report_block = ast_json_pack("{s: I, s: i, s: i, s: i, s: i, s: s, s: i}",
+		json_report_block = ast_json_pack("{s: I, s: I, s: I, s: I, s: I, s: s, s: I}",
 			"source_ssrc", (ast_json_int_t)payload->report->report_block[i]->source_ssrc,
-			"fraction_lost", payload->report->report_block[i]->lost_count.fraction,
-			"packets_lost", payload->report->report_block[i]->lost_count.packets,
-			"highest_seq_no", payload->report->report_block[i]->highest_seq_no,
-			"ia_jitter", payload->report->report_block[i]->ia_jitter,
+			"fraction_lost", (ast_json_int_t)payload->report->report_block[i]->lost_count.fraction,
+			"packets_lost", (ast_json_int_t)payload->report->report_block[i]->lost_count.packets,
+			"highest_seq_no", (ast_json_int_t)payload->report->report_block[i]->highest_seq_no,
+			"ia_jitter", (ast_json_int_t)payload->report->report_block[i]->ia_jitter,
 			"lsr", str_lsr,
-			"dlsr", payload->report->report_block[i]->dlsr);
+			"dlsr", (ast_json_int_t)payload->report->report_block[i]->dlsr);
 		if (!json_report_block
 			|| ast_json_array_append(json_rtcp_report_blocks, json_report_block)) {
 			ast_json_unref(json_rtcp_report_blocks);
@@ -2556,21 +2556,21 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 
 		snprintf(sec, sizeof(sec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_sec);
 		snprintf(usec, sizeof(usec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_usec);
-		json_rtcp_sender_info = ast_json_pack("{s: s, s: s, s: i, s: i, s: i}",
+		json_rtcp_sender_info = ast_json_pack("{s: s, s: s, s: I, s: I, s: I}",
 			"ntp_timestamp_sec", sec,
 			"ntp_timestamp_usec", usec,
-			"rtp_timestamp", payload->report->sender_information.rtp_timestamp,
-			"packets", payload->report->sender_information.packet_count,
-			"octets", payload->report->sender_information.octet_count);
+			"rtp_timestamp", (ast_json_int_t)payload->report->sender_information.rtp_timestamp,
+			"packets", (ast_json_int_t)payload->report->sender_information.packet_count,
+			"octets", (ast_json_int_t)payload->report->sender_information.octet_count);
 		if (!json_rtcp_sender_info) {
 			ast_json_unref(json_rtcp_report_blocks);
 			return NULL;
 		}
 	}
 
-	json_rtcp_report = ast_json_pack("{s: I, s: i, s: i, s: o, s: o}",
+	json_rtcp_report = ast_json_pack("{s: I, s: I, s: i, s: o, s: o}",
 		"ssrc", (ast_json_int_t)payload->report->ssrc,
-		"type", payload->report->type,
+		"type", (ast_json_int_t)payload->report->type,
 		"report_count", payload->report->reception_report_count,
 		"sender_information", json_rtcp_sender_info ?: ast_json_null(),
 		"report_blocks", json_rtcp_report_blocks);
