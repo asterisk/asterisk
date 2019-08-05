@@ -1056,7 +1056,7 @@ end:
 	return NULL;
 }
 
-static void ari_channels_handle_originate_with_id(const char *args_endpoint,
+static struct ast_channel *ari_channels_handle_originate_with_id(const char *args_endpoint,
 	const char *args_extension,
 	const char *args_context,
 	long args_priority,
@@ -1094,19 +1094,19 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Uniqueid length exceeds maximum of %d", AST_MAX_PUBLIC_UNIQUEID);
-		return;
+		return NULL;
 	}
 
 	if (ast_strlen_zero(args_endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Endpoint must be specified");
-		return;
+		return NULL;
 	}
 
 	if (!ast_strlen_zero(args_originator) && !ast_strlen_zero(args_formats)) {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Originator and formats can't both be specified");
-		return;
+		return NULL;
 	}
 
 	dialtech = ast_strdupa(args_endpoint);
@@ -1118,7 +1118,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Invalid endpoint specified");
-		return;
+		return NULL;
 	}
 
 	if (!ast_strlen_zero(args_app)) {
@@ -1126,7 +1126,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 
 		if (!appdata) {
 			ast_ari_response_alloc_failed(response);
-			return;
+			return NULL;
 		}
 
 		ast_str_set(&appdata, 0, "%s", args_app);
@@ -1137,7 +1137,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		origination = ast_calloc(1, sizeof(*origination) + ast_str_size(appdata) + 1);
 		if (!origination) {
 			ast_ari_response_alloc_failed(response);
-			return;
+			return NULL;
 		}
 
 		strcpy(origination->appdata, ast_str_buffer(appdata));
@@ -1145,7 +1145,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		origination = ast_calloc(1, sizeof(*origination) + 1);
 		if (!origination) {
 			ast_ari_response_alloc_failed(response);
-			return;
+			return NULL;
 		}
 
 		ast_copy_string(origination->context, S_OR(args_context, "default"), sizeof(origination->context));
@@ -1160,7 +1160,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 				if (ipri == -1) {
 					ast_log(AST_LOG_ERROR, "Requested label: %s can not be found in context: %s\n", args_label, args_context);
 					ast_ari_response_error(response, 404, "Not Found", "Requested label can not be found");
-					return;
+					return NULL;
 				}
 			} else {
 				ast_debug(3, "Numeric value provided for label, jumping to that priority\n");
@@ -1170,7 +1170,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 				ast_log(AST_LOG_ERROR, "Invalid priority label '%s' specified for extension %s in context: %s\n",
 						args_label, args_extension, args_context);
 				ast_ari_response_error(response, 400, "Bad Request", "Requested priority is illegal");
-				return;
+				return NULL;
 			}
 
 			/* Our priority was provided by a label */
@@ -1184,14 +1184,14 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	} else {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Application or extension must be specified");
-		return;
+		return NULL;
 	}
 
 	dial = ast_dial_create();
 	if (!dial) {
 		ast_ari_response_alloc_failed(response);
 		ast_free(origination);
-		return;
+		return NULL;
 	}
 	ast_dial_set_user_data(dial, origination);
 
@@ -1199,7 +1199,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_ari_response_alloc_failed(response);
 		ast_dial_destroy(dial);
 		ast_free(origination);
-		return;
+		return NULL;
 	}
 
 	if (args_timeout > 0) {
@@ -1227,7 +1227,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 				"Provided originator channel was not found");
 			ast_dial_destroy(dial);
 			ast_free(origination);
-			return;
+			return NULL;
 		}
 	}
 
@@ -1240,7 +1240,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 			ast_dial_destroy(dial);
 			ast_free(origination);
 			ast_channel_cleanup(other);
-			return;
+			return NULL;
 		}
 
 		while ((format_name = ast_strip(strsep(&formats_copy, ",")))) {
@@ -1259,7 +1259,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 				ast_channel_cleanup(other);
 				ao2_ref(format_cap, -1);
 				ao2_cleanup(fmt);
-				return;
+				return NULL;
 			}
 			ao2_ref(fmt, -1);
 		}
@@ -1275,7 +1275,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_dial_destroy(dial);
 		ast_free(origination);
 		ast_channel_cleanup(other);
-		return;
+		return NULL;
 	}
 
 	ast_channel_cleanup(other);
@@ -1286,7 +1286,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_ari_response_alloc_failed(response);
 		ast_dial_destroy(dial);
 		ast_free(origination);
-		return;
+		return NULL;
 	}
 
 	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
@@ -1351,8 +1351,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 	}
 
-	ast_channel_unref(chan);
-	return;
+	return chan;
 }
 
 /*!
@@ -1393,6 +1392,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	struct ast_variable *variables = NULL;
+	struct ast_channel *chan;
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
@@ -1406,7 +1406,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		}
 	}
 
-	ari_channels_handle_originate_with_id(
+	chan = ari_channels_handle_originate_with_id(
 		args->endpoint,
 		args->extension,
 		args->context,
@@ -1422,6 +1422,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		args->originator,
 		args->formats,
 		response);
+	ast_channel_cleanup(chan);
 	ast_variables_destroy(variables);
 }
 
@@ -1430,6 +1431,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	struct ast_variable *variables = NULL;
+	struct ast_channel *chan;
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
@@ -1443,7 +1445,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		}
 	}
 
-	ari_channels_handle_originate_with_id(
+	chan = ari_channels_handle_originate_with_id(
 		args->endpoint,
 		args->extension,
 		args->context,
@@ -1459,6 +1461,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		args->originator,
 		args->formats,
 		response);
+	ast_channel_cleanup(chan);
 	ast_variables_destroy(variables);
 }
 
@@ -2048,4 +2051,149 @@ void ast_ari_channels_rtpstatistics(struct ast_variable *headers,
 	ast_ari_response_ok(response, j_res);
 
 	return;
+}
+
+static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *args,
+	struct ast_variable *variables,
+	struct ast_ari_response *response)
+{
+	size_t endpoint_len;
+	char *endpoint;
+	struct ast_channel *chan;
+	struct ast_json *json_chan;
+	struct varshead *vars;
+
+	endpoint_len = strlen("UnicastRTP/") + strlen(args->external_host) + 1;
+	endpoint = ast_alloca(endpoint_len);
+	snprintf(endpoint, endpoint_len, "UnicastRTP/%s", args->external_host);
+
+	chan = ari_channels_handle_originate_with_id(
+		endpoint,
+		NULL,
+		NULL,
+		0,
+		NULL,
+		args->app,
+		NULL,
+		NULL,
+		0,
+		variables,
+		args->channel_id,
+		NULL,
+		NULL,
+		args->format,
+		response);
+	ast_variables_destroy(variables);
+
+	if (!chan) {
+		return;
+	}
+
+	/*
+	 * At this point, response->message contains a channel object so we
+	 * need to save it then create a new ExternalMedia object and put the
+	 * channel in it.
+	 */
+	json_chan = response->message;
+	response->message = ast_json_object_create();
+	if (!response->message) {
+		ast_channel_unref(chan);
+		ast_json_unref(json_chan);
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_json_object_set(response->message, "channel", json_chan);
+	/*
+	 * At the time the channel snapshot was taken the channel variables might
+	 * not have been set so we try to grab them directly from the channel.
+	 */
+	ast_channel_lock(chan);
+	vars = ast_channel_varshead(chan);
+	if (vars && !AST_LIST_EMPTY(vars)) {
+		struct ast_var_t *variables;
+
+		/* Put them all on the channel object */
+		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(vars));
+		/* Grab out the local address and port */
+		AST_LIST_TRAVERSE(vars, variables, entries) {
+			if (!strcmp("UNICASTRTP_LOCAL_ADDRESS", ast_var_name(variables))) {
+				ast_json_object_set(response->message, "local_address",
+					ast_json_string_create(ast_var_value(variables)));
+			}
+			else if (!strcmp("UNICASTRTP_LOCAL_PORT", ast_var_name(variables))) {
+				ast_json_object_set(response->message, "local_port",
+					ast_json_integer_create(strtol(ast_var_value(variables), NULL, 10)));
+			}
+		}
+	}
+	ast_channel_unlock(chan);
+	ast_channel_unref(chan);
+}
+
+#include "asterisk/config.h"
+#include "asterisk/netsock2.h"
+
+void ast_ari_channels_external_media(struct ast_variable *headers,
+	struct ast_ari_channels_external_media_args *args, struct ast_ari_response *response)
+{
+	struct ast_variable *variables = NULL;
+	char *external_host;
+	char *host = NULL;
+	char *port = NULL;
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->app)) {
+		ast_ari_response_error(response, 400, "Bad Request", "app cannot be empty");
+		return;
+	}
+
+	if (ast_strlen_zero(args->external_host)) {
+		ast_ari_response_error(response, 400, "Bad Request", "external_host cannot be empty");
+		return;
+	}
+
+	external_host = ast_strdupa(args->external_host);
+	if (!ast_sockaddr_split_hostport(external_host, &host, &port, PARSE_PORT_REQUIRE)) {
+		ast_ari_response_error(response, 400, "Bad Request", "external_host must be <host>:<port>");
+		return;
+	}
+
+	if (ast_strlen_zero(args->format)) {
+		ast_ari_response_error(response, 400, "Bad Request", "format cannot be empty");
+		return;
+	}
+
+	if (ast_strlen_zero(args->encapsulation)) {
+		args->encapsulation = "rtp";
+	}
+	if (ast_strlen_zero(args->transport)) {
+		args->transport = "udp";
+	}
+	if (ast_strlen_zero(args->connection_type)) {
+		args->connection_type = "client";
+	}
+	if (ast_strlen_zero(args->direction)) {
+		args->direction = "both";
+	}
+
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_channels_external_media_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
+		}
+	}
+
+	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {
+		external_media_rtp_udp(args, variables, response);
+	} else {
+		ast_ari_response_error(
+			response, 501, "Not Implemented",
+			"The encapsulation and/or transport is not supported");
+	}
 }

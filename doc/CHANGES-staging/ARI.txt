@@ -1,0 +1,10 @@
+Subject: ARI Channels
+
+The Channel resource has a new sub-resource "externalMedia".
+This allows an application to create a channel for the sole purpose
+of exchanging media with an external server.  Once created, this
+channel could be placed into a bridge with existing channels to
+allow the external server to inject audio into the bridge or
+receive audio from the bridge.
+See https://wiki.asterisk.org/wiki/display/AST/External+Media+and+ARI
+for more information.

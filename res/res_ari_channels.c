@@ -2807,6 +2807,128 @@ static void ast_ari_channels_rtpstatistics_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_external_media_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_external_media_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "channelId");
+	if (field) {
+		args->channel_id = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "app");
+	if (field) {
+		args->app = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "external_host");
+	if (field) {
+		args->external_host = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "encapsulation");
+	if (field) {
+		args->encapsulation = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "transport");
+	if (field) {
+		args->transport = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "connection_type");
+	if (field) {
+		args->connection_type = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "format");
+	if (field) {
+		args->format = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "direction");
+	if (field) {
+		args->direction = ast_json_string_get(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /channels/externalMedia.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_channels_external_media_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
+{
+	struct ast_ari_channels_external_media_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		if (strcmp(i->name, "app") == 0) {
+			args.app = (i->value);
+		} else
+		if (strcmp(i->name, "external_host") == 0) {
+			args.external_host = (i->value);
+		} else
+		if (strcmp(i->name, "encapsulation") == 0) {
+			args.encapsulation = (i->value);
+		} else
+		if (strcmp(i->name, "transport") == 0) {
+			args.transport = (i->value);
+		} else
+		if (strcmp(i->name, "connection_type") == 0) {
+			args.connection_type = (i->value);
+		} else
+		if (strcmp(i->name, "format") == 0) {
+			args.format = (i->value);
+		} else
+		if (strcmp(i->name, "direction") == 0) {
+			args.direction = (i->value);
+		} else
+		{}
+	}
+	args.variables = body;
+	ast_ari_channels_external_media(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Invalid parameters */
+	case 409: /* Channel is not in a Stasis application; Channel is already bridged */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_external_media(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/externalMedia\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/externalMedia\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 
 /*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_create = {
@@ -3000,14 +3122,23 @@ static struct stasis_rest_handlers channels_channelId = {
 	.children = { &channels_channelId_continue,&channels_channelId_move,&channels_channelId_redirect,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_silence,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable,&channels_channelId_snoop,&channels_channelId_dial,&channels_channelId_rtp_statistics, }
 };
 /*! \brief REST handler for /api-docs/channels.json */
+static struct stasis_rest_handlers channels_externalMedia = {
+	.path_segment = "externalMedia",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_channels_external_media_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels = {
 	.path_segment = "channels",
 	.callbacks = {
 		[AST_HTTP_GET] = ast_ari_channels_list_cb,
 		[AST_HTTP_POST] = ast_ari_channels_originate_cb,
 	},
-	.num_children = 2,
-	.children = { &channels_create,&channels_channelId, }
+	.num_children = 3,
+	.children = { &channels_create,&channels_channelId,&channels_externalMedia, }
 };
 
 static int unload_module(void)

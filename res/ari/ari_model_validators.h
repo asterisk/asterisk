@@ -478,6 +478,24 @@ int ast_ari_validate_dialplan_cep(struct ast_json *json);
 ari_validator ast_ari_validate_dialplan_cep_fn(void);
 
 /*!
+ * \brief Validator for ExternalMedia.
+ *
+ * ExternalMedia session.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_external_media(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_external_media().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_external_media_fn(void);
+
+/*!
  * \brief Validator for RTPstat.
  *
  * A statistics of a RTP.
@@ -1522,6 +1540,10 @@ ari_validator ast_ari_validate_application_fn(void);
  * - context: string (required)
  * - exten: string (required)
  * - priority: long (required)
+ * ExternalMedia
+ * - channel: Channel (required)
+ * - local_address: string
+ * - local_port: int
  * RTPstat
  * - channel_uniqueid: string (required)
  * - local_maxjitter: double
