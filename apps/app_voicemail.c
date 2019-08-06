@@ -46,39 +46,6 @@
  * \verbinclude voicemail.conf.sample
  */
 
-/*** MODULEINFO
-	<defaultenabled>yes</defaultenabled>
-	<use type="module">res_adsi</use>
-	<use type="module">res_smdi</use>
-	<support_level>core</support_level>
- ***/
-
-/*** MAKEOPTS
-<category name="MENUSELECT_OPTS_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" touch_on_change="apps/app_voicemail.c apps/app_directory.c">
-	<member name="FILE_STORAGE" displayname="Storage of Voicemail using filesystem">
-		<conflict>ODBC_STORAGE</conflict>
-		<conflict>IMAP_STORAGE</conflict>
-		<defaultenabled>yes</defaultenabled>
-		<support_level>core</support_level>
-	</member>
-	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
-		<depend>generic_odbc</depend>
-		<conflict>IMAP_STORAGE</conflict>
-		<conflict>FILE_STORAGE</conflict>
-		<defaultenabled>no</defaultenabled>
-		<support_level>core</support_level>
-	</member>
-	<member name="IMAP_STORAGE" displayname="Storage of Voicemail using IMAP4">
-		<depend>imap_tk</depend>
-		<conflict>ODBC_STORAGE</conflict>
-		<conflict>FILE_STORAGE</conflict>
-		<use type="external">openssl</use>
-		<defaultenabled>no</defaultenabled>
-		<support_level>core</support_level>
-	</member>
-</category>
-***/
-
 #include "asterisk.h"
 
 #ifdef IMAP_STORAGE
