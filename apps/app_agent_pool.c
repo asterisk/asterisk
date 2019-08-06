@@ -1459,9 +1459,9 @@ static void send_agent_logoff(struct ast_channel *chan, const char *agent, long 
 
 	ast_assert(agent != NULL);
 
-	blob = ast_json_pack("{s: s, s: i}",
+	blob = ast_json_pack("{s: s, s: I}",
 		"agent", agent,
-		"logintime", logintime);
+		"logintime", (ast_json_int_t)logintime);
 	if (!blob) {
 		return;
 	}
