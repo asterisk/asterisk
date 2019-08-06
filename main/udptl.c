@@ -405,6 +405,24 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 	seq_no = (buf[0] << 8) | buf[1];
 	ptr += 2;
 
+	/* UDPTL sequence numbers are 16 bit so after 0xFFFF comes
+	   0 which breaks all packet recovery logic.  To fix this
+	   if we see that next expected packet (rx_seq_no) is close
+	   to or beyond the wrap around limit & the received packet
+	   is still near zero, then we 'unwrap' the received seqno
+	   so it has the value it would have had.  After a 16
+	   packet grace period (there shouldn't be  more than
+	   that many recovery packets) we wrap the expected
+	   sequence number around and things can return back
+	   to normal */
+	if (seq_no < 0x000F && s->rx_seq_no > 0xFFF0) {
+		/* received seq_no has wrapped adjust it */
+		seq_no += 0x10000;
+	} else {
+		/* otherwise make sure expected rx_seq_no is properly wrapped */
+		s->rx_seq_no &= 0xFFFF;
+	}
+
 	/* Break out the primary packet */
 	if ((stat1 = decode_open_type(buf, len, &ptr, &ifp, &ifp_len)) != 0)
 		return -1;
