@@ -59,7 +59,7 @@ pipeline {
 	}
 	agent {
 		/* All of the stages need to be performed on a docker host */
-		label "swdev-docker"
+		label "asterisk-check"
 	}
 
 	stages {
