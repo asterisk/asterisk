@@ -1859,6 +1859,7 @@ int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct a
 		return -1;
 	}
 
+	ao2_lock(instance);
 
 	srtp = rtcp ? &instance->rtcp_srtp : &instance->srtp;
 
@@ -1870,6 +1871,8 @@ int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct a
 	if (!res) {
 		res = res_srtp->add_stream(*srtp, local_policy);
 	}
+
+	ao2_unlock(instance);
 
 	return res;
 }
