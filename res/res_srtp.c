@@ -373,6 +373,12 @@ static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rt
 
 tryagain:
 
+	if (!srtp->session) {
+		ast_log(LOG_ERROR, "SRTP unprotect %s - missing session\n", rtcp ? "rtcp" : "rtp");
+		errno = EINVAL;
+		return -1;
+	}
+
 	for (i = 0; i < 2; i++) {
 		res = rtcp ? srtp_unprotect_rtcp(srtp->session, buf, len) : srtp_unprotect(srtp->session, buf, len);
 		if (res != err_status_no_ctx) {
@@ -481,6 +487,12 @@ static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtc
 	int res;
 	unsigned char *localbuf;
 
+	if (!srtp->session) {
+		ast_log(LOG_ERROR, "SRTP protect %s - missing session\n", rtcp ? "rtcp" : "rtp");
+		errno = EINVAL;
+		return -1;
+	}
+
 	if ((*len + SRTP_MAX_TRAILER_LEN) > sizeof(srtp->buf)) {
 		return -1;
 	}
@@ -501,6 +513,7 @@ static int ast_srtp_protect(struct ast_srtp *srtp, void **buf, int *len, int rtc
 static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy)
 {
 	struct ast_srtp *temp;
+	int status;
 
 	if (!(temp = res_srtp_new())) {
 		return -1;
@@ -508,10 +521,13 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 	ast_module_ref(ast_module_info->self);
 
 	/* Any failures after this point can use ast_srtp_destroy to destroy the instance */
-	if (srtp_create(&temp->session, &policy->sp) != err_status_ok) {
+	status = srtp_create(&temp->session, &policy->sp);
+	if (status != err_status_ok) {
 		/* Session either wasn't created or was created and dealloced. */
 		temp->session = NULL;
 		ast_srtp_destroy(temp);
+		ast_log(LOG_ERROR, "Failed to create srtp session on rtp instance (%p) - %s\n",
+				rtp, srtp_errstr(status));
 		return -1;
 	}
 
@@ -525,10 +541,19 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 
 static int ast_srtp_replace(struct ast_srtp **srtp, struct ast_rtp_instance *rtp, struct ast_srtp_policy *policy)
 {
-	if ((*srtp) != NULL) {
-		ast_srtp_destroy(*srtp);
+	struct ast_srtp *old = *srtp;
+	int res = ast_srtp_create(srtp, rtp, policy);
+
+	if (!res && old) {
+		ast_srtp_destroy(old);
 	}
-	return ast_srtp_create(srtp, rtp, policy);
+
+	if (res) {
+		ast_log(LOG_ERROR, "Failed to replace srtp (%p) on rtp instance (%p) "
+				"- keeping old\n", *srtp, rtp);
+	}
+
+	return res;
 }
 
 static void ast_srtp_destroy(struct ast_srtp *srtp)
