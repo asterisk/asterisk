@@ -43,7 +43,7 @@ pipeline {
 
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."
-						sh "printenv -0 | sort -z | tr '\0' '\n'"
+						sh "printenv -0 | sort -z | tr '\\0' '\\n'"
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
