@@ -20,13 +20,15 @@ if (env.TIMEOUT_REF_DEBUG) {
 
 pipeline {
 	options {
+		ansiColor('gnome-terminal')
+		throttle(['asterisk-ref-debug'])
 		timestamps()
 		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
 	triggers {
 		cron 'H H(0-4) * * 0'
 	}
-	
+
 	agent {
 		/* All of the stages need to be performed on a docker host */
 		label "asterisk-ref-debug"
@@ -40,8 +42,8 @@ pipeline {
 					manager.createSummary("/plugin/workflow-job/images/48x48/pipelinejob.png").appendText("Docker Host: ${NODE_NAME}", false)
 
 					stage ("Checkout") {
-						sh "sudo chown -R jenkins:users ."  
-						sh "printenv | sort"
+						sh "sudo chown -R jenkins:users ."
+						sh "printenv -0 | sort -z | tr '\0' '\n'"
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
@@ -93,7 +95,7 @@ pipeline {
 									}
 
 									sh "sudo rm -rf ${groupDir} || : "
-									
+
 									checkout scm: [$class: 'GitSCM',
 										branches: [[name: "${BRANCH_NAME}"]],
 											extensions: [

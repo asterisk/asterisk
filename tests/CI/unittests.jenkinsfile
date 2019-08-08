@@ -20,6 +20,8 @@ if (env.TIMEOUT_UNITTESTS) {
 
 pipeline {
 	options {
+		ansiColor('gnome-terminal')
+		throttle(['asterisk-check'])
 		timestamps()
 		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
@@ -98,7 +100,7 @@ pipeline {
 						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
 							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
 
-							sh "printenv | sort"
+							sh "printenv -0 | sort -z | tr '\0' '\n'"
 
 							checkout scm: [$class: 'GitSCM',
 								branches: [[name: env.GERRIT_BRANCH ]],
