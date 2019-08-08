@@ -20,6 +20,8 @@ if (env.TIMEOUT_DAILIES) {
 
 pipeline {
 	options {
+		ansiColor('gnome-terminal')
+		throttle(['asterisk-daily'])
 		timestamps()
 		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
@@ -41,7 +43,7 @@ pipeline {
 
 					stage ("Checkout") {
 						sh "sudo chown -R jenkins:users ."
-						sh "printenv | sort"
+						sh "printenv -0 | sort -z | tr '\0' '\n'"
 						sh "sudo tests/CI/setupJenkinsEnvironment.sh"
 					}
 
