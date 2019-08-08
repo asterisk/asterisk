@@ -264,6 +264,28 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		struct ast_json *extra, const char *peer_str);
 
 /*!
+ * \brief Allocate and populate a CEL event structure
+ *
+ * \param snapshot An ast_channel_snapshot of the primary channel associated
+ *        with this channel event.
+ * \param event_type The type of call event being reported.
+ * \param event_time The time at which the event occurred.
+ * \param userdefevname Custom name for the call event. (optional)
+ * \param extra An event-specific opaque JSON blob to be rendered and placed
+ *        in the "CEL_EXTRA" information element of the call event. (optional)
+ * \param peer_str A list of comma-separated peer channel names. (optional)
+ *
+ * \since 13.29.0
+ * \since 16.6.0
+ *
+ * \retval The created ast_event structure
+ * \retval NULL on failure
+ */
+struct ast_event *ast_cel_create_event_with_time(struct ast_channel_snapshot *snapshot,
+		enum ast_cel_event_type event_type, const struct timeval *event_time,
+		const char *userdefevname, struct ast_json *extra, const char *peer_str);
+
+/*!
  * \brief CEL backend callback
  */
 /*typedef int (*ast_cel_backend_cb)(struct ast_cel_event_record *cel);*/
