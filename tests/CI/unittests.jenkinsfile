@@ -100,7 +100,7 @@ pipeline {
 						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
 							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
 
-							sh "printenv -0 | sort -z | tr '\0' '\n'"
+							sh "printenv -0 | sort -z | tr '\\0' '\\n'"
 
 							checkout scm: [$class: 'GitSCM',
 								branches: [[name: env.GERRIT_BRANCH ]],
