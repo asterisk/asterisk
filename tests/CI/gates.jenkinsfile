@@ -20,6 +20,8 @@ if (env.TIMEOUT_GATES) {
 
 pipeline {
 	options {
+		ansiColor('gnome-terminal')
+		throttle(['asterisk-gate'])
 		timestamps()
 		timeout(time: timeoutTime, unit: timeoutUnits)
 	}
@@ -62,14 +64,15 @@ pipeline {
 
 	stages {
 		stage ("->") {
-			/*
-			 * Jenkins will try to automatically rebuild this job when
-			 * the jenkinsfile changes but since this job is dependent on
-			 * Gerrit, we really don't want to do anything in that case.
-			 */
 			when {
+				/*
+				 * Jenkins will try to automatically rebuild this job when
+				 * the jenkinsfile changes but since this job is dependent on
+				 * Gerrit, we really don't want to do anything in that case.
+				 */
 				not { environment name: 'GERRIT_CHANGE_NUMBER', value: '' }
-				not { environment name: 'GERRIT_EVENT_ACCOUNT_NAME', value: 'Jenkins2' }
+				/* If "skip_gate" is in the comments, don't run the job */
+				not { expression { env.GERRIT_EVENT_COMMENT_TEXT ==~ /.*skip_gate.*/ } }
 			}
 			steps {
 				/* Here's where we switch to scripted pipeline */
@@ -97,7 +100,7 @@ pipeline {
 						withCredentials([usernamePassword(credentialsId: "${JENKINS_GERRIT_CREDS}",
 							passwordVariable: 'GERRIT_USER_PW', usernameVariable: 'GERRIT_USER_NAME')]) {
 
-							sh "printenv | sort"
+							sh "printenv -0 | sort -z | tr '\0' '\n'"
 
 							checkout scm: [$class: 'GitSCM',
 								branches: [[name: env.GERRIT_BRANCH ]],
