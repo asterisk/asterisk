@@ -718,6 +718,7 @@ struct cdr_object {
 	struct timeval start;                   /*!< When this CDR was created */
 	struct timeval answer;                  /*!< Either when the channel was answered, or when the path between channels was established */
 	struct timeval end;                     /*!< When this CDR was finalized */
+	struct timeval lastevent;               /*!< The time at which the last event was created regarding this CDR */
 	unsigned int sequence;                  /*!< A monotonically increasing number for each CDR */
 	struct ast_flags flags;                 /*!< Flags on the CDR */
 	AST_DECLARE_STRING_FIELDS(
@@ -1035,7 +1036,7 @@ static void cdr_object_dtor(void *obj)
  * This implicitly sets the state of the newly created CDR to the Single state
  * (\ref single_state_fn_table)
  */
-static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
+static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan, const struct timeval *event_time)
 {
 	struct cdr_object *cdr;
 
@@ -1055,6 +1056,7 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
 	ast_string_field_set(cdr, linkedid, chan->peer->linkedid);
 	cdr->disposition = AST_CDR_NULL;
 	cdr->sequence = ast_atomic_fetchadd_int(&global_cdr_sequence, +1);
+	cdr->lastevent = *event_time;
 
 	cdr->party_a.snapshot = chan;
 	ao2_t_ref(cdr->party_a.snapshot, +1, "bump snapshot during CDR creation");
@@ -1070,14 +1072,14 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
  * \brief Create a new \ref cdr_object and append it to an existing chain
  * \param cdr The \ref cdr_object to append to
  */
-static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
+static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr, const struct timeval *event_time)
 {
 	struct cdr_object *new_cdr;
 	struct cdr_object *it_cdr;
 	struct cdr_object *cdr_last;
 
 	cdr_last = cdr->last;
-	new_cdr = cdr_object_alloc(cdr_last->party_a.snapshot);
+	new_cdr = cdr_object_alloc(cdr_last->party_a.snapshot, event_time);
 	if (!new_cdr) {
 		return NULL;
 	}
@@ -1440,7 +1442,7 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 	if (!ast_tvzero(cdr->end)) {
 		return;
 	}
-	cdr->end = ast_tvnow();
+	cdr->end = cdr->lastevent;
 
 	if (cdr->disposition == AST_CDR_NULL) {
 		if (!ast_tvzero(cdr->answer)) {
@@ -1490,7 +1492,7 @@ static void cdr_object_check_party_a_hangup(struct cdr_object *cdr)
 static void cdr_object_check_party_a_answer(struct cdr_object *cdr)
 {
 	if (cdr->party_a.snapshot->state == AST_STATE_UP && ast_tvzero(cdr->answer)) {
-		cdr->answer = ast_tvnow();
+		cdr->answer = cdr->lastevent;
 		/* tv_usec is suseconds_t, which could be int or long */
 		CDR_DEBUG("%p - Set answered time to %ld.%06ld\n", cdr,
 			(long)cdr->answer.tv_sec,
@@ -1634,7 +1636,7 @@ static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked
 
 static void single_state_init_function(struct cdr_object *cdr)
 {
-	cdr->start = ast_tvnow();
+	cdr->start = cdr->lastevent;
 	cdr_object_check_party_a_answer(cdr);
 }
 
@@ -2149,6 +2151,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		it_cdr->lastevent = *stasis_message_timestamp(message);
 		if (ast_strlen_zero(dial_status)) {
 			if (!it_cdr->fn_table->process_dial_begin) {
 				continue;
@@ -2179,7 +2182,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 	if (res && ast_strlen_zero(dial_status)) {
 		struct cdr_object *new_cdr;
 
-		new_cdr = cdr_object_create_and_append(cdr);
+		new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
 		if (new_cdr) {
 			new_cdr->fn_table->process_dial_begin(new_cdr, caller, peer);
 		}
@@ -2281,7 +2284,7 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 	}
 
 	if (update->new_snapshot && !update->old_snapshot) {
-		cdr = cdr_object_alloc(update->new_snapshot);
+		cdr = cdr_object_alloc(update->new_snapshot, stasis_message_timestamp(message));
 		if (!cdr) {
 			return;
 		}
@@ -2300,6 +2303,7 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 
 		ao2_lock(cdr);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+			it_cdr->lastevent = *stasis_message_timestamp(message);
 			if (!it_cdr->fn_table->process_party_a) {
 				continue;
 			}
@@ -2309,7 +2313,7 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 			/* We're not hung up and we have a new snapshot - we need a new CDR */
 			struct cdr_object *new_cdr;
 
-			new_cdr = cdr_object_create_and_append(cdr);
+			new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
 			if (new_cdr) {
 				new_cdr->fn_table->process_party_a(new_cdr, update->new_snapshot);
 			}
@@ -2321,6 +2325,7 @@ static void handle_channel_snapshot_update_message(void *data, struct stasis_sub
 		ao2_lock(cdr);
 		CDR_DEBUG("%p - Beginning finalize/dispatch for %s\n", cdr, update->old_snapshot->base->name);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+			it_cdr->lastevent = *stasis_message_timestamp(message);
 			cdr_object_finalize(it_cdr);
 		}
 		cdr_object_dispatch(cdr);
@@ -2429,6 +2434,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	/* Party A */
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		it_cdr->lastevent = *stasis_message_timestamp(message);
 		if (!it_cdr->fn_table->process_bridge_leave) {
 			continue;
 		}
@@ -2463,7 +2469,7 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 {
 	struct cdr_object *new_cdr;
 
-	new_cdr = cdr_object_create_and_append(cdr);
+	new_cdr = cdr_object_create_and_append(cdr, &cdr->lastevent);
 	if (!new_cdr) {
 		return;
 	}
@@ -2574,7 +2580,8 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
  */
 static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
-		struct ast_channel_snapshot *channel)
+		struct ast_channel_snapshot *channel,
+		const struct timeval *event_time)
 {
 	int res = 1;
 	struct cdr_object *it_cdr;
@@ -2583,6 +2590,8 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 	ao2_lock(cdr);
 
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		it_cdr->lastevent = *event_time;
+
 		if (it_cdr->fn_table->process_parking_bridge_enter) {
 			res &= it_cdr->fn_table->process_parking_bridge_enter(it_cdr, bridge, channel);
 		}
@@ -2595,7 +2604,7 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 
 	if (res) {
 		/* No one handled it - we need a new one! */
-		new_cdr = cdr_object_create_and_append(cdr);
+		new_cdr = cdr_object_create_and_append(cdr, event_time);
 		if (new_cdr) {
 			/* Let the single state transition us to Parked */
 			cdr_object_transition_state(new_cdr, &single_state_fn_table);
@@ -2612,7 +2621,8 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
  */
 static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
-		struct ast_channel_snapshot *channel)
+		struct ast_channel_snapshot *channel,
+		const struct timeval *event_time)
 {
 	enum process_bridge_enter_results result;
 	struct cdr_object *it_cdr;
@@ -2623,6 +2633,8 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 
 try_again:
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		it_cdr->lastevent = *event_time;
+
 		if (it_cdr->fn_table->process_party_a) {
 			CDR_DEBUG("%p - Updating Party A %s snapshot\n", it_cdr,
 				channel->base->name);
@@ -2669,7 +2681,7 @@ try_again:
 		handle_bridge_pairings(handled_cdr, bridge);
 	} else {
 		/* Nothing handled it - we need a new one! */
-		new_cdr = cdr_object_create_and_append(cdr);
+		new_cdr = cdr_object_create_and_append(cdr, event_time);
 		if (new_cdr) {
 			/* This is guaranteed to succeed: the new CDR is created in the single state
 			 * and will be able to handle the bridge enter message
@@ -2717,9 +2729,9 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	}
 
 	if (!strcmp(bridge->subclass, "parking")) {
-		handle_parking_bridge_enter_message(cdr, bridge, channel);
+		handle_parking_bridge_enter_message(cdr, bridge, channel, stasis_message_timestamp(message));
 	} else {
-		handle_standard_bridge_enter_message(cdr, bridge, channel);
+		handle_standard_bridge_enter_message(cdr, bridge, channel, stasis_message_timestamp(message));
 	}
 	ao2_cleanup(cdr);
 }
@@ -2769,6 +2781,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	ao2_lock(cdr);
 
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+		it_cdr->lastevent = *stasis_message_timestamp(message);
 		if (it_cdr->fn_table->process_parked_channel) {
 			unhandled &= it_cdr->fn_table->process_parked_channel(it_cdr, payload);
 		}
@@ -2778,7 +2791,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 		/* Nothing handled the messgae - we need a new one! */
 		struct cdr_object *new_cdr;
 
-		new_cdr = cdr_object_create_and_append(cdr);
+		new_cdr = cdr_object_create_and_append(cdr, stasis_message_timestamp(message));
 		if (new_cdr) {
 			/* As the new CDR is created in the single state, it is guaranteed
 			 * to have a function for the parked call message and will handle
@@ -3607,6 +3620,7 @@ int ast_cdr_reset(const char *channel_name, int keep_variables)
 		memset(&it_cdr->end, 0, sizeof(it_cdr->end));
 		memset(&it_cdr->answer, 0, sizeof(it_cdr->answer));
 		it_cdr->start = ast_tvnow();
+		it_cdr->lastevent = it_cdr->start;
 		cdr_object_check_party_a_answer(it_cdr);
 	}
 	ao2_unlock(cdr);
@@ -3628,6 +3642,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 
 	{
 		SCOPED_AO2LOCK(lock, cdr);
+		struct timeval now = ast_tvnow();
 
 		cdr_obj = cdr->last;
 		if (cdr_obj->fn_table == &finalized_state_fn_table) {
@@ -3641,7 +3656,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 		 * copied over automatically as part of the append
 		 */
 		ast_debug(1, "Forking CDR for channel %s\n", cdr->party_a.snapshot->base->name);
-		new_cdr = cdr_object_create_and_append(cdr);
+		new_cdr = cdr_object_create_and_append(cdr, &now);
 		if (!new_cdr) {
 			return -1;
 		}
@@ -3671,6 +3686,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 		}
 		new_cdr->start = cdr_obj->start;
 		new_cdr->answer = cdr_obj->answer;
+		new_cdr->lastevent = ast_tvnow();
 
 		/* Modify the times based on the flags passed in */
 		if (ast_test_flag(options, AST_CDR_FLAG_SET_ANSWER)
