@@ -933,7 +933,7 @@ static int setup_sdes_srtp(struct ast_sip_session_media *session_media,
 			return 0;
 		}
 
-		ast_debug(1, "Ignoring crypto offer with unsupported parameters: %s\n", crypto_str);
+		ast_log(LOG_WARNING, "Ignoring crypto offer with unsupported parameters: %s\n", crypto_str);
 	}
 
 	/* no usable crypto attributes found */
