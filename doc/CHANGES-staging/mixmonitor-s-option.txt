@@ -1,0 +1,7 @@
+Subject: app_mixmonitor
+
+An option 'S' has been added to MixMonitor. If used in combination with
+the r() and/or t() options, if a frame is available to write to one of
+those files but not the other, a frame of silence if written to the file
+that does not have an audio frame. This should prevent the two files
+from "drifting" when mixed after the fact.
