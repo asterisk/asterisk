@@ -65,6 +65,7 @@ AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
 AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
+AST_EXT_LIB_SETUP([TINFO], [terminfo], [libtinfo])
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [ncurses.h])
@@ -78,6 +79,17 @@ if test "${PBX_NCURSES}" != 1; then
   fi
 fi
 AC_SUBST(HAVE_NCURSES_SUBDIR)
+
+if test "${PBX_NCURSES}" = 1; then
+  if test "${HAVE_NCURSES_SUBDIR}" = "yes"; then
+    AST_EXT_LIB_CHECK([TINFO], [tinfo], [keypad], [ncurses/ncurses.h])
+  else
+    AST_EXT_LIB_CHECK([TINFO], [tinfo], [keypad], [ncurses.h])
+  fi
+else
+  AST_EXT_LIB_CHECK([TINFO], [tinfo], [keypad], [curses.h])
+fi
+
 AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
         [#include <libxml/tree.h>
         #include <libxml/parser.h>],
