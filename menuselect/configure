@@ -635,6 +635,10 @@ PKG_CONFIG
 CONFIG_LIBXML2
 SED
 HAVE_NCURSES_SUBDIR
+PBX_TINFO
+TINFO_DIR
+TINFO_INCLUDE
+TINFO_LIB
 PBX_LIBXML2
 LIBXML2_DIR
 LIBXML2_INCLUDE
@@ -720,6 +724,7 @@ with_newt
 with_curses
 with_ncurses
 with_libxml2
+with_libtinfo
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1366,6 +1371,7 @@ Optional Packages:
   --with-curses=PATH      use curses files in PATH
   --with-ncurses=PATH     use ncurses files in PATH
   --with-libxml2=PATH     use LibXML2 files in PATH
+  --with-libtinfo=PATH    use terminfo files in PATH
 
 Some influential environment variables:
   CC          C compiler command
@@ -3928,6 +3934,38 @@ fi
 
 
 
+    TINFO_DESCRIP="terminfo"
+    TINFO_OPTION="libtinfo"
+    PBX_TINFO=0
+
+# Check whether --with-libtinfo was given.
+if test "${with_libtinfo+set}" = set; then :
+  withval=$with_libtinfo;
+	case ${withval} in
+	n|no)
+	USE_TINFO=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_TINFO=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} TINFO"
+	;;
+	*)
+	TINFO_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} TINFO"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
 
 if test "x${PBX_NEWT}" != "x1" -a "${USE_NEWT}" != "no"; then
    pbxlibdir=""
@@ -4318,6 +4356,302 @@ fi
   else
     HAVE_NCURSES_SUBDIR=yes
   fi
+fi
+
+
+if test "${PBX_NCURSES}" = 1; then
+  if test "${HAVE_NCURSES_SUBDIR}" = "yes"; then
+
+if test "x${PBX_TINFO}" != "x1" -a "${USE_TINFO}" != "no"; then
+   pbxlibdir=""
+   # if --with-TINFO=DIR has been specified, use it.
+   if test "x${TINFO_DIR}" != "x"; then
+      if test -d ${TINFO_DIR}/lib; then
+         pbxlibdir="-L${TINFO_DIR}/lib"
+      else
+         pbxlibdir="-L${TINFO_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for keypad in -ltinfo" >&5
+$as_echo_n "checking for keypad in -ltinfo... " >&6; }
+if ${ac_cv_lib_tinfo_keypad+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ltinfo ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char keypad ();
+int
+main ()
+{
+return keypad ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_tinfo_keypad=yes
+else
+  ac_cv_lib_tinfo_keypad=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_tinfo_keypad" >&5
+$as_echo "$ac_cv_lib_tinfo_keypad" >&6; }
+if test "x$ac_cv_lib_tinfo_keypad" = xyes; then :
+  AST_TINFO_FOUND=yes
+else
+  AST_TINFO_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_TINFO_FOUND}" = "yes"; then
+      TINFO_LIB="${pbxlibdir} -ltinfo "
+      # if --with-TINFO=DIR has been specified, use it.
+      if test "x${TINFO_DIR}" != "x"; then
+         TINFO_INCLUDE="-I${TINFO_DIR}/include"
+      fi
+      TINFO_INCLUDE="${TINFO_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${TINFO_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "ncurses/ncurses.h" "ac_cv_header_ncurses_ncurses_h" "$ac_includes_default"
+if test "x$ac_cv_header_ncurses_ncurses_h" = xyes; then :
+  TINFO_HEADER_FOUND=1
+else
+  TINFO_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${TINFO_HEADER_FOUND}" = "x0" ; then
+         TINFO_LIB=""
+         TINFO_INCLUDE=""
+      else
+
+         PBX_TINFO=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_TINFO 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+  else
+
+if test "x${PBX_TINFO}" != "x1" -a "${USE_TINFO}" != "no"; then
+   pbxlibdir=""
+   # if --with-TINFO=DIR has been specified, use it.
+   if test "x${TINFO_DIR}" != "x"; then
+      if test -d ${TINFO_DIR}/lib; then
+         pbxlibdir="-L${TINFO_DIR}/lib"
+      else
+         pbxlibdir="-L${TINFO_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for keypad in -ltinfo" >&5
+$as_echo_n "checking for keypad in -ltinfo... " >&6; }
+if ${ac_cv_lib_tinfo_keypad+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ltinfo ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char keypad ();
+int
+main ()
+{
+return keypad ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_tinfo_keypad=yes
+else
+  ac_cv_lib_tinfo_keypad=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_tinfo_keypad" >&5
+$as_echo "$ac_cv_lib_tinfo_keypad" >&6; }
+if test "x$ac_cv_lib_tinfo_keypad" = xyes; then :
+  AST_TINFO_FOUND=yes
+else
+  AST_TINFO_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_TINFO_FOUND}" = "yes"; then
+      TINFO_LIB="${pbxlibdir} -ltinfo "
+      # if --with-TINFO=DIR has been specified, use it.
+      if test "x${TINFO_DIR}" != "x"; then
+         TINFO_INCLUDE="-I${TINFO_DIR}/include"
+      fi
+      TINFO_INCLUDE="${TINFO_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${TINFO_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "ncurses.h" "ac_cv_header_ncurses_h" "$ac_includes_default"
+if test "x$ac_cv_header_ncurses_h" = xyes; then :
+  TINFO_HEADER_FOUND=1
+else
+  TINFO_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${TINFO_HEADER_FOUND}" = "x0" ; then
+         TINFO_LIB=""
+         TINFO_INCLUDE=""
+      else
+
+         PBX_TINFO=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_TINFO 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+  fi
+else
+
+if test "x${PBX_TINFO}" != "x1" -a "${USE_TINFO}" != "no"; then
+   pbxlibdir=""
+   # if --with-TINFO=DIR has been specified, use it.
+   if test "x${TINFO_DIR}" != "x"; then
+      if test -d ${TINFO_DIR}/lib; then
+         pbxlibdir="-L${TINFO_DIR}/lib"
+      else
+         pbxlibdir="-L${TINFO_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for keypad in -ltinfo" >&5
+$as_echo_n "checking for keypad in -ltinfo... " >&6; }
+if ${ac_cv_lib_tinfo_keypad+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ltinfo ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char keypad ();
+int
+main ()
+{
+return keypad ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_tinfo_keypad=yes
+else
+  ac_cv_lib_tinfo_keypad=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_tinfo_keypad" >&5
+$as_echo "$ac_cv_lib_tinfo_keypad" >&6; }
+if test "x$ac_cv_lib_tinfo_keypad" = xyes; then :
+  AST_TINFO_FOUND=yes
+else
+  AST_TINFO_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_TINFO_FOUND}" = "yes"; then
+      TINFO_LIB="${pbxlibdir} -ltinfo "
+      # if --with-TINFO=DIR has been specified, use it.
+      if test "x${TINFO_DIR}" != "x"; then
+         TINFO_INCLUDE="-I${TINFO_DIR}/include"
+      fi
+      TINFO_INCLUDE="${TINFO_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${TINFO_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "curses.h" "ac_cv_header_curses_h" "$ac_includes_default"
+if test "x$ac_cv_header_curses_h" = xyes; then :
+  TINFO_HEADER_FOUND=1
+else
+  TINFO_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${TINFO_HEADER_FOUND}" = "x0" ; then
+         TINFO_LIB=""
+         TINFO_INCLUDE=""
+      else
+
+         PBX_TINFO=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_TINFO 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a sed that does not truncate output" >&5
