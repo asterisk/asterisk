@@ -64,6 +64,8 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_MUTE_READ     = (1 << 5), /*!< audiohook should be mute frames read */
 	AST_AUDIOHOOK_MUTE_WRITE    = (1 << 6), /*!< audiohook should be mute frames written */
 	AST_AUDIOHOOK_COMPATIBLE    = (1 << 7), /*!< is the audiohook native slin compatible */
+
+	AST_AUDIOHOOK_SUBSTITUTE_SILENCE = (1 << 8), /*!< Substitute silence for missing audio */
 };
 
 enum ast_audiohook_init_flags {
