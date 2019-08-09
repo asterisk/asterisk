@@ -335,6 +335,17 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	frame.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);
 
+	/* Should we substitute silence if one side lacks audio? */
+	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_SUBSTITUTE_SILENCE))) {
+		if (read_reference && !read_buf && write_buf) {
+			read_buf = buf1;
+			memset(buf1, 0, sizeof(buf1));
+		} else if (write_reference && read_buf && !write_buf) {
+			write_buf = buf2;
+			memset(buf2, 0, sizeof(buf2));
+		}
+	}
+
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (read_buf && read_reference) {
 		frame.data.ptr = read_buf;

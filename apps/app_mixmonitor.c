@@ -117,6 +117,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						Like with the basic filename argument, if an absolute path isn't given, it will create
 						the file in the configured monitoring directory.</para>
 					</option>
+					<option name="S">
+						<para>When combined with the <replaceable>r</replaceable> or <replaceable>t</replaceable>
+						option, inserts silence when necessary to maintain synchronization between the receive
+						and transmit audio streams.</para>
+					</option>
 					<option name="i">
 						<argument name="chanvar" required="true" />
 						<para>Stores the MixMonitor's ID on this channel variable.</para>
@@ -349,7 +354,8 @@ enum mixmonitor_flags {
 	MUXFLAG_VMRECIPIENTS = (1 << 10),
 	MUXFLAG_BEEP = (1 << 11),
 	MUXFLAG_BEEP_START = (1 << 12),
-	MUXFLAG_BEEP_STOP = (1 << 13)
+	MUXFLAG_BEEP_STOP = (1 << 13),
+	MUXFLAG_RWSYNC = (1 << 14),
 };
 
 enum mixmonitor_args {
@@ -361,6 +367,7 @@ enum mixmonitor_args {
 	OPT_ARG_UID,
 	OPT_ARG_VMRECIPIENTS,
 	OPT_ARG_BEEP_INTERVAL,
+	OPT_ARG_RWSYNC,
 	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
@@ -377,6 +384,7 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('t', MUXFLAG_WRITE, OPT_ARG_WRITENAME),
 	AST_APP_OPTION_ARG('i', MUXFLAG_UID, OPT_ARG_UID),
 	AST_APP_OPTION_ARG('m', MUXFLAG_VMRECIPIENTS, OPT_ARG_VMRECIPIENTS),
+	AST_APP_OPTION_ARG('S', MUXFLAG_RWSYNC, OPT_ARG_RWSYNC),
 });
 
 struct mixmonitor_ds {
@@ -967,6 +975,9 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 	}
 
 	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
+	if ((ast_test_flag(mixmonitor, MUXFLAG_RWSYNC))) {
+		ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_SUBSTITUTE_SILENCE);
+	}
 
 	if (readvol)
 		mixmonitor->audiohook.options.read_volume = readvol;
