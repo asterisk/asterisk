@@ -38,8 +38,8 @@ endif
 
 ifdef NCURSES_LIB
   C_OBJS += menuselect_curses.o
-  C_LIBS +=$(NCURSES_LIB)
-  C_INCLUDE += $(NCURSES_INCLUDE)
+  C_LIBS += $(NCURSES_LIB) $(TINFO_LIB)
+  C_INCLUDE += $(NCURSES_INCLUDE) $(TINFO_INCLUDE)
   ALL_TGTS += cmenuselect
   CFLAGS += -DHAVE_NCURSES
   ifeq ($(HAVE_NCURSES_SUBDIR),yes)
@@ -48,8 +48,8 @@ ifdef NCURSES_LIB
 else
   ifdef CURSES_LIB
     C_OBJS += menuselect_curses.o
-    C_LIBS +=$(CURSES_LIB)
-    C_INCLUDE += $(CURSES_INCLUDE)
+    C_LIBS += $(CURSES_LIB) $(TINFO_LIB)
+    C_INCLUDE += $(CURSES_INCLUDE) $(TINFO_INCLUDE)
     ALL_TGTS += cmenuselect
   endif
 endif
