@@ -7212,7 +7212,7 @@ leave_vm_out:
 #ifdef IMAP_STORAGE
 	/* expunge message - use UID Expunge if supported on IMAP server*/
 	ast_debug(3, "*** Checking if we can expunge, expungeonhangup set to %d\n", expungeonhangup);
-	if (expungeonhangup == 1) {
+	if (expungeonhangup == 1 && vms->mailstream != NULL) {
 		ast_mutex_lock(&vms->lock);
 #ifdef HAVE_IMAP_TK2006
 		if (LEVELUIDPLUS (vms->mailstream)) {
