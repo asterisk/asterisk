@@ -62,6 +62,7 @@
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/unaligned.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/acl.h"
 #include "asterisk/callerid.h"
@@ -575,7 +576,7 @@ static const unsigned char packet_send_stream_based_tone_on[] =
 	{ 0x16, 0x06, 0x1b, 0x00, 0x00, 0x05 };
 static const unsigned char packet_send_stream_based_tone_single_freq[] =
 	{ 0x16, 0x06, 0x1d, 0x00, 0x01, 0xb8 };
-static const unsigned char packet_send_stream_based_tone_dial_freq[] =
+static const unsigned char packet_send_stream_based_tone_dual_freq[] =
 	{ 0x16, 0x08, 0x1d, 0x00, 0x01, 0xb8, 0x01, 0x5e };
 static const unsigned char packet_send_select_output[] =
 	{ 0x16, 0x06, 0x32, 0xc0, 0x01, 0x00 };
@@ -1208,19 +1209,16 @@ static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2
 	if (!tone2) {
 		memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_single_freq,
 			   sizeof(packet_send_stream_based_tone_single_freq));
-		buffsend[10] = (tone1 & 0xff00) >> 8;
-		buffsend[11] = (tone1 & 0x00ff);
+		put_unaligned_uint16(&buffsend[10], htons(tone1));
 		send_client(SIZE_HEADER + sizeof(packet_send_stream_based_tone_single_freq), buffsend,
 				   pte);
 	} else {
 		tone2 *= 8;
-		memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_dial_freq,
-			   sizeof(packet_send_stream_based_tone_dial_freq));
-		buffsend[10] = (tone1 & 0xff00) >> 8;
-		buffsend[11] = (tone1 & 0x00ff);
-		buffsend[12] = (tone2 & 0xff00) >> 8;
-		buffsend[13] = (tone2 & 0x00ff);
-		send_client(SIZE_HEADER + sizeof(packet_send_stream_based_tone_dial_freq), buffsend,
+		memcpy(buffsend + SIZE_HEADER, packet_send_stream_based_tone_dual_freq,
+			   sizeof(packet_send_stream_based_tone_dual_freq));
+		put_unaligned_uint16(&buffsend[10], htons(tone1));
+		put_unaligned_uint16(&buffsend[12], htons(tone2));
+		send_client(SIZE_HEADER + sizeof(packet_send_stream_based_tone_dual_freq), buffsend,
 				   pte);
 	}
 
@@ -2747,7 +2745,7 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 		   sizeof(packet_send_jitter_buffer_conf));
 	send_client(SIZE_HEADER + sizeof(packet_send_jitter_buffer_conf), buffsend, pte);
 	if (pte->device->rtp_method != 0) {
-		uint16_t rtcpsin_port = htons(us.sin_port) + 1; /* RTCP port is RTP + 1 */
+		uint16_t rtcpsin_port = ntohs(us.sin_port) + 1; /* RTCP port is RTP + 1 */
 
 		if (unistimdebug) {
 			ast_verb(0, "Sending OpenAudioStreamTX using method #%d\n", pte->device->rtp_method);
@@ -2761,20 +2759,14 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 		}
 		if (pte->device->rtp_method != 2) {
 			memcpy(buffsend + 28, &public.sin_addr, sizeof(public.sin_addr));
-			buffsend[20] = (htons(sin.sin_port) & 0xff00) >> 8;
-			buffsend[21] = (htons(sin.sin_port) & 0x00ff);
-			buffsend[23] = (rtcpsin_port & 0x00ff);
-			buffsend[22] = (rtcpsin_port & 0xff00) >> 8;
-			buffsend[25] = (us.sin_port & 0xff00) >> 8;
-			buffsend[24] = (us.sin_port & 0x00ff);
-			buffsend[27] = (rtcpsin_port & 0x00ff);
-			buffsend[26] = (rtcpsin_port & 0xff00) >> 8;
+			put_unaligned_uint16(&buffsend[20], sin.sin_port);
+			put_unaligned_uint16(&buffsend[22], htons(rtcpsin_port));
+			put_unaligned_uint16(&buffsend[24], us.sin_port);
+			put_unaligned_uint16(&buffsend[26], htons(rtcpsin_port));
 		} else {
 			memcpy(buffsend + 23, &public.sin_addr, sizeof(public.sin_addr));
-			buffsend[15] = (htons(sin.sin_port) & 0xff00) >> 8;
-			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
-			buffsend[20] = (us.sin_port & 0xff00) >> 8;
-			buffsend[19] = (us.sin_port & 0x00ff);
+			put_unaligned_uint16(&buffsend[15], sin.sin_port);
+			put_unaligned_uint16(&buffsend[19], us.sin_port);
 		}
 		buffsend[11] = codec; /* rx */
 		buffsend[12] = codec; /* tx */
@@ -2792,20 +2784,14 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 		}
 		if (pte->device->rtp_method != 2) {
 			memcpy(buffsend + 28, &public.sin_addr, sizeof(public.sin_addr));
-			buffsend[20] = (htons(sin.sin_port) & 0xff00) >> 8;
-			buffsend[21] = (htons(sin.sin_port) & 0x00ff);
-			buffsend[23] = (rtcpsin_port & 0x00ff);
-			buffsend[22] = (rtcpsin_port & 0xff00) >> 8;
-			buffsend[25] = (us.sin_port & 0xff00) >> 8;
-			buffsend[24] = (us.sin_port & 0x00ff);
-			buffsend[27] = (rtcpsin_port & 0x00ff);
-			buffsend[26] = (rtcpsin_port & 0xff00) >> 8;
+			put_unaligned_uint16(&buffsend[20], sin.sin_port);
+			put_unaligned_uint16(&buffsend[22], htons(rtcpsin_port));
+			put_unaligned_uint16(&buffsend[24], us.sin_port);
+			put_unaligned_uint16(&buffsend[26], htons(rtcpsin_port));
 		} else {
 			memcpy(buffsend + 23, &public.sin_addr, sizeof(public.sin_addr));
-			buffsend[15] = (htons(sin.sin_port) & 0xff00) >> 8;
-			buffsend[16] = (htons(sin.sin_port) & 0x00ff);
-			buffsend[20] = (us.sin_port & 0xff00) >> 8;
-			buffsend[19] = (us.sin_port & 0x00ff);
+			put_unaligned_uint16(&buffsend[15], sin.sin_port);
+			put_unaligned_uint16(&buffsend[19], us.sin_port);
 		}
 		buffsend[11] = codec; /* rx */
 		buffsend[12] = codec; /* tx */
@@ -2820,11 +2806,9 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 		memcpy(buffsend + SIZE_HEADER, packet_send_call, sizeof(packet_send_call));
 		memcpy(buffsend + 53, &public.sin_addr, sizeof(public.sin_addr));
 		/* Destination port when sending RTP */
-		buffsend[49] = (us.sin_port & 0x00ff);
-		buffsend[50] = (us.sin_port & 0xff00) >> 8;
+		put_unaligned_uint16(&buffsend[49], us.sin_port);
 		/* Destination port when sending RTCP */
-		buffsend[52] = (rtcpsin_port & 0x00ff);
-		buffsend[51] = (rtcpsin_port & 0xff00) >> 8;
+		put_unaligned_uint16(&buffsend[51], htons(rtcpsin_port));
 		/* Codec */
 		buffsend[40] = codec;
 		buffsend[41] = codec;
@@ -2841,10 +2825,8 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 				ast_format_get_name(ast_channel_readformat(sub->owner)));
 		}
 		/* Source port for transmit RTP and Destination port for receiving RTP */
-		buffsend[45] = (htons(sin.sin_port) & 0xff00) >> 8;
-		buffsend[46] = (htons(sin.sin_port) & 0x00ff);
-		buffsend[47] = (rtcpsin_port & 0xff00) >> 8;
-		buffsend[48] = (rtcpsin_port & 0x00ff);
+		put_unaligned_uint16(&buffsend[45], sin.sin_port);
+		put_unaligned_uint16(&buffsend[47], htons(rtcpsin_port));
 		send_client(SIZE_HEADER + sizeof(packet_send_call), buffsend, pte);
 	}
 }
