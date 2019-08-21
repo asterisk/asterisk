@@ -1,0 +1,7 @@
+Subject: chan_rtp
+
+The UnicastRTP channel driver provided by chan_rtp now accepts
+"<hostname>:<port>" as an alternative to "<ip_address>:<port>" in the destination.
+The first AAAA (preferred) or A record resolved will be used as the destination.
+The lookup is synchronous so beware of possible dialplan delays if you specify a
+hostname.
