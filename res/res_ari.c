@@ -495,6 +495,7 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 {
 	RAII_VAR(struct stasis_rest_handlers *, root, NULL, ao2_cleanup);
 	struct stasis_rest_handlers *handler;
+	struct stasis_rest_handlers *wildcard_handler = NULL;
 	RAII_VAR(struct ast_variable *, path_vars, NULL, ast_variables_destroy);
 	char *path = ast_strdupa(uri);
 	char *path_segment;
@@ -503,37 +504,49 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	root = handler = get_root_handler();
 	ast_assert(root != NULL);
 
+	ast_debug(3, "Finding handler for %s\n", path);
+
 	while ((path_segment = strsep(&path, "/")) && (strlen(path_segment) > 0)) {
 		struct stasis_rest_handlers *found_handler = NULL;
 		int i;
 
 		ast_uri_decode(path_segment, ast_uri_http_legacy);
-		ast_debug(3, "Finding handler for %s\n", path_segment);
+		ast_debug(3, "  Finding handler for %s\n", path_segment);
 
 		for (i = 0; found_handler == NULL && i < handler->num_children; ++i) {
 			struct stasis_rest_handlers *child = handler->children[i];
 
-			ast_debug(3, "  Checking %s\n", child->path_segment);
 			if (child->is_wildcard) {
 				/* Record the path variable */
 				struct ast_variable *path_var = ast_variable_new(child->path_segment, path_segment, __FILE__);
 				path_var->next = path_vars;
 				path_vars = path_var;
-				found_handler = child;
+				wildcard_handler = child;
+				ast_debug(3, "        Checking %s %s:  Matched wildcard.\n", handler->path_segment, child->path_segment);
+
 			} else if (strcmp(child->path_segment, path_segment) == 0) {
 				found_handler = child;
+				ast_debug(3, "        Checking %s %s:  Explicit match with %s\n", handler->path_segment, child->path_segment, path_segment);
+			} else {
+				ast_debug(3, "        Checking %s %s:  Didn't match %s\n", handler->path_segment, child->path_segment, path_segment);
 			}
+		}
+
+		if (!found_handler && wildcard_handler) {
+			ast_debug(3, "  No explicit handler found for %s.  Using wildcard %s.\n",
+				path_segment, wildcard_handler->path_segment);
+			found_handler = wildcard_handler;
+			wildcard_handler = NULL;
 		}
 
 		if (found_handler == NULL) {
 			/* resource not found */
-			ast_debug(3, "  Handler not found\n");
+			ast_debug(3, "  Handler not found for %s\n", path_segment);
 			ast_ari_response_error(
 				response, 404, "Not Found",
 				"Resource not found");
 			return;
 		} else {
-			ast_debug(3, "  Got it!\n");
 			handler = found_handler;
 		}
 	}
