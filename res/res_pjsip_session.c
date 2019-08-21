@@ -766,6 +766,7 @@ static void set_from_header(struct ast_sip_session *session)
 	pjsip_sip_uri *dlg_info_uri;
 	pjsip_sip_uri *dlg_contact_uri;
 	int restricted;
+	const char *pjsip_from_domain;
 
 	if (!session->channel || session->saved_from_hdr) {
 		return;
@@ -808,6 +809,17 @@ static void set_from_header(struct ast_sip_session *session)
 	if (!ast_strlen_zero(session->endpoint->fromdomain)) {
 		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
 	}
+
+	/*
+	 * Channel variable for compatibility with chan_sip SIPFROMDOMAIN
+	 */
+	ast_channel_lock(session->channel);
+	pjsip_from_domain = pbx_builtin_getvar_helper(session->channel, "SIPFROMDOMAIN");
+	if (!ast_strlen_zero(pjsip_from_domain)) {
+		ast_debug(3, "From header domain reset by channel variable SIPFROMDOMAIN (%s)\n", pjsip_from_domain);
+		pj_strdup2(dlg_pool, &dlg_info_uri->host, pjsip_from_domain);
+	}
+	ast_channel_unlock(session->channel);
 
 	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
 	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
