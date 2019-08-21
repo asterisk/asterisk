@@ -1,0 +1,53 @@
+Index: pjsip/include/pjsip/sip_config.h
+===================================================================
+--- a/pjsip/include/pjsip/sip_config.h	(revision 6050)
++++ b/pjsip/include/pjsip/sip_config.h	(working copy)
+@@ -1190,6 +1190,20 @@
+ #   define PJSIP_AUTH_CACHED_POOL_MAX_SIZE	(20 * 1024)
+ #endif
+ 
++
++/**
++ * Specify whether the cnonce used for SIP authentication contain digits only.
++ * The "cnonce" value is setup using GUID generator, i.e:
++ * pj_create_unique_string(), and the GUID string may contain hyphen character
++ * ("-"). Some SIP servers do not like this GUID format, so this option will
++ * strip any hyphens from the GUID string.
++ *
++ * Default is 1 (cnonce will only contain digit characters).
++ */
++#ifndef PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY
++#   define PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY	1
++#endif
++
+ /*****************************************************************************
+  *  SIP Event framework and presence settings.
+  */
+Index: pjsip/src/pjsip/sip_auth_client.c
+===================================================================
+--- a/pjsip/src/pjsip/sip_auth_client.c	(revision 6050)
++++ b/pjsip/src/pjsip/sip_auth_client.c	(working copy)
+@@ -396,7 +396,23 @@
+ 
+ 	/* Create cnonce */
+ 	pj_create_unique_string( cached_auth->pool, &cached_auth->cnonce );
++#if defined(PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY) && \
++    PJSIP_AUTH_CNONCE_USE_DIGITS_ONLY!=0
++	if (pj_strchr(&cached_auth->cnonce, '-')) {
++	    /* remove hyphen character. */
++	    int w, r, len = pj_strlen(&cached_auth->cnonce);
++	    char *s = cached_auth->cnonce.ptr;
+ 
++	    w = r = 0;
++	    for (; r < len; r++) {
++		if (s[r] != '-')
++		    s[w++] = s[r];
++	    }
++	    s[w] = '\0';
++	    cached_auth->cnonce.slen = w;
++	}
++#endif
++
+ 	/* Initialize nonce-count */
+ 	cached_auth->nc = 1;
+ 
