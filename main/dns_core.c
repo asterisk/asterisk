@@ -40,6 +40,7 @@
 #include "asterisk/dns_recurring.h"
 #include "asterisk/dns_resolver.h"
 #include "asterisk/dns_internal.h"
+#include "asterisk/netsock2.h"
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -363,6 +364,77 @@ int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_
 	ao2_ref(synchronous, -1);
 
 	return *result ? 0 : -1;
+}
+
+int ast_dns_resolve_ipv6_and_ipv4(struct ast_sockaddr *address, const char *host, const char *port)
+{
+	RAII_VAR(struct ast_dns_query_set *, queries, ast_dns_query_set_create(), ao2_cleanup);
+	int i;
+	int rc;
+
+	if (!queries) {
+		ast_log(LOG_ERROR, "Couldn't allocate DNS query structure\n");
+		return -1;
+	}
+	rc = ast_dns_query_set_add(queries, host, ns_t_aaaa, ns_c_in);
+	if (rc != 0) {
+		ast_log(LOG_ERROR, "Couldn't add 'AAAA' DNS query for '%s'\n", host);
+		return -1;
+	}
+	rc = ast_dns_query_set_add(queries, host, ns_t_a, ns_c_in);
+	if (rc != 0) {
+		ast_log(LOG_ERROR, "Couldn't add 'A' DNS query for '%s'\n", host);
+		return -1;
+	}
+	rc = ast_query_set_resolve(queries);
+	if (rc != 0) {
+		ast_log(LOG_ERROR, "Query set resolve failure for '%s'\n", host);
+		return -1;
+	}
+	for (i = 0; i < ast_dns_query_set_num_queries(queries); ++i) {
+		struct ast_dns_query *query = ast_dns_query_set_get(queries, i);
+		struct ast_dns_result *result = ast_dns_query_get_result(query);
+		const struct ast_dns_record *record;
+		in_port_t in_port = 0;
+
+		if (!ast_strlen_zero(port)) {
+			in_port = htons(atoi(port));
+		}
+
+		for (record = ast_dns_result_get_records(result); record; record = ast_dns_record_get_next(record)) {
+			size_t data_size = ast_dns_record_get_data_size(record);
+			const unsigned char *data = (unsigned char *)ast_dns_record_get_data(record);
+			int rr_type = ast_dns_record_get_rr_type(record);
+
+			if (rr_type == ns_t_aaaa && data_size == 16) {
+				struct sockaddr_in6 sin6 = { 0, };
+
+				sin6.sin6_port = in_port;
+				memcpy(&sin6.sin6_addr, data, data_size);
+				sin6.sin6_family = AF_INET6;
+				memcpy(&address->ss, &sin6, sizeof(sin6));
+				address->len = sizeof(sin6);
+
+				return 0;
+			} else if (rr_type == ns_t_a && data_size == 4) {
+				struct sockaddr_in sin4 = { 0, };
+
+				sin4.sin_port = in_port;
+				memcpy(&sin4.sin_addr, data, data_size);
+				sin4.sin_family = AF_INET;
+				memcpy(&address->ss, &sin4, sizeof(sin4));
+				address->len = sizeof(sin4);
+
+				return 0;
+			} else {
+				ast_debug(3, "Unrecognized rr_type '%u' or data_size '%zu' from DNS query for host '%s'\n",
+					rr_type, data_size, host);
+				continue;
+			}
+		}
+	}
+
+	return -1;
 }
 
 int ast_dns_resolver_set_data(struct ast_dns_query *query, void *data)

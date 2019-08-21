@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+#include "asterisk/netsock2.h"
+
 /*! \brief Opaque structure for an active DNS query */
 struct ast_dns_query_active;
 
@@ -268,6 +270,26 @@ int ast_dns_resolve_cancel(struct ast_dns_query_active *active);
  * \retval -1 failure
  */
 int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_result **result);
+
+/*!
+ * \brief Synchronously resolves host to  an AAAA or A record
+ * \since 16.6.0
+ *
+ * \param address A pointer to an ast_sockaddr structure to receive the IPv6 or IPv4 address
+ * \param host The hostname to resolve
+ * \param port (optional) A port to parse into the final ast_sockaddr structure
+ *
+ * \retval 0 success - query was completed and result is available
+ * \retval -1 failure
+ *
+ * \note This function makes parallel queries for both AAAA and A records for the host.
+ * 		 The first returned AAAA record (if any) is used and if not found, the first A record
+ * 		 is used.
+ *
+ * \warning This function is synchronous and will block until records are returned or an error
+ *          occurrs.
+ */
+int ast_dns_resolve_ipv6_and_ipv4(struct ast_sockaddr *address, const char *host, const char *port);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
