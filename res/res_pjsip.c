@@ -371,7 +371,7 @@
 						changes happen for any of the specified mailboxes. More than one mailbox can be
 						specified with a comma-delimited string. app_voicemail mailboxes must be specified
 						as mailbox@context; for example: mailboxes=6001@default. For mailboxes provided by
-						external sources, such as through the res_external_mwi module, you must specify
+						external sources, such as through the res_mwi_external module, you must specify
 						strings supported by the external system.
 					</para><para>
 						For endpoints that SUBSCRIBE for MWI, use the <literal>mailboxes</literal> option in your AOR
@@ -1482,7 +1482,7 @@
 						More than one mailbox can be specified with a comma-delimited string.
 						app_voicemail mailboxes must be specified as mailbox@context;
 						for example: mailboxes=6001@default. For mailboxes provided by external sources,
-						such as through the res_external_mwi module, you must specify strings supported by
+						such as through the res_mwi_external module, you must specify strings supported by
 						the external system.
 					</para><para>
 						For endpoints that cannot SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your
