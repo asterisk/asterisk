@@ -806,6 +806,13 @@ static struct ast_codec h264 = {
 	.sample_rate = 1000,
 };
 
+static struct ast_codec h265 = {
+	.name = "h265",
+	.description = "H.265 video",
+	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
+};
+
 static struct ast_codec mpeg4 = {
 	.name = "mpeg4",
 	.description = "MPEG4 video",
@@ -971,6 +978,7 @@ int ast_codec_builtin_init(void)
 	res |= CODEC_REGISTER_AND_CACHE(h263);
 	res |= CODEC_REGISTER_AND_CACHE(h263p);
 	res |= CODEC_REGISTER_AND_CACHE(h264);
+	res |= CODEC_REGISTER_AND_CACHE(h265);
 	res |= CODEC_REGISTER_AND_CACHE(mpeg4);
 	res |= CODEC_REGISTER_AND_CACHE(vp8);
 	res |= CODEC_REGISTER_AND_CACHE(vp9);

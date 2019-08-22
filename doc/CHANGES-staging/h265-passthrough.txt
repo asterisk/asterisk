@@ -1,0 +1,6 @@
+Subject: Core
+
+H.265/HEVC is now a supported video codec and it can be used by
+specifying "h265" in the allow line.
+Please note however, that handling of the additional SDP parameters
+described in RFC 7798 section 7.2 is not yet supported.

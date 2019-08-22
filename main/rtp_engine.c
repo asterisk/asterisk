@@ -3604,6 +3604,7 @@ int ast_rtp_engine_init(void)
 	set_next_mime_type(ast_format_h263, 0, "video", "H263", 90000);
 	set_next_mime_type(ast_format_h263p, 0, "video", "h263-1998", 90000);
 	set_next_mime_type(ast_format_h264, 0, "video", "H264", 90000);
+	set_next_mime_type(ast_format_h265, 0, "video", "H265", 90000);
 	set_next_mime_type(ast_format_mp4, 0, "video", "MP4V-ES", 90000);
 	set_next_mime_type(ast_format_t140_red, 0, "text", "RED", 1000);
 	set_next_mime_type(ast_format_t140, 0, "text", "T140", 1000);
@@ -3655,6 +3656,7 @@ int ast_rtp_engine_init(void)
 	add_static_payload(106, ast_format_t140, 0);     /* Real time text chat */
 	add_static_payload(107, ast_format_opus, 0);
 	add_static_payload(108, ast_format_vp9, 0);
+	add_static_payload(109, ast_format_h265, 0);
 
 	add_static_payload(110, ast_format_speex, 0);
 	add_static_payload(111, ast_format_g726, 0);
