@@ -181,6 +181,11 @@ struct ast_format *ast_format_h263p;
 struct ast_format *ast_format_h264;
 
 /*!
+ * \brief Built-in cached h265 format.
+ */
+struct ast_format *ast_format_h265;
+
+/*!
  * \brief Built-in cached mp4 format.
  */
 struct ast_format *ast_format_mp4;
@@ -348,6 +353,7 @@ static void format_cache_shutdown(void)
 	ao2_replace(ast_format_h263, NULL);
 	ao2_replace(ast_format_h263p, NULL);
 	ao2_replace(ast_format_h264, NULL);
+	ao2_replace(ast_format_h265, NULL);
 	ao2_replace(ast_format_mp4, NULL);
 	ao2_replace(ast_format_vp8, NULL);
 	ao2_replace(ast_format_vp9, NULL);
@@ -446,6 +452,8 @@ static void set_cached_format(const char *name, struct ast_format *format)
 		ao2_replace(ast_format_h263p, format);
 	} else if (!strcmp(name, "h264")) {
 		ao2_replace(ast_format_h264, format);
+	} else if (!strcmp(name, "h265")) {
+		ao2_replace(ast_format_h265, format);
 	} else if (!strcmp(name, "mpeg4")) {
 		ao2_replace(ast_format_mp4, format);
 	} else if (!strcmp(name, "vp8")) {
