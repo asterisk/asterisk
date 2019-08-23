@@ -43,6 +43,7 @@
 #include "asterisk/causes.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/multicast_rtp.h"
+#include "asterisk/dns_core.h"
 
 /* Forward declarations */
 static struct ast_channel *multicast_rtp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
@@ -293,9 +294,23 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 		ast_log(LOG_ERROR, "Destination is required for the 'UnicastRTP' channel\n");
 		goto failure;
 	}
+
 	if (!ast_sockaddr_parse(&address, args.destination, PARSE_PORT_REQUIRE)) {
-		ast_log(LOG_ERROR, "Destination '%s' could not be parsed\n", args.destination);
-		goto failure;
+	    int rc;
+	    char *host;
+	    char *port;
+
+	    rc = ast_sockaddr_split_hostport(args.destination, &host, &port, PARSE_PORT_REQUIRE);
+	    if (!rc) {
+	        ast_log(LOG_ERROR, "Unable to parse destination '%s' into host and port\n", args.destination);
+	        goto failure;
+	    }
+
+	    rc = ast_dns_resolve_ipv6_and_ipv4(&address, host, port);
+	    if (rc != 0) {
+	        ast_log(LOG_ERROR, "Unable to resolve host '%s'\n", host);
+	        goto failure;
+	    }
 	}
 
 	if (!ast_strlen_zero(args.options)
