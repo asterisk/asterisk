@@ -94,4 +94,4 @@ endif
 
 codec_resample.so: speex/resample.o
 
-speex/resample.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_resample) $(SPEEX_RESAMPLE_CFLAGS)
+speex/resample.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_resample) $(SPEEX_RESAMPLE_CFLAGS) -DOUTSIDE_SPEEX -DEXPORT=
