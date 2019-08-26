@@ -405,7 +405,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 	if (f->samples == 0) {
 		/* Do not log empty audio frame */
-		if (strcasecmp(f->src, "ast_prod")) {
+		if (!f->src || strcasecmp(f->src, "ast_prod")) {
 			ast_log(LOG_WARNING, "no samples for %s\n", pvt->t->name);
 		}
 	}
