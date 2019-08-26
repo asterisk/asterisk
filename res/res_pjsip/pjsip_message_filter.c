@@ -399,6 +399,40 @@ static void print_uri_debug(enum uri_type ut, pjsip_rx_data *rdata, pjsip_hdr *h
 #endif
 }
 
+/*!
+ * /internal
+ *
+ * We want to make sure that any incoming requests don't already
+ * have x-ast-* parameters in any URIs or we may get confused
+ * if symmetric transport (x-ast-txp) or rewrite_contact (x-ast-orig-host)
+ * is used later on.
+ */
+static void remove_x_ast_params(pjsip_uri *header_uri){
+	pjsip_sip_uri *uri;
+	pjsip_param *param;
+
+	if (!header_uri) {
+		return;
+	}
+
+	uri = pjsip_uri_get_uri(header_uri);
+	if (!uri) {
+		return;
+	}
+
+	param = uri->other_param.next;
+
+	while (param != &uri->other_param) {
+		/* We need to save off 'next' because pj_list_erase will remove it */
+		pjsip_param *next = param->next;
+
+		if (pj_strncmp2(&param->name, "x-ast-", 6) == 0) {
+			pj_list_erase(param);
+		}
+		param = next;
+	}
+}
+
 static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 {
 	pjsip_contact_hdr *contact = NULL;
@@ -413,6 +447,7 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
+	remove_x_ast_params(rdata->msg_info.msg->line.req.uri);
 
 	if (!is_sip_uri(rdata->msg_info.from->uri)) {
 		print_uri_debug(URI_TYPE_FROM, rdata, (pjsip_hdr *)rdata->msg_info.from);
@@ -420,6 +455,7 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
+	remove_x_ast_params(rdata->msg_info.from->uri);
 
 	if (!is_sip_uri(rdata->msg_info.to->uri)) {
 		print_uri_debug(URI_TYPE_TO, rdata, (pjsip_hdr *)rdata->msg_info.to);
@@ -427,7 +463,7 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 			PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
-
+	remove_x_ast_params(rdata->msg_info.to->uri);
 
 	contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(
 		rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
@@ -447,6 +483,8 @@ static pj_bool_t on_rx_process_uris(pjsip_rx_data *rdata)
 				PJSIP_SC_UNSUPPORTED_URI_SCHEME, NULL, NULL, NULL);
 			return PJ_TRUE;
 		}
+		remove_x_ast_params(contact->uri);
+
 		contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(
 			rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next);
 	}
