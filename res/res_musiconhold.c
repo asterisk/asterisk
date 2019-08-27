@@ -1303,6 +1303,13 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 	return 0;
 }
 
+#define moh_unregister(a) _moh_unregister(a,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+static int _moh_unregister(struct mohclass *moh, const char *file, int line, const char *funcname)
+{
+	ao2_t_unlink(mohclasses, moh, "Removing class from container");
+	return 0;
+}
+
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
@@ -1322,6 +1329,82 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 		ast_module_unref(ast_module_info->self);
 	}
 }
+
+/*! \brief Support routing for 'moh unregister class' CLI
+ * This is in charge of generating all strings that match a prefix in the
+ * given position. As many functions of this kind, each invokation has
+ * O(state) time complexity so be careful in using it.
+ */
+static char *complete_mohclass_realtime(const char *line, const char *word, int pos, int state)
+{
+	int which=0;
+	struct mohclass *cur;
+	char *c = NULL;
+	int wordlen = strlen(word);
+	struct ao2_iterator i;
+
+	if (pos != 3) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(mohclasses, 0);
+	while ((cur = ao2_t_iterator_next(&i, "iterate thru mohclasses"))) {
+		if (cur->realtime && !strncasecmp(cur->name, word, wordlen) && ++which > state) {
+			c = ast_strdup(cur->name);
+			mohclass_unref(cur, "drop ref in iterator loop break");
+			break;
+		}
+		mohclass_unref(cur, "drop ref in iterator loop");
+	}
+	ao2_iterator_destroy(&i);
+
+	return c;
+}
+
+static char *handle_cli_moh_unregister_class(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct mohclass *cur;
+	int len;
+	int found = 0;
+	struct ao2_iterator i;
+
+	switch (cmd) {
+		case CLI_INIT:
+			e->command = "moh unregister class";
+			e->usage =
+				"Usage: moh unregister class <class>\n"
+				"       Unregisters a realtime moh class.\n";
+			return NULL;
+		case CLI_GENERATE:
+			return complete_mohclass_realtime(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	len = strlen(a->argv[3]);
+
+	i = ao2_iterator_init(mohclasses, 0);
+	while ((cur = ao2_t_iterator_next(&i, "iterate thru mohclasses"))) {
+		if (cur->realtime && len == strlen(cur->name) && !strncasecmp(cur->name, a->argv[3], len)) {
+			found = 1;
+			break;
+		}
+		mohclass_unref(cur, "drop ref in iterator loop");
+	}
+	ao2_iterator_destroy(&i);
+
+	if (found) {
+		moh_unregister(cur);
+		mohclass_unref(cur, "drop ref after unregister");
+	} else {
+		ast_cli(a->fd, "No such realtime moh class '%s'\n", a->argv[3]);
+	}
+
+	return CLI_SUCCESS;
+}
+
+
 
 static void moh_class_destructor(void *obj);
 
@@ -1922,9 +2005,10 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 }
 
 static struct ast_cli_entry cli_moh[] = {
-	AST_CLI_DEFINE(handle_cli_moh_reload,       "Reload MusicOnHold"),
-	AST_CLI_DEFINE(handle_cli_moh_show_classes, "List MusicOnHold classes"),
-	AST_CLI_DEFINE(handle_cli_moh_show_files,   "List MusicOnHold file-based classes")
+	AST_CLI_DEFINE(handle_cli_moh_reload,       	"Reload MusicOnHold"),
+	AST_CLI_DEFINE(handle_cli_moh_show_classes, 	"List MusicOnHold classes"),
+	AST_CLI_DEFINE(handle_cli_moh_show_files,   	"List MusicOnHold file-based classes"),
+	AST_CLI_DEFINE(handle_cli_moh_unregister_class, "Unregister realtime MusicOnHold class")
 };
 
 static int moh_class_hash(const void *obj, const int flags)
