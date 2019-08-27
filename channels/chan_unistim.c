@@ -3331,22 +3331,12 @@ static void handle_call_incoming(struct unistimsession *s)
 	return;
 }
 
-static int unistim_do_senddigit(struct unistimsession *pte, char digit)
+static int send_dtmf_tone(struct unistimsession *pte, char digit)
 {
-	struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass.integer = digit, .src = "unistim" };
-	struct unistim_subchannel *sub;
-        int row, col;
+	int row, col;
 
-	sub = get_sub(pte->device, SUB_REAL);
-	if (!sub || !sub->owner || sub->alreadygone) {
-		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit\n");
-		return -1;
-	}
-
-	/* Send DTMF indication _before_ playing sounds */
-	ast_queue_frame(sub->owner, &f);
 	if (unistimdebug) {
-		ast_verb(0, "Send Digit %c (%i ms)\n", digit, pte->device->dtmfduration);
+		ast_verb(0, "Phone Play Digit %c\n", digit);
 	}
 	if (pte->device->dtmfduration > 0) {
 		row = (digit - '1') % 3;
@@ -3364,6 +3354,28 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 		} else {
 			send_tone(pte, 500, 2000);
 		}
+	}
+	return 0;
+}
+
+static int unistim_do_senddigit(struct unistimsession *pte, char digit)
+{
+	struct ast_frame f = { .frametype = AST_FRAME_DTMF, .subclass.integer = digit, .src = "unistim" };
+	struct unistim_subchannel *sub;
+
+	sub = get_sub(pte->device, SUB_REAL);
+	if (!sub || !sub->owner || sub->alreadygone) {
+		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit\n");
+		return -1;
+	}
+
+	/* Send DTMF indication _before_ playing sounds */
+	ast_queue_frame(sub->owner, &f);
+	if (pte->device->dtmfduration > 0) {
+		if (unistimdebug) {
+			ast_verb(0, "Send Digit %c (%i ms)\n", digit, pte->device->dtmfduration);
+		}
+		send_dtmf_tone(pte, digit);
 		usleep(pte->device->dtmfduration * 1000);	 /* XXX Less than perfect, blocking an important thread is not a good idea */
 		send_tone(pte, 0, 0);
 	}
@@ -5506,34 +5518,21 @@ static int unistim_senddigit_begin(struct ast_channel *ast, char digit)
 	if (!pte) {
 		return -1;
 	}
-	return unistim_do_senddigit(pte, digit);
+	return send_dtmf_tone(pte, digit);
 }
 
 static int unistim_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct unistimsession *pte = channel_to_session(ast);
-	struct ast_frame f = { 0, };
-	struct unistim_subchannel *sub;
 
-	sub = get_sub(pte->device, SUB_REAL);
-
-	if (!sub || !sub->owner || sub->alreadygone) {
-		ast_log(LOG_WARNING, "Unable to find subchannel in dtmf senddigit_end\n");
+	if (!pte) {
 		return -1;
 	}
 
 	if (unistimdebug) {
-		ast_verb(0, "Send Digit off %c\n", digit);
-	}
-	if (!pte) {
-		return -1;
+		ast_verb(0, "Send Digit off %c (duration %d)\n", digit, duration);
 	}
 	send_tone(pte, 0, 0);
-	f.frametype = AST_FRAME_DTMF;
-	f.subclass.integer = digit;
-	f.src = "unistim";
-	ast_queue_frame(sub->owner, &f);
-
 	return 0;
 }
 
