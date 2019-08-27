@@ -1004,33 +1004,43 @@ static int get_to_address(int fd, struct sockaddr_in *toAddr)
 {
 #ifdef HAVE_PKTINFO
 	int err;
-	struct msghdr msg;
-	struct {
-		struct cmsghdr cm;
-		int len;
-		struct in_addr address;
-	} ip_msg;
-
-	/* Zero out the structures before we use them */
-	/* This sets several key values to NULL */
-	memset(&msg, 0, sizeof(msg));
-	memset(&ip_msg, 0, sizeof(ip_msg));
-
-	/* Initialize the message structure */
-	msg.msg_control = &ip_msg;
-	msg.msg_controllen = sizeof(ip_msg);
+	char cmbuf[0x100];
+	struct cmsghdr *cmsg;
+	struct sockaddr_in peeraddr;
+	struct in_addr addr;
+	struct msghdr mh = {
+		.msg_name = &peeraddr,
+		.msg_namelen = sizeof(peeraddr),
+		.msg_control = cmbuf,
+		.msg_controllen = sizeof(cmbuf),
+	};
+	memset(&addr, 0, sizeof(addr));
 	/* Get info about the incoming packet */
-	err = recvmsg(fd, &msg, MSG_PEEK);
+	err = recvmsg(fd, &mh, MSG_PEEK);
 	if (err == -1) {
 		ast_log(LOG_WARNING, "recvmsg returned an error: %s\n", strerror(errno));
+		return err;
 	}
-	memcpy(&toAddr->sin_addr, &ip_msg.address, sizeof(struct in_addr));
+	for(cmsg = CMSG_FIRSTHDR(&mh);
+		cmsg != NULL;
+		cmsg = CMSG_NXTHDR(&mh, cmsg))
+	{
+		 if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
+			struct in_pktinfo *pkt = (struct in_pktinfo*)CMSG_DATA(cmsg);
+			addr = pkt->ipi_addr;
+			if (unistimdebug) {
+				ast_verb(0, "message received on address %s\n", ast_inet_ntoa(addr));
+			}
+		}
+	}
+	memcpy(&toAddr->sin_addr, &addr, sizeof(struct in_addr));
 	return err;
 #else
 	memcpy(toAddr, &public_ip, sizeof(*toAddr));
 	return 0;
 #endif
 }
+
 
 /* Allocate memory & initialize structures for a new phone */
 /* addr_from : ip address of the phone */
@@ -1043,7 +1053,10 @@ static struct unistimsession *create_client(const struct sockaddr_in *addr_from)
 		return NULL;
 
 	memcpy(&s->sin, addr_from, sizeof(struct sockaddr_in));
-	get_to_address(unistimsock, &s->sout);
+	if (get_to_address(unistimsock, &s->sout) < 0) {
+		ast_free(s);
+		return NULL;
+	}
 	s->sout.sin_family = AF_INET;
 	if (unistimdebug) {
 		ast_verb(0, "Creating a new entry for the phone from %s received via server ip %s\n",
