@@ -457,7 +457,7 @@ static void instance_destructor(void *obj)
 
 int ast_rtp_instance_destroy(struct ast_rtp_instance *instance)
 {
-	ao2_ref(instance, -1);
+	ao2_cleanup(instance);
 
 	return 0;
 }
@@ -2897,6 +2897,13 @@ struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *ins
 	return NULL;
 }
 
+#ifdef TEST_FRAMEWORK
+struct ast_rtp_engine_test *ast_rtp_instance_get_test(struct ast_rtp_instance *instance)
+{
+	return instance->engine->test;
+}
+#endif
+
 static int rtp_dtls_wrap_set_configuration(struct ast_rtp_instance *instance,
 	const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
@@ -3758,6 +3765,123 @@ void ast_rtp_instance_set_stream_num(struct ast_rtp_instance *rtp, int stream_nu
 	}
 	ao2_unlock(rtp);
 }
+
+#ifdef TEST_FRAMEWORK
+size_t ast_rtp_instance_get_recv_buffer_max(struct ast_rtp_instance *instance)
+{
+	size_t res;
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return 0;
+	}
+
+	ao2_lock(instance);
+	res = test->recv_buffer_max(instance);
+	ao2_unlock(instance);
+
+	return res;
+}
+
+size_t ast_rtp_instance_get_recv_buffer_count(struct ast_rtp_instance *instance)
+{
+	size_t res;
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return 0;
+	}
+
+	ao2_lock(instance);
+	res = test->recv_buffer_count(instance);
+	ao2_unlock(instance);
+
+	return res;
+}
+
+size_t ast_rtp_instance_get_send_buffer_count(struct ast_rtp_instance *instance)
+{
+	size_t res;
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return 0;
+	}
+
+	ao2_lock(instance);
+	res = test->send_buffer_count(instance);
+	ao2_unlock(instance);
+
+	return res;
+}
+
+void ast_rtp_instance_set_schedid(struct ast_rtp_instance *instance, int id)
+{
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return;
+	}
+
+	ao2_lock(instance);
+	test->set_schedid(instance, id);
+	ao2_unlock(instance);
+}
+
+void ast_rtp_instance_drop_packets(struct ast_rtp_instance *instance, int num)
+{
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return;
+	}
+
+	test->packets_to_drop = num;
+}
+
+void ast_rtp_instance_queue_report(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return;
+	}
+
+	test->send_report = 1;
+}
+
+int ast_rtp_instance_get_sdes_received(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return 0;
+	}
+
+	return test->sdes_received;
+}
+
+void ast_rtp_instance_reset_test_engine(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+
+	if (!test) {
+		ast_log(LOG_ERROR, "There is no test engine set up!\n");
+		return;
+	}
+
+	test->packets_to_drop = 0;
+	test->send_report = 0;
+	test->sdes_received = 0;
+}
+#endif
 
 struct ast_json *ast_rtp_convert_stats_json(const struct ast_rtp_instance_stats *stats)
 {

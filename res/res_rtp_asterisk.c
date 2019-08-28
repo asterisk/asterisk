@@ -2371,6 +2371,60 @@ static struct ast_rtp_engine_dtls ast_rtp_dtls = {
 
 #endif
 
+#ifdef TEST_FRAMEWORK
+static size_t get_recv_buffer_count(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp && rtp->recv_buffer) {
+		return ast_data_buffer_count(rtp->recv_buffer);
+	}
+
+	return 0;
+}
+
+static size_t get_recv_buffer_max(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp && rtp->recv_buffer) {
+		return ast_data_buffer_max(rtp->recv_buffer);
+	}
+
+	return 0;
+}
+
+static size_t get_send_buffer_count(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp && rtp->send_buffer) {
+		return ast_data_buffer_count(rtp->send_buffer);
+	}
+
+	return 0;
+}
+
+static void set_rtp_rtcp_schedid(struct ast_rtp_instance *instance, int id)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp && rtp->rtcp) {
+		rtp->rtcp->schedid = id;
+	}
+}
+
+static struct ast_rtp_engine_test ast_rtp_test = {
+	.packets_to_drop = 0,
+	.send_report = 0,
+	.sdes_received = 0,
+	.recv_buffer_count = get_recv_buffer_count,
+	.recv_buffer_max = get_recv_buffer_max,
+	.send_buffer_count = get_send_buffer_count,
+	.set_schedid = set_rtp_rtcp_schedid,
+};
+#endif
+
 /* RTP Engine Declaration */
 static struct ast_rtp_engine asterisk_rtp_engine = {
 	.name = "asterisk",
@@ -2410,6 +2464,9 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 	.set_stream_num = ast_rtp_set_stream_num,
 	.extension_enable = ast_rtp_extension_enable,
 	.bundle = ast_rtp_bundle,
+#ifdef TEST_FRAMEWORK
+	.test = &ast_rtp_test,
+#endif
 };
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
@@ -2923,10 +2980,20 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 #ifdef HAVE_PJPROJECT
 	struct ast_sockaddr *loop = rtcp ? &rtp->rtcp_loop : &rtp->rtp_loop;
 #endif
+#ifdef TEST_FRAMEWORK
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+#endif
 
 	if ((len = ast_recvfrom(rtcp ? rtp->rtcp->s : rtp->s, buf, size, flags, sa)) < 0) {
-	   return len;
+		return len;
 	}
+
+#ifdef TEST_FRAMEWORK
+	if (test && test->packets_to_drop > 0) {
+		test->packets_to_drop--;
+		return 0;
+	}
+#endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 	/* If this is an SSL packet pass it to OpenSSL for processing. RFC section for first byte value:
@@ -4595,6 +4662,9 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	struct ast_sockaddr remote_address = { {0,} };
 	int rate = rtp_get_rate(frame->subclass.format) / 1000;
 	unsigned int seqno;
+#ifdef TEST_FRAMEWORK
+	struct ast_rtp_engine_test *test = ast_rtp_instance_get_test(instance);
+#endif
 
 	if (ast_format_cmp(frame->subclass.format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) {
 		frame->samples /= 2;
@@ -4603,6 +4673,14 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	if (rtp->sending_digit) {
 		return 0;
 	}
+
+#ifdef TEST_FRAMEWORK
+	if (test && test->send_report) {
+		test->send_report = 0;
+		ast_rtcp_write(instance);
+		return 0;
+	}
+#endif
 
 	if (frame->frametype == AST_FRAME_VOICE) {
 		pred = rtp->lastts + frame->samples;
@@ -5641,7 +5719,7 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 		 * packet (pid+i)(modulo 2^16). Otherwise, it is set to 0. We cannot assume bits set
 		 * to 0 after a bit set to 1 have actually been received.
 		 */
-		blp = current_word & 0xFF;
+		blp = current_word & 0xffff;
 		blp_index = 1;
 		while (blp) {
 			if (blp & 1) {
@@ -5721,6 +5799,9 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 	unsigned int ssrc_seen;
 	struct ast_rtp_rtcp_report_block *report_block;
 	struct ast_frame *f = &ast_null_frame;
+#ifdef TEST_FRAMEWORK
+	struct ast_rtp_engine_test *test_engine;
+#endif
 
 	/* If this is encrypted then decrypt the payload */
 	if ((*rtcpheader & 0xC0) && res_srtp && srtp && res_srtp->unprotect(
@@ -6161,6 +6242,11 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 				ast_verbose("Received an SDES from %s\n",
 					ast_sockaddr_stringify(addr));
 			}
+#ifdef TEST_FRAMEWORK
+			if ((test_engine = ast_rtp_instance_get_test(instance))) {
+				test_engine->sdes_received = 1;
+			}
+#endif
 			break;
 		case RTCP_PT_BYE:
 			if (rtcp_debug_test_addr(addr)) {
@@ -7656,11 +7742,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			if (res < 0) {
 				ast_debug(1, "Failed to send NACK request out\n");
 			} else {
+				ast_debug(2, "Sending a NACK request on RTP instance '%p' to get missing packets\n", instance);
 				/* Update RTCP SR/RR statistics */
 				ast_rtcp_calculate_sr_rr_statistics(instance, rtcp_report, remote_address, ice, sr);
 			}
-
-			ast_debug(2, "Sending a NACK request on RTP instance '%p' to get missing packets\n", instance);
 		}
 
 		return &ast_null_frame;
