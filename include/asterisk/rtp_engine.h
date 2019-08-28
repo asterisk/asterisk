@@ -589,6 +589,26 @@ struct ast_rtp_engine_dtls {
 	const char *(*get_fingerprint)(struct ast_rtp_instance *instance);
 };
 
+#ifdef TEST_FRAMEWORK
+/*! \brief Structure that represents the test functionality for res_rtp_asterisk unit tests */
+struct ast_rtp_engine_test {
+	/*! Drops RTP packets while this has a value greater than 0 */
+	int packets_to_drop;
+	/*! Sends a SR/RR instead of RTP the next time RTP would be sent */
+	int send_report;
+	/*! Set to 1 whenever SDES is received */
+	int sdes_received;
+	/*! Get the number of packets in the receive buffer for a RTP instance */
+	size_t (*recv_buffer_count)(struct ast_rtp_instance *instance);
+	/*! Get the maximum number of packets the receive buffer can hold for a RTP instance */
+	size_t (*recv_buffer_max)(struct ast_rtp_instance *instance);
+	/*! Get the number of packets in the send buffer for a RTP instance */
+	size_t (*send_buffer_count)(struct ast_rtp_instance *instance);
+	/*! Set the schedid for RTCP */
+	void (*set_schedid)(struct ast_rtp_instance *instance, int id);
+};
+#endif
+
 /*! Structure that represents an RTP stack (engine) */
 struct ast_rtp_engine {
 	/*! Name of the RTP engine, used when explicitly requested */
@@ -670,6 +690,10 @@ struct ast_rtp_engine {
 	struct ast_rtp_engine_ice *ice;
 	/*! Callback to pointer for optional DTLS SRTP support */
 	struct ast_rtp_engine_dtls *dtls;
+#ifdef TEST_FRAMEWORK
+	/*! Callback to pointer for test callbacks for RTP/RTCP unit tests */
+	struct ast_rtp_engine_test *test;
+#endif
 	/*! Callback to enable an RTP extension (returns non-zero if supported) */
 	int (*extension_enable)(struct ast_rtp_instance *instance, enum ast_rtp_extension extension);
 	/*! Linked list information */
@@ -2513,6 +2537,18 @@ int ast_rtp_engine_unload_format(struct ast_format *format);
  */
 struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *instance);
 
+#ifdef TEST_FRAMEWORK
+/*!
+ * \brief Obtain a pointer to the test callbacks on an RTP instance
+ *
+ * \param instance the RTP instance
+ *
+ * \retval test callbacks if present
+ * \retval NULL if not present
+ */
+struct ast_rtp_engine_test *ast_rtp_instance_get_test(struct ast_rtp_instance *instance);
+#endif
+
 /*!
  * \brief Obtain a pointer to the DTLS support present on an RTP instance
  *
@@ -2685,6 +2721,70 @@ struct stasis_message_type *ast_rtp_rtcp_sent_type(void);
  * \retval A stasis message type
  */
 struct stasis_message_type *ast_rtp_rtcp_received_type(void);
+
+#ifdef TEST_FRAMEWORK
+/*!
+ * \brief Get the maximum size of the receive buffer
+ *
+ * \param instance The RTP instance
+ * \retval The recv_buffer max size if it exists, else 0
+ */
+size_t ast_rtp_instance_get_recv_buffer_max(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the current size of the receive buffer
+ *
+ * \param instance The RTP instance
+ * \retval The recv_buffer size if it exists, else 0
+ */
+size_t ast_rtp_instance_get_recv_buffer_count(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the current size of the send buffer
+ *
+ * \param instance The RTP instance
+ * \retval The send_buffer size if it exists, else 0
+ */
+size_t ast_rtp_instance_get_send_buffer_count(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Set the schedid for RTCP
+ *
+ * \param instance The RTP instance
+ * \param id The number to set schedid to
+ */
+void ast_rtp_instance_set_schedid(struct ast_rtp_instance *instance, int id);
+
+/*!
+ * \brief Set the number of packets to drop on RTP read
+ *
+ * \param instance The RTP instance
+ * \param num The number of packets to drop
+ */
+void ast_rtp_instance_drop_packets(struct ast_rtp_instance *instance, int num);
+
+/*!
+ * \brief Sends a SR/RR report the next time RTP would be sent
+ *
+ * \param instance The RTP instance
+ */
+void ast_rtp_instance_queue_report(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Get the value of sdes_received on the test engine
+ *
+ * \param instance The RTP instance
+ * \retval 1 if sdes_received, else 0
+ */
+int ast_rtp_instance_get_sdes_received(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Resets all the fields to default values for the test engine
+ *
+ * \param instance The RTP instance
+ */
+void ast_rtp_instance_reset_test_engine(struct ast_rtp_instance *instance);
+#endif
 
 /*!
  * \brief Convert given stat instance into json format
