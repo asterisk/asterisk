@@ -39,8 +39,6 @@
 #ifndef SPEEX_RESAMPLER_H
 #define SPEEX_RESAMPLER_H
 
-#define OUTSIDE_SPEEX
-
 #ifdef OUTSIDE_SPEEX
 
 /********* WARNING: MENTAL SANITY ENDS HERE *************/
@@ -48,7 +46,7 @@
 /* If the resampler is defined outside of Speex, we change the symbol names so that
    there won't be any clash if linking with Speex later on. */
 
-#define RANDOM_PREFIX ast
+#define RANDOM_PREFIX speex
 #ifndef RANDOM_PREFIX
 #error "Please define RANDOM_PREFIX (above) to something specific to your project to prevent symbol name clashes"
 #endif
