@@ -215,7 +215,6 @@ static ast_rwlock_t ice_blacklist_lock = AST_RWLOCK_INIT_VALUE;
 static struct ast_ha *stun_blacklist = NULL;
 static ast_rwlock_t stun_blacklist_lock = AST_RWLOCK_INIT_VALUE;
 
-
 /*! \brief Pool factory used by pjlib to allocate memory. */
 static pj_caching_pool cachingpool;
 
@@ -4433,6 +4432,41 @@ static int ast_rtcp_generate_sdes(struct ast_rtp_instance *instance, unsigned ch
 	return len;
 }
 
+/* Lock instance before calling this if it isn't already
+ *
+ * If successful, the overall packet length is returned
+ * If not, then 0 is returned
+ */
+static int ast_rtcp_generate_compound_prefix(struct ast_rtp_instance *instance, unsigned char *rtcpheader,
+	struct ast_rtp_rtcp_report *report, int *sr)
+{
+	int packet_len = 0;
+	int res;
+
+	/* Every RTCP packet needs to be sent out with a SR/RR and SDES prefixing it.
+	 * At the end of this function, rtcpheader should contain both of those packets,
+	 * and will return the length of the overall packet. This can be used to determine
+	 * where further packets can be inserted in the compound packet.
+	 */
+	res = ast_rtcp_generate_report(instance, rtcpheader, report, sr);
+
+	if (res == 0 || res == 1) {
+		ast_debug(1, "Failed to generate %s report!\n", sr ? "SR" : "RR");
+		return 0;
+	}
+
+	packet_len += res;
+
+	res = ast_rtcp_generate_sdes(instance, rtcpheader + packet_len, report);
+
+	if (res == 0 || res == 1) {
+		ast_debug(1, "Failed to generate SDES!\n");
+		return 0;
+	}
+
+	return packet_len + res;
+}
+
 static int ast_rtcp_generate_nack(struct ast_rtp_instance *instance, unsigned char *rtcpheader)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -4523,19 +4557,9 @@ static int ast_rtcp_write(const void *data)
 	ao2_lock(instance);
 	rtcpheader = bdata;
 
-	res = ast_rtcp_generate_report(instance, rtcpheader, rtcp_report, &sr);
+	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 	if (res == 0 || res == 1) {
-		ast_debug(1, "Failed to add %s report to RTCP packet!\n", sr ? "SR" : "RR");
-		goto cleanup;
-	}
-
-	packet_len += res;
-
-	res = ast_rtcp_generate_sdes(instance, rtcpheader + packet_len, rtcp_report);
-
-	if (res == 0 || res == 1) {
-		ast_debug(1, "Failed to add SDES to RTCP packet!\n");
 		goto cleanup;
 	}
 
@@ -4842,11 +4866,16 @@ static struct ast_frame *red_t140_to_red(struct rtp_red *red)
 
 static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *remote_address)
 {
-	unsigned int *rtcpheader;
-	char bdata[1024];
-	int len = 20;
+	unsigned char *rtcpheader;
+	unsigned char bdata[1024];
+	int packet_len = 0;
+	int fir_len = 20;
 	int ice;
 	int res;
+	int sr;
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
+		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
+		ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
 		return;
@@ -4870,26 +4899,46 @@ static void rtp_write_rtcp_fir(struct ast_rtp_instance *instance, struct ast_rtp
 		rtp->rtcp->firseq = 0;
 	}
 
-	rtcpheader = (unsigned int *)bdata;
-	rtcpheader[0] = htonl((2 << 30) | (4 << 24) | (RTCP_PT_PSFB << 16) | ((len/4)-1));
-	rtcpheader[1] = htonl(rtp->ssrc);
-	rtcpheader[2] = htonl(rtp->themssrc);
-	rtcpheader[3] = htonl(rtp->themssrc);	/* FCI: SSRC */
-	rtcpheader[4] = htonl(rtp->rtcp->firseq << 24);			/* FCI: Sequence number */
-	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
+	rtcpheader = bdata;
+
+	ao2_lock(instance);
+	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
+
+	if (res == 0 || res == 1) {
+		ao2_unlock(instance);
+		return;
+	}
+
+	packet_len += res;
+
+	put_unaligned_uint32(rtcpheader + packet_len + 0, htonl((2 << 30) | (4 << 24) | (RTCP_PT_PSFB << 16) | ((fir_len/4)-1)));
+	put_unaligned_uint32(rtcpheader + packet_len + 4, htonl(rtp->ssrc));
+	put_unaligned_uint32(rtcpheader + packet_len + 8, htonl(rtp->themssrc));
+	put_unaligned_uint32(rtcpheader + packet_len + 12, htonl(rtp->themssrc)); /* FCI: SSRC */
+	put_unaligned_uint32(rtcpheader + packet_len + 16, htonl(rtp->rtcp->firseq << 24)); /* FCI: Sequence number */
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, packet_len + fir_len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "RTCP FIR transmission error: %s\n", strerror(errno));
+	} else {
+		ast_rtcp_calculate_sr_rr_statistics(instance, rtcp_report, rtp->bundled ? *remote_address : rtp->rtcp->them, ice, sr);
 	}
+
+	ao2_unlock(instance);
 }
 
 static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_frame *frame, struct ast_sockaddr *remote_address)
 {
 	struct ast_rtp_rtcp_feedback *feedback = frame->data.ptr;
-	unsigned int *rtcpheader;
-	char bdata[1024];
-	int len = 24;
+	unsigned char *rtcpheader;
+	unsigned char bdata[1024];
+	int remb_len = 24;
 	int ice;
 	int res;
+	int sr = 0;
+	int packet_len = 0;
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
+		ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
+		ao2_cleanup);
 
 	if (feedback->fmt != AST_RTP_RTCP_FMT_REMB) {
 		ast_debug(1, "Provided an RTCP feedback frame of format %d to write on RTP instance '%p' but only REMB is supported\n",
@@ -4915,17 +4964,32 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 		return;
 	}
 
-	rtcpheader = (unsigned int *)bdata;
-	rtcpheader[0] = htonl((2 << 30) | (AST_RTP_RTCP_FMT_REMB << 24) | (RTCP_PT_PSFB << 16) | ((len/4)-1));
-	rtcpheader[1] = htonl(rtp->ssrc);
-	rtcpheader[2] = htonl(0); /* Per the draft this should always be 0 */
-	rtcpheader[3] = htonl(('R' << 24) | ('E' << 16) | ('M' << 8) | ('B')); /* Unique identifier 'R' 'E' 'M' 'B' */
-	rtcpheader[4] = htonl((1 << 24) | (feedback->remb.br_exp << 18) | (feedback->remb.br_mantissa)); /* Number of SSRCs / BR Exp / BR Mantissa */
-	rtcpheader[5] = htonl(rtp->ssrc); /* The SSRC this feedback message applies to */
-	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
+	rtcpheader = bdata;
+
+	ao2_lock(instance);
+	res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
+
+	if (res == 0 || res == 1) {
+		ao2_unlock(instance);
+		return;
+	}
+
+	packet_len += res;
+
+	put_unaligned_uint32(rtcpheader + packet_len + 0, htonl((2 << 30) | (AST_RTP_RTCP_FMT_REMB << 24) | (RTCP_PT_PSFB << 16) | ((remb_len/4)-1)));
+	put_unaligned_uint32(rtcpheader + packet_len + 4, htonl(rtp->ssrc));
+	put_unaligned_uint32(rtcpheader + packet_len + 8, htonl(0)); /* Per the draft, this should always be 0 */
+	put_unaligned_uint32(rtcpheader + packet_len + 12, htonl(('R' << 24) | ('E' << 16) | ('M' << 8) | ('B'))); /* Unique identifier 'R' 'E' 'M' 'B' */
+	put_unaligned_uint32(rtcpheader + packet_len + 16, htonl((1 << 24) | (feedback->remb.br_exp << 18) | (feedback->remb.br_mantissa))); /* Number of SSRCs / BR Exp / BR Mantissa */
+	put_unaligned_uint32(rtcpheader + packet_len + 20, htonl(rtp->ssrc)); /* The SSRC this feedback message applies to */
+	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, packet_len + remb_len, 0, rtp->bundled ? remote_address : &rtp->rtcp->them, &ice);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "RTCP PSFB transmission error: %s\n", strerror(errno));
+	} else {
+		ast_rtcp_calculate_sr_rr_statistics(instance, rtcp_report, rtp->bundled ? *remote_address : rtp->rtcp->them, ice, sr);
 	}
+
+	ao2_unlock(instance);
 }
 
 /*! \pre instance is locked */
@@ -7634,10 +7698,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			memset(rtcpheader, 0, data_size);
 
-			res = ast_rtcp_generate_report(instance, rtcpheader, rtcp_report, &sr);
+			res = ast_rtcp_generate_compound_prefix(instance, rtcpheader, rtcp_report, &sr);
 
 			if (res == 0 || res == 1) {
-				ast_debug(1, "Failed to add %s report to NACK, stopping here\n", sr ? "SR" : "RR");
 				return &ast_null_frame;
 			}
 
