@@ -343,6 +343,11 @@ AST_TEST_DEFINE(adsi_loaded_test)
 		break;
 	}
 
+	if (!ast_module_check("res_adsi.so")) {
+		ast_test_status_update(test, "This test skipped because deprecated module res_adsi.so is not built by default.\n");
+		return AST_TEST_PASS;
+	}
+
 	if (!(c = ast_dummy_channel_alloc())) {
 		return AST_TEST_FAIL;
 	}
