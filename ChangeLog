@@ -1,3 +1,25 @@
+2019-09-05 13:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.28.1 Released.
+
+2019-08-26 07:53 +0000 [647744fb75]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2019-005 - translate: Don't assume all frames will have a src.
+
+	  This change removes the assumption that a frame will always have
+	  a src set on it. This assumption is incorrect.
+
+	  Given a scenario where an RTP packet is received with no payload
+	  the resulting audio frame will have no samples. If this frame goes
+	  through a signed linear translation path an interpolated frame can
+	  be created (if generic packet loss concealment is enabled) that has
+	  minimal data on it, including no src. If this frame is given to a
+	  translation path a crash will occur due to the lack of src.
+
+	  ASTERISK-28499
+
+	  Change-Id: I024d10dd98207eb8a6b35b59880bcdf1090538f8
+
 2019-07-25 09:35 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.28.0 Released.
