@@ -1,3 +1,24 @@
+2019-09-05 13:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 15.7.4 Released.
+
+2019-08-20 15:05 +0000 [b49f09a292]  Alexei Gradinari <alex2grad@gmail.com> (license 5691)
+
+	* AST-2019-004 - res_pjsip_t38.c: Add NULL checks before using session media
+
+	  After receiving a 200 OK with a declined stream in response to a T.38
+	  initiated re-invite Asterisk would crash when attempting to dereference
+	  a NULL session media object.
+
+	  This patch checks to make sure the session media object is not NULL before
+	  attempting to use it.
+
+	  ASTERISK-28495
+	  patches:
+	    ast-2019-004.patch submitted by Alexei Gradinari (license 5691)
+
+	  Change-Id: I168f45f4da29cfe739acf87e597baa2aae7aa572
+
 2019-07-11 19:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 15.7.3 Released.
