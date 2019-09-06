@@ -44,7 +44,8 @@ struct ast_frame;
 enum {
 	AST_JB_ENABLED = (1 << 0),
 	AST_JB_FORCED =  (1 << 1),
-	AST_JB_LOG =     (1 << 2)
+	AST_JB_LOG =     (1 << 2),
+	AST_JB_SYNC_VIDEO =   (1 << 3)
 };
 
 enum ast_jb_type {
@@ -89,6 +90,7 @@ struct ast_jb_conf
 #define AST_JB_CONF_TARGET_EXTRA "targetextra"
 #define AST_JB_CONF_IMPL "impl"
 #define AST_JB_CONF_LOG "log"
+#define AST_JB_CONF_SYNC_VIDEO "syncvideo"
 
 /* Hooks for the abstract jb implementation */
 /*! \brief Create */

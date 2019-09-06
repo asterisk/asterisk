@@ -62,8 +62,9 @@
 		</syntax>
 		<description>
 			<para>Jitterbuffers are constructed in two different ways.
-			The first always take three arguments: <replaceable>max_size</replaceable>,
-			<replaceable>resync_threshold</replaceable>, and <replaceable>target_extra</replaceable>.
+			The first always take four arguments: <replaceable>max_size</replaceable>,
+			<replaceable>resync_threshold</replaceable>, <replaceable>target_extra</replaceable>,
+			and <replaceable>sync_video</replaceable>.
 			Alternatively, a single argument of <literal>default</literal> can be provided,
 			which will construct the default jitterbuffer for the given
 			<replaceable>jitterbuffer type</replaceable>.</para>
@@ -76,11 +77,16 @@
 			<para>target_extra: This option only affects the adaptive jitterbuffer. It represents
 			the amount time in milliseconds by which the new jitter buffer will pad its size.
 			Defaults to 40ms.</para>
+			<para>sync_video: This option enables video synchronization with the audio stream. It can be
+			turned on and off. Defaults to off.</para>
 			<example title="Fixed with defaults" language="text">
 			exten => 1,1,Set(JITTERBUFFER(fixed)=default)
 			</example>
 			<example title="Fixed with 200ms max size" language="text">
 			exten => 1,1,Set(JITTERBUFFER(fixed)=200)
+			</example>
+			<example title="Fixed with 200ms max size and video sync support" language="text">
+			exten => 1,1,Set(JITTERBUFFER(fixed)=200,,,yes)
 			</example>
 			<example title="Fixed with 200ms max size, resync threshold 1500" language="text">
 			exten => 1,1,Set(JITTERBUFFER(fixed)=200,1500)
@@ -90,6 +96,9 @@
 			</example>
 			<example title="Adaptive with 200ms max size, 60ms target extra" language="text">
 			exten => 1,1,Set(JITTERBUFFER(adaptive)=200,,60)
+			</example>
+			<example title="Adaptive with 200ms max size and video sync support" language="text">
+			exten => 1,1,Set(JITTERBUFFER(adaptive)=200,,,yes)
 			</example>
 			<example title="Set a fixed jitterbuffer with defaults; then remove it" language="text">
 			exten => 1,1,Set(JITTERBUFFER(fixed)=default)
@@ -133,6 +142,7 @@ static int jb_helper(struct ast_channel *chan, const char *cmd, char *data, cons
 			AST_APP_ARG(max_size);
 			AST_APP_ARG(resync_threshold);
 			AST_APP_ARG(target_extra);
+			AST_APP_ARG(sync_video);
 		);
 
 		AST_STANDARD_APP_ARGS(args, parse);
@@ -150,6 +160,11 @@ static int jb_helper(struct ast_channel *chan, const char *cmd, char *data, cons
 			res |= ast_jb_read_conf(&jb_conf,
 				"jbtargetextra",
 				args.target_extra);
+		}
+		if (!ast_strlen_zero(args.sync_video)) {
+			res |= ast_jb_read_conf(&jb_conf,
+				"jbsyncvideo",
+				args.sync_video);
 		}
 		if (res) {
 			ast_log(LOG_WARNING, "Invalid jitterbuffer parameters %s\n", value);
