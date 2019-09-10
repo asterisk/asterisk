@@ -90,4 +90,5 @@ SPEEX_RESAMPLE_CFLAGS:=
 endif
 
 $(call MOD_ADD_C,codec_resample,speex/resample.c)
+codec_resample.o: _ASTCFLAGS+=-DOUTSIDE_SPEEX
 speex/resample.o: _ASTCFLAGS+=$(SPEEX_RESAMPLE_CFLAGS) -DOUTSIDE_SPEEX -DEXPORT=
