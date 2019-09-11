@@ -949,6 +949,24 @@ struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, s
 #define ast_variable_list_append(head, new_var) ast_variable_list_append_hint(head, NULL, new_var)
 
 /*!
+ * \brief Replace a variable in the given list with a new value
+ * \since 13.30.0
+ *
+ * \param head A pointer to an ast_variable * of the existing variable list head. May NOT be NULL
+ * but the content may be to initialize a new list.  If so, upon return, this parameter will be updated
+ * with a pointer to the new list head.
+ * \param replacement The variable that replaces another variable in the list with the
+ * same name.
+ *
+ * \retval 0 if a variable was replaced in the list
+ * \retval -1 if no replacement occured
+ *
+ * \note The variable name comparison is performed case-sensitively
+ * \note If a variable is replaced, its memory is freed.
+ */
+int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *replacement);
+
+/*!
  * \brief Update variable value within a config
  *
  * \param category Category element within the config
