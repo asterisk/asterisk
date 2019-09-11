@@ -180,6 +180,9 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 					snprintf(tmp, sizeof(tmp), "%d", status);
 					ast_str_append(&tmp_availcause, 0, "%s%s", ast_str_strlen(tmp_availcause) ? "&" : "", tmp);
 
+					/* Disable CDR for this temporary channel. */
+					ast_cdr_set_property(ast_channel_name(tempchan), AST_CDR_FLAG_DISABLE_ALL);
+
 					ast_hangup(tempchan);
 					tempchan = NULL;
 
