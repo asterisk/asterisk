@@ -31366,8 +31366,10 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 	if ((varval = strchr(varname, '='))) {
 		*varval++ = '\0';
 		if ((tmpvar = ast_variable_new(varname, varval, ""))) {
-			tmpvar->next = list;
-			list = tmpvar;
+			if (ast_variable_list_replace(&list, tmpvar)) {
+				tmpvar->next = list;
+				list = tmpvar;
+			}
 		}
 	}
 	return list;

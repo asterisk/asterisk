@@ -1044,7 +1044,9 @@ static int set_var_handler(const struct aco_option *opt,
 		return -1;
 	}
 
-	ast_variable_list_append(&endpoint->channel_vars, new_var);
+	if (ast_variable_list_replace(&endpoint->channel_vars, new_var)) {
+		ast_variable_list_append(&endpoint->channel_vars, new_var);
+	}
 
 	return 0;
 }
