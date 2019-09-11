@@ -1,0 +1,7 @@
+Subject: res_musiconhold
+
+This fix allows a realtime moh class to be unregistered from the command
+line. This is useful when the contents of a directory referenced by a
+realtime moh class have changed.
+The realtime moh class is then reloaded on the next request and uses the
+new directory contents.
