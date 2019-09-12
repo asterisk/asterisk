@@ -13,6 +13,36 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.28.0 to Asterisk 13.29.0-rc1 ------
+------------------------------------------------------------------------------
+
+Build
+------------------
+ * Two new Makefile targets have been added... "install-headers" and
+   "uninstall-headers" to separately control header installation.
+   The existing behavior has not changed so "make install" and
+   "make uninstall" will continue to also install/uninstall the headers.
+   The new targets were added for forward compatibility with Asterisk 17
+   in which the headers are no longer installed/uninstalled with the
+   "install" and "uninstall" targets.
+
+app_mixmonitor
+------------------
+ * An option 'S' has been added to MixMonitor. If used in combination with
+   the r() and/or t() options, if a frame is available to write to one of
+   those files but not the other, a frame of silence if written to the file
+   that does not have an audio frame. This should prevent the two files
+   from "drifting" when mixed after the fact.
+
+res_musiconhold
+------------------
+ * This fix allows a realtime moh class to be unregistered from the command
+   line. This is useful when the contents of a directory referenced by a
+   realtime moh class have changed.
+   The realtime moh class is then reloaded on the next request and uses the
+   new directory contents.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.27.0 to Asterisk 13.28.0 ----------
 ------------------------------------------------------------------------------
 
