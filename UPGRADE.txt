@@ -18,6 +18,20 @@
 ===
 ===========================================================
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.5.0 to Asterisk 16.6.0 ------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * res_pjsip_pubsub is now required so call transfer progress can be monitored
+   and reported in the channel variable TRANSFERSTATUS.
+
+chan_pjsip
+------------------
+ * res_pjsip_pubsub is now required so call transfer progress can be monitored
+   and reported in the channel variable TRANSFERSTATUS.
+
 From 16.0.0 to 16.1.0:
 
 Core:

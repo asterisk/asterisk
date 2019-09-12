@@ -13,6 +13,55 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.5.0 to Asterisk 16.6.0 ------------
+------------------------------------------------------------------------------
+
+ARI Channels
+------------------
+ * The Channel resource has a new sub-resource "externalMedia".
+   This allows an application to create a channel for the sole purpose
+   of exchanging media with an external server.  Once created, this
+   channel could be placed into a bridge with existing channels to
+   allow the external server to inject audio into the bridge or
+   receive audio from the bridge.
+   See https://wiki.asterisk.org/wiki/display/AST/External+Media+and+ARI
+   for more information.
+
+Build
+------------------
+ * Two new Makefile targets have been added... "install-headers" and
+   "uninstall-headers" to separately control header installation.
+   The existing behavior has not changed so "make install" and
+   "make uninstall" will continue to also install/uninstall the headers.
+   The new targets were added for forward compatibility with Asterisk 17
+   in which the headers are no longer installed/uninstalled with the
+   "install" and "uninstall" targets.
+
+app_mixmonitor
+------------------
+ * An option 'S' has been added to MixMonitor. If used in combination with
+   the r() and/or t() options, if a frame is available to write to one of
+   those files but not the other, a frame of silence if written to the file
+   that does not have an audio frame. This should prevent the two files
+   from "drifting" when mixed after the fact.
+
+chan_rtp
+------------------
+ * The UnicastRTP channel driver provided by chan_rtp now accepts
+   "<hostname>:<port>" as an alternative to "<ip_address>:<port>" in the destination.
+   The first AAAA (preferred) or A record resolved will be used as the destination.
+   The lookup is synchronous so beware of possible dialplan delays if you specify a
+   hostname.
+
+res_musiconhold
+------------------
+ * This fix allows a realtime moh class to be unregistered from the command
+   line. This is useful when the contents of a directory referenced by a
+   realtime moh class have changed.
+   The realtime moh class is then reloaded on the next request and uses the
+   new directory contents.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.4.0 to Asterisk 16.5.0 ------------
 ------------------------------------------------------------------------------
 
