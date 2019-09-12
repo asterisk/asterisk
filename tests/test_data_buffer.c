@@ -18,7 +18,7 @@
 
 /*!
  * \file
- * \brief Media Stream API Unit Tests
+ * \brief Data Buffer API Unit Tests
  *
  * \author Ben Ford <bford@digium.com>
  *
