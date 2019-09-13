@@ -12873,8 +12873,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			struct ast_variable *v, *tmpvar;
 			for (v = conf->chan.vars ; v ; v = v->next) {
 				if ((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
-					tmpvar->next = tmp->vars;
-					tmp->vars = tmpvar;
+					if (ast_variable_list_replace(&tmp->vars, tmpvar)) {
+						tmpvar->next = tmp->vars;
+						tmp->vars = tmpvar;
+					}
 				}
 			}
 		}

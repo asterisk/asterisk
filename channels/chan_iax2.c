@@ -7941,9 +7941,11 @@ static int check_access(int callno, struct ast_sockaddr *addr, struct iax_ies *i
 		/* We found our match (use the first) */
 		/* copy vars */
 		for (v = user->vars ; v ; v = v->next) {
-			if((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
-				tmpvar->next = iaxs[callno]->vars;
-				iaxs[callno]->vars = tmpvar;
+			if ((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
+				if (ast_variable_list_replace(&iaxs[callno]->vars, tmpvar)) {
+					tmpvar->next = iaxs[callno]->vars;
+					iaxs[callno]->vars = tmpvar;
+				}
 			}
 		}
 		/* If a max AUTHREQ restriction is in place, activate it */
@@ -13212,9 +13214,11 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				if ((varval = strchr(varname, '='))) {
 					*varval = '\0';
 					varval++;
-					if((tmpvar = ast_variable_new(varname, varval, ""))) {
-						tmpvar->next = user->vars;
-						user->vars = tmpvar;
+					if ((tmpvar = ast_variable_new(varname, varval, ""))) {
+						if (ast_variable_list_replace(&user->vars, tmpvar)) {
+							tmpvar->next = user->vars;
+							user->vars = tmpvar;
+						}
 					}
 				}
 			} else if (!strcasecmp(v->name, "allow")) {

@@ -669,6 +669,22 @@ struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, s
 	return curr;
 }
 
+int ast_variable_list_replace(struct ast_variable **head, struct ast_variable *replacement)
+{
+	struct ast_variable *v, **prev = head;
+
+	for (v = *head; v; prev = &v->next, v = v->next) {
+		if (!strcmp(v->name, replacement->name)) {
+			replacement->next = v->next;
+			*prev = replacement;
+			ast_free(v);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
 {
 	const char *tmp;
