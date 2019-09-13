@@ -2608,8 +2608,14 @@ static int extensionstate2devicestate(int state)
 	case AST_EXTENSION_RINGING:
 		state = AST_DEVICE_RINGING;
 		break;
+	case AST_EXTENSION_INUSE | AST_EXTENSION_RINGING:
+		state = AST_DEVICE_RINGINUSE;
+		break;
 	case AST_EXTENSION_ONHOLD:
 		state = AST_DEVICE_ONHOLD;
+		break;
+	case AST_EXTENSION_INUSE | AST_EXTENSION_ONHOLD:
+		state = AST_DEVICE_INUSE;
 		break;
 	case AST_EXTENSION_UNAVAILABLE:
 		state = AST_DEVICE_UNAVAILABLE;
