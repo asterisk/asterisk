@@ -15158,10 +15158,12 @@ static void mfcr2_show_links_of(struct ast_cli_args *a, struct r2links *list_hea
 			int channo;
 			int prev_channo;
 			x++;
-			switch (mfcr2->r2master) {
-			case 0L: thread_status = "zero"; break;
-			case AST_PTHREADT_NULL: thread_status = "none"; break;
-			default: thread_status = "created"; break;
+			if (mfcr2->r2master == 0L) {
+				thread_status = "zero";
+			} else if (mfcr2->r2master == AST_PTHREADT_NULL) {
+				thread_status = "none";
+			} else {
+				thread_status = "created";
 			}
 			snprintf(index, sizeof(index), "%d", mfcr2->index);
 			snprintf(live_chans_str, sizeof(live_chans_str), "%d", mfcr2->live_chans);
