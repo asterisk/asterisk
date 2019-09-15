@@ -659,7 +659,8 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 }
 
 /*! \brief Internal helper function called when CNG tone is detected */
-static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *session, struct ast_frame *f)
+static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_channel *ast, struct ast_sip_session *session,
+	struct ast_frame *f)
 {
 	const char *target_context;
 	int exists;
@@ -675,11 +676,11 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 	}
 
 	/* If already executing in the fax extension don't do anything */
-	if (!strcmp(ast_channel_exten(session->channel), "fax")) {
+	if (!strcmp(ast_channel_exten(ast), "fax")) {
 		return f;
 	}
 
-	target_context = S_OR(ast_channel_macrocontext(session->channel), ast_channel_context(session->channel));
+	target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 
 	/*
 	 * We need to unlock the channel here because ast_exists_extension has the
@@ -688,25 +689,30 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 	 *
 	 * ast_async_goto() has its own restriction on not holding the channel lock.
 	 */
-	ast_channel_unlock(session->channel);
+	ast_channel_unlock(ast);
 	ast_frfree(f);
 	f = &ast_null_frame;
-	exists = ast_exists_extension(session->channel, target_context, "fax", 1,
-		S_COR(ast_channel_caller(session->channel)->id.number.valid,
-			ast_channel_caller(session->channel)->id.number.str, NULL));
+	exists = ast_exists_extension(ast, target_context, "fax", 1,
+		S_COR(ast_channel_caller(ast)->id.number.valid,
+			ast_channel_caller(ast)->id.number.str, NULL));
 	if (exists) {
 		ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n",
-			ast_channel_name(session->channel));
-		pbx_builtin_setvar_helper(session->channel, "FAXEXTEN", ast_channel_exten(session->channel));
-		if (ast_async_goto(session->channel, target_context, "fax", 1)) {
+			ast_channel_name(ast));
+		pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
+		if (ast_async_goto(ast, target_context, "fax", 1)) {
 			ast_log(LOG_ERROR, "Failed to async goto '%s' into fax extension in '%s'\n",
-				ast_channel_name(session->channel), target_context);
+				ast_channel_name(ast), target_context);
 		}
 	} else {
 		ast_log(LOG_NOTICE, "FAX CNG detected on '%s' but no fax extension in '%s'\n",
-			ast_channel_name(session->channel), target_context);
+			ast_channel_name(ast), target_context);
 	}
-	ast_channel_lock(session->channel);
+
+	/* It's possible for a masquerade to have occurred when doing the ast_async_goto resulting in
+	 * the channel on the session having changed. Since we need to return with the original channel
+	 * locked we lock the channel that was passed in and not session->channel.
+	 */
+	ast_channel_lock(ast);
 
 	return f;
 }
@@ -822,7 +828,11 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 			if (f->subclass.integer == 'f') {
 				ast_debug(3, "Channel driver fax CNG detected on %s\n",
 					ast_channel_name(ast));
-				f = chan_pjsip_cng_tone_detected(session, f);
+				f = chan_pjsip_cng_tone_detected(ast, session, f);
+				/* When chan_pjsip_cng_tone_detected returns it is possible for the
+				 * channel pointed to by ast and by session->channel to differ due to a
+				 * masquerade. It's best not to touch things after this.
+				 */
 			} else {
 				ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
 					ast_channel_name(ast));
