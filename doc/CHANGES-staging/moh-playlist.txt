@@ -1,0 +1,5 @@
+Subject: res_musiconhold
+
+A new mode - playlist - has been added to res_musiconhold. This mode allows the
+user to specify the files (or URLs) to play explicitly by putting them directly
+in musiconhold.conf.
