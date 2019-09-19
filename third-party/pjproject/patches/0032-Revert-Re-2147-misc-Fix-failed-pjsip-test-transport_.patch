@@ -1,0 +1,64 @@
+From 17cd744e19cd332a219a512770fa6e18453044ba Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Tue, 24 Sep 2019 06:45:25 -0600
+Subject: [PATCH 32/33] Revert "Re #2147 (misc): Fix failed pjsip-test
+ (transport_loop_test) caused by r6002."
+
+This reverts commit 342148f5bcf3a6b0029ce834b8567c2cd691b15b.
+---
+ pjsip/src/pjsip/sip_transport.c      | 12 +++++-------
+ pjsip/src/pjsip/sip_transport_loop.c |  2 +-
+ pjsip/src/test/transport_loop_test.c |  1 -
+ 3 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index 65ac823d4..d63823a98 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -1222,13 +1222,11 @@ PJ_DEF(pj_status_t) pjsip_transport_register( pjsip_tpmgr *mgr,
+ 
+     pj_lock_release(mgr->lock);
+ 
+-    TRACE_((THIS_FILE, "Transport %s registered: type=%s, remote=%s:%d",
+-	    tp->obj_name,
+-	    pjsip_transport_get_type_name(tp->key.type),
+-	    pj_sockaddr_has_addr(&tp->key.rem_addr)?
+-				addr_string(&tp->key.rem_addr):"",
+-	    pj_sockaddr_has_addr(&tp->key.rem_addr)?
+-				pj_sockaddr_get_port(&tp->key.rem_addr):0));
++    TRACE_((THIS_FILE,"Transport %s registered: type=%s, remote=%s:%d",
++		       tp->obj_name,
++		       pjsip_transport_get_type_name(tp->key.type),
++		       addr_string(&tp->key.rem_addr),
++		       pj_sockaddr_get_port(&tp->key.rem_addr)));
+ 
+     return PJ_SUCCESS;
+ }
+diff --git a/pjsip/src/pjsip/sip_transport_loop.c b/pjsip/src/pjsip/sip_transport_loop.c
+index 37e20e69b..24e1a5f69 100644
+--- a/pjsip/src/pjsip/sip_transport_loop.c
++++ b/pjsip/src/pjsip/sip_transport_loop.c
+@@ -376,7 +376,7 @@ PJ_DEF(pj_status_t) pjsip_loop_start( pjsip_endpoint *endpt,
+     if (status != PJ_SUCCESS)
+ 	goto on_error;
+     loop->base.key.type = PJSIP_TRANSPORT_LOOP_DGRAM;
+-    //loop->base.key.rem_addr.addr.sa_family = pj_AF_INET();
++    loop->base.key.rem_addr.addr.sa_family = pj_AF_INET();
+     loop->base.type_name = "LOOP-DGRAM";
+     loop->base.info = "LOOP-DGRAM";
+     loop->base.flag = PJSIP_TRANSPORT_DATAGRAM;
+diff --git a/pjsip/src/test/transport_loop_test.c b/pjsip/src/test/transport_loop_test.c
+index 5f2f03904..efa2ea116 100644
+--- a/pjsip/src/test/transport_loop_test.c
++++ b/pjsip/src/test/transport_loop_test.c
+@@ -36,7 +36,6 @@ static int datagram_loop_test()
+ 
+     PJ_LOG(3,(THIS_FILE, "testing datagram loop transport"));
+ 
+-    pj_sockaddr_in_init(&addr, NULL, 0);
+     /* Test acquire transport. */
+     status = pjsip_endpt_acquire_transport( endpt, PJSIP_TRANSPORT_LOOP_DGRAM,
+ 					    &addr, sizeof(addr), NULL, &loop);
+-- 
+2.21.0
+
