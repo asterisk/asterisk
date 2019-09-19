@@ -174,6 +174,11 @@ extern struct ast_format *ast_format_h263p;
 extern struct ast_format *ast_format_h264;
 
 /*!
+ * \brief Built-in cached h265 format.
+ */
+extern struct ast_format *ast_format_h265;
+
+/*!
  * \brief Built-in cached mp4 format.
  */
 extern struct ast_format *ast_format_mp4;
