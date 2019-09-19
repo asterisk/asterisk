@@ -1,0 +1,5 @@
+Subject: chan_pjsip
+
+A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+allows the behaviour of the moh_passthrough endpoint option to be read or changed
+in the dialplan. This allows control on a per-call basis.

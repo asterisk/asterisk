@@ -211,6 +211,8 @@ struct ast_sip_session {
 	unsigned int defer_end:1;
 	/*! Session end (remote hangup) requested while termination deferred */
 	unsigned int ended_while_deferred:1;
+	/*! Whether to pass through hold and unhold using re-invites with recvonly and sendrecv */
+	unsigned int moh_passthrough:1;
 	/*! DTMF mode to use with this session, from endpoint but can change */
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
