@@ -3958,3 +3958,12 @@ struct ast_json *ast_rtp_instance_get_stats_all_json(struct ast_rtp_instance *in
 
 	return ast_rtp_convert_stats_json(&stats);
 }
+
+int ast_rtp_get_rate(const struct ast_format *format)
+{
+	/* For those wondering: due to a fluke in RFC publication, G.722 is advertised
+	 * as having a sample rate of 8kHz, while implementations must know that its
+	 * real rate is 16kHz. Seriously.
+	 */
+        return (ast_format_cmp(format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) ? 8000 : (int)ast_format_get_sample_rate(format);
+}
