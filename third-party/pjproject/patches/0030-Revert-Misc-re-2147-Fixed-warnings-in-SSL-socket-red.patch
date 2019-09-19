@@ -1,0 +1,60 @@
+From 8d0652d4a02c7b8da58b1b98421cfda57056184d Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Tue, 24 Sep 2019 06:41:16 -0600
+Subject: [PATCH 30/33] Revert "Misc (re #2147): Fixed warnings in SSL socket:
+ redefinition of typedef 'pj_ssl_sock_t' and unused 'get_pem'."
+
+This reverts commit 688a9b0de685328f62b2df86304b44c21e4460ae.
+---
+ pjlib/src/pj/ssl_sock_imp_common.h | 4 ++--
+ pjlib/src/pj/ssl_sock_ossl.c       | 5 +----
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_imp_common.h b/pjlib/src/pj/ssl_sock_imp_common.h
+index 09f259ef7..4edbb3b82 100644
+--- a/pjlib/src/pj/ssl_sock_imp_common.h
++++ b/pjlib/src/pj/ssl_sock_imp_common.h
+@@ -93,7 +93,7 @@ typedef struct circ_buf_t {
+ /*
+  * Secure socket structure definition.
+  */
+-struct pj_ssl_sock_t
++typedef struct pj_ssl_sock_t
+ {
+     pj_pool_t		 *pool;
+     pj_ssl_sock_t	 *parent;
+@@ -139,7 +139,7 @@ struct pj_ssl_sock_t
+ 
+     circ_buf_t            circ_buf_output;
+     pj_lock_t            *circ_buf_output_mutex;
+-};
++} pj_ssl_sock_t;
+ 
+ 
+ /*
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index b4ac5c15f..debb105b1 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -37,6 +37,7 @@
+ #if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0 && \
+     (PJ_SSL_SOCK_IMP == PJ_SSL_SOCK_IMP_OPENSSL)
+ 
++#include "ssl_sock_imp_common.h"
+ #include "ssl_sock_imp_common.c"
+ 
+ #define THIS_FILE		"ssl_sock_ossl.c"
+@@ -1575,10 +1576,6 @@ static void ssl_update_remote_cert_chain_info(pj_pool_t *pool,
+ {
+     int i;
+ 
+-    /* For now, get_pem has to be PJ_TRUE */
+-    pj_assert(get_pem);
+-    PJ_UNUSED_ARG(get_pem);
+-
+     ci->raw_chain.cert_raw = (pj_str_t *)pj_pool_calloc(pool,
+        				    			sk_X509_num(chain),
+        				    			sizeof(pj_str_t));
+-- 
+2.21.0
+
