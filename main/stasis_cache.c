@@ -868,7 +868,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 			ao2_wrlock(caching_topic->cache->entries);
 			sub = cache_find(caching_topic->cache->entries, stasis_subscription_change_type(), change->uniqueid);
 			if (sub) {
-				cache_remove(caching_topic->cache->entries, sub, stasis_message_eid(message));
+				ao2_cleanup(cache_remove(caching_topic->cache->entries, sub, stasis_message_eid(message)));
 				ao2_cleanup(sub);
 			}
 			ao2_unlock(caching_topic->cache->entries);

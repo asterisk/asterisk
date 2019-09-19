@@ -165,6 +165,13 @@ static struct stasis_state *state_alloc(struct stasis_state_manager *manager,
 			return NULL;
 		}
 		ast_free(name);
+	} else {
+		/*
+		 * Since the state topic was passed in, go ahead and bump its reference.
+		 * By doing this here first, it allows us to consistently decrease the reference on
+		 * state allocation error.
+		 */
+		ao2_ref(state_topic, +1);
 	}
 
 	if (!id) {
@@ -174,13 +181,6 @@ static struct stasis_state *state_alloc(struct stasis_state_manager *manager,
 		/* Get the id we'll key off of from the state topic */
 		id = state_id_by_topic(manager->all_topic, state_topic);
 	}
-
-	/*
-	 * Since the state topic could have been passed in, go ahead and bump its reference.
-	 * By doing this here first, it allows us to consistently decrease the reference on
-	 * state allocation error.
-	 */
-	ao2_ref(state_topic, +1);
 
 	state = ao2_alloc(sizeof(*state) + strlen(id) + 1, state_dtor);
 	if (!state) {
