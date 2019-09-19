@@ -80,6 +80,19 @@
 		<para>This function uses the same DTMF mode naming as the dtmf_mode configuration option</para>
 	</description>
 </function>
+<function name="PJSIP_MOH_PASSTHROUGH" language="en_US">
+	<synopsis>
+		Get or change the on-hold behavior for a SIP call.
+	</synopsis>
+	<syntax>
+	</syntax>
+	<description>
+		<para>When read, returns the current moh passthrough mode</para>
+		<para>When written, sets the current moh passthrough mode</para>
+		<para>If <replaceable>yes</replaceable>, on-hold re-INVITEs are sent. If <replaceable>no</replaceable>, music on hold is generated.</para>
+		<para>This function can be used to override the moh_passthrough configuration option</para>
+	</description>
+</function>
 <function name="PJSIP_SEND_SESSION_REFRESH" language="en_US">
 	<synopsis>
 		W/O: Initiate a session refresh via an UPDATE or re-INVITE on an established media session
@@ -1303,6 +1316,34 @@ int pjsip_acf_dtmf_mode_read(struct ast_channel *chan, const char *cmd, char *da
 	return 0;
 }
 
+int pjsip_acf_moh_passthrough_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_sip_channel_pvt *channel;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	if (len < 3) {
+		ast_log(LOG_WARNING, "%s: buffer too small\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
+	strncpy(buf, AST_YESNO(channel->session->moh_passthrough), len);
+
+	ast_channel_unlock(chan);
+	return 0;
+}
+
 struct refresh_data {
 	struct ast_sip_session *session;
 	enum ast_sip_session_refresh_method method;
@@ -1443,6 +1484,30 @@ int pjsip_acf_dtmf_mode_write(struct ast_channel *chan, const char *cmd, char *d
 	ast_channel_unlock(chan);
 
 	return ast_sip_push_task_wait_serializer(channel->session->serializer, dtmf_mode_refresh_cb, &rdata);
+}
+
+int pjsip_acf_moh_passthrough_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_sip_channel_pvt *channel;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
+	channel->session->moh_passthrough = ast_true(value);
+
+	ast_channel_unlock(chan);
+
+	return 0;
 }
 
 static int refresh_write_cb(void *obj)
