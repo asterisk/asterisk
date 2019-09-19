@@ -266,7 +266,6 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 		mailbox, mwi_sub->id, stasis_topic_name(topic), topic, (int)ao2_ref(topic, 0));
 	ao2_ref(mwi_sub, +1);
 	mwi_stasis_sub->stasis_sub = stasis_subscribe_pool(topic, mwi_stasis_cb, mwi_sub);
-	ao2_ref(topic, -1);
 
 	if (!mwi_stasis_sub->stasis_sub) {
 		/* Failed to subscribe. */
