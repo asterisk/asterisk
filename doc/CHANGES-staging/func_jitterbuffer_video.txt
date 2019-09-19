@@ -1,0 +1,6 @@
+Subject: func_jitterbuffer
+
+The JITTERBUFFER dialplan function now has an option to enable video synchronization
+support. When enabled and used with a compatible channel driver (chan_sip, chan_pjsip)
+the video is buffered according to the size of the audio jitterbuffer and is
+synchronized to the audio.

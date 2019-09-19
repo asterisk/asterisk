@@ -41,6 +41,8 @@
 #include "asterisk/utils.h"
 #include "asterisk/pbx.h"
 #include "asterisk/timing.h"
+#include "asterisk/rtp_engine.h"
+#include "asterisk/format_cache.h"
 
 #include "asterisk/abstract_jb.h"
 #include "fixedjitterbuf.h"
@@ -52,6 +54,9 @@ enum {
 	JB_TIMEBASE_INITIALIZED = (1 << 1),
 	JB_CREATED =              (1 << 2)
 };
+
+/*! The maximum size we allow the early frame buffer to get */
+#define MAXIMUM_EARLY_FRAME_COUNT 200
 
 
 /* Implementation functions */
@@ -568,6 +573,8 @@ int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *
 		}
 	} else if (!strcasecmp(name, AST_JB_CONF_LOG)) {
 		ast_set2_flag(conf, ast_true(value), AST_JB_LOG);
+	} else if (!strcasecmp(name, AST_JB_CONF_SYNC_VIDEO)) {
+		ast_set2_flag(conf, ast_true(value), AST_JB_SYNC_VIDEO);
 	} else {
 		return -1;
 	}
@@ -832,6 +839,11 @@ static int jb_is_late_adaptive(void *jb, long ts)
 #define DEFAULT_RESYNC  1000
 #define DEFAULT_TYPE AST_JB_FIXED
 
+struct jb_stream_sync {
+	unsigned int timestamp;
+	struct timeval ntp;
+};
+
 struct jb_framedata {
 	const struct ast_jb_impl *jb_impl;
 	struct ast_jb_conf jb_conf;
@@ -841,11 +853,21 @@ struct jb_framedata {
 	int timer_interval; /* ms between deliveries */
 	int timer_fd;
 	int first;
+	int audio_stream_id;
+	struct jb_stream_sync audio_stream_sync;
+	int video_stream_id;
+	struct jb_stream_sync video_stream_sync;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) early_frames;
+	unsigned int early_frame_count;
+	struct timeval last_audio_ntp_timestamp;
+	int audio_flowing;
 	void *jb_obj;
 };
 
 static void jb_framedata_destroy(struct jb_framedata *framedata)
 {
+	struct ast_frame *frame;
+
 	if (framedata->timer) {
 		ast_timer_close(framedata->timer);
 		framedata->timer = NULL;
@@ -859,11 +881,15 @@ static void jb_framedata_destroy(struct jb_framedata *framedata)
 		framedata->jb_obj = NULL;
 	}
 	ao2_cleanup(framedata->last_format);
+	while ((frame = AST_LIST_REMOVE_HEAD(&framedata->early_frames, frame_list))) {
+		ast_frfree(frame);
+	}
 	ast_free(framedata);
 }
 
 void ast_jb_conf_default(struct ast_jb_conf *conf)
 {
+	ast_clear_flag(conf, AST_FLAGS_ALL);
 	conf->max_size = DEFAULT_SIZE;
 	conf->resync_threshold = DEFAULT_RESYNC;
 	ast_copy_string(conf->impl, "fixed", sizeof(conf->impl));
@@ -884,6 +910,44 @@ static void hook_destroy_cb(void *framedata)
 {
 	ast_debug(1, "JITTERBUFFER hook destroyed\n");
 	jb_framedata_destroy((struct jb_framedata *) framedata);
+}
+
+static struct timeval jitterbuffer_frame_get_ntp_timestamp(const struct jb_stream_sync *stream_sync, const struct ast_frame *frame)
+{
+	int timestamp_diff;
+	unsigned int rate;
+
+	/* It's possible for us to receive frames before we receive the information allowing
+	 * us to do NTP/RTP timestamp calculations. Since the information isn't available we
+	 * can't generate one and give an empty timestamp.
+	 */
+	if (ast_tvzero(stream_sync->ntp)) {
+		return ast_tv(0, 0);
+	}
+
+	/* Convert the Asterisk timestamp into an RTP timestamp, and then based on the difference we can
+	 * determine how many samples are in the frame and how long has elapsed since the synchronization
+	 * RTP and NTP timestamps were received giving us the NTP timestamp for this frame.
+	 */
+	if (frame->frametype == AST_FRAME_VOICE) {
+		rate = ast_rtp_get_rate(frame->subclass.format);
+		timestamp_diff = (frame->ts * (rate / 1000)) - stream_sync->timestamp;
+	} else {
+		/* Video is special - internally we reference it as 1000 to preserve the RTP timestamp but
+		 * it is actualy 90000, this is why we can just directly subtract the timestamp.
+		 */
+		rate = 90000;
+		timestamp_diff = frame->ts - stream_sync->timestamp;
+	}
+
+	if (timestamp_diff < 0) {
+		/* It's possible for us to be asked for an NTP timestamp from before our latest
+		 * RTCP SR report. To handle this we subtract so we go back in time.
+		 */
+		return ast_tvsub(stream_sync->ntp, ast_samp2tv(abs(timestamp_diff), rate));
+	} else {
+		return ast_tvadd(stream_sync->ntp, ast_samp2tv(timestamp_diff, rate));
+	}
 }
 
 static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_frame *frame, enum ast_framehook_event event, void *data)
@@ -926,6 +990,77 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	if (!frame || (ast_test_flag(frame, AST_FRFLAG_REQUEUED) &&
 		       framedata->jb_impl->is_late(framedata->jb_obj, frame->ts))) {
 		return frame;
+	}
+
+	if (ast_test_flag(&framedata->jb_conf, AST_JB_SYNC_VIDEO)) {
+		if (frame->frametype == AST_FRAME_VOICE) {
+			/* Store the stream identifier for the audio stream so we can associate the incoming RTCP SR
+			 * with the correct stream sync structure.
+			 */
+			framedata->audio_stream_id = frame->stream_num;
+		} else if (frame->frametype == AST_FRAME_RTCP && frame->subclass.integer == AST_RTP_RTCP_SR) {
+			struct ast_rtp_rtcp_report *rtcp_report = frame->data.ptr;
+			struct jb_stream_sync *stream_sync = NULL;
+
+			/* Determine which stream this RTCP is in regards to */
+			if (framedata->audio_stream_id == frame->stream_num) {
+				stream_sync = &framedata->audio_stream_sync;
+			} else if (framedata->video_stream_id == frame->stream_num) {
+				stream_sync = &framedata->video_stream_sync;
+			}
+
+			if (stream_sync) {
+				/* Store the RTP and NTP timestamp mapping so we can derive an NTP timestamp for each frame */
+				stream_sync->timestamp = rtcp_report->sender_information.rtp_timestamp;
+				stream_sync->ntp = rtcp_report->sender_information.ntp_timestamp;
+			}
+		} else if (frame->frametype == AST_FRAME_VIDEO) {
+			/* If a video frame is late according to the audio timestamp don't stash it away, just return it.
+			 * If however it is ahead then we keep it until such time as the audio catches up.
+			 */
+			struct ast_frame *jbframe;
+
+			framedata->video_stream_id = frame->stream_num;
+
+			/* If no timing information is available we can't store this away, so just let it through now */
+			if (!ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
+				return frame;
+			}
+
+			/* To ensure that the video starts when the audio starts we only start allowing frames through once
+			 * audio starts flowing.
+			 */
+			if (framedata->audio_flowing) {
+				struct timeval video_timestamp;
+
+				video_timestamp = jitterbuffer_frame_get_ntp_timestamp(&framedata->video_stream_sync, frame);
+				if (ast_tvdiff_ms(framedata->last_audio_ntp_timestamp, video_timestamp) >= 0) {
+					return frame;
+				}
+			}
+
+			/* To prevent the early frame buffer from growing uncontrolled we impose a maximum count that it can
+			 * get to. If this is reached then we drop a video frame, which should cause the receiver to ask for a
+			 * new key frame.
+			 */
+			if (framedata->early_frame_count == MAXIMUM_EARLY_FRAME_COUNT) {
+				jbframe = AST_LIST_REMOVE_HEAD(&framedata->early_frames, frame_list);
+				framedata->early_frame_count--;
+				ast_frfree(jbframe);
+			}
+
+			jbframe = ast_frisolate(frame);
+			if (!jbframe) {
+				/* If we can't isolate the frame the safest thing we can do is return it, even if the A/V sync
+				 * may be off.
+				 */
+				return frame;
+			}
+
+			AST_LIST_INSERT_TAIL(&framedata->early_frames, jbframe, frame_list);
+			framedata->early_frame_count++;
+			return &ast_null_frame;
+		}
 	}
 
 	now_tv = ast_tvnow();
@@ -1022,6 +1157,8 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	}
 
 	if (frame->frametype == AST_FRAME_CONTROL) {
+		struct ast_frame *early_frame;
+
 		switch(frame->subclass.integer) {
 		case AST_CONTROL_HOLD:
 		case AST_CONTROL_UNHOLD:
@@ -1029,10 +1166,48 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		case AST_CONTROL_SRCUPDATE:
 		case AST_CONTROL_SRCCHANGE:
 			framedata->jb_impl->force_resync(framedata->jb_obj);
+			/* Since we are resyncing go ahead and clear out the video frames too */
+			while ((early_frame = AST_LIST_REMOVE_HEAD(&framedata->early_frames, frame_list))) {
+				ast_frfree(early_frame);
+			}
+			framedata->audio_flowing = 0;
+			framedata->early_frame_count = 0;
 			break;
 		default:
 			break;
 		}
+	}
+
+	/* If a voice frame is being passed through see if we need to add any additional frames to it */
+	if (ast_test_flag(&framedata->jb_conf, AST_JB_SYNC_VIDEO) && frame->frametype == AST_FRAME_VOICE) {
+		AST_LIST_HEAD_NOLOCK(, ast_frame) additional_frames;
+		struct ast_frame *early_frame;
+
+		/* We store the last NTP timestamp for the audio given to the core so that subsequents frames which
+		 * are late can be passed immediately through (this will occur for video frames which are returned here)
+		 */
+		framedata->last_audio_ntp_timestamp = jitterbuffer_frame_get_ntp_timestamp(&framedata->audio_stream_sync, frame);
+		framedata->audio_flowing = 1;
+
+		AST_LIST_HEAD_INIT_NOLOCK(&additional_frames);
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&framedata->early_frames, early_frame, frame_list) {
+			struct timeval early_timestamp = jitterbuffer_frame_get_ntp_timestamp(&framedata->video_stream_sync, early_frame);
+			int diff = ast_tvdiff_ms(framedata->last_audio_ntp_timestamp, early_timestamp);
+
+			/* If this frame is from the past we need to include it with the audio frame that is going
+			 * out.
+			 */
+			if (diff >= 0) {
+				AST_LIST_REMOVE_CURRENT(frame_list);
+				framedata->early_frame_count--;
+				AST_LIST_INSERT_TAIL(&additional_frames, early_frame, frame_list);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+
+		/* Append any additional frames we may want to include (such as video) */
+		AST_LIST_NEXT(frame, frame_list) = AST_LIST_FIRST(&additional_frames);
 	}
 
 	return frame;
@@ -1066,6 +1241,9 @@ static int jb_framedata_init(struct jb_framedata *framedata, struct ast_jb_conf 
 		return -1;
 	}
 
+	framedata->audio_stream_id = -1;
+	framedata->video_stream_id = -1;
+	AST_LIST_HEAD_INIT_NOLOCK(&framedata->early_frames);
 	framedata->timer_fd = ast_timer_fd(framedata->timer);
 	framedata->timer_interval = DEFAULT_TIMER_INTERVAL;
 	ast_timer_set_rate(framedata->timer, 1000 / framedata->timer_interval);
