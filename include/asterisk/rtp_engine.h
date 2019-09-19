@@ -2801,6 +2801,17 @@ struct ast_json *ast_rtp_convert_stats_json(const struct ast_rtp_instance_stats 
 struct ast_json *ast_rtp_instance_get_stats_all_json(struct ast_rtp_instance *instance);
 
 /*!
+ * \brief Retrieve the sample rate of a format according to RTP specifications
+ * \since 16.7.0
+ * \since 17.1.0
+ *
+ * \param format The media format
+ *
+ * \retval The sample rate
+ */
+int ast_rtp_get_rate(const struct ast_format *format);
+
+/*!
  * \since 12
  * \brief \ref stasis topic for RTP and RTCP related messages
  *
