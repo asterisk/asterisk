@@ -514,7 +514,7 @@ static int link_topic_proxy(struct stasis_topic *topic, const char *name, const 
 	}
 
 	proxy = ao2_t_weakproxy_alloc(
-			sizeof(*proxy) + strlen(name) + 1 + strlen(detail) + 1, NULL, topic->name);
+			sizeof(*proxy) + strlen(name) + 1 + strlen(detail) + 1, NULL, name);
 	if (!proxy) {
 		ao2_unlock(topic_all);
 
