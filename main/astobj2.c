@@ -67,7 +67,7 @@ struct __priv_data {
 	 * \note This field is constant after object creation.  It shares
 	 *       a uint32_t with \ref lockused and \ref magic.
 	 */
-	uint32_t options:2;
+	uint32_t options:3;
 	/*!
 	 * \brief Set to 1 when the lock is used if refdebug is enabled.
 	 *
@@ -90,11 +90,11 @@ struct __priv_data {
 	 *          all bitfields into a single 'uint32_t flags' field and use
 	 *          atomic operations from \file lock.h to perform writes.
 	 */
-	uint32_t magic:29;
+	uint32_t magic:28;
 };
 
-#define	AO2_MAGIC	0x1a70b123
-#define	AO2_WEAK	0x1a70b122
+#define	AO2_MAGIC	0xa70b123
+#define	AO2_WEAK	0xa70b122
 #define IS_AO2_MAGIC_BAD(p) (AO2_MAGIC != (p->priv_data.magic | 1))
 
 /*!
@@ -585,10 +585,10 @@ int __ao2_ref(void *user_data, int delta,
 			__ast_assert_failed(0, excessive_ref_buf, file, line, func);
 		}
 
-		if (ref_log && tag) {
+		if (ref_log && !(obj->priv_data.options & AO2_ALLOC_OPT_NO_REF_DEBUG)) {
 			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
 				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
-				file, line, func, (int)ret, tag);
+				file, line, func, (int)ret, tag ?: "");
 			fflush(ref_log);
 		}
 		return ret;
@@ -599,7 +599,7 @@ int __ao2_ref(void *user_data, int delta,
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid refcount %d on ao2 object %p\n", (int)current_value, user_data);
 		if (ref_log) {
-			/* Log to ref_log invalid even if (tag == NULL) */
+			/* Log to ref_log even if AO2_ALLOC_OPT_NO_REF_DEBUG */
 			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
 				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
 			fflush(ref_log);
@@ -655,9 +655,9 @@ int __ao2_ref(void *user_data, int delta,
 		break;
 	}
 
-	if (ref_log && tag) {
+	if (ref_log && !(obj->priv_data.options & AO2_ALLOC_OPT_NO_REF_DEBUG)) {
 		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**lock-state:%s**,%s\n",
-			user_data, delta, ast_get_tid(), file, line, func, lock_state, tag);
+			user_data, delta, ast_get_tid(), file, line, func, lock_state, tag ?: "");
 		fflush(ref_log);
 	}
 
@@ -752,9 +752,9 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	ast_atomic_fetchadd_int(&ao2.total_refs, 1);
 #endif
 
-	if (ref_log && tag) {
+	if (ref_log && !(obj->priv_data.options & AO2_ALLOC_OPT_NO_REF_DEBUG)) {
 		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**%zu**%zu**,%s\n",
-			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, overhead, data_size, tag);
+			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, overhead, data_size, tag ?: "");
 		fflush(ref_log);
 	}
 
