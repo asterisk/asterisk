@@ -188,7 +188,7 @@ AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 		}                                    \
 	} while (0)
 
-static void print_backtrace(struct ast_bt *bt)
+static void print_backtrace(struct ast_bt *bt, struct ast_cli_args *a)
 {
 	int i = 0;
 	struct ast_vector_string *strings;
@@ -198,9 +198,17 @@ static void print_backtrace(struct ast_bt *bt)
 	}
 
 	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
-		astmm_log("Memory allocation backtrace:\n");
+		if (a) {
+			ast_cli(a->fd, "Memory allocation backtrace:\n");
+		} else {
+			astmm_log("Memory allocation backtrace:\n");
+		}
 		for (i = 3; i < AST_VECTOR_SIZE(strings) - 2; i++) {
-			astmm_log("#%d: %s\n", i - 3, AST_VECTOR_GET(strings, i));
+			if (a) {
+				ast_cli(a->fd, "#%d: %s\n", i - 3, AST_VECTOR_GET(strings, i));
+			} else {
+				astmm_log("#%d: %s\n", i - 3, AST_VECTOR_GET(strings, i));
+			}
 		}
 		ast_bt_free_symbols(strings);
 	}
@@ -314,7 +322,7 @@ static void region_data_check(struct ast_region *reg)
 		if (*pos != FREED_MAGIC) {
 			astmm_log("WARNING: Memory corrupted after free of %p allocated at %s %s() line %d\n",
 				reg->data, reg->file, reg->func, reg->lineno);
-			print_backtrace(reg->bt);
+			print_backtrace(reg->bt, NULL);
 			my_do_crash();
 			break;
 		}
@@ -434,14 +442,14 @@ static void region_check_fences(struct ast_region *reg)
 	if (*fence != FENCE_MAGIC) {
 		astmm_log("WARNING: Low fence violation of %p allocated at %s %s() line %d\n",
 			reg->data, reg->file, reg->func, reg->lineno);
-		print_backtrace(reg->bt);
+		print_backtrace(reg->bt, NULL);
 		my_do_crash();
 	}
 	fence = (unsigned int *) (reg->data + reg->len);
 	if (get_unaligned_uint32(fence) != FENCE_MAGIC) {
 		astmm_log("WARNING: High fence violation of %p allocated at %s %s() line %d\n",
 			reg->data, reg->file, reg->func, reg->lineno);
-		print_backtrace(reg->bt);
+		print_backtrace(reg->bt, NULL);
 		my_do_crash();
 	}
 }
@@ -880,6 +888,9 @@ static char *handle_memory_show_allocations(struct ast_cli_entry *e, int cmd, st
 			ast_cli(a->fd, "%10u bytes allocated%s by %20s() line %5u of %s\n",
 				(unsigned int) reg->len, reg->cache ? " (cache)" : "",
 				reg->func, reg->lineno, reg->file);
+			if (reg->bt && !ast_strlen_zero(fn)) {
+				print_backtrace(reg->bt, a);
+			}
 
 			selected_len += reg->len;
 			if (reg->cache) {
