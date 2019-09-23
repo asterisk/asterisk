@@ -15154,6 +15154,11 @@ static int unload_module(void)
 #endif
 	ao2_ref(inprocess_container, -1);
 
+	ao2_container_unregister("voicemail_alias_mailbox_mappings");
+	ao2_cleanup(alias_mailbox_mappings);
+	ao2_container_unregister("voicemail_mailbox_alias_mappings");
+	ao2_cleanup(mailbox_alias_mappings);
+
 	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();
 
@@ -15225,6 +15230,7 @@ static int load_module(void)
 	if (!mailbox_alias_mappings) {
 		ast_log(LOG_ERROR, "Unable to create mailbox_alias_mappings container\n");
 		ao2_cleanup(inprocess_container);
+		ao2_container_unregister("voicemail_alias_mailbox_mappings");
 		ao2_cleanup(alias_mailbox_mappings);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -15232,6 +15238,7 @@ static int load_module(void)
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register mailbox_alias_mappings container\n");
 		ao2_cleanup(inprocess_container);
+		ao2_container_unregister("voicemail_alias_mailbox_mappings");
 		ao2_cleanup(alias_mailbox_mappings);
 		ao2_cleanup(mailbox_alias_mappings);
 		return AST_MODULE_LOAD_DECLINE;
