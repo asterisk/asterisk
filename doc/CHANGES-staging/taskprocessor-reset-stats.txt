@@ -1,0 +1,7 @@
+Subject: taskprocessor.c
+
+Added two new CLI commands to reset stats for taskprocessors. You can
+reset stats for a single, specific taskprocessor ('core reset
+taskprocessor <taskprocessor>'), or you can reset all taskprocessors
+('core reset taskprocessors'). These commands will reset the counter for
+the number of tasks processed as well as the max queue size.
