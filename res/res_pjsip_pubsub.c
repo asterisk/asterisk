@@ -758,7 +758,7 @@ static struct ast_sip_pubsub_body_generator *find_body_generator(char accept[AST
 		size_t num_accept, const char *body_type);
 
 /*! \brief Retrieve a handler using the Event header of an rdata message */
-static struct ast_sip_subscription_handler *subscription_get_handler_from_rdata(pjsip_rx_data *rdata)
+static struct ast_sip_subscription_handler *subscription_get_handler_from_rdata(pjsip_rx_data *rdata, const char *endpoint)
 {
 	pjsip_event_hdr *event_header;
 	char event[32];
@@ -766,14 +766,16 @@ static struct ast_sip_subscription_handler *subscription_get_handler_from_rdata(
 
 	event_header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_event_name, rdata->msg_info.msg->hdr.next);
 	if (!event_header) {
-		ast_log(LOG_WARNING, "Incoming SUBSCRIBE request with no Event header\n");
+		ast_log(LOG_WARNING, "Incoming SUBSCRIBE request from %s with no Event header\n",
+			endpoint ? endpoint : "Unknown");
 		return NULL;
 	}
 	ast_copy_pj_str(event, &event_header->event_type, sizeof(event));
 
 	handler = find_sub_handler_for_event_name(event);
 	if (!handler) {
-		ast_log(LOG_WARNING, "No registered subscribe handler for event %s\n", event);
+		ast_log(LOG_WARNING, "No registered subscribe handler for event %s from %s\n", event,
+			endpoint ? endpoint : "Unknown");
 	}
 
 	return handler;
@@ -1572,7 +1574,7 @@ static int sub_persistence_recreate(void *obj)
 	 */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(resource);
 
-	handler = subscription_get_handler_from_rdata(rdata);
+	handler = subscription_get_handler_from_rdata(rdata, persistence->endpoint);
 	if (!handler || !handler->notifier) {
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: Could not get subscription handler.\n",
 			persistence->endpoint);
@@ -3053,7 +3055,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		}
 	}
 
-	handler = subscription_get_handler_from_rdata(rdata);
+	handler = subscription_get_handler_from_rdata(rdata, ast_sorcery_object_get_id(endpoint));
 	if (!handler) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 489, NULL, NULL, NULL);
 		return PJ_TRUE;
@@ -3367,7 +3369,8 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 
 	event_header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_event_name, rdata->msg_info.msg->hdr.next);
 	if (!event_header) {
-		ast_log(LOG_WARNING, "Incoming PUBLISH request with no Event header\n");
+		ast_log(LOG_WARNING, "Incoming PUBLISH request from %s with no Event header\n",
+			ast_sorcery_object_get_id(endpoint));
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 489, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
@@ -3375,7 +3378,8 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 
 	handler = find_pub_handler(event);
 	if (!handler) {
-		ast_log(LOG_WARNING, "No registered publish handler for event %s\n", event);
+		ast_log(LOG_WARNING, "No registered publish handler for event %s from %s\n", event,
+			ast_sorcery_object_get_id(endpoint));
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 489, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
