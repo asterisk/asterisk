@@ -224,14 +224,21 @@ static int registrar_add_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
 	pjsip_tx_data *tdata = arg;
-	pjsip_contact_hdr *hdr = pjsip_contact_hdr_create(tdata->pool);
 	pj_str_t uri;
+	pjsip_uri *parsed;
 
 	pj_strdup2_with_null(tdata->pool, &uri, contact->uri);
-	hdr->uri = pjsip_parse_uri(tdata->pool, uri.ptr, uri.slen, PJSIP_PARSE_URI_AS_NAMEADDR);
-	hdr->expires = ast_tvdiff_ms(contact->expiration_time, ast_tvnow()) / 1000;
+	parsed = pjsip_parse_uri(tdata->pool, uri.ptr, uri.slen, PJSIP_PARSE_URI_AS_NAMEADDR);
 
-	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)hdr);
+	if (parsed && (PJSIP_URI_SCHEME_IS_SIP(parsed) || PJSIP_URI_SCHEME_IS_SIPS(parsed))) {
+		pjsip_contact_hdr *hdr = pjsip_contact_hdr_create(tdata->pool);
+		hdr->uri = parsed;
+		hdr->expires = ast_tvdiff_ms(contact->expiration_time, ast_tvnow()) / 1000;
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) hdr);
+	} else {
+		ast_log(LOG_WARNING, "Skipping invalid Contact URI \"%.*s\" for AOR %s\n",
+			(int) uri.slen, uri.ptr, contact->aor);
+	}
 
 	return 0;
 }
