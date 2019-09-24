@@ -1,0 +1,6 @@
+Subject: taskprocessor.c
+
+Added "like" support for 'core show taskprocessors'. Now you
+can specify a specific set of taskprocessors (or just one) by
+adding the keyword "like" to the above command, followed by
+your search criteria.
