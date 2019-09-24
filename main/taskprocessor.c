@@ -155,11 +155,15 @@ static int tps_ping_handler(void *datap);
 static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_subsystem_alert_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *cli_tps_reset_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *cli_tps_reset_stats_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry taskprocessor_clis[] = {
 	AST_CLI_DEFINE(cli_tps_ping, "Ping a named task processor"),
 	AST_CLI_DEFINE(cli_tps_report, "List instantiated task processors and statistics"),
 	AST_CLI_DEFINE(cli_subsystem_alert_report, "List task processor subsystems in alert"),
+	AST_CLI_DEFINE(cli_tps_reset_stats, "Reset a named task processor's stats"),
+	AST_CLI_DEFINE(cli_tps_reset_stats_all, "Reset all task processors' stats"),
 };
 
 struct default_taskprocessor_listener_pvt {
@@ -1255,4 +1259,78 @@ void ast_taskprocessor_build_name(char *buf, unsigned int size, const char *form
 
 	/* Append sequence number to end of user name. */
 	snprintf(buf + user_size, SEQ_STR_SIZE, "-%08x", ast_taskprocessor_seq_num());
+}
+
+static void tps_reset_stats(struct ast_taskprocessor *tps)
+{
+	ao2_lock(tps);
+	tps->stats._tasks_processed_count = 0;
+	tps->stats.max_qsize = 0;
+	ao2_unlock(tps);
+}
+
+static char *cli_tps_reset_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *name;
+	struct ast_taskprocessor *tps;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core reset taskprocessor";
+		e->usage =
+			"Usage: core reset taskprocessor <taskprocessor>\n"
+			"    Resets stats for the specified taskprocessor\n";
+		return NULL;
+	case CLI_GENERATE:
+		return tps_taskprocessor_tab_complete(a);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	name = a->argv[3];
+	if (!(tps = ast_taskprocessor_get(name, TPS_REF_IF_EXISTS))) {
+		ast_cli(a->fd, "\nReset failed: %s not found\n\n", name);
+		return CLI_SUCCESS;
+	}
+	ast_cli(a->fd, "\nResetting %s\n\n", name);
+
+	tps_reset_stats(tps);
+
+	ast_taskprocessor_unreference(tps);
+
+	return CLI_SUCCESS;
+}
+
+static char *cli_tps_reset_stats_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_taskprocessor *tps;
+	struct ao2_iterator iter;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core reset taskprocessors";
+		e->usage =
+			"Usage: core reset taskprocessors\n"
+			"    Resets stats for all taskprocessors\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "\nResetting stats for all taskprocessors\n\n");
+
+	iter = ao2_iterator_init(tps_singletons, 0);
+	while ((tps = ao2_iterator_next(&iter))) {
+		tps_reset_stats(tps);
+		ast_taskprocessor_unreference(tps);
+	}
+	ao2_iterator_destroy(&iter);
+
+	return CLI_SUCCESS;
 }
