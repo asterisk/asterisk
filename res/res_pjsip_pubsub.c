@@ -2969,7 +2969,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	expires_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, rdata->msg_info.msg->hdr.next);
 	if (expires_header) {
 		if (expires_header->ivalue == 0) {
-			ast_log(LOG_WARNING, "Subscription request from endpoint %s rejected. Expiration of 0 is invalid\n",
+			ast_debug(1, "Subscription request from endpoint %s rejected. Expiration of 0 is invalid\n",
 				ast_sorcery_object_get_id(endpoint));
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
 				return PJ_TRUE;
