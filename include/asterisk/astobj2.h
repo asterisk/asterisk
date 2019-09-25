@@ -198,7 +198,7 @@ functions were called. To get the location where these functions
 were called to appear in refs log, you can do this sort of thing:
 
 #define my_t_alloc(data,tag)  my_alloc_debug((data), tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define my_alloc(data)        my_t_alloc((data), "")
+#define my_alloc(data)        my_t_alloc((data), NULL)
 
 static struct mydata *my_alloc_debug(void *data,
 	const char *tag, const char *file, int line, const char *func)
@@ -376,6 +376,8 @@ enum ao2_alloc_opts {
 	 * should never be passed directly to ao2_alloc.
 	 */
 	AO2_ALLOC_OPT_LOCK_OBJ = AO2_ALLOC_OPT_LOCK_MASK,
+	/*! The ao2 object will not record any REF_DEBUG entries */
+	AO2_ALLOC_OPT_NO_REF_DEBUG = (1 << 2),
 };
 
 /*!
@@ -396,20 +398,18 @@ enum ao2_alloc_opts {
  * - the returned pointer cannot be free()'d or realloc()'ed;
  *   rather, we just call ao2_ref(o, -1);
  *
- * \note refdebug logging is skipped if debug_msg is NULL
- *
  * @{
  */
 
 #define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
 	__ao2_alloc((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_alloc_options(data_size, destructor_fn, options) \
-	__ao2_alloc((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc((data_size), (destructor_fn), (options), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
 	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
@@ -457,12 +457,11 @@ void *__ao2_alloc_with_lockobj(size_t data_size, ao2_destructor_fn destructor_fn
  * can go away is when we release our reference, and it is
  * the last one in existence.
  *
- * \note refdebug logging is skipped if tag is NULL
  * @{
  */
 
 #define ao2_t_ref(o,delta,tag) __ao2_ref((o), (delta), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_ref(o,delta)       __ao2_ref((o), (delta), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_ref(o,delta)       __ao2_ref((o), (delta), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Retrieve the ao2 options used to create the object.
@@ -490,7 +489,7 @@ unsigned int ao2_options_get(void *obj);
 		__obj_ ## __LINE__;				\
 	})
 #define ao2_bump(obj) \
-	ao2_t_bump((obj), "")
+	ao2_t_bump((obj), NULL)
 
 int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, const char *func);
 
@@ -516,7 +515,7 @@ int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, c
 		} \
 	}
 #define ao2_replace(dst, src) \
-	ao2_t_replace((dst), (src), "")
+	ao2_t_replace((dst), (src), NULL)
 
 /*! @} */
 
@@ -553,7 +552,7 @@ void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 #define ao2_weakproxy_alloc(data_size, destructor_fn) \
-	__ao2_weakproxy_alloc(data_size, destructor_fn, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_weakproxy_alloc(data_size, destructor_fn, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_weakproxy_alloc(data_size, destructor_fn, tag) \
 	__ao2_weakproxy_alloc(data_size, destructor_fn, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -582,7 +581,7 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 	const char *tag, const char *file, int line, const char *func);
 
 #define ao2_weakproxy_set_object(weakproxy, obj, flags) \
-	__ao2_weakproxy_set_object(weakproxy, obj, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_weakproxy_set_object(weakproxy, obj, flags, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_weakproxy_set_object(weakproxy, obj, flags, tag) \
 	__ao2_weakproxy_set_object(weakproxy, obj, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -608,7 +607,7 @@ int __ao2_weakproxy_ref_object(void *weakproxy, int delta, int flags,
 		tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_weakproxy_ref_object(weakproxy, delta, flags) \
-	ao2_t_weakproxy_ref_object(weakproxy, delta, flags, "")
+	ao2_t_weakproxy_ref_object(weakproxy, delta, flags, NULL)
 
 /*!
  * \since 14.0.0
@@ -624,7 +623,7 @@ void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 #define ao2_weakproxy_get_object(weakproxy, flags) \
-	__ao2_weakproxy_get_object(weakproxy, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_weakproxy_get_object(weakproxy, flags, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_weakproxy_get_object(weakproxy, flags, tag) \
 	__ao2_weakproxy_get_object(weakproxy, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -691,7 +690,7 @@ void *__ao2_get_weakproxy(void *obj,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 #define ao2_get_weakproxy(obj) \
-	__ao2_get_weakproxy(obj, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_get_weakproxy(obj, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_get_weakproxy(obj, tag) \
 	__ao2_get_weakproxy(obj, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -864,7 +863,7 @@ struct ao2_global_obj {
 #define ao2_t_global_obj_release(holder, tag)	\
 	__ao2_global_obj_replace_unref(&holder, NULL, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_release(holder)	\
-	__ao2_global_obj_replace_unref(&holder, NULL, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, NULL, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 /*!
  * \brief Replace an ao2 object in the global holder.
@@ -884,7 +883,7 @@ struct ao2_global_obj {
 #define ao2_t_global_obj_replace(holder, obj, tag)	\
 	__ao2_global_obj_replace(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_replace(holder, obj)	\
-	__ao2_global_obj_replace(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name) attribute_warn_unused_result;
 
@@ -907,7 +906,7 @@ void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const c
 #define ao2_t_global_obj_replace_unref(holder, obj, tag)	\
 	__ao2_global_obj_replace_unref(&holder, (obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_replace_unref(holder, obj)	\
-	__ao2_global_obj_replace_unref(&holder, (obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, (obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name);
 
@@ -924,7 +923,7 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
 #define ao2_t_global_obj_ref(holder, tag)	\
 	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_ref(holder)	\
-	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_ref(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name) attribute_warn_unused_result;
 
@@ -1309,7 +1308,7 @@ struct ao2_container;
 #define ao2_t_container_alloc_hash(ao2_options, container_options, n_buckets, hash_fn, sort_fn, cmp_fn, tag) \
 	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_container_alloc_hash(ao2_options, container_options, n_buckets, hash_fn, sort_fn, cmp_fn) \
-	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 	unsigned int container_options, unsigned int n_buckets, ao2_hash_fn *hash_fn,
@@ -1334,7 +1333,7 @@ struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 #define ao2_t_container_alloc_list(ao2_options, container_options, sort_fn, cmp_fn, tag) \
 	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_container_alloc_list(ao2_options, container_options, sort_fn, cmp_fn) \
-	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
 	unsigned int container_options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
@@ -1357,7 +1356,7 @@ struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
 #define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
 	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn) \
-	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
 	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
@@ -1429,7 +1428,7 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 #define ao2_t_container_clone(orig, flags, tag) \
 	__ao2_container_clone(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_container_clone(orig, flags) \
-	__ao2_container_clone(orig, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_clone(orig, flags, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Print output.
@@ -1548,7 +1547,7 @@ void ao2_container_unregister(const char *name);
 #define ao2_t_link(container, obj, tag) \
 	__ao2_link((container), (obj), 0, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_link(container, obj) \
-	__ao2_link((container), (obj), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_link((container), (obj), 0, NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Add an object to a container.
@@ -1571,7 +1570,7 @@ void ao2_container_unregister(const char *name);
 #define ao2_t_link_flags(container, obj, flags, tag) \
 	__ao2_link((container), (obj), (flags), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_link_flags(container, obj, flags) \
-	__ao2_link((container), (obj), (flags), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_link((container), (obj), (flags), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 int __ao2_link(struct ao2_container *c, void *obj_new, int flags,
 	const char *tag, const char *file, int line, const char *func);
@@ -1597,7 +1596,7 @@ int __ao2_link(struct ao2_container *c, void *obj_new, int flags,
 #define ao2_t_unlink(container, obj, tag) \
 	__ao2_unlink((container), (obj), 0, (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_unlink(container, obj) \
-	__ao2_unlink((container), (obj), 0, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_unlink((container), (obj), 0, NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Remove an object from a container
@@ -1621,7 +1620,7 @@ int __ao2_link(struct ao2_container *c, void *obj_new, int flags,
 #define ao2_t_unlink_flags(container, obj, flags, tag) \
 	__ao2_unlink((container), (obj), (flags), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_unlink_flags(container, obj, flags) \
-	__ao2_unlink((container), (obj), (flags), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_unlink((container), (obj), (flags), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
 	const char *tag, const char *file, int line, const char *func);
@@ -1715,7 +1714,7 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
 #define ao2_t_callback(c, flags, cb_fn, arg, tag) \
 	__ao2_callback((c), (flags), (cb_fn), (arg), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_callback(c, flags, cb_fn, arg) \
-	__ao2_callback((c), (flags), (cb_fn), (arg), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback((c), (flags), (cb_fn), (arg), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
@@ -1742,7 +1741,7 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
 #define ao2_t_callback_data(container, flags, cb_fn, arg, data, tag) \
 	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_callback_data(container, flags, cb_fn, arg, data) \
-	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
@@ -1755,7 +1754,7 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 #define ao2_t_find(container, arg, flags, tag) \
 	__ao2_find((container), (arg), (flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_find(container, arg, flags) \
-	__ao2_find((container), (arg), (flags), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_find((container), (arg), (flags), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
 	const char *tag, const char *file, int line, const char *func);
@@ -1932,7 +1931,7 @@ void ao2_iterator_destroy(struct ao2_iterator *iter);
 #define ao2_t_iterator_next(iter, tag) \
 	__ao2_iterator_next((iter), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_iterator_next(iter) \
-	__ao2_iterator_next((iter), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_iterator_next((iter), NULL,  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_iterator_next(struct ao2_iterator *iter,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
@@ -1956,7 +1955,7 @@ void ao2_iterator_restart(struct ao2_iterator *iter);
  * down a NULL */
 void __ao2_cleanup(void *obj);
 void __ao2_cleanup_debug(void *obj, const char *tag, const char *file, int line, const char *function);
-#define ao2_cleanup(obj) __ao2_cleanup_debug((obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_cleanup(obj) __ao2_cleanup_debug((obj), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_t_cleanup(obj, tag) __ao2_cleanup_debug((obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 void ao2_iterator_cleanup(struct ao2_iterator *iter);
 

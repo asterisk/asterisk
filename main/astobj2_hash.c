@@ -210,7 +210,8 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	struct hash_bucket_node *node;
 	int i;
 
-	node = ao2_t_alloc_options(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, NULL);
+	node = ao2_alloc_options(sizeof(*node), hash_ao2_node_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK | AO2_ALLOC_OPT_NO_REF_DEBUG);
 	if (!node) {
 		return NULL;
 	}
@@ -274,7 +275,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
-					ao2_t_ref(node, -1, NULL);
+					ao2_ref(node, -1);
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
@@ -307,7 +308,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
-					ao2_t_ref(node, -1, NULL);
+					ao2_ref(node, -1);
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
@@ -415,7 +416,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				}
 
 				/* We have the first traversal node */
-				ao2_t_ref(node, +1, NULL);
+				ao2_ref(node, +1);
 				return node;
 			}
 		}
@@ -457,7 +458,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				}
 
 				/* We have the first traversal node */
-				ao2_t_ref(node, +1, NULL);
+				ao2_ref(node, +1);
 				return node;
 			}
 		}
@@ -526,7 +527,7 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 				}
 
 				/* We have the next traversal node */
-				ao2_t_ref(node, +1, NULL);
+				ao2_ref(node, +1);
 
 				/*
 				 * Dereferencing the prev node may result in our next node
@@ -534,7 +535,7 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 				 * the container uses RW locks and the container was read
 				 * locked.
 				 */
-				ao2_t_ref(prev, -1, NULL);
+				ao2_ref(prev, -1);
 				if (node->common.obj) {
 					return node;
 				}
@@ -570,7 +571,7 @@ hash_descending_resume:;
 				}
 
 				/* We have the next traversal node */
-				ao2_t_ref(node, +1, NULL);
+				ao2_ref(node, +1);
 
 				/*
 				 * Dereferencing the prev node may result in our next node
@@ -578,7 +579,7 @@ hash_descending_resume:;
 				 * the container uses RW locks and the container was read
 				 * locked.
 				 */
-				ao2_t_ref(prev, -1, NULL);
+				ao2_ref(prev, -1);
 				if (node->common.obj) {
 					return node;
 				}
@@ -590,7 +591,7 @@ hash_ascending_resume:;
 	}
 
 	/* No more nodes in the container left to traverse. */
-	ao2_t_ref(prev, -1, NULL);
+	ao2_ref(prev, -1);
 	return NULL;
 }
 

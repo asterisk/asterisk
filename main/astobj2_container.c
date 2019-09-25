@@ -70,7 +70,7 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 
 	if (flags & AO2_UNLINK_NODE_UNREF_NODE) {
 		/* Remove node from container */
-		ao2_t_ref(node, -1, NULL);
+		ao2_ref(node, -1);
 	}
 
 	return 1;
@@ -146,7 +146,7 @@ int __ao2_link(struct ao2_container *self, void *obj_new, int flags,
 			res = 1;
 			break;
 		case AO2_CONTAINER_INSERT_NODE_REJECTED:
-			ao2_t_ref(node, -1, NULL);
+			ao2_ref(node, -1);
 			break;
 		}
 	}
@@ -386,7 +386,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	}
 	if (node) {
 		/* Unref the node from self->v_table->traverse_first/traverse_next() */
-		ao2_t_ref(node, -1, NULL);
+		ao2_ref(node, -1);
 	}
 
 	if (flags & OBJ_NOLOCK) {
@@ -517,7 +517,7 @@ void ao2_iterator_restart(struct ao2_iterator *iter)
 			ao2_rdlock(iter->c);
 		}
 
-		ao2_t_ref(iter->last_node, -1, NULL);
+		ao2_ref(iter->last_node, -1);
 		iter->last_node = NULL;
 
 		if (iter->flags & AO2_ITERATOR_DONTLOCK) {
@@ -604,7 +604,7 @@ void *__ao2_iterator_next(struct ao2_iterator *iter,
 			__ao2_ref(ret, +1, tag ?: "Next iterator object.", file, line, func);
 
 			/* Bump the container's node ref for the iterator. */
-			ao2_t_ref(node, +1, NULL);
+			ao2_ref(node, +1);
 		}
 	} else {
 		/* The iteration has completed. */
@@ -614,7 +614,7 @@ void *__ao2_iterator_next(struct ao2_iterator *iter,
 
 	/* Replace the iterator's node */
 	if (iter->last_node) {
-		ao2_t_ref(iter->last_node, -1, NULL);
+		ao2_ref(iter->last_node, -1);
 	}
 	iter->last_node = node;
 
@@ -667,7 +667,7 @@ static int dup_obj_cb(void *obj, void *arg, int flags)
 {
 	struct ao2_container *dest = arg;
 
-	return ao2_t_link_flags(dest, obj, OBJ_NOLOCK, NULL) ? 0 : (CMP_MATCH | CMP_STOP);
+	return ao2_link_flags(dest, obj, OBJ_NOLOCK) ? 0 : (CMP_MATCH | CMP_STOP);
 }
 
 int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enum search_flags flags)
@@ -685,8 +685,8 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
 		ao2_t_ref(obj, -1, "Failed to put this object into the dest container.");
 
 		/* Remove all items from the dest container. */
-		ao2_t_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
-			NULL, NULL);
+		ao2_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
+			NULL);
 		res = -1;
 	}
 	if (!(flags & OBJ_NOLOCK)) {
@@ -717,7 +717,7 @@ static int dup_weakproxy_cb(void *proxy, void *arg, int flags)
 		return 0;
 	}
 
-	ret = ao2_t_link_flags(dest, obj, OBJ_NOLOCK, NULL) ? 0 : (CMP_MATCH | CMP_STOP);
+	ret = ao2_link_flags(dest, obj, OBJ_NOLOCK) ? 0 : (CMP_MATCH | CMP_STOP);
 	ao2_ref(obj, -1);
 
 	return ret;
@@ -738,8 +738,8 @@ int ao2_container_dup_weakproxy_objs(struct ao2_container *dest, struct ao2_cont
 		ao2_t_ref(obj, -1, "Failed to put this object into the dest container.");
 
 		/* Remove all items from the dest container. */
-		ao2_t_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
-			NULL, NULL);
+		ao2_callback(dest, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL,
+			NULL);
 		res = -1;
 	}
 	if (!(flags & OBJ_NOLOCK)) {
