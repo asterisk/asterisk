@@ -1,3 +1,170 @@
+2019-09-25 17:27 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 17.0.0-rc2 Released.
+
+2019-09-19 09:50 +0000 [410ee33355]  George Joseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Revert pjproject 2.9 commits causing leaks
+
+	  We've found a connection re-use regression in pjproject 2.9
+	  introduced by commit
+	  "Close #1019: Support for multiple listeners."
+	  https://trac.pjsip.org/repos/changeset/6002
+	  https://trac.pjsip.org/repos/ticket/1019
+
+	  Normally, multiple SSL requests should reuse the same connection
+	  if one already exists to the remote server.  When a transport
+	  error occurs, the next request should establish a new connection
+	  and any following requests should use that same one.  With this
+	  patch, when a transport error occurs, every new request creates
+	  a new connection so you can wind up with thousands of open tcp
+	  sockets, possibly exhausting file handles, and increasing memory
+	  usage.
+
+	  Reverting pjproject commit 6002 (and related 6021) restores the
+	  expected behavior.
+
+	  We also found a memory leak in SSL processing that was introduced by
+	  commit
+	  "Fixed #2204: Add OpenSSL remote certificate chain info"
+	  https://trac.pjsip.org/repos/changeset/6014
+	  https://trac.pjsip.org/repos/ticket/2204
+
+	  Apparently the remote certificate chain is continually recreated
+	  causing the leak.
+
+	  Reverting pjproject commit 6014 (and related 6022) restores the
+	  expected behavior.
+
+	  Both of these issues have been acknowledged by Teluu.
+
+	  ASTERISK-28521
+
+	  Change-Id: I8ae7233c3ac4ec29a3b991f738e655dabcaba9f1
+
+2019-09-23 11:01 +0000 [fb29778ae4]  Kevin Harwell <kharwell@digium.com>
+
+	* res_sorcery_memory_cache: stale item update leak
+
+	  When a stale item was being updated the object was being retrieved, but its
+	  reference was not being decremented after the update. This patch makes it so
+	  the object is now appropriately de-referenced.
+
+	  ASTERISK-28523
+
+	  Change-Id: I9d8173d3a0416a242f4eba92fa0853279c500ec7
+
+2019-09-15 14:35 +0000 [ce7641c8e8]  Joshua Colp <jcolp@digium.com>
+
+	* chan_pjsip: Relock correct channel during "fax" redirect.
+
+	  When fax detection occurs on an outbound PJSIP channel the
+	  redirect operation will result in a masquerade occurring and
+	  the underlying channel on the session changing. The code
+	  incorrectly relocked the new channel instead of the old
+	  channel when returning. This resulted in the new channel
+	  being locked indefinitely. The code now always acts on the
+	  expected channel.
+
+	  ASTERISK-28538
+
+	  Change-Id: I2b2e60d07e74383ae7e90d752c036c4b02d6b3a3
+
+2019-09-14 10:05 +0000 [e23ed0eff0]  Guido Falsi <madpilot@FreeBSD.org>
+
+	* chan_dahdi: Fix build with clang/llvm
+
+	  On FreeBSD using the clang/llvm compiler build fails to build due
+	  to the switch statement argument being a non integer type expression.
+	  Switch to an if/else if/else construct to sidestep the issue.
+
+	  ASTERISK-28536 #close
+
+	  Change-Id: Idf4a82cc1e94580a2d017fe9e351c226f23e20c8
+
+2019-09-10 07:32 +0000 [e86fbd0ba7]  George Joseph <gjoseph@digium.com>
+
+	* chan_sip:  Update links referenced in deprecation notice
+
+	  The links in the deprecation notice were the shortened
+	  variety but it makes better sense to show the unshortened
+	  links as they're more descriptive.
+
+	  I.E.
+	  wiki.asterisk.org/wiki/display/AST/Migrating+from+chan_sip+to+res_pjsip
+	  rather than
+	  wiki.asterisk.org/wiki/x/tAHOAQ
+
+	  Change-Id: If2da5d5243e2d4a6f193b15691d23e7e5a7c57a9
+
+2019-08-26 07:53 +0000 [a60ffe0255]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2019-005 - translate: Don't assume all frames will have a src.
+
+	  This change removes the assumption that a frame will always have
+	  a src set on it. This assumption is incorrect.
+
+	  Given a scenario where an RTP packet is received with no payload
+	  the resulting audio frame will have no samples. If this frame goes
+	  through a signed linear translation path an interpolated frame can
+	  be created (if generic packet loss concealment is enabled) that has
+	  minimal data on it, including no src. If this frame is given to a
+	  translation path a crash will occur due to the lack of src.
+
+	  ASTERISK-28499
+
+	  Change-Id: I024d10dd98207eb8a6b35b59880bcdf1090538f8
+
+2019-08-20 15:05 +0000 [2976625d42]  Alexei Gradinari <alex2grad@gmail.com> (license 5691)
+
+	* AST-2019-004 - res_pjsip_t38.c: Add NULL checks before using session media
+
+	  After receiving a 200 OK with a declined stream in response to a T.38
+	  initiated re-invite Asterisk would crash when attempting to dereference
+	  a NULL session media object.
+
+	  This patch checks to make sure the session media object is not NULL before
+	  attempting to use it.
+
+	  ASTERISK-28495
+	  patches:
+	    ast-2019-004.patch submitted by Alexei Gradinari (license 5691)
+
+	  Change-Id: I168f45f4da29cfe739acf87e597baa2aae7aa572
+
+2019-08-23 17:03 +0000 [c02cbeade8]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_mwi: add better handling of solicited vs unsolicited subscriptions
+
+	  res_pjsip_mwi allows both solicited and unsolicited MWI subscription types.
+	  While both can be set in the configuration for a given endpoint/aor, only
+	  one is allowed. Precedence is given to unsolicited. Meaning if an endpoint/aor
+	  is configured to allow both types then the solicited subscription is rejected
+	  when it comes in. However, there is a configuration option to override that
+	  behavior:
+
+	  mwi_subscribe_replaces_unsolicited
+
+	  When set to "yes" then when a solicited subscription comes in instead of
+	  rejecting it Asterisk is suppose to replace the unsolicited one if it exists.
+	  Prior to this patch there was a bug in Asterisk that allowed the solicted one
+	  to be added, but did not remove the unsolicited. As a matter of fact a new
+	  unsolicited subscription got added everytime a SIP register was received.
+	  Over time this eventually could "flood" a phone with SIP notifies.
+
+	  This patch fixes that behavior to now make it work as expected. If configured
+	  to do so a solicited subscription now properly replaces the unsolicited one.
+	  As well when an unsubscribe is received the unsolicited subscription is
+	  restored. Logic was also put in to handle reloads, and any configuration changes
+	  that might result from that. For instance, if a solicited subscription had
+	  previously replaced an unsolicited one, but after reload it was configured to
+	  not allow that then the solicited one needs to be shutdown, and the unsolicited
+	  one added.
+
+	  ASTERISK-28488
+
+	  Change-Id: Iec2ec12d9431097e97ed5f37119963aee41af7b1
+
 2019-08-28 15:58 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 17.0.0-rc1 Released.
