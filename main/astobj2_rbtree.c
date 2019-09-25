@@ -905,7 +905,8 @@ static struct rbtree_node *rb_ao2_new_node(struct ao2_container_rbtree *self, vo
 {
 	struct rbtree_node *node;
 
-	node = ao2_t_alloc_options(sizeof(*node), rb_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, NULL);
+	node = ao2_alloc_options(sizeof(*node), rb_ao2_node_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK | AO2_ALLOC_OPT_NO_REF_DEBUG);
 	if (!node) {
 		return NULL;
 	}
@@ -1243,7 +1244,7 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 		break;
 	case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 		SWAP(cur->common.obj, node->common.obj);
-		ao2_t_ref(node, -1, NULL);
+		ao2_ref(node, -1);
 		return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 	}
 
@@ -1313,7 +1314,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 		}
 
 		/* We have the next traversal node */
-		ao2_t_ref(node, +1, NULL);
+		ao2_ref(node, +1);
 
 		/*
 		 * Dereferencing the prev node may result in our next node
@@ -1321,7 +1322,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 		 * the container uses RW locks and the container was read
 		 * locked.
 		 */
-		ao2_t_ref(prev, -1, NULL);
+		ao2_ref(prev, -1);
 		if (node->common.obj) {
 			return node;
 		}
@@ -1329,7 +1330,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 	}
 
 	/* No more nodes in the container left to traverse. */
-	ao2_t_ref(prev, -1, NULL);
+	ao2_ref(prev, -1);
 	return NULL;
 }
 
@@ -1612,7 +1613,7 @@ static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, 
 	}
 
 	/* We have the first traversal node */
-	ao2_t_ref(node, +1, NULL);
+	ao2_ref(node, +1);
 	return node;
 }
 
