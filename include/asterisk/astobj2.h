@@ -376,6 +376,8 @@ enum ao2_alloc_opts {
 	 * should never be passed directly to ao2_alloc.
 	 */
 	AO2_ALLOC_OPT_LOCK_OBJ = AO2_ALLOC_OPT_LOCK_MASK,
+	/*! The ao2 object will not record any REF_DEBUG entries */
+	AO2_ALLOC_OPT_NO_REF_DEBUG = (1 << 2),
 };
 
 /*!
@@ -395,8 +397,6 @@ enum ao2_alloc_opts {
  * - the refcount of the object just created is 1
  * - the returned pointer cannot be free()'d or realloc()'ed;
  *   rather, we just call ao2_ref(o, -1);
- *
- * \note refdebug logging is skipped if debug_msg is NULL
  *
  * @{
  */
@@ -457,7 +457,6 @@ void *__ao2_alloc_with_lockobj(size_t data_size, ao2_destructor_fn destructor_fn
  * can go away is when we release our reference, and it is
  * the last one in existence.
  *
- * \note refdebug logging is skipped if tag is NULL
  * @{
  */
 
