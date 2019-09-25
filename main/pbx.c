@@ -2884,6 +2884,11 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
 
 	ast_rdlock_contexts();
+
+	if (!context) {
+		context = con->name;
+	}
+
 	if (found)
 		*found = 0;
 
