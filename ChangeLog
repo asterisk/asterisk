@@ -1,3 +1,87 @@
+2019-09-25 17:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.6.0-rc2 Released.
+
+2019-09-19 09:50 +0000 [2b75c4fc51]  George Joseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Revert pjproject 2.9 commits causing leaks
+
+	  We've found a connection re-use regression in pjproject 2.9
+	  introduced by commit
+	  "Close #1019: Support for multiple listeners."
+	  https://trac.pjsip.org/repos/changeset/6002
+	  https://trac.pjsip.org/repos/ticket/1019
+
+	  Normally, multiple SSL requests should reuse the same connection
+	  if one already exists to the remote server.  When a transport
+	  error occurs, the next request should establish a new connection
+	  and any following requests should use that same one.  With this
+	  patch, when a transport error occurs, every new request creates
+	  a new connection so you can wind up with thousands of open tcp
+	  sockets, possibly exhausting file handles, and increasing memory
+	  usage.
+
+	  Reverting pjproject commit 6002 (and related 6021) restores the
+	  expected behavior.
+
+	  We also found a memory leak in SSL processing that was introduced by
+	  commit
+	  "Fixed #2204: Add OpenSSL remote certificate chain info"
+	  https://trac.pjsip.org/repos/changeset/6014
+	  https://trac.pjsip.org/repos/ticket/2204
+
+	  Apparently the remote certificate chain is continually recreated
+	  causing the leak.
+
+	  Reverting pjproject commit 6014 (and related 6022) restores the
+	  expected behavior.
+
+	  Both of these issues have been acknowledged by Teluu.
+
+	  ASTERISK-28521
+
+	  Change-Id: I8ae7233c3ac4ec29a3b991f738e655dabcaba9f1
+
+2019-09-23 11:01 +0000 [6b072ab08c]  Kevin Harwell <kharwell@digium.com>
+
+	* res_sorcery_memory_cache: stale item update leak
+
+	  When a stale item was being updated the object was being retrieved, but its
+	  reference was not being decremented after the update. This patch makes it so
+	  the object is now appropriately de-referenced.
+
+	  ASTERISK-28523
+
+	  Change-Id: I9d8173d3a0416a242f4eba92fa0853279c500ec7
+
+2019-09-15 14:35 +0000 [deb45228c8]  Joshua Colp <jcolp@digium.com>
+
+	* chan_pjsip: Relock correct channel during "fax" redirect.
+
+	  When fax detection occurs on an outbound PJSIP channel the
+	  redirect operation will result in a masquerade occurring and
+	  the underlying channel on the session changing. The code
+	  incorrectly relocked the new channel instead of the old
+	  channel when returning. This resulted in the new channel
+	  being locked indefinitely. The code now always acts on the
+	  expected channel.
+
+	  ASTERISK-28538
+
+	  Change-Id: I2b2e60d07e74383ae7e90d752c036c4b02d6b3a3
+
+2019-09-14 10:05 +0000 [8931669b37]  Guido Falsi <madpilot@FreeBSD.org>
+
+	* chan_dahdi: Fix build with clang/llvm
+
+	  On FreeBSD using the clang/llvm compiler build fails to build due
+	  to the switch statement argument being a non integer type expression.
+	  Switch to an if/else if/else construct to sidestep the issue.
+
+	  ASTERISK-28536 #close
+
+	  Change-Id: Idf4a82cc1e94580a2d017fe9e351c226f23e20c8
+
 2019-09-12 21:08 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.6.0-rc1 Released.
