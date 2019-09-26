@@ -13,32 +13,6 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 16.0 to Asterisk 16.6.0-rc2 ----------
-------------------------------------------------------------------------------
-
-Core
-------------------
- * H.265/HEVC is now a supported video codec and it can be used by
-   specifying "h265" in the allow line.
-   Please note however, that handling of the additional SDP parameters
-   described in RFC 7798 section 7.2 is not yet supported.
-
-func_jitterbuffer
-------------------
- * The JITTERBUFFER dialplan function now has an option to enable video synchronization
-   support. When enabled and used with a compatible channel driver (chan_sip, chan_pjsip)
-   the video is buffered according to the size of the audio jitterbuffer and is
-   synchronized to the audio.
-
-taskprocessor.c
-------------------
- * Added two new CLI commands to reset stats for taskprocessors. You can
-   reset stats for a single, specific taskprocessor ('core reset
-   taskprocessor <taskprocessor>'), or you can reset all taskprocessors
-   ('core reset taskprocessors'). These commands will reset the counter for
-   the number of tasks processed as well as the max queue size.
-
-------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.5.0 to Asterisk 16.6.0 ------------
 ------------------------------------------------------------------------------
 
