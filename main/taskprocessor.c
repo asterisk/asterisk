@@ -371,16 +371,16 @@ static void *tps_task_free(struct tps_task *task)
 	return NULL;
 }
 
-/* taskprocessor tab completion */
+/* Taskprocessor tab completion.
+ *
+ * The caller of this function is responsible for argument
+ * position checks prior to calling.
+ */
 static char *tps_taskprocessor_tab_complete(struct ast_cli_args *a)
 {
 	int tklen;
 	struct ast_taskprocessor *p;
 	struct ao2_iterator i;
-
-	if (a->pos != 3) {
-		return NULL;
-	}
 
 	tklen = strlen(a->word);
 	i = ao2_iterator_init(tps_singletons, 0);
@@ -424,7 +424,11 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			"	Displays the time required for a task to be processed\n";
 		return NULL;
 	case CLI_GENERATE:
-		return tps_taskprocessor_tab_complete(a);
+		if (a->pos == 3) {
+			return tps_taskprocessor_tab_complete(a);
+		} else {
+			return NULL;
+		}
 	}
 
 	if (a->argc != 4)
@@ -503,58 +507,102 @@ static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags)
 	return cmp;
 }
 
-static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char name[256];
-	int tcount;
-	unsigned long qsize;
-	unsigned long maxqsize;
-	unsigned long processed;
-	struct ao2_container *sorted_tps;
-	struct ast_taskprocessor *tps;
-	struct ao2_iterator iter;
 #define FMT_HEADERS		"%-70s %10s %10s %10s %10s %10s\n"
 #define FMT_FIELDS		"%-70s %10lu %10lu %10lu %10lu %10lu\n"
 
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show taskprocessors";
-		e->usage =
-			"Usage: core show taskprocessors\n"
-			"	Shows a list of instantiated task processors and their statistics\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
+/*!
+ * \internal
+ * \brief Print taskprocessor information to CLI.
+ * \since 13.30.0
+ *
+ * \param fd the file descriptor
+ * \param tps the taskprocessor
+ */
+static void tps_report_taskprocessor_list_helper(int fd, struct ast_taskprocessor *tps)
+{
+	ast_cli(fd, FMT_FIELDS, tps->name, tps->stats._tasks_processed_count,
+		tps->tps_queue_size, tps->stats.max_qsize, tps->tps_queue_low,
+		tps->tps_queue_high);
+}
 
-	if (a->argc != e->args) {
-		return CLI_SHOWUSAGE;
-	}
+/*!
+ * \internal
+ * \brief Prints an optionally narrowed down list of taskprocessors to the CLI.
+ * \since 13.30.0
+ *
+ * \param fd the file descriptor
+ * \param like the string we are matching on
+ *
+ * \retval number of taskprocessors on success
+ * \retval 0 otherwise
+ */
+static int tps_report_taskprocessor_list(int fd, const char *like)
+{
+	int tps_count = 0;
+	int word_len;
+	struct ao2_container *sorted_tps;
+	struct ast_taskprocessor *tps;
+	struct ao2_iterator iter;
 
 	sorted_tps = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, tps_sort_cb,
 		NULL);
 	if (!sorted_tps
 		|| ao2_container_dup(sorted_tps, tps_singletons, 0)) {
+		ast_debug(1, "Failed to retrieve sorted taskprocessors\n");
 		ao2_cleanup(sorted_tps);
-		return CLI_FAILURE;
+		return 0;
+	}
+
+	word_len = strlen(like);
+	iter = ao2_iterator_init(sorted_tps, AO2_ITERATOR_UNLINK);
+	while ((tps = ao2_iterator_next(&iter))) {
+		if (like) {
+			if (!strncasecmp(like, tps->name, word_len)) {
+				tps_report_taskprocessor_list_helper(fd, tps);
+				tps_count++;
+			}
+		} else {
+			tps_report_taskprocessor_list_helper(fd, tps);
+			tps_count++;
+		}
+		ast_taskprocessor_unreference(tps);
+	}
+	ao2_iterator_destroy(&iter);
+	ao2_ref(sorted_tps, -1);
+
+	return tps_count;
+}
+
+static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *like;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show taskprocessors [like]";
+		e->usage =
+			"Usage: core show taskprocessors [like keyword]\n"
+			"	Shows a list of instantiated task processors and their statistics\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == e->args) {
+			return tps_taskprocessor_tab_complete(a);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc == e->args - 1) {
+		like = "";
+	} else if (a->argc == e->args + 1 && !strcasecmp(a->argv[e->args-1], "like")) {
+		like = a->argv[e->args];
+	} else {
+		return CLI_SHOWUSAGE;
 	}
 
 	ast_cli(a->fd, "\n" FMT_HEADERS, "Processor", "Processed", "In Queue", "Max Depth", "Low water", "High water");
-	tcount = 0;
-	iter = ao2_iterator_init(sorted_tps, AO2_ITERATOR_UNLINK);
-	while ((tps = ao2_iterator_next(&iter))) {
-		ast_copy_string(name, tps->name, sizeof(name));
-		qsize = tps->tps_queue_size;
-		maxqsize = tps->stats.max_qsize;
-		processed = tps->stats._tasks_processed_count;
-		ast_cli(a->fd, FMT_FIELDS, name, processed, qsize, maxqsize,
-			tps->tps_queue_low, tps->tps_queue_high);
-		ast_taskprocessor_unreference(tps);
-		++tcount;
-	}
-	ao2_iterator_destroy(&iter);
-	ast_cli(a->fd, "\n%d taskprocessors\n\n", tcount);
-	ao2_ref(sorted_tps, -1);
+	ast_cli(a->fd, "\n%d taskprocessors\n\n", tps_report_taskprocessor_list(a->fd, like));
+
 	return CLI_SUCCESS;
 }
 
