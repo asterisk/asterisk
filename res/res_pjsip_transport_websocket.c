@@ -223,7 +223,7 @@ static int transport_create(void *data)
 
 	ws_addr_str = ast_sockaddr_stringify(ast_websocket_local_address(newtransport->ws_session));
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.local_addr);
-	pj_strdup2(pool, &newtransport->transport.local_name.host, ast_sockaddr_stringify_host(ast_websocket_local_address(newtransport->ws_session)));
+	pj_strdup2(pool, &newtransport->transport.local_name.host, ast_sockaddr_stringify_addr(ast_websocket_local_address(newtransport->ws_session)));
 	newtransport->transport.local_name.port = ast_sockaddr_port(ast_websocket_local_address(newtransport->ws_session));
 
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
