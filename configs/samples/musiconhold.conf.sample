@@ -13,6 +13,7 @@
 ; valid mode options:
 ; files		-- read files from a directory in any Asterisk supported
 ;		   media format
+; playlist	-- provide a fixed list of filenames or URLs to play
 ; quietmp3 	-- default
 ; mp3 		-- loud
 ; mp3nb		-- unbuffered
@@ -44,6 +45,22 @@
 ; this, res_musiconhold will skip the files it is not able to
 ; understand when it loads.
 ;
+; =========
+; Playlist (native) music on hold
+; =========
+;
+; This mode is similar to 'files' mode in that it plays through a list
+; of files, but instead of scanning a directory the files are
+; explicitly configured using one or more 'entry' options.
+;
+; Each entry must be one of:
+;
+;   * An absolute path to the file to be played, without an extension.
+;   * A URL
+;
+; The entries are played in the order in which they appear in the
+; configuration. The 'sort' option is not used for this mode.
+;
 
 [default]
 mode=files
@@ -70,6 +87,12 @@ directory=moh
 ;mode=files
 ;directory=moh
 ;sort=alpha     ; Sort the files in alphabetical order.
+
+;[sales-queue-hold]
+;mode=playlist
+;entry=/var/lib/asterisk/sounds/en/yourcallisimportant
+;entry=http://example.local/sales-queue-hold-music.ulaw
+;entry=/var/lib/asterisk/moh/macroform-robot_dity
 
 ; =========
 ; Other (non-native) playback methods

@@ -95,6 +95,7 @@
 ;queue_rules => odbc,asterisk
 ;acls => odbc,asterisk
 ;musiconhold => mysql,general
+;musiconhold_entry => mysql,general
 ;queue_log => mysql,general
 ;
 ;
