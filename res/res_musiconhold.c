@@ -1081,6 +1081,20 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 			ast_copy_string(mohclass->name, var->value, sizeof(mohclass->name));
 		} else if (!strcasecmp(var->name, "mode")) {
 			ast_copy_string(mohclass->mode, var->value, sizeof(mohclass->mode));
+		} else if (!strcasecmp(var->name, "entry")) {
+			if (ast_begins_with(var->value, "/") || ast_begins_with(var->value, "http://") || ast_begins_with(var->value, "https://")) {
+				char *dup = ast_strdup(var->value);
+				if (!dup) {
+					continue;
+				}
+				if (ast_begins_with(dup, "/") && strrchr(dup, '.')) {
+					ast_log(LOG_WARNING, "The playlist entry '%s' may include an extension, which could prevent it from playing.\n",
+						dup);
+				}
+				AST_VECTOR_APPEND(&mohclass->files, dup);
+			} else {
+				ast_log(LOG_ERROR, "Playlist entries must be a URL or absolute path, '%s' provided.\n", var->value);
+			}
 		} else if (!strcasecmp(var->name, "directory")) {
 			ast_copy_string(mohclass->dir, var->value, sizeof(mohclass->dir));
 		} else if (!strcasecmp(var->name, "application")) {
@@ -1130,6 +1144,8 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 			}
 		}
 	}
+
+	AST_VECTOR_COMPACT(&mohclass->files);
 }
 
 static int moh_scan_files(struct mohclass *class) {
@@ -1333,6 +1349,13 @@ static int _moh_register(struct mohclass *moh, int reload, int unref, const char
 			}
 			return -1;
 		}
+	} else if (!strcasecmp(moh->mode, "playlist")) {
+		if (!AST_VECTOR_SIZE(&moh->files)) {
+			if (unref) {
+				moh = mohclass_unref(moh, "unreffing potential new moh class (no playlist entries)");
+			}
+			return -1;
+		}
 	} else if (!strcasecmp(moh->mode, "mp3") || !strcasecmp(moh->mode, "mp3nb") ||
 			!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb") ||
 			!strcasecmp(moh->mode, "httpmp3") || !strcasecmp(moh->mode, "custom")) {
@@ -1485,6 +1508,32 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 static struct ast_variable *load_realtime_musiconhold(const char *name)
 {
 	struct ast_variable *var = ast_load_realtime("musiconhold", "name", name, SENTINEL);
+
+	if (var) {
+		const char *mode = ast_variable_find_in_list(var, "mode");
+		if (ast_strings_equal(mode, "playlist")) {
+			struct ast_variable *entries = ast_load_realtime("musiconhold_entry", "name", name, SENTINEL);
+			struct ast_variable *cur = entries;
+			size_t entry_count = 0;
+			for (; cur; cur = cur->next) {
+				if (!strcmp(cur->name, "entry")) {
+					struct ast_variable *dup = ast_variable_new(cur->name, cur->value, "");
+					if (dup) {
+						entry_count++;
+						ast_variable_list_append(&var, dup);
+					}
+				}
+			}
+			ast_variables_destroy(entries);
+
+			if (entry_count == 0) {
+				/* Behave as though this class doesn't exist */
+				ast_variables_destroy(var);
+				var = NULL;
+			}
+		}
+	}
+
 	if (!var) {
 		ast_log(LOG_WARNING,
 			"Music on Hold class '%s' not found in memory/database. "
@@ -1551,7 +1600,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 			ast_variables_destroy(var);
 
 			if (ast_strlen_zero(mohclass->dir)) {
-				if (!strcasecmp(mohclass->mode, "custom")) {
+				if (!strcasecmp(mohclass->mode, "custom") || !strcasecmp(mohclass->mode, "playlist")) {
 					strcpy(mohclass->dir, "nodir");
 				} else {
 					ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", mohclass->name);
@@ -1604,6 +1653,11 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 							deprecation_warning = 1;
 						}
 						ast_set_flag(mohclass, MOH_RANDOMIZE);
+					}
+				} else if (!strcasecmp(mohclass->mode, "playlist")) {
+					if (!AST_VECTOR_SIZE(&mohclass->files)) {
+						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (no playlist entries)");
+						return -1;
 					}
 				} else if (!strcasecmp(mohclass->mode, "mp3") || !strcasecmp(mohclass->mode, "mp3nb") || !strcasecmp(mohclass->mode, "quietmp3") || !strcasecmp(mohclass->mode, "quietmp3nb") || !strcasecmp(mohclass->mode, "httpmp3") || !strcasecmp(mohclass->mode, "custom")) {
 
@@ -1846,7 +1900,7 @@ static int load_moh_classes(int reload)
 		ast_copy_string(class->name, cat, sizeof(class->name));
 
 		if (ast_strlen_zero(class->dir)) {
-			if (!strcasecmp(class->mode, "custom")) {
+			if (!strcasecmp(class->mode, "custom") || !strcasecmp(class->mode, "playlist")) {
 				strcpy(class->dir, "nodir");
 			} else {
 				ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", class->name);
