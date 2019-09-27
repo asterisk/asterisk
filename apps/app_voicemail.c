@@ -5398,12 +5398,33 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 	char sox_gain_tmpdir[PATH_MAX];
 	char *file_to_delete = NULL, *dir_to_delete = NULL;
 	int res;
+	char altfname[PATH_MAX] = "";
+	int altused = 0;
+	char altformat[80] = "";
+	char *c = NULL;
 
 	/* Eww. We want formats to tell us their own MIME type */
 	char *mime_type = (!strcasecmp(format, "ogg")) ? "application/" : "audio/x-";
 
+	/* Users of multiple file formats need special attention. */
+	snprintf(fname, sizeof(fname), "%s.%s", attach, format);
+	if (!ast_file_is_readable(fname)) {
+		ast_copy_string(altformat, vmfmts, sizeof(altformat));
+		c = strchr(altformat, '|');
+		if (c) {
+			*c = '\0';
+		}
+		ast_log(AST_LOG_WARNING, "Failed to open file: %s: %s - trying first/alternate format %s\n", fname, strerror(errno), altformat);
+		snprintf(altfname, sizeof(altfname), "%s.%s", attach, altformat);
+		if (!ast_file_is_readable(altfname)) {
+			ast_log(AST_LOG_WARNING, "Failed to open file: %s: %s - alternate format %s failure\n", altfname, strerror(errno), altformat);
+		} else {
+			altused = 1;
+		}
+	}
+
 	/* This 'while' loop will only execute once. We use it so that we can 'break' */
-	while (vmu->volgain < -.001 || vmu->volgain > .001) {
+	while (vmu->volgain < -.001 || vmu->volgain > .001 || altused) {
 		char tmpdir[PATH_MAX];
 
 		create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
@@ -5429,8 +5450,29 @@ static int add_email_attachment(FILE *p, struct ast_vm_user *vmu, char *format, 
 				break;
 			}
 
-			res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s %s",
-						   vmu->volgain, attach, format, fname);
+			if (!altused) {
+				res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s %s",
+							   vmu->volgain, attach, format, fname);
+			} else {
+				if (!strcasecmp(format, "wav")) {
+					if (vmu->volgain < -.001 || vmu->volgain > .001) {
+						res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s -e signed-integer -b 16 %s",
+									   vmu->volgain, attach, altformat, fname);
+					} else {
+						res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox %s.%s -e signed-integer -b 16 %s",
+									   attach, altformat, fname);
+					}
+				} else {
+					if (vmu->volgain < -.001 || vmu->volgain > .001) {
+						res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox -v %.4f %s.%s %s",
+									   vmu->volgain, attach, altformat, fname);
+					} else {
+						res = snprintf(sox_gain_cmd, sizeof(sox_gain_cmd), "sox %s.%s %s",
+									   attach, altformat, fname);
+					}
+				}
+			}
+
 			if (res >= sizeof(sox_gain_cmd)) {
 				ast_log(LOG_ERROR, "Failed to generate sox command, out of buffer space\n");
 				break;
