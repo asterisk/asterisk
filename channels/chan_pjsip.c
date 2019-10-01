@@ -1922,6 +1922,12 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	struct ast_sip_session_media *media = pvt->media[SIP_MEDIA_AUDIO];
 	int res = 0;
 
+	if (!channel || !channel->session) {
+		/* This happens when the channel is hungup while a DTMF digit is playing. See ASTERISK-28086 */
+		ast_debug(3, "Channel %s disappeared while calling digit_end\n", ast_channel_name(ast));
+		return -1;
+	}
+
 	switch (channel->session->dtmf) {
 	case AST_SIP_DTMF_AUTO_INFO:
 	{
