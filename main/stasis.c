@@ -406,9 +406,10 @@ AO2_STRING_FIELD_HASH_FN(topic_proxy, name);
 AO2_STRING_FIELD_CMP_FN(topic_proxy, name);
 AO2_STRING_FIELD_CASE_SORT_FN(topic_proxy, name);
 
-static void proxy_dtor(void *weakproxy, void *data)
+static void proxy_dtor(void *weakproxy, void *container)
 {
-	ao2_unlink(topic_all, weakproxy);
+	ao2_unlink(container, weakproxy);
+	ao2_cleanup(container);
 }
 
 /* Forward declarations for the tightly-coupled subscription object */
@@ -537,9 +538,10 @@ static int link_topic_proxy(struct stasis_topic *topic, const char *name, const 
 		return -1;
 	}
 
-	if (ao2_weakproxy_subscribe(proxy, proxy_dtor, NULL, OBJ_NOLOCK)) {
+	if (ao2_weakproxy_subscribe(proxy, proxy_dtor, ao2_bump(topic_all), OBJ_NOLOCK)) {
 		ao2_cleanup(proxy);
 		ao2_unlock(topic_all);
+		ao2_cleanup(topic_all);
 
 		return -1;
 	}
