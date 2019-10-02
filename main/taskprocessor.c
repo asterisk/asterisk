@@ -1280,11 +1280,22 @@ unsigned int ast_taskprocessor_seq_num(void)
 	return (unsigned int) ast_atomic_fetchadd_int(&seq_num, +1);
 }
 
+#define SEQ_STR_SIZE (1 + 8 + 1)	/* Dash plus 8 hex digits plus null terminator */
+
+void ast_taskprocessor_name_append(char *buf, unsigned int size, const char *name)
+{
+	int final_size = strlen(name) + SEQ_STR_SIZE;
+
+	ast_assert(buf != NULL && name != NULL);
+	ast_assert(final_size <= size);
+
+	snprintf(buf, final_size, "%s-%08x", name, ast_taskprocessor_seq_num());
+}
+
 void ast_taskprocessor_build_name(char *buf, unsigned int size, const char *format, ...)
 {
 	va_list ap;
 	int user_size;
-#define SEQ_STR_SIZE (1 + 8 + 1)	/* Dash plus 8 hex digits plus null terminator */
 
 	ast_assert(buf != NULL);
 	ast_assert(SEQ_STR_SIZE <= size);
