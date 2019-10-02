@@ -2954,6 +2954,11 @@ const char *ast_sip_get_host_ip_string(int af);
 long ast_sip_threadpool_queue_size(void);
 
 /*!
+ * \brief Retrieve the SIP threadpool object
+ */
+struct ast_threadpool *ast_sip_threadpool(void);
+
+/*!
  * \brief Retrieve transport state
  * \since 13.7.1
  *
