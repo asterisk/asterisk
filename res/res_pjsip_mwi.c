@@ -42,8 +42,9 @@
 #include "asterisk/mwi.h"
 
 struct mwi_subscription;
-static struct ao2_container *unsolicited_mwi;
-static struct ao2_container *solicited_mwi;
+
+AO2_GLOBAL_OBJ_STATIC(mwi_unsolicited);
+AO2_GLOBAL_OBJ_STATIC(mwi_solicited);
 
 static char *default_voicemail_extension;
 
@@ -588,13 +589,15 @@ static int unsubscribe_stasis(void *obj, void *arg, int flags)
 }
 
 static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoint,
-		int recreate, int send_now);
+	int recreate, int send_now, struct ao2_container *unsolicited_mwi, struct ao2_container *solicited_mwi);
 
 static void mwi_subscription_shutdown(struct ast_sip_subscription *sub)
 {
 	struct mwi_subscription *mwi_sub;
 	struct ast_datastore *mwi_datastore;
 	struct ast_sip_endpoint *endpoint = NULL;
+	struct ao2_container *unsolicited_mwi;
+	struct ao2_container *solicited_mwi;
 
 	mwi_datastore = ast_sip_subscription_get_datastore(sub, MWI_DATASTORE);
 	if (!mwi_datastore) {
@@ -607,18 +610,25 @@ static void mwi_subscription_shutdown(struct ast_sip_subscription *sub)
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", mwi_sub->id);
 
 	ao2_ref(mwi_datastore, -1);
-	ao2_unlink(solicited_mwi, mwi_sub);
+
+	solicited_mwi = ao2_global_obj_ref(mwi_solicited);
+	if (solicited_mwi) {
+		ao2_unlink(solicited_mwi, mwi_sub);
+	}
 
 	/*
 	 * When a solicited subscription is removed it's possible an unsolicited one
 	 * needs to be [re-]created. Attempt to establish unsolicited MWI.
 	 */
+	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
 	if (unsolicited_mwi && endpoint) {
 		ao2_lock(unsolicited_mwi);
-		create_unsolicited_mwi_subscriptions(endpoint, 1, 1);
+		create_unsolicited_mwi_subscriptions(endpoint, 1, 1, unsolicited_mwi, solicited_mwi);
 		ao2_unlock(unsolicited_mwi);
+		ao2_ref(unsolicited_mwi, -1);
 	}
 
+	ao2_cleanup(solicited_mwi);
 	ao2_cleanup(endpoint);
 }
 
@@ -684,6 +694,10 @@ static int has_mwi_subscription(struct ao2_container *container,
 	*mwi_sub = NULL;
 	*mwi_stasis = NULL;
 
+	if (!container) {
+		return 0;
+	}
+
 	mwi_subs = ao2_find(container, ast_sorcery_object_get_id(endpoint),
 						OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK);
 	if (!mwi_subs) {
@@ -713,11 +727,13 @@ static int has_mwi_subscription(struct ao2_container *container,
  *
  * \param endpoint The endpoint
  * \param mailbox The mailbox
+ * \param unsolicited_mwi A container of unsolicited mwi objects
  *
  * \retval 1 if a solicited subscription is allowed for the endpoint/mailbox
  *         0 otherwise
  */
-static int allow_and_or_replace_unsolicited(struct ast_sip_endpoint *endpoint, const char *mailbox)
+static int allow_and_or_replace_unsolicited(struct ast_sip_endpoint *endpoint, const char *mailbox,
+	struct ao2_container *unsolicited_mwi)
 {
 	struct mwi_subscription *mwi_sub;
 	struct mwi_stasis_subscription *mwi_stasis;
@@ -764,11 +780,14 @@ static int send_notify(void *obj, void *arg, int flags);
  *
  * \param endpoint The endpoint
  * \param mailbox The mailbox
+ * \param unsolicited_mwi A container of unsolicited mwi objects
+ * \param solicited_mwi A container of solicited mwi objects
  *
  * \retval 1 if an unsolicited subscription is allowed for the endpoint/mailbox
  *         0 otherwise
  */
-static int is_unsolicited_allowed(struct ast_sip_endpoint *endpoint, const char *mailbox)
+static int is_unsolicited_allowed(struct ast_sip_endpoint *endpoint, const char *mailbox,
+	struct ao2_container *unsolicited_mwi, struct ao2_container *solicited_mwi)
 {
 	struct mwi_subscription *mwi_sub;
 	struct mwi_stasis_subscription *mwi_stasis;
@@ -834,28 +853,41 @@ static int mwi_validate_for_aor(void *obj, void *arg, int flags)
 	struct ast_sip_endpoint *endpoint = arg;
 	char *mailboxes;
 	char *mailbox;
+	struct ao2_container *unsolicited_mwi;
 
 	if (ast_strlen_zero(aor->mailboxes)) {
 		return 0;
 	}
 
 	/* A reload could be taking place so lock while checking if allowed */
-	ao2_lock(unsolicited_mwi);
+	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
+	if (unsolicited_mwi) {
+		ao2_lock(unsolicited_mwi);
+	}
+
 	mailboxes = ast_strdupa(aor->mailboxes);
 	while ((mailbox = ast_strip(strsep(&mailboxes, ",")))) {
 		if (ast_strlen_zero(mailbox)) {
 			continue;
 		}
 
-		if (!allow_and_or_replace_unsolicited(endpoint, mailbox)) {
+		if (!allow_and_or_replace_unsolicited(endpoint, mailbox, unsolicited_mwi)) {
 			ast_debug(1, "Endpoint '%s' already configured for unsolicited MWI for mailbox '%s'. "
 					"Denying MWI subscription to %s\n", ast_sorcery_object_get_id(endpoint), mailbox,
 					ast_sorcery_object_get_id(aor));
-			ao2_unlock(unsolicited_mwi);
+
+			if (unsolicited_mwi) {
+				ao2_unlock(unsolicited_mwi);
+				ao2_ref(unsolicited_mwi, -1);
+			}
 			return -1;
 		}
 	}
-	ao2_unlock(unsolicited_mwi);
+
+	if (unsolicited_mwi) {
+		ao2_unlock(unsolicited_mwi);
+		ao2_ref(unsolicited_mwi, -1);
+	}
 
 	return 0;
 }
@@ -981,6 +1013,7 @@ static int mwi_subscription_established(struct ast_sip_subscription *sip_sub)
 	const char *resource = ast_sip_subscription_get_resource_name(sip_sub);
 	struct mwi_subscription *sub;
 	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sip_sub);
+	struct ao2_container *solicited_mwi;
 
 	/* no aor in uri? subscribe to all on endpoint */
 	if (ast_strlen_zero(resource)) {
@@ -1001,7 +1034,12 @@ static int mwi_subscription_established(struct ast_sip_subscription *sip_sub)
 		ast_sip_subscription_remove_datastore(sip_sub, MWI_DATASTORE);
 	}
 
-	ao2_link(solicited_mwi, sub);
+	solicited_mwi = ao2_global_obj_ref(mwi_solicited);
+	if (solicited_mwi) {
+		ao2_link(solicited_mwi, sub);
+		ao2_ref(solicited_mwi, -1);
+	}
+
 	ao2_cleanup(sub);
 	ao2_cleanup(endpoint);
 	return 0;
@@ -1148,11 +1186,13 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
  * \param endpoint An endpoint object
  * \param recreate Whether or not unsolicited subscriptions are potentially being recreated
  * \param send_now Whether or not to send a notify once the subscription is created
+ * \param unsolicited_mwi A container of unsolicited mwi objects
+ * \param solicited_mwi A container of solicited mwi objects
  *
  * \retval 0
  */
 static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoint,
-		int recreate, int send_now)
+	int recreate, int send_now, struct ao2_container *unsolicited_mwi, struct ao2_container *solicited_mwi)
 {
 	RAII_VAR(struct mwi_subscription *, aggregate_sub, NULL, ao2_cleanup);
 	char *mailboxes;
@@ -1187,14 +1227,16 @@ static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoin
 	}
 
 	/* Lock solicited so we don't potentially add to both containers */
-	ao2_lock(solicited_mwi);
+	if (solicited_mwi) {
+		ao2_lock(solicited_mwi);
+	}
 
 	mailboxes = ast_strdupa(endpoint->subscription.mwi.mailboxes);
 	while ((mailbox = ast_strip(strsep(&mailboxes, ",")))) {
 		struct mwi_subscription *sub;
 		struct mwi_stasis_subscription *mwi_stasis_sub;
 
-		if (!is_unsolicited_allowed(endpoint, mailbox)) {
+		if (!is_unsolicited_allowed(endpoint, mailbox, unsolicited_mwi, solicited_mwi)) {
 			continue;
 		}
 
@@ -1234,13 +1276,16 @@ static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoin
 		}
 	}
 
-	ao2_unlock(solicited_mwi);
+	if (solicited_mwi) {
+		ao2_unlock(solicited_mwi);
+	}
+
 	return 0;
 }
 
-static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags)
+static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, void *data, int flags)
 {
-	return create_unsolicited_mwi_subscriptions(obj, 0, 0);
+	return create_unsolicited_mwi_subscriptions(obj, 0, 0, arg, data);
 }
 
 static int unsubscribe(void *obj, void *arg, int flags)
@@ -1254,8 +1299,15 @@ static int unsubscribe(void *obj, void *arg, int flags)
 
 static void create_mwi_subscriptions(void)
 {
+	struct ao2_container *unsolicited_mwi;
+	struct ao2_container *solicited_mwi;
 	struct ao2_container *endpoints;
 	struct ast_variable *var;
+
+	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
+	if (!unsolicited_mwi) {
+		return;
+	}
 
 	var = ast_variable_new("mailboxes !=", "", "");
 
@@ -1264,8 +1316,11 @@ static void create_mwi_subscriptions(void)
 
 	ast_variables_destroy(var);
 	if (!endpoints) {
+		ao2_ref(unsolicited_mwi, -1);
 		return;
 	}
+
+	solicited_mwi = ao2_global_obj_ref(mwi_solicited);
 
 	/* We remove all the old stasis subscriptions first before applying the new configuration. This
 	 * prevents a situation where there might be multiple overlapping stasis subscriptions for an
@@ -1275,10 +1330,12 @@ static void create_mwi_subscriptions(void)
 	 */
 	ao2_lock(unsolicited_mwi);
 	ao2_callback(unsolicited_mwi, OBJ_NOLOCK | OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
-	ao2_callback(endpoints, OBJ_NODATA, create_mwi_subscriptions_for_endpoint, NULL);
+	ao2_callback_data(endpoints, OBJ_NODATA, create_mwi_subscriptions_for_endpoint, unsolicited_mwi, solicited_mwi);
 	ao2_unlock(unsolicited_mwi);
 
 	ao2_ref(endpoints, -1);
+	ao2_cleanup(solicited_mwi);
+	ao2_ref(unsolicited_mwi, -1);
 }
 
 /*! \brief Function called to send MWI NOTIFY on any unsolicited mailboxes relating to this AOR */
@@ -1305,6 +1362,8 @@ static void mwi_contact_changed(const struct ast_sip_contact *contact)
 	char *id = ast_strdupa(ast_sorcery_object_get_id(contact));
 	char *aor = NULL;
 	struct ast_sip_endpoint *endpoint = NULL;
+	struct ao2_container *unsolicited_mwi;
+	struct ao2_container *solicited_mwi;
 
 	if (contact->endpoint) {
 		endpoint = ao2_bump(contact->endpoint);
@@ -1319,10 +1378,20 @@ static void mwi_contact_changed(const struct ast_sip_contact *contact)
 		return;
 	}
 
+	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
+	if (!unsolicited_mwi) {
+		ao2_cleanup(endpoint);
+		return;
+	}
+
+	solicited_mwi = ao2_global_obj_ref(mwi_solicited);
+
 	ao2_lock(unsolicited_mwi);
-	create_mwi_subscriptions_for_endpoint(endpoint, NULL, 0);
+	create_unsolicited_mwi_subscriptions(endpoint, 0, 0, unsolicited_mwi, solicited_mwi);
 	ao2_unlock(unsolicited_mwi);
 	ao2_cleanup(endpoint);
+	ao2_cleanup(solicited_mwi);
+	ao2_ref(unsolicited_mwi, -1);
 
 	aor = strsep(&id, ";@");
 	ao2_callback(unsolicited_mwi, OBJ_NODATA, send_contact_notify, aor);
@@ -1348,6 +1417,7 @@ static void mwi_contact_deleted(const void *object)
 	struct mwi_subscription *mwi_sub;
 	struct ast_sip_endpoint *endpoint = NULL;
 	struct ast_sip_contact *found_contact;
+	struct ao2_container *unsolicited_mwi;
 
 	if (contact->endpoint) {
 		endpoint = ao2_bump(contact->endpoint);
@@ -1370,6 +1440,11 @@ static void mwi_contact_deleted(const void *object)
 		return;
 	}
 
+	unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
+	if (!unsolicited_mwi) {
+		return;
+	}
+
 	ao2_lock(unsolicited_mwi);
 	mwi_subs = ao2_find(unsolicited_mwi, contact->endpoint_name,
 		OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
@@ -1380,6 +1455,7 @@ static void mwi_contact_deleted(const void *object)
 		ao2_iterator_destroy(mwi_subs);
 	}
 	ao2_unlock(unsolicited_mwi);
+	ao2_ref(unsolicited_mwi, -1);
 }
 
 /*! \brief Observer for contacts so unsolicited MWI is sent when a contact changes */
@@ -1392,7 +1468,12 @@ static const struct ast_sorcery_observer mwi_contact_observer = {
 /*! \brief Task invoked to send initial MWI NOTIFY for unsolicited */
 static int send_initial_notify_all(void *obj)
 {
-	ao2_callback(unsolicited_mwi, OBJ_NODATA, send_notify, NULL);
+	struct ao2_container *unsolicited_mwi = ao2_global_obj_ref(mwi_unsolicited);
+
+	if (unsolicited_mwi) {
+		ao2_callback(unsolicited_mwi, OBJ_NODATA, send_notify, NULL);
+		ao2_ref(unsolicited_mwi, -1);
+	}
 
 	return 0;
 }
@@ -1440,8 +1521,38 @@ static int reload(void)
 	return 0;
 }
 
+static int unload_module(void)
+{
+	struct ao2_container *unsolicited_mwi;
+
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
+
+	unsolicited_mwi = ao2_global_obj_replace(mwi_unsolicited, NULL);
+	if (unsolicited_mwi) {
+		ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
+		ao2_ref(unsolicited_mwi, -1);
+	}
+
+	ao2_global_obj_release(mwi_solicited);
+
+	if (ast_serializer_pool_destroy(mwi_serializer_pool)) {
+		ast_log(LOG_WARNING, "Unload incomplete. Try again later\n");
+		return -1;
+	}
+	mwi_serializer_pool = NULL;
+
+	ast_sip_unregister_subscription_handler(&mwi_handler);
+
+	ast_free(default_voicemail_extension);
+	default_voicemail_extension = NULL;
+	return 0;
+}
+
 static int load_module(void)
 {
+	struct ao2_container *mwi_container;
+
 	CHECK_PJSIP_MODULE_LOADED();
 
 	if (ast_sip_register_subscription_handler(&mwi_handler)) {
@@ -1454,22 +1565,23 @@ static int load_module(void)
 		ast_log(AST_LOG_WARNING, "Failed to create MWI serializer pool. The default SIP pool will be used for MWI\n");
 	}
 
-	solicited_mwi = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MWI_BUCKETS,
+	mwi_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MWI_BUCKETS,
 		mwi_sub_hash, NULL, mwi_sub_cmp);
-	if (!solicited_mwi) {
-		ast_serializer_pool_destroy(mwi_serializer_pool);
-		ast_sip_unregister_subscription_handler(&mwi_handler);
+	if (!mwi_container) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	ao2_global_obj_replace_unref(mwi_solicited, mwi_container);
+	ao2_ref(mwi_container, -1);
 
-	unsolicited_mwi = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MWI_BUCKETS,
+	mwi_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MWI_BUCKETS,
 		mwi_sub_hash, NULL, mwi_sub_cmp);
-	if (!unsolicited_mwi) {
-		ast_serializer_pool_destroy(mwi_serializer_pool);
-		ast_sip_unregister_subscription_handler(&mwi_handler);
-		ao2_ref(solicited_mwi, -1);
+	if (!mwi_container) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	ao2_global_obj_replace_unref(mwi_unsolicited, mwi_container);
+	ao2_ref(mwi_container, -1);
 
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer);
@@ -1499,35 +1611,6 @@ static int load_module(void)
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
-	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
-
-	if (unsolicited_mwi) {
-		ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
-		ao2_ref(unsolicited_mwi, -1);
-		unsolicited_mwi = NULL;
-	}
-
-	if (solicited_mwi) {
-		ao2_ref(solicited_mwi, -1);
-		solicited_mwi = NULL;
-	}
-
-	if (ast_serializer_pool_destroy(mwi_serializer_pool)) {
-		ast_log(LOG_WARNING, "Unload incomplete. Try again later\n");
-		return -1;
-	}
-	mwi_serializer_pool = NULL;
-
-	ast_sip_unregister_subscription_handler(&mwi_handler);
-
-	ast_free(default_voicemail_extension);
-	default_voicemail_extension = NULL;
-	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP MWI resource",
