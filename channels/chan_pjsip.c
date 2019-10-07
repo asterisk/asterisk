@@ -1536,7 +1536,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
 		ast_devstate_changed_literal(AST_DEVICE_ONHOLD, 1, device_buf);
-		if (!channel->session->endpoint->moh_passthrough) {
+		if (!channel->session->moh_passthrough) {
 			ast_moh_start(ast, data, NULL);
 		} else {
 			if (ast_sip_push_task(channel->session->serializer, remote_send_hold, ao2_bump(channel->session))) {
@@ -1552,7 +1552,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
 		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, 1, device_buf);
-		if (!channel->session->endpoint->moh_passthrough) {
+		if (!channel->session->moh_passthrough) {
 			ast_moh_stop(ast);
 		} else {
 			if (ast_sip_push_task(channel->session->serializer, remote_send_unhold, ao2_bump(channel->session))) {
@@ -2869,6 +2869,12 @@ static struct ast_custom_function dtmf_mode_function = {
 	.write = pjsip_acf_dtmf_mode_write
 };
 
+static struct ast_custom_function moh_passthrough_function = {
+	.name = "PJSIP_MOH_PASSTHROUGH",
+	.read = pjsip_acf_moh_passthrough_read,
+	.write = pjsip_acf_moh_passthrough_write
+};
+
 static struct ast_custom_function session_refresh_function = {
 	.name = "PJSIP_SEND_SESSION_REFRESH",
 	.write = pjsip_acf_session_refresh_write,
@@ -2920,6 +2926,11 @@ static int load_module(void)
 
 	if (ast_custom_function_register(&dtmf_mode_function)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIP_DTMF_MODE dialplan function\n");
+		goto end;
+	}
+
+	if (ast_custom_function_register(&moh_passthrough_function)) {
+		ast_log(LOG_WARNING, "Unable to register PJSIP_MOH_PASSTHROUGH dialplan function\n");
 		goto end;
 	}
 
@@ -2983,6 +2994,7 @@ end:
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 	ast_custom_function_unregister(&dtmf_mode_function);
+	ast_custom_function_unregister(&moh_passthrough_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
@@ -3008,6 +3020,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
 	ast_custom_function_unregister(&dtmf_mode_function);
+	ast_custom_function_unregister(&moh_passthrough_function);
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_custom_function_unregister(&chan_pjsip_parse_uri_function);
