@@ -1,0 +1,10 @@
+Subject: app_voicemail
+
+A feature was added in Asterisk 13.27.0 and 16.4.0 that removed lock files from
+the Asterisk voicemail directory on startup. Some users that store their
+voicemails on network storage devices experienced slow startup times due to the
+relative expense of traversing the voicemail directory structure looking for
+orphaned lock files. This feature has now been removed.
+
+Users who require the lock files to be removed at startup should modify their
+startup scripts to do so before starting the asterisk process.
