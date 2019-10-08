@@ -389,6 +389,13 @@ static int my_unload_module(int reload)
 {
 	struct column *entry;
 
+	if (!reload) {
+		if (ast_cdr_unregister(name)) {
+			/* If we can't unregister the backend, we can't unload the module */
+			return -1;
+		}
+	}
+
 	ast_cli_unregister_multiple(cdr_mysql_status_cli, sizeof(cdr_mysql_status_cli) / sizeof(struct ast_cli_entry));
 
 	if (connected) {
@@ -413,7 +420,8 @@ static int my_unload_module(int reload)
 	if (reload) {
 		return ast_cdr_backend_suspend(name);
 	} else {
-		return ast_cdr_unregister(name);
+		/* We unregistered earlier */
+		return 0;
 	}
 }
 
