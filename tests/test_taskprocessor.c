@@ -182,7 +182,7 @@ AST_TEST_DEFINE(subsystem_alert)
 #define LOW_WATER_MARK 3
 #define HIGH_WATER_MARK 6
 	struct task_data *task_data[(TEST_DATA_ARRAY_SIZE + 1)] = { 0 };
-	int res;
+	int res = 0;
 	int i;
 	long queue_count;
 	unsigned int alert_level;
