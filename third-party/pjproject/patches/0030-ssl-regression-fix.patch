@@ -1,0 +1,105 @@
+From 489281f29fc7b97143cf79154f22e5007adaba39 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Wed, 9 Oct 2019 07:49:44 -0600
+Subject: [PATCH 30/31] ssl regression fix
+
+---
+ pjlib/src/pj/ssl_sock_gtls.c       | 6 ++++--
+ pjlib/src/pj/ssl_sock_imp_common.c | 4 ++++
+ pjlib/src/pj/ssl_sock_imp_common.h | 3 +++
+ pjlib/src/pj/ssl_sock_ossl.c       | 9 +++++----
+ 4 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_gtls.c b/pjlib/src/pj/ssl_sock_gtls.c
+index 311b7b757..484770ae4 100644
+--- a/pjlib/src/pj/ssl_sock_gtls.c
++++ b/pjlib/src/pj/ssl_sock_gtls.c
+@@ -1050,7 +1050,8 @@ static void ssl_update_certs_info(pj_ssl_sock_t *ssock)
+         goto us_out;
+ 
+     tls_cert_get_info(ssock->pool, &ssock->local_cert_info, cert);
+-    tls_cert_get_chain_raw(ssock->pool, &ssock->local_cert_info, us, 1);
++    pj_pool_reset(ssock->info_pool);
++    tls_cert_get_chain_raw(ssock->info_pool, &ssock->local_cert_info, us, 1);
+ 
+ us_out:
+     tls_last_error = ret;
+@@ -1077,7 +1078,8 @@ us_out:
+         goto peer_out;
+ 
+     tls_cert_get_info(ssock->pool, &ssock->remote_cert_info, cert);
+-    tls_cert_get_chain_raw(ssock->pool, &ssock->remote_cert_info, certs,
++    pj_pool_reset(ssock->info_pool);
++    tls_cert_get_chain_raw(ssock->info_pool, &ssock->remote_cert_info, certs,
+     			   certslen);
+ 
+ peer_out:
+diff --git a/pjlib/src/pj/ssl_sock_imp_common.c b/pjlib/src/pj/ssl_sock_imp_common.c
+index e6273d832..51a62a2fb 100644
+--- a/pjlib/src/pj/ssl_sock_imp_common.c
++++ b/pjlib/src/pj/ssl_sock_imp_common.c
+@@ -616,6 +616,7 @@ static void ssl_on_destroy(void *arg)
+     }
+ 
+     /* Secure release pool, i.e: all memory blocks will be zeroed first */
++    pj_pool_secure_release(&ssock->info_pool);
+     pj_pool_secure_release(&ssock->pool);
+ }
+ 
+@@ -1262,15 +1263,18 @@ PJ_DEF(pj_status_t) pj_ssl_sock_create (pj_pool_t *pool,
+ {
+     pj_ssl_sock_t *ssock;
+     pj_status_t status;
++    pj_pool_t *info_pool;
+ 
+     PJ_ASSERT_RETURN(pool && param && p_ssock, PJ_EINVAL);
+     PJ_ASSERT_RETURN(param->sock_type == pj_SOCK_STREAM(), PJ_ENOTSUP);
+ 
++    info_pool = pj_pool_create(pool->factory, "ssl_chain%p", 512, 512, NULL);
+     pool = pj_pool_create(pool->factory, "ssl%p", 512, 512, NULL);
+ 
+     /* Create secure socket */
+     ssock = ssl_alloc(pool);
+     ssock->pool = pool;
++    ssock->info_pool = info_pool;
+     ssock->sock = PJ_INVALID_SOCKET;
+     ssock->ssl_state = SSL_STATE_NULL;
+     ssock->circ_buf_input.owner = ssock;
+diff --git a/pjlib/src/pj/ssl_sock_imp_common.h b/pjlib/src/pj/ssl_sock_imp_common.h
+index 09f259ef7..eb45f14e0 100644
+--- a/pjlib/src/pj/ssl_sock_imp_common.h
++++ b/pjlib/src/pj/ssl_sock_imp_common.h
+@@ -96,6 +96,9 @@ typedef struct circ_buf_t {
+ struct pj_ssl_sock_t
+ {
+     pj_pool_t		 *pool;
++    pj_pool_t		 *info_pool; /* this is for certificate chain 
++				      * information allocation. Don't use for 
++				      * other purposes. */
+     pj_ssl_sock_t	 *parent;
+     pj_ssl_sock_param	  param;
+     pj_ssl_sock_param	  newsock_param;
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index b4ac5c15f..2545b7c37 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -1637,11 +1637,12 @@ static void ssl_update_certs_info(pj_ssl_sock_t *ssock)
+ 
+     chain = SSL_get_peer_cert_chain(ossock->ossl_ssl);
+     if (chain) {
+-       ssl_update_remote_cert_chain_info(ssock->pool,
+-       					 &ssock->remote_cert_info,
+-       					 chain, PJ_TRUE);
++	pj_pool_reset(ssock->info_pool);
++	ssl_update_remote_cert_chain_info(ssock->info_pool,
++       					  &ssock->remote_cert_info,
++       					  chain, PJ_TRUE);
+     } else {
+-       ssock->remote_cert_info.raw_chain.cnt = 0;
++	ssock->remote_cert_info.raw_chain.cnt = 0;
+     }
+ }
+ 
+-- 
+2.21.0
+
