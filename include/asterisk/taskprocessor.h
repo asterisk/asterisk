@@ -305,6 +305,15 @@ int ast_taskprocessor_is_task(struct ast_taskprocessor *tps);
 unsigned int ast_taskprocessor_seq_num(void);
 
 /*!
+ * \brief Append the next sequence number to the given string, and copy into the buffer.
+ *
+ * \param buf Where to copy the appended taskprocessor name.
+ * \param size How large is buf including null terminator.
+ * \param name A name to append the sequence number to.
+ */
+void ast_taskprocessor_name_append(char *buf, unsigned int size, const char *name);
+
+/*!
  * \brief Build a taskprocessor name with a sequence number on the end.
  * \since 13.8.0
  *
