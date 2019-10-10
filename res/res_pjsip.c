@@ -34,6 +34,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
+#include "asterisk/serializer.h"
 #include "asterisk/threadpool.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/uuid.h"
@@ -2840,7 +2841,7 @@
 #define SERIALIZER_POOL_SIZE		8
 
 /*! Pool of serializers to use if not supplied. */
-static struct ast_taskprocessor *serializer_pool[SERIALIZER_POOL_SIZE];
+static struct ast_serializer_pool *sip_serializer_pool;
 
 static pjsip_endpoint *ast_pjsip_endpoint;
 
@@ -4626,71 +4627,10 @@ struct ast_taskprocessor *ast_sip_create_serializer(const char *name)
 	return ast_sip_create_serializer_group(name, NULL);
 }
 
-/*!
- * \internal
- * \brief Shutdown the serializers in the default pool.
- * \since 14.0.0
- *
- * \return Nothing
- */
-static void serializer_pool_shutdown(void)
-{
-	int idx;
-
-	for (idx = 0; idx < SERIALIZER_POOL_SIZE; ++idx) {
-		ast_taskprocessor_unreference(serializer_pool[idx]);
-		serializer_pool[idx] = NULL;
-	}
-}
-
-/*!
- * \internal
- * \brief Setup the serializers in the default pool.
- * \since 14.0.0
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int serializer_pool_setup(void)
-{
-	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
-	int idx;
-
-	for (idx = 0; idx < SERIALIZER_POOL_SIZE; ++idx) {
-		/* Create name with seq number appended. */
-		ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/default");
-
-		serializer_pool[idx] = ast_sip_create_serializer(tps_name);
-		if (!serializer_pool[idx]) {
-			serializer_pool_shutdown();
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static struct ast_taskprocessor *serializer_pool_pick(void)
-{
-	int idx;
-	int pos = 0;
-
-	if (!serializer_pool[0]) {
-		return NULL;
-	}
-
-	for (idx = 1; idx < SERIALIZER_POOL_SIZE; ++idx) {
-		if (ast_taskprocessor_size(serializer_pool[idx]) < ast_taskprocessor_size(serializer_pool[pos])) {
-			pos = idx;
-		}
-	}
-
-	return serializer_pool[pos];
-}
-
 int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
 {
 	if (!serializer) {
-		serializer = serializer_pool_pick();
+		serializer = ast_serializer_pool_get(sip_serializer_pool);
 	}
 
 	return ast_taskprocessor_push(serializer, sip_task, task_data);
@@ -4771,7 +4711,7 @@ int ast_sip_push_task_wait_serializer(struct ast_taskprocessor *serializer, int 
 {
 	if (!serializer) {
 		/* Caller doesn't care which PJSIP serializer the task executes under. */
-		serializer = serializer_pool_pick();
+		serializer = ast_serializer_pool_get(sip_serializer_pool);
 		if (!serializer) {
 			/* No serializer picked to execute the task */
 			return -1;
@@ -5133,6 +5073,11 @@ long ast_sip_threadpool_queue_size(void)
 	return ast_threadpool_queue_size(sip_threadpool);
 }
 
+struct ast_threadpool *ast_sip_threadpool(void)
+{
+	return sip_threadpool;
+}
+
 #ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(xml_sanitization_end_null)
 {
@@ -5204,7 +5149,7 @@ static int unload_pjsip(void *data)
 	 * These calls need the pjsip endpoint and serializer to clean up.
 	 * If they're not set, then there's nothing to clean up anyway.
 	 */
-	if (ast_pjsip_endpoint && serializer_pool[0]) {
+	if (ast_pjsip_endpoint && sip_serializer_pool) {
 		ast_res_pjsip_cleanup_options_handling();
 		ast_res_pjsip_cleanup_message_filter();
 		ast_sip_destroy_distributor();
@@ -5340,7 +5285,9 @@ static int load_module(void)
 		goto error;
 	}
 
-	if (serializer_pool_setup()) {
+	sip_serializer_pool = ast_serializer_pool_create(
+		"pjsip/default", SERIALIZER_POOL_SIZE, sip_threadpool, -1);
+	if (!sip_serializer_pool) {
 		ast_log(LOG_ERROR, "Failed to create SIP serializer pool. Aborting load\n");
 		goto error;
 	}
@@ -5413,7 +5360,7 @@ error:
 
 	/* These functions all check for NULLs and are safe to call at any time */
 	ast_sip_destroy_scheduler();
-	serializer_pool_shutdown();
+	ast_serializer_pool_destroy(sip_serializer_pool);
 	ast_threadpool_shutdown(sip_threadpool);
 
 	return AST_MODULE_LOAD_DECLINE;
@@ -5444,7 +5391,7 @@ static int unload_module(void)
 	 */
 	ast_sip_push_task_wait_servant(NULL, unload_pjsip, NULL);
 	ast_sip_destroy_scheduler();
-	serializer_pool_shutdown();
+	ast_serializer_pool_destroy(sip_serializer_pool);
 	ast_threadpool_shutdown(sip_threadpool);
 
 	return 0;
