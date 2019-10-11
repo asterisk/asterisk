@@ -1,0 +1,187 @@
+From 9c6108ca392d5e0392e7fb5d2ffde85e3c44ce55 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Wed, 9 Oct 2019 07:50:32 -0600
+Subject: [PATCH 31/31] transport regression fix
+
+---
+ pjsip/src/pjsip/sip_transport.c | 73 +++++++++++++++++++++++++++------
+ 1 file changed, 61 insertions(+), 12 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index 65ac823d4..da6b70e50 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -50,6 +50,24 @@ static const char *addr_string(const pj_sockaddr_t *addr)
+ 		 str, sizeof(str));
+     return str;
+ }
++static const char* print_tpsel_info(const pjsip_tpselector *sel)
++{
++    static char tpsel_info_buf[80];
++    if (!sel) return "(null)";
++    if (sel->type==PJSIP_TPSELECTOR_LISTENER)
++	pj_ansi_snprintf(tpsel_info_buf, sizeof(tpsel_info_buf),
++			 "listener[%s], reuse=%d", sel->u.listener->obj_name,
++			 !sel->disable_connection_reuse);
++    else if (sel->type==PJSIP_TPSELECTOR_TRANSPORT)
++	pj_ansi_snprintf(tpsel_info_buf, sizeof(tpsel_info_buf),
++			 "transport[%s], reuse=%d", sel->u.transport->info,
++			 !sel->disable_connection_reuse);
++    else
++	pj_ansi_snprintf(tpsel_info_buf, sizeof(tpsel_info_buf),
++			 "unknown[%p], reuse=%d", sel->u.ptr,
++			 !sel->disable_connection_reuse);
++    return tpsel_info_buf;
++}
+ #else
+ #   define TRACE_(x)
+ #endif
+@@ -1210,10 +1228,14 @@ PJ_DEF(pj_status_t) pjsip_transport_register( pjsip_tpmgr *mgr,
+ 	 * new transport to the list.
+ 	 */
+ 	pj_list_push_back(tp_ref, tp_add);
++	TRACE_((THIS_FILE, "Remote address already registered, "
++			   "appended the transport to the list"));
+     } else {
+ 	/* Transport list not found, add it to the hash table. */
+ 	pj_hash_set_np(mgr->table, &tp->key, key_len, hval, tp_add->tp_buf,
+ 		       tp_add);
++	TRACE_((THIS_FILE, "Remote address not registered, "
++			   "added the transport to the hash"));
+     }
+ 
+     /* Add ref transport group lock, if any */
+@@ -1283,6 +1305,13 @@ static pj_status_t destroy_transport( pjsip_tpmgr *mgr,
+ 			/* The transport list has multiple entry. */
+ 			pj_hash_set_np(mgr->table, &tp_next->tp->key, key_len,
+ 				       hval, tp_next->tp_buf, tp_next);
++			TRACE_((THIS_FILE, "Hash entry updated after "
++					   "transport %d being destroyed",
++					   tp->obj_name));
++		    } else {
++			TRACE_((THIS_FILE, "Hash entry deleted after "
++					   "transport %d being destroyed",
++					   tp->obj_name));
+ 		    }
+ 		}
+ 
+@@ -1294,6 +1323,14 @@ static pj_status_t destroy_transport( pjsip_tpmgr *mgr,
+ 	    }
+ 	    tp_iter = tp_iter->next;
+ 	} while (tp_iter != tp_ref);
++
++	if (tp_iter->tp != tp) {
++	    PJ_LOG(3, (THIS_FILE, "Warning: transport %s being destroyed is "
++				  "not registered", tp->obj_name));
++	}
++    } else {
++	PJ_LOG(3, (THIS_FILE, "Warning: transport %s being destroyed is "
++			      "not found in the hash table", tp->obj_name));
+     }
+ 
+     pj_lock_release(mgr->lock);
+@@ -2159,6 +2196,7 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport(pjsip_tpmgr *mgr,
+ 					  NULL, tp);
+ }
+ 
++
+ /*
+  * pjsip_tpmgr_acquire_transport2()
+  *
+@@ -2176,8 +2214,9 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+     pjsip_tpfactory *factory;
+     pj_status_t status;
+ 
+-    TRACE_((THIS_FILE,"Acquiring transport type=%s, remote=%s:%d",
++    TRACE_((THIS_FILE,"Acquiring transport type=%s, sel=%s remote=%s:%d",
+ 		       pjsip_transport_get_type_name(type),
++		       print_tpsel_info(sel),
+ 		       addr_string(remote),
+ 		       pj_sockaddr_get_port(remote)));
+ 
+@@ -2194,6 +2233,7 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 	/* See if the transport is (not) suitable */
+ 	if (seltp->key.type != type) {
+ 	    pj_lock_release(mgr->lock);
++	    TRACE_((THIS_FILE, "Transport type in tpsel not matched"));
+ 	    return PJSIP_ETPNOTSUITABLE;
+ 	}
+ 
+@@ -2234,6 +2274,7 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 	{
+ 	    if (sel->u.listener->type != type) {
+ 		pj_lock_release(mgr->lock);
++		TRACE_((THIS_FILE, "Listener type in tpsel not matched"));
+ 		return PJSIP_ETPNOTSUITABLE;
+ 	    }
+ 	}
+@@ -2249,21 +2290,25 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 	    tp_entry = (transport *)pj_hash_get(mgr->table, &key, key_len,
+ 						NULL);
+ 	    if (tp_entry) {
+-		if (sel && sel->type == PJSIP_TPSELECTOR_LISTENER) {
+-		    transport *tp_iter = tp_entry;
+-		    do {
++		transport *tp_iter = tp_entry;
++		do {
++		    /* Don't use transport being shutdown */
++		    if (!tp_iter->tp->is_shutdown) {
+ 			if (sel && sel->type == PJSIP_TPSELECTOR_LISTENER &&
+-			    sel->u.listener &&
+-			    tp_iter->tp->factory == sel->u.listener)
++			    sel->u.listener)
+ 			{
++			    /* Match listener if selector is set */
++			    if (tp_iter->tp->factory == sel->u.listener) {
++				tp_ref = tp_iter->tp;
++				break;
++			    }
++			} else {
+ 			    tp_ref = tp_iter->tp;
+ 			    break;
+ 			}
+-			tp_iter = tp_iter->next;
+-		    } while (tp_iter != tp_entry);
+-		} else {
+-		    tp_ref = tp_entry->tp;
+-		}
++		    }
++		    tp_iter = tp_iter->next;
++		} while (tp_iter != tp_entry);
+ 	    }
+ 	}
+ 
+@@ -2276,7 +2321,7 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 
+ 	    /* Ignore address for loop transports. */
+ 	    if (type == PJSIP_TRANSPORT_LOOP ||
+-		     type == PJSIP_TRANSPORT_LOOP_DGRAM)
++		type == PJSIP_TRANSPORT_LOOP_DGRAM)
+ 	    {
+ 		pj_sockaddr *addr = &key.rem_addr;
+ 
+@@ -2315,6 +2360,7 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 	     * 'duplicate' of the existing transport (same type & remote addr,
+ 	     * but different factory).
+ 	     */
++	    TRACE_((THIS_FILE, "Transport found but from different listener"));
+ 	}
+ 
+ 	if (tp_ref!=NULL && !tp_ref->is_shutdown) {
+@@ -2347,10 +2393,13 @@ PJ_DEF(pj_status_t) pjsip_tpmgr_acquire_transport2(pjsip_tpmgr *mgr,
+ 	     */
+ 
+ 	    /* Verify that the listener type matches the destination type */
++	    /* Already checked above. */
++	    /*
+ 	    if (sel->u.listener->type != type) {
+ 		pj_lock_release(mgr->lock);
+ 		return PJSIP_ETPNOTSUITABLE;
+ 	    }
++	    */
+ 
+ 	    /* We'll use this listener to create transport */
+ 	    factory = sel->u.listener;
+-- 
+2.21.0
+
