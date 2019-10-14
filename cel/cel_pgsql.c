@@ -597,7 +597,7 @@ static int process_my_load_module(struct ast_config *cfg)
 			PQescapeStringConn(conn, schemaname, schema, lenschema, NULL);
 
 			snprintf(sqlcmd, sizeof(sqlcmd),
-			"SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod "
+			"SELECT a.attname, t.typname, a.attlen, a.attnotnull, pg_catalog.pg_get_expr(d.adbin, d.adrelid) adsrc, a.atttypmod "
 			"FROM (((pg_catalog.pg_class c INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace "
 			         "AND c.relname = '%s' AND n.nspname = %s%s%s) "
 			       "INNER JOIN pg_catalog.pg_attribute a ON ("
