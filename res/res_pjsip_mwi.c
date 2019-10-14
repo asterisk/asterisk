@@ -1289,6 +1289,13 @@ static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoin
 			if (!aggregate_sub) {
 				return 0; /* No MWI aggregation for you */
 			}
+
+			/*
+			 * Just in case we somehow get in the position of recreating with no previous
+			 * aggregate object, set recreate to false here in order to allow the new
+			 * object to be linked into the container below
+			 */
+			recreate = 0;
 		}
 	}
 
@@ -1330,13 +1337,13 @@ static int create_unsolicited_mwi_subscriptions(struct ast_sip_endpoint *endpoin
 
 	if (aggregate_sub) {
 		if (ao2_container_count(aggregate_sub->stasis_subs)) {
-			ao2_link_flags(unsolicited_mwi, aggregate_sub, OBJ_NOLOCK);
+			/* Only link if we're dealing with a new aggregate object */
+			if (!recreate) {
+				ao2_link_flags(unsolicited_mwi, aggregate_sub, OBJ_NOLOCK);
+			}
 			if (send_now && sub_added) {
 				send_notify(aggregate_sub, NULL, 0);
 			}
-		} else {
-			/* No stasis subscriptions then no MWI data to aggregate */
-			ao2_ref(aggregate_sub, -1);
 		}
 	}
 
