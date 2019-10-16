@@ -1,3 +1,69 @@
+2019-10-16 17:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 17.0.0-rc3 Released.
+
+2019-10-09 15:17 +0000 [84e8364ce7]  Joshua Colp (license 5000)
+
+	* pbx: deadlock when outgoing dialed channel hangs up too quickly
+
+	  Here's the basic scenario that occurred when executing an AMI fast originate
+	  while at the same time something else locks the channels container, and also
+	  wants a lock on the dialed channel:
+
+	  1. pbx_outgoing_attempt obtains a lock on a dialed channel
+	  2. concurrently another thread obtains a lock on the channels container, and
+	     subsequently requests a lock on the dialed channel. It waits on #1. For
+	     instance, "core show channel <dialed channel"
+	  3. the outgoing call does not fail, but ends before the pbx_outgoing_attempt
+	     function exits
+	  4. pbx_outgoing_attempt function exits, the outgoing structure destructs, and
+	     attempts to hang up the dialed channel
+	  5. hang up tries to obtain the channels container lock, but can't due to #2.
+	  6. Asterisk is deadlocked.
+
+	  The solution was to allow the pbx_outgoing_exec function to "steal" ownership
+	  of the dialed channel, and handle hanging it up. The channel now is either hung
+	  up prior to it being potentially locked by the initiating thread, or if locked
+	  the hang up takes place in a different thread, thus alleviating the deadlock.
+
+	  ASTERISK-28561
+	  patches:
+	    iliketrains.diff submitted by Joshua Colp (license 5000)
+
+	  Change-Id: I51b42b92dde8f2215b69bb509e28667ee3a3853a
+
+2019-10-10 15:30 +0000 [5214acbd7f]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_mwi: potential double unref, and potential unwanted double link
+
+	  When creating an unsolicited MWI aggregate subscription it was possible for
+	  the subscription object to be double unref'ed. This patch removes the explicit
+	  unref as it is not needed since the RAII_VAR will handle it at function end.
+
+	  Less concerning there was also a bug that could potentially allow the aggregate
+	  subscription object to be added to the unsolicited container twice. This patch
+	  ensures it is added only once.
+
+	  ASTERISK-28575
+
+	  Change-Id: I9ccfdb5ea788bc0c3618db183aae235e53c12763
+
+2019-10-09 09:32 +0000 [9cc9c0267b]  George Joseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Replace earlier reverts with official fixes.
+
+	  Issues in pjproject 2.9 caused us to revert some of their changes
+	  as a work around.  This introduced another issue where pjproject
+	  wouldn't build with older gcc versions such as that found on
+	  CentOS 6.  This commit replaces the reverts with the official
+	  fixes for the original issues and allows pjproject to be built
+	  on CentOS 6 again.
+
+	  ASTERISK-28574
+	  Reported-by: Niklas Larsson
+
+	  Change-Id: I06f8507bea553d1a01b0b8874197d35b9d47ec4c
+
 2019-09-25 17:27 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 17.0.0-rc2 Released.
