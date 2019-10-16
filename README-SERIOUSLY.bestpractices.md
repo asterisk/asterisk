@@ -332,7 +332,7 @@ Data: echo hello world!
 ```
 
 This manager command will attempt to execute an Asterisk application, System,
-which is normally associated with the "system" class authorication.  While some
+which is normally associated with the "system" class authorization.  While some
 checks have been put into Asterisk to take this into account, certain dialplan
 configurations and/or clever manipulation of the Originate manager action can
 circumvent these checks.  For example, take the following dialplan:
