@@ -332,7 +332,7 @@ Data: echo hello world!
 ```
 
 This manager command will attempt to execute an Asterisk application, System,
-which is normally associated with the "system" class authorication.  While some
+which is normally associated with the "system" class authorization.  While some
 checks have been put into Asterisk to take this into account, certain dialplan
 configurations and/or clever manipulation of the Originate manager action can
 circumvent these checks.  For example, take the following dialplan:
@@ -365,7 +365,7 @@ set channel variables; which allows the execution of dialplan functions.
 
 Dialplan functions within Asterisk are incredibly powerful, which is wonderful
 for building applications using Asterisk. But during the read or write
-execution, certain diaplan functions do much more. For example, reading the
+execution, certain dialplan functions do much more. For example, reading the
 SHELL() function can execute arbitrary commands on the system Asterisk is
 running on. Writing to the FILE() function can change any file that Asterisk has
 write access to.
