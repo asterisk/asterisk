@@ -327,6 +327,7 @@ AST_TEST_DEFINE(remb_nominal)
 		.data.ptr = &feedback,
 		.datalen = sizeof(feedback),
 	};
+	struct ast_rtp_rtcp_feedback *received_feedback;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -337,8 +338,7 @@ AST_TEST_DEFINE(remb_nominal)
 			"Tests sending and receiving a REMB packet";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
-		/* Disable for now - there's a bug! */
-		return AST_TEST_NOT_RUN;
+		break;
 	}
 
 	test_sched = ast_sched_context_create();
@@ -353,18 +353,22 @@ AST_TEST_DEFINE(remb_nominal)
 
 	ast_rtp_instance_write(instance1, &frame_out);
 
-	/*
-	 * There may be some additional work that needs to be done here, depending on how
-	 * Asterisk handles the reading in of compound packets. We might get an ast_null_frame
-	 * here instead of the REMB frame. We'll need to check the frametype to distinguish
-	 * between them (AST_FRAME_NULL for ast_null_frame, AST_FRAME_RTCP for REMB).
-	 */
+	/* Verify the high level aspects of the frame */
 	frame_in = ast_rtp_instance_read(instance2, 0);
 	ast_test_validate(test, frame_in != NULL, "Did not receive a REMB frame");
 	ast_test_validate(test, frame_in->frametype == AST_FRAME_RTCP,
 		"REMB frame did not have the expected frametype");
 	ast_test_validate(test, frame_in->subclass.integer == AST_RTP_RTCP_PSFB,
 		"REMB frame did not have the expected subclass integer");
+
+	/* Verify the actual REMB information itself */
+	received_feedback = frame_in->data.ptr;
+	ast_test_validate(test, received_feedback->fmt == AST_RTP_RTCP_FMT_REMB,
+		"REMB frame did not have the expected feedback format");
+	ast_test_validate(test, received_feedback->remb.br_exp == feedback.remb.br_exp,
+		"REMB received exponent did not match sent exponent");
+	ast_test_validate(test, received_feedback->remb.br_mantissa == feedback.remb.br_mantissa,
+		"REMB received mantissa did not match sent mantissa");
 
 	return AST_TEST_PASS;
 }
@@ -447,8 +451,7 @@ AST_TEST_DEFINE(fir_nominal)
 			"Tests sending and receiving a FIR packet";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
-		/* Disable for now - there's a bug! */
-		return AST_TEST_NOT_RUN;
+		break;
 	}
 
 	test_sched = ast_sched_context_create();
@@ -475,9 +478,6 @@ AST_TEST_DEFINE(fir_nominal)
 	 * We only receive one frame, the FIR request. It won't have a subclass integer of
 	 * 206 (PSFB) because ast_rtcp_interpret sets it to 18 (AST_CONTROL_VIDUPDATE), so
 	 * check for that.
-	 *
-	 * NOTE - similar to REMB, there may be more that needs to be done here when the
-	 * packet is sent as a compound packet!
 	 */
 	frame_in = ast_rtp_instance_read(instance2, 0);
 	ast_test_validate(test, frame_in != NULL, "Did not receive a FIR frame");
