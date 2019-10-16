@@ -1,3 +1,40 @@
+2019-10-16 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.29.1 Released.
+
+2019-10-09 09:32 +0000 [1fd9f80cae]  George Joseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Replace earlier reverts with official fixes.
+
+	  Issues in pjproject 2.9 caused us to revert some of their changes
+	  as a work around.  This introduced another issue where pjproject
+	  wouldn't build with older gcc versions such as that found on
+	  CentOS 6.  This commit replaces the reverts with the official
+	  fixes for the original issues and allows pjproject to be built
+	  on CentOS 6 again.
+
+	  ASTERISK-28574
+	  Reported-by: Niklas Larsson
+
+	  Change-Id: I06f8507bea553d1a01b0b8874197d35b9d47ec4c
+	  (cherry picked from commit 164e5372a213bd3264870d614f006df2be043938)
+
+2019-10-10 15:30 +0000 [2f6504ce5e]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_mwi: potential double unref, and potential unwanted double link
+
+	  When creating an unsolicited MWI aggregate subscription it was possible for
+	  the subscription object to be double unref'ed. This patch removes the explicit
+	  unref as it is not needed since the RAII_VAR will handle it at function end.
+
+	  Less concerning there was also a bug that could potentially allow the aggregate
+	  subscription object to be added to the unsolicited container twice. This patch
+	  ensures it is added only once.
+
+	  ASTERISK-28575
+
+	  Change-Id: I9ccfdb5ea788bc0c3618db183aae235e53c12763
+
 2019-10-08 17:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.29.0 Released.
