@@ -6855,7 +6855,6 @@ static void rtp_instance_parse_transport_wide_cc(struct ast_rtp_instance *instan
 	if (transport_rtp->transport_wide_cc.schedid < 0 && transport_rtp->rtcp) {
 		ast_debug(1, "Starting RTCP transport-cc feedback transmission on RTP instance '%p'\n", transport);
 		ao2_ref(transport, +1);
-		ast_log(LOG_NOTICE, "Starting feedback\n");
 		transport_rtp->transport_wide_cc.schedid = ast_sched_add(rtp->sched, 1000,
 			rtp_transport_wide_cc_feedback_produce, transport);
 		if (transport_rtp->transport_wide_cc.schedid < 0) {
