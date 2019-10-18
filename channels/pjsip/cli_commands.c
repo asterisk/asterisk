@@ -339,14 +339,14 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	const struct ast_channel_snapshot *snapshot = obj;
 	struct ast_channel *channel = ast_channel_get_by_name(snapshot->base->name);
-	struct ast_sip_channel_pvt *cpvt = channel ? ast_channel_tech_pvt(channel) : NULL;
+	struct ast_sip_channel_pvt *cpvt = NULL;
 	struct ast_sip_session *session;
 	struct ast_sip_session_media *media;
-	struct ast_rtp_instance *rtp;
 	struct ast_rtp_instance_stats stats;
 	char *print_name = NULL;
 	char *print_time = alloca(32);
 	char codec_in_use[7];
+	int stats_res = -1;
 
 	ast_assert(context->output_buffer != NULL);
 
@@ -357,7 +357,8 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	ast_channel_lock(channel);
 
-	session = cpvt->session;
+	cpvt = ast_channel_tech_pvt(channel);
+	session = cpvt ? cpvt->session : NULL;
 	if (!session) {
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->base->name);
 		ast_channel_unlock(channel);
@@ -373,14 +374,13 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	rtp = ao2_bump(media->rtp);
-
 	codec_in_use[0] = '\0';
 
 	if (ast_channel_rawreadformat(channel)) {
 		ast_copy_string(codec_in_use, ast_format_get_name(ast_channel_rawreadformat(channel)), sizeof(codec_in_use));
 	}
 
+	stats_res = ast_rtp_instance_get_stats(media->rtp, &stats, AST_RTP_INSTANCE_STAT_ALL);
 	ast_channel_unlock(channel);
 
 	print_name = ast_strdupa(snapshot->base->name);
@@ -389,7 +389,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 
 	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->base->creationtime.tv_sec, print_time, 32);
 
-	if (ast_rtp_instance_get_stats(rtp, &stats, AST_RTP_INSTANCE_STAT_ALL)) {
+	if (stats_res == -1) {
 		ast_str_append(&context->output_buffer, 0, "%s direct media\n", snapshot->base->name);
 	} else {
 		ast_str_append(&context->output_buffer, 0,
@@ -414,7 +414,6 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		);
 	}
 
-	ao2_cleanup(rtp);
 	ao2_cleanup(channel);
 
 	return 0;
