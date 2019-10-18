@@ -2911,7 +2911,7 @@ static void ast_ari_channels_external_media_cb(
 		break;
 	default:
 		if (200 <= code && code <= 299) {
-			is_valid = ast_ari_validate_external_media(
+			is_valid = ast_ari_validate_channel(
 				response->message);
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /channels/externalMedia\n", code);
