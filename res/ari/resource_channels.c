@@ -2064,7 +2064,6 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 	size_t endpoint_len;
 	char *endpoint;
 	struct ast_channel *chan;
-	struct ast_json *json_chan;
 	struct varshead *vars;
 
 	endpoint_len = strlen("UnicastRTP/") + strlen(args->external_host) + 1;
@@ -2093,43 +2092,10 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 		return;
 	}
 
-	/*
-	 * At this point, response->message contains a channel object so we
-	 * need to save it then create a new ExternalMedia object and put the
-	 * channel in it.
-	 */
-	json_chan = response->message;
-	response->message = ast_json_object_create();
-	if (!response->message) {
-		ast_channel_unref(chan);
-		ast_json_unref(json_chan);
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	ast_json_object_set(response->message, "channel", json_chan);
-	/*
-	 * At the time the channel snapshot was taken the channel variables might
-	 * not have been set so we try to grab them directly from the channel.
-	 */
 	ast_channel_lock(chan);
 	vars = ast_channel_varshead(chan);
 	if (vars && !AST_LIST_EMPTY(vars)) {
-		struct ast_var_t *variables;
-
-		/* Put them all on the channel object */
-		ast_json_object_set(json_chan, "channelvars", ast_json_channel_vars(vars));
-		/* Grab out the local address and port */
-		AST_LIST_TRAVERSE(vars, variables, entries) {
-			if (!strcmp("UNICASTRTP_LOCAL_ADDRESS", ast_var_name(variables))) {
-				ast_json_object_set(response->message, "local_address",
-					ast_json_string_create(ast_var_value(variables)));
-			}
-			else if (!strcmp("UNICASTRTP_LOCAL_PORT", ast_var_name(variables))) {
-				ast_json_object_set(response->message, "local_port",
-					ast_json_integer_create(strtol(ast_var_value(variables), NULL, 10)));
-			}
-		}
+		ast_json_object_set(response->message, "channelvars", ast_json_channel_vars(vars));
 	}
 	ast_channel_unlock(chan);
 	ast_channel_unref(chan);

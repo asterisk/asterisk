@@ -1765,7 +1765,7 @@
 					"summary": "Start an External Media session.",
 					"notes": "Create a channel to an External Media source/sink.",
 					"nickname": "externalMedia",
-					"responseClass": "ExternalMedia",
+					"responseClass": "Channel",
 					"parameters": [
 						{
 							"name": "channelId",
@@ -2164,27 +2164,6 @@
 					"required": false,
 					"type": "object",
 					"description": "Channel variables"
-				}
-			}
-		},
-		"ExternalMedia": {
-			"id": "ExternalMedia",
-			"description": "ExternalMedia session.",
-			"properties": {
-				"channel": {
-					"required": true,
-					"type": "Channel",
-					"description": "The Asterisk channel representing the external media"
-				},
-				"local_address": {
-					"required": false,
-					"type": "string",
-					"description": "The local ip address used" 
-				},
-				"local_port": {
-					"required": false,
-					"type": "int",
-					"description": "The local ip port used" 
 				}
 			}
 		}

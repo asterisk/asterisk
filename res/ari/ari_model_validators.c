@@ -1385,62 +1385,6 @@ ari_validator ast_ari_validate_dialplan_cep_fn(void)
 	return ast_ari_validate_dialplan_cep;
 }
 
-int ast_ari_validate_external_media(struct ast_json *json)
-{
-	int res = 1;
-	struct ast_json_iter *iter;
-	int has_channel = 0;
-
-	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
-		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			has_channel = 1;
-			prop_is_valid = ast_ari_validate_channel(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI ExternalMedia field channel failed validation\n");
-				res = 0;
-			}
-		} else
-		if (strcmp("local_address", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			prop_is_valid = ast_ari_validate_string(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI ExternalMedia field local_address failed validation\n");
-				res = 0;
-			}
-		} else
-		if (strcmp("local_port", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			prop_is_valid = ast_ari_validate_int(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI ExternalMedia field local_port failed validation\n");
-				res = 0;
-			}
-		} else
-		{
-			ast_log(LOG_ERROR,
-				"ARI ExternalMedia has undocumented field %s\n",
-				ast_json_object_iter_key(iter));
-			res = 0;
-		}
-	}
-
-	if (!has_channel) {
-		ast_log(LOG_ERROR, "ARI ExternalMedia missing required field channel\n");
-		res = 0;
-	}
-
-	return res;
-}
-
-ari_validator ast_ari_validate_external_media_fn(void)
-{
-	return ast_ari_validate_external_media;
-}
-
 int ast_ari_validate_rtpstat(struct ast_json *json)
 {
 	int res = 1;
