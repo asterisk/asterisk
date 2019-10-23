@@ -2654,9 +2654,10 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 			ast_copy_string(vmu->fullname, var->value, sizeof(vmu->fullname));
 		} else if (!strcasecmp(var->name, "setvar")) {
 			char *varval;
-			char *varname = ast_strdupa(var->value);
+			char varname[strlen(var->value) + 1];
 			struct ast_variable *tmpvar;
 
+			strcpy(varname, var->value); /* safe */
 			if ((varval = strchr(varname, '='))) {
 				*varval = '\0';
 				varval++;

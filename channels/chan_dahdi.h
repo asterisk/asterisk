@@ -677,15 +677,15 @@ struct dahdi_pvt {
 	openr2_calling_party_category_t mfcr2_category;
 	int mfcr2_dnis_index;
 	int mfcr2_ani_index;
-	int mfcr2call:1;
-	int mfcr2_answer_pending:1;
-	int mfcr2_charge_calls:1;
-	int mfcr2_allow_collect_calls:1;
-	int mfcr2_forced_release:1;
-	int mfcr2_dnis_matched:1;
-	int mfcr2_call_accepted:1;
-	int mfcr2_accept_on_offer:1;
-	int mfcr2_progress_sent:1;
+	unsigned int mfcr2call:1;
+	unsigned int mfcr2_answer_pending:1;
+	unsigned int mfcr2_charge_calls:1;
+	unsigned int mfcr2_allow_collect_calls:1;
+	unsigned int mfcr2_forced_release:1;
+	unsigned int mfcr2_dnis_matched:1;
+	unsigned int mfcr2_call_accepted:1;
+	unsigned int mfcr2_accept_on_offer:1;
+	unsigned int mfcr2_progress_sent:1;
 #endif	/* defined(HAVE_OPENR2) */
 	/*! \brief DTMF digit in progress.  0 when no digit in progress. */
 	char begindigit;

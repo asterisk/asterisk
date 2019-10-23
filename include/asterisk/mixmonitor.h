@@ -23,6 +23,9 @@
  * \author Jonathan Rose <jrose@digium.com>
  */
 
+#ifndef ASTERISK_MIX_MONITOR_H
+#define ASTERISK_MIX_MONITOR_H
+
 /*!
  * \brief Start a mixmonitor on a channel.
  * \since 12.0.0
@@ -103,3 +106,5 @@ int ast_start_mixmonitor(struct ast_channel *chan, const char *filename, const c
  * \retval non-zero on failure
  */
 int ast_stop_mixmonitor(struct ast_channel *chan, const char *mixmon_id);
+
+#endif /* ASTERISK_MIX_MONITOR_H */

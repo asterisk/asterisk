@@ -402,7 +402,6 @@ static int reload_followme(int reload)
 	char *cat = NULL, *tmp;
 	struct ast_variable *var;
 	struct number *cur, *nm;
-	char *numberstr;
 	int timeout;
 	int numorder;
 	const char *takecallstr;
@@ -523,9 +522,12 @@ static int reload_followme(int reload)
 		while (var) {
 			if (!strcasecmp(var->name, "number")) {
 				int idx = 0;
+				char copy[strlen(var->value) + 1];
+				char *numberstr;
 
 				/* Add a new number */
-				numberstr = ast_strdupa(var->value);
+				strcpy(copy, var->value); /* safe */
+				numberstr = copy;
 				if ((tmp = strchr(numberstr, ','))) {
 					*tmp++ = '\0';
 					timeout = atoi(tmp);
@@ -745,10 +747,6 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 		}
 
 		tmpto = to;
-		if (to < 0) {
-			to = 1000;
-			tmpto = 1000;
-		}
 		towas = to;
 		winner = ast_waitfor_n(watchers, pos, &to);
 		tmpto -= to;

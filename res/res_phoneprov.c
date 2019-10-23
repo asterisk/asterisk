@@ -608,13 +608,14 @@ static void build_profile(const char *name, struct ast_variable *v)
 		if (!strcasecmp(v->name, "mime_type")) {
 			ast_string_field_set(profile, default_mime_type, v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
-			char *value_copy = ast_strdupa(v->value);
+			char value_copy[strlen(v->value) + 1];
 
 			AST_DECLARE_APP_ARGS(args,
 				AST_APP_ARG(varname);
 				AST_APP_ARG(varval);
 			);
 
+			strcpy(value_copy, v->value); /* safe */
 			AST_NONSTANDARD_APP_ARGS(args, value_copy, '=');
 			do {
 				if (ast_strlen_zero(args.varname) || ast_strlen_zero(args.varval))
@@ -630,7 +631,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 		} else {
 			struct phoneprov_file *pp_file;
 			char *file_extension;
-			char *value_copy = ast_strdupa(v->value);
+			char value_copy[strlen(v->value) + 1];
 
 			AST_DECLARE_APP_ARGS(args,
 				AST_APP_ARG(filename);
@@ -645,6 +646,7 @@ static void build_profile(const char *name, struct ast_variable *v)
 			if ((file_extension = strrchr(pp_file->format, '.')))
 				file_extension++;
 
+			strcpy(value_copy, v->value); /* safe */
 			AST_STANDARD_APP_ARGS(args, value_copy);
 
 			/* Mime type order of preference

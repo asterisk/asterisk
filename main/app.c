@@ -1506,7 +1506,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	char comment[256];
 	int x, fmtcnt = 1, res = -1, outmsg = 0;
 	struct ast_filestream *others[AST_MAX_FORMATS];
-	char *sfmt[AST_MAX_FORMATS];
+	const char *sfmt[AST_MAX_FORMATS];
 	char *stringp = NULL;
 	time_t start, end;
 	struct ast_dsp *sildet = NULL;   /* silence detector dsp */
@@ -1581,7 +1581,12 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_log(LOG_WARNING, "Please increase AST_MAX_FORMATS in file.h\n");
 			break;
 		}
-		sfmt[fmtcnt++] = ast_strdupa(fmt);
+		/*
+		 * Storage for 'fmt' is on the stack and held by 'fmts', which is maintained for
+		 * the rest of this function. So okay to not duplicate 'fmt' here, but only keep
+		 * a pointer to it.
+		 */
+		sfmt[fmtcnt++] = fmt;
 	}
 
 	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
