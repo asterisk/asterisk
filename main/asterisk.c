@@ -3491,10 +3491,11 @@ static void main_atexit(void)
 int main(int argc, char *argv[])
 {
 	int c;
-	char * xarg = NULL;
 	int x;
 	int isroot = 1, rundir_exists = 0;
-	const char *runuser = NULL, *rungroup = NULL;
+	RAII_VAR(char *, runuser, NULL, ast_free);
+	RAII_VAR(char *, rungroup, NULL, ast_free);
+	RAII_VAR(char *, xarg, NULL, ast_free);
 	struct rlimit l;
 	static const char *getopt_settings = "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:";
 
@@ -3599,7 +3600,7 @@ int main(int argc, char *argv[])
 			break;
 #endif
 		case 'G':
-			rungroup = ast_strdupa(optarg);
+			rungroup = ast_strdup(optarg);
 			break;
 		case 'g':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE);
@@ -3655,7 +3656,7 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES);
 			break;
 		case 'U':
-			runuser = ast_strdupa(optarg);
+			runuser = ast_strdup(optarg);
 			break;
 		case 'V':
 		case 'v':
@@ -3670,7 +3671,7 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 
 			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC | AST_OPT_FLAG_NO_COLOR);
-			xarg = ast_strdupa(optarg);
+			xarg = ast_strdup(optarg);
 			break;
 		case '?':
 			/* already processed. */
@@ -3749,9 +3750,9 @@ int main(int argc, char *argv[])
 #endif /* !defined(CONFIGURE_RAN_AS_ROOT) */
 
 	if ((!rungroup) && !ast_strlen_zero(ast_config_AST_RUN_GROUP))
-		rungroup = ast_config_AST_RUN_GROUP;
+		rungroup = ast_strdup(ast_config_AST_RUN_GROUP);
 	if ((!runuser) && !ast_strlen_zero(ast_config_AST_RUN_USER))
-		runuser = ast_config_AST_RUN_USER;
+		runuser = ast_strdup(ast_config_AST_RUN_USER);
 
 	/* Must install this signal handler up here to ensure that if the canary
 	 * fails to execute that it doesn't kill the Asterisk process.

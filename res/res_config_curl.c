@@ -156,7 +156,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	for (field = fields; field; field = field->next) {
 		if (start) {
 			char *op;
-			initfield = ast_strdupa(field->name);
+			initfield = ast_strdup(field->name);
 			if ((op = strchr(initfield, ' ')))
 				*op = '\0';
 		}
@@ -172,6 +172,7 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	ast_str_substitute_variables(&buffer, 0, NULL, ast_str_buffer(query));
 
 	if (!(cfg = ast_config_new())) {
+		ast_free(initfield);
 		return NULL;
 	}
 
@@ -205,6 +206,8 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 		}
 		ast_category_append(cfg, cat);
 	}
+
+	ast_free(initfield);
 
 	return cfg;
 }

@@ -419,7 +419,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		ie_type != AST_EVENT_IE_END;
 		ie_type = va_arg(ap, enum ast_event_ie_type))
 	{
-		struct ast_event_ie_val *ie_value = ast_alloca(sizeof(*ie_value));
+		struct ast_event_ie_val *ie_value = ast_malloc(sizeof(*ie_value));
 		int insert = 0;
 
 		memset(ie_value, 0, sizeof(*ie_value));
@@ -443,7 +443,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		{
 			void *data = va_arg(ap, void *);
 			size_t datalen = va_arg(ap, size_t);
-			ie_value->payload.raw = ast_alloca(datalen);
+			ie_value->payload.raw = ast_malloc(datalen);
 			memcpy(ie_value->payload.raw, data, datalen);
 			ie_value->raw_datalen = datalen;
 			insert = 1;
@@ -491,7 +491,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 
 		/* realloc inside one of the append functions failed */
 		if (!event) {
-			return NULL;
+			goto cleanup;
 		}
 	}
 
@@ -500,6 +500,17 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 		 * entity ID to the event. */
 		ast_event_append_eid(&event);
 	}
+
+cleanup:
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&ie_vals, ie_val, entry) {
+		AST_LIST_REMOVE_CURRENT(entry);
+
+		if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_RAW) {
+			ast_free(ie_val->payload.raw);
+		}
+		ast_free(ie_val);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	return event;
 }
