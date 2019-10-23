@@ -149,7 +149,8 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 		ast_mkdir(base, 0755);
 		len = strlen(base) + strlen(filein) + 2;
 		if (!path || len > maxlen) {
-			path = ast_alloca(len);
+			ast_free(path);
+			path = ast_malloc(len);
 			memset(path, 0, len);
 			maxlen = len;
 		} else {
@@ -334,6 +335,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 			ast_frfree(f);
 		}
 	}
+	ast_free(path);
 	if (oldr) {
 		ast_set_read_format(chan, oldr);
 		ao2_ref(oldr, -1);

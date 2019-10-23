@@ -199,7 +199,7 @@ static off_t g726_tell(struct ast_filestream *fs)
 	return ftello(fs->f) << 1;
 }
 
-static struct ast_format_def f[] = {
+static struct ast_format_def f_def[] = {
 	{
 		.name = "g726-40",
 		.exts = "g726-40",
@@ -259,9 +259,9 @@ static int unload_module(void)
 {
 	int i;
 
-	for (i = 0; f[i].desc_size ; i++) {
-		if (ast_format_def_unregister(f[i].name))
-			ast_log(LOG_WARNING, "Failed to unregister format %s.\n", f[i].name);
+	for (i = 0; f_def[i].desc_size ; i++) {
+		if (ast_format_def_unregister(f_def[i].name))
+			ast_log(LOG_WARNING, "Failed to unregister format %s.\n", f_def[i].name);
 	}
 	return(0);
 }
@@ -270,10 +270,10 @@ static int load_module(void)
 {
 	int i;
 
-	for (i = 0; f[i].desc_size ; i++) {
-		f[i].format = ast_format_g726;
-		if (ast_format_def_register(&f[i])) {	/* errors are fatal */
-			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
+	for (i = 0; f_def[i].desc_size ; i++) {
+		f_def[i].format = ast_format_g726;
+		if (ast_format_def_register(&f_def[i])) {	/* errors are fatal */
+			ast_log(LOG_WARNING, "Failed to register format %s.\n", f_def[i].name);
 			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}

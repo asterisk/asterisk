@@ -1865,7 +1865,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	struct ast_config   *cfg = NULL;
 	struct ast_variable *var = NULL;
 	struct ast_category *cat = NULL;
-	char *category = NULL, *value = NULL, *new = NULL;
+	char *category = NULL;
 	const char *tmp = NULL;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS };
 	char secretfn[PATH_MAX] = "";
@@ -1892,24 +1892,28 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) && valid_config(cfg)) {
 			while ((category = ast_category_browse(cfg, category))) {
 				if (!strcasecmp(category, vmu->context)) {
+					char *value = NULL;
+					char *new = NULL;
 					if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
 						ast_log(AST_LOG_WARNING, "We could not find the mailbox.\n");
 						break;
 					}
 					value = strstr(tmp, ",");
 					if (!value) {
-						new = ast_alloca(strlen(newpassword)+1);
+						new = ast_malloc(strlen(newpassword) + 1);
 						sprintf(new, "%s", newpassword);
 					} else {
-						new = ast_alloca((strlen(value) + strlen(newpassword) + 1));
+						new = ast_malloc((strlen(value) + strlen(newpassword) + 1));
 						sprintf(new, "%s%s", newpassword, value);
 					}
 					if (!(cat = ast_category_get(cfg, category, NULL))) {
 						ast_log(AST_LOG_WARNING, "Failed to get category structure.\n");
+						ast_free(new);
 						break;
 					}
 					ast_variable_update(cat, vmu->mailbox, new, NULL, 0);
 					found = 1;
+					ast_free(new);
 				}
 			}
 			/* save the results */
@@ -1933,13 +1937,14 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			for (category = ast_category_browse(cfg, NULL); category; category = ast_category_browse(cfg, category)) {
 				ast_debug(4, "users.conf: %s\n", category);
 				if (!strcasecmp(category, vmu->mailbox)) {
+					char new[strlen(newpassword) + 1];
 					if (!ast_variable_retrieve(cfg, category, "vmsecret")) {
 						ast_debug(3, "looks like we need to make vmsecret!\n");
 						var = ast_variable_new("vmsecret", newpassword, "");
 					} else {
 						var = NULL;
 					}
-					new = ast_alloca(strlen(newpassword) + 1);
+
 					sprintf(new, "%s", newpassword);
 					if (!(cat = ast_category_get(cfg, category, NULL))) {
 						ast_debug(4, "failed to get category!\n");
@@ -2262,7 +2267,6 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 	struct vm_state *vms_p;
 	char *file, *filename;
 	char dest[PATH_MAX];
-	char *attachment;
 	int i;
 	BODY *body;
 	int ret = 0;
@@ -2315,19 +2319,24 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 		mail_fetchstructure(vms_p->mailstream, i + 1, &body);
 		/* We have the body, now we extract the file name of the first attachment. */
 		if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
-			attachment = ast_strdupa(body->nested.part->next->body.parameter->value);
+			char *attachment = body->nested.part->next->body.parameter->value;
+			char copy[strlen(attachment) + 1];
+
+			strcpy(copy, attachment); /* safe */
+			attachment = copy;
+
+			filename = strsep(&attachment, ".");
+			if (!strcmp(filename, file)) {
+				ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
+				vms_p->msgArray[vms_p->curmsg] = i + 1;
+				create_dirpath(dest, sizeof(dest), vmu->context, vms_p->username, "");
+				save_body(body, vms_p, "2", attachment, 0);
+				ret = 0;
+				break;
+			}
 		} else {
 			ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
 			ret = -1;
-			break;
-		}
-		filename = strsep(&attachment, ".");
-		if (!strcmp(filename, file)) {
-			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
-			vms_p->msgArray[vms_p->curmsg] = i + 1;
-			create_dirpath(dest, sizeof(dest), vmu->context, vms_p->username, "");
-			save_body(body, vms_p, "2", attachment, 0);
-			ret = 0;
 			break;
 		}
 	}
@@ -8209,10 +8218,12 @@ static void queue_mwi_event(const char *channel_id, const char *box, int urgent,
 
 		aliases = ao2_find(mailbox_alias_mappings, box, OBJ_SEARCH_KEY | OBJ_MULTIPLE);
 		while ((mapping = ao2_iterator_next(aliases))) {
+			char alias[strlen(mapping->alias) + 1];
+			strcpy(alias, mapping->alias); /* safe */
 			mailbox = NULL;
 			context = NULL;
 			ast_debug(3, "Found alias mapping: %s -> %s\n", mapping->alias, box);
-			separate_mailbox(ast_strdupa(mapping->alias), &mailbox, &context);
+			separate_mailbox(alias, &mailbox, &context);
 			ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
 			ao2_ref(mapping, -1);
 		}
@@ -8432,12 +8443,12 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			directory_app = pbx_findapp("Directory");
 			if (directory_app) {
 				char vmcontext[256];
-				char *old_context;
-				char *old_exten;
+				char old_context[strlen(ast_channel_context(chan)) + 1];
+				char old_exten[strlen(ast_channel_exten(chan)) + 1];
 				int old_priority;
 				/* make backup copies */
-				old_context = ast_strdupa(ast_channel_context(chan));
-				old_exten = ast_strdupa(ast_channel_exten(chan));
+				strcpy(old_context, ast_channel_context(chan)); /* safe */
+				strcpy(old_exten, ast_channel_exten(chan)); /* safe */
 				old_priority = ast_channel_priority(chan);
 
 				/* call the Directory, changes the channel */
@@ -9118,7 +9129,6 @@ static int imap_remove_file(char *dir, int msgnum)
 static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 {
 	char *file, *filename;
-	char *attachment;
 	char arg[11];
 	int i;
 	BODY* body;
@@ -9147,16 +9157,21 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 		mail_fetchstructure(vms->mailstream, i + 1, &body);
 		/* We have the body, now we extract the file name of the first attachment. */
 		if (body->nested.part->next && body->nested.part->next->body.parameter->value) {
-			attachment = ast_strdupa(body->nested.part->next->body.parameter->value);
+			char *attachment = body->nested.part->next->body.parameter->value;
+			char copy[strlen(attachment) + 1];
+
+			strcpy(copy, attachment); /* safe */
+			attachment = copy;
+
+			filename = strsep(&attachment, ".");
+			if (!strcmp(filename, file)) {
+				snprintf(arg, sizeof(arg), "%d", i + 1);
+				mail_setflag(vms->mailstream, arg, "\\DELETED");
+			}
 		} else {
 			ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
 			ast_mutex_unlock(&vms->lock);
 			return -1;
-		}
-		filename = strsep(&attachment, ".");
-		if (!strcmp(filename, file)) {
-			snprintf(arg, sizeof(arg), "%d", i + 1);
-			mail_setflag(vms->mailstream, arg, "\\DELETED");
 		}
 	}
 	mail_expunge(vms->mailstream);
@@ -13869,26 +13884,30 @@ static void load_zonemessages(struct ast_config *cfg)
 
 	var = ast_variable_browse(cfg, "zonemessages");
 	while (var) {
-		struct vm_zone *z;
-		char *msg_format, *tzone;
+		if (var->value) {
+			struct vm_zone *z;
+			char *msg_format, *tzone;
+			char storage[strlen(var->value) + 1];
 
-		z = ast_malloc(sizeof(*z));
-		if (!z) {
-			return;
-		}
+			z = ast_malloc(sizeof(*z));
+			if (!z) {
+				return;
+			}
 
-		msg_format = ast_strdupa(var->value);
-		tzone = strsep(&msg_format, "|,");
-		if (msg_format) {
-			ast_copy_string(z->name, var->name, sizeof(z->name));
-			ast_copy_string(z->timezone, tzone, sizeof(z->timezone));
-			ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-			AST_LIST_LOCK(&zones);
-			AST_LIST_INSERT_HEAD(&zones, z, list);
-			AST_LIST_UNLOCK(&zones);
-		} else {
-			ast_log(AST_LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-			ast_free(z);
+			strcpy(storage, var->value); /* safe */
+			msg_format = storage;
+			tzone = strsep(&msg_format, "|,");
+			if (msg_format) {
+				ast_copy_string(z->name, var->name, sizeof(z->name));
+				ast_copy_string(z->timezone, tzone, sizeof(z->timezone));
+				ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
+				AST_LIST_LOCK(&zones);
+				AST_LIST_INSERT_HEAD(&zones, z, list);
+				AST_LIST_UNLOCK(&zones);
+			} else {
+				ast_log(AST_LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
+				ast_free(z);
+			}
 		}
 		var = var->next;
 	}

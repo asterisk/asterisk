@@ -3087,11 +3087,11 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		ao2_ref(ice, -1);
 		ao2_lock(instance);
 		if (status != PJ_SUCCESS) {
-			char buf[100];
+			char err_buf[100];
 
-			pj_strerror(status, buf, sizeof(buf));
+			pj_strerror(status, err_buf, sizeof(err_buf));
 			ast_log(LOG_WARNING, "PJ ICE Rx error status code: %d '%s'.\n",
-				(int)status, buf);
+				(int)status, err_buf);
 			return -1;
 		}
 		if (!rtp->passthrough) {

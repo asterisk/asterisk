@@ -165,7 +165,7 @@ static struct aco_type user_option = {
 	.item_offset = offsetof(struct ast_ari_conf, users),
 };
 
-static struct aco_type *user[] = ACO_TYPES(&user_option);
+static struct aco_type *global_user[] = ACO_TYPES(&user_option);
 
 static void conf_general_dtor(void *obj)
 {
@@ -361,16 +361,16 @@ int ast_ari_config_init(void)
 		"", channelvars_handler, 0);
 
 	/* ARI type=user category options */
-	aco_option_register(&cfg_info, "type", ACO_EXACT, user, NULL,
+	aco_option_register(&cfg_info, "type", ACO_EXACT, global_user, NULL,
 		OPT_NOOP_T, 0, 0);
-	aco_option_register(&cfg_info, "read_only", ACO_EXACT, user,
+	aco_option_register(&cfg_info, "read_only", ACO_EXACT, global_user,
 		"no", OPT_BOOL_T, 1,
 		FLDSET(struct ast_ari_conf_user, read_only));
-	aco_option_register(&cfg_info, "password", ACO_EXACT, user,
+	aco_option_register(&cfg_info, "password", ACO_EXACT, global_user,
 		"", OPT_CHAR_ARRAY_T, 0,
 		FLDSET(struct ast_ari_conf_user, password), ARI_PASSWORD_LEN);
 	aco_option_register_custom(&cfg_info, "password_format", ACO_EXACT,
-		user, "plain",  password_format_handler, 0);
+		global_user, "plain",  password_format_handler, 0);
 
 	return process_config(0);
 }

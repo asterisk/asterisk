@@ -23,6 +23,9 @@
  * \author Jonathan Rose <jrose@digium.com>
  */
 
+#ifndef ASTERISK_PARKING_H
+#define ASTERISK_PARKING_H
+
 #include "asterisk/stringfields.h"
 #include "asterisk/bridge.h"
 
@@ -294,3 +297,5 @@ int ast_parking_unregister_bridge_features(const char *module_name);
  * \retval 1 if there is a parking provider regsistered
  */
 int ast_parking_provider_registered(void);
+
+#endif /* ASTERISK_PARKING_H */

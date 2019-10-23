@@ -301,7 +301,7 @@
 #define TOPIC_POOL_BUCKETS 57
 
 /*! Thread pool for topics that don't want a dedicated taskprocessor */
-static struct ast_threadpool *pool;
+static struct ast_threadpool *threadpool;
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 
@@ -900,7 +900,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 		 * pool should be used.
 		 */
 		if (use_thread_pool) {
-			sub->mailbox = ast_threadpool_serializer(tps_name, pool);
+			sub->mailbox = ast_threadpool_serializer(tps_name, threadpool);
 		} else {
 			sub->mailbox = ast_taskprocessor_get(tps_name, TPS_REF_DEFAULT);
 		}
@@ -3011,8 +3011,8 @@ static void stasis_cleanup(void)
 	ast_cli_unregister_multiple(cli_stasis, ARRAY_LEN(cli_stasis));
 	ao2_cleanup(topic_all);
 	topic_all = NULL;
-	ast_threadpool_shutdown(pool);
-	pool = NULL;
+	ast_threadpool_shutdown(threadpool);
+	threadpool = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
 	aco_info_destroy(&cfg_info);
@@ -3089,9 +3089,9 @@ int stasis_init(void)
 	threadpool_opts.auto_increment = 1;
 	threadpool_opts.max_size = cfg->threadpool_options->max_size;
 	threadpool_opts.idle_timeout = cfg->threadpool_options->idle_timeout_sec;
-	pool = ast_threadpool_create("stasis", NULL, &threadpool_opts);
+	threadpool = ast_threadpool_create("stasis", NULL, &threadpool_opts);
 	ao2_ref(cfg, -1);
-	if (!pool) {
+	if (!threadpool) {
 		ast_log(LOG_ERROR, "Failed to create 'stasis-core' threadpool\n");
 
 		return -1;

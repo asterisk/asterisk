@@ -1159,10 +1159,19 @@ static int transport_localnet_handler(const struct aco_option *opt, struct ast_v
 	return error;
 }
 
+static void localnet_to_vl_append(struct ast_variable **head, struct ast_ha *ha)
+{
+	char str[MAX_OBJECT_FIELD];
+	const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
+	snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
+			 addr, ast_sockaddr_stringify_addr(&ha->netmask));
+
+	ast_variable_list_append(head, ast_variable_new("local_net", str, ""));
+}
+
 static int localnet_to_vl(const void *obj, struct ast_variable **fields)
 {
 	const struct ast_sip_transport *transport = obj;
-	char str[MAX_OBJECT_FIELD];
 	struct ast_variable *head = NULL;
 	struct ast_ha *ha;
 	RAII_VAR(struct ast_sip_transport_state *, state, find_state_by_transport(transport), ao2_cleanup);
@@ -1172,11 +1181,7 @@ static int localnet_to_vl(const void *obj, struct ast_variable **fields)
 	}
 
 	for (ha = state->localnet; ha; ha = ha->next) {
-		const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
-		snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
-			addr, ast_sockaddr_stringify_addr(&ha->netmask));
-
-		ast_variable_list_append(&head, ast_variable_new("local_net", str, ""));
+		localnet_to_vl_append(&head, ha);
 	}
 
 	if (head) {

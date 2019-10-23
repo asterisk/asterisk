@@ -69,7 +69,7 @@ struct parked_subscription_datastore {
 struct parked_subscription_data {
 	struct transfer_channel_data *transfer_data;
 	char *parkee_uuid;
-	int hangup_after:1;
+	unsigned int hangup_after:1;
 	char parker_uuid[0];
 };
 

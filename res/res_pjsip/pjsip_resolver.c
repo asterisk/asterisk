@@ -665,7 +665,7 @@ static void sip_check_transport(pj_pool_t *pool, pjsip_transport_type_e transpor
 }
 
 /*! \brief External resolver implementation for PJSIP */
-static pjsip_ext_resolver resolver = {
+static pjsip_ext_resolver ext_resolver = {
 	.resolve = sip_resolve,
 };
 
@@ -697,7 +697,7 @@ static int sip_replace_resolver(void *data)
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	/* Replace the PJSIP resolver with our own implementation */
-	pjsip_endpt_set_ext_resolver(ast_sip_get_pjsip_endpoint(), &resolver);
+	pjsip_endpt_set_ext_resolver(ast_sip_get_pjsip_endpoint(), &ext_resolver);
 	return 0;
 }
 

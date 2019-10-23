@@ -551,20 +551,24 @@ static int match_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-static int match_to_var_list(const void *obj, struct ast_variable **fields)
+static void match_to_var_list_append(struct ast_variable **head, struct ast_ha *ha)
 {
 	char str[MAX_OBJECT_FIELD];
+	const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
+	snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
+			 addr, ast_sockaddr_stringify_addr(&ha->netmask));
+
+	ast_variable_list_append(head, ast_variable_new("match", str, ""));
+}
+
+static int match_to_var_list(const void *obj, struct ast_variable **fields)
+{
 	const struct ip_identify_match *identify = obj;
 	struct ast_variable *head = NULL;
 	struct ast_ha *ha = identify->matches;
 
 	for (; ha; ha = ha->next) {
-		const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
-		snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
-			addr, ast_sockaddr_stringify_addr(&ha->netmask));
-
-		ast_variable_list_append(&head, ast_variable_new("match", str, ""));
-
+		match_to_var_list_append(&head, ha);
 	}
 
 	if (head) {
