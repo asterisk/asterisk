@@ -23,6 +23,9 @@
  * \author Jonathan Rose <jrose@digium.com>
  */
 
+#ifndef ASTERISK_RES_PARKING_H
+#define ASTERISK_RES_PARKING_H
+
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
 #include "asterisk/parking.h"
@@ -574,3 +577,5 @@ int load_parking_tests(void);
  * \return Nothing
  */
 void unload_parking_tests(void);
+
+#endif /* ASTERISK_RES_PARKING_H */

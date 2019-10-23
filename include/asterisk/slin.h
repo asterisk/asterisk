@@ -22,6 +22,9 @@
  * Samples were truncated at 160 and 320 bytes.
  */
 
+#ifndef ASTERISK_SLIN_H
+#define ASTERISK_SLIN_H
+
 static uint16_t ex_slin8[] = {
 	0x0002, 0xfffc, 0x0000, 0xfffe, 0x0000, 0xfffa, 0x002a, 0x007a,
 	0x003a, 0xffbe, 0xff76, 0xff84, 0x0016, 0x007e, 0x0096, 0x00d2,
@@ -91,3 +94,5 @@ static inline struct ast_frame *slin16_sample(void)
 
 	return &f;
 }
+
+#endif /* ASTERISK_SLIN_H */

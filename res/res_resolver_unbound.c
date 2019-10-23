@@ -260,11 +260,11 @@ static void unbound_resolver_callback(void *data, int err, struct ub_result *ub_
 	if (!ast_dns_resolver_set_result(query, ub_result->secure, ub_result->bogus, ub_result->rcode,
 		S_OR(ub_result->canonname, ast_dns_query_get_name(query)), ub_result->answer_packet, ub_result->answer_len)) {
 		int i;
-		char *data;
+		char *result_data;
 
-		for (i = 0; (data = ub_result->data[i]); i++) {
+		for (i = 0; (result_data = ub_result->data[i]); i++) {
 			if (ast_dns_resolver_add_record(query, ub_result->qtype, ub_result->qclass, ub_result->ttl,
-				data, ub_result->len[i])) {
+				result_data, ub_result->len[i])) {
 				break;
 			}
 		}

@@ -133,8 +133,8 @@ struct ast_calendar {
 	int timeframe;       /*!< Span (in mins) of calendar data to pull with each request */
 	pthread_t thread;    /*!< The thread that the calendar is loaded/updated in */
 	ast_cond_t unload;
-	int unloading:1;
-	int pending_deletion:1;
+	unsigned int unloading:1;
+	unsigned int pending_deletion:1;
 	struct ao2_container *events;  /*!< The events that are known at this time */
 };
 

@@ -537,13 +537,13 @@ static struct ast_frame *t38_framehook(struct ast_channel *chan, struct ast_fram
 	if (f->frametype == AST_FRAME_CONTROL
 		&& f->subclass.integer == AST_CONTROL_T38_PARAMETERS) {
 		if (channel->session->endpoint->media.t38.enabled) {
-			struct t38_parameters_task_data *data;
+			struct t38_parameters_task_data *task_data;
 
-			data = t38_parameters_task_data_alloc(channel->session, f);
-			if (data
+			task_data = t38_parameters_task_data_alloc(channel->session, f);
+			if (task_data
 				&& ast_sip_push_task(channel->session->serializer,
-					t38_interpret_parameters, data)) {
-				ao2_ref(data, -1);
+					t38_interpret_parameters, task_data)) {
+				ao2_ref(task_data, -1);
 			}
 		} else {
 			static const struct ast_control_t38_parameters rsp_refused = {

@@ -37,7 +37,7 @@ struct stasis_app_command {
 	void *data;
 	command_data_destructor_fn data_destructor;
 	int retval;
-	int is_done:1;
+	unsigned int is_done:1;
 };
 
 static void command_dtor(void *obj)

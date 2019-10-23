@@ -7,6 +7,9 @@
  *
  */
 
+#ifndef ASTERISK_EX_G722_H
+#define ASTERISK_EX_G722_H
+
 static uint8_t ex_g722[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -46,3 +49,5 @@ static struct ast_frame *g722_sample(void)
 
 	return &f;
 }
+
+#endif /* ASTERISK_EX_G722_H */

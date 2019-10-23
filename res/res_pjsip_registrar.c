@@ -1018,9 +1018,9 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME:
 			uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
 
-			domain_name = ast_alloca(uri->host.slen + 1);
+			domain_name = ast_malloc(uri->host.slen + 1);
 			ast_copy_pj_str(domain_name, &uri->host, uri->host.slen + 1);
-			username = ast_alloca(uri->user.slen + 1);
+			username = ast_malloc(uri->user.slen + 1);
 			ast_copy_pj_str(username, &uri->user, uri->user.slen + 1);
 
 			/*
@@ -1038,9 +1038,9 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 			while ((header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_AUTHORIZATION,
 				header ? header->next : NULL))) {
 				if (header && !pj_stricmp2(&header->scheme, "digest")) {
-					username = ast_alloca(header->credential.digest.username.slen + 1);
+					username = ast_malloc(header->credential.digest.username.slen + 1);
 					ast_copy_pj_str(username, &header->credential.digest.username, header->credential.digest.username.slen + 1);
-					domain_name = ast_alloca(header->credential.digest.realm.slen + 1);
+					domain_name = ast_malloc(header->credential.digest.realm.slen + 1);
 					ast_copy_pj_str(domain_name, &header->credential.digest.realm, header->credential.digest.realm.slen + 1);
 
 					aor_name = find_aor_name(username, domain_name, endpoint->aors);
@@ -1058,6 +1058,9 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 		if (aor_name) {
 			break;
 		}
+
+		ast_free(domain_name);
+		ast_free(username);
 	}
 
 	if (ast_strlen_zero(aor_name) || !(aor = ast_sip_location_retrieve_aor(aor_name))) {
@@ -1068,6 +1071,8 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 			username ?: "", ast_sorcery_object_get_id(endpoint));
 	}
 	ast_free(aor_name);
+	ast_free(domain_name);
+	ast_free(username);
 	return aor;
 }
 

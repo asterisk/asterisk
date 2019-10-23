@@ -30,6 +30,9 @@
  * This constant is useful to check against when trying to determine
  * if printing XML succeeded or failed.
  */
+#ifndef ASTERISK_PJSIP_PRESENCE_XML_H
+#define ASTERISK_PJSIP_PRESENCE_XML_H
+
 #define AST_PJSIP_XML_PROLOG_LEN 39
 
 /*!
@@ -115,3 +118,5 @@ pj_xml_node *ast_sip_presence_xml_create_node(pj_pool_t *pool,
 void ast_sip_presence_xml_find_node_attr(pj_pool_t* pool,
 		pj_xml_node *parent, const char *node_name, const char *attr_name,
 		pj_xml_node **node, pj_xml_attr **attr);
+
+#endif /* ASTERISK_PJSIP_PRESENCE_XML_H */
