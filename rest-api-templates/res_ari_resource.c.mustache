@@ -211,6 +211,8 @@ static void ast_ari_{{c_name}}_{{c_nickname}}_ws_established_cb(struct ast_webso
 	struct ast_variable *path_vars = NULL;
 {{/has_path_parameters}}
 
+	SCOPED_MODULE_USE(ast_module_info->self);
+
 {{#has_parameters}}
 	response = ast_calloc(1, sizeof(*response));
 	if (!response) {

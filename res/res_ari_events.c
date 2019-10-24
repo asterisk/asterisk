@@ -150,6 +150,8 @@ static void ast_ari_events_event_websocket_ws_established_cb(struct ast_websocke
 	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
 	RAII_VAR(struct ast_ari_websocket_session *, session, NULL, ao2_cleanup);
 
+	SCOPED_MODULE_USE(ast_module_info->self);
+
 	response = ast_calloc(1, sizeof(*response));
 	if (!response) {
 		ast_log(LOG_ERROR, "Failed to create response.\n");
