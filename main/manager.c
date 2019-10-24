@@ -5706,6 +5706,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 				                                     EAGI(/bin/rm,-rf /)       */
 				strcasestr(app, "mixmonitor") ||  /* MixMonitor(blah,,rm -rf)  */
 				strcasestr(app, "externalivr") || /* ExternalIVR(rm -rf)       */
+				strcasestr(app, "originate") ||   /* Originate(Local/1234,app,System,rm -rf) */
 				(strstr(appdata, "SHELL") && (bad_appdata = 1)) ||       /* NoOp(${SHELL(rm -rf /)})  */
 				(strstr(appdata, "EVAL") && (bad_appdata = 1))           /* NoOp(${EVAL(${some_var_containing_SHELL})}) */
 				)) {
