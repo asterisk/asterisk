@@ -224,6 +224,7 @@ static void exchangecal_destructor(void *obj)
 	if (pvt->session) {
 		ne_session_destroy(pvt->session);
 	}
+	ne_uri_free(&pvt->uri);
 	ast_string_field_free_memory(pvt);
 
 	ao2_callback(pvt->events, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
