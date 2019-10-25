@@ -81,6 +81,11 @@
 				</configOption>
 				<configOption name="max_retries" default="10">
 					<synopsis>Maximum number of registration attempts.</synopsis>
+					<description><para>
+						This sets the maximum number of registration attempts that are made before
+						stopping any further attempts. If set to 0 then upon failure no further attempts
+						are made.
+					</para></description>
 				</configOption>
 				<configOption name="outbound_auth" default="">
 					<synopsis>Authentication object(s) to be used for outbound registrations.</synopsis>
