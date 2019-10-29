@@ -1165,7 +1165,7 @@ static int meetme_stasis_init(void)
 	STASIS_MESSAGE_TYPE_INIT(meetme_talk_request_type);
 
 	meetme_event_message_router = stasis_message_router_create(
-		ast_channel_topic_all_cached());
+		ast_channel_topic_all());
 
 	if (!meetme_event_message_router) {
 		meetme_stasis_cleanup();

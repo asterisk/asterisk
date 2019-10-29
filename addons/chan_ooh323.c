@@ -536,11 +536,6 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 				ch = NULL;
 			}
 	 	}
-
-		if (ch) {
-			ast_publish_channel_state(ch);
-
-		}
 	} else {
 		ao2_cleanup(caps);
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
@@ -2225,7 +2220,7 @@ int onCallEstablished(ooCallData *call)
 			}
 
 			ast_queue_control(c, AST_CONTROL_ANSWER);
-			ast_publish_channel_state(c);
+			ast_channel_publish_snapshot(c);
 			ast_channel_unlock(p->owner);
 		}
 		ast_mutex_unlock(&p->lock);
