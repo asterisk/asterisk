@@ -180,7 +180,9 @@ static int mysql_log(struct ast_cdr *cdr)
 {
 	struct ast_str *sql1 = ast_str_thread_get(&sql1_buf, 1024), *sql2 = ast_str_thread_get(&sql2_buf, 1024);
 	int retries = 5;
-#if MYSQL_VERSION_ID >= 50013
+#if MYSQL_VERSION_ID >= 80001
+	bool my_bool_true = 1;
+#elif MYSQL_VERSION_ID >= 50013
 	my_bool my_bool_true = 1;
 #endif
 
@@ -478,7 +480,9 @@ static int my_load_module(int reload)
 	MYSQL_ROW row;
 	MYSQL_RES *result;
 	char sqldesc[128];
-#if MYSQL_VERSION_ID >= 50013
+#if MYSQL_VERSION_ID >= 80001
+	bool my_bool_true = 1;
+#elif MYSQL_VERSION_ID >= 50013
 	my_bool my_bool_true = 1;
 #endif
 
