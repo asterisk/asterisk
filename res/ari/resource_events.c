@@ -81,8 +81,15 @@ static void stasis_app_message_handler(
 {
 	struct event_session *session = data;
 	const char *msg_type, *msg_application;
+	int app_debug_enabled;
 
 	ast_assert(session != NULL);
+
+	/*
+	 * We need to get the debug flag before lockinf session
+	 * to help prevent a deadlock with the apps_registry container.
+	 */
+	app_debug_enabled = stasis_app_get_debug_by_name(app_name);
 
 	ao2_lock(session);
 
@@ -115,7 +122,7 @@ static void stasis_app_message_handler(
 				msg_type,
 				msg_application);
 	} else if (stasis_app_event_allowed(app_name, message)) {
-		if (stasis_app_get_debug_by_name(app_name)) {
+		if (app_debug_enabled) {
 			char *str = ast_json_dump_string_format(message, ast_ari_json_format());
 
 			ast_verbose("<--- Sending ARI event to %s --->\n%s\n",
@@ -310,7 +317,6 @@ static void event_session_dtor(void *obj)
 {
 #ifdef AST_DEVMODE /* Avoid unused variable warning */
 	struct event_session *session = obj;
-
 #endif
 
 	/* event_session_shutdown should have been called before now */
