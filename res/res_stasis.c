@@ -1677,7 +1677,7 @@ struct ao2_container *stasis_app_get_all(void)
 
 static int __stasis_app_register(const char *app_name, stasis_app_cb handler, void *data, int all_events)
 {
-	struct stasis_app *app;
+	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
 	if (!apps_registry) {
 		return -1;
@@ -1686,36 +1686,43 @@ static int __stasis_app_register(const char *app_name, stasis_app_cb handler, vo
 	ao2_lock(apps_registry);
 	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (app) {
+		/*
+		 * We need to unlock the apps_registry before calling app_update to
+		 * prevent the possibility of a deadlock with the session.  We'll still
+		 * run the lazy cleanup first though.
+		 */
+		cleanup();
+		ao2_unlock(apps_registry);
 		app_update(app, handler, data);
-	} else {
-		app = app_create(app_name, handler, data, all_events ? STASIS_APP_SUBSCRIBE_ALL : STASIS_APP_SUBSCRIBE_MANUAL);
-		if (!app) {
-			ao2_unlock(apps_registry);
-			return -1;
-		}
-
-		if (all_events) {
-			struct stasis_app_event_source *source;
-
-			AST_RWLIST_RDLOCK(&event_sources);
-			AST_LIST_TRAVERSE(&event_sources, source, next) {
-				if (!source->subscribe) {
-					continue;
-				}
-
-				source->subscribe(app, NULL);
-			}
-			AST_RWLIST_UNLOCK(&event_sources);
-		}
-		ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
+		return 0;
 	}
+
+	app = app_create(app_name, handler, data, all_events ? STASIS_APP_SUBSCRIBE_ALL : STASIS_APP_SUBSCRIBE_MANUAL);
+	if (!app) {
+		ao2_unlock(apps_registry);
+		return -1;
+	}
+
+	if (all_events) {
+		struct stasis_app_event_source *source;
+
+		AST_RWLIST_RDLOCK(&event_sources);
+		AST_LIST_TRAVERSE(&event_sources, source, next) {
+			if (!source->subscribe) {
+				continue;
+			}
+
+			source->subscribe(app, NULL);
+		}
+		AST_RWLIST_UNLOCK(&event_sources);
+	}
+	ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
 
 	/* We lazily clean up the apps_registry, because it's good enough to
 	 * prevent memory leaks, and we're lazy.
 	 */
 	cleanup();
 	ao2_unlock(apps_registry);
-	ao2_ref(app, -1);
 	return 0;
 }
 

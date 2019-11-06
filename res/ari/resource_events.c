@@ -124,6 +124,7 @@ static void app_handler(void *data, const char *app_name,
 	const char *msg_application = S_OR(
 		ast_json_string_get(ast_json_object_get(message, "application")),
 		"");
+	int app_debug_enabled;
 
 	if (!session) {
 		return;
@@ -142,9 +143,12 @@ static void app_handler(void *data, const char *app_name,
 		return;
 	}
 
+	/* Don't lock the app_registry container with session locked */
+	app_debug_enabled = stasis_app_get_debug_by_name(app_name);
+
 	ao2_lock(session);
 	if (session->ws_session && stasis_app_event_allowed(app_name, message)) {
-		if (stasis_app_get_debug_by_name(app_name)) {
+		if (app_debug_enabled) {
 			char *str = ast_json_dump_string_format(message, ast_ari_json_format());
 
 			ast_verbose("<--- Sending ARI event to %s --->\n%s\n",
