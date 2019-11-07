@@ -1,0 +1,6 @@
+Subject: func_curl
+
+A new parameter, httpheader, has been added to CURLOPT function. This parameter
+allows to set custom http headers for subsequent calls off CURL function.
+Any setting of headers will replace the default curl headers
+(e.g. "Content-type: application/x-www-form-urlencoded")
