@@ -121,6 +121,11 @@
 						<para>Include header information in the result
 						(boolean)</para>
 					</enum>
+					<enum name="httpheader">
+						<para>Add HTTP header. Multiple calls add multiple headers.
+						Setting of any header will remove the default
+						"Content-Type application/x-www-form-urlencoded"</para>
+					</enum>
 					<enum name="httptimeout">
 						<para>For HTTP(S) URIs, number of seconds to wait for a
 						server response</para>
@@ -181,7 +186,7 @@
 		</syntax>
 		<description>
 			<para>Options may be set globally or per channel.  Per-channel
-			settings will override global settings.</para>
+			settings will override global settings. Only HTTP headers are added instead of overriding</para>
 		</description>
 		<see-also>
 			<ref type="function">CURL</ref>
@@ -243,6 +248,9 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	if (!strcasecmp(name, "header")) {
 		*key = CURLOPT_HEADER;
 		*ot = OT_BOOLEAN;
+	} else if (!strcasecmp(name, "httpheader")) {
+		*key = CURLOPT_HTTPHEADER;
+		*ot = OT_STRING;
 	} else if (!strcasecmp(name, "proxy")) {
 		*key = CURLOPT_PROXY;
 		*ot = OT_STRING;
@@ -412,16 +420,18 @@ yuck:
 		return -1;
 	}
 
-	/* Remove any existing entry */
+	/* Remove any existing entry, only http headers are left */
 	AST_LIST_LOCK(list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(list, cur, list) {
-		if (cur->key == new->key) {
-			AST_LIST_REMOVE_CURRENT(list);
-			ast_free(cur);
-			break;
+	if (new->key != CURLOPT_HTTPHEADER) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(list, cur, list) {
+			if (cur->key == new->key) {
+				AST_LIST_REMOVE_CURRENT(list);
+				ast_free(cur);
+				break;
+			}
 		}
+		AST_LIST_TRAVERSE_SAFE_END
 	}
-	AST_LIST_TRAVERSE_SAFE_END
 
 	/* Insert new entry */
 	ast_debug(1, "Inserting entry %p with key %d and value %p\n", new, new->key, new->value);
@@ -639,6 +649,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	int ret = -1;
 	CURL **curl;
 	struct curl_settings *cur;
+	struct curl_slist *headers = NULL;
 	struct ast_datastore *store = NULL;
 	int hashcompat = 0;
 	AST_LIST_HEAD(global_curl_info, curl_settings) *list = NULL;
@@ -666,6 +677,8 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	AST_LIST_TRAVERSE(&global_curl_info, cur, list) {
 		if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
 			hashcompat = (long) cur->value;
+		} else if (cur->key == CURLOPT_HTTPHEADER) {
+			headers = curl_slist_append(headers, (char*) cur->value);
 		} else {
 			curl_easy_setopt(*curl, cur->key, cur->value);
 		}
@@ -682,6 +695,8 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 			AST_LIST_TRAVERSE(list, cur, list) {
 				if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
 					hashcompat = (long) cur->value;
+				} else if (cur->key == CURLOPT_HTTPHEADER) {
+					headers = curl_slist_append(headers, (char*) cur->value);
 				} else {
 					curl_easy_setopt(*curl, cur->key, cur->value);
 				}
@@ -695,6 +710,10 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	if (args->postdata) {
 		curl_easy_setopt(*curl, CURLOPT_POST, 1);
 		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, args->postdata);
+	}
+
+	if (headers) {
+		curl_easy_setopt(*curl, CURLOPT_HTTPHEADER, headers);
 	}
 
 	/* Temporarily assign a buffer for curl to write errors to. */
@@ -714,6 +733,7 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	if (store) {
 		AST_LIST_UNLOCK(list);
 	}
+	curl_slist_free_all(headers);
 
 	if (args->postdata) {
 		curl_easy_setopt(*curl, CURLOPT_POST, 0);
@@ -841,6 +861,7 @@ static struct ast_custom_function acf_curlopt = {
 "  ftptext        - For FTP, force a text transfer (boolean)\n"
 "  ftptimeout     - For FTP, the server response timeout\n"
 "  header         - Retrieve header information (boolean)\n"
+"  httpheader     - Add new custom http header (string)\n"
 "  httptimeout    - Number of seconds to wait for HTTP response\n"
 "  maxredirs      - Maximum number of redirects to follow\n"
 "  proxy          - Hostname or IP to use as a proxy\n"
