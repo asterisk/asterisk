@@ -2241,7 +2241,7 @@ static void *pri_ss_thread(void *data)
 
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri)
 {
-	pri->dchanavail[index] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
+	pri->dchanavail[index] &= ~DCHAN_NOTINALARM;
 	if (!before_start_pri) {
 		pri_find_dchan(pri);
 	}
