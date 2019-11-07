@@ -80,6 +80,9 @@
 			<parameter name="Duration" required="false">
 				<para>The duration, in milliseconds, of the digit to be played.</para>
 			</parameter>
+			<parameter name="Receive" required="false">
+				<para>Emulate receiving DTMF on this channel instead of sending it out.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Plays a dtmf digit on the specified channel.</para>
@@ -147,6 +150,7 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	const char *channel = astman_get_header(m, "Channel");
 	const char *digit = astman_get_header(m, "Digit");
 	const char *duration = astman_get_header(m, "Duration");
+	const char *receive_s = astman_get_header(m, "Receive");
 	struct ast_channel *chan;
 	unsigned int duration_ms = 0;
 
@@ -167,7 +171,14 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_senddigit_external(chan, *digit, duration_ms);
+	if (ast_true(receive_s)) {
+		struct ast_frame f = { AST_FRAME_DTMF, };
+		f.len = duration_ms;
+		f.subclass.integer = *digit;
+		ast_queue_frame(chan, &f);
+	} else {
+		ast_senddigit_external(chan, *digit, duration_ms);
+	}
 
 	chan = ast_channel_unref(chan);
 
