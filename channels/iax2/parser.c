@@ -52,7 +52,11 @@ static int frames = 0;
 static int iframes = 0;
 static int oframes = 0;
 
-#if !defined(LOW_MEMORY)
+#if (defined(LOW_MEMORY) || defined(MALLOC_DEBUG)) && !defined(NO_FRAME_CACHE)
+#define NO_FRAME_CACHE
+#endif
+
+#if !defined(NO_FRAME_CACHE)
 static void frame_cache_cleanup(void *data);
 
 /*! \brief A per-thread cache of iax_frame structures */
@@ -1215,7 +1219,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 {
 	struct iax_frame *fr;
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	if (cacheable) {
 		struct iax_frames *iax_frames;
 		struct iax_frame *smallest;
@@ -1243,13 +1247,13 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 					iax_frames->size--;
 					ast_free(smallest);
 				}
-				if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen))) {
+				if (!(fr = ast_calloc(1, sizeof(*fr) + datalen))) {
 					return NULL;
 				}
 				fr->afdatalen = datalen;
 			}
 		} else {
-			if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen))) {
+			if (!(fr = ast_calloc(1, sizeof(*fr) + datalen))) {
 				return NULL;
 			}
 			fr->afdatalen = datalen;
@@ -1280,7 +1284,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 
 void iax_frame_free(struct iax_frame *fr)
 {
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	struct iax_frames *iax_frames = NULL;
 #endif
 
@@ -1295,7 +1299,7 @@ void iax_frame_free(struct iax_frame *fr)
 	}
 	ast_atomic_fetchadd_int(&frames, -1);
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	if (!fr->cacheable
 		|| !ast_opt_cache_media_frames
 		|| !(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
@@ -1319,7 +1323,7 @@ void iax_frame_free(struct iax_frame *fr)
 	ast_free(fr);
 }
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 static void frame_cache_cleanup(void *data)
 {
 	struct iax_frames *framelist = data;

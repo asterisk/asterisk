@@ -43,7 +43,11 @@
 #include "asterisk/dsp.h"
 #include "asterisk/file.h"
 
-#if !defined(LOW_MEMORY)
+#if (defined(LOW_MEMORY) || defined(MALLOC_DEBUG)) && !defined(NO_FRAME_CACHE)
+#define NO_FRAME_CACHE
+#endif
+
+#if !defined(NO_FRAME_CACHE)
 static void frame_cache_cleanup(void *data);
 
 /*! \brief A per-thread cache of frame headers */
@@ -72,11 +76,11 @@ struct ast_frame_cache {
 
 struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
 
-static struct ast_frame *ast_frame_header_new(void)
+static struct ast_frame *ast_frame_header_new(const char *file, int line, const char *func)
 {
 	struct ast_frame *f;
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	struct ast_frame_cache *frames;
 
 	if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames)))) {
@@ -89,19 +93,18 @@ static struct ast_frame *ast_frame_header_new(void)
 			return f;
 		}
 	}
-	if (!(f = ast_calloc_cache(1, sizeof(*f))))
-		return NULL;
-#else
-	if (!(f = ast_calloc(1, sizeof(*f))))
-		return NULL;
 #endif
+
+	if (!(f = __ast_calloc(1, sizeof(*f), file, line, func))) {
+		return NULL;
+	}
 
 	f->mallocd_hdr_len = sizeof(*f);
 
 	return f;
 }
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 static void frame_cache_cleanup(void *data)
 {
 	struct ast_frame_cache *frames = data;
@@ -119,7 +122,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 	if (!fr->mallocd)
 		return;
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	if (fr->mallocd == AST_MALLOCD_HDR
 		&& cache
 		&& ast_opt_cache_media_frames) {
@@ -185,7 +188,7 @@ void ast_frame_dtor(struct ast_frame *f)
  * (header, src, data).
  * On return all components are malloc'ed
  */
-struct ast_frame *ast_frisolate(struct ast_frame *fr)
+struct ast_frame *__ast_frisolate(struct ast_frame *fr, const char *file, int line, const char *func)
 {
 	struct ast_frame *out;
 	void *newdata;
@@ -194,7 +197,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	   since it is more efficient
 	*/
 	if (fr->mallocd == 0) {
-		return ast_frdup(fr);
+		return __ast_frdup(fr, file, line, func);
 	}
 
 	/* if everything is already malloc'd, we are done */
@@ -205,7 +208,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
-		if (!(out = ast_frame_header_new())) {
+		if (!(out = ast_frame_header_new(file, line, func))) {
 			return NULL;
 		}
 		out->frametype = fr->frametype;
@@ -291,13 +294,13 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	return out;
 }
 
-struct ast_frame *ast_frdup(const struct ast_frame *f)
+struct ast_frame *__ast_frdup(const struct ast_frame *f, const char *file, int line, const char *func)
 {
 	struct ast_frame *out = NULL;
 	int len, srclen = 0;
 	void *buf = NULL;
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	struct ast_frame_cache *frames;
 #endif
 
@@ -313,7 +316,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	if (srclen > 0)
 		len += srclen + 1;
 
-#if !defined(LOW_MEMORY)
+#if !defined(NO_FRAME_CACHE)
 	if ((frames = ast_threadstorage_get(&frame_cache, sizeof(*frames)))) {
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&frames->list, out, frame_list) {
 			if (out->mallocd_hdr_len >= len) {
@@ -332,7 +335,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 #endif
 
 	if (!buf) {
-		if (!(buf = ast_calloc_cache(1, len)))
+		if (!(buf = __ast_calloc(1, len, file, line, func)))
 			return NULL;
 		out = buf;
 		out->mallocd_hdr_len = len;

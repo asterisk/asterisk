@@ -24,6 +24,8 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 endif
 
 $(call MOD_ADD_C,chan_iax2,$(wildcard iax2/*.c))
+iax2/parser.o: _ASTCFLAGS+=$(call get_menuselect_cflags,MALLOC_DEBUG)
+
 $(call MOD_ADD_C,chan_sip,$(wildcard sip/*.c))
 $(call MOD_ADD_C,chan_pjsip,$(wildcard pjsip/*.c))
 $(call MOD_ADD_C,chan_dahdi,$(wildcard dahdi/*.c) sig_analog.c sig_pri.c sig_ss7.c)
