@@ -235,6 +235,13 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			continue;
 		}
 
+		/* If we have a port of 0, ignore this stream */
+		if (!sdp->media[i]->desc.port) {
+			ast_debug(1, "Declining incoming SDP media stream '%s' at position '%d'\n",
+				session_media->stream_type, i);
+			continue;
+		}
+
 		if (session_media->handler) {
 			handler = session_media->handler;
 			ast_debug(1, "Negotiating incoming SDP media stream '%s' using %s SDP handler\n",
