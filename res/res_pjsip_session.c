@@ -712,7 +712,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 
 	/* It is possible for SDP deferral to have already created a pending topology */
 	if (!session->pending_media_state->topology) {
-		session->pending_media_state->topology = ast_stream_topology_alloc();
+		session->pending_media_state->topology = ast_stream_topology_clone(session->endpoint->media.topology);
 		if (!session->pending_media_state->topology) {
 			return -1;
 		}
