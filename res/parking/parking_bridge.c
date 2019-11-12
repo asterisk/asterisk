@@ -72,9 +72,9 @@ static void destroy_parked_user(void *obj)
 }
 
 /* Only call this on a parked user that hasn't had its parker_dial_string set already */
-static int parked_user_set_parker_dial_string(struct parked_user *pu, struct ast_channel *parker)
+static int parked_user_set_parker_dial_string(struct parked_user *pu, const char *parker_channel_name)
 {
-	char *dial_string = ast_strdupa(ast_channel_name(parker));
+	char *dial_string = ast_strdupa(parker_channel_name);
 
 	ast_channel_name_to_dial_string(dial_string);
 	pu->parker_dial_string = ast_strdup(dial_string);
@@ -93,7 +93,7 @@ static int parked_user_set_parker_dial_string(struct parked_user *pu, struct ast
  *
  * \param lot The parking lot we are assigning the user to
  * \param parkee The channel being parked
- * \param parker The channel performing the park operation (may be the same channel)
+ * \param parker_channel_name The name of the parker of this channel
  * \param parker_dial_string Takes priority over parker for setting the parker dial string if included
  * \param use_random_space if true, prioritize using a random parking space instead
  *        of ${PARKINGEXTEN} and/or automatic assignment from the parking lot
@@ -106,7 +106,7 @@ static int parked_user_set_parker_dial_string(struct parked_user *pu, struct ast
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
  */
-static struct parked_user *generate_parked_user(struct parking_lot *lot, struct ast_channel *chan, struct ast_channel *parker, const char *parker_dial_string, int use_random_space, int time_limit)
+static struct parked_user *generate_parked_user(struct parking_lot *lot, struct ast_channel *chan, const char *parker_channel_name, const char *parker_dial_string, int use_random_space, int time_limit)
 {
 	struct parked_user *new_parked_user;
 	int preferred_space = -1; /* Initialize to use parking lot defaults */
@@ -167,7 +167,7 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 	if (parker_dial_string) {
 		new_parked_user->parker_dial_string = ast_strdup(parker_dial_string);
 	} else {
-		if (!parker || parked_user_set_parker_dial_string(new_parked_user, parker)) {
+		if (ast_strlen_zero(parker_channel_name) || parked_user_set_parker_dial_string(new_parked_user, parker_channel_name)) {
 			ao2_ref(new_parked_user, -1);
 			ao2_unlock(lot);
 			return NULL;
@@ -207,7 +207,8 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 {
 	struct parked_user *pu;
 	const char *blind_transfer;
-	RAII_VAR(struct ast_channel *, parker, NULL, ao2_cleanup); /* XXX replace with ast_channel_cleanup when available */
+	struct ast_channel_snapshot *parker = NULL;
+	const char *parker_channel_name = NULL;
 	RAII_VAR(struct park_common_datastore *, park_datastore, NULL, park_common_datastore_free);
 
 	ast_bridge_base_v_table.push(&self->base, bridge_channel, swap);
@@ -263,7 +264,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 		/* There was either a failure to apply the datastore when performing park common setup or else we had alloc failures while cloning. Abort. */
 		return -1;
 	}
-	parker = ast_channel_get_by_name(park_datastore->parker_uuid);
+	parker = ast_channel_snapshot_get_latest(park_datastore->parker_uuid);
 
 	/* If the parker and the parkee are the same channel pointer, then the channel entered using
 	 * the park application. It's possible that the channel that transferred it is still alive (particularly
@@ -272,18 +273,16 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	blind_transfer = pbx_builtin_getvar_helper(bridge_channel->chan, "BLINDTRANSFER");
 	blind_transfer = ast_strdupa(S_OR(blind_transfer, ""));
 	ast_channel_unlock(bridge_channel->chan);
-	if ((!parker || parker == bridge_channel->chan)
+	if ((!parker || !strcmp(parker->name, ast_channel_name(bridge_channel->chan)))
 		&& !ast_strlen_zero(blind_transfer)) {
-		struct ast_channel *real_parker = ast_channel_get_by_name(blind_transfer);
-
-		if (real_parker) {
-			ao2_cleanup(parker);
-			parker = real_parker;
-		}
+		parker_channel_name = blind_transfer;
+	} else {
+		parker_channel_name = parker->name;
 	}
 
-	pu = generate_parked_user(self->lot, bridge_channel->chan, parker,
+	pu = generate_parked_user(self->lot, bridge_channel->chan, parker_channel_name,
 		park_datastore->parker_dial_string, park_datastore->randomize, park_datastore->time_limit);
+	ao2_cleanup(parker);
 	if (!pu) {
 		publish_parked_call_failure(bridge_channel->chan);
 		return -1;
