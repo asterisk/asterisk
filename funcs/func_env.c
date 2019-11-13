@@ -709,12 +709,13 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 		ast_debug(3, "offset=%" PRId64 ", length=%" PRId64 ", offset_offset=%" PRId64 ", length_offset=%" PRId64 "\n", offset, length, offset_offset, length_offset);
 		for (i = offset_offset; i < flength; i += sizeof(fbuf)) {
 			char *pos;
-			if (fread(fbuf, 1, sizeof(fbuf), ff) < sizeof(fbuf) && !feof(ff)) {
+			size_t bytes_read;
+			if ((bytes_read = fread(fbuf, 1, sizeof(fbuf), ff)) < sizeof(fbuf) && !feof(ff)) {
 				ast_log(LOG_ERROR, "Short read?!!\n");
 				fclose(ff);
 				return -1;
 			}
-			for (pos = fbuf; pos < fbuf + sizeof(fbuf); pos++) {
+			for (pos = fbuf; pos < fbuf + bytes_read; pos++) {
 				LINE_COUNTER(pos, format, current_length);
 
 				if (current_length == length) {
