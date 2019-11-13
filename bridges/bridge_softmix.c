@@ -726,6 +726,13 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 		sfu_topologies_on_join(bridge, bridge_channel);
 	}
 
+	/* Complete any active hold before entering, or transitioning to softmix. */
+	if (ast_channel_hold_state(bridge_channel->chan) == AST_CONTROL_HOLD) {
+		ast_debug(1, "Channel %s simulating UNHOLD for bridge softmix join.\n",
+			ast_channel_name(bridge_channel->chan));
+		ast_indicate(bridge_channel->chan, AST_CONTROL_UNHOLD);
+	}
+
 	softmix_poke_thread(softmix_data);
 	return 0;
 }
