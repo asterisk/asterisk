@@ -1279,7 +1279,7 @@ CREATE TYPE ast_bool_values AS ENUM ('0', '1', 'off', 'on', 'false', 'true', 'no
 
 ALTER TABLE ps_endpoints ALTER COLUMN mwi_subscribe_replaces_unsolicited TYPE VARCHAR(5);
 
-ALTER TABLE ps_endpoints ALTER COLUMN mwi_subscribe_replaces_unsolicited TYPE ast_bool_values;
+ALTER TABLE ps_endpoints ALTER COLUMN mwi_subscribe_replaces_unsolicited TYPE ast_bool_values USING mwi_subscribe_replaces_unsolicited::ast_bool_values;
 
 UPDATE alembic_version SET version_num='fe6592859b85' WHERE alembic_version.version_num = '1d3ed26d9978';
 
