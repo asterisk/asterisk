@@ -660,6 +660,10 @@ static int dtls_bio_write(BIO *bio, const char *buf, int len)
 	struct ast_sockaddr remote_address = { {0, } };
 	int ice;
 
+	/* OpenSSL can't tolerate a packet not being sent, so we always state that
+	 * we sent the packet. If it isn't then retransmission will occur.
+	 */
+
 	if (rtp->rtcp && rtp->rtcp->dtls.write_bio == bio) {
 		rtcp = 1;
 		ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
@@ -668,10 +672,12 @@ static int dtls_bio_write(BIO *bio, const char *buf, int len)
 	}
 
 	if (ast_sockaddr_isnull(&remote_address)) {
-		return 0;
+		return len;
 	}
 
-	return __rtp_sendto(instance, (char *)buf, len, 0, &remote_address, rtcp, &ice, 0);
+	__rtp_sendto(instance, (char *)buf, len, 0, &remote_address, rtcp, &ice, 0);
+
+	return len;
 }
 
 static long dtls_bio_ctrl(BIO *bio, int cmd, long arg1, void *arg2)
