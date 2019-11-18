@@ -863,13 +863,13 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 		 * continue to grow unabated.
 		 */
 		if (strcmp(change->description, "Unsubscribe") == 0) {
-			struct stasis_cache_entry *sub;
+			struct stasis_cache_entry *cached_sub;
 
 			ao2_wrlock(caching_topic->cache->entries);
-			sub = cache_find(caching_topic->cache->entries, stasis_subscription_change_type(), change->uniqueid);
-			if (sub) {
-				ao2_cleanup(cache_remove(caching_topic->cache->entries, sub, stasis_message_eid(message)));
-				ao2_cleanup(sub);
+			cached_sub = cache_find(caching_topic->cache->entries, stasis_subscription_change_type(), change->uniqueid);
+			if (cached_sub) {
+				ao2_cleanup(cache_remove(caching_topic->cache->entries, cached_sub, stasis_message_eid(message)));
+				ao2_cleanup(cached_sub);
 			}
 			ao2_unlock(caching_topic->cache->entries);
 			ao2_cleanup(caching_topic_needs_unref);

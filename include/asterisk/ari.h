@@ -101,7 +101,7 @@ struct ast_ari_response {
 	/*! Corresponding text for the response code */
 	const char *response_text; /* Shouldn't http.c handle this? */
 	/*! Flag to indicate that no further response is needed */
-	int no_response:1;
+	unsigned int no_response:1;
 };
 
 /*!

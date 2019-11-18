@@ -173,7 +173,10 @@ static int s_streamwait3(const say_args_t *a, const char *fn)
 static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 {
 	struct ast_variable *v;
-	char *lang, *x, *rule = NULL;
+	char *lang;
+	char *x;
+	char *rule = NULL;
+	char *rule_head = NULL;
 	int ret = 0;
 	struct varshead head = { .first = NULL, .last = NULL };
 	struct ast_var_t *n;
@@ -195,7 +198,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	for (;;) {
 		for (v = ast_variable_browse(say_cfg, lang); v ; v = v->next) {
 			if (ast_extension_match(v->name, s)) {
-				rule = ast_strdupa(v->value);
+				rule_head = rule = ast_strdup(v->value);
 				break;
 			}
 		}
@@ -220,6 +223,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 	n = ast_var_assign("SAY", s);
 	if (!n) {
 		ast_log(LOG_ERROR, "Memory allocation error in do_say\n");
+		ast_free(rule_head);
 		return -1;
 	}
 	AST_LIST_INSERT_HEAD(&head, n, entries);
@@ -281,6 +285,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		}
 	}
 	ast_var_delete(n);
+	ast_free(rule_head);
 	return ret;
 }
 

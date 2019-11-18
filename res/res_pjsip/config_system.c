@@ -83,7 +83,7 @@ static void *system_alloc(const char *name)
 	return system;
 }
 
-static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
+static int system_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	struct system_config *system = obj;
 	int min_timerb;

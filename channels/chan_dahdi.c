@@ -4382,7 +4382,7 @@ static char *alarm2str(int alm)
 static const char *event2str(int event)
 {
 	static char buf[256];
-	if ((event < (ARRAY_LEN(events))) && (event > -1))
+	if ((event > -1) && (event < (ARRAY_LEN(events))) )
 		return events[event];
 	sprintf(buf, "Event %d", event); /* safe */
 	return buf;
@@ -15174,7 +15174,7 @@ static void mfcr2_show_links_of(struct ast_cli_args *a, struct r2links *list_hea
 			inside_range = 0;
 			len = 0;
 			/* Prepare nice string in channel_list[] */
-			for (i = 0; i < mfcr2->numchans; i++) {
+			for (i = 0; i < mfcr2->numchans && len < sizeof(channel_list) - 1; i++) {
 				struct dahdi_pvt *p = mfcr2->pvts[i];
 				if (!p) {
 					continue;
@@ -18132,13 +18132,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		} else if (!strcasecmp(v->name, "namedpickupgroup")) {
 			confp->chan.named_pickupgroups = ast_get_namedgroups(v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
-			char *varname = ast_strdupa(v->value), *varval = NULL;
-			struct ast_variable *tmpvar;
-			if (varname && (varval = strchr(varname, '='))) {
-				*varval++ = '\0';
-				if ((tmpvar = ast_variable_new(varname, varval, ""))) {
-					tmpvar->next = confp->chan.vars;
-					confp->chan.vars = tmpvar;
+			if (v->value) {
+				char *varval = NULL;
+				struct ast_variable *tmpvar;
+				char varname[strlen(v->value) + 1];
+				strcpy(varname, v->value); /* safe */
+				if ((varval = strchr(varname, '='))) {
+					*varval++ = '\0';
+					if ((tmpvar = ast_variable_new(varname, varval, ""))) {
+						tmpvar->next = confp->chan.vars;
+						confp->chan.vars = tmpvar;
+					}
 				}
 			}
 		} else if (!strcasecmp(v->name, "immediate")) {
@@ -19082,9 +19086,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mfcr2_logging")) {
 				openr2_log_level_t tmplevel;
 				char *clevel;
-				char *logval = ast_strdupa(v->value);
+				char *logval;
+				char copy[strlen(v->value) + 1];
+				strcpy(copy, v->value); /* safe */
+				logval = copy;
 				while (logval) {
- 					clevel = strsep(&logval,",");
+					clevel = strsep(&logval,",");
 					if (-1 == (tmplevel = openr2_log_get_level(clevel))) {
 						ast_log(LOG_WARNING, "Ignoring invalid logging level: '%s' at line %d.\n", clevel, v->lineno);
 						continue;

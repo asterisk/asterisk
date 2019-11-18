@@ -23,6 +23,9 @@
  * \author Joshua Colp <jcolp@digium.com>
  */
 
+#ifndef _ASTERISK_DNS_INTERNAL_H
+#define _ASTERISK_DNS_INTERNAL_H
+
 /*! \brief For AST_VECTOR */
 #include "asterisk/vector.h"
 
@@ -293,3 +296,5 @@ int dns_parse_string(char *cur, uint8_t *size, char **val);
  * \note The query must be released upon completion or cancellation using ao2_ref
  */
 struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data);
+
+#endif /* _ASTERISK_DNS_INTERNAL_H */

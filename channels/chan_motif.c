@@ -2086,15 +2086,16 @@ static int jingle_interpret_description(struct jingle_session *session, iks *des
 
 	/* Iterate the codecs updating the relevant RTP instance as we go */
 	for (codec = iks_child(description); codec; codec = iks_next(codec)) {
-		char *id = iks_find_attrib(codec, "id"), *name = iks_find_attrib(codec, "name");
+		char *id = iks_find_attrib(codec, "id");
+		char *attr_name = iks_find_attrib(codec, "name");
 		char *clockrate = iks_find_attrib(codec, "clockrate");
 		int rtp_id, rtp_clockrate;
 
-		if (!ast_strlen_zero(id) && !ast_strlen_zero(name) && (sscanf(id, "%30d", &rtp_id) == 1)) {
+		if (!ast_strlen_zero(id) && !ast_strlen_zero(attr_name) && (sscanf(id, "%30d", &rtp_id) == 1)) {
 			if (!ast_strlen_zero(clockrate) && (sscanf(clockrate, "%30d", &rtp_clockrate) == 1)) {
-				ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL, rtp_id, media, name, 0, rtp_clockrate);
+				ast_rtp_codecs_payloads_set_rtpmap_type_rate(&codecs, NULL, rtp_id, media, attr_name, 0, rtp_clockrate);
 			} else {
-				ast_rtp_codecs_payloads_set_rtpmap_type(&codecs, NULL, rtp_id, media, name, 0);
+				ast_rtp_codecs_payloads_set_rtpmap_type(&codecs, NULL, rtp_id, media, attr_name, 0);
 			}
 		}
 	}
