@@ -630,9 +630,8 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	const char *whereweare;
 	const char *orig_cp2 = cp2;
-	char *workspace = NULL;
-	char *ltmp = NULL;
-	char *var = NULL;
+	char ltmp[VAR_BUF_SIZE];
+	char var[VAR_BUF_SIZE];
 
 	*cp2 = 0; /* just in case nothing ends up there */
 	whereweare = cp1;
@@ -690,6 +689,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			int offset2;
 			int isfunction;
 			char *cp4;
+			char workspace[VAR_BUF_SIZE] = "";
 
 			/* We have a variable.  Find the start and end, and determine
 			   if we are going to have to recursively call ourselves on the
@@ -725,27 +725,16 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			/* Skip totally over variable string */
 			whereweare = vare;
 
-			if (!var)
-				var = ast_alloca(VAR_BUF_SIZE);
-
 			/* Store variable name expression to lookup (and truncate). */
 			ast_copy_string(var, vars, len + 1);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				if (!ltmp) {
-					ltmp = ast_alloca(VAR_BUF_SIZE);
-				}
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
 				vars = ltmp;
 			} else {
 				vars = var;
 			}
-
-			if (!workspace)
-				workspace = ast_alloca(VAR_BUF_SIZE);
-
-			workspace[0] = '\0';
 
 			parse_variable_name(vars, &offset, &offset2, &isfunction);
 			if (isfunction) {
@@ -820,17 +809,11 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 			/* Skip totally over expression */
 			whereweare = vare;
 
-			if (!var)
-				var = ast_alloca(VAR_BUF_SIZE);
-
 			/* Store expression to evaluate (and truncate). */
 			ast_copy_string(var, vars, len + 1);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				if (!ltmp) {
-					ltmp = ast_alloca(VAR_BUF_SIZE);
-				}
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
 				vars = ltmp;
 			} else {

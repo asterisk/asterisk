@@ -119,13 +119,13 @@ struct app_cdr_message_payload {
 	/*! The name of the channel to be manipulated */
 	const char *channel_name;
 	/*! Disable the CDR for this channel */
-	int disable:1;
+	unsigned int disable:1;
 	/*! Re-enable the CDR for this channel */
-	int reenable:1;
+	unsigned int reenable:1;
 	/*! Reset the CDR */
-	int reset:1;
+	unsigned int reset:1;
 	/*! If reseting the CDR, keep the variables */
-	int keep_variables:1;
+	unsigned int keep_variables:1;
 };
 
 static void appcdr_callback(void *data, struct stasis_subscription *sub, struct stasis_message *message)
