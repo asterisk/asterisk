@@ -90,7 +90,7 @@ struct stasis_app_control {
 	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
-	int is_done:1;
+	unsigned int is_done:1;
 };
 
 static void control_dtor(void *obj)

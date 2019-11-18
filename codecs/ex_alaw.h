@@ -7,6 +7,9 @@
  *
  */
 
+#ifndef ASTERISK_EX_ALAW_H
+#define ASTERISK_EX_ALAW_H
+
 static uint8_t ex_alaw[] = {
 	0x00, 0x03, 0x06, 0x09, 0x0c, 0x0f, 0x12, 0x15,
 	0x10, 0x18, 0x1b, 0x1e, 0x21, 0x24, 0x27, 0x2a,
@@ -34,3 +37,5 @@ static struct ast_frame *alaw_sample(void)
 	f.subclass.format = ast_format_alaw;
 	return &f;
 }
+
+#endif /* ASTERISK_EX_ALAW_H */

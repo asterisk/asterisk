@@ -1615,7 +1615,7 @@ struct mansession {
 	FILE *f;
 	int fd;
 	enum mansession_message_parsing parsing;
-	int write_error:1;
+	unsigned int write_error:1;
 	struct manager_custom_hook *hook;
 	ast_mutex_t lock;
 };
@@ -3808,8 +3808,8 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		int allowdups = 0;
 		int istemplate = 0;
 		int ignoreerror = 0;
-		char *inherit = NULL;
-		char *catfilter = NULL;
+		RAII_VAR(char *, inherit, NULL, ast_free);
+		RAII_VAR(char *, catfilter, NULL, ast_free);
 		char *token;
 		int foundvar = 0;
 		int foundcat = 0;
@@ -3847,7 +3847,9 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		snprintf(hdr, sizeof(hdr), "Options-%06d", x);
 		options = astman_get_header(m, hdr);
 		if (!ast_strlen_zero(options)) {
-			dupoptions = ast_strdupa(options);
+			char copy[strlen(options) + 1];
+			strcpy(copy, options); /* safe */
+			dupoptions = copy;
 			while ((token = ast_strsep(&dupoptions, ',', AST_STRSEP_STRIP))) {
 				if (!strcasecmp("allowdups", token)) {
 					allowdups = 1;
@@ -3865,7 +3867,7 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 					char *c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
 					c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
 					if (c) {
-						inherit = ast_strdupa(c);
+						inherit = ast_strdup(c);
 					}
 					continue;
 				}
@@ -3873,7 +3875,7 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 					char *c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
 					c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
 					if (c) {
-						catfilter = ast_strdupa(c);
+						catfilter = ast_strdup(c);
 					}
 					continue;
 				}

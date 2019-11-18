@@ -23,6 +23,9 @@
  * \author Jonathan Rose <jrose@digium.com>
  */
 
+#ifndef ASTERISK_RES_PARKING_H
+#define ASTERISK_RES_PARKING_H
+
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
 #include "asterisk/parking.h"
@@ -570,3 +573,5 @@ struct ast_module_info;
  * \retval res_parking's ast_module
  */
 const struct ast_module_info *parking_get_module_info(void);
+
+#endif /* ASTERISK_RES_PARKING_H */

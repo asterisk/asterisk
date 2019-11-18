@@ -1,4 +1,6 @@
 /* Conversion routines derived from code by guido@sienanet.it */
+#ifndef ASTERISK_MSGSM_H
+#define ASTERISK_MSGSM_H
 
 #define GSM_MAGIC 0xD
 
@@ -687,3 +689,5 @@ static inline void conv65( wav_byte * c, gsm_byte * d){
                         writeGSM_33(d+33);
 
 }
+
+#endif /* ASTERISK_MSGSM_H */

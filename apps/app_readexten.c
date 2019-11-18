@@ -172,8 +172,7 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 	if (timeout <= 0)
 		timeout = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->rtimeoutms : 10000;
 
-	if (digit_timeout <= 0)
-		digit_timeout = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->dtimeoutms : 5000;
+	digit_timeout = ast_channel_pbx(chan) ? ast_channel_pbx(chan)->dtimeoutms : 5000;
 
 	if (ast_test_flag(&flags, OPT_INDICATION) && !ast_strlen_zero(arglist.filename)) {
 		ts = ast_get_indication_tone(ast_channel_zone(chan), arglist.filename);

@@ -17,6 +17,7 @@
  */
 
 #ifndef MAX_FORWARDS_H
+#define MAX_FORWARDS_H
 
 struct ast_channel;
 
