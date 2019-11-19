@@ -177,7 +177,7 @@ int ast_serializer_pool_set_alerts(struct ast_serializer_pool *pool, long high, 
 		tps_queue_low = -1;
 	}
 
-	for (idx = 1; idx < AST_VECTOR_SIZE(&pool->serializers); ++idx) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&pool->serializers); ++idx) {
 		struct ast_taskprocessor *cur = AST_VECTOR_GET(&pool->serializers, idx);
 		if (ast_taskprocessor_alert_set_levels(cur, tps_queue_low, tps_queue_high)) {
 			ast_log(AST_LOG_WARNING, "Failed to set alert levels for serializer '%s'.\n",
