@@ -273,8 +273,10 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	blind_transfer = pbx_builtin_getvar_helper(bridge_channel->chan, "BLINDTRANSFER");
 	blind_transfer = ast_strdupa(S_OR(blind_transfer, ""));
 	ast_channel_unlock(bridge_channel->chan);
-	if ((!parker || !strcmp(parker->base->name, ast_channel_name(bridge_channel->chan)))
-		&& !ast_strlen_zero(blind_transfer)) {
+	if (!parker || !strcmp(parker->base->name, ast_channel_name(bridge_channel->chan))) {
+		/* Even if there is no BLINDTRANSFER dialplan variable then blind_transfer will
+		 * be an empty string.
+		 */
 		parker_channel_name = blind_transfer;
 	} else {
 		parker_channel_name = parker->base->name;
