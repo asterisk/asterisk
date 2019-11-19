@@ -159,8 +159,10 @@ pipeline {
 	}
 	post {
 		cleanup {
-			if (env.CLEANUP_WS_DAILIES.toBoolean()) {
-				cleanWs deleteDirs: true, notFailBuild: false
+			script {
+				if (env.CLEANUP_WS_DAILIES.toBoolean()) {
+					cleanWs deleteDirs: true, notFailBuild: false
+				}
 			}
 		}
 		success {
