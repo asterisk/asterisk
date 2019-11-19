@@ -81,7 +81,7 @@ pipeline {
 										[$class: 'RelativeTargetDirectory', relativeTargetDir: "tests/CI/output/publish-docs"],
 										[$class: 'CloneOption',
 											noTags: true,
-											depth: 10,
+											depth: 100,
 											honorRefspec: true,
 											shallow: true
 										],
@@ -129,7 +129,7 @@ pipeline {
 												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
 												[$class: 'CloneOption',
 													noTags: true,
-													depth: 10,
+													depth: 100,
 													honorRefspec: true,
 													shallow: true
 												],
@@ -159,7 +159,9 @@ pipeline {
 	}
 	post {
 		cleanup {
-            cleanWs deleteDirs: true, notFailBuild: true
+			if (env.CLEANUP_WS_DAILIES.toBoolean()) {
+				cleanWs deleteDirs: true, notFailBuild: false
+			}
 		}
 		success {
 			echo "Reporting ${currentBuild.currentResult} Passed"
