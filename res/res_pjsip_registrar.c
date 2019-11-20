@@ -1006,7 +1006,7 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 {
 	struct ast_sip_aor *aor = NULL;
 	char *aor_name = NULL;
-	char *domain_name;
+	char *domain_name = NULL;
 	char *username = NULL;
 	int i;
 
