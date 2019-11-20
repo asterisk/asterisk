@@ -164,8 +164,10 @@ static int dfltMaxWaitTimeForFrame  = 50;
 static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
+	int audioFrameCount = 0;
 	struct ast_frame *f = NULL;
 	struct ast_dsp *silenceDetector = NULL;
+	struct timeval amd_tvstart;
 	int dspsilence = 0, framelength = 0;
 	RAII_VAR(struct ast_format *, readFormat, NULL, ao2_cleanup);
 	int inInitialSilence = 1;
@@ -277,6 +279,9 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	/* Set silence threshold to specified value */
 	ast_dsp_set_threshold(silenceDetector, silenceThreshold);
 
+	/* Set our start time so we can tie the loop to real world time and not RTP updates */
+	amd_tvstart = ast_tvnow();
+
 	/* Now we go into a loop waiting for frames from the channel */
 	while ((res = ast_waitfor(chan, 2 * maxWaitTimeForFrame)) > -1) {
 		int ms = 0;
@@ -295,7 +300,24 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 			break;
 		}
 
-		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_NULL || f->frametype == AST_FRAME_CNG) {
+		/* Check to make sure we haven't gone over our real-world timeout in case frames get stalled for whatever reason */
+		if ( (ast_tvdiff_ms(ast_tvnow(), amd_tvstart)) > totalAnalysisTime ) {
+			ast_frfree(f);
+			strcpy(amdStatus , "NOTSURE");
+			if ( audioFrameCount == 0 ) {
+				ast_verb(3, "AMD: Channel [%s]. No audio data received in [%d] seconds.\n", ast_channel_name(chan), totalAnalysisTime);
+				sprintf(amdCause , "NOAUDIODATA-%d", iTotalTime);
+				break;
+			}
+			ast_verb(3, "AMD: Channel [%s]. Timeout...\n", ast_channel_name(chan));
+			sprintf(amdCause , "TOOLONG-%d", iTotalTime);
+			break;
+		}
+
+		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_CNG) {
+			/* keep track of the number of audio frames we get */
+			audioFrameCount++;
+
 			/* Figure out how long the frame is in milliseconds */
 			if (f->frametype == AST_FRAME_VOICE) {
 				framelength = (ast_codec_samples_count(f) / DEFAULT_SAMPLES_PER_MS);
