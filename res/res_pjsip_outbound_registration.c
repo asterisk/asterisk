@@ -910,7 +910,17 @@ static int handle_registration_response(void *data)
 	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
 			response->code, server_uri, client_uri);
 
-	if ((response->code == 401 || response->code == 407)
+	if (response->code == 408 || response->code == 503) {
+		if ((ast_sip_failover_request(response->old_request))) {
+			int res = registration_client_send(response->client_state, response->old_request);
+			/* The tdata ref was stolen */
+			response->old_request = NULL;
+			if (res == PJ_SUCCESS) {
+				ao2_ref(response, -1);
+				return 0;
+			}
+		}
+	} else if ((response->code == 401 || response->code == 407)
 		&& (!response->client_state->auth_attempted
 			|| response->rdata->msg_info.cseq->cseq != response->client_state->auth_cseq)) {
 		int res;
