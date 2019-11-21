@@ -19,6 +19,16 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.6.1 to Asterisk 16.6.2 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The AMI Originate action, which optionally takes a dialplan application as
+   an argument, no longer accepts "Originate" as the application due to
+   security concerns.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.5.0 to Asterisk 16.6.0 ------------
 ------------------------------------------------------------------------------
 
