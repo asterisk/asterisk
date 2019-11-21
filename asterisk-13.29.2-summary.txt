@@ -1,0 +1,127 @@
+                                Release Summary
+
+                                asterisk-13.29.2
+
+                                Date: 2019-11-21
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2019-006,AST-2019-007,AST-2019-008
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.29.1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   2 Ben Ford                                        1 Salah Ahmed            
+   1 Asterisk Development Team                       1 Eliel SardaÃ±ons       
+   1 George Joseph                                   1 Andrey V. T.           
+                                                     1 Eliel SardaÃ±ons       
+                                                     1 Salah Ahmed            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-28589: chan_sip: Depending on configuration an INVITE can alter
+   Addr of a peer
+   Reported by: Andrey V. T.
+     * [c265db0a0a] Ben Ford -- chan_sip.c: Prevent address change on
+       unauthenticated SIP request.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-28580: Bypass SYSTEM write permission in manager action allows
+   system commands execution
+   Reported by: Eliel SardaÃ±ons
+     * [94a831f72a] George Joseph -- manager.c: Prevent the Originate action
+       from running the Originate app
+
+  Bug
+
+    Category: Resources/res_pjsip_t38
+
+   ASTERISK-28612: res_pjsip_t38: crash on reinvite with zero port and no c=
+   line
+   Reported by: Salah Ahmed
+     * [cde0cd2297] Ben Ford -- res_pjsip_session.c: Check for port of zero
+       on incoming SDP.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author                    | Summary                       |
+   |------------+---------------------------+-------------------------------|
+   | 24d340e10a | Asterisk Development Team | Update CHANGES and            |
+   |            |                           | UPGRADE.txt for 13.29.2       |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ UPGRADE.txt             |   10 ++++++++++
+ channels/chan_sip.c     |   28 ++++++++++++++++------------
+ main/manager.c          |    1 +
+ res/res_pjsip_session.c |    2 ++
+ 4 files changed, 29 insertions(+), 12 deletions(-)

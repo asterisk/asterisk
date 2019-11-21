@@ -1,3 +1,67 @@
+2019-11-21 21:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.29.2 Released.
+
+2019-11-21 15:04 +0000 [24d340e10a]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 13.29.2
+2019-10-24 12:41 +0000 [94a831f72a]  George Joseph <gjoseph@digium.com>
+
+	* manager.c:  Prevent the Originate action from running the Originate app
+
+	  If an AMI user without the "system" authorization calls the
+	  Originate AMI command with the Originate application,
+	  the second Originate could run the "System" command.
+
+	  Action: Originate
+	  Channel: Local/1111
+	  Application: Originate
+	  Data: Local/2222,app,System,touch /tmp/owned
+
+	  If the "system" authorization isn't set, we now block the
+	  Originate app as well as the System, Exec, etc. apps.
+
+	  ASTERISK-28580
+	  Reported by: Eliel Sardañons
+
+	  Change-Id: Ic4c9dedc34c426f03c8c14fce334a71386d8a5fa
+	  (cherry picked from commit 1b9281a5ded62e5d30af2959e5aa33bc5a0fc285)
+
+2019-10-21 14:55 +0000 [c265db0a0a]  Ben Ford <bford@digium.com>
+
+	* chan_sip.c: Prevent address change on unauthenticated SIP request.
+
+	  If the name of a peer is known and a SIP request is sent using that
+	  peer's name, the address of the peer will change even if the request
+	  fails the authentication challenge. This means that an endpoint can
+	  be altered and even rendered unusuable, even if it was in a working
+	  state previously. This can only occur when the nat option is set to the
+	  default, or auto_force_rport.
+
+	  This change checks the result of authentication first to ensure it is
+	  successful before setting the address and the nat option.
+
+	  ASTERISK-28589 #close
+
+	  Change-Id: I581c5ed1da60ca89f590bd70872de2b660de02df
+	  (cherry picked from commit c2279540bade208dad35f7760ebd4a7cc94731fe)
+
+2019-11-08 13:21 +0000 [cde0cd2297]  Ben Ford <bford@digium.com>
+
+	* res_pjsip_session.c: Check for port of zero on incoming SDP.
+
+	  If a re-invite comes in initiating T.38, but there is no c line in the
+	  SDP and the port is also 0, a crash can occur. A check is now done on
+	  the port to see if the steam is already declined, preventing the crash.
+	  The logic was moved to res_pjsip_session.c because it is handled in a
+	  similar manner in later versions of Asterisk.
+
+	  ASTERISK-28612
+	  Reported by: Salah Ahmed
+
+	  Change-Id: Ifc4a0d05b32c7f2156e77fc8435a6ecaa6abada0
+	  (cherry picked from commit c257794330db49f4079a7108d51da60696269b36)
+
 2019-10-16 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.29.1 Released.
