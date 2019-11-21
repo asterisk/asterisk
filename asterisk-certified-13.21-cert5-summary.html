@@ -1,0 +1,55 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.21-cert5</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.21-cert5</h3><h3 align="center">Date: 2019-11-21</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2019-006,AST-2019-007,AST-2019-008.html">AST-2019-006,AST-2019-007,AST-2019-008</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.21-cert4.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">6 George Joseph <gjoseph@digium.com><br/>3 Joshua Colp <jcolp@digium.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Ben Ford <bford@digium.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/></td><td width="33%"><td width="33%">3 Joshua C. Colp <jcolp@digium.com><br/>1 Eliel Sardañons <eliels@gmail.com><br/>1 Salah Ahmed <txrubel@gmail.com><br/>1 Eliel Sardañons<br/>1 Salah Ahmed<br/>1 Cyril Ramière <cyril.ramiere@ino.global><br/>1 Andrey  V. T. <avt1203@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28589">ASTERISK-28589</a>: chan_sip: Depending on configuration an INVITE can alter Addr of a peer<br/>Reported by: Andrey  V. T.<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5be4005fba891184ee2323ca82cd1520d924d293">[5be4005fba]</a> Ben Ford -- chan_sip.c: Prevent address change on unauthenticated SIP request.</li>
+</ul><br><h4>Category: Core/ManagerInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28580">ASTERISK-28580</a>: Bypass SYSTEM write permission in manager action allows system commands execution<br/>Reported by: Eliel Sardañons<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=32e599f16a87263bb59954fa31ad8449d7a7900a">[32e599f16a]</a> George Joseph -- manager.c:  Prevent the Originate action from running the Originate app</li>
+</ul><br><h3>Bug</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28538">ASTERISK-28538</a>: chan_pjsip: Deadlock on fax detection<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dfd7a3474ba2c07c29c498c06bd67ff175c97fd2">[dfd7a3474b]</a> Joshua Colp -- chan_pjsip: Relock correct channel during "fax" redirect.</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28523">ASTERISK-28523</a>: Asterisk 16.5.0 Memory leak<br/>Reported by: Cyril Ramière<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e7c44355a634dde9646443476d82de6f627a5aef">[e7c44355a6]</a> Kevin Harwell -- res_sorcery_memory_cache: stale item update leak</li>
+</ul><br><h4>Category: Resources/res_parking</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28616">ASTERISK-28616</a>: parking: Deadlock when multi call parking<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=144f7f4c7ed1b8b988a2e11dddb86376f71c0002">[144f7f4c7e]</a> Joshua Colp -- parking: Fix case where we can't get the parker.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a88f1150e8bd1a249f165080d910c6af22bb31ca">[a88f1150e8]</a> Joshua Colp -- parking: Use channel snapshot instead of channel.</li>
+</ul><br><h4>Category: Resources/res_pjsip_t38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28612">ASTERISK-28612</a>: res_pjsip_t38: crash on reinvite with zero port and no c= line<br/>Reported by: Salah Ahmed<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=20535ecac0566ecf46c39a123cc802ba9e621d9d">[20535ecac0]</a> Ben Ford -- res_pjsip_session.c: Check for port of zero on incoming SDP.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=171fa026d12f8f0d7e37b625c3c6a548ceb35de9">171fa026d1</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 13.21-cert5</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e604f532ecaa7dcfa9a93c49eb15bf119b268039">e604f532ec</a></td><td>Kevin Harwell</td><td>res_pjsip_pubsub: change warning to debug</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=794c7030aef1e8b60de5d0900b3e71f9c972d04d">794c7030ae</a></td><td>George Joseph</td><td>CI: Escape backslashes in printenv/sort/tr</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c177b3566b4fd896d5719e63d5d60e1a47bd5294">c177b3566b</a></td><td>George Joseph</td><td>CI:  Add "throttle" label and "skip_gate" capability</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f789016ff57e22dc56dfd9dfee3930cd550dbf6d">f789016ff5</a></td><td>George Joseph</td><td>CI:  Make node labels job-specific</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1e9a9e4dca149d6b17b6565e74ad73c03289a287">1e9a9e4dca</a></td><td>George Joseph</td><td>.gitreview:  Update defaultbranch for certified</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ea02f587a8cd7b8db899b04e41f64d2bda73a84b">ea02f587a8</a></td><td>George Joseph</td><td>CI:  Don't enable non-core modules in Certified branches</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.gitreview                             |    2
+UPGRADE.txt                            |   10 +
+channels/chan_pjsip.c                  |   38 ++++--
+channels/chan_sip.c                    |   28 ++--
+main/manager.c                         |    1
+res/parking/parking_bridge.c           |   33 +++--
+res/res_pjsip_pubsub.c                 |    2
+res/res_pjsip_session.c                |    7 +
+res/res_sorcery_memory_cache.c         |    1
+tests/CI/buildAsterisk.sh              |  185 ++++++++++++++++++++++++---------
+tests/CI/gateTestGroups.json           |    9 +
+tests/CI/gates.jenkinsfile             |  126 ++++++++++++++--------
+tests/CI/installAsterisk.sh            |    5
+tests/CI/periodic-dailyTestGroups.json |    8 +
+tests/CI/periodics-daily.jenkinsfile   |   67 +++++++++--
+tests/CI/ref_debug.jenkinsfile         |   44 +++++--
+tests/CI/runTestsuite.sh               |   16 +-
+tests/CI/runUnittests.sh               |  100 ++++++++++++++---
+tests/CI/setupRealtime.sh              |  162 +++++++++++++++++++---------
+tests/CI/teardownRealtime.sh           |    8 +
+tests/CI/unittests.jenkinsfile         |   87 ++++++++++-----
+21 files changed, 672 insertions(+), 267 deletions(-)</pre><br></html>

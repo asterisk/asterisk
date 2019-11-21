@@ -1,3 +1,196 @@
+2019-11-21 21:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.21-cert5 Released.
+
+2019-11-21 15:25 +0000 [171fa026d1]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update CHANGES and UPGRADE.txt for 13.21-cert5
+
+2019-10-21 14:55 +0000 [5be4005fba]  Ben Ford <bford@digium.com>
+
+	* chan_sip.c: Prevent address change on unauthenticated SIP request.
+
+	  If the name of a peer is known and a SIP request is sent using that
+	  peer's name, the address of the peer will change even if the request
+	  fails the authentication challenge. This means that an endpoint can
+	  be altered and even rendered unusuable, even if it was in a working
+	  state previously. This can only occur when the nat option is set to the
+	  default, or auto_force_rport.
+
+	  This change checks the result of authentication first to ensure it is
+	  successful before setting the address and the nat option.
+
+	  ASTERISK-28589 #close
+
+	  Change-Id: I581c5ed1da60ca89f590bd70872de2b660de02df
+
+2019-10-24 12:41 +0000 [32e599f16a]  George Joseph <gjoseph@digium.com>
+
+	* manager.c:  Prevent the Originate action from running the Originate app
+
+	  If an AMI user without the "system" authorization calls the
+	  Originate AMI command with the Originate application,
+	  the second Originate could run the "System" command.
+
+	  Action: Originate
+	  Channel: Local/1111
+	  Application: Originate
+	  Data: Local/2222,app,System,touch /tmp/owned
+
+	  If the "system" authorization isn't set, we now block the
+	  Originate app as well as the System, Exec, etc. apps.
+
+	  ASTERISK-28580
+	  Reported by: Eliel Sardañons
+
+	  Change-Id: Ic4c9dedc34c426f03c8c14fce334a71386d8a5fa
+
+2019-11-08 13:21 +0000 [20535ecac0]  Ben Ford <bford@digium.com>
+
+	* res_pjsip_session.c: Check for port of zero on incoming SDP.
+
+	  If a re-invite comes in initiating T.38, but there is no c line in the
+	  SDP and the port is also 0, a crash can occur. A check is now done on
+	  the port to see if the steam is already declined, preventing the crash.
+	  The logic was moved to res_pjsip_session.c because it is handled in a
+	  similar manner in later versions of Asterisk.
+
+	  ASTERISK-28612
+	  Reported by: Salah Ahmed
+
+	  Change-Id: Ifc4a0d05b32c7f2156e77fc8435a6ecaa6abada0
+
+2019-11-15 04:46 +0000 [144f7f4c7e]  Joshua Colp <jcolp@digium.com>
+
+	* parking: Fix case where we can't get the parker.
+
+	  ASTERISK-28616
+
+	  Change-Id: Iabe31ae38d01604284fcc5c2438d44e29a32ea4d
+
+2019-11-12 05:00 +0000 [a88f1150e8]  Joshua Colp <jcolp@digium.com>
+
+	* parking: Use channel snapshot instead of channel.
+
+	  There exists a scenario where a thread can hold a lock on the
+	  channels container while trying to lock a bridge. At the same
+	  time another thread can hold the lock for said bridge while
+	  attempting to retrieve a channel. This causes a deadlock.
+
+	  This change fixes this scenario by retrieving a channel snapshot
+	  instead of a channel, as information present in the snapshot
+	  is all that is needed.
+
+	  ASTERISK-28616
+
+	  Change-Id: I68ceb1d62c7378addcd286e21be08a660a7cecf2
+
+2019-09-24 11:21 +0000 [e604f532ec]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_pubsub: change warning to debug
+
+	  The following message:
+
+	  "Subscription request from endpoint <blah> rejected. Expiration of 0 is invalid"
+
+	  Would sometimes spam the log with warnings if Asterisk restarted and a bunch
+	  of clients sent unsubscribes. This patch changes it from a warning to a debug
+	  message.
+
+	  Change-Id: I841ec42f65559f3135e037df0e55f89b6447a467
+
+2019-09-23 11:01 +0000 [e7c44355a6]  Kevin Harwell <kharwell@digium.com>
+
+	* res_sorcery_memory_cache: stale item update leak
+
+	  When a stale item was being updated the object was being retrieved, but its
+	  reference was not being decremented after the update. This patch makes it so
+	  the object is now appropriately de-referenced.
+
+	  ASTERISK-28523
+
+	  Change-Id: I9d8173d3a0416a242f4eba92fa0853279c500ec7
+
+2019-09-15 14:35 +0000 [dfd7a3474b]  Joshua Colp <jcolp@digium.com>
+
+	* chan_pjsip: Relock correct channel during "fax" redirect.
+
+	  When fax detection occurs on an outbound PJSIP channel the
+	  redirect operation will result in a masquerade occurring and
+	  the underlying channel on the session changing. The code
+	  incorrectly relocked the new channel instead of the old
+	  channel when returning. This resulted in the new channel
+	  being locked indefinitely. The code now always acts on the
+	  expected channel.
+
+	  ASTERISK-28538
+
+	  Change-Id: I2b2e60d07e74383ae7e90d752c036c4b02d6b3a3
+
+2019-08-08 12:10 +0000 [794c7030ae]  George Joseph <gjoseph@digium.com>
+
+	* CI: Escape backslashes in printenv/sort/tr
+
+	  Change-Id: I52be64c8f6af2bbe15148a856d1f10cb113e1e94
+
+2019-08-08 07:12 +0000 [c177b3566b]  George Joseph <gjoseph@digium.com>
+
+	* CI:  Add "throttle" label and "skip_gate" capability
+
+	  To make throttling by label fully active, the "throttle" option
+	  has to be specified with a specific label.
+
+	  You can now specify "skip_gate" in the Gerrit comments when you
+	  do a +2 code review to tell Jenkins not to actually run the
+	  gate.  You'd do this if you plan to manually merge the change.
+
+	  Also updated the "printenv" debug output to better sort multi-line
+	  comments.
+
+	  Change-Id: I4c0b1085acec4805f2ca207eebac50aad81f27e2
+
+2019-08-06 10:40 +0000 [f789016ff5]  George Joseph <gjoseph@digium.com>
+
+	* CI:  Make node labels job-specific
+
+	  Originally, the eligible nodes for a job were labelled only by
+	  "swdev-docker".  So basically any node could run any job.  We had
+	  found that allowing a node to run more than 1 gate at a time was
+	  problematic so we limited the nodes to processing 1 job at a time.
+	  With the creation of the Asterisk 17 branches however, we now have
+	  so many active branches that getting checks and gates through in
+	  a timely manner is problematic when a node can run only 1 job
+	  at a time.
+
+	  Now the nodes are also labelled by the job type they can run.
+	  For instance: "asterisk-check", "asterisk-gate", etc.  With the
+	  "Throttle Concurrent Builds" plugin, we can now allow a node to
+	  run more than 1 job BUT throttle by job type.  For instance:
+	    Allow 2 jobs but only 1 asterisk-gate at a time.
+	  Now a node can run 2 checks or 1 check and 1 gate or 1 gate but
+	  not 2 gates at a time.
+
+	  Change-Id: I2032bf6afbcec5c341d9b852214c0c812d3d6db5
+
+2019-07-26 08:38 +0000 [1e9a9e4dca]  George Joseph <gjoseph@digium.com>
+
+	* .gitreview:  Update defaultbranch for certified
+
+	  Change-Id: Ied1a0488a777bec513cc351c3ed8e25741bfc11f
+
+2019-07-24 15:15 +0000 [ea02f587a8]  George Joseph <gjoseph@digium.com>
+
+	* CI:  Don't enable non-core modules in Certified branches
+
+	  We don't support non-core modules for Certified releases but we
+	  were enabling them for CI builds which was causing lots of test
+	  failures.  Now we don't.
+
+	  NOTE:  This change required that the rest of the CI shell scripts
+	  and jenkinsfiles be updates to the same level as certified/16.3.
+
+	  Change-Id: I0b3254c08a2479f3d39151690350cce5ce5ad766
+
 2019-07-11 19:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.21-cert4 Released.
