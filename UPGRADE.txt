@@ -18,6 +18,16 @@
 ===
 ===========================================================
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.29.1 to Asterisk 13.29.2 ----------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The AMI Originate action, which optionally takes a dialplan application as
+   an argument, no longer accepts "Originate" as the application due to
+   security concerns.
+
 From 13.23.1 to 13.24.0:
 
 Core
