@@ -640,6 +640,11 @@ static int is_absolute_path(const char *filename)
 	return filename[0] == '/';
 }
 
+static int is_remote_path(const char *filename)
+{
+	return strstr(filename, "://") ? 1 : 0;
+}
+
 /*!
  * \brief test if a file exists for a given format.
  * \note result_cap is OPTIONAL
@@ -653,7 +658,7 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 		return 0;
 	}
 
-	if (!ast_media_cache_retrieve(filename, NULL, buf, buflen)) {
+	if (is_remote_path(filename) && !ast_media_cache_retrieve(filename, NULL, buf, buflen)) {
 		return filehelper(buf, result_cap, NULL, ACTION_EXISTS);
 	}
 
