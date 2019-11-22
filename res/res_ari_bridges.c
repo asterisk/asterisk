@@ -440,6 +440,10 @@ int ast_ari_bridges_add_channel_parse_body(
 	if (field) {
 		args->mute = ast_json_is_true(field);
 	}
+	field = ast_json_object_get(body, "inhibitConnectedLineUpdates");
+	if (field) {
+		args->inhibit_connected_line_updates = ast_json_is_true(field);
+	}
 	return 0;
 }
 
@@ -514,6 +518,9 @@ static void ast_ari_bridges_add_channel_cb(
 		} else
 		if (strcmp(i->name, "mute") == 0) {
 			args.mute = ast_true(i->value);
+		} else
+		if (strcmp(i->name, "inhibitConnectedLineUpdates") == 0) {
+			args.inhibit_connected_line_updates = ast_true(i->value);
 		} else
 		{}
 	}

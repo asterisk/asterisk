@@ -277,6 +277,8 @@ struct ast_bridge_features {
 	unsigned int mute:1;
 	/*! TRUE if DTMF should be passed into the bridge tech.  */
 	unsigned int dtmf_passthrough:1;
+	/*! TRUE to avoid generating COLP frames when joining the bridge */
+	unsigned int inhibit_colp:1;
 };
 
 /*!

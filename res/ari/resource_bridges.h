@@ -154,6 +154,8 @@ struct ast_ari_bridges_add_channel_args {
 	int absorb_dtmf;
 	/*! Mute audio from this channel, preventing it to pass through to the bridge */
 	int mute;
+	/*! Do not present the identity of the newly connected channel to other bridge members */
+	int inhibit_connected_line_updates;
 };
 /*!
  * \brief Body parsing function for /bridges/{bridgeId}/addChannel.
