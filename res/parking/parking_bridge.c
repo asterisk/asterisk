@@ -274,10 +274,15 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	blind_transfer = ast_strdupa(S_OR(blind_transfer, ""));
 	ast_channel_unlock(bridge_channel->chan);
 	if (!parker || !strcmp(parker->base->name, ast_channel_name(bridge_channel->chan))) {
-		/* Even if there is no BLINDTRANSFER dialplan variable then blind_transfer will
-		 * be an empty string.
-		 */
-		parker_channel_name = blind_transfer;
+		if (ast_strlen_zero(blind_transfer) && parker) {
+			/* If no BLINDTRANSFER exists but the parker does then use their channel name */
+			parker_channel_name = parker->base->name;
+		} else {
+			/* Even if there is no BLINDTRANSFER dialplan variable then blind_transfer will
+			 * be an empty string.
+			 */
+			parker_channel_name = blind_transfer;
+		}
 	} else {
 		parker_channel_name = parker->base->name;
 	}
