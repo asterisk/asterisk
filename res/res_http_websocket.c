@@ -427,6 +427,11 @@ int AST_OPTIONAL_API_NAME(ast_websocket_fd)(struct ast_websocket *session)
 	return session->closing ? -1 : ast_iostream_get_fd(session->stream);
 }
 
+int AST_OPTIONAL_API_NAME(ast_websocket_wait_for_input)(struct ast_websocket *session, int timeout)
+{
+	return session->closing ? -1 : ast_iostream_wait_for_input(session->stream, timeout);
+}
+
 struct ast_sockaddr * AST_OPTIONAL_API_NAME(ast_websocket_remote_address)(struct ast_websocket *session)
 {
 	return &session->remote_address;
@@ -545,8 +550,8 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, size_t 
 				break;
 			}
 		}
-		if (ast_wait_for_input(ast_iostream_get_fd(session->stream), 1000) < 0) {
-			ast_log(LOG_ERROR, "ast_wait_for_input returned err: %s\n", strerror(errno));
+		if (ast_iostream_wait_for_input(session->stream, 1000) < 0) {
+			ast_log(LOG_ERROR, "ast_iostream_wait_for_input returned err: %s\n", strerror(errno));
 			*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 			session->closing = 1;
 			ao2_unlock(session);
@@ -974,7 +979,7 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 		goto end;
 	}
 
-	while ((res = ast_wait_for_input(ast_websocket_fd(session), -1)) > 0) {
+	while ((res = ast_websocket_wait_for_input(session, -1)) > 0) {
 		char *payload;
 		uint64_t payload_len;
 		enum ast_websocket_opcode opcode;

@@ -392,7 +392,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	transport = create_data.transport;
 	read_data.transport = transport;
 
-	while (ast_wait_for_input(ast_websocket_fd(session), -1) > 0) {
+	while (ast_websocket_wait_for_input(session, -1) > 0) {
 		enum ast_websocket_opcode opcode;
 		int fragmented;
 
