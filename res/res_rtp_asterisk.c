@@ -81,6 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #ifdef HAVE_PJPROJECT
 #include "asterisk/res_pjproject.h"
+#include "asterisk/security_events.h"
 #endif
 
 #define MAX_TIMESTAMP_SKEW	640
@@ -199,14 +200,15 @@ static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
+static struct stasis_subscription *acl_change_sub = NULL;
 
-static struct ast_ha *ice_blacklist = NULL;    /*!< Blacklisted ICE networks */
-static ast_rwlock_t ice_blacklist_lock = AST_RWLOCK_INIT_VALUE;
+/*! ACL for ICE addresses */
+static struct ast_acl_list *ice_acl = NULL;
+static ast_rwlock_t ice_acl_lock = AST_RWLOCK_INIT_VALUE;
 
-/*! Blacklisted networks for STUN requests */
-static struct ast_ha *stun_blacklist = NULL;
-static ast_rwlock_t stun_blacklist_lock = AST_RWLOCK_INIT_VALUE;
-
+/*! ACL for STUN requests */
+static struct ast_acl_list *stun_acl = NULL;
+static ast_rwlock_t stun_acl_lock = AST_RWLOCK_INIT_VALUE;
 
 /*! \brief Pool factory used by pjlib to allocate memory. */
 static pj_caching_pool cachingpool;
@@ -2990,6 +2992,21 @@ static void rtp_learning_start(struct ast_rtp *rtp)
 }
 
 #ifdef HAVE_PJPROJECT
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message);
+
+/*!
+ * \internal
+ * \brief Resets and ACL to empty state.
+ *
+ * \return Nothing
+ */
+static void rtp_unload_acl(ast_rwlock_t *lock, struct ast_acl_list **acl)
+{
+	ast_rwlock_wrlock(lock);
+	*acl = ast_free_acl_list(*acl);
+	ast_rwlock_unlock(lock);
+}
+
 /*!
  * \internal
  * \brief Checks an address against the ICE blacklist
@@ -3001,17 +3018,17 @@ static void rtp_learning_start(struct ast_rtp *rtp)
  */
 static int rtp_address_is_ice_blacklisted(const pj_sockaddr_t *address)
 {
-	char buf[PJ_INET6_ADDRSTRLEN];
 	struct ast_sockaddr saddr;
-	int result = 1;
+	int result = 0;
 
-	ast_sockaddr_parse(&saddr, pj_sockaddr_print(address, buf, sizeof(buf), 0), 0);
-
-	ast_rwlock_rdlock(&ice_blacklist_lock);
-	if (!ice_blacklist || (ast_apply_ha(ice_blacklist, &saddr) == AST_SENSE_ALLOW)) {
-		result = 0;
+	if (ast_sockaddr_from_pj_sockaddr(&saddr, address) < 0) {
+		ast_log(LOG_ERROR, "Failed to convert pj_sockddr_t to ast_sockaddr - ICE blacklisting (default)\n");
+		return 1;
 	}
-	ast_rwlock_unlock(&ice_blacklist_lock);
+
+	ast_rwlock_rdlock(&ice_acl_lock);
+	result |= ast_apply_acl_nolog(ice_acl, &saddr) == AST_SENSE_DENY;
+	ast_rwlock_unlock(&ice_acl_lock);
 
 	return result;
 }
@@ -3030,14 +3047,11 @@ static int rtp_address_is_ice_blacklisted(const pj_sockaddr_t *address)
  */
 static int stun_address_is_blacklisted(const struct ast_sockaddr *addr)
 {
-	int result = 1;
+	int result = 0;
 
-	ast_rwlock_rdlock(&stun_blacklist_lock);
-	if (!stun_blacklist
-		|| ast_apply_ha(stun_blacklist, addr) == AST_SENSE_ALLOW) {
-		result = 0;
-	}
-	ast_rwlock_unlock(&stun_blacklist_lock);
+	ast_rwlock_rdlock(&stun_acl_lock);
+	result |= ast_apply_acl_nolog(stun_acl, addr) == AST_SENSE_DENY;
+	ast_rwlock_unlock(&stun_acl_lock);
 
 	return result;
 }
@@ -6684,75 +6698,16 @@ static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
 };
 
-#ifdef HAVE_PJPROJECT
-/*!
- * \internal
- * \brief Clear the configured blacklist.
- * \since 13.16.0
- *
- * \param lock R/W lock protecting the blacklist
- * \param blacklist List to clear
- *
- * \return Nothing
- */
-static void blacklist_clear(ast_rwlock_t *lock, struct ast_ha **blacklist)
-{
-	ast_rwlock_wrlock(lock);
-	ast_free_ha(*blacklist);
-	*blacklist = NULL;
-	ast_rwlock_unlock(lock);
-}
-
-/*!
- * \internal
- * \brief Load the blacklist configuration.
- * \since 13.16.0
- *
- * \param cfg Raw config file options.
- * \param option_name Blacklist option name
- * \param lock R/W lock protecting the blacklist
- * \param blacklist List to load
- *
- * \return Nothing
- */
-static void blacklist_config_load(struct ast_config *cfg, const char *option_name,
-	ast_rwlock_t *lock, struct ast_ha **blacklist)
-{
-	struct ast_variable *var;
-
-	ast_rwlock_wrlock(lock);
-	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
-		if (!strcasecmp(var->name, option_name)) {
-			struct ast_ha *na;
-			int ha_error = 0;
-
-			na = ast_append_ha("d", var->value, *blacklist, &ha_error);
-			if (!na) {
-				ast_log(LOG_WARNING, "Invalid %s value: %s\n",
-					option_name, var->value);
-			} else {
-				*blacklist = na;
-			}
-			if (ha_error) {
-				ast_log(LOG_ERROR,
-					"Bad %s configuration value line %d: %s\n",
-					option_name, var->lineno, var->value);
-			}
-		}
-	}
-	ast_rwlock_unlock(lock);
-}
-#endif
-
-static int rtp_reload(int reload)
+static int rtp_reload(int reload, int by_external_config)
 {
 	struct ast_config *cfg;
 	const char *s;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { (reload && !by_external_config) ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 #ifdef HAVE_PJPROJECT
 	struct ast_variable *var;
 	struct ast_ice_host_candidate *candidate;
+	int acl_subscription_flag = 0;
 #endif
 
 	cfg = ast_config_load2("rtp.conf", "rtp", config_flags);
@@ -6788,8 +6743,6 @@ static int rtp_reload(int reload)
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
 	host_candidate_overrides_clear();
-	blacklist_clear(&ice_blacklist_lock, &ice_blacklist);
-	blacklist_clear(&stun_blacklist_lock, &stun_blacklist);
 #endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
@@ -6923,11 +6876,45 @@ static int rtp_reload(int reload)
 	}
 	AST_RWLIST_UNLOCK(&host_candidates);
 
-	/* Read ICE blacklist configuration lines */
-	blacklist_config_load(cfg, "ice_blacklist", &ice_blacklist_lock, &ice_blacklist);
+	ast_rwlock_wrlock(&ice_acl_lock);
+	ast_rwlock_wrlock(&stun_acl_lock);
 
-	/* Read STUN blacklist configuration lines */
-	blacklist_config_load(cfg, "stun_blacklist", &stun_blacklist_lock, &stun_blacklist);
+	ice_acl = ast_free_acl_list(ice_acl);
+	stun_acl = ast_free_acl_list(stun_acl);
+
+	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		const char* sense = NULL;
+		struct ast_acl_list **acl = NULL;
+		if (strncasecmp(var->name, "ice_", 4) == 0) {
+			sense = var->name + 4;
+			acl = &ice_acl;
+		} else if (strncasecmp(var->name, "stun_", 5) == 0) {
+			sense = var->name + 5;
+			acl = &stun_acl;
+		} else {
+			continue;
+		}
+
+		if (strcasecmp(sense, "blacklist") == 0) {
+			sense = "deny";
+		}
+
+		if (strcasecmp(sense, "acl") && strcasecmp(sense, "permit") && strcasecmp(sense, "deny")) {
+			continue;
+		}
+
+		ast_append_acl(sense, var->value, acl, NULL, &acl_subscription_flag);
+	}
+	ast_rwlock_unlock(&ice_acl_lock);
+	ast_rwlock_unlock(&stun_acl_lock);
+
+	if (acl_subscription_flag && !acl_change_sub) {
+		acl_change_sub = stasis_subscribe(ast_security_topic(), acl_change_stasis_cb, NULL);
+		stasis_subscription_accept_message_type(acl_change_sub, ast_named_acl_change_type());
+		stasis_subscription_set_filter(acl_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+	} else if (!acl_subscription_flag && acl_change_sub) {
+		acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
+	}
 #endif
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 	if ((s = ast_variable_retrieve(cfg, "general", "dtls_mtu"))) {
@@ -6952,7 +6939,7 @@ static int rtp_reload(int reload)
 
 static int reload_module(void)
 {
-	rtp_reload(1);
+	rtp_reload(1, 0);
 	return 0;
 }
 
@@ -6969,6 +6956,16 @@ static void rtp_terminate_pjproject(void)
 
 	ast_pjproject_caching_pool_destroy(&cachingpool);
 	pj_shutdown();
+}
+
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
+	/* There is no simple way to just reload the ACLs, so just execute a forced reload. */
+	rtp_reload(1, 1);
 }
 #endif
 
@@ -7050,7 +7047,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	rtp_reload(0);
+	rtp_reload(0, 0);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -7070,6 +7067,10 @@ static int unload_module(void)
 	host_candidate_overrides_clear();
 	pj_thread_register_check();
 	rtp_terminate_pjproject();
+
+	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
+	rtp_unload_acl(&ice_acl_lock, &ice_acl);
+	rtp_unload_acl(&stun_acl_lock, &stun_acl);
 #endif
 
 	return 0;
