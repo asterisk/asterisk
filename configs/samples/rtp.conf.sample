@@ -69,12 +69,14 @@ rtpend=20000
 ; the wildcard 0.0.0.0 address.  e.g., A PJSIP endpoint binding RTP to a
 ; specific address using the bind_rtp_to_media_address and media_address
 ; options.  Or the PJSIP endpoint specifies an explicit transport that binds
-; to a specific IP address.
+; to a specific IP address.  Blacklisting is done via ACL infrastructure
+; so it's possible to whitelist as well.
 ;
-; e.g. stun_blacklist = 192.168.1.0/255.255.255.0
-;      stun_blacklist = 10.32.77.0/255.255.255.0
+; stun_acl = named_acl
+; stun_deny = 0.0.0.0/0
+; stun_permit = 1.2.3.4/32
 ;
-; stun_blacklist =
+; For historic reasons stun_blacklist is an alias for stun_deny.
 ;
 ; Hostname or address for the TURN server to be used as a relay. The port
 ; number is optional. If omitted the default value of 3478 will be used.
@@ -90,17 +92,19 @@ rtpend=20000
 ; Password used to authenticate with TURN relay server.
 ; turnpassword=
 ;
-; Subnets to exclude from ICE host, srflx and relay discovery. This is useful
-; to optimize the ICE process where a system has multiple host address ranges
-; and/or physical interfaces and certain of them are not expected to be used
-; for RTP. For example, VPNs and local interconnections may not be suitable or
-; necessary for ICE. Multiple subnets may be listed. If left unconfigured,
-; all discovered host addresses are used.
+; An ACL can be used to determine which discovered addresses to include for
+; ICE, srflx and relay discovery.  This is useful to optimize the ICE process
+; where a system has multiple host address ranges and/or physical interfaces
+; and certain of them are not expected to be used for RTP. For example, VPNs
+; and local interconnections may not be suitable or necessary for ICE. Multiple
+; subnets may be listed. If left unconfigured, all discovered host addresses
+; are used.
 ;
-; e.g. ice_blacklist = 192.168.1.0/255.255.255.0
-;      ice_blacklist = 10.32.77.0/255.255.255.0
+; ice_acl = named_acl
+; ice_deny = 0.0.0.0/0
+; ice_permit = 1.2.3.4/32
 ;
-; ice_blacklist =
+; For historic reasons ice_blacklist is an alias for ice_deny.
 ;
 ; The MTU to use for DTLS packet fragmentation. This option is set to 1200
 ; by default. The minimum MTU is 256.
