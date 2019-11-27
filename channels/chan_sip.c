@@ -8193,8 +8193,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	/* Use only the preferred audio format, which is stored at the '0' index */
 	fmt = ast_format_cap_get_best_by_type(what, AST_MEDIA_TYPE_AUDIO); /* get the best audio format */
 	if (fmt) {
+		int framing;
+
 		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_AUDIO); /* remove only the other audio formats */
-		ast_format_cap_append(caps, fmt, 0); /* add our best choice back */
+		framing = ast_format_cap_get_format_framing(what, fmt);
+		ast_format_cap_append(caps, fmt, framing); /* add our best choice back */
 	} else {
 		/* If we don't have an audio format, try to get something */
 		fmt = ast_format_cap_get_format(caps, 0);
