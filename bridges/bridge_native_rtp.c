@@ -715,6 +715,8 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 				framing_inst0, framing_inst1);
 			return 0;
 		}
+		ast_debug(3, "Symmetric ptimes on the two call legs (%u). May be able to native bridge in RTP\n",
+			framing_inst0);
 	}
 
 	read_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawreadformat(bc0->chan));
@@ -728,6 +730,9 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 			read_ptime0, write_ptime1, read_ptime1, write_ptime0);
 		return 0;
 	}
+	ast_debug(3, "Bridge '%s': Packetization comparison success between RTP streams (read_ptime0:%d == write_ptime1:%d and read_ptime1:%d == write_ptime0:%d).\n",
+		bridge->uniqueid,
+		read_ptime0, write_ptime1, read_ptime1, write_ptime0);
 
 	return 1;
 }
