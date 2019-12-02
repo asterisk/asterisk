@@ -493,8 +493,7 @@ static char *media_cache_handle_show_all(struct ast_cli_entry *e, int cmd, struc
 		e->command = "media cache show all";
 		e->usage =
 			"Usage: media cache show all\n"
-			"       Display a summary of all current items\n"
-			"       in the media cache.\n";
+			"       Display a summary of all current items in the media cache.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -515,27 +514,22 @@ static char *media_cache_handle_show_all(struct ast_cli_entry *e, int cmd, struc
  * \internal
  * \brief CLI tab completion function for URIs
  */
-static char *cli_complete_uri(const char *word, int state)
+static char *cli_complete_uri(const char *word)
 {
 	struct ast_bucket_file *bucket_file;
 	struct ao2_iterator it_media_items;
 	int wordlen = strlen(word);
-	int which = 0;
-	char *result = NULL;
 
 	it_media_items = ao2_iterator_init(media_cache, 0);
 	while ((bucket_file = ao2_iterator_next(&it_media_items))) {
-		if (!strncasecmp(word, ast_sorcery_object_get_id(bucket_file), wordlen)
-			&& ++which > state) {
-			result = ast_strdup(ast_sorcery_object_get_id(bucket_file));
+		if (!strncasecmp(word, ast_sorcery_object_get_id(bucket_file), wordlen)) {
+			ast_cli_completion_add(ast_strdup(ast_sorcery_object_get_id(bucket_file)));
 		}
 		ao2_ref(bucket_file, -1);
-		if (result) {
-			break;
-		}
 	}
 	ao2_iterator_destroy(&it_media_items);
-	return result;
+
+	return NULL;
 }
 
 static char *media_cache_handle_show_item(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -550,11 +544,10 @@ static char *media_cache_handle_show_item(struct ast_cli_entry *e, int cmd, stru
 		e->command = "media cache show";
 		e->usage =
 			"Usage: media cache show <uri>\n"
-			"       Display all information about a particular\n"
-			"       item in the media cache.\n";
+			"       Display all information about a particular item in the media cache.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return cli_complete_uri(a->word, a->n);
+		return a->pos == e->args ? cli_complete_uri(a->word) : NULL;
 	}
 
 	if (a->argc != 4) {
@@ -590,14 +583,13 @@ static char *media_cache_handle_delete_item(struct ast_cli_entry *e, int cmd, st
 		e->command = "media cache delete";
 		e->usage =
 			"Usage: media cache delete <uri>\n"
-			"       Delete an item from the media cache.\n"
-			"       Note that this will also remove any local\n"
-			"       storage of the media associated with the URI,\n"
-			"       and will inform the backend supporting the URI\n"
-			"       scheme that it should remove the item.\n";
+			"       Delete an item from the media cache.\n\n"
+			"       Note that this will also remove any local storage of the media associated\n"
+			"       with the URI, and will inform the backend supporting the URI scheme that\n"
+			"       it should remove the item.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return cli_complete_uri(a->word, a->n);
+		return a->pos == e->args ? cli_complete_uri(a->word) : NULL;
 	}
 
 	if (a->argc != 4) {
@@ -622,13 +614,12 @@ static char *media_cache_handle_refresh_item(struct ast_cli_entry *e, int cmd, s
 		e->command = "media cache refresh";
 		e->usage =
 			"Usage: media cache refresh <uri>\n"
-			"       Ask for a refresh of a particular URI.\n"
-			"       If the item does not already exist in the\n"
-			"       media cache, the item will be populated from\n"
-			"       the backend supporting the URI scheme.\n";
+			"       Ask for a refresh of a particular URI.\n\n"
+			"       If the item does not already exist in the media cache, the item will be\n"
+			"       populated from the backend supporting the URI scheme.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return cli_complete_uri(a->word, a->n);
+		return a->pos == e->args ? cli_complete_uri(a->word) : NULL;
 	}
 
 	if (a->argc != 4) {
@@ -651,8 +642,8 @@ static char *media_cache_handle_create_item(struct ast_cli_entry *e, int cmd, st
 		e->command = "media cache create";
 		e->usage =
 			"Usage: media cache create <uri> <file>\n"
-			"       Create an item in the media cache by associating\n"
-			"       a local media file with some URI.\n";
+			"       Create an item in the media cache by associating a local media file with\n"
+			"       some URI.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
