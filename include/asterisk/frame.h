@@ -560,14 +560,16 @@ void ast_frame_dtor(struct ast_frame *frame);
  * should be the last operation you do with that frame before freeing
  * it (or exiting the block, if the frame is on the stack.)
  */
-struct ast_frame *ast_frisolate(struct ast_frame *fr);
+#define ast_frisolate(fr) __ast_frisolate(fr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_frame *__ast_frisolate(struct ast_frame *fr, const char *file, int line, const char *func);
 
 /*! \brief Copies a frame
  * \param fr frame to copy
  * Duplicates a frame -- should only rarely be used, typically frisolate is good enough
  * \return Returns a frame on success, NULL on error
  */
-struct ast_frame *ast_frdup(const struct ast_frame *fr);
+#define ast_frdup(fr) __ast_frdup(fr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_frame *__ast_frdup(const struct ast_frame *fr, const char *file, int line, const char *func);
 
 void ast_swapcopy_samples(void *dst, const void *src, int samples);
 
