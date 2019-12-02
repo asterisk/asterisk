@@ -102,9 +102,8 @@ pipeline {
 												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
 												[$class: 'CloneOption',
 													noTags: true,
-													depth: 100,
 													honorRefspec: true,
-													shallow: true
+													shallow: false
 												],
 											],
 											userRemoteConfigs: [[url: testsuiteUrl]]
