@@ -115,8 +115,7 @@ pipeline {
 									[$class: 'CloneOption',
 										honorRefspec: true,
 										noTags: true,
-										depth: 100,
-										shallow: true
+										shallow: false
 									],
 									[$class: 'PruneStaleBranch'],
 									[$class: 'BuildChooserSetting',

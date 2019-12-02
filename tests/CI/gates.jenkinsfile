@@ -115,8 +115,7 @@ pipeline {
 									[$class: 'CloneOption',
 										honorRefspec: true,
 										noTags: true,
-										depth: 100,
-										shallow: true
+										shallow: false
 									],
 									[$class: 'PruneStaleBranch'],
 									[$class: 'BuildChooserSetting',
@@ -203,9 +202,8 @@ pipeline {
 												[$class: 'RelativeTargetDirectory', relativeTargetDir: groupDir],
 												[$class: 'CloneOption',
 													noTags: true,
-													depth: 100,
 													honorRefspec: true,
-													shallow: true
+													shallow: false
 												],
 											],
 											userRemoteConfigs: [

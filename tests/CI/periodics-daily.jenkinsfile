@@ -81,9 +81,8 @@ pipeline {
 										[$class: 'RelativeTargetDirectory', relativeTargetDir: "tests/CI/output/publish-docs"],
 										[$class: 'CloneOption',
 											noTags: true,
-											depth: 100,
 											honorRefspec: true,
-											shallow: true
+											shallow: false
 										],
 									],
 									userRemoteConfigs: [[url: docUrl]]
