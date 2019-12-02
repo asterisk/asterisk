@@ -702,12 +702,32 @@ static void t38_interpret_sdp(struct t38_state *state, struct ast_sip_session *s
 				state->their_parms.rate_management = AST_T38_RATE_MANAGEMENT_TRANSFERRED_TCF;
 			}
 		} else if (!pj_stricmp2(&attr->name, "t38faxudpec")) {
-			if (!pj_stricmp2(&attr->value, "t38UDPRedundancy")) {
-				ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
-			} else if (!pj_stricmp2(&attr->value, "t38UDPFEC")) {
-				ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_FEC);
+			if (session->t38state == T38_LOCAL_REINVITE) {
+				if (session->endpoint->media.t38.error_correction == UDPTL_ERROR_CORRECTION_FEC) {
+					if (!pj_stricmp2(&attr->value, "t38UDPFEC")) {
+						ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_FEC);
+					} else if (!pj_stricmp2(&attr->value, "t38UDPRedundancy")) {
+						ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+					} else {
+						ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_NONE);
+					}
+				} else if (session->endpoint->media.t38.error_correction == UDPTL_ERROR_CORRECTION_REDUNDANCY) {
+					if (!pj_stricmp2(&attr->value, "t38UDPRedundancy")) {
+						ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+					} else {
+						ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_NONE);
+					}
+				} else {
+					ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				}
 			} else {
-				ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				if (!pj_stricmp2(&attr->value, "t38UDPRedundancy")) {
+					ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+				} else if (!pj_stricmp2(&attr->value, "t38UDPFEC")) {
+					ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_FEC);
+				} else {
+					ast_udptl_set_error_correction_scheme(session_media->udptl, UDPTL_ERROR_CORRECTION_NONE);
+				}
 			}
 		}
 
