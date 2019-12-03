@@ -31,6 +31,8 @@ extern "C" {
 
 #include <netinet/in.h>
 
+#include "asterisk/logger.h"
+
 /*
  * String buffer size that can accommodate a fully stringified representation of a
  * supported IP address & port:
@@ -780,6 +782,46 @@ int _ast_sockaddr_to_sin(const struct ast_sockaddr *addr,
 #define ast_sockaddr_from_sin(addr,sin)	_ast_sockaddr_from_sin(addr,sin, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in *sin,
 		const char *file, int line, const char *func);
+
+/*!
+ * \since 13.31.0, 16.8.0, 17.2.0
+ *
+ * \brief Takes an AF_XXX value as input and returns the size of the underlying
+ * sockaddr structure if known, or zero if not.
+ *
+ * \param family The AF_XXX value to determine the size of
+ * \return Size of the applicable struct sockaddr.
+ */
+#define ast_addressfamily_to_sockaddrsize(family) _ast_addressfamily_to_sockaddrsize(addr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+static inline int _ast_addressfamily_to_sockaddrsize(int af, const char *file, int line, const char *func)
+{
+	switch (af) {
+	case AF_INET:
+		return sizeof(struct sockaddr_in);
+	case AF_INET6:
+		return sizeof(struct sockaddr_in6);
+	default:
+		ast_log(__LOG_WARNING, file, line, func, "Unknown address family %d encountered.\n", af);
+		return 0;
+	}
+}
+
+/*!
+ * \since 13.31.0, 16.8.0, 17.2.0
+ *
+ * \brief Converts a struct sockaddr to a struct ast_sockaddr.
+ *
+ * Note that there is an underlying assumption that sockaddr data is valid, more specifically,
+ * if sa_family is set to AF_INET that it's actually a sockaddr_in, and in the case of AF_INET6
+ * a valid sockaddr_in6 structure.
+ *
+ * You can check for failure with ast_sockaddr_isnull.
+ *
+ * \param[out] addr The address of the ast_sockaddr to store into
+ * \param sockaddr The sockaddr structure (sockaddr_in or sockaddr_in6) to convert
+ * \return Nothing
+ */
+#define ast_sockaddr_from_sockaddr(addr,sockaddr)	ast_sockaddr_copy_sockaddr(addr, sockaddr, ast_addressfamily_to_sockaddrsize(((const struct sockaddr*)(sockaddr))->sa_family))
 
 /*@}*/
 
