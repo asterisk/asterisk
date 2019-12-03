@@ -2150,8 +2150,10 @@ static void session_destructor(void *obj)
 {
 	struct ast_sip_session *session = obj;
 	struct ast_sip_session_delayed_request *delay;
+
+	/* We dup the endpoint ID in case the endpoint gets freed out from under us */
 	const char *endpoint_name = session->endpoint ?
-		ast_sorcery_object_get_id(session->endpoint) : "<none>";
+		ast_strdupa(ast_sorcery_object_get_id(session->endpoint)) : "<none>";
 
 	ast_debug(3, "Destroying SIP session with endpoint %s\n", endpoint_name);
 
