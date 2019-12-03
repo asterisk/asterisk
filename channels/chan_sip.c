@@ -15746,7 +15746,6 @@ static void update_connectedline(struct sip_pvt *p, const void *data, size_t dat
 			initialize_initreq(p, &req);
 			p->lastinvite = p->ocseq;
 			ast_set_flag(&p->flags[0], SIP_OUTGOING);
-			p->invitestate = INV_CALLING;
 			send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 		} else if ((is_method_allowed(&p->allowed_methods, SIP_UPDATE)) && (!ast_strlen_zero(p->okcontacturi))) {
 			reqprep(&req, p, SIP_UPDATE, 0, 1);
