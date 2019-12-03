@@ -214,6 +214,7 @@ static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
 static struct stasis_subscription *acl_change_sub = NULL;
+static struct ast_sockaddr lo6 = { .len = 0 };
 
 /*! ACL for ICE addresses */
 static struct ast_acl_list *ice_acl = NULL;
@@ -261,8 +262,8 @@ static AST_LIST_HEAD_STATIC(ioqueues, ast_rtp_ioqueue_thread);
 
 /*! \brief Structure which contains ICE host candidate mapping information */
 struct ast_ice_host_candidate {
-	pj_sockaddr local;
-	pj_sockaddr advertised;
+	struct ast_sockaddr local;
+	struct ast_sockaddr advertised;
 	unsigned int include_local;
 	AST_RWLIST_ENTRY(ast_ice_host_candidate) next;
 };
@@ -719,29 +720,6 @@ static void host_candidate_overrides_clear(void)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&host_candidates);
-}
-
-/*! \brief Applies the ICE host candidate mapping */
-static unsigned int host_candidate_overrides_apply(unsigned int count, unsigned int max_count, pj_sockaddr addrs[])
-{
-	int pos;
-	struct ast_ice_host_candidate *candidate;
-	unsigned int added = 0;
-
-	AST_RWLIST_RDLOCK(&host_candidates);
-	for (pos = 0; pos < count; pos++) {
-		AST_LIST_TRAVERSE(&host_candidates, candidate, next) {
-			if (!pj_sockaddr_cmp(&candidate->local, &addrs[pos])) {
-				pj_sockaddr_copy_addr(&addrs[pos], &candidate->advertised);
-				if (candidate->include_local && (count + (++added)) <= max_count) {
-					pj_sockaddr_cp(&addrs[count + (added - 1)], &candidate->local);
-				}
-				break;
-			}
-		}
-	}
-	AST_RWLIST_UNLOCK(&host_candidates);
-	return added;
 }
 
 /*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
@@ -3451,18 +3429,12 @@ static void rtp_unload_acl(ast_rwlock_t *lock, struct ast_acl_list **acl)
  * \retval 0 if address is not ICE blacklisted
  * \retval 1 if address is ICE blacklisted
  */
-static int rtp_address_is_ice_blacklisted(const pj_sockaddr_t *address)
+static int rtp_address_is_ice_blacklisted(const struct ast_sockaddr *address)
 {
-	struct ast_sockaddr saddr;
 	int result = 0;
 
-	if (ast_sockaddr_from_pj_sockaddr(&saddr, address) < 0) {
-		ast_log(LOG_ERROR, "Failed to convert pj_sockddr_t to ast_sockaddr - ICE blacklisting (default)\n");
-		return 1;
-	}
-
 	ast_rwlock_rdlock(&ice_acl_lock);
-	result |= ast_apply_acl_nolog(ice_acl, &saddr) == AST_SENSE_DENY;
+	result |= ast_apply_acl_nolog(ice_acl, address) == AST_SENSE_DENY;
 	ast_rwlock_unlock(&ice_acl_lock);
 
 	return result;
@@ -3495,41 +3467,123 @@ static int stun_address_is_blacklisted(const struct ast_sockaddr *addr)
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
-	pj_sockaddr address[PJ_ICE_MAX_CAND];
-	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
-	unsigned int max_count = PJ_ARRAY_SIZE(address);
-	int basepos = -1;
+	unsigned int count = 0;
+	struct ifaddrs *ifa, *ia;
+	struct ast_sockaddr tmp;
+	pj_sockaddr pjtmp;
+	struct ast_ice_host_candidate *candidate;
+	int af_inet_ok = 0, af_inet6_ok = 0;
 
-	/* Add all the local interface IP addresses */
 	if (ast_sockaddr_is_ipv4(addr)) {
-		pj_enum_ip_interface(pj_AF_INET(), &count, address);
+		af_inet_ok = 1;
 	} else if (ast_sockaddr_is_any(addr)) {
-		pj_enum_ip_interface(pj_AF_UNSPEC(), &count, address);
+		af_inet_ok = af_inet6_ok = 1;
 	} else {
-		pj_enum_ip_interface(pj_AF_INET6(), &count, address);
+		af_inet6_ok = 1;
 	}
 
-	count += host_candidate_overrides_apply(count, max_count, address);
-
-	for (pos = 0; pos < count; pos++) {
-		if (!rtp_address_is_ice_blacklisted(&address[pos])) {
-			if (basepos == -1) {
-				basepos = pos;
+	if (getifaddrs(&ifa) < 0) {
+		/* If we can't get addresses, we can't load ICE candidates */
+		ast_log(LOG_ERROR, "Error obtaining list of local addresses: %s\n",
+				strerror(errno));
+	} else {
+		/* Iterate through the list of addresses obtained from the system,
+		 * until we've iterated through all of them, or accepted
+		 * PJ_ICE_MAX_CAND candidates */
+		for (ia = ifa; ia && count < PJ_ICE_MAX_CAND; ia = ia->ifa_next) {
+			/* Interface is either not UP or doesn't have an address assigned,
+			 * eg, a ppp that just completed LCP but no IPCP yet */
+			if (!ia->ifa_addr || (ia->ifa_flags & IFF_UP) == 0) {
+				continue;
 			}
-			pj_sockaddr_set_port(&address[pos], port);
+
+			/* Filter out non-IPvX addresses, eg, link-layer */
+			if (ia->ifa_addr->sa_family != AF_INET && ia->ifa_addr->sa_family != AF_INET6) {
+				continue;
+			}
+
+			ast_sockaddr_from_sockaddr(&tmp, ia->ifa_addr);
+
+			if (ia->ifa_addr->sa_family == AF_INET) {
+				const struct sockaddr_in *sa_in = (struct sockaddr_in*)ia->ifa_addr;
+				if (!af_inet_ok) {
+					continue;
+				}
+
+				/* Skip 127.0.0.0/8 (loopback) */
+				/* Don't use IFF_LOOPBACK check since one could assign usable
+				 * publics to the loopback */
+				if ((sa_in->sin_addr.s_addr & htonl(0xFF000000)) == htonl(0x7F000000)) {
+					continue;
+				}
+
+				/* Skip 0.0.0.0/8 based on RFC1122, and from pjproject */
+				if ((sa_in->sin_addr.s_addr & htonl(0xFF000000)) == 0) {
+					continue;
+				}
+			} else { /* ia->ifa_addr->sa_family == AF_INET6 */
+				if (!af_inet6_ok) {
+					continue;
+				}
+
+				/* Filter ::1 */
+				if (!ast_sockaddr_cmp_addr(&lo6, &tmp)) {
+					continue;
+				}
+			}
+
+			/* Pull in the host candidates from [ice_host_candidates] */
+			AST_RWLIST_RDLOCK(&host_candidates);
+			AST_LIST_TRAVERSE(&host_candidates, candidate, next) {
+				if (!ast_sockaddr_cmp(&candidate->local, &tmp)) {
+					/* candidate->local matches actual assigned, so check if
+					 * advertised is blacklisted, if not, add it to the
+					 * advertised list.  Not that it would make sense to remap
+					 * a local address to a blacklisted address, but honour it
+					 * anyway. */
+					if (!rtp_address_is_ice_blacklisted(&candidate->advertised)) {
+						ast_sockaddr_to_pj_sockaddr(&candidate->advertised, &pjtmp);
+						pj_sockaddr_set_port(&pjtmp, port);
+						ast_rtp_ice_add_cand(instance, rtp, component, transport,
+								PJ_ICE_CAND_TYPE_HOST, 65535, &pjtmp, &pjtmp, NULL,
+								pj_sockaddr_get_len(&pjtmp));
+						++count;
+					}
+
+					if (!candidate->include_local) {
+						/* We don't want to advertise the actual address */
+						ast_sockaddr_setnull(&tmp);
+					}
+
+					break;
+				}
+			}
+			AST_RWLIST_UNLOCK(&host_candidates);
+
+			/* we had an entry in [ice_host_candidates] that matched, and
+			 * didn't have include_local_address set.  Alternatively, adding
+			 * that match resulted in us going to PJ_ICE_MAX_CAND */
+			if (ast_sockaddr_isnull(&tmp) || count == PJ_ICE_MAX_CAND) {
+				continue;
+			}
+
+			if (rtp_address_is_ice_blacklisted(&tmp)) {
+				continue;
+			}
+
+			ast_sockaddr_to_pj_sockaddr(&tmp, &pjtmp);
+			pj_sockaddr_set_port(&pjtmp, port);
 			ast_rtp_ice_add_cand(instance, rtp, component, transport,
-				PJ_ICE_CAND_TYPE_HOST, 65535, &address[pos], &address[pos], NULL,
-				pj_sockaddr_get_len(&address[pos]));
+					PJ_ICE_CAND_TYPE_HOST, 65535, &pjtmp, &pjtmp, NULL,
+					pj_sockaddr_get_len(&pjtmp));
+			++count;
 		}
-	}
-	if (basepos == -1) {
-		/* start with first address unless excluded above */
-		basepos = 0;
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (count && stunaddr.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
-		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr))) {
+	if (stunaddr.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
+		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr)) &&
+		count < PJ_ICE_MAX_CAND) {
 		struct sockaddr_in answer;
 		int rsp;
 
@@ -3542,41 +3596,38 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 			? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer);
 		ao2_lock(instance);
 		if (!rsp) {
-			pj_sockaddr base;
+			struct ast_rtp_engine_ice_candidate *candidate;
+			pj_sockaddr ext, base;
+			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
+			int srflx = 1, baseset = 0;
+			struct ao2_iterator i;
 
-			/* Use the first local IPv4 host candidate as the base */
-			for (pos = basepos; pos < count; pos++) {
-				if (address[pos].addr.sa_family == PJ_AF_INET &&
-					!rtp_address_is_ice_blacklisted(&address[pos])) {
-					pj_sockaddr_cp(&base, &address[pos]);
-					break;
+			pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
+
+			/*
+			 * If the returned address is the same as one of our host
+			 * candidates, don't send the srflx.  At the same time,
+			 * we need to set the base address (raddr).
+			 */
+			i = ao2_iterator_init(rtp->ice_local_candidates, 0);
+			while (srflx && (candidate = ao2_iterator_next(&i))) {
+				if (!baseset && ast_sockaddr_is_ipv4(&candidate->address)) {
+					baseset = 1;
+					ast_sockaddr_to_pj_sockaddr(&candidate->address, &base);
 				}
+
+				if (!pj_sockaddr_cmp(&candidate->address, &ext)) {
+					srflx = 0;
+				}
+
+				ao2_ref(candidate, -1);
 			}
+			ao2_iterator_destroy(&i);
 
-			if (pos < count) {
-				pj_sockaddr ext;
-				pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
-				int srflx = 1;
-
-				pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
-
-				/*
-				 * If the returned address is the same as one of our host
-				 * candidates, don't send the srflx
-				 */
-				for (pos = 0; pos < count; pos++) {
-					if (pj_sockaddr_cmp(&address[pos], &ext) == 0 &&
-						!rtp_address_is_ice_blacklisted(&address[pos])) {
-						srflx = 0;
-						break;
-					}
-				}
-
-				if (srflx) {
-					ast_rtp_ice_add_cand(instance, rtp, component, transport,
-						PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
-						pj_sockaddr_get_len(&ext));
-				}
+			if (srflx && baseset) {
+				ast_rtp_ice_add_cand(instance, rtp, component, transport,
+					PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
+					pj_sockaddr_get_len(&ext));
 			}
 		}
 	}
@@ -9025,7 +9076,6 @@ static int rtp_reload(int reload, int by_external_config)
 	AST_RWLIST_WRLOCK(&host_candidates);
 	for (var = ast_variable_browse(cfg, "ice_host_candidates"); var; var = var->next) {
 		struct ast_sockaddr local_addr, advertised_addr;
-		pj_str_t address;
 		unsigned int include_local_address = 0;
 		char *sep;
 
@@ -9057,8 +9107,8 @@ static int rtp_reload(int reload, int by_external_config)
 
 		candidate->include_local = include_local_address;
 
-		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&local_addr)), &candidate->local);
-		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&advertised_addr)), &candidate->advertised);
+		ast_sockaddr_copy(&candidate->local, &local_addr);
+		ast_sockaddr_copy(&candidate->advertised, &advertised_addr);
 
 		AST_RWLIST_INSERT_TAIL(&host_candidates, candidate, next);
 	}
@@ -9161,6 +9211,8 @@ static int load_module(void)
 {
 #ifdef HAVE_PJPROJECT
 	pj_lock_t *lock;
+
+	ast_sockaddr_parse(&lo6, "::1", PARSE_PORT_IGNORE);
 
 	AST_PJPROJECT_INIT_LOG_LEVEL();
 	if (pj_init() != PJ_SUCCESS) {
