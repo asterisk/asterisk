@@ -6939,7 +6939,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	if (!rtp->recv_buffer) {
 		/* If there is no receive buffer then we can pass back the frame directly */
-		return ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+		frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+		AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
+		return AST_LIST_FIRST(&frames);
 	} else if (rtp->expectedrxseqno == -1 || seqno == rtp->expectedrxseqno) {
 		rtp->expectedrxseqno = seqno + 1;
 
@@ -6947,7 +6949,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * return it directly without duplicating it.
 		 */
 		if (!ast_data_buffer_count(rtp->recv_buffer)) {
-			return ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
+			return AST_LIST_FIRST(&frames);
 		}
 
 		if (!AST_VECTOR_REMOVE_CMP_ORDERED(&rtp->missing_seqno, seqno, find_by_value,
@@ -6960,7 +6964,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * chance it will be overwritten.
 		 */
 		if (!ast_data_buffer_get(rtp->recv_buffer, seqno + 1)) {
-			return ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
+			return AST_LIST_FIRST(&frames);
 		}
 
 		/* Otherwise we need to dupe the frame so that the potential processing of frames placed after
@@ -7074,7 +7080,12 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		AST_VECTOR_RESET(&rtp->missing_seqno, AST_VECTOR_ELEM_CLEANUP_NOOP);
 
 		return AST_LIST_FIRST(&frames);
-	} else if (seqno < rtp->expectedrxseqno) {
+	}
+
+	/* We're finished with the frames list */
+	ast_frame_free(AST_LIST_FIRST(&frames), 0);
+
+	if (seqno < rtp->expectedrxseqno) {
 		/* If this is a packet from the past then we have received a duplicate packet, so just drop it */
 		ast_debug(2, "Received an old packet with sequence number '%d' on RTP instance '%p', dropping it\n",
 			seqno, instance);
@@ -7187,8 +7198,6 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			ast_debug(2, "Sending a NACK request on RTP instance '%p' to get missing packets\n", instance);
 		}
-
-		return &ast_null_frame;
 	}
 
 	return &ast_null_frame;
