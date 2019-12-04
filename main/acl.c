@@ -723,7 +723,7 @@ void ast_ha_join_cidr(const struct ast_ha *ha, struct ast_str **buf)
 	}
 }
 
-enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *purpose)
+static enum ast_acl_sense ast_apply_acl_internal(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *log_prefix)
 {
 	struct ast_acl *acl;
 
@@ -737,16 +737,22 @@ enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast
 	AST_LIST_TRAVERSE(acl_list, acl, list) {
 		if (acl->is_invalid) {
 			/* In this case, the baseline ACL shouldn't ever trigger this, but if that somehow happens, it'll still be shown. */
-			ast_log(LOG_WARNING, "%sRejecting '%s' due to use of an invalid ACL '%s'.\n", purpose ? purpose : "", ast_sockaddr_stringify_addr(addr),
-					ast_strlen_zero(acl->name) ? "(BASELINE)" : acl->name);
+			if (log_prefix) {
+				ast_log(LOG_WARNING, "%sRejecting '%s' due to use of an invalid ACL '%s'.\n",
+						log_prefix, ast_sockaddr_stringify_addr(addr),
+						ast_strlen_zero(acl->name) ? "(BASELINE)" : acl->name);
+			}
 			AST_LIST_UNLOCK(acl_list);
 			return AST_SENSE_DENY;
 		}
 
 		if (acl->acl) {
 			if (ast_apply_ha(acl->acl, addr) == AST_SENSE_DENY) {
-				ast_log(LOG_NOTICE, "%sRejecting '%s' due to a failure to pass ACL '%s'\n", purpose ? purpose : "", ast_sockaddr_stringify_addr(addr),
-						ast_strlen_zero(acl->name) ? "(BASELINE)" : acl->name);
+				if (log_prefix) {
+					ast_log(LOG_NOTICE, "%sRejecting '%s' due to a failure to pass ACL '%s'\n",
+							log_prefix, ast_sockaddr_stringify_addr(addr),
+							ast_strlen_zero(acl->name) ? "(BASELINE)" : acl->name);
+				}
 				AST_LIST_UNLOCK(acl_list);
 				return AST_SENSE_DENY;
 			}
@@ -756,6 +762,15 @@ enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast
 	AST_LIST_UNLOCK(acl_list);
 
 	return AST_SENSE_ALLOW;
+}
+
+
+enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *purpose) {
+	return ast_apply_acl_internal(acl_list, addr, purpose ?: "");
+}
+
+enum ast_acl_sense ast_apply_acl_nolog(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr) {
+	return ast_apply_acl_internal(acl_list, addr, NULL);
 }
 
 enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockaddr *addr)

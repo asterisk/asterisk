@@ -213,6 +213,20 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *purpose);
 
 /*!
+ * \brief Apply a set of rules to a given IP address, don't log failure.
+ *
+ * \details
+ * Exactly like ast_apply_acl, except that it will never log anything.
+ *
+ * \param acl_list The head of the list of ACLs to evaluate
+ * \param addr An ast_sockaddr whose address is considered when matching rules
+ *
+ * \retval AST_SENSE_ALLOW The IP address passes our ACLs
+ * \retval AST_SENSE_DENY The IP address fails our ACLs
+ */
+enum ast_acl_sense ast_apply_acl_nolog(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr);
+
+/*!
  * \brief Get the IP address given a hostname
  *
  * \details
