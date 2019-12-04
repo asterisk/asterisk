@@ -4707,7 +4707,7 @@ static void rna(int rnatime, struct queue_ent *qe, struct ast_channel *peer, cha
 				ast_verb(3, "Auto-Pausing Queue Member %s in all queues since they failed to answer on queue %s.\n",
 						interface, qe->parent->name);
 			} else {
-					ast_verb(3, "Failed to pause Queue Member %s in all queues!\n", interface);
+				ast_verb(3, "Failed to pause Queue Member %s in all queues!\n", interface);
 			}
 		}
 	}
@@ -6631,8 +6631,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		tmp->lastcall = cur->lastcall;
 		tmp->lastqueue = cur->lastqueue;
 		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
-		/* Special case: If we ring everyone, go ahead and ring them, otherwise
-		   just calculate their metric for the appropriate strategy */
+		/* Calculate the metric for the appropriate strategy. */
 		if (!calc_metric(qe->parent, cur, x++, qe, tmp)) {
 			/* Put them in the list of outgoing thingies...  We're ready now.
 			   XXX If we're forcibly removed, these outgoing calls won't get
@@ -6668,6 +6667,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	orig = to;
 	++qe->pending;
 	ao2_unlock(qe->parent);
+	/* Call the queue members with the best metric now. */
 	ring_one(qe, outgoing, &numbusies);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies,
 		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
