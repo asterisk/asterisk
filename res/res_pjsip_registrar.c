@@ -986,7 +986,7 @@ static char *find_aor_name(const char *username, const char *domain, const char 
 	if (alias) {
 		char *id_domain_alias = ast_alloca(strlen(username) + strlen(alias->domain) + 2);
 
-		sprintf(id_domain, "%s@%s", username, alias->domain);
+		sprintf(id_domain_alias, "%s@%s", username, alias->domain);
 		ao2_cleanup(alias);
 
 		configured_aors = strcpy(aors_buf, aors);/* Safe */
