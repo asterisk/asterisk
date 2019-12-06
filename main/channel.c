@@ -2971,6 +2971,33 @@ int ast_channel_get_up_time(struct ast_channel *chan)
 	return (ast_channel_get_up_time_ms(chan) / 1000);
 }
 
+/*!
+ * \brief Determine whether or not we have to trigger dtmf emulating using 50 fps timer events
+ * especially when no voice frames are received during dtmf processing (direct media or muted
+ * sender case using SIP INFO)
+ */
+static inline int should_trigger_dtmf_emulating(struct ast_channel *chan)
+{
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF)) {
+		/* We're in the middle of emulating a digit, or DTMF has been
+		 * explicitly deferred. Trigger dtmf with periodic 50 pfs timer events, then. */
+		return 1;
+	}
+
+	if (!ast_tvzero(*ast_channel_dtmf_tv(chan)) &&
+			ast_tvdiff_ms(ast_tvnow(), *ast_channel_dtmf_tv(chan)) < 2*AST_MIN_DTMF_GAP) {
+		/*
+		 * We're not in the middle of a digit, but it hasn't been long enough
+		 * since the last digit, so we'll have to trigger DTMF furtheron.
+		 * Using 2 times AST_MIN_DTMF_GAP to trigger readq reading for possible
+		 * buffered next dtmf event
+		 */
+		return 1;
+	}
+
+	return 0;
+}
+
 static void deactivate_generator_nolock(struct ast_channel *chan)
 {
 	if (ast_channel_generatordata(chan)) {
@@ -2991,6 +3018,10 @@ void ast_deactivate_generator(struct ast_channel *chan)
 {
 	ast_channel_lock(chan);
 	deactivate_generator_nolock(chan);
+	if (should_trigger_dtmf_emulating(chan)) {
+		/* if in the middle of dtmf emulation keep 50 tick per sec timer on rolling */
+		ast_timer_set_rate(ast_channel_timer(chan), 50);
+	}
 	ast_channel_unlock(chan);
 }
 
@@ -3867,6 +3898,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	if (ast_channel_timingfd(chan) > -1 && ast_channel_fdno(chan) == AST_TIMING_FD) {
 		enum ast_timer_event res;
+		int trigger_dtmf_emulating = should_trigger_dtmf_emulating(chan);
 
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
 
@@ -3894,10 +3926,26 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				if (got_ref) {
 					ao2_ref(data, -1);
 				}
+
+				if (trigger_dtmf_emulating) {
+					/*
+					 * Since we're breaking out of this switch block and not
+					 * returning, we need to re-lock the channel.
+					 */
+					ast_channel_lock(chan);
+					/* generate null frame to trigger dtmf emulating */
+					f = &ast_null_frame;
+					break;
+				}
+			} else if (trigger_dtmf_emulating) {
+				/* generate null frame to trigger dtmf emualating */
+				f = &ast_null_frame;
+				break;
 			} else {
 				ast_timer_set_rate(ast_channel_timer(chan), 0);
-				ast_channel_fdno_set(chan, -1);
-				ast_channel_unlock(chan);
+				/* generate very last null frame to trigger dtmf emulating */
+				f = &ast_null_frame;
+				break;
 			}
 
 			/* cannot 'goto done' because the channel is already unlocked */
@@ -3935,6 +3983,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 	/* Check for pending read queue */
 	if (!AST_LIST_EMPTY(ast_channel_readq(chan))) {
+		int skipped_dtmf_frame = 0;
 		int skip_dtmf = should_skip_dtmf(chan);
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), f, frame_list) {
@@ -3943,6 +3992,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 * some later time. */
 
 			if ( (f->frametype == AST_FRAME_DTMF_BEGIN || f->frametype == AST_FRAME_DTMF_END) && skip_dtmf) {
+				skipped_dtmf_frame = 1;
 				continue;
 			}
 
@@ -3954,7 +4004,19 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		if (!f) {
 			/* There were no acceptable frames on the readq. */
 			f = &ast_null_frame;
-			ast_channel_alert_write(chan);
+			if (!skipped_dtmf_frame) {
+				/*
+				 * Do not trigger alert pipe if only buffered dtmf begin or end frames
+				 * are left in the readq.
+				 */
+				ast_channel_alert_write(chan);
+			} else {
+				/*
+				 * Safely disable continous timer events if only buffered dtmf begin or end
+				 * frames are left in the readq.
+				 */
+				ast_timer_disable_continuous(ast_channel_timer(chan));
+			}
 		}
 
 		/* Interpret hangup and end-of-Q frames to return NULL */
@@ -4091,6 +4153,16 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					} else
 						ast_channel_emulate_dtmf_duration_set(chan, AST_DEFAULT_EMULATE_DTMF_DURATION);
 					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %u queued on %s\n", f->subclass.integer, ast_channel_emulate_dtmf_duration(chan), ast_channel_name(chan));
+
+					/*
+					 * Start generating 50 fps timer events (null frames) for dtmf emulating
+					 * independently from any existing incoming voice frames.
+					 * If channel generator is already activated in regular mode use these
+					 * timer events to generate null frames.
+					 */
+					if (!ast_channel_generator(chan)) {
+						ast_timer_set_rate(ast_channel_timer(chan), 50);
+					}
 				}
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
@@ -4132,12 +4204,30 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_channel_emulate_dtmf_duration_set(chan, option_dtmfminduration - f->len);
 					ast_frfree(f);
 					f = &ast_null_frame;
+
+					/* Start generating 50 fps timer events (null frames) for dtmf emulating
+					 * independently from any existing incoming voice frames.
+					 * If channel generator is already activated in regular mode use these
+					 * timer events to generate null frames.
+					 */
+					if (!ast_channel_generator(chan)) {
+						ast_timer_set_rate(ast_channel_timer(chan), 50);
+					}
 				} else {
 					ast_log(LOG_DTMF, "DTMF end passthrough '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
 					if (f->len < option_dtmfminduration) {
 						f->len = option_dtmfminduration;
 					}
 					ast_channel_dtmf_tv_set(chan, &now);
+
+					/* Start generating 50 fps timer events (null frames) for dtmf emulating
+					 * independently from any existing incoming voice frames.
+					 * If channel generator is already activated in regular mode use these
+					 * timer events to generate null frames.
+					 */
+					if (!ast_channel_generator(chan)) {
+						ast_timer_set_rate(ast_channel_timer(chan), 50);
+					}
 				}
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
@@ -4190,6 +4280,15 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						if (old_frame != f) {
 							ast_frfree(old_frame);
 						}
+					}
+
+					/* Start generating 50 fps timer events (null frames) for dtmf emulating
+					 * independently from any existing incoming voice frames.
+					 * If channel generator is already activated in regular mode use these
+					 * timer events to generate null frames.
+					 */
+					if (!ast_channel_generator(chan)) {
+						ast_timer_set_rate(ast_channel_timer(chan), 50);
 					}
 				}
 			}
