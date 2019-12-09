@@ -949,13 +949,20 @@ static int match_aor(const char *aor_name, const char *id)
 	return 0;
 }
 
-static char *find_aor_name(const char *username, const char *domain, const char *aors)
+static char *find_aor_name(const pj_str_t *pj_username, const pj_str_t *pj_domain, const char *aors)
 {
 	char *configured_aors;
 	char *aors_buf;
 	char *aor_name;
 	char *id_domain;
+	char *username, *domain;
 	struct ast_sip_domain_alias *alias;
+
+	/* Turn these into C style strings for convenience */
+	username = ast_alloca(pj_strlen(pj_username) + 1);
+	ast_copy_pj_str(username, pj_username, pj_strlen(pj_username) + 1);
+	domain = ast_alloca(pj_strlen(pj_domain) + 1);
+	ast_copy_pj_str(domain, pj_domain, pj_strlen(pj_domain) + 1);
 
 	id_domain = ast_alloca(strlen(username) + strlen(domain) + 2);
 	sprintf(id_domain, "%s@%s", username, domain);
@@ -1006,11 +1013,10 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 {
 	struct ast_sip_aor *aor = NULL;
 	char *aor_name = NULL;
-	char *domain_name = NULL;
-	char *username = NULL;
 	int i;
 
 	for (i = 0; i < AST_VECTOR_SIZE(&endpoint->ident_method_order); ++i) {
+		pj_str_t username;
 		pjsip_sip_uri *uri;
 		pjsip_authorization_hdr *header = NULL;
 
@@ -1018,18 +1024,22 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME:
 			uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
 
-			domain_name = ast_malloc(uri->host.slen + 1);
-			ast_copy_pj_str(domain_name, &uri->host, uri->host.slen + 1);
-			username = ast_malloc(uri->user.slen + 1);
-			ast_copy_pj_str(username, &uri->user, uri->user.slen + 1);
+			pj_strassign(&username, &uri->user);
 
 			/*
 			 * We may want to match without any user options getting
 			 * in the way.
+			 *
+			 * Logic adapted from AST_SIP_USER_OPTIONS_TRUNCATE_CHECK for pj_str_t.
 			 */
-			AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
+			if (ast_sip_get_ignore_uri_user_options()) {
+				pj_ssize_t semi = pj_strcspn2(&username, ";");
+				if (semi < pj_strlen(&username)) {
+					username.slen = semi;
+				}
+			}
 
-			aor_name = find_aor_name(username, domain_name, endpoint->aors);
+			aor_name = find_aor_name(&username, &uri->host, endpoint->aors);
 			if (aor_name) {
 				ast_debug(3, "Matched aor '%s' by To username\n", aor_name);
 			}
@@ -1038,12 +1048,8 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 			while ((header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_AUTHORIZATION,
 				header ? header->next : NULL))) {
 				if (header && !pj_stricmp2(&header->scheme, "digest")) {
-					username = ast_malloc(header->credential.digest.username.slen + 1);
-					ast_copy_pj_str(username, &header->credential.digest.username, header->credential.digest.username.slen + 1);
-					domain_name = ast_malloc(header->credential.digest.realm.slen + 1);
-					ast_copy_pj_str(domain_name, &header->credential.digest.realm, header->credential.digest.realm.slen + 1);
-
-					aor_name = find_aor_name(username, domain_name, endpoint->aors);
+					aor_name = find_aor_name(&header->credential.digest.username,
+						&header->credential.digest.realm, endpoint->aors);
 					if (aor_name) {
 						ast_debug(3, "Matched aor '%s' by Authentication username\n", aor_name);
 						break;
@@ -1058,9 +1064,6 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 		if (aor_name) {
 			break;
 		}
-
-		ast_free(domain_name);
-		ast_free(username);
 	}
 
 	if (ast_strlen_zero(aor_name) || !(aor = ast_sip_location_retrieve_aor(aor_name))) {
@@ -1068,11 +1071,9 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
 		ast_sip_report_req_no_support(endpoint, rdata, "registrar_requested_aor_not_found");
 		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n",
-			username ?: "", ast_sorcery_object_get_id(endpoint));
+			aor_name ?: "", ast_sorcery_object_get_id(endpoint));
 	}
 	ast_free(aor_name);
-	ast_free(domain_name);
-	ast_free(username);
 	return aor;
 }
 
