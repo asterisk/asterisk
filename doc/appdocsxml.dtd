@@ -110,7 +110,7 @@
   <!ATTLIST option implies CDATA "">
   <!ATTLIST option hasparams CDATA "">
 
-  <!ELEMENT enumlist (configOptionToEnum|enum+)>
+  <!ELEMENT enumlist (configOptionToEnum|enum)+>
   <!ELEMENT enum (para|note|warning|parameter|enumlist|info|xi:include)*>
   <!ATTLIST enum name CDATA "">
 
