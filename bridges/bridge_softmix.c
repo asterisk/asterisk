@@ -157,12 +157,16 @@ struct softmix_stats {
 	unsigned int num_channels[16];
 	/*! The number of channels above the internal sample rate */
 	unsigned int num_above_internal_rate;
+	/*! The number of channels above the maximum sample rate */
+	unsigned int num_above_maximum_rate;
 	/*! The number of channels at the internal sample rate */
 	unsigned int num_at_internal_rate;
 	/*! The absolute highest sample rate preferred by any channel in the bridge */
 	unsigned int highest_supported_rate;
 	/*! Is the sample rate locked by the bridge, if so what is that rate.*/
 	unsigned int locked_rate;
+	/*! The maximum sample rate the bridge may use */
+	unsigned int maximum_rate;
 };
 
 struct softmix_mixing_array {
@@ -884,7 +888,9 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 	if (stats->highest_supported_rate < channel_native_rate) {
 		stats->highest_supported_rate = channel_native_rate;
 	}
-	if (softmix_data->internal_rate < channel_native_rate) {
+	if (stats->maximum_rate && stats->maximum_rate < channel_native_rate) {
+		stats->num_above_maximum_rate++;
+	} else if (softmix_data->internal_rate < channel_native_rate) {
 		int i;
 
 		for (i = 0; i < ARRAY_LEN(stats->sample_rates); i++) {
@@ -929,6 +935,15 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 			ast_debug(1, "Locking at new rate.  Bridge changed from %u to %u.\n",
 				softmix_data->internal_rate, stats->locked_rate);
 			softmix_data->internal_rate = stats->locked_rate;
+			return 1;
+		}
+	} else if (stats->num_above_maximum_rate) {
+		/* if the bridge has a maximum rate set and channels are above it only
+		 * update if it differs from the current rate we are using. */
+		if (softmix_data->internal_rate != stats->maximum_rate) {
+			ast_debug(1, "Locking at new maximum rate.  Bridge changed from %u to %u.\n",
+				softmix_data->internal_rate, stats->maximum_rate);
+			softmix_data->internal_rate = stats->maximum_rate;
 			return 1;
 		}
 	} else if (stats->num_above_internal_rate >= 2) {
@@ -1082,6 +1097,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		if (!stat_iteration_counter) {
 			memset(&stats, 0, sizeof(stats));
 			stats.locked_rate = bridge->softmix.internal_sample_rate;
+			stats.maximum_rate = bridge->softmix.maximum_sample_rate;
 		}
 
 		/* If the sample rate has changed, update the translator helper */

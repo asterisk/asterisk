@@ -258,6 +258,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						will be used.
 					</para></description>
 				</configOption>
+				<configOption name="maximum_sample_rate">
+					<synopsis>Set the maximum native sample rate for mixing the conference</synopsis>
+					<description><para>
+						Sets the maximum native sample rate the
+						conference is mixed at. This is set to not have a
+						maximum by default. If a sample rate is specified,
+						though, the native sample rate will never exceed it.
+					</para></description>
+				</configOption>
 				<configOption name="language" default="en">
 					<synopsis>The language used for announcements to the conference.</synopsis>
 					<description><para>
@@ -1549,6 +1558,13 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	}
 	ast_cli(a->fd,"Internal Sample Rate: %s\n", tmp);
 
+	if (b_profile.maximum_sample_rate) {
+		snprintf(tmp, sizeof(tmp), "%u", b_profile.maximum_sample_rate);
+	} else {
+		ast_copy_string(tmp, "none", sizeof(tmp));
+	}
+	ast_cli(a->fd,"Maximum Sample Rate: %s\n", tmp);
+
 	if (b_profile.mix_interval) {
 		ast_cli(a->fd,"Mixing Interval:      %u\n", b_profile.mix_interval);
 	} else {
@@ -2141,6 +2157,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), USER_OPT_JITTERBUFFER);
 	/* "auto" will fail to parse as a uint, but we use PARSE_DEFAULT to set the value to 0 in that case, which is the value that auto resolves to */
 	aco_option_register(&cfg_info, "internal_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, internal_sample_rate), 0);
+	aco_option_register(&cfg_info, "maximum_sample_rate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, PARSE_DEFAULT, FLDSET(struct bridge_profile, maximum_sample_rate), 0);
 	aco_option_register_custom(&cfg_info, "mixing_interval", ACO_EXACT, bridge_types, "20", mix_interval_handler, 0);
 	aco_option_register(&cfg_info, "record_conference", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_CONFERENCE);
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);

@@ -1689,6 +1689,8 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 
 		/* Set the internal sample rate on the bridge from the bridge profile */
 		ast_bridge_set_internal_sample_rate(conference->bridge, conference->b_profile.internal_sample_rate);
+		/* Set the maximum sample rate on the bridge from the bridge profile */
+		ast_bridge_set_maximum_sample_rate(conference->bridge, conference->b_profile.maximum_sample_rate);
 		/* Set the internal mixing interval on the bridge from the bridge profile */
 		ast_bridge_set_mixing_interval(conference->bridge, conference->b_profile.mix_interval);
 

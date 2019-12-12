@@ -263,6 +263,12 @@ struct ast_bridge_softmix {
 	 * for itself.
 	 */
 	unsigned int internal_mixing_interval;
+	/*!
+	 * \brief The maximum sample rate softmix uses to mix channels.
+	 *
+	 * \note If this value is 0, there is no maximum sample rate.
+	 */
+	unsigned int maximum_sample_rate;
 };
 
 /*!
@@ -858,6 +864,21 @@ int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_
  *
  */
 void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate);
+
+/*!
+ * \brief Adjust the maximum mixing sample rate of a bridge
+ * used during multimix mode.
+ * \since 13.31.0
+ * \since 16.8.0
+ * \since 17.2.0
+ *
+ * \param bridge Channel to change the sample rate on.
+ * \param sample_rate the maximum sample rate to use. If a
+ *        value of 0 is passed here, the bridge will be free to pick
+ *        what ever sample rate it chooses.
+ *
+ */
+void ast_bridge_set_maximum_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate);
 
 /*!
  * \brief Adjust the internal mixing interval of a bridge used
