@@ -13,6 +13,100 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 17.0.0 to Asterisk 17.1.0 ------------
+------------------------------------------------------------------------------
+
+ARI Channels
+------------------
+ * The Channel resource has a new sub-resource "externalMedia".
+   This allows an application to create a channel for the sole purpose
+   of exchanging media with an external server.  Once created, this
+   channel could be placed into a bridge with existing channels to
+   allow the external server to inject audio into the bridge or
+   receive audio from the bridge.
+   See https://wiki.asterisk.org/wiki/display/AST/External+Media+and+ARI
+   for more information.
+
+Core
+------------------
+ * H.265/HEVC is now a supported video codec and it can be used by
+   specifying "h265" in the allow line.
+   Please note however, that handling of the additional SDP parameters
+   described in RFC 7798 section 7.2 is not yet supported.
+
+app_mixmonitor
+------------------
+ * An option 'S' has been added to MixMonitor. If used in combination with
+   the r() and/or t() options, if a frame is available to write to one of
+   those files but not the other, a frame of silence if written to the file
+   that does not have an audio frame. This should prevent the two files
+   from "drifting" when mixed after the fact.
+
+app_voicemail
+------------------
+ * A feature was added in Asterisk 13.27.0 and 16.4.0 that removed lock files from
+   the Asterisk voicemail directory on startup. Some users that store their
+   voicemails on network storage devices experienced slow startup times due to the
+   relative expense of traversing the voicemail directory structure looking for
+   orphaned lock files. This feature has now been removed.
+
+   Users who require the lock files to be removed at startup should modify their
+   startup scripts to do so before starting the asterisk process.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+   allows the behaviour of the moh_passthrough endpoint option to be read or changed
+   in the dialplan. This allows control on a per-call basis.
+
+chan_rtp
+------------------
+ * The UnicastRTP channel driver provided by chan_rtp now accepts
+   "<hostname>:<port>" as an alternative to "<ip_address>:<port>" in the destination.
+   The first AAAA (preferred) or A record resolved will be used as the destination.
+   The lookup is synchronous so beware of possible dialplan delays if you specify a
+   hostname.
+
+func_curl
+------------------
+ * A new parameter, httpheader, has been added to CURLOPT function. This parameter
+   allows to set custom http headers for subsequent calls off CURL function.
+   Any setting of headers will replace the default curl headers
+   (e.g. "Content-type: application/x-www-form-urlencoded")
+
+func_jitterbuffer
+------------------
+ * The JITTERBUFFER dialplan function now has an option to enable video synchronization
+   support. When enabled and used with a compatible channel driver (chan_sip, chan_pjsip)
+   the video is buffered according to the size of the audio jitterbuffer and is
+   synchronized to the audio.
+
+res_musiconhold
+------------------
+ * This fix allows a realtime moh class to be unregistered from the command
+   line. This is useful when the contents of a directory referenced by a
+   realtime moh class have changed.
+   The realtime moh class is then reloaded on the next request and uses the
+   new directory contents.
+
+ * A new mode - playlist - has been added to res_musiconhold. This mode allows the
+   user to specify the files (or URLs) to play explicitly by putting them directly
+   in musiconhold.conf.
+
+taskprocessor.c
+------------------
+ * Added two new CLI commands to reset stats for taskprocessors. You can
+   reset stats for a single, specific taskprocessor ('core reset
+   taskprocessor <taskprocessor>'), or you can reset all taskprocessors
+   ('core reset taskprocessors'). These commands will reset the counter for
+   the number of tasks processed as well as the max queue size.
+
+ * Added "like" support for 'core show taskprocessors'. Now you
+   can specify a specific set of taskprocessors (or just one) by
+   adding the keyword "like" to the above command, followed by
+   your search criteria.
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 17.0.0 --------------------------
 ------------------------------------------------------------------------------
 
