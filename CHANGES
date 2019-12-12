@@ -13,6 +13,47 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.29.0 to Asterisk 13.30.0 ----------
+------------------------------------------------------------------------------
+
+app_voicemail
+------------------
+ * A feature was added in Asterisk 13.27.0 and 16.4.0 that removed lock files from
+   the Asterisk voicemail directory on startup. Some users that store their
+   voicemails on network storage devices experienced slow startup times due to the
+   relative expense of traversing the voicemail directory structure looking for
+   orphaned lock files. This feature has now been removed.
+
+   Users who require the lock files to be removed at startup should modify their
+   startup scripts to do so before starting the asterisk process.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+   allows the behaviour of the moh_passthrough endpoint option to be read or changed
+   in the dialplan. This allows control on a per-call basis.
+
+func_curl
+------------------
+ * A new parameter, httpheader, has been added to CURLOPT function. This parameter
+   allows to set custom http headers for subsequent calls off CURL function.
+   Any setting of headers will replace the default curl headers
+   (e.g. "Content-type: application/x-www-form-urlencoded")
+
+taskprocessor.c
+------------------
+ * Added two new CLI commands to reset stats for taskprocessors. You can
+   reset stats for a single, specific taskprocessor ('core reset
+   taskprocessor <taskprocessor>'), or you can reset all taskprocessors
+   ('core reset taskprocessors'). These commands will reset the counter for
+   the number of tasks processed as well as the max queue size.
+
+ * Added "like" support for 'core show taskprocessors'. Now you
+   can specify a specific set of taskprocessors (or just one) by
+   adding the keyword "like" to the above command, followed by
+   your search criteria.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.28.0 to Asterisk 13.29.0-rc1 ------
 ------------------------------------------------------------------------------
 
