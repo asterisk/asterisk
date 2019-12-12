@@ -13,6 +13,67 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.6.0 to Asterisk 16.7.0 ------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * H.265/HEVC is now a supported video codec and it can be used by
+   specifying "h265" in the allow line.
+   Please note however, that handling of the additional SDP parameters
+   described in RFC 7798 section 7.2 is not yet supported.
+
+app_voicemail
+------------------
+ * A feature was added in Asterisk 13.27.0 and 16.4.0 that removed lock files from
+   the Asterisk voicemail directory on startup. Some users that store their
+   voicemails on network storage devices experienced slow startup times due to the
+   relative expense of traversing the voicemail directory structure looking for
+   orphaned lock files. This feature has now been removed.
+
+   Users who require the lock files to be removed at startup should modify their
+   startup scripts to do so before starting the asterisk process.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+   allows the behaviour of the moh_passthrough endpoint option to be read or changed
+   in the dialplan. This allows control on a per-call basis.
+
+func_curl
+------------------
+ * A new parameter, httpheader, has been added to CURLOPT function. This parameter
+   allows to set custom http headers for subsequent calls off CURL function.
+   Any setting of headers will replace the default curl headers
+   (e.g. "Content-type: application/x-www-form-urlencoded")
+
+func_jitterbuffer
+------------------
+ * The JITTERBUFFER dialplan function now has an option to enable video synchronization
+   support. When enabled and used with a compatible channel driver (chan_sip, chan_pjsip)
+   the video is buffered according to the size of the audio jitterbuffer and is
+   synchronized to the audio.
+
+res_musiconhold
+------------------
+ * A new mode - playlist - has been added to res_musiconhold. This mode allows the
+   user to specify the files (or URLs) to play explicitly by putting them directly
+   in musiconhold.conf.
+
+taskprocessor.c
+------------------
+ * Added "like" support for 'core show taskprocessors'. Now you
+   can specify a specific set of taskprocessors (or just one) by
+   adding the keyword "like" to the above command, followed by
+   your search criteria.
+
+ * Added two new CLI commands to reset stats for taskprocessors. You can
+   reset stats for a single, specific taskprocessor ('core reset
+   taskprocessor <taskprocessor>'), or you can reset all taskprocessors
+   ('core reset taskprocessors'). These commands will reset the counter for
+   the number of tasks processed as well as the max queue size.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.5.0 to Asterisk 16.6.0 ------------
 ------------------------------------------------------------------------------
 
