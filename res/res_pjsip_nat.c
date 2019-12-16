@@ -32,8 +32,43 @@
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
 
+/*! URI parameter for original host/port */
+#define AST_SIP_X_AST_ORIG_HOST "x-ast-orig-host"
+#define AST_SIP_X_AST_ORIG_HOST_LEN 15
+
+static void save_orig_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
+{
+	pjsip_param *x_orig_host;
+	pj_str_t p_value;
+#define COLON_LEN 1
+#define MAX_PORT_LEN 5
+
+	if (rdata->msg_info.msg->type != PJSIP_REQUEST_MSG ||
+		rdata->msg_info.msg->line.req.method.id != PJSIP_REGISTER_METHOD) {
+		return;
+	}
+
+	ast_debug(1, "Saving contact '%.*s:%d'\n",
+		(int)uri->host.slen, uri->host.ptr, uri->port);
+
+	x_orig_host = PJ_POOL_ALLOC_T(rdata->tp_info.pool, pjsip_param);
+	x_orig_host->name = pj_strdup3(rdata->tp_info.pool, AST_SIP_X_AST_ORIG_HOST);
+	p_value.slen = pj_strlen(&uri->host) + COLON_LEN + MAX_PORT_LEN;
+	p_value.ptr = (char*)pj_pool_alloc(rdata->tp_info.pool, p_value.slen + 1);
+	p_value.slen = snprintf(p_value.ptr, p_value.slen + 1, "%.*s:%d", (int)uri->host.slen, uri->host.ptr, uri->port);
+	pj_strassign(&x_orig_host->value, &p_value);
+	pj_list_insert_before(&uri->other_param, x_orig_host);
+
+	return;
+}
+
 static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 {
+
+	if (pj_strcmp2(&uri->host, rdata->pkt_info.src_name) != 0) {
+		save_orig_contact_host(rdata, uri);
+	}
+
 	pj_cstr(&uri->host, rdata->pkt_info.src_name);
 	uri->port = rdata->pkt_info.src_port;
 	if (!strcasecmp("WSS", rdata->tp_info.transport->type_name)) {
@@ -264,7 +299,44 @@ static int nat_invoke_hook(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
+static void restore_orig_contact_host(pjsip_tx_data *tdata)
+{
+	pjsip_contact_hdr *contact;
+
+	if (tdata->msg->type != PJSIP_RESPONSE_MSG) {
+		return;
+	}
+
+	contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
+	while (contact) {
+		pjsip_sip_uri *contact_uri = pjsip_uri_get_uri(contact->uri);
+		pj_str_t x_name = { AST_SIP_X_AST_ORIG_HOST, AST_SIP_X_AST_ORIG_HOST_LEN };
+		pjsip_param *x_orig_host = pjsip_param_find(&contact_uri->other_param, &x_name);
+
+		if (x_orig_host) {
+			char host_port[x_orig_host->value.slen + 1];
+			char *sep;
+
+			ast_debug(1, "Restoring contact %.*s:%d  to %.*s\n", (int)contact_uri->host.slen,
+				contact_uri->host.ptr, contact_uri->port,
+				(int)x_orig_host->value.slen, x_orig_host->value.ptr);
+
+			strncpy(host_port, x_orig_host->value.ptr, x_orig_host->value.slen);
+			host_port[x_orig_host->value.slen] = '\0';
+			sep = strchr(host_port, ':');
+			if (sep) {
+				*sep = '\0';
+				sep++;
+				pj_strdup2(tdata->pool, &contact_uri->host, host_port);
+				contact_uri->port = strtol(sep, NULL, 10);
+			}
+			pj_list_erase(x_orig_host);
+		}
+		contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, contact->next);
+	}
+}
+
+static pj_status_t process_nat(pjsip_tx_data *tdata)
 {
 	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
@@ -363,6 +435,16 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 
 	return PJ_SUCCESS;
 }
+
+static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata) {
+	pj_status_t rc;
+
+	rc = process_nat(tdata);
+	restore_orig_contact_host(tdata);
+
+	return rc;
+}
+
 
 static pjsip_module nat_module = {
 	.name = { "NAT", 3 },
