@@ -136,6 +136,8 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	}
 	peers = args.reqchans;
 	if (peers) {
+		struct ast_custom_function *cdr_prop_func = ast_custom_function_find("CDR_PROP");
+
 		cur = peers;
 		do {
 			/* remember where to start next time */
@@ -181,7 +183,9 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 					ast_str_append(&tmp_availcause, 0, "%s%s", ast_str_strlen(tmp_availcause) ? "&" : "", tmp);
 
 					/* Disable CDR for this temporary channel. */
-					ast_cdr_set_property(ast_channel_name(tempchan), AST_CDR_FLAG_DISABLE_ALL);
+					if (cdr_prop_func) {
+						ast_func_write(tempchan, "CDR_PROP(disable)", "1");
+					}
 
 					ast_hangup(tempchan);
 					tempchan = NULL;
