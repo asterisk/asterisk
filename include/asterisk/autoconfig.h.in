@@ -510,6 +510,12 @@
 /* Define if your system has the MYSQLCLIENT libraries. */
 #undef HAVE_MYSQLCLIENT
 
+/* Define to 1 if mysql/mysql.h has bool defined. */
+#undef HAVE_MYSQLCLIENT_BOOL
+
+/* Define to 1 if mysql/mysql.h has my_bool defined. */
+#undef HAVE_MYSQLCLIENT_MY_BOOL
+
 /* Define to 1 if you have the Network Broadcast Sound library. */
 #undef HAVE_NBS
 
