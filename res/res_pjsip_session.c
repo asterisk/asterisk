@@ -712,7 +712,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 
 	/* It is possible for SDP deferral to have already created a pending topology */
 	if (!session->pending_media_state->topology) {
-		session->pending_media_state->topology = ast_stream_topology_clone(session->endpoint->media.topology);
+		session->pending_media_state->topology = ast_stream_topology_alloc();
 		if (!session->pending_media_state->topology) {
 			return -1;
 		}
@@ -752,6 +752,24 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
 				ast_stream_free(stream);
 				return -1;
+			}
+			/* For backwards compatibility with the core default streams are always sendrecv */
+			if (!ast_sip_session_is_pending_stream_default(session, stream)) {
+				if (pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
+					/* Stream state reflects our state of a stream, so in the case of
+					 * sendonly and recvonly we store the opposite since that is what ours
+					 * is.
+					 */
+					ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+				} else if (pjmedia_sdp_media_find_attr2(remote_stream, "recvonly", NULL)) {
+					ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+				} else if (pjmedia_sdp_media_find_attr2(remote_stream, "inactive", NULL)) {
+					ast_stream_set_state(stream, AST_STREAM_STATE_INACTIVE);
+				} else {
+					ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
+				}
+			} else {
+				ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
 			}
 		}
 
