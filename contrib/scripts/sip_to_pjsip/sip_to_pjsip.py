@@ -475,7 +475,7 @@ peer_map = [
     ['callerid',           set_value],           # callerid
     ['callingpres',        set_value('callerid_privacy')],
     ['cid_tag',            set_value('callerid_tag')],
-    ['trustpid',           set_value('trust_id_inbound')],
+    ['trustrpid',          set_value('trust_id_inbound')],
     ['sendrpid',           from_sendrpid],       # send_pai, send_rpid
     ['send_diversion',     set_value],
     ['encryption',         set_media_encryption],
