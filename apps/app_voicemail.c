@@ -13565,7 +13565,8 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	astman_send_listack(s, m, "Voicemail user list will follow", "start");
 
 	AST_LIST_TRAVERSE(&users, vmu, list) {
-		int new, old;
+		int new = 0;
+		int old = 0;
 		int ret;
 		char *mailbox;
 
