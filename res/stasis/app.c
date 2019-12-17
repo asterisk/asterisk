@@ -1164,7 +1164,7 @@ void app_update(struct stasis_app *app, stasis_app_cb handler, void *data)
 
 		ast_verb(1, "Replacing Stasis app '%s'\n", app->name);
 
-		msg = ast_json_pack("{s: s, s: o?, s: s}",
+		msg = ast_json_pack("{s: s, s: o, s: s}",
 			"type", "ApplicationReplaced",
 			"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 			"application", app->name);

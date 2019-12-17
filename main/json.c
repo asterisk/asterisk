@@ -895,12 +895,12 @@ struct ast_json *ast_json_name_number(const char *name, const char *number)
 struct ast_json *ast_json_dialplan_cep_app(
 		const char *context, const char *exten, int priority, const char *app_name, const char *app_data)
 {
-	return ast_json_pack("{s: s?, s: s?, s: o, s: s?, s: s?}",
-		"context", context,
-		"exten", exten,
+	return ast_json_pack("{s: o, s: o, s: o, s: o, s: o}",
+		"context", context ? ast_json_string_create(context) : ast_json_null(),
+		"exten", exten ? ast_json_string_create(exten) : ast_json_null(),
 		"priority", priority != -1 ? ast_json_integer_create(priority) : ast_json_null(),
-		"app_name", app_name,
-		"app_data", app_data
+		"app_name", app_name ? ast_json_string_create(app_name) : ast_json_null(),
+		"app_data", app_data ? ast_json_string_create(app_data) : ast_json_null()
 		);
 }
 
