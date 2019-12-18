@@ -2264,7 +2264,27 @@ if test "${PBX_MISDN}" = 1; then
    AC_CHECK_MEMBER([Q931_info_t.redirect_dn], [], [PBX_MISDN=0], [#include <mISDNuser/mISDNlib.h>])
 fi
 
+
 AST_EXT_TOOL_CHECK([MYSQLCLIENT], [mysql_config])
+
+if test "${PBX_MYSQLCLIENT}" = 1; then
+   AC_MSG_CHECKING(for MySQL client bool support)
+   AC_LINK_IFELSE(
+           [AC_LANG_PROGRAM([#include <mysql/mysql.h>],
+                   [bool test = 1;])],
+           AC_MSG_RESULT(yes)
+           AC_DEFINE(HAVE_MYSQLCLIENT_BOOL, 1, [Define to 1 if mysql/mysql.h has bool defined.]),
+           AC_MSG_RESULT(no)
+   )
+   AC_MSG_CHECKING(for MySQL client my_bool support)
+   AC_LINK_IFELSE(
+           [AC_LANG_PROGRAM([#include <mysql/mysql.h>],
+                   [my_bool test = 1;])],
+           AC_MSG_RESULT(yes)
+           AC_DEFINE(HAVE_MYSQLCLIENT_MY_BOOL, 1, [Define to 1 if mysql/mysql.h has my_bool defined.]),
+           AC_MSG_RESULT(no)
+   )
+fi
 
 AST_EXT_LIB_CHECK([NBS], [nbs], [nbs_connect], [nbs.h])
 
