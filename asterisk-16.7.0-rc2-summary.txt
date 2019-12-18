@@ -1,0 +1,133 @@
+                                Release Summary
+
+                              asterisk-16.7.0-rc2
+
+                                Date: 2019-12-18
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.7.0-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   2 Joshua C. Colp                                  1 nappsoft               
+   2 George Joseph                                   1 Ted G                  
+                                                     1 Ted G                  
+                                                     1 George Joseph          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_meetme
+
+   ASTERISK-28604: app_meetme, chan_ooh323 and cdr_mysql don't build on
+   17.0.0
+   Reported by: George Joseph
+     * [f4ac2c5cef] Joshua C. Colp -- configure: Add check for MySQL client
+       bool and my_bool type usage.
+
+    Category: General
+
+   ASTERISK-28609: Memory Leak in res_rtp_asterisk.c
+   Reported by: Ted G
+     * [e3038c3629] George Joseph -- res_rtp_asterisk: Add frame list
+       cleanups to ast_rtp_read
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-28659: res_pjsip_sdp_rtp: Bundle includes non-existent media
+   stream if codecs create additional streams and offer does not have them
+   Reported by: nappsoft
+     * [ef0bca0a05] Joshua C. Colp -- res_pjsip_session: Set stream state on
+       created streams for incoming SDP.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28659: res_pjsip_sdp_rtp: Bundle includes non-existent media
+   stream if codecs create additional streams and offer does not have them
+   Reported by: nappsoft
+     * [ef0bca0a05] Joshua C. Colp -- res_pjsip_session: Set stream state on
+       created streams for incoming SDP.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   |            |               | Revert "chan_dahdi: set                   |
+   | c8720cf153 | George Joseph | CHANNEL(hangupsource) when a PRI channel  |
+   |            |               | hangs up"                                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ addons/cdr_mysql.c               |    8 +--
+ channels/sig_pri.c               |   17 +-------
+ configure                        |   82 ++++++++++++++++++++++++++++++++++++---
+ configure.ac                     |   20 +++++++++
+ include/asterisk/autoconfig.h.in |    6 ++
+ res/res_pjsip_session.c          |   20 +++++++++
+ res/res_rtp_asterisk.c           |    2
+ 7 files changed, 129 insertions(+), 26 deletions(-)
