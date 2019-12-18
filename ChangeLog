@@ -1,3 +1,74 @@
+2019-12-18 15:51 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 17.1.0-rc2 Released.
+
+2019-12-18 08:30 +0000 [a76d3103fb]  George Joseph <gjoseph@digium.com>
+
+	* Revert "chan_dahdi: set CHANNEL(hangupsource) when a PRI channel hangs up"
+
+	  There are reports that this commit causes deadlocks when issuing
+	  a "pri show" CLI command and a channel is in the process of being
+	  hung up.  Further work is in progress to determine the cause of
+	  the deadlock and provide a permanent fix.
+
+	  ASTERISK~28605  #keeping open
+	  Reported by: Dirk Wendland
+
+	  This reverts commit c6b17b521231dde9da890d95ee705c93953bab8c.
+
+	  Change-Id: Iddd900c1abdd5074ff39c17cdce855f2f436cef9
+
+2019-12-04 15:01 +0000 [27a4a3c761]  George Joseph <gjoseph@digium.com>
+
+	* res_rtp_asterisk:  Add frame list cleanups to ast_rtp_read
+
+	  In Asterisk 16+, there are a few places in ast_rtp_read where we've
+	  allocated a frame list but return a null frame instead of the list.
+	  In these cases, any frames left in the list won't be freed.  In the
+	  vast majority of the cases, the list is empty when we return so
+	  there's nothing to free but there have been leaks reported in the
+	  wild that can be traced back to frames left in the list before
+	  returning.
+
+	  The escape paths now all have logic to free frames left in the
+	  list.
+
+	  ASTERISK-28609
+	  Reported by: Ted G
+
+	  Change-Id: Ia1d7075857ebd26b47183c44b1aebb0d8f985f7a
+
+2019-12-16 06:35 +0000 [3d29b06e37]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* configure: Add check for MySQL client bool and my_bool type usage.
+
+	  Instead of trying to use the defined MySQL client version from the
+	  header use a configure check to determine whether the bool or my_bool
+	  type should be used for defining a boolean.
+
+	  ASTERISK-28604
+
+	  Change-Id: Id2225b3785115de074c50c123ff1a68005b4a9c7
+
+2019-12-16 05:23 +0000 [5949f9a86a]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip_session: Set stream state on created streams for incoming SDP.
+
+	  A previous review, 13174, made a change whereby on an incoming offer SDP
+	  the pending topology was initialized to the configured. This caused a problem
+	  for bundle with WebRTC where bundle could reference a stream that did not
+	  actually exist if the configuration had both audio and video but the
+	  offer SDP only contained audio.
+
+	  This change undoes that review and instead fixes the original problem it
+	  sought to solve by setting the state of created streams based on the
+	  contents of the offer SDP. This way the stream state is not inactive
+	  until negotiation later completes.
+
+	  ASTERISK-28659
+
+	  Change-Id: Ic5ae5a86437d3e686ac5afd91d133cc916198355
+
 2019-12-12 11:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 17.1.0-rc1 Released.
