@@ -1,3 +1,48 @@
+2019-12-18 15:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.30.0-rc2 Released.
+
+2019-12-18 08:30 +0000 [5bf28c4fe6]  George Joseph <gjoseph@digium.com>
+
+	* Revert "chan_dahdi: set CHANNEL(hangupsource) when a PRI channel hangs up"
+
+	  There are reports that this commit causes deadlocks when issuing
+	  a "pri show" CLI command and a channel is in the process of being
+	  hung up.  Further work is in progress to determine the cause of
+	  the deadlock and provide a permanent fix.
+
+	  ASTERISK~28605  #keeping open
+	  Reported by: Dirk Wendland
+
+	  This reverts commit c6b17b521231dde9da890d95ee705c93953bab8c.
+
+	  Change-Id: Iddd900c1abdd5074ff39c17cdce855f2f436cef9
+
+2019-12-16 19:18 +0000 [4dd2a02752]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* json: Support older jansson versions.
+
+	  The use of '?' is a fairly new addition to jansson and is not
+	  supported in the version of jansson that can be used by 13.
+	  This change returns to previous supported behavior and removes
+	  usage of '?'.
+
+	  ASTERISK-28663
+
+	  Change-Id: I6d596007ae85e8724d928865d99968f679be1142
+
+2019-12-16 06:35 +0000 [dc07f65777]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* configure: Add check for MySQL client bool and my_bool type usage.
+
+	  Instead of trying to use the defined MySQL client version from the
+	  header use a configure check to determine whether the bool or my_bool
+	  type should be used for defining a boolean.
+
+	  ASTERISK-28604
+
+	  Change-Id: Id2225b3785115de074c50c123ff1a68005b4a9c7
+
 2019-12-12 11:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.30.0-rc1 Released.
