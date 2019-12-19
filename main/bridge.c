@@ -3750,6 +3750,13 @@ void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int
 	ast_bridge_unlock(bridge);
 }
 
+void ast_bridge_set_maximum_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate)
+{
+	ast_bridge_lock(bridge);
+	bridge->softmix.maximum_sample_rate = sample_rate;
+	ast_bridge_unlock(bridge);
+}
+
 static void cleanup_video_mode(struct ast_bridge *bridge)
 {
 	switch (bridge->softmix.video_mode.mode) {

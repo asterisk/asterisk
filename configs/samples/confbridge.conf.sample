@@ -185,6 +185,10 @@ type=bridge
                                ; closest sample rate Asterisk does support to the one requested
                                ; will be used.
 
+;maximum_sample_rate=none      ; Sets the maximum sample rate the conference
+                               ; is mixed at. This is set to no maximum by default.
+                               ; Values can be anything from 8000-192000.
+
 ;mixing_interval=40     ; Sets the internal mixing interval in milliseconds for the bridge.  This
                         ; number reflects how tight or loose the mixing will be for the conference.
                         ; In order to improve performance a larger mixing interval such as 40ms may
