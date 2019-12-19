@@ -1,0 +1,5 @@
+Subject: app_confbridge
+
+A new bridge profile option, maximum_sample_rate, has been added which sets
+a maximum sample rate that the bridge will be mixed at. This allows the bridge
+to move below the maximum sample rate as needed but caps it at the maximum.
