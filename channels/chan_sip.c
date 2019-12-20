@@ -2568,10 +2568,14 @@ static int sip_tcptls_write(struct ast_tcptls_session_instance *tcptls_session, 
 
 	ao2_lock(tcptls_session);
 
-	if ((tcptls_session->fd == -1) ||
-		!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
+	if (tcptls_session->fd == -1 ||
 		!(packet = ao2_alloc(sizeof(*packet), tcptls_packet_destructor)) ||
 		!(packet->data = ast_str_create(len))) {
+		goto tcptls_write_setup_error;
+	}
+
+	if (!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread"))) {
+		ast_log(LOG_ERROR, "Unable to locate tcptls_session helper thread.\n");
 		goto tcptls_write_setup_error;
 	}
 
@@ -3758,6 +3762,9 @@ static int __sip_xmit(struct sip_pvt *p, struct ast_str *data)
 		res = ast_sendto(p->socket.fd, ast_str_buffer(data), ast_str_strlen(data), 0, dst);
 	} else if (p->socket.tcptls_session) {
 		res = sip_tcptls_write(p->socket.tcptls_session, ast_str_buffer(data), ast_str_strlen(data));
+		if (res < -1) {
+			return res;
+		}
 	} else if (p->socket.ws_session) {
 		if (!(res = ast_websocket_write_string(p->socket.ws_session, ast_str_buffer(data)))) {
 			/* The WebSocket API just returns 0 on success and -1 on failure, while this code expects the payload length to be returned */
@@ -30167,6 +30174,9 @@ static int sip_send_keepalive(const void *data)
 		   (peer->socket.tcptls_session) &&
 		   (peer->socket.tcptls_session->fd != -1)) {
 		res = sip_tcptls_write(peer->socket.tcptls_session, keepalive, count);
+		if (res < -1) {
+			return 0;
+		}
 	} else if (peer->socket.type == AST_TRANSPORT_UDP) {
 		res = ast_sendto(sipsock, keepalive, count, 0, &peer->addr);
 	}
