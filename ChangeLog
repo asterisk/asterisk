@@ -1,3 +1,54 @@
+2019-12-23 16:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.21-cert6 Released.
+
+2019-11-22 10:39 +0000 [c59bc91f77]  Thomas Arimont (license 5525)
+
+	* channel.c: Resolve issue with receiving SIP INFO packets for DTMF
+
+	  The problem is essentially the same as in ASTERISK~28245. Besides
+	  the direct media scenario we have an additional scenario where a
+	  special client is involved. This device mutes audio by default in
+	  transmit direction (no rtp frames) and activates audio only by a
+	  foot switch. In this situation dtmf input (pin for conferences,
+	  transfer features codes , etc) using SIP INFO mode is not
+	  understood properly especially when SIP INFO messages are sent
+	  quickly.
+
+	  This patch ensures that SIP INFO frames are properly queued and
+	  processed in the above scenario. The patch also corrects situations
+	  where successive dtmf events are received quicker than the
+	  signalled event duration (plus minimum gap/pause) allows, i.e. DTMF
+	  events have to be buffered in the ast channel read queue and
+	  emulation has to be processed asynchronously at slower speed.
+
+	  Reported by: Thomas Arimont
+	  patches:
+	    trigger_dtmf_emulation.patch submitted by Thomas Arimont (license 5525)
+
+	  Change-Id: I309bf61dd065c9978c8e48f5b9a936ab47de64c2
+
+2019-11-25 06:55 +0000 [8807f80ac9]  Joshua Colp <jcolp@digium.com>
+
+	* parking: Fall back to parker channel name even if it matches parkee.
+
+	  ASTERISK-28631
+
+	  Change-Id: Ia74d084799fbb9bee3403e30d2391aacd46243cc
+
+2019-11-22 09:31 +0000 [395b224447]  Ben Ford <bford@digium.com>
+
+	* Add directories and README files for staging changes.
+
+	  While doing a release, problems were encountered running the
+	  process-staging-changes script. These directories and the README.md
+	  files were missing from the certified branches. Adding them in to be in
+	  line with the other branches.
+
+	  Also fixing the .gitreview file to point to the correct branch.
+
+	  Change-Id: Ia9e2ecce31ef35838da5f3166aac321b577d16c2
+
 2019-11-21 21:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.21-cert5 Released.

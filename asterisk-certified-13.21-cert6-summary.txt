@@ -1,0 +1,109 @@
+                                Release Summary
+
+                         asterisk-certified/13.21-cert6
+
+                                Date: 2019-12-23
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.21-cert5.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                          Testers             Reporters              
+   1 Thomas Arimont (license 5525)                     1 Ross Beer            
+   1 Ben Ford                      
+   1 Joshua Colp                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_parking
+
+   ASTERISK-28631: res_parking: Doesn't park when parkee and parker are the
+   same
+   Reported by: Ross Beer
+     * [8807f80ac9] Joshua Colp -- parking: Fall back to parker channel name
+       even if it matches parkee.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | c59bc91f77 | Thomas Arimont | channel.c: Resolve issue with receiving  |
+   |            |                | SIP INFO packets for DTMF                |
+   |------------+----------------+------------------------------------------|
+   | 395b224447 | Ben Ford       | Add directories and README files for     |
+   |            |                | staging changes.                         |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .gitreview                    |    2
+ doc/CHANGES-staging/README.md |   37 ++++++++++++++
+ doc/UPGRADE-staging/README.md |   36 ++++++++++++++
+ main/channel.c                |  105 ++++++++++++++++++++++++++++++++++++++++--
+ res/parking/parking_bridge.c  |   13 +++--
+ 5 files changed, 185 insertions(+), 8 deletions(-)
