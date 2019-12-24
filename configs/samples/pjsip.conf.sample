@@ -251,6 +251,7 @@
 ;endpoint=mytrunk
 ;match=198.51.100.1
 ;match=198.51.100.2
+;match=192.168.10.0:5061/24
 
 
 ;=============ENDPOINT CONFIGURED AS A TRUNK, INBOUND AUTH AND REGISTRATION===
