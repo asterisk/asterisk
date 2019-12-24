@@ -572,7 +572,7 @@ static void debug_ha_sense_appended(struct ast_ha *ha)
 		ha->sense);
 }
 
-struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
+static struct ast_ha *append_ha_core(const char *sense, const char *stuff, struct ast_ha *path, int *error, int port_flags)
 {
 	struct ast_ha *ha;
 	struct ast_ha *prev = NULL;
@@ -589,6 +589,8 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	}
 
 	while ((tmp = strsep(&list, ","))) {
+		uint16_t save_port;
+
 		if (!(ha = ast_calloc(1, sizeof(*ha)))) {
 			if (error) {
 				*error = 1;
@@ -610,13 +612,18 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 			ha->sense = allowing;
 		}
 
-		if (!ast_sockaddr_parse(&ha->addr, address, PARSE_PORT_FORBID)) {
+		if (!ast_sockaddr_parse(&ha->addr, address, port_flags)) {
 			ast_log(LOG_WARNING, "Invalid IP address: %s\n", address);
 			ast_free_ha(ha);
 			if (error) {
 				*error = 1;
 			}
 			return ret;
+		}
+
+		/* Be pedantic and zero out the port if we don't want it */
+		if ((port_flags & PARSE_PORT_MASK) == PARSE_PORT_FORBID) {
+			ast_sockaddr_set_port(&ha->addr, 0);
 		}
 
 		/* If someone specifies an IPv4-mapped IPv6 address,
@@ -667,6 +674,10 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 			return ret;
 		}
 
+		/* ast_sockaddr_apply_netmask() does not preserve the port, so we need to save and
+		 * restore it */
+		save_port = ast_sockaddr_port(&ha->addr);
+
 		if (ast_sockaddr_apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
 			/* This shouldn't happen because ast_sockaddr_parse would
 			 * have failed much earlier on an unsupported address scheme
@@ -680,6 +691,8 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 			}
 			return ret;
 		}
+
+		ast_sockaddr_set_port(&ha->addr, save_port);
 
 		if (prev) {
 			prev->next = ha;
@@ -696,12 +709,30 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 	return ret;
 }
 
+struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
+{
+	return append_ha_core(sense, stuff, path, error, PARSE_PORT_FORBID);
+}
+
+struct ast_ha *ast_append_ha_with_port(const char *sense, const char *stuff, struct ast_ha *path, int *error)
+{
+	return append_ha_core(sense, stuff, path, error, 0);
+}
+
 void ast_ha_join(const struct ast_ha *ha, struct ast_str **buf)
 {
 	for (; ha; ha = ha->next) {
+		const char *addr;
+
+		if (ast_sockaddr_port(&ha->addr)) {
+			addr = ast_sockaddr_stringify(&ha->addr);
+		} else {
+			addr = ast_sockaddr_stringify_addr(&ha->addr);
+		}
+
 		ast_str_append(buf, 0, "%s%s/",
 			ha->sense == AST_SENSE_ALLOW ? "!" : "",
-			ast_sockaddr_stringify_addr(&ha->addr));
+			addr);
 		/* Separated to avoid duplicating stringified addresses. */
 		ast_str_append(buf, 0, "%s", ast_sockaddr_stringify_addr(&ha->netmask));
 		if (ha->next) {
@@ -783,6 +814,7 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 		struct ast_sockaddr result;
 		struct ast_sockaddr mapped_addr;
 		const struct ast_sockaddr *addr_to_use;
+		uint16_t save_port;
 #if 0	/* debugging code */
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
@@ -818,13 +850,22 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 			}
 		}
 
+		/* ast_sockaddr_apply_netmask() does not preserve the port, so we need to save and
+		 * restore it */
+		save_port = ast_sockaddr_port(addr_to_use);
+
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if (ast_sockaddr_apply_netmask(addr_to_use, &current_ha->netmask, &result)) {
 			/* Unlikely to happen since we know the address to be IPv4 or IPv6 */
 			continue;
 		}
-		if (!ast_sockaddr_cmp_addr(&result, &current_ha->addr)) {
+
+		ast_sockaddr_set_port(&result, save_port);
+
+		if (!ast_sockaddr_cmp_addr(&result, &current_ha->addr)
+		   && (!ast_sockaddr_port(&current_ha->addr)
+			  || ast_sockaddr_port(&current_ha->addr) == ast_sockaddr_port(&result))) {
 			res = current_ha->sense;
 		}
 	}
