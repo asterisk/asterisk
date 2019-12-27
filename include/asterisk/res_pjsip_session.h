@@ -167,6 +167,8 @@ struct ast_sip_session {
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
 	pjsip_uri *request_uri;
+	/*! Joint capabilities */
+	struct ast_format_cap *joint_caps;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);

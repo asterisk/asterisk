@@ -771,7 +771,8 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 	 * raw read format BEFORE the native format check
 	 */
 	if (!session->endpoint->asymmetric_rtp_codec &&
-		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL &&
+		ast_format_cap_iscompatible_format(session->joint_caps, f->subclass.format) == AST_FORMAT_CMP_EQUAL) {
 		struct ast_format_cap *caps;
 
 		/* For maximum compatibility we ensure that the formats match that of the received media */

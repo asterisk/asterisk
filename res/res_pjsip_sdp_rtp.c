@@ -408,6 +408,9 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 
 	if (session->channel) {
 		ast_channel_lock(session->channel);
+		ast_format_cap_remove_by_type(session->joint_caps, media_type);
+		ast_format_cap_append_from_cap(session->joint_caps, joint, media_type);
+
 		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);
