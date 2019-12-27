@@ -2223,6 +2223,18 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							continue;
 						}
 
+						/* If there is a UTF-8 BOM, skip over it */
+						if (lineno == 1) {
+#define UTF8_BOM "\xEF\xBB\xBF"
+							size_t line_bytes = strlen(buf);
+							size_t bom_bytes = sizeof(UTF8_BOM) - 1;
+							if (line_bytes >= bom_bytes
+							   && !memcmp(buf, UTF8_BOM, bom_bytes)) {
+								memmove(buf, &buf[bom_bytes], line_bytes - bom_bytes + 1);
+							}
+#undef UTF8_BOM
+						}
+
 						if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)
 							&& lline_buffer
 							&& ast_str_strlen(lline_buffer)) {
