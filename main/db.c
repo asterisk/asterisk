@@ -1081,11 +1081,12 @@ static void astdb_atexit(void)
 
 int astdb_init(void)
 {
+	ast_cond_init(&dbcond, NULL);
+
 	if (db_init()) {
 		return -1;
 	}
 
-	ast_cond_init(&dbcond, NULL);
 	if (ast_pthread_create_background(&syncthread, NULL, db_sync_thread, NULL)) {
 		return -1;
 	}
