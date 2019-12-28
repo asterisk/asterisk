@@ -323,14 +323,14 @@
 			Evaluates a channel expression
 		</synopsis>
 		<syntax>
-			<parameter name="variablename" required="true" />
+			<parameter name="${variablename}" required="true" />
 			<parameter name="channel name" />
 		</syntax>
 		<description>
 			<para>Returns <literal>0</literal> if <replaceable>variablename</replaceable> is not set
 			or channel does not exist. Returns <literal>1</literal> if <replaceable>variablename</replaceable>
 			is set and returns the variable in parenthesis. Understands complex variable names and builtin
-			variables, unlike GET VARIABLE.</para>
+			variables, and must be enclosed in ${dollar_braces} unlike GET VARIABLE.</para>
 			<para>Example return code: 200 result=1 (testvariable)</para>
 		</description>
 		<see-also>
