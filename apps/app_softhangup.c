@@ -117,7 +117,7 @@ static int softhangup_exec(struct ast_channel *chan, const char *data)
 				*cut = 0;
 		}
 		if (!strcasecmp(name, args.channel)) {
-			ast_log(LOG_WARNING, "Soft hanging %s up.\n", ast_channel_name(c));
+			ast_verb(4, "Soft hanging %s up.\n", ast_channel_name(c));
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			if (!ast_test_flag(&flags, OPTION_ALL)) {
 				ast_channel_unlock(c);
