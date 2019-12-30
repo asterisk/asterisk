@@ -43,17 +43,28 @@
 			Join a bridge that contains the specified channel.
 		</synopsis>
 		<syntax>
-			<parameter name="name">
-				<para>Name of the channel in an existing bridge
-				</para>
+			<parameter name="channel" required="true">
+				<para>The current channel joins the bridge containing the channel
+				identified by the channel name, channel name prefix, or channel
+				uniqueid.</para>
 			</parameter>
 		</syntax>
 		<description>
 			<para>This application places the incoming channel into
 			the bridge containing the specified channel. The specified
 			channel only needs to be the prefix of a full channel name
-			IE. 'SIP/cisco0001'.
+			IE. 'PJSIP/cisco0001'.
 			</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="BRIDGERESULT">
+					<para>The result of the bridge attempt as a text string.</para>
+					<value name="SUCCESS" />
+					<value name="FAILURE" />
+					<value name="LOOP" />
+					<value name="NONEXISTENT" />
+				</variable>
+			</variablelist>
 		</description>
 	</application>
  ***/
@@ -66,15 +77,28 @@ static int bridgeadd_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features chan_features;
 	struct ast_bridge *bridge;
 	char *c_name;
+	int failed;
 
 	/* Answer the channel if needed */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 
-	if (!(c_ref = ast_channel_get_by_name_prefix(data, strlen(data)))) {
-		ast_log(LOG_WARNING, "Channel %s not found\n", data);
-		return -1;
+	if (ast_strlen_zero(data)) {
+		data = "";
+		c_ref = NULL;
+	} else {
+		c_ref = ast_channel_get_by_name_prefix(data, strlen(data));
+	}
+	if (!c_ref) {
+		ast_verb(4, "Channel '%s' not found\n", data);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
+		return 0;
+	}
+	if (chan == c_ref) {
+		ast_channel_unref(c_ref);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "LOOP");
+		return 0;
 	}
 
 	c_name = ast_strdupa(ast_channel_name(c_ref));
@@ -86,26 +110,24 @@ static int bridgeadd_exec(struct ast_channel *chan, const char *data)
 	ast_channel_unref(c_ref);
 
 	if (!bridge) {
-		ast_log(LOG_WARNING, "Channel %s is not in a bridge\n", c_name);
-		return -1;
+		ast_verb(4, "Channel '%s' is not in a bridge\n", c_name);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "FAILURE");
+		return 0;
 	}
 
-	ast_verb(3, "%s is joining %s in bridge %s\n", ast_channel_name(chan),
-		c_name, bridge->uniqueid);
+	ast_verb(4, "%s is joining %s in bridge %s\n",
+		ast_channel_name(chan), c_name, bridge->uniqueid);
 
-	if (ast_bridge_features_init(&chan_features)
-		|| ast_bridge_join(bridge, chan, NULL, &chan_features, NULL, 0)) {
-
-		ast_log(LOG_WARNING, "%s failed to join %s in bridge %s\n", ast_channel_name(chan),
-			 c_name, bridge->uniqueid);
-
-		ast_bridge_features_cleanup(&chan_features);
-		ao2_cleanup(bridge);
-		return -1;
+	failed = ast_bridge_features_init(&chan_features)
+		|| ast_bridge_join(bridge, chan, NULL, &chan_features, NULL, 0);
+	if (failed) {
+		ast_verb(4, "%s failed to join %s in bridge %s\n",
+			ast_channel_name(chan), c_name, bridge->uniqueid);
 	}
 
 	ast_bridge_features_cleanup(&chan_features);
 	ao2_cleanup(bridge);
+	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", failed ? "FAILURE" : "SUCCESS");
 	return 0;
 }
 
