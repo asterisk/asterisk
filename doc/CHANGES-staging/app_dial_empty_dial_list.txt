@@ -1,0 +1,6 @@
+Subject: app_dial
+
+The Dial application now tolerates empty positions in the supplied
+destination list.  Dialplan can now be simplified by not having to check
+for empty positions in the destination list.  If there are no endpoints to
+dial then DIALSTATUS is set to CHANUNAVAIL.
