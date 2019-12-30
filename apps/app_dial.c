@@ -75,7 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Attempt to connect to another device or endpoint and bridge the call.
 		</synopsis>
 		<syntax>
-			<parameter name="Technology/Resource" required="true" argsep="&amp;">
+			<parameter name="Technology/Resource" required="false" argsep="&amp;">
 				<argument name="Technology/Resource" required="true">
 					<para>Specification of the device(s) to dial.  These must be in the format of
 					<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
@@ -1000,7 +1000,8 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			 * any Dial operations that happen later won't record CC interfaces.
 			 */
 			ast_ignore_cc(o->chan);
-			ast_log(LOG_NOTICE, "Not accepting call completion offers from call-forward recipient %s\n", ast_channel_name(o->chan));
+			ast_verb(3, "Not accepting call completion offers from call-forward recipient %s\n",
+				ast_channel_name(o->chan));
 		} else
 			ast_log(LOG_NOTICE,
 				"Forwarding failed to create channel to dial '%s/%s' (cause = %d)\n",
@@ -2016,7 +2017,7 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 		/* well, there seems basically two choices. Just patch the caller thru immediately,
 			  or,... put 'em thru to voicemail. */
 		/* since the callee may have hung up, let's do the voicemail thing, no database decision */
-		ast_log(LOG_NOTICE, "privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
+		ast_verb(3, "privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
 		/* XXX should we set status to DENY ? */
 		/* XXX what about the privacy flags ? */
 		break;
@@ -2307,12 +2308,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		return -1;
 	}
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Dial requires an argument (technology/resource)\n");
-		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
-		return -1;
-	}
-
 	if (ast_check_hangup_locked(chan)) {
 		/*
 		 * Caller hung up before we could dial.  If dial is executed
@@ -2331,18 +2326,12 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		return -1;
 	}
 
-	parse = ast_strdupa(data);
+	parse = ast_strdupa(data ?: "");
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options) &&
 		ast_app_parse_options64(dial_exec_options, &opts, opt_args, args.options)) {
-		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
-		goto done;
-	}
-
-	if (ast_strlen_zero(args.peers)) {
-		ast_log(LOG_WARNING, "Dial requires an argument (technology/resource)\n");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		goto done;
 	}
@@ -2372,7 +2361,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	if (ast_test_flag64(&opts, OPT_DURATION_STOP) && !ast_strlen_zero(opt_args[OPT_ARG_DURATION_STOP])) {
 		calldurationlimit.tv_sec = atoi(opt_args[OPT_ARG_DURATION_STOP]);
 		if (!calldurationlimit.tv_sec) {
-			ast_log(LOG_WARNING, "Dial does not accept S(%s), hanging up.\n", opt_args[OPT_ARG_DURATION_STOP]);
+			ast_log(LOG_WARNING, "Dial does not accept S(%s)\n", opt_args[OPT_ARG_DURATION_STOP]);
 			pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 			goto done;
 		}
@@ -2519,14 +2508,23 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 	/* loop through the list of dial destinations */
 	rest = args.peers;
-	while ((cur = strsep(&rest, "&")) ) {
+	while ((cur = strsep(&rest, "&"))) {
 		struct ast_channel *tc; /* channel for this destination */
-		/* Get a technology/resource pair */
-		char *number = cur;
-		char *tech = strsep(&number, "/");
+		char *number;
+		char *tech;
 		size_t tech_len;
 		size_t number_len;
 		struct ast_format_cap *nativeformats;
+
+		cur = ast_strip(cur);
+		if (ast_strlen_zero(cur)) {
+			/* No tech/resource in this position. */
+			continue;
+		}
+
+		/* Get a technology/resource pair */
+		number = cur;
+		tech = strsep(&number, "/");
 
 		num_dialed++;
 		if (ast_strlen_zero(number)) {
@@ -2724,6 +2722,17 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		/* Put channel in the list of outgoing thingies. */
 		tmp->chan = tc;
 		AST_LIST_INSERT_TAIL(&out_chans, tmp, node);
+	}
+
+	if (AST_LIST_EMPTY(&out_chans)) {
+		ast_verb(3, "No devices or endpoints to dial (technology/resource)\n");
+		if (continue_exec) {
+			/* There is no point in having RetryDial try again */
+			*continue_exec = 1;
+		}
+		strcpy(pa.status, "CHANUNAVAIL");
+		res = 0;
+		goto out;
 	}
 
 	/*
