@@ -1,0 +1,5 @@
+Subject: app_chanisavail
+
+The ChanIsAvail application now tolerates empty positions in the supplied
+device list.  Dialplan can now be simplified by not having to check for
+empty positions in the device list.
