@@ -228,6 +228,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="t38timeout">
 						<para>R/W The timeout used for T.38 negotiation.</para>
 					</enum>
+					<enum name="negotiate_both">
+						<para>R/W Upon v21 detection allow gateway to send negotiation requests to both T.38 endpoints, and do not wait on the "other" side to initiate (yes|no)</para>
+					</enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -724,6 +727,7 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->gateway_id = -1;
 	d->faxdetect_id = -1;
 	d->gateway_timeout = 0;
+	d->negotiate_both = 0;
 
 	return d;
 }
@@ -3023,6 +3027,22 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 		enum ast_t38_state state_other;
 		enum ast_t38_state state_active;
 		struct ast_frame *fp;
+		struct ast_fax_session_details *details;
+		int negotiate_both = 0;
+
+		/*
+		 * The default behavior is to wait for the active endpoint to initiate negotiation.
+		 * Find out if this has been overridden. If so, instead of waiting have Asterisk
+		 * initiate the negotiation requests out to both endpoints.
+		 */
+		details = find_or_create_details(active);
+		if (details) {
+			negotiate_both = details->negotiate_both;
+			ao2_ref(details, -1);
+		} else {
+			ast_log(LOG_WARNING, "Detect v21 - no session details for channel '%s'\n",
+					ast_channel_name(chan));
+		}
 
 		destroy_v21_sessions(gateway);
 
@@ -3039,7 +3059,7 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 			}
 			/* May be called endpoint is improperly configured to rely on the calling endpoint
 			 * to initiate T.38 re-INVITEs, send T.38 negotiation request to called endpoint */
-			if (state_active == T38_STATE_UNKNOWN) {
+			if (negotiate_both && state_active == T38_STATE_UNKNOWN) {
 				ast_debug(1, "sending T.38 negotiation request to %s\n", ast_channel_name(active));
 				if (active == chan) {
 					ast_channel_unlock(chan);
@@ -4557,6 +4577,8 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 		ast_fax_modem_to_str(details->modems, buf, len);
 	} else if (!strcasecmp(data, "t38timeout")) {
 		snprintf(buf, len, "%u", details->t38timeout);
+	} else if (!strcasecmp(data, "negotiate_both")) {
+		ast_copy_string(buf, details->negotiate_both != -1 ? "yes" : "no", len);
 	} else {
 		ast_log(LOG_WARNING, "channel '%s' can't read FAXOPT(%s) because it is unhandled!\n", ast_channel_name(chan), data);
 		res = -1;
@@ -4695,6 +4717,8 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		}
 	} else if ((!strcasecmp(data, "modem")) || (!strcasecmp(data, "modems"))) {
 		update_modem_bits(&details->modems, value);
+	} else if (!strcasecmp(data, "negotiate_both")) {
+		details->negotiate_both = ast_true(ast_skip_blanks(value));
 	} else {
 		ast_log(LOG_WARNING, "channel '%s' set FAXOPT(%s) to '%s' is unhandled!\n", ast_channel_name(chan), data, value);
 		res = -1;
