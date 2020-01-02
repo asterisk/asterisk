@@ -911,7 +911,8 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
  * \brief Delete a topic from the topic pool
  *
  * \param pool Pool from which to delete the topic
- * \param topic_name Name of the topic to delete
+ * \param topic_name Name of the topic to delete in the form of
+ *                   <pool_topic_name>/<topic_name> or just <topic_name>
  *
  * \since 13.24
  * \since 15.6

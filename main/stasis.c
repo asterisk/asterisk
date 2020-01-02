@@ -1711,7 +1711,22 @@ struct stasis_topic_pool *stasis_topic_pool_create(struct stasis_topic *pooled_t
 
 void stasis_topic_pool_delete_topic(struct stasis_topic_pool *pool, const char *topic_name)
 {
-	ao2_find(pool->pool_container, topic_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
+	/*
+	 * The topic_name passed in could be a fully-qualified name like <pool_topic_name>/<topic_name>
+	 * or just <topic_name>.  If it's fully qualified, we need to skip past <pool_topic_name>
+	 * name and search only on <topic_name>.
+	 */
+	const char *pool_topic_name = stasis_topic_name(pool->pool_topic);
+	int pool_topic_name_len = strlen(pool_topic_name);
+	const char *search_topic_name;
+
+	if (strncmp(pool_topic_name, topic_name, pool_topic_name_len) == 0) {
+		search_topic_name = topic_name + pool_topic_name_len + 1;
+	} else {
+		search_topic_name = topic_name;
+	}
+
+	ao2_find(pool->pool_container, search_topic_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 }
 
 struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool, const char *topic_name)
