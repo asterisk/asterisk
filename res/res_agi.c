@@ -323,15 +323,21 @@
 			Evaluates a channel expression
 		</synopsis>
 		<syntax>
-			<parameter name="variablename" required="true" />
-			<parameter name="channel name" />
+			<parameter name="expression" required="true" />
+			<parameter name="channelname" />
 		</syntax>
 		<description>
-			<para>Returns <literal>0</literal> if <replaceable>variablename</replaceable> is not set
-			or channel does not exist. Returns <literal>1</literal> if <replaceable>variablename</replaceable>
-			is set and returns the variable in parenthesis. Understands complex variable names and builtin
-			variables, unlike GET VARIABLE.</para>
-			<para>Example return code: 200 result=1 (testvariable)</para>
+			<para>Evaluates the given <replaceable>expression</replaceable> against the
+			channel specified by <replaceable>channelname</replaceable>, or the current
+			channel if <replaceable>channelname</replaceable> is not provided.</para>
+			<para>Unlike GET VARIABLE, the <replaceable>expression</replaceable> is
+			processed in a manner similar to dialplan evaluation, allowing complex
+			and built-in variables to be accessed, e.g. <literal>The time is
+			${EPOCH}</literal></para>
+			<para>Returns <literal>0</literal> if no channel matching
+			<replaceable>channelname</replaceable> exists, <literal>1</literal>
+			otherwise.</para>
+			<para>Example return code: 200 result=1 (The time is 1578493800)</para>
 		</description>
 		<see-also>
 			<ref type="agi">get variable</ref>
