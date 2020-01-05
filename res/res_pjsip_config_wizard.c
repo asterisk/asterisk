@@ -1103,18 +1103,17 @@ static void object_type_loaded_observer(const char *name,
 	while ((category = ast_category_browse_filtered(cfg, NULL, category, "type=^wizard$"))) {
 		const char *id = ast_category_get_name(category);
 		struct ast_category *last_cat = NULL;
-		struct ast_variable *change_set = NULL;
+		int changes = 0;
 
 		if (otw->last_config) {
 			last_cat = ast_category_get(otw->last_config, id, "type=^wizard$");
-			ast_sorcery_changeset_create(ast_category_first(category), ast_category_first(last_cat), &change_set);
+			changes = !ast_variable_lists_match(ast_category_first(category), ast_category_first(last_cat), 1);
 			if (last_cat) {
 				ast_category_delete(otw->last_config, last_cat);
 			}
 		}
 
-		if (!last_cat || change_set) {
-			ast_variables_destroy(change_set);
+		if (!last_cat || changes) {
 			ast_debug(3, "%s: %s(s) for wizard '%s'\n", reloaded ? "Reload" : "Load", object_type, id);
 			if (wizard_apply_handler(sorcery, otw, category)) {
 				ast_log(LOG_ERROR, "Unable to create objects for wizard '%s'\n", id);
