@@ -945,7 +945,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 {
 	int i;
 	struct ast_stream_topology *topology;
-	unsigned int changed = 0;
+	unsigned int changed = 0; /* 0 = unchanged, 1 = new source, 2 = new topology */
 
 	if (!session->pending_media_state->topology) {
 		if (session->active_media_state->topology) {
@@ -1057,6 +1057,14 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	topology = ast_stream_topology_clone(session->pending_media_state->topology);
 	if (topology) {
 		ast_channel_set_stream_topology(session->channel, topology);
+		/* If this is a remotely done renegotiation that has changed the stream topology notify what is
+		 * currently handling this channel.
+		 */
+		if (pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE &&
+			session->active_media_state && session->active_media_state->topology &&
+			!ast_stream_topology_equal(session->active_media_state->topology, topology)) {
+			changed = 2;
+		}
 	}
 
 	/* Remove all current file descriptors from the channel */
@@ -1079,10 +1087,12 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 
 	ast_channel_unlock(session->channel);
 
-	if (changed) {
+	if (changed == 1) {
 		struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED };
 
 		ast_queue_frame(session->channel, &f);
+	} else if (changed == 2) {
+		ast_channel_stream_topology_changed_externally(session->channel);
 	} else {
 		ast_queue_frame(session->channel, &ast_null_frame);
 	}
@@ -1875,6 +1885,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		enum ast_media_type type;
 		struct ast_sip_session_media *session_media = NULL;
 		enum ast_sip_session_sdp_stream_defer res;
+		pjmedia_sdp_media *remote_stream = sdp->media[i];
 
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
@@ -1901,6 +1912,25 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		session_media = ast_sip_session_media_state_add(session, session->pending_media_state, ast_media_type_from_str(media), i);
 		if (!session_media) {
 			return -1;
+		}
+
+		/* For backwards compatibility with the core default streams are always sendrecv */
+		if (!ast_sip_session_is_pending_stream_default(session, stream)) {
+			if (pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
+				/* Stream state reflects our state of a stream, so in the case of
+				 * sendonly and recvonly we store the opposite since that is what ours
+				 * is.
+				 */
+				ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+			} else if (pjmedia_sdp_media_find_attr2(remote_stream, "recvonly", NULL)) {
+				ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+			} else if (pjmedia_sdp_media_find_attr2(remote_stream, "inactive", NULL)) {
+				ast_stream_set_state(stream, AST_STREAM_STATE_INACTIVE);
+			} else {
+				ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
+			}
+		} else {
+			ast_stream_set_state(stream, AST_STREAM_STATE_SENDRECV);
 		}
 
 		if (session_media->handler) {

@@ -96,8 +96,9 @@ struct ast_stream_topology {
 struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 {
 	struct ast_stream *stream;
+	size_t name_len = MAX(strlen(S_OR(name, "")), 7); /* Ensure there is enough room for 'removed' */
 
-	stream = ast_calloc(1, sizeof(*stream) + strlen(S_OR(name, "")) + 1);
+	stream = ast_calloc(1, sizeof(*stream) + name_len + 1);
 	if (!stream) {
 		return NULL;
 	}
@@ -113,16 +114,16 @@ struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char *name)
 {
 	struct ast_stream *new_stream;
-	size_t stream_size;
 	const char *stream_name;
+	size_t name_len;
 
 	if (!stream) {
 		return NULL;
 	}
 
 	stream_name = name ?: stream->name;
-	stream_size = sizeof(*stream) + strlen(stream_name) + 1;
-	new_stream = ast_calloc(1, stream_size);
+	name_len = MAX(strlen(stream_name), 7); /* Ensure there is enough room for 'removed' */
+	new_stream = ast_calloc(1, sizeof(*stream) + name_len + 1);
 	if (!new_stream) {
 		return NULL;
 	}
@@ -205,6 +206,19 @@ void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state
 	ast_assert(stream != NULL);
 
 	stream->state = state;
+
+	/* When a stream is set to removed that means that any previous data for it
+	 * is no longer valid. We therefore change its name to removed and remove
+	 * any old metadata associated with it.
+	 */
+	if (state == AST_STREAM_STATE_REMOVED) {
+		strcpy(stream->name, "removed");
+		ast_variables_destroy(stream->metadata);
+		stream->metadata = NULL;
+		if (stream->formats) {
+			ast_format_cap_remove_by_type(stream->formats, AST_MEDIA_TYPE_UNKNOWN);
+		}
+	}
 }
 
 const char *ast_stream_state2str(enum ast_stream_state state)
