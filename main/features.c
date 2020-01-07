@@ -84,7 +84,9 @@
 		</synopsis>
 		<syntax>
 			<parameter name="channel" required="true">
-				<para>The current channel is bridged to the specified <replaceable>channel</replaceable>.</para>
+				<para>The current channel is bridged to the channel
+				identified by the channel name, channel name prefix, or channel
+				uniqueid.</para>
 			</parameter>
 			<parameter name="options">
 				<optionlist>
@@ -893,7 +895,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
 		config->warning_freq = atol(warnfreq_str);
 
 	if (!config->timelimit) {
-		ast_log(LOG_WARNING, "Bridge does not accept L(%s), hanging up.\n", limit_str);
+		ast_log(LOG_WARNING, "Bridge does not accept L(%s)\n", limit_str);
 		config->timelimit = config->play_warning = config->warning_freq = 0;
 		config->warning_sound = NULL;
 		return -1; /* error */
@@ -996,7 +998,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
  */
 static int bridge_exec(struct ast_channel *chan, const char *data)
 {
-	struct ast_channel *current_dest_chan;
+	struct ast_channel *current_dest_chan = NULL;
 	char *tmp_data  = NULL;
 	struct ast_flags opts = { 0, };
 	struct ast_bridge_config bconfig = { { 0, }, };
@@ -1017,22 +1019,20 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Bridge require at least 1 argument specifying the other end of the bridge\n");
-		return -1;
+	tmp_data = ast_strdupa(data ?: "");
+	AST_STANDARD_APP_ARGS(args, tmp_data);
+	if (!ast_strlen_zero(args.options)) {
+		ast_app_parse_options(bridge_exec_options, &opts, opt_args, args.options);
 	}
 
-	tmp_data = ast_strdupa(data);
-	AST_STANDARD_APP_ARGS(args, tmp_data);
-	if (!ast_strlen_zero(args.options))
-		ast_app_parse_options(bridge_exec_options, &opts, opt_args, args.options);
-
 	/* make sure we have a valid end point */
-	current_dest_chan = ast_channel_get_by_name_prefix(args.dest_chan,
-		strlen(args.dest_chan));
+	if (!ast_strlen_zero(args.dest_chan)) {
+		current_dest_chan = ast_channel_get_by_name_prefix(args.dest_chan,
+			strlen(args.dest_chan));
+	}
 	if (!current_dest_chan) {
-		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exist\n",
-			args.dest_chan);
+		ast_verb(4, "Bridge failed because channel '%s' does not exist\n",
+			args.dest_chan ?: "");
 		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
 		return 0;
 	}
