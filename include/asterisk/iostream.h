@@ -127,6 +127,20 @@ void ast_iostream_set_exclusive_input(struct ast_iostream *stream, int exclusive
 int ast_iostream_get_fd(struct ast_iostream *stream);
 
 /*!
+ * \brief Wait for input on the iostream's file descriptor
+ * \since 16.8.0
+ * \since 17.2.0
+ *
+ * \param stream A pointer to an iostream
+ * \param timeout the number of milliseconds to wait
+ *
+ * \retval -1 if error occurred
+ * \retval 0 if the timeout expired
+ * \retval 1 if the stream is ready for reading
+ */
+int ast_iostream_wait_for_input(struct ast_iostream *stream, int timeout);
+
+/*!
  * \brief Make an iostream non-blocking.
  *
  * \param stream A pointer to an iostream
