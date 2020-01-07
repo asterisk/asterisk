@@ -1,0 +1,5 @@
+Subject: app_page
+
+The Page application now tolerates empty positions in the supplied
+destination list.  Dialplan can now be simplified by not having to check
+for empty positions in the destination list.

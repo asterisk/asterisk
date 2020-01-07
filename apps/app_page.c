@@ -48,7 +48,7 @@
 			Page series of phones
 		</synopsis>
 		<syntax>
-			<parameter name="Technology/Resource" required="true" argsep="&amp;">
+			<parameter name="Technology/Resource" required="false" argsep="&amp;">
 				<argument name="Technology/Resource" required="true">
 					<para>Specification of the device(s) to dial. These must be in the format of
 					<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
@@ -270,17 +270,12 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(timeout);
 	);
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
-		return -1;
-	}
-
 	if (!(app = pbx_findapp("ConfBridge"))) {
 		ast_log(LOG_WARNING, "There is no ConfBridge application available!\n");
 		return -1;
 	};
 
-	parse = ast_strdupa(data);
+	parse = ast_strdupa(data ?: "");
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -301,7 +296,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 
 	/* Count number of extensions in list by number of ampersands + 1 */
 	num_dials = 1;
-	tmp = args.devices;
+	tmp = args.devices ?: "";
 	while (*tmp) {
 		if (*tmp == '&') {
 			num_dials++;
@@ -334,13 +329,20 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		int state = 0;
 		struct ast_dial *dial = NULL;
 
-		/* don't call the originating device */
-		if (!strcasecmp(tech, originator))
+		tech = ast_strip(tech);
+		if (ast_strlen_zero(tech)) {
+			/* No tech/resource in this position. */
 			continue;
+		}
+
+		/* don't call the originating device */
+		if (!strcasecmp(tech, originator)) {
+			continue;
+		}
 
 		/* If no resource is available, continue on */
 		if (!(resource = strchr(tech, '/'))) {
-			ast_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
+			ast_log(LOG_WARNING, "Incomplete destination: '%s' supplied.\n", tech);
 			continue;
 		}
 
@@ -348,9 +350,11 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		if (ast_test_flag(&options.flags, PAGE_SKIP)) {
 			state = ast_device_state(tech);
 			if (state == AST_DEVICE_UNKNOWN) {
-				ast_log(LOG_WARNING, "Destination '%s' has device state '%s'. Paging anyway.\n", tech, ast_devstate2str(state));
+				ast_verb(3, "Destination '%s' has device state '%s'. Paging anyway.\n",
+					tech, ast_devstate2str(state));
 			} else if (state != AST_DEVICE_NOT_INUSE) {
-				ast_log(LOG_WARNING, "Destination '%s' has device state '%s'.\n", tech, ast_devstate2str(state));
+				ast_verb(3, "Destination '%s' has device state '%s'.\n",
+					tech, ast_devstate2str(state));
 				continue;
 			}
 		}
@@ -365,7 +369,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 
 		/* Append technology and resource */
 		if (ast_dial_append(dial, tech, resource, NULL) == -1) {
-			ast_log(LOG_ERROR, "Failed to add %s to outbound dial\n", tech);
+			ast_log(LOG_ERROR, "Failed to add %s/%s to outbound dial\n", tech, resource);
 			ast_dial_destroy(dial);
 			continue;
 		}
