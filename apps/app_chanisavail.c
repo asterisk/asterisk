@@ -51,16 +51,18 @@ static const char app[] = "ChanIsAvail";
 			Check channel availability
 		</synopsis>
 		<syntax>
-			<parameter name="Technology/Resource" required="true" argsep="&amp;">
+			<parameter name="Technology/Resource" required="false" argsep="&amp;">
+				<argument name="Technology/Resource" required="true">
+					<para>Specification of the device(s) to check.  These must be in the format of
+					<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
+					represents a particular channel driver, and <replaceable>Resource</replaceable>
+					represents a resource available to that particular channel driver.</para>
+				</argument>
 				<argument name="Technology2/Resource2" multiple="true">
 					<para>Optional extra devices to check</para>
 					<para>If you need more than one enter them as
 					Technology2/Resource2&amp;Technology3/Resource3&amp;.....</para>
 				</argument>
-				<para>Specification of the device(s) to check.  These must be in the format of
-				<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
-				represents a particular channel driver, and <replaceable>Resource</replaceable>
-				represents a resource available to that particular channel driver.</para>
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
@@ -99,25 +101,28 @@ static const char app[] = "ChanIsAvail";
 
 static int chanavail_exec(struct ast_channel *chan, const char *data)
 {
-	int inuse=-1, option_state=0, string_compare=0, option_all_avail=0;
+	int inuse = -1;
+	int option_state = 0;
+	int string_compare = 0;
+	int option_all_avail = 0;
 	int status;
-	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
+	char *info;
+	char trychan[512];
+	char *rest;
+	char *tech;
+	char *number;
 	struct ast_str *tmp_availchan = ast_str_alloca(2048);
 	struct ast_str *tmp_availorig = ast_str_alloca(2048);
 	struct ast_str *tmp_availstat = ast_str_alloca(2048);
 	struct ast_str *tmp_availcause = ast_str_alloca(2048);
 	struct ast_channel *tempchan;
+	struct ast_custom_function *cdr_prop_func = ast_custom_function_find("CDR_PROP");
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(reqchans);
 		AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "ChanIsAvail requires an argument (DAHDI/1&DAHDI/2)\n");
-		return -1;
-	}
-
-	info = ast_strdupa(data);
+	info = ast_strdupa(data ?: "");
 
 	AST_STANDARD_APP_ARGS(args, info);
 
@@ -132,68 +137,68 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 			string_compare = 1;
 		}
 	}
-	peers = args.reqchans;
-	if (peers) {
-		struct ast_custom_function *cdr_prop_func = ast_custom_function_find("CDR_PROP");
 
-		cur = peers;
-		do {
-			/* remember where to start next time */
-			rest = strchr(cur, '&');
-			if (rest) {
-				*rest = 0;
-				rest++;
+	rest = args.reqchans;
+	if (!rest) {
+		rest = "";
+	}
+	while ((tech = strsep(&rest, "&"))) {
+		tech = ast_strip(tech);
+
+		number = strchr(tech, '/');
+		if (!number) {
+			if (!ast_strlen_zero(tech)) {
+				ast_log(LOG_WARNING, "Invalid ChanIsAvail technology/resource argument: '%s'\n",
+					tech);
 			}
-			tech = cur;
-			number = strchr(tech, '/');
-			if (!number) {
-				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
-				return -1;
+
+			ast_str_append(&tmp_availstat, 0, "%s%d",
+				ast_str_strlen(tmp_availstat) ? "&" : "", AST_DEVICE_INVALID);
+			continue;
+		}
+		*number++ = '\0';
+
+		status = AST_DEVICE_UNKNOWN;
+
+		if (string_compare) {
+			/* ast_parse_device_state checks for "SIP/1234" as a channel name.
+			   ast_device_state will ask the SIP driver for the channel state. */
+
+			snprintf(trychan, sizeof(trychan), "%s/%s", tech, number);
+			status = inuse = ast_parse_device_state(trychan);
+		} else if (option_state) {
+			/* If the pbx says in use then don't bother trying further.
+			   This is to permit testing if someone's on a call, even if the
+			   channel can permit more calls (ie callwaiting, sip calls, etc).  */
+
+			snprintf(trychan, sizeof(trychan), "%s/%s", tech, number);
+			status = inuse = ast_device_state(trychan);
+		}
+		ast_str_append(&tmp_availstat, 0, "%s%d",
+			ast_str_strlen(tmp_availstat) ? "&" : "", status);
+		if ((inuse <= (int) AST_DEVICE_NOT_INUSE)
+			&& (tempchan = ast_request(tech, ast_channel_nativeformats(chan), NULL, chan, number, &status))) {
+			ast_str_append(&tmp_availchan, 0, "%s%s",
+				ast_str_strlen(tmp_availchan) ? "&" : "", ast_channel_name(tempchan));
+
+			ast_str_append(&tmp_availorig, 0, "%s%s/%s",
+				ast_str_strlen(tmp_availorig) ? "&" : "", tech, number);
+
+			ast_str_append(&tmp_availcause, 0, "%s%d",
+				ast_str_strlen(tmp_availcause) ? "&" : "", status);
+
+			/* Disable CDR for this temporary channel. */
+			if (cdr_prop_func) {
+				ast_func_write(tempchan, "CDR_PROP(disable)", "1");
 			}
-			*number = '\0';
-			number++;
 
-			status = AST_DEVICE_UNKNOWN;
+			ast_hangup(tempchan);
+			tempchan = NULL;
 
-			if (string_compare) {
-				/* ast_parse_device_state checks for "SIP/1234" as a channel name.
-				   ast_device_state will ask the SIP driver for the channel state. */
-
-				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
-				status = inuse = ast_parse_device_state(trychan);
-			} else if (option_state) {
-				/* If the pbx says in use then don't bother trying further.
-				   This is to permit testing if someone's on a call, even if the
-				   channel can permit more calls (ie callwaiting, sip calls, etc).  */
-
-				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
-				status = inuse = ast_device_state(trychan);
+			if (!option_all_avail) {
+				break;
 			}
-			snprintf(tmp, sizeof(tmp), "%d", status);
-			ast_str_append(&tmp_availstat, 0, "%s%s", ast_str_strlen(tmp_availstat) ? "&" : "", tmp);
-			if ((inuse <= 1) && (tempchan = ast_request(tech, ast_channel_nativeformats(chan), NULL, chan, number, &status))) {
-					ast_str_append(&tmp_availchan, 0, "%s%s", ast_str_strlen(tmp_availchan) ? "&" : "", ast_channel_name(tempchan));
-
-					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
-					ast_str_append(&tmp_availorig, 0, "%s%s", ast_str_strlen(tmp_availorig) ? "&" : "", tmp);
-
-					snprintf(tmp, sizeof(tmp), "%d", status);
-					ast_str_append(&tmp_availcause, 0, "%s%s", ast_str_strlen(tmp_availcause) ? "&" : "", tmp);
-
-					/* Disable CDR for this temporary channel. */
-					if (cdr_prop_func) {
-						ast_func_write(tempchan, "CDR_PROP(disable)", "1");
-					}
-
-					ast_hangup(tempchan);
-					tempchan = NULL;
-
-					if (!option_all_avail) {
-						break;
-					}
-			}
-			cur = rest;
-		} while (cur);
+		}
 	}
 
 	pbx_builtin_setvar_helper(chan, "AVAILCHAN", ast_str_buffer(tmp_availchan));
