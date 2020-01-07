@@ -1,0 +1,7 @@
+Subject: app_bridgeaddchan
+Master-Only: true
+
+The BridgeAdd application now behaves more like the Bridge application.
+The application now sets the BRIDGERESULT channel variable to indicate
+what happened when the channel resumes in dialplan.  This is instead of
+hanging up the channel on failure conditions.
