@@ -86,6 +86,20 @@ int ast_iostream_get_fd(struct ast_iostream *stream)
 	return stream->fd;
 }
 
+int ast_iostream_wait_for_input(struct ast_iostream *stream, int timeout)
+{
+#if defined(DO_SSL)
+	/* Because SSL is read in blocks, it's possible that the last time we read we
+	   got more than we asked for and it is now buffered inside OpenSSL. If that
+	   is the case, calling ast_wait_for_input() will block until the fd is ready
+	   for reading again, which might never happen. */
+	if (stream->ssl && SSL_pending(stream->ssl)) {
+		return 1;
+	}
+#endif
+	return ast_wait_for_input(stream->fd, timeout);
+}
+
 void ast_iostream_nonblock(struct ast_iostream *stream)
 {
 	ast_fd_set_flags(stream->fd, O_NONBLOCK);

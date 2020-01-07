@@ -338,6 +338,20 @@ AST_OPTIONAL_API(void, ast_websocket_unref, (struct ast_websocket *session), {re
 AST_OPTIONAL_API(int, ast_websocket_fd, (struct ast_websocket *session), { errno = ENOSYS; return -1;});
 
 /*!
+ * \brief Wait for the WebSocket session to be ready to be read.
+ * \since 16.8.0
+ * \since 17.2.0
+ *
+ * \param session Pointer to the WebSocket session
+ * \param timeout the number of milliseconds to wait
+ *
+ * \retval -1 if error occurred
+ * \retval 0 if the timeout expired
+ * \retval 1 if the WebSocket session is ready for reading
+ */
+AST_OPTIONAL_API(int, ast_websocket_wait_for_input, (struct ast_websocket *session, int timeout), { errno = ENOSYS; return -1; });
+
+/*!
  * \brief Get the remote address for a WebSocket connected session.
  *
  * \retval ast_sockaddr Remote address
