@@ -178,7 +178,7 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 fi
 
 if [ $NO_MAKE -eq 0 ] ; then
-	runner ${MAKE} -j8 || runner ${MAKE} -j1 NOISY_BUILD=yes
+runner ${MAKE} -j8 full || runner ${MAKE} -j1 NOISY_BUILD=yes full
 fi
 
 runner rm -f ${LCOV_DIR}/*.info
