@@ -63,7 +63,9 @@
 						hostnames.  IP addresses may have a subnet mask appended.  The
 						subnet mask may be written in either CIDR or dotted-decimal
 						notation.  Separate the IP address and subnet mask with a slash
-						('/').
+						('/'). A source port can also be specified by adding a colon (':')
+						after the address but before the subnet mask, e.g.
+						3.2.1.0:5061/24.
 						</para>
 					</description>
 				</configOption>
@@ -310,7 +312,7 @@ static int ip_identify_match_host_lookup(struct ip_identify_match *identify, con
 	int num_addrs = 0, error = 0, i;
 	int results = 0;
 
-	num_addrs = ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_UNSPEC);
+	num_addrs = ast_sockaddr_resolve(&addrs, host, 0, AST_AF_UNSPEC);
 	if (!num_addrs) {
 		return -1;
 	}
@@ -322,7 +324,7 @@ static int ip_identify_match_host_lookup(struct ip_identify_match *identify, con
 		}
 
 		/* We deny what we actually want to match because there is an implicit permit all rule for ACLs */
-		identify->matches = ast_append_ha("d", ast_sockaddr_stringify_addr(&addrs[i]), identify->matches, &error);
+		identify->matches = ast_append_ha_with_port("d", ast_sockaddr_stringify(&addrs[i]), identify->matches, &error);
 
 		if (!identify->matches || error) {
 			results = -1;
@@ -380,15 +382,20 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 	}
 
 	while ((current_string = ast_strip(strsep(&input_string, ",")))) {
-		char *mask = strrchr(current_string, '/');
+		char *mask;
+		struct ast_sockaddr address;
 		int error = 0;
 
 		if (ast_strlen_zero(current_string)) {
 			continue;
 		}
 
-		if (mask) {
-			identify->matches = ast_append_ha("d", current_string, identify->matches, &error);
+		mask = strrchr(current_string, '/');
+
+		/* If it looks like a netmask is present, or we can immediately parse as an IP,
+		 * hand things off to the ACL */
+		if (mask || ast_sockaddr_parse(&address, current_string, 0)) {
+			identify->matches = ast_append_ha_with_port("d", current_string, identify->matches, &error);
 
 			if (!identify->matches || error) {
 				ast_log(LOG_ERROR, "Failed to add address '%s' to ip endpoint identifier '%s'\n",
@@ -498,20 +505,23 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 	/* Resolve the match addresses now */
 	i = ao2_iterator_init(identify->hosts, 0);
 	while ((current_string = ao2_iterator_next(&i))) {
-		struct ast_sockaddr address;
 		int results = 0;
+		char *colon = strrchr(current_string, ':');
 
-		/* If the provided string is not an IP address perform SRV resolution on it */
-		if (identify->srv_lookups && !ast_sockaddr_parse(&address, current_string, 0)) {
-			results = ip_identify_match_srv_lookup(identify, "_sip._udp", current_string,
-				results);
-			if (results != -1) {
-				results = ip_identify_match_srv_lookup(identify, "_sip._tcp",
-					current_string, results);
-			}
-			if (results != -1) {
-				results = ip_identify_match_srv_lookup(identify, "_sips._tcp",
-					current_string, results);
+		/* We skip SRV lookup if a colon is present, assuming a port was specified */
+		if (!colon) {
+			/* No port, and we know this is not an IP address, so perform SRV resolution on it */
+			if (identify->srv_lookups) {
+				results = ip_identify_match_srv_lookup(identify, "_sip._udp", current_string,
+					results);
+				if (results != -1) {
+					results = ip_identify_match_srv_lookup(identify, "_sip._tcp",
+						current_string, results);
+				}
+				if (results != -1) {
+					results = ip_identify_match_srv_lookup(identify, "_sips._tcp",
+						current_string, results);
+				}
 			}
 		}
 
@@ -554,7 +564,14 @@ static int match_to_str(const void *obj, const intptr_t *args, char **buf)
 static void match_to_var_list_append(struct ast_variable **head, struct ast_ha *ha)
 {
 	char str[MAX_OBJECT_FIELD];
-	const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
+	const char *addr;
+
+	if (ast_sockaddr_port(&ha->addr)) {
+		addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
+	} else {
+		addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
+	}
+
 	snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
 			 addr, ast_sockaddr_stringify_addr(&ha->netmask));
 
@@ -737,7 +754,13 @@ static int cli_print_body(void *obj, void *arg, int flags)
 		indent = CLI_INDENT_TO_SPACES(context->indent_level);
 
 		for (match = ident->matches; match; match = match->next) {
-			const char *addr = ast_sockaddr_stringify_addr(&match->addr);
+			const char *addr;
+
+			if (ast_sockaddr_port(&match->addr)) {
+				addr = ast_sockaddr_stringify(&match->addr);
+			} else {
+				addr = ast_sockaddr_stringify_addr(&match->addr);
+			}
 
 			ast_str_append(&context->output_buffer, 0, "%*s: %s%s/%d\n",
 				indent,
