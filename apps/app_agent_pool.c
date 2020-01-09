@@ -92,8 +92,8 @@
 			<ref type="application">PauseQueueMember</ref>
 			<ref type="application">UnpauseQueueMember</ref>
 			<ref type="function">AGENT</ref>
-			<ref type="function">CHANNEL(dtmf_features)</ref>
-			<ref type="function">CONNECTEDLINE()</ref>
+			<ref type="function">CHANNEL</ref>
+			<ref type="function">CONNECTEDLINE</ref>
 			<ref type="filename">agents.conf</ref>
 			<ref type="filename">queues.conf</ref>
 		</see-also>
