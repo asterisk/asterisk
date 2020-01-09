@@ -1,0 +1,8 @@
+Subject: res_pjsip_endpoint_identifier_ip
+
+In 'type = identify' sections, the addresses specified for the 'match'
+clause can now include a port number. For IP addresses, the port is
+provided by including a colon after the address, followed by the
+desired port number. If supplied, the netmask should follow the port
+number. To specify a port for IPv6 addresses, the address itself must
+be enclosed in brackets to be parsed correctly.

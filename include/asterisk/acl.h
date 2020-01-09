@@ -135,6 +135,29 @@ void ast_copy_ha(const struct ast_ha *from, struct ast_ha *to);
 struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error);
 
 /*!
+ * \brief Add a new rule with optional port to a list of HAs
+ * \since 13.31.0, 16.8.0, 17.2.0
+ *
+ * \details
+ * This adds the new host access rule to the end of the list
+ * whose head is specified by the path parameter. Rules are
+ * evaluated in a way such that if multiple rules apply to
+ * a single IP address/subnet mask, then the rule latest
+ * in the list will be used.
+ *
+ * \param sense Either "permit" or "deny" (Actually any 'p' word will result
+ * in permission, and any other word will result in denial)
+ * \param stuff The IP address and subnet mask, separated with a '/'. The subnet
+ * mask can either be in dotted-decimal format or in CIDR notation (i.e. 0-32). A
+ * port can be provided by placing it after the IP address, separated with a ':'.
+ * \param path The head of the HA list to which we wish to append our new rule. If
+ * NULL is passed, then the new rule will become the head of the list
+ * \param[out] error The integer error points to will be set non-zero if an error occurs
+ * \return The head of the HA list
+ */
+struct ast_ha *ast_append_ha_with_port(const char *sense, const char *stuff, struct ast_ha *path, int *error);
+
+/*!
  * \brief Convert HAs to a comma separated string value
  * \param ha the starting ha head
  * \param buf string buffer to convert data to
