@@ -60,51 +60,15 @@ static void *dialog_info_allocate_body(void *data)
 	return ast_sip_presence_xml_create_node(state_data->pool, NULL, "dialog-info");
 }
 
-static struct ast_datastore *dialog_info_xml_state_find_or_create(struct ao2_container *datastores)
-{
-	struct ast_datastore *datastore = ast_datastores_find(datastores, "dialog-info+xml");
-
-	if (datastore) {
-		return datastore;
-	}
-
-	datastore = ast_datastores_alloc_datastore(&dialog_info_xml_datastore, "dialog-info+xml");
-	if (!datastore) {
-		return NULL;
-	}
-	datastore->data = ast_calloc(1, sizeof(struct dialog_info_xml_state));
-	if (!datastore->data || ast_datastores_add(datastores, datastore)) {
-		ao2_ref(datastore, -1);
-		return NULL;
-	}
-
-	return datastore;
-}
-
-static unsigned int dialog_info_xml_get_version(struct ao2_container *datastores, unsigned int *version)
-{
-	struct ast_datastore *datastore = dialog_info_xml_state_find_or_create(datastores);
-	struct dialog_info_xml_state *state;
-
-	if (!datastore) {
-		return -1;
-	}
-
-	state = datastore->data;
-	*version = state->version++;
-	ao2_ref(datastore, -1);
-
-	return 0;
-}
-
 static int dialog_info_generate_body_content(void *body, void *data)
 {
 	pj_xml_node *dialog_info = body, *dialog, *state;
+	struct ast_datastore *datastore;
+	struct dialog_info_xml_state *datastore_state;
 	struct ast_sip_exten_state_data *state_data = data;
 	char *local = ast_strdupa(state_data->local), *stripped, *statestring = NULL;
 	char *pidfstate = NULL, *pidfnote = NULL;
 	enum ast_sip_pidf_state local_state;
-	unsigned int version;
 	char version_str[32], sanitized[PJSIP_MAX_URL_SIZE];
 	struct ast_sip_endpoint *endpoint = NULL;
 	unsigned int notify_early_inuse_ringing = 0;
@@ -113,9 +77,35 @@ static int dialog_info_generate_body_content(void *body, void *data)
 		return -1;
 	}
 
-	if (dialog_info_xml_get_version(state_data->datastores, &version)) {
-		ast_log(LOG_WARNING, "dialog-info+xml version could not be retrieved from datastore\n");
-		return -1;
+	datastore = ast_datastores_find(state_data->datastores, "dialog-info+xml");
+	if (!datastore) {
+		const struct ast_json *version_json = NULL;
+
+		datastore = ast_datastores_alloc_datastore(&dialog_info_xml_datastore, "dialog-info+xml");
+		if (!datastore) {
+			return -1;
+		}
+
+		datastore->data = ast_calloc(1, sizeof(struct dialog_info_xml_state));
+		if (!datastore->data || ast_datastores_add(state_data->datastores, datastore)) {
+			ao2_ref(datastore, -1);
+			return -1;
+		}
+		datastore_state = datastore->data;
+
+		if (state_data->sub) {
+			version_json = ast_sip_subscription_get_persistence_data(state_data->sub);
+		}
+
+		if (version_json) {
+			datastore_state->version = ast_json_integer_get(version_json);
+			datastore_state->version++;
+		} else {
+			datastore_state->version = 0;
+		}
+	} else {
+		datastore_state = datastore->data;
+		datastore_state->version++;
 	}
 
 	stripped = ast_strip_quoted(local, "<", ">");
@@ -130,8 +120,12 @@ static int dialog_info_generate_body_content(void *body, void *data)
 
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog_info, "xmlns", "urn:ietf:params:xml:ns:dialog-info");
 
-	snprintf(version_str, sizeof(version_str), "%u", version);
+	snprintf(version_str, sizeof(version_str), "%u", datastore_state->version);
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog_info, "version", version_str);
+
+	if (state_data->sub) {
+		ast_sip_subscription_set_persistence_data(state_data->sub, ast_json_integer_create(datastore_state->version));
+	}
 
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog_info, "state", "full");
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog_info, "entity", sanitized);
@@ -155,6 +149,8 @@ static int dialog_info_generate_body_content(void *body, void *data)
 		ast_sip_presence_xml_create_attr(state_data->pool, param, "pname", "+sip.rendering");
 		ast_sip_presence_xml_create_attr(state_data->pool, param, "pvalue", "no");
 	}
+
+	ao2_ref(datastore, -1);
 
 	return 0;
 }
