@@ -546,6 +546,29 @@ void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscrip
 struct ao2_container *ast_sip_subscription_get_datastores(const struct ast_sip_subscription *subscription);
 
 /*!
+ * \since 13.31.0
+ * \since 16.8.0
+ * \since 17.2.0
+ * \brief Set persistence data for a subscription
+ *
+ * \param subscription The subscription to set persistence data on
+ * \param persistence_data The persistence data to set
+ *
+ * \note This steals the reference to persistence_data
+ */
+void ast_sip_subscription_set_persistence_data(struct ast_sip_subscription *subscription, struct ast_json *persistence_data);
+
+/*!
+ * \since 13.31.0
+ * \since 16.8.0
+ * \since 17.2.0
+ * \brief Retrieve persistence data for a subscription
+ *
+ * \param subscription The subscription to retrieve persistence data from
+ */
+const struct ast_json *ast_sip_subscription_get_persistence_data(const struct ast_sip_subscription *subscription);
+
+/*!
  * \brief Register a subscription handler
  *
  * \retval 0 Handler was registered successfully
