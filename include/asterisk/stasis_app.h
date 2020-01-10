@@ -838,6 +838,16 @@ void stasis_app_control_mute_in_bridge(
 	struct stasis_app_control *control, int mute);
 
 /*!
+ * \since 18
+ * \brief Set whether COLP frames should be generated when joining the bridge
+ *
+ * \param control Control whose channel should have its COLP frames inhibited when bridged
+ * \param mute Whether COLP frames should be generated (0) or not (1).
+ */
+void stasis_app_control_inhibit_colp_in_bridge(
+	struct stasis_app_control *control, int inhibit_colp);
+
+/*!
  * \since 12
  * \brief Gets the bridge currently associated with a control object.
  *

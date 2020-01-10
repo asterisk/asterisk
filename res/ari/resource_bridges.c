@@ -221,6 +221,7 @@ void ast_ari_bridges_add_channel(struct ast_variable *headers,
 		if (!stasis_app_control_bridge_features_init(list->controls[i])) {
 			stasis_app_control_absorb_dtmf_in_bridge(list->controls[i], args->absorb_dtmf);
 			stasis_app_control_mute_in_bridge(list->controls[i], args->mute);
+			stasis_app_control_inhibit_colp_in_bridge(list->controls[i], args->inhibit_connected_line_updates);
 		}
 	}
 

@@ -191,6 +191,15 @@
 							"allowMultiple": false,
 							"dataType": "boolean",
 							"defaultValue": false
+						},
+						{
+							"name": "inhibitConnectedLineUpdates",
+							"description": "Do not present the identity of the newly connected channel to other bridge members",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean",
+							"defaultValue": false
 						}
 					],
 					"errorResponses": [

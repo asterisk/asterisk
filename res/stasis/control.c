@@ -1285,6 +1285,7 @@ int control_swap_channel_in_bridge(struct stasis_app_control *control, struct as
 {
 	int res;
 	struct ast_bridge_features *features;
+	int flags = AST_BRIDGE_IMPART_CHAN_DEPARTABLE;
 
 	if (!control || !bridge) {
 		return -1;
@@ -1332,6 +1333,9 @@ int control_swap_channel_in_bridge(struct stasis_app_control *control, struct as
 	/* Pull bridge features from the control */
 	features = control->bridge_features;
 	control->bridge_features = NULL;
+	if (features && features->inhibit_colp) {
+		flags |= AST_BRIDGE_IMPART_INHIBIT_JOIN_COLP;
+	}
 
 	ast_assert(stasis_app_get_bridge(control) == NULL);
 	/* We need to set control->bridge here since bridge_after_cb may be run
@@ -1349,7 +1353,7 @@ int control_swap_channel_in_bridge(struct stasis_app_control *control, struct as
 		chan,
 		swap,
 		features, /* features */
-		AST_BRIDGE_IMPART_CHAN_DEPARTABLE);
+		flags);
 	if (res != 0) {
 		/* ast_bridge_impart failed before it could spawn the depart
 		 * thread.  The callbacks aren't called in this case.
@@ -1467,6 +1471,12 @@ void stasis_app_control_mute_in_bridge(
 	struct stasis_app_control *control, int mute)
 {
 	control->bridge_features->mute = mute;
+}
+
+void stasis_app_control_inhibit_colp_in_bridge(
+	struct stasis_app_control *control, int inhibit_colp)
+{
+	control->bridge_features->inhibit_colp = inhibit_colp;
 }
 
 void control_flush_queue(struct stasis_app_control *control)
