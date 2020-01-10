@@ -88,6 +88,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="dnstimeout">
 						<para>Number of seconds to wait for DNS to be resolved</para>
 					</enum>
+					<enum name="followlocation">
+						<para>Whether or not to follow HTTP 3xx redirects (boolean)</para>
+					</enum>
 					<enum name="ftptext">
 						<para>For FTP URIs, force a text transfer (boolean)</para>
 					</enum>
@@ -109,7 +112,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						server response</para>
 					</enum>
 					<enum name="maxredirs">
-						<para>Maximum number of redirects to follow</para>
+						<para>Maximum number of redirects to follow. The default is -1,
+						which allows for unlimited redirects. This only makes sense when
+						followlocation is also set.</para>
 					</enum>
 					<enum name="proxy">
 						<para>Hostname or IP address to use as a proxy server</para>
@@ -247,6 +252,9 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	} else if (!strcasecmp(name, "proxyuserpwd")) {
 		*key = CURLOPT_PROXYUSERPWD;
 		*ot = OT_STRING;
+	} else if (!strcasecmp(name, "followlocation")) {
+		*key = CURLOPT_FOLLOWLOCATION;
+		*ot = OT_BOOLEAN;
 	} else if (!strcasecmp(name, "maxredirs")) {
 		*key = CURLOPT_MAXREDIRS;
 		*ot = OT_INTEGER;
@@ -798,6 +806,7 @@ static struct ast_custom_function acf_curlopt = {
 "  cookie         - Send cookie with request [none]\n"
 "  conntimeout    - Number of seconds to wait for connection\n"
 "  dnstimeout     - Number of seconds to wait for DNS response\n"
+"  followlocation - Follow HTTP 3xx redirects (boolean)\n"
 "  ftptext        - For FTP, force a text transfer (boolean)\n"
 "  ftptimeout     - For FTP, the server response timeout\n"
 "  header         - Retrieve header information (boolean)\n"
