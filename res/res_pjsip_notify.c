@@ -513,6 +513,16 @@ static int not_allowed(const char *name)
 
 /*!
  * \internal
+ * \brief Check if the given header can be added to a message more than once.
+ */
+static int multiple_headers_allowed(const char *name)
+{
+	/* This can be extended to include additional headers */
+	return strcasecmp("Event", name);
+}
+
+/*!
+ * \internal
  * \brief If a content type was specified add it and the content body to the
  *        NOTIFY request.
  */
@@ -564,6 +574,18 @@ static void build_notify(pjsip_tx_data *tdata, const char *name, const char *val
 		}
 		ast_str_append(content, 0, "%s", value);
 	} else {
+		/* See if there is an existing one */
+		if (!multiple_headers_allowed(name)) {
+			pj_str_t hdr_name;
+			pj_cstr(&hdr_name, name);
+
+			if (pjsip_msg_find_hdr_by_name(tdata->msg, &hdr_name, NULL)) {
+				ast_log(LOG_ERROR, "Only one '%s' header can be added to a NOTIFY, "
+						"ignoring \"%s: %s\"\n", name, name, value);
+				return;
+			}
+		}
+
 		ast_sip_add_header(tdata, name, value);
 	}
 }
