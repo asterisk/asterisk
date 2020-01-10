@@ -1,0 +1,5 @@
+Subject: func_curl
+
+A new option, followlocation, can now be enabled with the CURLOPT()
+dialplan function. Setting this will instruct cURL to follow 3xx
+redirects, which it does not by default.
