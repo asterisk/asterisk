@@ -141,6 +141,22 @@ static inline void ast_sockaddr_setnull(struct ast_sockaddr *addr)
 }
 
 /*!
+ * \brief
+ * Copies the data from a sockaddr to an ast_sockaddr
+ *
+ * \param dst The destination ast_sockaddr
+ * \param src The source sockaddr
+ * \param len Length of the value stored in sockaddr
+ * \retval void
+ */
+static inline void ast_sockaddr_copy_sockaddr(struct ast_sockaddr *dst,
+		struct sockaddr *src, socklen_t len)
+{
+	memcpy(dst, src, len);
+	dst->len = len;
+}
+
+/*!
  * \since 1.8
  *
  * \brief
