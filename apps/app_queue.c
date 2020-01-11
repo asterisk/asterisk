@@ -1146,7 +1146,7 @@
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
 				<parameter name="Reason">
-					<para>The reason a member was paused.</para>
+					<para>This has been deprecated in favor of the <literal>PausedReason</literal> field.</para>
 				</parameter>
 			</syntax>
 			<see-also>
