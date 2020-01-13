@@ -1052,6 +1052,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(last_presence_message);   /*!< The last presence message for a subscription */
 		AST_STRING_FIELD(msg_body);     /*!< Text for a MESSAGE body */
 		AST_STRING_FIELD(tel_phone_context);       /*!< The phone-context portion of a TEL URI */
+		AST_STRING_FIELD(sessionunique_remote);    /*!< Remote UA's SDP Session unique parts */
 	);
 	char via[128];                          /*!< Via: header */
 	int maxforwards;                        /*!< SIP Loop prevention */
