@@ -60,13 +60,26 @@
 					<synopsis>IP addresses or networks to match against.</synopsis>
 					<description>
 						<para>The value is a comma-delimited list of IP addresses or
-						hostnames.  IP addresses may have a subnet mask appended.  The
-						subnet mask may be written in either CIDR or dotted-decimal
-						notation.  Separate the IP address and subnet mask with a slash
+						hostnames.</para>
+						<para>IP addresses may have a subnet mask appended. The subnet
+						mask may be written in either CIDR or dotted-decimal
+						notation. Separate the IP address and subnet mask with a slash
 						('/'). A source port can also be specified by adding a colon (':')
 						after the address but before the subnet mask, e.g.
-						3.2.1.0:5061/24.
-						</para>
+						3.2.1.0:5061/24. To specify a source port for an IPv6 address, the
+						address itself must be enclosed in square brackets
+						('[2001:db8:0::1]:5060')</para>
+						<para>When a hostname is used, the behavior depends on whether
+						<replaceable>srv_lookups</replaceable> is enabled and/or a source
+						port is provided. If <replaceable>srv_lookups</replaceable> is
+						enabled and a source port is not provided, Asterisk will perform
+						an SRV lookup on the provided hostname, adding all of the A and
+						AAAA records that are resolved.</para>
+						<para>If the SRV lookup fails,
+						<replaceable>srv_lookups</replaceable> is disabled, or a source
+						port is specified when the hostname is configured, Asterisk will
+						resolve the hostname and add all A and AAAA records that are
+						resolved.</para>
 					</description>
 				</configOption>
 				<configOption name="srv_lookups" default="yes">
