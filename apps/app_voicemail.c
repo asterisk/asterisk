@@ -477,20 +477,20 @@
  ***/
 
 #ifdef IMAP_STORAGE
-static char imapserver[48];
-static char imapport[8];
+static char imapserver[48] = "localhost";
+static char imapport[8] = "143";
 static char imapflags[128];
-static char imapfolder[64];
-static char imapparentfolder[64] = "\0";
-static char greetingfolder[64];
+static char imapfolder[64] = "INBOX";
+static char imapparentfolder[64];
+static char greetingfolder[64] = "INBOX";
 static char authuser[32];
 static char authpassword[42];
 static int imapversion = 1;
 
 static int expungeonhangup = 1;
-static int imapgreetings = 0;
-static int imap_poll_logout = 0;
-static char delimiter = '\0';
+static int imapgreetings;
+static int imap_poll_logout;
+static char delimiter;
 
 /* mail_open cannot be protected on a stream basis */
 ast_mutex_t mail_open_lock;
@@ -876,8 +876,8 @@ struct vm_state {
 };
 
 #ifdef ODBC_STORAGE
-static char odbc_database[80];
-static char odbc_table[80];
+static char odbc_database[80] = "asterisk";
+static char odbc_table[80] = "voicemessages";
 #define RETRIEVE(a,b,c,d) retrieve_file(a,b)
 #define DISPOSE(a,b) remove_file(a,b)
 #define STORE(a,b,c,d,e,f,g,h,i,j,k) store_file(a,b,c,d)
@@ -951,21 +951,21 @@ static AST_LIST_HEAD_STATIC(zones, vm_zone);
 static char zonetag[80];
 static char locale[20];
 static int maxsilence;
-static int maxmsg;
+static int maxmsg = MAXMSG;
 static int maxdeletedmsg;
 static int silencethreshold = 128;
-static char serveremail[80];
-static char mailcmd[160];	/* Configurable mail cmd */
+static char serveremail[80] = ASTERISK_USERNAME;
+static char mailcmd[160] = SENDMAIL;	/* Configurable mail cmd */
 static char externnotify[160];
 static struct ast_smdi_interface *smdi_iface = NULL;
-static char vmfmts[80];
+static char vmfmts[80] = "wav";
 static double volgain;
 static int vmminsecs;
 static int vmmaxsecs;
 static int maxgreet;
-static int skipms;
-static int maxlogins;
-static int minpassword;
+static int skipms = 3000;
+static int maxlogins = 3;
+static int minpassword = MINPASSWORD;
 static int passwordlocation;
 static char aliasescontext[MAX_VM_CONTEXT_LEN];
 
@@ -973,10 +973,10 @@ static char aliasescontext[MAX_VM_CONTEXT_LEN];
  *  app_voicemail that may change them. */
 static unsigned int poll_mailboxes;
 
-/*! Polling frequency */
-static unsigned int poll_freq;
 /*! By default, poll every 30 seconds */
 #define DEFAULT_POLL_FREQ 30
+/*! Polling frequency */
+static unsigned int poll_freq = DEFAULT_POLL_FREQ;
 
 AST_MUTEX_DEFINE_STATIC(poll_lock);
 static ast_cond_t poll_cond = PTHREAD_COND_INITIALIZER;
@@ -1038,7 +1038,7 @@ static char vm_prepend_timeout[80] = "vm-then-pound";
 
 static struct ast_flags globalflags = {0};
 
-static int saydurationminfo;
+static int saydurationminfo = 2;
 
 static char dialcontext[AST_MAX_CONTEXT] = "";
 static char callcontext[AST_MAX_CONTEXT] = "";
@@ -1047,10 +1047,10 @@ static char exitcontext[AST_MAX_CONTEXT] = "";
 static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 
 
-static char *emailbody = NULL;
-static char *emailsubject = NULL;
-static char *pagerbody = NULL;
-static char *pagersubject = NULL;
+static char *emailbody;
+static char *emailsubject;
+static char *pagerbody;
+static char *pagersubject;
 static char fromstring[100];
 static char pagerfromstring[100];
 static char charset[32] = "ISO-8859-1";
