@@ -358,7 +358,8 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		if (!res) {
 			res = ast_waitstream(chan, "");
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", ast_channel_name(chan));
+			ast_log(LOG_WARNING, "ast_streamfile(beep) failed on %s\n", ast_channel_name(chan));
+			res = 0;
 		}
 		ast_stopstream(chan);
 	}
