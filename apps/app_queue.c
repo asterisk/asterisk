@@ -1145,9 +1145,6 @@
 			<synopsis>Raised when a member is paused/unpaused in the queue.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter)" />
-				<parameter name="Reason">
-					<para>The reason a member was paused.</para>
-				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="application">PauseQueueMember</ref>
@@ -7448,16 +7445,12 @@ static int change_priority_caller_on_queue(const char *queuename, const char *ca
 }
 
 
-static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason)
+static int publish_queue_member_pause(struct call_queue *q, struct member *member)
 {
 	struct ast_json *json_blob = queue_member_blob_create(q, member);
 
 	if (!json_blob) {
 		return -1;
-	}
-
-	if (!ast_strlen_zero(reason)) {
-		ast_json_object_set(json_blob, "Reason", ast_json_string_create(reason));
 	}
 
 	queue_publish_member_blob(queue_member_pause_type(), json_blob);
@@ -7520,7 +7513,7 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"),
 		"%s", S_OR(reason, ""));
 
-	publish_queue_member_pause(q, mem, reason);
+	publish_queue_member_pause(q, mem);
 }
 
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)

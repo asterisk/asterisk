@@ -1,0 +1,5 @@
+Subject: app_queue
+Master-Only: True
+
+The 'Reason' header in the QueueMemberPause AMI Event has been
+removed. The 'PausedReason' header should be used instead.
