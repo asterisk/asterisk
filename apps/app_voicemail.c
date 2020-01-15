@@ -4718,11 +4718,15 @@ static int copy(char *infile, char *outfile)
 static void copy_plain_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
-	struct ast_variable *tmp,*var = NULL;
-	const char *origmailbox = NULL, *context = NULL, *macrocontext = NULL, *exten = NULL, *priority = NULL, *callerchan = NULL, *callerid = NULL, *origdate = NULL, *origtime = NULL, *category = NULL, *duration = NULL;
+	struct ast_variable *tmp, *var = NULL;
+	const char *origmailbox = "", *context = "", *macrocontext = "", *exten = "";
+	const char *priority = "", *callerchan = "", *callerid = "", *origdate = "";
+	const char *origtime = "", *category = "", *duration = "";
+
 	ast_filecopy(frompath, topath, NULL);
 	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
+
 	if (ast_check_realtime("voicemail_data")) {
 		var = ast_load_realtime("voicemail_data", "filename", frompath, SENTINEL);
 		/* This cycle converts ast_variable linked list, to va_list list of arguments, may be there is a better way to do it? */
