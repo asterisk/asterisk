@@ -1,0 +1,14 @@
+Subject: Features
+
+Adds support for AudioSocket, a very simple bidirectional audio streaming
+protocol. There are both channel and application interfaces.
+
+A description of the protocol can be found on the referenced wiki page. A
+short talk about the reasons and implementation can be found on YouTube at
+the link provided.
+
+ARI support has also been added via the existing "externalMedia" ARI
+functionality. The UUID is specified using the arbitrary "data" field.
+
+Wiki: https://wiki.asterisk.org/wiki/display/AST/AudioSocket
+YouTube: https://www.youtube.com/watch?v=tjduXbZZEgI

@@ -2101,6 +2101,51 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 	ast_channel_unref(chan);
 }
 
+static void external_media_audiosocket_tcp(struct ast_ari_channels_external_media_args *args,
+	struct ast_variable *variables,
+	struct ast_ari_response *response)
+{
+	size_t endpoint_len;
+	char *endpoint;
+	struct ast_channel *chan;
+	struct varshead *vars;
+
+	endpoint_len = strlen("AudioSocket/") + strlen(args->external_host) + 1 + strlen(args->data) + 1;
+	endpoint = ast_alloca(endpoint_len);
+	/* The UUID is stored in the arbitrary data field */
+	snprintf(endpoint, endpoint_len, "AudioSocket/%s/%s", args->external_host, args->data);
+
+	chan = ari_channels_handle_originate_with_id(
+		endpoint,
+		NULL,
+		NULL,
+		0,
+		NULL,
+		args->app,
+		NULL,
+		NULL,
+		0,
+		variables,
+		args->channel_id,
+		NULL,
+		NULL,
+		args->format,
+		response);
+	ast_variables_destroy(variables);
+
+	if (!chan) {
+		return;
+	}
+
+	ast_channel_lock(chan);
+	vars = ast_channel_varshead(chan);
+	if (vars && !AST_LIST_EMPTY(vars)) {
+		ast_json_object_set(response->message, "channelvars", ast_json_channel_vars(vars));
+	}
+	ast_channel_unlock(chan);
+	ast_channel_unref(chan);
+}
+
 #include "asterisk/config.h"
 #include "asterisk/netsock2.h"
 
@@ -2161,6 +2206,8 @@ void ast_ari_channels_external_media(struct ast_variable *headers,
 
 	if (strcasecmp(args->encapsulation, "rtp") == 0 && strcasecmp(args->transport, "udp") == 0) {
 		external_media_rtp_udp(args, variables, response);
+	} else if (strcasecmp(args->encapsulation, "audiosocket") == 0 && strcasecmp(args->transport, "tcp") == 0) {
+		external_media_audiosocket_tcp(args, variables, response);
 	} else {
 		ast_ari_response_error(
 			response, 501, "Not Implemented",

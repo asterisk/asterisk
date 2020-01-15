@@ -1,0 +1,4 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*;
+};
