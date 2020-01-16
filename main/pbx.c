@@ -4571,7 +4571,6 @@ static int increase_call_count(const struct ast_channel *c)
 	int failed = 0;
 	double curloadavg;
 #if defined(HAVE_SYSINFO)
-	long curfreemem;
 	struct sysinfo sys_info;
 #endif
 
@@ -4591,13 +4590,16 @@ static int increase_call_count(const struct ast_channel *c)
 	}
 #if defined(HAVE_SYSINFO)
 	if (option_minmemfree) {
+		/* Make sure that the free system memory is above the configured low watermark */
 		if (!sysinfo(&sys_info)) {
-			/* make sure that the free system memory is above the configured low watermark
-			 * convert the amount of freeram from mem_units to MB */
-			curfreemem = sys_info.freeram * sys_info.mem_unit;
+			/* Convert the amount of available RAM from mem_units to MB. The calculation
+			 * was done this way to avoid overflow problems */
+			uint64_t curfreemem = sys_info.freeram + sys_info.bufferram;
+			curfreemem *= sys_info.mem_unit;
 			curfreemem /= 1024 * 1024;
 			if (curfreemem < option_minmemfree) {
-				ast_log(LOG_WARNING, "Available system memory (~%ldMB) is below the configured low watermark (%ldMB)\n", curfreemem, option_minmemfree);
+				ast_log(LOG_WARNING, "Available system memory (~%" PRIu64 "MB) is below the configured low watermark (%ldMB)\n",
+					curfreemem, option_minmemfree);
 				failed = -1;
 			}
 		}
