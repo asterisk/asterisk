@@ -9833,8 +9833,10 @@ static void lws2sws(struct ast_str *data)
 	int len = ast_str_strlen(data);
 	int h = 0, t = 0;
 	int lws = 0;
+	int just_read_eol = 0;
+	int done_with_headers = 0;
 
-	for (; h < len;) {
+	while (h < len) {
 		/* Eliminate all CRs */
 		if (msgbuf[h] == '\r') {
 			h++;
@@ -9842,11 +9844,17 @@ static void lws2sws(struct ast_str *data)
 		}
 		/* Check for end-of-line */
 		if (msgbuf[h] == '\n') {
+			if (just_read_eol) {
+				done_with_headers = 1;
+			} else {
+				just_read_eol = 1;
+			}
 			/* Check for end-of-message */
 			if (h + 1 == len)
 				break;
 			/* Check for a continuation line */
-			if (msgbuf[h + 1] == ' ' || msgbuf[h + 1] == '\t') {
+			if (!done_with_headers
+			   && (msgbuf[h + 1] == ' ' || msgbuf[h + 1] == '\t')) {
 				/* Merge continuation line */
 				h++;
 				continue;
@@ -9855,8 +9863,11 @@ static void lws2sws(struct ast_str *data)
 			msgbuf[t++] = msgbuf[h++];
 			lws = 0;
 			continue;
+		} else {
+			just_read_eol = 0;
 		}
-		if (msgbuf[h] == ' ' || msgbuf[h] == '\t') {
+		if (!done_with_headers
+		   && (msgbuf[h] == ' ' || msgbuf[h] == '\t')) {
 			if (lws) {
 				h++;
 				continue;
