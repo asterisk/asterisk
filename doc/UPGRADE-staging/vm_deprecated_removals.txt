@@ -1,0 +1,7 @@
+Subject: app_voicemail
+Master-Only: True
+
+The MessageExists dialplan application and the MESSAGE_EXISTS dialplan
+function were removed. The were deprecated in Asterisk 1.6.0 and
+Asterisk 11.0.0 respectively. The VM_INFO() dialplan function is the
+supported mechanism to query the status of a given mailbox.
