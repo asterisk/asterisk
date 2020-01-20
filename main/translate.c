@@ -974,14 +974,14 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 {
 	int x, y, i, k;
 	int longest = 7; /* slin192 */
-	int num_codecs = 0, curlen = 0;
+	int max_codec_index = 0, curlen = 0;
 	struct ast_str *out = ast_str_create(1024);
 	struct ast_codec *codec;
 
 	/* Get the length of the longest (usable?) codec name,
 	   so we know how wide the left side should be */
 	for (i = 1; (codec = ast_codec_get_by_id(i)); ao2_ref(codec, -1), ++i) {
-		++num_codecs;
+		++max_codec_index;
 		if (codec->type != AST_MEDIA_TYPE_AUDIO) {
 			continue;
 		}
@@ -995,7 +995,7 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
 	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 
-	for (i = 0; i < num_codecs; i++) {
+	for (i = 0; i <= max_codec_index; i++) {
 		struct ast_codec *row = i ? ast_codec_get_by_id(i) : NULL;
 
 		x = -1;
@@ -1010,7 +1010,7 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 		}
 
 		ast_str_set(&out, 0, " ");
-		for (k = 0; k < num_codecs; k++) {
+		for (k = 0; k <= max_codec_index; k++) {
 			int adjust = 0;
 			struct ast_codec *col = k ? ast_codec_get_by_id(k) : NULL;
 
