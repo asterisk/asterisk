@@ -1464,7 +1464,7 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 	}
 
 	/* tv_usec is suseconds_t, which could be int or long */
-	ast_debug(1, "Finalized CDR for %s - start %ld.%06ld answer %ld.%06ld end %ld.%06ld dispo %s\n",
+	ast_debug(1, "Finalized CDR for %s - start %ld.%06ld answer %ld.%06ld end %ld.%06ld dur %.3f bill %.3f dispo %s\n",
 			cdr->party_a.snapshot->name,
 			(long)cdr->start.tv_sec,
 			(long)cdr->start.tv_usec,
@@ -1472,6 +1472,8 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 			(long)cdr->answer.tv_usec,
 			(long)cdr->end.tv_sec,
 			(long)cdr->end.tv_usec,
+			(double)ast_tvdiff_ms(cdr->end, cdr->start) / 1000.0,
+			(double)ast_tvdiff_ms(cdr->end, cdr->answer) / 1000.0,
 			ast_cdr_disp2str(cdr->disposition));
 }
 
@@ -2364,6 +2366,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 struct bridge_leave_data {
 	struct ast_bridge_snapshot *bridge;
 	struct ast_channel_snapshot *channel;
+	const struct timeval *lastevent;
 };
 
 /*! \brief Callback used to notify CDRs of a Party B leaving the bridge */
@@ -2382,9 +2385,10 @@ static int cdr_object_party_b_left_bridge_cb(void *obj, void *arg, void *data, i
 		ast_assert(cdr->party_b.snapshot
 			&& !strcasecmp(cdr->party_b.snapshot->name, leave_data->channel->name));
 
-		/* It is our Party B, in our bridge. Set the end time and let the handler
+		/* It is our Party B, in our bridge. Set the last event and let the handler
 		 * transition our CDR appropriately when we leave the bridge.
 		 */
+		cdr->lastevent = *leave_data->lastevent;
 		cdr_object_finalize(cdr);
 	}
 	return 0;
@@ -2420,6 +2424,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	struct bridge_leave_data leave_data = {
 		.bridge = bridge,
 		.channel = channel,
+		.lastevent = stasis_message_timestamp(message)
 	};
 	int left_bridge = 0;
 
@@ -2433,8 +2438,8 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 
 	CDR_DEBUG("Bridge Leave message for %s: %u.%08u\n",
 		channel->name,
-		(unsigned int)stasis_message_timestamp(message)->tv_sec,
-		(unsigned int)stasis_message_timestamp(message)->tv_usec);
+		(unsigned int)leave_data.lastevent->tv_sec,
+		(unsigned int)leave_data.lastevent->tv_usec);
 
 	cdr = ao2_find(active_cdrs_master, channel->uniqueid, OBJ_SEARCH_KEY);
 	if (!cdr) {
@@ -2446,7 +2451,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	/* Party A */
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		it_cdr->lastevent = *stasis_message_timestamp(message);
+		it_cdr->lastevent = *leave_data.lastevent;
 		if (!it_cdr->fn_table->process_bridge_leave) {
 			continue;
 		}
