@@ -1,5 +1,5 @@
 ;
-; Asterisk Builtin mini-HTTP server
+; Asterisk Built-in mini-HTTP server
 ;
 ;
 ; Note about Asterisk documentation:
@@ -65,7 +65,13 @@ bindaddr=127.0.0.1
 ; Whether Asterisk should serve static content from static-http
 ; Default is no.
 ;
-;enablestatic=yes
+;enable_static=yes
+;
+; Whether Asterisk should serve a status page showing the running
+; configuration of this built-in HTTP server.
+; Default is yes.
+;
+;enable_status=no
 ;
 ; Redirect one URI to another.  This is how you would set a
 ; default page.
