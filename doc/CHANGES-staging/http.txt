@@ -1,0 +1,4 @@
+Subject: http
+
+You can now disable the /httpstatus page served by Asterisk's built-in
+HTTP server by setting 'enable_status' to 'no' in http.conf.
