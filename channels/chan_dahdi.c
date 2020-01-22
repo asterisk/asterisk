@@ -9914,7 +9914,7 @@ static void *analog_ss_thread(void *data)
 		/* If starting a threeway call, never timeout on the first digit so someone
 		   can use flash-hook as a "hold" feature */
 		if (p->subs[SUB_THREEWAY].owner)
-			timeout = 999999;
+			timeout = INT_MAX;
 		while (len < AST_MAX_EXTENSION-1) {
 			int is_exten_parking = 0;
 
