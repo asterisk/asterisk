@@ -91,16 +91,16 @@
 dsn=mysql1
 readsql=${ARG1}
 
-; ODBC_ANTIGF - A blacklist.
-[ANTIGF]
+; ODBC_ANTISOLICIT - A blacklist for known solicitors.
+[ANTISOLICIT]
 dsn=mysql1,mysql2   ; Use mysql1 as the primary handle, but fall back to mysql2
                     ; if mysql1 is down.  Supports up to 5 comma-separated
                     ; DSNs.  "dsn" may also be specified as "readhandle" and
                     ; "writehandle", if it is important to separate reads and
                     ; writes to different databases.
-readsql=SELECT COUNT(*) FROM exgirlfriends WHERE callerid='${SQL_ESC(${ARG1})}'
+readsql=SELECT COUNT(*) FROM known_solicitors WHERE callerid='${SQL_ESC(${ARG1})}'
 syntax=<callerid>
-synopsis=Check if a specified callerid is contained in the ex-gf database
+synopsis=Check if a specified callerid is contained in the known solicitors database
 
 ; ODBC_PRESENCE - Retrieve and update presence
 [PRESENCE]
