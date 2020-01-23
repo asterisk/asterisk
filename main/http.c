@@ -134,7 +134,8 @@ static AST_RWLIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handle
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
-static int enablestatic;
+static int static_uri_enabled;
+static int status_uri_enabled;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
 static struct {
@@ -255,9 +256,13 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 		return 0;
 	}
 
-	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration
-	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
-	if (!enablestatic || ast_strlen_zero(uri)) {
+	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it
+	 * makes your configuration substantially more challenging, but this seems like a
+	 * rather irritating feature creep on Asterisk.
+	 *
+	 * XXX: It is not clear to me what this comment means or if it is any longer
+	 *      relevant. */
+	if (ast_strlen_zero(uri)) {
 		goto out403;
 	}
 
@@ -408,7 +413,7 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	return 0;
 }
 
-static struct ast_http_uri statusuri = {
+static struct ast_http_uri status_uri = {
 	.callback = httpstatus_callback,
 	.description = "Asterisk HTTP General Status",
 	.uri = "httpstatus",
@@ -417,7 +422,7 @@ static struct ast_http_uri statusuri = {
 	.key = __FILE__,
 };
 
-static struct ast_http_uri staticuri = {
+static struct ast_http_uri static_uri = {
 	.callback = static_callback,
 	.description = "Asterisk HTTP Static Delivery",
 	.uri = "static",
@@ -2095,8 +2100,9 @@ static int __ast_http_load(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	int enabled=0;
-	int newenablestatic=0;
+	int enabled = 0;
+	int new_static_uri_enabled = 0;
+	int new_status_uri_enabled = 1; /* Default to enabled for BC */
 	char newprefix[MAX_PREFIX] = "";
 	char server_name[MAX_SERVER_NAME_LENGTH];
 	struct http_uri_redirect *redirect;
@@ -2174,8 +2180,10 @@ static int __ast_http_load(int reload)
 			}
 		} else if (!strcasecmp(v->name, "enabled")) {
 			enabled = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "enablestatic")) {
-			newenablestatic = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "enablestatic") || !strcasecmp(v->name, "enable_static")) {
+			new_static_uri_enabled = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "enable_status")) {
+			new_status_uri_enabled = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (ast_parse_arg(v->value, PARSE_UINT32 | PARSE_IN_RANGE | PARSE_DEFAULT,
 				&bindport, DEFAULT_PORT, 0, 65535)) {
@@ -2226,7 +2234,6 @@ static int __ast_http_load(int reload)
 	}
 
 	ast_copy_string(http_server_name, server_name, sizeof(http_server_name));
-	enablestatic = newenablestatic;
 
 	if (num_addrs && enabled) {
 		int i;
@@ -2271,6 +2278,22 @@ static int __ast_http_load(int reload)
 			ast_tcptls_server_start(&https_desc);
 		}
 	}
+
+	if (static_uri_enabled && !new_static_uri_enabled) {
+		ast_http_uri_unlink(&static_uri);
+	} else if (!static_uri_enabled && new_static_uri_enabled) {
+		ast_http_uri_link(&static_uri);
+	}
+
+	static_uri_enabled = new_static_uri_enabled;
+
+	if (status_uri_enabled && !new_status_uri_enabled) {
+		ast_http_uri_unlink(&status_uri);
+	} else if (!status_uri_enabled && new_status_uri_enabled) {
+		ast_http_uri_link(&status_uri);
+	}
+
+	status_uri_enabled = new_status_uri_enabled;
 
 	return 0;
 }
@@ -2353,8 +2376,13 @@ static void http_shutdown(void)
 	ast_free(http_tls_cfg.pvtfile);
 	ast_free(http_tls_cfg.cipher);
 
-	ast_http_uri_unlink(&statusuri);
-	ast_http_uri_unlink(&staticuri);
+	if (status_uri_enabled) {
+		ast_http_uri_unlink(&status_uri);
+	}
+
+	if (static_uri_enabled) {
+		ast_http_uri_unlink(&static_uri);
+	}
 
 	AST_RWLIST_WRLOCK(&uri_redirects);
 	while ((redirect = AST_RWLIST_REMOVE_HEAD(&uri_redirects, entry))) {
@@ -2365,8 +2393,6 @@ static void http_shutdown(void)
 
 int ast_http_init(void)
 {
-	ast_http_uri_link(&statusuri);
-	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, ARRAY_LEN(cli_http));
 	ast_register_cleanup(http_shutdown);
 
