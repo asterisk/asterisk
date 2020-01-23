@@ -1,5 +1,0 @@
-Subject: minmemfree
-
-The 'minmemfree' configuration option now counts memory allocated to
-the filesystem cache as "free" because it is memory that is available
-to the process.
