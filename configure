@@ -9468,6 +9468,9 @@ $as_echo "#define HAVE_PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS 1" >>confdefs.h
 $as_echo "#define HAVE_PJSIP_ENDPOINT_COMPACT_FORM 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
+
+
 
 
 
@@ -16583,8 +16586,6 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
-  free (data);
-  free (data3);
   return 0;
 }
 _ACEOF
@@ -25695,6 +25696,43 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjproject on_valid_pair callback" >&5
+$as_echo_n "checking for pjproject on_valid_pair callback... " >&6; }
+      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <pjsip.h>
+            #include <pjsip_ua.h>
+            #include <pjnath.h>
+            void on_valid_pair(pj_ice_sess *ice) {}
+            void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
+            void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
+            pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}
+int
+main ()
+{
+pj_ice_sess_cb ice_sess_cb = {
+               .on_valid_pair = on_valid_pair,
+               .on_ice_complete = on_ice_complete,
+               .on_rx_data = on_rx_data,
+               .on_tx_pkt = on_tx_pkt,
+            };
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
       LIBS="${saved_libs}"
       CPPFLAGS="${saved_cppflags}"
 
