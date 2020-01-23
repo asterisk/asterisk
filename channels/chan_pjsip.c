@@ -807,6 +807,16 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_channel *ast, s
 	return f;
 }
 
+/*! \brief Determine if the given frame is in a format we've negotiated */
+static int is_compatible_format(struct ast_sip_session *session, struct ast_frame *f)
+{
+	struct ast_stream_topology *topology = session->active_media_state->topology;
+	struct ast_stream *stream = ast_stream_topology_get_stream(topology, f->stream_num);
+	struct ast_format_cap *cap = ast_stream_get_formats(stream);
+
+	return ast_format_cap_iscompatible_format(cap, f->subclass.format) != AST_FORMAT_CMP_NOT_EQUAL;
+}
+
 /*!
  * \brief Function called by core to read any waiting frames
  *
@@ -844,7 +854,8 @@ static struct ast_frame *chan_pjsip_read_stream(struct ast_channel *ast)
 	 * raw read format BEFORE the native format check
 	 */
 	if (!session->endpoint->asymmetric_rtp_codec &&
-		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL &&
+		is_compatible_format(session, f)) {
 		struct ast_format_cap *caps;
 
 		/* For maximum compatibility we ensure that the formats match that of the received media */
