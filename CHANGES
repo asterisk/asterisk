@@ -13,6 +13,61 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.30.0 to Asterisk 13.31.0 ----------
+------------------------------------------------------------------------------
+
+app_chanisavail
+------------------
+ * The ChanIsAvail application now tolerates empty positions in the supplied
+   device list.  Dialplan can now be simplified by not having to check for
+   empty positions in the device list.
+
+app_confbridge
+------------------
+ * A new bridge profile option, maximum_sample_rate, has been added which sets
+   a maximum sample rate that the bridge will be mixed at. This allows the bridge
+   to move below the maximum sample rate as needed but caps it at the maximum.
+
+app_dial
+------------------
+ * The Dial application now tolerates empty positions in the supplied
+   destination list.  Dialplan can now be simplified by not having to check
+   for empty positions in the destination list.  If there are no endpoints to
+   dial then DIALSTATUS is set to CHANUNAVAIL.
+
+app_page
+------------------
+ * The Page application now tolerates empty positions in the supplied
+   destination list.  Dialplan can now be simplified by not having to check
+   for empty positions in the destination list.
+
+func_curl
+------------------
+ * A new option, followlocation, can now be enabled with the CURLOPT()
+   dialplan function. Setting this will instruct cURL to follow 3xx
+   redirects, which it does not by default.
+
+http
+------------------
+ * You can now disable the /httpstatus page served by Asterisk's built-in
+   HTTP server by setting 'enable_status' to 'no' in http.conf.
+
+minmemfree
+------------------
+ * The 'minmemfree' configuration option now counts memory allocated to
+   the filesystem cache as "free" because it is memory that is available
+   to the process.
+
+res_pjsip_endpoint_identifier_ip
+------------------
+ * In 'type = identify' sections, the addresses specified for the 'match'
+   clause can now include a port number. For IP addresses, the port is
+   provided by including a colon after the address, followed by the
+   desired port number. If supplied, the netmask should follow the port
+   number. To specify a port for IPv6 addresses, the address itself must
+   be enclosed in brackets to be parsed correctly.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.29.0 to Asterisk 13.30.0 ----------
 ------------------------------------------------------------------------------
 
