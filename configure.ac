@@ -2436,6 +2436,26 @@ if test "$USE_PJPROJECT" != "no" ; then
       AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
       AST_C_COMPILE_CHECK([PJSIP_TRANSPORT_DISABLE_CONNECTION_REUSE], [struct pjsip_tpselector sel; sel.disable_connection_reuse = PJ_TRUE;], [pjsip.h])
       AST_C_COMPILE_CHECK([PJSIP_OAUTH_AUTHENTICATION], [struct pjsip_oauth_credential credential;], [pjsip.h])
+      AC_MSG_CHECKING(for pjproject on_valid_pair callback)
+      AC_LINK_IFELSE(
+         [AC_LANG_PROGRAM(
+            [#include <pjsip.h>
+            #include <pjsip_ua.h>
+            #include <pjnath.h>
+            void on_valid_pair(pj_ice_sess *ice) {}
+            void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
+            void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
+            pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}],
+            [pj_ice_sess_cb ice_sess_cb = {
+               .on_valid_pair = on_valid_pair,
+               .on_ice_complete = on_ice_complete,
+               .on_rx_data = on_rx_data,
+               .on_tx_pkt = on_tx_pkt,
+            };])],
+         AC_MSG_RESULT(yes)
+         AC_DEFINE(HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK, 1, [Define to 1 if on_valid_pair callback is present.]),
+         AC_MSG_RESULT(no)
+      )
       LIBS="${saved_libs}"
       CPPFLAGS="${saved_cppflags}"
 
