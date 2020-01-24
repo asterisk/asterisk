@@ -1351,6 +1351,7 @@ static void session_destructor(void *obj)
 	ao2_cleanup(session->aor);
 	ao2_cleanup(session->contact);
 	ao2_cleanup(session->req_caps);
+	ao2_cleanup(session->joint_caps);
 	ao2_cleanup(session->direct_media_cap);
 
 	ast_dsp_free(session->dsp);
@@ -1431,6 +1432,10 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!session->req_caps) {
+		return NULL;
+	}
+	session->joint_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!session->joint_caps) {
 		return NULL;
 	}
 	session->datastores = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
