@@ -1688,12 +1688,11 @@ static int __stasis_app_register(const char *app_name, stasis_app_cb handler, vo
 	if (app) {
 		/*
 		 * We need to unlock the apps_registry before calling app_update to
-		 * prevent the possibility of a deadlock with the session.  We'll still
-		 * run the lazy cleanup first though.
+		 * prevent the possibility of a deadlock with the session.
 		 */
-		cleanup();
 		ao2_unlock(apps_registry);
 		app_update(app, handler, data);
+		cleanup();
 		return 0;
 	}
 
@@ -1718,11 +1717,12 @@ static int __stasis_app_register(const char *app_name, stasis_app_cb handler, vo
 	}
 	ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
 
+	ao2_unlock(apps_registry);
+
 	/* We lazily clean up the apps_registry, because it's good enough to
 	 * prevent memory leaks, and we're lazy.
 	 */
 	cleanup();
-	ao2_unlock(apps_registry);
 	return 0;
 }
 
