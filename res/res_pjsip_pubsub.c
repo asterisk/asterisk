@@ -1287,7 +1287,7 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 	 */
 
 	if (tree->persistence && tree->persistence->generator_data) {
-		sub->persistence_data = ast_json_object_get(tree->persistence->generator_data, resource);
+		sub->persistence_data = ast_json_ref(ast_json_object_get(tree->persistence->generator_data, resource));
 	}
 
 	sub->handler = handler;
