@@ -11195,9 +11195,12 @@ process_sdp_cleanup:
 
 static int process_sdp_o(const char *o, struct sip_pvt *p)
 {
+	const char *o_copy_start;
 	char *o_copy;
 	char *token;
-	int64_t rua_version;
+	int offset;
+	int64_t sess_version;
+	char unique[128];
 
 	/* Store the SDP version number of remote UA. This will allow us to
 	distinguish between session modifications and session refreshes. If
@@ -11215,35 +11218,49 @@ static int process_sdp_o(const char *o, struct sip_pvt *p)
 		return FALSE;
 	}
 
-	o_copy = ast_strdupa(o);
-	token = strsep(&o_copy, " ");  /* Skip username   */
+	/* o=<username> <sess-id> <sess-version> <nettype> <addrtype>
+           <unicast-address> */
+
+	o_copy_start = o_copy = ast_strdupa(o);
+	token = strsep(&o_copy, " ");  /* Skip username */
 	if (!o_copy) {
 		ast_log(LOG_WARNING, "SDP syntax error in o= line username\n");
 		return FALSE;
 	}
-	token = strsep(&o_copy, " ");  /* Skip session-id */
+	token = strsep(&o_copy, " ");  /* sess-id */
 	if (!o_copy) {
-		ast_log(LOG_WARNING, "SDP syntax error in o= line session-id\n");
+		ast_log(LOG_WARNING, "SDP syntax error in o= line sess-id\n");
 		return FALSE;
 	}
-	token = strsep(&o_copy, " ");  /* Version         */
-	if (!o_copy) {
-		ast_log(LOG_WARNING, "SDP syntax error in o= line\n");
-		return FALSE;
-	}
-	if (!sscanf(token, "%30" SCNd64, &rua_version)) {
-		ast_log(LOG_WARNING, "SDP syntax error in o= line version\n");
+	token = strsep(&o_copy, " ");  /* sess-version */
+	if (!o_copy || !sscanf(token, "%30" SCNd64, &sess_version)) {
+		ast_log(LOG_WARNING, "SDP syntax error in o= line sess-version\n");
 		return FALSE;
 	}
 
-	/* we need to check the SDP version number the other end sent us;
+	/* Copy all after sess-version on top of sess-version into unique.
+	 * <sess-id> is a numeric string such that the tuple of <username>,
+         * <sess-id>, <nettype>, <addrtype>, and <unicast-address> forms a
+         * globally unique identifier for the session.
+	 * I.e. all except the <sess-version> */
+	ast_copy_string(unique, o, sizeof(unique)); /* copy all of o= contents */
+	offset = (o_copy - o_copy_start); /* after sess-version */
+	if (offset < sizeof(unique)) {
+		/* copy all after sess-version on top of sess-version */
+		int sess_version_start = token - o_copy_start;
+		ast_copy_string(unique + sess_version_start, o + offset, sizeof(unique) - sess_version_start);
+	}
+
+	/* We need to check the SDP version number the other end sent us;
 	 * our rules for deciding what to accept are a bit complex.
 	 *
 	 * 1) if 'ignoresdpversion' has been set for this dialog, then
 	 *    we will just accept whatever they sent and assume it is
 	 *    a modification of the session, even if it is not
 	 * 2) otherwise, if this is the first SDP we've seen from them
-	 *    we accept it
+	 *    we accept it;
+	 *    note that _them_ may change, in which case the
+	 *    sessionunique_remote will be different
 	 * 3) otherwise, if the new SDP version number is higher than the
 	 *    old one, we accept it
 	 * 4) otherwise, if this SDP is in response to us requesting a switch
@@ -11253,14 +11270,25 @@ static int process_sdp_o(const char *o, struct sip_pvt *p)
 	 *    not request a switch to T.38, then we stop parsing the SDP, as it
 	 *    has not changed from the previous version
 	 */
+	if (sip_debug_test_pvt(p)) {
+		if (ast_strlen_zero(p->sessionunique_remote)) {
+			ast_verbose("Got SDP version %" PRId64 " and unique parts [%s]\n",
+					sess_version, unique);
+		} else {
+			ast_verbose("Comparing SDP version %" PRId64 " -> %" PRId64 " and unique parts [%s] -> [%s]\n",
+					p->sessionversion_remote, sess_version, p->sessionunique_remote, unique);
+		}
+	}
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_IGNORESDPVERSION) ||
-	    (p->sessionversion_remote < 0) ||
-	    (p->sessionversion_remote < rua_version)) {
-		p->sessionversion_remote = rua_version;
+			sess_version > p->sessionversion_remote ||
+			strcmp(unique, S_OR(p->sessionunique_remote, ""))) {
+		p->sessionversion_remote = sess_version;
+		ast_string_field_set(p, sessionunique_remote, unique);
 	} else {
 		if (p->t38.state == T38_LOCAL_REINVITE) {
-			p->sessionversion_remote = rua_version;
+			p->sessionversion_remote = sess_version;
+			ast_string_field_set(p, sessionunique_remote, unique);
 			ast_log(LOG_WARNING, "Call %s responded to our T.38 reinvite without changing SDP version; 'ignoresdpversion' should be set for this peer.\n", p->callid);
 		} else {
 			p->session_modify = FALSE;
