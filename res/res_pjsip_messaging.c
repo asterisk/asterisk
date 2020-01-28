@@ -638,7 +638,7 @@ static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *t
 
 static int msg_send(void *data)
 {
-	RAII_VAR(struct msg_data *, mdata, data, ao2_cleanup);
+	struct msg_data *mdata = data; /* The caller holds a reference */
 
 	const struct ast_sip_body body = {
 		.type = "text",
@@ -682,24 +682,28 @@ static int msg_send(void *data)
 		return -1;
 	}
 
-	return PJ_SUCCESS;
+	return 0;
 }
 
 static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *from)
 {
 	struct msg_data *mdata;
+	int res;
 
 	if (ast_strlen_zero(to)) {
 		ast_log(LOG_ERROR, "SIP MESSAGE - a 'To' URI  must be specified\n");
 		return -1;
 	}
 
-	if (!(mdata = msg_data_create(msg, to, from)) ||
-	    ast_sip_push_task(message_serializer, msg_send, mdata)) {
-		ao2_cleanup(mdata);
+	mdata = msg_data_create(msg, to, from);
+	if (!mdata) {
 		return -1;
 	}
-	return 0;
+
+	res = ast_sip_push_task_wait_serializer(message_serializer, msg_send, mdata);
+	ao2_ref(mdata, -1);
+
+	return res;
 }
 
 static const struct ast_msg_tech msg_tech = {
