@@ -1169,8 +1169,23 @@ void app_update(struct stasis_app *app, stasis_app_cb handler, void *data)
 			"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 			"application", app->name);
 		if (msg) {
+			/*
+			 * The app must be unlocked before calling 'send' since a handler may
+			 * subsequently attempt to grab the app lock after first obtaining a
+			 * lock for another object, thus causing a deadlock.
+			 */
+			ao2_unlock(app);
 			app_send(app, msg);
+			ao2_lock(app);
 			ast_json_unref(msg);
+			if (!app->handler) {
+				/*
+				 * If the handler disappeared then the app was deactivated. In that
+				 * case don't replace. Re-activation will reset the handler later.
+				 */
+				ao2_unlock(app);
+				return;
+			}
 		}
 	} else {
 		ast_verb(1, "Activating Stasis app '%s'\n", app->name);
