@@ -1,3 +1,57 @@
+2020-01-30 16:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.31.0-rc2 Released.
+
+2020-01-27 11:44 +0000 [fb7a668d69]  Kevin Harwell <kharwell@digium.com>
+
+	* res_stasis: trigger cleanup after update
+
+	  The cleanup code in stasis shuts down applications if they are in a deactivated
+	  state, and no longer have explicit subscriptions. When registering an app the
+	  cleanup code was running before calling 'update'. When it should be executed
+	  after 'update' since a call to register may re-activate the app. We don't want
+	  it to shutdown before the 'update' otherwise the app won't be re-activated,
+	  or registered.
+
+	  This patch makes it so the cleanup code is executed post 'update'.
+
+	  ASTERISK-28679 #close
+
+	  Change-Id: I8f2c0b17e33bb8128441567b97fd4c7bf74a327b
+	  (cherry picked from commit 1051227dd96341f6e149739c1465b2e763cc67ea)
+
+2020-01-27 12:01 +0000 [2cacc1e7f8]  Kevin Harwell <kharwell@digium.com>
+
+	* stasis/app: don't lock an app before a call to send
+
+	  Calling 'app_send' eventually calls the app's message handler. It's possible
+	  for a handler to obtain a lock on another object, and then need/want to lock
+	  the app object. If the caller of 'app_send' locks the app object prior to
+	  calling then there's a potential for a deadlock, if another thread calls
+	  'app_send' without locking.
+
+	  This patch makes it so 'app_send' is not called with the app object locked in
+	  the section of code doing such.
+
+	  ASTERISK-28423 #close
+
+	  Change-Id: I6767c6d0933c7db1b984018966eefca4c0638a27
+	  (cherry picked from commit 78d9bc8ef66e2d20925daf0eb597cf8a956e1029)
+
+2020-01-28 09:18 +0000 [5def6d7e17]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip_pubsub: Increment persistence data ref when recreating.
+
+	  Each subscription needs to have a reference to the persisted data
+	  for it, as well as the main JSON contained within the tree. When
+	  recreating a subscription this did not occur and they both shared
+	  the same reference.
+
+	  ASTERISK-28714
+
+	  Change-Id: I706abd49ea182ea367a4ac3feca2706460ae9f4a
+	  (cherry picked from commit e14fd3b22a832f1e49fbdf340727c12f0c0d2929)
+
 2020-01-23 16:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.31.0-rc1 Released.
