@@ -1,0 +1,11 @@
+Subject: Messaging
+
+In order to reduce the amount of AMI and ARI events generated,
+the global "Message/ast_msg_queue" channel can be set to suppress
+it's normal channel housekeeping events such as "Newexten",
+"VarSet", etc. This can greatly reduce load on the manager
+and ARI applications when the Digium Phone Module for Asterisk
+is in use.  To enable, set "hide_messaging_ami_events" in
+asterisk.conf to "yes"  In Asterisk versions <18, the default
+is "no" preserving existing behavior.  Beginning with
+Asterisk 18, the option will default to "yes".
