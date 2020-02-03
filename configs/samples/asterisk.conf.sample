@@ -118,6 +118,11 @@ documentation_language = en_US	; Set the language you want documentation
 				; calls are not accepted by a remote
 				; implementation, please report this and go
 				; back to value 96.
+;hide_messaging_ami_events = no;  This option, if enabled, will
+                ; suppress all of the Message/ast_msg_queue channel's
+                ; housekeeping AMI and ARI channel events.  This can
+                ; reduce the load on the manager and ARI applications
+                ; when the Digium Phone Module for Asterisk is in use.
 
 ; Changing the following lines may compromise your security.
 ;[files]
