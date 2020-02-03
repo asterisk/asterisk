@@ -84,6 +84,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_DEBUG_MODULE = (1 << 23),
 	/*! Terminal colors should be adjusted for a light-colored background */
 	AST_OPT_FLAG_LIGHT_BACKGROUND = (1 << 25),
+	/*! Make the global Message channel an internal channel to suppress AMI events */
+	AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS = (1 << 26),
 	/*! Force black background */
 	AST_OPT_FLAG_FORCE_BLACK_BACKGROUND = (1 << 27),
 	/*! Hide remote console connect messages on console */
@@ -129,6 +131,7 @@ enum ast_option_flags {
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
 #define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
 #define ast_opt_generic_plc_on_equal_codecs  ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC_ON_EQUAL_CODECS)
+#define ast_opt_hide_messaging_ami_events  ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS)
 
 /*! Maximum log level defined by PJPROJECT. */
 #define MAX_PJ_LOG_MAX_LEVEL		6

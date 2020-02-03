@@ -464,6 +464,8 @@ void load_asterisk_conf(void)
 			}
 		} else if (!strcasecmp(v->name, "live_dangerously")) {
 			live_dangerously = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "hide_messaging_ami_events")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_MESSAGING_AMI_EVENTS);
 		}
 	}
 	if (!ast_opt_remote) {
