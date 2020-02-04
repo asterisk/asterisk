@@ -283,7 +283,7 @@ static int chan_msg_send_digit_end(struct ast_channel *chan, char digit,
  * This will not be registered as we never want anything to try
  * to create Message channels other than internally in this file.
  */
-static struct ast_channel_tech msg_chan_tech_hack = {
+static const struct ast_channel_tech msg_chan_tech_hack = {
 	.type             = "Message",
 	.description      = "Internal Text Message Processing",
 	.read             = chan_msg_read,
@@ -683,10 +683,6 @@ static struct ast_channel *create_msg_q_chan(void)
 
 	if (!chan) {
 		return NULL;
-	}
-
-	if (ast_opt_hide_messaging_ami_events) {
-		msg_chan_tech_hack.properties |= AST_CHAN_TP_INTERNAL;
 	}
 
 	ast_channel_tech_set(chan, &msg_chan_tech_hack);
