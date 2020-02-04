@@ -6667,6 +6667,12 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 
 	ao2_lock(instance);
 
+	/* If no packets have been received then do nothing */
+	if (!AST_VECTOR_SIZE(&rtp->transport_wide_cc.packet_statistics)) {
+		ao2_unlock(instance);
+		return 1000;
+	}
+
 	rtcpheader = (unsigned char *)bdata;
 
 	/* The first packet in the vector acts as our base sequence number and reference time */
