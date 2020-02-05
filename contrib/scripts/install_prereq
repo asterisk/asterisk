@@ -254,7 +254,7 @@ check_installed_zypper() {
 
 handle_debian() {
 	if ! [ -x "$(command -v aptitude)" ]; then
-		apt-get install aptitude
+		apt-get install -y aptitude
 	fi
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
 	$testcmd aptitude update
