@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #define ASTMM_LIBC ASTMM_REDIRECT

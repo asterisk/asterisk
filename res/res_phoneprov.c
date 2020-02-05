@@ -40,6 +40,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #define AST_API_MODULE

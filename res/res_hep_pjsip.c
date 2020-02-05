@@ -30,6 +30,7 @@
 	<depend>res_pjsip_session</depend>
 	<depend>res_hep</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"

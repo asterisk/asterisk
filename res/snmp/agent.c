@@ -16,6 +16,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 /* Needed for net-snmp headers */
