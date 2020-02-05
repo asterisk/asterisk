@@ -305,7 +305,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		} else {
 			while (stringp) {
 				chunk = strsep(&stringp, ";");
-				if (!ast_strlen_zero(ast_strip(chunk))) {
+				if (!strcmp(chunk, " ") || !ast_strlen_zero(ast_strip(chunk))) {
 					if (strchr(chunk, '^')) {
 						decode_chunk(chunk);
 					}
