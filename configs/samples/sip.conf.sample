@@ -1059,7 +1059,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; the device is actually behind NAT.
 
 ;directmediadeny=0.0.0.0/0      ; Use directmediapermit and directmediadeny to restrict
-;directmediapermit=172.16.0.0/16; which peers should be able to pass directmedia to each other
+;directmediapermit=172.16.0.0/16; which RTP source IPs should be able to pass directmedia to
+                                ; each other. Note that directmedia ACLs are not a global
+                                ; setting, but must be defined per peer.
                                 ; (There is no default setting, this is just an example)
                                 ; Use this if some of your phones are on IP addresses that
                                 ; can not reach each other directly. This way you can force
