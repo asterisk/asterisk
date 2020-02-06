@@ -19625,6 +19625,54 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod,
 	return check_user_full(p, req, sipmethod, uri, reliable, addr, NULL);
 }
 
+static void send_check_user_failure_response(struct sip_pvt *p, struct sip_request *req, int res, enum xmittype reliable)
+{
+	const char *response;
+
+	switch (res) {
+	case AUTH_SECRET_FAILED:
+	case AUTH_USERNAME_MISMATCH:
+	case AUTH_NOT_FOUND:
+	case AUTH_UNKNOWN_DOMAIN:
+	case AUTH_PEER_NOT_DYNAMIC:
+	case AUTH_BAD_TRANSPORT:
+		ast_log(LOG_NOTICE, "Failed to authenticate device %s for %s, code = %d\n",
+			sip_get_header(req, "From"), sip_methods[p->method].text, res);
+		response = "403 Forbidden";
+		break;
+	case AUTH_SESSION_LIMIT:
+		/* Unexpected here, actually. As it's handled elsewhere. */
+		ast_log(LOG_NOTICE, "Call limit reached for device %s for %s, code = %d\n",
+			sip_get_header(req, "From"), sip_methods[p->method].text, res);
+		response = "480 Temporarily Unavailable";
+		break;
+	case AUTH_RTP_FAILED:
+		/* We don't want to send a 403 in the RTP_FAILED case.
+		 * The cause could be any one of:
+		 * - out of memory or rtp ports
+		 * - dtls/srtp requested but not loaded/invalid
+		 * Neither of them warrant a 403. A 503 makes more
+		 * sense, as this node is broken/overloaded. */
+		ast_log(LOG_NOTICE, "RTP init failure for device %s for %s, code = %d\n",
+			sip_get_header(req, "From"), sip_methods[p->method].text, res);
+		response = "503 Service Unavailable";
+		break;
+	case AUTH_SUCCESSFUL:
+	case AUTH_CHALLENGE_SENT:
+		/* These should have been handled elsewhere. */
+	default:
+		ast_log(LOG_NOTICE, "Unexpected error for device %s for %s, code = %d\n",
+			sip_get_header(req, "From"), sip_methods[p->method].text, res);
+		response = "503 Service Unavailable";
+	}
+
+	if (reliable == XMIT_RELIABLE) {
+		transmit_response_reliable(p, response, req);
+	} else if (reliable == XMIT_UNRELIABLE) {
+		transmit_response(p, response, req);
+	}
+}
+
 static int set_message_vars_from_req(struct ast_msg *msg, struct sip_request *req)
 {
 	size_t x;
@@ -19741,8 +19789,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 			return;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-			transmit_response(p, "403 Forbidden", req);
+			send_check_user_failure_response(p, req, res, XMIT_UNRELIABLE);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return;
 		}
@@ -25857,8 +25904,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 			return 0;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-			transmit_response(p, "403 Forbidden", req);
+			send_check_user_failure_response(p, req, res, XMIT_UNRELIABLE);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
 		}
@@ -26651,8 +26697,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			goto request_invite_cleanup;
 		}
 		if (res < 0) { /* Something failed in authentication */
-			ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-			transmit_response_reliable(p, "403 Forbidden", req);
+			send_check_user_failure_response(p, req, res, XMIT_RELIABLE);
 			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			goto request_invite_cleanup;
@@ -28375,8 +28420,7 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 		p->lastinvite = seqno;
 		return 0;
 	} else if (auth_result < 0) {
-		ast_log(LOG_NOTICE, "Failed to authenticate device %s\n", sip_get_header(req, "From"));
-		transmit_response(p, "403 Forbidden", req);
+		send_check_user_failure_response(p, req, auth_result, XMIT_UNRELIABLE);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_string_field_set(p, theirtag, NULL);
 		return 0;
@@ -28594,9 +28638,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (res == AUTH_CHALLENGE_SENT)	/* authpeer = NULL here */
 			return 0;
 		if (res != AUTH_SUCCESSFUL) {
-			ast_log(LOG_NOTICE, "Failed to authenticate device %s for SUBSCRIBE\n", sip_get_header(req, "From"));
-			transmit_response(p, "403 Forbidden", req);
-
+			send_check_user_failure_response(p, req, res, XMIT_UNRELIABLE);
 			pvt_set_needdestroy(p, "authentication failed");
 			return 0;
 		}
