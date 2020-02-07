@@ -9,10 +9,10 @@ it probably should. If there are multiple items that need documenting, you can
 add multiple files, each with their own description. If the message is going to
 be the same for each subject, then you can add multiple subject headers to one
 file. The "Subject: xxx" line is case sensitive! For example, if you are making
-a change to PJSIP, then you might add the file "res_pjsip_my_cool_feature" to
-this directory, with a short description of what it does. If you are adding
-multiple entries, they should be done in the same commit to avoid merge
-conflicts. Here's an example:
+a change to PJSIP, then you might add the file "res_pjsip_my_cool_feature.txt" to
+this directory, with a short description of what it does.  The files must  have
+the ".txt" suffix.  If you are adding multiple entries, they should be done in
+the same commit to avoid merge conflicts. Here's an example:
 
 > Subject: res_pjsip
 > Subject: Core
