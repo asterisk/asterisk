@@ -1,0 +1,40 @@
+From 6324760c2fb0ffeb2e29c6c0a96a33906caa8d5f Mon Sep 17 00:00:00 2001
+From: Sean Bright <sean.bright@gmail.com>
+Date: Thu, 16 Jan 2020 10:46:11 -0500
+Subject: [PATCH] sip_parser.c: Allow brackets in via parameters
+
+From RFC 5118 section 4.5:
+
+  While it would be beneficial if the same non-terminal
+  ("IPv6reference") was used for both the "sent-by" and "via-received"
+  production rules, there has not been a consensus in the working group
+  to that effect.  Thus, the best that can be suggested is that
+  implementations must follow the Robustness Principle [RFC1122] and be
+  liberal in accepting a "received" parameter with or without the
+  delimiting "[" and "]" tokens.  When sending a request,
+  implementations must not put the delimiting "[" and "]" tokens.
+---
+ pjsip/src/pjsip/sip_parser.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_parser.c b/pjsip/src/pjsip/sip_parser.c
+index e01e672fb..4f9c7fca4 100644
+--- a/pjsip/src/pjsip/sip_parser.c
++++ b/pjsip/src/pjsip/sip_parser.c
+@@ -384,11 +384,11 @@ static pj_status_t init_parser()
+ 
+     status = pj_cis_dup(&pconst.pjsip_VIA_PARAM_SPEC, &pconst.pjsip_TOKEN_SPEC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+-    pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC, ":");
++    pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC, "[:]");
+ 
+     status = pj_cis_dup(&pconst.pjsip_VIA_PARAM_SPEC_ESC, &pconst.pjsip_TOKEN_SPEC_ESC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+-    pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC_ESC, ":");
++    pj_cis_add_str(&pconst.pjsip_VIA_PARAM_SPEC_ESC, "[:]");
+ 
+     status = pj_cis_dup(&pconst.pjsip_HOST_SPEC, &pconst.pjsip_ALNUM_SPEC);
+     PJ_ASSERT_RETURN(status == PJ_SUCCESS, status);
+-- 
+2.20.1
+
