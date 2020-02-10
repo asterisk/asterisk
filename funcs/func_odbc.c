@@ -1408,7 +1408,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		AST_APP_ARG(field)[100];
 	);
 	struct ast_str *sql;
-	char *char_args, varname[10];
+	char *char_args, varname[15];
 	struct acf_odbc_query *query;
 	struct ast_channel *chan;
 	int i;
@@ -1624,7 +1624,7 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		AST_APP_ARG(field)[100];
 	);
 	struct ast_str *sql;
-	char *char_args, *char_values, varname[10];
+	char *char_args, *char_values, varname[15];
 	struct acf_odbc_query *query;
 	struct ast_channel *chan;
 	int i;
