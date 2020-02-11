@@ -1119,7 +1119,7 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 			} else if (!strcasecmp(var->value, "randstart")) {
 				ast_set_flag(mohclass, MOH_RANDSTART);
 			}
-		} else if (!strcasecmp(var->name, "format")) {
+		} else if (!strcasecmp(var->name, "format") && !ast_strlen_zero(var->value)) {
 			ao2_cleanup(mohclass->format);
 			mohclass->format = ast_format_cache_get(var->value);
 			if (!mohclass->format) {
