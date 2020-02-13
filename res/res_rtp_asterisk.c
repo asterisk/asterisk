@@ -2290,6 +2290,9 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
+	ast_debug(3, "dtls_perform_handshake (%p) - ssl = %p, setup = %d\n",
+		rtp, dtls->ssl, dtls->dtls_setup);
+
 	/* If we are not acting as a client connecting to the remote side then
 	 * don't start the handshake as it will accomplish nothing and would conflict
 	 * with the handshake we receive from the remote side.
@@ -2332,6 +2335,8 @@ static void dtls_perform_setup(struct dtls_details *dtls)
 		SSL_set_connect_state(dtls->ssl);
 	}
 	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
+
+	ast_debug(3, "dtls_perform_setup - connection reset'\n");
 }
 #endif
 
@@ -2364,11 +2369,23 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 
-	dtls_perform_setup(&rtp->dtls);
+	ast_debug(3, "ast_rtp_on_ice_complete (%p) - perform DTLS\n", rtp);
+
+	/*
+	 * Seemingly no reason to call dtls_perform_setup here. Currently we'll do a full
+	 * protocol level renegotiation if things do change. And if bundled is being used
+	 * then ICE is reused when a stream is added.
+	 *
+	 * Note, if for some reason in the future dtls_perform_setup does need to done here
+	 * be aware that creates a race condition between the call here (on ice completion)
+	 * and potential DTLS handshaking when receiving RTP. What happens is the ssl object
+	 * can get cleared (SSL_clear) during that handshaking process (DTLS init). If that
+	 * happens then Asterisk won't complete DTLS initialization. RTP packets are still
+	 * sent/received but won't be encrypted/decrypted.
+	 */
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
 
 	if (rtp->rtcp && rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
-		dtls_perform_setup(&rtp->rtcp->dtls);
 		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
 	}
 #endif
@@ -2721,6 +2738,8 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_rtp_instance *instanc
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	int index;
 
+	ast_debug(3, "Setup DTLS SRTP (%p)'\n", rtp);
+
 	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
 	if (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) {
 		X509 *certificate;
@@ -2759,6 +2778,7 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_rtp_instance *instanc
 	}
 
 	if (dtls_srtp_add_local_ssrc(rtp, instance, rtcp, ast_rtp_instance_get_ssrc(instance), 1)) {
+		ast_log(LOG_ERROR, "Failed to add local source '%p'\n", rtp);
 		return -1;
 	}
 
@@ -2857,6 +2877,8 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			return -1;
 		}
 
+		ast_debug(3, "__rtp_recvfrom (%p) - Got SSL packet '%d'\n", rtp, *in);
+
 		/*
 		 * A race condition is prevented between dtls_perform_handshake()
 		 * and this function because both functions have to get the
@@ -2900,6 +2922,8 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			}
 			/* Notify that dtls has been established */
 			res = RTP_DTLS_ESTABLISHED;
+
+			ast_debug(3, "__rtp_recvfrom (%p) - DTLS established'\n", rtp);
 		} else {
 			/* Since we've sent additional traffic start the timeout timer for retransmission */
 			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
@@ -7870,6 +7894,8 @@ static int ast_rtp_activate(struct ast_rtp_instance *instance)
 		return 0;
 	}
 #endif
+
+	ast_debug(3, "ast_rtp_activate (%p) - setup and perform DTLS'\n", rtp);
 
 	dtls_perform_setup(&rtp->dtls);
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
