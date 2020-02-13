@@ -1,7 +1,0 @@
-Subject: res_fax
-
-Added configuration option "negotiate_both". This option is only used
-when a gateway is enabled, and a v21 preamble is detected. If this option
-is enabled, once a preamble is detected Asterisk will initiate negotiation
-requests to both T.38 enabled endpoint versus waiting, and forwarding a
-request from an initiating endpoint. Defaults to disabled.
