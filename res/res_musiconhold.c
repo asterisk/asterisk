@@ -1517,7 +1517,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 					ast_set_flag(mohclass, MOH_RANDOMIZE);
 				else if (!strcasecmp(tmp->name, "sort") && !strcasecmp(tmp->value, "alpha"))
 					ast_set_flag(mohclass, MOH_SORTALPHA);
-				else if (!strcasecmp(tmp->name, "format")) {
+				else if (!strcasecmp(tmp->name, "format") && !ast_strlen_zero(tmp->value)) {
 					ao2_cleanup(mohclass->format);
 					mohclass->format = ast_format_cache_get(tmp->value);
 					if (!mohclass->format) {
@@ -1831,7 +1831,7 @@ static int load_moh_classes(int reload)
 				ast_set_flag(class, MOH_RANDOMIZE);
 			} else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "alpha")) {
 				ast_set_flag(class, MOH_SORTALPHA);
-			} else if (!strcasecmp(var->name, "format")) {
+			} else if (!strcasecmp(var->name, "format") && !ast_strlen_zero(var->value)) {
 				ao2_cleanup(class->format);
 				class->format = ast_format_cache_get(var->value);
 				if (!class->format) {
