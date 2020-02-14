@@ -27,6 +27,7 @@
 #include <pjsip.h>
 #include <pjsip_ua.h>
 #include <pjlib.h>
+#include <pjmedia.h>
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -3863,6 +3864,28 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						}
 					}
 				} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED) {
+					if (!inv->cancelling
+						&& inv->role == PJSIP_ROLE_UAC
+						&& inv->state == PJSIP_INV_STATE_CONFIRMED
+						&& pjmedia_sdp_neg_was_answer_remote(inv->neg)
+						&& pjmedia_sdp_neg_get_state(inv->neg) == PJMEDIA_SDP_NEG_STATE_DONE
+						&& (session->channel && ast_channel_hangupcause(session->channel) == AST_CAUSE_BEARERCAPABILITY_NOTAVAIL)
+						) {
+						/*
+						 * We didn't send a CANCEL but the UAS sent us the 200 OK with an invalid or unacceptable codec SDP.
+						 * In this case the SDP negotiation is incomplete and PJPROJECT has already sent the ACK.
+						 * So, we send the BYE with 503 status code here. And the actual hangup cause code is already set
+						 * to AST_CAUSE_BEARERCAPABILITY_NOTAVAIL by the session_inv_on_media_update(), setting the 503
+						 * status code doesn't affect to hangup cause code.
+						 */
+						ast_debug(1, "Endpoint '%s(%s)': Ending session due to 200 OK with incomplete SDP negotiation.  %s\n",
+							ast_sorcery_object_get_id(session->endpoint),
+							session->channel ? ast_channel_name(session->channel) : "",
+							pjsip_rx_data_get_info(e->body.tsx_state.src.rdata));
+						pjsip_inv_end_session(session->inv_session, 503, NULL, &tdata);
+						return;
+					}
+
 					if (inv->cancelling && tsx->status_code == PJSIP_SC_OK) {
 						int sdp_negotiation_done =
 							pjmedia_sdp_neg_get_state(inv->neg) == PJMEDIA_SDP_NEG_STATE_DONE;
@@ -3881,11 +3904,6 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						 * UAS sent us an invalid SDP with the 200 OK.  In this case
 						 * the SDP negotiation is incomplete and PJPROJECT has
 						 * already sent the BYE for us because of the invalid SDP.
-						 *
-						 * 3) We didn't send a CANCEL but the UAS sent us an invalid
-						 * SDP with the 200 OK.  In this case the SDP negotiation is
-						 * incomplete and PJPROJECT has already sent the BYE for us
-						 * because of the invalid SDP.
 						 */
 						ast_test_suite_event_notify("PJSIP_SESSION_CANCELED",
 							"Endpoint: %s\r\n"
