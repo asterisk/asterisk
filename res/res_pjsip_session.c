@@ -69,6 +69,13 @@ static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata
 		enum ast_sip_session_response_priority response_priority);
 static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_data *tdata);
+static int sip_session_refresh(struct ast_sip_session *session,
+		ast_sip_session_request_creation_cb on_request_creation,
+		ast_sip_session_sdp_creation_cb on_sdp_creation,
+		ast_sip_session_response_cb on_response,
+		enum ast_sip_session_refresh_method method, int generate_new_sdp,
+		struct ast_sip_session_media_state *media_state,
+		int queued);
 
 /*! \brief NAT hook for modifying outgoing messages with SDP */
 static struct ast_sip_nat_hook *nat_hook;
@@ -1244,8 +1251,18 @@ static void delayed_request_free(struct ast_sip_session_delayed_request *delay)
 	ast_free(delay);
 }
 
+/*!
+ * \internal
+ * \brief Send a delayed request
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ * \retval 1 refresh request not sent as no change would occur
+ */
 static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_session_delayed_request *delay)
 {
+	int res;
+
 	ast_debug(3, "Endpoint '%s(%s)' sending delayed %s request.\n",
 		ast_sorcery_object_get_id(session->endpoint),
 		session->channel ? ast_channel_name(session->channel) : "",
@@ -1253,19 +1270,19 @@ static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_
 
 	switch (delay->method) {
 	case DELAYED_METHOD_INVITE:
-		ast_sip_session_refresh(session, delay->on_request_creation,
+		res = sip_session_refresh(session, delay->on_request_creation,
 			delay->on_sdp_creation, delay->on_response,
-			AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp, delay->media_state);
+			AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp, delay->media_state, 1);
 		/* Ownership of media state transitions to ast_sip_session_refresh */
 		delay->media_state = NULL;
-		return 0;
+		return res;
 	case DELAYED_METHOD_UPDATE:
-		ast_sip_session_refresh(session, delay->on_request_creation,
+		res = sip_session_refresh(session, delay->on_request_creation,
 			delay->on_sdp_creation, delay->on_response,
-			AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp, delay->media_state);
+			AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp, delay->media_state, 1);
 		/* Ownership of media state transitions to ast_sip_session_refresh */
 		delay->media_state = NULL;
-		return 0;
+		return res;
 	case DELAYED_METHOD_BYE:
 		ast_sip_session_terminate(session, 0);
 		return 0;
@@ -1300,7 +1317,9 @@ static int invite_proceeding(void *vsession)
 			AST_LIST_REMOVE_CURRENT(next);
 			res = send_delayed_request(session, delay);
 			delayed_request_free(delay);
-			found = 1;
+			if (!res) {
+				found = 1;
+			}
 			break;
 		case DELAYED_METHOD_BYE:
 			/* A BYE is pending so don't bother anymore. */
@@ -1354,7 +1373,9 @@ static int invite_terminated(void *vsession)
 			AST_LIST_REMOVE_CURRENT(next);
 			res = send_delayed_request(session, delay);
 			delayed_request_free(delay);
-			break;
+			if (!res) {
+				break;
+			}
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -1558,12 +1579,13 @@ static void set_from_header(struct ast_sip_session *session)
     }
 }
 
-int ast_sip_session_refresh(struct ast_sip_session *session,
+static int sip_session_refresh(struct ast_sip_session *session,
 		ast_sip_session_request_creation_cb on_request_creation,
 		ast_sip_session_sdp_creation_cb on_sdp_creation,
 		ast_sip_session_response_cb on_response,
 		enum ast_sip_session_refresh_method method, int generate_new_sdp,
-		struct ast_sip_session_media_state *media_state)
+		struct ast_sip_session_media_state *media_state,
+		int queued)
 {
 	pjsip_inv_session *inv_session = session->inv_session;
 	pjmedia_sdp_session *new_sdp = NULL;
@@ -1629,6 +1651,20 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 			int index;
 			int type_streams[AST_MEDIA_TYPE_END] = {0};
 			struct ast_stream *stream;
+
+			/* Media state conveys a desired media state, so if there are outstanding
+			 * delayed requests we need to ensure we go into the queue and not jump
+			 * ahead. If we sent this media state now then updates could go out of
+			 * order.
+			 */
+			if (!queued && !AST_LIST_EMPTY(&session->delayed_requests)) {
+				ast_debug(3, "Delay sending reinvite to %s because of outstanding requests...\n",
+					ast_sorcery_object_get_id(session->endpoint));
+				return delay_request(session, on_request_creation, on_sdp_creation,
+					on_response, generate_new_sdp,
+					method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
+						? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE, media_state);
+			}
 
 			/* Prune the media state so the number of streams fit within the configured limits - we do it here
 			 * so that the index of the resulting streams in the SDP match. If we simply left the streams out
@@ -1742,7 +1778,11 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 				/* If the resulting media state matches the existing active state don't bother doing a session refresh */
 				if (ast_stream_topology_equal(session->active_media_state->topology, media_state->topology)) {
 					ast_sip_session_media_state_free(media_state);
-					return 0;
+					/* For external consumers we return 0 to say success, but internally for
+					 * send_delayed_request we return a separate value to indicate that this
+					 * session refresh would be redundant so we didn't send it
+					 */
+					return queued ? 1 : 0;
 				}
 			}
 
@@ -1792,6 +1832,17 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		ast_sorcery_object_get_id(session->endpoint));
 	ast_sip_session_send_request_with_cb(session, tdata, on_response);
 	return 0;
+}
+
+int ast_sip_session_refresh(struct ast_sip_session *session,
+		ast_sip_session_request_creation_cb on_request_creation,
+		ast_sip_session_sdp_creation_cb on_sdp_creation,
+		ast_sip_session_response_cb on_response,
+		enum ast_sip_session_refresh_method method, int generate_new_sdp,
+		struct ast_sip_session_media_state *media_state)
+{
+	return sip_session_refresh(session, on_request_creation, on_sdp_creation,
+		on_response, method, generate_new_sdp, media_state, 0);
 }
 
 int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
