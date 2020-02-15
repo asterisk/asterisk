@@ -2439,8 +2439,8 @@ static char *stasis_show_topic(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	ast_cli(a->fd, "Name: %s\n", topic->name);
 	ast_cli(a->fd, "Detail: %s\n", topic->detail);
-	ast_cli(a->fd, "Subscribers count: %lu\n", AST_VECTOR_SIZE(&topic->subscribers));
-	ast_cli(a->fd, "Forwarding topic count: %lu\n", AST_VECTOR_SIZE(&topic->upstream_topics));
+	ast_cli(a->fd, "Subscribers count: %zu\n", AST_VECTOR_SIZE(&topic->subscribers));
+	ast_cli(a->fd, "Forwarding topic count: %zu\n", AST_VECTOR_SIZE(&topic->upstream_topics));
 	ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - topic->creationtime->tv_sec, print_time, sizeof(print_time));
 	ast_cli(a->fd, "Duration time: %s\n", print_time);
 
