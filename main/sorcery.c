@@ -237,6 +237,9 @@ struct sorcery_load_details {
 
 	/*! \brief Whether this is a reload or not */
 	unsigned int reload:1;
+
+	/*! \brief Whether this is forced or not */
+	unsigned int force:1;
 };
 
 /*! \brief Registered sorcery wizards */
@@ -1238,7 +1241,15 @@ static int sorcery_wizard_load(void *obj, void *arg, int flags)
 	struct sorcery_load_details *details = arg;
 	void (*load)(void *data, const struct ast_sorcery *sorcery, const char *type);
 
-	load = !details->reload ? wizard->wizard->callbacks.load : wizard->wizard->callbacks.reload;
+	if (details->reload) {
+		if (details->force && wizard->wizard->callbacks.force_reload) {
+			load = wizard->wizard->callbacks.force_reload;
+		} else {
+			load = wizard->wizard->callbacks.reload;
+		}
+	} else {
+		load = wizard->wizard->callbacks.load;
+	}
 
 	if (load) {
 		NOTIFY_WIZARD_OBSERVERS(wizard->wizard->observers, wizard_loading,
@@ -1396,12 +1407,45 @@ void ast_sorcery_reload(const struct ast_sorcery *sorcery)
 
 }
 
+void ast_sorcery_force_reload(const struct ast_sorcery *sorcery)
+{
+	struct sorcery_load_details details = {
+		.sorcery = sorcery,
+		.reload = 1,
+		.force = 1,
+	};
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loading,
+		sorcery->module_name, sorcery, 1);
+
+	ao2_callback(sorcery->types, OBJ_NODATA, sorcery_object_load, &details);
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loaded,
+		sorcery->module_name, sorcery, 1);
+}
+
 void ast_sorcery_reload_object(const struct ast_sorcery *sorcery, const char *type)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	struct sorcery_load_details details = {
 		.sorcery = sorcery,
 		.reload = 1,
+	};
+
+	if (!object_type) {
+		return;
+	}
+
+	sorcery_object_load(object_type, &details, 0);
+}
+
+void ast_sorcery_force_reload_object(const struct ast_sorcery *sorcery, const char *type)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	struct sorcery_load_details details = {
+		.sorcery = sorcery,
+		.reload = 1,
+		.force = 1,
 	};
 
 	if (!object_type) {
