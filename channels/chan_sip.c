@@ -31660,6 +31660,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 					if ((!found && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) || !peer->host_dynamic) {
 						/* Initialize stuff if this is a new peer, or if it used to
 						 * not be dynamic before the reload. */
+						ast_string_field_set(peer, tohost, NULL);
 						ast_sockaddr_setnull(&peer->addr);
 					}
 					peer->host_dynamic = TRUE;
