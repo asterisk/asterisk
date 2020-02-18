@@ -115,10 +115,10 @@
 						Like with the basic filename argument, if an absolute path isn't given, it will create
 						the file in the configured monitoring directory.</para>
 					</option>
-					<option name="S">
-						<para>When combined with the <replaceable>r</replaceable> or <replaceable>t</replaceable>
-						option, inserts silence when necessary to maintain synchronization between the receive
-						and transmit audio streams.</para>
+					<option name="n">
+						<para>When the <replaceable>r</replaceable> or <replaceable>t</replaceable> option is
+						used, MixMonitor will insert silence into the specified files to maintain
+						synchronization between them. Use this option to disable that behavior.</para>
 					</option>
 					<option name="i">
 						<argument name="chanvar" required="true" />
@@ -353,7 +353,8 @@ enum mixmonitor_flags {
 	MUXFLAG_BEEP = (1 << 11),
 	MUXFLAG_BEEP_START = (1 << 12),
 	MUXFLAG_BEEP_STOP = (1 << 13),
-	MUXFLAG_RWSYNC = (1 << 14),
+	MUXFLAG_DEPRECATED_RWSYNC = (1 << 14),
+	MUXFLAG_NO_RWSYNC = (1 << 15),
 };
 
 enum mixmonitor_args {
@@ -365,7 +366,8 @@ enum mixmonitor_args {
 	OPT_ARG_UID,
 	OPT_ARG_VMRECIPIENTS,
 	OPT_ARG_BEEP_INTERVAL,
-	OPT_ARG_RWSYNC,
+	OPT_ARG_DEPRECATED_RWSYNC,
+	OPT_ARG_NO_RWSYNC,
 	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
@@ -382,7 +384,8 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('t', MUXFLAG_WRITE, OPT_ARG_WRITENAME),
 	AST_APP_OPTION_ARG('i', MUXFLAG_UID, OPT_ARG_UID),
 	AST_APP_OPTION_ARG('m', MUXFLAG_VMRECIPIENTS, OPT_ARG_VMRECIPIENTS),
-	AST_APP_OPTION_ARG('S', MUXFLAG_RWSYNC, OPT_ARG_RWSYNC),
+	AST_APP_OPTION_ARG('S', MUXFLAG_DEPRECATED_RWSYNC, OPT_ARG_DEPRECATED_RWSYNC),
+	AST_APP_OPTION_ARG('n', MUXFLAG_NO_RWSYNC, OPT_ARG_NO_RWSYNC),
 });
 
 struct mixmonitor_ds {
@@ -970,7 +973,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 	}
 
 	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
-	if ((ast_test_flag(mixmonitor, MUXFLAG_RWSYNC))) {
+	if (!ast_test_flag(mixmonitor, MUXFLAG_NO_RWSYNC)) {
 		ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_SUBSTITUTE_SILENCE);
 	}
 
@@ -1048,6 +1051,11 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 		char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
 
 		ast_app_parse_options(mixmonitor_opts, &flags, opts, args.options);
+
+		if (ast_test_flag(&flags, MUXFLAG_DEPRECATED_RWSYNC)) {
+			ast_log(LOG_NOTICE, "The synchronization behavior enabled by the 'S' option is now the default"
+				" and does not need to be specified.\n");
+		}
 
 		if (ast_test_flag(&flags, MUXFLAG_READVOLUME)) {
 			if (ast_strlen_zero(opts[OPT_ARG_READVOLUME])) {
