@@ -1547,6 +1547,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
 	static const pj_str_t STR_SENDONLY = { "sendonly", 8 };
+	static const pj_str_t STR_INACTIVE = { "inactive", 8 };
+	static const pj_str_t STR_RECVONLY = { "recvonly", 8 };
 	pjmedia_sdp_media *media;
 	const char *hostip = NULL;
 	struct ast_sockaddr addr;
@@ -1811,9 +1813,20 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		media->attr[media->attr_count++] = attr;
 	}
 
-	/* Add the sendrecv attribute - we purposely don't keep track because pjmedia-sdp will automatically change our offer for us */
 	attr = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_attr);
-	attr->name = !session_media->locally_held ? STR_SENDRECV : STR_SENDONLY;
+	if (session_media->locally_held) {
+		if (session_media->remotely_held) {
+			attr->name = STR_INACTIVE; /* To place on hold a recvonly stream, send inactive */
+		} else {
+			attr->name = STR_SENDONLY; /* Send sendonly to initate a local hold */
+		}
+	} else {
+		if (session_media->remotely_held) {
+			attr->name = STR_RECVONLY; /* Remote has sent sendonly, reply recvonly */
+		} else {
+			attr->name = STR_SENDRECV; /* No hold in either direction */
+		}
+	}
 	media->attr[media->attr_count++] = attr;
 
 	/* If we've got rtcp-mux enabled, add it unless we received an offer without it */
