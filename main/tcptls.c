@@ -134,6 +134,28 @@ static const char *ssl_error_to_string(int sslerr, int ret)
 
 	return "Unknown";
 }
+
+static void write_openssl_error_to_log(void)
+{
+	FILE *fp;
+	char *buffer;
+	size_t length;
+
+	fp = open_memstream(&buffer, &length);
+	if (!fp) {
+		return;
+	}
+
+	ERR_print_errors_fp(fp);
+	fclose(fp);
+
+	if (length) {
+		ast_log(LOG_ERROR, "%.*s\n", (int) length, buffer);
+	}
+
+	ast_free(buffer);
+}
+
 #endif
 
 void ast_tcptls_stream_set_timeout_disable(struct ast_tcptls_stream *stream)
@@ -1010,6 +1032,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
 				ast_log(LOG_ERROR, "TLS/SSL error loading cert file. <%s>\n", cfg->certfile);
+				write_openssl_error_to_log();
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -1020,6 +1043,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			if (!client) {
 				/* Clients don't need a private key, but if its setup we can use it */
 				ast_log(LOG_ERROR, "TLS/SSL error loading private key file. <%s>\n", tmpprivate);
+				write_openssl_error_to_log();
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -1031,6 +1055,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
 				ast_log(LOG_ERROR, "TLS/SSL cipher error <%s>\n", cfg->cipher);
+				write_openssl_error_to_log();
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -1041,6 +1066,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
 		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0) {
 			ast_log(LOG_ERROR, "TLS/SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
+			write_openssl_error_to_log();
 		}
 	}
 
