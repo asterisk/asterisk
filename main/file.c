@@ -315,6 +315,8 @@ static char *build_filename(const char *filename, const char *ext)
 {
 	char *fn = NULL;
 
+	/* The wav49 -> WAV translation is duplicated in apps/app_mixmonitor.c, so
+	   if you change it here you need to change it there as well */
 	if (!strcmp(ext, "wav49"))
 		ext = "WAV";
 
