@@ -1823,6 +1823,12 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	} else {
 		if (session_media->remotely_held) {
 			attr->name = STR_RECVONLY; /* Remote has sent sendonly, reply recvonly */
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
+			attr->name = STR_SENDONLY; /* Stream has requested sendonly */
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
+			attr->name = STR_RECVONLY; /* Stream has requested recvonly */
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_INACTIVE) {
+			attr->name = STR_INACTIVE; /* Stream has requested inactive */
 		} else {
 			attr->name = STR_SENDRECV; /* No hold in either direction */
 		}
