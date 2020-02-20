@@ -556,7 +556,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 static int update_mysql(const char *database, const char *tablename, const char *keyfield, const char *lookup, const struct ast_variable *rt_fields)
 {
 	struct mysql_conn *dbh;
-	my_ulonglong numrows;
+	uint64_t numrows;
 	const struct ast_variable *field = rt_fields;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
 	struct tables *table;
@@ -643,7 +643,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	release_table(table);
 	release_database(dbh);
 
-	ast_debug(1, "MySQL RealTime: Updated %llu rows on table: %s\n", numrows, tablename);
+	ast_debug(1, "MySQL RealTime: Updated %" PRIu64 " rows on table: %s\n", numrows, tablename);
 
 	/* From http://dev.mysql.com/doc/mysql/en/mysql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -657,7 +657,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 static int update2_mysql(const char *database, const char *tablename, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
 {
 	struct mysql_conn *dbh;
-	my_ulonglong numrows;
+	uint64_t numrows;
 	int first;
 	const struct ast_variable *field;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
@@ -740,7 +740,7 @@ static int update2_mysql(const char *database, const char *tablename, const stru
 	numrows = mysql_affected_rows(&dbh->handle);
 	release_database(dbh);
 
-	ast_debug(1, "MySQL RealTime: Updated %llu rows on table: %s\n", numrows, tablename);
+	ast_debug(1, "MySQL RealTime: Updated %" PRIu64 " rows on table: %s\n", numrows, tablename);
 
 	/* From http://dev.mysql.com/doc/mysql/en/mysql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -812,7 +812,7 @@ static int store_mysql(const char *database, const char *table, const struct ast
 static int destroy_mysql(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *rt_fields)
 {
 	struct mysql_conn *dbh;
-	my_ulonglong numrows;
+	uint64_t numrows;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
 	const struct ast_variable *field;
@@ -864,7 +864,7 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	numrows = mysql_affected_rows(&dbh->handle);
 	release_database(dbh);
 
-	ast_debug(1, "MySQL RealTime: Deleted %llu rows on table: %s\n", numrows, table);
+	ast_debug(1, "MySQL RealTime: Deleted %" PRIu64 " rows on table: %s\n", numrows, table);
 
 	/* From http://dev.mysql.com/doc/mysql/en/mysql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -880,7 +880,7 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 	struct mysql_conn *dbh;
 	MYSQL_RES *result;
 	MYSQL_ROW row;
-	my_ulonglong num_rows;
+	uint64_t num_rows;
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat = NULL;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 200);
@@ -918,7 +918,7 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 
 	if ((result = mysql_store_result(&dbh->handle))) {
 		num_rows = mysql_num_rows(result);
-		ast_debug(1, "MySQL RealTime: Found %llu rows.\n", num_rows);
+		ast_debug(1, "MySQL RealTime: Found %" PRIu64 " rows.\n", num_rows);
 
 		/* There might exist a better way to access the column names other than counting,
 		 * but I believe that would require another loop that we don't need. */
