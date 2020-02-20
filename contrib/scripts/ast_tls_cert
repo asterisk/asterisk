@@ -49,7 +49,7 @@ create_ca () {
 create_cert () {
 	local base=${OUTPUT_DIR}/${OUTPUT_BASE}
 	echo "Creating certificate ${base}.key"
-	openssl genrsa -out ${base}.key 1024 > /dev/null
+	openssl genrsa -out ${base}.key ${KEYBITS:-1024} > /dev/null
 	if [ $? -ne 0 ];
 	then
 		echo "Failed"
@@ -87,6 +87,7 @@ OPTIONS:
   -f  Config filename (openssl config file format)
   -c  CA cert filename (creates new CA cert/key as ca.crt/ca.key if not passed)
   -k  CA key filename
+  -b  The desired size of the private key in bits. Default is 1024.
   -C  Common name (cert field)
         This should be the fully qualified domain name or IP address for
         the client or server. Make sure your certs have unique common
@@ -128,7 +129,7 @@ OUTPUT_BASE=asterisk # Our default cert basename
 CERT_MODE=server
 ORG_NAME=${DEFAULT_ORG}
 
-while getopts "hf:c:k:o:d:m:C:O:" OPTION
+while getopts "hf:c:k:o:d:m:C:O:b:" OPTION
 do
 	case ${OPTION} in
 		h)
@@ -143,6 +144,9 @@ do
 			;;
 		k)
 			CAKEY=${OPTARG}
+			;;
+		b)
+			KEYBITS=${OPTARG}
 			;;
 		o)
 			OUTPUT_BASE=${OPTARG}
