@@ -606,6 +606,9 @@
 /* Define if your system has PJPROJECT_BUNDLED */
 #undef HAVE_PJPROJECT_BUNDLED
 
+/* Define to 1 if on_valid_pair callback is present. */
+#undef HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK
+
 /* Define to 1 if PJPROJECT has the pjsip_auth_clt_deinit support feature. */
 #undef HAVE_PJSIP_AUTH_CLT_DEINIT
 

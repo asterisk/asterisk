@@ -390,6 +390,7 @@ struct ast_rtp {
 	struct ao2_container *ice_proposed_remote_candidates; /*!< Incoming remote ICE candidates for new session */
 	struct ast_sockaddr ice_original_rtp_addr;            /*!< rtp address that ICE started on first session */
 	unsigned int ice_num_components; /*!< The number of ICE components */
+	unsigned int ice_media_started:1; /*!< ICE media has started, either on a valid pair or on ICE completion */
 #endif
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
@@ -896,6 +897,8 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 			ast_cond_timedwait(&rtp->cond, ao2_object_get_lockaddr(instance), &ts);
 		}
 	}
+
+	rtp->ice_media_started = 0;
 
 	return res;
 }
@@ -2149,13 +2152,14 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 #ifdef HAVE_PJPROJECT
 static void rtp_learning_start(struct ast_rtp *rtp);
 
-/* PJPROJECT ICE callback */
-static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
+/* Handles start of media during ICE negotiation or completion */
+static void ast_rtp_ice_start_media(pj_ice_sess *ice, pj_status_t status)
 {
 	struct ast_rtp_instance *instance = ice->user_data;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	ao2_lock(instance);
+
 	if (status == PJ_SUCCESS) {
 		struct ast_sockaddr remote_address;
 
@@ -2174,12 +2178,20 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 	}
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
+	/* If we've already started media, no need to do all of this again */
+	if (rtp->ice_media_started) {
+		ao2_unlock(instance);
+		return;
+	}
+
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
 
 	if (rtp->rtcp && rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
 		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
 	}
 #endif
+
+	rtp->ice_media_started = 1;
 
 	if (!strictrtp) {
 		ao2_unlock(instance);
@@ -2189,6 +2201,20 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 	ast_verb(4, "%p -- Strict RTP learning after ICE completion\n", rtp);
 	rtp_learning_start(rtp);
 	ao2_unlock(instance);
+}
+
+#ifdef HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK
+/* PJPROJECT ICE optional callback */
+static void ast_rtp_on_valid_pair(pj_ice_sess *ice)
+{
+	ast_rtp_ice_start_media(ice, PJ_SUCCESS);
+}
+#endif
+
+/* PJPROJECT ICE callback */
+static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
+{
+	ast_rtp_ice_start_media(ice, status);
 }
 
 /* PJPROJECT ICE callback */
@@ -2247,6 +2273,9 @@ static pj_status_t ast_rtp_on_ice_tx_pkt(pj_ice_sess *ice, unsigned comp_id, uns
 
 /* ICE Session interface declaration */
 static pj_ice_sess_cb ast_rtp_ice_sess_cb = {
+#ifdef HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK
+	.on_valid_pair = ast_rtp_on_valid_pair,
+#endif
 	.on_ice_complete = ast_rtp_on_ice_complete,
 	.on_rx_data = ast_rtp_on_ice_rx_data,
 	.on_tx_pkt = ast_rtp_on_ice_tx_pkt,
