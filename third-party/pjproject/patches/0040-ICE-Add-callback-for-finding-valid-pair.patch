@@ -1,0 +1,84 @@
+From 8b8199180766e3eab6014feaa64ccaedcdc12816 Mon Sep 17 00:00:00 2001
+From: Ben Ford <bford@digium.com>
+Date: Mon, 23 Dec 2019 11:11:13 -0600
+Subject: [PATCH] ICE: Add callback for finding valid pair.
+
+It's possible to start sending as soon as one valid pair is found during
+ICE negotiation. The reason we would want to do this is because it is
+possible for a delay to occur at the start of a call for up to 3 seconds
+until ICE negotiation has actually completed. More information can be
+found here:
+https://bugs.chromium.org/p/chromium/issues/detail?id=1024096
+
+This patch adds a callback once a valid pair is found that applications
+can use to start sending to avoid this scenario. Since only one valid
+pair is needed to start media, we only trigger the callback once.
+---
+ pjnath/include/pjnath/ice_session.h |  9 +++++++++
+ pjnath/src/pjnath/ice_session.c     | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/pjnath/include/pjnath/ice_session.h b/pjnath/include/pjnath/ice_session.h
+index 15f0d04..8971220 100644
+--- a/pjnath/include/pjnath/ice_session.h
++++ b/pjnath/include/pjnath/ice_session.h
+@@ -468,6 +468,14 @@ typedef struct pj_ice_sess_cb
+ {
+     /**
+      * An optional callback that will be called by the ICE session when
++     * a valid pair has been found during ICE negotiation.
++     *
++     * @param ice           The ICE session.
++     */
++    void	(*on_valid_pair)(pj_ice_sess *ice);
++
++    /**
++     * An optional callback that will be called by the ICE session when
+      * ICE negotiation has completed, successfully or with failure.
+      *
+      * @param ice	    The ICE session.
+@@ -625,6 +633,7 @@ struct pj_ice_sess
+     pj_bool_t		 is_nominating;		    /**< Nominating stage   */
+     pj_bool_t		 is_complete;		    /**< Complete?	    */
+     pj_bool_t		 is_destroying;		    /**< Destroy is called  */
++    pj_bool_t            valid_pair_found;          /**< First pair found   */
+     pj_status_t		 ice_status;		    /**< Error status.	    */
+     pj_timer_entry	 timer;			    /**< ICE timer.	    */
+     pj_ice_sess_cb	 cb;			    /**< Callback.	    */
+diff --git a/pjnath/src/pjnath/ice_session.c b/pjnath/src/pjnath/ice_session.c
+index c51dba7..ed4138a 100644
+--- a/pjnath/src/pjnath/ice_session.c
++++ b/pjnath/src/pjnath/ice_session.c
+@@ -418,6 +418,8 @@ PJ_DEF(pj_status_t) pj_ice_sess_create(pj_stun_config *stun_cfg,
+ 
+     pj_list_init(&ice->early_check);
+ 
++    ice->valid_pair_found = PJ_FALSE;
++
+     /* Done */
+     *p_ice = ice;
+ 
+@@ -1348,6 +1350,20 @@ static pj_bool_t on_check_complete(pj_ice_sess *ice,
+ 	     GET_CHECK_ID(&ice->clist, check),
+ 	     (check->nominated ? "  and nominated" : "")));
+ 
++	{
++	    /* On the first valid pair, we call the callback, if present */
++	    if (ice->valid_pair_found == PJ_FALSE) {
++	        void (*on_valid_pair)(pj_ice_sess *ice);
++
++		ice->valid_pair_found = PJ_TRUE;
++	        on_valid_pair = ice->cb.on_valid_pair;
++
++	        if (on_valid_pair) {
++		    (*on_valid_pair)(ice);
++	        }
++	    }
++	}
++
+     }
+ 
+     /* 8.2.  Updating States
+-- 
+2.7.4
+
