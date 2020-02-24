@@ -699,7 +699,7 @@ int ast_format_cap_identical(const struct ast_format_cap *cap1, const struct ast
 	return internal_format_cap_identical(cap2, cap1);
 }
 
-const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf)
+const char *ast_format_cap_get_names(const struct ast_format_cap *cap, struct ast_str **buf)
 {
 	int i;
 
@@ -725,7 +725,7 @@ const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str 
 	return ast_str_buffer(*buf);
 }
 
-int ast_format_cap_empty(struct ast_format_cap *cap)
+int ast_format_cap_empty(const struct ast_format_cap *cap)
 {
 	int count = ast_format_cap_count(cap);
 
