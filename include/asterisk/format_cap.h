@@ -308,7 +308,7 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_media_typ
  *
  * \return The contents of the buffer in \c buf
  */
-const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf);
+const char *ast_format_cap_get_names(const struct ast_format_cap *cap, struct ast_str **buf);
 
 #ifndef AST_FORMAT_CAP_NAMES_LEN
 /*! Buffer size for callers of ast_format_cap_get_names to allocate. */
@@ -322,6 +322,6 @@ const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str 
  * \retval 1 The format cap has zero formats or only ast_format_none
  * \retval 0 The format cap has at least one format
  */
-int ast_format_cap_empty(struct ast_format_cap *cap);
+int ast_format_cap_empty(const struct ast_format_cap *cap);
 
 #endif /* _AST_FORMAT_CAP_H */
