@@ -56,6 +56,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
+#include "asterisk/res_pjsip_session_caps.h"
 
 /*! \brief Scheduler for RTCP purposes */
 static struct ast_sched_context *sched;
@@ -373,6 +374,81 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	}
 }
 
+static int apply_cap_to_bundled(struct ast_sip_session_media *session_media,
+	struct ast_sip_session_media *session_media_transport,
+	struct ast_stream *asterisk_stream, const struct ast_format_cap *joint)
+{
+	if (!joint) {
+		return -1;
+	}
+
+	ast_stream_set_formats(asterisk_stream, (struct ast_format_cap *)joint);
+
+	/* If this is a bundled stream then apply the payloads to RTP instance acting as transport to prevent conflicts */
+	if (session_media_transport != session_media && session_media->bundled) {
+		int index;
+
+		for (index = 0; index < ast_format_cap_count(joint); ++index) {
+			struct ast_format *format = ast_format_cap_get_format(joint, index);
+			int rtp_code;
+
+			/* Ensure this payload is in the bundle group transport codecs, this purposely doesn't check the return value for
+			 * things as the format is guaranteed to have a payload already.
+			 */
+			rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0);
+			ast_rtp_codecs_payload_set_rx(ast_rtp_instance_get_codecs(session_media_transport->rtp), rtp_code, format);
+
+			ao2_ref(format, -1);
+		}
+	}
+
+	return 0;
+}
+
+static const struct ast_format_cap *set_incoming_call_offer_cap(
+	struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *stream)
+{
+	const struct ast_format_cap *incoming_call_offer_cap;
+	struct ast_format_cap *remote;
+	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
+	int fmts = 0;
+
+	remote = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!remote) {
+		ast_log(LOG_ERROR, "Failed to allocate %s incoming remote capabilities\n",
+				ast_codec_media_type2str(session_media->type));
+		return NULL;
+	}
+
+	/* Get the peer's capabilities*/
+	get_codecs(session, stream, &codecs, session_media);
+	ast_rtp_codecs_payload_formats(&codecs, remote, &fmts);
+
+	incoming_call_offer_cap = ast_sip_session_join_incoming_call_offer_cap(
+		session, session_media, remote);
+
+	ao2_ref(remote, -1);
+
+	if (!incoming_call_offer_cap) {
+		ast_rtp_codecs_payloads_destroy(&codecs);
+		return NULL;
+	}
+
+	/*
+	 * Setup rx payload type mapping to prefer the mapping
+	 * from the peer that the RFC says we SHOULD use.
+	 */
+	ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
+
+	ast_rtp_codecs_payloads_copy(&codecs,
+		ast_rtp_instance_get_codecs(session_media->rtp), session_media->rtp);
+
+	ast_rtp_codecs_payloads_destroy(&codecs);
+
+	return incoming_call_offer_cap;
+}
+
 static int set_caps(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media,
 	struct ast_sip_session_media *session_media_transport,
@@ -432,25 +508,7 @@ static int set_caps(struct ast_sip_session *session,
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 		session_media->rtp);
 
-	ast_stream_set_formats(asterisk_stream, joint);
-
-	/* If this is a bundled stream then apply the payloads to RTP instance acting as transport to prevent conflicts */
-	if (session_media_transport != session_media && session_media->bundled) {
-		int index;
-
-		for (index = 0; index < ast_format_cap_count(joint); ++index) {
-			struct ast_format *format = ast_format_cap_get_format(joint, index);
-			int rtp_code;
-
-			/* Ensure this payload is in the bundle group transport codecs, this purposely doesn't check the return value for
-			 * things as the format is guaranteed to have a payload already.
-			 */
-			rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0);
-			ast_rtp_codecs_payload_set_rx(ast_rtp_instance_get_codecs(session_media_transport->rtp), rtp_code, format);
-
-			ao2_ref(format, -1);
-		}
-	}
+	apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream, joint);
 
 	if (session->channel && ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
 		ast_channel_lock(session->channel);
@@ -1420,7 +1478,8 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 		session_media->remotely_held_changed = 1;
 	}
 
-	if (set_caps(session, session_media, session_media_transport, stream, 1, asterisk_stream)) {
+	if (apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream,
+			set_incoming_call_offer_cap(session, session_media, stream))) {
 		return 0;
 	}
 
