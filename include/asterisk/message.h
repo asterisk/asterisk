@@ -397,6 +397,19 @@ struct ast_msg_var_iterator *ast_msg_var_iterator_init(const struct ast_msg *msg
 int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *iter, const char **name, const char **value);
 
 /*!
+ * \brief Get the next variable name and value that was set on a received message
+ * \param msg The message with the variables
+ * \param iter An iterator created with ast_msg_var_iterator_init
+ * \param name A pointer to the name result pointer
+ * \param value A pointer to the value result pointer
+ *
+ * \retval 0 No more entries
+ * \retval 1 Valid entry
+ */
+int ast_msg_var_iterator_next_received(const struct ast_msg *msg,
+	struct ast_msg_var_iterator *iter, const char **name, const char **value);
+
+/*!
  * \brief Destroy a message variable iterator
  * \param iter Iterator to be destroyed
  */
