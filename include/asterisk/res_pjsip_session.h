@@ -89,6 +89,8 @@ struct ast_sip_session_media {
 	int timeout_sched_id;
 	/*! \brief Stream is on hold by remote side */
 	unsigned int remotely_held:1;
+	/*! \brief Stream is held by remote side changed during this negotiation*/
+	unsigned int remotely_held_changed:1;
 	/*! \brief Stream is on hold by local side */
 	unsigned int locally_held:1;
 	/*! \brief Does remote support rtcp_mux */
