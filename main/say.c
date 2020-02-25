@@ -330,10 +330,12 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
       \arg \b hu    - Hungarian
 
  \par Gender:
- For Some languages the numbers differ for gender and plural.
+ For some languages the numbers differ for gender of the countable object.
+ Commonly for "one", like "un"/"une" in French. Note that the interface
+ is somewhat peculiar, as differing languages can have conflicting
+ genders.
  \arg Use the option argument 'f' for female, 'm' for male and 'n' for neuter in languages like Portuguese, French, Spanish and German.
  \arg use the option argument 'c' is for commune and 'n' for neuter gender in nordic languages like Danish, Swedish and Norwegian.
- use the option argument 'p' for plural enumerations like in German
 
  Date/Time functions currently have less languages supported than saynumber().
 
@@ -2918,7 +2920,7 @@ static int ast_say_enumeration_full_vi(struct ast_channel *chan, int num, const 
 /*! \brief  ast_say_enumeration_full_da: Danish syntax */
 static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender; 'p' plural */
+	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender */
 	int res = 0, t = 0;
 	char fn[256] = "", fna[256] = "";
 	char *gender;
@@ -3081,7 +3083,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 /*! \brief  ast_say_enumeration_full_de: German syntax */
 static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender; 'p' plural */
+	/* options can be: '' or 'm' male gender; 'f' female gender; 'n' neuter gender */
 	int res = 0, t = 0;
 	char fn[256] = "", fna[256] = "";
 	char *gender;
