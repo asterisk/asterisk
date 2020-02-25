@@ -1614,7 +1614,7 @@ struct member {
 	time_t starttime;                    /*!< The time at which the member answered the current caller. */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	time_t lastpause;                    /*!< When started the last pause */
-	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
+	struct call_queue *lastqueue;        /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
 	char rt_uniqueid[80];                /*!< Unique id of realtime member entry */
@@ -4017,44 +4017,26 @@ static int say_position(struct queue_ent *qe, int ringing)
 		/* Say we're next, if we are */
 		if (qe->pos == 1) {
 			res = play_file(qe->chan, qe->parent->sound_next);
-			if (res) {
-				goto playout;
+			if (!res) {
+				goto posout;
 			}
-			goto posout;
+		/* Say there are more than N callers */
+		} else if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit) {
+			res = (
+				play_file(qe->chan, qe->parent->queue_quantity1) ||
+				ast_say_number(qe->chan, qe->parent->announcepositionlimit, AST_DIGIT_ANY,
+						ast_channel_language(qe->chan), NULL) || /* Needs gender */
+				play_file(qe->chan, qe->parent->queue_quantity2));
+		/* Say there are currently N callers waiting */
 		} else {
-			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
-				/* More than Case*/
-				res = play_file(qe->chan, qe->parent->queue_quantity1);
-				if (res) {
-					goto playout;
-				}
-				res = ast_say_number(qe->chan, qe->parent->announcepositionlimit, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL); /* Needs gender */
-				if (res) {
-					goto playout;
-				}
-			} else {
-				/* Normal Case */
-				res = play_file(qe->chan, qe->parent->sound_thereare);
-				if (res) {
-					goto playout;
-				}
-				res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, ast_channel_language(qe->chan), NULL); /* Needs gender */
-				if (res) {
-					goto playout;
-				}
-			}
-			if (qe->parent->announceposition == ANNOUNCEPOSITION_MORE_THAN && qe->pos > qe->parent->announcepositionlimit){
-				/* More than Case*/
-				res = play_file(qe->chan, qe->parent->queue_quantity2);
-				if (res) {
-					goto playout;
-				}
-			} else {
-				res = play_file(qe->chan, qe->parent->sound_calls);
-				if (res) {
-					goto playout;
-				}
-			}
+			res = (
+				play_file(qe->chan, qe->parent->sound_thereare) ||
+				ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY,
+						ast_channel_language(qe->chan), NULL) || /* Needs gender */
+				play_file(qe->chan, qe->parent->sound_calls));
+		}
+		if (res) {
+			goto playout;
 		}
 	}
 	/* Round hold time to nearest minute */
