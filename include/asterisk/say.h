@@ -72,7 +72,7 @@ static int say_stub(struct ast_channel *chan, ...)
  * \param num number to say on the channel
  * \param ints which dtmf to interrupt on
  * \param lang language to speak the number
- * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter, 'p' for plural
+ * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter
  * \details
  * Vocally says a number on a given channel
  * \retval 0 on success
@@ -91,7 +91,7 @@ SAY_EXTERN int (* ast_say_number_full)(struct ast_channel *chan, int num, const 
  * \param num number to say on the channel
  * \param ints which dtmf to interrupt on
  * \param lang language to speak the enumeration
- * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter, 'p' for plural
+ * \param options set to 'f' for female, 'm' for male, 'c' for commune, 'n' for neuter
  * \details
  * Vocally says an enumeration on a given channel (first, sencond, third, forth, thirtyfirst, hundredth, ....)
  * Especially useful for dates and messages. Says 'last' if num equals to INT_MAX
