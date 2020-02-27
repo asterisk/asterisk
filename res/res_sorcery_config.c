@@ -103,6 +103,7 @@ static struct ast_sorcery_wizard config_object_wizard = {
 	.open = sorcery_config_open,
 	.load = sorcery_config_load,
 	.reload = sorcery_config_reload,
+	.force_reload = sorcery_config_load,
 	.retrieve_id = sorcery_config_retrieve_id,
 	.retrieve_fields = sorcery_config_retrieve_fields,
 	.retrieve_multiple = sorcery_config_retrieve_multiple,
