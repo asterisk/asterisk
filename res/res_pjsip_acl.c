@@ -31,6 +31,8 @@
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/acl.h"
+#include "asterisk/stasis.h"
+#include "asterisk/security_events.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_acl" language="en_US">
@@ -113,6 +115,8 @@
 		</configFile>
 	</configInfo>
  ***/
+
+static struct stasis_subscription *acl_change_sub;
 
 static int apply_acl(pjsip_rx_data *rdata, struct ast_acl_list *acl)
 {
@@ -280,6 +284,16 @@ static void *acl_alloc(const char *name)
 	return sip_acl;
 }
 
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	if (stasis_message_type(message) != ast_named_acl_change_type()) {
+		return;
+	}
+
+	ast_sorcery_force_reload_object(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE);
+}
+
 static int load_module(void)
 {
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE);
@@ -304,12 +318,18 @@ static int load_module(void)
 
 	ast_sorcery_load_object(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE);
 
+	acl_change_sub = stasis_subscribe(ast_security_topic(), acl_change_stasis_cb, NULL);
+	stasis_subscription_accept_message_type(acl_change_sub, ast_named_acl_change_type());
+	stasis_subscription_set_filter(acl_change_sub, STASIS_SUBSCRIPTION_FILTER_SELECTIVE);
+
 	ast_sip_register_service(&acl_module);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 	ast_sip_unregister_service(&acl_module);
 	return 0;
 }
