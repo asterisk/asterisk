@@ -233,22 +233,6 @@
 				}
 			}
 		},
-		"TextMessageVariable": {
-			"id": "TextMessageVariable",
-			"description": "A key/value pair variable in a text message.",
-			"properties": {
-				"key": {
-					"type": "string",
-					"description": "A unique key identifying the variable.",
-					"required": true
-				},
-				"value": {
-					"type": "string",
-					"description": "The value of the variable.",
-					"required": true
-				}
-			}
-		},
 		"TextMessage": {
 			"id": "TextMessage",
 			"description": "A text message.",
@@ -269,8 +253,8 @@
 					"required": true
 				},
 				"variables": {
-					"type": "List[TextMessageVariable]",
-					"description": "Technology specific key/value pairs associated with the message.",
+					"type": "object",
+					"description": "Technology specific key/value pairs (JSON object) associated with the message.",
 					"required": false
 				}
 			}
