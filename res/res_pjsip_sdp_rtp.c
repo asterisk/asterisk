@@ -1066,6 +1066,20 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	/* If ICE support is enabled find all the needed attributes */
 	check_ice_support(session, session_media, stream);
 
+	/* Check if incomming SDP is changing the remotely held state */
+	if (ast_sockaddr_isnull(addrs) ||
+		ast_sockaddr_is_any(addrs) ||
+		pjmedia_sdp_media_find_attr2(stream, "sendonly", NULL) ||
+		pjmedia_sdp_media_find_attr2(stream, "inactive", NULL)) {
+		if (!session_media->remotely_held) {
+			session_media->remotely_held = 1;
+			session_media->remotely_held_changed = 1;
+		}
+	} else if (session_media->remotely_held) {
+		session_media->remotely_held = 0;
+		session_media->remotely_held_changed = 1;
+	}
+
 	if (set_caps(session, session_media, stream)) {
 		return 0;
 	}
@@ -1484,22 +1498,19 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return 1;
 	}
 
-	if (ast_sockaddr_isnull(addrs) ||
-		ast_sockaddr_is_any(addrs) ||
-		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL) ||
-		pjmedia_sdp_media_find_attr2(remote_stream, "inactive", NULL)) {
-		if (!session_media->remotely_held) {
+	if (session_media->remotely_held_changed) {
+		if (session_media->remotely_held) {
 			/* The remote side has put us on hold */
 			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
 			ast_rtp_instance_stop(session_media->rtp);
 			ast_queue_frame(session->channel, &ast_null_frame);
-			session_media->remotely_held = 1;
+			session_media->remotely_held_changed = 0;
+		} else {
+			/* The remote side has taken us off hold */
+			ast_queue_unhold(session->channel);
+			ast_queue_frame(session->channel, &ast_null_frame);
+			session_media->remotely_held_changed = 0;
 		}
-	} else if (session_media->remotely_held) {
-		/* The remote side has taken us off hold */
-		ast_queue_unhold(session->channel);
-		ast_queue_frame(session->channel, &ast_null_frame);
-		session_media->remotely_held = 0;
 	} else if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)
 		&& (session->inv_session->state == PJSIP_INV_STATE_CONFIRMED)) {
 		ast_queue_control(session->channel, AST_CONTROL_UPDATE_RTP_PEER);
