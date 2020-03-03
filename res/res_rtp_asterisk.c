@@ -8652,6 +8652,42 @@ static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct a
 	return CLI_SHOWUSAGE;   /* default, failure */
 }
 
+
+static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp show settings";
+		e->usage =
+			"Usage: rtp show settings\n"
+			"       Display RTP configuration settings\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "\n\nGeneral Settings:\n");
+	ast_cli(a->fd, "----------------\n");
+	ast_cli(a->fd, "  Port start:      %d\n", rtpstart);
+	ast_cli(a->fd, "  Port end:        %d\n", rtpend);
+	ast_cli(a->fd, "  Checksums:       %s\n", AST_CLI_YESNO(nochecksums == 0));
+	ast_cli(a->fd, "  DTMF Timeout:    %d\n", dtmftimeout);
+	ast_cli(a->fd, "  Strict RTP:      %s\n", AST_CLI_YESNO(strictrtp));
+
+	if (strictrtp) {
+		ast_cli(a->fd, "  Probation:       %d frames\n", learning_min_sequential);
+	}
+
+	ast_cli(a->fd, "  ICE support:     %s\n", AST_CLI_YESNO(icesupport));
+
+	return CLI_SUCCESS;
+}
+
+
 static char *handle_cli_rtcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -8714,6 +8750,7 @@ static char *handle_cli_rtcp_set_stats(struct ast_cli_entry *e, int cmd, struct 
 
 static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtp_set_debug,  "Enable/Disable RTP debugging"),
+	AST_CLI_DEFINE(handle_cli_rtp_settings,   "Display RTP settings"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_debug, "Enable/Disable RTCP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
 };
