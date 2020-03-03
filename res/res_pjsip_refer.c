@@ -233,11 +233,12 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 	/* Determine the state of the REFER based on the control frames (or voice frames) passing */
 	if (f->frametype == AST_FRAME_VOICE && !progress->subclass) {
 		/* Media is passing without progress, this means the call has been answered */
+		progress->subclass = AST_CONTROL_ANSWER;
 		notification = refer_progress_notification_alloc(progress, 200, PJSIP_EVSUB_STATE_TERMINATED);
 	} else if (f->frametype == AST_FRAME_CONTROL) {
 		/* Based on the control frame being written we can send a NOTIFY advising of the progress */
 		if ((f->subclass.integer == AST_CONTROL_RING) || (f->subclass.integer == AST_CONTROL_RINGING)) {
-			progress->subclass = f->subclass.integer;
+			/* Don't set progress->subclass; an ANSWER can still follow */
 			notification = refer_progress_notification_alloc(progress, 180, PJSIP_EVSUB_STATE_ACTIVE);
 		} else if (f->subclass.integer == AST_CONTROL_BUSY) {
 			progress->subclass = f->subclass.integer;
@@ -246,10 +247,10 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 			progress->subclass = f->subclass.integer;
 			notification = refer_progress_notification_alloc(progress, 503, PJSIP_EVSUB_STATE_TERMINATED);
 		} else if (f->subclass.integer == AST_CONTROL_PROGRESS) {
-			progress->subclass = f->subclass.integer;
+			/* Don't set progress->subclass; an ANSWER can still follow */
 			notification = refer_progress_notification_alloc(progress, 183, PJSIP_EVSUB_STATE_ACTIVE);
 		} else if (f->subclass.integer == AST_CONTROL_PROCEEDING) {
-			progress->subclass = f->subclass.integer;
+			/* Don't set progress->subclass; an ANSWER can still follow */
 			notification = refer_progress_notification_alloc(progress, 100, PJSIP_EVSUB_STATE_ACTIVE);
 		} else if (f->subclass.integer == AST_CONTROL_ANSWER) {
 			progress->subclass = f->subclass.integer;
