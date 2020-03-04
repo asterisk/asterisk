@@ -629,7 +629,9 @@ struct ast_msg_var_iterator *ast_msg_var_iterator_init(const struct ast_msg *msg
 	return iter;
 }
 
-int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *iter, const char **name, const char **value)
+static int ast_msg_var_iterator_get_next(const struct ast_msg *msg,
+	struct ast_msg_var_iterator *iter, const char **name, const char **value,
+	unsigned int send)
 {
 	struct msg_data *data;
 
@@ -637,8 +639,8 @@ int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iter
 		return 0;
 	}
 
-	/* Skip any that aren't marked for sending out */
-	while ((data = ao2_iterator_next(&iter->iter)) && !data->send) {
+	/* Skip any that we're told to */
+	while ((data = ao2_iterator_next(&iter->iter)) && (data->send != send)) {
 		ao2_ref(data, -1);
 	}
 
@@ -646,7 +648,7 @@ int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iter
 		return 0;
 	}
 
-	if (data->send) {
+	if (data->send == send) {
 		*name = data->name;
 		*value = data->value;
 	}
@@ -656,6 +658,17 @@ int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iter
 	iter->current_used = data;
 
 	return 1;
+}
+
+int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *iter, const char **name, const char **value)
+{
+	return ast_msg_var_iterator_get_next(msg, iter, name, value, 1);
+}
+
+int ast_msg_var_iterator_next_received(const struct ast_msg *msg,
+	  struct ast_msg_var_iterator *iter, const char **name, const char **value)
+{
+	return ast_msg_var_iterator_get_next(msg, iter, name, value, 0);
 }
 
 void ast_msg_var_unref_current(struct ast_msg_var_iterator *iter)
