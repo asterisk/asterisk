@@ -1,0 +1,452 @@
+/*
+ * This is a generic jenkinsfile to build Asterisk and optionally
+ * perform one or more of the following:
+ *  * Publish the API docs to the wiki
+ *  * Run the Unit tests
+ *  * Run Testsuite Tests
+ *
+ * This job can be triggered manually from Jenkins or be triggered
+ * automatically on a schedule based on a cron string.
+ *
+ * To use this jenkinsfile, create a new "Multi-Branch Pipeline" job
+ * in Jenkins.  For easier configuration, the job name should contain
+ * only letters, numbers, or the "-", "_" and "." special characters.
+ * Use the "by Jenkinsfile" "Build Configuration" mode and specify
+ * the path to this jenkinsfile.
+ *
+ * When you save this job definition, Jenkins will scan the git
+ * repository and find any branches with this Jenkinsfile and then try
+ * run the job.  It's expected that the jobs will fail because you
+ * haven't create the config file yet.
+ *
+ * The job is configured from a Jenkins managed config file named
+ * "jobConfig".  These files are created using the "Config Files"
+ * option of the base job and are unique to a job so you can create
+ * multiple jobs based on this Jenkinsfile without conflicts.
+ *
+ * Create the file as a "Json file" remembering to change the ID
+ * from the auto-generated UUID to "jobConfig".
+ *
+ * Example contents:
+ *	{
+ *		cronString: 'H H(0-4) * * *',
+ *		jobTimeout: {
+ *			timeout: 2,
+ *			units: 'HOURS',
+ *		},
+ *		jobCleanup: {
+ *			keepBuilds: 5,
+ *			artifactKeepBuilds: 2
+ *		},
+ *		throttleCategories: [
+ *			'default'
+ *		],
+ *		docker: [
+ *			images: [
+ *				'asterisk/jenkins-agent-centos7'
+ *			]
+ *		],
+ *		buildAsterisk: [
+ *			build: true,
+ *			env: [
+ *				REF_DEBUG: true
+ *			]
+ *		],
+ *		unitTests: [
+ *			run: true,
+ *			testCommand: 'test execute all'
+ *		]
+ *	}
+ *
+ * NOTE: The JSON file can actually reference variables from the
+ * environment using string interpolation.  For example, if you
+ * need to substitute the current branch in a value for some reason,
+ * you could use:
+ *   mybranch: "${BRANCH}"
+ */
+
+/*
+ * All jobConfig parameters have defaults BUT if left that way,
+ * only an Asterisk build will be done.
+ *
+ * NOTE:  Groovy syntax uses brackets "[]" for both arrays and
+ * maps/dictionaries where JSON uses brackets "[]" for arrays but
+ * braces "{}" for maps/dictionaries.  Your jobConfig file is JSON
+ * but the defaults below are Groovy.
+ */
+def jobConfig = [
+	/* Must match a label assigned to agents. */
+	agentLabel: 'swdev-docker',
+	/*
+	 * https://jenkins.io/doc/book/pipeline/syntax/#cron-syntax
+	 * If empty, job will not be scheduled and must be triggered manually.
+	 */
+	cronString: '',
+	/*
+	 * An array of strings that name categories defined in Jenkins
+	 * Global Settings under "Throttle Concurrent Builds".  If you
+	 * specify one or more categories, they MUST have been defined
+	 * or the job will fail.
+	 */
+	throttleCategories: [
+	],
+	jobTimeout: [
+		/* How long should the job be allowed to run? */
+		timeout: 120,
+		/* Common valid units are "MINUTES", "HOURS", "DAYS". */
+		units: 'MINUTES'
+	],
+	jobCleanup: [
+		/* The total number of past jobs to keep. */
+		keepBuilds: 14,
+		/* But only this number will have their artifacts saved. */
+		artifactKeepBuilds: 7,
+		/* Clean up the workspace on the agent when the job completes. */
+		cleanupWorkspace: true
+	],
+	docker: [
+		/* The host and port of our Docker image registry. */
+		registry: 'swdev-docker0:5000',
+		/*
+		 * An array of images that can be used for this job.
+		 * One will be chosen from the list at random.
+		 */
+		images: [
+			'asterisk/jenkins-agent-centos7'
+		],
+	],
+	buildAsterisk: [
+		/* Build Asterisk */
+		build: true,
+		/* Additional envuronment variables to pass to buildAsterisk.sh */
+		env: [
+		]
+	],
+	unitTests: [
+		/* Run the Asterisk Unit Tests. */
+		run: false,
+		/* The Asterisk CLI command to run the tests. */
+		testCommand: 'test execute all'
+	],
+	wikiDocs: [
+		/* Build and publish the wiki documentation? */
+		publish: false,
+		/* The URL to the "publish-docs" repository */
+		gitURL: "https://gerrit.asterisk.org/publish-docs",
+		/*
+		 * Only for branches that match the regex.
+		 * I.E. Only the base branches excluding master.
+		 */
+		branchRegex: '^([0-9]+)$'
+	],
+	testsuite: [
+		/* Run the Testsuite? */
+		run: false,
+		/* The URL to the "testsuite" repository */
+		gitURL: "https://gerrit.asterisk.org/testsuite",
+		/*
+		 * The name of the testsuite config file.
+		 * See the "Testsuite" stage below for more info.
+		 */
+		configFile: 'testsuiteConfig',
+	]
+]
+
+/*
+ * The easiest way to process the above defaults is to merge the
+ * values from the jobConfig file over the defaults map.  Groovy
+ * provides a standard way to do this but it's not a deep operation
+ * so we provide our own deep merge function.
+ */
+Map merge(Map onto, Map... overrides) {
+    if (!overrides)
+        return onto
+    else if (overrides.length == 1) {
+        overrides[0]?.each { k, v ->
+            if (v instanceof Map && onto[k] instanceof Map)
+                merge((Map) onto[k], (Map) v)
+            else
+                onto[k] = v
+        }
+        return onto
+    }
+    return overrides.inject(onto, { acc, override -> merge(acc, override ?: [:]) })
+}
+
+/*
+ * The job setup steps such as reading the config file and merging the
+ * defaults can be done on the "master" node before we send the job off
+ * to an agent.
+ */
+node('master') {
+    def tempJobConfig
+	configFileProvider([configFile(fileId: 'jobConfig',
+		replaceTokens: true, variable: 'JOB_CONFIG_FILE')]) {
+	    echo "Retrieved jobConfig file from ${env.JOB_CONFIG_FILE}"
+	    tempJobConfig = readJSON file: env.JOB_CONFIG_FILE
+	}
+	script {
+	    merge(jobConfig, tempJobConfig)
+	    echo jobConfig.toString()
+	    causeClasses = currentBuild.getBuildCauses()
+	    causeClass = causeClasses[0]
+	    echo "Build Cause: ${causeClass.toString()}"
+	}
+}
+
+pipeline {
+	triggers {
+		/* If jobConfig.cronString is empty (the default), the trigger will be ignored */
+		cron jobConfig.cronString
+	}
+
+	options {
+		throttle(jobConfig.throttleCategories)
+		timeout(time: jobConfig.jobTimeout.timeout, unit: jobConfig.jobTimeout.units)
+		buildDiscarder(
+		    logRotator(numToKeepStr: "${jobConfig.jobCleanup.keepBuilds}",
+		    artifactNumToKeepStr: "${jobConfig.jobCleanup.artifactKeepBuilds}"))
+	}
+
+	agent {
+		label jobConfig.agentLabel
+	}
+
+	stages {
+		stage ("Setup") {
+			when {
+				/*
+				 * When you make changes to the base job or a new branch is discovered
+				 * Jenkins tries to run it the job.  We probably don't want this to happen
+				 * so if "BranchIndexing" was teh cause, don't run any of the steps.
+				 */
+				not {
+					triggeredBy 'BranchIndexingCause'
+				}
+			}
+
+			steps { script {
+				createSummary(icon: "/plugin/workflow-job/images/48x48/pipelinejob.png", text: "Docker Host: ${NODE_NAME}")
+				sh "sudo chown -R jenkins:users ."
+				sh "printenv -0 | sort -z | tr '\\0' '\\n'"
+				sh "sudo tests/CI/setupJenkinsEnvironment.sh"
+
+				/* Find a docker image, setup parameters and pull image */
+				def r = currentBuild.startTimeInMillis % jobConfig.docker.images.size()
+				def ri = jobConfig.docker.images[(int)r]
+				echo "Docker Image: ${ri}"
+				def randomImage = jobConfig.docker.registry + "/" + ri
+				echo "Docker Path: ${randomImage}"
+				dockerOptions = "--privileged --ulimit core=0 --ulimit nofile=10240 " +
+					" --tmpfs /tmp:exec,size=1G -v /srv/jenkins:/srv/jenkins:rw -v /srv/cache:/srv/cache:rw " +
+					" --entrypoint=''"
+				buildTag = env.BUILD_TAG.replaceAll(/[^a-zA-Z0-9_.-]/, '-')
+				dockerImage = docker.image(randomImage)
+				dockerImage.pull()
+			}}
+		}
+
+		stage ("Build") {
+			when {
+				expression { jobConfig.buildAsterisk.build }
+				not {
+					triggeredBy 'BranchIndexingCause'
+				}
+			}
+			steps { script {
+				dockerImage.inside(dockerOptions + " --name ${buildTag}-build") {
+					echo 'Building..'
+
+					withEnv(jobConfig.buildAsterisk.env) {
+						sh "./tests/CI/buildAsterisk.sh --branch-name=${BRANCH_NAME} --output-dir=tests/CI/output/Build --cache-dir=/srv/cache"
+					}
+
+					archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
+						artifacts: "tests/CI/output/Build/*"
+				}
+			}}
+		}
+
+		stage ("WikiDocs") {
+			when {
+				expression { jobConfig.wikiDocs.publish }
+				not {
+					triggeredBy 'BranchIndexingCause'
+				}
+			}
+			steps { script {
+				dockerImage.inside(dockerOptions + " --name ${buildTag}-wikidocs") {
+					sh "sudo ./tests/CI/installAsterisk.sh --branch-name=${BRANCH_NAME}  --user-group=jenkins:users"
+
+					checkout scm: [$class: 'GitSCM',
+						branches: [[name: "master"]],
+							extensions: [
+								[$class: 'RelativeTargetDirectory', relativeTargetDir: "tests/CI/output/publish-docs"],
+								[$class: 'CloneOption',
+									noTags: true,
+									honorRefspec: true,
+									shallow: false
+								],
+							],
+							userRemoteConfigs: [[url: jobConfig.wikiDocs.gitURL]]
+						]
+					sh "./tests/CI/publishAsteriskDocs.sh --user-group=jenkins:users --branch-name=${BRANCH_NAME} --wiki-doc-branch-regex=\"${jobConfig.wikiDocs.branchRegex}\""
+				}
+			}}
+		}
+
+		stage ("UnitTests") {
+			when {
+				expression { jobConfig.unitTests.run }
+				not {
+					triggeredBy 'BranchIndexingCause'
+				}
+			}
+			steps { script {
+				dockerImage.inside(dockerOptions + " --name ${buildTag}-unittests") {
+					def outputdir = "tests/CI/output/UnitTests"
+					def outputfile = "${outputdir}/unittests-results.xml"
+
+					sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
+					sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${jobConfig.unitTests.testCommand}'"
+
+					archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
+						artifacts: "${outputdir}/**"
+					junit testResults: outputfile,
+						healthScaleFactor: 1.0,
+						keepLongStdio: true
+				}
+			}}
+		}
+
+		/* Testsuite Tests
+		 *
+		 * When jobConfig.testsuite.run is true, load the JSON file specified by
+		 * jobConfig.testsuite.configFile (default "testsuiteConfig") and spin off a
+		 * separate docker container for each testGroup contained therein that also
+		 * has its "enabled" property set to true.
+		 *
+		 * If a testGroup has a customTests child, the specified custom tests repo
+		 * will be cloned into "<groupDir>/tests/custom" and can be referenced as
+		 * any other testsuite test.
+		 *
+		 * Example testsuiteConfig file:
+		 *
+		 *	{
+		 *		testGroups: [
+		 *			{
+		 *				name: "ari1-mwi",
+		 *				enabled: false,
+		 *				dir: "tests/CI/output/ari1",
+		 *				runTestsuiteOptions: "--test-timeout=180",
+		 *				testcmd: "--test-regex=tests/rest_api --test-regex=tests/channels/pjsip/.*mwi"
+		 *			},
+		 *			{
+		 *				name: "custom1",
+		 *				enabled: false,
+		 * 				dir: "tests/CI/output/custom1",
+		 *				runTestsuiteOptions: "--test-timeout=180",
+		 *				testcmd: "--test-regex=tests/custom/tests/stress",
+		 *				customTests: {
+		 *					branch: "master",
+		 *					gitURL: "http://somehost/private-tests"
+		 *				}
+		 *			}
+		 *		]
+		 *	}
+		 *
+		 */
+		stage("Testsuite") {
+			when {
+				expression { jobConfig.testsuite.run }
+			}
+			steps {	script {
+				testConfig = [
+					testGroups: [],
+				]
+				def tempTestConfig
+				configFileProvider([configFile(fileId: jobConfig.testsuite.configFile, variable: 'TESTSUITE_CONFIG_FILE')]) {
+					echo "Retrieved test config file from ${env.TESTSUITE_CONFIG_FILE}"
+					tempTestConfig = readJSON file: env.TESTSUITE_CONFIG_FILE
+				}
+			    merge(testConfig, tempTestConfig)
+
+			    tasks = [ : ]
+
+			    testConfig.testGroups.each {
+					def testGroup = it
+					tasks[testGroup.name] = {
+						dockerImage.inside("${dockerOptions} --name ${buildTag}-${testGroup.name}") {
+
+							lock("${JOB_NAME}.${NODE_NAME}.installer") {
+								sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
+							}
+
+							sh "sudo rm -rf ${testGroup.dir} || : "
+
+							checkout scm: [$class: 'GitSCM',
+								branches: [[name: "${BRANCH_NAME}"]],
+									extensions: [
+										[$class: 'RelativeTargetDirectory', relativeTargetDir: testGroup.dir],
+										[$class: 'CloneOption',
+											noTags: true,
+											depth: 100,
+											honorRefspec: true,
+											shallow: true
+										],
+									],
+									userRemoteConfigs: [[url: jobConfig.testsuite.gitURL]]
+								]
+							echo "Test Custom Config: ${testGroup.customTests.toString()}"
+
+							if (testGroup.customTests && testGroup.customTests?.branch && testGroup.customTests?.gitURL) {
+								checkout scm: [$class: 'GitSCM',
+									branches: [[name: testGroup.customTests.branch]],
+										extensions: [
+											[$class: 'RelativeTargetDirectory', relativeTargetDir: "${testGroup.dir}/tests/custom"],
+											[$class: 'CloneOption',
+												noTags: true,
+												depth: 100,
+												honorRefspec: true,
+												shallow: true
+											],
+										],
+										userRemoteConfigs: [[url: testGroup.customTests.gitURL]]
+									]
+							}
+							sh "sudo tests/CI/runTestsuite.sh ${testGroup.runTestsuiteOptions} --testsuite-dir='${testGroup.dir}' --testsuite-command='${testGroup.testcmd}'"
+
+							echo "Group result d: ${currentBuild.currentResult}"
+
+							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: true,
+								artifacts: "${testGroup.dir}/asterisk-test-suite-report.xml, ${testGroup.dir}/logs/**, ${testGroup.dir}/core*.txt"
+
+							junit testResults: "${testGroup.dir}/asterisk-test-suite-report.xml",
+								healthScaleFactor: 1.0,
+								keepLongStdio: true
+						}
+					}
+			    }
+			    parallel tasks
+			}}
+		}
+	}
+	post {
+		cleanup {
+			script {
+				if (jobConfig.jobCleanup.cleanupWorkspace) {
+					cleanWs deleteDirs: true, notFailBuild: false
+				}
+			}
+		}
+		success {
+			echo "Reporting ${currentBuild.currentResult} Passed"
+		}
+		failure {
+			echo "Reporting ${currentBuild.currentResult}: Failed: Fatal Error"
+		}
+		unstable {
+			echo "Reporting ${currentBuild.currentResult}: Failed: Tests Failed"
+		}
+	}
+}
