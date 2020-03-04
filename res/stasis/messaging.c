@@ -262,23 +262,20 @@ static struct ast_json *msg_to_json(struct ast_msg *msg)
 		return NULL;
 	}
 
-	json_vars = ast_json_array_create();
+	json_vars = ast_json_object_create();
 	if (!json_vars) {
 		ast_msg_var_iterator_destroy(it_vars);
 		return NULL;
 	}
 
-	while (ast_msg_var_iterator_next(msg, it_vars, &name, &value)) {
-		struct ast_json *json_tuple;
-
-		json_tuple = ast_json_pack("{s: s}", name, value);
-		if (!json_tuple) {
+	while (ast_msg_var_iterator_next_received(msg, it_vars, &name, &value)) {
+		struct ast_json *json_val = ast_json_string_create(value);
+		if (!json_val || ast_json_object_set(json_vars, name, json_val)) {
 			ast_json_unref(json_vars);
 			ast_msg_var_iterator_destroy(it_vars);
 			return NULL;
 		}
 
-		ast_json_array_append(json_vars, json_tuple);
 		ast_msg_var_unref_current(it_vars);
 	}
 	ast_msg_var_iterator_destroy(it_vars);
