@@ -180,14 +180,16 @@ conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o hashtab.o lock.o aelbison.o aelpar
 
 check_expr2: $(ASTTOPDIR)/main/ast_expr2f.c $(ASTTOPDIR)/main/ast_expr2.c $(ASTTOPDIR)/main/ast_expr2.h astmm.o
 	$(ECHO_PREFIX) echo "   [CC] ast_expr2f.c -> ast_expr2fz.o"
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2fz.o
+	$(CC) -g -c -I$(ASTTOPDIR)/include $(_ASTCFLAGS) -DYY_NO_INPUT $(ASTTOPDIR)/main/ast_expr2f.c -o ast_expr2fz.o
 	$(ECHO_PREFIX) echo "   [CC] ast_expr2.c -> ast_expr2z.o"
-	$(CC) -g -c -I$(ASTTOPDIR)/include -DSTANDALONE2 $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2z.o
+	$(CC) -g -c -I$(ASTTOPDIR)/include $(_ASTCFLAGS) -DSTANDALONE2 $(ASTTOPDIR)/main/ast_expr2.c -o ast_expr2z.o
 	$(ECHO_PREFIX) echo "   [LD] ast_expr2fz.o ast_expr2z.o  -> check_expr2"
 	$(CC) -g -o check_expr2 ast_expr2fz.o ast_expr2z.o astmm.o -lm $(_ASTLDFLAGS)
 	$(ECHO_PREFIX) echo "   [RM] ast_expr2fz.o ast_expr2z.o"
 	rm ast_expr2z.o ast_expr2fz.o
+ifneq ($(CROSS_COMPILING),1)
 	./check_expr2 expr2.testinput
+endif
 
 smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
