@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/16.8-cert1-rc3</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/16.8-cert1-rc3</h3><h3 align="center">Date: 2020-03-04</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/16.8-cert1-rc2.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">3 Joshua C. Colp <jcolp@sangoma.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/></td><td width="33%"><td width="33%">3 Joshua C. Colp <jcolp@digium.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28730">ASTERISK-28730</a>: res_pjsip_session: Fix out of order session refreshes<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d515dea9c6bedd9ad09ed546c9bd2e0d822b4256">[d515dea9c6]</a> Joshua C. Colp -- res_pjsip_session: Fix off-nominal session refreshes.</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28764">ASTERISK-28764</a>: res_rtp_asterisk: Improve NACK support and seqno handling<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4458b7a52ad65b8fac22015d3b9c44f799710a96">[4458b7a52a]</a> Joshua C. Colp -- res_rtp_asterisk: Improve video performance in certain networks.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Bridges/bridge_native_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28733">ASTERISK-28733</a>: stream: Add support for adding/removing streams during SFU/calls<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5fccf6d1c6a05ef048bc96bb8fc5d28a657b956c">[5fccf6d1c6]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
+</ul><br><h4>Category: Bridges/bridge_simple</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28733">ASTERISK-28733</a>: stream: Add support for adding/removing streams during SFU/calls<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5fccf6d1c6a05ef048bc96bb8fc5d28a657b956c">[5fccf6d1c6]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
+</ul><br><h4>Category: Bridges/bridge_softmix</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28733">ASTERISK-28733</a>: stream: Add support for adding/removing streams during SFU/calls<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5fccf6d1c6a05ef048bc96bb8fc5d28a657b956c">[5fccf6d1c6]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
+</ul><br><h4>Category: Core/Streams</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28733">ASTERISK-28733</a>: stream: Add support for adding/removing streams during SFU/calls<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5fccf6d1c6a05ef048bc96bb8fc5d28a657b956c">[5fccf6d1c6]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28733">ASTERISK-28733</a>: stream: Add support for adding/removing streams during SFU/calls<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5fccf6d1c6a05ef048bc96bb8fc5d28a657b956c">[5fccf6d1c6]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b922e387d186b979773c01e394f22154c639587c">b922e387d1</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for certified/16.8-cert1</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>bridges/bridge_native_rtp.c |  168 +++++++++++++++++++++++++++---
+bridges/bridge_simple.c     |  198 +++++++++++++++++++++--------------
+bridges/bridge_softmix.c    |  246 +++++++++++++++++++++++++++++++++++---------
+include/asterisk/channel.h  |   20 +++
+main/channel.c              |   19 +++
+main/stream.c               |   22 +++
+res/res_pjsip_sdp_rtp.c     |   12 +-
+res/res_pjsip_session.c     |  107 ++++++++++++++++---
+res/res_rtp_asterisk.c      |  243 +++++++++++++++++++++++++++++++------------
+9 files changed, 807 insertions(+), 228 deletions(-)</pre><br></html>
