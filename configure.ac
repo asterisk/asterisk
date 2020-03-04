@@ -230,6 +230,8 @@ then
    AC_CHECK_TOOL(CXX, g++, :)
    AC_CHECK_TOOL(LD, ld, :)
    AC_CHECK_TOOL(RANLIB, ranlib, :)
+   CROSS_COMPILING=1
+   AC_SUBST(CROSS_COMPILING)
 fi
 
 # Checks for programs.
