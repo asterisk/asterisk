@@ -43,6 +43,7 @@
 #include "asterisk/bridge_technology.h"
 #include "asterisk/frame.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/stream.h"
 
 /*! \brief Internal structure which contains bridged RTP channel hook data */
 struct native_rtp_framehook_data {
@@ -83,6 +84,28 @@ struct native_rtp_bridge_channel_data {
 	struct ast_rtp_glue *remote_cb;
 	/*! \brief Channel's cached RTP glue information */
 	struct rtp_glue_data glue;
+};
+
+/*! \brief Forward declarations */
+static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+static void native_rtp_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+static void native_rtp_bridge_suspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+static int native_rtp_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
+static int native_rtp_bridge_compatible(struct ast_bridge *bridge);
+static void native_rtp_stream_topology_changed(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
+
+static struct ast_bridge_technology native_rtp_bridge = {
+	.name = "native_rtp",
+	.capabilities = AST_BRIDGE_CAPABILITY_NATIVE,
+	.preference = AST_BRIDGE_PREFERENCE_BASE_NATIVE,
+	.join = native_rtp_bridge_join,
+	.unsuspend = native_rtp_bridge_unsuspend,
+	.leave = native_rtp_bridge_leave,
+	.suspend = native_rtp_bridge_suspend,
+	.write = native_rtp_bridge_write,
+	.compatible = native_rtp_bridge_compatible,
+	.stream_topology_changed = native_rtp_stream_topology_changed,
 };
 
 static void rtp_glue_data_init(struct rtp_glue_data *glue)
@@ -831,12 +854,124 @@ static void native_rtp_bridge_framehook_detach(struct ast_bridge_channel *bridge
 	data->hook_data = NULL;
 }
 
+static struct ast_stream_topology *native_rtp_request_stream_topology_update(
+	struct ast_stream_topology *existing_topology,
+	struct ast_stream_topology *requested_topology)
+{
+	struct ast_stream *stream;
+	struct ast_format_cap *audio_formats = NULL;
+	struct ast_stream_topology *new_topology;
+	int i;
+
+	new_topology = ast_stream_topology_clone(requested_topology);
+	if (!new_topology) {
+		return NULL;
+	}
+
+	/* We find an existing stream with negotiated audio formats that we can place into
+	 * any audio streams in the new topology to ensure that negotiation succeeds. Some
+	 * endpoints incorrectly terminate the call if SDP negotiation fails.
+	 */
+	for (i = 0; i < ast_stream_topology_get_count(existing_topology); ++i) {
+		stream = ast_stream_topology_get_stream(existing_topology, i);
+
+		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+			continue;
+		}
+
+		audio_formats = ast_stream_get_formats(stream);
+		break;
+	}
+
+	if (audio_formats) {
+		for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
+			stream = ast_stream_topology_get_stream(new_topology, i);
+
+			if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+				ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
+				continue;
+			}
+
+			ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats,
+				AST_MEDIA_TYPE_AUDIO);
+		}
+	}
+
+	for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
+		stream = ast_stream_topology_get_stream(new_topology, i);
+
+		/* For both recvonly and sendonly the stream state reflects our state, that is we
+		 * are receiving only and we are sending only. Since we are renegotiating a remote
+		 * party we need to swap this to reflect what we will be doing. That is, if we are
+		 * receiving from Alice then we want to be sending to Bob, so swap recvonly to
+		 * sendonly.
+		 */
+		if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
+		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
+			ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
+		}
+	}
+
+	return new_topology;
+}
+
+static void native_rtp_stream_topology_changed(struct ast_bridge *bridge,
+		struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_channel *c0 = bridge_channel->chan;
+	struct ast_channel *c1 = AST_LIST_FIRST(&bridge->channels)->chan;
+	struct ast_stream_topology *req_top;
+	struct ast_stream_topology *existing_top;
+	struct ast_stream_topology *new_top;
+
+	ast_bridge_channel_stream_map(bridge_channel);
+
+	if (ast_channel_get_stream_topology_change_source(bridge_channel->chan)
+		== &native_rtp_bridge) {
+		return;
+	}
+
+	if (c0 == c1) {
+		c1 = AST_LIST_LAST(&bridge->channels)->chan;
+	}
+
+	if (c0 == c1) {
+		return;
+	}
+
+	/* If a party renegotiates we want to renegotiate their counterpart to a matching
+	 * topology.
+	 */
+	ast_channel_lock_both(c0, c1);
+	req_top = ast_channel_get_stream_topology(c0);
+	existing_top = ast_channel_get_stream_topology(c1);
+	new_top = native_rtp_request_stream_topology_update(existing_top, req_top);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
+
+	if (!new_top) {
+		/* Failure.  We'll just have to live with the current topology. */
+		return;
+	}
+
+	ast_channel_request_stream_topology_change(c1, new_top, &native_rtp_bridge);
+	ast_stream_topology_free(new_top);
+}
+
 /*!
  * \internal
  * \brief Called by the bridge core 'join' callback for each channel joining he bridge
  */
 static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
+	struct ast_stream_topology *req_top;
+	struct ast_stream_topology *existing_top;
+	struct ast_stream_topology *new_top;
+	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
+	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
+
 	ast_debug(2, "Bridge '%s'.  Channel '%s' is joining bridge tech\n",
 		bridge->uniqueid, ast_channel_name(bridge_channel->chan));
 
@@ -856,6 +991,27 @@ static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_c
 		native_rtp_bridge_channel_data_free(bridge_channel->tech_pvt);
 		bridge_channel->tech_pvt = NULL;
 		return -1;
+	}
+
+	if (c0 != c1) {
+		/* When both channels are joined we want to try to improve the experience by
+		 * raising the number of streams so they match.
+		 */
+		ast_channel_lock_both(c0, c1);
+		req_top = ast_channel_get_stream_topology(c0);
+		existing_top = ast_channel_get_stream_topology(c1);
+		if (ast_stream_topology_get_count(req_top) < ast_stream_topology_get_count(existing_top)) {
+			SWAP(req_top, existing_top);
+			SWAP(c0, c1);
+		}
+		new_top = native_rtp_request_stream_topology_update(existing_top, req_top);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
+
+		if (new_top) {
+			ast_channel_request_stream_topology_change(c1, new_top, &native_rtp_bridge);
+			ast_stream_topology_free(new_top);
+		}
 	}
 
 	native_rtp_bridge_start(bridge, NULL);
@@ -938,18 +1094,6 @@ static int native_rtp_bridge_write(struct ast_bridge *bridge, struct ast_bridge_
 
 	return defer;
 }
-
-static struct ast_bridge_technology native_rtp_bridge = {
-	.name = "native_rtp",
-	.capabilities = AST_BRIDGE_CAPABILITY_NATIVE,
-	.preference = AST_BRIDGE_PREFERENCE_BASE_NATIVE,
-	.join = native_rtp_bridge_join,
-	.unsuspend = native_rtp_bridge_unsuspend,
-	.leave = native_rtp_bridge_leave,
-	.suspend = native_rtp_bridge_suspend,
-	.write = native_rtp_bridge_write,
-	.compatible = native_rtp_bridge_compatible,
-};
 
 static int unload_module(void)
 {

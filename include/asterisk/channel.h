@@ -206,6 +206,12 @@ typedef unsigned long long ast_group_t;
 
 struct ast_stream_topology;
 
+/*!
+ * \brief Set as the change source reason when a channel stream topology has
+ *        been changed externally as a result of the remote side renegotiating.
+ */
+static const char ast_stream_topology_changed_external[] = "external";
+
 /*! \todo Add an explanation of an Asterisk generator
 */
 struct ast_generator {
@@ -5016,6 +5022,20 @@ int ast_channel_request_stream_topology_change(struct ast_channel *chan,
  *       It is not for use by the channel driver itself.
  */
 int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_stream_topology *topology);
+
+/*!
+ * \brief Provide notice from a channel that the topology has changed on it as a result
+ *        of the remote party renegotiating.
+ *
+ * \param chan The channel to provide notice from
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note This interface is provided for channels to provide notice that a topology change
+ *       has occurred as a result of a remote party renegotiating the stream topology.
+ */
+int ast_channel_stream_topology_changed_externally(struct ast_channel *chan);
 
 /*!
  * \brief Retrieve the source that initiated the last stream topology change

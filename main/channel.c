@@ -11051,6 +11051,25 @@ int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_str
 	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_CHANGED, topology, sizeof(topology));
 }
 
+int ast_channel_stream_topology_changed_externally(struct ast_channel *chan)
+{
+	int res;
+	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_CHANGED };
+
+	ast_assert(chan != NULL);
+
+	if (!ast_channel_is_multistream(chan)) {
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	ast_channel_internal_set_stream_topology_change_source(chan, (void *)&ast_stream_topology_changed_external);
+	res = ast_queue_frame(chan, &f);
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
 void ast_channel_set_flag(struct ast_channel *chan, unsigned int flag)
 {
 	ast_channel_lock(chan);
