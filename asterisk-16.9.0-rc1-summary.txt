@@ -1,0 +1,460 @@
+                                Release Summary
+
+                              asterisk-16.9.0-rc1
+
+                                Date: 2020-03-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.8.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   11 Sean Bright                                    4 Ross Beer              
+   7 Joshua C. Colp                                  3 Joshua C. Colp         
+   5 Kevin Harwell                                   2 Walter Doekes          
+   5 Walter Doekes                                   1 Paul Brooks            
+   3 George Joseph                                   1 Martin Zeh             
+   2 Torrey Searle                                   1 SÃ©bastien Duthil      
+   1 Asterisk Development Team                       1 Jean Aunis - Prescom   
+   1 Sebastian Kemper                                1 Kevin Harwell          
+   1 Sylvain Afchain                                 1 Sylvain Afchain        
+   1 Jaco Kroon                                      1 EDV O-TON              
+   1 Ben Ford                                        1 Martin Zeh             
+   1 lvl                                             1 alex                   
+                                                     1 Ross Beer              
+                                                     1 Timothy Vanderaerden   
+                                                     1 xrobau                 
+                                                     1 Sebastian Kemper       
+                                                     1 Paul Brooks            
+                                                     1 Peter Sokolov          
+                                                     1 Francois Blackburn     
+                                                     1 EDV O-TON              
+                                                     1 Peter Sokolov          
+                                                     1 George Joseph          
+                                                     1 Dmitriy Serov          
+                                                     1 Dmitriy Serov          
+                                                     1 Alex                   
+                                                     1 SÃ©bastien Duthil      
+                                                     1 Torrey Searle          
+                                                     1 lvl                    
+                                                     1 Benjamin Keith Ford    
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-28766: PJSIP blind transfer not completed after using
+   Proceeding()
+   Reported by: lvl
+     * [f529d56f76] lvl -- res_pjsip_refer: ensure refer progress is still
+       sent after Proceeding()
+   ASTERISK-28755: SIP/Stasis: SIP headers not transmitted in the "variables"
+   field
+   Reported by: Jean Aunis - Prescom
+     * [fc1d93cf97] Kevin Harwell -- message & stasis/messaging: make text
+       message variables work in ARI
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-28718: chan_sip: Returns 403 if RTP ports are depleted, should
+   return 503
+   Reported by: Walter Doekes
+     * [34ce90a9e7] Walter Doekes -- chan_sip: Return 503 if we're out of RTP
+       ports
+   ASTERISK-28686: chan_sip strictrtp=yes fails when media source is changed:
+   no audio
+   Reported by: Walter Doekes
+     * [ad9a40a539] Walter Doekes -- chan_sip: Always process updated SDP on
+       media source change
+
+    Category: Core/Configuration
+
+   ASTERISK-28719: Cannot remove defaultrule from queue using realtime queues
+   Reported by: EDV O-TON
+     * [d8d989b9bf] Sean Bright -- res_config_odbc: Preserve empty strings
+       returned by the database
+
+    Category: Core/Stasis
+
+   ASTERISK-28755: SIP/Stasis: SIP headers not transmitted in the "variables"
+   field
+   Reported by: Jean Aunis - Prescom
+     * [fc1d93cf97] Kevin Harwell -- message & stasis/messaging: make text
+       message variables work in ARI
+
+    Category: Resources/res_ari
+
+   ASTERISK-28679: stasis application is destroyed after its creation
+   Reported by: Francois Blackburn
+     * [dc9875815c] Kevin Harwell -- res_stasis: trigger cleanup after update
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-28735: Realtime MoH Unknown format '' -- defaulting to SLIN
+   Reported by: Ross Beer
+     * [1e94cfdf4c] Sean Bright -- res_musiconhold: Avoid spurious warning
+       when 'format' is the empty string
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28139: RTP Stream Incorrect Payload Type Causes Asterisk To Drop
+   Calls
+   Reported by: Paul Brooks
+     * [1532da3008] Sean Bright -- chan_pjsip: Ignore RTP that we haven't
+       negotiated
+
+    Category: Resources/res_pjsip_acl
+
+   ASTERISK-28697: res_pjsip: Named ACL does not update on reload if changed
+   Reported by: Timothy Vanderaerden
+     * [b20a215ea7] Joshua C. Colp -- pjsip: Update ACLs on named ACL
+       changes.
+
+    Category: Resources/res_pjsip_messaging
+
+   ASTERISK-26082: res_pjsip_messaging: MessageSend Content-Type can't be
+   changed
+   Reported by: Alex
+     * [2a9a1789e7] Sean Bright -- res_pjsip_messaging: Allow Content-Type to
+       be overridden
+   ASTERISK-25421: PJSIP. MESSAGE_SEND_STATUS set to SUCCESS in spite of the
+   error when sending
+   Reported by: Dmitriy Serov
+     * [4bbf24d2ff] Sean Bright -- res_pjsip_messaging: Ensure
+       MESSAGE_SEND_STATUS is set properly
+
+    Category: Resources/res_pjsip_outbound_registration
+
+   ASTERISK-28746: res_pjsip_outbound_registration keeps retrying the first
+   entry in a SRV record set
+   Reported by: George Joseph
+     * [7eab841093] George Joseph -- res_pjsip_outbound_registration: Fix SRV
+       failover on timeout
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-28714: REGRESSION: Feature subscription_persistence_recreate
+   (ASTERISK-27759) Causes Segfaults
+   Reported by: Ross Beer
+     * [4d32f5747c] Joshua C. Colp -- res_pjsip_pubsub: Increment persistence
+       data ref when recreating.
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-28754: ASTERISK-28738 Causes Audio Issue After Hold
+   Reported by: Ross Beer
+     * [9ecb651564] Torrey Searle -- res/res_pjsip_sdp_rtp: Fix MOH
+       transitions
+   ASTERISK-28738: Incorrect state machine used when MOH_PASSTHRU is used
+   Reported by: Torrey Searle
+     * [afcc838796] Torrey Searle -- res_pjsip_sdp_rtp: implement hold state
+       handling on moh_passthrough
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28730: res_pjsip_session: Fix out of order session refreshes
+   Reported by: Joshua C. Colp
+     * [b438d1d9ad] Joshua C. Colp -- res_pjsip_session: Fix off-nominal
+       session refreshes.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-28764: res_rtp_asterisk: Improve NACK support and seqno handling
+   Reported by: Joshua C. Colp
+     * [f295af447d] Joshua C. Colp -- res_rtp_asterisk: Improve video
+       performance in certain networks.
+   ASTERISK-28716: ICE: pjnath shouldn't wait for ICE to complete before
+   allowing sending
+   Reported by: Benjamin Keith Ford
+     * [411d3a2f75] Ben Ford -- RTP/ICE: Send on first valid pair.
+   ASTERISK-28742: res_rtp_asterisk: static for audio due to incomplete
+   dtls/srtp setup
+   Reported by: Kevin Harwell
+     * [bb783b0c11] Kevin Harwell -- res_rtp_asterisk: bad audio (static) due
+       to incomplete dtls/srtp setup
+
+    Category: Resources/res_stasis
+
+   ASTERISK-28423: ARI causes STASIS Deadlock
+   Reported by: Ross Beer
+     * [e103339f02] Kevin Harwell -- stasis/app: don't lock an app before a
+       call to send
+
+    Category: Resources/res_stasis_playback
+
+   ASTERISK-28713: res_stasis_playback: Error building JSON
+   Reported by: SÃ©bastien Duthil
+     * [2a6b09e2e8] Sean Bright -- res_stasis_playback: Prevent media_index
+       from going out of bounds
+
+    Category: Utilities/General
+
+   ASTERISK-28685: check_expr2: linking (when hardening) and cross-compiling
+   troubles
+   Reported by: Sebastian Kemper
+     * [06e8d5ad8e] Sebastian Kemper -- check_expr2: fix
+       cross-compile/hardening issues
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26955: pjsip: SIP Packets with Via "received=" Containing IPv6
+   Address Delimited by "[]" Rejected
+   Reported by: Peter Sokolov
+     * [50d91ad707] Sean Bright -- pjproject_bundled: Allow brackets in via
+       parameters
+
+  Improvement
+
+    Category: Applications/app_mixmonitor
+
+   ASTERISK-24798: Documentation - Clarify That Format Is Set By File Name
+   Extension In MixMonitor
+   Reported by: xrobau
+     * [cd8b27dcc2] Sean Bright -- app_mixmonitor: Set MIXMONITOR_FILENAME to
+       correct value when wav49 is used
+
+    Category: Bridges/bridge_native_rtp
+
+   ASTERISK-28733: stream: Add support for adding/removing streams during
+   SFU/calls
+   Reported by: Joshua C. Colp
+     * [423b0e68ce] Joshua C. Colp -- bridging: Add better support for
+       adding/removing streams.
+
+    Category: Bridges/bridge_simple
+
+   ASTERISK-28733: stream: Add support for adding/removing streams during
+   SFU/calls
+   Reported by: Joshua C. Colp
+     * [423b0e68ce] Joshua C. Colp -- bridging: Add better support for
+       adding/removing streams.
+
+    Category: Bridges/bridge_softmix
+
+   ASTERISK-28733: stream: Add support for adding/removing streams during
+   SFU/calls
+   Reported by: Joshua C. Colp
+     * [423b0e68ce] Joshua C. Colp -- bridging: Add better support for
+       adding/removing streams.
+
+    Category: Contrib/General
+
+   ASTERISK-28726: install_prereq script uses the interactive mode when
+   installing aptitude
+   Reported by: Sylvain Afchain
+     * [40b834ad8c] Sylvain Afchain -- install_prereq: Install aptitude
+       non-interactively
+
+    Category: Core/HTTP
+
+   ASTERISK-28750: TLS/SSL Key too small error
+   Reported by: Martin Zeh
+     * [c32b4c7dc0] Sean Bright -- tcptls.c: Log more informative OpenSSL
+       errors
+
+    Category: Core/Streams
+
+   ASTERISK-28733: stream: Add support for adding/removing streams during
+   SFU/calls
+   Reported by: Joshua C. Colp
+     * [423b0e68ce] Joshua C. Colp -- bridging: Add better support for
+       adding/removing streams.
+
+    Category: Documentation
+
+   ASTERISK-24798: Documentation - Clarify That Format Is Set By File Name
+   Extension In MixMonitor
+   Reported by: xrobau
+     * [cd8b27dcc2] Sean Bright -- app_mixmonitor: Set MIXMONITOR_FILENAME to
+       correct value when wav49 is used
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-28733: stream: Add support for adding/removing streams during
+   SFU/calls
+   Reported by: Joshua C. Colp
+     * [423b0e68ce] Joshua C. Colp -- bridging: Add better support for
+       adding/removing streams.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | 1522c4467c | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 16.9.0                                 |
+   |------------+------------------+----------------------------------------|
+   | ad5a81aac4 | Walter Doekes    | say: Remove unused "plural" option     |
+   |            |                  | from main/say                          |
+   |------------+------------------+----------------------------------------|
+   | b12ecbe27f | Walter Doekes    | app_queue: Refactor odd placement of   |
+   |            |                  | if's around say_position               |
+   |------------+------------------+----------------------------------------|
+   | dd959bf8d0 | Kevin Harwell    | format_cap: make function parameters   |
+   |            |                  | 'const'                                |
+   |------------+------------------+----------------------------------------|
+   | 7d1305ac21 | Jaco Kroon       | addons/res_config_mysql: silense       |
+   |            |                  | warnings about printf format errors.   |
+   |------------+------------------+----------------------------------------|
+   | cf1f2dfe8e | Sean Bright      | ast_tls_cert: Allow private key size   |
+   |            |                  | to be set on command line              |
+   |------------+------------------+----------------------------------------|
+   | df52f713f5 | Joshua C. Colp   | stasis: Use format specifier for       |
+   |            |                  | size_t.                                |
+   |------------+------------------+----------------------------------------|
+   | 65ff4d80a1 | Sean Bright      | func_odbc: Prevent snprintf()          |
+   |            |                  | truncation warning                     |
+   |------------+------------------+----------------------------------------|
+   | 1544f74932 | George Joseph    | doc: Fix CHANGES entries to have .txt  |
+   |            |                  | suffix and update READMEs              |
+   |------------+------------------+----------------------------------------|
+   | 35b4f1686b | Walter Doekes    | chan_sip: Clarify in sample docs how   |
+   |            |                  | directmediapermit/-acl should be used  |
+   |------------+------------------+----------------------------------------|
+   | f4132eec19 | Joshua C. Colp   | res_rtp_asterisk: Don't produce        |
+   |            |                  | transport-cc if no packets.            |
+   |------------+------------------+----------------------------------------|
+   | d6574cb7c7 | George Joseph    | message.c: Add option to suppress the  |
+   |            |                  | Message channel AMI and ARI events     |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                         |    1
+ .version                                                                           |    1
+ ChangeLog                                                                          |87623 ----------
+ asterisk-16.8.0-summary.html                                                       |  201
+ asterisk-16.8.0-summary.txt                                                        |  620
+ b/CHANGES                                                                          |   25
+ b/UPGRADE.txt                                                                      |   56
+ b/addons/res_config_mysql.c                                                        |   16
+ b/apps/app_mixmonitor.c                                                            |   29
+ b/apps/app_queue.c                                                                 |   58
+ b/bridges/bridge_native_rtp.c                                                      |  168
+ b/bridges/bridge_simple.c                                                          |  198
+ b/bridges/bridge_softmix.c                                                         |  246
+ b/channels/chan_pjsip.c                                                            |   13
+ b/channels/chan_sip.c                                                              |  126
+ b/channels/sip/include/sip.h                                                       |    1
+ b/configs/samples/asterisk.conf.sample                                             |    5
+ b/configs/samples/sip.conf.sample                                                  |    4
+ b/configure                                                                        |  141
+ b/configure.ac                                                                     |   22
+ b/contrib/scripts/ast_tls_cert                                                     |    8
+ b/contrib/scripts/install_prereq                                                   |    2
+ b/doc/CHANGES-staging/README.md                                                    |    8
+ b/doc/CHANGES-staging/hide_messaging_ami_events                                    |   11
+ b/doc/UPGRADE-staging/README.md                                                    |    7
+ b/funcs/func_odbc.c                                                                |    4
+ b/include/asterisk/autoconfig.h.in                                                 |    3
+ b/include/asterisk/channel.h                                                       |   20
+ b/include/asterisk/format_cap.h                                                    |    4
+ b/include/asterisk/message.h                                                       |   13
+ b/include/asterisk/options.h                                                       |    3
+ b/include/asterisk/res_pjsip_session.h                                             |    2
+ b/include/asterisk/say.h                                                           |    4
+ b/include/asterisk/sorcery.h                                                       |   27
+ b/main/asterisk.c                                                                  |    1
+ b/main/channel.c                                                                   |   19
+ b/main/file.c                                                                      |    2
+ b/main/format_cap.c                                                                |    4
+ b/main/message.c                                                                   |   27
+ b/main/options.c                                                                   |    2
+ b/main/say.c                                                                       |   12
+ b/main/sorcery.c                                                                   |   46
+ b/main/stasis.c                                                                    |    4
+ b/main/stream.c                                                                    |   22
+ b/main/tcptls.c                                                                    |   29
+ b/makeopts.in                                                                      |    2
+ b/menuselect/configure                                                             |   22
+ b/res/ari/ari_model_validators.c                                                   |   59
+ b/res/ari/ari_model_validators.h                                                   |   23
+ b/res/res_config_odbc.c                                                            |    2
+ b/res/res_musiconhold.c                                                            |    2
+ b/res/res_pjsip/pjsip_configuration.c                                              |   19
+ b/res/res_pjsip_acl.c                                                              |   20
+ b/res/res_pjsip_messaging.c                                                        |   54
+ b/res/res_pjsip_outbound_registration.c                                            |   49
+ b/res/res_pjsip_refer.c                                                            |    7
+ b/res/res_pjsip_sdp_rtp.c                                                          |   56
+ b/res/res_pjsip_session.c                                                          |  107
+ b/res/res_rtp_asterisk.c                                                           |  312
+ b/res/res_sorcery_config.c                                                         |    1
+ b/res/res_stasis_playback.c                                                        |    4
+ b/res/stasis/messaging.c                                                           |   11
+ b/rest-api/api-docs/endpoints.json                                                 |   20
+ b/rest-api/resources.json                                                          |    2
+ b/third-party/pjproject/configure.m4                                               |    1
+ b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   84
+ contrib/realtime/mysql/mysql_cdr.sql                                               |   41
+ contrib/realtime/mysql/mysql_config.sql                                            | 1252
+ contrib/realtime/mysql/mysql_voicemail.sql                                         |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                     |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                  | 1356
+ contrib/realtime/postgresql/postgresql_voicemail.sql                               |   39
+ doc/CHANGES-staging/res_fax_negotiate_both                                         |    7
+ 73 files changed, 1698 insertions(+), 91772 deletions(-)
