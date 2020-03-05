@@ -19,6 +19,62 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.31.0 to Asterisk 13.32.0 ----------
+------------------------------------------------------------------------------
+
+ARI
+------------------
+ * The "TextMessageReceived" event used to include a list of "TextMessageVariable"
+   objects as part of its output. Due to a couple of bugs in Asterisk a list of
+   received variables was never included even if ones were available. However,
+   variables set to send would be (which they should have not been), but would
+   fail validation due to the bad formatting.
+
+   So basically there was no way to get a "TextMessageReceived" event with
+   variables. Due to this the API has changed. The "TextMessageVariable" object
+   no longer exists. "TextMessageReceived" now returns a JSON object of key/value
+   pairs. So for instance instead of a list of "TextMessageVariable" objects:
+
+   [ TextMessageVariable, TextMessageVariable, TextMessageVariable]
+
+   where a TextMessageVariable was supposed to be:
+
+   { "key": "<var name>", "value":, "<var value>" }
+
+   The output is now just:
+
+   { "<var name>": "<var value>" }
+
+   This aligns more with how variables are specified when sending a message, as
+   well as other variable lists in ARI.
+
+res_stasis
+------------------
+ * The "TextMessageReceived" event used to include a list of "TextMessageVariable"
+   objects as part of its output. Due to a couple of bugs in Asterisk a list of
+   received variables was never included even if ones were available. However,
+   variables set to send would be (which they should have not been), but would
+   fail validation due to the bad formatting.
+
+   So basically there was no way to get a "TextMessageReceived" event with
+   variables. Due to this the API has changed. The "TextMessageVariable" object
+   no longer exists. "TextMessageReceived" now returns a JSON object of key/value
+   pairs. So for instance instead of a list of "TextMessageVariable" objects:
+
+   [ TextMessageVariable, TextMessageVariable, TextMessageVariable]
+
+   where a TextMessageVariable was supposed to be:
+
+   { "key": "<var name>", "value":, "<var value>" }
+
+   The output is now just:
+
+   { "<var name>": "<var value>" }
+
+   This aligns more with how variables are specified when sending a message, as
+   well as other variable lists in ARI.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.29.0 to Asterisk 13.30.0 ----------
 ------------------------------------------------------------------------------
 

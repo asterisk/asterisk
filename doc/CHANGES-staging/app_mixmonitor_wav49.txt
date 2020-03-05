@@ -1,8 +1,0 @@
-Subject: app_mixmonitor
-
-If the 'filename' argument to MixMonitor() ended with '.wav49,'
-Asterisk would silently convert the extension to '.WAV' when opening
-the file for writing. This caused the MIXMONITOR_FILENAME variable to
-reference the wrong file. The MIXMONITOR_FILENAME variable will now
-reflect the name of the file that Asterisk actually used instead of
-the filename that was passed to the application.
