@@ -5373,6 +5373,11 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	reconstruct |= (mark << 23);
 	rtpheader[0] = htonl(reconstruct);
 
+	if (mark) {
+		/* make this rtp instance aware of the new ssrc it is sending */
+		bridged->ssrc = ntohl(rtpheader[2]);
+	}
+
 	/* Send the packet back out */
 	res = rtp_sendto(instance1, (void *)rtpheader, len, 0, &remote_address, &ice);
 	if (res < 0) {
