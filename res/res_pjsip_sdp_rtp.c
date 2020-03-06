@@ -106,15 +106,11 @@ static int rtp_check_timeout(const void *data)
 	struct ast_sip_session_media *session_media = (struct ast_sip_session_media *)data;
 	struct ast_rtp_instance *rtp = session_media->rtp;
 	int elapsed;
+	int timeout;
 	struct ast_channel *chan;
 
 	if (!rtp) {
 		return 0;
-	}
-
-	elapsed = time(NULL) - ast_rtp_instance_get_last_rx(rtp);
-	if (elapsed < ast_rtp_instance_get_timeout(rtp)) {
-		return (ast_rtp_instance_get_timeout(rtp) - elapsed) * 1000;
 	}
 
 	chan = ast_channel_get_by_name(ast_rtp_instance_get_channel_id(rtp));
@@ -122,14 +118,41 @@ static int rtp_check_timeout(const void *data)
 		return 0;
 	}
 
-	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of RTP activity in %d seconds\n",
-		ast_channel_name(chan), elapsed);
-
+	/* Get channel lock to make sure that we access a consistent set of values
+	 * (last_rx and direct_media_addr) - the lock is held when values are modified
+	 * (see send_direct_media_request()/check_for_rtp_changes() in chan_pjsip.c). We
+	 * are trying to avoid a situation where direct_media_addr has been reset but the
+	 * last-rx time was not set yet.
+	 */
 	ast_channel_lock(chan);
-	ast_channel_hangupcause_set(chan, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
-	ast_channel_unlock(chan);
 
+	elapsed = time(NULL) - ast_rtp_instance_get_last_rx(rtp);
+	timeout = ast_rtp_instance_get_timeout(rtp);
+	if (elapsed < timeout) {
+		ast_channel_unlock(chan);
+		ast_channel_unref(chan);
+		return (timeout - elapsed) * 1000;
+	}
+
+	/* Last RTP packet was received too long ago
+	 * - disconnect channel unless direct media is in use.
+	 */
+	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
+		ast_debug(3, "Not disconnecting channel '%s' for lack of %s RTP activity in %d seconds "
+			"since direct media is in use\n", ast_channel_name(chan),
+			ast_codec_media_type2str(session_media->type), elapsed);
+		ast_channel_unlock(chan);
+		ast_channel_unref(chan);
+		return timeout * 1000; /* recheck later, direct media may have ended then */
+	}
+
+	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of %s RTP activity in %d seconds\n",
+		ast_channel_name(chan), ast_codec_media_type2str(session_media->type), elapsed);
+
+	ast_channel_hangupcause_set(chan, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
 	ast_softhangup(chan, AST_SOFTHANGUP_DEV);
+
+	ast_channel_unlock(chan);
 	ast_channel_unref(chan);
 
 	return 0;
