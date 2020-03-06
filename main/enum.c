@@ -414,6 +414,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	int size, matchindex; /* size is the size of the backreference sub. */
 	size_t d_len = sizeof(tempdst) - 1;
 	regex_t preg;
+	int re_flags = REG_EXTENDED | REG_NEWLINE;
 	regmatch_t pmatch[max_bt];
 
 	tech_return[0] = '\0';
@@ -495,13 +496,23 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	 * and uses that character to find the index of the second delimiter */
 	delim = regexp[0];
 	delim2 = strchr(regexp + 1, delim);
-	if ((delim2 == NULL) || (regexp[regexp_len - 1] != delim)) {  /* is the second delimiter found, and is the end of the regexp a delimiter */
+	if ((delim2 == NULL)
+		|| ((regexp[regexp_len - 1] != 'i' || regexp[regexp_len - 2] != delim)
+			&& regexp[regexp_len - 1] != delim)) {
 		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n", regexp);
 		return -1;
 	} else if (strchr((delim2 + 1), delim) == NULL) { /* if the second delimiter is found, make sure there is a third instance.  this could be the end one instead of the middle */
 		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n", regexp);
 		return -1;
 	}
+
+	/* Make the regex case-insensitive if the 'i' flag is present. This assumes you
+	 * aren't using 'i' as a delimiter which, altough dubious, does not appear to be
+	 * explicitly non-compliant */
+	if (regexp[regexp_len - 1] == 'i') {
+		re_flags |= REG_ICASE;
+	}
+
 	pattern = regexp + 1;   /* pattern is the regex without the begining and ending delimiter */
 	*delim2 = 0;    /* zero out the middle delimiter */
 	subst   = delim2 + 1; /* dst substring is everything after the second delimiter. */
@@ -511,7 +522,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
  * now do the regex wizardry.
  */
 
-	if (regcomp(&preg, pattern, REG_EXTENDED | REG_NEWLINE)) {
+	if (regcomp(&preg, pattern, re_flags)) {
 		ast_log(LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n", regexp);
 		return -1;
 	}
