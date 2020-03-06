@@ -332,6 +332,14 @@ static int check_for_rtp_changes(struct ast_channel *chan, struct ast_rtp_instan
 		ast_sockaddr_setnull(&media->direct_media_addr);
 		changed = 1;
 		if (media->rtp) {
+			/* Direct media has ended - reset time of last received RTP packet
+			 * to avoid premature RTP timeout. Synchronisation between the
+			 * modification of direct_mdedia_addr+last_rx here and reading the
+			 * values in res_pjsip_sdp_rtp.c:rtp_check_timeout() is provided
+			 * by the channel's lock (which is held while this function is
+			 * executed).
+			 */
+			ast_rtp_instance_set_last_rx(media->rtp, time(NULL));
 			ast_rtp_instance_set_prop(media->rtp, AST_RTP_PROPERTY_RTCP, 1);
 			if (position != -1) {
 				ast_channel_set_fd(chan, position + AST_EXTENDED_FDS, ast_rtp_instance_fd(media->rtp, 1));
