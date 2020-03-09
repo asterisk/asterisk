@@ -59,6 +59,7 @@ enum ast_sip_session_t38state {
 
 struct ast_sip_session_sdp_handler;
 struct ast_sip_session;
+struct ast_sip_session_caps;
 struct ast_sip_session_media;
 
 typedef struct ast_frame *(*ast_sip_session_media_read_cb)(struct ast_sip_session *session, struct ast_sip_session_media *session_media);
@@ -79,6 +80,8 @@ struct ast_sip_session_media {
 	struct ast_sip_session_sdp_handler *handler;
 	/*! \brief Holds SRTP information */
 	struct ast_sdp_srtp *srtp;
+	/*! \brief Media format capabilities */
+	struct ast_sip_session_caps *caps;
 	/*! \brief What type of encryption is in use on this stream */
 	enum ast_sip_session_media_encryption encryption;
 	/*! \brief The media transport in use for this stream */

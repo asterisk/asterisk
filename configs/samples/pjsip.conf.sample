@@ -798,6 +798,16 @@
                    ; "0" or not enabled)
 ;contact_user= ; On outgoing requests, force the user portion of the Contact
                ; header to this value (default: "")
+;incoming_call_offer_pref= ; Sets the preferred codecs, and order to use between
+                           ; those received in the offer, and those set in this
+                           ; configuration's allow line. Valid values include:
+                           ;
+                           ; local - prefer and order by configuration (default).
+                           ; local_single - prefer and order by configuration,
+                           ;     but only choose 'top' most codec
+                           ; remote - prefer and order by incoming sdp.
+                           ; remote_single - prefer and order by incoming sdp,
+                           ;     but only choose 'top' most codec
 ;preferred_codec_only=yes       ; Respond to a SIP invite with the single most preferred codec
                                 ; rather than advertising all joint codec capabilities. This
                                 ; limits the other side's codec choice to exactly what we prefer.

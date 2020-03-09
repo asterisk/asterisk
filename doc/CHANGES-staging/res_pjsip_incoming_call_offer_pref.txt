@@ -1,0 +1,53 @@
+Subject: res_pjsip
+Subject: res_pjsip_session
+Master-Only: True
+
+A new option, incoming_call_offer_pref, was added to res_pjsip endpoints that
+specifies the preferred order of codecs to use between those received in the
+offer, and those set in the configuration.
+
+Valid values include:
+  local - prefer and order by configuration (default).
+  local_single - prefer and order by configuration, but only choose 'top'
+                 most codec
+  remote - prefer and order by incoming sdp.
+  remote_single - prefer and order by incoming sdp, but only choose 'top' most
+                  most codec
+
+Example A:
+  [alice]
+  type=endpoint
+  incoming_call_offer_pref=local
+  allow=!all,opus,alaw,ulaw
+
+  Alice's incoming sdp=g722,ulaw,alaw
+  RESULT: alaw,ulaw
+
+Example B:
+  [alice]
+  type=endpoint
+  incoming_call_offer_pref=local_single
+  allow=!all,opus,alaw,ulaw
+
+  Alice's incoming sdp=g722,ulaw,alaw
+  RESULT: alaw
+
+Example C:
+  [alice]
+  type=endpoint
+  incoming_call_offer_pref=remote
+  allow=!all,opus,alaw,ulaw
+
+  Alice's incoming sdp=g722,ulaw,alaw
+  RESULT: ulaw,alaw
+
+Example D:
+  [alice]
+  type=endpoint
+  incoming_call_offer_pref=remote_single
+  allow=!all,opus,alaw,ulaw
+
+  Alice's incoming sdp=g722,ulaw,alaw
+  RESULT: ulaw
+
+

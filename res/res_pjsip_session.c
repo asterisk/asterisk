@@ -30,6 +30,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
+#include "asterisk/res_pjsip_session_caps.h"
 #include "asterisk/callerid.h"
 #include "asterisk/datastore.h"
 #include "asterisk/module.h"
@@ -466,6 +467,8 @@ static void session_media_dtor(void *obj)
 
 	ast_free(session_media->mid);
 	ast_free(session_media->remote_mslabel);
+
+	ao2_cleanup(session_media->caps);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
@@ -523,6 +526,12 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 			session_media->bundled = session->endpoint->media.webrtc;
 		} else {
 			session_media->bundle_group = -1;
+		}
+
+		session_media->caps = ast_sip_session_caps_alloc();
+		if (!session_media->caps) {
+			ao2_ref(session_media, -1);
+			return NULL;
 		}
 	}
 

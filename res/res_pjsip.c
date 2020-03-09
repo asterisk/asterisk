@@ -925,6 +925,27 @@
 				<configOption name="preferred_codec_only" default="no">
 					<synopsis>Respond to a SIP invite with the single most preferred codec rather than advertising all joint codec capabilities. This limits the other side's codec choice to exactly what we prefer.</synopsis>
 				</configOption>
+				<configOption name="incoming_call_offer_pref" default="local">
+					<synopsis>After receiving an incoming offer create a list of preferred codecs between
+					those received in the SDP offer, and those specified in endpoint configuration.</synopsis>
+					<description>
+						<note><para>This list will consist of only those codecs found in both.</para></note>
+						<enumlist>
+							<enum name="local"><para>
+								Order by the endpoint configuration allow line (default)
+							</para></enum>
+							<enum name="local_single"><para>
+								Order by the endpoint configuration allow line, but the list will only contain the first, or 'top' item
+							</para></enum>
+							<enum name="remote"><para>
+								Order by what is received in the SDP offer
+							</para></enum>
+							<enum name="remote_single"><para>
+								Order by what is received in the SDP offer, but the list will only contain the first, or 'top' item
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="rtp_keepalive">
 					<synopsis>Number of seconds between RTP comfort noise keepalive packets.</synopsis>
 					<description><para>

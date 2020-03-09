@@ -1121,6 +1121,48 @@ static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf
 	return 0;
 }
 
+static const char *sip_call_codec_pref_strings[] = {
+	[AST_SIP_CALL_CODEC_PREF_LOCAL] = "local",
+	[AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT] = "local_limit",
+	[AST_SIP_CALL_CODEC_PREF_LOCAL_SINGLE] = "local_single",
+	[AST_SIP_CALL_CODEC_PREF_REMOTE] = "remote",
+	[AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT] = "remote_limit",
+	[AST_SIP_CALL_CODEC_PREF_REMOTE_SINGLE] = "remote_single",
+};
+
+static int incoming_call_offer_pref_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_LEN(sip_call_codec_pref_strings); ++i) {
+		if (!strcmp(var->value, sip_call_codec_pref_strings[i])) {
+			/* Local and remote limit are not available values for this option */
+			if (i == AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT ||
+				i == AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT) {
+				return -1;
+			}
+
+			endpoint->media.incoming_call_offer_pref = i;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static int incoming_call_offer_pref_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	if (ARRAY_IN_BOUNDS(endpoint->media.incoming_call_offer_pref, sip_call_codec_pref_strings)) {
+		*buf = ast_strdup(sip_call_codec_pref_strings[endpoint->media.incoming_call_offer_pref]);
+	}
+
+	return 0;
+}
+
 static void *sip_nat_hook_alloc(const char *name)
 {
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
@@ -1966,6 +2008,8 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accept_multiple_sdp_answers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.accept_multiple_sdp_answers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "suppress_q850_reason_headers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, suppress_q850_reason_headers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ignore_183_without_sdp", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ignore_183_without_sdp));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_call_offer_pref", "local",
+		incoming_call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

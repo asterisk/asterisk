@@ -510,6 +510,24 @@ enum ast_sip_session_redirect {
 };
 
 /*!
+ * \brief Incoming/Outgoing call offer/answer joint codec preference.
+ */
+enum ast_sip_call_codec_pref {
+	/*! Prefer, and order by local values */
+	AST_SIP_CALL_CODEC_PREF_LOCAL,
+	/*! Prefer, and order by local values (intersection) */
+	AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT,
+	/*! Prefer, and order by local values (top/first only) */
+	AST_SIP_CALL_CODEC_PREF_LOCAL_SINGLE,
+	/*! Prefer, and order by remote values */
+	AST_SIP_CALL_CODEC_PREF_REMOTE,
+	/*! Prefer, and order by remote values (intersection) */
+	AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT,
+	/*! Prefer, and order by remote values (top/first only) */
+	AST_SIP_CALL_CODEC_PREF_REMOTE_SINGLE,
+};
+
+/*!
  * \brief Session timers options
  */
 struct ast_sip_timer_options {
@@ -750,6 +768,8 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int bundle;
 	/*! Enable webrtc settings and defaults */
 	unsigned int webrtc;
+	/*! Codec preference for an incoming offer */
+	enum ast_sip_call_codec_pref incoming_call_offer_pref;
 };
 
 /*!
