@@ -592,6 +592,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	}
 
 	if (!session_media->remote_ice) {
+		ice->stop(session_media->rtp);
 		return;
 	}
 
