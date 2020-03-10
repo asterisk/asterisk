@@ -516,8 +516,9 @@ static struct ast_dns_record *generic_record_alloc(struct ast_dns_query *query, 
 typedef struct ast_dns_record *(*dns_alloc_fn)(struct ast_dns_query *query, const char *data, const size_t size);
 
 static dns_alloc_fn dns_alloc_table [] = {
+	[T_TXT]   = dns_txt_alloc,
 	[T_NAPTR] = dns_naptr_alloc,
-	[T_SRV] = dns_srv_alloc,
+	[T_SRV]   = dns_srv_alloc,
 };
 
 static struct ast_dns_record *allocate_dns_record(unsigned int rr_type, struct ast_dns_query *query, const char *data, const size_t size)
