@@ -731,6 +731,7 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 	struct ast_sip_session_media *media = NULL;
 	int rtcp = 0;
 	int fdno = ast_channel_fdno(ast);
+	struct ast_frame *cur;
 
 	switch (fdno) {
 	case 0:
@@ -759,7 +760,13 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 
 	ast_rtp_instance_set_last_rx(media->rtp, time(NULL));
 
-	if (f->frametype != AST_FRAME_VOICE) {
+	for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+		if (cur->frametype == AST_FRAME_VOICE) {
+			break;
+		}
+	}
+
+	if (!cur) {
 		return f;
 	}
 
@@ -771,36 +778,36 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 	 * raw read format BEFORE the native format check
 	 */
 	if (!session->endpoint->asymmetric_rtp_codec &&
-		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL &&
-		ast_format_cap_iscompatible_format(session->joint_caps, f->subclass.format) == AST_FORMAT_CMP_EQUAL) {
+		ast_format_cmp(ast_channel_rawwriteformat(ast), cur->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL &&
+		ast_format_cap_iscompatible_format(session->joint_caps, cur->subclass.format) == AST_FORMAT_CMP_EQUAL) {
 		struct ast_format_cap *caps;
 
 		/* For maximum compatibility we ensure that the formats match that of the received media */
 		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when we're sending '%s', switching to match\n",
-			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
+			ast_format_get_name(cur->subclass.format), ast_channel_name(ast),
 			ast_format_get_name(ast_channel_rawwriteformat(ast)));
 
 		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (caps) {
 			ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(ast), AST_MEDIA_TYPE_UNKNOWN);
 			ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_AUDIO);
-			ast_format_cap_append(caps, f->subclass.format, 0);
+			ast_format_cap_append(caps, cur->subclass.format, 0);
 			ast_channel_nativeformats_set(ast, caps);
 			ao2_ref(caps, -1);
 		}
 
-		ast_set_write_format_path(ast, ast_channel_writeformat(ast), f->subclass.format);
-		ast_set_read_format_path(ast, ast_channel_readformat(ast), f->subclass.format);
+		ast_set_write_format_path(ast, ast_channel_writeformat(ast), cur->subclass.format);
+		ast_set_read_format_path(ast, ast_channel_readformat(ast), cur->subclass.format);
 
 		if (ast_channel_is_bridged(ast)) {
 			ast_channel_set_unbridged_nolock(ast, 1);
 		}
 	}
 
-	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), cur->subclass.format)
+			== AST_FORMAT_CMP_NOT_EQUAL) {
 		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when it has not been negotiated\n",
-			ast_format_get_name(f->subclass.format), ast_channel_name(ast));
-
+				ast_format_get_name(cur->subclass.format), ast_channel_name(ast));
 		ast_frfree(f);
 		return &ast_null_frame;
 	}
