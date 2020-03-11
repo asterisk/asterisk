@@ -521,7 +521,7 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 /*! \brief Function which adds ICE attributes to a media stream */
 static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media, pj_pool_t *pool, pjmedia_sdp_media *media)
 {
-	struct ast_rtp_engine_ice *ice;
+	struct ast_rtp_engine_ice *ice = NULL;
 	struct ao2_container *candidates;
 	const char *username, *password;
 	pj_str_t stmp;
