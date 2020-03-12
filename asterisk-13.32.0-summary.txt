@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.32.0-rc1
+                                asterisk-13.32.0
 
-                                Date: 2020-03-05
+                                Date: 2020-03-12
 
                            <asteriskteam@digium.com>
 
@@ -54,8 +54,8 @@
    5 Walter Doekes                                   2 Walter Doekes          
    4 Kevin Harwell                                   1 Paul Brooks            
    2 Torrey Searle                                   1 Martin Zeh             
-   2 Joshua C. Colp                                  1 Dmitriy Serov          
-   1 Asterisk Development Team                       1 Jean Aunis - Prescom   
+   2 Asterisk Development Team                       1 Dmitriy Serov          
+   2 Joshua C. Colp                                  1 Jean Aunis - Prescom   
    1 Sebastian Kemper                                1 Benjamin Keith Ford    
    1 George Joseph                                   1 Sylvain Afchain        
    1 Sylvain Afchain                                 1 EDV O-TON              
@@ -262,6 +262,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | 887d29213c | Asterisk         | Update for 13.32.0-rc1                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | 077cc24d66 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
    |            | Development Team | 13.32.0                                |
    |------------+------------------+----------------------------------------|
@@ -299,21 +302,22 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                         |    1
- .version                                                                           |    1
- ChangeLog                                                                          |68939 ----------
- asterisk-13.31.0-summary.html                                                      |  188
- asterisk-13.31.0-summary.txt                                                       |  578
+ asterisk-13.31.0-summary.html                                                      |  188 ---
+ asterisk-13.31.0-summary.txt                                                       |  578 ----------
+ b/.version                                                                         |    2
  b/CHANGES                                                                          |   25
+ b/ChangeLog                                                                        |  418 ++++++-
  b/UPGRADE.txt                                                                      |   56
  b/addons/res_config_mysql.c                                                        |   16
  b/apps/app_mixmonitor.c                                                            |   29
- b/apps/app_queue.c                                                                 |   60
+ b/apps/app_queue.c                                                                 |   60 -
+ b/asterisk-13.32.0-rc1-summary.html                                                |  127 ++
+ b/asterisk-13.32.0-rc1-summary.txt                                                 |  362 ++++++
  b/channels/chan_pjsip.c                                                            |    3
- b/channels/chan_sip.c                                                              |  126
+ b/channels/chan_sip.c                                                              |  126 +-
  b/channels/sip/include/sip.h                                                       |    1
  b/configs/samples/sip.conf.sample                                                  |    4
- b/configure                                                                        |  141
+ b/configure                                                                        |  141 +-
  b/configure.ac                                                                     |   22
  b/contrib/scripts/ast_tls_cert                                                     |    8
  b/contrib/scripts/install_prereq                                                   |    2
@@ -334,7 +338,7 @@
  b/main/tcptls.c                                                                    |   26
  b/makeopts.in                                                                      |    2
  b/menuselect/configure                                                             |   22
- b/res/ari/ari_model_validators.c                                                   |   59
+ b/res/ari/ari_model_validators.c                                                   |   59 -
  b/res/ari/ari_model_validators.h                                                   |   23
  b/res/res_config_odbc.c                                                            |    2
  b/res/res_musiconhold.c                                                            |    4
@@ -350,13 +354,8 @@
  b/rest-api/api-docs/endpoints.json                                                 |   20
  b/rest-api/resources.json                                                          |    2
  b/third-party/pjproject/configure.m4                                               |    1
- b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   84
- b/third-party/pjproject/patches/0040-brackets-in-via-received-params.patch         |    6
- contrib/realtime/mysql/mysql_cdr.sql                                               |   33
- contrib/realtime/mysql/mysql_config.sql                                            | 1189
- contrib/realtime/mysql/mysql_voicemail.sql                                         |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                     |   37
- contrib/realtime/postgresql/postgresql_config.sql                                  | 1287
- contrib/realtime/postgresql/postgresql_voicemail.sql                               |   39
+ b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   84 +
+ b/third-party/pjproject/patches/0040-brackets-in-via-received-params.patch         |   40
+ b/utils/Makefile                                                                   |    4
  doc/CHANGES-staging/res_fax_negotiate_both                                         |    7
- 60 files changed, 787 insertions(+), 72651 deletions(-)
+ 56 files changed, 1704 insertions(+), 1120 deletions(-)
