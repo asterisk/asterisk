@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-17.3.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-17.3.0-rc1</h3><h3 align="center">Date: 2020-03-05</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-17.3.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-17.3.0</h3><h3 align="center">Date: 2020-03-12</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-17.2.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">11 Sean Bright <sean.bright@gmail.com><br/>7 Joshua C. Colp <jcolp@sangoma.com><br/>5 Kevin Harwell <kharwell@digium.com><br/>5 Walter Doekes <walter+github@wjd.nu><br/>3 George Joseph <gjoseph@digium.com><br/>2 Torrey Searle <torrey@voxbone.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Sebastian Kemper <sebastian_ml@gmx.net><br/>1 Sylvain Afchain <safchain@gmail.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 lvl <digium@lvlconsultancy.nl><br/></td><td width="33%"><td width="33%">4 Ross Beer <ross.beer@voicehost.co.uk><br/>3 Joshua C. Colp <jcolp@digium.com><br/>2 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Paul Brooks<br/>1 Martin Zeh<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Sylvain Afchain <safchain@wazo.io><br/>1 EDV O-TON <edv@o-ton-online.de><br/>1 Martin Zeh <martin.zeh@forsa.de><br/>1 alex <warp@adygtelecom.com><br/>1 Ross Beer<br/>1 Timothy Vanderaerden <timothy.vanderaerden@optimise-group.be><br/>1 xrobau <xrobau@gmail.com><br/>1 Sebastian Kemper <sebastian_ml@gmx.net><br/>1 Paul Brooks <paul@dialaround.pro><br/>1 Peter Sokolov <newsletter@fab-online.com><br/>1 Francois Blackburn <fblackburn@wazo.io><br/>1 EDV O-TON<br/>1 Peter Sokolov<br/>1 George Joseph <gjoseph@digium.com><br/>1 Dmitriy Serov <serov.d.p@gmail.com><br/>1 Dmitriy Serov<br/>1 Alex <alex@alex-at.ru><br/>1 Sébastien Duthil<br/>1 Torrey Searle <tsearle@gmail.com><br/>1 lvl <digium@lvlconsultancy.nl><br/>1 Benjamin Keith Ford <bford@digium.com><br/></td></tr>
+<tr valign="top"><td width="33%">11 Sean Bright <sean.bright@gmail.com><br/>7 Joshua C. Colp <jcolp@sangoma.com><br/>5 Kevin Harwell <kharwell@digium.com><br/>5 Walter Doekes <walter+github@wjd.nu><br/>3 George Joseph <gjoseph@digium.com><br/>2 Torrey Searle <torrey@voxbone.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>1 Sebastian Kemper <sebastian_ml@gmx.net><br/>1 Sylvain Afchain <safchain@gmail.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 lvl <digium@lvlconsultancy.nl><br/></td><td width="33%"><td width="33%">4 Ross Beer <ross.beer@voicehost.co.uk><br/>3 Joshua C. Colp <jcolp@digium.com><br/>2 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Paul Brooks<br/>1 Martin Zeh<br/>1 Sébastien Duthil <sduthil@wazo.community><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Sylvain Afchain <safchain@wazo.io><br/>1 EDV O-TON <edv@o-ton-online.de><br/>1 Martin Zeh <martin.zeh@forsa.de><br/>1 alex <warp@adygtelecom.com><br/>1 Ross Beer<br/>1 Timothy Vanderaerden <timothy.vanderaerden@optimise-group.be><br/>1 xrobau <xrobau@gmail.com><br/>1 Sebastian Kemper <sebastian_ml@gmx.net><br/>1 Paul Brooks <paul@dialaround.pro><br/>1 Peter Sokolov <newsletter@fab-online.com><br/>1 Francois Blackburn <fblackburn@wazo.io><br/>1 EDV O-TON<br/>1 Peter Sokolov<br/>1 George Joseph <gjoseph@digium.com><br/>1 Dmitriy Serov <serov.d.p@gmail.com><br/>1 Dmitriy Serov<br/>1 Alex <alex@alex-at.ru><br/>1 Sébastien Duthil<br/>1 Torrey Searle <tsearle@gmail.com><br/>1 lvl <digium@lvlconsultancy.nl><br/>1 Benjamin Keith Ford <bford@digium.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28766">ASTERISK-28766</a>: PJSIP blind transfer not completed after using Proceeding()<br/>Reported by: lvl<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=88393db74d57636139822b1a34eb18fcfd480d36">[88393db74d]</a> lvl -- res_pjsip_refer: ensure refer progress is still sent after Proceeding()</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28755">ASTERISK-28755</a>: SIP/Stasis: SIP headers not transmitted in the "variables" field<br/>Reported by: Jean Aunis - Prescom<ul>
@@ -75,6 +75,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=957681e08b26d27fb79a2b98c60b8f3dbf4f22eb">[957681e08b]</a> Joshua C. Colp -- bridging: Add better support for adding/removing streams.</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f7cd42222af2dab2108d707b0ae8665069bdf469">f7cd42222a</a></td><td>Asterisk Development Team</td><td>Update for 17.3.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1d3256c5e4ef8841f65090470b1d995cf81f362b">1d3256c5e4</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 17.3.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a3f5a80a5966ce1c3f19e9bc3eab9e1d644a27f2">a3f5a80a59</a></td><td>Walter Doekes</td><td>say: Remove unused "plural" option from main/say</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b455d57f7dce2a8766b832797c7e718a7953945a">b455d57f7d</a></td><td>Walter Doekes</td><td>app_queue: Refactor odd placement of if's around say_position</td></tr>
@@ -87,25 +88,26 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d19dec53b5c3eb01bcd288c6bac90fa35662fca0">d19dec53b5</a></td><td>Walter Doekes</td><td>chan_sip: Clarify in sample docs how directmediapermit/-acl should be used</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=325e3f81117a6b02102f1718cc0607892961ab15">325e3f8111</a></td><td>Joshua C. Colp</td><td>res_rtp_asterisk: Don't produce transport-cc if no packets.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=54cd865946a0caa7b4b0b89355d4b9f15a2c9e3f">54cd865946</a></td><td>George Joseph</td><td>message.c: Add option to suppress the Message channel AMI and ARI events</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                         |    1
-.version                                                                           |    1
-ChangeLog                                                                          |88490 ----------
-asterisk-17.2.0-summary.html                                                       |  201
-asterisk-17.2.0-summary.txt                                                        |  620
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-17.2.0-summary.html                                                       |  201 ---
+asterisk-17.2.0-summary.txt                                                        |  620 ---------
+b/.version                                                                         |    2
 b/CHANGES                                                                          |   25
+b/ChangeLog                                                                        |  660 +++++++++-
 b/UPGRADE.txt                                                                      |   56
 b/addons/res_config_mysql.c                                                        |   16
 b/apps/app_mixmonitor.c                                                            |   29
 b/apps/app_queue.c                                                                 |   58
-b/bridges/bridge_native_rtp.c                                                      |  168
-b/bridges/bridge_simple.c                                                          |  198
-b/bridges/bridge_softmix.c                                                         |  246
+b/asterisk-17.3.0-rc1-summary.html                                                 |  163 ++
+b/asterisk-17.3.0-rc1-summary.txt                                                  |  460 ++++++
+b/bridges/bridge_native_rtp.c                                                      |  168 ++
+b/bridges/bridge_simple.c                                                          |  198 +--
+b/bridges/bridge_softmix.c                                                         |  246 ++-
 b/channels/chan_pjsip.c                                                            |   13
-b/channels/chan_sip.c                                                              |  126
+b/channels/chan_sip.c                                                              |  126 +
 b/channels/sip/include/sip.h                                                       |    1
 b/configs/samples/asterisk.conf.sample                                             |    5
 b/configs/samples/sip.conf.sample                                                  |    4
-b/configure                                                                        |  141
+b/configure                                                                        |  141 +-
 b/configure.ac                                                                     |   22
 b/contrib/scripts/ast_tls_cert                                                     |    8
 b/contrib/scripts/install_prereq                                                   |    2
@@ -144,20 +146,15 @@ b/res/res_pjsip_messaging.c                                                     
 b/res/res_pjsip_outbound_registration.c                                            |   49
 b/res/res_pjsip_refer.c                                                            |    7
 b/res/res_pjsip_sdp_rtp.c                                                          |   56
-b/res/res_pjsip_session.c                                                          |  107
-b/res/res_rtp_asterisk.c                                                           |  312
+b/res/res_pjsip_session.c                                                          |  107 +
+b/res/res_rtp_asterisk.c                                                           |  312 +++-
 b/res/res_sorcery_config.c                                                         |    1
 b/res/res_stasis_playback.c                                                        |    4
 b/res/stasis/messaging.c                                                           |   11
 b/rest-api/api-docs/endpoints.json                                                 |   20
 b/rest-api/resources.json                                                          |    2
 b/third-party/pjproject/configure.m4                                               |    1
-b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   56
-contrib/realtime/mysql/mysql_cdr.sql                                               |   41
-contrib/realtime/mysql/mysql_config.sql                                            | 1270
-contrib/realtime/mysql/mysql_voicemail.sql                                         |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                     |   45
-contrib/realtime/postgresql/postgresql_config.sql                                  | 1382
-contrib/realtime/postgresql/postgresql_voicemail.sql                               |   39
+b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   84 +
+b/third-party/pjproject/patches/0040-brackets-in-via-received-params.patch         |    9
 doc/CHANGES-staging/res_fax_negotiate_both                                         |    7
-73 files changed, 1670 insertions(+), 92683 deletions(-)</pre><br></html>
+69 files changed, 2964 insertions(+), 1407 deletions(-)</pre><br></html>

@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-17.3.0-rc1
+                                asterisk-17.3.0
 
-                                Date: 2020-03-05
+                                Date: 2020-03-12
 
                            <asteriskteam@digium.com>
 
@@ -56,7 +56,7 @@
    5 Walter Doekes                                   1 Paul Brooks            
    3 George Joseph                                   1 Martin Zeh             
    2 Torrey Searle                                   1 SÃ©bastien Duthil      
-   1 Asterisk Development Team                       1 Jean Aunis - Prescom   
+   2 Asterisk Development Team                       1 Jean Aunis - Prescom   
    1 Sebastian Kemper                                1 Kevin Harwell          
    1 Sylvain Afchain                                 1 Sylvain Afchain        
    1 Jaco Kroon                                      1 EDV O-TON              
@@ -338,6 +338,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | f7cd42222a | Asterisk         | Update for 17.3.0-rc1                  |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | 1d3256c5e4 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
    |            | Development Team | 17.3.0                                 |
    |------------+------------------+----------------------------------------|
@@ -384,25 +387,26 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                         |    1
- .version                                                                           |    1
- ChangeLog                                                                          |88490 ----------
- asterisk-17.2.0-summary.html                                                       |  201
- asterisk-17.2.0-summary.txt                                                        |  620
+ asterisk-17.2.0-summary.html                                                       |  201 ---
+ asterisk-17.2.0-summary.txt                                                        |  620 ---------
+ b/.version                                                                         |    2
  b/CHANGES                                                                          |   25
+ b/ChangeLog                                                                        |  660 +++++++++-
  b/UPGRADE.txt                                                                      |   56
  b/addons/res_config_mysql.c                                                        |   16
  b/apps/app_mixmonitor.c                                                            |   29
  b/apps/app_queue.c                                                                 |   58
- b/bridges/bridge_native_rtp.c                                                      |  168
- b/bridges/bridge_simple.c                                                          |  198
- b/bridges/bridge_softmix.c                                                         |  246
+ b/asterisk-17.3.0-rc1-summary.html                                                 |  163 ++
+ b/asterisk-17.3.0-rc1-summary.txt                                                  |  460 ++++++
+ b/bridges/bridge_native_rtp.c                                                      |  168 ++
+ b/bridges/bridge_simple.c                                                          |  198 +--
+ b/bridges/bridge_softmix.c                                                         |  246 ++-
  b/channels/chan_pjsip.c                                                            |   13
- b/channels/chan_sip.c                                                              |  126
+ b/channels/chan_sip.c                                                              |  126 +
  b/channels/sip/include/sip.h                                                       |    1
  b/configs/samples/asterisk.conf.sample                                             |    5
  b/configs/samples/sip.conf.sample                                                  |    4
- b/configure                                                                        |  141
+ b/configure                                                                        |  141 +-
  b/configure.ac                                                                     |   22
  b/contrib/scripts/ast_tls_cert                                                     |    8
  b/contrib/scripts/install_prereq                                                   |    2
@@ -441,20 +445,15 @@
  b/res/res_pjsip_outbound_registration.c                                            |   49
  b/res/res_pjsip_refer.c                                                            |    7
  b/res/res_pjsip_sdp_rtp.c                                                          |   56
- b/res/res_pjsip_session.c                                                          |  107
- b/res/res_rtp_asterisk.c                                                           |  312
+ b/res/res_pjsip_session.c                                                          |  107 +
+ b/res/res_rtp_asterisk.c                                                           |  312 +++-
  b/res/res_sorcery_config.c                                                         |    1
  b/res/res_stasis_playback.c                                                        |    4
  b/res/stasis/messaging.c                                                           |   11
  b/rest-api/api-docs/endpoints.json                                                 |   20
  b/rest-api/resources.json                                                          |    2
  b/third-party/pjproject/configure.m4                                               |    1
- b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   56
- contrib/realtime/mysql/mysql_cdr.sql                                               |   41
- contrib/realtime/mysql/mysql_config.sql                                            | 1270
- contrib/realtime/mysql/mysql_voicemail.sql                                         |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                     |   45
- contrib/realtime/postgresql/postgresql_config.sql                                  | 1382
- contrib/realtime/postgresql/postgresql_voicemail.sql                               |   39
+ b/third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch |   84 +
+ b/third-party/pjproject/patches/0040-brackets-in-via-received-params.patch         |    9
  doc/CHANGES-staging/res_fax_negotiate_both                                         |    7
- 73 files changed, 1670 insertions(+), 92683 deletions(-)
+ 69 files changed, 2964 insertions(+), 1407 deletions(-)
