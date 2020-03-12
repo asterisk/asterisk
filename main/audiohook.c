@@ -499,6 +499,15 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 {
 	ast_channel_lock(chan);
 
+	/* Don't allow an audiohook to be attached to a channel that is already hung up.
+	 * The hang up process is what actually notifies the audiohook that it should
+	 * stop.
+	 */
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
 	if (!ast_channel_audiohooks(chan)) {
 		struct ast_audiohook_list *ahlist;
 		/* Whoops... allocate a new structure */

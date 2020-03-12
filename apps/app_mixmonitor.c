@@ -992,6 +992,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 	if (startmon(chan, &mixmonitor->audiohook)) {
 		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
 			mixmonitor_spy_type, ast_channel_name(chan));
+		ast_autochan_destroy(mixmonitor->autochan);
 		ast_audiohook_destroy(&mixmonitor->audiohook);
 		mixmonitor_free(mixmonitor);
 		return -1;
