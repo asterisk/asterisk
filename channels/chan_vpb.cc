@@ -2691,7 +2691,7 @@ static enum ast_module_load_result load_module()
 	ast_format_cap_append(vpb_tech_indicate.capabilities, ast_format_slin, 0);
 	try {
 		num_cards = vpb_get_num_cards();
-	} catch (std::exception e) {
+	} catch (std::exception&) {
 		ast_log(LOG_ERROR, "No Voicetronix cards detected\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
