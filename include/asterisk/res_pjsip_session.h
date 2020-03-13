@@ -30,6 +30,9 @@
 #include "asterisk/sdp_srtp.h"
 /* Needed for ast_media_type */
 #include "asterisk/codec.h"
+/* Needed for pjmedia_sdp_session and pjsip_inv_session */
+#include <pjsip_ua.h>
+
 
 /* Forward declarations */
 struct ast_sip_endpoint;
@@ -80,8 +83,6 @@ struct ast_sip_session_media {
 	struct ast_sip_session_sdp_handler *handler;
 	/*! \brief Holds SRTP information */
 	struct ast_sdp_srtp *srtp;
-	/*! \brief Media format capabilities */
-	struct ast_sip_session_caps *caps;
 	/*! \brief What type of encryption is in use on this stream */
 	enum ast_sip_session_media_encryption encryption;
 	/*! \brief The media transport in use for this stream */
@@ -157,6 +158,12 @@ struct ast_sip_session_delayed_request;
 /*! \brief Opaque struct controlling the suspension of the session's serializer. */
 struct ast_sip_session_suspender;
 
+/*! \brief Indicates the call direction respective to Asterisk */
+enum ast_sip_session_call_direction {
+	AST_SIP_SESSION_INCOMING_CALL = 0,
+	AST_SIP_SESSION_OUTGOING_CALL,
+};
+
 /*!
  * \brief A structure describing a SIP session
  *
@@ -222,8 +229,10 @@ struct ast_sip_session {
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Initial incoming INVITE Request-URI.  NULL otherwise. */
 	pjsip_uri *request_uri;
-	/* Media statistics for negotiated RTP streams */
+	/*! Media statistics for negotiated RTP streams */
 	AST_VECTOR(, struct ast_rtp_instance_stats *) media_stats;
+	/*! The direction of the call respective to Asterisk */
+	enum ast_sip_session_call_direction call_direction;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);

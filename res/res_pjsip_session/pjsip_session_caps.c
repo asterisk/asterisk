@@ -24,25 +24,24 @@
 #include "asterisk/format_cap.h"
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
-
-#include <pjsip_ua.h>
-
+#include "asterisk/stream.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/res_pjsip_session_caps.h"
 
-struct ast_sip_session_caps {
-	struct ast_format_cap *incoming_call_offer_cap;
-};
-
 static void log_caps(int level, const char *file, int line, const char *function,
-	const char *msg, const struct ast_sip_session *session,
-	const struct ast_sip_session_media *session_media, const struct ast_format_cap *local,
-	const struct ast_format_cap *remote, const struct ast_format_cap *joint)
+	const struct ast_sip_session *session, enum ast_media_type media_type,
+	const struct ast_format_cap *local, const struct ast_format_cap *remote,
+	const struct ast_format_cap *joint)
 {
 	struct ast_str *s1;
 	struct ast_str *s2;
 	struct ast_str *s3;
+	int outgoing = session->call_direction == AST_SIP_SESSION_OUTGOING_CALL;
+	struct ast_flags pref =
+		outgoing
+		? session->endpoint->media.outgoing_call_offer_pref
+		: session->endpoint->media.incoming_call_offer_pref;
 
 	if (level == __LOG_DEBUG && !DEBUG_ATLEAST(3)) {
 		return;
@@ -52,93 +51,57 @@ static void log_caps(int level, const char *file, int line, const char *function
 	s2 = remote ? ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN) : NULL;
 	s3 = joint ? ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN) : NULL;
 
-	ast_log(level, file, line, function, "'%s' %s '%s' capabilities -%s%s%s%s%s%s\n",
+	ast_log(level, file, line, function, "'%s' Caps for %s %s call with pref '%s' - remote: %s local: %s joint: %s\n",
 		session->channel ? ast_channel_name(session->channel) :
 			ast_sorcery_object_get_id(session->endpoint),
-		msg ? msg : "-", ast_codec_media_type2str(session_media->type),
-		s1 ? " local: " : "", s1 ? ast_format_cap_get_names(local, &s1) : "",
-		s2 ? " remote: " : "", s2 ? ast_format_cap_get_names(remote, &s2) : "",
-		s3 ? " joint: " : "", s3 ? ast_format_cap_get_names(joint, &s3) : "");
+		outgoing? "outgoing" : "incoming",
+		ast_codec_media_type2str(media_type),
+		ast_sip_call_codec_pref_to_str(pref),
+		s2 ? ast_format_cap_get_names(remote, &s2) : "(NONE)",
+		s1 ? ast_format_cap_get_names(local, &s1) : "(NONE)",
+		s3 ? ast_format_cap_get_names(joint, &s3) : "(NONE)");
 }
 
-static void sip_session_caps_destroy(void *obj)
+struct ast_format_cap *ast_sip_create_joint_call_cap(const struct ast_format_cap *remote,
+	struct ast_format_cap *local, enum ast_media_type media_type,
+	struct ast_flags codec_pref)
 {
-	struct ast_sip_session_caps *caps = obj;
+	struct ast_format_cap *joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	struct ast_format_cap *local_filtered = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
-	ao2_cleanup(caps->incoming_call_offer_cap);
-}
+	if (!joint || !local_filtered) {
+		ast_log(LOG_ERROR, "Failed to allocate %s call offer capabilities\n",
+				ast_codec_media_type2str(media_type));
+		ao2_cleanup(joint);
+		ao2_cleanup(local_filtered);
+		return NULL;
+	}
 
-struct ast_sip_session_caps *ast_sip_session_caps_alloc(void)
-{
-	return ao2_alloc_options(sizeof(struct ast_sip_session_caps),
-		sip_session_caps_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
-}
+	ast_format_cap_append_from_cap(local_filtered, local, media_type);
 
-void ast_sip_session_set_incoming_call_offer_cap(struct ast_sip_session_caps *caps,
-	struct ast_format_cap *cap)
-{
-	ao2_cleanup(caps->incoming_call_offer_cap);
-	caps->incoming_call_offer_cap = ao2_bump(cap);
-}
+	if (ast_sip_call_codec_pref_test(codec_pref, LOCAL)) {
+		if (ast_sip_call_codec_pref_test(codec_pref, INTERSECT)) {
+			ast_format_cap_get_compatible(local_filtered, remote, joint); /* Get common, prefer local */
+		} else {
+			ast_format_cap_append_from_cap(joint, local_filtered, media_type); /* Add local */
+			ast_format_cap_append_from_cap(joint, remote, media_type); /* Then remote */
+		}
+	} else {
+		if (ast_sip_call_codec_pref_test(codec_pref, INTERSECT)) {
+			ast_format_cap_get_compatible(remote, local_filtered, joint); /* Get common, prefer remote */
+		} else {
+			ast_format_cap_append_from_cap(joint, remote, media_type); /* Add remote */
+			ast_format_cap_append_from_cap(joint, local_filtered, media_type); /* Then local */
+		}
+	}
 
-const struct ast_format_cap *ast_sip_session_get_incoming_call_offer_cap(
-	const struct ast_sip_session_caps *caps)
-{
-	return caps->incoming_call_offer_cap;
-}
+	ao2_ref(local_filtered, -1);
 
-const struct ast_format_cap *ast_sip_session_join_incoming_call_offer_cap(
-	const struct ast_sip_session *session, const struct ast_sip_session_media *session_media,
-	const struct ast_format_cap *remote)
-{
-	enum ast_sip_call_codec_pref pref;
-	struct ast_format_cap *joint;
-	struct ast_format_cap *local;
-
-	joint = session_media->caps->incoming_call_offer_cap;
-
-	if (joint) {
-		/*
-		 * If the incoming call offer capabilities have been set elsewhere, e.g. dialplan
-		 * then those take precedence.
-		 */
+	if (ast_format_cap_empty(joint)) {
 		return joint;
 	}
 
-	joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	local = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-
-	if (!joint || !local) {
-		ast_log(LOG_ERROR, "Failed to allocate %s incoming call offer capabilities\n",
-				ast_codec_media_type2str(session_media->type));
-
-		ao2_cleanup(joint);
-		ao2_cleanup(local);
-		return NULL;
-	}
-
-	pref = session->endpoint->media.incoming_call_offer_pref;
-	ast_format_cap_append_from_cap(local, session->endpoint->media.codecs,
-		session_media->type);
-
-	if (pref < AST_SIP_CALL_CODEC_PREF_REMOTE) {
-		ast_format_cap_get_compatible(local, remote, joint); /* Prefer local */
-	} else {
-		ast_format_cap_get_compatible(remote, local, joint); /* Prefer remote */
-	}
-
-	if (ast_format_cap_empty(joint)) {
-		log_caps(LOG_NOTICE, "No joint incoming", session, session_media, local, remote, NULL);
-
-		ao2_ref(joint, -1);
-		ao2_ref(local, -1);
-		return NULL;
-	}
-
-	if (pref == AST_SIP_CALL_CODEC_PREF_LOCAL_SINGLE ||
-		pref == AST_SIP_CALL_CODEC_PREF_REMOTE_SINGLE ||
-		session->endpoint->preferred_codec_only) {
-
+	if (ast_sip_call_codec_pref_test(codec_pref, FIRST)) {
 		/*
 		 * Save the most preferred one. Session capabilities are per stream and
 		 * a stream only carries a single media type, so no reason to worry with
@@ -152,11 +115,41 @@ const struct ast_format_cap *ast_sip_session_join_incoming_call_offer_cap(
 		ao2_ref(single, -1);
 	}
 
-	log_caps(LOG_DEBUG, "Joint incoming", session, session_media, local, remote, joint);
+	return joint;
+}
 
-	ao2_ref(local, -1);
+struct ast_stream *ast_sip_session_create_joint_call_stream(const struct ast_sip_session *session,
+	struct ast_stream *remote_stream)
+{
+	struct ast_stream *joint_stream = ast_stream_clone(remote_stream, NULL);
+	struct ast_format_cap *remote = ast_stream_get_formats(remote_stream);
+	enum ast_media_type media_type = ast_stream_get_type(remote_stream);
 
-	ast_sip_session_set_incoming_call_offer_cap(session_media->caps, joint);
+	struct ast_format_cap *joint = ast_sip_create_joint_call_cap(remote,
+		session->endpoint->media.codecs, media_type,
+		session->call_direction == AST_SIP_SESSION_OUTGOING_CALL
+				? session->endpoint->media.outgoing_call_offer_pref
+				: session->endpoint->media.incoming_call_offer_pref);
+
+	ast_stream_set_formats(joint_stream, joint);
+	ao2_cleanup(joint);
+
+	log_caps(LOG_DEBUG, session, media_type, session->endpoint->media.codecs, remote, joint);
+
+	return joint_stream;
+}
+
+struct ast_format_cap *ast_sip_session_create_joint_call_cap(
+	const struct ast_sip_session *session, enum ast_media_type media_type,
+	const struct ast_format_cap *remote)
+{
+	struct ast_format_cap *joint = ast_sip_create_joint_call_cap(remote,
+		session->endpoint->media.codecs, media_type,
+		session->call_direction == AST_SIP_SESSION_OUTGOING_CALL
+				? session->endpoint->media.outgoing_call_offer_pref
+				: session->endpoint->media.incoming_call_offer_pref);
+
+	log_caps(LOG_DEBUG, session, media_type, session->endpoint->media.codecs, remote, joint);
 
 	return joint;
 }

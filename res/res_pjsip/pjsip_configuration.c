@@ -1121,43 +1121,57 @@ static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf
 	return 0;
 }
 
-static const char *sip_call_codec_pref_strings[] = {
-	[AST_SIP_CALL_CODEC_PREF_LOCAL] = "local",
-	[AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT] = "local_limit",
-	[AST_SIP_CALL_CODEC_PREF_LOCAL_SINGLE] = "local_single",
-	[AST_SIP_CALL_CODEC_PREF_REMOTE] = "remote",
-	[AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT] = "remote_limit",
-	[AST_SIP_CALL_CODEC_PREF_REMOTE_SINGLE] = "remote_single",
-};
-
-static int incoming_call_offer_pref_handler(const struct aco_option *opt,
+static int call_offer_pref_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
-	unsigned int i;
+	struct ast_flags pref = { 0, };
+	int outgoing = strcmp(var->name, "outgoing_call_offer_pref") == 0;
 
-	for (i = 0; i < ARRAY_LEN(sip_call_codec_pref_strings); ++i) {
-		if (!strcmp(var->value, sip_call_codec_pref_strings[i])) {
-			/* Local and remote limit are not available values for this option */
-			if (i == AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT ||
-				i == AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT) {
-				return -1;
-			}
-
-			endpoint->media.incoming_call_offer_pref = i;
-			return 0;
-		}
+	if (strcmp(var->value, "local") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (outgoing && strcmp(var->value, "local_merge") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (strcmp(var->value, "local_first") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_FIRST);
+	} else if (strcmp(var->value, "remote") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (outgoing && strcmp(var->value, "remote_merge") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (strcmp(var->value, "remote_first") == 0) {
+		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_FIRST);
+	} else {
+		return -1;
 	}
 
-	return -1;
+	if (outgoing) {
+		endpoint->media.outgoing_call_offer_pref = pref;
+	} else {
+		endpoint->media.incoming_call_offer_pref = pref;
+	}
+
+	return 0;
 }
 
 static int incoming_call_offer_pref_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
 
-	if (ARRAY_IN_BOUNDS(endpoint->media.incoming_call_offer_pref, sip_call_codec_pref_strings)) {
-		*buf = ast_strdup(sip_call_codec_pref_strings[endpoint->media.incoming_call_offer_pref]);
+	*buf = ast_strdup(ast_sip_call_codec_pref_to_str(endpoint->media.incoming_call_offer_pref));
+	if (!(*buf)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int outgoing_call_offer_pref_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	*buf = ast_strdup(ast_sip_call_codec_pref_to_str(endpoint->media.outgoing_call_offer_pref));
+	if (!(*buf)) {
+		return -1;
 	}
 
 	return 0;
@@ -1343,6 +1357,16 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 
 	if (ast_rtp_dtls_cfg_validate(&endpoint->media.rtp.dtls_cfg)) {
 		return -1;
+	}
+
+	if (endpoint->preferred_codec_only) {
+		if (endpoint->media.incoming_call_offer_pref.flags != (AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL)) {
+			ast_log(LOG_ERROR, "Setting both preferred_codec_only and incoming_call_offer_pref is not supported on endpoint '%s'\n",
+				ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+		ast_clear_flag(&endpoint->media.incoming_call_offer_pref, AST_SIP_CALL_CODEC_PREF_ALL);
+		ast_set_flag(&endpoint->media.incoming_call_offer_pref, AST_SIP_CALL_CODEC_PREF_FIRST);
 	}
 
 	endpoint->media.topology = ast_stream_topology_create_from_format_cap(endpoint->media.codecs);
@@ -2009,7 +2033,9 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "suppress_q850_reason_headers", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, suppress_q850_reason_headers));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ignore_183_without_sdp", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ignore_183_without_sdp));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_call_offer_pref", "local",
-		incoming_call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
+		call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_call_offer_pref", "remote",
+		call_offer_pref_handler, outgoing_call_offer_pref_to_str, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

@@ -20,63 +20,63 @@
 
 struct ast_format_cap;
 struct ast_sip_session;
-struct ast_sip_session_media;
-struct ast_sip_session_caps;
 
 /*!
- * \brief Allocate a SIP session capabilities object.
+ * \brief Create joint capabilities
  * \since 18.0.0
  *
- * \retval An ao2 allocated SIP session capabilities object, or NULL on error
+ * Creates a list of joint capabilities between the given remote capabilities, and local ones.
+ * "local" and "remote" reference the values in ast_sip_call_codec_pref.
+ *
+ * \param remote The "remote" capabilities
+ * \param local The "local" capabilities
+ * \param media_type The media type
+ * \param codec_prefs One or more of enum ast_sip_call_codec_pref
+ *
+ * \retval A pointer to the joint capabilities (which may be empty).
+ *         NULL will be returned only if no memory was available to allocate the structure.
+ * \note Returned object's reference must be released at some point,
  */
-struct ast_sip_session_caps *ast_sip_session_caps_alloc(void);
+struct ast_format_cap *ast_sip_create_joint_call_cap(const struct ast_format_cap *remote,
+	struct ast_format_cap *local, enum ast_media_type media_type,
+	struct ast_flags codec_pref);
 
 /*!
- * \brief Set the incoming call offer capabilities for a session.
+ * \brief Create a new stream of joint capabilities
  * \since 18.0.0
  *
- * This will replace any capabilities already present.
- *
- * \param caps A session's capabilities object
- * \param cap The capabilities to set it to
- */
-void ast_sip_session_set_incoming_call_offer_cap(struct ast_sip_session_caps *caps,
-	struct ast_format_cap *cap);
-
-/*!
- * \brief Get the incoming call offer capabilities.
- * \since 18.0.0
- *
- * \note Returned objects reference is not incremented.
- *
- * \param caps A session's capabilities object
- *
- * \retval An incoming call offer capabilities object
- */
-const struct ast_format_cap *ast_sip_session_get_incoming_call_offer_cap(
-	const struct ast_sip_session_caps *caps);
-
-/*!
- * \brief Make the incoming call offer capabilities for a session.
- * \since 18.0.0
- *
- * Creates and sets a list of joint capabilities between the given remote
- * capabilities, and pre-configured ones. The resulting joint list is then
- * stored, and 'owned' (reference held) by the session.
- *
- * If the incoming capabilities have been set elsewhere, this will not replace
- * those. It will however, return a pointer to the current set.
- *
- * \note Returned object's reference is not incremented.
+ * Creates a new stream with capabilities between the given session's local capabilities,
+ * and the remote stream's.  Codec selection is based on the session->endpoint's codecs, the
+ * session->endpoint's codec call preferences, and the stream passed by the core (for
+ * outgoing calls) or created by the incoming SDP (for incoming calls).
  *
  * \param session The session
- * \param session_media An associated media session
- * \param remote Capabilities of a device
+ * \param remote The remote stream
  *
- * \retval A pointer to the incoming call offer capabilities
+ * \retval A pointer to a new stream with the joint capabilities (which may be empty),
+ *         NULL will be returned only if no memory was available to allocate the structure.
  */
-const struct ast_format_cap *ast_sip_session_join_incoming_call_offer_cap(
-	const struct ast_sip_session *session, const struct ast_sip_session_media *session_media,
-	const struct ast_format_cap *remote);
+struct ast_stream *ast_sip_session_create_joint_call_stream(const struct ast_sip_session *session,
+	struct ast_stream *remote);
+
+/*!
+ * \brief Create joint capabilities
+ * \since 18.0.0
+ *
+ * Creates a list of joint capabilities between the given session's local capabilities,
+ * and the remote capabilities. Codec selection is based on the session->endpoint's codecs, the
+ * session->endpoint's codec call preferences, and the "remote" capabilities passed by the core (for
+ * outgoing calls) or created by the incoming SDP (for incoming calls).
+ *
+ * \param session The session
+ * \param media_type The media type
+ * \param remote Capabilities received in an SDP offer or from the core
+ *
+ * \retval A pointer to the joint capabilities (which may be empty).
+ *         NULL will be returned only if no memory was available to allocate the structure.
+ * \note Returned object's reference must be released at some point,
+ */
+struct ast_format_cap *ast_sip_session_create_joint_call_cap(const struct ast_sip_session *session,
+	enum ast_media_type media_type, const struct ast_format_cap *remote);
 
 #endif /* RES_PJSIP_SESSION_CAPS_H */

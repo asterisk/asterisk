@@ -511,21 +511,39 @@ enum ast_sip_session_redirect {
 
 /*!
  * \brief Incoming/Outgoing call offer/answer joint codec preference.
+ *
+ * The default is INTERSECT ALL LOCAL.
  */
 enum ast_sip_call_codec_pref {
+	/*! Two bits for merge */
+	/*! Intersection of local and remote */
+	AST_SIP_CALL_CODEC_PREF_INTERSECT =	1 << 0,
+	/*! Union of local and remote */
+	AST_SIP_CALL_CODEC_PREF_UNION =		1 << 1,
+
+	/*! Two bits for filter */
+	/*! No filter */
+	AST_SIP_CALL_CODEC_PREF_ALL =	 	1 << 2,
+	/*! Only the first */
+	AST_SIP_CALL_CODEC_PREF_FIRST = 	1 << 3,
+
+	/*! Two bits for preference and sort   */
 	/*! Prefer, and order by local values */
-	AST_SIP_CALL_CODEC_PREF_LOCAL,
-	/*! Prefer, and order by local values (intersection) */
-	AST_SIP_CALL_CODEC_PREF_LOCAL_LIMIT,
-	/*! Prefer, and order by local values (top/first only) */
-	AST_SIP_CALL_CODEC_PREF_LOCAL_SINGLE,
+	AST_SIP_CALL_CODEC_PREF_LOCAL = 	1 << 4,
 	/*! Prefer, and order by remote values */
-	AST_SIP_CALL_CODEC_PREF_REMOTE,
-	/*! Prefer, and order by remote values (intersection) */
-	AST_SIP_CALL_CODEC_PREF_REMOTE_LIMIT,
-	/*! Prefer, and order by remote values (top/first only) */
-	AST_SIP_CALL_CODEC_PREF_REMOTE_SINGLE,
+	AST_SIP_CALL_CODEC_PREF_REMOTE = 	1 << 5,
 };
+
+/*!
+ * \brief Returns true if the preference is set in the parameter
+ * \since 18.0.0
+ *
+ * \param param A ast_flags struct with one or more of enum ast_sip_call_codec_pref set
+ * \param codec_pref The last component of one of the enum values
+ * \retval 1 if the enum value is set
+ * \retval 0 if not
+ */
+#define ast_sip_call_codec_pref_test(__param, __codec_pref) (!!(ast_test_flag( &__param, AST_SIP_CALL_CODEC_PREF_ ## __codec_pref )))
 
 /*!
  * \brief Session timers options
@@ -769,7 +787,9 @@ struct ast_sip_endpoint_media_configuration {
 	/*! Enable webrtc settings and defaults */
 	unsigned int webrtc;
 	/*! Codec preference for an incoming offer */
-	enum ast_sip_call_codec_pref incoming_call_offer_pref;
+	struct ast_flags incoming_call_offer_pref;
+	/*! Codec preference for an outgoing offer */
+	struct ast_flags outgoing_call_offer_pref;
 };
 
 /*!
@@ -3221,6 +3241,18 @@ int ast_sip_dtmf_to_str(const enum ast_sip_dtmf_mode dtmf,
  *
  */
 int ast_sip_str_to_dtmf(const char *dtmf_mode);
+
+/*!
+ * \brief Convert the call codec preference flags to a string
+ * \since 18.0.0
+ *
+ * \param pref the call codec preference setting
+ *
+ * \returns a constant string with either the setting value or 'unknown'
+ * \note Don't try to free the string!
+ *
+ */
+const char *ast_sip_call_codec_pref_to_str(struct ast_flags pref);
 
 /*!
  * \brief Transport shutdown monitor callback.

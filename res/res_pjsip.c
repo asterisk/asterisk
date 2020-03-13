@@ -923,25 +923,75 @@
 					</para></description>
 				</configOption>
 				<configOption name="preferred_codec_only" default="no">
-					<synopsis>Respond to a SIP invite with the single most preferred codec rather than advertising all joint codec capabilities. This limits the other side's codec choice to exactly what we prefer.</synopsis>
+					<synopsis>Respond to a SIP invite with the single most preferred codec (DEPRECATED)</synopsis>
+					<description><para>Respond to a SIP invite with the single most preferred codec
+					rather than advertising all joint codec capabilities. This limits the other side's codec
+					choice to exactly what we prefer.</para>
+					<warning><para>This option has been deprecated in favor of
+					<literal>incoming_call_offer_pref</literal>.  Setting both options is unsupported.</para>
+					</warning>
+					</description>
+					<see-also>
+						<ref type="configOption">incoming_call_offer_pref</ref>
+					</see-also>
 				</configOption>
 				<configOption name="incoming_call_offer_pref" default="local">
-					<synopsis>After receiving an incoming offer create a list of preferred codecs between
-					those received in the SDP offer, and those specified in endpoint configuration.</synopsis>
+					<synopsis>Preferences for selecting codecs for an incoming call.</synopsis>
 					<description>
-						<note><para>This list will consist of only those codecs found in both.</para></note>
+						<para>Based on this setting, a joint list of preferred codecs between those
+						received in an incoming SDP offer (remote), and those specified in the
+						endpoint's "allow" parameter (local) es created and is passed to the Asterisk
+						core. </para>
+						<note><para>This list will consist of only those codecs found in both lists.</para></note>
 						<enumlist>
 							<enum name="local"><para>
-								Order by the endpoint configuration allow line (default)
+								Include all codecs in the local list that are also in the remote list
+								preserving the local order.  (default).
 							</para></enum>
-							<enum name="local_single"><para>
-								Order by the endpoint configuration allow line, but the list will only contain the first, or 'top' item
+							<enum name="local_first"><para>
+								Include only the first codec in the local list that is also in the remote list.
 							</para></enum>
 							<enum name="remote"><para>
-								Order by what is received in the SDP offer
+								Include all codecs in the remote list that are also in the local list
+								preserving the remote order.
 							</para></enum>
-							<enum name="remote_single"><para>
-								Order by what is received in the SDP offer, but the list will only contain the first, or 'top' item
+							<enum name="remote_first"><para>
+								Include only the first codec in the remote list that is also in the local list.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="outgoing_call_offer_pref" default="local">
+					<synopsis>Preferences for selecting codecs for an outgoing call.</synopsis>
+					<description>
+						<para>Based on this setting, a joint list of preferred codecs between
+						those received from the Asterisk core (remote), and those specified in
+						the endpoint's "allow" parameter (local) is created and is used to create
+						the outgoing SDP offer.</para>
+						<enumlist>
+							<enum name="local"><para>
+								Include all codecs in the local list that are also in the remote list
+								preserving the local order.
+							</para></enum>
+							<enum name="local_merge"><para>
+								Include all codecs in BOTH lists preserving the local order.
+								Remote codecs not in the local list will be placed at the end
+								of the joint list.
+							</para></enum>
+							<enum name="local_first"><para>
+								Include only the first codec in the local list.
+							</para></enum>
+							<enum name="remote"><para>
+								Include all codecs in the remote list that are also in the local list
+								preserving the remote order. (default)
+							</para></enum>
+							<enum name="remote_merge"><para>
+								Include all codecs in BOTH lists preserving the remote order.
+								Local codecs not in the remote list will be placed at the end
+								of the joint list.
+							</para></enum>
+							<enum name="remote_first"><para>
+								Include only the first codec in the remote list.
 							</para></enum>
 						</enumlist>
 					</description>
@@ -5042,6 +5092,29 @@ int ast_sip_str_to_dtmf(const char * dtmf_mode)
 	}
 
 	return result;
+}
+
+const char *ast_sip_call_codec_pref_to_str(struct ast_flags pref)
+{
+	const char *value;
+
+	if (ast_sip_call_codec_pref_test(pref, LOCAL) &&  ast_sip_call_codec_pref_test(pref, INTERSECT) && ast_sip_call_codec_pref_test(pref, ALL)) {
+		value = "local";
+	} else if (ast_sip_call_codec_pref_test(pref, LOCAL) &&  ast_sip_call_codec_pref_test(pref, UNION) && ast_sip_call_codec_pref_test(pref, ALL)) {
+		value = "local_merge";
+	} else if (ast_sip_call_codec_pref_test(pref, LOCAL) &&  ast_sip_call_codec_pref_test(pref, INTERSECT) && ast_sip_call_codec_pref_test(pref, FIRST)) {
+		value = "local_first";
+	} else if (ast_sip_call_codec_pref_test(pref, REMOTE) &&  ast_sip_call_codec_pref_test(pref, INTERSECT) && ast_sip_call_codec_pref_test(pref, ALL)) {
+		value = "remote";
+	} else if (ast_sip_call_codec_pref_test(pref, REMOTE) &&  ast_sip_call_codec_pref_test(pref, UNION) && ast_sip_call_codec_pref_test(pref, ALL)) {
+		value = "remote_merge";
+	} else if (ast_sip_call_codec_pref_test(pref, REMOTE) &&  ast_sip_call_codec_pref_test(pref, UNION) && ast_sip_call_codec_pref_test(pref, FIRST)) {
+		value = "remote_first";
+	} else {
+		value = "unknown";
+	}
+
+	return value;
 }
 
 /*!

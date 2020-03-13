@@ -468,8 +468,6 @@ static void session_media_dtor(void *obj)
 
 	ast_free(session_media->mid);
 	ast_free(session_media->remote_mslabel);
-
-	ao2_cleanup(session_media->caps);
 }
 
 struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_session *session,
@@ -527,12 +525,6 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 			session_media->bundled = session->endpoint->media.webrtc;
 		} else {
 			session_media->bundle_group = -1;
-		}
-
-		session_media->caps = ast_sip_session_caps_alloc();
-		if (!session_media->caps) {
-			ao2_ref(session_media, -1);
-			return NULL;
 		}
 	}
 
@@ -2701,6 +2693,8 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 	session->aor = ao2_bump(found_aor);
+	session->call_direction = AST_SIP_SESSION_OUTGOING_CALL;
+
 	ast_party_id_copy(&session->id, &endpoint->id.self);
 
 	if (ast_stream_topology_get_count(req_topology) > 0) {
@@ -2709,8 +2703,6 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 
 		for (i = 0; i < ast_stream_topology_get_count(req_topology); ++i) {
 			struct ast_stream *req_stream;
-			struct ast_format_cap *req_cap;
-			struct ast_format_cap *joint_cap;
 			struct ast_stream *clone_stream;
 
 			req_stream = ast_stream_topology_get_stream(req_topology, i);
@@ -2719,38 +2711,11 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 				continue;
 			}
 
-			req_cap = ast_stream_get_formats(req_stream);
-
-			joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-			if (!joint_cap) {
+			clone_stream = ast_sip_session_create_joint_call_stream(session, req_stream);
+			if (!clone_stream || ast_stream_get_format_count(clone_stream) == 0) {
+				ast_stream_free(clone_stream);
 				continue;
 			}
-
-			ast_format_cap_get_compatible(req_cap, endpoint->media.codecs, joint_cap);
-
-			if (ast_stream_get_type(req_stream) == AST_MEDIA_TYPE_AUDIO) {
-				/*
-				 * By appending codecs from the endpoint after compatible ones this
-				 * guarantees that priority is given to those while also allowing
-				 * translation to occur for non-compatible.
-				 */
-				ast_format_cap_append_from_cap(joint_cap,
-					endpoint->media.codecs, AST_MEDIA_TYPE_AUDIO);
-			}
-
-			if (!ast_format_cap_count(joint_cap)) {
-				ao2_ref(joint_cap, -1);
-				continue;
-			}
-
-			clone_stream = ast_stream_clone(req_stream, NULL);
-			if (!clone_stream) {
-				ao2_ref(joint_cap, -1);
-				continue;
-			}
-
-			ast_stream_set_formats(clone_stream, joint_cap);
-			ao2_ref(joint_cap, -1);
 
 			if (!session->pending_media_state->topology) {
 				session->pending_media_state->topology = ast_stream_topology_alloc();
@@ -3351,6 +3316,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 #endif
 		return;
 	}
+	session->call_direction = AST_SIP_SESSION_INCOMING_CALL;
 
 	/*
 	 * The current thread is supposed be the session serializer to prevent

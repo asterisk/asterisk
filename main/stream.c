@@ -186,6 +186,13 @@ struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream)
 	return stream->formats;
 }
 
+int ast_stream_get_format_count(const struct ast_stream *stream)
+{
+	ast_assert(stream != NULL);
+
+	return stream->formats ? ast_format_cap_count(stream->formats) : 0;
+}
+
 void ast_stream_set_formats(struct ast_stream *stream, struct ast_format_cap *caps)
 {
 	ast_assert(stream != NULL);
