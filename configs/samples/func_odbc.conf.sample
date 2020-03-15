@@ -35,14 +35,15 @@
 ;
 ; The following options are available in this configuration file:
 ;
+; dsn          An alias for "writehandle."
 ; readhandle   A comma-separated list of DSNs (from res_odbc.conf) to use when
 ;              executing the readsql statement.  Each DSN is tried, in
 ;              succession, until the statement succeeds.  You may specify up to
 ;              5 DSNs per function class.  If not specified, it will default to
-;              the value of writehandle or dsn, if specified.
+;              the value of "writehandle" or "dsn," if specified.
 ; writehandle  A comma-separated list of DSNs (from res_odbc.conf) to use when
 ;              executing the writesql statement.  The same rules apply as to
-;              readhandle.  "dsn" is a synonym for "writehandle".
+;              readhandle.
 ; readsql      The statement to execute when reading from the function class.
 ; writesql     The statement to execute when writing to the function class.
 ; insertsql    The statement to execute when writing to the function class
@@ -59,6 +60,8 @@
 ;              at the comma within fields.  Please note that turning this option
 ;              off is incompatible with the functionality of HASH().
 ; synopsis     Appears in the synopsis field for the command
+;              'core show function <function name>'
+; syntax       Appears in the syntax field for the command
 ;              'core show function <function name>'
 ; mode         This option may be set to 'multirow' to allow the function
 ;              specified to return more than a single row.  However, this
@@ -88,7 +91,7 @@
 
 ; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan
 [SQL]
-dsn=mysql1
+writehandle=mysql1
 readsql=${ARG1}
 
 ; ODBC_ANTISOLICIT - A blacklist for known solicitors.
@@ -104,6 +107,6 @@ synopsis=Check if a specified callerid is contained in the known solicitors data
 
 ; ODBC_PRESENCE - Retrieve and update presence
 [PRESENCE]
-dsn=mysql1
+writehandle=mysql1
 readsql=SELECT location FROM presence WHERE id='${SQL_ESC(${ARG1})}'
 writesql=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(${ARG1})}'
