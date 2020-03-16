@@ -64,6 +64,12 @@
 #if defined(HAVE_DLADDR) && defined(HAVE_BFD) && defined(BETTER_BACKTRACES)
 #include <dlfcn.h>
 #include <bfd.h>
+#ifndef bfd_get_section_size
+#define bfd_get_section_size(x) bfd_section_size(x)
+#endif
+#ifndef bfd_get_section_vma
+#define bfd_get_section_vma(x, y)	bfd_section_vma(y)
+#endif
 #endif
 
 #include <pthread.h>
