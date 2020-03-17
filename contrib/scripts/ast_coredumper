@@ -383,13 +383,8 @@ if $running || $RUNNING ; then
 	unset pid
 
 	# Simplest case first...
-	pids=$(pgrep -f "$asterisk_bin")
+	pids=$(pgrep -f "$asterisk_bin" || : )
 	pidcount=$(echo $pids | wc -w)
-
-	if [ $pidcount -eq 0 ] ; then
-		>&2 echo "Asterisk is not running"
-		exit 1
-	fi
 
 	# Single process, great.
 	if [ $pidcount -eq 1 ] ; then
@@ -552,7 +547,7 @@ if $delete_coredumps_after ; then
 	fi
 
 	if $delete_results_after ; then
-		rm -rf "${cf//:/-}"-{brief,full,thread1,locks}.txt
+		rm -rf "${cf//:/-}"-{brief,full,thread1,locks,info}.txt
 	fi
 done
 
@@ -568,11 +563,399 @@ exit
 
 #@@@SCRIPTSTART@@@
 python
+
+import datetime
+
+
+def timeval_to_datetime(value):
+    """Convert a timeval struct to a python datetime object
+
+    Args:
+        value: A gdb Value representing a C timeval
+
+    Return:
+        A python datetime object
+    """
+
+    sec = int(value['tv_sec'])
+    usec = int(value['tv_usec'])
+
+    return datetime.datetime.fromtimestamp(sec + usec / float(1000000))
+
+
+def s_strip(value):
+    """Convert the given value to a string, and strip any leading/trailing
+    spaces and/or quotes.
+
+    Args:
+        name: The gdb Value to convert and strip
+
+    Return:
+        The stripped value as a string
+    """
+
+    if value == None:
+        return "None"
+
+    try:
+        if 'char *' not in str(value.type) and 'char [' not in str(value.type):
+            # Use the string method for everything but string pointers (only
+            # points to first letter) and non-string values in general
+            return value.string().strip('" ') or "<None>"
+    except:
+        pass
+
+    return str(value).strip('" ') or "<None>"
+
+
+def get(name):
+    """Retrieve a named variable's value as a string using GDB.
+
+    Args:
+        name: The name of the variable to look up
+
+    Return:
+        The variable's value as a string
+    """
+
+    return s_strip(gdb.parse_and_eval(name))
+
+
+def get_container_hash_objects(name, type, on_object=None):
+    """Retrieve a list of objects from an ao2_container_hash.
+
+    Expected on_object signature:
+
+        res, stop = on_object(GDB Value)
+
+    The given callback, on_object, is called for each object found in the
+    container. The callback is passed a dereferenced GDB Value object and
+    expects an object to be returned, which is then appended to a list of
+    objects to be returned by this function. Iteration can be stopped by
+    returning "True" for the second return value.
+
+    If on_object is not specified then the dereferenced GDB value is instead
+    added directly to the returned list.
+
+    Args:
+        name: The name of the ao2_container
+        type: The type of objects stored in the container
+        on_object: Optional function called on each object found
+
+    Return:
+        A list of container objects
+    """
+
+    objs = []
+
+    try:
+
+        container = gdb.parse_and_eval(name).cast(
+            gdb.lookup_type('struct ao2_container_hash').pointer())
+
+        # Loop over every bucket searching for hash bucket nodes
+        for n in range(container['n_buckets']):
+            node = container['buckets'][n]['list']['last']
+            while node:
+                # Each node holds the needed object
+                obj = node.dereference()['common']['obj'].cast(
+                    gdb.lookup_type(type).pointer()).dereference()
+
+                res, stop = on_object(obj) if on_object else (obj, False)
+
+                if res:
+                    objs.append(res)
+
+                if stop:
+                    return objs
+
+                node = node.dereference()['links']['last']
+    except Exception as e:
+        print("{0} - {1}".format(name, e))
+        pass
+
+    return objs
+
+
+def get_container_rbtree_objects(name, type, on_object=None):
+    """Retrieve a list of objects from an ao2_container_rbtree.
+
+    Expected on_object signature:
+
+        res, stop = on_object(GDB Value)
+
+    The given callback, on_object, is called for each object found in the
+    container. The callback is passed a dereferenced GDB Value object and
+    expects an object to be returned, which is then appended to a list of
+    objects to be returned by this function. Iteration can be stopped by
+    returning "True" for the second return value.
+
+    If on_object is not specified then the dereferenced GDB value is instead
+    added directly to the returned list.
+
+    Args:
+        name: The name of the ao2_container
+        type: The type of objects stored in the container
+        on_object: Optional function called on each object found
+
+    Return:
+        A list of container objects
+    """
+
+    objs = []
+
+    def handle_node(node):
+
+        if not node:
+            return True
+
+        # Each node holds the needed object
+        obj = node.dereference()['common']['obj'].cast(
+            gdb.lookup_type(type).pointer()).dereference()
+
+        res, stop = on_object(obj) if on_object else (obj, False)
+
+        if res:
+            objs.append(res)
+
+        return not stop and (handle_node(node['left']) and
+                             handle_node(node['right']))
+
+    try:
+        container = gdb.parse_and_eval(name).cast(
+            gdb.lookup_type('struct ao2_container_rbtree').pointer())
+
+        handle_node(container['root'])
+    except Exception as e:
+        print("{0} - {1}".format(name, e))
+        pass
+
+    return objs
+
+
+def build_info():
+
+    try:
+        return ("Asterisk {0} built by {1} @ {2} on a {3} running {4} on {5}"
+                .format(get("asterisk_version"),
+                    get("ast_build_user"),
+                    get("ast_build_hostname"),
+                    get("ast_build_machine"),
+                    get("ast_build_os"),
+                    get("ast_build_date")))
+    except:
+        return "Unable to retrieve build info"
+
+
+def build_opts():
+
+    try:
+        return get("asterisk_build_opts")
+    except:
+        return "Unable to retrieve build options"
+
+
+def uptime():
+
+    try:
+        started = timeval_to_datetime(gdb.parse_and_eval("ast_startuptime"))
+        loaded = timeval_to_datetime(gdb.parse_and_eval("ast_lastreloadtime"))
+
+        return ("System started: {0}\n"
+                "Last reload: {1}".format(started, loaded))
+    except:
+        return "Unable to retrieve uptime"
+
+
+class TaskProcessor(object):
+
+    template = ("{name:70} {processed:>10} {in_queue:>10} {max_depth:>10} "
+                "{low_water:>10} {high_water:>10}")
+
+    header = {'name': 'Processor', 'processed': 'Processed',
+              'in_queue': 'In Queue', 'max_depth': 'Max Depth',
+              'low_water': 'Low water', 'high_water': 'High water'}
+
+    @staticmethod
+    def objects():
+
+        try:
+            objs = get_container_hash_objects('tps_singletons',
+                'struct ast_taskprocessor', TaskProcessor.from_value)
+
+            objs.sort(key=lambda x: x.name.lower())
+        except Exception as e:
+            return []
+
+        return objs
+
+    @staticmethod
+    def from_value(value):
+
+        return TaskProcessor(
+            value['name'],
+            value['stats']['_tasks_processed_count'],
+            value['tps_queue_size'],
+            value['stats']['max_qsize'],
+            value['tps_queue_low'],
+            value['tps_queue_high']), False
+
+    def __init__(self, name, processed, in_queue, max_depth,
+                 low_water, high_water):
+
+        self.name = s_strip(name)
+        self.processed = int(processed)
+        self.in_queue = int(in_queue)
+        self.max_depth = int(max_depth)
+        self.low_water = int(low_water)
+        self.high_water = int(high_water)
+
+
+class Channel(object):
+
+    template = ("{name:30} {context:>20} {exten:>20} {priority:>10} {state:>25} "
+                "{app:>20} {data:>30} {caller_id:>15} {created:>30} "
+                "{account_code:>15} {peer_account:>15} {bridge_id:>38}")
+
+    header = {'name': 'Channel', 'context': 'Context', 'exten': 'Extension',
+              'priority': 'Priority', 'state': "State", 'app': 'Application',
+              'data': 'Data', 'caller_id': 'CallerID', 'created': 'Created',
+              'account_code': 'Accountcode', 'peer_account': 'PeerAccount',
+              'bridge_id': 'BridgeID'}
+
+    @staticmethod
+    def objects():
+
+        try:
+            objs = get_container_hash_objects('channels',
+                'struct ast_channel', Channel.from_value)
+
+            objs.sort(key=lambda x: x.name.lower())
+        except:
+            return []
+
+        return objs
+
+    @staticmethod
+    def from_value(value):
+
+        bridge_id = None
+        if value['bridge']:
+            bridge_id = value['bridge']['uniqueid']
+
+        return Channel(
+            value['name'],
+            value['context'],
+            value['exten'],
+            value['priority'],
+            value['state'],
+            value['appl'],
+            value['data'],
+            value['caller']['id']['number']['str'],
+            timeval_to_datetime(value['creationtime']),
+            value['accountcode'],
+            value['peeraccount'],
+            bridge_id), False
+
+    @staticmethod
+    def summary():
+
+        try:
+            return ("{0} active channels\n"
+                    "{1} active calls\n"
+                    "{2} calls processed".format(
+                        int(gdb.parse_and_eval(
+                            'channels').dereference()['elements']),
+                        get("countcalls"),
+                        get("totalcalls")))
+        except:
+            return "Unable to retrieve channel summary"
+
+    def __init__(self, name, context=None, exten=None, priority=None,
+                 state=None, app=None, data=None, caller_id=None,
+                 created=None, account_code=None, peer_account=None,
+                 bridge_id=None):
+
+        self.name = s_strip(name)
+        self.context = s_strip(context)
+        self.exten = s_strip(exten)
+        self.priority = int(priority)
+        self.state = s_strip(state)
+        self.app = s_strip(app)
+        self.data = s_strip(data)
+        self.caller_id = s_strip(caller_id)
+        self.created = s_strip(created)
+        self.account_code = s_strip(account_code)
+        self.peer_account = s_strip(peer_account)
+        self.bridge_id = s_strip(bridge_id)
+
+
+class Bridge(object):
+
+    template = ("{uniqueid:38} {num_channels:>15} {subclass:>10} {tech:>20} "
+                "{created:>30}")
+
+    header = {'uniqueid': 'Bridge-ID', 'num_channels': 'Chans',
+              'subclass': 'Type', 'tech': 'Technology', 'created': 'Created'}
+
+    @staticmethod
+    def objects():
+
+        try:
+            objs = get_container_rbtree_objects('bridges',
+                'struct ast_bridge', Bridge.from_value)
+
+            objs.sort(key=lambda x: x.uniqueid.lower())
+        except:
+            return []
+
+        return objs
+
+    @staticmethod
+    def from_value(value):
+
+        return Bridge(
+            value['uniqueid'],
+            value['num_channels'],
+            timeval_to_datetime(value['creationtime']),
+            value['v_table']['name'],
+            value['technology']['name']), False
+
+
+    def __init__(self, uniqueid, num_channels=None, created=None, subclass=None,
+                 tech=None):
+
+        self.uniqueid = s_strip(uniqueid)
+        self.num_channels = int(num_channels)
+        self.created = s_strip(created)
+        self.subclass = s_strip(subclass)
+        self.tech = s_strip(tech)
+
+
 class DumpAsteriskCommand(gdb.Command):
 
     def __init__(self):
         super(DumpAsteriskCommand, self).__init__ ("dump-asterisk",
             gdb.COMMAND_OBSCURE, gdb.COMPLETE_COMMAND)
+
+    def print_table(self, type):
+
+        plural = "{0}s".format(type.__name__)
+
+        objs = type.objects()
+
+        if not len(objs):
+            print("{0} not found\n".format(plural))
+            return
+
+        print("{0} ({1}):\n".format(plural, len(objs)))
+
+        print(type.template.format(**type.header))
+
+        for obj in objs:
+            print(type.template.format(**vars(obj)))
+
+        print("\n")
 
     def invoke(self, arg, from_tty):
         try:
@@ -619,6 +1002,26 @@ class DumpAsteriskCommand(gdb.Command):
             gdb.execute("show_locks", from_tty)
         except:
             pass
+
+        print("!@!@!@! info.txt !@!@!@!\n")
+
+        gdb.execute('set print addr off')
+
+        try:
+            print("{0}\n".format(build_info()))
+            print("{0}\n".format(uptime()))
+            print("Build options = {0}\n".format(build_opts()))
+
+            self.print_table(TaskProcessor)
+            self.print_table(Bridge)
+            self.print_table(Channel)
+
+            print(Channel.summary())
+        except:
+            pass
+        finally:
+            gdb.execute('set print addr on')
+
         try:
             gdb.execute("continue", from_tty)
         except:
