@@ -238,6 +238,10 @@ ifeq ($(OSARCH),OpenBSD)
   _ASTCFLAGS+=-pthread -ftrampolines
 endif
 
+ifeq ($(OSARCH),linux-uclibc)
+  AST_LIBS+=-lpthread -ldl
+endif
+
 ifeq ($(OSARCH),SunOS)
   _ASTCFLAGS+=-Wcast-align -DSOLARIS -I../include/solaris-compat -I/opt/ssl/include -I/usr/local/ssl/include -D_XPG4_2 -D__EXTENSIONS__
 endif
