@@ -4151,7 +4151,7 @@ static unsigned int dundi_result_id;
 
 struct dundi_result_datastore {
 	struct dundi_result results[MAX_RESULTS];
-	unsigned int num_results;
+	int num_results;
 	unsigned int id;
 };
 
@@ -4283,7 +4283,7 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 	drds = datastore->data;
 
 	if (!strcasecmp(args.resultnum, "getnum")) {
-		snprintf(buf, len, "%u", drds->num_results);
+		snprintf(buf, len, "%d", drds->num_results < 0 ? 0 : drds->num_results);
 		res = 0;
 		goto finish;
 	}
@@ -4294,7 +4294,7 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 		goto finish;
 	}
 
-	if (num && num <= drds->num_results) {
+	if (num && drds->num_results > 0 && num <= drds->num_results) {
 		snprintf(buf, len, "%s/%s", drds->results[num - 1].tech, drds->results[num - 1].dest);
 		res = 0;
 	} else
