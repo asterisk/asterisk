@@ -411,8 +411,6 @@ publish_failure:
  */
 static void cli_display_named_acl(int fd, const char *name)
 {
-	struct ast_ha *ha;
-	int ha_index = 0;
 	int is_realtime = 0;
 
 	RAII_VAR(struct named_acl_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
@@ -437,12 +435,7 @@ static void cli_display_named_acl(int fd, const char *name)
 	}
 
 	ast_cli(fd, "\nACL: %s%s\n---------------------------------------------\n", name, is_realtime ? " (realtime)" : "");
-	for (ha = named_acl->ha; ha; ha = ha->next) {
-		char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
-		char *mask = ast_sockaddr_stringify_addr(&ha->netmask);
-		ast_cli(fd, "%3d: %s - %s/%s\n", ha_index, ha->sense == AST_SENSE_ALLOW ? "allow" : " deny", addr, mask);
-		ha_index++;
-	}
+	ast_ha_output(fd, named_acl->ha, NULL);
 }
 
 /*!
