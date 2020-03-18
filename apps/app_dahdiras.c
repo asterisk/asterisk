@@ -113,8 +113,10 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 		c = strsep(&stringp, ",");
 	}
 
-	argv[argc++] = "plugin";
-	argv[argc++] = "dahdi.so";
+	if (geteuid() == 0) {
+		argv[argc++] = "plugin";
+		argv[argc++] = "dahdi.so";
+	}
 	argv[argc++] = "stdin";
 
 	/* Finally launch PPP */
