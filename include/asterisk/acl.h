@@ -448,6 +448,38 @@ int ast_named_acl_reload(void);
  */
 struct stasis_message_type *ast_named_acl_change_type(void);
 
+/*!
+ * \brief output an HA to the provided fd
+ *
+ * \details
+ * This function can be used centrally to output HAs as used in ACLs from other
+ * modules.  It follows the format as originally used for named ACLs in
+ * named_acl.c.
+ *
+ * \param fd The file-descriptor to which to output the HA.
+ * \param ha The HA to output.
+ * \param prefix If you need a specific prefix output on each line, give it here, may be NULL.
+ *
+ * \since 13.33.0, 16.10.0, 17.4.0
+ */
+void ast_ha_output(int fd, const struct ast_ha *ha, const char *prefix);
+
+/*!
+ * \brief output an ACL to the provided fd
+ *
+ * \details
+ * This function can be used centrally to output HAs as used in ACLs from other
+ * modules.  It follows the format as originally used for named ACLs in
+ * named_acl.c.
+ *
+ * \param fd The file-descriptor to which to output the ACL.
+ * \param acl The ACL to output.
+ * \param prefix If you need a specific prefix output on each line, give it here, may be NULL.
+ *
+ * \since 13.33.0, 16.10.0, 17.4.0
+ */
+void ast_acl_output(int fd, struct ast_acl_list *acl, const char *prefix);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

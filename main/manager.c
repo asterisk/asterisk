@@ -2551,6 +2551,9 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 		for (v = user->chanvars ; v ; v = v->next) {
 			ast_cli(a->fd, "                 %s = %s\n", v->name, v->value);
 		}
+	if (!ast_acl_list_is_empty(user->acl)) {
+		ast_acl_output(a->fd, user->acl, NULL);
+	}
 
 	AST_RWLIST_UNLOCK(&users);
 

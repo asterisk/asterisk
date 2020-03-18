@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/srv.h"
+#include "asterisk/cli.h"
 
 #if (!defined(SOLARIS) && !defined(HAVE_GETIFADDRS))
 static int get_local_address(struct ast_sockaddr *ourip)
@@ -1083,4 +1084,32 @@ int ast_find_ourip(struct ast_sockaddr *ourip, const struct ast_sockaddr *bindad
 	res = get_local_address(ourip);
 	ast_sockaddr_set_port(ourip, port);
 	return res;
+}
+
+void ast_ha_output(int fd, const struct ast_ha *ha, const char *prefix)
+{
+	char addr[AST_SOCKADDR_BUFLEN];
+	char *mask;
+	int index = 0;
+	for (; ha; ha = ha->next, ++index) {
+		strcpy(addr, ast_sockaddr_stringify_addr(&ha->addr));
+		mask = ast_sockaddr_stringify_addr(&ha->netmask);
+		ast_cli(fd, "%s%3d: %s - %s/%s\n", prefix ?: "", index, ha->sense == AST_SENSE_ALLOW ? "allow" : " deny", addr, mask);
+	}
+}
+
+void ast_acl_output(int fd, struct ast_acl_list *acl_list, const char *prefix)
+{
+	struct ast_acl *acl;
+
+	AST_LIST_LOCK(acl_list);
+	AST_LIST_TRAVERSE(acl_list, acl, list) {
+		ast_cli(fd, "%sACL: %s%s\n---------------------------------------------\n",
+				prefix ?: "", ast_strlen_zero(acl->name) ? "(unnamed)" : acl->name,
+				acl->is_realtime ? " (realtime)" : "");
+
+		ast_ha_output(fd, acl->acl, prefix);
+	}
+	AST_LIST_UNLOCK(acl_list);
+
 }
