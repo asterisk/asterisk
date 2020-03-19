@@ -760,8 +760,8 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 				ast_stream_free(stream);
 				return -1;
 			}
-			/* For backwards compatibility with the core default streams are always sendrecv */
-			if (!ast_sip_session_is_pending_stream_default(session, stream)) {
+			/* For backwards compatibility with the core the default audio stream is always sendrecv */
+			if (!ast_sip_session_is_pending_stream_default(session, stream) || strcmp(media, "audio")) {
 				if (pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
 					/* Stream state reflects our state of a stream, so in the case of
 					 * sendonly and recvonly we store the opposite since that is what ours
@@ -871,12 +871,16 @@ static int handle_negotiated_sdp_session_media(struct ast_sip_session_media *ses
 	RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
 	int res;
 
+	/* We need a null-terminated version of the media string */
+	ast_copy_pj_str(media, &local->media[index]->desc.media, sizeof(media));
+
 	/* For backwards compatibility we only reflect the stream state correctly on
-	 * the non-default streams. This is because the stream state is also used for
-	 * signaling that someone has placed us on hold. This situation is not handled
-	 * currently and can result in the remote side being sort of placed on hold too.
+	 * the non-default streams and any non-audio streams. This is because the stream
+	 * state of the default audio stream is also used for signaling that someone has
+	 * placed us on hold. This situation is not handled currently and can result in
+	 * the remote side being sorted of placed on hold too.
 	 */
-	if (!ast_sip_session_is_pending_stream_default(session, asterisk_stream)) {
+	if (!ast_sip_session_is_pending_stream_default(session, asterisk_stream) || strcmp(media, "audio")) {
 		/* Determine the state of the stream based on our local SDP */
 		if (pjmedia_sdp_media_find_attr2(local_stream, "sendonly", NULL)) {
 			ast_stream_set_state(asterisk_stream, AST_STREAM_STATE_SENDONLY);
@@ -890,9 +894,6 @@ static int handle_negotiated_sdp_session_media(struct ast_sip_session_media *ses
 	} else {
 		ast_stream_set_state(asterisk_stream, AST_STREAM_STATE_SENDRECV);
 	}
-
-	/* We need a null-terminated version of the media string */
-	ast_copy_pj_str(media, &local->media[index]->desc.media, sizeof(media));
 
 	set_mid_and_bundle_group(session, session_media, remote, remote->media[index]);
 	set_remote_mslabel_and_stream_group(session, session_media, remote, remote->media[index], asterisk_stream);
@@ -1965,8 +1966,8 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			return -1;
 		}
 
-		/* For backwards compatibility with the core default streams are always sendrecv */
-		if (!ast_sip_session_is_pending_stream_default(session, stream)) {
+		/* For backwards compatibility with the core the default audio stream is always sendrecv */
+		if (!ast_sip_session_is_pending_stream_default(session, stream) || strcmp(media, "audio")) {
 			if (pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
 				/* Stream state reflects our state of a stream, so in the case of
 				 * sendonly and recvonly we store the opposite since that is what ours
