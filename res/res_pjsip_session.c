@@ -3111,6 +3111,62 @@ struct new_invite {
 	pjsip_rx_data *rdata;
 };
 
+static int check_sdp_content_type_supported(pjsip_media_type *content_type)
+{
+	pjsip_media_type app_sdp;
+	pjsip_media_type_init2(&app_sdp, "application", "sdp");
+
+	if (!pjsip_media_type_cmp(content_type, &app_sdp, 0)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static int check_content_disposition_in_multipart(pjsip_multipart_part *part)
+{
+	pjsip_hdr *hdr = part->hdr.next;
+	static const pj_str_t str_handling_required = {"handling=required", 16};
+
+	while (hdr != &part->hdr) {
+		if (hdr->type == PJSIP_H_OTHER) {
+			pjsip_generic_string_hdr *generic_hdr = (pjsip_generic_string_hdr*)hdr;
+
+			if (!pj_stricmp2(&hdr->name, "Content-Disposition") &&
+				pj_stristr(&generic_hdr->hvalue, &str_handling_required) &&
+				!check_sdp_content_type_supported(&part->body->content_type)) {
+				return 1;
+			}
+		}
+		hdr = hdr->next;
+	}
+
+	return 0;
+}
+
+/**
+ * if there is required media we don't understand, return 1
+ */
+static int check_content_disposition(pjsip_rx_data *rdata)
+{
+	pjsip_msg_body *body = rdata->msg_info.msg->body;
+	pjsip_ctype_hdr *ctype_hdr = rdata->msg_info.ctype;
+
+	if (body && ctype_hdr &&
+		!pj_stricmp2(&ctype_hdr->media.type, "multipart") &&
+		(!pj_stricmp2(&ctype_hdr->media.subtype, "mixed") ||
+		 !pj_stricmp2(&ctype_hdr->media.subtype, "alternative"))) {
+		pjsip_multipart_part *part = pjsip_multipart_get_first_part(body);
+		while (part != NULL) {
+			if (check_content_disposition_in_multipart(part)) {
+				return 1;
+			}
+			part = pjsip_multipart_get_next_part(body, part);
+		}
+	}
+	return 0;
+}
+
 static int new_invite(struct new_invite *invite)
 {
 	pjsip_tx_data *tdata = NULL;
@@ -3173,6 +3229,15 @@ static int new_invite(struct new_invite *invite)
 		}
 		goto end;
 	};
+
+	if (check_content_disposition(invite->rdata)) {
+		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 415, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			ast_sip_session_send_response(invite->session, tdata);
+		} else  {
+			pjsip_inv_terminate(invite->session->inv_session, 415, PJ_TRUE);
+		}
+		goto end;
+	}
 
 	pjsip_timer_setting_default(&timer);
 	timer.min_se = invite->session->endpoint->extensions.timer.min_se;
