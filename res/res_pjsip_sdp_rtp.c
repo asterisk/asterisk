@@ -1488,18 +1488,20 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	/* If ICE support is enabled find all the needed attributes */
 	check_ice_support(session, session_media, stream);
 
-	/* Check if incomming SDP is changing the remotely held state */
-	if (ast_sockaddr_isnull(addrs) ||
-		ast_sockaddr_is_any(addrs) ||
-		pjmedia_sdp_media_find_attr2(stream, "sendonly", NULL) ||
-		pjmedia_sdp_media_find_attr2(stream, "inactive", NULL)) {
-		if (!session_media->remotely_held) {
-			session_media->remotely_held = 1;
+	if (ast_sip_session_is_pending_stream_default(session, asterisk_stream) && media_type == AST_MEDIA_TYPE_AUDIO) {
+		/* Check if incomming SDP is changing the remotely held state */
+		if (ast_sockaddr_isnull(addrs) ||
+			ast_sockaddr_is_any(addrs) ||
+			pjmedia_sdp_media_find_attr2(stream, "sendonly", NULL) ||
+			pjmedia_sdp_media_find_attr2(stream, "inactive", NULL)) {
+			if (!session_media->remotely_held) {
+				session_media->remotely_held = 1;
+				session_media->remotely_held_changed = 1;
+			}
+		} else if (session_media->remotely_held) {
+			session_media->remotely_held = 0;
 			session_media->remotely_held_changed = 1;
 		}
-	} else if (session_media->remotely_held) {
-		session_media->remotely_held = 0;
-		session_media->remotely_held_changed = 1;
 	}
 
 	if (apply_cap_to_bundled(session_media, session_media_transport, asterisk_stream,
