@@ -754,7 +754,7 @@ void _ast_sockaddr_from_sin(struct ast_sockaddr *addr, const struct sockaddr_in 
  * \param family The AF_XXX value to determine the size of
  * \return Size of the applicable struct sockaddr.
  */
-#define ast_addressfamily_to_sockaddrsize(family) _ast_addressfamily_to_sockaddrsize(addr, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ast_addressfamily_to_sockaddrsize(family) _ast_addressfamily_to_sockaddrsize(family, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static inline int _ast_addressfamily_to_sockaddrsize(int af, const char *file, int line, const char *func)
 {
 	switch (af) {
@@ -780,10 +780,10 @@ static inline int _ast_addressfamily_to_sockaddrsize(int af, const char *file, i
  * You can check for failure with ast_sockaddr_isnull.
  *
  * \param[out] addr The address of the ast_sockaddr to store into
- * \param sockaddr The sockaddr structure (sockaddr_in or sockaddr_in6) to convert
+ * \param sa The sockaddr structure (sockaddr_in or sockaddr_in6) to convert
  * \return Nothing
  */
-#define ast_sockaddr_from_sockaddr(addr,sockaddr)	ast_sockaddr_copy_sockaddr(addr, sockaddr, ast_addressfamily_to_sockaddrsize(((const struct sockaddr*)(sockaddr))->sa_family))
+#define ast_sockaddr_from_sockaddr(addr,sa)	ast_sockaddr_copy_sockaddr(addr, sa, ast_addressfamily_to_sockaddrsize(((const struct sockaddr*)(sa))->sa_family))
 
 /*@}*/
 
