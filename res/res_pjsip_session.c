@@ -2717,16 +2717,6 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 			}
 
 			ast_format_cap_get_compatible(req_cap, endpoint->media.codecs, joint_cap);
-			if (!ast_format_cap_count(joint_cap)) {
-				ao2_ref(joint_cap, -1);
-				continue;
-			}
-
-			clone_stream = ast_stream_clone(req_stream, NULL);
-			if (!clone_stream) {
-				ao2_ref(joint_cap, -1);
-				continue;
-			}
 
 			if (ast_stream_get_type(req_stream) == AST_MEDIA_TYPE_AUDIO) {
 				/*
@@ -2736,6 +2726,17 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 				 */
 				ast_format_cap_append_from_cap(joint_cap,
 					endpoint->media.codecs, AST_MEDIA_TYPE_AUDIO);
+			}
+
+			if (!ast_format_cap_count(joint_cap)) {
+				ao2_ref(joint_cap, -1);
+				continue;
+			}
+
+			clone_stream = ast_stream_clone(req_stream, NULL);
+			if (!clone_stream) {
+				ao2_ref(joint_cap, -1);
+				continue;
 			}
 
 			ast_stream_set_formats(clone_stream, joint_cap);
