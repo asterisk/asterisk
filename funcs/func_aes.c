@@ -23,8 +23,8 @@
  */
 
 /*** MODULEINFO
-	<use type="module">res_crypto</use>
-	<use type="external">crypto</use>
+	<depend>res_crypto</depend>
+	<depend>crypto</depend>
 	<support_level>core</support_level>
  ***/
 
