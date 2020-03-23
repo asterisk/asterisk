@@ -71,6 +71,7 @@ $(call MOD_ADD_C,res_prometheus,$(wildcard prometheus/*.c))
 $(call MOD_ADD_C,res_ari,ari/cli.c ari/config.c ari/ari_websockets.c)
 $(call MOD_ADD_C,res_ari_model,ari/ari_model_validators.c)
 $(call MOD_ADD_C,res_stasis_recording,stasis_recording/stored.c)
+$(call MOD_ADD_C,res_stir_shaken,$(wildcard res_stir_shaken/*.c))
 
 res_parking.o: _ASTCFLAGS+=$(AST_NO_FORMAT_TRUNCATION)
 
