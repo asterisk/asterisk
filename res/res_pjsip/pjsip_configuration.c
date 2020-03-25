@@ -1128,19 +1128,8 @@ static int call_offer_pref_handler(const struct aco_option *opt,
 	struct ast_flags pref = { 0, };
 	int outgoing = strcmp(var->name, "outgoing_call_offer_pref") == 0;
 
-	if (strcmp(var->value, "local") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
-	} else if (outgoing && strcmp(var->value, "local_merge") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
-	} else if (strcmp(var->value, "local_first") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_FIRST);
-	} else if (strcmp(var->value, "remote") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
-	} else if (outgoing && strcmp(var->value, "remote_merge") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
-	} else if (strcmp(var->value, "remote_first") == 0) {
-		ast_set_flag(&pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_FIRST);
-	} else {
+	int res = ast_sip_call_codec_str_to_pref(&pref, var->value, outgoing);
+	if (res != 0) {
 		return -1;
 	}
 

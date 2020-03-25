@@ -3255,6 +3255,19 @@ int ast_sip_str_to_dtmf(const char *dtmf_mode);
 const char *ast_sip_call_codec_pref_to_str(struct ast_flags pref);
 
 /*!
+ * \brief Convert a call codec preference string to preference flags
+ * \since 18.0.0
+ *
+ * \param pref A pointer to an ast_flags structure to receive the preference flags
+ * \param pref_str The call codec preference setting string
+ * \param is_outgoing Is for outgoing calls?
+ *
+ * \retval 0 The string was parsed successfully
+ * \retval -1 The string option was invalid
+ */
+int ast_sip_call_codec_str_to_pref(struct ast_flags *pref, const char *pref_str, int is_outgoing);
+
+/*!
  * \brief Transport shutdown monitor callback.
  * \since 13.18.0
  *

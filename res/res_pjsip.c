@@ -5117,6 +5117,29 @@ const char *ast_sip_call_codec_pref_to_str(struct ast_flags pref)
 	return value;
 }
 
+int ast_sip_call_codec_str_to_pref(struct ast_flags *pref, const char *pref_str, int is_outgoing)
+{
+	pref->flags = 0;
+
+	if (strcmp(pref_str, "local") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (is_outgoing && strcmp(pref_str, "local_merge") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (strcmp(pref_str, "local_first") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_LOCAL | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_FIRST);
+	} else if (strcmp(pref_str, "remote") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_INTERSECT | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (is_outgoing && strcmp(pref_str, "remote_merge") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_ALL);
+	} else if (strcmp(pref_str, "remote_first") == 0) {
+		ast_set_flag(pref, AST_SIP_CALL_CODEC_PREF_REMOTE | AST_SIP_CALL_CODEC_PREF_UNION | AST_SIP_CALL_CODEC_PREF_FIRST);
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Set name and number information on an identity header.
  *
