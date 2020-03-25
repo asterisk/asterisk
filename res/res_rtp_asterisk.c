@@ -7964,12 +7964,15 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			int res = 0;
 			int ice;
 			int sr;
-			size_t data_size = AST_UUID_STR_LEN + 128 + (seqno - rtp->expectedrxseqno) / 17;
+			size_t data_size = AST_UUID_STR_LEN + 128 + (AST_VECTOR_SIZE(&rtp->missing_seqno) * 4);
 			RAII_VAR(unsigned char *, rtcpheader, NULL, ast_free_ptr);
 			RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
 					ast_rtp_rtcp_report_alloc(rtp->themssrc_valid ? 1 : 0),
 					ao2_cleanup);
 
+			/* Sufficient space for RTCP headers and report, SDES with CNAME, NACK header,
+			 * and worst case 4 bytes per missing sequence number.
+			 */
 			rtcpheader = ast_malloc(sizeof(*rtcpheader) + data_size);
 			if (!rtcpheader) {
 				ast_debug(1, "Failed to allocate memory for NACK\n");
