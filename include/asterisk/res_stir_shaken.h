@@ -21,6 +21,10 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 
+struct ast_stir_shaken_payload;
+
+struct ast_json;
+
 /*!
  * \brief Retrieve the stir/shaken sorcery context
  *
@@ -29,12 +33,15 @@
 struct ast_sorcery *ast_stir_shaken_sorcery(void);
 
 /*!
- * \brief Get the private key associated with a caller id
- *
- * \param caller_id_number The caller id used to look up the private key
- *
- * \retval The private key
+ * \brief Free a STIR/SHAKEN payload
  */
-EVP_PKEY *ast_stir_shaken_get_private_key(const char *caller_id_number);
+void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload);
+
+/*!
+ * \brief Sign a JSON STIR/SHAKEN payload
+ *
+ * \note This function will automatically add the "attest", "iat", and "origid" fields.
+ */
+struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json);
 
 #endif /* _RES_STIR_SHAKEN_H */

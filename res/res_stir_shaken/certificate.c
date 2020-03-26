@@ -79,23 +79,34 @@ static void *stir_shaken_certificate_alloc(const char *name)
 	return cfg;
 }
 
-EVP_PKEY *stir_shaken_certificate_get_private_key(const char *caller_id_number)
+struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(const char *caller_id_number)
 {
-	struct stir_shaken_certificate *cert;
 	struct ast_variable fields = {
 		.name = "caller_id_number",
 		.value = caller_id_number,
 		.next = NULL,
 	};
 
-	cert = ast_sorcery_retrieve_by_fields(ast_stir_shaken_sorcery(),
+	return ast_sorcery_retrieve_by_fields(ast_stir_shaken_sorcery(),
 		"certificate", AST_RETRIEVE_FLAG_DEFAULT, &fields);
+}
 
-	if (cert) {
-		return cert->private_key;
+const char *stir_shaken_certificate_get_public_key_url(struct stir_shaken_certificate *cert)
+{
+	if (!cert) {
+		return NULL;
 	}
 
-	return NULL;
+	return cert->public_key_url;
+}
+
+EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert)
+{
+	if (!cert) {
+		return NULL;
+	}
+
+	return cert->private_key;
 }
 
 static int stir_shaken_certificate_apply(const struct ast_sorcery *sorcery, void *obj)

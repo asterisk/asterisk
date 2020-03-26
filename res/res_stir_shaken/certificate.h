@@ -22,15 +22,29 @@
 
 struct ast_sorcery;
 
+struct stir_shaken_certificate;
+
+struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(const char *caller_id_number);
+
 /*!
- * \brief Get the private key associated with a caller id
+ * \brief Get the public key URL associated with a certificate
  *
- * \param caller_id_number The caller id used to look up the private key
+ * \param cert The certificate to get the public key URL from
+ *
+ * \retval NULL on failure
+ * \retval The public key URL on success
+ */
+const char *stir_shaken_certificate_get_public_key_url(struct stir_shaken_certificate *cert);
+
+/*!
+ * \brief Get the private key associated with a certificate
+ *
+ * \param cert The certificate to get the private key from
  *
  * \retval NULL on failure
  * \retval The private key on success
  */
-EVP_PKEY *stir_shaken_certificate_get_private_key(const char *caller_id_number);
+EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert);
 
 /*!
  * \brief Load time initialization for the stir/shaken 'certificate' configuration
