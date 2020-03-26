@@ -1667,8 +1667,11 @@ static int sip_options_synchronize_endpoint(void *obj, void *arg, int flags)
 		ao2_unlock(task_data.endpoint_state_compositor);
 
 		ao2_ref(task_data.endpoint_state_compositor, -1);
-	} else {
-		/* If there is none then they may have referenced an invalid AOR or none at all */
+	} else if (!aor) {
+		/* If no explicit AOR is specified we are updating the endpoint itself, so then set
+		 * it to offline if no endpoint compositor exists as they referenced an invalid AOR
+		 * or none at all
+		 */
 		ast_debug(3, "Endpoint '%s' has no AORs feeding it, setting it to offline state as default\n",
 			ast_sorcery_object_get_id(endpoint));
 		ast_sip_persistent_endpoint_update_state(ast_sorcery_object_get_id(endpoint),
