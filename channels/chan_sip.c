@@ -19636,6 +19636,7 @@ static void send_check_user_failure_response(struct sip_pvt *p, struct sip_reque
 	case AUTH_UNKNOWN_DOMAIN:
 	case AUTH_PEER_NOT_DYNAMIC:
 	case AUTH_BAD_TRANSPORT:
+	case AUTH_ACL_FAILED:
 		ast_log(LOG_NOTICE, "Failed to authenticate device %s for %s, code = %d\n",
 			sip_get_header(req, "From"), sip_methods[p->method].text, res);
 		response = "403 Forbidden";
