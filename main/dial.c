@@ -331,7 +331,6 @@ int ast_dial_append_channel(struct ast_dial *dial, struct ast_channel *chan)
 /*! \brief Helper function that requests all channels */
 static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channel *chan, struct ast_format_cap *cap, const char *predial_string)
 {
-	char numsubst[AST_MAX_EXTENSION];
 	struct ast_format_cap *cap_all_audio = NULL;
 	struct ast_format_cap *cap_request;
 	struct ast_format_cap *requester_cap = NULL;
@@ -355,9 +354,6 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	}
 
 	if (!channel->owner) {
-		/* Copy device string over */
-		ast_copy_string(numsubst, channel->device, sizeof(numsubst));
-
 		if (cap && ast_format_cap_count(cap)) {
 			cap_request = cap;
 		} else if (requester_cap) {
@@ -369,7 +365,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		}
 
 		/* If we fail to create our owner channel bail out */
-		if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, numsubst, &channel->cause))) {
+		if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, channel->device, &channel->cause))) {
 			ao2_cleanup(cap_all_audio);
 			return -1;
 		}
@@ -454,7 +450,6 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 /*! \brief Helper function that does the beginning dialing per-appended channel */
 static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async, const char *predial_string, struct ast_channel *forwarder_chan)
 {
-	char numsubst[AST_MAX_EXTENSION];
 	int res = 1;
 	char forwarder[AST_CHANNEL_NAME];
 
@@ -470,18 +465,15 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_channel_unlock(channel->owner);
 	}
 
-	/* Copy device string over */
-	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
-
 	/* Attempt to actually call this device */
-	if ((res = ast_call(channel->owner, numsubst, 0))) {
+	if ((res = ast_call(channel->owner, channel->device, 0))) {
 		res = 0;
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 	} else {
 		ast_channel_publish_dial(async ? NULL : chan, channel->owner, channel->device, NULL);
 		res = 1;
-		ast_verb(3, "Called %s\n", numsubst);
+		ast_verb(3, "Called %s\n", channel->device);
 	}
 
 	return res;
