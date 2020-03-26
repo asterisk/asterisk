@@ -13,6 +13,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk certified/16.8-cert1-rc3 to Asterisk certified/16.8-cert1-rc4 
+------------------------------------------------------------------------------
+
+res_pjsip_session
+------------------
+ * When placing an outgoing call to a PJSIP endpoint the intent
+   of any requested formats will now be respected. If only an audio
+   format is requested (such as ulaw) but the underlying endpoint
+   does not support the format the resulting SDP will still only
+   contain an audio stream, and not any additional streams such as
+   video.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.8.0 to Asterisk certified/16.8-cert1 
 ------------------------------------------------------------------------------
 
