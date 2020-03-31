@@ -357,13 +357,13 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_channel_appl(chan), len);
 	else if (!strcasecmp(data, "appdata") && ast_channel_data(chan))
 		locked_copy_string(chan, buf, ast_channel_data(chan), len);
-	else if (!strcasecmp(data, "exten") && ast_channel_data(chan))
+	else if (!strcasecmp(data, "exten"))
 		locked_copy_string(chan, buf, ast_channel_exten(chan), len);
-	else if (!strcasecmp(data, "context") && ast_channel_data(chan))
+	else if (!strcasecmp(data, "context"))
 		locked_copy_string(chan, buf, ast_channel_context(chan), len);
-	else if (!strcasecmp(data, "userfield") && ast_channel_data(chan))
+	else if (!strcasecmp(data, "userfield"))
 		locked_copy_string(chan, buf, ast_channel_userfield(chan), len);
-	else if (!strcasecmp(data, "channame") && ast_channel_data(chan))
+	else if (!strcasecmp(data, "channame"))
 		locked_copy_string(chan, buf, ast_channel_name(chan), len);
 	else if (!strcasecmp(data, "linkedid")) {
 		ast_channel_lock(chan);
