@@ -5080,6 +5080,18 @@ static void apply_plc(struct ast_channel *chan, struct ast_frame *frame)
 	adjust_frame_for_plc(chan, frame, datastore);
 }
 
+static int tech_write(struct ast_channel *chan, struct ast_stream *stream,
+			struct ast_stream *default_stream, struct ast_frame *frame)
+{
+	if (ast_channel_tech(chan)->write_stream) {
+		return stream ? ast_channel_tech(chan)->write_stream(
+			chan, ast_stream_get_position(stream), frame) : 0;
+	}
+
+	return ((stream == default_stream) && ast_channel_tech(chan)->write) ?
+		ast_channel_tech(chan)->write(chan, frame) : 0;
+}
+
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	return ast_write_stream(chan, -1, fr);
@@ -5233,17 +5245,7 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 		break;
 	case AST_FRAME_MODEM:
 		CHECK_BLOCKING(chan);
-		if (ast_channel_tech(chan)->write_stream) {
-			if (stream) {
-				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
-			} else {
-				res = 0;
-			}
-		} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
-			res = ast_channel_tech(chan)->write(chan, fr);
-		} else {
-			res = 0;
-		}
+		res = tech_write(chan, stream, default_stream, fr);
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
 	case AST_FRAME_VOICE:
@@ -5410,7 +5412,8 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 				next = AST_LIST_NEXT(cur, frame_list);
 				AST_LIST_NEXT(cur, frame_list) = NULL;
 				if (!skip) {
-					if ((res = ast_channel_tech(chan)->write(chan, cur)) < 0) {
+					res = tech_write(chan, stream, default_stream, cur);
+					if (res < 0) {
 						ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_DEV);
 						skip = 1;
 					} else if (next) {
@@ -5427,17 +5430,7 @@ int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame 
 			/* reset f so the code below doesn't attempt to free it */
 			f = NULL;
 		} else {
-			if (ast_channel_tech(chan)->write_stream) {
-				if (stream) {
-					res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), f);
-				} else {
-					res = 0;
-				}
-			} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
-				res = ast_channel_tech(chan)->write(chan, f);
-			} else {
-				res = 0;
-			}
+			res = tech_write(chan, stream, default_stream, f);
 		}
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
 		break;
