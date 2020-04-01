@@ -3884,23 +3884,27 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 		/* no remapping, but we bind to a specific address, so use it. */
 		switch (p->socket.type) {
 		case AST_TRANSPORT_TCP:
-			if (!ast_sockaddr_is_any(&sip_tcp_desc.local_address)) {
-				ast_sockaddr_copy(us,
-						  &sip_tcp_desc.local_address);
-			} else {
-				ast_sockaddr_set_port(us,
-						      ast_sockaddr_port(&sip_tcp_desc.local_address));
-			}
-			break;
+			if (!ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
+				if (!ast_sockaddr_is_any(&sip_tcp_desc.local_address)) {
+					ast_sockaddr_copy(us,
+							  &sip_tcp_desc.local_address);
+				} else {
+					ast_sockaddr_set_port(us,
+					  ast_sockaddr_port(&sip_tcp_desc.local_address));
+				}
+				break;
+			} /* fall through on purpose */
 		case AST_TRANSPORT_TLS:
-			if (!ast_sockaddr_is_any(&sip_tls_desc.local_address)) {
-				ast_sockaddr_copy(us,
-						  &sip_tls_desc.local_address);
-			} else {
-				ast_sockaddr_set_port(us,
-						      ast_sockaddr_port(&sip_tls_desc.local_address));
-			}
-			break;
+			if (!ast_sockaddr_isnull(&sip_tls_desc.local_address)) {
+				if (!ast_sockaddr_is_any(&sip_tls_desc.local_address)) {
+					ast_sockaddr_copy(us,
+							  &sip_tls_desc.local_address);
+				} else {
+					ast_sockaddr_set_port(us,
+					  ast_sockaddr_port(&sip_tls_desc.local_address));
+				}
+				break;
+			} /* fall through on purpose */
 		case AST_TRANSPORT_UDP:
 			/* fall through on purpose */
 		default:
@@ -16182,8 +16186,15 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		/* Set transport and port so the correct contact is built */
 		set_socket_transport(&p->socket, r->transport);
 		if (r->transport == AST_TRANSPORT_TLS || r->transport == AST_TRANSPORT_TCP) {
-			p->socket.port =
-			    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
+			if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
+				ast_log(LOG_ERROR,
+				    "TCP/TLS clients without server were not tested.\n");
+				ast_log(LOG_ERROR,
+				    "Please, follow-up and report at issue 28798.\n");
+			} else {
+				p->socket.port =
+				    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
+			}
 		}
 
 		/*
