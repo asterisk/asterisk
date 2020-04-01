@@ -70,6 +70,9 @@
 #ifndef bfd_get_section_vma
 #define bfd_get_section_vma(x, y)	bfd_section_vma(y)
 #endif
+#ifndef bfd_get_section_flags
+#define bfd_get_section_flags(x, y) bfd_section_flags(y)
+#endif
 #endif
 
 #include <pthread.h>
