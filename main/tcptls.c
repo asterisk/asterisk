@@ -846,7 +846,7 @@ static void *handle_tcptls_connection(void *data)
 			ast_sockaddr_stringify(&tcptls_session->remote_address));
 #ifndef DO_SSL
 		if (tcptls_session->parent->tls_cfg) {
-			ast_log(LOG_ERROR, "Attempted a TLS connection without OpenSSL support. This will not work!\n");
+			ast_log(LOG_ERROR, "TLS client failed: Asterisk is compiled without OpenSSL support. Install OpenSSL development headers and rebuild Asterisk after running ./configure\n");
 		}
 #endif
 		ao2_ref(tcptls_session, -1);
@@ -939,7 +939,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 {
 #ifndef DO_SSL
 	if (cfg->enabled) {
-		ast_log(LOG_NOTICE, "Configured without OpenSSL Development Headers");
+		ast_log(LOG_ERROR, "TLS server failed: Asterisk is compiled without OpenSSL support. Install OpenSSL development headers and rebuild Asterisk after running ./configure\n");
 		cfg->enabled = 0;
 	}
 	return 0;
