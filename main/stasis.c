@@ -473,9 +473,9 @@ struct stasis_topic *stasis_topic_create(const char *name)
 
 #ifdef AST_DEVMODE
 	topic->statistics = stasis_topic_statistics_create(topic);
-	if (!topic->name || !topic->statistics || res)
+	if (ast_strlen_zero(topic->name) || !topic->statistics || res)
 #else
-	if (!topic->name || res)
+	if (ast_strlen_zero(topic->name) || res)
 #endif
 	{
 		ao2_ref(topic, -1);
