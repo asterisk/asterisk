@@ -1353,7 +1353,7 @@ static void refresh_all_favorite(struct unistimsession *pte)
 
 static int is_key_favorite(struct unistim_device *d, int fav)
 {
-	if ((fav < 0) && (fav > 5)) {
+	if ((fav < 0) || (fav >= FAVNUM)) {
 		return 0;
 	}
 	if (d->sline[fav]) {
@@ -1367,7 +1367,7 @@ static int is_key_favorite(struct unistim_device *d, int fav)
 
 static int is_key_line(struct unistim_device *d, int fav)
 {
-	if ((fav < 0) && (fav > 5)) {
+	if ((fav < 0) || (fav >= FAVNUM)) {
 		return 0;
 	}
 	if (!d->sline[fav]) {
