@@ -2201,7 +2201,7 @@ static void dump_consumer(struct ast_test *test, struct cts *cts)
 		data = stasis_message_data(cts->consumer->messages_rxed[i]);
 		ast_test_status_update(test, "Message type received: %s %s\n",
 			stasis_message_type_name(stasis_message_type(cts->consumer->messages_rxed[i])),
-			data && data->description ? data->description : "no data");
+			data && !ast_strlen_zero(data->description) ? data->description : "no data");
 	}
 }
 
