@@ -43,6 +43,8 @@
 #include "asterisk/dsp.h"
 #include "asterisk/file.h"
 
+#include <math.h>
+
 #if !defined(LOW_MEMORY)
 static void frame_cache_cleanup(void *data);
 
@@ -697,6 +699,31 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
 			ast_slinear_saturated_multiply(&fdata[count], &adjust_value);
 		} else if (adjustment < 0) {
 			ast_slinear_saturated_divide(&fdata[count], &adjust_value);
+		}
+	}
+
+	return 0;
+}
+
+int ast_frame_adjust_volume_float(struct ast_frame *f, float adjustment)
+{
+	int count;
+	short *fdata = f->data.ptr;
+	float adjust_value = fabs(adjustment);
+
+	if ((f->frametype != AST_FRAME_VOICE) || !(ast_format_cache_is_slinear(f->subclass.format))) {
+		return -1;
+	}
+
+	if (!adjustment) {
+		return 0;
+	}
+
+	for (count = 0; count < f->samples; count++) {
+		if (adjustment > 0) {
+			ast_slinear_saturated_multiply_float(&fdata[count], &adjust_value);
+		} else if (adjustment < 0) {
+			ast_slinear_saturated_divide_float(&fdata[count], &adjust_value);
 		}
 	}
 

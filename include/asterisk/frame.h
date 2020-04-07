@@ -595,6 +595,14 @@ struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f,
 int ast_frame_adjust_volume(struct ast_frame *f, int adjustment);
 
 /*!
+  \brief Adjusts the volume of the audio samples contained in a frame.
+  \param f The frame containing the samples (must be AST_FRAME_VOICE and AST_FORMAT_SLINEAR)
+  \param adjustment The number of dB to adjust up or down.
+  \return 0 for success, non-zero for an error
+ */
+int ast_frame_adjust_volume_float(struct ast_frame *f, float adjustment);
+
+/*!
   \brief Sums two frames of audio samples.
   \param f1 The first frame (which will contain the result)
   \param f2 The second frame
