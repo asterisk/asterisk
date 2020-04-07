@@ -72,8 +72,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct volume_information {
 	struct ast_audiohook audiohook;
-	int tx_gain;
-	int rx_gain;
+	float tx_gain;
+	float rx_gain;
 	unsigned int flags;
 };
 
@@ -109,7 +109,7 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 {
 	struct ast_datastore *datastore = NULL;
 	struct volume_information *vi = NULL;
-	int *gain = NULL;
+	float *gain = NULL;
 
 	/* If the audiohook is stopping it means the channel is shutting down.... but we let the datastore destroy take care of it */
 	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE)
@@ -143,7 +143,7 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		if (!(gain = (direction == AST_AUDIOHOOK_DIRECTION_READ) ? &vi->rx_gain : &vi->tx_gain) || !*gain)
 			return 0;
 		/* Apply gain to frame... easy as pi */
-		ast_frame_adjust_volume(frame, *gain);
+		ast_frame_adjust_volume_float(frame, *gain);
 	}
 
 	return 0;
@@ -195,9 +195,9 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 	}
 
 	if (!strcasecmp(args.direction, "tx")) {
-		vi->tx_gain = atoi(value);
+		vi->tx_gain = atof(value);
 	} else if (!strcasecmp(args.direction, "rx")) {
-		vi->rx_gain = atoi(value);
+		vi->rx_gain = atof(value);
 	} else {
 		ast_log(LOG_ERROR, "Direction must be either RX or TX\n");
 	}
