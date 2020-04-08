@@ -6233,6 +6233,33 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	remove_stasis_subscriptions(queue_data);
 }
 
+static void handle_masquerade(void *userdata, struct stasis_subscription *sub,
+		struct stasis_message *msg)
+{
+	struct queue_stasis_data *queue_data = userdata;
+	struct ast_channel_blob *channel_blob = stasis_message_data(msg);
+	const char *new_channel_id;
+
+	new_channel_id = ast_json_string_get(ast_json_object_get(channel_blob->blob, "newchanneluniqueid"));
+
+	ao2_lock(queue_data);
+
+	if (queue_data->dying) {
+		ao2_unlock(queue_data);
+		return;
+	}
+
+	if (!strcmp(channel_blob->snapshot->uniqueid, queue_data->caller_uniqueid)) {
+		ast_debug(1, "Replacing caller channel %s with %s due to masquerade\n", queue_data->caller_uniqueid, new_channel_id);
+		ast_string_field_set(queue_data, caller_uniqueid, new_channel_id);
+	} else if (!strcmp(channel_blob->snapshot->uniqueid, queue_data->member_uniqueid)) {
+		ast_debug(1, "Replacing member channel %s with %s due to masquerade\n", queue_data->member_uniqueid, new_channel_id);
+		ast_string_field_set(queue_data, member_uniqueid, new_channel_id);
+	}
+
+	ao2_unlock(queue_data);
+}
+
 /*!
  * \internal
  * \brief Callback for all stasis channel events
@@ -6306,6 +6333,8 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 			handle_local_optimization_end, queue_data);
 	stasis_message_router_add(queue_data->channel_router, ast_channel_hangup_request_type(),
 			handle_hangup, queue_data);
+	stasis_message_router_add(queue_data->channel_router, ast_channel_masquerade_type(),
+			handle_masquerade, queue_data);
 	stasis_message_router_set_default(queue_data->channel_router,
 			queue_channel_cb, queue_data);
 

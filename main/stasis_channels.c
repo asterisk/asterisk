@@ -1290,6 +1290,7 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_varset_type,
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type,
 	.to_json = hangup_request_to_json,
 	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_masquerade_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type,
 	.to_json = dtmf_end_to_json,
@@ -1338,6 +1339,7 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dial_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_varset_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_masquerade_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hold_type);
@@ -1388,6 +1390,7 @@ int ast_stasis_channels_init(void)
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dial_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_varset_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_masquerade_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_begin_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_end_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hold_type);

@@ -392,6 +392,14 @@ struct stasis_message_type *ast_channel_varset_type(void);
 struct stasis_message_type *ast_channel_hangup_request_type(void);
 
 /*!
+ * \since 16
+ * \brief Message type for when a channel is being masqueraded
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_masquerade_type(void);
+
+/*!
  * \since 12
  * \brief Message type for when DTMF begins on a channel.
  *
