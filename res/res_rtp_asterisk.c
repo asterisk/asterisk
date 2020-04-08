@@ -5492,7 +5492,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 
 		if (event_end & 0x80) {
 			/* End event */
-			if ((rtp->last_seqno != seqno) && (timestamp > rtp->last_end_timestamp)) {
+			if ((rtp->last_seqno != seqno) && ((timestamp > rtp->last_end_timestamp) || ((timestamp == 0) && (rtp->last_end_timestamp == 0)))) {
 				rtp->last_end_timestamp = timestamp;
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
