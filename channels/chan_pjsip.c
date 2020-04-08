@@ -2163,20 +2163,23 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 	struct ast_sip_session_media *media;
-	int res = 0;
 
 	media = channel->session->active_media_state->default_session[AST_MEDIA_TYPE_AUDIO];
 
 	switch (channel->session->dtmf) {
 	case AST_SIP_DTMF_RFC_4733:
 		if (!media || !media->rtp) {
-			return -1;
+			return 0;
 		}
 
 		ast_rtp_instance_dtmf_begin(media->rtp, digit);
 		break;
 	case AST_SIP_DTMF_AUTO:
-		if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
+		if (!media || !media->rtp) {
+			return 0;
+		}
+
+		if (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND) {
 			return -1;
 		}
 
@@ -2191,13 +2194,12 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 	case AST_SIP_DTMF_NONE:
 		break;
 	case AST_SIP_DTMF_INBAND:
-		res = -1;
-		break;
+		return -1;
 	default:
 		break;
 	}
 
-	return res;
+	return 0;
 }
 
 struct info_dtmf_data {
@@ -2284,7 +2286,6 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct ast_sip_session_media *media;
-	int res = 0;
 
 	if (!channel || !channel->session) {
 		/* This happens when the channel is hungup while a DTMF digit is playing. See ASTERISK-28086 */
@@ -2298,8 +2299,9 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	case AST_SIP_DTMF_AUTO_INFO:
 	{
 		if (!media || !media->rtp) {
-			return -1;
+			return 0;
 		}
+
 		if (ast_rtp_instance_dtmf_mode_get(media->rtp) != AST_RTP_DTMF_MODE_NONE) {
 			ast_debug(3, "Told to send end of digit on Auto-Info channel %s RFC4733 negotiated so using it.\n", ast_channel_name(ast));
 			ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
@@ -2337,28 +2339,29 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	}
 	case AST_SIP_DTMF_RFC_4733:
 		if (!media || !media->rtp) {
-			return -1;
+			return 0;
 		}
 
 		ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
 		break;
 	case AST_SIP_DTMF_AUTO:
-		if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
+		if (!media || !media->rtp) {
+			return 0;
+		}
+
+		if (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND) {
 			 return -1;
 		}
 
 		ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
 		break;
-
-
 	case AST_SIP_DTMF_NONE:
 		break;
 	case AST_SIP_DTMF_INBAND:
-		res = -1;
-		break;
+		return -1;
 	}
 
-	return res;
+	return 0;
 }
 
 static void update_initial_connected_line(struct ast_sip_session *session)
