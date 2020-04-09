@@ -21544,7 +21544,7 @@ if test "${USE_IMAP_TK}" != "no"; then
 	saved_libs="${LIBS}"
 	switch_to_system_on_failure="no"
 	if test "${IMAP_TK_DIR}" = ""; then
-		IMAP_TK_DIR=`pwd`"/../imap-2004g"
+		IMAP_TK_DIR="`pwd`/../imap-2004g"
 		switch_to_system_on_failure="yes"
 	fi
 	if test "${IMAP_TK_DIR}" != "system"; then
@@ -35277,9 +35277,9 @@ fi
 
 ${ac_cv_path_EGREP} 'CURSES|GTK2|OSARCH|NEWT' makeopts > makeopts.acbak2
 if test "x${ac_cv_path_CMP}" = "x:"; then
-	( cd `pwd`/menuselect && ./configure )
+	( cd "`pwd`/menuselect" && ./configure )
 elif ${ac_cv_path_CMP} -s makeopts.acbak makeopts.acbak2; then : ; else
-	( cd `pwd`/menuselect && ./configure )
+	( cd "`pwd`/menuselect" && ./configure )
 fi
 
 rm makeopts.acbak makeopts.acbak2
