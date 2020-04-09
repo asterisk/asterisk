@@ -467,7 +467,7 @@ static int process_xml_member_node(xmlNode *node, struct category *cat)
 		process_process_xml_category_child_node(cur, mem);
 	}
 
-	if (!cat->positive_output && strcasecmp(mem->support_level, "option")) {
+	if (!cat->positive_output) {
 		mem->enabled = 1;
 		if (!mem->defaultenabled || strcasecmp(mem->defaultenabled, "no")) {
 			mem->was_enabled = 1;
