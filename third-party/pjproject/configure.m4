@@ -62,9 +62,9 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		PJPROJECT_CONFIGURE_OPTS+=" --disable-ssl"
 		;;
 		y|ye|yes)
-		# This is the default value in PJProject and means "autodetect".
+		# Not to mention SSL is the default in PJProject and means "autodetect".
 		# In Asterisk, "./configure --with-ssl" means "must be present".
-		PJPROJECT_CONFIGURE_OPTS+=" --enable-ssl"
+		PJPROJECT_CONFIGURE_OPTS+=""
 		;;
 		*)
 		PJPROJECT_CONFIGURE_OPTS+=" --with-ssl=${with_ssl}"
