@@ -798,7 +798,23 @@
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
-					</para></description>
+						</para><para>
+						It can be one of the following values:
+						</para><enumlist>
+							<enum name="no"><para>
+								meaning no verificaton is done.
+							</para></enum>
+							<enum name="fingerprint"><para>
+								meaning to verify the remote fingerprint.
+							</para></enum>
+							<enum name="certificate"><para>
+								meaning to verify the remote certificate.
+							</para></enum>
+							<enum name="yes"><para>
+								meaning to verify both the remote fingerprint and certificate.
+							</para></enum>
+						</enumlist>
+					</description>
 				</configOption>
 				<configOption name="dtls_rekey">
 					<synopsis>Interval at which to renegotiate the TLS session and rekey the SRTP session</synopsis>
