@@ -6837,8 +6837,10 @@ $as_echo "no" >&6; }
 fi
 
 
-# Extract the first word of "python", so it can be a program name with args.
-set dummy python; ac_word=$2
+for ac_prog in python2.7 python2 python python3
+do
+  # Extract the first word of "$ac_prog", so it can be a program name with args.
+set dummy $ac_prog; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
 if ${ac_cv_path_PYTHON+:} false; then :
@@ -6864,7 +6866,6 @@ done
   done
 IFS=$as_save_IFS
 
-  test -z "$ac_cv_path_PYTHON" && ac_cv_path_PYTHON=":"
   ;;
 esac
 fi
@@ -6877,6 +6878,10 @@ else
 $as_echo "no" >&6; }
 fi
 
+
+  test -n "$PYTHON" && break
+done
+test -n "$PYTHON" || PYTHON=":"
 
 # Extract the first word of "find", so it can be a program name with args.
 set dummy find; ac_word=$2
@@ -26099,9 +26104,186 @@ fi
 
 
    fi
+
+   if test "x$PBX_PJPROJECT" = "x1" ; then
+      if test "x${AST_DEVMODE}" = "xyes" ; then
+
+
+
+   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+$as_echo_n "checking for PYTHONDEV... " >&6; }
+
+if test -n "$PYTHONDEV_CFLAGS"; then
+    pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python-2.7\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python-2.7") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python-2.7" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$PYTHONDEV_LIBS"; then
+    pkg_cv_PYTHONDEV_LIBS="$PYTHONDEV_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python-2.7\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python-2.7") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python-2.7" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
 fi
 
 
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python-2.7" 2>&1`
+        else
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python-2.7" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$PYTHONDEV_PKG_ERRORS" >&5
+
+
+            PBX_PYTHONDEV=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_PYTHONDEV=0
+
+
+else
+	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
+	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_PYTHONDEV=1
+            PYTHONDEV_INCLUDE=$(echo ${PYTHONDEV_CFLAGS} | $SED -e "s|-std=c99||g")
+            PYTHONDEV_LIB="$PYTHONDEV_LIBS"
+
+$as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
+
+
+fi
+   fi
+
+
+   if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+$as_echo_n "checking for PYTHONDEV... " >&6; }
+
+if test -n "$PYTHONDEV_CFLAGS"; then
+    pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python2\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python2") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PYTHONDEV_CFLAGS=`$PKG_CONFIG --cflags "python2" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$PYTHONDEV_LIBS"; then
+    pkg_cv_PYTHONDEV_LIBS="$PYTHONDEV_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"python2\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "python2") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_PYTHONDEV_LIBS=`$PKG_CONFIG --libs "python2" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "python2" 2>&1`
+        else
+	        PYTHONDEV_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "python2" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$PYTHONDEV_PKG_ERRORS" >&5
+
+
+            PBX_PYTHONDEV=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_PYTHONDEV=0
+
+
+else
+	PYTHONDEV_CFLAGS=$pkg_cv_PYTHONDEV_CFLAGS
+	PYTHONDEV_LIBS=$pkg_cv_PYTHONDEV_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_PYTHONDEV=1
+            PYTHONDEV_INCLUDE=$(echo ${PYTHONDEV_CFLAGS} | $SED -e "s|-std=c99||g")
+            PYTHONDEV_LIB="$PYTHONDEV_LIBS"
+
+$as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
+
+
+fi
+   fi
 
 
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
@@ -26191,6 +26373,16 @@ $as_echo "#define HAVE_PYTHONDEV 1" >>confdefs.h
 fi
    fi
 
+         # The PJProject offers a C extension to Python. That wrapper is used by the
+         # Asterisk Test Framework, which requires Asterisk to be in Developer Mode.
+         # However, the used wrapper (called 'PJSUA Python') is deprecated and was not
+         # ported from Python 2.7 to Python 3.x. This is confirmed; it simply does not
+         # build. For more see <http://www.pjsip.org/trac/wiki/Python_SIP_Tutorial>.
+         # Therefore, the C libraries for Python 3 are of no help in Asterisk:
+         #AST_PKG_CONFIG_CHECK([PYTHONDEV], [python3])
+      fi
+   fi
+fi
 
 
 if test "x${PBX_POPT}" != "x1" -a "${USE_POPT}" != "no"; then
