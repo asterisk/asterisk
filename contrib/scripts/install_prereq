@@ -32,7 +32,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcodec2-dev libfftw3-dev libsndfile1-dev lib
 # Asterisk: for the unpackaged below:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch python-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN bzip2 patch"
 
 # Basic build system:
 PACKAGES_RH="make gcc gcc-c++ pkgconfig"
@@ -48,7 +48,7 @@ PACKAGES_RH="$PACKAGES_RH codec2-devel fftw-devel libsndfile-devel unbound-devel
 # Asterisk: for the unpackaged below:
 PACKAGES_RH="$PACKAGES_RH wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_RH="$PACKAGES_RH bzip2 patch python-devel"
+PACKAGES_RH="$PACKAGES_RH bzip2 patch"
 
 # Basic build system:
 PACKAGES_SUSE="make gcc gcc-c++ pkg-config"
@@ -64,7 +64,7 @@ PACKAGES_SUSE="$PACKAGES_SUSE codec2-devel fftw3-devel libsndfile-devel unbound-
 # Asterisk: for the unpackaged below:
 PACKAGES_SUSE="$PACKAGES_SUSE wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch python-devel"
+PACKAGES_SUSE="$PACKAGES_SUSE bzip2 patch"
 
 # Basic build system:
 PACKAGES_ARCH="make gcc pkg-config"
@@ -80,7 +80,7 @@ PACKAGES_ARCH="$PACKAGES_ARCH fftw libsndfile unbound"
 # Asterisk: for the unpackaged below:
 PACKAGES_ARCH="$PACKAGES_ARCH wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_ARCH="$PACKAGES_ARCH bzip2 patch python2"
+PACKAGES_ARCH="$PACKAGES_ARCH bzip2 patch"
 
 # Basic build system:
 PACKAGES_GENTOO="sys-devel/make sys-devel/gcc dev-util/pkgconfig"
@@ -96,7 +96,7 @@ PACKAGES_GENTOO="$PACKAGES_GENTOO sci-libs/fftw media-libs/libsndfile net-dns/un
 # Asterisk: for the unpackaged below:
 PACKAGES_GENTOO="$PACKAGES_GENTOO net-misc/wget dev-vcs/subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_GENTOO="$PACKAGES_GENTOO app-arch/bzip2 sys-devel/patch dev-lang/python:2.7"
+PACKAGES_GENTOO="$PACKAGES_GENTOO app-arch/bzip2 sys-devel/patch"
 
 # Basic build system:
 PACKAGES_NBSD="gmake pkg-config"
@@ -112,7 +112,7 @@ PACKAGES_NBSD="$PACKAGES_NBSD codec2 fftw libsndfile unbound"
 # Asterisk: for the unpackaged below:
 PACKAGES_NBSD="$PACKAGES_NBSD wget subversion-base"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_NBSD="$PACKAGES_NBSD bzip2 patch python27"
+PACKAGES_NBSD="$PACKAGES_NBSD bzip2 patch"
 
 # Basic build system:
 PACKAGES_OBSD="gmake"
@@ -128,7 +128,7 @@ PACKAGES_OBSD="$PACKAGES_OBSD fftw3 libsndfile"
 # Asterisk: for the unpackaged below:
 PACKAGES_OBSD="$PACKAGES_OBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_OBSD="$PACKAGES_OBSD bzip2 python%2"
+PACKAGES_OBSD="$PACKAGES_OBSD bzip2"
 
 # Basic build system:
 PACKAGES_FBSD="gmake pkgconf"
@@ -144,7 +144,7 @@ PACKAGES_FBSD="$PACKAGES_FBSD codec2 fftw3 libsndfile unbound"
 # Asterisk: for the unpackaged below:
 PACKAGES_FBSD="$PACKAGES_FBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_FBSD="$PACKAGES_FBSD bzip2 patch python"
+PACKAGES_FBSD="$PACKAGES_FBSD bzip2 patch"
 
 # Basic build system:
 PACKAGES_DBSD="gmake pkgconf"
@@ -160,7 +160,7 @@ PACKAGES_DBSD="$PACKAGES_DBSD codec2 fftw3 libsndfile unbound"
 # Asterisk: for the unpackaged below:
 PACKAGES_DBSD="$PACKAGES_DBSD wget subversion"
 # Asterisk: for ./configure --with-pjproject-bundled:
-PACKAGES_DBSD="$PACKAGES_DBSD bzip2 patch python"
+PACKAGES_DBSD="$PACKAGES_DBSD bzip2 patch"
 
 KVERS=`uname -r`
 
