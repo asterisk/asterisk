@@ -8812,9 +8812,9 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 	if (strictrtp) {
 		ast_cli(a->fd, "  Probation:       %d frames\n", learning_min_sequential);
 	}
-
+#ifdef HAVE_PJPROJECT
 	ast_cli(a->fd, "  ICE support:     %s\n", AST_CLI_YESNO(icesupport));
-
+#endif
 	return CLI_SUCCESS;
 }
 
