@@ -99,7 +99,7 @@ static int handle_audiosocket_connection(const char *server,
 const int ast_audiosocket_connect(const char *server, struct ast_channel *chan)
 {
 	int s = -1;
-	struct ast_sockaddr *addrs;
+	struct ast_sockaddr *addrs = NULL;
 	int num_addrs = 0, i = 0;
 
 	if (chan && ast_autoservice_start(chan) < 0) {
