@@ -17,6 +17,7 @@
  */
 
 /*** MODULEINFO
+	<depend>crypto</depend>
 	<support_level>core</support_level>
  ***/
 
