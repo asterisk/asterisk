@@ -37,6 +37,8 @@
 
 #include "asterisk/utils.h"
 
+#define POLL_SIZE 1024
+
 #ifndef HAVE_STRSEP
 char *strsep(char **str, const char *delims)
 {
@@ -425,59 +427,69 @@ int ffsll(long long n)
 #ifndef HAVE_CLOSEFROM
 void closefrom(int n)
 {
-	long x;
+	int maxfd;
+#ifndef _SC_OPEN_MAX
 	struct rlimit rl;
-	DIR *dir;
-	char path[16], *result;
-	struct dirent *entry;
+#endif
+	struct pollfd fds[POLL_SIZE];
+	int fd=n, loopmax, i;
+#ifndef STRICT_COMPAT
+	long flags;
+#endif
 
-	snprintf(path, sizeof(path), "/proc/%d/fd", (int) getpid());
-	if ((dir = opendir(path))) {
-		while ((entry = readdir(dir))) {
-			/* Skip . and .. */
-			if (entry->d_name[0] == '.') {
+#ifndef _SC_OPEN_MAX
+	if (getrlimit(RLIMIT_NOFILE, &rl) == -1) {
+		maxfd = -1;
+	} else {
+		maxfd = rl.rlim_cur;
+	}
+#else
+	maxfd = sysconf (_SC_OPEN_MAX);
+#endif
+
+	if (maxfd == -1 || maxfd > 65536) {
+		/* A more reasonable value.  Consider that the primary source of
+		 * file descriptors in Asterisk are UDP sockets, of which we are
+		 * limited to 65,535 per address.  We additionally limit that down
+		 * to about 10,000 sockets per protocol.  While the kernel will
+		 * allow us to set the fileno limit higher (up to 4.2 billion),
+		 * there really is no practical reason for it to be that high.
+		 *
+		 * sysconf as well as getrlimit can return -1 on error. Let's set
+		 * maxfd to the mentioned reasonable value of 65,535 in this case.
+		 */
+		maxfd = 65536;
+	}
+
+	while (fd < maxfd) {
+		loopmax = maxfd - fd;
+		if (loopmax > POLL_SIZE) {
+			loopmax = POLL_SIZE;
+		}
+		for (i = 0; i < loopmax; i++) {
+			fds[i].fd = fd+i;
+			fds[i].events = 0;
+		}
+		poll(fds, loopmax, 0);
+		for (i = 0; i < loopmax; i++) {
+			if (fds[i].revents == POLLNVAL) {
 				continue;
 			}
-			if ((x = strtol(entry->d_name, &result, 10)) && x >= n) {
 #ifdef STRICT_COMPAT
-				close(x);
+			close(fds[i].fd);
 #else
-				/* This isn't strictly compatible, but it's actually faster
-				 * for our purposes to set the CLOEXEC flag than to close
-				 * file descriptors.
-				 */
-				long flags = fcntl(x, F_GETFD);
-				if (flags == -1 && errno == EBADF) {
-					continue;
-				}
-				fcntl(x, F_SETFD, flags | FD_CLOEXEC);
-#endif
-			}
-		}
-		closedir(dir);
-	} else {
-		getrlimit(RLIMIT_NOFILE, &rl);
-		if (rl.rlim_cur > 65535) {
-			/* A more reasonable value.  Consider that the primary source of
-			 * file descriptors in Asterisk are UDP sockets, of which we are
-			 * limited to 65,535 per address.  We additionally limit that down
-			 * to about 10,000 sockets per protocol.  While the kernel will
-			 * allow us to set the fileno limit higher (up to 4.2 billion),
-			 * there really is no practical reason for it to be that high.
+			/* This isn't strictly compatible, but it's actually faster
+			 * for our purposes to set the CLOEXEC flag than to close
+			 * file descriptors.
 			 */
-			rl.rlim_cur = 65535;
-		}
-		for (x = n; x < rl.rlim_cur; x++) {
-#ifdef STRICT_COMPAT
-			close(x);
-#else
-			long flags = fcntl(x, F_GETFD);
+			flags = fcntl(fds[i].fd, F_GETFD);
 			if (flags == -1 && errno == EBADF) {
 				continue;
 			}
-			fcntl(x, F_SETFD, flags | FD_CLOEXEC);
+			fcntl(fds[i].fd, F_SETFD, flags | FD_CLOEXEC);
 #endif
 		}
+		fd += loopmax;
 	}
 }
 #endif

@@ -83,6 +83,9 @@ struct zombie {
 
 static AST_LIST_HEAD_STATIC(zombies, zombie);
 
+#ifdef HAVE_CAP
+static cap_t child_cap;
+#endif
 /*
  * @{ \brief Define \ref stasis topic objects
  */
@@ -3014,12 +3017,7 @@ int ast_safe_fork(int stop_reaper)
 	} else {
 		/* Child */
 #ifdef HAVE_CAP
-		cap_t cap = cap_from_text("cap_net_admin-eip");
-
-		if (cap_set_proc(cap)) {
-			ast_log(LOG_WARNING, "Unable to remove capabilities.\n");
-		}
-		cap_free(cap);
+		cap_set_proc(child_cap);
 #endif
 
 		/* Before we unblock our signals, return our trapped signals back to the defaults */
@@ -3129,6 +3127,9 @@ struct stasis_topic *ast_queue_topic(const char *queuename)
 
 static void app_cleanup(void)
 {
+#ifdef HAS_CAP
+	cap_free(child_cap);
+#endif
 	ao2_cleanup(queue_topic_pool);
 	queue_topic_pool = NULL;
 	ao2_cleanup(queue_topic_all);
@@ -3138,7 +3139,9 @@ static void app_cleanup(void)
 int app_init(void)
 {
 	ast_register_cleanup(app_cleanup);
-
+#ifdef HAVE_CAP
+	child_cap = cap_from_text("cap_net_admin-eip");
+#endif
 	queue_topic_all = stasis_topic_create("queue:all");
 	if (!queue_topic_all) {
 		return -1;
