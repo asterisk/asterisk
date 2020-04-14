@@ -7835,6 +7835,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 					ast_debug(2, "Inserted just received packet with sequence number '%d' in correct order on RTP instance '%p'\n",
 						seqno, instance);
 				}
+				/* It is possible due to packet retransmission for this packet to also exist in the receive
+				 * buffer so we explicitly remove it in case this occurs, otherwise the receive buffer will
+				 * never be empty.
+				 */
+				payload = (struct ast_rtp_rtcp_nack_payload *)ast_data_buffer_remove(rtp->recv_buffer, seqno);
+				if (payload) {
+					ast_free(payload);
+				}
 				rtp->expectedrxseqno++;
 				if (rtp->expectedrxseqno == SEQNO_CYCLE_OVER) {
 					rtp->expectedrxseqno = 0;
