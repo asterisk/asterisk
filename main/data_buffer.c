@@ -254,7 +254,7 @@ int ast_data_buffer_put(struct ast_data_buffer *buffer, size_t pos, void *payloa
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	if (inserted == -1) {
-		return 0;
+		return -1;
 	}
 
 	if (!inserted) {
