@@ -24907,7 +24907,7 @@ $as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
 fi
    fi
 
-
+      if test "x$PBX_PJPROJECT" = "x1" ; then
 
 if test "x${PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "x1" -a "${USE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "no"; then
    pbxlibdir=""
@@ -25101,10 +25101,10 @@ fi
 
 
 
-      saved_cppflags="${CPPFLAGS}"
-      saved_libs="${LIBS}"
-      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-      LIBS="${LIBS} ${PJPROJECT_LIB}"
+         saved_cppflags="${CPPFLAGS}"
+         saved_libs="${LIBS}"
+         CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+         LIBS="${LIBS} ${PJPROJECT_LIB}"
 
     if test "x${PBX_PJSIP_REPLACE_MEDIA_STREAM}" != "x1" -a "${USE_PJSIP_REPLACE_MEDIA_STREAM}" != "no"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"pjmedia_mod_offer_flag flag = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE\" compiles using pjmedia.h" >&5
@@ -25145,8 +25145,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
+         LIBS="${saved_libs}"
+         CPPFLAGS="${saved_cppflags}"
 
 
 if test "x${PBX_PJSIP_GET_DEST_INFO}" != "x1" -a "${USE_PJSIP_GET_DEST_INFO}" != "no"; then
@@ -25437,10 +25437,10 @@ fi
 
 
 
-      saved_cppflags="${CPPFLAGS}"
-      saved_libs="${LIBS}"
-      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-      LIBS="${LIBS} ${PJPROJECT_LIB}"
+         saved_cppflags="${CPPFLAGS}"
+         saved_libs="${LIBS}"
+         CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+         LIBS="${LIBS} ${PJPROJECT_LIB}"
 
     if test "x${PBX_PJSIP_TLS_TRANSPORT_PROTO}" != "x1" -a "${USE_PJSIP_TLS_TRANSPORT_PROTO}" != "no"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"struct pjsip_tls_setting setting; int proto; proto = setting.proto;\" compiles using pjsip.h" >&5
@@ -25561,26 +25561,26 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjproject on_valid_pair callback" >&5
+         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjproject on_valid_pair callback" >&5
 $as_echo_n "checking for pjproject on_valid_pair callback... " >&6; }
-      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <pjsip.h>
-            #include <pjsip_ua.h>
-            #include <pjnath.h>
-            void on_valid_pair(pj_ice_sess *ice) {}
-            void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
-            void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
-            pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}
+               #include <pjsip_ua.h>
+               #include <pjnath.h>
+               void on_valid_pair(pj_ice_sess *ice) {}
+               void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
+               void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
+               pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}
 int
 main ()
 {
 pj_ice_sess_cb ice_sess_cb = {
-               .on_valid_pair = on_valid_pair,
-               .on_ice_complete = on_ice_complete,
-               .on_rx_data = on_rx_data,
-               .on_tx_pkt = on_tx_pkt,
-            };
+                  .on_valid_pair = on_valid_pair,
+                  .on_ice_complete = on_ice_complete,
+                  .on_rx_data = on_rx_data,
+                  .on_tx_pkt = on_tx_pkt,
+               };
   ;
   return 0;
 }
@@ -25598,8 +25598,8 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
+         LIBS="${saved_libs}"
+         CPPFLAGS="${saved_cppflags}"
 
 
 if test "x${PBX_PJSIP_EVSUB_GRP_LOCK}" != "x1" -a "${USE_PJSIP_EVSUB_GRP_LOCK}" != "no"; then
@@ -25985,6 +25985,7 @@ _ACEOF
 fi
 
 
+      fi
    fi
 
    if test "x$PBX_PJPROJECT" = "x1" ; then
