@@ -2380,56 +2380,57 @@ fi
 if test "$USE_PJPROJECT" != "no" ; then
    if test "$PJPROJECT_BUNDLED" = "no" ; then
       AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
+      if test "x$PBX_PJPROJECT" = "x1" ; then
+         AST_EXT_LIB_CHECK([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [pjsip], [pjsip_dlg_create_uas_and_inc_lock], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
 
-      AST_EXT_LIB_CHECK([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [pjsip], [pjsip_dlg_create_uas_and_inc_lock], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         saved_cppflags="${CPPFLAGS}"
+         saved_libs="${LIBS}"
+         CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+         LIBS="${LIBS} ${PJPROJECT_LIB}"
+         AST_C_COMPILE_CHECK([PJSIP_REPLACE_MEDIA_STREAM], [pjmedia_mod_offer_flag flag = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE], [pjmedia.h])
+         LIBS="${saved_libs}"
+         CPPFLAGS="${saved_cppflags}"
 
-      saved_cppflags="${CPPFLAGS}"
-      saved_libs="${LIBS}"
-      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-      LIBS="${LIBS} ${PJPROJECT_LIB}"
-      AST_C_COMPILE_CHECK([PJSIP_REPLACE_MEDIA_STREAM], [pjmedia_mod_offer_flag flag = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE], [pjmedia.h])
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
+         AST_EXT_LIB_CHECK([PJSIP_GET_DEST_INFO], [pjsip], [pjsip_get_dest_info], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj], [pj_ssl_cert_load_from_files2], [pjlib.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_EXTERNAL_RESOLVER], [pjsip], [pjsip_endpt_set_ext_resolver], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
 
-      AST_EXT_LIB_CHECK([PJSIP_GET_DEST_INFO], [pjsip], [pjsip_get_dest_info], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj], [pj_ssl_cert_load_from_files2], [pjlib.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJSIP_EXTERNAL_RESOLVER], [pjsip], [pjsip_endpt_set_ext_resolver], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         saved_cppflags="${CPPFLAGS}"
+         saved_libs="${LIBS}"
+         CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+         LIBS="${LIBS} ${PJPROJECT_LIB}"
+         AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], [pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;], [pjsip.h])
+         AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
+         AC_MSG_CHECKING(for pjproject on_valid_pair callback)
+         AC_LINK_IFELSE(
+            [AC_LANG_PROGRAM(
+               [#include <pjsip.h>
+               #include <pjsip_ua.h>
+               #include <pjnath.h>
+               void on_valid_pair(pj_ice_sess *ice) {}
+               void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
+               void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
+               pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}],
+               [pj_ice_sess_cb ice_sess_cb = {
+                  .on_valid_pair = on_valid_pair,
+                  .on_ice_complete = on_ice_complete,
+                  .on_rx_data = on_rx_data,
+                  .on_tx_pkt = on_tx_pkt,
+               };])],
+            AC_MSG_RESULT(yes)
+            AC_DEFINE(HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK, 1, [Define to 1 if on_valid_pair callback is present.]),
+            AC_MSG_RESULT(no)
+         )
+         LIBS="${saved_libs}"
+         CPPFLAGS="${saved_cppflags}"
 
-      saved_cppflags="${CPPFLAGS}"
-      saved_libs="${LIBS}"
-      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-      LIBS="${LIBS} ${PJPROJECT_LIB}"
-      AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
-      AST_C_COMPILE_CHECK([PJSIP_INV_ACCEPT_MULTIPLE_SDP_ANSWERS], [pjsip_cfg()->endpt.accept_multiple_sdp_answers = 0;], [pjsip.h])
-      AST_C_COMPILE_CHECK([PJSIP_ENDPOINT_COMPACT_FORM], [pjsip_cfg()->endpt.use_compact_form = PJ_TRUE;], [pjsip.h])
-      AC_MSG_CHECKING(for pjproject on_valid_pair callback)
-      AC_LINK_IFELSE(
-         [AC_LANG_PROGRAM(
-            [#include <pjsip.h>
-            #include <pjsip_ua.h>
-            #include <pjnath.h>
-            void on_valid_pair(pj_ice_sess *ice) {}
-            void on_ice_complete(pj_ice_sess *ice, pj_status_t status) {}
-            void on_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len) {}
-            pj_status_t on_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len) {}],
-            [pj_ice_sess_cb ice_sess_cb = {
-               .on_valid_pair = on_valid_pair,
-               .on_ice_complete = on_ice_complete,
-               .on_rx_data = on_rx_data,
-               .on_tx_pkt = on_tx_pkt,
-            };])],
-         AC_MSG_RESULT(yes)
-         AC_DEFINE(HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK, 1, [Define to 1 if on_valid_pair callback is present.]),
-         AC_MSG_RESULT(no)
-      )
-      LIBS="${saved_libs}"
-      CPPFLAGS="${saved_cppflags}"
-
-      AST_EXT_LIB_CHECK([PJSIP_EVSUB_GRP_LOCK], [pjsip], [pjsip_evsub_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJSIP_INV_SESSION_REF], [pjsip], [pjsip_inv_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
-      AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_EVSUB_GRP_LOCK], [pjsip], [pjsip_evsub_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_INV_SESSION_REF], [pjsip], [pjsip_inv_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_AUTH_CLT_DEINIT], [pjsip], [pjsip_auth_clt_deinit], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+         AST_EXT_LIB_CHECK([PJSIP_TSX_LAYER_FIND_TSX2], [pjsip], [pjsip_tsx_layer_find_tsx2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+      fi
    fi
 
    if test "x$PBX_PJPROJECT" = "x1" ; then
