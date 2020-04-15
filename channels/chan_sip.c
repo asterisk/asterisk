@@ -29479,6 +29479,8 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		goto create_tcptls_session_fail;
 	}
 
+	ast_set_qos(s->fd, global_tos_sip, global_cos_sip, "SIP");
+
 	return s->fd;
 
 create_tcptls_session_fail:
@@ -33227,6 +33229,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (setsockopt(sip_tcp_desc.accept_fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
 				ast_log(LOG_ERROR, "Error enabling TCP keep-alive on sip socket: %s\n", strerror(errno));
 			}
+			ast_set_qos(sip_tcp_desc.accept_fd, global_tos_sip, global_cos_sip, "SIP");
 		}
 	}
 
@@ -33254,6 +33257,7 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_ERROR, "Error enabling TCP keep-alive on sip socket: %s\n", strerror(errno));
 				sip_tls_desc.tls_cfg = NULL;
 			}
+			ast_set_qos(sip_tls_desc.accept_fd, global_tos_sip, global_cos_sip, "SIP");
 		}
 	} else if (sip_tls_desc.tls_cfg->enabled) {
 		sip_tls_desc.tls_cfg = NULL;
