@@ -119,7 +119,7 @@ static int stir_shaken_certificate_apply(const struct ast_sorcery *sorcery, void
 		return -1;
 	}
 
-	private_key = read_private_key(cert->path);
+	private_key = stir_shaken_read_key(cert->path, 1);
 	if (!private_key) {
 		return -1;
 	}

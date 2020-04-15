@@ -30,6 +30,7 @@
 #define DEFAULT_CA_FILE ""
 #define DEFAULT_CA_PATH ""
 #define DEFAULT_CACHE_MAX_SIZE 1000
+#define DEFAULT_CURL_TIMEOUT 2
 
 struct stir_shaken_general {
 	SORCERY_OBJECT(details);
@@ -41,6 +42,8 @@ struct stir_shaken_general {
 	);
 	/*! Maximum size of public keys cache */
 	unsigned int cache_max_size;
+	/*! Maximum time to wait to CURL certificates */
+	unsigned int curl_timeout;
 };
 
 static struct stir_shaken_general *default_config = NULL;
@@ -76,6 +79,11 @@ const char *ast_stir_shaken_ca_path(const struct stir_shaken_general *cfg)
 unsigned int ast_stir_shaken_cache_max_size(const struct stir_shaken_general *cfg)
 {
 	return cfg ? cfg->cache_max_size : DEFAULT_CACHE_MAX_SIZE;
+}
+
+unsigned int ast_stir_shaken_curl_timeout(const struct stir_shaken_general *cfg)
+{
+	return cfg ? cfg->curl_timeout : DEFAULT_CURL_TIMEOUT;
 }
 
 static void stir_shaken_general_destructor(void *obj)
@@ -250,6 +258,9 @@ int stir_shaken_general_load(void)
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "cache_max_size",
 		__stringify(DEFAULT_CACHE_MAX_SIZE), OPT_UINT_T, 0,
 		FLDSET(struct stir_shaken_general, cache_max_size));
+	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "curl_timeout",
+		__stringify(DEFAULT_CURL_TIMEOUT), OPT_UINT_T, 0,
+		FLDSET(struct stir_shaken_general, curl_timeout));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &stir_shaken_general_observer)) {
 		ast_log(LOG_ERROR, "stir/shaken - failed to register loaded observer for '%s' "
