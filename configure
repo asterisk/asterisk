@@ -26763,6 +26763,7 @@ _ACEOF
 fi
 
 
+if test "x$PBX_PRI" = "x1" ; then
 
 if test "x${PBX_PRI_SETUP_ACK_INBAND}" != "x1" -a "${USE_PRI_SETUP_ACK_INBAND}" != "no"; then
    pbxlibdir=""
@@ -28300,9 +28301,9 @@ fi
 
 
 
-# ------------------------------------v
-# TODO: The code can be changed to always include these features now.
-# These features will always be present if pri_connected_line_update is available.
+   # ------------------------------------v
+   # TODO: The code can be changed to always include these features now.
+   # These features will always be present if pri_connected_line_update is available.
 
 if test "x${PBX_PRI_PROG_W_CAUSE}" != "x1" -a "${USE_PRI_PROG_W_CAUSE}" != "no"; then
    pbxlibdir=""
@@ -28687,7 +28688,8 @@ _ACEOF
 fi
 
 
-# ------------------------------------^
+   # ------------------------------------^
+fi
 
 
 if test "x${PBX_RESAMPLE}" != "x1" -a "${USE_RESAMPLE}" != "no"; then
