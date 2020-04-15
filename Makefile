@@ -565,7 +565,7 @@ INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTV
 	"$(ASTDATADIR)/firmware/iax" "$(ASTDATADIR)/images" "$(ASTDATADIR)/keys" \
 	"$(ASTDATADIR)/phoneprov" "$(ASTDATADIR)/rest-api" "$(ASTDATADIR)/static-http" \
 	"$(ASTDATADIR)/sounds" "$(ASTDATADIR)/moh" "$(ASTMANDIR)/man8" "$(AGI_DIR)" "$(ASTDBDIR)" \
-	"$(ASTDATADIR)/third-party"
+	"$(ASTDATADIR)/third-party" "${ASTDATADIR}/keys/stir_shaken"
 
 installdirs:
 	@for i in $(INSTALLDIRS); do \

@@ -1,0 +1,5 @@
+Subject: res_stir_shaken
+
+A new directory has been added under the default (e.g., /var/lib/asterisk) -
+inside the 'keys' directory - named 'stir_shaken'. This directory will
+hold public keys that have been downloaded for STIR/SHAKEN verification.

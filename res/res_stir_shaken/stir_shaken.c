@@ -83,9 +83,9 @@ char *stir_shaken_tab_complete_name(const char *word, struct ao2_container *cont
 	return NULL;
 }
 
-EVP_PKEY *read_private_key(const char *path)
+EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 {
-	EVP_PKEY *private_key = NULL;
+	EVP_PKEY *key = NULL;
 	FILE *fp;
 
 	fp = fopen(path, "r");
@@ -94,20 +94,26 @@ EVP_PKEY *read_private_key(const char *path)
 		return NULL;
 	}
 
-	if (!PEM_read_PrivateKey(fp, &private_key, NULL, NULL)) {
-		ast_log(LOG_ERROR, "Failed to read private key from file '%s'\n", path);
+	if (priv) {
+		key = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
+	} else {
+		key = PEM_read_PUBKEY(fp, NULL, NULL, NULL);
+	}
+
+	if (!key) {
+		ast_log(LOG_ERROR, "Failed to read %s key from file '%s'\n", priv ? "private" : "public", path);
 		fclose(fp);
 		return NULL;
 	}
 
-	if (EVP_PKEY_id(private_key) != EVP_PKEY_EC) {
-		ast_log(LOG_ERROR, "Private key from '%s' must be of type EVP_PKEY_EC\n", path);
+	if (EVP_PKEY_id(key) != EVP_PKEY_EC) {
+		ast_log(LOG_ERROR, "%s key from '%s' must be of type EVP_PKEY_EC\n", priv ? "private" : "public", path);
 		fclose(fp);
-		EVP_PKEY_free(private_key);
+		EVP_PKEY_free(key);
 		return NULL;
 	}
 
 	fclose(fp);
 
-	return private_key;
+	return key;
 }

@@ -73,6 +73,17 @@ const char *ast_stir_shaken_ca_path(const struct stir_shaken_general *cfg);
 unsigned int ast_stir_shaken_cache_max_size(const struct stir_shaken_general *cfg);
 
 /*!
+ * \brief Retrieve the 'curl_timeout' general configuration option value
+ *
+ * \note If a NULL configuration is given, then the default value is returned
+ *
+ * \param cfg A 'general' configuration object
+ *
+ * \retval The 'curl_timeout' value
+ */
+unsigned int ast_stir_shaken_curl_timeout(const struct stir_shaken_general *cfg);
+
+/*!
  * \brief Load time initialization for the stir/shaken 'general' configuration
  *
  * \retval 0 on success, -1 on error

@@ -42,13 +42,14 @@ int stir_shaken_cli_show(void *obj, void *arg, int flags);
 char *stir_shaken_tab_complete_name(const char *word, struct ao2_container *container);
 
 /*!
- * \brief Reads the private key from the specified path
+ * \brief Reads the public (or private) key from the specified path
  *
  * \param path The path to the file containing the private key
+ * \param priv Specify 0 for public, 1 for private
  *
  * \retval NULL on failure
- * \retval The private key on success
+ * \retval The public/private key on success
  */
-EVP_PKEY *read_private_key(const char *path);
+EVP_PKEY *stir_shaken_read_key(const char *path, int priv);
 
 #endif /* _STIR_SHAKEN_H */
