@@ -9194,91 +9194,93 @@ $as_echo "#define HAVE_JANSSON_BUNDLED 1" >>confdefs.h
 		as_fn_error $? "--with-pjproject and --with-pjproject-bundled can't both be specified" "$LINENO" 5
 	fi
 
-	ac_mandatory_list="$ac_mandatory_list PJPROJECT"
-	PJPROJECT_DIR="${ac_top_build_prefix}third-party/pjproject"
+	if test "${with_pjproject}" != "no" && test "${with_pjproject}" != "n" ; then
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for embedded pjproject (may have to download)" >&5
+		ac_mandatory_list="$ac_mandatory_list PJPROJECT"
+		PJPROJECT_DIR="${ac_top_build_prefix}third-party/pjproject"
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for embedded pjproject (may have to download)" >&5
 $as_echo_n "checking for embedded pjproject (may have to download)... " >&6; }
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
 $as_echo "configuring" >&6; }
 
-	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
-		as_fn_error $? "A download utility (wget, curl, or fetch) is required to download bundled pjproject" "$LINENO" 5
-	fi
-	if test "${BZIP2}" = ":" ; then
-		as_fn_error $? "bzip2 is required to extract the pjproject tar file" "$LINENO" 5
-	fi
-	if test "${TAR}" = ":" ; then
-		as_fn_error $? "tar is required to extract the pjproject tar file" "$LINENO" 5
-	fi
-	if test "${PATCH}" = ":" ; then
-		as_fn_error $? "patch is required to configure bundled pjproject" "$LINENO" 5
-	fi
-	if test "${SED}" = ":" ; then
-		as_fn_error $? "sed is required to configure bundled pjproject" "$LINENO" 5
-	fi
-	if test "${NM}" = ":" ; then
-		as_fn_error $? "nm is required to build bundled pjproject" "$LINENO" 5
-	fi
-	if test "${MD5}" = ":" ; then
-		as_fn_error $? "md5sum is required to build bundled pjproject" "$LINENO" 5
-	fi
-	if test "${CAT}" = ":" ; then
-		as_fn_error $? "cat is required to build bundled pjproject" "$LINENO" 5
-	fi
-	if test "${CUT}" = ":" ; then
-		as_fn_error $? "cut is required to build bundled pjproject" "$LINENO" 5
-	fi
-	if test "${GREP}" = ":" ; then
-		as_fn_error $? "grep is required to build bundled pjproject" "$LINENO" 5
-	fi
+		if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
+			as_fn_error $? "A download utility (wget, curl, or fetch) is required to download bundled pjproject" "$LINENO" 5
+		fi
+		if test "${BZIP2}" = ":" ; then
+			as_fn_error $? "bzip2 is required to extract the pjproject tar file" "$LINENO" 5
+		fi
+		if test "${TAR}" = ":" ; then
+			as_fn_error $? "tar is required to extract the pjproject tar file" "$LINENO" 5
+		fi
+		if test "${PATCH}" = ":" ; then
+			as_fn_error $? "patch is required to configure bundled pjproject" "$LINENO" 5
+		fi
+		if test "${SED}" = ":" ; then
+			as_fn_error $? "sed is required to configure bundled pjproject" "$LINENO" 5
+		fi
+		if test "${NM}" = ":" ; then
+			as_fn_error $? "nm is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "${MD5}" = ":" ; then
+			as_fn_error $? "md5sum is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "${CAT}" = ":" ; then
+			as_fn_error $? "cat is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "${CUT}" = ":" ; then
+			as_fn_error $? "cut is required to build bundled pjproject" "$LINENO" 5
+		fi
+		if test "${GREP}" = ":" ; then
+			as_fn_error $? "grep is required to build bundled pjproject" "$LINENO" 5
+		fi
 
 
-	this_host=$(./config.sub $(./config.guess))
-	if test "$build" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --build=$build_alias"
-	fi
-	if test "$host" != "$this_host" ; then
-		PJPROJECT_CONFIGURE_OPTS+=" --host=$host_alias"
-	fi
-	# This was a copy of the autoconf generated code from the root ./configure.
-	# Hopefully, when you read this, the code is still the same.
-	if test "${with_ssl+set}" = set; then :
-		case $with_ssl in
-		n|no)
-		PJPROJECT_CONFIGURE_OPTS+=" --disable-ssl"
-		;;
-		y|ye|yes)
-		# Not to mention SSL is the default in PJProject and means "autodetect".
-		# In Asterisk, "./configure --with-ssl" means "must be present".
-		PJPROJECT_CONFIGURE_OPTS+=""
-		;;
-		*)
-		PJPROJECT_CONFIGURE_OPTS+=" --with-ssl=${with_ssl}"
-		;;
-		esac
-	fi
+		this_host=$(./config.sub $(./config.guess))
+		if test "$build" != "$this_host" ; then
+			PJPROJECT_CONFIGURE_OPTS+=" --build=$build_alias"
+		fi
+		if test "$host" != "$this_host" ; then
+			PJPROJECT_CONFIGURE_OPTS+=" --host=$host_alias"
+		fi
+		# This was a copy of the autoconf generated code from the root ./configure.
+		# Hopefully, when you read this, the code is still the same.
+		if test "${with_ssl+set}" = set; then :
+			case $with_ssl in
+			n|no)
+			PJPROJECT_CONFIGURE_OPTS+=" --disable-ssl"
+			;;
+			y|ye|yes)
+			# Not to mention SSL is the default in PJProject and means "autodetect".
+			# In Asterisk, "./configure --with-ssl" means "must be present".
+			PJPROJECT_CONFIGURE_OPTS+=""
+			;;
+			*)
+			PJPROJECT_CONFIGURE_OPTS+=" --with-ssl=${with_ssl}"
+			;;
+			esac
+		fi
 
-	export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
-	export NOISY_BUILD AST_DEVMODE
-	${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
-		PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
-		EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
-		configure
-	if test $? -ne 0 ; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+		export TAR PATCH SED NM EXTERNALS_CACHE_DIR AST_DOWNLOAD_CACHE DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT CUT GREP
+		export NOISY_BUILD AST_DEVMODE
+		${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} \
+			PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" \
+			EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" \
+			configure
+		if test $? -ne 0 ; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
 $as_echo "failed" >&6; }
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure ${PJPROJECT_DIR}" >&5
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure ${PJPROJECT_DIR}" >&5
 $as_echo "$as_me: Unable to configure ${PJPROJECT_DIR}" >&6;}
-		as_fn_error $? "Re-run the ./configure command with 'NOISY_BUILD=yes' appended to see error details." "$LINENO" 5
-	fi
+			as_fn_error $? "Re-run the ./configure command with 'NOISY_BUILD=yes' appended to see error details." "$LINENO" 5
+		fi
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled pjproject" >&5
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bundled pjproject" >&5
 $as_echo_n "checking for bundled pjproject... " >&6; }
 
-	PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" echo_cflags)
-	PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
-	PBX_PJPROJECT=1
+		PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} PJPROJECT_CONFIGURE_OPTS="$PJPROJECT_CONFIGURE_OPTS" EXTERNALS_CACHE_DIR="${EXTERNALS_CACHE_DIR:-${AST_DOWNLOAD_CACHE}}" echo_cflags)
+		PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
+		PBX_PJPROJECT=1
 
 
 $as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
@@ -9341,8 +9343,10 @@ $as_echo "#define HAVE_PJPROJECT_ON_VALID_ICE_PAIR_CALLBACK 1" >>confdefs.h
 
 
 
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+
+	fi
 
 	fi
 
@@ -13472,8 +13476,8 @@ fi
    if test "x${PBX_LIBEDIT}" != "x1" -a "${USE_LIBEDIT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libedit" >&5
-$as_echo_n "checking for libedit... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBEDIT" >&5
+$as_echo_n "checking for LIBEDIT... " >&6; }
 
 if test -n "$LIBEDIT_CFLAGS"; then
     pkg_cv_LIBEDIT_CFLAGS="$LIBEDIT_CFLAGS"
@@ -13513,7 +13517,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -13534,7 +13538,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_LIBEDIT=0
@@ -13932,8 +13936,8 @@ if test "$JANSSON_BUNDLED" = "no" ; then
    if test "x${PBX_JANSSON}" != "x1" -a "${USE_JANSSON}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for jansson >= 2.11" >&5
-$as_echo_n "checking for jansson >= 2.11... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for JANSSON" >&5
+$as_echo_n "checking for JANSSON... " >&6; }
 
 if test -n "$JANSSON_CFLAGS"; then
     pkg_cv_JANSSON_CFLAGS="$JANSSON_CFLAGS"
@@ -13973,7 +13977,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -13994,7 +13998,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_JANSSON=0
@@ -20620,8 +20624,8 @@ if test "${USE_ILBC}" != "no"; then
    if test "x${PBX_ILBC}" != "x1" -a "${USE_ILBC}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libilbc" >&5
-$as_echo_n "checking for libilbc... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ILBC" >&5
+$as_echo_n "checking for ILBC... " >&6; }
 
 if test -n "$ILBC_CFLAGS"; then
     pkg_cv_ILBC_CFLAGS="$ILBC_CFLAGS"
@@ -20661,7 +20665,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -20682,7 +20686,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_ILBC=0
@@ -24861,8 +24865,8 @@ if test "$USE_PJPROJECT" != "no" ; then
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libpjproject" >&5
-$as_echo_n "checking for libpjproject... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PJPROJECT" >&5
+$as_echo_n "checking for PJPROJECT... " >&6; }
 
 if test -n "$PJPROJECT_CFLAGS"; then
     pkg_cv_PJPROJECT_CFLAGS="$PJPROJECT_CFLAGS"
@@ -24902,7 +24906,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -24923,7 +24927,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PJPROJECT=0
@@ -26290,8 +26294,8 @@ fi
    if test "x${PBX_PYTHONDEV}" != "x1" -a "${USE_PYTHONDEV}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for python" >&5
-$as_echo_n "checking for python... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PYTHONDEV" >&5
+$as_echo_n "checking for PYTHONDEV... " >&6; }
 
 if test -n "$PYTHONDEV_CFLAGS"; then
     pkg_cv_PYTHONDEV_CFLAGS="$PYTHONDEV_CFLAGS"
@@ -26331,7 +26335,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26352,7 +26356,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PYTHONDEV=0
@@ -26486,8 +26490,8 @@ fi
    if test "x${PBX_PORTAUDIO}" != "x1" -a "${USE_PORTAUDIO}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for portaudio-2.0" >&5
-$as_echo_n "checking for portaudio-2.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PORTAUDIO" >&5
+$as_echo_n "checking for PORTAUDIO... " >&6; }
 
 if test -n "$PORTAUDIO_CFLAGS"; then
     pkg_cv_PORTAUDIO_CFLAGS="$PORTAUDIO_CFLAGS"
@@ -26527,7 +26531,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26548,7 +26552,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_PORTAUDIO=0
@@ -32788,8 +32792,8 @@ for ver in 3.0 2.6 2.4 2.2 2.0; do
    if test "x${PBX_GMIME}" != "x1" -a "${USE_GMIME}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gmime-$ver" >&5
-$as_echo_n "checking for gmime-$ver... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GMIME" >&5
+$as_echo_n "checking for GMIME... " >&6; }
 
 if test -n "$GMIME_CFLAGS"; then
     pkg_cv_GMIME_CFLAGS="$GMIME_CFLAGS"
@@ -32829,7 +32833,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -32850,7 +32854,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GMIME=0
@@ -34225,8 +34229,8 @@ fi
    if test "x${PBX_GTK2}" != "x1" -a "${USE_GTK2}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gtk+-2.0" >&5
-$as_echo_n "checking for gtk+-2.0... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for GTK2" >&5
+$as_echo_n "checking for GTK2... " >&6; }
 
 if test -n "$GTK2_CFLAGS"; then
     pkg_cv_GTK2_CFLAGS="$GTK2_CFLAGS"
@@ -34266,7 +34270,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34287,7 +34291,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_GTK2=0
@@ -34336,8 +34340,8 @@ fi
    if test "x${PBX_SYSTEMD}" != "x1" -a "${USE_SYSTEMD}" != "no"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libsystemd" >&5
-$as_echo_n "checking for libsystemd... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SYSTEMD" >&5
+$as_echo_n "checking for SYSTEMD... " >&6; }
 
 if test -n "$SYSTEMD_CFLAGS"; then
     pkg_cv_SYSTEMD_CFLAGS="$SYSTEMD_CFLAGS"
@@ -34377,7 +34381,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -34398,7 +34402,7 @@ fi
 
 
 elif test $pkg_failed = untried; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
             PBX_SYSTEMD=0
