@@ -162,6 +162,9 @@ type=user
               ; is ejected from the conference, the user's channel will have the CONFBRIDGE_RESULT
               ; variable set to "TIMEOUT". A value of 0 indicates that there is no timeout.
               ; Default: 0
+;text_messaging=yes ; When set to yes text messages will be sent to this user. Text messages
+                    ; may occur as a result of events or can be received from other participants.
+                    ; When set to no text messages will not be sent to this user.
 
 ; --- ConfBridge Bridge Profile Options ---
 [default_bridge]

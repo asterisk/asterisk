@@ -240,6 +240,13 @@
 				<configOption name="timeout">
 					<synopsis>Kick the user out of the conference after this many seconds. 0 means there is no timeout for the user.</synopsis>
 				</configOption>
+				<configOption name="text_messaging" default="yes">
+					<synopsis>Sets if text messages are sent to the user.</synopsis>
+					<description><para>If text messaging is enabled for this user then
+					text messages will be sent to it. These may be events or from other
+					participants in the conference bridge. If disabled then no text
+					messages are sent to the user.</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="bridge_profile">
 				<synopsis>A named profile to apply to specific bridges.</synopsis>
@@ -1588,7 +1595,10 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Announce User Count all: %s\n",
 		u_profile.flags & USER_OPT_ANNOUNCEUSERCOUNTALL ?
 		"enabled" : "disabled");
-		ast_cli(a->fd,"\n");
+        ast_cli(a->fd,"Text Messaging:          %s\n",
+                u_profile.flags & USER_OPT_TEXT_MESSAGING ?
+                "enabled" : "disabled");
+	ast_cli(a->fd, "\n");
 
 	return CLI_SUCCESS;
 }
@@ -2381,6 +2391,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "dsp_talking_threshold", ACO_EXACT, user_types, __stringify(DEFAULT_TALKING_THRESHOLD), OPT_UINT_T, 0, FLDSET(struct user_profile, talking_threshold));
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_JITTERBUFFER);
 	aco_option_register(&cfg_info, "timeout", ACO_EXACT, user_types, "0", OPT_UINT_T, 0, FLDSET(struct user_profile, timeout));
+	aco_option_register(&cfg_info, "text_messaging", ACO_EXACT, user_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_TEXT_MESSAGING);
 
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, user_types, NULL, user_template_handler, 0);

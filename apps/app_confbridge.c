@@ -2628,6 +2628,13 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		user.features.dtmf_passthrough = 0;
 	}
 
+	/* Set if text messaging is enabled for this user or not */
+	if (ast_test_flag(&user.u_profile, USER_OPT_TEXT_MESSAGING)) {
+		user.features.text_messaging = 1;
+	} else {
+		user.features.text_messaging = 0;
+	}
+
 	/* Set dsp threshold values if present */
 	if (user.u_profile.talking_threshold) {
 		user.tech_args.talking_threshold = user.u_profile.talking_threshold;
