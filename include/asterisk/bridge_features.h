@@ -279,6 +279,8 @@ struct ast_bridge_features {
 	unsigned int dtmf_passthrough:1;
 	/*! TRUE to avoid generating COLP frames when joining the bridge */
 	unsigned int inhibit_colp:1;
+	/*! TRUE if text messaging is permitted. */
+	unsigned int text_messaging:1;
 };
 
 /*!
