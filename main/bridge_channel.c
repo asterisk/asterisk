@@ -1056,6 +1056,14 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		return 0;
 	}
 
+	if ((fr->frametype == AST_FRAME_TEXT || fr->frametype == AST_FRAME_TEXT_DATA) &&
+		!bridge_channel->features->text_messaging) {
+		/* This channel is not accepting text messages. */
+		ast_bridge_channel_unlock(bridge_channel);
+		bridge_frame_free(dup);
+		return 0;
+	}
+
 	if (DEBUG_ATLEAST(1)) {
 		if (fr->frametype == AST_FRAME_TEXT) {
 			ast_log(LOG_DEBUG, "Queuing TEXT frame to '%s': %*.s\n", ast_channel_name(bridge_channel->chan),

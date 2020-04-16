@@ -3721,6 +3721,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 	}
 
 	features->dtmf_passthrough = 1;
+	features->text_messaging = 1;
 
 	return 0;
 }
