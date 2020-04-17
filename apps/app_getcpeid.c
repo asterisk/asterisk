@@ -26,6 +26,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_adsi</depend>
 	<support_level>extended</support_level>
  ***/
 
