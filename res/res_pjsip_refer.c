@@ -20,6 +20,7 @@
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_session</depend>
+	<depend>res_pjsip_pubsub</depend>
 	<support_level>core</support_level>
  ***/
 
