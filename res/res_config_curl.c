@@ -27,6 +27,8 @@
  */
 
 /*** MODULEINFO
+	<depend>func_curl</depend>
+	<depend>res_curl</depend>
 	<depend>curl</depend>
 	<support_level>core</support_level>
  ***/
