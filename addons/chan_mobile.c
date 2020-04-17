@@ -134,7 +134,8 @@ struct mbl_pvt {
 	int rfcomm_socket;				/* rfcomm socket descriptor */
 	char rfcomm_buf[256];
 	char io_buf[CHANNEL_FRAME_SIZE + AST_FRIENDLY_OFFSET];
-	struct ast_smoother *smoother;			/* our smoother, for making 48 byte frames */
+	struct ast_smoother *bt_out_smoother;			/* our bt_out_smoother, for making 48 byte frames */
+	struct ast_smoother *bt_in_smoother;			/* our smoother, for making "normal" CHANNEL_FRAME_SIZEed byte frames */
 	int sco_socket;					/* sco socket descriptor */
 	pthread_t monitor_thread;			/* monitor thread handle */
 	int timeout;					/*!< used to set the timeout for rfcomm data (may be used in the future) */
@@ -858,7 +859,8 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, struct cidinf
 	else
 		pvt->do_alignment_detection = 0;
 
-	ast_smoother_reset(pvt->smoother, DEVICE_FRAME_SIZE);
+	ast_smoother_reset(pvt->bt_out_smoother, DEVICE_FRAME_SIZE);
+	ast_smoother_reset(pvt->bt_in_smoother, CHANNEL_FRAME_SIZE);
 	ast_dsp_digitreset(pvt->dsp);
 
 	chn = ast_channel_alloc(1, state,
@@ -1133,23 +1135,27 @@ static struct ast_frame *mbl_read(struct ast_channel *ast)
 	pvt->fr.delivery.tv_usec = 0;
 	pvt->fr.data.ptr = pvt->io_buf + AST_FRIENDLY_OFFSET;
 
-	if ((r = read(pvt->sco_socket, pvt->fr.data.ptr, DEVICE_FRAME_SIZE)) == -1) {
-		if (errno != EAGAIN && errno != EINTR) {
-			ast_debug(1, "[%s] read error %d, going to wait for new connection\n", pvt->id, errno);
-			close(pvt->sco_socket);
-			pvt->sco_socket = -1;
-			ast_channel_set_fd(ast, 0, -1);
+	do {
+		if ((r = read(pvt->sco_socket, pvt->fr.data.ptr, DEVICE_FRAME_SIZE)) == -1) {
+			if (errno != EAGAIN && errno != EINTR) {
+				ast_debug(1, "[%s] read error %d, going to wait for new connection\n", pvt->id, errno);
+				close(pvt->sco_socket);
+				pvt->sco_socket = -1;
+				ast_channel_set_fd(ast, 0, -1);
+			}
+			goto e_return;
 		}
-		goto e_return;
-	}
 
-	pvt->fr.datalen = r;
-	pvt->fr.samples = r / 2;
+		pvt->fr.datalen = r;
+		pvt->fr.samples = r / 2;
 
-	if (pvt->do_alignment_detection)
-		do_alignment_detection(pvt, pvt->fr.data.ptr, r);
+		if (pvt->do_alignment_detection)
+			do_alignment_detection(pvt, pvt->fr.data.ptr, r);
 
-	fr = ast_dsp_process(ast, pvt->dsp, &pvt->fr);
+		ast_smoother_feed(pvt->bt_in_smoother, &pvt->fr);
+		fr = ast_smoother_read(pvt->bt_in_smoother);
+	} while (fr == NULL);
+	fr = ast_dsp_process(ast, pvt->dsp, fr);
 
 	ast_mutex_unlock(&pvt->lock);
 
@@ -1176,9 +1182,9 @@ static int mbl_write(struct ast_channel *ast, struct ast_frame *frame)
 		CHANNEL_DEADLOCK_AVOIDANCE(ast);
 	}
 
-	ast_smoother_feed(pvt->smoother, frame);
+	ast_smoother_feed(pvt->bt_out_smoother, frame);
 
-	while ((f = ast_smoother_read(pvt->smoother))) {
+	while ((f = ast_smoother_read(pvt->bt_out_smoother))) {
 		sco_write(pvt->sco_socket, f->data.ptr, f->datalen);
 	}
 
@@ -4532,16 +4538,22 @@ static struct mbl_pvt *mbl_load_device(struct ast_config *cfg, const char *cat)
 	pvt->ring_sched_id = -1;
 	pvt->has_sms = 1;
 
-	/* setup the smoother */
-	if (!(pvt->smoother = ast_smoother_new(DEVICE_FRAME_SIZE))) {
-		ast_log(LOG_ERROR, "Skipping device %s. Error setting up frame smoother.\n", cat);
+	/* setup the bt_out_smoother */
+	if (!(pvt->bt_out_smoother = ast_smoother_new(DEVICE_FRAME_SIZE))) {
+		ast_log(LOG_ERROR, "Skipping device %s. Error setting up frame bt_out_smoother.\n", cat);
 		goto e_free_pvt;
+	}
+
+	/* setup the bt_in_smoother */
+	if (!(pvt->bt_in_smoother = ast_smoother_new(CHANNEL_FRAME_SIZE))) {
+		ast_log(LOG_ERROR, "Skipping device %s. Error setting up frame bt_in_smoother.\n", cat);
+		goto e_free_bt_out_smoother;
 	}
 
 	/* setup the dsp */
 	if (!(pvt->dsp = ast_dsp_new())) {
 		ast_log(LOG_ERROR, "Skipping device %s. Error setting up dsp for dtmf detection.\n", cat);
-		goto e_free_smoother;
+		goto e_free_bt_in_smoother;
 	}
 
 	/* setup the scheduler */
@@ -4601,8 +4613,10 @@ e_free_sched:
 	ast_sched_context_destroy(pvt->sched);
 e_free_dsp:
 	ast_dsp_free(pvt->dsp);
-e_free_smoother:
-	ast_smoother_free(pvt->smoother);
+e_free_bt_in_smoother:
+	ast_smoother_free(pvt->bt_in_smoother);
+e_free_bt_out_smoother:
+	ast_smoother_free(pvt->bt_out_smoother);
 e_free_pvt:
 	ast_free(pvt);
 e_return:
@@ -4734,7 +4748,8 @@ static int unload_module(void)
 			ast_free(pvt->hfp);
 		}
 
-		ast_smoother_free(pvt->smoother);
+		ast_smoother_free(pvt->bt_out_smoother);
+		ast_smoother_free(pvt->bt_in_smoother);
 		ast_dsp_free(pvt->dsp);
 		ast_sched_context_destroy(pvt->sched);
 		ast_free(pvt);
