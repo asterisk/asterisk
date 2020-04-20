@@ -3914,9 +3914,21 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 					/* for consistency, default to the externaddr port */
 					externtcpport = ast_sockaddr_port(&externaddr);
 				}
+				if (!externtcpport) {
+					externtcpport = ast_sockaddr_port(&sip_tcp_desc.local_address);
+				}
+				if (!externtcpport) {
+					externtcpport = STANDARD_SIP_PORT;
+				}
 				ast_sockaddr_set_port(us, externtcpport);
 				break;
 			case AST_TRANSPORT_TLS:
+				if (!externtlsport) {
+					externtlsport = ast_sockaddr_port(&sip_tls_desc.local_address);
+				}
+				if (!externtlsport) {
+					externtlsport = STANDARD_TLS_PORT;
+				}
 				ast_sockaddr_set_port(us, externtlsport);
 				break;
 			case AST_TRANSPORT_UDP:
@@ -32656,8 +32668,8 @@ static int reload_config(enum channelreloadreason reason)
 	default_primary_transport = AST_TRANSPORT_UDP;
 	ourport_tcp = STANDARD_SIP_PORT;
 	ourport_tls = STANDARD_TLS_PORT;
-	externtcpport = STANDARD_SIP_PORT;
-	externtlsport = STANDARD_TLS_PORT;
+	externtcpport = 0;
+	externtlsport = 0;
 	sip_cfg.srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
@@ -33148,10 +33160,9 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "externtcpport")) {
 			if (!(externtcpport = port_str2int(v->value, 0))) {
 				ast_log(LOG_WARNING, "Invalid externtcpport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
-				externtcpport = 0;
 			}
 		} else if (!strcasecmp(v->name, "externtlsport")) {
-			if (!(externtlsport = port_str2int(v->value, STANDARD_TLS_PORT))) {
+			if (!(externtlsport = port_str2int(v->value, 0))) {
 				ast_log(LOG_WARNING, "Invalid externtlsport value, must be a positive integer between 1 and 65535 at line %d\n", v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
