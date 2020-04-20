@@ -1068,11 +1068,14 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	if (topology) {
 		ast_channel_set_stream_topology(session->channel, topology);
 		/* If this is a remotely done renegotiation that has changed the stream topology notify what is
-		 * currently handling this channel.
+		 * currently handling this channel. Note that fax uses its own process, so if we are transitioning
+		 * between audio and fax or vice versa we don't notify.
 		 */
 		if (pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE &&
 			session->active_media_state && session->active_media_state->topology &&
-			!ast_stream_topology_equal(session->active_media_state->topology, topology)) {
+			!ast_stream_topology_equal(session->active_media_state->topology, topology) &&
+			!session->active_media_state->default_session[AST_MEDIA_TYPE_IMAGE] &&
+			!session->pending_media_state->default_session[AST_MEDIA_TYPE_IMAGE]) {
 			changed = 2;
 		}
 	}
@@ -2048,6 +2051,7 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	pjsip_dialog *dlg;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	pjsip_rdata_sdp_info *sdp_info;
+	int deferred;
 
 	if (rdata->msg_info.msg->line.req.method.id != PJSIP_INVITE_METHOD ||
 		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
@@ -2137,7 +2141,11 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	if (!sdp_requires_deferral(session, sdp_info->sdp)) {
+	deferred = sdp_requires_deferral(session, sdp_info->sdp);
+	if (deferred == -1) {
+		ast_sip_session_media_state_reset(session->pending_media_state);
+		return PJ_FALSE;
+	} else if (!deferred) {
 		return PJ_FALSE;
 	}
 
@@ -4314,6 +4322,7 @@ static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_se
 
 	session = inv->mod_data[session_module.id];
 	if (handle_incoming_sdp(session, offer)) {
+		ast_sip_session_media_state_reset(session->pending_media_state);
 		return;
 	}
 
@@ -4392,7 +4401,9 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 		return;
 	}
 
-	handle_negotiated_sdp(session, local, remote);
+	if (handle_negotiated_sdp(session, local, remote)) {
+		ast_sip_session_media_state_reset(session->pending_media_state);
+	}
 }
 
 static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const pjsip_uri *target, const pjsip_event *e)
