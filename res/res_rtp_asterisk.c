@@ -4897,9 +4897,7 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			if (payload) {
 				payload->size = packet_len;
 				memcpy(payload->buf, rtpheader, packet_len);
-				if (ast_data_buffer_put(rtp->send_buffer, rtp->seqno, payload) == -1) {
-					ast_free(payload);
-				}
+				ast_data_buffer_put(rtp->send_buffer, rtp->seqno, payload);
 			}
 		}
 
@@ -7841,9 +7839,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		payload->size = res;
 		memcpy(payload->buf, rtpheader, res);
-		if (ast_data_buffer_put(rtp->recv_buffer, seqno, payload) == -1) {
-			ast_free(payload);
-		}
+		ast_data_buffer_put(rtp->recv_buffer, seqno, payload);
 
 		/* If this sequence number is removed that means we had a gap and this packet has filled it in
 		 * some. Since it was part of the gap we will have already added any other missing sequence numbers
