@@ -1077,7 +1077,7 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 	struct ast_ari_response *response)
 {
 	char *dialtech;
-	char dialdevice[AST_CHANNEL_NAME];
+	char *dialdevice = NULL;
 	struct ast_dial *dial;
 	char *caller_id = NULL;
 	char *cid_num = NULL;
@@ -1116,7 +1116,7 @@ static struct ast_channel *ari_channels_handle_originate_with_id(const char *arg
 	dialtech = ast_strdupa(args_endpoint);
 	if ((stuff = strchr(dialtech, '/'))) {
 		*stuff++ = '\0';
-		ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+		dialdevice = stuff;
 	}
 
 	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
@@ -1787,7 +1787,7 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_channel_snapshot *snapshot;
 	pthread_t thread;
 	char *dialtech;
-	char dialdevice[AST_CHANNEL_NAME];
+	char *dialdevice = NULL;
 	char *stuff;
 	int cause;
 	struct ast_format_cap *request_cap;
@@ -1826,7 +1826,14 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	dialtech = ast_strdupa(args->endpoint);
 	if ((stuff = strchr(dialtech, '/'))) {
 		*stuff++ = '\0';
-		ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+		dialdevice = stuff;
+	}
+
+	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Invalid endpoint specified");
+		chan_data_destroy(chan_data);
+		return;
 	}
 
 	originator = ast_channel_get_by_name(args->originator);
