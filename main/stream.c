@@ -108,6 +108,12 @@ struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 	stream->group = -1;
 	strcpy(stream->name, S_OR(name, "")); /* Safe */
 
+	stream->formats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!stream->formats) {
+		ast_free(stream);
+		return NULL;
+	}
+
 	return stream;
 }
 
@@ -179,7 +185,7 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type)
 	stream->type = type;
 }
 
-struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream)
+const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream)
 {
 	ast_assert(stream != NULL);
 

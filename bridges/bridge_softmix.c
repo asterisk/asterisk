@@ -2575,7 +2575,7 @@ fail:
 static int validate_stream(struct ast_test *test, struct ast_stream *stream,
 	const struct stream_parameters *params)
 {
-	struct ast_format_cap *stream_caps;
+	const struct ast_format_cap *stream_caps;
 	struct ast_format_cap *params_caps;
 
 	if (ast_stream_get_type(stream) != params->type) {

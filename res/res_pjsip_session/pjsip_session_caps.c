@@ -122,7 +122,7 @@ struct ast_stream *ast_sip_session_create_joint_call_stream(const struct ast_sip
 	struct ast_stream *remote_stream)
 {
 	struct ast_stream *joint_stream = ast_stream_clone(remote_stream, NULL);
-	struct ast_format_cap *remote = ast_stream_get_formats(remote_stream);
+	const struct ast_format_cap *remote = ast_stream_get_formats(remote_stream);
 	enum ast_media_type media_type = ast_stream_get_type(remote_stream);
 
 	struct ast_format_cap *joint = ast_sip_create_joint_call_cap(remote,

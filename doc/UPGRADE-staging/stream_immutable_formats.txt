@@ -1,0 +1,9 @@
+Subject: Core
+
+The streams API function ast_stream_get_formats is
+now defined as returning the format capabilities const.
+This has always been the case but was never enforced
+through the API itself. Any consumer of this API that
+is not treating the formats as immutable should update
+their code to create a new format capabilities and set
+it on the stream instead.
