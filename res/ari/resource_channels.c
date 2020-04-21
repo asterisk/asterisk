@@ -939,7 +939,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	struct ast_ari_response *response)
 {
 	char *dialtech;
-	char dialdevice[AST_CHANNEL_NAME];
+	char *dialdevice = NULL;
 	struct ast_dial *dial;
 	char *caller_id = NULL;
 	char *cid_num = NULL;
@@ -978,7 +978,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	dialtech = ast_strdupa(args_endpoint);
 	if ((stuff = strchr(dialtech, '/'))) {
 		*stuff++ = '\0';
-		ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+		dialdevice = stuff;
 	}
 
 	if (ast_strlen_zero(dialtech) || ast_strlen_zero(dialdevice)) {
