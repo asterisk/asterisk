@@ -63,7 +63,7 @@ static struct ast_stream_topology *simple_bridge_request_stream_topology_update(
 	struct ast_stream_topology *requested_topology)
 {
 	struct ast_stream *stream;
-	struct ast_format_cap *audio_formats = NULL;
+	const struct ast_format_cap *audio_formats = NULL;
 	struct ast_stream_topology *new_topology;
 	int i;
 
@@ -90,6 +90,8 @@ static struct ast_stream_topology *simple_bridge_request_stream_topology_update(
 
 	if (audio_formats) {
 		for (i = 0; i < ast_stream_topology_get_count(new_topology); ++i) {
+			struct ast_format_cap *joint;
+
 			stream = ast_stream_topology_get_stream(new_topology, i);
 
 			if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
@@ -97,8 +99,16 @@ static struct ast_stream_topology *simple_bridge_request_stream_topology_update(
 				continue;
 			}
 
-			ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats,
+			joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+			if (!joint) {
+				continue;
+			}
+
+			ast_format_cap_append_from_cap(joint, ast_stream_get_formats(stream),
 				AST_MEDIA_TYPE_AUDIO);
+			ast_format_cap_append_from_cap(joint, audio_formats, AST_MEDIA_TYPE_AUDIO);
+			ast_stream_set_formats(stream, joint);
+			ao2_ref(joint, -1);
 		}
 	}
 

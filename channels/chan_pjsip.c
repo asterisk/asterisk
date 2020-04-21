@@ -820,7 +820,7 @@ static int is_compatible_format(struct ast_sip_session *session, struct ast_fram
 {
 	struct ast_stream_topology *topology = session->active_media_state->topology;
 	struct ast_stream *stream = ast_stream_topology_get_stream(topology, f->stream_num);
-	struct ast_format_cap *cap = ast_stream_get_formats(stream);
+	const struct ast_format_cap *cap = ast_stream_get_formats(stream);
 
 	return ast_format_cap_iscompatible_format(cap, f->subclass.format) != AST_FORMAT_CMP_NOT_EQUAL;
 }

@@ -1751,9 +1751,11 @@ static int sip_session_refresh(struct ast_sip_session *session,
 							continue;
 						} else {
 							/* However if the stream is otherwise remaining the same we can keep the formats
-							 * that exist on it already which allows media to continue to flow.
+							 * that exist on it already which allows media to continue to flow. We don't modify
+							 * the format capabilities but do need to cast it so that ao2_bump can raise the
+							 * reference count.
 							 */
-							joint_cap = ao2_bump(ast_stream_get_formats(existing_stream));
+							joint_cap = ao2_bump((struct ast_format_cap *)ast_stream_get_formats(existing_stream));
 						}
 					}
 					ast_stream_set_formats(stream, joint_cap);
@@ -2708,7 +2710,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 
 		for (i = 0; i < ast_stream_topology_get_count(req_topology); ++i) {
 			struct ast_stream *req_stream;
-			struct ast_format_cap *req_cap;
+			const struct ast_format_cap *req_cap;
 			struct ast_format_cap *joint_cap;
 			struct ast_stream *clone_stream;
 

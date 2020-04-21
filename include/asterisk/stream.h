@@ -164,7 +164,7 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
  *
  * \since 15
  */
-struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream);
+const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream);
 
 /*!
  * \brief Set the current negotiated formats of a stream
