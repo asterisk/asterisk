@@ -20,6 +20,8 @@
 	<replacement>res_fax</replacement>
 ***/
 
+/* Needed for spandsp headers */
+#define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
 #include <string.h>
