@@ -13,6 +13,39 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.32.0 to Asterisk 13.33.0 ----------
+------------------------------------------------------------------------------
+
+func_volume
+------------------
+ * Accept decimal number as argument.
+
+res_rtp_asterisk
+------------------
+ * This change include a new cli command 'rtp show settings'
+
+   The command display by general settings of rtp configuration. For this
+   point is added the fields: rtpstart, rtpend, dtmftimeout, rtpchecksum,
+   strictrtp, learning_min_sequential and icesupport.
+
+ * The blacklist mechanism in res_rtp_asterisk for ICE and STUN was converted to
+   an ACL mechanism.
+
+   As such six now options are now available:
+
+   ice_deny
+   ice_permit
+   ice_acl
+   stun_deny
+   stun_permit
+   stun_acl
+
+   These options have their obvious meanings as used elsewhere.
+
+   Backwards compatibility was maintained by adding {stun,ice}_blacklist as
+   aliases for {stun,ice}_deny.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.31.0 to Asterisk 13.32.0 ----------
 ------------------------------------------------------------------------------
 
