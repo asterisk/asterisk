@@ -1,7 +1,0 @@
-Subject: app_confbridge
-
-A new option, "text_messaging", has been added to the user profile
-which allows control over whether text messaging is enabled or
-disabled for a user. If enabled (the default) text messages
-will be sent to the user. If disabled no text messages will be
-sent to the user.
