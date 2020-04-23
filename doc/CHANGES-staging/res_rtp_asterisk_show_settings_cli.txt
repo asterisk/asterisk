@@ -1,7 +1,0 @@
-Subject: res_rtp_asterisk
-
-This change include a new cli command 'rtp show settings'
-
-The command display by general settings of rtp configuration. For this
-point is added the fields: rtpstart, rtpend, dtmftimeout, rtpchecksum,
-strictrtp, learning_min_sequential and icesupport.
