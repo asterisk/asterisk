@@ -27,6 +27,7 @@
 
 #include "asterisk.h"
 
+#include <netinet/in.h>
 #include <resolv.h>
 
 #include "asterisk/dns_core.h"
