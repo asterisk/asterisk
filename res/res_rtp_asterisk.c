@@ -8868,7 +8868,9 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 	ast_cli(a->fd, "----------------\n");
 	ast_cli(a->fd, "  Port start:      %d\n", rtpstart);
 	ast_cli(a->fd, "  Port end:        %d\n", rtpend);
+#ifdef SO_NO_CHECK
 	ast_cli(a->fd, "  Checksums:       %s\n", AST_CLI_YESNO(nochecksums == 0));
+#endif
 	ast_cli(a->fd, "  DTMF Timeout:    %d\n", dtmftimeout);
 	ast_cli(a->fd, "  Strict RTP:      %s\n", AST_CLI_YESNO(strictrtp));
 
