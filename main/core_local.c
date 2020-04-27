@@ -144,6 +144,7 @@ static int local_devicestate(const char *data);
 static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct ast_channel *source,
 		enum ast_unreal_channel_indicator dest, unsigned int id);
 static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int success, unsigned int id);
+static int local_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 
 static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message *msg);
 
@@ -187,7 +188,7 @@ static struct ast_channel_tech local_tech = {
 	.send_text = ast_unreal_sendtext,
 	.devicestate = local_devicestate,
 	.queryoption = ast_unreal_queryoption,
-	.setoption = ast_unreal_setoption,
+	.setoption = local_setoption,
 };
 
 /*! What to do with the ;2 channel when ast_call() happens. */
@@ -1107,4 +1108,15 @@ int ast_local_init(void)
 
 	ast_register_cleanup(local_shutdown);
 	return 0;
+}
+
+int local_setoption(struct ast_channel *ast, int option, void *data, int datalen)
+{
+	switch (option) {
+	case AST_OPTION_SECURE_SIGNALING:
+	case AST_OPTION_SECURE_MEDIA:
+			return 0; /* local calls (like forwardings) are secure always */
+	default:
+			return ast_unreal_setoption(ast, option, data, datalen);
+	}
 }
