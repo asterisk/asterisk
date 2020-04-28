@@ -1,3 +1,27 @@
+2020-04-28 19:20 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 17.4.0-rc2 Released.
+
+2020-04-26 05:56 +0000 [f44bd5c806]  Guido Falsi <madpilot@FreeBSD.org>
+
+	* res_rtp_asterisk: Protect access to nochecksums with #ifdef
+
+	  Recently code accessing nochecksums variable has been added without including #ifdef SO_NO_CHECK protection, while the variable is created only when such constant is defined.
+
+	  ASTERISK-28852 #close
+
+	  Change-Id: I381718893b80599ab8635f2b594a10c1000d595e
+
+2020-04-26 06:08 +0000 [2a7a252ba1]  Guido Falsi <madpilot@FreeBSD.org>
+
+	* core/dns: Add system include required on FreeBSD
+
+	  While testing the latest RC on FreeBSD I noticed this new file fails to build. On FreeBSD inlcuding resolv.h requires sockaddr_in to be defined, and it's defined in netinet/in.h. So I added this include.
+
+	  ASTERISK-28853 #close
+
+	  Change-Id: I6997daf3956e6eb70ab6cb358628d162fad80079
+
 2020-04-23 16:37 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 17.4.0-rc1 Released.
