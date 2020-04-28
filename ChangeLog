@@ -1,3 +1,17 @@
+2020-04-28 19:17 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.33.0-rc2 Released.
+
+2020-04-26 05:56 +0000 [547c59f00f]  Guido Falsi <madpilot@FreeBSD.org>
+
+	* res_rtp_asterisk: Protect access to nochecksums with #ifdef
+
+	  Recently code accessing nochecksums variable has been added without including #ifdef SO_NO_CHECK protection, while the variable is created only when such constant is defined.
+
+	  ASTERISK-28852 #close
+
+	  Change-Id: I381718893b80599ab8635f2b594a10c1000d595e
+
 2020-04-23 16:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.33.0-rc1 Released.
