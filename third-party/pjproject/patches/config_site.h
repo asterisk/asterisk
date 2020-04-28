@@ -68,7 +68,7 @@
 #define PJ_TODO(x)
 
 /* Defaults too low for WebRTC */
-#define PJ_ICE_MAX_CAND 32
+#define PJ_ICE_MAX_CAND 64
 #define PJ_ICE_MAX_CHECKS (PJ_ICE_MAX_CAND * PJ_ICE_MAX_CAND)
 
 /* Increase limits to allow more formats */
