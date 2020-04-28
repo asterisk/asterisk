@@ -181,6 +181,7 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	ast_format_cap_append(cap_slin, ast_format_slin48, 0);
 	ast_format_cap_append(cap_slin, ast_format_slin96, 0);
 	ast_format_cap_append(cap_slin, ast_format_slin192, 0);
+	ast_format_cap_append(cap_slin, ast_format_h264, 0);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Originate() requires arguments\n");
