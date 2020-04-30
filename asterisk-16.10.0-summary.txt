@@ -1,0 +1,667 @@
+                                Release Summary
+
+                                asterisk-16.10.0
+
+                                Date: 2020-04-30
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.9.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                       Testers              Reporters                
+   18 Alexander Traud                                17 Alexander Traud       
+   11 Jaco Kroon                                     6 Joshua C. Colp         
+   10 Joshua C. Colp                                 3 Torrey Searle          
+   7 Alexander Traud                                 2 sungtae kim            
+   6 Sean Bright                                     2 Kevin Harwell          
+   3 Torrey Searle                                   2 Guido Falsi            
+   3 Kevin Harwell                                   2 nappsoft               
+   3 Asterisk Development Team                       2 Jaco Kroon             
+   2 Pirmin Walthert                                 1 Paulo Vicentini        
+   2 sungtae kim                                     1 Patrick Wakano         
+   2 Guido Falsi                                     1 SÃ©bastien Duthil      
+   1 George Joseph                                   1 Jean Aunis - Prescom   
+   1 Rodrigo RamÃrez Norambuena                      1 Jared Smith            
+   1 Jared Smith                                     1 Patrick Wakano         
+   1 Daniel Heckl                                    1 Daniel Heckl           
+   1 Bernard Merindol                                1 Pascal Cadotte Michaud 
+   1 Jean Aunis                                      1 Bernard Merindol       
+   1 Paulo Vicentini                                 1 Matt Addison           
+   1 Sungtae Kim                                     1 Michael Neuhauser      
+   1 Michael Neuhauser                               1 George Joseph          
+   1 Sebastien Duthil                                1 Vitold                 
+   1 Jason Hord (license 6978)                       1 Anton Satskiy          
+                                                     1 Joeran Vinzens         
+                                                     1 Alexey Vasilyev        
+                                                     1 Anton Satskiy          
+                                                     1 Vitold                 
+                                                     1 Joshua Elson           
+                                                     1 Michael Neuhauser      
+                                                     1 George Joseph          
+                                                     1 sstream                
+                                                     1 Joshua Roys            
+                                                     1 Joshua Roys            
+                                                     1 Olivier Krief          
+                                                     1 Jason Hord             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  New Feature
+
+    Category: Core/General
+
+   ASTERISK-6863: [patch] allow Asterisk to set high ToS bits as non-root on
+   Linux
+   Reported by: Matt Addison
+     * [c2f18323fe] Alexander Traud -- install_prereq: Add libcap for high
+       bits in DiffServ/ToS.
+
+  Bug
+
+    Category: Applications/General
+
+   ASTERISK-16676: DAHDIRAS fails to properly initiate pppd unless asterisk
+   is running as root
+   Reported by: Jaco Kroon
+     * [d278350768] Jaco Kroon -- dahdiras: Only set plugin dahdi.so to pppd
+       if we're running as root.
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-28841: app_confbridge: Add support for disabling text messaging
+   for a user
+   Reported by: Joshua C. Colp
+     * [62183bc777] Joshua C. Colp -- confbridge: Add support for disabling
+       text messaging.
+   ASTERISK-28790: Crash during conference call using confbridge and video
+   Reported by: Pascal Cadotte Michaud
+     * [7771a198d5] Joshua C. Colp -- res_rtp_asterisk: Ensure sufficient
+       space for worst case NACK.
+
+    Category: Applications/app_mixmonitor
+
+   ASTERISK-28780: app_mixmonitor: Memory leak due to race condition between
+   AMI MixMonitor and hangup
+   Reported by: Joshua C. Colp
+     * [c40050d350] Joshua C. Colp -- audiohook: Don't allow audiohooks to
+       attach to hung up channels.
+
+    Category: Bridges/bridge_softmix
+
+   ASTERISK-28819: [patch] bridge_softmix_binaural: Show state in menuselect.
+   Reported by: Alexander Traud
+     * [375a578ef1] Alexander Traud -- bridge_softmix_binaural: Show state in
+       menuselect.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-28835: IPv6 addresses in SDP incorrectly formatted
+   Reported by: Daniel Heckl
+     * [c36f34aa90] Daniel Heckl -- res_pjsip: Fixed format of IPv6 addresses
+       for external media addresses
+   ASTERISK-28817: chan_pjsip: constant DTMF tone if RTP is not setup yet
+   Reported by: Kevin Harwell
+     * [48669ea81b] Kevin Harwell -- chan_pjsip: digit_begin - constant DTMF
+       tone if RTP is not setup yet
+   ASTERISK-28774: chan_pjsip's rtptimeout is erroneously triggered during
+   direct-media (native_rtp) bridge
+   Reported by: Michael Neuhauser
+     * [b2e0c6cacc] Michael Neuhauser -- chan_psip, res_pjsip_sdp_rtp: ignore
+       rtptimeout if direct-media is active
+   ASTERISK-28759: A non negotiated rtp frame causes call disconnection when
+   there is a SSRC change
+   Reported by: Paulo Vicentini
+     * [4495e64b7c] Paulo Vicentini -- chan_pjsip: Check audio frame when
+       remote SSRC changes.
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-28372: Asterisk REPLY Wrong Contact header port (TCP)
+   Reported by: Anton Satskiy
+     * [d53925c98a] Alexander Traud -- chan_sip: externhost/externaddr with
+       non-default TCP/TLS ports.
+   ASTERISK-24428: Document that Asterisk will use the default SIP ports
+   (5060 for TCP, 5061 for TLS) if the extern option variants aren't used
+   Reported by: sstream
+     * [d53925c98a] Alexander Traud -- chan_sip: externhost/externaddr with
+       non-default TCP/TLS ports.
+   ASTERISK-27195: chan_sip: only sets ToS bits on UDP socket, ignoring TCP
+   and TLS sockets
+   Reported by: Joshua Roys
+     * [338990d973] Alexander Traud -- chan_sip: DiffServ/ToS not only on UDP
+       but also on TCP and TLS sockets.
+   ASTERISK-28798: [patch] chan_sip: TCP/TLS client without server.
+   Reported by: Alexander Traud
+     * [9e0995b1b7] Alexander Traud -- chan_sip: TCP/TLS client without
+       server.
+
+    Category: Channels/chan_unistim
+
+   ASTERISK-28803: [patch] chan_unistim: Avoid tautological warnings with
+   clang.
+   Reported by: Alexander Traud
+     * [8021924a46] Alexander Traud -- chan_unistim: Avoid tautological
+       warnings with clang.
+
+    Category: Core/Bridging
+
+   ASTERISK-28841: app_confbridge: Add support for disabling text messaging
+   for a user
+   Reported by: Joshua C. Colp
+     * [62183bc777] Joshua C. Colp -- confbridge: Add support for disabling
+       text messaging.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-28837: pjproject_bundled: Honor --without-pjproject.
+   Reported by: Alexander Traud
+     * [dd65a66ecb] Alexander Traud -- pjproject_bundled: Honor
+       --without-pjproject.
+   ASTERISK-28824: BuildSystem: Search for Python/C API when possibly needed
+   only.
+   Reported by: Alexander Traud
+     * [dfdff0f9ec] Alexander Traud -- BuildSystem: Search for Python/C API
+       when possibly needed only.
+   ASTERISK-27717: [patch] BuildSystem: In NetBSD, the Python Programming
+   Language is python-2.7.
+   Reported by: Alexander Traud
+     * [dfdff0f9ec] Alexander Traud -- BuildSystem: Search for Python/C API
+       when possibly needed only.
+   ASTERISK-28816: [patch] BuildSystem: Remove doc/tex and doc/pdf leftovers.
+   Reported by: Alexander Traud
+     * [b4edb063e5] Alexander Traud -- BuildSystem: Remove doc/tex and
+       doc/pdf leftovers.
+   ASTERISK-28818: [patch] BuildSystem: Allow space in path.
+   Reported by: Alexander Traud
+     * [33921fd426] Alexander Traud -- BuildSystem: Allow space in path.
+
+    Category: Core/Channels
+
+   ASTERISK-28795: channel: write to a stream on multi-frame writes
+   Reported by: Kevin Harwell
+     * [267583f18d] Kevin Harwell -- channel: write to a stream on
+       multi-frame writes
+
+    Category: Core/General
+
+   ASTERISK-28839: Sporadic crashes with Segmentation fault
+   Reported by: Joeran Vinzens
+     * [f3ac42b9bd] Joshua C. Colp -- fax: Fix crashes in PJSIP
+       re-negotiation scenarios.
+   ASTERISK-28780: app_mixmonitor: Memory leak due to race condition between
+   AMI MixMonitor and hangup
+   Reported by: Joshua C. Colp
+     * [c40050d350] Joshua C. Colp -- audiohook: Don't allow audiohooks to
+       attach to hung up channels.
+
+    Category: Core/Streams
+
+   ASTERISK-28846: stream: Enforce formats immutability
+   Reported by: Joshua C. Colp
+     * [2128eb1f47] Joshua C. Colp -- stream: Enforce formats immutability
+       and ensure formats exist.
+
+    Category: Documentation
+
+   ASTERISK-28816: [patch] BuildSystem: Remove doc/tex and doc/pdf leftovers.
+   Reported by: Alexander Traud
+     * [b4edb063e5] Alexander Traud -- BuildSystem: Remove doc/tex and
+       doc/pdf leftovers.
+
+    Category: Functions/func_aes
+
+   ASTERISK-28788: func_aes: incorrectly printing error 'declined to load'
+   Reported by: Alexander Traud
+     * [81d271f76a] Alexander Traud -- func_aes: Avoid incorrect error
+       message on load.
+
+    Category: Functions/func_channel
+
+   ASTERISK-28796: func_channel: cannot read fields exten, context,
+   userfield, channame from dialplan
+   Reported by: SÃ©bastien Duthil
+     * [3513be1e79] Sebastien Duthil -- func_channel: allow reading 4 fields
+       from dialplan
+
+    Category: Functions/func_enum
+
+   ASTERISK-26711: func_enum: ENUM code wrong case
+   Reported by: Vitold
+     * [acaf24e23c] Sean Bright -- enum.c: Add support for regular expression
+       flag in NAPTR record
+   ASTERISK-19460: [patch] Function TXTCIDNAME never actually makes DNS calls
+   and always returns an empty string
+   Reported by: George Joseph
+     * [9a111d188f] Sean Bright -- enum.c: Make ast_get_txt() actually do
+       something.
+
+    Category: Functions/func_odbc
+
+   ASTERISK-20325: Comments in configs/func_odbc.conf.sample are not
+   consistent with examples. Missing examples.
+   Reported by: Olivier Krief
+     * [268b0a3085] Sean Bright -- func_odbc.conf.sample: Clarify sample
+       documentation
+
+    Category: General
+
+   ASTERISK-28838: AST_MODULE_INFO requires, MODULEINFO does not mention
+   Reported by: Alexander Traud
+     * [7eb3c2d5ff] Alexander Traud -- cdr_odbc: Sync load- and build-time
+       deps.
+     * [63f57e044d] Alexander Traud -- res_pjsip: Sync load- and build-time
+       deps.
+     * [905f8ddc3e] Alexander Traud -- res_pjsip_refer: Add build-time
+       dependency.
+     * [d89968fc96] Alexander Traud -- app_getcpeid: Add build-time
+       dependency.
+     * [ea102bd1a7] Alexander Traud -- curl: Add build-time dependency.
+     * [5c5f7223ec] Alexander Traud -- res_pjsip: Add build-time dependency.
+
+    Category: PBX/pbx_dundi
+
+   ASTERISK-21205: [patch] dundi_read_result crash due to negative number
+   Reported by: Jaco Kroon
+     * [9cd46ec118] Jaco Kroon -- dundi: fix NULL dereference.
+
+    Category: Resources/res_ari_channels
+
+   ASTERISK-28847: ARI channels cuts the endpoint string over 80 characters
+   Reported by: sungtae kim
+     * [64e0ce67fc] sungtae kim -- res_ari_channels: Fixed endpoint 80
+       characters limit
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28056: res_pjsip: Incorrect endpoint status after endpoint
+   synchronization for a specific AOR
+   Reported by: Jason Hord
+     * [06aa51d14e] Jason Hord -- res_pjsip: Don't set endpoint to
+       unavailable in all cases.
+   ASTERISK-28790: Crash during conference call using confbridge and video
+   Reported by: Pascal Cadotte Michaud
+     * [7771a198d5] Joshua C. Colp -- res_rtp_asterisk: Ensure sufficient
+       space for worst case NACK.
+   ASTERISK-28743: Asterisk is crashing if the 200 OK with SDP
+   Reported by: sungtae kim
+     * [ac3a81992a] Sungtae Kim -- res_pjsip_session: Fixed wrong session
+       termination
+   ASTERISK-23407: Fix the FSF address in the headers of lots of pjproject
+   files
+   Reported by: Jared Smith
+     * [a9abe55e0b] Jared Smith -- indications.conf.sample: Add indication
+       tones for Indonesia
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-28784: res_pjsip_sdp_rtp: Only do hold/unhold on first audio
+   stream
+   Reported by: Joshua C. Colp
+     * [0b92aa4c49] Joshua C. Colp -- res_pjsip_sdp_rtp: Only do hold/unhold
+       on default audio stream.
+   ASTERISK-28774: chan_pjsip's rtptimeout is erroneously triggered during
+   direct-media (native_rtp) bridge
+   Reported by: Michael Neuhauser
+     * [b2e0c6cacc] Michael Neuhauser -- chan_psip, res_pjsip_sdp_rtp: ignore
+       rtptimeout if direct-media is active
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28783: res_pjsip_session: Allow default non-audio streams to have
+   reflected state
+   Reported by: Joshua C. Colp
+     * [c86af00ce1] Joshua C. Colp -- res_pjsip_session: Don't restrict
+       non-audio default streams to sendrecv.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-28852: Unprotected access to nochecksums variable, causes build
+   failures
+   Reported by: Guido Falsi
+     * [b5ae1ac2aa] Guido Falsi -- res_rtp_asterisk: Protect access to
+       nochecksums with #ifdef
+   ASTERISK-28827: res_rtp_asterisk: Loop when receive buffer is flushed by a
+   received packet that is also in receive buffer with NACK
+   Reported by: nappsoft
+     * [a7c4579979] Pirmin Walthert -- res_rtp_asterisk: Resolve loop when
+       receive buffer is flushed
+   ASTERISK-28826: res_rtp_asterisk: Duplicate seqnos being added to send
+   buffer with NACK
+   Reported by: nappsoft
+     * [9a928cae86] Pirmin Walthert -- res_rtp_asterisk: Free payload when
+       error on insertion to data buffer
+   ASTERISK-28812: First DTMF is not get
+   Reported by: Bernard Merindol
+     * [4af84c5675] Bernard Merindol -- res_rtp_asterisk.c:Â Check for first
+       DTMF having timestamp set to 0
+   ASTERISK-28809: [patch] res_rtp_asterisk: Avoid absolute value on unsigned
+   subtraction.
+   Reported by: Alexander Traud
+     * [fdb6370759] Alexander Traud -- res_rtp_asterisk: Avoid absolute value
+       on unsigned subtraction.
+   ASTERISK-28773: Incorrect Sender SSRC in RTCP when p2p rtp bridge is
+   active
+   Reported by: Torrey Searle
+     * [f2ba1919e6] Torrey Searle -- res_rtp_asterisk: Send correct sender
+       SSRC when p2p bridge in use
+   ASTERISK-28769: DTLS Handshake Fails to Occur if ice_support is enabled
+   but not used
+   Reported by: Torrey Searle
+     * [1efd90b72b] Torrey Searle -- res_pjsip_sdp_rtp: Don't wait for ICE if
+       not negotiated
+   ASTERISK-28759: A non negotiated rtp frame causes call disconnection when
+   there is a SSRC change
+   Reported by: Paulo Vicentini
+     * [4495e64b7c] Paulo Vicentini -- chan_pjsip: Check audio frame when
+       remote SSRC changes.
+
+    Category: Tests/General
+
+   ASTERISK-28808: [patch] test_stasis: Avoid always true warning with clang.
+   Reported by: Alexander Traud
+     * [7039b764e4] Alexander Traud -- test_stasis: Avoid always true warning
+       with clang.
+
+    Category: Tests/testsuite
+
+   ASTERISK-27717: [patch] BuildSystem: In NetBSD, the Python Programming
+   Language is python-2.7.
+   Reported by: Alexander Traud
+     * [dfdff0f9ec] Alexander Traud -- BuildSystem: Search for Python/C API
+       when possibly needed only.
+   ASTERISK-28789: test_utils: incorrectly printing error 'declined to load'
+   Reported by: Alexander Traud
+     * [19d31636cf] Alexander Traud -- test_utils: Avoid incorrect error
+       message on load.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-28811: Crash occurs when fax session switches from T.38 to audio
+   Reported by: Alexey Vasilyev
+     * [f3ac42b9bd] Joshua C. Colp -- fax: Fix crashes in PJSIP
+       re-negotiation scenarios.
+   ASTERISK-28837: pjproject_bundled: Honor --without-pjproject.
+   Reported by: Alexander Traud
+     * [dd65a66ecb] Alexander Traud -- pjproject_bundled: Honor
+       --without-pjproject.
+   ASTERISK-28758: pjsip startup errors when using "with-ssl" configure
+   option
+   Reported by: Patrick Wakano
+     * [e02290ed4f] Alexander Traud -- pjproject_bundled: Repair ./configure
+       --with-ssl without ARG.
+
+  Improvement
+
+    Category: Applications/app_page
+
+   ASTERISK-27946: dial (API): Storage of dialed target uses
+   AST_MAX_EXTENSION when it shouldn't
+   Reported by: Joshua Elson
+     * [eb0493cfb8] sungtae kim -- dial.c: Removed dial string 80 character
+       limitation
+
+    Category: Core/DNS
+
+   ASTERISK-28853: Missing include on FreeBSD
+   Reported by: Guido Falsi
+     * [54dc87ec7a] Guido Falsi -- core/dns: Add system include required on
+       FreeBSD
+
+    Category: Core/Dial
+
+   ASTERISK-27946: dial (API): Storage of dialed target uses
+   AST_MAX_EXTENSION when it shouldn't
+   Reported by: Joshua Elson
+     * [eb0493cfb8] sungtae kim -- dial.c: Removed dial string 80 character
+       limitation
+
+    Category: Functions/func_volume
+
+   ASTERISK-28813: func_volume: Allow decimal numbers as parameter to improve
+   granularity
+   Reported by: Jean Aunis - Prescom
+     * [ef4255f6ed] Jean Aunis -- func_volume: Accept decimal number as
+       argument
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28782: Add support for Content-Disposition header in multi-part
+   INVITES
+   Reported by: Torrey Searle
+     * [bd091949cc] Torrey Searle -- res_pjsip_session: implement processing
+       of Content-Disposition
+   ASTERISK-28787: res_pjsip_session: Decide more intelligently when to add
+   video
+   Reported by: Joshua C. Colp
+     * [1c5129bca4] Joshua C. Colp -- res_pjsip_session: Apply intention
+       behind requested formats.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author               | Summary                            |
+   |------------+----------------------+------------------------------------|
+   | 271831955c | Asterisk Development | Update for 16.10.0-rc2             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
+   | 670d51d06f | Asterisk Development | Update for 16.10.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
+   | bbd0835482 | Asterisk Development | Update CHANGES and UPGRADE.txt for |
+   |            | Team                 | 16.10.0                            |
+   |------------+----------------------+------------------------------------|
+   | f44cab8b82 | Alexander Traud      | BuildSystem: Only if found LibPRI, |
+   |            |                      | check its optional parts.          |
+   |------------+----------------------+------------------------------------|
+   |            |                      | BuildSystem: Only if found         |
+   | dafb58aafd | Alexander Traud      | external PJProject, check its      |
+   |            |                      | optional parts.                    |
+   |------------+----------------------+------------------------------------|
+   |            |                      | res_rtp_asterisk: iterate all      |
+   | 7a00db673a | Jaco Kroon           | local addresses looking to         |
+   |            |                      | populate ICE.                      |
+   |------------+----------------------+------------------------------------|
+   | c9e1b4d142 | Jaco Kroon           | res_pjsip: document legal          |
+   |            |                      | dtls_verify endpoint options.      |
+   |------------+----------------------+------------------------------------|
+   | 2b2fe947ce | Alexander Traud      | res_rtp_asterisk: Build without    |
+   |            |                      | PJProject.                         |
+   |------------+----------------------+------------------------------------|
+   | bde6be092c | Alexander Traud      | _pjsua: Build even with Clang.     |
+   |------------+----------------------+------------------------------------|
+   |            |                      | Revert "res_config_odbc: Preserve  |
+   | bfc9337ab4 | Sean Bright          | empty strings returned by the      |
+   |            |                      | database"                          |
+   |------------+----------------------+------------------------------------|
+   | 1e6b10c137 | Jaco Kroon           | main/backtrace: binutils-2.34 fix. |
+   |------------+----------------------+------------------------------------|
+   | 85fca26c24 | Jaco Kroon           | acl: implement a centralized ACL   |
+   |            |                      | output mechanism for HAs and ACLs. |
+   |------------+----------------------+------------------------------------|
+   | ebe7749127 | Joshua C. Colp       | chan_sip: Send 403 when ACL fails. |
+   |------------+----------------------+------------------------------------|
+   | 99869810a1 | Joshua C. Colp       | CHANGES: Change md file extension  |
+   |            |                      | to txt.                            |
+   |------------+----------------------+------------------------------------|
+   | ebddff3453 | Kevin Harwell        | ast_coredumper: add Asterisk       |
+   |            |                      | information dump                   |
+   |------------+----------------------+------------------------------------|
+   | ff0e685eea | Jaco Kroon           | netsock2: compile fixes.           |
+   |------------+----------------------+------------------------------------|
+   | 21c9f30ba8 | Jaco Kroon           | build: enable building with uClibc |
+   |------------+----------------------+------------------------------------|
+   | 6262b74303 | Jaco Kroon           | build: search from newest to       |
+   |            |                      | oldest for gmime.                  |
+   |------------+----------------------+------------------------------------|
+   |            |                      | res_rtp_asterisk: implement ACL    |
+   | 351b2be00a | Jaco Kroon           | mechanism for ICE and STUN         |
+   |            |                      | addresses.                         |
+   |------------+----------------------+------------------------------------|
+   | 33b2c7f79b | Jaco Kroon           | Update main/backtrace.c to deal    |
+   |            |                      | with changes in binutils 2.34.     |
+   |------------+----------------------+------------------------------------|
+   |            |                      | chan_vpb: Fix 'catching            |
+   | 2a3b2d5781 | Sean Bright          | polymorphic type ... by value'     |
+   |            |                      | error                              |
+   |------------+----------------------+------------------------------------|
+   | 479723f3cc | Sean Bright          | dns_txt: Add TXT record parsing    |
+   |            |                      | support                            |
+   |------------+----------------------+------------------------------------|
+   | 59a708a935 | George Joseph        | CI: Create generic jenkinsfile     |
+   |------------+----------------------+------------------------------------|
+   | 7dcabaef08 | Rodrigo RamÃrez      | res_rtp_asterisk: Add 'rtp show    |
+   |            | Norambuena           | settings' cli command              |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-16.9.0-summary.html                        |  160 ---
+ asterisk-16.9.0-summary.txt                         |  459 ---------
+ b/.version                                          |    2
+ b/CHANGES                                           |   50 +
+ b/ChangeLog                                         |  942 +++++++++++++++++++-
+ b/Makefile                                          |    4
+ b/UPGRADE.txt                                       |   14
+ b/apps/app_confbridge.c                             |    7
+ b/apps/app_dahdiras.c                               |    6
+ b/apps/app_getcpeid.c                               |    1
+ b/apps/app_mixmonitor.c                             |    1
+ b/apps/confbridge/conf_config_parser.c              |   13
+ b/apps/confbridge/include/confbridge.h              |    1
+ b/asterisk-16.10.0-rc2-summary.html                 |   13
+ b/asterisk-16.10.0-rc2-summary.txt                  |   91 +
+ b/bridges/bridge_native_rtp.c                       |   14
+ b/bridges/bridge_simple.c                           |   14
+ b/bridges/bridge_softmix.c                          |    2
+ b/cdr/cdr_odbc.c                                    |    2
+ b/channels/chan_pjsip.c                             |   71 -
+ b/channels/chan_sip.c                               |   71 +
+ b/channels/chan_unistim.c                           |    4
+ b/channels/chan_vpb.cc                              |    2
+ b/channels/pjsip/dialplan_functions.c               |   13
+ b/configs/samples/confbridge.conf.sample            |    3
+ b/configs/samples/func_odbc.conf.sample             |   11
+ b/configs/samples/indications.conf.sample           |   11
+ b/configs/samples/rtp.conf.sample                   |   30
+ b/configure                                         |  661 +++++++-------
+ b/configure.ac                                      |  186 ++-
+ b/contrib/scripts/ast_coredumper                    |  417 ++++++++
+ b/contrib/scripts/install_prereq                    |   28
+ b/funcs/func_aes.c                                  |    4
+ b/funcs/func_channel.c                              |    8
+ b/funcs/func_curl.c                                 |    1
+ b/funcs/func_volume.c                               |   12
+ b/include/asterisk/acl.h                            |   32
+ b/include/asterisk/bridge_features.h                |    2
+ b/include/asterisk/dns_internal.h                   |   26
+ b/include/asterisk/dns_txt.h                        |   64 +
+ b/include/asterisk/frame.h                          |    8
+ b/include/asterisk/netsock2.h                       |    6
+ b/include/asterisk/stream.h                         |    2
+ b/include/asterisk/utils.h                          |   24
+ b/main/acl.c                                        |   29
+ b/main/audiohook.c                                  |    9
+ b/main/backtrace.c                                  |    9
+ b/main/bridge.c                                     |    1
+ b/main/bridge_channel.c                             |    8
+ b/main/channel.c                                    |   39
+ b/main/data_buffer.c                                |    2
+ b/main/dial.c                                       |   14
+ b/main/dns_core.c                                   |    3
+ b/main/dns_txt.c                                    |  127 ++
+ b/main/enum.c                                       |  104 +-
+ b/main/frame.c                                      |   27
+ b/main/manager.c                                    |    3
+ b/main/named_acl.c                                  |    9
+ b/main/stream.c                                     |    8
+ b/makeopts.in                                       |    4
+ b/menuselect/configure                              |    8
+ b/menuselect/menuselect.c                           |    2
+ b/pbx/pbx_dundi.c                                   |    6
+ b/res/ari/resource_channels.c                       |   15
+ b/res/res_config_curl.c                             |    2
+ b/res/res_config_odbc.c                             |    2
+ b/res/res_pjsip.c                                   |   18
+ b/res/res_pjsip/pjsip_options.c                     |    7
+ b/res/res_pjsip_caller_id.c                         |    3
+ b/res/res_pjsip_diversion.c                         |    1
+ b/res/res_pjsip_dlg_options.c                       |    3
+ b/res/res_pjsip_dtmf_info.c                         |    1
+ b/res/res_pjsip_empty_info.c                        |    1
+ b/res/res_pjsip_messaging.c                         |    1
+ b/res/res_pjsip_nat.c                               |    1
+ b/res/res_pjsip_one_touch_record_info.c             |    1
+ b/res/res_pjsip_path.c                              |    1
+ b/res/res_pjsip_refer.c                             |    1
+ b/res/res_pjsip_rfc3326.c                           |    1
+ b/res/res_pjsip_sdp_rtp.c                           |   70 +
+ b/res/res_pjsip_session.c                           |  168 ++-
+ b/res/res_rtp_asterisk.c                            |  469 ++++++---
+ b/tests/CI/universal-asterisk-nongerrit.jenkinsfile |  452 +++++++++
+ b/tests/test_stasis.c                               |    2
+ b/tests/test_utils.c                                |    6
+ b/third-party/pjproject/Makefile                    |    2
+ b/third-party/pjproject/configure.m4                |  159 +--
+ 87 files changed, 3742 insertions(+), 1550 deletions(-)
