@@ -14534,6 +14534,12 @@ exit_vmsayname_test:
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
 
+struct test_files {
+	char dir[256];
+	char file[256];
+	char txtfile[256];
+};
+
 AST_TEST_DEFINE(test_voicemail_msgcount)
 {
 	int i, j, res = AST_TEST_PASS, syserr;
@@ -14543,11 +14549,8 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 #ifdef IMAP_STORAGE
 	struct ast_channel *chan = NULL;
 #endif
-	struct {
-		char dir[256];
-		char file[256];
-		char txtfile[256];
-	} tmp[3];
+	/* Using ast_alloca instead of just declaring tmp as an array is a workaround for a GCC 10 issue with -Wrestrict */
+	struct test_files *tmp = ast_alloca(sizeof(struct test_files) * 3);
 	char syscmd[256];
 	const char origweasels[] = "tt-weasels";
 	const char testcontext[] = "test";
