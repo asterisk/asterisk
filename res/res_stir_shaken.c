@@ -462,9 +462,6 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 
 	/* If we don't have an entry in AstDB, CURL from the provided URL */
 	if (ast_strlen_zero(file_path)) {
-
-		size_t file_path_size;
-
 		/* Remove this entry from the database, since we will be
 		 * downloading a new file anyways.
 		 */
@@ -475,9 +472,9 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 
 		/* Set up the default path */
 		filename = basename(public_key_url);
-		file_path_size = strlen(ast_config_AST_DATA_DIR) + 3 + strlen(STIR_SHAKEN_DIR_NAME) + strlen(filename) + 1;
-		file_path = ast_calloc(1, file_path_size);
-		snprintf(file_path, sizeof(*file_path), "%s/keys/%s/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME, filename);
+		if (ast_asprintf(&file_path, "%s/keys/%s/%s", ast_config_AST_DATA_DIR, STIR_SHAKEN_DIR_NAME, filename) < 0) {
+			return NULL;
+		}
 
 		/* Download to the default path */
 		if (run_curl(public_key_url, file_path)) {
