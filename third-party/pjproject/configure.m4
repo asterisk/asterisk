@@ -51,25 +51,25 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 		AC_ARG_VAR([PJPROJECT_CONFIGURE_OPTS],[Additional configure options to pass to bundled pjproject])
 		this_host=$(./config.sub $(./config.guess))
 		if test "$build" != "$this_host" ; then
-			PJPROJECT_CONFIGURE_OPTS+=" --build=$build_alias"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --build=$build_alias"
 		fi
 		if test "$host" != "$this_host" ; then
-			PJPROJECT_CONFIGURE_OPTS+=" --host=$host_alias"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --host=$host_alias"
 		fi
 		# This was a copy of the autoconf generated code from the root ./configure.
 		# Hopefully, when you read this, the code is still the same.
 		if test "${with_ssl+set}" = set; then :
 			case $with_ssl in
 			n|no)
-			PJPROJECT_CONFIGURE_OPTS+=" --disable-ssl"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --disable-ssl"
 			;;
 			y|ye|yes)
 			# Not to mention SSL is the default in PJProject and means "autodetect".
 			# In Asterisk, "./configure --with-ssl" means "must be present".
-			PJPROJECT_CONFIGURE_OPTS+=""
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS}"
 			;;
 			*)
-			PJPROJECT_CONFIGURE_OPTS+=" --with-ssl=${with_ssl}"
+			PJPROJECT_CONFIGURE_OPTS="${PJPROJECT_CONFIGURE_OPTS} --with-ssl=${with_ssl}"
 			;;
 			esac
 		fi
