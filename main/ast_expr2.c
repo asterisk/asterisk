@@ -94,7 +94,6 @@
 #define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <stdio.h>
 
