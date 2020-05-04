@@ -137,9 +137,13 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char 
 	memcpy(new_stream, stream, sizeof(*new_stream));
 	strcpy(new_stream->name, stream_name); /* Safe */
 	new_stream->group = -1;
-	if (new_stream->formats) {
-		ao2_ref(new_stream->formats, +1);
+
+	new_stream->formats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!new_stream->formats) {
+		ast_free(new_stream);
+		return NULL;
 	}
+	ast_format_cap_append_from_cap(new_stream->formats, stream->formats, AST_MEDIA_TYPE_UNKNOWN);
 
 	new_stream->metadata = ast_stream_get_metadata_list(stream);
 
@@ -585,8 +589,9 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 			ast_stream_topology_free(topology);
 			return NULL;
 		}
-		/* We're transferring the initial ref so no bump needed */
-		stream->formats = new_cap;
+
+		ast_stream_set_formats(stream, new_cap);
+		ao2_ref(new_cap, -1);
 		stream->state = AST_STREAM_STATE_SENDRECV;
 		if (ast_stream_topology_append_stream(topology, stream) == -1) {
 			ast_stream_free(stream);
