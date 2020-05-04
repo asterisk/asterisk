@@ -74,8 +74,6 @@
  */
 #define	UNVIS_END	1	/* no more characters */
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 char	*vis __P((char *, int, int, int));
 char	*svis __P((char *, int, int, int, const char *));

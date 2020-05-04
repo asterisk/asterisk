@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: vis.c,v 1.22 2002/03/23 17:38:27 christos Exp $");
 #endif /* LIBC_SCCS and not lint */

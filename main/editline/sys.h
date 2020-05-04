@@ -128,8 +128,4 @@ extern ptr_t    memset(ptr_t, int, size_t);
 extern char    *fgetline(FILE *, int *);
 #endif
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #endif /* _h_sys */
