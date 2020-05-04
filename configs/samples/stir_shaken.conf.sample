@@ -1,0 +1,49 @@
+;
+; This file is used by the res_stir_shaken module to configure parameters
+; used for STIR/SHAKEN.
+;
+;
+; [general]
+;
+; File path to the certificate authority certificate
+;ca_file=/etc/asterisk/stir/ca.crt
+;
+; File path to a chain of trust
+;ca_path=/etc/asterisk/stir/ca
+;
+; Maximum size to use for caching public keys
+;cache_max_size=1000
+;
+; Maximum time to wait to CURL certificates
+;curl_timeout
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; A certificate store is used to examine, and load all certificates found in a
+; given directory. When using this type the public key URL is generated based
+; upon the filename, and variable substitution.
+;[certificates]
+;
+; type must be "store"
+;type=store
+;
+; Path to a directory containing certificates
+;path=/etc/asterisk/stir
+;
+; URL to the public key(s). Must contain variable '${CERTIFICATE}' used for
+; substitution
+;public_key_url=http://mycompany.com/${CERTIFICATE}.pub
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Individual certificates are declared by using the certificate type.
+;[alice]
+;
+; type must be "certificate"
+;type=certificate
+;
+; File path to a certificate
+;path=/etc/asterisk/stir/alice.crt
+;
+; URL to the public key
+;public_key_url=http://mycompany.com/alice.pub

@@ -32,6 +32,9 @@
 #include "asterisk/astdb.h"
 #include "asterisk/paths.h"
 #include "asterisk/conversions.h"
+#include "asterisk/pbx.h"
+#include "asterisk/global_datastores.h"
+#include "asterisk/app.h"
 
 #include "asterisk/res_stir_shaken.h"
 #include "res_stir_shaken/stir_shaken.h"
@@ -92,9 +95,41 @@
 					 Must be a valid http, or https, URL.
 					</para></description>
 				</configOption>
+				<configOption name="caller_id_number" default="">
+					<synopsis>The caller ID number to match on.</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
+	<function name="STIR_SHAKEN" language="en_US">
+		<synopsis>
+			Gets the number of STIR/SHAKEN results or a specific STIR/SHAKEN value from a result on the channel.
+		</synopsis>
+		<syntax>
+			<parameter name="index" required="true">
+				<para>The index of the STIR/SHAKEN result to get. If only 'count' is passed in, gets the number of STIR/SHAKEN results instead.</para>
+			</parameter>
+			<parameter name="value" required="false">
+				<para>The value to get from the STIR/SHAKEN result. Only used when an index is passed in (instead of 'count'). Allowable values:</para>
+				<enumlist>
+					<enum name = "identity" />
+					<enum name = "attestation" />
+					<enum name = "verify_result" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>This function will either return the number of STIR/SHAKEN identities, or return information on the specified identity.
+			To get the number of identities, just pass 'count' as the only parameter to the function. If you want to get information on a
+			specific STIR/SHAKEN identity, you can get the number of identities and then pass an index as the first parameter and one of
+			the values you would like to retrieve as the second parameter.
+			</para>
+			<example title="Get count and retrieve value">
+			same => n,NoOp(Number of STIR/SHAKEN identities: ${STIR_SHAKEN(count)})
+			same => n,NoOp(Identity ${STIR_SHAKEN(0, identity)} has attestation level ${STIR_SHAKEN(0, attestation)})
+			</example>
+		</description>
+	</function>
  ***/
 
 #define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
@@ -143,6 +178,143 @@ void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload)
 	ast_free(payload->signature);
 
 	ast_free(payload);
+}
+
+/*!
+ * \brief Convert an ast_stir_shaken_verification_result to string representation
+ *
+ * \param result The result to convert
+ *
+ * \retval empty string if not a valid enum value
+ * \retval string representation of result otherwise
+ */
+static const char *stir_shaken_verification_result_to_string(enum ast_stir_shaken_verification_result result)
+{
+	switch (result) {
+		case AST_STIR_SHAKEN_VERIFY_NOT_PRESENT:
+			return "Verification not present";
+		case AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED:
+			return "Signature failed";
+		case AST_STIR_SHAKEN_VERIFY_MISMATCH:
+			return "Verification mismatch";
+		case AST_STIR_SHAKEN_VERIFY_PASSED:
+			return "Verification passed";
+		default:
+			break;
+	}
+
+	return "";
+}
+
+/* The datastore struct holding verification information for the channel */
+struct stir_shaken_datastore {
+	/* The identitifier for the STIR/SHAKEN verification */
+	char *identity;
+	/* The attestation value */
+	char *attestation;
+	/* The actual verification result */
+	enum ast_stir_shaken_verification_result verify_result;
+};
+
+/*!
+ * \brief Frees a stir_shaken_datastore structure
+ *
+ * \param datastore The datastore to free
+ */
+static void stir_shaken_datastore_free(struct stir_shaken_datastore *datastore)
+{
+	if (!datastore) {
+		return;
+	}
+
+	ast_free(datastore->identity);
+	ast_free(datastore->attestation);
+	ast_free(datastore);
+}
+
+/*!
+ * \brief The callback to destroy a stir_shaken_datastore
+ *
+ * \param data The stir_shaken_datastore
+ */
+static void stir_shaken_datastore_destroy_cb(void *data)
+{
+	struct stir_shaken_datastore *datastore = data;
+	stir_shaken_datastore_free(datastore);
+}
+
+/* The stir_shaken_datastore info used to add and compare stir_shaken_datastores on the channel */
+static const struct ast_datastore_info stir_shaken_datastore_info = {
+	.type = "STIR/SHAKEN VERIFICATION",
+	.destroy = stir_shaken_datastore_destroy_cb,
+};
+
+int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *identity, const char *attestation,
+	enum ast_stir_shaken_verification_result result)
+{
+	struct stir_shaken_datastore *ss_datastore;
+	struct ast_datastore *datastore;
+	const char *chan_name;
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "Channel is required to add STIR/SHAKEN verification\n");
+		return -1;
+	}
+
+	chan_name = ast_channel_name(chan);
+
+	if (!identity) {
+		ast_log(LOG_ERROR, "No identity to add STIR/SHAKEN verification to channel "
+			"%s\n", chan_name);
+		return -1;
+	}
+
+	if (ast_strlen_zero(attestation)) {
+		ast_log(LOG_ERROR, "No attestation to add STIR/SHAKEN verification to "
+			"channel %s\n", chan_name);
+		return -1;
+	}
+
+	ss_datastore = ast_calloc(1, sizeof(*ss_datastore));
+	if (!ss_datastore) {
+		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore for "
+			"channel %s\n", chan_name);
+		return -1;
+	}
+
+	ss_datastore->identity = ast_strdup(identity);
+	if (!ss_datastore->identity) {
+		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore "
+			"identity for channel %s\n", chan_name);
+		stir_shaken_datastore_free(ss_datastore);
+		return -1;
+	}
+
+	ss_datastore->attestation = ast_strdup(attestation);
+	if (!ss_datastore->attestation) {
+		ast_log(LOG_ERROR, "Failed to allocate space for STIR/SHAKEN datastore "
+			"attestation for channel %s\n", chan_name);
+		stir_shaken_datastore_free(ss_datastore);
+		return -1;
+	}
+
+	ss_datastore->verify_result = result;
+
+	datastore = ast_datastore_alloc(&stir_shaken_datastore_info, NULL);
+	if (!datastore) {
+		ast_log(LOG_ERROR, "Failed to allocate space for datastore for channel "
+			"%s\n", chan_name);
+		stir_shaken_datastore_free(ss_datastore);
+		return -1;
+	}
+
+	datastore->data = ss_datastore;
+
+	ast_channel_lock(chan);
+	ast_channel_datastore_add(chan, datastore);
+	ast_channel_unlock(chan);
+
+	return 0;
 }
 
 /*!
@@ -903,6 +1075,126 @@ cleanup:
 	return NULL;
 }
 
+/*!
+ * \brief Retrieves STIR/SHAKEN verification information for the channel via dialplan.
+ * Examples:
+ *
+ * STIR_SHAKEN(count)
+ * STIR_SHAKEN(0, identity)
+ * STIR_SHAKEN(1, attestation)
+ * STIR_SHAKEN(27, verify_result)
+ *
+ * \retval -1 on failure
+ * \retval 0 on success
+ */
+static int stir_shaken_read(struct ast_channel *chan, const char *function,
+	char *data, char *buf, size_t len)
+{
+	struct stir_shaken_datastore *ss_datastore;
+	struct ast_datastore *datastore;
+	char *parse;
+	unsigned int target_index, current_index = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(first_param);
+		AST_APP_ARG(second_param);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s requires at least one argument\n", function);
+		return -1;
+	}
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "No channel for %s function\n", function);
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.first_param)) {
+		ast_log(LOG_ERROR, "An argument must be passed to %s\n", function);
+		return -1;
+	}
+
+	/* Check if we are only looking for the number of STIR/SHAKEN verification results */
+	if (!strcasecmp(args.first_param, "count")) {
+
+		size_t count = 0;
+
+		if (!ast_strlen_zero(args.second_param)) {
+			ast_log(LOG_ERROR, "%s only takes 1 paramater for 'count'\n", function);
+			return -1;
+		}
+
+		ast_channel_lock(chan);
+		AST_LIST_TRAVERSE(ast_channel_datastores(chan), datastore, entry) {
+			if (datastore->info != &stir_shaken_datastore_info) {
+				continue;
+			}
+			count++;
+		}
+		ast_channel_unlock(chan);
+
+		snprintf(buf, len, "%zu", count);
+		return 0;
+	}
+
+	/* If we aren't doing a count, then there should be two parameters. The field
+	 * we are searching for will be the second parameter. The index is the first.
+	 */
+	if (ast_strlen_zero(args.second_param)) {
+		ast_log(LOG_ERROR, "Retrieving a value using %s requires two paramaters (index, value) "
+			"- only index was given (%s)\n", function, args.second_param);
+		return -1;
+	}
+
+	if (ast_str_to_uint(args.first_param, &target_index)) {
+		ast_log(LOG_ERROR, "Failed to convert index %s to integer for function %s\n",
+			args.first_param, function);
+		return -1;
+	}
+
+	/* We don't store by uid for the datastore, so just search for the specified index */
+	ast_channel_lock(chan);
+	AST_LIST_TRAVERSE(ast_channel_datastores(chan), datastore, entry) {
+		if (datastore->info != &stir_shaken_datastore_info) {
+			continue;
+		}
+
+		if (current_index == target_index) {
+			break;
+		}
+
+		current_index++;
+	}
+	ast_channel_unlock(chan);
+	if (current_index != target_index || !datastore) {
+		ast_log(LOG_WARNING, "No STIR/SHAKEN results for index '%s'\n", args.first_param);
+		return -1;
+	}
+	ss_datastore = datastore->data;
+
+	if (!strcasecmp(args.second_param, "identity")) {
+		ast_copy_string(buf, ss_datastore->identity, len);
+	} else if (!strcasecmp(args.second_param, "attestation")) {
+		ast_copy_string(buf, ss_datastore->attestation, len);
+	} else if (!strcasecmp(args.second_param, "verify_result")) {
+		ast_copy_string(buf, stir_shaken_verification_result_to_string(ss_datastore->verify_result), len);
+	} else {
+		ast_log(LOG_ERROR, "No such value '%s' for %s\n", args.second_param, function);
+		return -1;
+	}
+
+	return 0;
+}
+
+static struct ast_custom_function stir_shaken_function = {
+	.name = "STIR_SHAKEN",
+	.read = stir_shaken_read,
+};
+
 static int reload_module(void)
 {
 	if (stir_shaken_sorcery) {
@@ -914,6 +1206,8 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	int res = 0;
+
 	stir_shaken_certificate_unload();
 	stir_shaken_store_unload();
 	stir_shaken_general_unload();
@@ -921,11 +1215,15 @@ static int unload_module(void)
 	ast_sorcery_unref(stir_shaken_sorcery);
 	stir_shaken_sorcery = NULL;
 
-	return 0;
+	res |= ast_custom_function_unregister(&stir_shaken_function);
+
+	return res;
 }
 
 static int load_module(void)
 {
+	int res = 0;
+
 	if (!(stir_shaken_sorcery = ast_sorcery_open())) {
 		ast_log(LOG_ERROR, "stir/shaken - failed to open sorcery\n");
 		return AST_MODULE_LOAD_DECLINE;
@@ -948,7 +1246,9 @@ static int load_module(void)
 
 	ast_sorcery_load(ast_stir_shaken_sorcery());
 
-	return AST_MODULE_LOAD_SUCCESS;
+	res |= ast_custom_function_register(&stir_shaken_function);
+
+	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER,
