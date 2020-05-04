@@ -21,9 +21,30 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 
+enum ast_stir_shaken_verification_result {
+	AST_STIR_SHAKEN_VERIFY_NOT_PRESENT, /*! No STIR/SHAKEN information was available */
+	AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED, /*! Signature verification failed */
+	AST_STIR_SHAKEN_VERIFY_MISMATCH, /*! Contents of the signaling and the STIR/SHAKEN payload did not match */
+	AST_STIR_SHAKEN_VERIFY_PASSED, /*! Signature verified and contents match signaling */
+};
+
 struct ast_stir_shaken_payload;
 
 struct ast_json;
+
+/*!
+ * \brief Add a STIR/SHAKEN verification result to a channel
+ *
+ * \param chan The channel
+ * \param identity The identity
+ * \param attestation The attestation
+ * \param result The verification result
+ *
+ * \retval -1 on failure
+ * \retval 0 on success
+ */
+int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *identity, const char *attestation,
+	enum ast_stir_shaken_verification_result result);
 
 /*!
  * \brief Verify a JSON STIR/SHAKEN payload
