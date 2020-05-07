@@ -73,7 +73,7 @@ static void statsmaker(void *data, struct stasis_subscription *sub,
 	if (metric) {
 		ast_str_set(&metric, 0, "stasis.message.%s",
 			stasis_message_type_name(stasis_message_type(message)));
-		ast_statsd_log(ast_str_buffer(metric), AST_STATSD_METER, 1);
+		ast_statsd_log(ast_str_buffer(metric), AST_STATSD_COUNTER, 1);
 	}
 }
 
