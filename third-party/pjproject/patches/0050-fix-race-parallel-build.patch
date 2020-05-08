@@ -1,0 +1,72 @@
+From 78683646c8bc670ec730a42494e075f671a08e28 Mon Sep 17 00:00:00 2001
+From: Guido Falsi <mad@madpilot.net>
+Date: Mon, 11 May 2020 08:50:39 +0200
+Subject: [PATCH] Fix race condition in parallel builds (#2426)
+
+* Some targets residing in `OBJDIRS` are missing a dependency on that directory, which results in a race condition, causing build to fail sometimes due to the directory not existing when running parallel builds.
+
+* The `PJSUA_LIB` variable is not defined anywhere, resulting in an empty value, and no correct dependency on the pjsua shared library for `pjsua2`. The correct variable seems to be `PJSUA_LIB_LIB`, defined at the start of this same `Makefile`.
+---
+ build/rules.mak      | 12 ++++++------
+ pjsip/build/Makefile |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/build/rules.mak b/build/rules.mak
+index 8fa98655e..912199c41 100644
+--- a/build/rules.mak
++++ b/build/rules.mak
+@@ -129,7 +129,7 @@ endif
+ $(OBJDIR)/$(app).o: $(OBJDIRS) $(OBJS)
+ 	$(CROSS_COMPILE)ld -r -o $@ $(OBJS)
+ 
+-$(OBJDIR)/$(app).ko: $(OBJDIR)/$(app).o
++$(OBJDIR)/$(app).ko: $(OBJDIR)/$(app).o | $(OBJDIRS)
+ 	@echo Creating kbuild Makefile...
+ 	@echo "# Our module name:" > $(OBJDIR)/Makefile
+ 	@echo 'obj-m += $(app).o' >> $(OBJDIR)/Makefile
+@@ -154,27 +154,27 @@ $(OBJDIR)/$(app).ko: $(OBJDIR)/$(app).o
+ ../lib/$(app).ko: $(LIB) $(OBJDIR)/$(app).ko
+ 	cp $(OBJDIR)/$(app).ko ../lib
+ 
+-$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.m
++$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.m | $(OBJDIRS)
+ 	$(CC) $($(APP)_CFLAGS) \
+ 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
+ 		$(subst /,$(HOST_PSEP),$<) 
+ 
+-$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.c
++$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.c | $(OBJDIRS)
+ 	$(CC) $($(APP)_CFLAGS) \
+ 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
+ 		$(subst /,$(HOST_PSEP),$<) 
+ 
+-$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.S
++$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.S | $(OBJDIRS)
+ 	$(CC) $($(APP)_CFLAGS) \
+ 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
+ 		$(subst /,$(HOST_PSEP),$<) 
+ 
+-$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cpp
++$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cpp | $(OBJDIRS)
+ 	$(CXX) $($(APP)_CXXFLAGS) \
+ 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
+ 		$(subst /,$(HOST_PSEP),$<)
+ 
+-$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cc
++$(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cc | $(OBJDIRS)
+ 	$(CXX) $($(APP)_CXXFLAGS) \
+ 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
+ 		$(subst /,$(HOST_PSEP),$<)
+diff --git a/pjsip/build/Makefile b/pjsip/build/Makefile
+index b85c7817a..20777909f 100644
+--- a/pjsip/build/Makefile
++++ b/pjsip/build/Makefile
+@@ -262,7 +262,7 @@ $(PJSUA_LIB_LIB) $(PJSUA_LIB_SONAME): $(PJSIP_LIB) $(PJSIP_SONAME) $(PJSIP_SIMPL
+ 
+ pjsua2-lib: $(PJSUA2_LIB_LIB)
+ $(PJSUA2_LIB_SONAME): $(PJSUA2_LIB_LIB)
+-$(PJSUA2_LIB_LIB) $(PJSUA2_LIB_SONAME): $(PJSUA_LIB) $(PSJUA_LIB_SONAME) $(PJSIP_LIB) $(PJSIP_SONAME) $(PJSIP_SIMPLE_LIB) $(PJSIP_SIMPLE_SONAME) $(PJSIP_UA_LIB) $(PJSIP_UA_SONAME)
++$(PJSUA2_LIB_LIB) $(PJSUA2_LIB_SONAME): $(PJSUA_LIB_LIB) $(PJSUA_LIB_SONAME) $(PJSIP_LIB) $(PJSIP_SONAME) $(PJSIP_SIMPLE_LIB) $(PJSIP_SIMPLE_SONAME) $(PJSIP_UA_LIB) $(PJSIP_UA_SONAME)
+ 	$(MAKE) -f $(RULES_MAK) APP=PJSUA2_LIB app=pjsua2-lib $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+ 
+ pjsip-test: $(TEST_EXE)
