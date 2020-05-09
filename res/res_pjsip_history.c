@@ -66,9 +66,9 @@ struct pjsip_history_entry {
 	/*! \brief Time the packet was transmitted/received */
 	struct timeval timestamp;
 	/*! \brief Source address */
-	pj_sockaddr_in src;
+	pj_sockaddr src;
 	/*! \brief Destination address */
-	pj_sockaddr_in dst;
+	pj_sockaddr dst;
 	/*! \brief Memory pool used to allocate \c msg */
 	pj_pool_t *pool;
 	/*! \brief The actual SIP message */
