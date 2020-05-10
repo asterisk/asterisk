@@ -174,7 +174,7 @@ static int sip_resolve_add(struct sip_resolve *resolve, const char *name, int rr
 	}
 
 	ast_debug(2, "[%p] Added target '%s' with record type '%d', transport '%s', and port '%d'\n",
-		resolve, name, rr_type, pjsip_transport_get_type_name(transport), target.port);
+		resolve, name, rr_type, pjsip_transport_get_type_desc(transport), target.port);
 
 	return ast_dns_query_set_add(resolve->queries, name, rr_type, rr_class);
 }
@@ -200,7 +200,7 @@ static int sip_resolve_invoke_user_callback(void *data)
 			pj_sockaddr_print(&resolve->addresses.entry[idx].addr, addr, sizeof(addr), 3);
 			ast_log(LOG_DEBUG, "[%p] Address '%d' is %s with transport '%s'\n",
 				resolve, idx, addr,
-				pjsip_transport_get_type_name(resolve->addresses.entry[idx].type));
+				pjsip_transport_get_type_desc(resolve->addresses.entry[idx].type));
 		}
 	}
 
@@ -237,7 +237,7 @@ static int sip_resolve_handle_naptr(struct sip_resolve *resolve, const struct as
 	 * want only IPv4.
 	 */
 	if (!sip_transport_is_available(transport) &&
-		(!(transport & PJSIP_TRANSPORT_IPV6) && !sip_transport_is_available(transport + PJSIP_TRANSPORT_IPV6))) {
+		(!(transport & PJSIP_TRANSPORT_IPV6) && !sip_transport_is_available(transport | PJSIP_TRANSPORT_IPV6))) {
 		ast_debug(2, "[%p] NAPTR service %s skipped as transport is unavailable\n",
 			resolve, service);
 		return -1;
@@ -349,12 +349,14 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 				ast_debug(2, "[%p] SRV record received on target '%s'\n", resolve, ast_dns_query_get_name(query));
 
 				/* If an explicit IPv6 target transport has been requested look for only AAAA records */
-				if (target->transport & PJSIP_TRANSPORT_IPV6) {
+				if ((target->transport & PJSIP_TRANSPORT_IPV6) &&
+					sip_transport_is_available(target->transport)) {
 					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_AAAA, C_IN, target->transport,
 						ast_dns_srv_get_port(record));
 					have_srv = 1;
-				} else if (sip_transport_is_available(target->transport + PJSIP_TRANSPORT_IPV6)) {
-					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_AAAA, C_IN, target->transport + PJSIP_TRANSPORT_IPV6,
+				} else if (!(target->transport & PJSIP_TRANSPORT_IPV6) &&
+					sip_transport_is_available(target->transport | PJSIP_TRANSPORT_IPV6)) {
+					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_AAAA, C_IN, target->transport | PJSIP_TRANSPORT_IPV6,
 						ast_dns_srv_get_port(record));
 					have_srv = 1;
 				}
@@ -497,11 +499,11 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 		}
 
 		if (ip_addr_ver == 6) {
-			type = (pjsip_transport_type_e)((int) type + PJSIP_TRANSPORT_IPV6);
+			type = (pjsip_transport_type_e)((int) type | PJSIP_TRANSPORT_IPV6);
 		}
 	}
 
-	ast_debug(2, "Transport type for target '%s' is '%s'\n", host, pjsip_transport_get_type_name(type));
+	ast_debug(2, "Transport type for target '%s' is '%s'\n", host, pjsip_transport_get_type_desc(type));
 
 	/* If it's already an address call the callback immediately */
 	if (ip_addr_ver) {
@@ -590,12 +592,14 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 	}
 
 	if ((type == PJSIP_TRANSPORT_UNSPECIFIED && sip_transport_is_available(PJSIP_TRANSPORT_UDP6)) ||
-		sip_transport_is_available(type + PJSIP_TRANSPORT_IPV6)) {
-		res |= sip_resolve_add(resolve, host, T_AAAA, C_IN, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP6 : type + PJSIP_TRANSPORT_IPV6), target->addr.port);
+		((type & PJSIP_TRANSPORT_IPV6) && sip_transport_is_available(type))) {
+		res |= sip_resolve_add(resolve, host, T_AAAA, C_IN, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP6 : type), target->addr.port);
+	} else if (!(type & PJSIP_TRANSPORT_IPV6) && sip_transport_is_available(type | PJSIP_TRANSPORT_IPV6)) {
+		res |= sip_resolve_add(resolve, host, T_AAAA, C_IN, type | PJSIP_TRANSPORT_IPV6, target->addr.port);
 	}
 
 	if ((type == PJSIP_TRANSPORT_UNSPECIFIED && sip_transport_is_available(PJSIP_TRANSPORT_UDP)) ||
-		sip_transport_is_available(type)) {
+		(!(type & PJSIP_TRANSPORT_IPV6) && sip_transport_is_available(type))) {
 		res |= sip_resolve_add(resolve, host, T_A, C_IN, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type), target->addr.port);
 	}
 
