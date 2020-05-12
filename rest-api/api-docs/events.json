@@ -173,6 +173,7 @@
 				"ChannelLeftBridge",
 				"ChannelStateChange",
 				"ChannelDtmfReceived",
+				"ChannelJsonReceived",
 				"ChannelDialplan",
 				"ChannelCallerId",
 				"ChannelUserevent",
@@ -616,6 +617,22 @@
 					"required": true,
 					"type": "Channel",
 					"description": "The channel on which DTMF was received"
+				}
+			}
+		},
+		"ChannelJsonReceived": {
+			"id": "ChannelJsonReceived",
+			"description": "JSON data received on a channel.\n",
+			"properties": {
+				"data": {
+					"required": true,
+					"type": "object",
+					"description": "JSON data received"
+				},
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which the JSON data was received"
 				}
 			}
 		},
