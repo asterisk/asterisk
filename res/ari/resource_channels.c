@@ -1779,6 +1779,7 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_ari_channels_create_args *args,
 	struct ast_ari_response *response)
 {
+	struct ast_variable *variables = NULL;
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = args->channel_id,
 		.uniqueid2 = args->other_channel_id,
@@ -1803,6 +1804,18 @@ void ast_ari_channels_create(struct ast_variable *headers,
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Endpoint must be specified");
 		return;
+	}
+
+	/* Parse any query parameters out of the body parameter */
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_channels_create_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
+		}
 	}
 
 	chan_data = ast_calloc(1, sizeof(*chan_data));
@@ -1897,6 +1910,10 @@ void ast_ari_channels_create(struct ast_variable *headers,
 
 	if (!ast_strlen_zero(args->app)) {
 		stasis_app_subscribe_channel(args->app, chan_data->chan);
+	}
+
+	if (variables) {
+		ast_set_variables(chan_data->chan, variables);
 	}
 
 	ast_channel_cleanup(originator);

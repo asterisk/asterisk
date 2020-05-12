@@ -118,6 +118,8 @@ struct ast_ari_channels_create_args {
 	const char *originator;
 	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } } */
+	struct ast_json *variables;
 };
 /*!
  * \brief Body parsing function for /channels/create.
