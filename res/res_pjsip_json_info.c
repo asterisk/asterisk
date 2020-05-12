@@ -46,11 +46,9 @@ static void send_response(struct ast_sip_session *session,
 	}
 }
 
-// static void send_json_received_event(struct ast_channel *chan, const char data)
 static void send_json_received_event(struct ast_channel *chan, char data_str[])
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-	// char data_str[] = { data, '\0' };
 
 	blob = ast_json_pack("{ s: s }", "data", data_str);
 	if (!blob) {
