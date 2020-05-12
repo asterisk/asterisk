@@ -31,6 +31,8 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
+#include "asterisk/json.h"
+#include "asterisk/stasis_channels.h"
 
 static void send_response(struct ast_sip_session *session,
 		struct pjsip_rx_data *rdata, int code)
@@ -42,6 +44,21 @@ static void send_response(struct ast_sip_session *session,
 		struct pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
 		pjsip_dlg_send_response(dlg, tsx, tdata);
 	}
+}
+
+static void send_json_received_event(struct ast_channel *chan, const char data)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	char data_str[] = { data, '\0' };
+
+	blob = ast_json_pack("{ s: s, s: s }",
+		"data", data_str,
+		"direction", "Received");
+	if (!blob) {
+		return;
+	}
+
+	ast_channel_publish_cached_blob(chan, ast_channel_json_received_type(), blob);
 }
 
 static int is_json_type(pjsip_rx_data *rdata, char *subtype)
@@ -88,7 +105,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	buf[res] = '\0';
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
-	send_json_received_event(chan, DTMF_RECEIVED, cur);
+	send_json_received_event(session->channel, cur);
 
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
