@@ -88,6 +88,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	buf[res] = '\0';
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
+	send_json_received_event(chan, DTMF_RECEIVED, cur);
 
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
