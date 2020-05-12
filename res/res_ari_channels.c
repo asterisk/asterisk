@@ -341,10 +341,7 @@ static void ast_ari_channels_create_cb(
 		} else
 		{}
 	}
-	if (ast_ari_channels_create_parse_body(body, &args)) {
-		ast_ari_response_alloc_failed(response);
-		goto fin;
-	}
+	args.variables = body;
 	ast_ari_channels_create(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
