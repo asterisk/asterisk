@@ -51,37 +51,10 @@ static int is_json_type(pjsip_rx_data *rdata, char *subtype)
 		&& !pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
 }
 
-
-
-static char get_data(const char *c)
-{
-
-	blob = ast_json_pack("{s: s}", "data", c);
-
-	// unsigned int event;
-
-	// if (*c == '!' || *c == '*' || *c == '#' ||
-	//     ('A' <= *c && *c <= 'D') ||
-	//     ('a' <= *c && *c <= 'd')) {
-	// 	return *c;
-	// }
-
-	// if ((sscanf(c, "%30u", &event) != 1) || event > 16) {
-	// 	return '\0';
-	// }
-
-	// if (event < 10) {
-	// 	return *c;
-	// }
-
-	// switch (event) {
-	// case 10: return '*';
-	// case 11: return '#';
-	// case 16: return '!';
-	// }
-
-	// return 'A' + (event - 12);
-}
+// static char get_data(const char *c)
+// {
+// 	blob = ast_json_pack("{s: s}", "data", c);
+// }
 
 static int json_info_incoming_request(struct ast_sip_session *session,
 		struct pjsip_rx_data *rdata)
@@ -89,7 +62,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	pjsip_msg_body *body = rdata->msg_info.msg->body;
 	char buf[body ? body->len + 1 : 1];
 	char *cur = buf;
-	char event = '\0';
+	// char event = '\0';
 	int res;
 
 	if (!session->channel) {
@@ -101,7 +74,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 		return 0;
 	}
 
-	ast_log(LOG_NOTICE, "Received SIP INFO from channel %s: %s\n", ast_channel_name(session->channel));
+	ast_log(LOG_NOTICE, "Received SIP INFO from channel %s\n", ast_channel_name(session->channel));
 
 	if (!body || !body->len) {
 		/* need to return 200 OK on empty body */
