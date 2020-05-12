@@ -3413,7 +3413,7 @@ static void send_json_received_event(struct ast_channel *chan,
 
 	blob = ast_json_pack("{ s: s, s: s }",
 		"data", data_str,
-		"direction", dtmf_direction_to_string(direction);
+		"direction", dtmf_direction_to_string(direction));
 	if (!blob) {
 		return;
 	}
