@@ -74,7 +74,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 		return 0;
 	}
 
-	ast_log(LOG_NOTICE, "Received SIP INFO from channel %s\n", ast_channel_name(session->channel));
+	ast_verb(3, "<%s> SIP INFO application/json message received\n", ast_channel_name(session->channel));
 
 	if (!body || !body->len) {
 		/* need to return 200 OK on empty body */
@@ -89,7 +89,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	}
 	buf[res] = '\0';
 
-	ast_log(LOG_NOTICE, "Received SIP INFO from channel %s: %s\n", ast_channel_name(session->channel), cur);
+	ast_verb(3, "<%s> SIP INFO application/json message body: %s\n", ast_channel_name(session->channel), cur);
 
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
