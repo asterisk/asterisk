@@ -880,6 +880,26 @@ int ast_ari_validate_channel_dtmf_received(struct ast_json *json);
 ari_validator ast_ari_validate_channel_dtmf_received_fn(void);
 
 /*!
+ * \brief Validator for ChannelJsonReceived.
+ *
+ * JSON data received on a channel.
+ *
+ * This event is sent when the JSON data is received.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_json_received(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_json_received().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_json_received_fn(void);
+
+/*!
  * \brief Validator for ChannelEnteredBridge.
  *
  * Notification that a channel has entered a bridge.
