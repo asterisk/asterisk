@@ -1125,6 +1125,37 @@ static struct ast_json *dtmf_end_to_json(
 		"channel", json_channel);
 }
 
+static struct ast_json *json_received_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const char *direction =
+		ast_json_string_get(ast_json_object_get(blob, "direction"));
+	const char *data =
+		ast_json_string_get(ast_json_object_get(blob, "data"));
+	const struct timeval *tv = stasis_message_timestamp(message);
+	struct ast_json *json_channel;
+
+	/* Only present received DTMF end events as JSON */
+	if (strcasecmp("Received", direction) != 0) {
+		return NULL;
+	}
+
+	json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+	if (!json_channel) {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: o, s: s, s: o}",
+		"type", "ChannelJsonReceived",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"data", data,
+		"channel", json_channel);
+}
+
 static struct ast_json *varset_to_json(
 	struct stasis_message *message,
 	const struct stasis_message_sanitizer *sanitize)
@@ -1300,6 +1331,9 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type,
 	.to_json = dtmf_end_to_json,
 	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_json_received_type,
+	.to_json = json_received_to_json,
+	);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type,
 	.to_json = hold_to_json,
 	);
@@ -1346,6 +1380,7 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hangup_request_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dtmf_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_json_received_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_hold_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_unhold_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_chanspy_start_type);
@@ -1396,6 +1431,7 @@ int ast_stasis_channels_init(void)
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hangup_request_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_begin_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dtmf_end_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_json_received_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_hold_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_unhold_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_chanspy_start_type);

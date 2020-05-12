@@ -87,6 +87,7 @@
 #define EVENT_FLAG_AOC              (1 << 16) /* Advice Of Charge events */
 #define EVENT_FLAG_TEST             (1 << 17) /* Test event used to signal the Asterisk Test Suite */
 #define EVENT_FLAG_SECURITY         (1 << 18) /* Security Message as AMI Event */
+#define EVENT_FLAG_JSON             (1 << 19) /* Ability to read JSON data events */
 /*XXX Why shifted by 30? XXX */
 #define EVENT_FLAG_MESSAGE          (1 << 30) /* MESSAGE events. */
 /*@} */

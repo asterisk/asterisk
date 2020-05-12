@@ -2017,6 +2017,7 @@ static const struct permalias {
 	{ EVENT_FLAG_USER, "user" },
 	{ EVENT_FLAG_CONFIG, "config" },
 	{ EVENT_FLAG_DTMF, "dtmf" },
+	{ EVENT_FLAG_JSON, "json" },
 	{ EVENT_FLAG_REPORTING, "reporting" },
 	{ EVENT_FLAG_CDR, "cdr" },
 	{ EVENT_FLAG_DIALPLAN, "dialplan" },

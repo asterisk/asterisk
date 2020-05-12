@@ -410,6 +410,14 @@ struct stasis_message_type *ast_channel_dtmf_end_type(void);
 
 /*!
  * \since 12
+ * \brief Message type for when JSON data is received on a channel.
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_json_received_type(void);
+
+/*!
+ * \since 12
  * \brief Message type for when a channel is placed on hold.
  *
  * \retval A stasis message type

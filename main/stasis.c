@@ -120,6 +120,7 @@
 							<enum name="ast_channel_hangup_request_type" />
 							<enum name="ast_channel_dtmf_begin_type" />
 							<enum name="ast_channel_dtmf_end_type" />
+							<enum name="ast_channel_json_received_type" />
 							<enum name="ast_channel_hold_type" />
 							<enum name="ast_channel_unhold_type" />
 							<enum name="ast_channel_chanspy_start_type" />

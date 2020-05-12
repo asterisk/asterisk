@@ -973,6 +973,47 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 		digit, duration_ms, direction);
 }
 
+static void channel_json_received_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	const char *data =
+		ast_json_string_get(ast_json_object_get(obj->blob, "data"));
+	const char *direction =
+		ast_json_string_get(ast_json_object_get(obj->blob, "direction"));
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+
+	if (!channel_event_string) {
+		return;
+	}
+
+	/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when JSON data is received on a channel.</synopsis>
+				<syntax>
+					<channel_snapshot/>
+					<parameter name="Data">
+						<para>JSON data received</para>
+					</parameter>
+					<parameter name="Direction">
+						<enumlist>
+							<enum name="Received"/>
+							<enum name="Sent"/>
+						</enumlist>
+					</parameter>
+				</syntax>
+		</managerEventInstance>
+	***/
+	manager_event(EVENT_FLAG_JSON, "JSONReceived",
+		"%s"
+		"Data: %s\r\n"
+		"Direction: %s\r\n",
+		ast_str_buffer(channel_event_string),
+		data, direction);
+}
+
 static void channel_hangup_handler_cb(void *data, struct stasis_subscription *sub,
 		struct stasis_message *message)
 {
@@ -1284,6 +1325,9 @@ int manager_channels_init(void)
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_dtmf_end_type(), channel_dtmf_end_cb, NULL);
+
+	ret |= stasis_message_router_add(message_router,
+		ast_channel_json_received_type(), channel_json_received_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_hangup_request_type(), channel_hangup_request_cb,
