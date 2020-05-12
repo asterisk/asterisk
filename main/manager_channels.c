@@ -978,7 +978,7 @@ static void channel_json_received_cb(void *data, struct stasis_subscription *sub
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
-	const char *data =
+	const char *json_data =
 		ast_json_string_get(ast_json_object_get(obj->blob, "data"));
 	const char *direction =
 		ast_json_string_get(ast_json_object_get(obj->blob, "direction"));
@@ -1011,7 +1011,7 @@ static void channel_json_received_cb(void *data, struct stasis_subscription *sub
 		"Data: %s\r\n"
 		"Direction: %s\r\n",
 		ast_str_buffer(channel_event_string),
-		data, direction);
+		json_data, direction);
 }
 
 static void channel_hangup_handler_cb(void *data, struct stasis_subscription *sub,
