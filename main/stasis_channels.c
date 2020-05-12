@@ -816,7 +816,7 @@ void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_ty
 
 	message = ast_channel_blob_create(chan, type, blob);
 	if (message) {
-		ast_log(LOG_NOTICE, "channel blob %s\n", message);
+		ast_log(LOG_NOTICE, "channel blob %s\n", message->data);
 		stasis_publish(ast_channel_topic(chan), message);
 		ao2_ref(message, -1);
 	}
