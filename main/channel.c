@@ -3405,22 +3405,6 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 	ast_channel_publish_cached_blob(chan, ast_channel_dtmf_end_type(), blob);
 }
 
-// static void send_json_received_event(struct ast_channel *chan,
-// 	enum DtmfDirection direction, const char data)
-// {
-// 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-// 	char data_str[] = { data, '\0' };
-
-// 	blob = ast_json_pack("{ s: s, s: s }",
-// 		"data", data_str,
-// 		"direction", dtmf_direction_to_string(direction));
-// 	if (!blob) {
-// 		return;
-// 	}
-
-// 	ast_channel_publish_cached_blob(chan, ast_channel_json_received_type(), blob);
-// }
-
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_generator *generator;
