@@ -64,14 +64,14 @@ static void send_json_received_event(struct ast_channel *chan, const char *buffe
 	str = "{ \"one\": 1 }";
 	// uut = ast_json_load_buf(str, strlen("{ \"one\": 1 }"), NULL);
 	// if (!(jobj = ast_json_load_buf(buffer, buflen, &error))) {
-	if (!(jobj = ast_json_load_buf(str, strlen(str), &error))) {
-		ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
-		return;
-	}
+	// if (!(jobj = ast_json_load_buf(str, strlen(str), &error))) {
+	// 	ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
+	// 	return;
+	// }
 
 	// jobj = ast_json_load_buf(buffer, buflen, &error);
 	// jobj = ast_json_load_string(data, &error);
-	blob = ast_json_pack("{ s: o }", "data", jobj);
+	blob = ast_json_pack("{ s: s }", "data", str);
 	if (!blob) {
 		return;
 	}
