@@ -49,7 +49,7 @@ static void send_response(struct ast_sip_session *session,
 // static void send_json_received_event(struct ast_channel *chan, char const *data)
 static void send_json_received_event(struct ast_channel *chan, const char *buffer, size_t buflen)
 {
-	struct ast_json_error error;
+	// struct ast_json_error error;
 	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
@@ -96,7 +96,7 @@ struct ast_json *get_json_data(char const *data)
 
 	if (!(json_data = ast_json_load_string(data, &error))) {
 		ast_verb(3, "SIP INFO application/json parse failed!\n");
-		return;
+		return NULL;
 	}
 
 	// json_data = ast_json_pack("{ s: s }", "data", str);
