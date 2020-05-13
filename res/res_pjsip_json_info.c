@@ -46,10 +46,10 @@ static void send_response(struct ast_sip_session *session,
 	}
 }
 
-static void send_json_received_event(struct ast_channel *chan, char const *data)
 // static void send_json_received_event(struct ast_channel *chan, const char *buffer, size_t buflen)
+static void send_json_received_event(struct ast_channel *chan, char const *data)
 {
-	// struct ast_json_error error;
+	struct ast_json_error error;
 	// RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
@@ -60,8 +60,12 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
 	struct ast_json *json_data;
+	if (!(json_data = ast_json_load_string(data, &error))) {
+		ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
+		return;
+	}
 
-	json_data = get_json_data(data);
+	// json_data = get_json_data(data);
 	// const char *str;
 	// str = "{\"message\":\"Hello!\"}";
 	// str = "{ \"one\": 1 }";
@@ -93,20 +97,20 @@ static int is_json_type(pjsip_rx_data *rdata, char *subtype)
 		&& !pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
 }
 
-struct ast_json *get_json_data(char const *data)
-{
-	struct ast_json_error error;
-	struct ast_json *json_data;
+// struct ast_json *get_json_data(char const *data)
+// {
+// 	struct ast_json_error error;
+// 	struct ast_json *json_data;
 
-	if (!(json_data = ast_json_load_string(data, &error))) {
-		ast_verb(3, "SIP INFO application/json parse failed!\n");
-		return NULL;
-	}
+// 	if (!(json_data = ast_json_load_string(data, &error))) {
+// 		ast_verb(3, "SIP INFO application/json parse failed!\n");
+// 		return NULL;
+// 	}
 
-	// json_data = ast_json_pack("{ s: s }", "data", str);
+// 	// json_data = ast_json_pack("{ s: s }", "data", str);
 
-	return json_data;
-}
+// 	return json_data;
+// }
 
 static int json_info_incoming_request(struct ast_sip_session *session,
 		struct pjsip_rx_data *rdata)
@@ -148,7 +152,8 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
 
-	send_json_received_event(session->channel, buf, sizeof(buf));
+	// send_json_received_event(session->channel, buf, sizeof(buf));
+	send_json_received_event(session->channel, cur);
 
 	return 1;
 
