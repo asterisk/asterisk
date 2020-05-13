@@ -50,7 +50,7 @@ static void send_json_received_event(struct ast_channel *chan, char data_str[])
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
-	blob = ast_json_pack("{ s: s }", "data", data_str);
+	blob = ast_json_pack("{ s: o }", "data", data_str);
 	if (!blob) {
 		return;
 	}
