@@ -1087,9 +1087,14 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 				if (!dup) {
 					continue;
 				}
-				if (ast_begins_with(dup, "/") && strrchr(dup, '.')) {
-					ast_log(LOG_WARNING, "The playlist entry '%s' may include an extension, which could prevent it from playing.\n",
-						dup);
+
+				if (ast_begins_with(dup, "/")) {
+					char *last_pos_dot = strrchr(dup, '.');
+					char *last_pos_slash = strrchr(dup, '/');
+					if (last_pos_dot && last_pos_dot > last_pos_slash) {
+						ast_log(LOG_WARNING, "The playlist entry '%s' may include an extension, which could prevent it from playing.\n",
+							dup);
+					}
 				}
 				AST_VECTOR_APPEND(&mohclass->files, dup);
 			} else {
