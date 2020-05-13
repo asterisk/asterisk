@@ -75,8 +75,9 @@ static void send_json_received_event(struct ast_channel *chan, const char *buffe
 	if (!blob) {
 		return;
 	}
-	// const char *data_str = ast_json_string_get(ast_json_object_get(blob, "data"));
-	// ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
+
+	const char *data_str = ast_json_string_get(ast_json_object_get(blob, "data"));
+	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
 }
