@@ -46,22 +46,25 @@ static void send_response(struct ast_sip_session *session,
 	}
 }
 
-// static void send_json_received_event(struct ast_channel *chan, char const *data)
-static void send_json_received_event(struct ast_channel *chan, const char *buffer, size_t buflen)
+static void send_json_received_event(struct ast_channel *chan, char const *data)
+// static void send_json_received_event(struct ast_channel *chan, const char *buffer, size_t buflen)
 {
 	// struct ast_json_error error;
-	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
+	// RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	ast_assert(chan != NULL);
-	ast_assert(buffer != NULL);
-	ast_assert(buflen != NULL);
+	ast_assert(data != NULL);
+	// ast_assert(buffer != NULL);
+	// ast_assert(buflen != NULL);
 
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
+	struct ast_json *json_channel;
 
-	const char *str;
+	json_channel = get_json_data(data);
+	// const char *str;
 	// str = "{\"message\":\"Hello!\"}";
-	str = "{ \"one\": 1 }";
+	// str = "{ \"one\": 1 }";
 	// uut = ast_json_load_buf(str, strlen("{ \"one\": 1 }"), NULL);
 	// if (!(jobj = ast_json_load_buf(buffer, buflen, &error))) {
 	// if (!(jobj = ast_json_load_buf(str, strlen(str), &error))) {
@@ -71,7 +74,8 @@ static void send_json_received_event(struct ast_channel *chan, const char *buffe
 
 	// jobj = ast_json_load_buf(buffer, buflen, &error);
 	// jobj = ast_json_load_string(data, &error);
-	blob = ast_json_pack("{ s: s }", "data", str);
+	// blob = ast_json_pack("{ s: o }", "data", str);
+	blob = ast_json_pack("{ s: o }", "data", json_channel);
 	if (!blob) {
 		return;
 	}
@@ -135,10 +139,10 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	}
 	buf[res] = '\0';
 
-	json_data = get_json_data(cur);
+	// json_data = get_json_data(cur);
 
-	const char *data_str = ast_json_string_get(ast_json_object_get(json_data, "data"));
-	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), data_str);
+	// const char *data_str = ast_json_string_get(ast_json_object_get(json_data, "data"));
+	// ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), data_str);
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
 
 	/* Need to return 200 OK */
