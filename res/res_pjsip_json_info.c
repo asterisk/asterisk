@@ -56,18 +56,18 @@ static int send_json_received_event(struct ast_channel *chan, char const *data)
 	ast_assert(data != NULL);
 
 	if (!(json_obj = ast_json_load_string(data, &error))) {
-		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json error parsing received message: %s\n", ast_channel_name(chan), error.text);
-		return 0;
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json body parsing error: %s\n", ast_channel_name(chan), error.text);
+		return 400;
 	}
 
 	blob = ast_json_pack("{ s: o }", "data", ast_json_ref(json_obj));
 	if (!blob) {
-		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json invalid data received: %s\n", ast_channel_name(chan), data);
-		return 0;
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json data could not be received: %s\n", ast_channel_name(chan), data);
+		return 500;
 	}
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
-	return 1;
+	return 200;
 
 }
 
@@ -111,7 +111,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
 
-	code = send_json_received_event(session->channel, cur) ? 200 : 400;
+	code = send_json_received_event(session->channel, cur);
 
 	send_response(session, rdata, code);
 
