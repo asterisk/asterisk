@@ -59,9 +59,9 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	// ast_assert(buflen != NULL);
 
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
-	struct ast_json *json_channel;
+	struct ast_json *json_data;
 
-	json_channel = get_json_data(data);
+	json_data = get_json_data(data);
 	// const char *str;
 	// str = "{\"message\":\"Hello!\"}";
 	// str = "{ \"one\": 1 }";
@@ -75,7 +75,7 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	// jobj = ast_json_load_buf(buffer, buflen, &error);
 	// jobj = ast_json_load_string(data, &error);
 	// blob = ast_json_pack("{ s: o }", "data", str);
-	blob = ast_json_pack("{ s: o }", "data", json_channel);
+	blob = ast_json_pack("{ s: o }", "data", json_data);
 	if (!blob) {
 		return;
 	}
