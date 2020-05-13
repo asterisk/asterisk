@@ -66,7 +66,7 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	}
 
 	const char *json_str = ast_json_string_get(ast_json_object_get(json_data, "data"));
-	ast_verb(3, "<%s> SIP INFO application/json message parsed: %s\n", ast_channel_name(session->channel), json_str);
+	ast_verb(3, "<%s> SIP INFO application/json message parsed: %s\n", ast_channel_name(chan), json_str);
 
 	// json_data = get_json_data(data);
 	// const char *str;
