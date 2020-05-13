@@ -37,6 +37,9 @@
 #define AST_SIP_X_AST_ORIG_HOST "x-ast-orig-host"
 #define AST_SIP_X_AST_ORIG_HOST_LEN 15
 
+#define is_sip_uri(uri) \
+	(PJSIP_URI_SCHEME_IS_SIP(uri) || PJSIP_URI_SCHEME_IS_SIPS(uri))
+
 static void save_orig_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 {
 	pjsip_param *x_orig_host;
@@ -303,6 +306,29 @@ static int nat_invoke_hook(void *obj, void *arg, int flags)
 static void restore_orig_contact_host(pjsip_tx_data *tdata)
 {
 	pjsip_contact_hdr *contact;
+	pj_str_t x_name = { AST_SIP_X_AST_ORIG_HOST, AST_SIP_X_AST_ORIG_HOST_LEN };
+	pjsip_param *x_orig_host;
+	pjsip_sip_uri *uri;
+	pjsip_hdr *hdr;
+
+	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
+		if (is_sip_uri(tdata->msg->line.req.uri)) {
+			uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
+			while ((x_orig_host = pjsip_param_find(&uri->other_param, &x_name))) {
+				pj_list_erase(x_orig_host);
+			}
+		}
+		for (hdr = tdata->msg->hdr.next; hdr != &tdata->msg->hdr; hdr = hdr->next) {
+			if (hdr->type == PJSIP_H_TO) {
+				if (is_sip_uri(((pjsip_fromto_hdr *) hdr)->uri)) {
+					uri = pjsip_uri_get_uri(((pjsip_fromto_hdr *) hdr)->uri);
+					while ((x_orig_host = pjsip_param_find(&uri->other_param, &x_name))) {
+						pj_list_erase(x_orig_host);
+					}
+				}
+			}
+		}
+	}
 
 	if (tdata->msg->type != PJSIP_RESPONSE_MSG) {
 		return;
@@ -311,8 +337,7 @@ static void restore_orig_contact_host(pjsip_tx_data *tdata)
 	contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
 	while (contact) {
 		pjsip_sip_uri *contact_uri = pjsip_uri_get_uri(contact->uri);
-		pj_str_t x_name = { AST_SIP_X_AST_ORIG_HOST, AST_SIP_X_AST_ORIG_HOST_LEN };
-		pjsip_param *x_orig_host = pjsip_param_find(&contact_uri->other_param, &x_name);
+		x_orig_host = pjsip_param_find(&contact_uri->other_param, &x_name);
 
 		if (x_orig_host) {
 			char host_port[x_orig_host->value.slen + 1];
