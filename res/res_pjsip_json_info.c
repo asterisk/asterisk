@@ -46,14 +46,16 @@ static void send_response(struct ast_sip_session *session,
 	}
 }
 
-static void send_json_received_event(struct ast_channel *chan, char data_str[])
+static void send_json_received_event(struct ast_channel *chan, char const *data)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
-	blob = ast_json_pack("{ s: o }", "data", data_str);
+	blob = ast_json_pack("{ s: o }", "data", data);
 	if (!blob) {
 		return;
 	}
+
+	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), ast_json_string_get(blob));
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
 }
@@ -102,7 +104,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	buf[res] = '\0';
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
-	send_json_received_event(session->channel, buf);
+	send_json_received_event(session->channel, cur);
 
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
