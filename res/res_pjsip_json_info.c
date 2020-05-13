@@ -50,12 +50,16 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
+	ast_assert(chan != NULL);
+	ast_assert(data != NULL);
+
 	blob = ast_json_pack("{ s: o }", "data", data);
 	if (!blob) {
 		return;
 	}
 
-	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), ast_json_string_get(blob));
+	const char *data_str = ast_json_string_get(ast_json_object_get(blob, "data"));
+	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
 }
