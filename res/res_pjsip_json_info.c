@@ -46,7 +46,7 @@ static void send_response(struct ast_sip_session *session,
 	}
 }
 
-static void send_json_received_event(struct ast_channel *chan, char const *data)
+static int send_json_received_event(struct ast_channel *chan, char const *data)
 {
 	struct ast_json_error error;
 	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
@@ -56,12 +56,20 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	ast_assert(data != NULL);
 
 	json_obj = ast_json_load_string(data, &error);
+	if (error) {
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json error parsing received message: %s\n", ast_channel_name(session->channel), error.text);
+		return 0;
+	}
+
 	blob = ast_json_pack("{ s: o }", "data", ast_json_ref(json_obj));
 	if (!blob) {
-		return;
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json invalid data received: %s\n", ast_channel_name(session->channel), data);
+		return 0;
 	}
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
+	return 1;
+
 }
 
 static int is_json_type(pjsip_rx_data *rdata, char *subtype)
@@ -78,6 +86,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	char buf[body ? body->len + 1 : 1];
 	char *cur = buf;
 	int res;
+	int code;
 
 	if (!session->channel) {
 		return 0;
@@ -89,8 +98,8 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	}
 
 	if (!body || !body->len) {
-		/* need to return 200 OK on empty body */
-		send_response(session, rdata, 200);
+		/* Return 400 Bad Request on empty body */
+		send_response(session, rdata, 400);
 		return 1;
 	}
 
@@ -103,10 +112,9 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
 
-	/* Need to return 200 OK */
-	send_response(session, rdata, 200);
+	code = send_json_received_event(session->channel, cur) ? 200 : 400;
 
-	send_json_received_event(session->channel, cur);
+	send_response(session, rdata, code);
 
 	return 1;
 
