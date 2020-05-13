@@ -50,7 +50,8 @@ static void send_response(struct ast_sip_session *session,
 static void send_json_received_event(struct ast_channel *chan, char const *data)
 {
 	struct ast_json_error error;
-	// RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, json_data, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	ast_assert(chan != NULL);
@@ -59,10 +60,29 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	// ast_assert(buflen != NULL);
 
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
-	struct ast_json *json_data;
-	if (!(json_data = ast_json_load_string(data, &error))) {
-		ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
-		return;
+	// struct ast_json *json_obj;
+	// struct ast_json *json_data;
+
+	// json_obj = ast_json_load_string("{ \"data\": { \"message\": \"Hello World!\" } }", &error);
+
+	json_obj = ast_json_pack("{ s: s }", "message", "Hello World!");
+	;
+
+	// if (json_obj == NULL) {
+	// 	ast_verb(3, "<%s> SIP INFO application/json parsed value: null\n", ast_channel_name(chan));
+	// }
+	// ast_verb(3, "<%s> SIP INFO application/json parsed error: %s\n", ast_channel_name(chan), error.text);
+
+	// if (!(json_obj = ast_json_load_string(data, &error))) {
+	// 	ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
+	// 	return;
+	// }
+
+	json_data = ast_json_pack("{ s: o }", "data", ast_json_ref(json_obj));
+	// json_data = ast_json_pack("{ s: s }", "data", "{ \"message\": \"Hello World!\" }");
+
+	if (ast_json_object_get(json_data, "data") != NULL) {
+		ast_verb(3, "<%s> SIP INFO application/json data found\n", ast_channel_name(chan));
 	}
 
 	const char *json_str = ast_json_string_get(ast_json_object_get(json_data, "data"));
@@ -82,7 +102,7 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	// jobj = ast_json_load_buf(buffer, buflen, &error);
 	// jobj = ast_json_load_string(data, &error);
 	// blob = ast_json_pack("{ s: o }", "data", str);
-	blob = ast_json_pack("{ s: o }", "data", json_data);
+	blob = ast_json_pack("{ s: s }", "data", data);
 	if (!blob) {
 		return;
 	}
@@ -91,6 +111,7 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
+	ast_channel_publish_blob(chan, ast_channel_json_received_type(), json_data);
 }
 
 static int is_json_type(pjsip_rx_data *rdata, char *subtype)
