@@ -49,7 +49,7 @@ static void send_response(struct ast_sip_session *session,
 // static void send_json_received_event(struct ast_channel *chan, char const *data)
 static void send_json_received_event(struct ast_channel *chan, const char *buffer, size_t buflen)
 {
-	// struct ast_json_error error;
+	struct ast_json_error error;
 	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
@@ -58,15 +58,19 @@ static void send_json_received_event(struct ast_channel *chan, const char *buffe
 	ast_assert(buflen != NULL);
 
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
-	jobj = ast_json_load_buf(buffer, buflen, NULL);
+	if (!(jobj = ast_json_load_buf(buffer, buflen, &error))) {
+		ast_verb(3, "<%s> SIP INFO application/json parse failed!\n", ast_channel_name(chan));
+		return;
+	}
+
+	// jobj = ast_json_load_buf(buffer, buflen, &error);
 	// jobj = ast_json_load_string(data, &error);
 	blob = ast_json_pack("{ s: o }", "data", jobj);
 	if (!blob) {
 		return;
 	}
-
-	const char *data_str = ast_json_string_get(ast_json_object_get(blob, "data"));
-	ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
+	// const char *data_str = ast_json_string_get(ast_json_object_get(blob, "data"));
+	// ast_verb(3, "<%s> SIP INFO application/json event raised: %s\n", ast_channel_name(chan), data_str);
 
 	ast_channel_publish_blob(chan, ast_channel_json_received_type(), blob);
 }
