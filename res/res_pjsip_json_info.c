@@ -118,7 +118,7 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	pjsip_msg_body *body = rdata->msg_info.msg->body;
 	char buf[body ? body->len + 1 : 1];
 	char *cur = buf;
-	struct ast_json *json_data;
+	// struct ast_json *json_data;
 	int res;
 
 	if (!session->channel) {
