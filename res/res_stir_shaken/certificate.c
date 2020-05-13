@@ -244,6 +244,80 @@ static int public_key_url_to_str(const void *obj, const intptr_t *args, char **b
 	return 0;
 }
 
+#ifdef TEST_FRAMEWORK
+
+/* Name for test certificaate */
+#define TEST_CONFIG_NAME "test_stir_shaken_certificate"
+/* The public key URL to use for the test certificate */
+#define TEST_CONFIG_URL "http://testing123"
+
+int test_stir_shaken_cleanup_cert(const char *caller_id_number)
+{
+	struct stir_shaken_certificate *cert;
+	struct ast_sorcery *sorcery;
+	int res = 0;
+
+	sorcery = ast_stir_shaken_sorcery();
+
+	cert = stir_shaken_certificate_get_by_caller_id_number(caller_id_number);
+	if (!cert) {
+		return 0;
+	}
+
+	res = ast_sorcery_delete(sorcery, cert);
+	ao2_cleanup(cert);
+	if (res) {
+		ast_log(LOG_ERROR, "Failed to delete sorcery object with caller ID "
+			"'%s'\n", caller_id_number);
+		return -1;
+	}
+
+	res = ast_sorcery_remove_wizard_mapping(sorcery, CONFIG_TYPE, "memory");
+
+	return res;
+}
+
+int test_stir_shaken_create_cert(const char *caller_id_number, const char *file_path)
+{
+	struct stir_shaken_certificate *cert;
+	struct ast_sorcery *sorcery;
+	EVP_PKEY *private_key;
+	int res = 0;
+
+	sorcery = ast_stir_shaken_sorcery();
+
+	res = ast_sorcery_insert_wizard_mapping(sorcery, CONFIG_TYPE, "memory", "testing", 0, 0);
+	if (res) {
+		ast_log(LOG_ERROR, "Failed to insert STIR/SHAKEN test certificate mapping\n");
+		return -1;
+	}
+
+	cert = ast_sorcery_alloc(sorcery, CONFIG_TYPE, TEST_CONFIG_NAME);
+	if (!cert) {
+		ast_log(LOG_ERROR, "Failed to allocate test certificate\n");
+		return -1;
+	}
+
+	ast_string_field_set(cert, path, file_path);
+	ast_string_field_set(cert, public_key_url, TEST_CONFIG_URL);
+	ast_string_field_set(cert, caller_id_number, caller_id_number);
+
+	private_key = stir_shaken_read_key(cert->path, 1);
+	if (!private_key) {
+		ast_log(LOG_ERROR, "Failed to read test key from %s\n", cert->path);
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return -1;
+	}
+
+	cert->private_key = private_key;
+
+	ast_sorcery_create(sorcery, cert);
+
+	return res;
+}
+
+#endif /* TEST_FRAMEWORK */
+
 int stir_shaken_certificate_unload(void)
 {
 	ast_cli_unregister_multiple(stir_shaken_certificate_cli,
