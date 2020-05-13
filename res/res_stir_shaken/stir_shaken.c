@@ -90,7 +90,7 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 
 	fp = fopen(path, "r");
 	if (!fp) {
-		ast_log(LOG_ERROR, "Failed to read private key file '%s'\n", path);
+		ast_log(LOG_ERROR, "Failed to read %s key file '%s'\n", priv ? "private" : "public", path);
 		return NULL;
 	}
 

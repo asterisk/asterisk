@@ -35,6 +35,7 @@
 #include "asterisk/pbx.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/app.h"
+#include "asterisk/test.h"
 
 #include "asterisk/res_stir_shaken.h"
 #include "res_stir_shaken/stir_shaken.h"
@@ -1195,6 +1196,348 @@ static struct ast_custom_function stir_shaken_function = {
 	.read = stir_shaken_read,
 };
 
+#ifdef TEST_FRAMEWORK
+
+static void test_stir_shaken_add_fake_astdb_entry(const char *public_key_url, const char *file_path)
+{
+	struct timeval expires = ast_tvnow();
+	char time_buf[32];
+	char hash[41];
+
+	ast_sha1_hash(hash, public_key_url);
+	add_public_key_to_astdb(public_key_url, file_path);
+	snprintf(time_buf, sizeof(time_buf), "%30lu", expires.tv_sec + 300);
+
+	ast_db_put(hash, "expiration", time_buf);
+}
+
+/*!
+ * \brief Create a private or public key certificate
+ *
+ * \param file_path The path of the file to create
+ * \param private Set to 0 if public, 1 if private
+ *
+ * \retval -1 on failure
+ * \retval 0 on success
+ */
+static int test_stir_shaken_write_temp_key(char *file_path, int private)
+{
+	FILE *file;
+	int fd;
+	char *data;
+	char *type = private ? "private" : "public";
+	char *private_data =
+		"-----BEGIN EC PRIVATE KEY-----\n"
+		"MHcCAQEEIFkNGlrmRky2j7wmjGBGoPFBsyEQELmEYN02BiiG508noAoGCCqGSM49\n"
+		"AwEHoUQDQgAECwCaeAYwVG/FAnEnkwaucz6o047iSWq3cJBBUc0n2ZlUDr5VywAz\n"
+		"MZ86EthIqF3CGZjhLHn0xRITXYwfqTtWBw==\n"
+		"-----END EC PRIVATE KEY-----";
+	char *public_data =
+		"-----BEGIN PUBLIC KEY-----\n"
+		"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECwCaeAYwVG/FAnEnkwaucz6o047i\n"
+		"SWq3cJBBUc0n2ZlUDr5VywAzMZ86EthIqF3CGZjhLHn0xRITXYwfqTtWBw==\n"
+		"-----END PUBLIC KEY-----";
+
+	fd = mkstemp(file_path);
+	if (fd < 0) {
+		ast_log(LOG_ERROR, "Failed to create temp %s file: %s\n", type, strerror(errno));
+		return -1;
+	}
+
+	file = fdopen(fd, "w");
+	if (!file) {
+		ast_log(LOG_ERROR, "Failed to create temp %s key file: %s\n", type, strerror(errno));
+		return -1;
+	}
+
+	data = private ? private_data : public_data;
+	if (fputs(data, file) == EOF) {
+		ast_log(LOG_ERROR, "Failed to write temp %s key file\n", type);
+		fclose(file);
+		return -1;
+	}
+
+	fclose(file);
+
+	return 0;
+}
+
+AST_TEST_DEFINE(test_stir_shaken_sign)
+{
+	char *caller_id_number = "1234567";
+	char file_path[] = "/tmp/stir_shaken_private.XXXXXX";
+	RAII_VAR(char *, rm_on_exit, file_path, unlink);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
+	RAII_VAR(struct ast_stir_shaken_payload *, payload, NULL, ast_stir_shaken_payload_free);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stir_shaken_sign";
+		info->category = "/res/res_stir_shaken/";
+		info->summary = "STIR/SHAKEN sign unit test";
+		info->description =
+			"Tests signing a JWT with a private key.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* We only need a private key to sign */
+	test_stir_shaken_write_temp_key(file_path, 1);
+	test_stir_shaken_create_cert(caller_id_number, file_path);
+
+	/* Test missing header section */
+	json = ast_json_pack("{s: {s: {s: s}}}", "payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'header')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing payload section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123");
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'payload')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing alg section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "ppt",
+		STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE, "x5u", "http://testing123", "payload",
+		"orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'alg')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test invalid alg value */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		"invalid algorithm", "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123", "payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (wrong 'alg')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing ppt section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "typ", STIR_SHAKEN_TYPE, "x5u", "http://testing123",
+		"payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'ppt')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test invalid ppt value */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", "invalid ppt", "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123", "payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (wrong 'ppt')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing typ section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "x5u", "http://testing123",
+		"payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'typ')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test invalid typ value */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", "invalid typ",
+		"x5u", "http://testing123", "payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (wrong 'typ')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing orig section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: s}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123", "payload", "filler", "filler");
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'orig')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test missing tn section */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: s}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123", "payload", "orig", "filler");
+	payload = ast_stir_shaken_sign(json);
+	if (payload) {
+		ast_test_status_update(test, "Signed an invalid JWT (missing 'tn')\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test valid JWT */
+	ast_json_free(json);
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", "http://testing123", "payload", "orig", "tn", caller_id_number);
+	payload = ast_stir_shaken_sign(json);
+	if (!payload) {
+		ast_test_status_update(test, "Failed to sign a valid JWT\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	test_stir_shaken_cleanup_cert(caller_id_number);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(test_stir_shaken_verify)
+{
+	char *caller_id_number = "1234567";
+	char *public_key_url = "http://testing123";
+	char *header = "{\"header\": \"placeholder\"}";
+	char public_path[] = "/tmp/stir_shaken_public.XXXXXX";
+	char private_path[] = "/tmp/stir_shaken_public.XXXXXX";
+	RAII_VAR(char *, rm_on_exit_public, public_path, unlink);
+	RAII_VAR(char *, rm_on_exit_private, private_path, unlink);
+	RAII_VAR(char *, json_str, NULL, ast_json_free);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
+	RAII_VAR(struct ast_stir_shaken_payload *, signed_payload, NULL, ast_stir_shaken_payload_free);
+	RAII_VAR(struct ast_stir_shaken_payload *, returned_payload, NULL, ast_stir_shaken_payload_free);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stir_shaken_verify";
+		info->category = "/res/res_stir_shaken/";
+		info->summary = "STIR/SHAKEN verify unit test";
+		info->description =
+			"Tests verifying a signature with a public key";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* We need the private key to sign, but we also need the corresponding
+	 * public key to verify */
+	test_stir_shaken_write_temp_key(public_path, 0);
+	test_stir_shaken_write_temp_key(private_path, 1);
+	test_stir_shaken_create_cert(caller_id_number, private_path);
+
+	/* Get the signature */
+	json = ast_json_pack("{s: {s: s, s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "ppt", STIR_SHAKEN_PPT, "typ", STIR_SHAKEN_TYPE,
+		"x5u", public_key_url, "payload", "orig", "tn", caller_id_number);
+	signed_payload = ast_stir_shaken_sign(json);
+	if (!signed_payload) {
+		ast_test_status_update(test, "Failed to sign a valid JWT\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Get the message to use for verification */
+	json_str = ast_json_dump_string(json);
+	if (!json_str) {
+		ast_test_status_update(test, "Failed to create string from JSON\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test empty header parameter */
+	returned_payload = ast_stir_shaken_verify("", json_str, (const char *)signed_payload->signature,
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+	if (returned_payload) {
+		ast_test_status_update(test, "Verified a signature with missing 'header'\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test empty payload parameter */
+	returned_payload = ast_stir_shaken_verify(header, "", (const char *)signed_payload->signature,
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+	if (returned_payload) {
+		ast_test_status_update(test, "Verified a signature with missing 'payload'\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test empty signature parameter */
+	returned_payload = ast_stir_shaken_verify(header, json_str, "",
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+	if (returned_payload) {
+		ast_test_status_update(test, "Verified a signature with missing 'signature'\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test empty algorithm parameter */
+	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+		"", public_key_url);
+	if (returned_payload) {
+		ast_test_status_update(test, "Verified a signature with missing 'algorithm'\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Test empty public key URL */
+	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "");
+	if (returned_payload) {
+		ast_test_status_update(test, "Verified a signature with missing 'public key URL'\n");
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	/* Trick the function into thinking we've already downloaded the key */
+	test_stir_shaken_add_fake_astdb_entry(public_key_url, public_path);
+
+	/* Verify a valid signature */
+	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
+	if (!returned_payload) {
+		ast_test_status_update(test, "Failed to verify a valid signature\n");
+		remove_public_key_from_astdb(public_key_url);
+		test_stir_shaken_cleanup_cert(caller_id_number);
+		return AST_TEST_FAIL;
+	}
+
+	remove_public_key_from_astdb(public_key_url);
+
+	test_stir_shaken_cleanup_cert(caller_id_number);
+
+	return AST_TEST_PASS;
+}
+
+#endif /* TEST_FRAMEWORK */
+
 static int reload_module(void)
 {
 	if (stir_shaken_sorcery) {
@@ -1216,6 +1559,9 @@ static int unload_module(void)
 	stir_shaken_sorcery = NULL;
 
 	res |= ast_custom_function_unregister(&stir_shaken_function);
+
+	AST_TEST_UNREGISTER(test_stir_shaken_sign);
+	AST_TEST_UNREGISTER(test_stir_shaken_verify);
 
 	return res;
 }
@@ -1247,6 +1593,9 @@ static int load_module(void)
 	ast_sorcery_load(ast_stir_shaken_sorcery());
 
 	res |= ast_custom_function_register(&stir_shaken_function);
+
+	AST_TEST_REGISTER(test_stir_shaken_sign);
+	AST_TEST_REGISTER(test_stir_shaken_verify);
 
 	return res;
 }
