@@ -48,12 +48,15 @@ static void send_response(struct ast_sip_session *session,
 
 static void send_json_received_event(struct ast_channel *chan, char const *data)
 {
+	struct ast_json_error error;
+	RAII_VAR(struct ast_json *, jobj, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	ast_assert(chan != NULL);
 	ast_assert(data != NULL);
 
-	blob = ast_json_pack("{ s: o }", "data", ast_json_load_string(data));
+	jobj = ast_json_load_string(data, &error);
+	blob = ast_json_pack("{ s: o }", "data", jobj);
 	if (!blob) {
 		return;
 	}
