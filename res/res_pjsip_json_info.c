@@ -89,13 +89,28 @@ static int is_json_type(pjsip_rx_data *rdata, char *subtype)
 		&& !pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
 }
 
+struct ast_json *get_json_data(char const *data)
+{
+	struct ast_json_error error;
+	struct ast_json *json_data;
+
+	if (!(json_data = ast_json_load_string(data, &error))) {
+		ast_verb(3, "SIP INFO application/json parse failed!\n");
+		return;
+	}
+
+	// json_data = ast_json_pack("{ s: s }", "data", str);
+
+	return json_data;
+}
+
 static int json_info_incoming_request(struct ast_sip_session *session,
 		struct pjsip_rx_data *rdata)
 {
 	pjsip_msg_body *body = rdata->msg_info.msg->body;
 	char buf[body ? body->len + 1 : 1];
 	char *cur = buf;
-	// char event = '\0';
+	struct ast_json *json_data;
 	int res;
 
 	if (!session->channel) {
@@ -120,6 +135,10 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	}
 	buf[res] = '\0';
 
+	json_data = get_json_data(cur);
+
+	const char *data_str = ast_json_string_get(ast_json_object_get(json_data, "data"));
+	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), data_str);
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
 
 	/* Need to return 200 OK */
