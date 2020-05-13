@@ -55,8 +55,7 @@ static int send_json_received_event(struct ast_channel *chan, char const *data)
 	ast_assert(chan != NULL);
 	ast_assert(data != NULL);
 
-	json_obj = ast_json_load_string(data, &error);
-	if (error) {
+	if (!(json_obj = ast_json_load_string(data, &error))) {
 		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json error parsing received message: %s\n", ast_channel_name(chan), error.text);
 		return 0;
 	}
