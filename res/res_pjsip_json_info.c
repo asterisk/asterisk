@@ -53,7 +53,7 @@ static void send_json_received_event(struct ast_channel *chan, char const *data)
 	ast_assert(chan != NULL);
 	ast_assert(data != NULL);
 
-	blob = ast_json_pack("{ s: o }", "data", data);
+	blob = ast_json_pack("{ s: o }", "data", ast_json_load_string(data));
 	if (!blob) {
 		return;
 	}
