@@ -57,13 +57,13 @@ static int send_json_received_event(struct ast_channel *chan, char const *data)
 
 	json_obj = ast_json_load_string(data, &error);
 	if (error) {
-		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json error parsing received message: %s\n", ast_channel_name(session->channel), error.text);
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json error parsing received message: %s\n", ast_channel_name(chan), error.text);
 		return 0;
 	}
 
 	blob = ast_json_pack("{ s: o }", "data", ast_json_ref(json_obj));
 	if (!blob) {
-		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json invalid data received: %s\n", ast_channel_name(session->channel), data);
+		ast_log(LOG_NOTICE, "<%s> SIP INFO application/json invalid data received: %s\n", ast_channel_name(chan), data);
 		return 0;
 	}
 
