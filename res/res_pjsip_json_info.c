@@ -60,7 +60,7 @@ static void send_json_received_event(struct ast_channel *chan, const char *buffe
 	// jobj = ast_json_load_string("{ \"one\": 1 }", NULL);
 
 	const char *str;
-	// {"message":"Hello!"}
+	// str = "{\"message\":\"Hello!\"}";
 	str = "{ \"one\": 1 }";
 	// uut = ast_json_load_buf(str, strlen("{ \"one\": 1 }"), NULL);
 	// if (!(jobj = ast_json_load_buf(buffer, buflen, &error))) {
@@ -120,10 +120,12 @@ static int json_info_incoming_request(struct ast_sip_session *session,
 	buf[res] = '\0';
 
 	ast_verb(3, "<%s> SIP INFO application/json message received: %s\n", ast_channel_name(session->channel), cur);
-	send_json_received_event(session->channel, buf, sizeof(buf));
 
 	/* Need to return 200 OK */
 	send_response(session, rdata, 200);
+
+	send_json_received_event(session->channel, buf, sizeof(buf));
+
 	return 1;
 
 }

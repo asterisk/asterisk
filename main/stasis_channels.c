@@ -1132,21 +1132,21 @@ static struct ast_json *json_received_to_json(
 	struct ast_channel_blob *channel_blob = stasis_message_data(message);
 	struct ast_json *blob = channel_blob->blob;
 	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
-	// const char *data =
-	// 	ast_json_string_get(ast_json_object_get(blob, "data"));
+	const char *data =
+		ast_json_string_get(ast_json_object_get(blob, "data"));
 	const struct timeval *tv = stasis_message_timestamp(message);
 	struct ast_json *json_channel;
-	struct ast_json *json_data = ast_json_object_get(blob, "data");
+	// struct ast_json *json_data = ast_json_object_get(blob, "data");
 
 	json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
 	if (!json_channel) {
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: o, s: o, s: o}",
+	return ast_json_pack("{s: s, s: o, s: s, s: o}",
 		"type", "ChannelJsonReceived",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"data", json_data,
+		"data", data,
 		"channel", json_channel);
 }
 
