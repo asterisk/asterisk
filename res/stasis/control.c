@@ -595,7 +595,6 @@ static int app_control_json(struct stasis_app_control *control,
 	return 0;
 }
 
-
 int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
 {
 	struct ast_json *json_data;
@@ -612,7 +611,7 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 
 	json_data = ast_json_null();
 
-	stasis_app_send_command_async(control, app_control_app, json_data, ast_free_ptr);
+	stasis_app_send_command_async(control, app_control_json, json_data, ast_free_ptr);
 
 	return 0;
 }
