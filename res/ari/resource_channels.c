@@ -477,54 +477,54 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
-static void send_json_data(struct ast_channel *chan, struct ast_json *data, struct ast_ari_response *response)
-{
+// static void send_json_data(struct ast_channel *chan, struct ast_json *data, struct ast_ari_response *response)
+// {
 
-	struct ast_variable *current;
-	struct ast_msg *msg;
-	int res = 0;
+// 	struct ast_variable *current;
+// 	struct ast_msg *msg;
+// 	int res = 0;
 
-	//TODO:check data
-	// if (ast_strlen_zero(to)) {
-	// 	ast_ari_response_error(response, 400, "Bad Request",
-	// 		"To must be specified");
-	// 	return;
-	// }
+// 	//TODO:check data
+// 	// if (ast_strlen_zero(to)) {
+// 	// 	ast_ari_response_error(response, 400, "Bad Request",
+// 	// 		"To must be specified");
+// 	// 	return;
+// 	// }
 
-	msg = ast_msg_alloc();
-	if (!msg) {
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
+// 	msg = ast_msg_alloc();
+// 	if (!msg) {
+// 		ast_ari_response_alloc_failed(response);
+// 		return;
+// 	}
 
-	if (!ast_strlen_zero(body)) {
-		res |= ast_msg_set_body(msg, "%s", body);
-	}
+// 	if (!ast_strlen_zero(body)) {
+// 		res |= ast_msg_set_body(msg, "%s", body);
+// 	}
 
-	for (current = variables; current; current = current->next) {
-		res |= ast_msg_set_var_outbound(msg, current->name, current->value);
-	}
+// 	for (current = variables; current; current = current->next) {
+// 		res |= ast_msg_set_var_outbound(msg, current->name, current->value);
+// 	}
 
-	if (res) {
-		ast_ari_response_alloc_failed(response);
-		ast_msg_destroy(msg);
-		return;
-	}
+// 	if (res) {
+// 		ast_ari_response_alloc_failed(response);
+// 		ast_msg_destroy(msg);
+// 		return;
+// 	}
 
-	if (ast_msg_send(msg, to, from)) {
-		ast_ari_response_error(response, 404, "Not Found",
-			"Endpoint not found");
-	}
+// 	if (ast_msg_send(msg, to, from)) {
+// 		ast_ari_response_error(response, 404, "Not Found",
+// 			"Endpoint not found");
+// 	}
 
-	ast_log(LOG_NOTICE, "%s: send_json_data, about to send info message.\n", ast_channel_name(chan));
+// 	ast_log(LOG_NOTICE, "%s: send_json_data, about to send info message.\n", ast_channel_name(chan));
 
-	ast_send_json(chan, msg);
+// 	ast_send_json(chan, msg);
 
-	response->message = ast_json_null();
-	response->response_code = 202;
-	response->response_text = "Accepted";
+// 	response->message = ast_json_null();
+// 	response->response_code = 202;
+// 	response->response_text = "Accepted";
 
-}
+// }
 
 void ast_ari_channels_send_json(struct ast_variable *headers,
 	struct ast_ari_channels_send_dtmf_args *args,
