@@ -4775,6 +4775,8 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	const char *body = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
 	const char *content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
 
+	ast_log(LOG_NOTICE, "Sending info data to channel %s\n", ast_channel_name(chan));
+
 	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
@@ -4785,6 +4787,10 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	CHECK_BLOCKING(chan);
 	if ((ast_channel_tech(chan)->properties & AST_CHAN_TP_SEND_INFO_DATA)
 		&& ast_channel_tech(chan)->send_info_data) {
+
+		ast_log(LOG_NOTICE, "Sending enhanced INFO data message to a channel %s, content-type: %s, body: %s\n", 
+			ast_channel_name(chan), content_type, body);
+
 		/* Send enhanced INFO data message to a channel driver that supports it */
 		ast_debug(1, "Sending INFO data to %s %s\n",
 			ast_channel_name(chan), body);
@@ -4814,6 +4820,8 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	if (data == NULL) {
 		return 0;
 	}
+
+	ast_log(LOG_NOTICE, "Sending json data to channel %s\n", ast_channel_name(chan));
 
 	// if (ast_strlen_zero(text)) {
 	// 	return 0;

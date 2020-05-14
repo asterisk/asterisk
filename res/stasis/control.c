@@ -590,6 +590,8 @@ static int app_control_json(struct stasis_app_control *control,
 		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
+	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(chan));
+
 	ast_send_json(chan, json_data);
 
 	return 0;
