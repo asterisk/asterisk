@@ -44,7 +44,6 @@
 #include "asterisk/dial.h"
 #include "asterisk/max_forwards.h"
 #include "asterisk/rtp_engine.h"
-#include "stasis/control.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -509,7 +508,9 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 	// 	ast_ari_response_error(response, 400, "Bad Request","JSON data is required");
 	// 	return;
 	// }
-	ast_send_json(control->channel, args->data);
+	// ast_send_json(control->channel, args->data);
+
+	stasis_app_control_json(control, args->data);
 
 	response->message = ast_json_null();
 	response->response_code = 202;

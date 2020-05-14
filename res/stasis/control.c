@@ -581,6 +581,42 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
+static int app_control_json(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	struct ast_json *json_data = data;
+
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
+	}
+
+	ast_send_json(chan, json_data);
+
+	return 0;
+}
+
+
+int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
+{
+	struct ast_json *json_data;
+
+	// if (!(dtmf_data = ast_calloc(1, sizeof(*dtmf_data) + strlen(dtmf) + 1))) {
+	// 	return -1;
+	// }
+
+	// dtmf_data->before = before;
+	// dtmf_data->between = between;
+	// dtmf_data->duration = duration;
+	// dtmf_data->after = after;
+	// strcpy(dtmf_data->dtmf, dtmf);
+
+	json_data = ast_json_null();
+
+	stasis_app_send_command_async(control, app_control_app, json_data, ast_free_ptr);
+
+	return 0;
+}
+
 static int app_control_ring(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
