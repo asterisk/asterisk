@@ -608,8 +608,7 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 	// dtmf_data->duration = duration;
 	// dtmf_data->after = after;
 	// strcpy(dtmf_data->dtmf, dtmf);
-
-	json_data = ast_json_null();
+	json_data = ast_json_pack("{s: s, s: s, s: s, s: s}", "data", "Hello World!");
 
 	stasis_app_send_command_async(control, app_control_json, json_data, ast_free_ptr);
 
