@@ -393,9 +393,10 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers, struct ast_ari_cha
 struct ast_ari_channels_send_json_args {
 	/*! Channel's id */
 	const char *channel_id;
-	/*! data To send. */
-	const char *data;
+	/*! data to send. */
+	struct ast_json *data;
 };
+
 /*!
  * \brief Body parsing function for /channels/{channelId}/json.
  * \param body The JSON body from which to parse parameters.

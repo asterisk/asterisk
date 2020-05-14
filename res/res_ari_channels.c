@@ -1249,11 +1249,17 @@ int ast_ari_channels_send_json_parse_body(
 	struct ast_ari_channels_send_json_args *args)
 {
 	struct ast_json *field;
+
+	ast_log(LOG_NOTICE, "sendJSON request received, parsing body %s\n", body);
+
 	/* Parse query parameters out of it */
 	field = ast_json_object_get(body, "data");
 	if (field) {
 		args->data = ast_json_string_get(field);
 	}
+
+	ast_log(LOG_NOTICE, "sendJSON request received, parsed %s\n", args->data);
+
 	return 0;
 }
 
@@ -1276,6 +1282,8 @@ static void ast_ari_channels_send_json_cb(
 	int code;
 #endif /* AST_DEVMODE */
 
+	ast_log(LOG_NOTICE, "sendJSON request received\n");
+
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "data") == 0) {
 			args.data = (i->value);
@@ -1292,9 +1300,12 @@ static void ast_ari_channels_send_json_cb(
 		ast_ari_response_alloc_failed(response);
 		goto fin;
 	}
+
+	ast_log(LOG_NOTICE, "sendJSON request received from %s: %s\n", args.channel_id, args.data);
+
 	// TODO: check this option
 	// args.data = body;
-	ast_ari_channels_send_json(headers, &args, response);
+	// ast_ari_channels_send_json(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 

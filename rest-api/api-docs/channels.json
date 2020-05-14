@@ -825,7 +825,7 @@
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
-							"dataType": "string"
+							"dataType": "containers"
 						}
 					],
 					"errorResponses": [
