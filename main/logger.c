@@ -202,7 +202,7 @@ static FILE *qlog;
 
 static char *levels[NUMLOGLEVELS] = {
 	"DEBUG",
-	"---EVENT---",		/* no longer used */
+	"TRACE",
 	"NOTICE",
 	"WARNING",
 	"ERROR",
@@ -1216,9 +1216,9 @@ static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct as
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "logger set level {DEBUG|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}";
+		e->command = "logger set level {DEBUG|TRACE|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}";
 		e->usage =
-			"Usage: logger set level {DEBUG|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}\n"
+			"Usage: logger set level {DEBUG|TRACE|NOTICE|WARNING|ERROR|VERBOSE|DTMF} {on|off}\n"
 			"       Set a specific log level to enabled/disabled for this console.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -2280,6 +2280,68 @@ static void update_logchannels(void)
 
 	AST_RWLIST_UNLOCK(&logchannels);
 }
+
+
+#ifdef AST_DEVMODE
+
+AST_THREADSTORAGE_RAW(trace_indent);
+#define LOTS_O_SPACES "                                                                                            "
+
+
+void __ast_trace(const char *file, int line, const char *func, enum ast_trace_indent_type indent_type,
+	const char* format, ...)
+{
+	va_list ap;
+	unsigned long indent = (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
+	struct ast_str *fmt = ast_str_create(128);
+	char *direction;
+
+	if (!fmt) {
+		return;
+	}
+
+	if (indent_type == AST_TRACE_INDENT_INC_BEFORE) {
+		indent++;
+		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+	}
+	if (indent_type == AST_TRACE_INDENT_DEC_BEFORE) {
+		indent--;
+		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+	}
+
+	switch(indent_type) {
+	case AST_TRACE_INDENT_NONE:
+	case AST_TRACE_INDENT_SAME:
+		direction = "";
+		break;
+	case AST_TRACE_INDENT_INC_BEFORE:
+	case AST_TRACE_INDENT_INC_AFTER:
+		direction = "--> ";
+		break;
+	case AST_TRACE_INDENT_DEC_BEFORE:
+	case AST_TRACE_INDENT_DEC_AFTER:
+		direction = "<-- ";
+		break;
+	}
+
+	ast_str_set(&fmt, 0, "%2d %-.*s%s%s:%d %s: %s", (int)indent, (indent_type == AST_TRACE_INDENT_NONE ? 0 : (int)(indent * 4)),
+		LOTS_O_SPACES, direction, file, line, func, S_OR(ast_skip_blanks(format), "\n"));
+
+	if (indent_type == AST_TRACE_INDENT_INC_AFTER) {
+		indent++;
+		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+	}
+	if (indent_type == AST_TRACE_INDENT_DEC_AFTER) {
+		indent--;
+		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+	}
+
+	va_start(ap, format);
+	ast_log_full(__LOG_TRACE, -1, NULL, 0, NULL, 0, ast_str_buffer(fmt), ap);
+	va_end(ap);
+	ast_free(fmt);
+}
+#endif
 
 int ast_logger_register_level(const char *name)
 {

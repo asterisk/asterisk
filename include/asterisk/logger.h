@@ -245,6 +245,17 @@ void ast_console_toggle_loglevel(int fd, int level, int state);
 #endif
 #define AST_LOG_DEBUG      __LOG_DEBUG, _A_
 
+#ifdef LOG_TRACE
+#undef LOG_TRACE
+#endif
+#define __LOG_TRACE   1
+#define LOG_TRACE     __LOG_TRACE, _A_
+
+#ifdef AST_LOG_TRACE
+#undef AST_LOG_TRACE
+#endif
+#define AST_LOG_TRACE     __LOG_TRACE, _A_
+
 #ifdef LOG_NOTICE
 #undef LOG_NOTICE
 #endif
@@ -516,6 +527,199 @@ void ast_logger_set_queue_limit(int queue_limit);
  * \return Queue limit
  */
 int ast_logger_get_queue_limit(void);
+
+
+/*!
+ \page Scope_Trace Scope Trace
+
+The Scope Trace facility allows you to instrument code and output scope entry
+and exit messages with associated data.
+
+To start using it:
+ * You must have used --enable-dev-mode.
+ * In logger.conf, set a logger channel to output the "trace" level.
+ * Instrument your code as specified below.
+ * Use the cli or cli.conf to enable tracing: CLI> core set trace <trace_level> [ module ]
+
+Its simplest usage requires only 1 macro call that...
+	- Registers a descructor for a special variable that gets called when the
+	  variable goes out of scope.  Uses the same principle as RAII_VAR.
+	  The destructor prints the name of the function with an "exiting" indicator
+	  along with an optional message.
+	- Prints the name of the function with an "entering" indicator along with
+	  an optional message.
+
+Simple Example:
+The following code...
+\code
+static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv,
+	struct ast_sip_session *session, const pjmedia_sdp_session *offer)
+{
+	SCOPE_TRACE(1, "%s\n", ast_sip_session_get_name(session));
+	...
+}
+\endcode
+would produce...
+\b [2020-05-17 15:16:51 -0600] TRACE[953402] : --> res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
+\b [2020-05-17 15:16:51 -0600] TRACE[953402] : <-- res_pjsip_session.c:4283 create_local_sdp PJSIP/1173-00000001
+
+There is one odd bit.  There's no way to capture the line number of there the scope exited
+so it's always going to be the line where SCOPE_TRACE is located.
+
+Similar to RAII_VAR, any block scope can be traced including "if", "for", "while", etc.
+\note "case" statements don't create a scope block by themselves but you can create
+a block for it, or use the generic trace functions mentioned below.
+
+Scope Output and Level:
+
+Rather than sending trace messages to the debug facility, a new facility "trace" has been
+added to logger.  A corresponding CLI command "core set trace", and a corresponding "trace"
+parameter in asterisk.conf were added.  This allows a separate log channel to be created
+just for storing trace messages.  The levels are the same as those for debug and verbose.
+
+Scope Indenting:
+
+Each time SCOPE_TRACE or SCOPE_TRACE is called, a thread-local indent value is
+incremented on scope enter, and decremented on scope exit.  This allows output
+like the following (timestamp omitted for brevity):
+
+TRACE[953402] : --> res_pjsip_session.c:3940 session_inv_on_tsx_state_changed PJSIP/1173-00000001 TSX State: Proceeding  Inv State: CALLING
+TRACE[953402] : 	--> res_pjsip_session.c:3680 handle_incoming PJSIP/1173-00000001
+TRACE[953402] : 		--> res_pjsip_session.c:3661 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
+TRACE[953402] : 			--> res_pjsip_session.c:3669 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100 Supplement: chan_pjsip
+TRACE[953402] : 				--> chan_pjsip.c:3265 chan_pjsip_incoming_response_after_media PJSIP/1173-00000001 Method: INVITE Status: 100  After Media
+TRACE[953402] : 					--> chan_pjsip.c:3194 chan_pjsip_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
+TRACE[953402] : 					    chan_pjsip.c:3245 chan_pjsip_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100  Ignored
+TRACE[953402] : 					<-- chan_pjsip.c:3194 chan_pjsip_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
+TRACE[953402] : 				<-- chan_pjsip.c:3265 chan_pjsip_incoming_response_after_media PJSIP/1173-00000001 Method: INVITE Status: 100  After Media
+TRACE[953402] : 			<-- res_pjsip_session.c:3669 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100 Supplement: chan_pjsip
+TRACE[953402] : 		<-- res_pjsip_session.c:3661 handle_incoming_response PJSIP/1173-00000001 Method: INVITE Status: 100
+TRACE[953402] : 	<-- res_pjsip_session.c:3680 handle_incoming PJSIP/1173-00000001
+TRACE[953402] : <-- res_pjsip_session.c:3940 session_inv_on_tsx_state_changed PJSIP/1173-00000001 TSX State: Proceeding  Inv State: CALLING
+
+\note The trace level indicates which messages to print and has no effect on indent.
+
+Generic Trace Messages:
+
+Sometimes you may just want to print a message to the trace log with the appropriate indent
+such as when executing a "case" clause in a "switch" statement. For example, the deepest
+message in the sample output above (chan_pjsip.c:3245) is just a single message instead of
+an entry/exit message.  To do so, you can use the ast_trace macros...
+\code
+	ast_trace(1, "%s Method: %.*s Status: %d  Ignored\n", ast_sip_session_get_name(session),
+		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
+\endcode
+
+/note Final note:  The trace facility, like debug, is only available when AST_DEVMODE is defined.
+
+ */
+
+/*!
+ * \brief Get the trace level for a module
+ * \param module the name of module
+ * \return the trace level
+ */
+unsigned int ast_trace_get_by_module(const char *module);
+
+#define TRACE_ATLEAST(level) \
+	(option_trace >= (level) \
+		|| (ast_opt_trace_module \
+			&& ((int)ast_trace_get_by_module(AST_MODULE) >= (level) \
+				|| (int)ast_trace_get_by_module(__FILE__) >= (level))))
+
+/*!
+ * \brief Controls if and when indenting is applied.
+ */
+enum ast_trace_indent_type {
+	/*! Use the existing indent level */
+	AST_TRACE_INDENT_SAME = 0,
+	/*! Increment the indent before printing the message */
+	AST_TRACE_INDENT_INC_BEFORE,
+	/*! Increment the indent after printing the message */
+	AST_TRACE_INDENT_INC_AFTER,
+	/*! Decrement the indent before printing the message */
+	AST_TRACE_INDENT_DEC_BEFORE,
+	/*! Decrement the indent after printing the message */
+	AST_TRACE_INDENT_DEC_AFTER,
+	/*! Don't use or alter the level */
+	AST_TRACE_INDENT_NONE,
+};
+
+#ifdef AST_DEVMODE
+
+void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int line, const char *func,
+	enum ast_trace_indent_type indent_type, const char* format, ...);
+
+/*!
+ * \brief Print a trace message
+ *
+ * \param level The trace level
+ * \param indent_type One of the \ref ast_trace_indent_type values
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ */
+#define ast_trace_raw(level, indent_type, ...) \
+	if (TRACE_ATLEAST(level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, " " __VA_ARGS__); \
+	}
+
+/*!
+ * \brief Print a basic trace message
+ *
+ * \param level The trace level
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ *  This will print the file, line and function at the current indent level
+ */
+#define ast_trace(level, ...) \
+	if (TRACE_ATLEAST(level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, " " __VA_ARGS__); \
+	}
+
+/*!
+ * \brief Print a trace message with details when a scope is entered or existed.
+ *
+ * \param level The trace level
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ *  This will print the file, line and function plus details at the current indent level.
+ * \note Like RAII_VAR, this macro must be called before any code in the scope.
+ *
+ * \note The variables used to detect scope change will look like
+ * __scopevar1234__EXIT and __scopevar1234__ENTER.
+ * The ENTER variable and function are needed to prevent mixed code and declaration issues.
+ * If we simple called __ast_trace, then this macro would need to be the last line
+ * of scope variable declaration.  The following would fail.
+ *
+ * 	SCOPE_TRACE(1, "Help!\n");
+ * 	int i;
+ */
+#define SCOPE_TRACE(level, ...) \
+	const char *__trace_funcname = __PRETTY_FUNCTION__; \
+	auto void __scopevar ## __LINE__ ## __EXIT(void * v); \
+	void __scopevar ## __LINE__ ## __EXIT(void * v __attribute__((unused))) { \
+		if (TRACE_ATLEAST(level)) { \
+			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+		} \
+	} \
+	void *__scopevar ## __LINE__ ## __TRACER __attribute__((cleanup(__scopevar ## __LINE__ ## __EXIT))) = (void *) __PRETTY_FUNCTION__ ; \
+	auto int __scopevar ## __LINE__ ## __ENTER(void); \
+	int __scopevar ## __LINE__ ## __ENTER(void) { \
+		if (TRACE_ATLEAST(level)) { \
+			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_INC_AFTER, " " __VA_ARGS__); \
+		} \
+		return 0; \
+	} \
+	int __scopevar ## __LINE__ ## __RETURN __attribute__((unused)) = __scopevar ## __LINE__ ## __ENTER()
+
+#else
+#define ast_trace_raw(__level, __indent_type, __fmt, ...)
+#define ast_trace(__level)
+#define SCOPE_TRACE(__level)
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
