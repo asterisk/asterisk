@@ -802,6 +802,54 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/json",
+			"description": "Send JSON data to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Send provided JSON data to a given channel.",
+					"nickname": "sendJSON",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "data",
+							"description": "JSON data to send.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "JSON data is required"
+						},
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
+						}
+					]
+				}
+			]
+		},		
+		{
 			"path": "/channels/{channelId}/mute",
 			"description": "Mute a channel",
 			"operations": [

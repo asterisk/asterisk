@@ -581,6 +581,25 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
+struct stasis_app_control_json_data {
+	char data[];
+};
+
+int stasis_app_control_json(struct stasis_app_control *control, const char *data, int before, int between, unsigned int duration, int after)
+{
+	struct stasis_app_control_json_data *json_data;
+
+	if (!(json_data = ast_calloc(1, sizeof(*json_data) + strlen(data) + 1))) {
+		return -1;
+	}
+
+	strcpy(json_data->data, data);
+
+	stasis_app_send_command_async(control, app_control_dtmf, json_data, ast_free_ptr);
+
+	return 0;
+}
+
 static int app_control_ring(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
