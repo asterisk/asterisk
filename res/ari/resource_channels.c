@@ -516,7 +516,6 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 
 	ast_ari_response_no_content(response);
 	// ast_ari_response_created(response, playback_url, json);
-	// stasis_app_control_json(control, args->data);
 	// ast_ari_response_no_content(response);
 
 }
