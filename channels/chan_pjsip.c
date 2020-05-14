@@ -2771,27 +2771,6 @@ static struct sendtext_data* sendtext_data_create(struct ast_channel *chan,
 	return data;
 }
 
-// static struct sendtext_data* send_info_data_create(struct ast_channel *chan,
-// 	struct ast_msg_data *msg)
-// {
-// 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-// 	struct sendtext_data *data = ao2_alloc(sizeof(*data), sendtext_data_destroy);
-
-// 	if (!data) {
-// 		return NULL;
-// 	}
-
-// 	data->msg = ast_msg_data_dup(msg);
-// 	if (!data->msg) {
-// 		ao2_cleanup(data);
-// 		return NULL;
-// 	}
-// 	data->session = channel->session;
-// 	ao2_ref(data->session, +1);
-
-// 	return data;
-// }
-
 static int send_info_data(void *obj)
 {
 	struct sendtext_data *data = obj;

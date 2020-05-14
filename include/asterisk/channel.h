@@ -822,6 +822,9 @@ struct ast_channel_tech {
 	/*! \brief Display or transmit text with data*/
 	int (* const send_text_data)(struct ast_channel *chan, struct ast_msg_data *data);
 
+	/*! \brief Transmit JSON data using INFO method*/
+	int (* const send_json)(struct ast_channel *chan, struct ast_json *data);
+
 	/*! \brief Transmit data using INFO method*/
 	int (* const send_info_data)(struct ast_channel *chan, struct ast_msg_data *data);
 };
