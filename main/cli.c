@@ -102,8 +102,9 @@ struct module_level {
 
 AST_RWLIST_HEAD(module_level_list, module_level);
 
-/*! list of module names and their debug levels */
+/*! lists of module names and their debug/trace levels */
 static struct module_level_list debug_modules = AST_RWLIST_HEAD_INIT_VALUE;
+static struct module_level_list trace_modules = AST_RWLIST_HEAD_INIT_VALUE;
 
 AST_THREADSTORAGE(ast_cli_buf);
 
@@ -144,6 +145,23 @@ unsigned int ast_debug_get_by_module(const char *module)
 		}
 	}
 	AST_RWLIST_UNLOCK(&debug_modules);
+
+	return res;
+}
+
+unsigned int ast_trace_get_by_module(const char *module)
+{
+	struct module_level *ml;
+	unsigned int res = 0;
+
+	AST_RWLIST_RDLOCK(&trace_modules);
+	AST_LIST_TRAVERSE(&trace_modules, ml, entry) {
+		if (!strcasecmp(ml->module, module)) {
+			res = ml->level;
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&trace_modules);
 
 	return res;
 }
@@ -381,10 +399,27 @@ static char *complete_number(const char *partial, unsigned int min, unsigned int
 	return NULL;
 }
 
-static void status_debug_verbose(struct ast_cli_args *a, const char *what, int old_val, int cur_val)
+#define DEBUG_HANDLER 0
+#define TRACE_HANDLER 1
+#define VERBOSE_HANDLER 2
+
+static void status_debug_verbose(struct ast_cli_args *a, int handler, int old_val, int cur_val)
 {
 	char was_buf[30];
 	const char *was;
+	const char *what;
+
+	switch(handler) {
+	case DEBUG_HANDLER:
+		what = "Core debug";
+		break;
+	case TRACE_HANDLER:
+		what = "Core trace";
+		break;
+	case VERBOSE_HANDLER:
+		what = "Console verbose";
+		break;
+	}
 
 	if (old_val) {
 		snprintf(was_buf, sizeof(was_buf), "%d", old_val);
@@ -410,13 +445,131 @@ static void status_debug_verbose(struct ast_cli_args *a, const char *what, int o
 	}
 }
 
-static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int oldval;
 	int newlevel;
 	int atleast = 0;
-	const char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
 	struct module_level *ml;
+	struct module_level_list *modules;
+	unsigned int module_option;
+	int *core_option;
+	const char *handler_name;
+
+	if (a->argc <= e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (handler == DEBUG_HANDLER) {
+		modules = &debug_modules;
+		module_option = AST_OPT_FLAG_DEBUG_MODULE;
+		core_option = &option_debug;
+		handler_name = "debug";
+	} else {
+		modules = &trace_modules;
+		module_option = AST_OPT_FLAG_TRACE_MODULE;
+		core_option = &option_trace;
+		handler_name = "trace";
+	}
+
+	if (a->argc == e->args + 1 && !strcasecmp(a->argv[e->args], "off")) {
+		newlevel = 0;
+	} else {
+		if (!strcasecmp(a->argv[e->args], "atleast")) {
+			atleast = 1;
+		}
+		if (a->argc != e->args + atleast + 1 && a->argc != e->args + atleast + 2) {
+			return CLI_SHOWUSAGE;
+		}
+		if (sscanf(a->argv[e->args + atleast], "%30d", &newlevel) != 1) {
+			return CLI_SHOWUSAGE;
+		}
+
+		if (a->argc == e->args + atleast + 2) {
+			/* We have specified a module name. */
+			char *mod = ast_strdupa(a->argv[e->args + atleast + 1]);
+			int mod_len = strlen(mod);
+
+			if (3 < mod_len && !strcasecmp(mod + mod_len - 3, ".so")) {
+				mod[mod_len - 3] = '\0';
+			}
+
+			AST_RWLIST_WRLOCK(modules);
+
+			ml = find_module_level(mod, modules);
+			if (!newlevel) {
+				if (!ml) {
+					/* Specified off for a nonexistent entry. */
+					AST_RWLIST_UNLOCK(modules);
+					ast_cli(a->fd, "Core %s is still 0 for '%s'.\n", handler_name, mod);
+					return CLI_SUCCESS;
+				}
+				AST_RWLIST_REMOVE(modules, ml, entry);
+				if (AST_RWLIST_EMPTY(modules)) {
+					ast_clear_flag(&ast_options, module_option);
+				}
+				AST_RWLIST_UNLOCK(modules);
+				ast_cli(a->fd, "Core %s was %u and has been set to 0 for '%s'.\n", handler_name,
+					ml->level, mod);
+				ast_free(ml);
+				return CLI_SUCCESS;
+			}
+
+			if (ml) {
+				if ((atleast && newlevel < ml->level) || ml->level == newlevel) {
+					ast_cli(a->fd, "Core %s is still %u for '%s'.\n", handler_name, ml->level, mod);
+					AST_RWLIST_UNLOCK(modules);
+					return CLI_SUCCESS;
+				}
+				oldval = ml->level;
+				ml->level = newlevel;
+			} else {
+				ml = ast_calloc(1, sizeof(*ml) + strlen(mod) + 1);
+				if (!ml) {
+					AST_RWLIST_UNLOCK(modules);
+					return CLI_FAILURE;
+				}
+				oldval = ml->level;
+				ml->level = newlevel;
+				strcpy(ml->module, mod);
+				AST_RWLIST_INSERT_TAIL(modules, ml, entry);
+			}
+			ast_set_flag(&ast_options, module_option);
+
+			ast_cli(a->fd, "Core %s was %d and has been set to %u for '%s'.\n", handler_name,
+				oldval, ml->level, ml->module);
+
+			AST_RWLIST_UNLOCK(modules);
+
+			return CLI_SUCCESS;
+		}
+	}
+
+	/* Update global debug level */
+	if (!newlevel) {
+		/* Specified level was 0 or off. */
+		AST_RWLIST_WRLOCK(modules);
+		while ((ml = AST_RWLIST_REMOVE_HEAD(modules, entry))) {
+			ast_free(ml);
+		}
+		ast_clear_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
+		AST_RWLIST_UNLOCK(modules);
+	}
+	oldval = *core_option;
+	if (!atleast || newlevel > *core_option) {
+		*core_option = newlevel;
+	}
+
+	/* Report debug level status */
+	status_debug_verbose(a, handler, oldval, *core_option);
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int atleast = 0;
+	const char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -464,102 +617,61 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	 * we are guaranteed to be called with argc >= e->args;
 	 */
 
-	if (a->argc <= e->args) {
-		return CLI_SHOWUSAGE;
-	}
+	return handle_debug_or_trace(DEBUG_HANDLER, e, cmd, a);
 
-	if (a->argc == e->args + 1 && !strcasecmp(a->argv[e->args], "off")) {
-		newlevel = 0;
-	} else {
-		if (!strcasecmp(a->argv[e->args], "atleast")) {
+}
+
+static char *handle_trace(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int atleast = 0;
+	const char *argv3 = a->argv ? S_OR(a->argv[3], "") : "";
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core set trace";
+		e->usage =
+			"Usage: core set trace [atleast] <level> [module]\n"
+			"       core set trace off\n"
+			"\n"
+			"       Sets level of trace messages to be displayed or\n"
+			"       sets a module name to display trace messages from.\n"
+			"       0 or off means no messages should be displayed.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		if (!strcasecmp(argv3, "atleast")) {
 			atleast = 1;
 		}
-		if (a->argc != e->args + atleast + 1 && a->argc != e->args + atleast + 2) {
-			return CLI_SHOWUSAGE;
-		}
-		if (sscanf(a->argv[e->args + atleast], "%30d", &newlevel) != 1) {
-			return CLI_SHOWUSAGE;
-		}
+		if (a->pos == 3 || (a->pos == 4 && atleast)) {
+			const char *pos = a->pos == 3 ? argv3 : S_OR(a->argv[4], "");
+			int numbermatch = (ast_strlen_zero(pos) || strchr("123456789", pos[0])) ? 0 : 21;
 
-		if (a->argc == e->args + atleast + 2) {
-			/* We have specified a module name. */
-			char *mod = ast_strdupa(a->argv[e->args + atleast + 1]);
-			int mod_len = strlen(mod);
-
-			if (3 < mod_len && !strcasecmp(mod + mod_len - 3, ".so")) {
-				mod[mod_len - 3] = '\0';
+			if (a->n < 21 && numbermatch == 0) {
+				return complete_number(pos, 0, 0x7fffffff, a->n);
+			} else if (pos[0] == '0') {
+				if (a->n == 0) {
+					return ast_strdup("0");
+				}
+			} else if (a->n == (21 - numbermatch)) {
+				if (a->pos == 3 && !strncasecmp(argv3, "off", strlen(argv3))) {
+					return ast_strdup("off");
+				} else if (a->pos == 3 && !strncasecmp(argv3, "atleast", strlen(argv3))) {
+					return ast_strdup("atleast");
+				}
+			} else if (a->n == (22 - numbermatch) && a->pos == 3 && ast_strlen_zero(argv3)) {
+				return ast_strdup("atleast");
 			}
-
-			AST_RWLIST_WRLOCK(&debug_modules);
-
-			ml = find_module_level(mod, &debug_modules);
-			if (!newlevel) {
-				if (!ml) {
-					/* Specified off for a nonexistent entry. */
-					AST_RWLIST_UNLOCK(&debug_modules);
-					ast_cli(a->fd, "Core debug is still 0 for '%s'.\n", mod);
-					return CLI_SUCCESS;
-				}
-				AST_RWLIST_REMOVE(&debug_modules, ml, entry);
-				if (AST_RWLIST_EMPTY(&debug_modules)) {
-					ast_clear_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
-				}
-				AST_RWLIST_UNLOCK(&debug_modules);
-				ast_cli(a->fd, "Core debug was %u and has been set to 0 for '%s'.\n",
-					ml->level, mod);
-				ast_free(ml);
-				return CLI_SUCCESS;
-			}
-
-			if (ml) {
-				if ((atleast && newlevel < ml->level) || ml->level == newlevel) {
-					ast_cli(a->fd, "Core debug is still %u for '%s'.\n", ml->level, mod);
-					AST_RWLIST_UNLOCK(&debug_modules);
-					return CLI_SUCCESS;
-				}
-				oldval = ml->level;
-				ml->level = newlevel;
-			} else {
-				ml = ast_calloc(1, sizeof(*ml) + strlen(mod) + 1);
-				if (!ml) {
-					AST_RWLIST_UNLOCK(&debug_modules);
-					return CLI_FAILURE;
-				}
-				oldval = ml->level;
-				ml->level = newlevel;
-				strcpy(ml->module, mod);
-				AST_RWLIST_INSERT_TAIL(&debug_modules, ml, entry);
-			}
-			ast_set_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
-
-			ast_cli(a->fd, "Core debug was %d and has been set to %u for '%s'.\n",
-				oldval, ml->level, ml->module);
-
-			AST_RWLIST_UNLOCK(&debug_modules);
-
-			return CLI_SUCCESS;
+		} else if ((a->pos == 4 && !atleast && strcasecmp(argv3, "off") && strcasecmp(argv3, "channel"))
+			|| (a->pos == 5 && atleast)) {
+			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, AST_MODULE_HELPER_RUNNING);
 		}
+		return NULL;
 	}
+	/* all the above return, so we proceed with the handler.
+	 * we are guaranteed to be called with argc >= e->args;
+	 */
 
-	/* Update global debug level */
-	if (!newlevel) {
-		/* Specified level was 0 or off. */
-		AST_RWLIST_WRLOCK(&debug_modules);
-		while ((ml = AST_RWLIST_REMOVE_HEAD(&debug_modules, entry))) {
-			ast_free(ml);
-		}
-		ast_clear_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
-		AST_RWLIST_UNLOCK(&debug_modules);
-	}
-	oldval = option_debug;
-	if (!atleast || newlevel > option_debug) {
-		option_debug = newlevel;
-	}
-
-	/* Report debug level status */
-	status_debug_verbose(a, "Core debug", oldval, option_debug);
-
-	return CLI_SUCCESS;
+	return handle_debug_or_trace(TRACE_HANDLER, e, cmd, a);
 }
 
 static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -657,7 +769,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 
 	/* Report verbose level status */
-	status_debug_verbose(a, "Console verbose", oldval, newlevel);
+	status_debug_verbose(a, VERBOSE_HANDLER, oldval, newlevel);
 
 	return CLI_SUCCESS;
 }
@@ -1836,6 +1948,7 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel"),
 
 	AST_CLI_DEFINE(handle_debug, "Set level of debug chattiness"),
+	AST_CLI_DEFINE(handle_trace, "Set level of trace chattiness"),
 	AST_CLI_DEFINE(handle_verbose, "Set level of verbose chattiness"),
 
 	AST_CLI_DEFINE(group_show_channels, "Display active channels with group(s)"),

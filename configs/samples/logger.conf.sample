@@ -118,6 +118,7 @@
 ; Log levels include the following, and are specified in a comma delineated
 ; list:
 ;    debug
+;    trace
 ;    notice
 ;    warning
 ;    error
@@ -146,12 +147,14 @@
 ; the underlying code.  Do NOT report debug messages as code issues, unless
 ; you have a specific issue that you are attempting to debug.  They are
 ; messages for just that -- debugging -- and do not rise to the level of
-; something that merit your attention as an Asterisk administrator.  Debug
-; messages are also very verbose and can and do fill up logfiles quickly;
-; this is another reason not to have debug mode on a production system unless
-; you are in the process of debugging a specific issue.
+; something that merit your attention as an Asterisk administrator.  Both
+; debug and trace messages are also very verbose and can and do fill up
+; logfiles quickly.  This is another reason not to have debug or trace
+; modes on a production system unless you are in the process of debugging
+; a specific issue.
 ;
 ;debug => debug
+;trace => trace
 ;security => security
 console => notice,warning,error
 ;console => notice,warning,error,debug

@@ -67,6 +67,8 @@ int ast_verb_sys_level;
 int option_verbose;
 /*! Debug level */
 int option_debug;
+/*! Trace level */
+int option_trace;
 /*! Default to -1 to know if we have read the level from pjproject yet. */
 int ast_pjproject_max_log_level = -1;
 int ast_option_pjproject_log_level;
@@ -215,6 +217,7 @@ void load_asterisk_conf(void)
 	/* Default to false for security */
 	int live_dangerously = 0;
 	int option_debug_new = 0;
+	int option_trace_new = 0;
 	int option_verbose_new = 0;
 
 	/* init with buildtime config */
@@ -306,6 +309,11 @@ void load_asterisk_conf(void)
 			option_debug_new = 0;
 			if (sscanf(v->value, "%30d", &option_debug_new) != 1) {
 				option_debug_new = ast_true(v->value) ? 1 : 0;
+			}
+		} else if (!strcasecmp(v->name, "trace")) {
+			option_trace_new = 0;
+			if (sscanf(v->value, "%30d", &option_trace_new) != 1) {
+				option_trace_new = ast_true(v->value) ? 1 : 0;
 			}
 		} else if (!strcasecmp(v->name, "refdebug")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
@@ -466,6 +474,7 @@ void load_asterisk_conf(void)
 	}
 
 	option_debug += option_debug_new;
+	option_trace += option_trace_new;
 	option_verbose += option_verbose_new;
 
 	ast_config_destroy(cfg);
