@@ -504,7 +504,7 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 		return;
 	}
 
-	ast_log(LOG_NOTICE, "Unrecognized recording error: %s\n", args->channel_id);
+	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", args->channel_id);
 
 	// if (ast_strlen_zero(args->data)) {
 	// 	ast_ari_response_error(response, 400, "Bad Request","JSON data is required");
@@ -512,11 +512,11 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 	// }
 	// ast_send_json(control->channel, args->data);
 
-	// stasis_app_control_json(control, args->data);
+	stasis_app_control_json(control, args->data);
 
-	response->message = ast_json_null();
-	response->response_code = 202;
-	response->response_text = "Accepted";
+	// response->message = ast_json_null();
+	// response->response_code = 202;
+	// response->response_text = "Accepted";
 
 	ast_ari_response_no_content(response);
 	// ast_ari_response_created(response, playback_url, json);
