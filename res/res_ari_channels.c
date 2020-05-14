@@ -1303,9 +1303,9 @@ static void ast_ari_channels_send_json_cb(
 
 	ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
 
-	// TODO: check this option
 	args.data = body;
-	// ast_ari_channels_send_json(headers, &args, response);
+	ast_ari_channels_send_json(headers, &args, response);
+
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
