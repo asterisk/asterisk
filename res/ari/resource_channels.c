@@ -492,12 +492,11 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_strlen_zero(args->data)) {
-		ast_ari_response_error(
-			response, 400, "Bad Request",
-			"data is required");
-		return;
-	}
+	// struct ast_json *json_data = ast_json_object_get(blob, "data");
+	// if (json_data == NULL) {
+	// 	ast_ari_response_error(response, 400, "Bad Request", "data is required");
+	// 	return;
+	// }
 
 	stasis_app_control_json(control, args->data);
 

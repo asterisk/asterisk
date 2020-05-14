@@ -1250,7 +1250,7 @@ int ast_ari_channels_send_json_parse_body(
 {
 	struct ast_json *field;
 
-	ast_log(LOG_NOTICE, "sendJSON request received, parsing body %s\n", body);
+	ast_log(LOG_NOTICE, "sendJSON request received, parsing body\n");
 
 	/* Parse query parameters out of it */
 	field = ast_json_object_get(body, "data");
@@ -1258,7 +1258,7 @@ int ast_ari_channels_send_json_parse_body(
 		args->data = ast_json_string_get(field);
 	}
 
-	ast_log(LOG_NOTICE, "sendJSON request received, parsed %s\n", args->data);
+	ast_log(LOG_NOTICE, "sendJSON request received, body parsed\n");
 
 	return 0;
 }
@@ -1301,7 +1301,7 @@ static void ast_ari_channels_send_json_cb(
 		goto fin;
 	}
 
-	ast_log(LOG_NOTICE, "sendJSON request received from %s: %s\n", args.channel_id, args.data);
+	ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
 
 	// TODO: check this option
 	// args.data = body;
