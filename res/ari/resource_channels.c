@@ -477,30 +477,94 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+int ast_send_json_data(struct ast_msg *msg)
+{
+	char *tech_name = NULL;
+	const struct ast_msg_tech *msg_tech;
+	int res = -1;
+
+	if (ast_strlen_zero(to)) {
+		ao2_ref(msg, -1);
+		return -1;
+	}
+
+	tech_name = ast_strdupa(to);
+	tech_name = strsep(&tech_name, ":");
+
+	ast_rwlock_rdlock(&msg_techs_lock);
+	msg_tech = msg_find_by_tech_name(tech_name);
+
+	if (!msg_tech) {
+		ast_log(LOG_ERROR, "Unknown message tech: %s\n", tech_name);
+		ast_rwlock_unlock(&msg_techs_lock);
+		return -1;
+	}
+
+	res = msg_tech->send_info_data(msg);
+
+	ast_rwlock_unlock(&msg_techs_lock);
+
+	ao2_ref(msg, -1);
+
+	return res;
+}
+
+static void send_json_data(const char *body, struct ast_variable *variables, struct ast_ari_response *response)
+{
+	struct ast_variable *current;
+	struct ast_msg *msg;
+	int res = 0;
+
+	msg = ast_msg_alloc();
+	if (!msg) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	// if (!ast_strlen_zero(body)) {
+	// 	res |= ast_msg_set_body(msg, "%s", body);
+	// }
+
+	// for (current = variables; current; current = current->next) {
+	// 	res |= ast_msg_set_var_outbound(msg, current->name, current->value);
+	// }
+
+	// if (res) {
+	// 	ast_ari_response_alloc_failed(response);
+	// 	ast_msg_destroy(msg);
+	// 	return;
+	// }
+
+	if (ast_json_send(msg)) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Endpoint not found");
+	}
+
+	response->message = ast_json_null();
+	response->response_code = 202;
+	response->response_text = "Accepted";
+}
+
 void ast_ari_channels_send_json(struct ast_variable *headers,
 	struct ast_ari_channels_send_json_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	// struct ast_variable *variables = NULL;
 
-	control = find_control(response, args->channel_id);
-	if (control == NULL) {
-		return;
-	}
+	// if (args->variables) {
+	// 	struct ast_json *json_variables;
 
-	if (channel_state_invalid(control, response)) {
-		return;
-	}
-
-	// struct ast_json *json_data = ast_json_object_get(blob, "data");
-	// if (json_data == NULL) {
-	// 	ast_ari_response_error(response, 400, "Bad Request", "data is required");
-	// 	return;
+	ast_ari_channels_send_json_parse_body(args->data, args);
+	
+	// 	json_variables = ast_json_object_get(args->variables, "variables");
+	// 	if (json_variables
+	// 		&& json_to_ast_variables(response, json_variables, &variables)) {
+	// 		return;
+	// 	}
 	// }
 
-	stasis_app_control_json(control, args->data);
-
-	ast_ari_response_no_content(response);
+	send_json_data(args->data, variables, response);
+	ast_variables_destroy(variables);
 }
 
 void ast_ari_channels_hold(struct ast_variable *headers,
