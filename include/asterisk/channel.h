@@ -2159,22 +2159,6 @@ int ast_set_write_format_interleaved_stereo(struct ast_channel *chan, struct ast
 int ast_sendtext(struct ast_channel *chan, const char *text);
 
 /*!
- * \brief Sends json data to a channel
- *
- * \param chan channel to act upon
- * \param data json string to send on the channel
- *
- * \details
- * Write text to a display on a channel
- *
- * \note The channel does not need to be locked before calling this function.
- *
- * \retval 0 on success
- * \retval -1 on failure
- */
-int ast_send_json(struct ast_channel *chan, struct ast_json *data)
-
-/*!
  * \brief Sends text to a channel in an ast_msg_data structure wrapper with ast_sendtext as fallback
  * \since 13.22.0
  * \since 15.5.0
@@ -2193,6 +2177,22 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
  * \retval -1 on failure
  */
 int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg);
+
+/*!
+ * \brief Sends json data to a channel
+ *
+ * \param chan channel to act upon
+ * \param data json string to send on the channel
+ *
+ * \details
+ * Write text to a display on a channel
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_send_json(struct ast_channel *chan, struct ast_json *data);
 
 /*!
  * \brief Sends data to a channel in an ast_msg_data structure wrapper.
