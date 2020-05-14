@@ -388,6 +388,34 @@ int ast_ari_channels_send_dtmf_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_send_dtmf(struct ast_variable *headers, struct ast_ari_channels_send_dtmf_args *args, struct ast_ari_response *response);
+
+/*! Argument struct for ast_ari_channels_send_json() */
+struct ast_ari_channels_send_json_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! data To send. */
+	const char *data;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/json.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_send_json_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_send_json_args *args);
+
+/*!
+ * \brief Send provided json to a given channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_send_json(struct ast_variable *headers, struct ast_ari_channels_send_json_args *args, struct ast_ari_response *response);
+
 /*! Argument struct for ast_ari_channels_mute() */
 struct ast_ari_channels_mute_args {
 	/*! Channel's id */

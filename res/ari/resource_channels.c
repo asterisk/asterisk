@@ -477,6 +477,33 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_send_json(struct ast_variable *headers,
+	struct ast_ari_channels_send_json_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->data)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"data is required");
+		return;
+	}
+
+	stasis_app_control_json(control, args->data);
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_channels_hold(struct ast_variable *headers,
 	struct ast_ari_channels_hold_args *args,
 	struct ast_ari_response *response)

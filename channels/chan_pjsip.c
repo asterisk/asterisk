@@ -89,6 +89,7 @@ static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *t
 	struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids,
 	const struct ast_channel *requestor, const char *data, int *cause);
 static int chan_pjsip_sendtext_data(struct ast_channel *ast, struct ast_msg_data *msg);
+static int chan_pjsip_send_info_data(struct ast_channel *ast, struct ast_msg_data *msg);
 static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text);
 static int chan_pjsip_digit_begin(struct ast_channel *ast, char digit);
 static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -113,6 +114,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.requester_with_stream_topology = chan_pjsip_request_with_stream_topology,
 	.send_text = chan_pjsip_sendtext,
 	.send_text_data = chan_pjsip_sendtext_data,
+	.send_info_data = chan_pjsip_send_info_data,
 	.send_digit_begin = chan_pjsip_digit_begin,
 	.send_digit_end = chan_pjsip_digit_end,
 	.call = chan_pjsip_call,
@@ -129,7 +131,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.queryoption = chan_pjsip_queryoption,
 	.func_channel_read = pjsip_acf_channel_read,
 	.get_pvt_uniqueid = chan_pjsip_get_uniqueid,
-	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER | AST_CHAN_TP_SEND_TEXT_DATA
+	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER | AST_CHAN_TP_SEND_TEXT_DATA | AST_CHAN_TP_SEND_INFO_DATA
 };
 
 /*! \brief SIP session interaction functions */
@@ -2765,6 +2767,83 @@ static struct sendtext_data* sendtext_data_create(struct ast_channel *chan,
 	ao2_ref(data->session, +1);
 
 	return data;
+}
+
+static int send_info_data(void *obj)
+{
+	struct sendtext_data *data = obj;
+	pjsip_tx_data *tdata;
+	const char *body_text = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_BODY);
+	const char *content_type = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
+	char *sep;
+	
+	// Send info data as application/json by default.
+	struct ast_sip_body body = {
+		.type = "application",
+		.subtype = "json",
+		.body_text = body_text,
+	};
+
+	if (!ast_strlen_zero(content_type)) {
+		sep = strchr(content_type, '/');
+		if (sep) {
+			*sep = '\0';
+			body.type = content_type;
+			body.subtype = ++sep;
+		}
+	}
+
+	if (data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			data->session->inv_session->cause,
+			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
+	} else {
+
+		ast_sip_create_request("INFO", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
+		ast_sip_add_body(tdata, &body);
+
+		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
+	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(data->session->inv_session);
+#endif
+
+	ao2_cleanup(data);
+
+	return 0;
+}
+
+/*! \brief Function called by core to send data (INFO) on PJSIP session */
+static int chan_pjsip_send_info_data(struct ast_channel *ast, struct ast_msg_data *msg)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct sendtext_data *data = sendtext_data_create(ast, msg);
+
+	ast_debug(1, "Sending INFO data to '%s': %s\n",
+		ast_channel_name(ast),
+		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
+
+	if (!data) {
+		return -1;
+	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(data->session->inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		ao2_ref(data, -1);
+		return -1;
+	}
+#endif
+
+	if (ast_sip_push_task(channel->session->serializer, send_info_data, data)) {
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(data->session->inv_session);
+#endif
+		ao2_ref(data, -1);
+		return -1;
+	}
+	return 0;
 }
 
 static int sendtext(void *obj)

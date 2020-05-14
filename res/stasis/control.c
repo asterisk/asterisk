@@ -581,21 +581,38 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
-struct stasis_app_control_json_data {
-	char data[];
-};
+// struct stasis_app_control_json_data {
+// 	char data[];
+// };
 
-int stasis_app_control_json(struct stasis_app_control *control, const char *data, int before, int between, unsigned int duration, int after)
+static int app_control_json(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
 {
-	struct stasis_app_control_json_data *json_data;
+	struct stasis_app_control_json_data *json_data = data;
 
-	if (!(json_data = ast_calloc(1, sizeof(*json_data) + strlen(data) + 1))) {
-		return -1;
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
-	strcpy(json_data->data, data);
+	ast_log(LOG_WARNING, "%s: app_control_json.\n", stasis_app_control_get_channel_id(control));
 
-	stasis_app_send_command_async(control, app_control_dtmf, json_data, ast_free_ptr);
+	// ast_send_info_data(chan, NULL, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
+
+	return 0;
+}
+
+int stasis_app_control_json(struct stasis_app_control *control, const char *data)
+{
+	// char data[];
+	// struct stasis_app_control_json_data *json_data;
+
+	// if (!(json_data = ast_calloc(1, sizeof(*json_data) + strlen(data) + 1))) {
+	// 	return -1;
+	// }
+
+	// strcpy(json_data->data, data);
+
+	stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
 
 	return 0;
 }

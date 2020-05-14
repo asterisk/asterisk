@@ -562,6 +562,17 @@ int stasis_app_control_ring_stop(struct stasis_app_control *control);
 int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf, int before, int between, unsigned int duration, int after);
 
 /*!
+ * \brief Send JSON data to the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ * \param data JSON data string.
+ *
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_json(struct stasis_app_control *control, const char *data);
+
+/*!
  * \brief Mute the channel associated with this control.
  *
  * \param control Control for \c res_stasis.

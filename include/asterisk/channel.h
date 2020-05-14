@@ -821,6 +821,9 @@ struct ast_channel_tech {
 
 	/*! \brief Display or transmit text with data*/
 	int (* const send_text_data)(struct ast_channel *chan, struct ast_msg_data *data);
+
+	/*! \brief Transmit data using INFO method*/
+	int (* const send_info_data)(struct ast_channel *chan, struct ast_msg_data *data);
 };
 
 /*! Kill the channel channel driver technology descriptor. */
@@ -952,6 +955,10 @@ enum {
 	 * \brief Channels have this property if they implement send_text_data
 	 */
 	AST_CHAN_TP_SEND_TEXT_DATA = (1 << 3),
+	/*!
+	 * \brief Channels have this property if they implement send_info_data
+	 */
+	AST_CHAN_TP_SEND_INFO_DATA = (1 << 4),	
 };
 
 /*! \brief ast_channel flags */
@@ -2170,6 +2177,24 @@ int ast_sendtext(struct ast_channel *chan, const char *text);
  * \retval -1 on failure
  */
 int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg);
+
+/*!
+ * \brief Sends data to a channel in an ast_msg_data structure wrapper.
+ * \since 16.10
+ *
+ * \param chan channel to act upon
+ * \param msg ast_msg_data structure
+ *
+ * \details
+ * Send data to a channel using INFO method. Only available if the channel driver 
+ * supports the send_info_data callback.
+ *
+ * \note The channel does not need to be locked before calling this function.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg);
 
 /*!
  * \brief Receives a text character from a channel
