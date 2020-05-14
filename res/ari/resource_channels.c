@@ -44,6 +44,7 @@
 #include "asterisk/dial.h"
 #include "asterisk/max_forwards.h"
 #include "asterisk/rtp_engine.h"
+#include "stasis/control.h"
 #include "resource_channels.h"
 
 #include <limits.h>
