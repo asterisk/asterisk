@@ -581,41 +581,42 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
-// struct stasis_app_control_json_data {
-// 	char data[];
-// };
+// static int app_control_json(struct stasis_app_control *control,
+// 	struct ast_channel *chan, void *data)
+// {
+// 	struct ast_json *json_data = data;
 
-static int app_control_json(struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
-{
-	struct stasis_app_control_json_data *json_data = data;
+// 	if (ast_channel_state(chan) != AST_STATE_UP) {
+// 		ast_indicate(chan, AST_CONTROL_PROGRESS);
+// 	}
 
-	if (ast_channel_state(chan) != AST_STATE_UP) {
-		ast_indicate(chan, AST_CONTROL_PROGRESS);
-	}
+// 	if (json_data) {
+// 		ast_log(LOG_NOTICE, "%s: app_control_json json_data found.\n", stasis_app_control_get_channel_id(control));
+// 	}
 
-	ast_log(LOG_WARNING, "%s: app_control_json.\n", stasis_app_control_get_channel_id(control));
+// 	ast_log(LOG_NOTICE, "%s: app_control_json, about to send.\n", stasis_app_control_get_channel_id(control));
 
-	// ast_send_info_data(chan, NULL, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
+// 	send_json_data(chan, json_data);
 
-	return 0;
-}
+// 	return 0;
+// }
 
-int stasis_app_control_json(struct stasis_app_control *control, const char *data)
-{
-	// char data[];
-	// struct stasis_app_control_json_data *json_data;
+// int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
+// {
+// 	// char data[];
+// 	// struct stasis_app_control_json_data *json_data;
 
-	// if (!(json_data = ast_calloc(1, sizeof(*json_data) + strlen(data) + 1))) {
-	// 	return -1;
-	// }
+// 	// if (!(json_data = ast_calloc(1, sizeof(*json_data) + strlen(data) + 1))) {
+// 	// 	return -1;
+// 	// }
 
-	// strcpy(json_data->data, data);
+// 	// strcpy(json_data->data, data);
+// 	ast_log(LOG_NOTICE, "%s: stasis_app_control_json.\n", stasis_app_control_get_channel_id(control));
 
-	stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
+// 	stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
 
-	return 0;
-}
+// 	return 0;
+// }
 
 static int app_control_ring(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)

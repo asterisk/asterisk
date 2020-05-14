@@ -570,7 +570,7 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
  * \return 0 for success.
  * \return -1 for error.
  */
-int stasis_app_control_json(struct stasis_app_control *control, const char *data);
+int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data);
 
 /*!
  * \brief Mute the channel associated with this control.

@@ -4799,6 +4799,36 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	return res;
 }
 
+int ast_send_json(struct ast_channel *chan, struct ast_json *data)
+{
+	struct ast_msg_data *msg;
+	int rc;
+	struct ast_msg_data_attribute attrs[] =
+	{
+		{
+			.type = AST_MSG_DATA_ATTR_BODY,
+			.value = (char *)"{ \"data\": \"Hello World!\"}",
+		}
+	};	
+
+	if (data == NULL) {
+		return 0;
+	}
+
+	// if (ast_strlen_zero(text)) {
+	// 	return 0;
+	// }
+
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	if (!msg) {
+		return -1;
+	}
+	rc = ast_send_info_data(chan, msg);
+	ast_free(msg);
+
+	return rc;
+}
+
 int ast_sendtext_data(struct ast_channel *chan, struct ast_msg_data *msg)
 {
 	int res = 0;

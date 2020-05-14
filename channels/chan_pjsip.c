@@ -89,8 +89,9 @@ static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *t
 	struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids,
 	const struct ast_channel *requestor, const char *data, int *cause);
 static int chan_pjsip_sendtext_data(struct ast_channel *ast, struct ast_msg_data *msg);
-static int chan_pjsip_send_info_data(struct ast_channel *ast, struct ast_msg_data *msg);
 static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text);
+static int chan_pjsip_send_info_data(struct ast_channel *ast, struct ast_msg_data *msg);
+static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data);
 static int chan_pjsip_digit_begin(struct ast_channel *ast, char digit);
 static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeout);
@@ -114,6 +115,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.requester_with_stream_topology = chan_pjsip_request_with_stream_topology,
 	.send_text = chan_pjsip_sendtext,
 	.send_text_data = chan_pjsip_sendtext_data,
+	.send_json = chan_pjsip_send_json,
 	.send_info_data = chan_pjsip_send_info_data,
 	.send_digit_begin = chan_pjsip_digit_begin,
 	.send_digit_end = chan_pjsip_digit_end,
@@ -2769,6 +2771,27 @@ static struct sendtext_data* sendtext_data_create(struct ast_channel *chan,
 	return data;
 }
 
+// static struct sendtext_data* send_info_data_create(struct ast_channel *chan,
+// 	struct ast_msg_data *msg)
+// {
+// 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+// 	struct sendtext_data *data = ao2_alloc(sizeof(*data), sendtext_data_destroy);
+
+// 	if (!data) {
+// 		return NULL;
+// 	}
+
+// 	data->msg = ast_msg_data_dup(msg);
+// 	if (!data->msg) {
+// 		ao2_cleanup(data);
+// 		return NULL;
+// 	}
+// 	data->session = channel->session;
+// 	ao2_ref(data->session, +1);
+
+// 	return data;
+// }
+
 static int send_info_data(void *obj)
 {
 	struct sendtext_data *data = obj;
@@ -2971,6 +2994,28 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 		return -1;
 	}
 	rc = chan_pjsip_sendtext_data(ast, msg);
+	ast_free(msg);
+
+	return rc;
+}
+
+static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data)
+{
+	struct ast_msg_data *msg;
+	int rc;
+	struct ast_msg_data_attribute attrs[] =
+	{
+		{
+			.type = AST_MSG_DATA_ATTR_BODY,
+			.value = (char *)"{ \"data\": \"Hello World!\"}",
+		}
+	};
+
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	if (!msg) {
+		return -1;
+	}
+	rc = chan_pjsip_send_info_data(ast, msg);
 	ast_free(msg);
 
 	return rc;
