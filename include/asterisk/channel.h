@@ -180,6 +180,7 @@ extern "C" {
 #include "asterisk/framehook.h"
 #include "asterisk/stasis.h"
 #include "asterisk/endpoints.h"
+#include "asterisk/json.h"
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
