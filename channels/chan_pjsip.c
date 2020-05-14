@@ -2804,8 +2804,16 @@ static int send_info_data(void *obj)
 			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
 	} else {
 
+		ast_log(LOG_NOTICE, "Sending INFO data - session status OK: %s\n", 
+			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
+
 		ast_sip_create_request("INFO", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
+
+		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO created\n");
+
 		ast_sip_add_body(tdata, &body);
+
+		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO body added: %s\n", body);
 
 		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 	}

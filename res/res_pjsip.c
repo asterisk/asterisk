@@ -4488,6 +4488,8 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
 	ast_assert(tdata->msg->type == PJSIP_REQUEST_MSG);
 
 	if (dlg) {
+		ast_log(LOG_NOTICE, "Sending in-dialog request\n");
+
 		return send_in_dialog_request(tdata, dlg);
 	} else {
 		return ast_sip_send_out_of_dialog_request(tdata, endpoint, -1, token, callback);
