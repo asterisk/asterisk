@@ -478,7 +478,7 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers,
 }
 
 void ast_ari_channels_send_json(struct ast_variable *headers,
-	struct ast_ari_channels_send_dtmf_args *args,
+	struct ast_ari_channels_send_json_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);

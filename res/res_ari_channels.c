@@ -3224,7 +3224,7 @@ static struct stasis_rest_handlers channels_channelId = {
 		[AST_HTTP_POST] = ast_ari_channels_originate_with_id_cb,
 		[AST_HTTP_DELETE] = ast_ari_channels_hangup_cb,
 	},
-	.num_children = 16,
+	.num_children = 17,
 	.children = { &channels_channelId_continue,&channels_channelId_move,&channels_channelId_redirect,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_json,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_silence,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable,&channels_channelId_snoop,&channels_channelId_dial,&channels_channelId_rtp_statistics, }
 };
 /*! \brief REST handler for /api-docs/channels.json */
