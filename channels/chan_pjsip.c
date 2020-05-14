@@ -2813,7 +2813,7 @@ static int send_info_data(void *obj)
 
 		ast_sip_add_body(tdata, &body);
 
-		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO body added: %s\n", body);
+		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO body added: %s\n", body_text);
 
 		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 	}
