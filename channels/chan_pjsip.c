@@ -3026,7 +3026,7 @@ static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data)
 		return 0;
 	}
 
-	const char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
+	char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	struct ast_msg_data *msg;
 	int rc;
 	struct ast_msg_data_attribute attrs[] =
