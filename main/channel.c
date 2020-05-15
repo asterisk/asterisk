@@ -4808,8 +4808,7 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
 	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
 
-	const char *body_text;
-	char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
+	const char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	// body_text = ast_json_string_get(json_obj);
 
 	//.value = (char *)"{ \"data\": \"Hello World!\"}",
