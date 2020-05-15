@@ -4805,18 +4805,11 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 
 int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 {
-	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
-	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
-
-	const char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
-	// body_text = ast_json_string_get(json_obj);
-
-	//.value = (char *)"{ \"data\": \"Hello World!\"}",
-
 	if (data == NULL) {
 		return 0;
 	}
 
+	const char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	struct ast_msg_data *msg;
 	int rc;
 	struct ast_msg_data_attribute attrs[] =
@@ -4828,16 +4821,18 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	};
 
 	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
-		ast_channel_name(chan), attrs[0].value);
+		ast_channel_name(chan), body_text);
 
-	// AST_MSG_DATA_SOURCE_TYPE_UNKNOWN
-	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
+		ast_json_free(body_text);
 		return -1;
 	}
 	rc = ast_send_info_data(chan, msg);
+	
 	ast_free(msg);
-
+	ast_json_free(body_text);
+	
 	return rc;
 }
 

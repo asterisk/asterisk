@@ -3022,22 +3022,33 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 
 static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data)
 {
+	if (data == NULL) {
+		return 0;
+	}
+
+	const char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	struct ast_msg_data *msg;
 	int rc;
 	struct ast_msg_data_attribute attrs[] =
 	{
 		{
 			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = (char *)"{ \"data\": \"Hello World!\"}",
+			.value = (char *)body_text,
 		}
 	};
 
+	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
+		ast_channel_name(chan), body_text);
+
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
+		ast_json_free(body_text);
 		return -1;
 	}
 	rc = chan_pjsip_send_info_data(ast, msg);
+
 	ast_free(msg);
+	ast_json_free(body_text);
 
 	return rc;
 }
