@@ -162,6 +162,7 @@ pjproject.symbols: $(ALL_LIB_FILES)
 source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
 	$(ECHO_PREFIX) Copying $< to $@
 	$(CMD_PREFIX) cp -f $< $@
+	$(CMD_PREFIX) mkdir source/pjsip-apps/lib/
 
 source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c .rebuild_needed
 	$(ECHO_PREFIX) Compiling asterisk debug malloc stubs

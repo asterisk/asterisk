@@ -352,7 +352,7 @@ struct ast_sip_publication {
 	/*! \brief The endpoint with which the subscription is communicating */
 	struct ast_sip_endpoint *endpoint;
 	/*! \brief Expiration time of the publication */
-	int expires;
+	unsigned int expires;
 	/*! \brief Scheduled item for expiration of publication */
 	int sched_id;
 	/*! \brief The resource the publication is to */
@@ -676,7 +676,7 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 	sub_tree->persistence->cseq = dlg->local.cseq;
 
 	if (rdata) {
-		int expires;
+		unsigned int expires;
 		pjsip_expires_hdr *expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
 		pjsip_contact_hdr *contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
 
@@ -1548,7 +1548,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 /*! Wrapper structure for initial_notify_task */
 struct initial_notify_data {
 	struct sip_subscription_tree *sub_tree;
-	int expires;
+	unsigned int expires;
 };
 
 static int initial_notify_task(void *obj);
@@ -1583,6 +1583,7 @@ static int sub_persistence_recreate(void *obj)
 	int resp;
 	struct resource_tree tree;
 	pjsip_expires_hdr *expires_header;
+	int64_t expires;
 
 	request_uri = pjsip_uri_get_uri(rdata->msg_info.msg->line.req.uri);
 	resource_size = pj_strlen(&request_uri->user) + 1;
@@ -1639,8 +1640,8 @@ static int sub_persistence_recreate(void *obj)
 		pjsip_msg_add_hdr(rdata->msg_info.msg, (pjsip_hdr *) expires_header);
 	}
 
-	expires_header->ivalue = (ast_tvdiff_ms(persistence->expires, ast_tvnow()) / 1000);
-	if (expires_header->ivalue <= 0) {
+	expires = (ast_tvdiff_ms(persistence->expires, ast_tvnow()) / 1000);
+	if (expires <= 0) {
 		/* The subscription expired since we started recreating the subscription. */
 		ast_debug(3, "Expired subscription retrived from persistent store '%s' %s\n",
 			persistence->endpoint, persistence->tag);
@@ -1648,6 +1649,7 @@ static int sub_persistence_recreate(void *obj)
 		ao2_ref(endpoint, -1);
 		return 0;
 	}
+	expires_header->ivalue = expires;
 
 	memset(&tree, 0, sizeof(tree));
 	resp = build_resource_tree(endpoint, handler, resource, &tree,
@@ -3008,7 +3010,7 @@ static int initial_notify_task(void * obj)
 			ind->sub_tree->root->resource);
 	}
 
-	if (ind->expires > -1) {
+	if (ind->expires != PJSIP_EXPIRES_NOT_SPECIFIED) {
 		char *name = ast_alloca(strlen("->/ ") +
 			strlen(ind->sub_tree->persistence->endpoint) +
 			strlen(ind->sub_tree->root->resource) +
@@ -3134,7 +3136,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 
 		ind->sub_tree = ao2_bump(sub_tree);
 		/* Since this is a normal subscribe, pjproject takes care of the timer */
-		ind->expires = -1;
+		ind->expires = PJSIP_EXPIRES_NOT_SPECIFIED;
 
 		sub_tree->persistence = subscription_persistence_create(sub_tree);
 		subscription_persistence_update(sub_tree, rdata, SUBSCRIPTION_PERSISTENCE_CREATED);
@@ -3169,7 +3171,7 @@ static struct ast_sip_publish_handler *find_pub_handler(const char *event)
 }
 
 static enum sip_publish_type determine_sip_publish_type(pjsip_rx_data *rdata,
-	pjsip_generic_string_hdr *etag_hdr, int *expires, int *entity_id)
+	pjsip_generic_string_hdr *etag_hdr, unsigned int *expires, int *entity_id)
 {
 	pjsip_expires_hdr *expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
 
@@ -3404,7 +3406,8 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 	pjsip_generic_string_hdr *etag_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_sip_if_match, NULL);
 	enum sip_publish_type publish_type;
 	RAII_VAR(struct ast_sip_publication *, publication, NULL, ao2_cleanup);
-	int expires = 0, entity_id, response = 0;
+	unsigned int expires = 0;
+	int entity_id, response = 0;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -4283,7 +4286,7 @@ static char *cli_complete_subscription_callid(struct ast_cli_args *a)
 	return cli.callid;
 }
 
-static int cli_subscription_expiry(struct sip_subscription_tree *sub_tree)
+static unsigned int cli_subscription_expiry(struct sip_subscription_tree *sub_tree)
 {
 	int expiry;
 
@@ -4331,7 +4334,7 @@ static int cli_show_subscription_common(struct sip_subscription_tree *sub_tree, 
 
 	ast_str_append(&buf, 0, "Resource: %s\n", sub_tree->root->resource);
 	ast_str_append(&buf, 0, "Event: %s\n", sub_tree->root->handler->event_name);
-	ast_str_append(&buf, 0, "Expiry: %d\n", cli_subscription_expiry(sub_tree));
+	ast_str_append(&buf, 0, "Expiry: %u\n", cli_subscription_expiry(sub_tree));
 
 	sip_subscription_to_ami(sub_tree, &buf);
 
