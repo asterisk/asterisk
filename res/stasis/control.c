@@ -641,8 +641,8 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 	// dtmf_data->after = after;
 	// strcpy(dtmf_data->dtmf, dtmf);
 
-	// stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
-	stasis_app_send_command_async(control, app_control_json, ast_json_ref(json_data), ast_free_ptr);
+	stasis_app_send_command_async(control, app_control_json, ast_json_ref(data), ast_free_ptr);
+	// stasis_app_send_command_async(control, app_control_json, ast_json_ref(json_data), ast_free_ptr);
 
 	return 0;
 }
