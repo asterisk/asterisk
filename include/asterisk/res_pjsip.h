@@ -50,6 +50,18 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
 
+#define PJSIP_MINVERSION(m,n,p) (((m << 24) | (n << 16) | (p << 8)) >= PJ_VERSION_NUM)
+
+#ifndef PJSIP_EXPIRES_NOT_SPECIFIED
+/*
+ * Added in pjproject 2.10.0. However define here if someone compiles against a
+ * version of pjproject < 2.10.0.
+ *
+ * Usually defined in pjsip/include/pjsip/sip_msg.h (included as part of <pjsip.h>)
+ */
+#define PJSIP_EXPIRES_NOT_SPECIFIED	((pj_uint32_t)-1)
+#endif
+
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
 struct pjsip_module;

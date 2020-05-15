@@ -81,12 +81,12 @@ static int pj_max_hostname = PJ_MAX_HOSTNAME;
 static int pjsip_max_url_size = PJSIP_MAX_URL_SIZE;
 
 /*! \brief Internal function which returns the expiration time for a contact */
-static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
+static unsigned int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
 {
 	pjsip_expires_hdr *expires;
-	int expiration = aor->default_expiration;
+	unsigned int expiration = aor->default_expiration;
 
-	if (contact && contact->expires != -1) {
+	if (contact && contact->expires != PJSIP_EXPIRES_NOT_SPECIFIED) {
 		/* Expiration was provided with the contact itself */
 		expiration = contact->expires;
 	} else if ((expires = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
@@ -148,7 +148,7 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, pj_pool_t *po
 	};
 
 	for (; (contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next)); pj_pool_reset(pool)) {
-		int expiration = registrar_get_expiration(aor, contact, rdata);
+		unsigned int expiration = registrar_get_expiration(aor, contact, rdata);
 		struct ast_sip_contact *existing;
 		char contact_uri[pjsip_max_url_size];
 
