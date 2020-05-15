@@ -4809,7 +4809,8 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
 
 	const char *body_text;
-	body_text = ast_json_string_get(json_obj);
+	char *body_text = ast_json_dump_string_format(data);
+	// body_text = ast_json_string_get(json_obj);
 
 	//.value = (char *)"{ \"data\": \"Hello World!\"}",
 
@@ -4830,7 +4831,8 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
 		ast_channel_name(chan), attrs[0].value);
 
-	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	// AST_MSG_DATA_SOURCE_TYPE_UNKNOWN
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
 		return -1;
 	}
