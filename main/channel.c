@@ -4823,7 +4823,7 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	{
 		{
 			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = body_text,
+			.value = (char *)body_text,
 		}
 	};
 
