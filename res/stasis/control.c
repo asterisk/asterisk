@@ -584,7 +584,7 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 static int app_control_json(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(chan));
+	ast_log(LOG_NOTICE, "Processing json data to channel %s.\n", ast_channel_name(chan));
 
 	struct ast_json *json_data = data;
 
