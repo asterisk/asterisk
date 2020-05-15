@@ -581,37 +581,14 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
-// static int app_control_json(struct stasis_app_control *control,
-// 	struct ast_channel *chan, void *data)
-// {
-
-// 	ast_log(LOG_NOTICE, "Processing json data to channel %s.\n", ast_channel_name(chan));
-
-// 	// struct stasis_app_control_mute_data *mute_data = data;
-
-// 	// ast_channel_lock(chan);
-// 	// ast_send_json(chan, json_data);
-// 	// ast_channel_unlock(chan);
-
-// 	return 0;
-// }
-
 static int app_control_json(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	ast_log(LOG_NOTICE, "Processing json data to channel %s.\n", ast_channel_name(chan));
-
 	struct ast_json *json_data = data;
-
-	char *body_text = ast_json_dump_string_format(json_data, AST_JSON_COMPACT);
-	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(chan), body_text);
-	ast_json_free(body_text);
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
-
-	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(chan));
 
 	ast_send_json(chan, json_data);
 
@@ -620,29 +597,7 @@ static int app_control_json(struct stasis_app_control *control,
 
 int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
 {
-	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(control->channel));
-
-	struct ast_json *json_data;
-
-	// json_data = ast_json_pack("{s: s}", "data", "Solamente hola...");
-	json_data = ast_json_deep_copy(data);
-
-	char *body_text = ast_json_dump_string_format(ast_json_ref(json_data), AST_JSON_COMPACT);
-	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(control->channel), body_text);
-	ast_json_free(body_text);
-
-	// if (!(dtmf_data = ast_calloc(1, sizeof(*dtmf_data) + strlen(dtmf) + 1))) {
-	// 	return -1;
-	// }
-
-	// dtmf_data->before = before;
-	// dtmf_data->between = between;
-	// dtmf_data->duration = duration;
-	// dtmf_data->after = after;
-	// strcpy(dtmf_data->dtmf, dtmf);
-
 	stasis_app_send_command_async(control, app_control_json, ast_json_ref(data), ast_free_ptr);
-	// stasis_app_send_command_async(control, app_control_json, ast_json_ref(json_data), ast_free_ptr);
 
 	return 0;
 }

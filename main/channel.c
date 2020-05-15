@@ -4785,10 +4785,6 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	CHECK_BLOCKING(chan);
 	if ((ast_channel_tech(chan)->properties & AST_CHAN_TP_SEND_INFO_DATA)
 		&& ast_channel_tech(chan)->send_info_data) {
-
-		ast_log(LOG_NOTICE, "Sending INFO data to channel %s, content-type: %s, body: %s\n",
-			ast_channel_name(chan), content_type, body);
-
 		/* Send enhanced INFO data message to a channel driver that supports it */
 		ast_debug(1, "Sending INFO data to channel %s, content-type: %s, body: %s\n",
 			ast_channel_name(chan), content_type, body);
@@ -4812,24 +4808,29 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	struct ast_msg_data *msg;
 	int rc;
-	struct ast_msg_data_attribute attrs[] =
-	{
-		{
-			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = (char *)body_text,
-		}
+	struct ast_msg_data_attribute attrs[] = {
+		{ .type = AST_MSG_DATA_ATTR_CONTENT_TYPE, .value = "application/json" },
+		{ .type = AST_MSG_DATA_ATTR_BODY, .value = (char *)body_text }
 	};
 
-	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
-		ast_channel_name(chan), body_text);
+	// struct ast_msg_data_attribute attrs[] =
+	// {
+	// 	{
+	// 		.type = AST_MSG_DATA_ATTR_BODY,
+	// 		.value = (char *)body_text,
+	// 	}
+	// };
 
-	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	// AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG AST_MSG_DATA_SOURCE_TYPE_UNKNOWN
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
 		ast_json_free(body_text);
 		return -1;
 	}
 	rc = ast_send_info_data(chan, msg);
 	
+	ast_verb(3, "<%s> SIP INFO application/json message sent: %s\n", ast_channel_name(chan), body_text);
+
 	ast_free(msg);
 	ast_json_free(body_text);
 	
