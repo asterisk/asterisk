@@ -1244,24 +1244,17 @@ static void ast_ari_channels_send_dtmf_cb(
 fin: __attribute__((unused))
 	return;
 }
-int ast_ari_channels_send_json_parse_body(
-	struct ast_json *body,
-	struct ast_ari_channels_send_json_args *args)
-{
-	// struct ast_json *data;
-
-	// ast_log(LOG_NOTICE, "sendJSON request received, parsing body\n");
-
-	// /* Parse query parameters out of it */
-	// data = ast_json_object_get(body, "data");
-	// if (data) {
-	// 	args->data = ast_json_string_get(data);
-	// }
-
-	ast_log(LOG_NOTICE, "sendJSON request received, body parsed\n");
-
-	return 0;
-}
+// int ast_ari_channels_send_json_parse_body(
+// 	struct ast_json *body,
+// 	struct ast_ari_channels_send_json_args *args)
+// {
+// 	struct ast_json *data;
+// 	data = ast_json_object_get(body, "data");
+// 	if (data) {
+// 		args->data = ast_json_string_get(data);
+// 	}
+// 	return 0;
+// }
 
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/json.
@@ -1288,18 +1281,18 @@ static void ast_ari_channels_send_json_cb(
 		} else
 		{}
 	}
-	if (ast_ari_channels_send_json_parse_body(body, &args)) {
-		ast_ari_response_alloc_failed(response);
-		goto fin;
-	}
+	args.data = body;
+	// if (ast_ari_channels_send_json_parse_body(body, &args)) {
+	// 	ast_ari_response_alloc_failed(response);
+	// 	goto fin;
+	// }
 
 	char *body_text = ast_json_dump_string_format(body, AST_JSON_COMPACT);
-	ast_log(LOG_NOTICE, "sendJSON request received: %s\n", body_text);
-	ast_json_free(body_text);
-
-	args.data = body;
-	ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
+	ast_log(LOG_NOTICE, "sendJSON request to channel %s: %s\n", args.channel_id, body_text);
+	// ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
 	ast_ari_channels_send_json(headers, &args, response);
+
+	ast_json_free(body_text);
 
 #if defined(AST_DEVMODE)
 	code = response->response_code;
