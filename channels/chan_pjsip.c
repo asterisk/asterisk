@@ -2778,9 +2778,6 @@ static int send_info_data(void *obj)
 	const char *body_text = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_BODY);
 	const char *content_type = ast_msg_data_get_attribute(data->msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
 	char *sep;
-	
-	ast_log(LOG_NOTICE, "Sending INFO data: %s - %s\n", 
-		body_text, content_type);
 
 	// Send info data as application/json by default.
 	struct ast_sip_body body = {
