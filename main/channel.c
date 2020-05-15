@@ -4820,11 +4820,12 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	{
 		{
 			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = (char *)ast_json_string_get(json_obj),
+			.value = ast_json_string_get(json_obj),
 		}
 	};
 
-	ast_log(LOG_NOTICE, "Sending json data to channel %s\n", ast_channel_name(chan));
+	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
+		ast_channel_name(chan), attrs[0].value);
 
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
