@@ -2738,6 +2738,39 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 	return chan;
 }
 
+// struct info_data {
+// 	struct ast_sip_session *session;
+// 	struct ast_msg_data *msg;
+// };
+
+// static void info_data_destroy(void *obj)
+// {
+// 	struct info_data *data = obj;
+// 	ao2_cleanup(data->session);
+// 	ast_free(data->msg);
+// }
+
+// static struct info_data* send_info_data_create(struct ast_channel *chan,
+// 	struct ast_msg_data *msg)
+// {
+// 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+// 	struct info_data *data = ao2_alloc(sizeof(*data), info_data_destroy);
+
+// 	if (!data) {
+// 		return NULL;
+// 	}
+
+// 	data->msg = ast_msg_data_dup(msg);
+// 	if (!data->msg) {
+// 		ao2_cleanup(data);
+// 		return NULL;
+// 	}
+// 	data->session = channel->session;
+// 	ao2_ref(data->session, +1);
+
+// 	return data;
+// }
+
 struct sendtext_data {
 	struct ast_sip_session *session;
 	struct ast_msg_data *msg;
@@ -2804,17 +2837,12 @@ static int send_info_data(void *obj)
 			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
 	} else {
 
-		ast_log(LOG_NOTICE, "Sending INFO data - session status OK: %s\n", 
-			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
-
-		ast_sip_create_request("INFO", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
-
-		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO created\n");
-
+		// endpoint is set to NULL to only create a SIP in-dialog request.
+		if (!ast_sip_create_request("INFO", data->session->inv_session->dlg, NULL, NULL, NULL, &tdata)) {
+			ast_log(LOG_ERROR, "Couldn't create SIP INFO in-dialog request.\n");
+			return -1;
+		}
 		ast_sip_add_body(tdata, &body);
-
-		ast_log(LOG_NOTICE, "Sending INFO data - SIP INFO body added: %s\n", body_text);
-
 		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 	}
 

@@ -3,6 +3,7 @@
     "editor.formatOnSave": false,
     "files.associations": {
       "xstring": "c",
-      "system_error": "c"
+      "system_error": "c",
+      "xutility": "c"
     }
   }

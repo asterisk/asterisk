@@ -4775,8 +4775,6 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	const char *body = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
 	const char *content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
 
-	ast_log(LOG_NOTICE, "Sending info data to channel %s\n", ast_channel_name(chan));
-
 	ast_channel_lock(chan);
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
@@ -4788,12 +4786,12 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	if ((ast_channel_tech(chan)->properties & AST_CHAN_TP_SEND_INFO_DATA)
 		&& ast_channel_tech(chan)->send_info_data) {
 
-		ast_log(LOG_NOTICE, "Sending enhanced INFO data message to a channel %s, content-type: %s, body: %s\n", 
+		ast_log(LOG_NOTICE, "Sending INFO data to channel %s, content-type: %s, body: %s\n",
 			ast_channel_name(chan), content_type, body);
 
 		/* Send enhanced INFO data message to a channel driver that supports it */
-		ast_debug(1, "Sending INFO data to %s %s\n",
-			ast_channel_name(chan), body);
+		ast_debug(1, "Sending INFO data to channel %s, content-type: %s, body: %s\n",
+			ast_channel_name(chan), content_type, body);
 		res = ast_channel_tech(chan)->send_info_data(chan, msg);
 	} else {
 		ast_debug(1, "Channel technology does not support sending content type '%s' on channel '%s'\n",
@@ -4807,25 +4805,26 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 
 int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 {
+	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
+	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
+
+	//.value = (char *)"{ \"data\": \"Hello World!\"}",
+
+	if (data == NULL) {
+		return 0;
+	}
+
 	struct ast_msg_data *msg;
 	int rc;
 	struct ast_msg_data_attribute attrs[] =
 	{
 		{
 			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = (char *)"{ \"data\": \"Hello World!\"}",
+			.value = (char *)ast_json_string_get(json_obj),
 		}
-	};	
-
-	if (data == NULL) {
-		return 0;
-	}
+	};
 
 	ast_log(LOG_NOTICE, "Sending json data to channel %s\n", ast_channel_name(chan));
-
-	// if (ast_strlen_zero(text)) {
-	// 	return 0;
-	// }
 
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
