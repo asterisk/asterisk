@@ -522,11 +522,6 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 	// }
 
 	stasis_app_control_json(control, args->data);
-
-	// response->message = ast_json_null();
-	// response->response_code = 202;
-	// response->response_text = "Accepted";
-
 	ast_ari_response_accepted(response);
 
 }
