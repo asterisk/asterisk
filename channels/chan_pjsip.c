@@ -2838,10 +2838,11 @@ static int send_info_data(void *obj)
 	} else {
 
 		// endpoint is set to NULL to only create a SIP in-dialog request.
-		if (!ast_sip_create_request("INFO", data->session->inv_session->dlg, NULL, NULL, NULL, &tdata)) {
-			ast_log(LOG_ERROR, "Couldn't create SIP INFO in-dialog request.\n");
-			return -1;
-		}
+		ast_sip_create_request("INFO", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata)
+		// if (!ast_sip_create_request("INFO", data->session->inv_session->dlg, NULL, NULL, NULL, &tdata)) {
+		// 	ast_log(LOG_ERROR, "Couldn't create SIP INFO in-dialog request.\n");
+		// 	return -1;
+		// }
 		ast_sip_add_body(tdata, &body);
 		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 	}
