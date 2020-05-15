@@ -4808,6 +4808,9 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	RAII_VAR(struct ast_json *, json_obj, NULL, ast_json_unref);
 	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
 
+	const char *body_text;
+	body_text = ast_json_string_get(json_obj);
+
 	//.value = (char *)"{ \"data\": \"Hello World!\"}",
 
 	if (data == NULL) {
@@ -4820,7 +4823,7 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	{
 		{
 			.type = AST_MSG_DATA_ATTR_BODY,
-			.value = ast_json_string_get(json_obj),
+			.value = body_text,
 		}
 	};
 
