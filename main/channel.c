@@ -4809,7 +4809,7 @@ int ast_send_json(struct ast_channel *chan, struct ast_json *data)
 	json_obj = ast_json_pack("{ s: s }", "data", "Hello World!");
 
 	const char *body_text;
-	char *body_text = ast_json_dump_string_format(data);
+	char *body_text = ast_json_dump_string_format(data, AST_JSON_COMPACT);
 	// body_text = ast_json_string_get(json_obj);
 
 	//.value = (char *)"{ \"data\": \"Hello World!\"}",
