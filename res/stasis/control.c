@@ -586,9 +586,15 @@ static int app_control_json(struct stasis_app_control *control,
 {
 	struct ast_json *json_data = data;
 
+	char *body_text = ast_json_dump_string_format(json_data, AST_JSON_COMPACT);
+	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(chan), body_text);
+	ast_json_free(body_text);
+
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
+
+	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(chan));
 
 	ast_send_json(chan, json_data);
 
@@ -597,6 +603,8 @@ static int app_control_json(struct stasis_app_control *control,
 
 int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
 {
+	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(control->channel));
+
 	stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
 
 	return 0;

@@ -504,6 +504,14 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 		return;
 	}
 
+	// struct ast_json *json_data;
+
+	// json_data = ast_json_object_get(args->variables, "data");
+	// if (json_variables
+	// 	&& json_to_ast_variables(response, json_variables, &variables)) {
+	// 	return;
+	// }
+
 	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", args->channel_id);
 
 	// if (ast_strlen_zero(args->data)) {
