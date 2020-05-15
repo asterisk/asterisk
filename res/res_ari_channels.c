@@ -1282,10 +1282,6 @@ static void ast_ari_channels_send_json_cb(
 	int code;
 #endif /* AST_DEVMODE */
 
-	char *body_text = ast_json_dump_string_format(body, AST_JSON_COMPACT);
-	ast_log(LOG_NOTICE, "sendJSON request received: %s\n", body_text);
-	ast_json_free(body_text);
-
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "channelId") == 0) {
 			args.channel_id = (i->value);
@@ -1297,9 +1293,12 @@ static void ast_ari_channels_send_json_cb(
 		goto fin;
 	}
 
-	ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
+	char *body_text = ast_json_dump_string_format(body, AST_JSON_COMPACT);
+	ast_log(LOG_NOTICE, "sendJSON request received: %s\n", body_text);
+	ast_json_free(body_text);
 
 	args.data = body;
+	ast_log(LOG_NOTICE, "sendJSON request received from %s with valid content\n", args.channel_id);
 	ast_ari_channels_send_json(headers, &args, response);
 
 #if defined(AST_DEVMODE)

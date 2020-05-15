@@ -822,8 +822,8 @@
 						{
 							"name": "data",
 							"description": "JSON data to send.",
-							"paramType": "query",
-							"required": false,
+							"paramType": "body",
+							"required": true,
 							"allowMultiple": false,
 							"dataType": "containers"
 						}
