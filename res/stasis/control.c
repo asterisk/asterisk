@@ -622,11 +622,19 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 {
 	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(control->channel));
 
-	RAII_VAR(struct ast_json *, json_data, NULL, ast_json_unref);
+	// RAII_VAR(struct ast_json *, json_data, NULL, ast_json_unref);
+	struct ast_json *json_data;
+
+	// if (!(mute_data = ast_calloc(1, sizeof(*mute_data)))) {
+	// 	return -1;
+	// }
+
+	// mute_data->direction = direction;
+	// mute_data->frametype = frametype;
 
 	json_data = ast_json_pack("{s: s}", "data", "Solamente hola...");
 
-	char *body_text = ast_json_dump_string_format(json_data, AST_JSON_COMPACT);
+	char *body_text = ast_json_dump_string_format(ast_json_ref(json_data), AST_JSON_COMPACT);
 	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(control->channel), body_text);
 	ast_json_free(body_text);
 
@@ -641,7 +649,7 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 	// strcpy(dtmf_data->dtmf, dtmf);
 
 	// stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
-	stasis_app_send_command_async(control, app_control_json, json_data, ast_free_ptr);
+	stasis_app_send_command_async(control, app_control_json, ast_json_ref(json_data), ast_free_ptr);
 
 	return 0;
 }
