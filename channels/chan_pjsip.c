@@ -2738,39 +2738,6 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 	return chan;
 }
 
-// struct info_data {
-// 	struct ast_sip_session *session;
-// 	struct ast_msg_data *msg;
-// };
-
-// static void info_data_destroy(void *obj)
-// {
-// 	struct info_data *data = obj;
-// 	ao2_cleanup(data->session);
-// 	ast_free(data->msg);
-// }
-
-// static struct info_data* send_info_data_create(struct ast_channel *chan,
-// 	struct ast_msg_data *msg)
-// {
-// 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-// 	struct info_data *data = ao2_alloc(sizeof(*data), info_data_destroy);
-
-// 	if (!data) {
-// 		return NULL;
-// 	}
-
-// 	data->msg = ast_msg_data_dup(msg);
-// 	if (!data->msg) {
-// 		ao2_cleanup(data);
-// 		return NULL;
-// 	}
-// 	data->session = channel->session;
-// 	ao2_ref(data->session, +1);
-
-// 	return data;
-// }
-
 struct sendtext_data {
 	struct ast_sip_session *session;
 	struct ast_msg_data *msg;
