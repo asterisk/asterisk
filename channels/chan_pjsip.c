@@ -3038,7 +3038,7 @@ static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data)
 	};
 
 	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
-		ast_channel_name(chan), body_text);
+		ast_channel_name(ast), body_text);
 
 	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
