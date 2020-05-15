@@ -2860,10 +2860,7 @@ static int chan_pjsip_send_info_data(struct ast_channel *ast, struct ast_msg_dat
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct sendtext_data *data = sendtext_data_create(ast, msg);
 
-	ast_log(LOG_NOTICE, "Sending INFO data to channel %s: %s\n", 
-		ast_channel_name(ast), ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
-
-	ast_debug(1, "Sending INFO data to '%s': %s\n",
+	ast_debug(1, "Sending INFO data to channel '%s': %s\n",
 		ast_channel_name(ast),
 		ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY));
 
