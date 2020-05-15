@@ -590,8 +590,6 @@ static int app_control_json(struct stasis_app_control *control,
 		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
-	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(chan));
-
 	ast_send_json(chan, json_data);
 
 	return 0;
@@ -599,22 +597,7 @@ static int app_control_json(struct stasis_app_control *control,
 
 int stasis_app_control_json(struct stasis_app_control *control, struct ast_json *data)
 {
-	struct ast_json *json_data;
-
-	// if (!(dtmf_data = ast_calloc(1, sizeof(*dtmf_data) + strlen(dtmf) + 1))) {
-	// 	return -1;
-	// }
-
-	// dtmf_data->before = before;
-	// dtmf_data->between = between;
-	// dtmf_data->duration = duration;
-	// dtmf_data->after = after;
-	// strcpy(dtmf_data->dtmf, dtmf);
-	json_data = ast_json_pack("{s: s}", "data", "Hello World!");
-
-	ast_log(LOG_NOTICE, "Processing json data to channel %s\n", ast_channel_name(control->channel));
-
-	stasis_app_send_command_async(control, app_control_json, json_data, ast_free_ptr);
+	stasis_app_send_command_async(control, app_control_json, data, ast_free_ptr);
 
 	return 0;
 }

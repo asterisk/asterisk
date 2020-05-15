@@ -2836,15 +2836,13 @@ static int send_info_data(void *obj)
 			data->session->inv_session->cause,
 			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
 	} else {
-
 		// endpoint is set to NULL to only create a SIP in-dialog request.
-		ast_sip_create_request("INFO", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
-		// if (!ast_sip_create_request("INFO", data->session->inv_session->dlg, NULL, NULL, NULL, &tdata)) {
-		// 	ast_log(LOG_ERROR, "Couldn't create SIP INFO in-dialog request.\n");
-		// 	return -1;
-		// }
+		if (ast_sip_create_request("INFO", data->session->inv_session->dlg, NULL, NULL, NULL, &tdata)) {
+			ast_log(LOG_WARNING, "SIP INFO - Unable to create in-dialog request.\n");
+			return -1;
+		}
 		ast_sip_add_body(tdata, &body);
-		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
+		ast_sip_send_request(tdata, data->session->inv_session->dlg, NULL, NULL, NULL);
 	}
 
 #ifdef HAVE_PJSIP_INV_SESSION_REF
@@ -3041,7 +3039,8 @@ static int chan_pjsip_send_json(struct ast_channel *ast, struct ast_json *data)
 	ast_log(LOG_NOTICE, "Sending json data to channel %s, %s\n", 
 		ast_channel_name(ast), body_text);
 
-	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN, attrs, ARRAY_LEN(attrs));
+	// AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG AST_MSG_DATA_SOURCE_TYPE_UNKNOWN
+	msg = ast_msg_data_alloc(AST_MSG_DATA_SOURCE_TYPE_IN_DIALOG, attrs, ARRAY_LEN(attrs));
 	if (!msg) {
 		ast_json_free(body_text);
 		return -1;

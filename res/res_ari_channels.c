@@ -1282,14 +1282,10 @@ static void ast_ari_channels_send_json_cb(
 	int code;
 #endif /* AST_DEVMODE */
 
-	ast_log(LOG_NOTICE, "sendJSON request received\n");
+	char *body_text = ast_json_dump_string_format(body, AST_JSON_COMPACT);
+	ast_log(LOG_NOTICE, "sendJSON request received: %s\n", body_text);
+	ast_json_free(body_text);
 
-	// for (i = get_params; i; i = i->next) {
-	// 	if (strcmp(i->name, "data") == 0) {
-	// 		args.data = (i->value);
-	// 	} else
-	// 	{}
-	// }
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "channelId") == 0) {
 			args.channel_id = (i->value);
