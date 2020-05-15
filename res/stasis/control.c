@@ -627,7 +627,7 @@ int stasis_app_control_json(struct stasis_app_control *control, struct ast_json 
 	json_data = ast_json_pack("{s: s}", "data", "Solamente hola...");
 
 	char *body_text = ast_json_dump_string_format(json_data, AST_JSON_COMPACT);
-	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(chan), body_text);
+	ast_log(LOG_NOTICE, "Processing json data to channel %s: %s\n", ast_channel_name(control->channel), body_text);
 	ast_json_free(body_text);
 
 	// if (!(dtmf_data = ast_calloc(1, sizeof(*dtmf_data) + strlen(dtmf) + 1))) {
