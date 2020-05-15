@@ -4775,14 +4775,14 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 	const char *body = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_BODY);
 	const char *content_type = ast_msg_data_get_attribute(msg, AST_MSG_DATA_ATTR_CONTENT_TYPE);
 
-	// ast_channel_lock(chan);
-	// /* Stop if we're a zombie or need a soft hangup */
-	// if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
-	// 	ast_channel_unlock(chan);
-	// 	return -1;
-	// }
+	ast_channel_lock(chan);
+	/* Stop if we're a zombie or need a soft hangup */
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
 
-	// CHECK_BLOCKING(chan);
+	CHECK_BLOCKING(chan);
 	if ((ast_channel_tech(chan)->properties & AST_CHAN_TP_SEND_INFO_DATA)
 		&& ast_channel_tech(chan)->send_info_data) {
 		/* Send enhanced INFO data message to a channel driver that supports it */
@@ -4794,8 +4794,8 @@ int ast_send_info_data(struct ast_channel *chan, struct ast_msg_data *msg)
 			S_OR(content_type, "application/json"), ast_channel_name(chan));
 		res = -1;
 	}
-	// ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
-	// ast_channel_unlock(chan);
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
+	ast_channel_unlock(chan);
 	return res;
 }
 
