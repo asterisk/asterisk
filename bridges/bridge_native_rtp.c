@@ -893,8 +893,8 @@ static struct ast_stream_topology *native_rtp_request_stream_topology_update(
 				continue;
 			}
 
-			ast_format_cap_append_from_cap(ast_stream_get_formats(stream), audio_formats,
-				AST_MEDIA_TYPE_AUDIO);
+			/* We haven't actually modified audio_formats so this is safe */
+			ast_stream_set_formats(stream, (struct ast_format_cap *)audio_formats);
 		}
 	}
 
