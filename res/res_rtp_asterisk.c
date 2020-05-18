@@ -3143,6 +3143,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 					pj_sockaddr_get_len(&pjtmp));
 			++count;
 		}
+		freeifaddrs(ifa);
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
