@@ -863,6 +863,14 @@ static int res_sdp_crypto_parse_offer(struct ast_rtp_instance *rtp, struct ast_s
 		crypto->tag = tag_from_sdp;
 	}
 
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_TAG_8);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_TAG_16);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_TAG_32);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_TAG_80);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_AES_192);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_AES_256);
+	ast_clear_flag(srtp, AST_SRTP_CRYPTO_OLD_NAME);
+
 	if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_80")) {
 		suite_val = AST_AES_CM_128_HMAC_SHA1_80;
 		ast_set_flag(srtp, AST_SRTP_CRYPTO_TAG_80);
