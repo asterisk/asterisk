@@ -2219,6 +2219,19 @@ int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pj
 struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata);
 
 /*!
+ * \brief Get a specific header value from rdata
+ *
+ * \note The returned value does not need to be freed since it's from the rdata pool
+ *
+ * \param rdata The rdata
+ * \param str The header to find
+ *
+ * \retval NULL on failure
+ * \retval The header value on success
+ */
+char *ast_sip_rdata_get_header_value(pjsip_rx_data *rdata, const pj_str_t str);
+
+/*!
  * \brief Set the outbound proxy for an outbound SIP message
  *
  * \param tdata The message to set the outbound proxy on

@@ -310,6 +310,37 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 	return cnt;
 }
 
+/*! \brief Decode BASE64 encoded text and return the string */
+char *ast_base64decode_string(const char *src)
+{
+	size_t encoded_len;
+	size_t decoded_len;
+	int padding = 0;
+	unsigned char *decoded_string;
+
+	if (ast_strlen_zero(src)) {
+		return NULL;
+	}
+
+	encoded_len = strlen(src);
+	if (encoded_len > 2 && src[encoded_len - 1] == '=') {
+		padding++;
+		if (src[encoded_len - 2] == '=') {
+			padding++;
+		}
+	}
+
+	decoded_len = (encoded_len / 4 * 3) - padding;
+	decoded_string = ast_calloc(1, decoded_len);
+	if (!decoded_string) {
+		return NULL;
+	}
+
+	ast_base64decode(decoded_string, src, decoded_len);
+
+	return (char *)decoded_string;
+}
+
 /*! \brief encode text to BASE64 coding */
 int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks)
 {

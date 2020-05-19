@@ -65,6 +65,9 @@
 				<configOption name="curl_timeout" default="2">
 					<synopsis>Maximum time to wait to CURL certificates</synopsis>
 				</configOption>
+				<configOption name="signature_timeout" default="15">
+					<synopsis>Amount of time a signature is valid for</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="store">
 				<synopsis>STIR/SHAKEN certificate store options</synopsis>
@@ -181,6 +184,11 @@ void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload)
 	ast_free(payload);
 }
 
+unsigned int ast_stir_shaken_get_signature_timeout(void)
+{
+	return ast_stir_shaken_signature_timeout(stir_shaken_general_get());
+}
+
 /*!
  * \brief Convert an ast_stir_shaken_verification_result to string representation
  *
@@ -270,8 +278,8 @@ int ast_stir_shaken_add_verification(struct ast_channel *chan, const char *ident
 		return -1;
 	}
 
-	if (ast_strlen_zero(attestation)) {
-		ast_log(LOG_ERROR, "No attestation to add STIR/SHAKEN verification to "
+	if (!attestation) {
+		ast_log(LOG_ERROR, "Attestation cannot be NULL to add STIR/SHAKEN verification to "
 			"channel %s\n", chan_name);
 		return -1;
 	}
@@ -593,8 +601,9 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 	EVP_PKEY *public_key;
 	char *filename;
 	int curl = 0;
-	struct ast_json_error err;
 	RAII_VAR(char *, file_path, NULL, ast_free);
+	RAII_VAR(char *, combined_str, NULL, ast_free);
+	size_t combined_size;
 
 	if (ast_strlen_zero(header)) {
 		ast_log(LOG_ERROR, "'header' is required for STIR/SHAKEN verification\n");
@@ -697,7 +706,16 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 		}
 	}
 
-	if (stir_shaken_verify_signature(payload, signature, public_key)) {
+	/* Combine the header and payload to get the original signed message: header.payload */
+	combined_size = strlen(header) + strlen(payload) + 2;
+	combined_str = ast_calloc(1, combined_size);
+	if (!combined_str) {
+		ast_log(LOG_ERROR, "Failed to allocate space for message to verify\n");
+		EVP_PKEY_free(public_key);
+		return NULL;
+	}
+	snprintf(combined_str, combined_size, "%s.%s", header, payload);
+	if (stir_shaken_verify_signature(combined_str, signature, public_key)) {
 		ast_log(LOG_ERROR, "Failed to verify signature\n");
 		EVP_PKEY_free(public_key);
 		return NULL;
@@ -712,14 +730,14 @@ struct ast_stir_shaken_payload *ast_stir_shaken_verify(const char *header, const
 		return NULL;
 	}
 
-	ret_payload->header = ast_json_load_string(header, &err);
+	ret_payload->header = ast_json_load_string(header, NULL);
 	if (!ret_payload->header) {
 		ast_log(LOG_ERROR, "Failed to create JSON from header\n");
 		ast_stir_shaken_payload_free(ret_payload);
 		return NULL;
 	}
 
-	ret_payload->payload = ast_json_load_string(payload, &err);
+	ret_payload->payload = ast_json_load_string(payload, NULL);
 	if (!ret_payload->payload) {
 		ast_log(LOG_ERROR, "Failed to create JSON from payload\n");
 		ast_stir_shaken_payload_free(ret_payload);
@@ -1000,14 +1018,18 @@ static int stir_shaken_add_iat(struct ast_json *json)
 
 struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 {
-	struct ast_stir_shaken_payload *payload;
+	struct ast_stir_shaken_payload *ss_payload;
 	unsigned char *signature;
 	const char *caller_id_num;
-	char *json_str = NULL;
+	const char *header;
+	const char *payload;
+	struct ast_json *tmp_json;
+	char *msg = NULL;
+	size_t msg_len;
 	struct stir_shaken_certificate *cert = NULL;
 
-	payload = stir_shaken_verify_json(json);
-	if (!payload) {
+	ss_payload = stir_shaken_verify_json(json);
+	if (!ss_payload) {
 		return NULL;
 	}
 
@@ -1052,27 +1074,34 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 		goto cleanup;
 	}
 
-	json_str = ast_json_dump_string(json);
-	if (!json_str) {
-		ast_log(LOG_ERROR, "Failed to convert JSON to string\n");
+	/* Get the header and the payload. Combine them to get the message to sign */
+	tmp_json = ast_json_object_get(json, "header");
+	header = ast_json_dump_string(tmp_json);
+	tmp_json = ast_json_object_get(json, "payload");
+	payload = ast_json_dump_string(tmp_json);
+	msg_len = strlen(header) + strlen(payload) + 2;
+	msg = ast_calloc(1, msg_len);
+	if (!msg) {
+		ast_log(LOG_ERROR, "Failed to allocate space for message to sign\n");
 		goto cleanup;
 	}
+	snprintf(msg, msg_len, "%s.%s", header, payload);
 
-	signature = stir_shaken_sign(json_str, stir_shaken_certificate_get_private_key(cert));
+	signature = stir_shaken_sign(msg, stir_shaken_certificate_get_private_key(cert));
 	if (!signature) {
 		goto cleanup;
 	}
 
-	payload->signature = signature;
+	ss_payload->signature = signature;
 	ao2_cleanup(cert);
-	ast_json_free(json_str);
+	ast_free(msg);
 
-	return payload;
+	return ss_payload;
 
 cleanup:
 	ao2_cleanup(cert);
-	ast_stir_shaken_payload_free(payload);
-	ast_json_free(json_str);
+	ast_stir_shaken_payload_free(ss_payload);
+	ast_free(msg);
 	return NULL;
 }
 
@@ -1424,12 +1453,13 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 {
 	char *caller_id_number = "1234567";
 	char *public_key_url = "http://testing123";
-	char *header = "{\"header\": \"placeholder\"}";
+	char *header;
+	char *payload;
+	struct ast_json *tmp_json;
 	char public_path[] = "/tmp/stir_shaken_public.XXXXXX";
 	char private_path[] = "/tmp/stir_shaken_public.XXXXXX";
 	RAII_VAR(char *, rm_on_exit_public, public_path, unlink);
 	RAII_VAR(char *, rm_on_exit_private, private_path, unlink);
-	RAII_VAR(char *, json_str, NULL, ast_json_free);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
 	RAII_VAR(struct ast_stir_shaken_payload *, signed_payload, NULL, ast_stir_shaken_payload_free);
 	RAII_VAR(struct ast_stir_shaken_payload *, returned_payload, NULL, ast_stir_shaken_payload_free);
@@ -1463,16 +1493,14 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 		return AST_TEST_FAIL;
 	}
 
-	/* Get the message to use for verification */
-	json_str = ast_json_dump_string(json);
-	if (!json_str) {
-		ast_test_status_update(test, "Failed to create string from JSON\n");
-		test_stir_shaken_cleanup_cert(caller_id_number);
-		return AST_TEST_FAIL;
-	}
+	/* Get the header and payload for ast_stir_shaken_verify */
+	tmp_json = ast_json_object_get(json, "header");
+	header = ast_json_dump_string(tmp_json);
+	tmp_json = ast_json_object_get(json, "payload");
+	payload = ast_json_dump_string(tmp_json);
 
 	/* Test empty header parameter */
-	returned_payload = ast_stir_shaken_verify("", json_str, (const char *)signed_payload->signature,
+	returned_payload = ast_stir_shaken_verify("", payload, (const char *)signed_payload->signature,
 		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'header'\n");
@@ -1490,7 +1518,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	}
 
 	/* Test empty signature parameter */
-	returned_payload = ast_stir_shaken_verify(header, json_str, "",
+	returned_payload = ast_stir_shaken_verify(header, payload, "",
 		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'signature'\n");
@@ -1499,7 +1527,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	}
 
 	/* Test empty algorithm parameter */
-	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+	returned_payload = ast_stir_shaken_verify(header, payload, (const char *)signed_payload->signature,
 		"", public_key_url);
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'algorithm'\n");
@@ -1508,7 +1536,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	}
 
 	/* Test empty public key URL */
-	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+	returned_payload = ast_stir_shaken_verify(header, payload, (const char *)signed_payload->signature,
 		STIR_SHAKEN_ENCRYPTION_ALGORITHM, "");
 	if (returned_payload) {
 		ast_test_status_update(test, "Verified a signature with missing 'public key URL'\n");
@@ -1520,7 +1548,7 @@ AST_TEST_DEFINE(test_stir_shaken_verify)
 	test_stir_shaken_add_fake_astdb_entry(public_key_url, public_path);
 
 	/* Verify a valid signature */
-	returned_payload = ast_stir_shaken_verify(header, json_str, (const char *)signed_payload->signature,
+	returned_payload = ast_stir_shaken_verify(header, payload, (const char *)signed_payload->signature,
 		STIR_SHAKEN_ENCRYPTION_ALGORITHM, public_key_url);
 	if (!returned_payload) {
 		ast_test_status_update(test, "Failed to verify a valid signature\n");

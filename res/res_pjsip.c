@@ -3183,6 +3183,21 @@ struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata)
 	return endpoint;
 }
 
+char *ast_sip_rdata_get_header_value(pjsip_rx_data *rdata, const pj_str_t str)
+{
+	pjsip_generic_string_hdr *hdr;
+	pj_str_t hdr_val;
+
+	hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str, NULL);
+	if (!hdr) {
+		return NULL;
+	}
+
+	pj_strdup_with_null(rdata->tp_info.pool, &hdr_val, &hdr->hvalue);
+
+	return hdr_val.ptr;
+}
+
 static int do_cli_dump_endpt(void *v_a)
 {
 	struct ast_cli_args *a = v_a;

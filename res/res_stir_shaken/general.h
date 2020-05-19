@@ -84,6 +84,17 @@ unsigned int ast_stir_shaken_cache_max_size(const struct stir_shaken_general *cf
 unsigned int ast_stir_shaken_curl_timeout(const struct stir_shaken_general *cfg);
 
 /*!
+ * \brief Retrieve the 'signature_timeout' general configuration option value
+ *
+ * \note if a NULL configuration is given, then the default value is returned
+ *
+ * \param cfg A 'general' configuration object
+ *
+ * \retval The 'signature_timeout' value
+ */
+unsigned int ast_stir_shaken_signature_timeout(const struct stir_shaken_general *cfg);
+
+/*!
  * \brief Load time initialization for the stir/shaken 'general' configuration
  *
  * \retval 0 on success, -1 on error
