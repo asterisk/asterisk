@@ -282,9 +282,8 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 	struct softmix_translate_helper_entry *entry = NULL;
 	int i;
 
-	/* If we provided audio that was not determined to be silence,
-	 * then take it out while in slinear format. */
-	if (sc->have_audio && sc->talking) {
+	/* If we provided any audio then take it out while in slinear format. */
+	if (sc->have_audio) {
 		for (i = 0; i < sc->write_frame.samples; i++) {
 			ast_slinear_saturated_subtract(&sc->final_buf[i], &sc->our_buf[i]);
 		}
