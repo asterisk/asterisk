@@ -33,6 +33,13 @@ struct ast_stir_shaken_payload;
 struct ast_json;
 
 /*!
+ * \brief Retrieve the value for 'signature_timeout' from 'general' config object
+ *
+ * \retval The signature timeout
+ */
+unsigned int ast_stir_shaken_get_signature_timeout(void);
+
+/*!
  * \brief Add a STIR/SHAKEN verification result to a channel
  *
  * \param chan The channel

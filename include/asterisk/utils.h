@@ -250,6 +250,19 @@ int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
  */
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 
+/*!
+ * \brief Same as ast_base64decode, but does the math for you and returns
+ * a decoded string
+ *
+ * \note The returned string will need to be freed later
+ *
+ * \param src The source buffer
+ *
+ * \retval NULL on failure
+ * \retval Decoded string on success
+ */
+char *ast_base64decode_string(const char *src);
+
 #define AST_URI_ALPHANUM     (1 << 0)
 #define AST_URI_MARK         (1 << 1)
 #define AST_URI_UNRESERVED   (AST_URI_ALPHANUM | AST_URI_MARK)
