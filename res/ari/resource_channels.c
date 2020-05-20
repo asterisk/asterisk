@@ -484,6 +484,7 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 
+	// chan = ast_channel_get_by_name(args->channel_id);
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
 		return;
@@ -501,6 +502,7 @@ void ast_ari_channels_send_json(struct ast_variable *headers,
 		return;
 	}
 
+	// TODO: Validate that json data is not empty or null.
 	// if (ast_strlen_zero(args->data)) {
 	// 	ast_ari_response_error(
 	// 		response, 400, "Bad Request",
