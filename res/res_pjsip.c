@@ -3695,7 +3695,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		contact_hdr = pjsip_msg_find_hdr_by_names((*tdata)->msg, &HCONTACT, &HCONTACTSHORT, NULL);
 		if (contact_hdr) {
 			contact_uri = pjsip_uri_get_uri(contact_hdr->uri);
-			pj_strdup2(pool, &contact_uri->user, endpoint->contact_user);
+			pj_strdup2((*tdata)->pool, &contact_uri->user, endpoint->contact_user);
 		}
 	}
 
