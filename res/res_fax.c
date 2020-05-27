@@ -3568,7 +3568,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		 * translation is done, so we need to translate here */
 		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
 			&& (readtrans = ast_channel_readtrans(active))) {
-			if ((f = ast_translate(readtrans, f, 1)) == NULL) {
+			if ((f = ast_translate(readtrans, f, event == AST_FRAMEHOOK_EVENT_WRITE ? 0 : 1)) == NULL) {
 				f = &ast_null_frame;
 				return f;
 			}
