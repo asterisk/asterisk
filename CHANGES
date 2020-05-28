@@ -13,6 +13,32 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.33.0 to Asterisk 13.34.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip_logger
+------------------
+ * The PJSIP packet logger now has the following CLI commands:
+
+   pjsip set logger pcap <filename>
+
+   When used this will create a pcap file containing the incoming
+   and outgoing SIP packets, in unencrypted form.
+
+   pjsip set logger console <on / off>
+
+   This allows you to toggle logging to console on and off.
+
+   pjsip set logger host <IP/subnet mask> add
+
+   This allows you to add an additional IP address or subnet
+   mask to logging, allowing you to log multiple instead of
+   just a single IP address or all traffic.
+
+   The normal "pjsip set logger host" CLI command has also been
+   expanded to allow subnet masks as well.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.32.0 to Asterisk 13.33.0 ----------
 ------------------------------------------------------------------------------
 
