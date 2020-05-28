@@ -1,5 +1,0 @@
-Subject: res_ari_channels
-
-When creating a channel in ARI using the create call
-you can now specify dialplan variables to be set as part
-of the same operation.
