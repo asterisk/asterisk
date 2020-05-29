@@ -246,19 +246,19 @@ static void pjsip_logger_write_to_pcap(struct pjsip_logger_session *session, con
 	/* We lock the logger session since we're writing these out in parts */
 	ao2_wrlock(session);
 	if (session->pcap_file) {
-		if (fwrite(&pcap_record_header, sizeof(struct pcap_record_header), 1, session->pcap_file) != sizeof(struct pcap_record_header)) {
+		if (fwrite(&pcap_record_header, sizeof(struct pcap_record_header), 1, session->pcap_file) != 1) {
 			ast_log(LOG_WARNING, "Writing PCAP header failed: %s\n", strerror(errno));
 		}
-		if (fwrite(&pcap_ethernet_header, sizeof(struct pcap_ethernet_header), 1, session->pcap_file) != sizeof(struct pcap_ethernet_header)) {
+		if (fwrite(&pcap_ethernet_header, sizeof(struct pcap_ethernet_header), 1, session->pcap_file) != 1) {
 			ast_log(LOG_WARNING, "Writing ethernet header to pcap failed: %s\n", strerror(errno));
 		}
-		if (fwrite(pcap_ip_header, pcap_ip_header_len, 1, session->pcap_file) != pcap_ip_header_len) {
+		if (fwrite(pcap_ip_header, pcap_ip_header_len, 1, session->pcap_file) != 1) {
 			ast_log(LOG_WARNING, "Writing IP header to pcap failed: %s\n", strerror(errno));
 		}
-		if (fwrite(&pcap_udp_header, sizeof(struct pcap_udp_header), 1, session->pcap_file) != sizeof(struct pcap_udp_header)) {
+		if (fwrite(&pcap_udp_header, sizeof(struct pcap_udp_header), 1, session->pcap_file) != 1) {
 			ast_log(LOG_WARNING, "Writing UDP header to pcap failed: %s\n", strerror(errno));
 		}
-		if (fwrite(msg, msg_len, 1, session->pcap_file) != msg_len) {
+		if (fwrite(msg, msg_len, 1, session->pcap_file) != 1) {
 			ast_log(LOG_WARNING, "Writing UDP payload to pcap failed: %s\n", strerror(errno));
 		}
 	}
