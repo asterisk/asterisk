@@ -5086,9 +5086,8 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 		struct ast_bridge_snapshot *snapshot = ast_bridge_get_snapshot(bridge);
 		char print_time[32];
 
-		ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, sizeof(print_time));
-
 		if (snapshot) {
+			ast_format_duration_hh_mm_ss(ast_tvnow().tv_sec - snapshot->creationtime.tv_sec, print_time, sizeof(print_time));
 			ast_cli(a->fd, FORMAT_ROW,
 				snapshot->uniqueid,
 				snapshot->num_channels,
