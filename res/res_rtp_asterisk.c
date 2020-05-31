@@ -3429,39 +3429,6 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	ast_rtp_dtls_stop(instance);
 #endif
 
-	/* Destroy the smoother that was smoothing out audio if present */
-	if (rtp->smoother) {
-		ast_smoother_free(rtp->smoother);
-	}
-
-	/* Close our own socket so we no longer get packets */
-	if (rtp->s > -1) {
-		close(rtp->s);
-	}
-
-	/* Destroy RTCP if it was being used */
-	if (rtp->rtcp) {
-		/*
-		 * It is not possible for there to be an active RTCP scheduler
-		 * entry at this point since it holds a reference to the
-		 * RTP instance while it's active.
-		 */
-		if (rtp->rtcp->s > -1 && rtp->s != rtp->rtcp->s) {
-			close(rtp->rtcp->s);
-		}
-		ast_free(rtp->rtcp->local_addr_str);
-		ast_free(rtp->rtcp);
-	}
-
-	/* Destroy RED if it was being used */
-	if (rtp->red) {
-		ao2_unlock(instance);
-		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
-		ao2_lock(instance);
-		ast_free(rtp->red);
-		rtp->red = NULL;
-	}
-
 #ifdef HAVE_PJPROJECT
 	pj_thread_register_check();
 
@@ -3518,6 +3485,39 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		ao2_lock(instance);
 	}
 #endif
+
+	/* Destroy the smoother that was smoothing out audio if present */
+	if (rtp->smoother) {
+		ast_smoother_free(rtp->smoother);
+	}
+
+	/* Close our own socket so we no longer get packets */
+	if (rtp->s > -1) {
+		close(rtp->s);
+	}
+
+	/* Destroy RTCP if it was being used */
+	if (rtp->rtcp) {
+		/*
+		 * It is not possible for there to be an active RTCP scheduler
+		 * entry at this point since it holds a reference to the
+		 * RTP instance while it's active.
+		 */
+		if (rtp->rtcp->s > -1 && rtp->s != rtp->rtcp->s) {
+			close(rtp->rtcp->s);
+		}
+		ast_free(rtp->rtcp->local_addr_str);
+		ast_free(rtp->rtcp);
+	}
+
+	/* Destroy RED if it was being used */
+	if (rtp->red) {
+		ao2_unlock(instance);
+		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
+		ao2_lock(instance);
+		ast_free(rtp->red);
+		rtp->red = NULL;
+	}
 
 	ao2_cleanup(rtp->lasttxformat);
 	ao2_cleanup(rtp->lastrxformat);
