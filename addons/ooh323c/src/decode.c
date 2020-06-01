@@ -737,6 +737,10 @@ static int decodeOctets
          nbits -= 8;
       }
 
+      if (nbits <= 0) {
+         return ASN_OK;
+      }
+
       /* Copy last partial byte */
 
       if (nbits >= rshift) {
@@ -752,7 +756,7 @@ static int decodeOctets
 
          pctxt->buffer.bitOffset = 8 - nbitsInLastOctet;
       }
-      else if (nbits > 0) {  /* nbits < rshift */
+      else {  /* nbits > 0 && nbits < rshift */
          pbuffer[i] =
             pctxt->buffer.data[pctxt->buffer.byteIndex] << lshift;
          pctxt->buffer.bitOffset = rshift - nbits;
@@ -832,8 +836,8 @@ int decodeOpenType
 
 int decodeSemiConsInteger (OOCTXT* pctxt, ASN1INT* pvalue, ASN1INT lower)
 {
-   signed char b;
-   unsigned char ub;
+   signed char b = 0;
+   unsigned char ub = 0;
    ASN1UINT nbytes;
    int stat;
 

@@ -1231,11 +1231,14 @@ int ast_app_group_list_unlock(void);
   \note This defines a structure type, but does not declare an instance
   of the structure. That must be done separately.
  */
+
 #define AST_DEFINE_APP_ARGS_TYPE(type, arglist) \
 	struct type { \
 		unsigned int argc; \
-		char *argv[0]; \
-		arglist \
+		union { \
+			char *argv[sizeof(struct {arglist}) / sizeof(char *)]; \
+			struct {arglist}; \
+		}; \
 	}
 
 /*!
