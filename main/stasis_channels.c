@@ -306,7 +306,7 @@ static struct ast_channel_snapshot_peer *channel_snapshot_peer_create(struct ast
 
 	strcpy(snapshot->account, peeraccount); /* Safe */
 	snapshot->linkedid = snapshot->account + peeraccount_len;
-	strcpy(snapshot->linkedid, linkedid); /* Safe */
+	ast_copy_string(snapshot->linkedid, linkedid, linkedid_len); /* Safe */
 
 	return snapshot;
 }
@@ -370,7 +370,7 @@ static struct ast_channel_snapshot_connected *channel_snapshot_connected_create(
 
 	strcpy(snapshot->name, name); /* Safe */
 	snapshot->number = snapshot->name + name_len;
-	strcpy(snapshot->number, number); /* Safe */
+	ast_copy_string(snapshot->number, number, number_len); /* Safe */
 
 	return snapshot;
 }

@@ -49,6 +49,7 @@ struct ast_dns_record *dns_srv_alloc(struct ast_dns_query *query, const char *da
 	struct ast_dns_srv_record *srv;
 	int host_size;
 	char host[NI_MAXHOST] = "";
+	size_t host_len;
 
 	ptr = dns_find_record(data, size, query->result->answer, query->result->answer_size);
 	ast_assert(ptr != NULL);
@@ -89,7 +90,8 @@ struct ast_dns_record *dns_srv_alloc(struct ast_dns_query *query, const char *da
 		return NULL;
 	}
 
-	srv = ast_calloc(1, sizeof(*srv) + size + strlen(host) + 1);
+	host_len = strlen(host) + 1;
+	srv = ast_calloc(1, sizeof(*srv) + size + host_len);
 	if (!srv) {
 		return NULL;
 	}
@@ -99,7 +101,7 @@ struct ast_dns_record *dns_srv_alloc(struct ast_dns_query *query, const char *da
 	srv->port = port;
 
 	srv->host = srv->data + size;
-	strcpy((char *)srv->host, host); /* SAFE */
+	ast_copy_string((char *)srv->host, host, host_len); /* SAFE */
 	srv->generic.data_ptr = srv->data;
 
 	return (struct ast_dns_record *)srv;
