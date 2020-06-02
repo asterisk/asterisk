@@ -1,3 +1,24 @@
+2020-06-02 08:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.11.0-rc2 Released.
+
+2020-05-29 04:28 +0000 [cbf5d12576]  Pirmin Walthert <infos@nappsoft.ch>
+
+	* res_pjsip_logger.c: correct the return value checks when writing to pcap
+	  files
+
+	  fwrite() does return the number of elements written and not the
+	  number of bytes. However asterisk is currently comparing the return
+	  value to the size of the written element what means that asterisk logs
+	  five WARNING messages on every packet written to the pcap file.
+
+	  This patch changes the code to check for the correct value, which will
+	  always be 1.
+
+	  ASTERISK-28921 #close
+
+	  Change-Id: I2455032d9cb4c5a500692923f9e2a22e68b08fc2
+
 2020-05-28 12:15 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.11.0-rc1 Released.
