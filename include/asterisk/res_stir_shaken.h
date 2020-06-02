@@ -21,6 +21,10 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 
+#define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
+#define STIR_SHAKEN_PPT "shaken"
+#define STIR_SHAKEN_TYPE "passport"
+
 enum ast_stir_shaken_verification_result {
 	AST_STIR_SHAKEN_VERIFY_NOT_PRESENT, /*! No STIR/SHAKEN information was available */
 	AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED, /*! Signature verification failed */
@@ -31,6 +35,24 @@ enum ast_stir_shaken_verification_result {
 struct ast_stir_shaken_payload;
 
 struct ast_json;
+
+/*!
+ * \brief Retrieve the value for 'signature' from an ast_stir_shaken_payload
+ *
+ * \param payload The payload
+ *
+ * \retval The signature
+ */
+unsigned char *ast_stir_shaken_payload_get_signature(const struct ast_stir_shaken_payload *payload);
+
+/*!
+ * \brief Retrieve the value for 'public_key_url' from an ast_stir_shaken_payload
+ *
+ * \param payload The payload
+ *
+ * \retval The public key URL
+ */
+char *ast_stir_shaken_payload_get_public_key_url(const struct ast_stir_shaken_payload *payload);
 
 /*!
  * \brief Retrieve the value for 'signature_timeout' from 'general' config object

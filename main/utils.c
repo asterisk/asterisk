@@ -398,6 +398,24 @@ int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 	return ast_base64encode_full(dst, src, srclen, max, 0);
 }
 
+/*! \brief Encode to BASE64 and return encoded string */
+char *ast_base64encode_string(const char *src)
+{
+	size_t encoded_len;
+	char *encoded_string;
+
+	if (ast_strlen_zero(src)) {
+		return NULL;
+	}
+
+	encoded_len = ((strlen(src) * 4 / 3 + 3) & ~3) + 1;
+	encoded_string = ast_calloc(1, encoded_len);
+
+	ast_base64encode(encoded_string, (const unsigned char *)src, strlen(src), encoded_len);
+
+	return encoded_string;
+}
+
 static void base64_init(void)
 {
 	int x;
