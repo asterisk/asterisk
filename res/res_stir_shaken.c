@@ -99,6 +99,12 @@
 					 Must be a valid http, or https, URL.
 					</para></description>
 				</configOption>
+				<configOption name="attestation">
+					<synopsis>Attestation level</synopsis>
+				</configOption>
+				<configOption name="origid" default="">
+					<synopsis>The origination ID</synopsis>
+				</configOption>
 				<configOption name="caller_id_number" default="">
 					<synopsis>The caller ID number to match on.</synopsis>
 				</configOption>
@@ -135,10 +141,6 @@
 		</description>
 	</function>
  ***/
-
-#define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
-#define STIR_SHAKEN_PPT "shaken"
-#define STIR_SHAKEN_TYPE "passport"
 
 static struct ast_sorcery *stir_shaken_sorcery;
 
@@ -182,6 +184,16 @@ void ast_stir_shaken_payload_free(struct ast_stir_shaken_payload *payload)
 	ast_free(payload->signature);
 
 	ast_free(payload);
+}
+
+unsigned char *ast_stir_shaken_payload_get_signature(const struct ast_stir_shaken_payload *payload)
+{
+	return payload ? payload->signature : NULL;
+}
+
+char *ast_stir_shaken_payload_get_public_key_url(const struct ast_stir_shaken_payload *payload)
+{
+	return payload ? payload->public_key_url : NULL;
 }
 
 unsigned int ast_stir_shaken_get_signature_timeout(void)
@@ -1020,6 +1032,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 {
 	struct ast_stir_shaken_payload *ss_payload;
 	unsigned char *signature;
+	const char *public_key_url;
 	const char *caller_id_num;
 	const char *header;
 	const char *payload;
@@ -1049,22 +1062,19 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 		goto cleanup;
 	}
 
-	if (stir_shaken_add_x5u(json, stir_shaken_certificate_get_public_key_url(cert))) {
+	public_key_url = stir_shaken_certificate_get_public_key_url(cert);
+	if (stir_shaken_add_x5u(json, public_key_url)) {
 		ast_log(LOG_ERROR, "Failed to add 'x5u' (public key URL) to payload\n");
 		goto cleanup;
 	}
+	ss_payload->public_key_url = ast_strdup(public_key_url);
 
-	/* TODO: This is just a placeholder for adding 'attest', 'iat', and
-	 * 'origid' to the payload. Later, additional logic will need to be
-	 * added to determine what these values actually are, but the functions
-	 * themselves are ready to go.
-	 */
-	if (stir_shaken_add_attest(json, "B")) {
+	if (stir_shaken_add_attest(json, stir_shaken_certificate_get_attestation(cert))) {
 		ast_log(LOG_ERROR, "Failed to add 'attest' to payload\n");
 		goto cleanup;
 	}
 
-	if (stir_shaken_add_origid(json, "asterisk")) {
+	if (stir_shaken_add_origid(json, stir_shaken_certificate_get_origid(cert))) {
 		ast_log(LOG_ERROR, "Failed to add 'origid' to payload\n");
 		goto cleanup;
 	}

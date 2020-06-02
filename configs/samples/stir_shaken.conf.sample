@@ -47,3 +47,9 @@
 ;
 ; URL to the public key
 ;public_key_url=http://mycompany.com/alice.pub
+;
+; Must have an attestation of A, B, or C
+;attestation=C
+;
+; The origination identifier for the certificate
+;origid=MyAsterisk

@@ -194,10 +194,102 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	return 0;
 }
 
+static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
+{
+	static const pj_str_t identity_str = { "Identity", 8 };
+	pjsip_generic_string_hdr *identity_hdr;
+	pj_str_t identity_val;
+	pjsip_fromto_hdr *old_identity;
+	char *signature;
+	char *public_key_url;
+	struct ast_json *header;
+	struct ast_json *payload;
+	char *dumped_string;
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
+	RAII_VAR(struct ast_stir_shaken_payload *, ss_payload, NULL, ast_stir_shaken_payload_free);
+	RAII_VAR(char *, encoded_header, NULL, ast_free);
+	RAII_VAR(char *, encoded_payload, NULL, ast_free);
+	RAII_VAR(char *, combined_str, NULL, ast_free);
+	size_t combined_size;
+
+	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_str, NULL);
+	if (old_identity) {
+		return;
+	}
+
+	/* x5u (public key URL), attestation, and origid will be added by ast_stir_shaken_sign */
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
+		"payload", "orig", "tn", session->id.number.str);
+	if (!json) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN JSON\n");
+		return;
+	}
+
+	ss_payload = ast_stir_shaken_sign(json);
+	if (!ss_payload) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN payload\n");
+		return;
+	}
+
+	header = ast_json_object_get(json, "header");
+	dumped_string = ast_json_dump_string(header);
+	encoded_header = ast_base64encode_string(dumped_string);
+	ast_json_free(dumped_string);
+	if (!encoded_header) {
+		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN header\n");
+		return;
+	}
+
+	payload = ast_json_object_get(json, "payload");
+	dumped_string = ast_json_dump_string(payload);
+	encoded_payload = ast_base64encode_string(dumped_string);
+	ast_json_free(dumped_string);
+	if (!encoded_payload) {
+		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN payload\n");
+		return;
+	}
+
+	signature = (char *)ast_stir_shaken_payload_get_signature(ss_payload);
+	public_key_url = ast_stir_shaken_payload_get_public_key_url(ss_payload);
+
+	/* The format for the identity header:
+	 * header.payload.signature;info=<public_key_url>alg=STIR_SHAKEN_ENCRYPTION_ALGORITHM;ppt=STIR_SHAKEN_PPT
+	 */
+	combined_size = strlen(encoded_header) + 1 + strlen(encoded_payload) + 1
+		+ strlen(signature) + strlen(";info=<>alg=;ppt=") + strlen(public_key_url)
+		+ strlen(STIR_SHAKEN_ENCRYPTION_ALGORITHM) + strlen(STIR_SHAKEN_PPT) + 1;
+	combined_str = ast_calloc(1, combined_size);
+	if (!combined_str) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN identity string\n");
+		return;
+	}
+	snprintf(combined_str, combined_size, "%s.%s.%s;info=<%s>alg=%s;ppt=%s", encoded_header,
+		encoded_payload, signature, public_key_url, STIR_SHAKEN_ENCRYPTION_ALGORITHM, STIR_SHAKEN_PPT);
+
+	identity_val = pj_str(combined_str);
+	identity_hdr = pjsip_generic_string_hdr_create(tdata->pool, &identity_str, &identity_val);
+	if (!identity_hdr) {
+		ast_log(LOG_ERROR, "Failed to create STIR/SHAKEN Identity header\n");
+		return;
+	}
+
+	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)identity_hdr);
+}
+
+static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
+{
+	if (ast_strlen_zero(session->id.number.str) && session->id.number.valid) {
+		return;
+	}
+
+	add_identity_header(session, tdata);
+}
+
 static struct ast_sip_session_supplement stir_shaken_supplement = {
 	.method = "INVITE",
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1, /* Run AFTER channel creation */
 	.incoming_request = stir_shaken_incoming_request,
+	.outgoing_request = stir_shaken_outgoing_request,
 };
 
 static int unload_module(void)

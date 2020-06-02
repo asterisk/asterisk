@@ -240,6 +240,19 @@ int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int m
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 
 /*!
+ * \brief Same as ast_base64encode, but does hte math for you and returns
+ * an encoded string
+ *
+ * \note The returned string will need to be freed later
+ *
+ * \param src The source buffer
+ *
+ * \retval NULL on failure
+ * \retval Encoded string on success
+ */
+char *ast_base64encode_string(const char *src);
+
+/*!
  * \brief Decode data from base64
  * \param dst the destination buffer
  * \param src the source buffer

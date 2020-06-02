@@ -38,6 +38,10 @@ struct stir_shaken_certificate {
 		AST_STRING_FIELD(public_key_url);
 		/*! The caller ID number associated with the certificate */
 		AST_STRING_FIELD(caller_id_number);
+		/*! The attestation level for this certificate */
+		AST_STRING_FIELD(attestation);
+		/*! The origination ID for this certificate */
+		AST_STRING_FIELD(origid);
 	);
 	/*! The private key for the certificate */
 	EVP_PKEY *private_key;
@@ -93,20 +97,22 @@ struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(
 
 const char *stir_shaken_certificate_get_public_key_url(struct stir_shaken_certificate *cert)
 {
-	if (!cert) {
-		return NULL;
-	}
+	return cert ? cert->public_key_url : NULL;
+}
 
-	return cert->public_key_url;
+const char *stir_shaken_certificate_get_attestation(struct stir_shaken_certificate *cert)
+{
+	return cert ? cert->attestation : NULL;
+}
+
+const char *stir_shaken_certificate_get_origid(struct stir_shaken_certificate *cert)
+{
+	return cert ? cert->origid : NULL;
 }
 
 EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert)
 {
-	if (!cert) {
-		return NULL;
-	}
-
-	return cert->private_key;
+	return cert ? cert->private_key : NULL;
 }
 
 static int stir_shaken_certificate_apply(const struct ast_sorcery *sorcery, void *obj)
@@ -114,8 +120,13 @@ static int stir_shaken_certificate_apply(const struct ast_sorcery *sorcery, void
 	EVP_PKEY *private_key;
 	struct stir_shaken_certificate *cert = obj;
 
-	if (strlen(cert->caller_id_number) == 0) {
+	if (ast_strlen_zero(cert->caller_id_number)) {
 		ast_log(LOG_ERROR, "Caller ID must be present\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(cert->attestation)) {
+		ast_log(LOG_ERROR, "Attestation must be present\n");
 		return -1;
 	}
 
@@ -244,6 +255,28 @@ static int public_key_url_to_str(const void *obj, const intptr_t *args, char **b
 	return 0;
 }
 
+static int on_load_attestation(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct stir_shaken_certificate *cfg = obj;
+
+	if (strcmp(var->value, "A") && strcmp(var->value, "B") && strcmp(var->value, "C")) {
+		ast_log(LOG_ERROR, "stir/shaken - attestation level must be A, B, or C (object=%s)\n",
+			ast_sorcery_object_get_id(cfg));
+		return -1;
+	}
+
+	return ast_string_field_set(cfg, attestation, var->value);
+}
+
+static int attestation_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct stir_shaken_certificate *cfg = obj;
+
+	*buf = ast_strdup(cfg->attestation);
+
+	return 0;
+}
+
 #ifdef TEST_FRAMEWORK
 
 /* Name for test certificaate */
@@ -343,6 +376,9 @@ int stir_shaken_certificate_load(void)
 		on_load_path, path_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "public_key_url", "",
 		on_load_public_key_url, public_key_url_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "attestation", "",
+		on_load_attestation, attestation_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "origid", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, origid));
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "caller_id_number", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, caller_id_number));
 
 	ast_cli_register_multiple(stir_shaken_certificate_cli,
