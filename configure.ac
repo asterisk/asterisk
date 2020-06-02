@@ -453,6 +453,10 @@ AC_ARG_WITH([pjproject-bundled],
 	      *) PJPROJECT_BUNDLED=yes ;;
 	esac])
 
+if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+	PJPROJECT_BUNDLED=no
+fi
+
 THIRD_PARTY_CONFIGURE()
 
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for

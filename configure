@@ -9034,6 +9034,10 @@ if test "${with_pjproject_bundled+set}" = set; then :
 fi
 
 
+if test "${with_pjproject}" == "no" || test "${with_pjproject}" == "n" ; then
+	PJPROJECT_BUNDLED=no
+fi
+
 
 
 	if test "$JANSSON_BUNDLED" = "yes" ; then
