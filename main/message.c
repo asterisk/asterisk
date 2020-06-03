@@ -1408,7 +1408,7 @@ struct ast_msg_data *ast_msg_data_alloc(enum ast_msg_data_source_type source,
 	/* Set the ones we have and increment the offset */
 	for (i=0; i < count; i++) {
 		len = (strlen(attributes[i].value) + 1);
-		strcpy(msg->buf + current_offset, attributes[i].value); /* Safe */
+		ast_copy_string(msg->buf + current_offset, attributes[i].value, len); /* Safe */
 		msg->attribute_value_offsets[attributes[i].type] = current_offset;
 		current_offset += len;
 	}

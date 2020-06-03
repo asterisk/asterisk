@@ -498,6 +498,7 @@ static int link_topic_proxy(struct stasis_topic *topic, const char *name, const 
 {
 	struct topic_proxy *proxy;
 	struct stasis_topic* topic_tmp;
+	size_t detail_len;
 
 	if (!topic || !name || !strlen(name) || !detail) {
 		return -1;
@@ -514,8 +515,10 @@ static int link_topic_proxy(struct stasis_topic *topic, const char *name, const 
 		return -1;
 	}
 
+	detail_len = strlen(detail) + 1;
+
 	proxy = ao2_t_weakproxy_alloc(
-			sizeof(*proxy) + strlen(name) + 1 + strlen(detail) + 1, NULL, name);
+			sizeof(*proxy) + strlen(name) + 1 + detail_len, NULL, name);
 	if (!proxy) {
 		ao2_unlock(topic_all);
 
@@ -527,7 +530,7 @@ static int link_topic_proxy(struct stasis_topic *topic, const char *name, const 
 	proxy->detail = proxy->name + strlen(name) + 1;
 
 	strcpy(proxy->name, name); /* SAFE */
-	strcpy(proxy->detail, detail); /* SAFE */
+	ast_copy_string(proxy->detail, detail, detail_len); /* SAFE */
 	proxy->creationtime = ast_tvnow();
 
 	/* We have exclusive access to proxy, no need for locking here. */
@@ -1620,9 +1623,10 @@ static void subscription_change_dtor(void *obj)
 static struct stasis_subscription_change *subscription_change_alloc(struct stasis_topic *topic, const char *uniqueid, const char *description)
 {
 	size_t description_len = strlen(description) + 1;
+	size_t uniqueid_len = strlen(uniqueid) + 1;
 	struct stasis_subscription_change *change;
 
-	change = ao2_alloc_options(sizeof(*change) + description_len + strlen(uniqueid) + 1,
+	change = ao2_alloc_options(sizeof(*change) + description_len + uniqueid_len,
 		subscription_change_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!change) {
 		return NULL;
@@ -1630,7 +1634,7 @@ static struct stasis_subscription_change *subscription_change_alloc(struct stasi
 
 	strcpy(change->description, description); /* SAFE */
 	change->uniqueid = change->description + description_len;
-	strcpy(change->uniqueid, uniqueid); /* SAFE */
+	ast_copy_string(change->uniqueid, uniqueid, uniqueid_len); /* SAFE */
 	ao2_ref(topic, +1);
 	change->topic = topic;
 

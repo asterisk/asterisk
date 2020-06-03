@@ -454,7 +454,7 @@ int ooAcceptH225Connection()
                  call->callToken);
 
    if (remoteIP[0]) {
-	strncpy(call->remoteIP, remoteIP, strlen(remoteIP));
+	memcpy(call->remoteIP, remoteIP, strlen(remoteIP) + 1);
    }
 
    ast_mutex_unlock(&call->Lock);
