@@ -48,6 +48,8 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/_private.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/stream.h"
+#include "asterisk/translate.h"
 
 /*** DOCUMENTATION
 	<manager name="LocalOptimizeAway" language="en_US">
@@ -136,6 +138,7 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 static struct ao2_container *locals;
 
 static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *local_request_with_stream_topology(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_devicestate(const char *data);
@@ -170,14 +173,15 @@ static struct ast_channel_tech local_tech = {
 	.type = "Local",
 	.description = tdesc,
 	.requester = local_request,
+	.requester_with_stream_topology = local_request_with_stream_topology,
 	.send_digit_begin = ast_unreal_digit_begin,
 	.send_digit_end = ast_unreal_digit_end,
 	.call = local_call,
 	.hangup = local_hangup,
 	.answer = ast_unreal_answer,
-	.read = ast_unreal_read,
+	.read_stream = ast_unreal_read,
 	.write = ast_unreal_write,
-	.write_video = ast_unreal_write,
+	.write_stream = ast_unreal_write_stream,
 	.exception = ast_unreal_read,
 	.indicate = ast_unreal_indicate,
 	.fixup = ast_unreal_fixup,
@@ -858,14 +862,14 @@ static void local_pvt_destructor(void *vdoomed)
 }
 
 /*! \brief Create a call structure */
-static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *cap)
+static struct local_pvt *local_alloc(const char *data, struct ast_stream_topology *topology)
 {
 	struct local_pvt *pvt;
 	char *parse;
 	char *context;
 	char *opts;
 
-	pvt = (struct local_pvt *) ast_unreal_alloc(sizeof(*pvt), local_pvt_destructor, cap);
+	pvt = (struct local_pvt *) ast_unreal_alloc_stream_topology(sizeof(*pvt), local_pvt_destructor, topology);
 	if (!pvt) {
 		return NULL;
 	}
@@ -916,12 +920,95 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 /*! \brief Part of PBX interface */
 static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
+	struct ast_stream_topology *topology;
+	struct ast_channel *chan;
+
+	topology = ast_stream_topology_create_from_format_cap(cap);
+	if (!topology) {
+		return NULL;
+	}
+
+	chan = local_request_with_stream_topology(type, topology, assignedids, requestor, data, cause);
+
+	ast_stream_topology_free(topology);
+
+	return chan;
+}
+
+/*! \brief Part of PBX interface */
+static struct ast_channel *local_request_with_stream_topology(const char *type, struct ast_stream_topology *topology, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
+{
+	struct ast_stream_topology *audio_filtered_topology;
+	int i;
 	struct local_pvt *p;
 	struct ast_channel *chan;
 	ast_callid callid;
 
+	/* Create a copy of the requested topology as we don't have ownership over
+	 * the one that is passed in.
+	 */
+	audio_filtered_topology = ast_stream_topology_clone(topology);
+	if (!audio_filtered_topology) {
+		return NULL;
+	}
+
+	/* Some users of Local channels request every known format in the
+	 * universe. The core itself automatically pruned this list down to a single
+	 * "best" format for audio in non-multistream. We replicate the logic here to
+	 * do the same thing.
+	 */
+	for (i = 0; i < ast_stream_topology_get_count(audio_filtered_topology); ++i) {
+		struct ast_stream *stream;
+		int res;
+		struct ast_format *tmp_fmt = NULL;
+		struct ast_format *best_audio_fmt = NULL;
+		struct ast_format_cap *caps;
+
+		stream = ast_stream_topology_get_stream(audio_filtered_topology, i);
+
+		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO) {
+			continue;
+		}
+
+		/* Respect the immutable state of formats on the stream and create a new
+		 * format capabilities to replace the existing one.
+		 */
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!caps) {
+			ao2_ref(audio_filtered_topology, -1);
+			return NULL;
+		}
+
+		/* The ast_translator_best_choice function treats both caps as const
+		 * but does not declare it in the API.
+		 */
+		res = ast_translator_best_choice((struct ast_format_cap *)ast_stream_get_formats(stream), local_tech.capabilities,
+			&tmp_fmt, &best_audio_fmt);
+		if (res < 0) {
+			struct ast_str *tech_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+			struct ast_str *request_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+
+			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %s) to %s\n", type,
+				ast_format_cap_get_names(local_tech.capabilities, &tech_codecs),
+				ast_format_cap_get_names(ast_stream_get_formats(stream), &request_codecs));
+
+			/* If there are no formats then we abort */
+			ao2_ref(caps, -1);
+			ao2_ref(audio_filtered_topology, -1);
+			return NULL;
+		}
+
+		ast_format_cap_append(caps, best_audio_fmt, 0);
+		ast_stream_set_formats(stream, caps);
+
+		ao2_ref(caps, -1);
+		ao2_ref(tmp_fmt, -1);
+		ao2_ref(best_audio_fmt, -1);
+	}
+
 	/* Allocate a new private structure and then Asterisk channels */
-	p = local_alloc(data, cap);
+	p = local_alloc(data, audio_filtered_topology);
+	ao2_ref(audio_filtered_topology, -1);
 	if (!p) {
 		return NULL;
 	}
@@ -935,6 +1022,7 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 
 	return chan;
 }
+
 
 /*! \brief CLI command "local show channels" */
 static char *locals_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
