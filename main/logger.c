@@ -2294,7 +2294,7 @@ void __ast_trace(const char *file, int line, const char *func, enum ast_trace_in
 	va_list ap;
 	unsigned long indent = (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
 	struct ast_str *fmt = ast_str_create(128);
-	char *direction;
+	const char *direction = "";
 
 	if (!fmt) {
 		return;

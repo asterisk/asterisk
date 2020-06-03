@@ -422,12 +422,13 @@ static int registrar_contact_delete(enum contact_delete_type type, pjsip_transpo
 	aor_size = aor_name ? strlen(aor_name) : 0;
 	if (contact->prune_on_boot && type != CONTACT_DELETE_SHUTDOWN && aor_size) {
 		const char *contact_name = ast_sorcery_object_get_id(contact);
+		size_t contact_name_len = strlen(contact_name) + 1;
 		struct contact_transport_monitor *monitor = ast_alloca(
-			sizeof(*monitor) + 2 + aor_size + strlen(contact_name));
+			sizeof(*monitor) + 1 + aor_size + contact_name_len);
 
 		strcpy(monitor->aor_name, aor_name); /* Safe */
 		monitor->contact_name = monitor->aor_name + aor_size + 1;
-		strcpy(monitor->contact_name, contact_name); /* Safe */
+		ast_copy_string(monitor->contact_name, contact_name, contact_name_len); /* Safe */
 
 		if (transport) {
 			ast_sip_transport_monitor_unregister(transport,
@@ -774,6 +775,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 			}
 
 			if (prune_on_boot) {
+				size_t contact_name_len;
 				const char *contact_name;
 				struct contact_transport_monitor *monitor;
 
@@ -782,12 +784,13 @@ static void register_aor_core(pjsip_rx_data *rdata,
 				 * the contact won't be valid anymore if that happens.
 				 */
 				contact_name = ast_sorcery_object_get_id(contact);
-				monitor = ao2_alloc(sizeof(*monitor) + 2 + strlen(aor_name)
-					+ strlen(contact_name), NULL);
+				contact_name_len = strlen(contact_name) + 1;
+				monitor = ao2_alloc(sizeof(*monitor) + 1 + strlen(aor_name)
+					+ contact_name_len, NULL);
 				if (monitor) {
 					strcpy(monitor->aor_name, aor_name);/* Safe */
 					monitor->contact_name = monitor->aor_name + strlen(aor_name) + 1;
-					strcpy(monitor->contact_name, contact_name);/* Safe */
+					ast_copy_string(monitor->contact_name, contact_name, contact_name_len);/* Safe */
 
 					ast_sip_transport_monitor_register_replace(rdata->tp_info.transport,
 						register_contact_transport_shutdown_cb, monitor, contact_transport_monitor_matcher);
