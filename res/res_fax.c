@@ -3442,6 +3442,15 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	if (!gateway->bridged) {
 		enum ast_t38_state state_chan;
 		enum ast_t38_state state_peer;
+		int chan_is_hungup;
+		int peer_is_hungup;
+
+		chan_is_hungup = ast_check_hangup(chan);
+		peer_is_hungup = ast_check_hangup(peer);
+		/* Don't start a gateway if either channel is hung up */
+		if (chan_is_hungup || peer_is_hungup) {
+			return f;
+		}
 
 		ast_channel_unlock(chan);
 		state_chan = ast_channel_get_t38_state(chan);
