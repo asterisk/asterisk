@@ -100,6 +100,7 @@ static char *handle_cli_test_locales(struct ast_cli_entry *e, int cmd, struct as
 	ast_strftime(origlocalformat, sizeof(origlocalformat), "%c", &atm);
 
 	while ((dent = readdir(localedir))) {
+		size_t locallen;
 		size_t namelen;
 
 		if (dent->d_name[0] == '.') {
@@ -109,14 +110,17 @@ static char *handle_cli_test_locales(struct ast_cli_entry *e, int cmd, struct as
 		setlocale(LC_ALL, dent->d_name);
 		ast_strftime(localformat, sizeof(localformat), "%c", &atm);
 
+		locallen = strlen(localformat) + 1;
+		namelen = strlen(dent->d_name) + 1;
+
 		/* Store values */
-		if (!(tl = ast_calloc(1, sizeof(*tl) + strlen(localformat) + (namelen = strlen(dent->d_name)) + 2))) {
+		if (!(tl = ast_calloc(1, sizeof(*tl) + locallen + namelen))) {
 			continue;
 		}
 
-		strcpy(tl->name, dent->d_name); /* SAFE */
-		tl->localformat = tl->name + namelen + 1;
-		strcpy(tl->localformat, localformat); /* SAFE */
+		ast_copy_string(tl->name, dent->d_name, namelen); /* SAFE */
+		tl->localformat = tl->name + namelen;
+		ast_copy_string(tl->localformat, localformat, locallen); /* SAFE */
 
 		AST_LIST_INSERT_TAIL(&locales, tl, list);
 

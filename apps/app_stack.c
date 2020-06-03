@@ -315,13 +315,14 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const char *extension, int priority, int in_subroutine, unsigned char arguments)
 {
 	struct gosub_stack_frame *new = NULL;
-	int len_extension = strlen(extension), len_context = strlen(context);
+	int len_extension = strlen(extension) + 1;
+	int len_context = strlen(context) + 1;
 
-	if ((new = ast_calloc(1, sizeof(*new) + 2 + len_extension + len_context))) {
+	if ((new = ast_calloc(1, sizeof(*new) + len_extension + len_context))) {
 		AST_LIST_HEAD_INIT_NOLOCK(&new->varshead);
-		strcpy(new->extension, extension);
-		new->context = new->extension + len_extension + 1;
-		strcpy(new->context, context);
+		ast_copy_string(new->extension, extension, len_extension);
+		new->context = new->extension + len_extension;
+		ast_copy_string(new->context, context, len_context);
 		new->priority = priority;
 		new->in_subroutine = in_subroutine ? 1 : 0;
 		new->arguments = arguments;

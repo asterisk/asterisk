@@ -550,7 +550,7 @@ static void try_redirect(newtComponent c)
 
 	chan = newtListboxGetCurrent(c);
 	if (chan) {
-		strncpy(channame, chan->name, sizeof(channame) - 1);
+		snprintf(channame, sizeof(channame), "%s", chan->name);
 		snprintf(tmp, sizeof(tmp), "%s%s", tmp_prefix, channame);
 		if (get_user_input(tmp, dest, sizeof(dest)))
 			return;

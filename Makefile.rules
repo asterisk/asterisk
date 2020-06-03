@@ -60,6 +60,7 @@ else
 endif
 
 OPTIMIZE?=-O3
+
 ifneq ($(findstring darwin,$(OSARCH)),)
   ifeq ($(shell if test `/usr/bin/sw_vers -productVersion | cut -c4` -gt 5; then echo 6; else echo 0; fi),6)
     # Snow Leopard/Lion has an issue with this optimization flag on large files (like chan_sip)
@@ -67,15 +68,15 @@ ifneq ($(findstring darwin,$(OSARCH)),)
   endif
 endif
 
-# gcc version 8.2.1 and above must have partial-inlining disabled to avoid documented bug.
-# We must handle cross-compiling and clang so make sure the compiler version string has "gcc"
-# somewhere in it before testing the version.
-CC_VERS_STRING=$(shell $(CC) --version | grep -i gcc)
-ifneq ($(CC_VERS_STRING),)
-GCC_VER_GTE821:=$(shell expr `echo '$(CC_VERS_STRING)' | cut -d ' ' -f 3 | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 80201)
-ifeq ($(GCC_VER_GTE821),1)
-    OPTIMIZE+=-fno-partial-inlining
-endif
+ifeq ($(CC),gcc)
+    # gcc version 8.2.1 and above must have partial-inlining disabled in order
+    # to avoid a documented bug. Sort to make the lowest version number come
+    # first. If it's the specified version then the current gcc version is equal
+    # to or greater, so add the custom optimization rule.
+    gcc_versions=$(shell printf "%s\n" $$(gcc -dumpversion) 8.2.1 | sort -n)
+    ifeq ($(firstword $(gcc_versions)),8.2.1)
+        OPTIMIZE+=-fno-partial-inlining
+	endif
 endif
 
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_CODE_COVERAGE),no)

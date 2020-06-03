@@ -2049,6 +2049,7 @@ static void add_redirect(const char *value)
 	struct http_uri_redirect *redirect, *cur;
 	unsigned int target_len;
 	unsigned int total_len;
+	size_t dest_len;
 
 	dest = ast_strdupa(value);
 	dest = ast_skip_blanks(dest);
@@ -2062,14 +2063,15 @@ static void add_redirect(const char *value)
 	}
 
 	target_len = strlen(target) + 1;
-	total_len = sizeof(*redirect) + target_len + strlen(dest) + 1;
+	dest_len = strlen(dest) + 1;
+	total_len = sizeof(*redirect) + target_len + dest_len;
 
 	if (!(redirect = ast_calloc(1, total_len))) {
 		return;
 	}
 	redirect->dest = redirect->target + target_len;
 	strcpy(redirect->target, target);
-	strcpy(redirect->dest, dest);
+	ast_copy_string(redirect->dest, dest, dest_len);
 
 	AST_RWLIST_WRLOCK(&uri_redirects);
 

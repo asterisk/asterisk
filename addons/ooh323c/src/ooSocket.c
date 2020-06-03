@@ -391,7 +391,7 @@ int ooSocketAccept (OOSOCKET socket, OOSOCKET *pNewSocket,
 
    if (destAddr != 0) {
       if ((host = ast_sockaddr_stringify_addr(&addr)) != NULL)
-      	strncpy(destAddr, host, strlen(host));
+       memcpy(destAddr, host, strlen(host) + 1);
    }
    if (destPort != 0)
       *destPort =  ast_sockaddr_port(&addr);

@@ -163,12 +163,12 @@ static int load_config(void)
 					fprintf(stderr, "host needs an argument (the host) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "user")) {
 				if (val && strlen(val))
-					strncpy(user, val, sizeof(user) - 1);
+					snprintf(user, sizeof(user), "%s", val);
 				else
 					fprintf(stderr, "user needs an argument (the user) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "pass")) {
 				if (val && strlen(val))
-					strncpy(pass, val, sizeof(pass) - 1);
+					snprintf(pass, sizeof(pass), "%s", val);
 				else
 					fprintf(stderr, "pass needs an argument (the password) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "smoothfade")) {
@@ -639,24 +639,29 @@ static int wait_event(void)
 		return -1;
 	}
 	if (!strncasecmp(resp, "Event: ", strlen("Event: "))) {
-		strncpy(event, resp + strlen("Event: "), sizeof(event) - 1);
+		int event_len = -1;
+		int channel_len = -1;
+		int newname_len = -1;
+		int oldname_len = -1;
+
+		event_len = snprintf(event, sizeof(event), "%s", resp + strlen("Event: "));
 		/* Consume the rest of the non-event */
 		while((resp = get_line()) && strlen(resp)) {
 			if (!strncasecmp(resp, "Channel: ", strlen("Channel: ")))
-				strncpy(channel, resp + strlen("Channel: "), sizeof(channel) - 1);
+				channel_len = snprintf(channel, sizeof(channel), "%s", resp + strlen("Channel: "));
 			if (!strncasecmp(resp, "Newname: ", strlen("Newname: ")))
-				strncpy(newname, resp + strlen("Newname: "), sizeof(newname) - 1);
+				newname_len = snprintf(newname, sizeof(newname), "%s", resp + strlen("Newname: "));
 			if (!strncasecmp(resp, "Oldname: ", strlen("Oldname: ")))
-				strncpy(oldname, resp + strlen("Oldname: "), sizeof(oldname) - 1);
+				oldname_len = snprintf(oldname, sizeof(oldname), "%s", resp + strlen("Oldname: "));
 		}
-		if (strlen(channel)) {
-			if (!strcasecmp(event, "Hangup"))
+		if (channel_len == strlen(channel)) {
+			if (event_len == strlen(event) && !strcasecmp(event, "Hangup"))
 				hangup_chan(channel);
 			else
 				offhook_chan(channel);
 		}
-		if (strlen(newname) && strlen(oldname)) {
-			if (!strcasecmp(event, "Rename")) {
+		if (newname_len == strlen(newname) && oldname_len == strlen(oldname)) {
+			if (event_len == strlen(event) && !strcasecmp(event, "Rename")) {
 				hangup_chan(oldname);
 				offhook_chan(newname);
 			}

@@ -721,7 +721,7 @@ static void *dundi_precache_thread(void *data)
 {
 	struct dundi_query_state *st = data;
 	struct dundi_ie_data ied;
-	struct dundi_hint_metadata hmd;
+	struct dundi_hint_metadata hmd = {0};
 	char eid_str[20];
 
 	ast_debug(1, "Whee, precaching '%s@%s' for '%s'\n", st->called_number, st->called_context,
@@ -3894,7 +3894,6 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 
 static void reschedule_precache(const char *number, const char *context, int expiration)
 {
-	int len;
 	struct dundi_precache_queue *qe, *prev;
 
 	AST_LIST_LOCK(&pcq);
@@ -3906,16 +3905,16 @@ static void reschedule_precache(const char *number, const char *context, int exp
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	if (!qe) {
-		len = sizeof(*qe);
-		len += strlen(number) + 1;
-		len += strlen(context) + 1;
-		if (!(qe = ast_calloc(1, len))) {
+		int len = sizeof(*qe);
+		int num_len = strlen(number) + 1;
+		int context_len = strlen(context) + 1;
+		if (!(qe = ast_calloc(1, len + num_len + context_len))) {
 			AST_LIST_UNLOCK(&pcq);
 			return;
 		}
 		strcpy(qe->number, number);
-		qe->context = qe->number + strlen(number) + 1;
-		strcpy(qe->context, context);
+		qe->context = qe->number + num_len + 1;
+		ast_copy_string(qe->context, context, context_len);
 	}
 	time(&qe->expiration);
 	qe->expiration += expiration;

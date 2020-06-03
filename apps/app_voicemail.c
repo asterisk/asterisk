@@ -1217,10 +1217,12 @@ static int inprocess_cmp_fn(void *obj, void *arg, int flags)
 
 static int inprocess_count(const char *context, const char *mailbox, int delta)
 {
-	struct inprocess *i, *arg = ast_alloca(sizeof(*arg) + strlen(context) + strlen(mailbox) + 2);
-	arg->context = arg->mailbox + strlen(mailbox) + 1;
-	strcpy(arg->mailbox, mailbox); /* SAFE */
-	strcpy(arg->context, context); /* SAFE */
+	int context_len = strlen(context) + 1;
+	int mailbox_len = strlen(mailbox) + 1;
+	struct inprocess *i, *arg = ast_alloca(sizeof(*arg) + context_len + mailbox_len);
+	arg->context = arg->mailbox + mailbox_len;
+	ast_copy_string(arg->mailbox, mailbox, mailbox_len); /* SAFE */
+	ast_copy_string(arg->context, context, context_len); /* SAFE */
 	ao2_lock(inprocess_container);
 	if ((i = ao2_find(inprocess_container, arg, 0))) {
 		int ret = ast_atomic_fetchadd_int(&i->count, delta);
@@ -1231,13 +1233,13 @@ static int inprocess_count(const char *context, const char *mailbox, int delta)
 	if (delta < 0) {
 		ast_log(LOG_WARNING, "BUG: ref count decrement on non-existing object???\n");
 	}
-	if (!(i = ao2_alloc(sizeof(*i) + strlen(context) + strlen(mailbox) + 2, NULL))) {
+	if (!(i = ao2_alloc(sizeof(*i) + context_len + mailbox_len, NULL))) {
 		ao2_unlock(inprocess_container);
 		return 0;
 	}
-	i->context = i->mailbox + strlen(mailbox) + 1;
-	strcpy(i->mailbox, mailbox); /* SAFE */
-	strcpy(i->context, context); /* SAFE */
+	i->context = i->mailbox + mailbox_len;
+	ast_copy_string(i->mailbox, mailbox, mailbox_len); /* SAFE */
+	ast_copy_string(i->context, context, context_len); /* SAFE */
 	i->count = delta;
 	ao2_link(inprocess_container, i);
 	ao2_unlock(inprocess_container);
@@ -13377,13 +13379,15 @@ static int handle_subscribe(void *datap)
 	unsigned int len;
 	struct mwi_sub *mwi_sub;
 	struct mwi_sub_task *p = datap;
+	size_t context_len;
 
 	len = sizeof(*mwi_sub) + 1;
 	if (!ast_strlen_zero(p->mailbox))
 		len += strlen(p->mailbox);
 
+	context_len = strlen(p->context) + 1; /* Allow for seperator */
 	if (!ast_strlen_zero(p->context))
-		len += strlen(p->context) + 1; /* Allow for seperator */
+		len += context_len;
 
 	if (!(mwi_sub = ast_calloc(1, len)))
 		return -1;
@@ -13394,7 +13398,7 @@ static int handle_subscribe(void *datap)
 
 	if (!ast_strlen_zero(p->context)) {
 		strcat(mwi_sub->mailbox, "@");
-		strcat(mwi_sub->mailbox, p->context);
+		ast_copy_string(mwi_sub->mailbox, p->context, context_len);
 	}
 
 	AST_RWLIST_WRLOCK(&mwi_subs);
@@ -13808,8 +13812,8 @@ static struct alias_mailbox_mapping *alias_mailbox_mapping_create(const char *al
 	}
 	mapping->alias = mapping->buf;
 	mapping->mailbox = mapping->buf + from_len;
-	strcpy(mapping->alias, alias); /* Safe */
-	strcpy(mapping->mailbox, mailbox); /* Safe */
+	ast_copy_string(mapping->alias, alias, from_len); /* Safe */
+	ast_copy_string(mapping->mailbox, mailbox, to_len); /* Safe */
 
 	return mapping;
 }

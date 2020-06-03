@@ -213,14 +213,10 @@ static const char *ast_str_substring(struct ast_str *value, int offset, int leng
 	}
 
 	if (length >= 0 && length < lr) {	/* truncate if necessary */
-		char *tmp = ast_str_buffer(value);
-		tmp[length] = '\0';
-		ast_str_update(value);
+		ast_str_truncate(value, length);
 	} else if (length < 0) {
 		if (lr > -length) { /* After we remove from the front and from the rear, is there anything left? */
-			char *tmp = ast_str_buffer(value);
-			tmp[lr + length] = '\0';
-			ast_str_update(value);
+			ast_str_truncate(value, lr + length);
 		} else {
 			ast_str_reset(value);
 		}
