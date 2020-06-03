@@ -1116,14 +1116,17 @@ static int chan_pjsip_devicestate(const char *data)
 static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = channel->session;
 	int res = -1;
 	enum ast_t38_state state = T38_STATE_UNAVAILABLE;
 
+	if (!channel) {
+		return -1;
+	}
+
 	switch (option) {
 	case AST_OPTION_T38_STATE:
-		if (session->endpoint->media.t38.enabled) {
-			switch (session->t38state) {
+		if (channel->session->endpoint->media.t38.enabled) {
+			switch (channel->session->t38state) {
 			case T38_LOCAL_REINVITE:
 			case T38_PEER_REINVITE:
 				state = T38_STATE_NEGOTIATING;
