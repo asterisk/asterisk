@@ -581,10 +581,10 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 		} else if (playh) {
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
-		} else	if (num < 20) {
+		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
-		} else	if (num < 100) {
+		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
 		} else {
@@ -1248,7 +1248,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 				return res;
 			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = num % 1000;
-		} else	if (num < 1000000000) {
+		} else if (num < 1000000000) {
 			res = ast_say_number_full_fr(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
@@ -1483,7 +1483,7 @@ static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char 
 		} else if (num < 30) {
 			ast_copy_string(fn, "digits/20on", sizeof(fn));
 			num -= 20;
-		} else	if (num < 100) {
+		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
 		} else {
@@ -2495,8 +2495,8 @@ static int ast_say_number_full_zh(struct ast_channel *chan, int num, const char 
 			} else if (playt) {
 				snprintf(fn, sizeof(fn), "digits/thousand");
 				playt = 0;
-			} else	if (num < 10) {
-				snprintf(buf, 10, "%d", num);
+			} else if (num < 10) {
+				snprintf(buf, 12, "%d", num);
 				if (last_length - strlen(buf) > 1 && last_length != 0) {
 					last_length = strlen(buf);
 					playz++;
@@ -2504,7 +2504,7 @@ static int ast_say_number_full_zh(struct ast_channel *chan, int num, const char 
 				}
 				snprintf(fn, sizeof(fn), "digits/%d", num);
 				num = 0;
-			} else	if (num < 100) {
+			} else if (num < 100) {
 				snprintf(buf, 10, "%d", num);
 				if (last_length - strlen(buf) > 1 && last_length != 0) {
 					last_length = strlen(buf);
@@ -2680,7 +2680,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 			} else {
 				num = 0;
 			}
-		} else	if (num < 20) {
+		} else if (num < 20) {
 			if (options && strlen(options) == 1 && num < 3) {
 			    snprintf(fn, sizeof(fn), "digits/%d%s", num, options);
 			} else {
@@ -2848,10 +2848,10 @@ static int ast_say_number_full_vi(struct ast_channel *chan, int num, const char 
 		} else if (playohz) {
 			ast_copy_string(fn, "digits/0-hundred-odd", sizeof(fn));
 			playohz = 0;
-		} else	if (num < 20) {
+		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
-		} else	if (num < 100) {
+		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
 			if ((num == 5) || (num == 4) || (num == 1)) playl++;
