@@ -313,7 +313,7 @@ static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 	}
 
 	if (default_logger->log_to_pcap) {
-		pjsip_logger_write_to_pcap(default_logger, tdata->buf.start, (int) (tdata->buf.end - tdata->buf.start),
+		pjsip_logger_write_to_pcap(default_logger, tdata->buf.start, (int) (tdata->buf.cur - tdata->buf.start),
 			NULL, &tdata->tp_info.dst_addr);
 	}
 
