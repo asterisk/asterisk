@@ -1043,6 +1043,23 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		return 0;
 	}
 
+	if ((fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO ||
+		fr->frametype == AST_FRAME_TEXT || fr->frametype == AST_FRAME_IMAGE ||
+		fr->frametype == AST_FRAME_RTCP) && fr->stream_num > -1) {
+		int num = -1;
+
+		ast_bridge_channel_lock(bridge_channel);
+		if (fr->stream_num < (int)AST_VECTOR_SIZE(&bridge_channel->stream_map.to_channel)) {
+			num = AST_VECTOR_GET(&bridge_channel->stream_map.to_channel, fr->stream_num);
+		}
+		ast_bridge_channel_unlock(bridge_channel);
+
+		if (num == -1) {
+			/* We don't have a mapped stream so just discard this frame. */
+			return 0;
+		}
+	}
+
 	dup = ast_frdup(fr);
 	if (!dup) {
 		return -1;
