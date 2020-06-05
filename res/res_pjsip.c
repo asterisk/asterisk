@@ -3327,6 +3327,12 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	pj_cstr(&target_uri, uri);
 
 	res = pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, &target_uri, &dlg);
+	if (res == PJ_SUCCESS && !(PJSIP_URI_SCHEME_IS_SIP(dlg->target) || PJSIP_URI_SCHEME_IS_SIPS(dlg->target))) {
+		/* dlg->target is a pjsip_other_uri, but it's assumed to be a
+		 * pjsip_sip_uri below. Fail fast. */
+		res = PJSIP_EINVALIDURI;
+		pjsip_dlg_terminate(dlg);
+	}
 	if (res != PJ_SUCCESS) {
 		if (res == PJSIP_EINVALIDURI) {
 			ast_log(LOG_ERROR,
