@@ -367,7 +367,7 @@ static void send_message(const char *msg_name, char *conf_name, struct ast_json 
 	char *json;
 	int rc = 0;
 	struct ast_frame f;
-	struct ast_bridge_channel *bridge_chan;
+	RAII_VAR(struct ast_bridge_channel *, bridge_chan, NULL, ao2_cleanup);
 
 	bridge_chan = ast_channel_get_bridge_channel(chan);
 	if (!bridge_chan) {
