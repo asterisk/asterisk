@@ -407,7 +407,7 @@ static void status_debug_verbose(struct ast_cli_args *a, int handler, int old_va
 {
 	char was_buf[30];
 	const char *was;
-	const char *what;
+	const char *what = "";
 
 	switch(handler) {
 	case DEBUG_HANDLER:
