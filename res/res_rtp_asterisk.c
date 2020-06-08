@@ -8236,10 +8236,29 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 	} else if (property == AST_RTP_PROPERTY_ASYMMETRIC_CODEC) {
 		rtp->asymmetric_codec = value;
 	} else if (property == AST_RTP_PROPERTY_RETRANS_SEND) {
-		rtp->send_buffer = ast_data_buffer_alloc(ast_free_ptr, DEFAULT_RTP_SEND_BUFFER_SIZE);
+		if (value) {
+			if (!rtp->send_buffer) {
+				rtp->send_buffer = ast_data_buffer_alloc(ast_free_ptr, DEFAULT_RTP_SEND_BUFFER_SIZE);
+			}
+		} else {
+			if (rtp->send_buffer) {
+				ast_data_buffer_free(rtp->send_buffer);
+				rtp->send_buffer = NULL;
+			}
+		}
 	} else if (property == AST_RTP_PROPERTY_RETRANS_RECV) {
-		rtp->recv_buffer = ast_data_buffer_alloc(ast_free_ptr, DEFAULT_RTP_RECV_BUFFER_SIZE);
-		AST_VECTOR_INIT(&rtp->missing_seqno, 0);
+		if (value) {
+			if (!rtp->recv_buffer) {
+				rtp->recv_buffer = ast_data_buffer_alloc(ast_free_ptr, DEFAULT_RTP_RECV_BUFFER_SIZE);
+				AST_VECTOR_INIT(&rtp->missing_seqno, 0);
+			}
+		} else {
+			if (rtp->recv_buffer) {
+				ast_data_buffer_free(rtp->recv_buffer);
+				rtp->recv_buffer = NULL;
+				AST_VECTOR_FREE(&rtp->missing_seqno);
+			}
+		}
 	}
 }
 
