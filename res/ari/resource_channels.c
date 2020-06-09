@@ -1794,18 +1794,6 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_format_cap *request_cap;
 	struct ast_channel *originator;
 
-	if (!ast_strlen_zero(args->originator) && !ast_strlen_zero(args->formats)) {
-		ast_ari_response_error(response, 400, "Bad Request",
-			"Originator and formats can't both be specified");
-		return;
-	}
-
-	if (ast_strlen_zero(args->endpoint)) {
-		ast_ari_response_error(response, 400, "Bad Request",
-			"Endpoint must be specified");
-		return;
-	}
-
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
 		struct ast_json *json_variables;
@@ -1816,6 +1804,18 @@ void ast_ari_channels_create(struct ast_variable *headers,
 			&& json_to_ast_variables(response, json_variables, &variables)) {
 			return;
 		}
+	}
+
+	if (!ast_strlen_zero(args->originator) && !ast_strlen_zero(args->formats)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Originator and formats can't both be specified");
+		return;
+	}
+
+	if (ast_strlen_zero(args->endpoint)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Endpoint must be specified");
+		return;
 	}
 
 	chan_data = ast_calloc(1, sizeof(*chan_data));
