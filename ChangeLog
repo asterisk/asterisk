@@ -1,3 +1,19 @@
+2020-06-09 08:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.34.0-rc3 Released.
+
+2020-06-04 01:50 +0000 [5337667d38]  Pirmin Walthert <infos@nappsoft.ch>
+
+	* res_pjsip_logger: use the correct pointer when logging tx_messages to pcap
+
+	  When writing tx messages to pcap files, Asterisk is using the wrong
+	  pointer resulting in lots of wasted space. This patch fixes it to use
+	  the correct pointer.
+
+	  ASTERISK-28932 #close
+
+	  Change-Id: I5b8253dd59a083a2ca2c81f232f1d14d33c6fd23
+
 2020-06-02 08:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.34.0-rc2 Released.
