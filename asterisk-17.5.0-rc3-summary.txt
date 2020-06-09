@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-17.5.0-rc2
+                              asterisk-17.5.0-rc3
 
-                                Date: 2020-06-02
+                                Date: 2020-06-09
 
                            <asteriskteam@digium.com>
 
@@ -31,7 +31,7 @@
    to this release series.
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-17.5.0-rc1.
+   previous release, asterisk-17.5.0-rc2.
 
      ----------------------------------------------------------------------
 
@@ -64,11 +64,10 @@
 
     Category: Resources/res_pjsip_logger
 
-   ASTERISK-28921: Wrong return value check for fwrite when writing to pcap
-   file
+   ASTERISK-28932: res_pjsip_logger writing too big packets
    Reported by: nappsoft
-     * [cb6b700ae3] Pirmin Walthert -- res_pjsip_logger.c: correct the return
-       value checks when writing to pcap
+     * [dd5fb6dad1] Pirmin Walthert -- res_pjsip_logger: use the correct
+       pointer when logging tx_messages to pcap
 
      ----------------------------------------------------------------------
 
