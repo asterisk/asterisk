@@ -1,0 +1,4 @@
+Subject: AMI
+
+You can now specify an optional 'Content-Type' as an argument for the Asterisk
+SendText manager action.
