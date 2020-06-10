@@ -328,9 +328,16 @@ enum ast_control_frame_type {
 	AST_CONTROL_RECORD_MUTE = 1103,	/*!< Indicated to a channel in record to mute/unmute (i.e. write silence) recording */
 };
 
+/*!
+ * \brief Actions to indicate to, and be handled on channel read
+ *
+ * The subtype to specify for an AST_CONTROL_READ_ACTION frame. These
+ * frames are then to be enacted on within a channel's read thread.
+ */
 enum ast_frame_read_action {
 	AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO,
 	AST_FRAME_READ_ACTION_SEND_TEXT,
+	AST_FRAME_READ_ACTION_SEND_TEXT_DATA,
 };
 
 struct ast_control_read_action_payload {

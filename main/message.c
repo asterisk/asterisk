@@ -1427,6 +1427,32 @@ struct ast_msg_data *ast_msg_data_alloc(enum ast_msg_data_source_type source,
 	return msg;
 }
 
+struct ast_msg_data *ast_msg_data_alloc2(enum ast_msg_data_source_type source_type,
+	const char *to, const char *from, const char *content_type, const char *body)
+{
+	struct ast_msg_data_attribute attrs[] =
+	{
+		{
+			.type = AST_MSG_DATA_ATTR_TO,
+			.value = (char *)S_OR(to, ""),
+		},
+		{
+			.type = AST_MSG_DATA_ATTR_FROM,
+			.value = (char *)S_OR(from, ""),
+		},
+		{
+			.type = AST_MSG_DATA_ATTR_CONTENT_TYPE,
+			.value = (char *)S_OR(content_type, ""),
+		},
+		{
+			.type = AST_MSG_DATA_ATTR_BODY,
+			.value = (char *)S_OR(body, ""),
+		},
+	};
+
+	return ast_msg_data_alloc(source_type, attrs, ARRAY_LEN(attrs));
+}
+
 struct ast_msg_data *ast_msg_data_dup(struct ast_msg_data *msg)
 {
 	struct ast_msg_data *dest;

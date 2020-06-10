@@ -4115,7 +4115,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					break;
 				case AST_FRAME_READ_ACTION_SEND_TEXT:
 					ast_channel_unlock(chan);
-					ast_sendtext(chan, (const char *) read_action_payload->payload);
+					ast_sendtext(chan, (const char *)read_action_payload->payload);
+					ast_channel_lock(chan);
+					break;
+				case AST_FRAME_READ_ACTION_SEND_TEXT_DATA:
+					ast_channel_unlock(chan);
+					ast_sendtext_data(chan, (struct ast_msg_data *)read_action_payload->payload);
 					ast_channel_lock(chan);
 					break;
 				}

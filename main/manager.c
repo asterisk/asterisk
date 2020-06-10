@@ -102,6 +102,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format_cache.h"
 #include "asterisk/translate.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/message.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -867,7 +868,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</manager>
 	<manager name="SendText" language="en_US">
 		<synopsis>
-			Send text message to channel.
+			Sends a text message to channel. A content type	can be optionally specified. If not set
+			it is set to an empty string allowing a custom handler to default it as it sees fit.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -877,10 +879,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Message" required="true">
 				<para>Message to send.</para>
 			</parameter>
+			<parameter name="Content-Type" required="false" default="">
+				<para>The type of content in the message</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Sends A Text Message to a channel while in a call.</para>
 		</description>
+		<see-also>
+			<ref type="application">SendText</ref>
+		</see-also>
 	</manager>
 	<manager name="UserEvent" language="en_US">
 		<synopsis>
@@ -4809,14 +4817,92 @@ static int action_status(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/*!
+ * \brief Queue a given read action containing a payload onto a channel
+ *
+ * This queues a READ_ACTION control frame that contains a given "payload", or
+ * data to be triggered and handled on the channel's read side. This ensures
+ * the "action" is handled by the channel's media reading thread.
+ *
+ * \param chan The channel to queue the action on
+ * \param payload The read action's payload
+ * \param payload_size The size of the given payload
+ * \param action The type of read action to queue
+ *
+ * \return -1 on error, 0 on success
+ */
+static int queue_read_action_payload(struct ast_channel *chan, const unsigned char *payload,
+	size_t payload_size, enum ast_frame_read_action action)
+{
+	struct ast_control_read_action_payload *obj;
+	size_t obj_size;
+	int res;
+
+	obj_size = payload_size + sizeof(*obj);
+
+	obj = ast_malloc(obj_size);
+	if (!obj) {
+		return -1;
+	}
+
+	obj->action = action;
+	obj->payload_size = payload_size;
+	memcpy(obj->payload, payload, payload_size);
+
+	res = ast_queue_control_data(chan, AST_CONTROL_READ_ACTION, obj, obj_size);
+
+	ast_free(obj);
+	return res;
+}
+
+/*!
+ * \brief Queue a read action to send a text message
+ *
+ * \param chan The channel to queue the action on
+ * \param body The body of the message
+ *
+ * \return -1 on error, 0 on success
+ */
+static int queue_sendtext(struct ast_channel *chan, const char *body)
+{
+	return queue_read_action_payload(chan, (const unsigned char *)body,
+		strlen(body) + 1, AST_FRAME_READ_ACTION_SEND_TEXT);
+}
+
+/*!
+ * \brief Queue a read action to send a text data message
+ *
+ * \param chan The channel to queue the action on
+ * \param body The body of the message
+ * \param content_type The message's content type
+ *
+ * \return -1 on error, 0 on success
+ */
+static int queue_sendtext_data(struct ast_channel *chan, const char *body,
+	const char *content_type)
+{
+	int res;
+	struct ast_msg_data *obj;
+
+	obj = ast_msg_data_alloc2(AST_MSG_DATA_SOURCE_TYPE_UNKNOWN,
+							NULL, NULL, content_type, body);
+	if (!obj) {
+		return -1;
+	}
+
+	res = queue_read_action_payload(chan, (const unsigned char *)obj,
+		ast_msg_data_get_length(obj), AST_FRAME_READ_ACTION_SEND_TEXT_DATA);
+
+	ast_free(obj);
+	return res;
+}
+
 static int action_sendtext(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
 	const char *textmsg = astman_get_header(m, "Message");
-	struct ast_control_read_action_payload *frame_payload;
-	int payload_size;
-	int frame_size;
+	const char *content_type = astman_get_header(m, "Content-Type");
 	int res;
 
 	if (ast_strlen_zero(name)) {
@@ -4835,22 +4921,13 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	payload_size = strlen(textmsg) + 1;
-	frame_size = payload_size + sizeof(*frame_payload);
+	/*
+	 * If the "extra" data is not available, then send using "string" only.
+	 * Doing such maintains backward compatibilities.
+	 */
+	res = ast_strlen_zero(content_type) ? queue_sendtext(c, textmsg) :
+		queue_sendtext_data(c, textmsg, content_type);
 
-	frame_payload = ast_malloc(frame_size);
-	if (!frame_payload) {
-		ast_channel_unref(c);
-		astman_send_error(s, m, "Failure");
-		return 0;
-	}
-
-	frame_payload->action = AST_FRAME_READ_ACTION_SEND_TEXT;
-	frame_payload->payload_size = payload_size;
-	memcpy(frame_payload->payload, textmsg, payload_size);
-	res = ast_queue_control_data(c, AST_CONTROL_READ_ACTION, frame_payload, frame_size);
-
-	ast_free(frame_payload);
 	ast_channel_unref(c);
 
 	if (res >= 0) {
