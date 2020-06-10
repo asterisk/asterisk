@@ -2294,7 +2294,8 @@ static void softmix_bridge_stream_sources_update(struct ast_bridge *bridge, stru
 				ast_stream_get_state(new_stream) != AST_STREAM_STATE_SENDRECV && ast_stream_get_state(new_stream) != AST_STREAM_STATE_RECVONLY) {
 			/* If a stream renegotiates and is removed then we remove it */
 			removed_streams[removed_streams_count++] = index;
-		} else if (ast_stream_get_state(old_stream) == AST_STREAM_STATE_REMOVED &&
+		} else if ((ast_stream_get_state(old_stream) == AST_STREAM_STATE_REMOVED || ast_stream_get_state(old_stream) == AST_STREAM_STATE_INACTIVE ||
+				ast_stream_get_state(old_stream) == AST_STREAM_STATE_SENDONLY) &&
 				ast_stream_get_state(new_stream) != AST_STREAM_STATE_INACTIVE && ast_stream_get_state(new_stream) != AST_STREAM_STATE_SENDONLY &&
 				ast_stream_get_state(new_stream) != AST_STREAM_STATE_REMOVED) {
 			/* If a stream renegotiates and is added then we add it */
