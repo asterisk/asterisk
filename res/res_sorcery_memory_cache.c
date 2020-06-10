@@ -54,7 +54,9 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Expires (removes) an object from a sorcery memory cache.</para>
+			<para>Expires (removes) an object from a sorcery memory cache. If full backend caching is enabled
+			this action is not available and will fail. In this case the SorceryMemoryCachePopulate or
+			SorceryMemoryCacheExpire AMI actions must be used instead.</para>
 		</description>
 	</manager>
 	<manager name="SorceryMemoryCacheExpire" language="en_US">
@@ -1892,7 +1894,9 @@ static char *sorcery_memory_cache_expire(struct ast_cli_entry *e, int cmd, struc
 		remove_all_from_cache(cache);
 		ast_cli(a->fd, "All objects have been removed from cache '%s'\n", a->argv[4]);
 	} else {
-		if (!remove_from_cache(cache, a->argv[5], 1)) {
+		if (cache->full_backend_cache) {
+			ast_cli(a->fd, "Due to full backend caching per-object expiration is not available on cache '%s'\n", a->argv[4]);
+		} else if (!remove_from_cache(cache, a->argv[5], 1)) {
 			ast_cli(a->fd, "Successfully expired object '%s' from cache '%s'\n", a->argv[5], a->argv[4]);
 		} else {
 			ast_cli(a->fd, "Object '%s' was not expired from cache '%s' as it was not found\n", a->argv[5],
@@ -2084,12 +2088,18 @@ static int sorcery_memory_cache_ami_expire_object(struct mansession *s, const st
 	}
 
 	ao2_wrlock(cache->objects);
-	res = remove_from_cache(cache, object_name, 1);
+	if (cache->full_backend_cache) {
+		res = 1;
+	} else {
+		res = remove_from_cache(cache, object_name, 1);
+	}
 	ao2_unlock(cache->objects);
 
 	ao2_ref(cache, -1);
 
-	if (!res) {
+	if (res == 1) {
+		astman_send_error(s, m, "Due to full backend caching per-object expiration is not available, consider using SorceryMemoryCachePopulate or SorceryMemoryCacheExpire instead\n");
+	} else if (!res) {
 		astman_send_ack(s, m, "The provided object was expired from the cache\n");
 	} else {
 		astman_send_error(s, m, "The provided object could not be expired from the cache\n");
