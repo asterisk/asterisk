@@ -1780,10 +1780,7 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	struct ast_variable *variables = NULL;
-	struct ast_assigned_ids assignedids = {
-		.uniqueid = args->channel_id,
-		.uniqueid2 = args->other_channel_id,
-	};
+	struct ast_assigned_ids assignedids;
 	struct ari_channel_thread_data *chan_data;
 	struct ast_channel_snapshot *snapshot;
 	pthread_t thread;
@@ -1805,6 +1802,9 @@ void ast_ari_channels_create(struct ast_variable *headers,
 			return;
 		}
 	}
+
+	assignedids.uniqueid = args->channel_id;
+	assignedids.uniqueid2 = args->other_channel_id;
 
 	if (!ast_strlen_zero(args->originator) && !ast_strlen_zero(args->formats)) {
 		ast_ari_response_error(response, 400, "Bad Request",
