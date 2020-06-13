@@ -283,35 +283,63 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_webso
 	return 0;
 }
 
+/*! \brief Perform payload masking for client sessions */
+static void websocket_mask_payload(struct ast_websocket *session, char *frame, char *payload, uint64_t payload_size)
+{
+	/* RFC 6455 5.1 - clients MUST mask frame data */
+	if (session->client) {
+		uint64_t i;
+		uint8_t mask_key_idx;
+		uint32_t mask_key = ast_random();
+		uint8_t length = frame[1] & 0x7f;
+		frame[1] |= 0x80; /* set mask bit to 1 */
+		/* The mask key octet position depends on the length */
+		mask_key_idx = length == 126 ? 4 : length == 127 ? 10 : 2;
+		put_unaligned_uint32(&frame[mask_key_idx], mask_key);
+		for (i = 0; i < payload_size; i++) {
+			payload[i] ^= ((char *)&mask_key)[i % 4];
+		}
+	}
+}
+
+
 /*! \brief Close function for websocket session */
 int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, uint16_t reason)
 {
 	enum ast_websocket_opcode opcode = AST_WEBSOCKET_OPCODE_CLOSE;
-	char frame[4] = { 0, }; /* The header is 2 bytes and the reason code takes up another 2 bytes */
-	int res;
+	/* The header is either 2 or 6 bytes and the
+	 * reason code takes up another 2 bytes */
+	char frame[8] = { 0, };
+	int header_size, fsize, res;
 
 	if (session->close_sent) {
 		return 0;
 	}
 
+	/* clients need space for an additional 4 byte masking key */
+	header_size = session->client ? 6 : 2;
+	fsize = header_size + 2;
+
 	frame[0] = opcode | 0x80;
 	frame[1] = 2; /* The reason code is always 2 bytes */
 
 	/* If no reason has been specified assume 1000 which is normal closure */
-	put_unaligned_uint16(&frame[2], htons(reason ? reason : 1000));
+	put_unaligned_uint16(&frame[header_size], htons(reason ? reason : 1000));
+
+	websocket_mask_payload(session, frame, &frame[header_size], 2);
 
 	session->closing = 1;
 	session->close_sent = 1;
 
 	ao2_lock(session);
 	ast_iostream_set_timeout_inactivity(session->stream, session->timeout);
-	res = ast_iostream_write(session->stream, frame, sizeof(frame));
+	res = ast_iostream_write(session->stream, frame, fsize);
 	ast_iostream_set_timeout_disable(session->stream);
 
 	/* If an error occurred when trying to close this connection explicitly terminate it now.
 	 * Doing so will cause the thread polling on it to wake up and terminate.
 	 */
-	if (res != sizeof(frame)) {
+	if (res != fsize) {
 		ast_iostream_close(session->stream);
 		session->stream = NULL;
 		ast_verb(2, "WebSocket connection %s '%s' forcefully closed due to fatal write error\n",
@@ -319,7 +347,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 	}
 
 	ao2_unlock(session);
-	return res == sizeof(frame);
+	return res == fsize;
 }
 
 static const char *opcode_map[] = {
@@ -364,6 +392,11 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		header_size += 8;
 	}
 
+	if (session->client) {
+		/* Additional 4 bytes for the client masking key */
+		header_size += 4;
+	}
+
 	frame_size = header_size + payload_size;
 
 	frame = ast_alloca(frame_size + 1);
@@ -380,6 +413,8 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	}
 
 	memcpy(&frame[header_size], payload, payload_size);
+
+	websocket_mask_payload(session, frame, &frame[header_size], payload_size);
 
 	ao2_lock(session);
 	if (session->closing) {
