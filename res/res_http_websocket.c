@@ -387,8 +387,8 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		put_unaligned_uint64(&frame[2], htonll(payload_size));
 	}
 
-    for(i=0;i<4;i++) {
-    	frame[(header_size-4)+i] = mask[i] & 0xff;
+	for(i=0;i<4;i++) {
+		frame[(header_size-4)+i] = mask[i] & 0xff;
 	}
 
 	memcpy(&frame[header_size], payload, payload_size);
