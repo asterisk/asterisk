@@ -1443,8 +1443,6 @@ struct callattempt {
 	struct ast_channel *chan;
 	char interface[256];			/*!< An Asterisk dial string (not a channel name) */
 	int metric;
-	time_t lastcall;
-	struct call_queue *lastqueue;
 	struct member *member;
 	/*! Saved connected party info from an AST_CONTROL_CONNECTED_LINE. */
 	struct ast_party_connected_line connected;
@@ -4236,36 +4234,38 @@ static int member_status_available(int status)
  */
 static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 {
-	if (call->member->paused) {
+	struct member *memberp = call->member;
+
+	if (memberp->paused) {
 		ast_debug(1, "%s paused, can't receive call\n", call->interface);
 		return 0;
 	}
 
-	if (!call->member->ringinuse && !member_status_available(call->member->status)) {
+	if (!memberp->ringinuse && !member_status_available(memberp->status)) {
 		ast_debug(1, "%s not available, can't receive call\n", call->interface);
 		return 0;
 	}
 
-	if ((call->lastqueue && call->lastqueue->wrapuptime && (time(NULL) - call->lastcall < call->lastqueue->wrapuptime))
-		|| (!call->lastqueue && qe->parent->wrapuptime && (time(NULL) - call->lastcall < qe->parent->wrapuptime))) {
+	if ((memberp->lastqueue && memberp->lastqueue->wrapuptime && (time(NULL) - memberp->lastcall < memberp->lastqueue->wrapuptime))
+		|| (!memberp->lastqueue && qe->parent->wrapuptime && (time(NULL) - memberp->lastcall < qe->parent->wrapuptime))) {
 		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
-			(call->lastqueue ? call->lastqueue->name : qe->parent->name),
+			(memberp->lastqueue ? memberp->lastqueue->name : qe->parent->name),
 			call->interface);
 		return 0;
 	}
 
-	if (use_weight && compare_weight(qe->parent, call->member)) {
+	if (use_weight && compare_weight(qe->parent, memberp)) {
 		ast_debug(1, "Priority queue delaying call to %s:%s\n",
 			qe->parent->name, call->interface);
 		return 0;
 	}
 
-	if (!call->member->ringinuse) {
+	if (!memberp->ringinuse) {
 		struct member *mem;
 
 		ao2_lock(pending_members);
 
-		mem = ao2_find(pending_members, call->member,
+		mem = ao2_find(pending_members, memberp,
 				  OBJ_SEARCH_OBJECT | OBJ_NOLOCK);
 		if (mem) {
 			/*
@@ -4283,8 +4283,8 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		 * If not found add it to the container so another queue
 		 * won't attempt to call this member at the same time.
 		 */
-		ast_debug(3, "Add %s to pending_members\n", call->member->membername);
-		ao2_link(pending_members, call->member);
+		ast_debug(3, "Add %s to pending_members\n", memberp->membername);
+		ao2_link(pending_members, memberp);
 		ao2_unlock(pending_members);
 
 		/*
@@ -4292,10 +4292,10 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		 * because the device state and extension state callbacks may
 		 * not have updated the status yet.
 		 */
-		if (!member_status_available(get_queue_member_status(call->member))) {
+		if (!member_status_available(get_queue_member_status(memberp))) {
 			ast_debug(1, "%s actually not available, can't receive call\n",
 				call->interface);
-			pending_members_remove(call->member);
+			pending_members_remove(memberp);
 			return 0;
 		}
 	}
@@ -6638,9 +6638,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 
 		tmp->block_connected_update = block_connected_line;
 		tmp->stillgoing = 1;
-		tmp->member = cur;/* Place the reference for cur into callattempt. */
-		tmp->lastcall = cur->lastcall;
-		tmp->lastqueue = cur->lastqueue;
+		tmp->member = cur; /* Place the reference for cur into callattempt. */
 		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
 		/* Calculate the metric for the appropriate strategy. */
 		if (!calc_metric(qe->parent, cur, x++, qe, tmp)) {
