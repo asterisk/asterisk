@@ -344,10 +344,18 @@ static const char *websocket_opcode2str(enum ast_websocket_opcode opcode)
 /*! \brief Write function for websocket traffic */
 int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t payload_size)
 {
-	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
+	size_t header_size = 6; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
 	uint64_t length;
 	uint64_t frame_size;
+	struct timeval tv;
+	unsigned char mask[4];
+	unsigned int mask_int;
+	int i;
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec * tv.tv_sec);
+	mask_int = rand();
+	memcpy(mask, &mask_int, 4);
 
 	ast_debug(3, "Writing websocket %s frame, length %" PRIu64 "\n",
 			websocket_opcode2str(opcode), payload_size);
@@ -370,7 +378,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	memset(frame, 0, frame_size + 1);
 
 	frame[0] = opcode | 0x80;
-	frame[1] = length;
+	frame[1] = length | 0x80;
 
 	/* Use the additional available bytes to store the length */
 	if (length == 126) {
@@ -379,7 +387,15 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		put_unaligned_uint64(&frame[2], htonll(payload_size));
 	}
 
+    for(i=0;i<4;i++) {
+    	frame[(header_size-4)+i] = mask[i] & 0xff;
+	}
+
 	memcpy(&frame[header_size], payload, payload_size);
+
+	for(i=0;i<payload_size;i++) {
+		frame[header_size+i] ^= mask[i % 4] & 0xff;
+	}
 
 	ao2_lock(session);
 	if (session->closing) {
