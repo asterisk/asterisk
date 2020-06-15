@@ -6868,9 +6868,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			   hung up XXX */
 			tmp->q_next = outgoing;
 			outgoing = tmp;
-			/* If this line is up, don't try anybody else */
-			if (outgoing->chan && (ast_channel_state(outgoing->chan) == AST_STATE_UP))
-				break;
 		} else {
 			callattempt_free(tmp);
 		}
