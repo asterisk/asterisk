@@ -35,7 +35,8 @@
  ***/
 #include "asterisk.h"
 
-#include "pjsua-lib/pjsua.h"
+#include <pjsip.h>
+#include <pjsip_ua.h>
 
 #include "asterisk/message.h"
 #include "asterisk/module.h"
