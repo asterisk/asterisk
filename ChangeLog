@@ -1,3 +1,20 @@
+2020-06-16 14:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.11.1 Released.
+
+2020-06-12 05:16 +0000 [95a0b7c9ff]  sungtae kim <sungtae@messagebird.com>
+
+	* res_ari: Fix create channel request channelId parameter parsing
+
+	  If channelId parameters were passed in the body, the Asterisk doesn't parsing it correctly.
+
+	  Fixed it to parse the channelId, other_channel_id parameter correclty.
+
+	  ASTERISK-28948
+
+	  Change-Id: I59b49161a94869169ee19c1ffab5afcef7026157
+	  (cherry picked from commit 0b133a32ecbe73f6dbedea924259557764a70d9c)
+
 2020-06-11 08:46 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.11.0 Released.
