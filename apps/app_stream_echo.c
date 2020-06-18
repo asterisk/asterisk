@@ -274,7 +274,7 @@ static struct ast_stream_topology *stream_echo_topology_alloc(
 			 * cloning the same stream.
 			 */
 			ast_stream_set_state(stream, n == num ?
-			     AST_STREAM_STATE_SENDRECV : AST_STREAM_STATE_RECVONLY);
+			     AST_STREAM_STATE_SENDRECV : AST_STREAM_STATE_SENDONLY);
 		} while (--n);
 	}
 
