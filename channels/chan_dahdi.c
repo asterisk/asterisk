@@ -18271,8 +18271,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				if ((varval = strchr(varname, '='))) {
 					*varval++ = '\0';
 					if ((tmpvar = ast_variable_new(varname, varval, ""))) {
-						tmpvar->next = confp->chan.vars;
-						confp->chan.vars = tmpvar;
+						if (ast_variable_list_replace(&confp->chan.vars, tmpvar)) {
+							tmpvar->next = confp->chan.vars;
+							confp->chan.vars = tmpvar;
+						}
 					}
 				}
 			}
