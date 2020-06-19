@@ -40,7 +40,6 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/bridge.h"
 #include "asterisk/core_unreal.h"
-#include "asterisk/stream.h"
 
 static unsigned int name_sequence = 0;
 
@@ -317,11 +316,6 @@ struct ast_frame  *ast_unreal_read(struct ast_channel *ast)
 
 int ast_unreal_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	return ast_unreal_write_stream(ast, -1, f);
-}
-
-int ast_unreal_write_stream(struct ast_channel *ast, int stream_num, struct ast_frame *f)
-{
 	struct ast_unreal_pvt *p = ast_channel_tech_pvt(ast);
 	int res = -1;
 
@@ -342,9 +336,6 @@ int ast_unreal_write_stream(struct ast_channel *ast, int stream_num, struct ast_
 			return 0;
 		}
 	}
-
-	/* Update the frame to reflect the stream */
-	f->stream_num = stream_num;
 
 	/* Just queue for delivery to the other side */
 	ao2_ref(p, 1);
@@ -539,86 +530,6 @@ static int unreal_colp_redirect_indicate(struct ast_unreal_pvt *p, struct ast_ch
 	return res;
 }
 
-/*!
- * \internal
- * \brief Handle stream topology change request.
- * \since 16.12.0
- * \since 17.6.0
- *
- * \param p Unreal private structure.
- * \param ast Channel indicating the condition.
- * \param topology The requested topology.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int unreal_colp_stream_topology_request_change(struct ast_unreal_pvt *p, struct ast_channel *ast, const struct ast_stream_topology *topology)
-{
-	struct ast_stream_topology *this_channel_topology;
-	struct ast_stream_topology *the_other_channel_topology;
-	int i;
-	struct ast_stream *stream;
-	struct ast_channel *my_chan;
-	struct ast_channel *my_owner;
-	struct ast_channel *this_channel;
-	struct ast_channel *the_other_channel;
-	int res = 0;
-
-	this_channel_topology = ast_stream_topology_clone(topology);
-	if (!this_channel_topology) {
-		return -1;
-	}
-
-	the_other_channel_topology = ast_stream_topology_clone(topology);
-	if (!the_other_channel_topology) {
-		ast_stream_topology_free(this_channel_topology);
-		return -1;
-	}
-
-	/* We swap the stream state on the other channel because it is as if the channel is
-	 * connected to an external endpoint, so the perspective changes.
-	 */
-	for (i = 0; i < ast_stream_topology_get_count(the_other_channel_topology); ++i) {
-		stream = ast_stream_topology_get_stream(the_other_channel_topology, i);
-
-		if (ast_stream_get_state(stream) == AST_STREAM_STATE_RECVONLY) {
-			ast_stream_set_state(stream, AST_STREAM_STATE_SENDONLY);
-		} else if (ast_stream_get_state(stream) == AST_STREAM_STATE_SENDONLY) {
-			ast_stream_set_state(stream, AST_STREAM_STATE_RECVONLY);
-		}
-	}
-
-	ast_channel_unlock(ast);
-	ast_unreal_lock_all(p, &my_chan, &my_owner);
-	if (AST_UNREAL_IS_OUTBOUND(ast, p)) {
-		this_channel = p->chan;
-		the_other_channel = p->owner;
-	} else {
-		this_channel = p->owner;
-		the_other_channel = p->chan;
-	}
-	if (this_channel) {
-		ast_channel_set_stream_topology(this_channel, this_channel_topology);
-		ast_queue_control(this_channel, AST_CONTROL_STREAM_TOPOLOGY_CHANGED);
-	}
-	if (the_other_channel) {
-		ast_channel_set_stream_topology(the_other_channel, the_other_channel_topology);
-		ast_channel_stream_topology_changed_externally(the_other_channel);
-	}
-	if (my_chan) {
-		ast_channel_unlock(my_chan);
-		ast_channel_unref(my_chan);
-	}
-	if (my_owner) {
-		ast_channel_unlock(my_owner);
-		ast_channel_unref(my_owner);
-	}
-	ao2_unlock(p);
-	ast_channel_lock(ast);
-
-	return res;
-}
-
 int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct ast_unreal_pvt *p = ast_channel_tech_pvt(ast);
@@ -671,11 +582,6 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 		/* Return -1 so that asterisk core will correctly set up hangupcauses. */
 		unreal_queue_indicate(p, ast, condition, data, datalen);
 		res = -1;
-		break;
-	case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
-		if (ast_channel_is_multistream(ast)) {
-			res = unreal_colp_stream_topology_request_change(p, ast, data);
-		}
 		break;
 	default:
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
@@ -1010,28 +916,9 @@ void ast_unreal_destructor(void *vdoomed)
 
 	ao2_cleanup(doomed->reqcap);
 	doomed->reqcap = NULL;
-	ast_stream_topology_free(doomed->reqtopology);
-	doomed->reqtopology = NULL;
 }
 
 struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructor, struct ast_format_cap *cap)
-{
-	struct ast_stream_topology *topology;
-	struct ast_unreal_pvt *unreal;
-
-	topology = ast_stream_topology_create_from_format_cap(cap);
-	if (!topology) {
-		return NULL;
-	}
-
-	unreal = ast_unreal_alloc_stream_topology(size, destructor, topology);
-
-	ast_stream_topology_free(topology);
-
-	return unreal;
-}
-
-struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destructor_fn destructor, struct ast_stream_topology *topology)
 {
 	struct ast_unreal_pvt *unreal;
 
@@ -1048,17 +935,12 @@ struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destruc
 		return NULL;
 	}
 
-	unreal->reqtopology = ast_stream_topology_clone(topology);
-	if (!unreal->reqtopology) {
-		ao2_ref(unreal, -1);
-		return NULL;
-	}
-
-	unreal->reqcap = ast_format_cap_from_stream_topology(topology);
+	unreal->reqcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!unreal->reqcap) {
 		ao2_ref(unreal, -1);
 		return NULL;
 	}
+	ast_format_cap_append_from_cap(unreal->reqcap, cap, AST_MEDIA_TYPE_UNKNOWN);
 
 	memcpy(&unreal->jb_conf, &jb_conf, sizeof(unreal->jb_conf));
 
@@ -1076,7 +958,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	struct ast_assigned_ids id1 = {NULL, NULL};
 	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
-	struct ast_stream_topology *topology;
 
 	/* set unique ids for the two channels */
 	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
@@ -1094,14 +975,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		id2.uniqueid = uniqueid2;
 	}
 
-	/* We need to create a topology to place on the first channel, as we can't
-	 * share a single one between both.
-	 */
-	topology = ast_stream_topology_clone(p->reqtopology);
-	if (!topology) {
-		return NULL;
-	}
-
 	/*
 	 * Allocate two new Asterisk channels
 	 *
@@ -1114,7 +987,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno);
 	if (!owner) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
-		ast_stream_topology_free(topology);
 		return NULL;
 	}
 
@@ -1127,10 +999,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_tech_pvt_set(owner, p);
 
 	ast_channel_nativeformats_set(owner, p->reqcap);
-
-	if (ast_channel_is_multistream(owner)) {
-		ast_channel_set_stream_topology(owner, topology);
-	}
 
 	/* Determine our read/write format and set it on each channel */
 	fmt = ast_format_cap_get_format(p->reqcap, 0);
@@ -1185,11 +1053,6 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_tech_pvt_set(chan, p);
 
 	ast_channel_nativeformats_set(chan, p->reqcap);
-
-	if (ast_channel_is_multistream(chan)) {
-		ast_channel_set_stream_topology(chan, p->reqtopology);
-		p->reqtopology = NULL;
-	}
 
 	/* Format was already determined when setting up owner */
 	ast_channel_set_writeformat(chan, fmt);

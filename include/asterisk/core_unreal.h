@@ -40,7 +40,6 @@ extern "C" {
 
 /* Forward declare some struct names */
 struct ast_format_cap;
-struct ast_stream_topology;
 
 /* ------------------------------------------------------------------- */
 
@@ -97,7 +96,6 @@ struct ast_unreal_pvt {
 	unsigned int flags;                         /*!< Private option flags */
 	/*! Base name of the unreal channels.  exten@context or other name. */
 	char name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
-	struct ast_stream_topology *reqtopology;    /*!< Requested stream topology */
 };
 
 #define AST_UNREAL_IS_OUTBOUND(a, b) ((a) == (b)->chan ? 1 : 0)
@@ -148,9 +146,6 @@ struct ast_frame *ast_unreal_read(struct ast_channel *ast);
 /*! Unreal channel framework struct ast_channel_tech.write callback */
 int ast_unreal_write(struct ast_channel *ast, struct ast_frame *f);
 
-/*! Unreal channel framework struct ast_channel_tech.write_stream callback */
-int ast_unreal_write_stream(struct ast_channel *ast, int stream_num, struct ast_frame *f);
-
 /*! Unreal channel framework struct ast_channel_tech.indicate callback */
 int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 
@@ -191,20 +186,6 @@ void ast_unreal_destructor(void *vdoomed);
  * \retval NULL on error.
  */
 struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructor, struct ast_format_cap *cap);
-
-/*!
- * \brief Allocate the base unreal struct for a derivative.
- * \since 16.12.0
- * \since 17.6.0
- *
- * \param size Size of the unreal struct to allocate.
- * \param destructor Destructor callback.
- * \param cap Format capabilities to give the unreal private struct.
- *
- * \retval pvt on success.
- * \retval NULL on error.
- */
-struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destructor_fn destructor, struct ast_stream_topology *topology);
 
 /*!
  * \brief Create the semi1 and semi2 unreal channels.
