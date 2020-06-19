@@ -1,0 +1,154 @@
+                                Release Summary
+
+                         asterisk-certified/16.8-cert3
+
+                                Date: 2020-06-19
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/16.8-cert2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   4 Joshua C. Colp                                  4 Joshua C. Colp         
+   2 Kevin Harwell          
+   1 George Joseph          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Bridges/bridge_softmix
+
+   ASTERISK-28944: bridge_softmix: Transitioning a stream from inactive ->
+   sendrecv/sendonly doesn't re-negotiation
+   Reported by: Joshua C. Colp
+     * [53a3be1891] Joshua C. Colp -- bridge_softmix: Add additional old
+       states for adding new source.
+
+    Category: Channels/chan_local
+
+   ASTERISK-28938: core_unreal / core_local: Add support for multistream and
+   re-negotiation
+   Reported by: Joshua C. Colp
+     * [2b5b9cd8e0] Joshua C. Colp -- core_unreal / core_local: Add
+       multistream and re-negotiation.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28953: res_pjsip_session: Preserve stream label
+   Reported by: Joshua C. Colp
+     * [6777ec0340] Joshua C. Colp -- res_pjsip_session: Preserve label on
+       incoming re-INVITE.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-28939: res_rtp_asterisk: Don't have send/receive buffers on
+   non-WebRTC
+   Reported by: Joshua C. Colp
+     * [744bfb049c] Joshua C. Colp -- res_rtp_asterisk: Don't assume setting
+       retrans props means to enable.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | ec8b3850d2 | Kevin Harwell | Revert "core_unreal / core_local: Add     |
+   |            |               | multistream and re-negotiation."          |
+   |------------+---------------+-------------------------------------------|
+   | 0fe63c2f87 | George Joseph | app_confbridge: Plug ref leak of bridge   |
+   |            |               | channel with send_events                  |
+   |------------+---------------+-------------------------------------------|
+   | 10dad4ea3a | Kevin Harwell | Compiler fixes for gcc 10                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile.rules                        |   19 ++++++++++---------
+ addons/ooh323c/src/decode.c           |   10 +++++++---
+ addons/ooh323c/src/ooSocket.c         |    2 +-
+ addons/ooh323c/src/oochannels.c       |    2 +-
+ apps/app_stack.c                      |   11 ++++++-----
+ apps/app_voicemail.c                  |   28 ++++++++++++++++------------
+ apps/confbridge/confbridge_manager.c  |    2 +-
+ bridges/bridge_softmix.c              |    3 ++-
+ include/asterisk/app.h                |    7 +++++--
+ main/dns_srv.c                        |    6 ++++--
+ main/http.c                           |    6 ++++--
+ main/message.c                        |    2 +-
+ main/pbx.c                            |    7 +++++--
+ main/pbx_variables.c                  |    8 ++------
+ main/stasis.c                         |   12 ++++++++----
+ pbx/pbx_dundi.c                       |   15 +++++++--------
+ res/parking/parking_bridge_features.c |   11 +++++++----
+ res/res_pjsip_registrar.c             |   13 ++++++++-----
+ res/res_pjsip_session.c               |   16 ++++++++++++++++
+ res/res_rtp_asterisk.c                |   25 ++++++++++++++++++++++---
+ tests/test_locale.c                   |   12 ++++++++----
+ utils/astman.c                        |    2 +-
+ utils/db1-ast/hash/ndbm.c             |    3 +--
+ utils/extconf.c                       |   10 ++++++----
+ utils/muted.c                         |    2 +-
+ 25 files changed, 150 insertions(+), 84 deletions(-)
