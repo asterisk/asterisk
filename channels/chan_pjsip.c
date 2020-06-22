@@ -1999,7 +1999,7 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 		/* Check for NOTIFY complete or error. */
 		pjsip_msg *msg;
 		pjsip_msg_body *body;
-		pjsip_status_line status_line = { .code = PJSIP_SC_NULL };
+		pjsip_status_line status_line = { .code = 0 };
 		pj_bool_t is_last;
 		pj_status_t status;
 
