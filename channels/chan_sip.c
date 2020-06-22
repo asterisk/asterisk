@@ -24194,6 +24194,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 		break;
 
+	case 400: /* Bad Request */
 	case 414: /* Bad request URI */
 	case 493: /* Undecipherable */
 	case 404: /* Not found */
