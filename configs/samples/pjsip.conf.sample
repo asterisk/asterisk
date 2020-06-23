@@ -1008,6 +1008,7 @@
                            ; This option must also be enabled on endpoints that
                            ; require this functionality.
                            ; (default: no)
+;disable_rport=no ; Disable the use of "rport" in outgoing requests.
 ;type=  ; Must be of type system (default: "")
 
 ;==========================GLOBAL SECTION OPTIONS=========================
