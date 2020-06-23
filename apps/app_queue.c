@@ -1463,34 +1463,34 @@ static char *app_qupd = "QueueUpdate";
 static const char * const pm_family = "Queue/PersistentMembers";
 
 /*! \brief queues.conf [general] option */
-static int queue_persistent_members = 0;
+static int queue_persistent_members;
 
-/*! \brief queues.conf per-queue weight option */
-static int use_weight = 0;
-
-/*! \brief queues.conf [general] option */
-static int autofill_default = 1;
+/*! \brief Records that one or more queues use weight */
+static int use_weight;
 
 /*! \brief queues.conf [general] option */
-static int montype_default = 0;
+static int autofill_default;
 
 /*! \brief queues.conf [general] option */
-static int shared_lastcall = 0;
+static int montype_default;
+
+/*! \brief queues.conf [general] option */
+static int shared_lastcall;
 
 /*! \brief queuesrules.conf [general] option */
-static int realtime_rules = 0;
+static int realtime_rules;
 
 /*! \brief Subscription to device state change messages */
 static struct stasis_subscription *device_state_sub;
 
 /*! \brief queues.conf [general] option */
-static int update_cdr = 0;
+static int update_cdr;
 
 /*! \brief queues.conf [general] option */
-static int negative_penalty_invalid = 0;
+static int negative_penalty_invalid;
 
 /*! \brief queues.conf [general] option */
-static int log_membername_as_agent = 0;
+static int log_membername_as_agent;
 
 /*! \brief name of the ringinuse field in the realtime database */
 static char *realtime_ringinuse_field;
@@ -9110,14 +9110,19 @@ static struct ast_custom_function queuememberpenalty_function = {
 	.write = queue_function_memberpenalty_write,
 };
 
+/*! Reset the global queue rules parameters even if there is no "general" section of queuerules.conf */
+static void queue_rules_reset_global_params(void)
+{
+	realtime_rules = 0;
+}
+
 /*! Set the global queue rules parameters as defined in the "general" section of queuerules.conf */
 static void queue_rules_set_global_params(struct ast_config *cfg)
 {
-        const char *general_val = NULL;
-        realtime_rules = 0;
-        if ((general_val = ast_variable_retrieve(cfg, "general", "realtime_rules"))) {
-                realtime_rules = ast_true(general_val);
-        }
+	const char *general_val = NULL;
+	if ((general_val = ast_variable_retrieve(cfg, "general", "realtime_rules"))) {
+		realtime_rules = ast_true(general_val);
+	}
 }
 
 /*! \brief Reload the rules defined in queuerules.conf
@@ -9152,6 +9157,7 @@ static int reload_queue_rules(int reload)
 			ast_free(pr_iter);
 		ast_free(rl_iter);
 	}
+	queue_rules_reset_global_params();
 	while ((rulecat = ast_category_browse(cfg, rulecat))) {
 		if (!strcasecmp(rulecat, "general")) {
 			queue_rules_set_global_params(cfg);
@@ -9183,36 +9189,41 @@ static int reload_queue_rules(int reload)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
+/*! Always set the global queue defaults, even if there is no "general" section in queues.conf */
+static void queue_reset_global_params(void)
+{
+	queue_persistent_members = 0;
+	autofill_default = 0;
+	montype_default = 0;
+	update_cdr = 0;
+	shared_lastcall = 0;
+	negative_penalty_invalid = 0;
+	log_membername_as_agent = 0;
+}
+
 /*! Set the global queue parameters as defined in the "general" section of queues.conf */
 static void queue_set_global_params(struct ast_config *cfg)
 {
 	const char *general_val = NULL;
-	queue_persistent_members = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers"))) {
 		queue_persistent_members = ast_true(general_val);
 	}
-	autofill_default = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "autofill"))) {
 		autofill_default = ast_true(general_val);
 	}
-	montype_default = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
 		if (!strcasecmp(general_val, "mixmonitor"))
 			montype_default = 1;
 	}
-	update_cdr = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr"))) {
 		update_cdr = ast_true(general_val);
 	}
-	shared_lastcall = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall"))) {
 		shared_lastcall = ast_true(general_val);
 	}
-	negative_penalty_invalid = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "negative_penalty_invalid"))) {
 		negative_penalty_invalid = ast_true(general_val);
 	}
-	log_membername_as_agent = 0;
 	if ((general_val = ast_variable_retrieve(cfg, "general", "log_membername_as_agent"))) {
 		log_membername_as_agent = ast_true(general_val);
 	}
@@ -9547,6 +9558,7 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 
 	/* Chug through config file. */
 	cat = NULL;
+	queue_reset_global_params();
 	while ((cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general") && queue_reload) {
 			queue_set_global_params(cfg);

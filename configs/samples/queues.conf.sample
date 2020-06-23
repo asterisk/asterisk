@@ -23,7 +23,7 @@ persistentmembers = yes
 ;    no more available members or no more waiting callers. This is
 ;    probably more along the lines of how a queue should work and
 ;    in most cases, you will want to enable this behavior. If you
-;    do not specify or comment out this option, it will default to yes.
+;    do not specify or comment out this option, it will default to no.
 ;
 ;autofill = no
 ;
