@@ -59,6 +59,8 @@ struct system_config {
 	 */
 	unsigned int follow_early_media_fork;
 	unsigned int accept_multiple_sdp_answers;
+	/*! Disable the use of rport in outgoing requests */
+	unsigned int disable_rport;
 };
 
 static struct ast_threadpool_options sip_threadpool_options = {
@@ -130,6 +132,8 @@ static int system_apply(const struct ast_sorcery *sorcery, void *obj)
 
 	pjsip_cfg()->endpt.disable_tcp_switch =
 		system->disable_tcp_switch ? PJ_TRUE : PJ_FALSE;
+
+	pjsip_cfg()->endpt.disable_rport = system->disable_rport ? PJ_TRUE : PJ_FALSE;
 
 	return 0;
 }
@@ -209,6 +213,8 @@ int ast_sip_initialize_system(void)
 			OPT_BOOL_T, 1, FLDSET(struct system_config, follow_early_media_fork));
 	ast_sorcery_object_field_register(system_sorcery, "system", "accept_multiple_sdp_answers", "no",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, accept_multiple_sdp_answers));
+	ast_sorcery_object_field_register(system_sorcery, "system", "disable_rport", "no",
+			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_rport));
 
 	ast_sorcery_load(system_sorcery);
 

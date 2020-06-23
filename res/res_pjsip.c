@@ -1749,6 +1749,12 @@
 						</para></note>
 					</description>
 				</configOption>
+				<configOption name="disable_rport" default="no">
+					<synopsis>Disable the use of rport in outgoing requests.</synopsis>
+					<description><para>
+						Remove "rport" parameter from the outgoing requests.
+					</para></description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'system' UNLESS the object name is 'system'.</synopsis>
 				</configOption>
