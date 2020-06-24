@@ -78,6 +78,8 @@ struct member {
 	unsigned int was_enabled:1;
 	/*! This module has failed dependencies */
 	unsigned int depsfailed:2;
+	/*! Previous failed dependencies when calculating */
+	unsigned int depsfailedold:2;
 	/*! This module has failed conflicts */
 	unsigned int conflictsfailed:2;
 	/*! This module's 'enabled' flag was changed by a default only */
