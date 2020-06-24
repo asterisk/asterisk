@@ -2140,6 +2140,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_answer_codec_prefs",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, stir_shaken));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

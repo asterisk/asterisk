@@ -153,6 +153,11 @@ static struct ast_sorcery *stir_shaken_sorcery;
 /* The maximum length for path storage */
 #define MAX_PATH_LEN 256
 
+/* The default amount of time (in seconds) to use for certificate expiration
+ * if no cache data is available
+ */
+#define EXPIRATION_BUFFER 15
+
 struct ast_stir_shaken_payload {
 	/*! The JWT header */
 	struct ast_json *header;
@@ -379,6 +384,10 @@ static void set_public_key_expiration(const char *public_key_url, const struct c
 			expires_time.tm_isdst = -1;
 			actual_expires.tv_sec = mktime(&expires_time);
 		}
+	}
+
+	if (ast_strlen_zero(value)) {
+		actual_expires.tv_sec += EXPIRATION_BUFFER;
 	}
 
 	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
@@ -1133,6 +1142,8 @@ static int stir_shaken_read(struct ast_channel *chan, const char *function,
 	struct stir_shaken_datastore *ss_datastore;
 	struct ast_datastore *datastore;
 	char *parse;
+	char *first;
+	char *second;
 	unsigned int target_index, current_index = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(first_param);
@@ -1153,17 +1164,20 @@ static int stir_shaken_read(struct ast_channel *chan, const char *function,
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (ast_strlen_zero(args.first_param)) {
+	first = ast_strip(args.first_param);
+	if (ast_strlen_zero(first)) {
 		ast_log(LOG_ERROR, "An argument must be passed to %s\n", function);
 		return -1;
 	}
 
+	second = ast_strip(args.second_param);
+
 	/* Check if we are only looking for the number of STIR/SHAKEN verification results */
-	if (!strcasecmp(args.first_param, "count")) {
+	if (!strcasecmp(first, "count")) {
 
 		size_t count = 0;
 
-		if (!ast_strlen_zero(args.second_param)) {
+		if (!ast_strlen_zero(second)) {
 			ast_log(LOG_ERROR, "%s only takes 1 paramater for 'count'\n", function);
 			return -1;
 		}
@@ -1184,15 +1198,15 @@ static int stir_shaken_read(struct ast_channel *chan, const char *function,
 	/* If we aren't doing a count, then there should be two parameters. The field
 	 * we are searching for will be the second parameter. The index is the first.
 	 */
-	if (ast_strlen_zero(args.second_param)) {
+	if (ast_strlen_zero(second)) {
 		ast_log(LOG_ERROR, "Retrieving a value using %s requires two paramaters (index, value) "
-			"- only index was given (%s)\n", function, args.second_param);
+			"- only index was given (%s)\n", function, second);
 		return -1;
 	}
 
-	if (ast_str_to_uint(args.first_param, &target_index)) {
+	if (ast_str_to_uint(first, &target_index)) {
 		ast_log(LOG_ERROR, "Failed to convert index %s to integer for function %s\n",
-			args.first_param, function);
+			first, function);
 		return -1;
 	}
 
@@ -1211,19 +1225,19 @@ static int stir_shaken_read(struct ast_channel *chan, const char *function,
 	}
 	ast_channel_unlock(chan);
 	if (current_index != target_index || !datastore) {
-		ast_log(LOG_WARNING, "No STIR/SHAKEN results for index '%s'\n", args.first_param);
+		ast_log(LOG_WARNING, "No STIR/SHAKEN results for index '%s'\n", first);
 		return -1;
 	}
 	ss_datastore = datastore->data;
 
-	if (!strcasecmp(args.second_param, "identity")) {
+	if (!strcasecmp(second, "identity")) {
 		ast_copy_string(buf, ss_datastore->identity, len);
-	} else if (!strcasecmp(args.second_param, "attestation")) {
+	} else if (!strcasecmp(second, "attestation")) {
 		ast_copy_string(buf, ss_datastore->attestation, len);
-	} else if (!strcasecmp(args.second_param, "verify_result")) {
+	} else if (!strcasecmp(second, "verify_result")) {
 		ast_copy_string(buf, stir_shaken_verification_result_to_string(ss_datastore->verify_result), len);
 	} else {
-		ast_log(LOG_ERROR, "No such value '%s' for %s\n", args.second_param, function);
+		ast_log(LOG_ERROR, "No such value '%s' for %s\n", second, function);
 		return -1;
 	}
 

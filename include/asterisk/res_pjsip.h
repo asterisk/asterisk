@@ -908,6 +908,8 @@ struct ast_sip_endpoint {
 	unsigned int suppress_q850_reason_headers;
 	/*! Ignore 183 if no SDP is present */
 	unsigned int ignore_183_without_sdp;
+	/*! Enable STIR/SHAKEN support on this endpoint */
+	unsigned int stir_shaken;
 };
 
 /*! URI parameter for symmetric transport */

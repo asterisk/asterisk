@@ -345,6 +345,10 @@
 ;device_state_busy_at=1
 ;allow_subscribe=yes
 ;sub_min_expiry=30
+;
+; STIR/SHAKEN support.
+;
+;stir_shaken=no
 
 ;[6001]
 ;type=auth
@@ -960,6 +964,20 @@
                            ; ringback tone.  This flag emulates the behavior of
                            ; chan_sip and prevents these 183 responses from
                            ; being forwarded.
+                           ; (default: no)
+;stir_shaken =
+                           ; If this is enabled, STIR/SHAKEN operations will be
+                           ; performed on this endpoint. This includes inbound
+                           ; and outbound INVITEs. On an inbound INVITE, Asterisk
+                           ; will check for an Identity header and attempt to
+                           ; verify the call. On an outbound INVITE, Asterisk will
+                           ; add an Identity header that others can use to verify
+                           ; calls from this endpoint. Additional configuration is
+                           ; done in stir_shaken.conf.
+                           ; The STIR_SHAKEN dialplan function must be used to get
+                           ; the verification results on inbound INVITEs. Nothing
+                           ; happens to the call if verification fails; it's up to
+                           ; you to determine what to do with the results.
                            ; (default: no)
 
 ;==========================AUTH SECTION OPTIONS=========================

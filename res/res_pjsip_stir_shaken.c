@@ -95,6 +95,11 @@ static int compare_timestamp(const char *json_str)
 	long int timestamp;
 	struct timeval now = ast_tvnow();
 
+#ifdef TEST_FRAMEWORK
+	ast_debug(3, "Ignoring STIR/SHAKEN timestamp\n");
+	return 0;
+#endif
+
 	json = ast_json_load_string(json_str, NULL);
 	timestamp = ast_json_integer_get(ast_json_object_get(json, "iat"));
 
@@ -130,6 +135,10 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	char *attestation;
 	int mismatch = 0;
 	struct ast_stir_shaken_payload *ss_payload;
+
+	if (!session->endpoint->stir_shaken) {
+		return 0;
+	}
 
 	identity_hdr_val = ast_sip_rdata_get_header_value(rdata, identity_str);
 	if (ast_strlen_zero(identity_hdr_val)) {
@@ -278,6 +287,10 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 
 static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
+	if (!session->endpoint->stir_shaken) {
+		return;
+	}
+
 	if (ast_strlen_zero(session->id.number.str) && session->id.number.valid) {
 		return;
 	}

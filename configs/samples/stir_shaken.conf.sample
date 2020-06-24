@@ -14,8 +14,11 @@
 ; Maximum size to use for caching public keys
 ;cache_max_size=1000
 ;
-; Maximum time to wait to CURL certificates
-;curl_timeout
+; Maximum time (in seconds) to wait to CURL certificates
+;curl_timeout=2
+;
+; Amount of time (in seconds) a signature is valid for
+;signature_timeout=15
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -47,6 +50,9 @@
 ;
 ; URL to the public key
 ;public_key_url=http://mycompany.com/alice.pub
+;
+; The caller ID number to match on
+;caller_id_number=1234567
 ;
 ; Must have an attestation of A, B, or C
 ;attestation=C

@@ -1458,6 +1458,14 @@
 						being forwarded.</para>
 					</description>
 				</configOption>
+				<configOption name="stir_shaken" default="no">
+					<synopsis>Enable STIR/SHAKEN support on this endpoint</synopsis>
+					<description><para>
+						Enable STIR/SHAKEN support on this endpoint. On incoming INVITEs,
+						the Identity header will be checked for validity. On outgoing
+						INVITEs, an Identity header will be added.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
