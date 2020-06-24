@@ -1,0 +1,20 @@
+Subject: STIR/SHAKEN
+
+STIR/SHAKEN support has been added to Asterisk. Configuration is done in
+stir_shaken.conf. There is a sample configuration file to help you get
+started (asterisk/configs/samples/stir_shaken.conf.sample). Once that's
+set up, you can enable STIR/SHAKEN on any endpoint by setting stir_shaken
+to yes on the endpoint configuration object. This will add an Identity
+header on outgoing INVITEs, and check for an Identity header on incoming
+INVITEs. This option has been added to Alembic as well.
+
+The information received on an incoming INVITE can be checked using the
+STIR_SHAKEN dialplan function. There are two variations:
+
+STIR_SHAKEN(count)
+STIR_SHAKEN(0, verify_result)
+
+The first variation will tell you how many STIR/SHAKEN results are on the
+channel. The second fetches information for a specific result. The first
+parameter is the index, followed by what information you want to retrieve.
+The available options are 'verify_result', 'identity', and 'attestation'.
