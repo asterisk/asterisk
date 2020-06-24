@@ -630,14 +630,14 @@ static unsigned int calc_dep_failures(int interactive, int pre_confload)
 	struct member *mem;
 	struct reference *dep;
 	struct dep_file *dep_file;
-	unsigned int changed, old_failure;
+	unsigned int changed;
 
 	AST_LIST_TRAVERSE(&categories, cat, list) {
 		AST_LIST_TRAVERSE(&cat->members, mem, list) {
 			if (mem->is_separator) {
 				continue;
 			}
-			old_failure = mem->depsfailed;
+			mem->depsfailedold = mem->depsfailed;
 			AST_LIST_TRAVERSE(&mem->deps, dep, list) {
 				if (dep->member)
 					continue;
@@ -655,7 +655,7 @@ static unsigned int calc_dep_failures(int interactive, int pre_confload)
 					break; /* This dependency is not met, so we can stop now */
 				}
 			}
-			if (old_failure == SOFT_FAILURE && mem->depsfailed != HARD_FAILURE)
+			if (mem->depsfailedold == SOFT_FAILURE && mem->depsfailed != HARD_FAILURE)
 				mem->depsfailed = SOFT_FAILURE;
 		}
 	}
@@ -672,8 +672,6 @@ static unsigned int calc_dep_failures(int interactive, int pre_confload)
 				if (mem->is_separator) {
 					continue;
 				}
-
-				old_failure = mem->depsfailed;
 
 				if (mem->depsfailed == HARD_FAILURE)
 					continue;
@@ -693,7 +691,7 @@ static unsigned int calc_dep_failures(int interactive, int pre_confload)
 					}
 				}
 
-				if (mem->depsfailed != old_failure) {
+				if (mem->depsfailed != mem->depsfailedold) {
 					if ((mem->depsfailed == NO_FAILURE) && mem->was_defaulted) {
 						mem->enabled = !strcasecmp(mem->defaultenabled, "yes");
 						print_debug("Just set %s enabled to %d\n", mem->name, mem->enabled);
@@ -702,6 +700,8 @@ static unsigned int calc_dep_failures(int interactive, int pre_confload)
 						print_debug("Just set %s enabled to %d\n", mem->name, mem->enabled);
 					}
 					changed = 1;
+					/* We need to update the old failed deps for the next loop of this */
+					mem->depsfailedold = mem->depsfailed;
 					break; /* This dependency is not met, so we can stop now */
 				}
 			}
