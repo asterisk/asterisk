@@ -6227,7 +6227,7 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 
 		if (!request_cap && topology) {
 			/* Turn the request stream topology into capabilities */
-			request_cap = tmp_converted_cap = ast_format_cap_from_stream_topology(topology);
+			request_cap = tmp_converted_cap = ast_stream_topology_get_formats(topology);
 		}
 
 		/* find the best audio format to use */

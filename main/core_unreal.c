@@ -1054,7 +1054,7 @@ struct ast_unreal_pvt *ast_unreal_alloc_stream_topology(size_t size, ao2_destruc
 		return NULL;
 	}
 
-	unreal->reqcap = ast_format_cap_from_stream_topology(topology);
+	unreal->reqcap = ast_stream_topology_get_formats(topology);
 	if (!unreal->reqcap) {
 		ao2_ref(unreal, -1);
 		return NULL;

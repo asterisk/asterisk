@@ -2142,7 +2142,7 @@ AST_TEST_DEFINE(format_cap_from_stream_topology)
 		return AST_TEST_FAIL;
 	}
 
-	stream_caps = ast_format_cap_from_stream_topology(topology);
+	stream_caps = ast_stream_topology_get_formats(topology);
 	if (!stream_caps) {
 		ast_test_status_update(test, "Failed to create a format capabilities from a stream topology\n");
 		ast_stream_topology_free(topology);

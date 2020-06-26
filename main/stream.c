@@ -44,6 +44,40 @@ struct ast_stream_metadata_entry {
 	char name_value[0];
 };
 
+const char *ast_stream_codec_negotiation_params_map[] = {
+	[CODEC_NEGOTIATION_PARAM_UNSPECIFIED] = "unspecified",
+	[CODEC_NEGOTIATION_PARAM_PREFER] = "prefer",
+	[CODEC_NEGOTIATION_PARAM_OPERATION] = "operation",
+	[CODEC_NEGOTIATION_PARAM_KEEP] = "keep",
+	[CODEC_NEGOTIATION_PARAM_TRANSCODE] = "transcode",
+};
+
+const char *ast_stream_codec_negotiation_prefer_map[] = {
+	[CODEC_NEGOTIATION_PREFER_UNSPECIFIED] = "unspecified",
+	[CODEC_NEGOTIATION_PREFER_PENDING] = "pending",
+	[CODEC_NEGOTIATION_PREFER_CONFIGURED] = "configured",
+};
+
+const char *ast_stream_codec_negotiation_operation_map[] = {
+	[CODEC_NEGOTIATION_OPERATION_UNSPECIFIED] = "unspecified",
+	[CODEC_NEGOTIATION_OPERATION_INTERSECT] = "intersect",
+	[CODEC_NEGOTIATION_OPERATION_UNION] = "union",
+	[CODEC_NEGOTIATION_OPERATION_ONLY_PREFERRED] = "only_preferred",
+	[CODEC_NEGOTIATION_OPERATION_ONLY_NONPREFERRED] = "only_nonpreferred",
+};
+
+const char *ast_stream_codec_negotiation_keep_map[] = {
+	[CODEC_NEGOTIATION_KEEP_UNSPECIFIED] = "unspecified",
+	[CODEC_NEGOTIATION_KEEP_ALL] = "all",
+	[CODEC_NEGOTIATION_KEEP_FIRST] = "first",
+};
+
+const char *ast_stream_codec_negotiation_transcode_map[] = {
+	[CODEC_NEGOTIATION_TRANSCODE_UNSPECIFIED] = "unspecified",
+	[CODEC_NEGOTIATION_TRANSCODE_ALLOW] = "allow",
+	[CODEC_NEGOTIATION_TRANSCODE_PREVENT] = "prevent",
+};
+
 struct ast_stream {
 	/*!
 	 * \brief The type of media the stream is handling
@@ -91,6 +125,107 @@ struct ast_stream_topology {
 	 * \brief A vector of all the streams in this topology
 	 */
 	AST_VECTOR(, struct ast_stream *) streams;
+	/*! Indicates that this topology should not have further operations applied to it. */
+	int final;
+};
+
+const char *ast_stream_codec_prefs_to_str(const struct ast_stream_codec_negotiation_prefs *prefs, struct ast_str **buf)
+{
+	if (!prefs || !buf || !*buf) {
+		return "";
+	}
+
+	ast_str_append(buf, 0, "%s:%s, %s:%s, %s:%s, %s:%s",
+		ast_stream_codec_param_to_str(CODEC_NEGOTIATION_PARAM_PREFER),
+		ast_stream_codec_prefer_to_str(prefs->prefer),
+		ast_stream_codec_param_to_str(CODEC_NEGOTIATION_PARAM_OPERATION),
+		ast_stream_codec_operation_to_str(prefs->operation),
+		ast_stream_codec_param_to_str(CODEC_NEGOTIATION_PARAM_KEEP),
+		ast_stream_codec_keep_to_str(prefs->keep),
+		ast_stream_codec_param_to_str(CODEC_NEGOTIATION_PARAM_TRANSCODE),
+		ast_stream_codec_transcode_to_str(prefs->transcode)
+		);
+
+	return ast_str_buffer(*buf);
+}
+
+/*!
+ * \internal
+ * \brief Sets a codec prefs member based on a the preference name and string value
+ *
+ * \warning This macro will cause the calling function to return if a preference name
+ * is matched but the value isn't valid for this preference.
+ */
+#define set_pref_value(_name, _value, _prefs, _UC, _lc, _error_message) \
+({ \
+	int _res = 0; \
+	if (strcmp(_name, ast_stream_codec_negotiation_params_map[CODEC_NEGOTIATION_PARAM_ ## _UC]) == 0) { \
+		int i; \
+		for (i = CODEC_NEGOTIATION_ ## _UC ## _UNSPECIFIED + 1; i < CODEC_NEGOTIATION_ ## _UC ## _END; i++) { \
+			if (strcmp(value, ast_stream_codec_negotiation_ ## _lc ## _map[i]) == 0) { \
+				prefs->_lc = i; \
+			} \
+		} \
+		if ( prefs->_lc == CODEC_NEGOTIATION_ ## _UC ## _UNSPECIFIED) { \
+			_res = -1; \
+			if (_error_message) { \
+				ast_str_append(_error_message, 0, "Codec preference '%s' has invalid value '%s'", name, value); \
+			} \
+		} \
+	} \
+	if (_res < 0) { \
+		return _res; \
+	} \
+})
+
+int ast_stream_codec_prefs_parse(const char *pref_string, struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **error_message)
+{
+	char *initial_value = ast_strdupa(pref_string);
+	char *current_value;
+	char *pref;
+	char *saveptr1;
+	char *saveptr2;
+	char *name;
+	char *value;
+
+	if (!prefs) {
+		return -1;
+	}
+
+	prefs->prefer = CODEC_NEGOTIATION_PREFER_UNSPECIFIED;
+	prefs->operation = CODEC_NEGOTIATION_OPERATION_UNSPECIFIED;
+	prefs->keep = CODEC_NEGOTIATION_KEEP_UNSPECIFIED;
+	prefs->transcode = CODEC_NEGOTIATION_TRANSCODE_UNSPECIFIED;
+
+	for (current_value = initial_value; (pref = strtok_r(current_value, ",", &saveptr1)) != NULL; ) {
+		name = strtok_r(pref, ": ", &saveptr2);
+		value = strtok_r(NULL, ": ", &saveptr2);
+
+		if (!name || !value) {
+			if (error_message) {
+				ast_str_append(error_message, 0, "Codec preference '%s' is invalid", pref);
+			}
+			return -1;
+		}
+
+		set_pref_value(name, value, prefs, OPERATION, operation, error_message);
+		set_pref_value(name, value, prefs, PREFER, prefer, error_message);
+		set_pref_value(name, value, prefs, KEEP, keep, error_message);
+		set_pref_value(name, value, prefs, TRANSCODE, transcode, error_message);
+
+		current_value = NULL;
+	}
+
+	return 0;
+}
+
+const char *ast_stream_state_map[] = {
+	[AST_STREAM_STATE_REMOVED] = "removed",
+	[AST_STREAM_STATE_SENDRECV] = "sendrecv",
+	[AST_STREAM_STATE_SENDONLY] = "sendonly",
+	[AST_STREAM_STATE_RECVONLY] = "recvonly",
+	[AST_STREAM_STATE_INACTIVE] = "inactive",
 };
 
 struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
@@ -165,6 +300,7 @@ void ast_stream_free(struct ast_stream *stream)
 	}
 
 	ao2_cleanup(stream->formats);
+
 	ast_free(stream);
 }
 
@@ -194,6 +330,26 @@ const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *str
 	ast_assert(stream != NULL);
 
 	return stream->formats;
+}
+
+const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf)
+{
+	if (!buf || !*buf) {
+		return "";
+	}
+
+	if (!stream) {
+		ast_str_append(buf, 0, "(null stream)");
+		return ast_str_buffer(*buf);
+	}
+
+	ast_str_append(buf, 0, "%s:%s:%s ",
+		S_OR(stream->name, "noname"),
+		ast_codec_media_type2str(stream->type),
+		ast_stream_state_map[stream->state]);
+	ast_format_cap_append_names(stream->formats, buf);
+
+	return ast_str_buffer(*buf);
 }
 
 int ast_stream_get_format_count(const struct ast_stream *stream)
@@ -375,6 +531,108 @@ void ast_stream_set_rtp_codecs(struct ast_stream *stream, struct ast_rtp_codecs 
 	stream->rtp_codecs = rtp_codecs;
 }
 
+struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
+	struct ast_stream *validation_stream, struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **error_message)
+{
+	struct ast_format_cap *preferred_caps = NULL;
+	struct ast_format_cap *nonpreferred_caps = NULL;
+	struct ast_format_cap *joint_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	struct ast_stream *joint_stream;
+	enum ast_media_type media_type = pending_stream ? pending_stream->type : AST_MEDIA_TYPE_UNKNOWN;
+	int res = 0;
+
+	if (!pending_stream || !validation_stream || !prefs || !joint_caps
+		|| media_type == AST_MEDIA_TYPE_UNKNOWN) {
+		if (error_message) {
+			ast_str_append(error_message, 0, "Invalid arguments");
+		}
+		ao2_cleanup(joint_caps);
+		return NULL;
+	}
+
+	if (prefs->prefer == CODEC_NEGOTIATION_PREFER_PENDING) {
+		preferred_caps = pending_stream->formats;
+		nonpreferred_caps = validation_stream->formats;
+	} else {
+		preferred_caps = validation_stream->formats;
+		nonpreferred_caps = pending_stream->formats;
+	}
+	ast_format_cap_set_framing(joint_caps, ast_format_cap_get_framing(pending_stream->formats));
+
+	switch(prefs->operation) {
+	case CODEC_NEGOTIATION_OPERATION_ONLY_PREFERRED:
+		res = ast_format_cap_append_from_cap(joint_caps, preferred_caps, media_type);
+		break;
+	case CODEC_NEGOTIATION_OPERATION_ONLY_NONPREFERRED:
+		res = ast_format_cap_append_from_cap(joint_caps, nonpreferred_caps, media_type);
+		break;
+	case CODEC_NEGOTIATION_OPERATION_INTERSECT:
+		res = ast_format_cap_get_compatible(preferred_caps, nonpreferred_caps, joint_caps);
+		break;
+	case CODEC_NEGOTIATION_OPERATION_UNION:
+		res = ast_format_cap_append_from_cap(joint_caps, preferred_caps, media_type);
+		if (res == 0) {
+			res = ast_format_cap_append_from_cap(joint_caps, nonpreferred_caps, media_type);
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (res) {
+		if (error_message) {
+			ast_str_append(error_message, 0, "No common formats available for media type '%s' ",
+				ast_codec_media_type2str(pending_stream->type));
+			ast_format_cap_append_names(preferred_caps, error_message);
+			ast_str_append(error_message, 0, "<>");
+			ast_format_cap_append_names(nonpreferred_caps, error_message);
+			ast_str_append(error_message, 0, " with prefs: ");
+			ast_stream_codec_prefs_to_str(prefs, error_message);
+		}
+
+		ao2_cleanup(joint_caps);
+		return NULL;
+	}
+
+	if (!ast_format_cap_empty(joint_caps)) {
+		if (prefs->keep == CODEC_NEGOTIATION_KEEP_FIRST) {
+			struct ast_format *single = ast_format_cap_get_format(joint_caps, 0);
+			ast_format_cap_remove_by_type(joint_caps, AST_MEDIA_TYPE_UNKNOWN);
+			ast_format_cap_append(joint_caps, single, 0);
+			ao2_ref(single, -1);
+		}
+	}
+
+	joint_stream = ast_stream_clone(pending_stream, NULL);
+	if (!joint_stream) {
+		ao2_cleanup(joint_caps);
+		return NULL;
+	}
+
+	/* ref to joint_caps will be transferred to the stream */
+	ast_stream_set_formats(joint_stream, joint_caps);
+
+	if (TRACE_ATLEAST(1)) {
+		struct ast_str *buf = ast_str_create((AST_FORMAT_CAP_NAMES_LEN * 3) + AST_STREAM_MAX_CODEC_PREFS_LENGTH);
+		if (buf) {
+			ast_str_set(&buf, 0, "Resolved '%s' stream ", ast_codec_media_type2str(pending_stream->type));
+			ast_format_cap_append_names(preferred_caps, &buf);
+			ast_str_append(&buf, 0, "<>");
+			ast_format_cap_append_names(nonpreferred_caps, &buf);
+			ast_str_append(&buf, 0, " to ");
+			ast_format_cap_append_names(joint_caps, &buf);
+			ast_str_append(&buf, 0, " with prefs: ");
+			ast_stream_codec_prefs_to_str(prefs, &buf);
+			ast_trace(1, "%s\n", ast_str_buffer(buf));
+			ast_free(buf);
+		}
+	}
+
+	ao2_cleanup(joint_caps);
+	return joint_stream;
+}
+
 static void stream_topology_destroy(void *data)
 {
 	struct ast_stream_topology *topology = data;
@@ -502,6 +760,22 @@ int ast_stream_topology_get_count(const struct ast_stream_topology *topology)
 	return AST_VECTOR_SIZE(&topology->streams);
 }
 
+int ast_stream_topology_get_active_count(const struct ast_stream_topology *topology)
+{
+	int i;
+	int count = 0;
+	ast_assert(topology != NULL);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+		if (stream->state != AST_STREAM_STATE_REMOVED) {
+			count++;
+		}
+	}
+
+	return count;
+}
+
 struct ast_stream *ast_stream_topology_get_stream(
 	const struct ast_stream_topology *topology, unsigned int stream_num)
 {
@@ -610,8 +884,8 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	return topology;
 }
 
-struct ast_format_cap *ast_format_cap_from_stream_topology(
-    struct ast_stream_topology *topology)
+struct ast_format_cap *ast_stream_topology_get_formats_by_type(
+    struct ast_stream_topology *topology, enum ast_media_type type)
 {
 	struct ast_format_cap *caps;
 	int i;
@@ -627,15 +901,49 @@ struct ast_format_cap *ast_format_cap_from_stream_topology(
 		struct ast_stream *stream;
 
 		stream = AST_VECTOR_GET(&topology->streams, i);
-		if (!stream->formats
-			|| stream->state == AST_STREAM_STATE_REMOVED) {
+		if (!stream->formats || stream->state == AST_STREAM_STATE_REMOVED) {
 			continue;
 		}
-
-		ast_format_cap_append_from_cap(caps, stream->formats, AST_MEDIA_TYPE_UNKNOWN);
+		if (type == AST_MEDIA_TYPE_UNKNOWN || type == stream->type) {
+			ast_format_cap_append_from_cap(caps, stream->formats, AST_MEDIA_TYPE_UNKNOWN);
+		}
 	}
 
 	return caps;
+}
+
+struct ast_format_cap *ast_stream_topology_get_formats(
+    struct ast_stream_topology *topology)
+{
+	return ast_stream_topology_get_formats_by_type(topology, AST_MEDIA_TYPE_UNKNOWN);
+}
+
+const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology,
+	struct ast_str **buf)
+{
+	int i;
+
+	if (!buf ||!*buf) {
+		return "";
+	}
+
+	if (!topology) {
+		ast_str_append(buf, 0, "(null topology)");
+		return ast_str_buffer(*buf);
+	}
+
+	ast_str_append(buf, 0, "%s", S_COR(topology->final, "final", ""));
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream;
+
+		stream = AST_VECTOR_GET(&topology->streams, i);
+		ast_str_append(buf, 0, " <");
+		ast_stream_to_str(stream, buf);
+		ast_str_append(buf, 0, ">");
+	}
+
+	return ast_str_buffer(*buf);
 }
 
 struct ast_stream *ast_stream_topology_get_first_stream_by_type(
@@ -702,6 +1010,50 @@ void ast_stream_topology_map(const struct ast_stream_topology *topology,
 		AST_VECTOR_REPLACE(v0, i, index);
 		AST_VECTOR_REPLACE(v1, index, i);
 	}
+}
+
+struct ast_stream_topology *ast_stream_topology_create_resolved(
+	struct ast_stream_topology *pending_topology, struct ast_stream_topology *configured_topology,
+	struct ast_stream_codec_negotiation_prefs *prefs, struct ast_str**error_message)
+{
+	struct ast_stream_topology *joint_topology = ast_stream_topology_alloc();
+	int res = 0;
+	int i;
+
+	if (!pending_topology || !configured_topology || !joint_topology) {
+		ao2_cleanup(joint_topology);
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&pending_topology->streams); i++) {
+		struct ast_stream *pending_stream = AST_VECTOR_GET(&pending_topology->streams, i);
+		struct ast_stream *configured_stream =
+			ast_stream_topology_get_first_stream_by_type(configured_topology, pending_stream->type);
+		struct ast_stream *joint_stream;
+
+		if (!configured_stream) {
+			joint_stream = ast_stream_clone(pending_stream, NULL);
+			if (!joint_stream) {
+				ao2_cleanup(joint_topology);
+				return NULL;
+			}
+			ast_stream_set_state(joint_stream, AST_STREAM_STATE_REMOVED);
+		} else {
+			joint_stream = ast_stream_create_resolved(pending_stream, configured_stream, prefs, error_message);
+			if (ast_stream_get_format_count(joint_stream) == 0) {
+				ast_stream_set_state(joint_stream, AST_STREAM_STATE_REMOVED);
+			}
+		}
+
+		res = ast_stream_topology_append_stream(joint_topology, joint_stream);
+		if (res < 0) {
+			ast_stream_free(joint_stream);
+			ao2_cleanup(joint_topology);
+			return NULL;
+		}
+	}
+
+	return joint_topology;
 }
 
 int ast_stream_get_group(const struct ast_stream *stream)

@@ -1,0 +1,5 @@
+Subject: Core
+Master-Only: True
+
+The ast_format_cap_from_stream_topology() function has been renamed
+to ast_stream_topology_get_formats().

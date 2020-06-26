@@ -521,7 +521,7 @@ static int compatible_formats_exist(struct ast_stream_topology *top, struct ast_
 	struct ast_format_cap *cap_from_top;
 	int res;
 
-	cap_from_top = ast_format_cap_from_stream_topology(top);
+	cap_from_top = ast_stream_topology_get_formats(top);
 
 	if (!cap_from_top) {
 		return 0;
@@ -581,7 +581,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
 		topology = ast_stream_topology_clone(session->endpoint->media.topology);
 	} else {
-		caps = ast_format_cap_from_stream_topology(session->pending_media_state->topology);
+		caps = ast_stream_topology_get_formats(session->pending_media_state->topology);
 		topology = ast_stream_topology_clone(session->pending_media_state->topology);
 	}
 

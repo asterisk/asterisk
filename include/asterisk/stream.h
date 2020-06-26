@@ -30,6 +30,23 @@
 #include "asterisk/vector.h"
 
 /*!
+ * \brief Internal macro to assist converting enums to strings
+ * \internal
+ * \since 18
+ *
+ * This macro checks that _value is in the bounds
+ * of the enum/string map.
+ */
+#define _stream_maps_to_str(_mapname, _value) \
+({ \
+	const char *_rtn = ""; \
+	if (ARRAY_IN_BOUNDS(_value, _mapname)) { \
+		_rtn = _mapname[_value]; \
+	} \
+	_rtn; \
+})
+
+/*!
  * \brief Forward declaration for a stream, as it is opaque
  */
 struct ast_stream;
@@ -75,7 +92,272 @@ enum ast_stream_state {
 	 * \brief Set when the stream is not sending OR receiving media
 	 */
 	AST_STREAM_STATE_INACTIVE,
+	/*!
+	 * \brief Sentinel
+	 */
+	AST_STREAM_STATE_END
 };
+
+/*!
+ * \brief Stream state enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_state_map[AST_STREAM_STATE_END];
+
+/*!
+ * \brief Safely get the name of a stream state
+ * \since 18
+ *
+ * \param stream_state One of enum ast_stream_state
+ * \returns A constant string with the name of the state or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_state_to_str(stream_state) _stream_maps_to_str(ast_stream_state_map, stream_state)
+
+/*!
+ * \brief Advanced Codec Negotiation Preferences
+ * \since 18
+ */
+
+/*!
+ * \brief The preference parameters themselves
+ * \since 18
+ */
+enum ast_stream_codec_negotiation_params {
+	CODEC_NEGOTIATION_PARAM_UNSPECIFIED = 0,
+	/*! Which of the lists to "prefer" */
+	CODEC_NEGOTIATION_PARAM_PREFER,
+	/*! "operation" to perform */
+	CODEC_NEGOTIATION_PARAM_OPERATION,
+	/*! "keep" all or only first */
+	CODEC_NEGOTIATION_PARAM_KEEP,
+	/*! Allow or prevent "transcode" */
+	CODEC_NEGOTIATION_PARAM_TRANSCODE,
+	/*! Sentinel */
+	CODEC_NEGOTIATION_PARAM_END,
+};
+
+/*!
+ * \brief The "prefer" values
+ * \since 18
+ */
+enum ast_stream_codec_negotiation_prefs_prefer_values {
+	CODEC_NEGOTIATION_PREFER_UNSPECIFIED = 0,
+	/*! Prefer the "pending" list */
+	CODEC_NEGOTIATION_PREFER_PENDING,
+	/*! Prefer the "configured" list */
+	CODEC_NEGOTIATION_PREFER_CONFIGURED,
+	/*! Sentinel */
+	CODEC_NEGOTIATION_PREFER_END,
+};
+
+/*!
+ * \brief The "operation" values
+ * \since 18
+ */
+enum ast_stream_codec_negotiation_prefs_operation_values {
+	CODEC_NEGOTIATION_OPERATION_UNSPECIFIED = 0,
+	/*! "intersect": only those codecs that appear in both lists */
+	CODEC_NEGOTIATION_OPERATION_INTERSECT,
+	/*! "union": all codecs in both lists */
+	CODEC_NEGOTIATION_OPERATION_UNION,
+	/*! "only_preferred": only the codecs in the preferred list */
+	CODEC_NEGOTIATION_OPERATION_ONLY_PREFERRED,
+	/*! "only_nonpreferred": only the codecs in the non-preferred list */
+	CODEC_NEGOTIATION_OPERATION_ONLY_NONPREFERRED,
+	/*! Sentinel */
+	CODEC_NEGOTIATION_OPERATION_END,
+};
+
+/*!
+ * \brief The "keep" values
+ * \since 18
+ */
+enum ast_stream_codec_negotiation_prefs_keep_values {
+	CODEC_NEGOTIATION_KEEP_UNSPECIFIED = 0,
+	/*! "keep" all codecs after performing the operation */
+	CODEC_NEGOTIATION_KEEP_ALL,
+	/*! "keep" only the first codec after performing the operation */
+	CODEC_NEGOTIATION_KEEP_FIRST,
+	/*! Sentinel */
+	CODEC_NEGOTIATION_KEEP_END,
+};
+
+/*!
+ * \brief The "transcode" values
+ * \since 18
+ */
+enum ast_stream_codec_negotiation_prefs_transcode_values {
+	CODEC_NEGOTIATION_TRANSCODE_UNSPECIFIED = 0,
+	/*! "allow" transcoding */
+	CODEC_NEGOTIATION_TRANSCODE_ALLOW,
+	/*! "prevent" transcoding */
+	CODEC_NEGOTIATION_TRANSCODE_PREVENT,
+	/*! Sentinel */
+	CODEC_NEGOTIATION_TRANSCODE_END,
+};
+
+/*!
+ * \brief Preference enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_codec_negotiation_params_map[CODEC_NEGOTIATION_PARAM_END];
+
+/*!
+ * \brief "prefer" enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_codec_negotiation_prefer_map[CODEC_NEGOTIATION_PREFER_END];
+
+/*!
+ * \brief "operation" enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_codec_negotiation_operation_map[CODEC_NEGOTIATION_OPERATION_END];
+
+/*!
+ * \brief "keep" enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_codec_negotiation_keep_map[CODEC_NEGOTIATION_KEEP_END];
+
+/*!
+ * \brief "transcode" state enum to string map
+ * \internal
+ * \since 18
+ */
+extern const char *ast_stream_codec_negotiation_transcode_map[CODEC_NEGOTIATION_TRANSCODE_END];
+
+/*!
+ * \brief Safely get the name of a preference parameter
+ * \since 18
+ *
+ * \param value One of enum \ref ast_stream_codec_negotiation_params
+ * \returns A constant string with the name of the preference or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_codec_param_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_params_map, value)
+
+/*!
+ * \brief Safely get the name of a "prefer" parameter value
+ * \since 18
+ *
+ * \param value One of enum \ref ast_stream_codec_negotiation_prefer_values
+ * \returns A constant string with the name of the value or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_codec_prefer_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_prefer_map, value)
+
+/*!
+ * \brief Safely get the name of an "operation" parameter value
+ * \since 18
+ *
+ * \param value One of enum \ref ast_stream_codec_negotiation_operation_values
+ * \returns A constant string with the name of the value or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_codec_operation_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_operation_map, value)
+
+/*!
+ * \brief Safely get the name of a "keep" parameter value
+ * \since 18
+ *
+ * \param value One of enum \ref ast_stream_codec_negotiation_keep_values
+ * \returns A constant string with the name of the value or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_codec_keep_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_keep_map, value)
+
+/*!
+ * \brief Safely get the name of a "transcode" parameter value
+ * \since 18
+ *
+ * \param value One of enum \ref ast_stream_codec_negotiation_transcode_values
+ * \returns A constant string with the name of the value or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_codec_transcode_to_str(value) _stream_maps_to_str(ast_stream_codec_negotiation_transcode_map, value)
+
+/*!
+ * \brief
+ * \since 18
+ *
+ * The structure that makes up a codec negotiation preference object
+ */
+struct ast_stream_codec_negotiation_prefs {
+	/*! Which codec list to prefer */
+	enum ast_stream_codec_negotiation_prefs_prefer_values prefer;
+	/*! The operation to perform on the lists */
+	enum ast_stream_codec_negotiation_prefs_operation_values operation;
+	/*! What to keep after the operation is performed */
+	enum ast_stream_codec_negotiation_prefs_keep_values keep;
+	/*! To allow or prevent transcoding */
+	enum ast_stream_codec_negotiation_prefs_transcode_values transcode;
+};
+
+/*!
+ * \brief Define for allocating buffer space for to_str() functions
+ * \since 18
+ */
+#define AST_STREAM_MAX_CODEC_PREFS_LENGTH (128)
+
+/*!
+ * \brief Return a string representing the codec preferences
+ * \since 18
+ *
+ * This function can be used for debugging purposes but is also
+ * used in pjsip_configuration as a sorcery parameter handler
+ *
+ * \param prefs A pointer to a ast_stream_codec_negotiation_prefs structure
+ * \param buf A pointer to an ast_str* used for the output.  See note below.
+ *
+ * \returns the contents of the ast_str as a const char *.
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char * and it should be dup'd if needed after the ast_str is freed.
+ *
+ * \note
+ * buf can't be NULL but it CAN contain a NULL value.  If so, a new
+ * ast_str will be allocated and the value of buf updated with a pointer
+ * to it.  Whether the caller supplies the ast_str or it's allocated by
+ * this function, it's the caller's responsibility to free it.
+ *
+ * Sample output:
+ * "prefer: configured, operation: union, keep:all, transcode:prevent"
+ */
+const char *ast_stream_codec_prefs_to_str(const struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **buf);
+
+/*!
+ * \brief Parses a string representing the codec prefs into a ast_stream_codec_negotiation_pref structure
+ * \since 18
+ *
+ * This function is mainly used by pjsip_configuration as a sorcery parameter handler.
+ *
+ * \param pref_string A string in the format described by ast_stream_codec_prefs_to_str().
+ * \param prefs Pointer to a ast_stream_codec_negotiation_prefs structure to receive the parsed values.
+ * \param error_message An optional ast_str** into which parsing errors will be placed.
+ *
+ * \retval 0 if success
+ * \retval -1 if failed
+ *
+ * \details
+ * Whitespace around the ':' and ',' separators is ignored and the parameters
+ * can be specified in any order.  Parameters missing in the input string
+ * will have their values set to the appropriate *_UNSPECIFIED value and will not
+ * be considered an error.  It's up to the caller to decide whether set a default
+ * value, return an error, etc.
+ *
+ * Sample input:
+ * "prefer : configured , operation: union,keep:all, transcode:prevent"
+ */
+int ast_stream_codec_prefs_parse(const char *pref_string, struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **error_message);
 
 /*!
  * \brief Create a new media stream representation
@@ -165,6 +447,31 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
  * \since 15
  */
 const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream);
+
+/*!
+ * \brief Get a string representing the stream for debugging/display purposes
+ * \since 18
+ *
+ * \param stream A stream
+ * \param buf A pointer to an ast_str* used for the output.
+ *
+ * \retval "" (empty string) if either buf or *buf are NULL
+ * \retval "(null stream)" if *stream was NULL
+ * \retval <stream_representation> otherwise
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char * and it should be dup'd if needed after the ast_str is freed.
+ *
+ * \details
+ *
+ * Return format:
+ * <name>:<media_type>:<stream_state> (formats)
+ *
+ * Sample return:
+ * "audio:audio:sendrecv (ulaw,g722)"
+ *
+ */
+const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf);
 
 /*!
  * \brief Get the count of the current negotiated formats of a stream
@@ -311,6 +618,33 @@ struct ast_rtp_codecs *ast_stream_get_rtp_codecs(const struct ast_stream *stream
 void ast_stream_set_rtp_codecs(struct ast_stream *stream, struct ast_rtp_codecs *rtp_codecs);
 
 /*!
+ * \brief Create a resolved stream from 2 streams
+ * \since 18
+ *
+ * \param pending_stream The "live" stream created from an SDP,
+ *        passed through the core, or used to create an SDP.
+ * \param configured_stream The static stream used to validate the pending stream.
+ * \param prefs A pointer to an ast_stream_codec_negotiation_prefs structure.
+ * \param error_message If supplied, error messages will be appended.
+ *
+ * \details
+ * The resulting stream will contain all of the attributes and metadata of the
+ * pending stream but will contain only the formats that passed the validation
+ * specified by the ast_stream_codec_negotiation_prefs structure.  This may mean
+ * that the stream's format_caps will be empty.  It's up to the caller to determine
+ * what to do with the stream in that case.  I.E. Free it, set it to the
+ * REMOVED state, etc.  A stream will always be returned unless there was
+ * some catastrophic allocation failure.
+ *
+ * \retval NULL if there was some allocation failure.
+ * \retval A new, resolved stream.
+ *
+ */
+struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
+	struct ast_stream *configured_stream, struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **error_message);
+
+/*!
  * \brief Create a stream topology
  *
  * \retval non-NULL success
@@ -385,6 +719,18 @@ int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
  * \since 15
  */
 int ast_stream_topology_get_count(const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Get the number of active (non-REMOVED) streams in a topology
+ *
+ * \param topology The topology of streams
+ *
+ * \return the number of active streams
+ *
+ * \since 18
+ */
+int ast_stream_topology_get_active_count(const struct ast_stream_topology *topology);
+
 
 /*!
  * \brief Get a specific stream from the topology
@@ -471,15 +817,59 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
  *
  * \param topology The topology of streams
  *
- * \retval non-NULL success
+ * \retval non-NULL success (the resulting format caps must be unreffed by the caller)
  * \retval NULL failure
  *
  * \note The stream topology is NOT altered by this function.
  *
  * \since 15
  */
-struct ast_format_cap *ast_format_cap_from_stream_topology(
+struct ast_format_cap *ast_stream_topology_get_formats(
 	struct ast_stream_topology *topology);
+
+/*!
+ * \brief Get a string representing the topology for debugging/display purposes
+ * \since 18
+ *
+ * \param topology A stream topology
+ * \param buf A pointer to an ast_str* used for the output.
+ *
+ * \retval "" (empty string) if either buf or *buf are NULL
+ * \retval "(null topology)" if *topology was NULL
+ * \retval <topology_representation> otherwise
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char * and it should be dup'd if needed after the ast_str is freed.
+  *
+ * Return format:
+ * <final>? <stream> ...
+ *
+ * Sample return:
+ * "final <audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>"
+ *
+ */
+const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology, struct ast_str **buf);
+
+/*!
+ * \brief Create a format capabilities structure containing all the formats from all the streams
+ *        of a particular type in the topology.
+ * \since 18
+ *
+ * \details
+ * A helper function that, given a stream topology and a media type, creates a format
+ * capabilities structure containing all formats from all active streams with the particular type.
+ *
+ * \param topology The topology of streams
+ * \param type The media type
+ *
+ * \retval non-NULL success (the resulting format caps must be unreffed by the caller)
+ * \retval NULL failure
+ *
+ * \note The stream topology is NOT altered by this function.
+ *
+ */
+struct ast_format_cap *ast_stream_topology_get_formats_by_type(
+    struct ast_stream_topology *topology, enum ast_media_type type);
 
 /*!
  * \brief Gets the first active stream of a specific type from the topology
@@ -533,5 +923,35 @@ int ast_stream_get_group(const struct ast_stream *stream);
  * \since 15.2.0
  */
 void ast_stream_set_group(struct ast_stream *stream, int group);
+
+/*!
+ * \brief Create a resolved stream topology from 2 topologies
+ * \since 18
+ *
+ * \param pending_topology The "live" topology created from an SDP,
+ *        passed through the core, or used to create an SDP.
+ * \param configured_topology The static topology used to validate the pending topology.
+ *        It MUST have only 1 stream per media type.
+ * \param prefs A pointer to an ast_stream_codec_negotiation_prefs structure.
+ * \param error_message If supplied, error messages will be appended.
+ *
+ * \details
+ * The streams in the resolved topology will contain all of the attributes
+ * of the corresponding stream from the pending topology. It's format_caps
+ * however will contain only the formats that passed the validation
+ * specified by the ast_stream_codec_negotiation_prefs structure.  This may
+ * mean that some of the streams format_caps will be empty.  If that's the case,
+ * the stream will be in a REMOVED state.  With those rules in mind,
+ * a resolved topology will always be returned (unless there's some catastrophic
+ * allocation failure) and the resolved topology is guaranteed to have the same
+ * number of streams, in the same order, as the pending topology.
+ *
+ * \retval NULL if there was some allocation failure.
+ * \retval The joint topology.
+ */
+struct ast_stream_topology *ast_stream_topology_create_resolved(
+	struct ast_stream_topology *pending_topology, struct ast_stream_topology *validation_topology,
+	struct ast_stream_codec_negotiation_prefs *prefs,
+	struct ast_str **error_message);
 
 #endif /* _AST_STREAM_H */
