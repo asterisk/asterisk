@@ -1289,6 +1289,29 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 	return status ? 0 : -1;
 }
 
+static int aor_apply_outbound_proxy(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	struct ast_sip_aor *aor = arg;
+
+	ast_string_field_set(contact, outbound_proxy, aor->outbound_proxy);
+
+	return 0;
+}
+
+static int aor_apply_handler(const struct ast_sorcery *sorcery, void *object)
+{
+	struct ast_sip_aor *aor = object;
+
+	if (!aor->permanent_contacts || ast_strlen_zero(aor->outbound_proxy)) {
+		return 0;
+	}
+
+	ao2_callback(aor->permanent_contacts, OBJ_NODATA | OBJ_MULTIPLE, aor_apply_outbound_proxy, aor);
+
+	return 0;
+}
+
 /*! \brief Initialize sorcery with location support */
 int ast_sip_initialize_sorcery_location(void)
 {
@@ -1305,7 +1328,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
 
 	if (ast_sorcery_object_register(sorcery, "contact", contact_alloc, NULL, contact_apply_handler) ||
-		ast_sorcery_object_register(sorcery, "aor", aor_alloc, NULL, NULL)) {
+		ast_sorcery_object_register(sorcery, "aor", aor_alloc, NULL, aor_apply_handler)) {
 		return -1;
 	}
 
