@@ -601,11 +601,14 @@ enum ast_trace_indent_type {
  * common to all branches.
  */
 #if 1
-#define ast_trace(__level)
-#define ast_trace_raw(__level, __indent_type, __fmt, ...)
-#define ast_trace_msg(__level, __indent_type, __fmt, ...)
-#define SCOPE_TRACE_MSG(__debug_level, __fmt, ...)
-#define SCOPE_TRACE(__level)
+#define ast_trace_raw(__level, __indent_type, ...)
+#define ast_trace(__level, ...)
+#define SCOPE_TRACE(__level, ...)
+#define SCOPE_ENTER(level, ...)
+#define SCOPE_EXIT(...)
+#define SCOPE_EXIT_EXPR(__expr, ...)
+#define SCOPE_EXIT_RTN(...)
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...)
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
