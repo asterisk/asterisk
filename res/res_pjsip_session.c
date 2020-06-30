@@ -1731,7 +1731,8 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				}
 
 				/* Enforce the configured allowed codecs on audio and video streams */
-				if (ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) {
+				if ((ast_stream_get_type(stream) == AST_MEDIA_TYPE_AUDIO || ast_stream_get_type(stream) == AST_MEDIA_TYPE_VIDEO) &&
+					!ast_stream_get_metadata(stream, "pjsip_session_refresh")) {
 					struct ast_format_cap *joint_cap;
 
 					joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);

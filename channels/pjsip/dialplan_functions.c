@@ -1363,6 +1363,7 @@ static int media_offer_write_av(void *obj)
 	ast_format_cap_remove_by_type(caps, data->media_type);
 	ast_format_cap_update_by_allow_disallow(caps, data->value, 1);
 	ast_stream_set_formats(stream, caps);
+	ast_stream_set_metadata(stream, "pjsip_session_refresh", "force");
 	ao2_ref(caps, -1);
 
 	return 0;
