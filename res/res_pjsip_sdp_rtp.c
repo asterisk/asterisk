@@ -1319,8 +1319,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	if (direct_media_enabled) {
 		ast_format_cap_get_compatible(session->endpoint->media.codecs, session->direct_media_cap, caps);
-	} else if (!ast_format_cap_count(session->req_caps) ||
-		!ast_format_cap_iscompatible(session->req_caps, session->endpoint->media.codecs)) {
+	} else if (!ast_format_cap_count(session->req_caps)) {
 		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, media_type);
 	} else {
 		ast_format_cap_append_from_cap(caps, session->req_caps, media_type);
