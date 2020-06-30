@@ -1,0 +1,28 @@
+diff -ur source.orig/pjmedia/src/pjmedia/sdp_neg.c source/pjmedia/src/pjmedia/sdp_neg.c
+--- source.orig/pjmedia/src/pjmedia/sdp_neg.c	2020-07-02 10:35:42.022459904 +0200
++++ source/pjmedia/src/pjmedia/sdp_neg.c	2020-07-02 10:33:24.996316867 +0200
+@@ -906,7 +906,7 @@
+  * after receiving remote answer.
+  */
+ static pj_status_t process_answer(pj_pool_t *pool,
+-				  pjmedia_sdp_session *offer,
++				  pjmedia_sdp_session *local_offer,
+ 				  pjmedia_sdp_session *answer,
+ 				  pj_bool_t allow_asym,
+ 				  pjmedia_sdp_session **p_active)
+@@ -914,10 +914,14 @@
+     unsigned omi = 0; /* Offer media index */
+     unsigned ami = 0; /* Answer media index */
+     pj_bool_t has_active = PJ_FALSE;
++    pjmedia_sdp_session *offer;
+     pj_status_t status;
+ 
+     /* Check arguments. */
+-    PJ_ASSERT_RETURN(pool && offer && answer && p_active, PJ_EINVAL);
++    PJ_ASSERT_RETURN(pool && local_offer && answer && p_active, PJ_EINVAL);
++
++    /* Duplicate local offer SDP. */
++    offer = pjmedia_sdp_session_clone(pool, local_offer);
+ 
+     /* Check that media count match between offer and answer */
+     // Ticket #527, different media count is allowed for more interoperability,
