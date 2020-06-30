@@ -1091,6 +1091,59 @@ int __attribute__((format(printf, 3, 4))) ast_str_append(
 )
 
 /*!
+ * \brief Provides a temporary ast_str and returns a copy of its buffer
+ * \since 16.12
+ * \since 17.6
+ * \since 18.0
+ *
+ * \param init_len The initial length of the temporary ast_str needed.
+ * \param __expr An expression that needs the temporary ast_str and returns a char *.
+ *
+ * \returns A copy of __expr's return buffer allocated on the stack.
+ *
+ * \details
+ * There are a few query functions scattered around that need an ast_str in which
+ * to assemble the results but it's not always convenient to create an ast_str
+ * and ensure it's freed just to print a log message.  For example...
+ *
+ * struct ast_str *temp = ast_str_create(128);
+ * ast_log(LOG_INFO, "Format caps: %s\n", ast_format_cap_get_names(caps, &temp));
+ * ast_free(temp);
+ *
+ * That's not bad if you only have to do it once but some of our code that deals
+ * with streams and codecs is pretty complex and good instrumentation is essential.
+ * The aim of this function is to make that easier.
+ *
+ * With this macro, the above code can be simplified as follows...
+ * \example
+ * ast_log(LOG_INFO, "Format caps: %s\n",
+ *     ast_str_tmp(128, ast_format_cap_get_names(caps, &STR_TMP));
+ *
+ * STR_TMP will always be a reference to the temporary ast_str created
+ * by the macro.  Its scope is limited by the macro so you can use it multiple
+ * times without conflict.
+ *
+ * \example
+ * ast_log(LOG_INFO, "Format caps in: %s  Format caps out: %s\n",
+ *     ast_str_tmp(128, ast_format_cap_get_names(caps_in, &STR_TMP),
+ *     ast_str_tmp(128, ast_format_cap_get_names(caps_out, &STR_TMP)
+ *     );
+ *
+ * \warning
+ * The returned string is stack allocated so don't go overboard.
+ *
+ */
+#define ast_str_tmp(init_len, __expr) \
+({ \
+	struct ast_str *STR_TMP = ast_str_create(init_len); \
+	char *ret = ast_strdupa(__expr); \
+	ast_free(STR_TMP); \
+	ret; \
+})
+
+
+
+/*!
  * \brief Check if a string is only digits
  *
  * \retval 1 The string contains only digits

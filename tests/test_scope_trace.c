@@ -38,58 +38,77 @@
 #include "asterisk/test.h"
 #include "asterisk/logger.h"
 
-static void test_scope2(void)
+
+static const char *str_appender(struct ast_str**buf, char *a)
 {
-	SCOPE_TRACE(1);
+	ast_str_append(buf, 0, "<append %s>", a);
+	return ast_str_buffer(*buf);
 }
 
-static void test_scope(void)
+static void test_scope_trace(void)
 {
-	SCOPE_TRACE(1, "nested function: %d * %d = %d\n", 6, 7, (6 * 7));
+	SCOPE_ENTER(1, "subfunction\n");
+	SCOPE_EXIT_RTN("got out\n");
+}
 
-	test_scope2();
+static int test_scope_enter_function(void)
+{
+	SCOPE_ENTER(1, "%s %s %s %s %s %s %s\n",
+		ast_str_tmp(12, str_appender(&STR_TMP, "str1")),
+		ast_str_tmp(12, str_appender(&STR_TMP, "str2")),
+		ast_str_tmp(32, str_appender(&STR_TMP, "AAAAAAAAAAAAAAAAAAAAAAAA")),
+		ast_str_tmp(12, str_appender(&STR_TMP, "B")),
+		"ccccccccccccc",
+		ast_str_tmp(12, str_appender(&STR_TMP, "DDDDD")),
+		ast_str_tmp(12, str_appender(&STR_TMP, "ww"))
+		);
 
-	ast_trace(1, "test no variables\n");
+	test_scope_trace();
+
+	SCOPE_EXIT_RTN_VALUE(AST_TEST_PASS, "test no variables\n");
 }
 
 
 AST_TEST_DEFINE(scope_test)
 {
-	SCOPE_TRACE(1, "top %s function\n", "scope_test");
+	SCOPE_ENTER(1, "top %s function\n", "scope_test");
 
 	ast_trace(1, "%s\n", "test outer");
 
 	switch (cmd) {
 	case TEST_INIT:
+	{
+		SCOPE_ENTER(1, "TEST_INIT\n");
 		info->name = "scope_test";
 		info->category = "/main/logging/";
 		info->summary = "Scope Trace Tests";
 		info->description = "Scope Trace Tests";
-		return AST_TEST_NOT_RUN;
+		/* need to exit the case scope */
+		SCOPE_EXIT("TEST_INIT\n");
+		/* need to exit the function */
+		SCOPE_EXIT_RTN_VALUE(AST_TEST_NOT_RUN, "BYE\n");
+	}
 	case TEST_EXECUTE:
-		{
-			SCOPE_TRACE(1, "CASE statement\n");
-			ast_trace(1, "%s\n", "test case");
-		}
-		break;
+	{
+		SCOPE_ENTER(1, "TEST_EXECUTE\n");
+		ast_trace(1, "%s\n", "test execute");
+		SCOPE_EXIT_EXPR(break, "TEST_EXECUTE\n");
+	}
+	default:
+		ast_test_status_update(test, "Shouldn't have gotten here\n");
+		return AST_TEST_FAIL;
 	}
 
 	if (1) {
 		SCOPE_TRACE(1, "IF block\n");
-
-		test_scope();
+		test_scope_enter_function();
 	}
 
 	ast_trace(1);
-
 	ast_trace(1, "test no variables\n");
-
-
-
-
 	ast_trace(1, "%s\n", "test variable");
 
- 	return AST_TEST_PASS;
+	SCOPE_EXIT_RTN_VALUE(AST_TEST_PASS, "Something: %d\n", AST_TEST_PASS);
 }
 
 static int unload_module(void)

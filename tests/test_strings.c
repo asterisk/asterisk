@@ -583,6 +583,43 @@ AST_TEST_DEFINE(strings_match)
 	return AST_TEST_PASS;
 }
 
+/*!
+ * \brief Function that needs a temporary ast_str
+ */
+static const char *str_appender(struct ast_str**buf, char *a)
+{
+	ast_str_append(buf, 0, "<%s>", a);
+	return ast_str_buffer(*buf);
+}
+
+AST_TEST_DEFINE(temp_strings)
+{
+	char *return_buffer = ast_malloc(128);
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "temp_strings";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_str_temp_buffer";
+		info->description = "Test ast_str_temp_buffer";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	snprintf(return_buffer, 128, "%s %s %s %s %s",
+	ast_str_tmp(12, str_appender(&STR_TMP, "str1")),
+	ast_str_tmp(12, str_appender(&STR_TMP, "str2")),
+	ast_str_tmp(12, str_appender(&STR_TMP, "B")),
+	"ccccccccccccc",
+	ast_str_tmp(12, str_appender(&STR_TMP, "ww"))
+	);
+
+	ast_test_validate(test, ast_strings_match(return_buffer, "=", "<str1> <str2> <B> ccccccccccccc <ww>"));
+
+	ast_free(return_buffer);
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
@@ -592,6 +629,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(escape_semicolons_test);
 	AST_TEST_UNREGISTER(escape_test);
 	AST_TEST_UNREGISTER(strings_match);
+	AST_TEST_UNREGISTER(temp_strings);
 	return 0;
 }
 
@@ -604,6 +642,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(escape_semicolons_test);
 	AST_TEST_REGISTER(escape_test);
 	AST_TEST_REGISTER(strings_match);
+	AST_TEST_REGISTER(temp_strings);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
