@@ -715,10 +715,107 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
 	} \
 	int __scopevar ## __LINE__ ## __RETURN __attribute__((unused)) = __scopevar ## __LINE__ ## __ENTER()
 
+/*!
+ * \brief Non RAII_VAR Scope Trace macros
+ * The advantage of these macros is that the EXITs will have the actual
+ * line number where the scope exited.  Much less code is required as well.
+ */
+
+/*!
+ * \brief Scope Enter
+ *
+ * \param level The trace level
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ */
+#define SCOPE_ENTER(level, ...) \
+	int __scope_level = level; \
+	if (TRACE_ATLEAST(level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_INC_AFTER, " " __VA_ARGS__); \
+	} \
+
+/*!
+ * \brief Scope Exit
+ *
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ * \details
+ * This macro can be used at the exit points of a statement block since it just prints the message.
+ */
+#define SCOPE_EXIT(...) \
+	if (TRACE_ATLEAST(__scope_level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+	} \
+
+/*!
+ * \brief Scope Exit with expression
+ *
+ * \param __expr An expression to execute after printing the message
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ * \details
+ * Handy for getting out of or continuing loops.
+ *
+ * \example
+ * while(something) {
+ *     SCOPE_ENTER(2, "In a while\n");
+ *     if (something) {
+ *         SCOPE_EXIT_EXPR(break, "Somethiung broke me\n");
+ *     } else {
+ *         SCOPE_EXIT_EXPR(contniue, "Somethiung continued me\n");
+ *     }
+ * }
+ */
+#define SCOPE_EXIT_EXPR(__expr, ...) \
+	if (TRACE_ATLEAST(__scope_level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+	} \
+	__expr
+
+/*!
+ * \brief Scope Exit with return
+ *
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ * \details
+ * This macro can be used at the exit points of a function when no value
+ * needs to be returned.
+ */
+#define SCOPE_EXIT_RTN(...) \
+	if (TRACE_ATLEAST(__scope_level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+	} \
+	return
+
+/*!
+ * \brief Scope Exit with return value
+ *
+ * \param __return_value The return value
+ * \param (optional) A printf style format string
+ * \param (optional) Arguments
+ *
+ * \details
+ * This macro can be used at the exit points of a function when a value
+ * needs to be returned.
+ */
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
+	if (TRACE_ATLEAST(__scope_level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+	} \
+	return(__return_value)
+
 #else
-#define ast_trace_raw(__level, __indent_type, __fmt, ...)
-#define ast_trace(__level)
-#define SCOPE_TRACE(__level)
+#define ast_trace_raw(__level, __indent_type, ...)
+#define ast_trace(__level, ...)
+#define SCOPE_TRACE(__level, ...)
+#define SCOPE_ENTER(level, ...)
+#define SCOPE_EXIT(...)
+#define SCOPE_EXIT_EXPR(__expr, ...)
+#define SCOPE_EXIT_RTN(...)
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...)
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
