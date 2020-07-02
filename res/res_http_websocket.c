@@ -1455,11 +1455,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
 		}
 	}
 
-	if (!(*buf = ast_malloc(payload_len + 1))) {
+	if (!(*buf = ast_strndup(payload, payload_len))) {
 		return -1;
 	}
 
-	ast_copy_string(*buf, payload, payload_len + 1);
 	return payload_len + 1;
 }
 
