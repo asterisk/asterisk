@@ -641,14 +641,16 @@ enum ast_trace_indent_type {
 	AST_TRACE_INDENT_DEC_BEFORE,
 	/*! Decrement the indent after printing the message */
 	AST_TRACE_INDENT_DEC_AFTER,
+	/*! Set the indent to the one provided */
+	AST_TRACE_INDENT_PROVIDED,
 	/*! Don't use or alter the level */
 	AST_TRACE_INDENT_NONE,
 };
 
 #ifdef AST_DEVMODE
 
-void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int line, const char *func,
-	enum ast_trace_indent_type indent_type, const char* format, ...);
+void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int line, const char *func,
+	enum ast_trace_indent_type indent_type, unsigned long indent, const char* format, ...);
 
 /*!
  * \brief Print a trace message
@@ -661,7 +663,7 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define ast_trace_raw(level, indent_type, ...) \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, 0, " " __VA_ARGS__); \
 	}
 
 /*!
@@ -675,8 +677,40 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define ast_trace(level, ...) \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
 	}
+
+/*!
+ * \brief Get the current indent level
+ *
+ * \returns The current indent level
+ */
+unsigned long _ast_trace_get_indent(void);
+#define ast_trace_get_indent() _ast_trace_get_indent()
+
+/*!
+ * \brief Set the current indent level
+ *
+ * \param indent The new indent level
+ */
+void _ast_trace_set_indent(unsigned long indent);
+#define ast_trace_set_indent(indent) _ast_trace_set_indent(indent)
+
+/*!
+ * \brief Increment the indent level
+ *
+ * \returns The new indent level
+ */
+unsigned long _ast_trace_inc_indent(void);
+#define ast_trace_inc_indent() _ast_trace_inc_indent()
+
+/*!
+ * \brief Decrement the indent level
+ *
+ * \returns The new indent level
+ */
+unsigned long _ast_trace_dec_indent(void);
+#define ast_trace_dec_indent() _ast_trace_dec_indent()
 
 /*!
  * \brief Print a trace message with details when a scope is entered or existed.
@@ -702,14 +736,14 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
 	auto void __scopevar ## __LINE__ ## __EXIT(void * v); \
 	void __scopevar ## __LINE__ ## __EXIT(void * v __attribute__((unused))) { \
 		if (TRACE_ATLEAST(level)) { \
-			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
 		} \
 	} \
 	void *__scopevar ## __LINE__ ## __TRACER __attribute__((cleanup(__scopevar ## __LINE__ ## __EXIT))) = (void *) __PRETTY_FUNCTION__ ; \
 	auto int __scopevar ## __LINE__ ## __ENTER(void); \
 	int __scopevar ## __LINE__ ## __ENTER(void) { \
 		if (TRACE_ATLEAST(level)) { \
-			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_INC_AFTER, " " __VA_ARGS__); \
+			__ast_trace(__FILE__, __LINE__, __trace_funcname, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
 		} \
 		return 0; \
 	} \
@@ -730,8 +764,16 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define SCOPE_ENTER(level, ...) \
 	int __scope_level = level; \
+	int __scope_task = 0; \
 	if (TRACE_ATLEAST(level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_INC_AFTER, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_INC_AFTER, 0, " " __VA_ARGS__); \
+	} \
+
+#define SCOPE_ENTER_TASK(level, indent, ...) \
+	int __scope_level = level; \
+	int __scope_task = 1; \
+	if (TRACE_ATLEAST(level)) { \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_PROVIDED, indent, " " __VA_ARGS__); \
 	} \
 
 /*!
@@ -745,7 +787,10 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define SCOPE_EXIT(...) \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		if (__scope_task) { \
+			_ast_trace_set_indent(0); \
+		} \
 	} \
 
 /*!
@@ -770,7 +815,10 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define SCOPE_EXIT_EXPR(__expr, ...) \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		if (__scope_task) { \
+			_ast_trace_set_indent(0); \
+		} \
 	} \
 	__expr
 
@@ -786,7 +834,10 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define SCOPE_EXIT_RTN(...) \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		if (__scope_task) { \
+			_ast_trace_set_indent(0); \
+		} \
 	} \
 	return
 
@@ -803,19 +854,27 @@ void __attribute__((format (printf, 5, 6))) __ast_trace(const char *file, int li
  */
 #define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
 	if (TRACE_ATLEAST(__scope_level)) { \
-		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, " " __VA_ARGS__); \
+		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_DEC_BEFORE, 0, " " __VA_ARGS__); \
+		if (__scope_task) { \
+			_ast_trace_set_indent(0); \
+		} \
 	} \
 	return(__return_value)
 
 #else
 #define ast_trace_raw(__level, __indent_type, ...)
 #define ast_trace(__level, ...)
+#define ast_trace_get_indent() (0)
+#define ast_trace_set_indent(indent)
+#define ast_trace_inc_indent()
+#define ast_trace_dec_indent()
 #define SCOPE_TRACE(__level, ...)
 #define SCOPE_ENTER(level, ...)
+#define SCOPE_ENTER_TASK(level, indent, ...)
 #define SCOPE_EXIT(...)
-#define SCOPE_EXIT_EXPR(__expr, ...)
-#define SCOPE_EXIT_RTN(...)
-#define SCOPE_EXIT_RTN_VALUE(__return_value, ...)
+#define SCOPE_EXIT_EXPR(__expr, ...) __expr
+#define SCOPE_EXIT_RTN(...) return
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...) return __return_value
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
