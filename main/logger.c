@@ -2287,9 +2287,36 @@ static void update_logchannels(void)
 AST_THREADSTORAGE_RAW(trace_indent);
 #define LOTS_O_SPACES "                                                                                            "
 
+unsigned long _ast_trace_get_indent(void)
+{
+	return (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
+}
+
+void _ast_trace_set_indent(unsigned long indent)
+{
+	ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+}
+
+unsigned long _ast_trace_inc_indent(void)
+{
+	unsigned long indent = (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
+	indent++;
+	ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+
+	return indent;
+}
+
+unsigned long _ast_trace_dec_indent(void)
+{
+	unsigned long indent = (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
+	indent--;
+	ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+
+	return indent;
+}
 
 void __ast_trace(const char *file, int line, const char *func, enum ast_trace_indent_type indent_type,
-	const char* format, ...)
+	unsigned long new_indent, const char* format, ...)
 {
 	va_list ap;
 	unsigned long indent = (unsigned long)ast_threadstorage_get_ptr(&trace_indent);
@@ -2300,11 +2327,13 @@ void __ast_trace(const char *file, int line, const char *func, enum ast_trace_in
 		return;
 	}
 
-	if (indent_type == AST_TRACE_INDENT_INC_BEFORE) {
+	if (indent_type == AST_TRACE_INDENT_PROVIDED) {
+		indent = new_indent;
+		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
+	} else if (indent_type == AST_TRACE_INDENT_INC_BEFORE) {
 		indent++;
 		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
-	}
-	if (indent_type == AST_TRACE_INDENT_DEC_BEFORE) {
+	} else if (indent_type == AST_TRACE_INDENT_DEC_BEFORE) {
 		indent--;
 		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
 	}
@@ -2316,6 +2345,7 @@ void __ast_trace(const char *file, int line, const char *func, enum ast_trace_in
 		break;
 	case AST_TRACE_INDENT_INC_BEFORE:
 	case AST_TRACE_INDENT_INC_AFTER:
+	case AST_TRACE_INDENT_PROVIDED:
 		direction = "--> ";
 		break;
 	case AST_TRACE_INDENT_DEC_BEFORE:
@@ -2327,7 +2357,7 @@ void __ast_trace(const char *file, int line, const char *func, enum ast_trace_in
 	ast_str_set(&fmt, 0, "%2d %-.*s%s%s:%d %s: %s", (int)indent, (indent_type == AST_TRACE_INDENT_NONE ? 0 : (int)(indent * 4)),
 		LOTS_O_SPACES, direction, file, line, func, S_OR(ast_skip_blanks(format), "\n"));
 
-	if (indent_type == AST_TRACE_INDENT_INC_AFTER) {
+	if (indent_type == AST_TRACE_INDENT_INC_AFTER || indent_type == AST_TRACE_INDENT_PROVIDED) {
 		indent++;
 		ast_threadstorage_set_ptr(&trace_indent, (void*)indent);
 	}
