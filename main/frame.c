@@ -391,7 +391,7 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples)
 		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
 }
 
-void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen)
+char *ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen)
 {
 	switch(f->frametype) {
 	case AST_FRAME_DTMF_BEGIN:
@@ -474,6 +474,85 @@ void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, ch
 			snprintf(subclass, slen, "T38_Parameters/%s", message);
 			break;
 		}
+
+		case AST_CONTROL_STREAM_STOP:
+			ast_copy_string(subclass, "Stop stream", slen);
+			break;
+		case AST_CONTROL_STREAM_SUSPEND:
+			ast_copy_string(subclass, "Suspend stream", slen);
+			break;
+		case AST_CONTROL_STREAM_RESTART:
+			ast_copy_string(subclass, "Restart stream", slen);
+			break;
+		case AST_CONTROL_STREAM_REVERSE:
+			ast_copy_string(subclass, "Reverse stream", slen);
+			break;
+		case AST_CONTROL_STREAM_FORWARD:
+			ast_copy_string(subclass, "Forward stream", slen);
+			break;
+		case AST_CONTROL_RECORD_CANCEL:
+			ast_copy_string(subclass, "Cancel stream", slen);
+			break;
+		case AST_CONTROL_RECORD_STOP:
+			ast_copy_string(subclass, "Record stop", slen);
+			break;
+		case AST_CONTROL_RECORD_SUSPEND:
+			ast_copy_string(subclass, "Record suspend", slen);
+			break;
+		case AST_CONTROL_RECORD_MUTE:
+			ast_copy_string(subclass, "Record mute", slen);
+			break;
+		case AST_CONTROL_SRCUPDATE:
+			ast_copy_string(subclass, "Media source update", slen);
+			break;
+		case AST_CONTROL_TRANSFER:
+			ast_copy_string(subclass, "Transfer", slen);
+			break;
+		case AST_CONTROL_CONNECTED_LINE:
+			ast_copy_string(subclass, "Connected line update", slen);
+			break;
+		case AST_CONTROL_REDIRECTING:
+			ast_copy_string(subclass, "Redirect", slen);
+			break;
+		case AST_CONTROL_CC:
+			ast_copy_string(subclass, "CC", slen);
+			break;
+		case AST_CONTROL_SRCCHANGE:
+			ast_copy_string(subclass, "Media SSRC change", slen);
+			break;
+		case AST_CONTROL_READ_ACTION:
+			ast_copy_string(subclass, "Read action", slen);
+			break;
+		case AST_CONTROL_AOC:
+			ast_copy_string(subclass, "AOC", slen);
+			break;
+		case AST_CONTROL_END_OF_Q:
+			ast_copy_string(subclass, "Endof Q", slen);
+			break;
+		case AST_CONTROL_INCOMPLETE:
+			ast_copy_string(subclass, "Incomplete", slen);
+			break;
+		case AST_CONTROL_MCID:
+			ast_copy_string(subclass, "MCID", slen);
+			break;
+		case AST_CONTROL_UPDATE_RTP_PEER:
+			ast_copy_string(subclass, "Update RTP peer", slen);
+			break;
+		case AST_CONTROL_PVT_CAUSE_CODE:
+			ast_copy_string(subclass, "Private Cause Code", slen);
+			break;
+		case AST_CONTROL_MASQUERADE_NOTIFY:
+			ast_copy_string(subclass, "Masquerade notify", slen);
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
+			ast_copy_string(subclass, "Stream topology request change", slen);
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
+			ast_copy_string(subclass, "Stream topology changed", slen);
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_SOURCE_CHANGED:
+			ast_copy_string(subclass, "Stream topology source changed", slen);
+			break;
 		case -1:
 			ast_copy_string(subclass, "Stop generators", slen);
 			break;
@@ -564,9 +643,11 @@ void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, ch
 		ast_copy_string(subclass, "Unknown Subclass", slen);
 		break;
 	}
+
+	return subclass;
 }
 
-void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
+char *ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 {
 	switch (frame_type) {
 	case AST_FRAME_DTMF_BEGIN:
@@ -621,6 +702,8 @@ void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 		snprintf(ftype, len, "Unknown Frametype '%u'", frame_type);
 		break;
 	}
+
+	return ftype;
 }
 
 /*! Dump a frame for debugging purposes */
