@@ -1673,6 +1673,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 {
 	struct ast_bridge_channel *bridge_channel;
 	int res = 0;
+	SCOPE_TRACE(1, "%s Bridge: %s\n", ast_channel_name(chan), bridge->uniqueid);
 
 	bridge_channel = bridge_channel_internal_alloc(bridge);
 	if (flags & AST_BRIDGE_JOIN_PASS_REFERENCE) {
@@ -1921,6 +1922,7 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 		.done = 0,
 	};
 	int res;
+	SCOPE_TRACE(1, "%s Bridge: %s\n", ast_channel_name(chan), bridge->uniqueid);
 
 	ast_mutex_init(&cond.lock);
 	ast_cond_init(&cond.cond, NULL);
@@ -1942,6 +1944,7 @@ int ast_bridge_depart(struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
 	int departable;
+	SCOPE_TRACE(1, "%s\n", ast_channel_name(chan));
 
 	ast_channel_lock(chan);
 	bridge_channel = ast_channel_internal_bridge_channel(chan);

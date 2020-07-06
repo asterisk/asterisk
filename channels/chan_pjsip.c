@@ -241,7 +241,10 @@ static enum ast_rtp_glue_result chan_pjsip_get_vrtp_peer(struct ast_channel *cha
 /*! \brief Function called by RTP engine to get peer capabilities */
 static void chan_pjsip_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
 {
+	SCOPE_ENTER(1, "%s Native formats %s\n", ast_channel_name(chan),
+		ast_str_tmp(AST_FORMAT_CAP_NAMES_LEN, ast_format_cap_get_names(ast_channel_nativeformats(chan), &STR_TMP)));
 	ast_format_cap_append_from_cap(result, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_UNKNOWN);
+	SCOPE_EXIT_RTN();
 }
 
 /*! \brief Destructor function for \ref transport_info_data */
@@ -450,21 +453,23 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 	struct ast_sip_session *session = channel->session;
 	struct rtp_direct_media_data *cdata;
+	SCOPE_ENTER(1, "%s %s\n", ast_channel_name(chan),
+		ast_str_tmp(AST_FORMAT_CAP_NAMES_LEN, ast_format_cap_get_names(cap, &STR_TMP)));
 
 	/* Don't try to do any direct media shenanigans on early bridges */
 	if ((rtp || vrtp || tpeer) && !ast_channel_is_bridged(chan)) {
 		ast_debug(4, "Disregarding setting RTP on %s: channel is not bridged\n", ast_channel_name(chan));
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "Channel not bridged\n");
 	}
 
 	if (nat_active && session->endpoint->media.direct_media.disable_on_nat) {
 		ast_debug(4, "Disregarding setting RTP on %s: NAT is active\n", ast_channel_name(chan));
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "NAT is active\n");
 	}
 
 	cdata = rtp_direct_media_data_create(chan, rtp, vrtp, cap, session);
 	if (!cdata) {
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0);
 	}
 
 	if (ast_sip_push_task(session->serializer, send_direct_media_request, cdata)) {
@@ -472,7 +477,7 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 		ao2_ref(cdata, -1);
 	}
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 /*! \brief Local glue for interacting with the RTP engine core */
@@ -520,17 +525,20 @@ static int compatible_formats_exist(struct ast_stream_topology *top, struct ast_
 {
 	struct ast_format_cap *cap_from_top;
 	int res;
+	SCOPE_ENTER(1, "Topology: %s Formats: %s\n",
+		ast_str_tmp(AST_FORMAT_CAP_NAMES_LEN, ast_stream_topology_to_str(top, &STR_TMP)),
+		ast_str_tmp(AST_FORMAT_CAP_NAMES_LEN, ast_format_cap_get_names(cap, &STR_TMP)));
 
 	cap_from_top = ast_stream_topology_get_formats(top);
 
 	if (!cap_from_top) {
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "Topology had no formats\n");
 	}
 
 	res = ast_format_cap_iscompatible(cap_from_top, cap);
 	ao2_ref(cap_from_top, -1);
 
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "Compatible? %s\n", res ? "yes" : "no");
 }
 
 /*! \brief Function called to create a new PJSIP Asterisk channel */
@@ -542,9 +550,10 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	struct ast_sip_channel_pvt *channel;
 	struct ast_variable *var;
 	struct ast_stream_topology *topology;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	if (!(pvt = ao2_alloc_options(sizeof(*pvt), chan_pjsip_pvt_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create pvt\n");
 	}
 
 	chan = ast_channel_alloc_with_endpoint(1, state,
@@ -557,7 +566,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_sorcery_object_get_id(session->endpoint),
 		(unsigned) ast_atomic_fetchadd_int((int *) &chan_idx, +1));
 	if (!chan) {
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create channel\n");
 	}
 
 	ast_channel_tech_set(chan, &chan_pjsip_tech);
@@ -565,7 +574,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	if (!(channel = ast_sip_channel_pvt_alloc(pvt, session))) {
 		ast_channel_unlock(chan);
 		ast_hangup(chan);
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create pvt channel\n");
 	}
 
 	ast_channel_tech_pvt_set(chan, channel);
@@ -576,7 +585,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		if (!caps) {
 			ast_channel_unlock(chan);
 			ast_hangup(chan);
-			return NULL;
+			SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create caps\n");
 		}
 		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
 		topology = ast_stream_topology_clone(session->endpoint->media.topology);
@@ -590,7 +599,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_stream_topology_free(topology);
 		ast_channel_unlock(chan);
 		ast_hangup(chan);
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't get caps or clone topology\n");
 	}
 
 	ast_channel_stage_snapshot(chan);
@@ -660,14 +669,21 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 
 	set_channel_on_rtp_instance(session, ast_channel_uniqueid(chan));
 
-	return chan;
+	SCOPE_EXIT_RTN_VALUE(chan);
 }
+
+struct answer_data {
+	struct ast_sip_session *session;
+	unsigned long indent;
+};
 
 static int answer(void *data)
 {
+	struct answer_data *ans_data = data;
 	pj_status_t status = PJ_SUCCESS;
 	pjsip_tx_data *packet = NULL;
-	struct ast_sip_session *session = data;
+	struct ast_sip_session *session = ans_data->session;
+	SCOPE_ENTER_TASK(1, ans_data->indent, "%s\n", ast_sip_session_get_name(session));
 
 	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
 		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
@@ -676,7 +692,7 @@ static int answer(void *data)
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 		pjsip_inv_dec_ref(session->inv_session);
 #endif
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "Disconnected\n");
 	}
 
 	pjsip_dlg_inc_lock(session->inv_session->dlg);
@@ -706,9 +722,9 @@ static int answer(void *data)
 		 * Return this value so we can distinguish between this
 		 * failure and the threadpool synchronous push failing.
 		 */
-		return -2;
+		SCOPE_EXIT_RTN_VALUE(-2, "pjproject failure\n");
 	}
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 /*! \brief Function called by core when we should answer a PJSIP session */
@@ -716,9 +732,12 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct ast_sip_session *session;
+	struct answer_data ans_data = { 0, };
 	int res;
+	SCOPE_ENTER(1, "%s\n", ast_channel_name(ast));
 
 	if (ast_channel_state(ast) == AST_STATE_UP) {
+		SCOPE_EXIT_RTN_VALUE(0, "Already up\n");
 		return 0;
 	}
 
@@ -727,9 +746,9 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 	if (pjsip_inv_add_ref(session->inv_session) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		ast_log(LOG_ERROR, "Couldn't increase the session reference counter\n");
 		ao2_ref(session, -1);
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't increase the session reference counter\n");
 	}
 #endif
 
@@ -737,7 +756,9 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 	   can occur between this thread and bridging (specifically when native bridging
 	   attempts to do direct media) */
 	ast_channel_unlock(ast);
-	res = ast_sip_push_task_wait_serializer(session->serializer, answer, session);
+	ans_data.session = session;
+	ans_data.indent = ast_trace_get_indent();
+	res = ast_sip_push_task_wait_serializer(session->serializer, answer, &ans_data);
 	if (res) {
 		if (res == -1) {
 			ast_log(LOG_ERROR,"Cannot answer '%s': Unable to push answer task to the threadpool.\n",
@@ -748,12 +769,12 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 		}
 		ao2_ref(session, -1);
 		ast_channel_lock(ast);
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't push task\n");
 	}
 	ao2_ref(session, -1);
 	ast_channel_lock(ast);
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 /*! \brief Internal helper function called when CNG tone is detected */
@@ -1564,6 +1585,9 @@ static struct topology_change_refresh_data *topology_change_refresh_data_alloc(
 
 static int on_topology_change_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
+	SCOPE_ENTER(1, "%s Status code: %d\n", ast_sip_session_get_name(session),
+		rdata->msg_info.msg->line.status.code);
+
 	if (PJSIP_IS_STATUS_IN_CLASS(rdata->msg_info.msg->line.status.code, 200)) {
 		/* The topology was changed to something new so give notice to what requested
 		 * it so it queries the channel and updates accordingly.
@@ -1576,20 +1600,21 @@ static int on_topology_change_response(struct ast_sip_session *session, pjsip_rx
 		ast_sip_session_media_state_reset(session->pending_media_state);
 	}
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 static int send_topology_change_refresh(void *data)
 {
 	struct topology_change_refresh_data *refresh_data = data;
 	int ret;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(refresh_data->session));
 
 	ret = ast_sip_session_refresh(refresh_data->session, NULL, NULL, on_topology_change_response,
 		AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1, refresh_data->media_state);
 	refresh_data->media_state = NULL;
 	topology_change_refresh_data_free(refresh_data);
 
-	return ret;
+	SCOPE_EXIT_RTN_VALUE(ret, "RC: %d\n", ret);
 }
 
 static int handle_topology_request_change(struct ast_sip_session *session,
@@ -1597,17 +1622,18 @@ static int handle_topology_request_change(struct ast_sip_session *session,
 {
 	struct topology_change_refresh_data *refresh_data;
 	int res;
+	SCOPE_ENTER(1);
 
 	refresh_data = topology_change_refresh_data_alloc(session, proposed);
 	if (!refresh_data) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create refresh_data\n");
 	}
 
 	res = ast_sip_push_task(session->serializer, send_topology_change_refresh, refresh_data);
 	if (res) {
 		topology_change_refresh_data_free(refresh_data);
 	}
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "RC: %d\n", res);
 }
 
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
@@ -1621,6 +1647,10 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	size_t device_buf_size;
 	int i;
 	const struct ast_stream_topology *topology;
+	struct ast_frame f = { .frametype = AST_FRAME_CONTROL, .subclass = { .integer = condition } };
+	char subclass[40] = "";
+	SCOPE_ENTER(1, "%s Handling %s\n", ast_channel_name(ast),
+		ast_frame_subclass2str(&f, subclass, sizeof(subclass), NULL, 0));
 
 	switch (condition) {
 	case AST_CONTROL_RINGING:
@@ -1727,7 +1757,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		if (pjsip_inv_add_ref(channel->session->inv_session) != PJ_SUCCESS) {
 			ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
 			ao2_cleanup(channel->session);
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Couldn't increase the session reference counter\n");
 		}
 #endif
 		if (ast_sip_push_task(channel->session->serializer, update_connected_line_information, channel->session)) {
@@ -1836,13 +1866,13 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		struct indicate_data *ind_data = indicate_data_alloc(channel->session, condition, response_code, data, datalen);
 
 		if (!ind_data) {
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create indicate data\n");
 		}
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 		if (pjsip_inv_add_ref(ind_data->session->inv_session) != PJ_SUCCESS) {
 			ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
 			ao2_cleanup(ind_data);
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Couldn't increase the session reference counter\n");
 		}
 #endif
 		if (ast_sip_push_task(channel->session->serializer, indicate, ind_data)) {
@@ -1856,7 +1886,7 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		}
 	}
 
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "RC: %d\n", res);
 }
 
 struct transfer_data {
@@ -2397,8 +2427,14 @@ static int call(void *data)
 	struct ast_sip_channel_pvt *channel = data;
 	struct ast_sip_session *session = channel->session;
 	pjsip_tx_data *tdata;
+	int res = 0;
+	SCOPE_ENTER(1, "%s Topology: %s\n",
+		ast_sip_session_get_name(session),
+		ast_str_tmp(256, ast_stream_topology_to_str(channel->session->pending_media_state->topology, &STR_TMP))
+		);
 
-	int res = ast_sip_session_create_invite(session, &tdata);
+
+	res = ast_sip_session_create_invite(session, &tdata);
 
 	if (res) {
 		ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
@@ -2409,22 +2445,24 @@ static int call(void *data)
 		ast_sip_session_send_request(session, tdata);
 	}
 	ao2_ref(channel, -1);
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "RC: %d\n", res);
 }
 
 /*! \brief Function called by core to actually start calling a remote party */
 static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeout)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	SCOPE_ENTER(1, "%s Topology: %s\n", ast_sip_session_get_name(channel->session),
+		ast_str_tmp(256, ast_stream_topology_to_str(channel->session->pending_media_state->topology, &STR_TMP)));
 
 	ao2_ref(channel, +1);
 	if (ast_sip_push_task(channel->session->serializer, call, channel)) {
 		ast_log(LOG_WARNING, "Error attempting to place outbound call to '%s'\n", dest);
 		ao2_cleanup(channel);
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't push task\n");
 	}
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0, "'call' task pushed\n");
 }
 
 /*! \brief Internal function which translates from Asterisk cause codes to SIP response codes */
@@ -2514,6 +2552,8 @@ static int hangup(void *data)
 	struct hangup_data *h_data = data;
 	struct ast_channel *ast = h_data->chan;
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	SCOPE_ENTER(1, "%s\n", ast_channel_name(ast));
+
 	/*
 	 * Before cleaning we have to ensure that channel or its session is not NULL
 	 * we have seen rare case when taskprocessor calls hangup but channel is NULL
@@ -2536,7 +2576,7 @@ static int hangup(void *data)
 		ao2_cleanup(channel);
 	}
 	ao2_cleanup(h_data);
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 /*! \brief Function called by core to hang up a PJSIP session */
@@ -2545,9 +2585,10 @@ static int chan_pjsip_hangup(struct ast_channel *ast)
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	int cause;
 	struct hangup_data *h_data;
+	SCOPE_ENTER(1, "%s\n", ast_channel_name(ast));
 
 	if (!channel || !channel->session) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "No channel or session\n");
 	}
 
 	cause = hangup_cause2sip(ast_channel_hangupcause(channel->session->channel));
@@ -2562,7 +2603,7 @@ static int chan_pjsip_hangup(struct ast_channel *ast)
 		goto failure;
 	}
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0, "Cause: %d\n", cause);
 
 failure:
 	/* Go ahead and do our cleanup of the session and channel even if we're not going
@@ -2572,7 +2613,7 @@ failure:
 	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
 
-	return -1;
+	SCOPE_EXIT_RTN_VALUE(-1, "Cause: %d\n", cause);
 }
 
 struct request_data {
@@ -2593,11 +2634,12 @@ static int request(void *obj)
 		AST_APP_ARG(endpoint);
 		AST_APP_ARG(aor);
 	);
+	SCOPE_ENTER(1, "%s\n",tmp);
 
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty destination\n");
 		req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Empty destination\n");
 	}
 
 	AST_NONSTANDARD_APP_ARGS(args, tmp, '/');
@@ -2619,14 +2661,14 @@ static int request(void *obj)
 				ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
 			}
 			req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Empty endpoint name\n");
 		}
 		endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
 			endpoint_name);
 		if (!endpoint) {
 			ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
 			req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Endpoint not found\n");
 		}
 	} else {
 		/* First try to find an exact endpoint match, for single (user) or multi-domain (user@domain) */
@@ -2634,7 +2676,7 @@ static int request(void *obj)
 		if (ast_strlen_zero(endpoint_name)) {
 			ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
 			req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
-			return -1;
+			SCOPE_EXIT_RTN_VALUE(-1, "Empty endpoint name\n");
 		}
 		endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
 			endpoint_name);
@@ -2652,7 +2694,7 @@ static int request(void *obj)
 				ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n",
 					args.endpoint);
 				req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-				return -1;
+				SCOPE_EXIT_RTN_VALUE(-1, "Endpoint not found\n");
 			}
 			request_user = args.endpoint;
 			*endpoint_name++ = '\0';
@@ -2661,7 +2703,7 @@ static int request(void *obj)
 				ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name: %s@<endpoint-name>\n",
 					request_user);
 				req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
-				return -1;
+				SCOPE_EXIT_RTN_VALUE(-1, "Empty endpoint name\n");
 			}
 
 			endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
@@ -2669,7 +2711,7 @@ static int request(void *obj)
 			if (!endpoint) {
 				ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
 				req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-				return -1;
+				SCOPE_EXIT_RTN_VALUE(-1, "Endpoint not found\n");
 			}
 		}
 	}
@@ -2680,12 +2722,12 @@ static int request(void *obj)
 	if (!session) {
 		ast_log(LOG_ERROR, "Failed to create outgoing session to endpoint '%s'\n", endpoint_name);
 		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create session\n");
 	}
 
 	req_data->session = session;
 
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 /*! \brief Function called by core to create a new outgoing PJSIP session */
@@ -2693,6 +2735,8 @@ static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *t
 {
 	struct request_data req_data;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	SCOPE_ENTER(1, "%s Topology: %s\n", data,
+		ast_str_tmp(256, ast_stream_topology_to_str(topology, &STR_TMP)));
 
 	req_data.topology = topology;
 	req_data.dest = data;
@@ -2701,17 +2745,17 @@ static struct ast_channel *chan_pjsip_request_with_stream_topology(const char *t
 
 	if (ast_sip_push_task_wait_servant(NULL, request, &req_data)) {
 		*cause = req_data.cause;
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't push task\n");
 	}
 
 	session = req_data.session;
 
 	if (!(session->channel = chan_pjsip_new(session, AST_STATE_DOWN, NULL, NULL, assignedids, requestor, NULL))) {
 		/* Session needs to be terminated prematurely */
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't create channel\n");
 	}
 
-	return session->channel;
+	SCOPE_EXIT_RTN_VALUE(session->channel, "Channel: %s\n", ast_channel_name(session->channel));
 }
 
 static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
@@ -2988,27 +3032,31 @@ static int hangup_sip2cause(int cause)
 static void chan_pjsip_session_begin(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	if (session->endpoint->media.direct_media.glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE) {
-		return;
+		SCOPE_EXIT_RTN("Direct media no glare mitigation\n");
 	}
 
 	datastore = ast_sip_session_alloc_datastore(&direct_media_mitigation_info,
 			"direct_media_glare_mitigation");
 
 	if (!datastore) {
-		return;
+		SCOPE_EXIT_RTN("Couldn't create datastore\n");
 	}
 
 	ast_sip_session_add_datastore(session, datastore);
+	SCOPE_EXIT_RTN();
 }
 
 /*! \brief Function called when the session ends */
 static void chan_pjsip_session_end(struct ast_sip_session *session)
 {
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
+
 	if (!session->channel) {
-		return;
+		SCOPE_EXIT_RTN("No channel\n");
 	}
 
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
@@ -3021,6 +3069,8 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 	} else {
 		ast_queue_hangup(session->channel);
 	}
+
+	SCOPE_EXIT_RTN();
 }
 
 /*! \brief Function called when a request is received on the session */
@@ -3029,9 +3079,10 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
 	struct transport_info_data *transport_data;
 	pjsip_tx_data *packet = NULL;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	if (session->channel) {
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "Already have channel\n");
 	}
 
 	/* Check for a to-tag to determine if this is a reinvite */
@@ -3047,17 +3098,17 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		 */
 		session->defer_terminate = 0;
 		ast_sip_session_terminate(session, 400);
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Reinvite without channel\n");
 	}
 
 	datastore = ast_sip_session_alloc_datastore(&transport_info, "transport_info");
 	if (!datastore) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create datastore\n");
 	}
 
 	transport_data = ast_calloc(1, sizeof(*transport_data));
 	if (!transport_data) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create transport_data\n");
 	}
 	pj_sockaddr_cp(&transport_data->local_addr, &rdata->tp_info.transport->local_addr);
 	pj_sockaddr_cp(&transport_data->remote_addr, &rdata->pkt_info.src_addr);
@@ -3071,11 +3122,11 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		}
 
 		ast_log(LOG_ERROR, "Failed to allocate new PJSIP channel on incoming SIP INVITE\n");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't create channel\n");
 	}
 	/* channel gets created on incoming request, but we wait to call start
            so other supplements have a chance to run */
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
@@ -3131,11 +3182,12 @@ static struct ast_sip_session_supplement call_pickup_supplement = {
 static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	int res;
+	SCOPE_ENTER(1, "%s\n", ast_sip_session_get_name(session));
 
 	/* Check for a to-tag to determine if this is a reinvite */
 	if (rdata->msg_info.to->tag.slen) {
 		/* We don't care about reinvites */
-		return 0;
+		SCOPE_EXIT_RTN_VALUE(0, "Reinvite\n");
 	}
 
 	res = ast_pbx_start(session->channel);
@@ -3158,7 +3210,7 @@ static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_
 
 	ast_debug(3, "Started PBX on new PJSIP channel %s\n", ast_channel_name(session->channel));
 
-	return (res == AST_PBX_SUCCESS) ? 0 : -1;
+	SCOPE_EXIT_RTN_VALUE((res == AST_PBX_SUCCESS) ? 0 : -1, "RC: %d\n", res);
 }
 
 static struct ast_sip_session_supplement pbx_start_supplement = {
@@ -3173,9 +3225,11 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
 	struct ast_control_pvt_cause_code *cause_code;
 	int data_size = sizeof(*cause_code);
+	SCOPE_ENTER(1, "%s Method: %.*s Status: %d\n", ast_sip_session_get_name(session),
+		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 
 	if (!session->channel) {
-		return;
+		SCOPE_EXIT_RTN("No channel\n");
 	}
 
 	/* Build and send the tech-specific cause information */
@@ -3195,6 +3249,8 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 
 	switch (status.code) {
 	case 180:
+		ast_trace(1, "%s Method: %.*s Status: %d  Queueing RINGING\n", ast_sip_session_get_name(session),
+			(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 		ast_queue_control(session->channel, AST_CONTROL_RINGING);
 		ast_channel_lock(session->channel);
 		if (ast_channel_state(session->channel) != AST_STATE_UP) {
@@ -3206,28 +3262,45 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 		if (session->endpoint->ignore_183_without_sdp) {
 			pjsip_rdata_sdp_info *sdp = pjsip_rdata_get_sdp_info(rdata);
 			if (sdp && sdp->body.ptr) {
+				ast_trace(1, "%s Method: %.*s Status: %d  Queueing PROGRESS with SDP\n", ast_sip_session_get_name(session),
+					(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 				ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
 			}
 		} else {
+			ast_trace(1, "%s Method: %.*s Status: %d  Queueing PROGRESS without SDP\n", ast_sip_session_get_name(session),
+				(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 			ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
 		}
 		break;
 	case 200:
+		ast_trace(1, "%s Method: %.*s Status: %d  Queueing ANSWER\n", ast_sip_session_get_name(session),
+			(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
+
 		ast_queue_control(session->channel, AST_CONTROL_ANSWER);
 		break;
 	default:
+		ast_trace(1, "%s Method: %.*s Status: %d  Ignored\n", ast_sip_session_get_name(session),
+			(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 		break;
 	}
+
+	SCOPE_EXIT_RTN();
 }
 
 static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
+	SCOPE_ENTER(1, "%s Method: %.*s Status: %d  After Media\n", ast_sip_session_get_name(session),
+		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr,
+		rdata->msg_info.msg->line.status.code);
+
 	if (rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD) {
 		if (session->endpoint->media.direct_media.enabled && session->channel) {
+			ast_trace(1, "%s Method: %.*s  Queueing SRCCHANGE\n", ast_sip_session_get_name(session),
+				(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr);
 			ast_queue_control(session->channel, AST_CONTROL_SRCCHANGE);
 		}
 	}
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 static int update_devstate(void *obj, void *arg, int flags)

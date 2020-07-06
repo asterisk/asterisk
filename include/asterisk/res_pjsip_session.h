@@ -926,4 +926,13 @@ int ast_sip_session_media_set_write_callback(struct ast_sip_session *session, st
  */
 struct ast_sip_session_media *ast_sip_session_media_get_transport(struct ast_sip_session *session, struct ast_sip_session_media *session_media);
 
+/*!
+ * \brief Get the channel or endpoint name associated with the session
+ * \since 18.0.0
+ *
+ * \param session
+ * \retval Channel name or endpoint name or "unknown"
+ */
+const char *ast_sip_session_get_name(const struct ast_sip_session *session);
+
 #endif /* _RES_PJSIP_SESSION_H */

@@ -536,6 +536,7 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 		struct ast_bridge_features *chan_features, struct ast_bridge_features *peer_features)
 {
 	int res;
+	SCOPE_TRACE(1, "%s Peer: %s\n", ast_channel_name(chan), ast_channel_name(peer));
 
 	set_bridge_features_on_config(config, pbx_builtin_getvar_helper(chan, "BRIDGE_FEATURES"));
 	add_features_datastores(chan, peer, config);
@@ -629,6 +630,7 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 	struct ast_bridge *bridge;
 	struct ast_bridge_features chan_features;
 	struct ast_bridge_features *peer_features;
+	SCOPE_TRACE(1, "%s Peer: %s\n", ast_channel_name(chan), ast_channel_name(peer));
 
 	/* Setup features. */
 	res = ast_bridge_features_init(&chan_features);

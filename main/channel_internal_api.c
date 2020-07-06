@@ -677,6 +677,10 @@ void *ast_channel_get_stream_topology_change_source(struct ast_channel *chan)
 void ast_channel_nativeformats_set(struct ast_channel *chan,
 	struct ast_format_cap *value)
 {
+	SCOPE_ENTER(2, "%s: %sFormats: %s\n", S_OR(ast_channel_name(chan), "<initializing>"),
+		S_COR(ast_channel_is_multistream(chan), "Multistream", ""),
+		ast_str_tmp(128, ast_format_cap_get_names(value, &STR_TMP)));
+
 	ast_assert(chan != NULL);
 
 	ao2_replace(chan->nativeformats, value);
@@ -685,7 +689,7 @@ void ast_channel_nativeformats_set(struct ast_channel *chan,
 	 * and topology is destroyed.
 	 */
 	if (!chan->stream_topology) {
-		return;
+		SCOPE_EXIT_RTN("Channel is being initialized or destroyed\n");
 	}
 
 	if (!ast_channel_is_multistream(chan) || !value) {
@@ -693,7 +697,9 @@ void ast_channel_nativeformats_set(struct ast_channel *chan,
 
 		new_topology = ast_stream_topology_create_from_format_cap(value);
 		ast_channel_internal_set_stream_topology(chan, new_topology);
+		SCOPE_EXIT_RTN("New %stopology set\n", value ? "" : "empty ");
 	}
+	SCOPE_EXIT_RTN("Set native formats but not topology\n");
 }
 
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
@@ -1586,6 +1592,8 @@ struct ast_stream_topology *ast_channel_set_stream_topology(struct ast_channel *
 	struct ast_stream_topology *topology)
 {
 	struct ast_stream_topology *new_topology;
+	SCOPE_ENTER(1, "%s: %s\n", ast_channel_name(chan),
+		ast_str_tmp(256, ast_stream_topology_to_str(topology, &STR_TMP)));
 
 	ast_assert(chan != NULL);
 
@@ -1605,7 +1613,7 @@ struct ast_stream_topology *ast_channel_set_stream_topology(struct ast_channel *
 		ast_channel_internal_set_stream_topology(chan, new_topology);
 	}
 
-	return new_topology;
+	SCOPE_EXIT_RTN_VALUE(new_topology, "Used %s topology\n", topology ? "provided" : "empty");
 }
 
 struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan,

@@ -1223,6 +1223,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int sent_ring = 0;
 	int sent_progress = 0;
 	struct timeval start = ast_tvnow();
+	SCOPE_TRACE(1, "%s\n", ast_channel_name(in));
 
 	if (single) {
 		/* Turn off hold music, etc */
@@ -1389,6 +1390,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_ANSWER:
 					/* This is our guy if someone answered. */
 					if (!peer) {
+						ast_trace(1, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 						ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 						if (o->orig_chan_name
 							&& strcmp(o->orig_chan_name, ast_channel_name(c))) {
@@ -2269,6 +2271,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	 */
 	struct ast_party_caller caller;
 	int max_forwards;
+	SCOPE_TRACE(1, "%s Data: %s\n", ast_channel_name(chan), data);
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
 	ast_channel_lock(chan);

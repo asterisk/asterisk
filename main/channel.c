@@ -2622,6 +2622,7 @@ static void set_channel_answer_time(struct ast_channel *chan)
 int ast_raw_answer(struct ast_channel *chan)
 {
 	int res = 0;
+	SCOPE_TRACE(1, "%s\n", ast_channel_name(chan));
 
 	ast_channel_lock(chan);
 
@@ -2670,6 +2671,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 {
 	int res = 0;
 	enum ast_channel_state old_state;
+	SCOPE_TRACE(1, "%s\n", ast_channel_name(chan));
 
 	old_state = ast_channel_state(chan);
 	if ((res = ast_raw_answer(chan))) {
@@ -2777,6 +2779,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 
 int ast_answer(struct ast_channel *chan)
 {
+	SCOPE_TRACE(1, "%s\n", ast_channel_name(chan));
 	return __ast_answer(chan, 0);
 }
 
