@@ -618,9 +618,10 @@ int ast_frame_clear(struct ast_frame *frame);
  * \param slen Length of subclass buffer
  * \param moreinfo Buffer to fill with additional information
  * \param mlen Length of moreinfo buffer
+ * \return Pointer to subclass
  * \since 11
  */
-void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen);
+char *ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, char *moreinfo, size_t mlen);
 
 /*!
  * \brief Copy the discription of a frame type into the provided string
@@ -628,9 +629,10 @@ void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, ch
  * \param frame_type The frame type to be described
  * \param ftype Buffer to fill with frame type description
  * \param len Length of subclass buffer
+ * \return Pointer to ftype
  * \since 11
  */
-void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len);
+char *ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
