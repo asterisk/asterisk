@@ -49,6 +49,7 @@
 /* Needed for ast_sip_for_each_channel_snapshot struct */
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/stream.h"
 
 #define PJSIP_MINVERSION(m,n,p) (((m << 24) | (n << 16) | (p << 8)) >= PJ_VERSION_NUM)
 
@@ -802,6 +803,14 @@ struct ast_sip_endpoint_media_configuration {
 	struct ast_flags incoming_call_offer_pref;
 	/*! Codec preference for an outgoing offer */
 	struct ast_flags outgoing_call_offer_pref;
+	/*! Codec negotiation prefs for incoming offers */
+	struct ast_stream_codec_negotiation_prefs incoming_offer_codec_prefs;
+	/*! Codec negotiation prefs for outgoing offers */
+	struct ast_stream_codec_negotiation_prefs outgoing_offer_codec_prefs;
+	/*! Codec negotiation prefs for incoming answers */
+	struct ast_stream_codec_negotiation_prefs incoming_answer_codec_prefs;
+	/*! Codec negotiation prefs for outgoing answers */
+	struct ast_stream_codec_negotiation_prefs outgoing_answer_codec_prefs;
 };
 
 /*!
