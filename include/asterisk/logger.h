@@ -592,6 +592,8 @@ enum ast_trace_indent_type {
 	AST_TRACE_INDENT_DEC_BEFORE,
 	/*! Decrement the indent after printing the message */
 	AST_TRACE_INDENT_DEC_AFTER,
+	/*! Set the indent to the one provided */
+	AST_TRACE_INDENT_PROVIDED,
 	/*! Don't use or alter the level */
 	AST_TRACE_INDENT_NONE,
 };
@@ -603,12 +605,17 @@ enum ast_trace_indent_type {
 #if 1
 #define ast_trace_raw(__level, __indent_type, ...)
 #define ast_trace(__level, ...)
+#define ast_trace_get_indent() (0)
+#define ast_trace_set_indent(indent)
+#define ast_trace_inc_indent()
+#define ast_trace_dec_indent()
 #define SCOPE_TRACE(__level, ...)
 #define SCOPE_ENTER(level, ...)
+#define SCOPE_ENTER_TASK(level, indent, ...)
 #define SCOPE_EXIT(...)
-#define SCOPE_EXIT_EXPR(__expr, ...)
-#define SCOPE_EXIT_RTN(...)
-#define SCOPE_EXIT_RTN_VALUE(__return_value, ...)
+#define SCOPE_EXIT_EXPR(__expr, ...) __expr
+#define SCOPE_EXIT_RTN(...) return
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...) return __return_value
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
