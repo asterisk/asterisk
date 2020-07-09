@@ -3470,7 +3470,7 @@ static pj_bool_t session_on_rx_response(pjsip_rx_data *rdata)
 
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
 	pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
-	pjsip_inv_session *inv_session = pjsip_dlg_get_inv_session(dlg);
+	pjsip_inv_session *inv_session = dlg ? pjsip_dlg_get_inv_session(dlg) : NULL;
 	struct ast_sip_session *session = (inv_session ? inv_session->mod_data[session_module.id] : NULL);
 	SCOPE_ENTER(1, "%s Method: %.*s Status: %d\n", ast_sip_session_get_name(session),
 		(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
