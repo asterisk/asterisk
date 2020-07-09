@@ -1,9 +1,0 @@
-Subject: res_pjsip
-
-Added a new PJSIP system setting called disable_rport.
-Default is no to keep support working as before.
-
-If it is false (default) it adds the 'rport' parameter in the outgoing request message.
-If it is true it does not add the 'rport' parameter in the outgoing request message.
-
-This is a system option, but working as a global option.

@@ -13,6 +13,45 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.34.0 to Asterisk 13.35.0 ----------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * You can now specify an optional 'Content-Type' as an argument for the Asterisk
+   SendText manager action.
+
+res_pjsip
+------------------
+ * Added a new PJSIP system setting called disable_rport.
+   Default is no to keep support working as before.
+
+   If it is false (default) it adds the 'rport' parameter in the outgoing request message.
+   If it is true it does not add the 'rport' parameter in the outgoing request message.
+
+   This is a system option, but working as a global option.
+
+res_sorcery_memory_cache
+------------------
+ * The SorceryMemoryCacheExpireObject AMI action and CLI
+   command allow expiring of a specific object within the
+   sorcery memory cache. This is done by removing the
+   object from the cache with the expectation that the
+   cache will then re-populate the object when it is next
+   needed.
+
+   For full backend caching this does not occur. The cache
+   won't repopulate until an entire refresh is done resulting
+   in the possibility that objects are missing until that
+   time.
+
+   The AMI action and CLI command will now not allow
+   expiring of an object if the cache is configured as a
+   full backend cache. Instead you must use either the
+   SorceryMemoryCacheExpire or SorceryMemoryCachePopulate
+   AMI actions or their associated CLI commands.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.33.0 to Asterisk 13.34.0 ----------
 ------------------------------------------------------------------------------
 
