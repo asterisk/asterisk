@@ -50,11 +50,12 @@ extern "C" {
  * \param flags Flags that will alter the behavior of the bridge
  * \param name Name given to the bridge by Stasis (optional)
  * \param id Unique ID given to the bridge by Stasis (optional)
+ * \param video_mode Video mode of the bridge
  *
  * \retval a pointer to a new bridge on success
  * \retval NULL on failure
  */
-struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id);
+struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode);
 
 /*!
  * \internal
