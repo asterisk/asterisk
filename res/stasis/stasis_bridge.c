@@ -305,6 +305,11 @@ struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, 
 
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &bridge_stasis_v_table);
 	bridge = bridge_base_init(bridge, capabilities, flags, "Stasis", name, id);
+	if (!bridge) {
+		return NULL;
+	}
+
+	ast_bridge_set_talker_src_video_mode(bridge);
 	bridge = bridge_register(bridge);
 
 	return bridge;

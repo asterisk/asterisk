@@ -5126,6 +5126,7 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 	ast_cli(a->fd, "Subclass: %s\n", snapshot->subclass);
 	ast_cli(a->fd, "Creator: %s\n", snapshot->creator);
 	ast_cli(a->fd, "Name: %s\n", snapshot->name);
+	ast_cli(a->fd, "Video-Mode: %s\n", ast_bridge_video_mode_to_string(snapshot->video_mode));
 	ast_cli(a->fd, "Video-Source-Id: %s\n", snapshot->video_source_id);
 	ast_cli(a->fd, "Num-Channels: %u\n", snapshot->num_channels);
 	ast_cli(a->fd, "Num-Active: %u\n", snapshot->num_active);
