@@ -297,12 +297,26 @@ static void bridge_stasis_pull(struct ast_bridge *self, struct ast_bridge_channe
 	ast_bridge_base_v_table.pull(self, bridge_channel);
 }
 
-struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id)
+struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id, enum ast_bridge_video_mode_type video_mode)
 {
 	void *bridge;
 
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &bridge_stasis_v_table);
 	bridge = bridge_base_init(bridge, capabilities, flags, "Stasis", name, id);
+	if (!bridge) {
+		return NULL;
+	}
+
+	if (video_mode == AST_BRIDGE_VIDEO_MODE_SFU) {
+		ast_bridge_set_sfu_video_mode(bridge);
+		/* We require a minimum 5 seconds between video updates to stop floods from clients,
+		 * this should rarely be changed but should become configurable in the future.
+		 */
+		ast_bridge_set_video_update_discard(bridge, 5);
+	} else {
+		ast_bridge_set_talker_src_video_mode(bridge);
+	}
+
 	bridge = bridge_register(bridge);
 
 	return bridge;
