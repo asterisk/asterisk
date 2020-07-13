@@ -580,7 +580,7 @@ static struct ast_ha *append_ha_core(const char *sense, const char *stuff, struc
 	struct ast_ha *ha;
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
-	char *tmp, *list = ast_strdupa(stuff);
+	char *tmp, *list = ast_strdupa(stuff ?: "");
 	char *address = NULL, *mask = NULL;
 	int addr_is_v4;
 	int allowing = strncasecmp(sense, "p", 1) ? AST_SENSE_DENY : AST_SENSE_ALLOW;
