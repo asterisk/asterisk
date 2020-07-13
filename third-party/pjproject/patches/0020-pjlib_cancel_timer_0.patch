@@ -1,0 +1,39 @@
+commit 40dd48d10911f4ff9b8dfbf16428fbc9acc434ba
+Author: Riza Sulistyo <trengginas@users.noreply.github.com>
+Date:   Thu Jul 9 17:47:24 2020 +0700
+
+    Modify timer_id check on cancel() (#2463)
+    
+    * modify timer_id check on cancel().
+    
+    * modification based on comments.
+
+diff --git a/pjlib/include/pj/timer.h b/pjlib/include/pj/timer.h
+index b738a6e76..4b76ab65d 100644
+--- a/pjlib/include/pj/timer.h
++++ b/pjlib/include/pj/timer.h
+@@ -120,7 +120,10 @@ typedef struct pj_timer_entry
+ 
+     /** 
+      * Internal unique timer ID, which is assigned by the timer heap. 
+-     * Application should not touch this ID.
++     * Positive values indicate that the timer entry is running, 
++     * while -1 means that it's not. Any other value may indicate that it 
++     * hasn't been properly initialised or is in a bad state.
++     * Application should not touch this ID. 
+      */
+     pj_timer_id_t _timer_id;
+ 
+diff --git a/pjlib/src/pj/timer.c b/pjlib/src/pj/timer.c
+index 66516fce8..34966c481 100644
+--- a/pjlib/src/pj/timer.c
++++ b/pjlib/src/pj/timer.c
+@@ -535,7 +535,7 @@ static int cancel( pj_timer_heap_t *ht,
+     PJ_CHECK_STACK();
+ 
+     // Check to see if the timer_id is out of range
+-    if (entry->_timer_id < 0 || (pj_size_t)entry->_timer_id > ht->max_size) {
++    if (entry->_timer_id < 1 || (pj_size_t)entry->_timer_id >= ht->max_size) {
+ 	entry->_timer_id = -1;
+     	return 0;
+     }
