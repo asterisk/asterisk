@@ -242,6 +242,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/media_cache.h"
 #include "asterisk/astdb.h"
 #include "asterisk/options.h"
+#include "asterisk/utf8.h"
 
 #include "../defaults.h"
 
@@ -4065,6 +4066,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_json_init(), "libjansson");
 	ast_ulaw_init();
 	ast_alaw_init();
+	ast_utf8_init();
 	tdd_init();
 	callerid_init();
 	ast_builtins_init();
