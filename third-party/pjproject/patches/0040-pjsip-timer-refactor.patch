@@ -1,0 +1,1148 @@
+commit a49822da70a42b6c14680f84281d1ea94b6894f5
+Author: Sauw Ming <ming@teluu.com>
+Date:   Tue Sep 3 02:10:45 2019 +0000
+
+    Fixed #2225: Timer heap refactoring
+    
+    
+    
+    git-svn-id: https://svn.pjsip.org/repos/pjproject/trunk@6058 74dad513-b988-da41-8d7b-12977e46ad98
+
+diff --git a/pjlib/include/pj/config.h b/pjlib/include/pj/config.h
+index 4df9d923f..deb1d7594 100644
+--- a/pjlib/include/pj/config.h
++++ b/pjlib/include/pj/config.h
+@@ -531,16 +531,47 @@
+ #endif
+ 
+ 
++/**
++ * If enabled, when calling pj_pool_release(), the memory pool content
++ * will be wiped out first before released.
++ *
++ * Default: 0
++ */
++#ifndef PJ_POOL_RELEASE_WIPE_DATA
++#  define PJ_POOL_RELEASE_WIPE_DATA 	0
++#endif
++
++
+ /**
+  * Enable timer heap debugging facility. When this is enabled, application
+  * can call pj_timer_heap_dump() to show the contents of the timer heap
+  * along with the source location where the timer entries were scheduled.
+  * See https://trac.pjsip.org/repos/ticket/1527 for more info.
+  *
+- * Default: 0
++ * Default: 1
+  */
+ #ifndef PJ_TIMER_DEBUG
+-#  define PJ_TIMER_DEBUG	    0
++#  define PJ_TIMER_DEBUG	    1
++#endif
++
++
++/**
++ * If enabled, the timer heap will keep internal copies of the timer entries.
++ * This will increase the robustness and stability of the timer heap (against
++ * accidental modification or premature deallocation of the timer entries) and
++ * makes it easier to troubleshoot any timer related issues, with the overhead
++ * of additional memory space required.
++ *
++ * Note that the detection against premature deallocation only works if the
++ * freed memory content has changed (such as if it's been reallocated and
++ * overwritten by another data. Alternatively, you can enable
++ * PJ_POOL_RELEASE_WIPE_DATA which will erase the data first before releasing
++ * the memory).
++ *
++ * Default: 1 (enabled)
++ */
++#ifndef PJ_TIMER_HEAP_USE_COPY
++#  define PJ_TIMER_HEAP_USE_COPY    1
+ #endif
+ 
+ 
+diff --git a/pjlib/include/pj/pool_i.h b/pjlib/include/pj/pool_i.h
+index 52e777dc9..60edb7dd3 100644
+--- a/pjlib/include/pj/pool_i.h
++++ b/pjlib/include/pj/pool_i.h
+@@ -88,6 +88,17 @@ PJ_IDEF(pj_pool_t*) pj_pool_create( pj_pool_factory *f,
+ 
+ PJ_IDEF(void) pj_pool_release( pj_pool_t *pool )
+ {
++#if PJ_POOL_RELEASE_WIPE_DATA
++    pj_pool_block *b;
++
++    b = pool->block_list.next;
++    while (b != &pool->block_list) {
++	volatile unsigned char *p = b->buf;
++	while (p < b->end) *p++ = 0;
++	b = b->next;
++    }
++#endif
++
+     if (pool->factory->release_pool)
+ 	(*pool->factory->release_pool)(pool->factory, pool);
+ }
+diff --git a/pjlib/include/pj/timer.h b/pjlib/include/pj/timer.h
+index 14857b872..8adecd885 100644
+--- a/pjlib/include/pj/timer.h
++++ b/pjlib/include/pj/timer.h
+@@ -113,6 +113,7 @@ typedef struct pj_timer_entry
+      */
+     pj_timer_id_t _timer_id;
+ 
++#if !PJ_TIMER_HEAP_USE_COPY
+     /** 
+      * The future time when the timer expires, which the value is updated
+      * by timer heap when the timer is scheduled.
+@@ -129,6 +130,8 @@ typedef struct pj_timer_entry
+     const char	*src_file;
+     int		 src_line;
+ #endif
++
++#endif
+ } pj_timer_entry;
+ 
+ 
+diff --git a/pjlib/src/pj/timer.c b/pjlib/src/pj/timer.c
+index cbdd9791f..ead6d6d2f 100644
+--- a/pjlib/src/pj/timer.c
++++ b/pjlib/src/pj/timer.c
+@@ -46,6 +46,15 @@
+ 
+ #define DEFAULT_MAX_TIMED_OUT_PER_POLL  (64)
+ 
++/* Enable this to raise assertion in order to catch bug of timer entry
++ * which has been deallocated without being cancelled. If disabled,
++ * the timer heap will simply remove the destroyed entry (and print log)
++ * and resume normally.
++ * This setting only works if PJ_TIMER_HEAP_USE_COPY is enabled.
++ */
++#define ASSERT_IF_ENTRY_DESTROYED (PJ_TIMER_HEAP_USE_COPY? 0: 0)
++
++
+ enum
+ {
+     F_DONT_CALL = 1,
+@@ -53,6 +62,53 @@ enum
+     F_SET_ID = 4
+ };
+ 
++#if PJ_TIMER_HEAP_USE_COPY
++
++/* Duplicate/copy of the timer entry. */
++typedef struct pj_timer_entry_dup
++{
++    /**
++     * The duplicate copy.
++     */
++    pj_timer_entry  dup;		
++    
++    /**
++     * Pointer of the original timer entry.
++     */
++    pj_timer_entry *entry;
++
++    /** 
++     * The future time when the timer expires, which the value is updated
++     * by timer heap when the timer is scheduled.
++     */
++    pj_time_val     _timer_value;
++
++    /**
++     * Internal: the group lock used by this entry, set when
++     * pj_timer_heap_schedule_w_lock() is used.
++     */
++    pj_grp_lock_t  *_grp_lock;
++
++#if PJ_TIMER_DEBUG
++    const char	   *src_file;
++    int		    src_line;
++#endif
++
++} pj_timer_entry_dup;
++
++#define GET_TIMER(ht, node) &ht->timer_dups[node->_timer_id]
++#define GET_ENTRY(node) node->entry
++#define GET_FIELD(node, _timer_id) node->dup._timer_id
++
++#else
++
++typedef pj_timer_entry pj_timer_entry_dup;
++
++#define GET_TIMER(ht, node) node
++#define GET_ENTRY(node) node
++#define GET_FIELD(node, _timer_id) node->_timer_id
++
++#endif
+ 
+ /**
+  * The implementation of timer heap.
+@@ -83,7 +139,7 @@ struct pj_timer_heap_t
+      * ordered, almost complete" binary tree, which is stored in an
+      * array.
+      */
+-    pj_timer_entry **heap;
++    pj_timer_entry_dup **heap;
+ 
+     /**
+      * An array of "pointers" that allows each pj_timer_entry in the
+@@ -96,6 +152,11 @@ struct pj_timer_heap_t
+      * values are treated as "pointers" into the <heap_> array.
+      */
+     pj_timer_id_t *timer_ids;
++    
++    /**
++     * An array of timer entry copies.
++     */
++    pj_timer_entry_dup *timer_dups;
+ 
+     /**
+      * "Pointer" to the first element in the freelist contained within
+@@ -126,7 +187,7 @@ PJ_INLINE(void) unlock_timer_heap( pj_timer_heap_t *ht )
+ 
+ 
+ static void copy_node( pj_timer_heap_t *ht, pj_size_t slot, 
+-		       pj_timer_entry *moved_node )
++		       pj_timer_entry_dup *moved_node )
+ {
+     PJ_CHECK_STACK();
+ 
+@@ -134,7 +195,7 @@ static void copy_node( pj_timer_heap_t *ht, pj_size_t slot,
+     ht->heap[slot] = moved_node;
+     
+     // Update the corresponding slot in the parallel <timer_ids_> array.
+-    ht->timer_ids[moved_node->_timer_id] = (int)slot;
++    ht->timer_ids[GET_FIELD(moved_node, _timer_id)] = (int)slot;
+ }
+ 
+ static pj_timer_id_t pop_freelist( pj_timer_heap_t *ht )
+@@ -164,7 +225,7 @@ static void push_freelist (pj_timer_heap_t *ht, pj_timer_id_t old_id)
+ }
+ 
+ 
+-static void reheap_down(pj_timer_heap_t *ht, pj_timer_entry *moved_node,
++static void reheap_down(pj_timer_heap_t *ht, pj_timer_entry_dup *moved_node,
+                         size_t slot, size_t child)
+ {
+     PJ_CHECK_STACK();
+@@ -174,13 +235,17 @@ static void reheap_down(pj_timer_heap_t *ht, pj_timer_entry *moved_node,
+     while (child < ht->cur_size)
+     {
+ 	// Choose the smaller of the two children.
+-	if (child + 1 < ht->cur_size
+-	    && PJ_TIME_VAL_LT(ht->heap[child + 1]->_timer_value, ht->heap[child]->_timer_value))
++	if (child + 1 < ht->cur_size &&
++	    PJ_TIME_VAL_LT(ht->heap[child + 1]->_timer_value,
++	    		   ht->heap[child]->_timer_value))
++	{
+ 	    child++;
++	}
+ 	
+ 	// Perform a <copy> if the child has a larger timeout value than
+ 	// the <moved_node>.
+-	if (PJ_TIME_VAL_LT(ht->heap[child]->_timer_value, moved_node->_timer_value))
++	if (PJ_TIME_VAL_LT(ht->heap[child]->_timer_value,
++			   moved_node->_timer_value))
+         {
+ 	    copy_node( ht, slot, ht->heap[child]);
+ 	    slot = child;
+@@ -194,7 +259,7 @@ static void reheap_down(pj_timer_heap_t *ht, pj_timer_entry *moved_node,
+     copy_node( ht, slot, moved_node);
+ }
+ 
+-static void reheap_up( pj_timer_heap_t *ht, pj_timer_entry *moved_node,
++static void reheap_up( pj_timer_heap_t *ht, pj_timer_entry_dup *moved_node,
+ 		       size_t slot, size_t parent)
+ {
+     // Restore the heap property after an insertion.
+@@ -203,7 +268,8 @@ static void reheap_up( pj_timer_heap_t *ht, pj_timer_entry *moved_node,
+     {
+ 	// If the parent node is greater than the <moved_node> we need
+ 	// to copy it down.
+-	if (PJ_TIME_VAL_LT(moved_node->_timer_value, ht->heap[parent]->_timer_value))
++	if (PJ_TIME_VAL_LT(moved_node->_timer_value,
++			   ht->heap[parent]->_timer_value))
+         {
+ 	    copy_node(ht, slot, ht->heap[parent]);
+ 	    slot = parent;
+@@ -219,26 +285,44 @@ static void reheap_up( pj_timer_heap_t *ht, pj_timer_entry *moved_node,
+ }
+ 
+ 
+-static pj_timer_entry * remove_node( pj_timer_heap_t *ht, size_t slot)
++static pj_timer_entry_dup * remove_node( pj_timer_heap_t *ht, size_t slot)
+ {
+-    pj_timer_entry *removed_node = ht->heap[slot];
++    pj_timer_entry_dup *removed_node = ht->heap[slot];
+     
+     // Return this timer id to the freelist.
+-    push_freelist( ht, removed_node->_timer_id );
++    push_freelist( ht, GET_FIELD(removed_node, _timer_id) );
+     
+     // Decrement the size of the heap by one since we're removing the
+     // "slot"th node.
+     ht->cur_size--;
+     
+     // Set the ID
+-    removed_node->_timer_id = -1;
++    if (GET_FIELD(removed_node, _timer_id) !=
++    	GET_ENTRY(removed_node)->_timer_id)
++    {
++	    PJ_LOG(3,(THIS_FILE, "Bug! Trying to remove entry %p from %s "
++	    			 "line %d, which has been deallocated "
++	    			 "without being cancelled",
++		  		 GET_ENTRY(removed_node),
++#if PJ_TIMER_DEBUG
++		  		 removed_node->src_file,
++		  		 removed_node->src_line));
++#else
++		  		 "N/A", 0));
++#endif
++#if ASSERT_IF_ENTRY_DESTROYED
++    	pj_assert(removed_node->dup._timer_id==removed_node->entry->_timer_id);
++#endif
++    }
++    GET_ENTRY(removed_node)->_timer_id = -1;
++    GET_FIELD(removed_node, _timer_id) = -1;
+ 
+     // Only try to reheapify if we're not deleting the last entry.
+     
+     if (slot < ht->cur_size)
+     {
+ 	pj_size_t parent;
+-	pj_timer_entry *moved_node = ht->heap[ht->cur_size];
++	pj_timer_entry_dup *moved_node = ht->heap[ht->cur_size];
+ 	
+ 	// Move the end node to the location being removed and update
+ 	// the corresponding slot in the parallel <timer_ids> array.
+@@ -248,30 +332,59 @@ static pj_timer_entry * remove_node( pj_timer_heap_t *ht, size_t slot)
+ 	// parent it needs be moved down the heap.
+ 	parent = HEAP_PARENT (slot);
+ 	
+-	if (PJ_TIME_VAL_GTE(moved_node->_timer_value, ht->heap[parent]->_timer_value))
++	if (PJ_TIME_VAL_GTE(moved_node->_timer_value,
++			    ht->heap[parent]->_timer_value))
++	{
+ 	    reheap_down( ht, moved_node, slot, HEAP_LEFT(slot));
+-	else
++	} else {
+ 	    reheap_up( ht, moved_node, slot, parent);
++	}
+     }
+     
+     return removed_node;
+ }
+ 
+-static void grow_heap(pj_timer_heap_t *ht)
++static pj_status_t grow_heap(pj_timer_heap_t *ht)
+ {
+     // All the containers will double in size from max_size_
+     size_t new_size = ht->max_size * 2;
++    pj_timer_entry_dup *new_timer_dups = 0;
+     pj_timer_id_t *new_timer_ids;
+     pj_size_t i;
+     
++    PJ_LOG(6,(THIS_FILE, "Growing heap size from %d to %d",
++		  	 ht->max_size, new_size));
++    
+     // First grow the heap itself.
+     
+-    pj_timer_entry **new_heap = 0;
++    pj_timer_entry_dup **new_heap = 0;
++    
++    new_heap = (pj_timer_entry_dup**) 
++    	       pj_pool_calloc(ht->pool, new_size, sizeof(pj_timer_entry_dup*));
++    if (!new_heap)
++    	return PJ_ENOMEM;
++    
++#if PJ_TIMER_HEAP_USE_COPY
++    // Grow the array of timer copies.
+     
+-    new_heap = (pj_timer_entry**) 
+-    	       pj_pool_alloc(ht->pool, sizeof(pj_timer_entry*) * new_size);
+-    memcpy(new_heap, ht->heap, ht->max_size * sizeof(pj_timer_entry*));
+-    //delete [] this->heap_;
++    new_timer_dups = (pj_timer_entry_dup*) 
++    	       	     pj_pool_alloc(ht->pool,
++    	       	     		   sizeof(pj_timer_entry_dup) * new_size);
++    if (!new_timer_dups)
++    	return PJ_ENOMEM;
++
++    memcpy(new_timer_dups, ht->timer_dups,
++    	   ht->max_size * sizeof(pj_timer_entry_dup));
++    for (i = 0; i < ht->cur_size; i++) {
++    	int idx = ht->heap[i] - ht->timer_dups;
++        // Point to the address in the new array
++        pj_assert(idx >= 0 && idx < ht->max_size);
++    	new_heap[i] = &new_timer_dups[idx];
++    }
++    ht->timer_dups = new_timer_dups;
++#else
++    memcpy(new_heap, ht->heap, ht->max_size * sizeof(pj_timer_entry *));
++#endif
+     ht->heap = new_heap;
+     
+     // Grow the array of timer ids.
+@@ -279,7 +392,9 @@ static void grow_heap(pj_timer_heap_t *ht)
+     new_timer_ids = 0;
+     new_timer_ids = (pj_timer_id_t*)
+     		    pj_pool_alloc(ht->pool, new_size * sizeof(pj_timer_id_t));
+-    
++    if (!new_timer_ids)
++	return PJ_ENOMEM;
++
+     memcpy( new_timer_ids, ht->timer_ids, ht->max_size * sizeof(pj_timer_id_t));
+     
+     //delete [] timer_ids_;
+@@ -290,15 +405,35 @@ static void grow_heap(pj_timer_heap_t *ht)
+ 	ht->timer_ids[i] = -((pj_timer_id_t) (i + 1));
+     
+     ht->max_size = new_size;
++    
++    return PJ_SUCCESS;
+ }
+ 
+-static void insert_node(pj_timer_heap_t *ht, pj_timer_entry *new_node)
++static pj_status_t insert_node(pj_timer_heap_t *ht,
++			       pj_timer_entry *new_node,
++			       const pj_time_val *future_time)
+ {
+-    if (ht->cur_size + 2 >= ht->max_size)
+-	grow_heap(ht);
+-    
+-    reheap_up( ht, new_node, ht->cur_size, HEAP_PARENT(ht->cur_size));
++    pj_timer_entry_dup *timer_copy;
++
++    if (ht->cur_size + 2 >= ht->max_size) {
++	pj_status_t status = grow_heap(ht);
++	if (status != PJ_SUCCESS)
++	    return status;
++    }
++
++    timer_copy = GET_TIMER(ht, new_node);
++#if PJ_TIMER_HEAP_USE_COPY    
++    // Create a duplicate of the timer entry.
++    pj_bzero(timer_copy, sizeof(*timer_copy));
++    pj_memcpy(&timer_copy->dup, new_node, sizeof(*new_node));
++    timer_copy->entry = new_node;
++#endif
++    timer_copy->_timer_value = *future_time;
++
++    reheap_up( ht, timer_copy, ht->cur_size, HEAP_PARENT(ht->cur_size));
+     ht->cur_size++;
++
++    return PJ_SUCCESS;
+ }
+ 
+ 
+@@ -311,9 +446,8 @@ static pj_status_t schedule_entry( pj_timer_heap_t *ht,
+ 	// Obtain the next unique sequence number.
+ 	// Set the entry
+ 	entry->_timer_id = pop_freelist(ht);
+-	entry->_timer_value = *future_time;
+-	insert_node( ht, entry);
+-	return 0;
++
++	return insert_node( ht, entry, future_time );
+     }
+     else
+ 	return -1;
+@@ -324,38 +458,36 @@ static int cancel( pj_timer_heap_t *ht,
+ 		   pj_timer_entry *entry, 
+ 		   unsigned flags)
+ {
+-  long timer_node_slot;
++    long timer_node_slot;
+ 
+-  PJ_CHECK_STACK();
++    PJ_CHECK_STACK();
+ 
+-  // Check to see if the timer_id is out of range
+-  if (entry->_timer_id < 0 || (pj_size_t)entry->_timer_id > ht->max_size) {
+-    entry->_timer_id = -1;
+-    return 0;
+-  }
++    // Check to see if the timer_id is out of range
++    if (entry->_timer_id < 0 || (pj_size_t)entry->_timer_id > ht->max_size) {
++	entry->_timer_id = -1;
++    	return 0;
++    }
+ 
+-  timer_node_slot = ht->timer_ids[entry->_timer_id];
++    timer_node_slot = ht->timer_ids[entry->_timer_id];
+ 
+-  if (timer_node_slot < 0) { // Check to see if timer_id is still valid.
+-    entry->_timer_id = -1;
+-    return 0;
+-  }
+-
+-  if (entry != ht->heap[timer_node_slot])
+-    {
+-      if ((flags & F_DONT_ASSERT) == 0)
+-	  pj_assert(entry == ht->heap[timer_node_slot]);
+-      entry->_timer_id = -1;
+-      return 0;
++    if (timer_node_slot < 0) { // Check to see if timer_id is still valid.
++    	entry->_timer_id = -1;
++    	return 0;
+     }
+-  else
+-    {
+-      remove_node( ht, timer_node_slot);
+ 
+-      if ((flags & F_DONT_CALL) == 0)
+-        // Call the close hook.
+-	(*ht->callback)(ht, entry);
+-      return 1;
++    if (entry != GET_ENTRY(ht->heap[timer_node_slot])) {
++	if ((flags & F_DONT_ASSERT) == 0)
++	    pj_assert(entry == GET_ENTRY(ht->heap[timer_node_slot]));
++        entry->_timer_id = -1;
++      	return 0;
++    } else {
++      	remove_node( ht, timer_node_slot);
++
++      	if ((flags & F_DONT_CALL) == 0) {
++            // Call the close hook.
++	    (*ht->callback)(ht, entry);
++	}
++      	return 1;
+     }
+ }
+ 
+@@ -368,7 +500,8 @@ PJ_DEF(pj_size_t) pj_timer_heap_mem_size(pj_size_t count)
+     return /* size of the timer heap itself: */
+            sizeof(pj_timer_heap_t) + 
+            /* size of each entry: */
+-           (count+2) * (sizeof(pj_timer_entry*)+sizeof(pj_timer_id_t)) +
++           (count+2) * (sizeof(pj_timer_entry_dup*)+sizeof(pj_timer_id_t)+
++           sizeof(pj_timer_entry_dup)) +
+            /* lock, pool etc: */
+            132;
+ }
+@@ -391,7 +524,7 @@ PJ_DEF(pj_status_t) pj_timer_heap_create( pj_pool_t *pool,
+     size += 2;
+ 
+     /* Allocate timer heap data structure from the pool */
+-    ht = PJ_POOL_ALLOC_T(pool, pj_timer_heap_t);
++    ht = PJ_POOL_ZALLOC_T(pool, pj_timer_heap_t);
+     if (!ht)
+         return PJ_ENOMEM;
+ 
+@@ -407,11 +540,19 @@ PJ_DEF(pj_status_t) pj_timer_heap_create( pj_pool_t *pool,
+     ht->auto_delete_lock = 0;
+ 
+     // Create the heap array.
+-    ht->heap = (pj_timer_entry**)
+-    	       pj_pool_alloc(pool, sizeof(pj_timer_entry*) * size);
++    ht->heap = (pj_timer_entry_dup**)
++    	       pj_pool_calloc(pool, size, sizeof(pj_timer_entry_dup*));
+     if (!ht->heap)
+         return PJ_ENOMEM;
+ 
++#if PJ_TIMER_HEAP_USE_COPY
++    // Create the timer entry copies array.
++    ht->timer_dups = (pj_timer_entry_dup*)
++    	       	     pj_pool_alloc(pool, sizeof(pj_timer_entry_dup) * size);
++    if (!ht->timer_dups)
++        return PJ_ENOMEM;
++#endif
++
+     // Create the parallel
+     ht->timer_ids = (pj_timer_id_t *)
+     		    pj_pool_alloc( pool, sizeof(pj_timer_id_t) * size);
+@@ -467,7 +608,9 @@ PJ_DEF(pj_timer_entry*) pj_timer_entry_init( pj_timer_entry *entry,
+     entry->id = id;
+     entry->user_data = user_data;
+     entry->cb = cb;
++#if !PJ_TIMER_HEAP_USE_COPY
+     entry->_grp_lock = NULL;
++#endif
+ 
+     return entry;
+ }
+@@ -504,10 +647,6 @@ static pj_status_t schedule_w_grp_lock(pj_timer_heap_t *ht,
+     /* Prevent same entry from being scheduled more than once */
+     //PJ_ASSERT_RETURN(entry->_timer_id < 1, PJ_EINVALIDOP);
+ 
+-#if PJ_TIMER_DEBUG
+-    entry->src_file = src_file;
+-    entry->src_line = src_line;
+-#endif
+     pj_gettickcount(&expires);
+     PJ_TIME_VAL_ADD(expires, *delay);
+     
+@@ -516,19 +655,25 @@ static pj_status_t schedule_w_grp_lock(pj_timer_heap_t *ht,
+     /* Prevent same entry from being scheduled more than once */
+     if (pj_timer_entry_running(entry)) {
+ 	unlock_timer_heap(ht);
+-	PJ_LOG(3,(THIS_FILE, "Bug! Rescheduling outstanding entry (%p)",
++	PJ_LOG(3,(THIS_FILE, "Warning! Rescheduling outstanding entry (%p)",
+ 		  entry));
+ 	return PJ_EINVALIDOP;
+     }
+ 
+     status = schedule_entry(ht, entry, &expires);
+     if (status == PJ_SUCCESS) {
++    	pj_timer_entry_dup *timer_copy = GET_TIMER(ht, entry);
++
+ 	if (set_id)
+-	    entry->id = id_val;
+-	entry->_grp_lock = grp_lock;
+-	if (entry->_grp_lock) {
+-	    pj_grp_lock_add_ref(entry->_grp_lock);
++	    GET_FIELD(timer_copy, id) = entry->id = id_val;
++	timer_copy->_grp_lock = grp_lock;
++	if (timer_copy->_grp_lock) {
++	    pj_grp_lock_add_ref(timer_copy->_grp_lock);
+ 	}
++#if PJ_TIMER_DEBUG
++    	timer_copy->src_file = src_file;
++   	timer_copy->src_line = src_line;
++#endif
+     }
+     unlock_timer_heap(ht);
+ 
+@@ -583,20 +728,23 @@ static int cancel_timer(pj_timer_heap_t *ht,
+ 			unsigned flags,
+ 			int id_val)
+ {
++    pj_timer_entry_dup *timer_copy;
++    pj_grp_lock_t *grp_lock;
+     int count;
+ 
+     PJ_ASSERT_RETURN(ht && entry, PJ_EINVAL);
+ 
+     lock_timer_heap(ht);
++    timer_copy = GET_TIMER(ht, entry);
++    grp_lock = timer_copy->_grp_lock;
++
+     count = cancel(ht, entry, flags | F_DONT_CALL);
+     if (count > 0) {
+ 	/* Timer entry found & cancelled */
+ 	if (flags & F_SET_ID) {
+ 	    entry->id = id_val;
+ 	}
+-	if (entry->_grp_lock) {
+-	    pj_grp_lock_t *grp_lock = entry->_grp_lock;
+-	    entry->_grp_lock = NULL;
++	if (grp_lock) {
+ 	    pj_grp_lock_dec_ref(grp_lock);
+ 	}
+     }
+@@ -640,25 +788,44 @@ PJ_DEF(unsigned) pj_timer_heap_poll( pj_timer_heap_t *ht,
+ 	    PJ_TIME_VAL_LTE(ht->heap[0]->_timer_value, now) &&
+             count < ht->max_entries_per_poll ) 
+     {
+-	pj_timer_entry *node = remove_node(ht, 0);
++	pj_timer_entry_dup *node = remove_node(ht, 0);
++	pj_timer_entry *entry = GET_ENTRY(node);
+ 	/* Avoid re-use of this timer until the callback is done. */
+ 	///Not necessary, even causes problem (see also #2176).
+ 	///pj_timer_id_t node_timer_id = pop_freelist(ht);
+ 	pj_grp_lock_t *grp_lock;
++	pj_bool_t valid = PJ_TRUE;
+ 
+ 	++count;
+ 
+ 	grp_lock = node->_grp_lock;
+ 	node->_grp_lock = NULL;
++	if (GET_FIELD(node, cb) != entry->cb ||
++	    GET_FIELD(node, user_data) != entry->user_data)
++	{
++	    valid = PJ_FALSE;
++	    PJ_LOG(3,(THIS_FILE, "Bug! Polling entry %p from %s line %d has "
++	    			 "been deallocated without being cancelled",
++		  		 GET_ENTRY(node),
++#if PJ_TIMER_DEBUG
++		  		 node->src_file, node->src_line));
++#else
++		  		 "N/A", 0));
++#endif
++#if ASSERT_IF_ENTRY_DESTROYED
++	    pj_assert(node->dup.cb == entry->cb);
++	    pj_assert(node->dup.user_data == entry->user_data);
++#endif
++	}
+ 
+ 	unlock_timer_heap(ht);
+ 
+ 	PJ_RACE_ME(5);
+ 
+-	if (node->cb)
+-	    (*node->cb)(ht, node);
++	if (valid && entry->cb)
++	    (*entry->cb)(ht, entry);
+ 
+-	if (grp_lock)
++	if (valid && grp_lock)
+ 	    pj_grp_lock_dec_ref(grp_lock);
+ 
+ 	lock_timer_heap(ht);
+@@ -719,7 +886,7 @@ PJ_DEF(void) pj_timer_heap_dump(pj_timer_heap_t *ht)
+ 	pj_gettickcount(&now);
+ 
+ 	for (i=0; i<(unsigned)ht->cur_size; ++i) {
+-	    pj_timer_entry *e = ht->heap[i];
++	    pj_timer_entry_dup *e = ht->heap[i];
+ 	    pj_time_val delta;
+ 
+ 	    if (PJ_TIME_VAL_LTE(e->_timer_value, now))
+@@ -730,7 +897,7 @@ PJ_DEF(void) pj_timer_heap_dump(pj_timer_heap_t *ht)
+ 	    }
+ 
+ 	    PJ_LOG(3,(THIS_FILE, "    %d\t%d\t%d.%03d\t%s:%d",
+-		      e->_timer_id, e->id,
++		      GET_FIELD(e, _timer_id), GET_FIELD(e, id),
+ 		      (int)delta.sec, (int)delta.msec,
+ 		      e->src_file, e->src_line));
+ 	}
+diff --git a/pjlib/src/pjlib-test/timer.c b/pjlib/src/pjlib-test/timer.c
+index e43160bd5..83c38704b 100644
+--- a/pjlib/src/pjlib-test/timer.c
++++ b/pjlib/src/pjlib-test/timer.c
+@@ -188,19 +188,40 @@ static int test_timer_heap(void)
+ /***************
+  * Stress test *
+  ***************
+- * Test scenario:
++ * Test scenario (if RANDOMIZED_TEST is 0):
+  * 1. Create and schedule a number of timer entries.
+  * 2. Start threads for polling (simulating normal worker thread).
+  *    Each expired entry will try to cancel and re-schedule itself
+  *    from within the callback.
+  * 3. Start threads for cancelling random entries. Each successfully
+  *    cancelled entry will be re-scheduled after some random delay.
++ *
++ * Test scenario (if RANDOMIZED_TEST is 1):
++ * 1. Create and schedule a number of timer entries.
++ * 2. Start threads which will, based on a configurable probability
++ *    setting, randomly perform timer scheduling, cancelling, or
++ *    polling (simulating normal worker thread).
++ * This test is considered a failure if:
++ * - It triggers assertion/crash.
++ * - There's an error message in the log, which indicates a potential
++ *   bug in the implementation (note that race message is ok).
+  */
+-#define ST_POLL_THREAD_COUNT	    10
+-#define ST_CANCEL_THREAD_COUNT	    10
++#define RANDOMIZED_TEST 1
++#define SIMULATE_CRASH	PJ_TIMER_HEAP_USE_COPY
+ 
+-#define ST_ENTRY_COUNT		    1000
+-#define ST_ENTRY_MAX_TIMEOUT_MS	    100
++#if RANDOMIZED_TEST
++    #define ST_STRESS_THREAD_COUNT	    20
++    #define ST_POLL_THREAD_COUNT	    0
++    #define ST_CANCEL_THREAD_COUNT	    0
++#else
++    #define ST_STRESS_THREAD_COUNT	    0
++    #define ST_POLL_THREAD_COUNT	    10
++    #define ST_CANCEL_THREAD_COUNT	    10
++#endif
++
++#define ST_ENTRY_COUNT		    10000
++#define ST_DURATION		    30000
++#define ST_ENTRY_MAX_TIMEOUT_MS	    ST_DURATION/10
+ 
+ /* Number of group lock, may be zero, shared by timer entries, group lock
+  * can be useful to evaluate poll vs cancel race condition scenario, i.e:
+@@ -215,6 +236,10 @@ struct thread_param
+     pj_timer_heap_t *timer;
+     pj_bool_t stopping;
+     pj_timer_entry *entries;
++    pj_atomic_t **status;
++    pj_atomic_t *n_sched, *n_cancel, *n_poll;
++    pj_grp_lock_t **grp_locks;
++    int err;
+ 
+     pj_atomic_t *idx;
+     struct {
+@@ -226,8 +251,14 @@ struct thread_param
+ static pj_status_t st_schedule_entry(pj_timer_heap_t *ht, pj_timer_entry *e)
+ {
+     pj_time_val delay = {0};
+-    pj_grp_lock_t *grp_lock = (pj_grp_lock_t*)e->user_data;
++    pj_grp_lock_t *grp_lock = NULL;
+     pj_status_t status;
++    struct thread_param *tparam = (struct thread_param *)e->user_data;
++
++    if (ST_ENTRY_GROUP_LOCK_COUNT && pj_rand() % 10) {
++	/* About 90% of entries should have group lock */
++	grp_lock = tparam->grp_locks[pj_rand() % ST_ENTRY_GROUP_LOCK_COUNT];
++    }
+ 
+     delay.msec = pj_rand() % ST_ENTRY_MAX_TIMEOUT_MS;
+     pj_time_val_normalize(&delay);
+@@ -235,8 +266,22 @@ static pj_status_t st_schedule_entry(pj_timer_heap_t *ht, pj_timer_entry *e)
+     return status;
+ }
+ 
++static void dummy_callback(pj_timer_heap_t *ht, pj_timer_entry *e)
++{
++    PJ_LOG(4,("test", "dummy callback called %p %p", e, e->user_data));
++}
++
+ static void st_entry_callback(pj_timer_heap_t *ht, pj_timer_entry *e)
+ {
++    struct thread_param *tparam = (struct thread_param *)e->user_data;
++
++#if RANDOMIZED_TEST
++    /* Make sure the flag has been set. */
++    while (pj_atomic_get(tparam->status[e - tparam->entries]) != 1)
++    	pj_thread_sleep(10);
++    pj_atomic_set(tparam->status[e - tparam->entries], 0);
++#endif
++
+     /* try to cancel this */
+     pj_timer_heap_cancel_if_active(ht, e, 10);
+     
+@@ -244,7 +289,118 @@ static void st_entry_callback(pj_timer_heap_t *ht, pj_timer_entry *e)
+     pj_thread_sleep(pj_rand() % 50);
+ 
+     /* reschedule entry */
+-    st_schedule_entry(ht, e);
++    if (!ST_STRESS_THREAD_COUNT)
++    	st_schedule_entry(ht, e);
++}
++
++/* Randomized stress worker thread function. */
++static int stress_worker(void *arg)
++{
++    /* Enumeration of possible task. */
++    enum {
++    	SCHEDULING = 0,
++    	CANCELLING = 1,
++    	POLLING = 2,
++    	NOTHING = 3
++    };
++    /* Probability of a certain task being chosen.
++     * The first number indicates the probability of the first task,
++     * the second number for the second task, and so on.
++     */
++    int prob[3] = {75, 15, 5};
++    struct thread_param *tparam = (struct thread_param*)arg;
++    int t_idx, i;
++
++    t_idx = pj_atomic_inc_and_get(tparam->idx);
++    PJ_LOG(4,("test", "...thread #%d (random) started", t_idx));
++    while (!tparam->stopping) {
++    	int job, task;
++	int idx, count;
++    	pj_status_t prev_status, status;
++
++    	/* Randomly choose which task to do */
++    	job = pj_rand() % 100;
++    	if (job < prob[0]) task = SCHEDULING;
++    	else if (job < (prob[0] + prob[1])) task = CANCELLING;
++    	else if (job < (prob[0] + prob[1] + prob[2])) task = POLLING;
++    	else task = NOTHING;
++    
++    	idx = pj_rand() % ST_ENTRY_COUNT;
++    	prev_status = pj_atomic_get(tparam->status[idx]);
++    	if (task == SCHEDULING) {
++    	    if (prev_status != 0) continue;
++    	    status = st_schedule_entry(tparam->timer, &tparam->entries[idx]);
++    	    if (prev_status == 0 && status != PJ_SUCCESS) {
++    	        /* To make sure the flag has been set. */
++    	        pj_thread_sleep(20);
++    	        if (pj_atomic_get(tparam->status[idx]) == 1) {
++    	    	    /* Race condition with another scheduling. */
++    	    	    PJ_LOG(3,("test", "race schedule-schedule %d: %p",
++    	    	   	              idx, &tparam->entries[idx]));
++    	        } else {
++    	            if (tparam->err != 0) tparam->err = -210;
++	    	    PJ_LOG(3,("test", "error: failed to schedule entry %d: %p",
++	    	   		      idx, &tparam->entries[idx]));
++	    	}
++    	    } else if (prev_status == 1 && status == PJ_SUCCESS) {
++    	    	/* Race condition with another cancellation or
++    	    	 * timer poll.
++    	    	 */
++    	    	pj_thread_sleep(20);
++    	    	PJ_LOG(3,("test", "race schedule-cancel/poll %d: %p",
++    	    	   	          idx, &tparam->entries[idx]));
++    	    }
++    	    if (status == PJ_SUCCESS) {
++    	    	pj_atomic_set(tparam->status[idx], 1);
++    	    	pj_atomic_inc(tparam->n_sched);
++    	    }
++    	} else if (task == CANCELLING) {
++	    count = pj_timer_heap_cancel_if_active(tparam->timer,
++	    					   &tparam->entries[idx], 10);
++    	    if (prev_status == 0 && count > 0) {
++    	        /* To make sure the flag has been set. */
++    	        pj_thread_sleep(20);
++    	        if (pj_atomic_get(tparam->status[idx]) == 1) {
++    	    	    /* Race condition with scheduling. */
++    	    	    PJ_LOG(3,("test", "race cancel-schedule %d: %p",
++    	    	   	              idx, &tparam->entries[idx]));
++    	        } else {
++    	            if (tparam->err != 0) tparam->err = -220;
++	    	    PJ_LOG(3,("test", "error: cancelling invalid entry %d: %p",
++	    	   		      idx, &tparam->entries[idx]));
++	    	}
++    	    } else if (prev_status == 1 && count == 0) {
++    	        /* To make sure the flag has been cleared. */
++    	        pj_thread_sleep(20);
++    	    	if (pj_atomic_get(tparam->status[idx]) == 0) {
++    	    	    /* Race condition with polling. */
++    	    	    PJ_LOG(3,("test", "race cancel-poll %d: %p",
++    	    	   	              idx, &tparam->entries[idx]));
++    	    	} else {
++    	            if (tparam->err != 0) tparam->err = -230;
++    	    	    PJ_LOG(3,("test", "error: failed to cancel entry %d: %p",
++    	    		   	      idx, &tparam->entries[idx]));
++    	    	}
++    	    }
++    	    if (count > 0) {
++    	        /* Make sure the flag has been set. */
++    		while (pj_atomic_get(tparam->status[idx]) != 1)
++    		    pj_thread_sleep(10);
++    	    	pj_atomic_set(tparam->status[idx], 0);
++    	    	pj_atomic_inc(tparam->n_cancel);
++    	    }
++    	} else if (task == POLLING) {
++	    count = pj_timer_heap_poll(tparam->timer, NULL);
++	    for (i = 0; i < count; i++) {
++	        pj_atomic_inc_and_get(tparam->n_poll);
++	    }
++	} else {
++	    pj_thread_sleep(10);
++	}
++    }
++    PJ_LOG(4,("test", "...thread #%d (poll) stopped", t_idx));
++
++    return 0;
+ }
+ 
+ /* Poll worker thread function. */
+@@ -307,18 +463,26 @@ static int cancel_worker(void *arg)
+ 
+ static int timer_stress_test(void)
+ {
++    unsigned count = 0, n_sched = 0, n_cancel = 0, n_poll = 0;
+     int i;
+     pj_timer_entry *entries = NULL;
++    pj_atomic_t	**entries_status = NULL;
+     pj_grp_lock_t **grp_locks = NULL;
+     pj_pool_t *pool;
+     pj_timer_heap_t *timer = NULL;
+     pj_lock_t *timer_lock;
+     pj_status_t status;
+     int err=0;
++    pj_thread_t **stress_threads = NULL;
+     pj_thread_t **poll_threads = NULL;
+     pj_thread_t **cancel_threads = NULL;
+     struct thread_param tparam = {0};
+     pj_time_val now;
++#if SIMULATE_CRASH
++    pj_timer_entry *entry;
++    pj_pool_t *tmp_pool;
++    pj_time_val delay = {0};
++#endif
+ 
+     PJ_LOG(3,("test", "...Stress test"));
+ 
+@@ -332,8 +496,11 @@ static int timer_stress_test(void)
+ 	goto on_return;
+     }
+ 
+-    /* Create timer heap */
+-    status = pj_timer_heap_create(pool, ST_ENTRY_COUNT, &timer);
++    /* Create timer heap.
++     * Initially we only create a fraction of what's required,
++     * to test the timer heap growth algorithm.
++     */
++    status = pj_timer_heap_create(pool, ST_ENTRY_COUNT/64, &timer);
+     if (status != PJ_SUCCESS) {
+         app_perror("...error: unable to create timer heap", status);
+ 	err = -20;
+@@ -354,6 +521,7 @@ static int timer_stress_test(void)
+ 	grp_locks = (pj_grp_lock_t**)
+ 		    pj_pool_calloc(pool, ST_ENTRY_GROUP_LOCK_COUNT,
+ 				   sizeof(pj_grp_lock_t*));
++    	tparam.grp_locks = grp_locks;
+     }
+     for (i=0; i<ST_ENTRY_GROUP_LOCK_COUNT; ++i) {    
+ 	status = pj_grp_lock_create(pool, NULL, &grp_locks[i]);
+@@ -372,33 +540,69 @@ static int timer_stress_test(void)
+ 	err = -50;
+ 	goto on_return;
+     }
+-
++    entries_status = (pj_atomic_t**)pj_pool_calloc(pool, ST_ENTRY_COUNT,
++					      	   sizeof(*entries_status));
++    if (!entries_status) {
++	err = -55;
++	goto on_return;
++    }
++    
+     for (i=0; i<ST_ENTRY_COUNT; ++i) {
+-	pj_grp_lock_t *grp_lock = NULL;
+-
+-	if (ST_ENTRY_GROUP_LOCK_COUNT && pj_rand() % 10) {
+-	    /* About 90% of entries should have group lock */
+-	    grp_lock = grp_locks[pj_rand() % ST_ENTRY_GROUP_LOCK_COUNT];
+-	}
++	pj_timer_entry_init(&entries[i], 0, &tparam, &st_entry_callback);
+ 
+-	pj_timer_entry_init(&entries[i], 0, grp_lock, &st_entry_callback);
+-	status = st_schedule_entry(timer, &entries[i]);
++	status = pj_atomic_create(pool, -1, &entries_status[i]);
+ 	if (status != PJ_SUCCESS) {
+-	    app_perror("...error: unable to schedule entry", status);
+ 	    err = -60;
+ 	    goto on_return;
+ 	}
++	pj_atomic_set(entries_status[i], 0);
++
++	/* For randomized test, we schedule the entry inside the thread */
++	if (!ST_STRESS_THREAD_COUNT) {
++	    status = st_schedule_entry(timer, &entries[i]);
++	    if (status != PJ_SUCCESS) {
++	        app_perror("...error: unable to schedule entry", status);
++	        err = -60;
++	        goto on_return;
++	    }
++	}
+     }
+ 
+     tparam.stopping = PJ_FALSE;
+     tparam.timer = timer;
+     tparam.entries = entries;
++    tparam.status = entries_status;
+     status = pj_atomic_create(pool, -1, &tparam.idx);
+     if (status != PJ_SUCCESS) {
+ 	app_perror("...error: unable to create atomic", status);
+ 	err = -70;
+ 	goto on_return;
+     }
++    status = pj_atomic_create(pool, -1, &tparam.n_sched);
++    pj_assert (status == PJ_SUCCESS);
++    pj_atomic_set(tparam.n_sched, 0);
++    status = pj_atomic_create(pool, -1, &tparam.n_cancel);
++    pj_assert (status == PJ_SUCCESS);
++    pj_atomic_set(tparam.n_cancel, 0);
++    status = pj_atomic_create(pool, -1, &tparam.n_poll);
++    pj_assert (status == PJ_SUCCESS);
++    pj_atomic_set(tparam.n_poll, 0);
++
++    /* Start stress worker threads */
++    if (ST_STRESS_THREAD_COUNT) {
++	stress_threads = (pj_thread_t**)
++		        pj_pool_calloc(pool, ST_STRESS_THREAD_COUNT,
++				       sizeof(pj_thread_t*));
++    }
++    for (i=0; i<ST_STRESS_THREAD_COUNT; ++i) {
++	status = pj_thread_create( pool, "poll", &stress_worker, &tparam,
++				   0, 0, &stress_threads[i]);
++	if (status != PJ_SUCCESS) {
++	    app_perror("...error: unable to create stress thread", status);
++	    err = -75;
++	    goto on_return;
++	}
++    }
+ 
+     /* Start poll worker threads */
+     if (ST_POLL_THREAD_COUNT) {
+@@ -432,15 +636,38 @@ static int timer_stress_test(void)
+ 	}
+     }
+ 
+-    /* Wait 30s */
+-    pj_thread_sleep(30*1000);
++#if SIMULATE_CRASH
++    tmp_pool = pj_pool_create( mem, NULL, 4096, 128, NULL);
++    pj_assert(tmp_pool);
++    entry = (pj_timer_entry*)pj_pool_calloc(tmp_pool, 1, sizeof(*entry));
++    pj_assert(entry);
++    pj_timer_entry_init(entry, 0, &tparam, &dummy_callback);
++    delay.sec = 6;
++    status = pj_timer_heap_schedule(timer, entry, &delay);
++    pj_assert(status == PJ_SUCCESS);
++    pj_thread_sleep(1000);
++    PJ_LOG(3,("test", "...Releasing timer entry %p without cancelling it",
++    		      entry));
++    pj_pool_secure_release(tmp_pool);
++    //pj_pool_release(tmp_pool);
++    //pj_memset(tmp_pool, 128, 4096);
++#endif
+ 
++    /* Wait */
++    pj_thread_sleep(ST_DURATION);
+ 
+ on_return:
+     
+     PJ_LOG(3,("test", "...Cleaning up resources"));
+     tparam.stopping = PJ_TRUE;
+     
++    for (i=0; i<ST_STRESS_THREAD_COUNT; ++i) {
++	if (!stress_threads[i])
++	    continue;
++	pj_thread_join(stress_threads[i]);
++	pj_thread_destroy(stress_threads[i]);
++    }
++
+     for (i=0; i<ST_POLL_THREAD_COUNT; ++i) {
+ 	if (!poll_threads[i])
+ 	    continue;
+@@ -462,7 +689,9 @@ on_return:
+     }
+ 
+     for (i=0; i<ST_ENTRY_COUNT; ++i) {
+-	pj_timer_heap_cancel_if_active(timer, &entries[i], 10);
++	count += pj_timer_heap_cancel_if_active(timer, &entries[i], 10);
++	if (entries_status)
++	    pj_atomic_destroy(entries_status[i]);
+     }
+ 
+     for (i=0; i<ST_ENTRY_GROUP_LOCK_COUNT; ++i) {
+@@ -477,12 +706,44 @@ on_return:
+     if (timer)
+ 	pj_timer_heap_destroy(timer);
+ 
++    PJ_LOG(3,("test", "Total memory of timer heap: %d",
++    		      pj_timer_heap_mem_size(ST_ENTRY_COUNT)));
++
+     if (tparam.idx)
+ 	pj_atomic_destroy(tparam.idx);
++    if (tparam.n_sched) {
++        n_sched = pj_atomic_get(tparam.n_sched);
++        PJ_LOG(3,("test", "Total number of scheduled entries: %d", n_sched));
++	pj_atomic_destroy(tparam.n_sched);
++    }
++    if (tparam.n_cancel) {
++        n_cancel = pj_atomic_get(tparam.n_cancel);
++        PJ_LOG(3,("test", "Total number of cancelled entries: %d", n_cancel));
++	pj_atomic_destroy(tparam.n_cancel);
++    }
++    if (tparam.n_poll) {
++        n_poll = pj_atomic_get(tparam.n_poll);
++        PJ_LOG(3,("test", "Total number of polled entries: %d", n_poll));
++	pj_atomic_destroy(tparam.n_poll);
++    }
++    PJ_LOG(3,("test", "Number of remaining active entries: %d", count));
++    if (n_sched) {
++        pj_bool_t match = PJ_TRUE;
++
++#if SIMULATE_CRASH
++	n_sched++;
++#endif
++        if (n_sched != (n_cancel + n_poll + count)) {
++            if (tparam.err != 0) tparam.err = -250;
++            match = PJ_FALSE;
++        }
++    	PJ_LOG(3,("test", "Scheduled = cancelled + polled + remaining?: %s",
++    			  (match? "yes": "no")));
++    }
+ 
+     pj_pool_safe_release(&pool);
+ 
+-    return err;
++    return (err? err: tparam.err);
+ }
+ 
+ int timer_test()
