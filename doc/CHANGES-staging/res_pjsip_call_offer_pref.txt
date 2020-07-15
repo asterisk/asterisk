@@ -1,8 +1,0 @@
-Subject: res_pjsip
-Subject: res_pjsip_session
-Master-Only: True
-
-Two new options, incoming_call_offer_pref and outgoing_call_offer_pref
-have been added to res_pjsip endpoints that specify the preferred order
-of codecs to use between those received/sent in an SDP offer and those
-set in the endpoint configuration.

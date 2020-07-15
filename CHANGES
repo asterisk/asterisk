@@ -13,6 +13,384 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 18.0.0 --------------------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * The Streams API becomes the home for the core ACN capabilities.
+   These include...
+
+    * Parsing and formatting of codec negotation preferences.
+    * Resolving pending streams and topologies with those configured
+      using configured preferences.
+    * Utility functions for creating string representations of
+      streams, topologies, and negotiation preferences.
+
+   For codec negotiation preferences:
+    * Added ast_stream_codec_prefs_parse() which takes a string
+      representation of codec negotiation preferences, which
+      may come from a pjsip endpoint for example, and populates
+      a ast_stream_codec_negotiation_prefs structure.
+    * Added ast_stream_codec_prefs_to_str() which does the reverse.
+    * Added many functions to parse individual parameter name
+      and value strings to their respectrive enum values, and the
+      reverse.
+
+   For streams:
+    * Added ast_stream_create_resolved() which takes a "live" stream
+      and resolves it with a configured stream and the negotiation
+      preferences to create a new stream.
+    * Added ast_stream_to_str() which create a string representation
+      of a stream suitable for debug or display purposes.
+
+   For topology:
+    * Added ast_stream_topology_create_resolved() which takes a "live"
+      topology and resolves it, stream by stream, with a configured
+      topology stream and the negotiation preferences to create a new
+      topology.
+    * Added ast_stream_topology_to_str() which create a string
+      representation of a topology suitable for debug or display
+      purposes.
+    * Renamed ast_format_caps_from_topology() to
+      ast_stream_topology_get_formats() to be more consistent with
+      the existing ast_stream_get_formats().
+
+   Additional changes:
+    * A new function ast_format_cap_append_names() appends the results
+      to the ast_str buffer instead of replacing buffer contents.
+
+app_bridgeaddchan
+------------------
+ * The BridgeAdd application now behaves more like the Bridge application.
+   The application now sets the BRIDGERESULT channel variable to indicate
+   what happened when the channel resumes in dialplan.  This is instead of
+   hanging up the channel on failure conditions.
+
+res_pjsip
+------------------
+ * Two new options, incoming_call_offer_pref and outgoing_call_offer_pref
+   have been added to res_pjsip endpoints that specify the preferred order
+   of codecs to use between those received/sent in an SDP offer and those
+   set in the endpoint configuration.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 17.0.0 to Asterisk 18.0.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * You can now specify an optional 'Content-Type' as an argument for the Asterisk
+   SendText manager action.
+
+ARI
+------------------
+ * A new parameter 'inhibitConnectedLineUpdates' is now available in the
+   'bridges.addChannel' call. This prevents the identity of the newly connected
+   channel from being presented to other bridge members.
+
+ARI Channels
+------------------
+ * The Channel resource has a new sub-resource "externalMedia".
+   This allows an application to create a channel for the sole purpose
+   of exchanging media with an external server.  Once created, this
+   channel could be placed into a bridge with existing channels to
+   allow the external server to inject audio into the bridge or
+   receive audio from the bridge.
+   See https://wiki.asterisk.org/wiki/display/AST/External+Media+and+ARI
+   for more information.
+
+Core
+------------------
+ * H.265/HEVC is now a supported video codec and it can be used by
+   specifying "h265" in the allow line.
+   Please note however, that handling of the additional SDP parameters
+   described in RFC 7798 section 7.2 is not yet supported.
+
+Features
+------------------
+ * Adds support for AudioSocket, a very simple bidirectional audio streaming
+   protocol. There are both channel and application interfaces.
+
+   A description of the protocol can be found on the referenced wiki page. A
+   short talk about the reasons and implementation can be found on YouTube at
+   the link provided.
+
+   ARI support has also been added via the existing "externalMedia" ARI
+   functionality. The UUID is specified using the arbitrary "data" field.
+
+   Wiki: https://wiki.asterisk.org/wiki/display/AST/AudioSocket
+   YouTube: https://www.youtube.com/watch?v=tjduXbZZEgI
+
+Messaging
+------------------
+ * In order to reduce the amount of AMI and ARI events generated,
+   the global "Message/ast_msg_queue" channel can be set to suppress
+   it's normal channel housekeeping events such as "Newexten",
+   "VarSet", etc. This can greatly reduce load on the manager
+   and ARI applications when the Digium Phone Module for Asterisk
+   is in use.  To enable, set "hide_messaging_ami_events" in
+   asterisk.conf to "yes"  In Asterisk versions <18, the default
+   is "no" preserving existing behavior.  Beginning with
+   Asterisk 18, the option will default to "yes".
+
+STIR/SHAKEN
+------------------
+ * STIR/SHAKEN support has been added to Asterisk. Configuration is done in
+   stir_shaken.conf. There is a sample configuration file to help you get
+   started (asterisk/configs/samples/stir_shaken.conf.sample). Once that's
+   set up, you can enable STIR/SHAKEN on any endpoint by setting stir_shaken
+   to yes on the endpoint configuration object. This will add an Identity
+   header on outgoing INVITEs, and check for an Identity header on incoming
+   INVITEs. This option has been added to Alembic as well.
+
+   The information received on an incoming INVITE can be checked using the
+   STIR_SHAKEN dialplan function. There are two variations:
+
+   STIR_SHAKEN(count)
+   STIR_SHAKEN(0, verify_result)
+
+   The first variation will tell you how many STIR/SHAKEN results are on the
+   channel. The second fetches information for a specific result. The first
+   parameter is the index, followed by what information you want to retrieve.
+   The available options are 'verify_result', 'identity', and 'attestation'.
+
+app_chanisavail
+------------------
+ * The ChanIsAvail application now tolerates empty positions in the supplied
+   device list.  Dialplan can now be simplified by not having to check for
+   empty positions in the device list.
+
+app_confbridge
+------------------
+ * A new bridge profile option, maximum_sample_rate, has been added which sets
+   a maximum sample rate that the bridge will be mixed at. This allows the bridge
+   to move below the maximum sample rate as needed but caps it at the maximum.
+
+ * A new option, "text_messaging", has been added to the user profile
+   which allows control over whether text messaging is enabled or
+   disabled for a user. If enabled (the default) text messages
+   will be sent to the user. If disabled no text messages will be
+   sent to the user.
+
+app_dial
+------------------
+ * The Dial application now tolerates empty positions in the supplied
+   destination list.  Dialplan can now be simplified by not having to check
+   for empty positions in the destination list.  If there are no endpoints to
+   dial then DIALSTATUS is set to CHANUNAVAIL.
+
+app_mixmonitor
+------------------
+ * An option 'S' has been added to MixMonitor. If used in combination with
+   the r() and/or t() options, if a frame is available to write to one of
+   those files but not the other, a frame of silence if written to the file
+   that does not have an audio frame. This should prevent the two files
+   from "drifting" when mixed after the fact.
+
+ * If the 'filename' argument to MixMonitor() ended with '.wav49,'
+   Asterisk would silently convert the extension to '.WAV' when opening
+   the file for writing. This caused the MIXMONITOR_FILENAME variable to
+   reference the wrong file. The MIXMONITOR_FILENAME variable will now
+   reflect the name of the file that Asterisk actually used instead of
+   the filename that was passed to the application.
+
+app_page
+------------------
+ * The Page application now tolerates empty positions in the supplied
+   destination list.  Dialplan can now be simplified by not having to check
+   for empty positions in the destination list.
+
+app_voicemail
+------------------
+ * A feature was added in Asterisk 13.27.0 and 16.4.0 that removed lock files from
+   the Asterisk voicemail directory on startup. Some users that store their
+   voicemails on network storage devices experienced slow startup times due to the
+   relative expense of traversing the voicemail directory structure looking for
+   orphaned lock files. This feature has now been removed.
+
+   Users who require the lock files to be removed at startup should modify their
+   startup scripts to do so before starting the asterisk process.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_MOH_PASSTRHOUGH, has been added to chan_pjsip. This
+   allows the behaviour of the moh_passthrough endpoint option to be read or changed
+   in the dialplan. This allows control on a per-call basis.
+
+chan_rtp
+------------------
+ * The UnicastRTP channel driver provided by chan_rtp now accepts
+   "<hostname>:<port>" as an alternative to "<ip_address>:<port>" in the destination.
+   The first AAAA (preferred) or A record resolved will be used as the destination.
+   The lookup is synchronous so beware of possible dialplan delays if you specify a
+   hostname.
+
+func_curl
+------------------
+ * A new parameter, httpheader, has been added to CURLOPT function. This parameter
+   allows to set custom http headers for subsequent calls off CURL function.
+   Any setting of headers will replace the default curl headers
+   (e.g. "Content-type: application/x-www-form-urlencoded")
+
+ * A new option, followlocation, can now be enabled with the CURLOPT()
+   dialplan function. Setting this will instruct cURL to follow 3xx
+   redirects, which it does not by default.
+
+func_jitterbuffer
+------------------
+ * The JITTERBUFFER dialplan function now has an option to enable video synchronization
+   support. When enabled and used with a compatible channel driver (chan_sip, chan_pjsip)
+   the video is buffered according to the size of the audio jitterbuffer and is
+   synchronized to the audio.
+
+func_volume
+------------------
+ * Accept decimal number as argument.
+
+http
+------------------
+ * You can now disable the /httpstatus page served by Asterisk's built-in
+   HTTP server by setting 'enable_status' to 'no' in http.conf.
+
+minmemfree
+------------------
+ * The 'minmemfree' configuration option now counts memory allocated to
+   the filesystem cache as "free" because it is memory that is available
+   to the process.
+
+res_ari_channels
+------------------
+ * When creating a channel in ARI using the create call
+   you can now specify dialplan variables to be set as part
+   of the same operation.
+
+res_musiconhold
+------------------
+ * This fix allows a realtime moh class to be unregistered from the command
+   line. This is useful when the contents of a directory referenced by a
+   realtime moh class have changed.
+   The realtime moh class is then reloaded on the next request and uses the
+   new directory contents.
+
+ * A new mode - playlist - has been added to res_musiconhold. This mode allows the
+   user to specify the files (or URLs) to play explicitly by putting them directly
+   in musiconhold.conf.
+
+res_pjsip
+------------------
+ * Added a new PJSIP system setting called disable_rport.
+   Default is no to keep support working as before.
+
+   If it is false (default) it adds the 'rport' parameter in the outgoing request message.
+   If it is true it does not add the 'rport' parameter in the outgoing request message.
+
+   This is a system option, but working as a global option.
+
+res_pjsip_endpoint_identifier_ip
+------------------
+ * In 'type = identify' sections, the addresses specified for the 'match'
+   clause can now include a port number. For IP addresses, the port is
+   provided by including a colon after the address, followed by the
+   desired port number. If supplied, the netmask should follow the port
+   number. To specify a port for IPv6 addresses, the address itself must
+   be enclosed in brackets to be parsed correctly.
+
+res_pjsip_logger
+------------------
+ * The PJSIP packet logger now has the following CLI commands:
+
+   pjsip set logger pcap <filename>
+
+   When used this will create a pcap file containing the incoming
+   and outgoing SIP packets, in unencrypted form.
+
+   pjsip set logger console <on / off>
+
+   This allows you to toggle logging to console on and off.
+
+   pjsip set logger host <IP/subnet mask> add
+
+   This allows you to add an additional IP address or subnet
+   mask to logging, allowing you to log multiple instead of
+   just a single IP address or all traffic.
+
+   The normal "pjsip set logger host" CLI command has also been
+   expanded to allow subnet masks as well.
+
+res_pjsip_session
+------------------
+ * When placing an outgoing call to a PJSIP endpoint the intent
+   of any requested formats will now be respected. If only an audio
+   format is requested (such as ulaw) but the underlying endpoint
+   does not support the format the resulting SDP will still only
+   contain an audio stream, and not any additional streams such as
+   video.
+
+ * Two new options, incoming_call_offer_pref and outgoing_call_offer_pref
+   have been added to res_pjsip endpoints that specify the preferred order
+   of codecs to use between those received/sent in an SDP offer and those
+   set in the endpoint configuration.
+
+res_rtp_asterisk
+------------------
+ * This change include a new cli command 'rtp show settings'
+
+   The command display by general settings of rtp configuration. For this
+   point is added the fields: rtpstart, rtpend, dtmftimeout, rtpchecksum,
+   strictrtp, learning_min_sequential and icesupport.
+
+ * The blacklist mechanism in res_rtp_asterisk for ICE and STUN was converted to
+   an ACL mechanism.
+
+   As such six now options are now available:
+
+   ice_deny
+   ice_permit
+   ice_acl
+   stun_deny
+   stun_permit
+   stun_acl
+
+   These options have their obvious meanings as used elsewhere.
+
+   Backwards compatibility was maintained by adding {stun,ice}_blacklist as
+   aliases for {stun,ice}_deny.
+
+res_sorcery_memory_cache
+------------------
+ * The SorceryMemoryCacheExpireObject AMI action and CLI
+   command allow expiring of a specific object within the
+   sorcery memory cache. This is done by removing the
+   object from the cache with the expectation that the
+   cache will then re-populate the object when it is next
+   needed.
+
+   For full backend caching this does not occur. The cache
+   won't repopulate until an entire refresh is done resulting
+   in the possibility that objects are missing until that
+   time.
+
+   The AMI action and CLI command will now not allow
+   expiring of an object if the cache is configured as a
+   full backend cache. Instead you must use either the
+   SorceryMemoryCacheExpire or SorceryMemoryCachePopulate
+   AMI actions or their associated CLI commands.
+
+taskprocessor.c
+------------------
+ * Added two new CLI commands to reset stats for taskprocessors. You can
+   reset stats for a single, specific taskprocessor ('core reset
+   taskprocessor <taskprocessor>'), or you can reset all taskprocessors
+   ('core reset taskprocessors'). These commands will reset the counter for
+   the number of tasks processed as well as the max queue size.
+
+ * Added "like" support for 'core show taskprocessors'. Now you
+   can specify a specific set of taskprocessors (or just one) by
+   adding the keyword "like" to the above command, followed by
+   your search criteria.
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 17.0.0 --------------------------
 ------------------------------------------------------------------------------
 

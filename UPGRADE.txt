@@ -19,6 +19,126 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 18.0.0 --------------------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * The ast_format_cap_from_stream_topology() function has been renamed
+   to ast_stream_topology_get_formats().
+
+app_bridgeaddchan
+------------------
+ * The BridgeAdd application now behaves more like the Bridge application.
+   The application now sets the BRIDGERESULT channel variable to indicate
+   what happened when the channel resumes in dialplan.  This is instead of
+   hanging up the channel on failure conditions.
+
+app_mixmonitor
+------------------
+ * In Asterisk 13.29, a new option flag was added to MixMonitor (the 'S'
+   option) that when combined with the r() or t() options would inject
+   silence into these files if audio was going to be written to one and
+   not that other. This allowed the files specified by r() and t() to
+   subsequently be mixed outside of Asterisk and be appropriately
+   synchronized. This behavior is now the default, and a new option has
+   been added to disable this behavior if desired (the 'n' option).
+
+app_queue
+------------------
+ * The 'Reason' header in the QueueMemberPause AMI Event has been
+   removed. The 'PausedReason' header should be used instead.
+
+ * If they are not specified in [general], "shared_lastcall" and "autofill"
+   now always default to OFF.  Before this version, they would be off ('no') if
+   queues.conf did not have a [general] section, but on ('yes') if it did.
+
+app_voicemail
+------------------
+ * The MessageExists dialplan application and the MESSAGE_EXISTS dialplan
+   function were removed. The were deprecated in Asterisk 1.6.0 and
+   Asterisk 11.0.0 respectively. The VM_INFO() dialplan function is the
+   supported mechanism to query the status of a given mailbox.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 17.0.0 to Asterisk 18.0.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * The AMI Originate action, which optionally takes a dialplan application as
+   an argument, no longer accepts "Originate" as the application due to
+   security concerns.
+
+ARI
+------------------
+ * The "TextMessageReceived" event used to include a list of "TextMessageVariable"
+   objects as part of its output. Due to a couple of bugs in Asterisk a list of
+   received variables was never included even if ones were available. However,
+   variables set to send would be (which they should have not been), but would
+   fail validation due to the bad formatting.
+
+   So basically there was no way to get a "TextMessageReceived" event with
+   variables. Due to this the API has changed. The "TextMessageVariable" object
+   no longer exists. "TextMessageReceived" now returns a JSON object of key/value
+   pairs. So for instance instead of a list of "TextMessageVariable" objects:
+
+   [ TextMessageVariable, TextMessageVariable, TextMessageVariable]
+
+   where a TextMessageVariable was supposed to be:
+
+   { "key": "<var name>", "value":, "<var value>" }
+
+   The output is now just:
+
+   { "<var name>": "<var value>" }
+
+   This aligns more with how variables are specified when sending a message, as
+   well as other variable lists in ARI.
+
+Core
+------------------
+ * The streams API function ast_stream_get_formats is
+   now defined as returning the format capabilities const.
+   This has always been the case but was never enforced
+   through the API itself. Any consumer of this API that
+   is not treating the formats as immutable should update
+   their code to create a new format capabilities and set
+   it on the stream instead.
+
+res_stasis
+------------------
+ * The "TextMessageReceived" event used to include a list of "TextMessageVariable"
+   objects as part of its output. Due to a couple of bugs in Asterisk a list of
+   received variables was never included even if ones were available. However,
+   variables set to send would be (which they should have not been), but would
+   fail validation due to the bad formatting.
+
+   So basically there was no way to get a "TextMessageReceived" event with
+   variables. Due to this the API has changed. The "TextMessageVariable" object
+   no longer exists. "TextMessageReceived" now returns a JSON object of key/value
+   pairs. So for instance instead of a list of "TextMessageVariable" objects:
+
+   [ TextMessageVariable, TextMessageVariable, TextMessageVariable]
+
+   where a TextMessageVariable was supposed to be:
+
+   { "key": "<var name>", "value":, "<var value>" }
+
+   The output is now just:
+
+   { "<var name>": "<var value>" }
+
+   This aligns more with how variables are specified when sending a message, as
+   well as other variable lists in ARI.
+
+res_stir_shaken
+------------------
+ * A new directory has been added under the default (e.g., /var/lib/asterisk) -
+   inside the 'keys' directory - named 'stir_shaken'. This directory will
+   hold public keys that have been downloaded for STIR/SHAKEN verification.
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 17.0.0 --------------------------
 ------------------------------------------------------------------------------
 

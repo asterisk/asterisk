@@ -1,6 +1,0 @@
-Subject: app_queue
-Master-Only: true
-
-If they are not specified in [general], "shared_lastcall" and "autofill"
-now always default to OFF.  Before this version, they would be off ('no') if
-queues.conf did not have a [general] section, but on ('yes') if it did.

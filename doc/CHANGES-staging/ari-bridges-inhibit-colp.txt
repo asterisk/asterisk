@@ -1,5 +1,0 @@
-Subject: ARI
-
-A new parameter 'inhibitConnectedLineUpdates' is now available in the
-'bridges.addChannel' call. This prevents the identity of the newly connected
-channel from being presented to other bridge members.
