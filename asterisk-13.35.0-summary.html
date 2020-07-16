@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.35.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.35.0-rc1</h3><h3 align="center">Date: 2020-07-09</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.35.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.35.0</h3><h3 align="center">Date: 2020-07-16</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-13.34.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">5 Joshua C. Colp <jcolp@sangoma.com><br/>4 Walter Doekes <walter+asterisk@wjd.nu><br/>4 Kevin Harwell <kharwell@digium.com><br/>4 George Joseph <gjoseph@digium.com><br/>2 Pirmin Walthert <infos@nappsoft.ch><br/>1 Università di Bologna - CESIA VoIP <cesia.voip@unibo.it><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Nickolay Shmyrev <nshmyrev@alphacephei.com><br/>1 Guido Falsi <madpilot@FreeBSD.org><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td><td width="33%"><td width="33%">3 Walter Doekes <walter+asterisk@wjd.nu><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 nappsoft <infos@nappsoft.ch><br/>2 Joshua C. Colp <jcolp@digium.com><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Università di Bologna - CESIA VoIP<br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Marin Odrljin <marin@maxcom.hr><br/>1 Josep B <jbort@icr.es><br/>1 Yury Kirsanov <y.kirsanov@gmail.com><br/>1 Nickolay V. Shmyrev <nshmyrev@alphacephei.com><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Gregory Massel <greg@csurf.co.za><br/>1 Joseph Ades <josephades1@gmail.com><br/>1 Yury Kirsanov<br/>1 Università di Bologna - CESIA VoIP <cesia.voip@unibo.it><br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td></tr>
+<tr valign="top"><td width="33%">5 Joshua C. Colp <jcolp@sangoma.com><br/>4 Kevin Harwell <kharwell@digium.com><br/>4 Walter Doekes <walter+asterisk@wjd.nu><br/>4 George Joseph <gjoseph@digium.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Pirmin Walthert <infos@nappsoft.ch><br/>1 Università di Bologna - CESIA VoIP <cesia.voip@unibo.it><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Nickolay Shmyrev <nshmyrev@alphacephei.com><br/>1 Guido Falsi <madpilot@FreeBSD.org><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td><td width="33%"><td width="33%">3 Walter Doekes <walter+asterisk@wjd.nu><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 nappsoft <infos@nappsoft.ch><br/>2 Joshua C. Colp <jcolp@digium.com><br/>1 Moises Silva <moises.silva@gmail.com><br/>1 Frederic LE FOLL <frederic.lefoll@c-s.fr><br/>1 Università di Bologna - CESIA VoIP<br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Marin Odrljin <marin@maxcom.hr><br/>1 Josep B <jbort@icr.es><br/>1 Yury Kirsanov <y.kirsanov@gmail.com><br/>1 Nickolay V. Shmyrev <nshmyrev@alphacephei.com><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Gregory Massel <greg@csurf.co.za><br/>1 Joseph Ades <josephades1@gmail.com><br/>1 Yury Kirsanov<br/>1 Università di Bologna - CESIA VoIP <cesia.voip@unibo.it><br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28952">ASTERISK-28952</a>: Queue wrapuptime sometimes not respected (based on stale lastcall time)<br/>Reported by: Walter Doekes<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8576603fafa60b93feca5838cf67efa2fa925372">[8576603faf]</a> Walter Doekes -- app_queue: Read latest wrapuptime instead of (possibly stale) copy</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28950">ASTERISK-28950</a>: Stale code in app_queue to check untouched channel<br/>Reported by: Walter Doekes<ul>
@@ -55,16 +55,18 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=58eaf41e287a9db1e04ec67972bf611a70260800">[58eaf41e28]</a> Kevin Harwell -- pjproject: Upgrade bundled version to pjproject 2.10</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a725dbd98eb1166ef50056d6839e2a3bf7f4a8b3">a725dbd98e</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 13.35.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1b0081750f4edb9ce7a9edf8e86a96708d0cedab">1b0081750f</a></td><td>Asterisk Development Team</td><td>Update for 13.35.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c705e79d79284851aee1f7ae7b60a5df06cb4b30">c705e79d79</a></td><td>George Joseph</td><td>Scope Trace: Update stub defines</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9fce5416432e57e019861596513288a0ea472afa">9fce541643</a></td><td>George Joseph</td><td>logger: Fix scope trace defines</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=50ba662b6a23274e129966cb1739b874f1029fc5">50ba662b6a</a></td><td>Walter Doekes</td><td>res_pjsip: Include &lt;pjsip_ua.h&gt; instead of internal "pjsua-lib/pjsua.h"</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=654ec4b908f68e6970439216796f8109395f14de">654ec4b908</a></td><td>Kevin Harwell</td><td>Compiler fixes for gcc 10</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=edf9471e051a2cbfdbcc5c754ac07ae522c1e989">edf9471e05</a></td><td>George Joseph</td><td>Scope Tracing:  Add stubs to allow easier cherry-picking</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                    |    1
-.version                                                                                      |    1
-ChangeLog                                                                                     |70348 ----------
-asterisk-13.34.0-summary.html                                                                 |  102
-asterisk-13.34.0-summary.txt                                                                  |  319
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-13.34.0-summary.html                                                                 |  102 -
+asterisk-13.34.0-summary.txt                                                                  |  319 -----
+b/.version                                                                                    |    2
+b/CHANGES                                                                                     |   39
+b/ChangeLog                                                                                   |  384 ++++++
 b/Makefile.rules                                                                              |   19
 b/addons/ooh323c/src/decode.c                                                                 |   10
 b/addons/ooh323c/src/ooSocket.c                                                               |    2
@@ -72,6 +74,8 @@ b/addons/ooh323c/src/oochannels.c                                               
 b/apps/app_queue.c                                                                            |   35
 b/apps/app_stack.c                                                                            |   11
 b/apps/app_voicemail.c                                                                        |   28
+b/asterisk-13.35.0-rc1-summary.html                                                           |  136 ++
+b/asterisk-13.35.0-rc1-summary.txt                                                            |  343 ++++++
 b/channels/chan_dahdi.c                                                                       |    6
 b/channels/chan_pjsip.c                                                                       |    9
 b/channels/chan_sip.c                                                                         |    1
@@ -79,18 +83,17 @@ b/configs/samples/pjsip.conf.sample                                             
 b/configure                                                                                   |    4
 b/configure.ac                                                                                |    4
 b/contrib/ast-db-manage/config/versions/79290b511e4b_pjsip_add_disable_rport.py               |   39
-b/doc/CHANGES-staging/ami_sendtext_content_type.txt                                           |    4
-b/doc/CHANGES-staging/res_pjsip_add_disable_rport_system_config.txt                           |    9
-b/doc/CHANGES-staging/sorcery_memory_cache_full_expire_object.txt                             |   19
+b/contrib/realtime/mysql/mysql_config.sql                                                     |    6
+b/contrib/realtime/postgresql/postgresql_config.sql                                           |    6
 b/include/asterisk/app.h                                                                      |    7
 b/include/asterisk/frame.h                                                                    |    7
-b/include/asterisk/logger.h                                                                   |   75
+b/include/asterisk/logger.h                                                                   |   75 +
 b/include/asterisk/manager.h                                                                  |    2
 b/include/asterisk/message.h                                                                  |   18
 b/include/asterisk/res_pjsip.h                                                                |   12
 b/main/channel.c                                                                              |    7
 b/main/http.c                                                                                 |    6
-b/main/manager.c                                                                              |  115
+b/main/manager.c                                                                              |  115 +-
 b/main/message.c                                                                              |   28
 b/main/pbx.c                                                                                  |    7
 b/main/pbx_variables.c                                                                        |    8
@@ -99,7 +102,7 @@ b/menuselect/menuselect.c                                                       
 b/menuselect/menuselect.h                                                                     |    2
 b/pbx/pbx_dundi.c                                                                             |   15
 b/res/parking/parking_bridge_features.c                                                       |   11
-b/res/res_corosync.c                                                                          |  564
+b/res/res_corosync.c                                                                          |  564 +++++++---
 b/res/res_fax.c                                                                               |   11
 b/res/res_http_websocket.c                                                                    |   49
 b/res/res_pjsip.c                                                                             |   12
@@ -109,7 +112,7 @@ b/res/res_pjsip_messaging.c                                                     
 b/res/res_pjsip_pubsub.c                                                                      |   25
 b/res/res_pjsip_registrar.c                                                                   |   21
 b/res/res_pjsip_sdp_rtp.c                                                                     |    3
-b/res/res_rtp_asterisk.c                                                                      |   66
+b/res/res_rtp_asterisk.c                                                                      |   66 -
 b/res/res_sorcery_memory_cache.c                                                              |   18
 b/tests/test_locale.c                                                                         |   12
 b/third-party/pjproject/Makefile                                                              |    1
@@ -118,19 +121,12 @@ b/third-party/pjproject/pjproject-2.10.tar.bz2.md5                              
 b/third-party/versions.mak                                                                    |    2
 b/utils/astman.c                                                                              |    2
 b/utils/db1-ast/hash/ndbm.c                                                                   |    3
-b/utils/extconf.c                                                                             |   10
-b/utils/muted.c                                                                               |    4
-contrib/realtime/mysql/mysql_cdr.sql                                                          |   33
-contrib/realtime/mysql/mysql_config.sql                                                       | 1189
-contrib/realtime/mysql/mysql_voicemail.sql                                                    |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                                |   37
-contrib/realtime/postgresql/postgresql_config.sql                                             | 1287
-contrib/realtime/postgresql/postgresql_voicemail.sql                                          |   39
-third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157
+b/utils/extconf.c                                                                             |    9
+third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157 --
 third-party/pjproject/patches/0020-patch_cnonce_only_digits_option.patch                      |   53
-third-party/pjproject/patches/0030-ssl-regression-fix.patch                                   |  105
-third-party/pjproject/patches/0031-transport-regression-fix.patch                             |  187
-third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch              |   84
+third-party/pjproject/patches/0030-ssl-regression-fix.patch                                   |  105 -
+third-party/pjproject/patches/0031-transport-regression-fix.patch                             |  187 ---
+third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch              |   84 -
 third-party/pjproject/patches/0040-brackets-in-via-received-params.patch                      |   40
 third-party/pjproject/pjproject-2.9.tar.bz2.md5                                               |    2
-73 files changed, 1064 insertions(+), 74373 deletions(-)</pre><br></html>
+67 files changed, 1936 insertions(+), 1410 deletions(-)</pre><br></html>
