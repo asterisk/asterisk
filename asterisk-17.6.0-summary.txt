@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-17.6.0-rc1
+                                asterisk-17.6.0
 
-                                Date: 2020-07-09
+                                Date: 2020-07-16
 
                            <asteriskteam@digium.com>
 
@@ -55,10 +55,10 @@
    5 Kevin Harwell                           3 Walter Doekes                  
    4 Walter Doekes                           2 Kevin Harwell                  
    4 sungtae kim                             2 nappsoft                       
-   2 Pirmin Walthert                         1 Moises Silva                   
-   1 UniversitÃ  di Bologna - CESIA          1 Bill Kervaski                  
-   VoIP                                      1 Frederic LE FOLL               
-   1 Asterisk Development Team               1 UniversitÃ  di Bologna - CESIA 
+   2 Asterisk Development Team               1 Moises Silva                   
+   2 Pirmin Walthert                         1 Bill Kervaski                  
+   1 UniversitÃ  di Bologna - CESIA          1 Frederic LE FOLL               
+   VoIP                                      1 UniversitÃ  di Bologna - CESIA 
    1 Frederic LE FOLL                        VoIP                             
    1 Moises Silva                            1 Yury Kirsanov                  
    1 Nickolay Shmyrev                        1 Jaco Kroon                     
@@ -302,6 +302,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | a3e207d174 | Asterisk Development | Update for 17.6.0-rc1              |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 11cee28e4f | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 17.6.0                             |
    |------------+----------------------+------------------------------------|
@@ -340,12 +343,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                    |    1
- .version                                                                                      |    1
- ChangeLog                                                                                     |90490 ----------
- asterisk-17.5.0-summary.html                                                                  |  129
- asterisk-17.5.0-summary.txt                                                                   |  396
+ asterisk-17.5.0-summary.html                                                                  |  129 -
+ asterisk-17.5.0-summary.txt                                                                   |  396 -----
+ b/.version                                                                                    |    2
  b/CHANGES                                                                                     |   39
+ b/ChangeLog                                                                                   |  694 +++++++++-
  b/Makefile.rules                                                                              |   19
  b/addons/ooh323c/src/decode.c                                                                 |   10
  b/addons/ooh323c/src/ooSocket.c                                                               |    2
@@ -355,6 +357,8 @@
  b/apps/app_stream_echo.c                                                                      |    2
  b/apps/app_voicemail.c                                                                        |   22
  b/apps/confbridge/confbridge_manager.c                                                        |    2
+ b/asterisk-17.6.0-rc1-summary.html                                                            |  179 ++
+ b/asterisk-17.6.0-rc1-summary.txt                                                             |  438 ++++++
  b/bridges/bridge_softmix.c                                                                    |    3
  b/channels/chan_dahdi.c                                                                       |    6
  b/channels/chan_pjsip.c                                                                       |   11
@@ -366,10 +370,12 @@
  b/configure                                                                                   |    4
  b/configure.ac                                                                                |    4
  b/contrib/ast-db-manage/config/versions/79290b511e4b_pjsip_add_disable_rport.py               |   39
+ b/contrib/realtime/mysql/mysql_config.sql                                                     |    6
+ b/contrib/realtime/postgresql/postgresql_config.sql                                           |    6
  b/include/asterisk/app.h                                                                      |    7
  b/include/asterisk/core_unreal.h                                                              |   19
  b/include/asterisk/frame.h                                                                    |   13
- b/include/asterisk/logger.h                                                                   |  360
+ b/include/asterisk/logger.h                                                                   |  360 +++++
  b/include/asterisk/manager.h                                                                  |    2
  b/include/asterisk/message.h                                                                  |   18
  b/include/asterisk/options.h                                                                  |    4
@@ -380,14 +386,14 @@
  b/main/bridge.c                                                                               |    3
  b/main/bridge_channel.c                                                                       |   17
  b/main/channel.c                                                                              |    7
- b/main/cli.c                                                                                  |  261
- b/main/core_local.c                                                                           |   98
- b/main/core_unreal.c                                                                          |  141
+ b/main/cli.c                                                                                  |  261 ++-
+ b/main/core_local.c                                                                           |   98 +
+ b/main/core_unreal.c                                                                          |  141 ++
  b/main/dns_srv.c                                                                              |    6
- b/main/frame.c                                                                                |   87
+ b/main/frame.c                                                                                |   87 +
  b/main/http.c                                                                                 |    6
- b/main/logger.c                                                                               |   98
- b/main/manager.c                                                                              |  115
+ b/main/logger.c                                                                               |   98 +
+ b/main/manager.c                                                                              |  115 +
  b/main/message.c                                                                              |   28
  b/main/options.c                                                                              |    9
  b/main/pbx.c                                                                                  |    7
@@ -399,7 +405,7 @@
  b/pbx/pbx_dundi.c                                                                             |   15
  b/res/ari/resource_channels.c                                                                 |    8
  b/res/parking/parking_bridge_features.c                                                       |   11
- b/res/res_corosync.c                                                                          |  564
+ b/res/res_corosync.c                                                                          |  564 +++++---
  b/res/res_fax.c                                                                               |   11
  b/res/res_http_websocket.c                                                                    |   53
  b/res/res_pjsip.c                                                                             |   12
@@ -412,7 +418,7 @@
  b/res/res_rtp_asterisk.c                                                                      |   25
  b/res/res_sorcery_memory_cache.c                                                              |   18
  b/tests/test_locale.c                                                                         |   12
- b/tests/test_scope_trace.c                                                                    |  126
+ b/tests/test_scope_trace.c                                                                    |  126 +
  b/tests/test_strings.c                                                                        |   39
  b/third-party/pjproject/Makefile                                                              |    1
  b/third-party/pjproject/patches/0011-sip_inv_patch.patch                                      |   39
@@ -420,19 +426,11 @@
  b/third-party/versions.mak                                                                    |    2
  b/utils/astman.c                                                                              |    2
  b/utils/db1-ast/hash/ndbm.c                                                                   |    3
- b/utils/extconf.c                                                                             |   10
- b/utils/muted.c                                                                               |    2
- contrib/realtime/mysql/mysql_cdr.sql                                                          |   41
- contrib/realtime/mysql/mysql_config.sql                                                       | 1270
- contrib/realtime/mysql/mysql_voicemail.sql                                                    |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                                |   45
- contrib/realtime/postgresql/postgresql_config.sql                                             | 1382
- contrib/realtime/postgresql/postgresql_voicemail.sql                                          |   39
- third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157
+ third-party/pjproject/patches/0010-ssl_sock_ossl-sip_transport_tls-Add-peer-to-error-me.patch |  157 --
  third-party/pjproject/patches/0020-patch_cnonce_only_digits_option.patch                      |   53
- third-party/pjproject/patches/0030-ssl-regression-fix.patch                                   |  105
- third-party/pjproject/patches/0031-transport-regression-fix.patch                             |  187
- third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch              |   84
+ third-party/pjproject/patches/0030-ssl-regression-fix.patch                                   |  105 -
+ third-party/pjproject/patches/0031-transport-regression-fix.patch                             |  187 --
+ third-party/pjproject/patches/0040-ICE-Add-callback-for-finding-valid-pair.patch              |   84 -
  third-party/pjproject/patches/0040-brackets-in-via-received-params.patch                      |   40
  third-party/pjproject/pjproject-2.9.tar.bz2.md5                                               |    2
- 95 files changed, 2262 insertions(+), 94889 deletions(-)
+ 90 files changed, 3571 insertions(+), 1589 deletions(-)
