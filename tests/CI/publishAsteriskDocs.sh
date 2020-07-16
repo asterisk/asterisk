@@ -103,7 +103,7 @@ fi
 # Publish the REST API.
 #
 
-${OUTPUTDIR}/publish-rest-api.py --username="${CONFLUENCE_USER}" \
+python2 ${OUTPUTDIR}/publish-rest-api.py --username="${CONFLUENCE_USER}" \
         --verbose \
         --ast-version="${AST_VER}" \
         ${CONFLUENCE_URL} \
@@ -133,7 +133,7 @@ PREFIX="Asterisk ${BRANCH_NAME}"
 # Script assumes that it's running from TOPDIR
 pushd ${OUTPUTDIR}
 
-./astxml2wiki.py --username="${CONFLUENCE_USER}" \
+python2 ./astxml2wiki.py --username="${CONFLUENCE_USER}" \
     --server=${CONFLUENCE_URL} \
     --prefix="${PREFIX}" \
     --space="${CONFLUENCE_SPACE}" \
