@@ -138,6 +138,8 @@ static void __frame_free(struct ast_frame *fr, int cache)
 				|| fr->frametype == AST_FRAME_VIDEO
 				|| fr->frametype == AST_FRAME_IMAGE) {
 				ao2_cleanup(fr->subclass.format);
+			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass.integer == AST_CONTROL_ANSWER) {
+				ao2_cleanup(fr->subclass.topology);
 			}
 
 			AST_LIST_INSERT_HEAD(&frames->list, fr, frame_list);
@@ -160,6 +162,8 @@ static void __frame_free(struct ast_frame *fr, int cache)
 			|| fr->frametype == AST_FRAME_VIDEO
 			|| fr->frametype == AST_FRAME_IMAGE) {
 			ao2_cleanup(fr->subclass.format);
+		} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass.integer == AST_CONTROL_ANSWER) {
+			ao2_cleanup(fr->subclass.topology);
 		}
 
 		ast_free(fr);
@@ -218,6 +222,8 @@ struct ast_frame *__ast_frisolate(struct ast_frame *fr, const char *file, int li
 		if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
 			(fr->frametype == AST_FRAME_IMAGE)) {
 			ao2_bump(out->subclass.format);
+		} else if (fr->frametype == AST_FRAME_VOICE && fr->subclass.integer == AST_CONTROL_ANSWER) {
+			ao2_bump(out->subclass.topology);
 		}
 		out->datalen = fr->datalen;
 		out->samples = fr->samples;
@@ -348,7 +354,10 @@ struct ast_frame *__ast_frdup(const struct ast_frame *f, const char *file, int l
 	if ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_VIDEO) ||
 		(f->frametype == AST_FRAME_IMAGE)) {
 		ao2_bump(out->subclass.format);
+	} else if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_ANSWER) {
+		ao2_bump(out->subclass.topology);
 	}
+
 	out->datalen = f->datalen;
 	out->samples = f->samples;
 	out->delivery = f->delivery;

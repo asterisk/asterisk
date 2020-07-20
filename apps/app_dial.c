@@ -1204,7 +1204,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int *result, char *dtmf_progress,
 	const int ignore_cc,
-	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
+	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid,
+	struct ast_bridge_config *config)
 {
 	struct cause_args num = *num_in;
 	int prestart = num.busy + num.congestion + num.nochan;
@@ -1418,6 +1419,18 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							}
 						}
 						peer = c;
+						/* Answer can optionally include a topology */
+						if (f->subclass.topology) {
+							/*
+							 * We need to bump the refcount on the topology to prevent it
+							 * from being cleaned up when the frame is cleaned up.
+							 */
+							config->answer_topology = ao2_bump(f->subclass.topology);
+							ast_trace(2, "%s Found topology in frame: %p %p %s\n",
+								ast_channel_name(peer), f, config->answer_topology,
+								ast_str_tmp(256, ast_stream_topology_to_str(config->answer_topology, &STR_TMP)));
+						}
+
 						/* Inform everyone else that they've been canceled.
 						 * The dial end event for the peer will be sent out after
 						 * other Dial options have been handled.
@@ -2217,7 +2230,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct dial_head out_chans = AST_LIST_HEAD_NOLOCK_INIT_VALUE; /* list of destinations */
 	struct chanlist *outgoing;
 	struct chanlist *tmp;
-	struct ast_channel *peer;
+	struct ast_channel *peer = NULL;
 	int to; /* timeout */
 	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
@@ -2838,7 +2851,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	}
 
 	peer = wait_for_answer(chan, &out_chans, &to, peerflags, opt_args, &pa, &num, &result,
-		dtmf_progress, ignore_cc, &forced_clid, &stored_clid);
+		dtmf_progress, ignore_cc, &forced_clid, &stored_clid, &config);
 
 	if (!peer) {
 		if (result) {
@@ -3267,6 +3280,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
 			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
+
 			res = ast_bridge_call(chan, peer, &config);
 		}
 	}
@@ -3304,6 +3318,18 @@ out:
 	}
 
 done:
+	if (config.answer_topology) {
+		ast_trace(2, "%s Cleaning up topology: %p %s\n",
+			peer ? ast_channel_name(peer) : "<no channel>", &config.answer_topology,
+			ast_str_tmp(256, ast_stream_topology_to_str(config.answer_topology, &STR_TMP)));
+
+		/*
+		 * At this point, the channel driver that answered should have bumped the
+		 * topology refcount for itself.  Here we're cleaning up the reference we added
+		 * in wait_for_answer().
+		 */
+		ast_stream_topology_free(config.answer_topology);
+	}
 	if (config.warning_sound) {
 		ast_free((char *)config.warning_sound);
 	}

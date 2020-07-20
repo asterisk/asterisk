@@ -1238,6 +1238,17 @@ int ast_queue_control_data(struct ast_channel *chan, enum ast_control_frame_type
 	return ast_queue_frame(chan, &f);
 }
 
+/*! \brief Queue an ANSWER control frame with topology */
+int ast_queue_answer(struct ast_channel *chan, const struct ast_stream_topology *topology)
+{
+	struct ast_frame f = {
+		AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_ANSWER,
+		.subclass.topology = (struct ast_stream_topology *)topology,
+	};
+	return ast_queue_frame(chan, &f);
+}
+
 /*! \brief Set defer DTMF flag on channel */
 int ast_channel_defer_dtmf(struct ast_channel *chan)
 {
@@ -2619,7 +2630,8 @@ static void set_channel_answer_time(struct ast_channel *chan)
 	}
 }
 
-int ast_raw_answer(struct ast_channel *chan)
+
+int ast_raw_answer_with_stream_topology(struct ast_channel *chan, struct ast_stream_topology *topology)
 {
 	int res = 0;
 	SCOPE_TRACE(1, "%s\n", ast_channel_name(chan));
@@ -2650,7 +2662,10 @@ int ast_raw_answer(struct ast_channel *chan)
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
 		ast_channel_lock(chan);
-		if (ast_channel_tech(chan)->answer) {
+		if (ast_channel_tech(chan)->answer_with_stream_topology) {
+			res = ast_channel_tech(chan)->answer_with_stream_topology(chan, topology);
+
+		} else if (ast_channel_tech(chan)->answer) {
 			res = ast_channel_tech(chan)->answer(chan);
 		}
 		ast_setstate(chan, AST_STATE_UP);
@@ -2665,6 +2680,11 @@ int ast_raw_answer(struct ast_channel *chan)
 	ast_indicate(chan, -1);
 
 	return res;
+}
+
+int ast_raw_answer(struct ast_channel *chan)
+{
+	return ast_raw_answer_with_stream_topology(chan, NULL);
 }
 
 int __ast_answer(struct ast_channel *chan, unsigned int delay)
