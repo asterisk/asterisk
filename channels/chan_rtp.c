@@ -189,8 +189,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 
 	fmt = ast_multicast_rtp_options_get_format(mcast_options);
 	if (!fmt) {
-		// fmt = derive_format_from_cap(cap);
-		fmt = ast_format_cap_get_format(cap, 0)
+		fmt = derive_format_from_cap(cap);
 	}
 	if (!fmt) {
 		ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
@@ -331,8 +330,7 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 			goto failure;
 		}
 	} else {
-		// fmt = derive_format_from_cap(cap);
-		fmt = ast_format_cap_get_format(cap, 0)
+		fmt = derive_format_from_cap(cap);
 		if (!fmt) {
 			ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
 				args.destination);
