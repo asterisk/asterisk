@@ -42,7 +42,10 @@
 #include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
-#define SOFTMIX_MIN_SAMPLE_RATE 8000	/* 8 kHz sample rate */
+#define SOFTMIX_MIN_SAMPLE_RATE 8000		/* 8 kHz sample rate */
+
+/*! The default sample rate of the bridge. */
+#define SOFTMIX_DEFAULT_SAMPLE_RATE 16000	/* 16 kHz sample rate */
 
 /*! \brief Interval at which mixing will take place. Valid options are 10, 20, and 40. */
 #define DEFAULT_SOFTMIX_INTERVAL 20
@@ -2072,7 +2075,8 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 		return -1;
 	}
 	/* start at minimum rate, let it grow from there */
-	softmix_data->internal_rate = SOFTMIX_MIN_SAMPLE_RATE;
+	// softmix_data->internal_rate = SOFTMIX_MIN_SAMPLE_RATE;
+	softmix_data->internal_rate = SOFTMIX_DEFAULT_SAMPLE_RATE;
 	softmix_data->internal_mixing_interval = DEFAULT_SOFTMIX_INTERVAL;
 
 #ifdef BINAURAL_RENDERING
