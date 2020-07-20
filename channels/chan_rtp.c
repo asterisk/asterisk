@@ -129,8 +129,7 @@ static struct ast_format *derive_format_from_cap(struct ast_format_cap *cap)
 		 * assignments. Signed linear @ 8kHz does not map, so if that is our
 		 * only capability, we force μ-law instead.
 		 */
-		fmt = ast_format_slin16;
-		/*fmt = ast_format_ulaw;*/
+		fmt = ast_format_ulaw;
 	}
 
 	return fmt;
