@@ -388,6 +388,16 @@ int ast_vector_string_split(struct ast_vector_string *dest,
 })
 
 /*!
+ * \brief Sort a vector in-place
+ *
+ * \param vec Vector to sort
+ * \param cmp A memcmp compatible compare function
+ */
+#define AST_VECTOR_SORT(vec, cmp) ({ \
+	qsort((vec)->elems, (vec)->current, sizeof(typeof((vec)->elems[0])), cmp); \
+})
+
+/*!
  * \brief Remove an element from a vector by index.
  *
  * Note that elements in the vector may be reordered, so that the remove can
