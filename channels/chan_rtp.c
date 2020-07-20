@@ -123,14 +123,14 @@ static struct ast_format *derive_format_from_cap(struct ast_format_cap *cap)
 {
 	struct ast_format *fmt = ast_format_cap_get_format(cap, 0);
 
-	if (ast_format_cap_count(cap) == 1 && fmt == ast_format_slin) {
-		/*
-		 * Because we have no SDP, we must use one of the static RTP payload
-		 * assignments. Signed linear @ 8kHz does not map, so if that is our
-		 * only capability, we force μ-law instead.
-		 */
-		fmt = ast_format_ulaw;
-	}
+	// if (ast_format_cap_count(cap) == 1 && fmt == ast_format_slin) {
+	// 	/*
+	// 	 * Because we have no SDP, we must use one of the static RTP payload
+	// 	 * assignments. Signed linear @ 8kHz does not map, so if that is our
+	// 	 * only capability, we force μ-law instead.
+	// 	 */
+	// 	fmt = ast_format_ulaw;
+	// }
 
 	return fmt;
 }
