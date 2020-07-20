@@ -39,7 +39,6 @@
 #include "asterisk/test.h"
 #include "asterisk/vector.h"
 #include "asterisk/message.h"
-#include "asterisk/logger.h"
 #include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
@@ -322,7 +321,7 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 
 	slin_format = ast_format_cache_get_slin_by_rate(rate);
 
-	ast_debug(1, "Adding channel %s, rate=%s, slin_format=%s, rawread=%s \n",
+	ast_log(LOG_WARNING, "Adding channel %s, rate=%s, slin_format=%s, rawread=%s \n",
 				ast_channel_name(bridge_channel->chan),
 				rate,
 				ast_format_get_name(slin_format),
