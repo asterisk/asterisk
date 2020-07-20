@@ -41,7 +41,7 @@ struct curl_cb_data *curl_cb_data_create(void)
 {
 	struct curl_cb_data *data;
 
-	data = ast_calloc(1, sizeof(data));
+	data = ast_calloc(1, sizeof(*data));
 
 	return data;
 }
