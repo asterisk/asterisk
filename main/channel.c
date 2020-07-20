@@ -4128,12 +4128,18 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				if (!ast_format_cache_is_slinear(core_format)) {
 					core_format = f->subclass.format;
 				}
-				if (ast_set_read_format_path(chan, f->subclass.format, core_format)) {
-					/* Drop frame.  We couldn't make it compatible with the core. */
-					ast_frfree(f);
-					f = &ast_null_frame;
-					break;
-				}
+
+				ast_log(LOG_WARNING, "Changing channel=%s, subclass=%s, core=%s \n",
+					ast_channel_name(chan),
+					ast_format_get_name(f->subclass.format),
+					ast_format_get_name(core_format));
+
+				// if (ast_set_read_format_path(chan, f->subclass.format, core_format)) {
+				// 	/* Drop frame.  We couldn't make it compatible with the core. */
+				// 	ast_frfree(f);
+				// 	f = &ast_null_frame;
+				// 	break;
+				// }
 			}
 			/*
 			 * Send frame to audiohooks if present, if frametype is linear, to preserve
