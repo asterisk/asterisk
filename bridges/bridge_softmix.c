@@ -325,7 +325,7 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 				ast_channel_name(bridge_channel->chan),
 				rate,
 				ast_format_get_name(slin_format),
-				ast_format_get_name(ast_channel_rawreadformat(bridge_channel->chan));
+				ast_format_get_name(ast_channel_rawreadformat(bridge_channel->chan)));
 
 	ast_mutex_lock(&sc->lock);
 	if (reset) {
