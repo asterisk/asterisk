@@ -4134,12 +4134,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					ast_format_get_name(f->subclass.format),
 					ast_format_get_name(core_format));
 
-				// if (ast_set_read_format_path(chan, f->subclass.format, core_format)) {
-				// 	/* Drop frame.  We couldn't make it compatible with the core. */
-				// 	ast_frfree(f);
-				// 	f = &ast_null_frame;
-				// 	break;
-				// }
+				if (ast_set_read_format_path(chan, f->subclass.format, core_format)) {
+					/* Drop frame.  We couldn't make it compatible with the core. */
+					ast_frfree(f);
+					f = &ast_null_frame;
+					break;
+				}
 			}
 			/*
 			 * Send frame to audiohooks if present, if frametype is linear, to preserve
