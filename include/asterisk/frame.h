@@ -147,8 +147,12 @@ enum {
 struct ast_frame_subclass {
 	/*! A frame specific code */
 	int integer;
-	/*! The asterisk media format */
-	struct ast_format *format;
+	union {
+		/*! The asterisk media format */
+		struct ast_format *format;
+		/*! The asterisk stream topology */
+		struct ast_stream_topology *topology;
+	};
 	/*! For video formats, an indication that a frame ended */
 	unsigned int frame_ending;
 };

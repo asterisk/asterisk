@@ -602,6 +602,16 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 			ast_format_cap_append(joint_caps, single, 0);
 			ao2_ref(single, -1);
 		}
+	} else {
+		if (error_message) {
+			ast_str_append(error_message, 0, "No common formats available for media type '%s' ",
+				ast_codec_media_type2str(pending_stream->type));
+			ast_format_cap_append_names(preferred_caps, error_message);
+			ast_str_append(error_message, 0, "<>");
+			ast_format_cap_append_names(nonpreferred_caps, error_message);
+			ast_str_append(error_message, 0, " with prefs: ");
+			ast_stream_codec_prefs_to_str(prefs, error_message);
+		}
 	}
 
 	joint_stream = ast_stream_clone(pending_stream, NULL);
@@ -613,7 +623,7 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 	/* ref to joint_caps will be transferred to the stream */
 	ast_stream_set_formats(joint_stream, joint_caps);
 
-	if (TRACE_ATLEAST(1)) {
+	if (TRACE_ATLEAST(3)) {
 		struct ast_str *buf = ast_str_create((AST_FORMAT_CAP_NAMES_LEN * 3) + AST_STREAM_MAX_CODEC_PREFS_LENGTH);
 		if (buf) {
 			ast_str_set(&buf, 0, "Resolved '%s' stream ", ast_codec_media_type2str(pending_stream->type));
@@ -1040,7 +1050,10 @@ struct ast_stream_topology *ast_stream_topology_create_resolved(
 			ast_stream_set_state(joint_stream, AST_STREAM_STATE_REMOVED);
 		} else {
 			joint_stream = ast_stream_create_resolved(pending_stream, configured_stream, prefs, error_message);
-			if (ast_stream_get_format_count(joint_stream) == 0) {
+			if (!joint_stream) {
+				ao2_cleanup(joint_topology);
+				return NULL;
+			} else if (ast_stream_get_format_count(joint_stream) == 0) {
 				ast_stream_set_state(joint_stream, AST_STREAM_STATE_REMOVED);
 			}
 		}

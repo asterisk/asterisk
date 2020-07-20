@@ -76,6 +76,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/stream.h"
 
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
@@ -558,11 +559,16 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 	set_config_flags(chan, config);
 
 	/* Answer if need be */
+
+	res = 0;
+
 	if (ast_channel_state(chan) != AST_STATE_UP) {
-		if (ast_raw_answer(chan)) {
+		res = ast_raw_answer_with_stream_topology(chan, config->answer_topology);
+		if (res != 0) {
 			return -1;
 		}
 	}
+
 
 #ifdef FOR_DEBUG
 	/* show the two channels and cdrs involved in the bridge for debug & devel purposes */
