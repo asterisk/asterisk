@@ -16,14 +16,14 @@ import sqlalchemy as sa
 max_value_length = 128
 
 def upgrade():
-    op.add_column('ps_endpoints', sa.Column('incoming_offer_codec_prefs', sa.String(max_value_length)))
-    op.add_column('ps_endpoints', sa.Column('outgoing_offer_codec_prefs', sa.String(max_value_length)))
-    op.add_column('ps_endpoints', sa.Column('incoming_answer_codec_prefs', sa.String(max_value_length)))
-    op.add_column('ps_endpoints', sa.Column('outgoing_answer_codec_prefs', sa.String(max_value_length)))
+    op.add_column('ps_endpoints', sa.Column('codec_prefs_incoming_offer', sa.String(max_value_length)))
+    op.add_column('ps_endpoints', sa.Column('codec_prefs_outgoing_offer', sa.String(max_value_length)))
+    op.add_column('ps_endpoints', sa.Column('codec_prefs_incoming_answer', sa.String(max_value_length)))
+    op.add_column('ps_endpoints', sa.Column('codec_prefs_outgoing_answer', sa.String(max_value_length)))
 
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'incoming_offer_codecs_prefs')
-    op.drop_column('ps_endpoints', 'outgoing_offer_codecs_prefs')
-    op.drop_column('ps_endpoints', 'incoming_answer_codecs_prefs')
-    op.drop_column('ps_endpoints', 'outgoing_answer_codecs_prefs')
+    op.drop_column('ps_endpoints', 'codec_prefs_incoming_offer')
+    op.drop_column('ps_endpoints', 'codec_prefs_outgoing_offer')
+    op.drop_column('ps_endpoints', 'codec_prefs_incoming_answer')
+    op.drop_column('ps_endpoints', 'codec_prefs_outgoing_answer')

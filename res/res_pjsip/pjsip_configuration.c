@@ -1194,19 +1194,19 @@ static int codec_prefs_handler(const struct aco_option *opt,
 				var->name);
 			return -1;
 		}
-		endpoint->media.incoming_offer_codec_prefs = prefs;
+		endpoint->media.codec_prefs_incoming_offer = prefs;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
 	} else if (strcmp(var->name, "outgoing_offer_codec_prefs") == 0) {
-		endpoint->media.outgoing_offer_codec_prefs = prefs;
+		endpoint->media.codec_prefs_outgoing_offer = prefs;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_UNION;
 	} else if (strcmp(var->name, "incoming_answer_codec_prefs") == 0) {
-		endpoint->media.incoming_answer_codec_prefs = prefs;
+		endpoint->media.codec_prefs_incoming_answer = prefs;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
 	} else if (strcmp(var->name, "outgoing_answer_codec_prefs") == 0) {
-		endpoint->media.outgoing_answer_codec_prefs = prefs;
+		endpoint->media.codec_prefs_outgoing_answer = prefs;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
 	}
@@ -1248,25 +1248,25 @@ static int codec_prefs_to_str(const struct ast_stream_codec_negotiation_prefs *p
 static int incoming_offer_codec_prefs_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	return codec_prefs_to_str(&endpoint->media.incoming_offer_codec_prefs, obj, args, buf);
+	return codec_prefs_to_str(&endpoint->media.codec_prefs_incoming_offer, obj, args, buf);
 }
 
 static int outgoing_offer_codec_prefs_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	return codec_prefs_to_str(&endpoint->media.outgoing_offer_codec_prefs, obj, args, buf);
+	return codec_prefs_to_str(&endpoint->media.codec_prefs_outgoing_offer, obj, args, buf);
 }
 
 static int incoming_answer_codec_prefs_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	return codec_prefs_to_str(&endpoint->media.incoming_answer_codec_prefs, obj, args, buf);
+	return codec_prefs_to_str(&endpoint->media.codec_prefs_incoming_answer, obj, args, buf);
 }
 
 static int outgoing_answer_codec_prefs_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	return codec_prefs_to_str(&endpoint->media.outgoing_answer_codec_prefs, obj, args, buf);
+	return codec_prefs_to_str(&endpoint->media.codec_prefs_outgoing_answer, obj, args, buf);
 }
 
 static void *sip_nat_hook_alloc(const char *name)
