@@ -102,7 +102,7 @@
 				<configOption name="allow">
 					<synopsis>Media Codec(s) to allow</synopsis>
 				</configOption>
-				<configOption name="incoming_offer_codec_prefs">
+				<configOption name="codec_prefs_incoming_offer">
 					<synopsis>Codec negotiation prefs for incoming offers.</synopsis>
 					<description>
 						<para>
@@ -154,7 +154,7 @@
 						<para>
 						</para>
 						<example>
-							incoming_offer_codec_prefs = prefer: pending, operation: intersect, keep: all, transcode: allow
+							codec_prefs_incoming_offer = prefer: pending, operation: intersect, keep: all, transcode: allow
 						</example>
 						<para>
 							Prefer the codecs coming from the caller.  Use only the ones that are common.
@@ -162,7 +162,7 @@
 						</para>
 					</description>
 				</configOption>
-				<configOption name="outgoing_offer_codec_prefs">
+				<configOption name="codec_prefs_outgoing_offer">
 					<synopsis>Codec negotiation prefs for outgoing offers.</synopsis>
 					<description>
 						<para>
@@ -215,7 +215,7 @@
 						<para>
 						</para>
 						<example>
-						outgoing_offer_codec_prefs = prefer: configured, operation: union, keep: first, transcode: prevent
+						codec_prefs_outgoing_offer = prefer: configured, operation: union, keep: first, transcode: prevent
 						</example>
 						<para>
 						Prefer the codecs coming from the endpoint.  Merge them with the codecs from the core
@@ -223,7 +223,7 @@
 						</para>
 					</description>
 				</configOption>
-				<configOption name="incoming_answer_codec_prefs">
+				<configOption name="codec_prefs_incoming_answer">
 					<synopsis>Codec negotiation prefs for incoming answers.</synopsis>
 					<description>
 						<para>
@@ -272,14 +272,14 @@
 						<para>
 						</para>
 						<example>
-						incoming_answer_codec_prefs = keep: first
+						codec_prefs_incoming_answer = keep: first
 						</example>
 						<para>
 						Use the defaults but keep oinly the first codec.
 						</para>
 					</description>
 				</configOption>
-				<configOption name="outgoing_answer_codec_prefs">
+				<configOption name="codec_prefs_outgoing_answer">
 					<synopsis>Codec negotiation prefs for outgoing answers.</synopsis>
 					<description>
 						<para>
@@ -328,7 +328,7 @@
 						<para>
 						</para>
 						<example>
-						incoming_answer_codec_prefs = keep: first
+						codec_prefs_incoming_answer = keep: first
 						</example>
 						<para>
 						Use the defaults but keep oinly the first codec.

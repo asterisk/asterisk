@@ -804,13 +804,13 @@ struct ast_sip_endpoint_media_configuration {
 	/*! Codec preference for an outgoing offer */
 	struct ast_flags outgoing_call_offer_pref;
 	/*! Codec negotiation prefs for incoming offers */
-	struct ast_stream_codec_negotiation_prefs incoming_offer_codec_prefs;
+	struct ast_stream_codec_negotiation_prefs codec_prefs_incoming_offer;
 	/*! Codec negotiation prefs for outgoing offers */
-	struct ast_stream_codec_negotiation_prefs outgoing_offer_codec_prefs;
+	struct ast_stream_codec_negotiation_prefs codec_prefs_outgoing_offer;
 	/*! Codec negotiation prefs for incoming answers */
-	struct ast_stream_codec_negotiation_prefs incoming_answer_codec_prefs;
+	struct ast_stream_codec_negotiation_prefs codec_prefs_incoming_answer;
 	/*! Codec negotiation prefs for outgoing answers */
-	struct ast_stream_codec_negotiation_prefs outgoing_answer_codec_prefs;
+	struct ast_stream_codec_negotiation_prefs codec_prefs_outgoing_answer;
 };
 
 /*!

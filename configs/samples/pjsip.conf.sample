@@ -843,7 +843,7 @@
                            ; at the end of the joint list.
                            ; remote_first - Include only the first codec in
                            ; the remote list.
-;incoming_offer_codec_prefs=; This is a string that describes how the codecs
+;codec_prefs_incoming_offer=; This is a string that describes how the codecs
                             ; specified on an incoming SDP offer (pending) are
                             ; reconciled with the codecs specified on an endpoint
                             ; (configured) before being sent to the Asterisk core.
@@ -855,7 +855,7 @@
                             ;    | only_nonpreferred>,
                             ; keep: <first | all>,
                             ; transcode: <allow | prevent>
-;outgoing_offer_codec_prefs=; This is a string that describes how the codecs
+;codec_prefs_outgoing_offer=; This is a string that describes how the codecs
                             ; specified in the topology that comes from the
                             ; Asterisk core (pending) are reconciled with the
                             ; codecs specified on an endpoint (configured)
@@ -868,7 +868,7 @@
                             ;    | only_preferred | only_nonpreferred>,
                             ; keep: <first | all>,
                             ; transcode: <allow | prevent>
-;incoming_answer_codec_prefs=; This is a string that describes how the codecs
+;codec_prefs_incoming_answer=; This is a string that describes how the codecs
                              ; specified in an incoming SDP answer (pending)
                              ; are reconciled with the codecs specified on an
                              ; endpoint (configured) when receiving an SDP
@@ -880,7 +880,7 @@
                              ; operation: <intersect | union
                              ;    | only_preferred | only_nonpreferred>,
                              ; keep: <first | all>
-;outgoing_answer_codec_prefs=; This is a string that describes how the codecs
+;codec_prefs_outgoing_answer=; This is a string that describes how the codecs
                              ; that come from the core (pending) are reconciled
                              ; with the codecs specified on an endpoint
                              ; (configured) when sending an SDP answer.
