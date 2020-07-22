@@ -259,6 +259,10 @@ static void set_redirecting(struct ast_sip_session *session,
 	++data.count;
 
 	ast_channel_set_redirecting(session->channel, &data, &update);
+	/* Only queue an indication if it was due to a response */
+	if (session->inv_session->role == PJSIP_ROLE_UAC) {
+		ast_channel_queue_redirecting_update(session->channel, &data, &update);
+	}
 	ast_party_redirecting_free(&data);
 }
 
@@ -406,7 +410,7 @@ static struct ast_sip_session_supplement diversion_supplement = {
 	.incoming_response = diversion_incoming_response,
 	.outgoing_request = diversion_outgoing_request,
 	.outgoing_response = diversion_outgoing_response,
-	.response_priority = AST_SIP_SESSION_BEFORE_REDIRECTING,
+	.response_priority = AST_SIP_SESSION_BEFORE_REDIRECTING|AST_SIP_SESSION_BEFORE_MEDIA,
 };
 
 static int load_module(void)
