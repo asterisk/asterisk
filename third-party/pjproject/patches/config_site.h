@@ -65,7 +65,7 @@
   Enabling it will result in SEGFAULTS when URIs containing escape sequences are encountered.
 */
 #undef PJSIP_UNESCAPE_IN_PLACE
-#define PJSIP_MAX_PKT_LEN			32000
+#define PJSIP_MAX_PKT_LEN			65535
 
 #undef PJ_TODO
 #define PJ_TODO(x)
