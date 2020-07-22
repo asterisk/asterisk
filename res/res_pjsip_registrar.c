@@ -233,7 +233,11 @@ static int registrar_add_contact(void *obj, void *arg, int flags)
 	if (parsed && (PJSIP_URI_SCHEME_IS_SIP(parsed) || PJSIP_URI_SCHEME_IS_SIPS(parsed))) {
 		pjsip_contact_hdr *hdr = pjsip_contact_hdr_create(tdata->pool);
 		hdr->uri = parsed;
-		hdr->expires = ast_tvdiff_ms(contact->expiration_time, ast_tvnow()) / 1000;
+		if (!ast_tvzero(contact->expiration_time)) {
+			hdr->expires = ast_tvdiff_ms(contact->expiration_time, ast_tvnow()) / 1000;
+		} else {
+			hdr->expires = PJSIP_EXPIRES_NOT_SPECIFIED;
+		}
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) hdr);
 	} else {
 		ast_log(LOG_WARNING, "Skipping invalid Contact URI \"%.*s\" for AOR %s\n",
