@@ -63,15 +63,15 @@
 #define MAXIMUM_RECONSTRUCTION_CEILING 8192
 #else
 /*! \brief Size of the pre-determined buffer for WebSocket frames */
-#define MAXIMUM_FRAME_SIZE 32768
+#define MAXIMUM_FRAME_SIZE 65535
 
 /*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
  *         payload.
  */
-#define DEFAULT_RECONSTRUCTION_CEILING 32768
+#define DEFAULT_RECONSTRUCTION_CEILING MAXIMUM_FRAME_SIZE
 
 /*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
-#define MAXIMUM_RECONSTRUCTION_CEILING 32768
+#define MAXIMUM_RECONSTRUCTION_CEILING MAXIMUM_FRAME_SIZE
 #endif
 
 /*! \brief Maximum size of a websocket frame header
@@ -100,6 +100,7 @@ struct ast_websocket {
 	struct websocket_client *client;    /*!< Client object when connected as a client websocket */
 	char session_id[AST_UUID_STR_LEN];  /*!< The identifier for the websocket session */
 	uint16_t close_status_code;         /*!< Status code sent in a CLOSE frame upon shutdown */
+	char buf[MAXIMUM_FRAME_SIZE];	    /*!< Fixed buffer for reading data into */
 };
 
 /*! \brief Hashing function for protocols */
@@ -565,7 +566,6 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, size_t 
 
 int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
 {
-	char buf[MAXIMUM_FRAME_SIZE] = "";
 	int fin = 0;
 	int mask_present = 0;
 	char *mask = NULL, *new_payload = NULL;
@@ -575,25 +575,25 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 	*payload_len = 0;
 	*fragmented = 0;
 
-	if (ws_safe_read(session, &buf[0], MIN_WS_HDR_SZ, opcode)) {
+	if (ws_safe_read(session, &session->buf[0], MIN_WS_HDR_SZ, opcode)) {
 		return -1;
 	}
 	frame_size += MIN_WS_HDR_SZ;
 
 	/* ok, now we have the first 2 bytes, so we know some flags, opcode and payload length (or whether payload length extension will be required) */
-	*opcode = buf[0] & 0xf;
-	*payload_len = buf[1] & 0x7f;
+	*opcode = session->buf[0] & 0xf;
+	*payload_len = session->buf[1] & 0x7f;
 	if (*opcode == AST_WEBSOCKET_OPCODE_TEXT || *opcode == AST_WEBSOCKET_OPCODE_BINARY || *opcode == AST_WEBSOCKET_OPCODE_CONTINUATION ||
 	    *opcode == AST_WEBSOCKET_OPCODE_PING || *opcode == AST_WEBSOCKET_OPCODE_PONG  || *opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
-		fin = (buf[0] >> 7) & 1;
-		mask_present = (buf[1] >> 7) & 1;
+		fin = (session->buf[0] >> 7) & 1;
+		mask_present = (session->buf[1] >> 7) & 1;
 
 		/* Based on the mask flag and payload length, determine how much more we need to read before start parsing the rest of the header */
 		options_len += mask_present ? 4 : 0;
 		options_len += (*payload_len == 126) ? 2 : (*payload_len == 127) ? 8 : 0;
 		if (options_len) {
 			/* read the rest of the header options */
-			if (ws_safe_read(session, &buf[frame_size], options_len, opcode)) {
+			if (ws_safe_read(session, &session->buf[frame_size], options_len, opcode)) {
 				return -1;
 			}
 			frame_size += options_len;
@@ -601,19 +601,19 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 
 		if (*payload_len == 126) {
 			/* Grab the 2-byte payload length  */
-			*payload_len = ntohs(get_unaligned_uint16(&buf[2]));
-			mask = &buf[4];
+			*payload_len = ntohs(get_unaligned_uint16(&session->buf[2]));
+			mask = &session->buf[4];
 		} else if (*payload_len == 127) {
 			/* Grab the 8-byte payload length  */
-			*payload_len = ntohl(get_unaligned_uint64(&buf[2]));
-			mask = &buf[10];
+			*payload_len = ntohll(get_unaligned_uint64(&session->buf[2]));
+			mask = &session->buf[10];
 		} else {
 			/* Just set the mask after the small 2-byte header */
-			mask = &buf[2];
+			mask = &session->buf[2];
 		}
 
 		/* Now read the rest of the payload */
-		*payload = &buf[frame_size]; /* payload will start here, at the end of the options, if any */
+		*payload = &session->buf[frame_size]; /* payload will start here, at the end of the options, if any */
 		frame_size = frame_size + (*payload_len); /* final frame size is header + optional headers + payload data */
 		if (frame_size > MAXIMUM_FRAME_SIZE) {
 			ast_log(LOG_WARNING, "Cannot fit huge websocket frame of %zu bytes\n", frame_size);

@@ -146,8 +146,8 @@
 					that a server has to process.</para>
 					<note>
 						<para>Current limitations limit the size of SIP NOTIFY requests that Asterisk sends
-						to 64000 bytes. If your resource list notifications are larger than this maximum, you
-						will need to make adjustments.</para>
+						to double that of the PJSIP maximum packet length. If your resource list notifications
+						are larger than this maximum, you will need to make adjustments.</para>
 					</note>
 				</description>
 				<configOption name="type">
@@ -1948,15 +1948,7 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
  * we instead take the strategy of pre-allocating the buffer, testing for ourselves
  * if the message will fit, and resizing the buffer as required.
  *
- * RFC 3261 says that a SIP UDP request can be up to 65535 bytes long. We're capping
- * it at 64000 for a couple of reasons:
- * 1) Allocating more than 64K at a time is hard to justify
- * 2) If the message goes through proxies, those proxies will want to add Via and
- *    Record-Route headers, making the message even larger. Giving some space for
- *    those headers is a nice thing to do.
- *
- * RFC 3261 does not place an upper limit on the size of TCP requests, but we are
- * going to impose the same 64K limit as a memory savings.
+ * The limit we impose is double that of the maximum packet length.
  *
  * \param tdata The tdata onto which to allocate a buffer
  * \retval 0 Success
@@ -1968,7 +1960,7 @@ static int allocate_tdata_buffer(pjsip_tx_data *tdata)
 	int size = -1;
 	char *buf;
 
-	for (buf_size = PJSIP_MAX_PKT_LEN; size == -1 && buf_size < 64000; buf_size *= 2) {
+	for (buf_size = PJSIP_MAX_PKT_LEN; size == -1 && buf_size < (PJSIP_MAX_PKT_LEN * 2); buf_size *= 2) {
 		buf = pj_pool_alloc(tdata->pool, buf_size);
 		size = pjsip_msg_print(tdata->msg, buf, buf_size);
 	}
