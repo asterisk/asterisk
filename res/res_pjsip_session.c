@@ -502,6 +502,20 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 		/* A stream can never exist without an accompanying media session */
 		if (session_media->type == type) {
 			ao2_ref(session_media, +1);
+			/*
+			 * If this session_media was previously removed, its bundle group was probably reset
+			 * to -1 so if bundling is enabled on the endpoint, we need to reset it to 0, set
+			 * the bundled flag and reset its mid.
+			 */
+			if (session->endpoint->media.bundle && session_media->bundle_group == -1) {
+				session_media->bundled = session->endpoint->media.webrtc;
+				session_media->bundle_group = 0;
+				ast_free(session_media->mid);
+				if (ast_asprintf(&session_media->mid, "%s-%d", ast_codec_media_type2str(type), position) < 0) {
+					ao2_ref(session_media, -1);
+					return NULL;
+				}
+			}
 		} else {
 			session_media = NULL;
 		}
