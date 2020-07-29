@@ -2118,11 +2118,15 @@ static void external_media_rtp_udp(struct ast_ari_channels_external_media_args *
 	struct ast_channel *chan;
 	struct varshead *vars;
 
-	// endpoint_len = strlen("UnicastRTP/") + strlen(args->external_host) + strlen(args->format) + 5;
-	endpoint_len = strlen("UnicastRTP/") + 1 + strlen(args->external_host);
+	// Libersys Test
+	// endpoint_len = strlen("UnicastRTP/") + 1 + strlen(args->external_host);
+	// endpoint = ast_alloca(endpoint_len);
+	// snprintf(endpoint, endpoint_len, "UnicastRTP/%s", args->external_host);
+
+	endpoint_len = strlen("UnicastRTP/") + strlen(args->external_host) + strlen(args->format) + 5;
 	endpoint = ast_alloca(endpoint_len);
-	snprintf(endpoint, endpoint_len, "UnicastRTP/%s", args->external_host);
-	// ast_log(LOG_WARNING, "Creating local channel %s\n", endpoint);
+	snprintf(endpoint, endpoint_len, "UnicastRTP/%s/c(%s)", args->external_host, args->format);
+	ast_log(LOG_WARNING, "Creating local channel %s\n", endpoint);
 
 	chan = ari_channels_handle_originate_with_id(
 		endpoint,
