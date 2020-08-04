@@ -267,7 +267,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max);
  * \brief Same as ast_base64decode, but does the math for you and returns
  * a decoded string
  *
- * \note The returned string will need to be freed later
+ * \note The returned string will need to be freed later and IS NULL terminated
  *
  * \param src The source buffer
  *

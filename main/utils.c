@@ -331,12 +331,13 @@ char *ast_base64decode_string(const char *src)
 	}
 
 	decoded_len = (encoded_len / 4 * 3) - padding;
-	decoded_string = ast_calloc(1, decoded_len);
+	decoded_string = ast_malloc(decoded_len + 1);
 	if (!decoded_string) {
 		return NULL;
 	}
 
 	ast_base64decode(decoded_string, src, decoded_len);
+	decoded_string[decoded_len] = '\0';
 
 	return (char *)decoded_string;
 }
