@@ -607,24 +607,28 @@ AST_VECTOR(ast_vector_string, char *);
  * \return 0 on success.
  * \return Non-zero on failure.
  */
-#define AST_VECTOR_COMPACT(vec) ({ \
-	int res = 0;								\
-	do {														\
-		if ((vec)->max > (vec)->current) {						\
-			size_t new_max = (vec)->current;				\
-			typeof((vec)->elems) new_elems = ast_realloc(		\
-				(vec)->elems,									\
-				new_max * sizeof(*new_elems));					\
-			if (new_elems || (vec)->current == 0) {				\
-				(vec)->elems = new_elems;						\
-				(vec)->max = new_max;							\
-			} else {											\
-				res = -1;										\
-				break;											\
-			}													\
-		}														\
-	} while(0);													\
-	res;														\
+#define AST_VECTOR_COMPACT(vec) ({					\
+	int res = 0;							\
+	do {								\
+		size_t new_max = (vec)->current;			\
+		if (new_max == 0) {					\
+			ast_free((vec)->elems);				\
+			(vec)->elems = NULL;				\
+			(vec)->max = 0;					\
+		} else if ((vec)->max > new_max) {			\
+			typeof((vec)->elems) new_elems = ast_realloc(	\
+				(vec)->elems,				\
+				new_max * sizeof(*new_elems));		\
+			if (new_elems) {				\
+				(vec)->elems = new_elems;		\
+				(vec)->max = new_max;			\
+			} else {					\
+				res = -1;				\
+				break;					\
+			}						\
+		}							\
+	} while(0);							\
+	res;								\
 })
 
 /*!
