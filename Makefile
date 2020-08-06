@@ -249,7 +249,7 @@ else
 endif
 ifneq ($(AWK),)
   ifneq ($(wildcard .version),)
-    ASTERISKVERSIONNUM:=$(shell $(AWK) -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}' .version)
+    ASTERISKVERSIONNUM:=$(shell $(SED) -e 's/^certified\///' -e 's/-cert/./' .version | $(AWK) -F. '{printf "%01d%02d%02d", $$1, $$2, $$3}')
   endif
 endif
 
