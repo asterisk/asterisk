@@ -1170,6 +1170,7 @@ static int codec_prefs_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
+	struct ast_stream_codec_negotiation_prefs *option_prefs;
 	struct ast_stream_codec_negotiation_prefs prefs;
 	struct ast_str *error_message = ast_str_create(128);
 	enum ast_stream_codec_negotiation_prefs_prefer_values default_prefer;
@@ -1185,7 +1186,7 @@ static int codec_prefs_handler(const struct aco_option *opt,
 	}
 	ast_free(error_message);
 
-	if (strcmp(var->name, "incoming_offer_codec_prefs") == 0) {
+	if (strcmp(var->name, "codec_prefs_incoming_offer") == 0) {
 		if (prefs.operation == CODEC_NEGOTIATION_OPERATION_UNION) {
 			ast_log(LOG_ERROR, "Endpoint '%s': Codec preference '%s' has invalid value '%s' for option: '%s'",
 				ast_sorcery_object_get_id(endpoint),
@@ -1194,21 +1195,26 @@ static int codec_prefs_handler(const struct aco_option *opt,
 				var->name);
 			return -1;
 		}
-		endpoint->media.codec_prefs_incoming_offer = prefs;
+		option_prefs = &endpoint->media.codec_prefs_incoming_offer;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
-	} else if (strcmp(var->name, "outgoing_offer_codec_prefs") == 0) {
-		endpoint->media.codec_prefs_outgoing_offer = prefs;
+	} else if (strcmp(var->name, "codec_prefs_outgoing_offer") == 0) {
+		option_prefs = &endpoint->media.codec_prefs_outgoing_offer;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_UNION;
-	} else if (strcmp(var->name, "incoming_answer_codec_prefs") == 0) {
-		endpoint->media.codec_prefs_incoming_answer = prefs;
+	} else if (strcmp(var->name, "codec_prefs_incoming_answer") == 0) {
+		option_prefs = &endpoint->media.codec_prefs_incoming_answer;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
-	} else if (strcmp(var->name, "outgoing_answer_codec_prefs") == 0) {
-		endpoint->media.codec_prefs_outgoing_answer = prefs;
+	} else if (strcmp(var->name, "codec_prefs_outgoing_answer") == 0) {
+		option_prefs = &endpoint->media.codec_prefs_outgoing_answer;
 		default_prefer = CODEC_NEGOTIATION_PREFER_PENDING;
 		default_operation = CODEC_NEGOTIATION_OPERATION_INTERSECT;
+	} else {
+		ast_log(LOG_ERROR, "Endpoint '%s': Unsupported option '%s'\n",
+			ast_sorcery_object_get_id(endpoint),
+			var->name);
+		return -1;
 	}
 
 	if (prefs.prefer == CODEC_NEGOTIATION_PREFER_UNSPECIFIED) {
@@ -1226,6 +1232,11 @@ static int codec_prefs_handler(const struct aco_option *opt,
 	if (prefs.transcode == CODEC_NEGOTIATION_TRANSCODE_UNSPECIFIED) {
 		prefs.transcode = CODEC_NEGOTIATION_TRANSCODE_ALLOW;
 	}
+
+	/* Now that defaults have been applied as needed we apply the full codec
+	 * preference configuration to the option.
+	 */
+	*option_prefs = prefs;
 
 	return 0;
 }
@@ -2128,16 +2139,16 @@ int ast_res_pjsip_initialize_configuration(void)
 		call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_call_offer_pref", "remote",
 		call_offer_pref_handler, outgoing_call_offer_pref_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_offer_codec_prefs",
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_incoming_offer",
 		"prefer: pending, operation: intersect, keep: all, transcode: allow",
 		codec_prefs_handler, incoming_offer_codec_prefs_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_offer_codec_prefs",
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_outgoing_offer",
 		"prefer: pending, operation: union, keep: all, transcode: allow",
 		codec_prefs_handler, outgoing_offer_codec_prefs_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_answer_codec_prefs",
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_incoming_answer",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, incoming_answer_codec_prefs_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_answer_codec_prefs",
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_outgoing_answer",
 		"prefer: pending, operation: intersect, keep: all",
 		codec_prefs_handler, outgoing_answer_codec_prefs_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "stir_shaken", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, stir_shaken));
