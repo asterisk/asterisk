@@ -170,8 +170,8 @@ struct mohclass {
 	char announcement[256];
 	char mode[80];
 	char digit;
-	/*! A vector of filenames in "files" mode */
-	struct ast_vector_string files;
+	/*! An immutable vector of filenames in "files" mode */
+	struct ast_vector_string *files;
 	unsigned int flags;
 	/*! The format from the MOH source, not applicable to "files" mode */
 	struct ast_format *format;
@@ -311,6 +311,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 static int ast_moh_files_next(struct ast_channel *chan)
 {
 	struct moh_files_state *state = ast_channel_music_state(chan);
+	struct ast_vector_string *files;
 	int tries;
 	size_t file_count;
 
@@ -330,16 +331,21 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		state->announcement = 0;
 	}
 
-	file_count = AST_VECTOR_SIZE(&state->class->files);
+	ao2_lock(state->class);
+	files = ao2_bump(state->class->files);
+	ao2_unlock(state->class);
+
+	file_count = AST_VECTOR_SIZE(files);
 	if (!file_count) {
 		ast_log(LOG_WARNING, "No files available for class '%s'\n", state->class->name);
+		ao2_ref(files, -1);
 		return -1;
 	}
 
 	if (state->pos == 0 && ast_strlen_zero(state->save_pos_filename)) {
 		/* First time so lets play the file. */
 		state->save_pos = -1;
-	} else if (state->save_pos >= 0 && state->save_pos < file_count && !strcmp(AST_VECTOR_GET(&state->class->files, state->save_pos), state->save_pos_filename)) {
+	} else if (state->save_pos >= 0 && state->save_pos < file_count && !strcmp(AST_VECTOR_GET(files, state->save_pos), state->save_pos_filename)) {
 		/* If a specific file has been saved confirm it still exists and that it is still valid */
 		state->pos = state->save_pos;
 		state->save_pos = -1;
@@ -347,7 +353,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		/* Get a random file and ensure we can open it */
 		for (tries = 0; tries < 20; tries++) {
 			state->pos = ast_random() % file_count;
-			if (ast_fileexists(AST_VECTOR_GET(&state->class->files, state->pos), NULL, NULL) > 0) {
+			if (ast_fileexists(AST_VECTOR_GET(files, state->pos), NULL, NULL) > 0) {
 				break;
 			}
 		}
@@ -362,21 +368,22 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	}
 
 	for (tries = 0; tries < file_count; ++tries) {
-		if (ast_openstream_full(chan, AST_VECTOR_GET(&state->class->files, state->pos), ast_channel_language(chan), 1)) {
+		if (ast_openstream_full(chan, AST_VECTOR_GET(files, state->pos), ast_channel_language(chan), 1)) {
 			break;
 		}
 
-		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", AST_VECTOR_GET(&state->class->files, state->pos), strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", AST_VECTOR_GET(files, state->pos), strerror(errno));
 		state->pos++;
 		state->pos %= file_count;
 	}
 
 	if (tries == file_count) {
+		ao2_ref(files, -1);
 		return -1;
 	}
 
 	/* Record the pointer to the filename for position resuming later */
-	ast_copy_string(state->save_pos_filename, AST_VECTOR_GET(&state->class->files, state->pos), sizeof(state->save_pos_filename));
+	ast_copy_string(state->save_pos_filename, AST_VECTOR_GET(files, state->pos), sizeof(state->save_pos_filename));
 
 	ast_debug(1, "%s Opened file %d '%s'\n", ast_channel_name(chan), state->pos, state->save_pos_filename);
 
@@ -393,6 +400,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		}
 	}
 
+	ao2_ref(files, -1);
 	return 0;
 }
 
@@ -502,7 +510,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 		}
 	}
 
-	file_count = AST_VECTOR_SIZE(&class->files);
+	ao2_lock(class);
+	file_count = AST_VECTOR_SIZE(class->files);
+	ao2_unlock(class);
 
 	/* Resume MOH from where we left off last time or start from scratch? */
 	if (state->save_total != file_count || strcmp(state->name, class->name) != 0) {
@@ -1076,6 +1086,25 @@ static struct ast_generator mohgen = {
 	.digit    = moh_handle_digit,
 };
 
+static void moh_file_vector_destructor(void *obj)
+{
+	struct ast_vector_string *files = obj;
+	AST_VECTOR_RESET(files, ast_free);
+	AST_VECTOR_FREE(files);
+}
+
+static struct ast_vector_string *moh_file_vector_alloc(int initial_capacity)
+{
+	struct ast_vector_string *files = ao2_alloc_options(
+		sizeof(struct ast_vector_string),
+		moh_file_vector_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (files) {
+		AST_VECTOR_INIT(files, initial_capacity);
+	}
+	return files;
+}
+
 static int moh_scan_files(struct mohclass *class) {
 
 	DIR *files_DIR;
@@ -1085,6 +1114,7 @@ static int moh_scan_files(struct mohclass *class) {
 	char *ext;
 	struct stat statbuf;
 	int res;
+	struct ast_vector_string *files;
 
 	if (class->dir[0] != '/') {
 		snprintf(dir_path, sizeof(dir_path), "%s/%s", ast_config_AST_DATA_DIR, class->dir);
@@ -1098,7 +1128,11 @@ static int moh_scan_files(struct mohclass *class) {
 		return -1;
 	}
 
-	AST_VECTOR_RESET(&class->files, ast_free);
+	files = moh_file_vector_alloc(16); /* 16 seems like a reasonable default */
+	if (!files) {
+		closedir(files_DIR);
+		return -1;
+	}
 
 	while ((files_dirent = readdir(files_DIR))) {
 		char *filepath_copy;
@@ -1127,7 +1161,7 @@ static int moh_scan_files(struct mohclass *class) {
 			*ext = '\0';
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
-		if (AST_VECTOR_GET_CMP(&class->files, &filepath[0], !strcmp)) {
+		if (AST_VECTOR_GET_CMP(files, &filepath[0], !strcmp)) {
 			continue;
 		}
 
@@ -1137,9 +1171,9 @@ static int moh_scan_files(struct mohclass *class) {
 		}
 
 		if (ast_test_flag(class, MOH_SORTALPHA)) {
-			res = AST_VECTOR_ADD_SORTED(&class->files, filepath_copy, strcasecmp);
+			res = AST_VECTOR_ADD_SORTED(files, filepath_copy, strcasecmp);
 		} else {
-			res = AST_VECTOR_APPEND(&class->files, filepath_copy);
+			res = AST_VECTOR_APPEND(files, filepath_copy);
 		}
 
 		if (res) {
@@ -1150,9 +1184,13 @@ static int moh_scan_files(struct mohclass *class) {
 
 	closedir(files_DIR);
 
-	AST_VECTOR_COMPACT(&class->files);
+	AST_VECTOR_COMPACT(files);
 
-	return AST_VECTOR_SIZE(&class->files);
+	ao2_lock(class);
+	ao2_replace(class->files, files);
+	ao2_unlock(class);
+
+	return AST_VECTOR_SIZE(files);
 }
 
 static int init_files_class(struct mohclass *class)
@@ -1428,7 +1466,13 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 		class->format = ao2_bump(ast_format_slin);
 		class->srcfd = -1;
 		class->kill_delay = 100000;
-		AST_VECTOR_INIT(&class->files, 0);
+
+		/* We create an empty one by default */
+		class->files = moh_file_vector_alloc(0);
+		if (!class->files) {
+			ao2_ref(class, -1);
+			return NULL;
+		}
 	}
 
 	return class;
@@ -1570,6 +1614,14 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 				mohclass->start -= respawn_time;
 
 				if (!strcasecmp(mohclass->mode, "files")) {
+					/*
+					 * XXX moh_scan_files returns -1 if it is unable to open the
+					 * configured directory or there is a memory allocation
+					 * failure. Otherwise it returns the number of files for this music
+					 * class. This check is only checking if the number of files is zero
+					 * and it ignores the -1 case. To avoid a behavior change we keep this
+					 * as-is, but we should address what the 'correct' behavior should be.
+					 */
 					if (!moh_scan_files(mohclass)) {
 						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
 						return -1;
@@ -1635,6 +1687,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 	/* If we are using a cached realtime class with files, re-scan the files */
 	if (!var && ast_test_flag(global_flags, MOH_CACHERTCLASSES) && mohclass->realtime && !strcasecmp(mohclass->mode, "files")) {
+		/*
+		 * XXX moh_scan_files returns -1 if it is unable to open the configured directory
+		 * or there is a memory allocation failure. Otherwise it returns the number of
+		 * files for this music class. This check is only checking if the number of files
+		 * is zero and it ignores the -1 case. To avoid a behavior change we keep this
+		 * as-is, but we should address what the 'correct' behavior should be.
+		 */
 		if (!moh_scan_files(mohclass)) {
 			mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (moh_scan_files failed)");
 			return -1;
@@ -1642,7 +1701,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	}
 
 	if (!state || !state->class || strcmp(mohclass->name, state->class->name)) {
-		if (AST_VECTOR_SIZE(&mohclass->files)) {
+		size_t file_count;
+
+		ao2_lock(mohclass);
+		file_count = AST_VECTOR_SIZE(mohclass->files);
+		ao2_unlock(mohclass);
+
+		if (file_count) {
 			res = ast_activate_generator(chan, &moh_file_stream, mohclass);
 		} else {
 			res = ast_activate_generator(chan, &mohgen, mohclass);
@@ -1687,6 +1752,7 @@ static void moh_class_destructor(void *obj)
 	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list))) {
 		ast_free(member);
 	}
+	ao2_cleanup(class->files);
 	ao2_unlock(class);
 
 	/* Kill the thread first, so it cannot restart the child process while the
@@ -1720,9 +1786,6 @@ static void moh_class_destructor(void *obj)
 		close(class->srcfd);
 		class->srcfd = -1;
 	}
-
-	AST_VECTOR_RESET(&class->files, ast_free);
-	AST_VECTOR_FREE(&class->files);
 
 	if (class->timer) {
 		ast_timer_close(class->timer);
@@ -1946,16 +2009,21 @@ static char *handle_cli_moh_show_files(struct ast_cli_entry *e, int cmd, struct 
 
 	i = ao2_iterator_init(mohclasses, 0);
 	for (; (class = ao2_t_iterator_next(&i, "Show files iterator")); mohclass_unref(class, "Unref iterator in moh show files")) {
-		int x;
+		struct ast_vector_string *files;
 
-		if (!AST_VECTOR_SIZE(&class->files)) {
-			continue;
+		ao2_lock(class);
+		files = ao2_bump(class->files);
+		ao2_unlock(class);
+
+		if (AST_VECTOR_SIZE(files)) {
+			int x;
+			ast_cli(a->fd, "Class: %s\n", class->name);
+			for (x = 0; x < AST_VECTOR_SIZE(files); x++) {
+				ast_cli(a->fd, "\tFile: %s\n", AST_VECTOR_GET(files, x));
+			}
 		}
 
-		ast_cli(a->fd, "Class: %s\n", class->name);
-		for (x = 0; x < AST_VECTOR_SIZE(&class->files); x++) {
-			ast_cli(a->fd, "\tFile: %s\n", AST_VECTOR_GET(&class->files, x));
-		}
+		ao2_ref(files, -1);
 	}
 	ao2_iterator_destroy(&i);
 
