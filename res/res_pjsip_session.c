@@ -109,6 +109,20 @@ static int sdp_handler_list_hash(const void *obj, int flags)
 	return ast_str_hash(stream_type);
 }
 
+const char *ast_sip_session_get_name(const struct ast_sip_session *session)
+{
+       if (!session) {
+               return "(null session)";
+       }
+       if (session->channel) {
+               return ast_channel_name(session->channel);
+       } else if (session->endpoint) {
+               return ast_sorcery_object_get_id(session->endpoint);
+       } else {
+               return "unknown";
+       }
+}
+
 static int sdp_handler_list_cmp(void *obj, void *arg, int flags)
 {
 	struct sdp_handler_list *handler_list1 = obj;

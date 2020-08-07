@@ -310,6 +310,17 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_media_typ
  */
 const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf);
 
+/*!
+ * \brief Append the names of codecs of a set of formats to an ast_str buffer
+ * \since 18
+ *
+ * \param cap The capabilities structure containing the formats
+ * \param buf A \c ast_str buffer to append the names of the formats to
+ *
+ * \return The contents of the buffer in \c buf
+ */
+const char *ast_format_cap_append_names(const struct ast_format_cap *cap, struct ast_str **buf);
+
 #ifndef AST_FORMAT_CAP_NAMES_LEN
 /*! Buffer size for callers of ast_format_cap_get_names to allocate. */
 #define AST_FORMAT_CAP_NAMES_LEN 384
