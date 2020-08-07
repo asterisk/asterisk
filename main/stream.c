@@ -93,6 +93,14 @@ struct ast_stream_topology {
 	AST_VECTOR(, struct ast_stream *) streams;
 };
 
+const char *ast_stream_state_map[] = {
+       [AST_STREAM_STATE_REMOVED] = "removed",
+       [AST_STREAM_STATE_SENDRECV] = "sendrecv",
+       [AST_STREAM_STATE_SENDONLY] = "sendonly",
+       [AST_STREAM_STATE_RECVONLY] = "recvonly",
+       [AST_STREAM_STATE_INACTIVE] = "inactive",
+};
+
 struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 {
 	struct ast_stream *stream;
@@ -194,6 +202,33 @@ const struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *str
 	ast_assert(stream != NULL);
 
 	return stream->formats;
+}
+
+const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf)
+{
+       if (!buf || !*buf) {
+               return "";
+       }
+
+       if (!stream) {
+               ast_str_append(buf, 0, "(null stream)");
+               return ast_str_buffer(*buf);
+       }
+
+       ast_str_append(buf, 0, "%s:%s:%s ",
+               S_OR(stream->name, "noname"),
+               ast_codec_media_type2str(stream->type),
+               ast_stream_state_map[stream->state]);
+       ast_format_cap_append_names(stream->formats, buf);
+
+       return ast_str_buffer(*buf);
+}
+
+int ast_stream_get_format_count(const struct ast_stream *stream)
+{
+       ast_assert(stream != NULL);
+
+       return stream->formats ? ast_format_cap_count(stream->formats) : 0;
 }
 
 void ast_stream_set_formats(struct ast_stream *stream, struct ast_format_cap *caps)
@@ -495,6 +530,22 @@ int ast_stream_topology_get_count(const struct ast_stream_topology *topology)
 	return AST_VECTOR_SIZE(&topology->streams);
 }
 
+int ast_stream_topology_get_active_count(const struct ast_stream_topology *topology)
+{
+       int i;
+       int count = 0;
+       ast_assert(topology != NULL);
+
+       for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+               struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+               if (stream->state != AST_STREAM_STATE_REMOVED) {
+                       count++;
+               }
+       }
+
+       return count;
+}
+
 struct ast_stream *ast_stream_topology_get_stream(
 	const struct ast_stream_topology *topology, unsigned int stream_num)
 {
@@ -629,6 +680,32 @@ struct ast_format_cap *ast_format_cap_from_stream_topology(
 	}
 
 	return caps;
+}
+
+const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology,
+       struct ast_str **buf)
+{
+       int i;
+
+       if (!buf ||!*buf) {
+               return "";
+       }
+
+       if (!topology) {
+               ast_str_append(buf, 0, "(null topology)");
+               return ast_str_buffer(*buf);
+       }
+
+       for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+               struct ast_stream *stream;
+
+               stream = AST_VECTOR_GET(&topology->streams, i);
+               ast_str_append(buf, 0, " <");
+               ast_stream_to_str(stream, buf);
+               ast_str_append(buf, 0, ">");
+       }
+
+       return ast_str_buffer(*buf);
 }
 
 struct ast_stream *ast_stream_topology_get_first_stream_by_type(

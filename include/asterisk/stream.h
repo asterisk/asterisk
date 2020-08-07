@@ -75,7 +75,27 @@ enum ast_stream_state {
 	 * \brief Set when the stream is not sending OR receiving media
 	 */
 	AST_STREAM_STATE_INACTIVE,
+    /*!
+     * \brief Sentinel
+     */
+    AST_STREAM_STATE_END
 };
+
+/*!
+ * \brief Stream state enum to string map
+ * \internal
+ */
+extern const char *ast_stream_state_map[AST_STREAM_STATE_END];
+
+/*!
+ * \brief Safely get the name of a stream state
+ * \since 18
+ *
+ * \param stream_state One of enum ast_stream_state
+ * \returns A constant string with the name of the state or an empty string
+ * if an invalid value was passed in.
+ */
+#define ast_stream_state_to_str(stream_state) _stream_maps_to_str(ast_stream_state_map, stream_state)
 
 /*!
  * \brief Create a new media stream representation
@@ -151,6 +171,42 @@ enum ast_media_type ast_stream_get_type(const struct ast_stream *stream);
  * \since 15
  */
 void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
+
+/*!
+ * \brief Get a string representing the stream for debugging/display purposes
+ * \since 18
+ *
+ * \param stream A stream
+ * \param buf A pointer to an ast_str* used for the output.
+ *
+ * \retval "" (empty string) if either buf or *buf are NULL
+ * \retval "(null stream)" if *stream was NULL
+ * \retval <stream_representation> otherwise
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char * and it should be dup'd if needed after the ast_str is freed.
+ *
+ * \details
+ *
+ * Return format:
+ * <name>:<media_type>:<stream_state> (formats)
+ *
+ * Sample return:
+ * "audio:audio:sendrecv (ulaw,g722)"
+ *
+ */
+const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf);
+
+/*!
+ * \brief Get the count of the current negotiated formats of a stream
+ *
+ * \param stream The media stream
+ *
+ * \return The count of negotiated formats
+ *
+ * \since 18
+ */
+int ast_stream_get_format_count(const struct ast_stream *stream);
 
 /*!
  * \brief Get the current negotiated formats of a stream
@@ -522,5 +578,36 @@ int ast_stream_get_group(const struct ast_stream *stream);
  * \since 15.2.0
  */
 void ast_stream_set_group(struct ast_stream *stream, int group);
+
+/*!
+ * \brief Get the number of active (non-REMOVED) streams in a topology
+ *
+ * \param topology The topology of streams
+ *
+ * \return the number of active streams
+ */
+int ast_stream_topology_get_active_count(const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Get a string representing the topology for debugging/display purposes
+ *
+ * \param topology A stream topology
+ * \param buf A pointer to an ast_str* used for the output.
+ *
+ * \retval "" (empty string) if either buf or *buf are NULL
+ * \retval "(null topology)" if *topology was NULL
+ * \retval <topology_representation> otherwise
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char * and it should be dup'd if needed after the ast_str is freed.
+  *
+ * Return format:
+ * <stream> ...
+ *
+ * Sample return:
+ * "<audio:audio:sendrecv (ulaw,g722)> <video:video:sendonly (h264)>"
+ *
+ */
+const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology, struct ast_str **buf);
 
 #endif /* _AST_STREAM_H */
