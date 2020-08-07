@@ -1208,15 +1208,71 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 	}
 }
 
+static int on_moh_file(const char *directory, const char *filename, void *obj)
+{
+	struct ast_vector_string *files = obj;
+	char *full_path;
+	char *extension;
+
+	/* Skip files that starts with a dot */
+	if (*filename == '.') {
+		ast_debug(4, "Skipping '%s/%s' because it starts with a dot\n",
+			directory, filename);
+		return 0;
+	}
+
+	/* We can't do anything with files that don't have an extension,
+	 * so check that first and punt if we can't find something */
+	extension = strrchr(filename, '.');
+	if (!extension) {
+		ast_debug(4, "Skipping '%s/%s' because it doesn't have an extension\n",
+			directory, filename);
+		return 0;
+	}
+
+	/* The extension needs at least two characters (after the .) to be useful */
+	if (strlen(extension) < 3) {
+		ast_debug(4, "Skipping '%s/%s' because it doesn't have at least a two "
+			"character extension\n", directory, filename);
+		return 0;
+	}
+
+	/* Build the full path (excluding the extension) */
+	if (ast_asprintf(&full_path, "%s/%.*s",
+			directory,
+			(int) (extension - filename), filename) < 0) {
+		/* If we don't have enough memory to build this path, there is no
+		 * point in continuing */
+		return 1;
+	}
+
+	/* If the file is present in multiple formats, ensure we only put it
+	 * into the list once. Pretty sure this is O(n^2). */
+	if (AST_VECTOR_GET_CMP(files, &full_path[0], !strcmp)) {
+		ast_free(full_path);
+		return 0;
+	}
+
+	if (AST_VECTOR_APPEND(files, full_path)) {
+		/* AST_VECTOR_APPEND() can only fail on allocation failure, so
+		 * we stop iterating */
+		ast_free(full_path);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int moh_filename_strcasecmp(const void *a, const void *b)
+{
+	const char **s1 = (const char **) a;
+	const char **s2 = (const char **) b;
+	return strcasecmp(*s1, *s2);
+}
+
 static int moh_scan_files(struct mohclass *class) {
 
-	DIR *files_DIR;
-	struct dirent *files_dirent;
 	char dir_path[PATH_MAX - sizeof(class->dir)];
-	char filepath[PATH_MAX];
-	char *ext;
-	struct stat statbuf;
-	int res;
 	struct ast_vector_string *files;
 
 	if (class->dir[0] != '/') {
@@ -1224,68 +1280,23 @@ static int moh_scan_files(struct mohclass *class) {
 	} else {
 		ast_copy_string(dir_path, class->dir, sizeof(dir_path));
 	}
+
 	ast_debug(4, "Scanning '%s' for files for class '%s'\n", dir_path, class->name);
-	files_DIR = opendir(dir_path);
-	if (!files_DIR) {
-		ast_log(LOG_WARNING, "Cannot open dir %s or dir does not exist\n", dir_path);
-		return -1;
-	}
 
-	files = moh_file_vector_alloc(16); /* 16 seems like a reasonable default */
+	/* 16 seems like a reasonable default */
+	files = moh_file_vector_alloc(16);
 	if (!files) {
-		closedir(files_DIR);
 		return -1;
 	}
 
-	while ((files_dirent = readdir(files_DIR))) {
-		char *filepath_copy;
-
-		/* The file name must be at least long enough to have the file type extension */
-		if ((strlen(files_dirent->d_name) < 4))
-			continue;
-
-		/* Skip files that starts with a dot */
-		if (files_dirent->d_name[0] == '.')
-			continue;
-
-		/* Skip files without extensions... they are not audio */
-		if (!strchr(files_dirent->d_name, '.'))
-			continue;
-
-		snprintf(filepath, sizeof(filepath), "%s/%s", dir_path, files_dirent->d_name);
-
-		if (stat(filepath, &statbuf))
-			continue;
-
-		if (!S_ISREG(statbuf.st_mode))
-			continue;
-
-		if ((ext = strrchr(filepath, '.')))
-			*ext = '\0';
-
-		/* if the file is present in multiple formats, ensure we only put it into the list once */
-		if (AST_VECTOR_GET_CMP(files, &filepath[0], !strcmp)) {
-			continue;
-		}
-
-		filepath_copy = ast_strdup(filepath);
-		if (!filepath_copy) {
-			break;
-		}
-
-		if (ast_test_flag(class, MOH_SORTALPHA)) {
-			res = AST_VECTOR_ADD_SORTED(files, filepath_copy, strcasecmp);
-		} else {
-			res = AST_VECTOR_APPEND(files, filepath_copy);
-		}
-
-		if (res) {
-			ast_free(filepath_copy);
-			break;
-		}
+	if (ast_file_read_dir(dir_path, on_moh_file, files)) {
+		ao2_ref(files, -1);
+		return -1;
 	}
 
-	closedir(files_DIR);
+	if (ast_test_flag(class, MOH_SORTALPHA)) {
+		AST_VECTOR_SORT(files, moh_filename_strcasecmp);
+	}
 
 	AST_VECTOR_COMPACT(files);
 
