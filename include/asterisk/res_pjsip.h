@@ -580,6 +580,8 @@ struct ast_sip_endpoint_id_configuration {
 	unsigned int send_diversion;
 	/*! When performing connected line update, which method should be used */
 	enum ast_sip_session_refresh_method refresh_method;
+	/*! Do we add History-Info headers to applicable outgoing requests/responses? */
+	unsigned int send_history_info;
 };
 
 /*!
