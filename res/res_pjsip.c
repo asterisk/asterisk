@@ -426,6 +426,10 @@
 					<synopsis>Send the Diversion header, conveying the diversion
 					information to the called user agent</synopsis>
 				</configOption>
+				<configOption name="send_history_info" default="no">
+					<synopsis>Send the History-Info header, conveying the diversion
+					information to the called and calling user agents</synopsis>
+				</configOption>
 				<configOption name="send_pai" default="no">
 					<synopsis>Send the P-Asserted-Identity header</synopsis>
 				</configOption>
