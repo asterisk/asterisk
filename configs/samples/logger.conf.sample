@@ -109,6 +109,10 @@
 ; levels, and is enclosed in square brackets. Valid formatters are:
 ;   - [default] - The default formatter, this outputs log messages using a
 ;                 human readable format.
+;   - [plain]   - The plain formatter, this outputs log messages using a
+;                 human readable format with the addition of function name
+;                 and line number. No color escape codes are ever printed
+                  nor are verbose messages treated specially.
 ;   - [json]    - Log the output in JSON. Note that JSON formatted log entries,
 ;                 if specified for a logger type of 'console', will be formatted
 ;                 per the 'default' formatter for log messages of type VERBOSE.

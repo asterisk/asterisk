@@ -423,6 +423,56 @@ static struct logformatter logformatter_default = {
 	.format_log = format_log_default,
 };
 
+static int format_log_plain(struct logchannel *chan, struct logmsg *msg, char *buf, size_t size)
+{
+	char call_identifier_str[13];
+	char linestr[32];
+	int has_file = !ast_strlen_zero(msg->file);
+	int has_line = (msg->line > 0);
+	int has_func = !ast_strlen_zero(msg->function);
+
+	if (msg->callid) {
+		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid);
+	} else {
+		call_identifier_str[0] = '\0';
+	}
+
+	switch (chan->type) {
+	case LOGTYPE_SYSLOG:
+		snprintf(buf, size, "%s[%d]%s: %s:%d in %s: %s",
+		     levels[msg->level], msg->lwp, call_identifier_str, msg->file,
+		     msg->line, msg->function, msg->message);
+		term_strip(buf, buf, size);
+		break;
+	case LOGTYPE_FILE:
+	case LOGTYPE_CONSOLE:
+		/* Turn the numerical line number into a string */
+		snprintf(linestr, sizeof(linestr), "%d", msg->line);
+		/* Build string to print out */
+		snprintf(buf, size, "[%s] %s[%d]%s: %s%s%s%s%s%s%s",
+			msg->date,
+			msg->level_name,
+			msg->lwp,
+			call_identifier_str,
+			has_file ? msg->file : "",
+			has_file ? ":" : "",
+			has_line ? linestr : "",
+			has_line ? " " : "",
+			has_func ? msg->function : "",
+			has_func ? ": " : "",
+			msg->message);
+		term_strip(buf, buf, size);
+		break;
+	}
+
+	return 0;
+}
+
+static struct logformatter logformatter_plain = {
+	.name = "plain",
+	.format_log = format_log_plain,
+};
+
 static void make_components(struct logchannel *chan)
 {
 	char *w;
@@ -449,6 +499,8 @@ static void make_components(struct logchannel *chan)
 				memcpy(&chan->formatter, &logformatter_json, sizeof(chan->formatter));
 			} else if (!strcasecmp(formatter_name, "default")) {
 				memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
+			} else if (!strcasecmp(formatter_name, "plain")) {
+				memcpy(&chan->formatter, &logformatter_plain, sizeof(chan->formatter));
 			} else {
 				fprintf(stderr, "Logger Warning: Unknown formatter definition %s for %s in logger.conf; using 'default'\n",
 					formatter_name, chan->filename);
