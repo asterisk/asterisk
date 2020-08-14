@@ -1,0 +1,12 @@
+Subject: logger
+
+Added a new log formatter called "plain" that always prints
+file, function and line number if available (even for verbose
+messages) and never prints color control characters.  Most
+suitable for file output but can be used for other channels
+as well.
+
+You use it in logger.conf like so:
+debug => [plain]debug
+console => [plain]error,warning,debug,notice,pjsip_history
+messages => [plain]warning,error,verbose
