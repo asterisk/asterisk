@@ -1224,7 +1224,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int sent_ring = 0;
 	int sent_progress = 0;
 	struct timeval start = ast_tvnow();
-	SCOPE_TRACE(1, "%s\n", ast_channel_name(in));
+	SCOPE_ENTER(3, "%s\n", ast_channel_name(in));
 
 	if (single) {
 		/* Turn off hold music, etc */
@@ -1240,7 +1240,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				*to = -1;
 				strcpy(pa->status, "CONGESTION");
 				ast_channel_publish_dial(in, outgoing->chan, NULL, pa->status);
-				return NULL;
+				SCOPE_EXIT_RTN_VALUE(NULL, "%s: can't be made compat with %s\n",
+					ast_channel_name(in), ast_channel_name(outgoing->chan));
 			}
 		}
 
@@ -1282,7 +1283,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (is_cc_recall) {
 				ast_cc_failed(cc_recall_core_id, "Everyone is busy/congested for the recall. How sad");
 			}
-			return NULL;
+			SCOPE_EXIT_RTN_VALUE(NULL, "%s: No outging channels available\n", ast_channel_name(in));
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
 		AST_LIST_TRAVERSE(out_chans, o, node) {
@@ -1391,7 +1392,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_CONTROL_ANSWER:
 					/* This is our guy if someone answered. */
 					if (!peer) {
-						ast_trace(1, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
+						ast_trace(-1, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 						ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
 						if (o->orig_chan_name
 							&& strcmp(o->orig_chan_name, ast_channel_name(c))) {
@@ -1426,7 +1427,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							 * from being cleaned up when the frame is cleaned up.
 							 */
 							config->answer_topology = ao2_bump(f->subclass.topology);
-							ast_trace(2, "%s Found topology in frame: %p %p %s\n",
+							ast_trace(-1, "%s Found topology in frame: %p %p %s\n",
 								ast_channel_name(peer), f, config->answer_topology,
 								ast_str_tmp(256, ast_stream_topology_to_str(config->answer_topology, &STR_TMP)));
 						}
@@ -1721,7 +1722,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if (is_cc_recall) {
 					ast_cc_completed(in, "CC completed, although the caller hung up (cancelled)");
 				}
-				return NULL;
+				SCOPE_EXIT_RTN_VALUE(NULL, "%s: Caller hung up\n", ast_channel_name(in));
 			}
 
 			/* now f is guaranteed non-NULL */
@@ -1741,7 +1742,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						if (is_cc_recall) {
 							ast_cc_completed(in, "CC completed, but the caller used DTMF to exit");
 						}
-						return NULL;
+						SCOPE_EXIT_RTN_VALUE(NULL, "%s: Caller pressed %c to end call\n",
+							ast_channel_name(in), f->subclass.integer);
 					}
 					ast_channel_unlock(in);
 				}
@@ -1756,7 +1758,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					if (is_cc_recall) {
 						ast_cc_completed(in, "CC completed, but the caller hung up with DTMF");
 					}
-					return NULL;
+					SCOPE_EXIT_RTN_VALUE(NULL, "%s: Caller requested disconnect\n",
+						ast_channel_name(in));
 				}
 			}
 
@@ -1862,7 +1865,8 @@ skip_frame:;
 	if (is_cc_recall) {
 		ast_cc_completed(in, "Recall completed!");
 	}
-	return peer;
+	SCOPE_EXIT_RTN_VALUE(peer, "%s: %s%s\n", ast_channel_name(in),
+		peer ? "Answered by " : "No answer", peer ? ast_channel_name(peer) : "");
 }
 
 static int detect_disconnect(struct ast_channel *chan, char code, struct ast_str **featurecode)
@@ -2284,7 +2288,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	 */
 	struct ast_party_caller caller;
 	int max_forwards;
-	SCOPE_TRACE(1, "%s Data: %s\n", ast_channel_name(chan), data);
+	SCOPE_ENTER(1, "%s: Data: %s\n", ast_channel_name(chan), data);
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
 	ast_channel_lock(chan);
@@ -2308,7 +2312,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		ast_log(LOG_WARNING, "Cannot place outbound call from channel '%s'. Max forwards exceeded\n",
 				ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", "BUSY");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "%s: Max forwards exceeded\n", ast_channel_name(chan));
 	}
 
 	if (ast_check_hangup_locked(chan)) {
@@ -2326,7 +2330,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		 */
 		ast_verb(3, "Caller hung up before dial.\n");
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", "CANCEL");
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "%s: Caller hung up before dial\n", ast_channel_name(chan));
 	}
 
 	parse = ast_strdupa(data ?: "");
@@ -3340,7 +3344,7 @@ done:
 		ast_free((char *)config.start_sound);
 	}
 	ast_ignore_cc(chan);
-	return res;
+	SCOPE_EXIT_RTN_VALUE(res, "%s: Done\n", ast_channel_name(chan));
 }
 
 static int dial_exec(struct ast_channel *chan, const char *data)
