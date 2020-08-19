@@ -2293,6 +2293,41 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 
 /*!
  * \internal
+ * \brief Ensure text data is zero terminated before sending
+ *
+ * \param chan Channel to send text to
+ * \param f The frame containing the text data to send
+ *
+ * \return Nothing
+ */
+static void sendtext_safe(struct ast_channel *chan, const struct ast_frame *f)
+{
+	if (f->datalen) {
+		char *text = f->data.ptr;
+
+		if (text[f->datalen - 1]) {
+			/* Not zero terminated, we need to allocate */
+			text = ast_strndup(text, f->datalen);
+			if (!text) {
+				return;
+			}
+		}
+
+		ast_sendtext(chan, text);
+
+		if (text != f->data.ptr) {
+			/* Only free if we allocated */
+			ast_free(text);
+		}
+	} else {
+		/* Special case if the frame length is zero (although I
+		 * am not sure this is possible?) */
+		ast_sendtext(chan, "");
+	}
+}
+
+/*!
+ * \internal
  * \brief Handle bridge channel write frame to channel.
  * \since 12.0.0
  *
@@ -2364,7 +2399,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	case AST_FRAME_TEXT:
 		ast_debug(1, "Sending TEXT frame to '%s': %*.s\n",
 			ast_channel_name(bridge_channel->chan), fr->datalen, (char *)fr->data.ptr);
-		ast_sendtext(bridge_channel->chan, fr->data.ptr);
+		sendtext_safe(bridge_channel->chan, fr);
 		break;
 	case AST_FRAME_TEXT_DATA:
 		msg = (struct ast_msg_data *)fr->data.ptr;
