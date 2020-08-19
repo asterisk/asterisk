@@ -107,7 +107,10 @@ enum ast_frame_type {
 	AST_FRAME_NULL,
 	/*! Inter Asterisk Exchange private frame type */
 	AST_FRAME_IAX,
-	/*! Text messages */
+	/*! Text messages. The character data may not be zero-terminated, so
+	 * care should be taken when passing it to functions that expect a
+	 * zero-terminated string. The frame's datalen member should be used
+	 * as it indicates the actual number of bytes available. */
 	AST_FRAME_TEXT,
 	/*! Image Frames */
 	AST_FRAME_IMAGE,
