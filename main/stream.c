@@ -542,6 +542,10 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 	struct ast_stream *joint_stream;
 	enum ast_media_type media_type = pending_stream ? pending_stream->type : AST_MEDIA_TYPE_UNKNOWN;
 	int res = 0;
+	SCOPE_ENTER(4, "Pending: %s  Validation: %s  Prefs: %s\n",
+		ast_str_tmp(128, ast_stream_to_str(pending_stream, &STR_TMP)),
+		ast_str_tmp(128, ast_stream_to_str(validation_stream, &STR_TMP)),
+		ast_str_tmp(128, ast_stream_codec_prefs_to_str(prefs, &STR_TMP)));
 
 	if (!pending_stream || !validation_stream || !prefs || !joint_caps
 		|| media_type == AST_MEDIA_TYPE_UNKNOWN) {
@@ -549,7 +553,7 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 			ast_str_append(error_message, 0, "Invalid arguments");
 		}
 		ao2_cleanup(joint_caps);
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "Invalid arguments\n");
 	}
 
 	if (prefs->prefer == CODEC_NEGOTIATION_PREFER_PENDING) {
@@ -593,7 +597,7 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 		}
 
 		ao2_cleanup(joint_caps);
-		return NULL;
+		SCOPE_EXIT_RTN_VALUE(NULL, "No common formats available\n");
 	}
 
 	if (!ast_format_cap_empty(joint_caps)) {
@@ -641,7 +645,7 @@ struct ast_stream *ast_stream_create_resolved(struct ast_stream *pending_stream,
 	}
 
 	ao2_cleanup(joint_caps);
-	return joint_stream;
+	SCOPE_EXIT_RTN_VALUE(joint_stream, "Joint stream: %s\n", ast_str_tmp(128, ast_stream_to_str(joint_stream, &STR_TMP)));
 }
 
 static void stream_topology_destroy(void *data)
