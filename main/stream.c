@@ -343,7 +343,8 @@ const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **
 		return ast_str_buffer(*buf);
 	}
 
-	ast_str_append(buf, 0, "%s:%s:%s ",
+	ast_str_append(buf, 0, "%d:%s:%s:%s ",
+		stream->position,
 		S_OR(stream->name, "noname"),
 		ast_codec_media_type2str(stream->type),
 		ast_stream_state_map[stream->state]);
