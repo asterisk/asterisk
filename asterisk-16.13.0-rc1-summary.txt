@@ -1,0 +1,221 @@
+                                Release Summary
+
+                              asterisk-16.13.0-rc1
+
+                                Date: 2020-08-20
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.12.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   5 Sean Bright                                     1 Dennis                 
+   3 George Joseph                                   1 Michael Neuhauser      
+   3 Joshua C. Colp                                  1 tootai                 
+   1 Michael Neuhauser                               1 cmaj                   
+   1 cmaj                                            1 Andrew Yager           
+   1 Nickolay Shmyrev                                1 Michael Neuhauser      
+   1 Dennis Buteyn                                   1 David Cunningham       
+   1 sungtae kim                                     1 Nickolay V. Shmyrev    
+                                                     1 sungtae kim            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-29011: chan_sip: ToHost property not cleared on reload
+   Reported by: Dennis
+     * [9c6d14b26b] Dennis Buteyn -- chan_sip: Clear ToHost property on peer
+       when changing to dynamic host
+
+    Category: Core/ACL
+
+   ASTERISK-28978: acl: named_acl rule misconfiguration results in segfault
+   on reading rule from realtime
+   Reported by: Andrew Yager
+     * [d78ccb800e] Sean Bright -- acl.c: Coerce a NULL pointer into the
+       empty string
+
+    Category: Functions/func_version
+
+   ASTERISK-29021: [patch] Fix VERSION(ASTERISK_VERSION_NUM) on certified
+   versions
+   Reported by: cmaj
+     * [5609d008da] cmaj -- Makefile: Fix certified version numbers
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-28975: res_http_websocket: Text payload data doesn't necessary
+   include trailing zero
+   Reported by: Nickolay V. Shmyrev
+     * [373e97ea4e] Nickolay Shmyrev -- res_http_websocket: Avoid reading
+       past end of string
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-28927: Asterisk crash in music on hold
+   Reported by: David Cunningham
+     * [cd8e011670] Sean Bright -- res_musiconhold.c: Prevent crash with
+       realtime MoH
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28995: res_pjsip_registrar: Expires on statically configured
+   contacts is not correct
+   Reported by: tootai
+     * [2196511121] Joshua C. Colp -- res_pjsip_registrar: Don't specify an
+       expiration for static contacts.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-28995: res_pjsip_registrar: Expires on statically configured
+   contacts is not correct
+   Reported by: tootai
+     * [2196511121] Joshua C. Colp -- res_pjsip_registrar: Don't specify an
+       expiration for static contacts.
+
+    Category: Resources/res_stasis
+
+   ASTERISK-28987: BridgeCreated ARI event shows wrong video_mode info
+   Reported by: sungtae kim
+     * [15a3318f1f] sungtae kim -- stasis_bridge.c: Fixed wrong video_mode
+       shown
+
+    Category: pjproject/pjsip
+
+   ASTERISK-28973: Malformed IP address in SDP of 2nd SIP timer triggered
+   INVITE when NAT is active (UDP transport with external_media_address)
+   Reported by: Michael Neuhauser
+     * [1e58da7814] Michael Neuhauser -- pjproject: clone sdp to protect
+       against (nat) modifications
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | 16afb0a05d | George Joseph  | scope_trace: Add/update utilities        |
+   |------------+----------------+------------------------------------------|
+   | abad395098 | Sean Bright    | vector.h: Fix implementation of          |
+   |            |                | AST_VECTOR_COMPACT() for empty vectors   |
+   |------------+----------------+------------------------------------------|
+   | 8c54be8fc9 | George Joseph  | res_pjsip_session: Ensure reused streams |
+   |            |                | have correct bundle group                |
+   |------------+----------------+------------------------------------------|
+   | e9e441c399 | Sean Bright    | utf8.c: Add UTF-8 validation and utility |
+   |            |                | functions                                |
+   |------------+----------------+------------------------------------------|
+   | 7892bdec53 | Sean Bright    | vector.h: Add AST_VECTOR_SORT()          |
+   |------------+----------------+------------------------------------------|
+   | e91e2ec0da | George Joseph  | CI: Force publishAsteriskDocs to use     |
+   |            |                | python2                                  |
+   |------------+----------------+------------------------------------------|
+   | e8deea38bd | Joshua C. Colp | websocket / pjsip: Increase maximum      |
+   |            |                | packet size.                             |
+   |------------+----------------+------------------------------------------|
+   | 9ce6d46aea | Joshua C. Colp | pjsip: Include timer patch to prevent    |
+   |            |                | cancelling timer 0.                      |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                        |    1
+ .version                                                                          |    1
+ ChangeLog                                                                         |90294 ----------
+ asterisk-16.12.0-summary.html                                                     |  173
+ asterisk-16.12.0-summary.txt                                                      |  430
+ b/Makefile                                                                        |    2
+ b/channels/chan_sip.c                                                             |    1
+ b/include/asterisk/format_cap.h                                                   |   11
+ b/include/asterisk/res_pjsip_session.h                                            |    8
+ b/include/asterisk/stream.h                                                       |   87
+ b/include/asterisk/utf8.h                                                         |  188
+ b/include/asterisk/vector.h                                                       |   50
+ b/main/acl.c                                                                      |    2
+ b/main/asterisk.c                                                                 |    2
+ b/main/bridge.c                                                                   |    1
+ b/main/format_cap.c                                                               |   22
+ b/main/stream.c                                                                   |   77
+ b/main/utf8.c                                                                     |  380
+ b/res/res_http_websocket.c                                                        |   35
+ b/res/res_musiconhold.c                                                           |  170
+ b/res/res_pjsip_pubsub.c                                                          |   16
+ b/res/res_pjsip_registrar.c                                                       |    6
+ b/res/res_pjsip_session.c                                                         |   28
+ b/res/res_stasis.c                                                                |   12
+ b/res/stasis/stasis_bridge.c                                                      |   16
+ b/res/stasis/stasis_bridge.h                                                      |    3
+ b/tests/CI/publishAsteriskDocs.sh                                                 |    4
+ b/third-party/pjproject/patches/0020-pjlib_cancel_timer_0.patch                   |   39
+ b/third-party/pjproject/patches/0060-clone-sdp-for-sip-timer-refresh-invite.patch |   28
+ contrib/realtime/mysql/mysql_cdr.sql                                              |   41
+ contrib/realtime/mysql/mysql_config.sql                                           | 1258
+ contrib/realtime/mysql/mysql_voicemail.sql                                        |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                    |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                 | 1362
+ contrib/realtime/postgresql/postgresql_voicemail.sql                              |   39
+ 35 files changed, 1089 insertions(+), 93778 deletions(-)
