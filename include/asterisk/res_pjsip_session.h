@@ -121,6 +121,10 @@ struct ast_sip_session_media {
 	unsigned int changed;
 	/*! \brief Remote media stream label */
 	char *remote_mslabel;
+	/*! \brief Remote stream label */
+	char *remote_label;
+	/*! \brief Stream name */
+	char *stream_name;
 };
 
 /*!
