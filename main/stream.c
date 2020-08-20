@@ -196,22 +196,23 @@ struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream)
 
 const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf)
 {
-       if (!buf || !*buf) {
-               return "";
-       }
+	if (!buf || !*buf) {
+		return "";
+	}
 
-       if (!stream) {
-               ast_str_append(buf, 0, "(null stream)");
-               return ast_str_buffer(*buf);
-       }
+	if (!stream) {
+		ast_str_append(buf, 0, "(null stream)");
+		return ast_str_buffer(*buf);
+	}
 
-       ast_str_append(buf, 0, "%s:%s:%s ",
-               S_OR(stream->name, "noname"),
-               ast_codec_media_type2str(stream->type),
-               ast_stream_state_map[stream->state]);
-       ast_format_cap_append_names(stream->formats, buf);
+	ast_str_append(buf, 0, "%d:%s:%s:%s ",
+		stream->position,
+		S_OR(stream->name, "noname"),
+		ast_codec_media_type2str(stream->type),
+		ast_stream_state_map[stream->state]);
+	ast_format_cap_append_names(stream->formats, buf);
 
-       return ast_str_buffer(*buf);
+	return ast_str_buffer(*buf);
 }
 
 int ast_stream_get_format_count(const struct ast_stream *stream)
@@ -522,18 +523,18 @@ int ast_stream_topology_get_count(const struct ast_stream_topology *topology)
 
 int ast_stream_topology_get_active_count(const struct ast_stream_topology *topology)
 {
-       int i;
-       int count = 0;
-       ast_assert(topology != NULL);
+	int i;
+	int count = 0;
+	ast_assert(topology != NULL);
 
-       for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
-               struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
-               if (stream->state != AST_STREAM_STATE_REMOVED) {
-                       count++;
-               }
-       }
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+		if (stream->state != AST_STREAM_STATE_REMOVED) {
+			count++;
+		}
+	}
 
-       return count;
+	return count;
 }
 
 struct ast_stream *ast_stream_topology_get_stream(
@@ -630,6 +631,7 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 			ast_stream_topology_free(topology);
 			return NULL;
 		}
+
 		/* We're transferring the initial ref so no bump needed */
 		stream->formats = new_cap;
 		stream->state = AST_STREAM_STATE_SENDRECV;
