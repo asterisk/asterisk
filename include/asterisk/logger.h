@@ -599,24 +599,83 @@ enum ast_trace_indent_type {
 };
 
 /*
- * The "#if 1" keeps the last few lines of scope tracing
+ * The "#if 0" keeps the last few lines of scope tracing
  * common to all branches.
  */
-#if 1
-#define ast_trace_raw(__level, __indent_type, ...)
-#define ast_trace(__level, ...)
+#if 0
+
+#else /* AST_DEVMODE */
+#define ast_trace_raw(level, indent_type, ...) \
+	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__)
+
+#define ast_trace(level, ...) \
+	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__)
+
 #define ast_trace_get_indent() (0)
 #define ast_trace_set_indent(indent)
 #define ast_trace_inc_indent()
 #define ast_trace_dec_indent()
 #define SCOPE_TRACE(__level, ...)
-#define SCOPE_ENTER(level, ...)
-#define SCOPE_ENTER_TASK(level, indent, ...)
-#define SCOPE_EXIT(...)
-#define SCOPE_EXIT_EXPR(__expr, ...) __expr
-#define SCOPE_EXIT_RTN(...) return
-#define SCOPE_EXIT_RTN_VALUE(__return_value, ...) return __return_value
-#endif
+
+#define SCOPE_ENTER(level, ...) \
+	int __scope_level = level; \
+	ast_debug(level, " " __VA_ARGS__)
+
+#define SCOPE_ENTER_TASK(level, indent, ...) \
+	int __scope_level = level; \
+	ast_debug(level, " " __VA_ARGS__)
+
+#define SCOPE_EXIT(...) \
+	ast_debug(__scope_level, " " __VA_ARGS__)
+
+#define SCOPE_EXIT_EXPR(__expr, ...) \
+	ast_debug(__scope_level, " " __VA_ARGS__); \
+	__expr
+
+#define SCOPE_EXIT_RTN(...) \
+	ast_debug(__scope_level, " " __VA_ARGS__); \
+	return
+
+#define SCOPE_EXIT_RTN_VALUE(__return_value, ...) \
+	ast_debug(__scope_level, " " __VA_ARGS__); \
+	return __return_value
+
+#endif /* AST_DEVMODE */
+
+/*!
+ * The following macros will print log messages before running
+ * the associated SCOPE_ macro.
+ */
+
+#define SCOPE_EXIT_LOG(__log_level, ...) \
+({ \
+	ast_log(__log_level, " " __VA_ARGS__); \
+	SCOPE_EXIT(" " __VA_ARGS__); \
+})
+
+#define SCOPE_EXIT_LOG_RTN(__log_level, ...) \
+({ \
+	ast_log(__log_level, " " __VA_ARGS__); \
+	SCOPE_EXIT_RTN(" " __VA_ARGS__); \
+})
+
+#define SCOPE_EXIT_LOG_RTN_VALUE(__value, __log_level, ...) \
+({ \
+	ast_log(__log_level, " " __VA_ARGS__); \
+	SCOPE_EXIT_RTN_VALUE(__value, " " __VA_ARGS__); \
+})
+
+#define SCOPE_EXIT_LOG_EXPR(__expr, __log_level, ...) \
+({ \
+	ast_log(__log_level, " " __VA_ARGS__); \
+	SCOPE_EXIT_EXPR(__expr, " " __VA_ARGS__); \
+})
+
+#define ast_trace_log(__level, __log_level, ...) \
+({ \
+	ast_log(__log_level, " " __VA_ARGS__); \
+	ast_trace(__level < 0 ? __scope_level : __level, " " __VA_ARGS__); \
+})
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
