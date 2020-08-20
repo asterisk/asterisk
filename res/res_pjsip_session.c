@@ -75,7 +75,8 @@ static int sip_session_refresh(struct ast_sip_session *session,
 		ast_sip_session_sdp_creation_cb on_sdp_creation,
 		ast_sip_session_response_cb on_response,
 		enum ast_sip_session_refresh_method method, int generate_new_sdp,
-		struct ast_sip_session_media_state *media_state,
+		struct ast_sip_session_media_state *pending_media_state,
+		struct ast_sip_session_media_state *active_media_state,
 		int queued);
 
 /*! \brief NAT hook for modifying outgoing messages with SDP */
@@ -492,7 +493,10 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 	 * is the case we simply return it.
 	 */
 	if (position < AST_VECTOR_SIZE(&media_state->sessions)) {
-		return AST_VECTOR_GET(&media_state->sessions, position);
+		session_media = AST_VECTOR_GET(&media_state->sessions, position);
+		if (session_media) {
+			return session_media;
+		}
 	}
 
 	/* Determine if we can reuse the session media from the active media state if present */
@@ -775,26 +779,37 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		}
 		if (!stream) {
 			struct ast_stream *existing_stream = NULL;
+			char *stream_name = NULL;
+			const char *stream_label = NULL;
 
 			if (session->active_media_state->topology &&
 				(i < ast_stream_topology_get_count(session->active_media_state->topology))) {
 				existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, i);
+
+				if (ast_stream_get_state(existing_stream) != AST_STREAM_STATE_REMOVED) {
+					stream_name = (char *)ast_stream_get_name(existing_stream);
+					stream_label = ast_stream_get_metadata(existing_stream, "SDP:LABEL");
+				}
 			}
 
-			stream = ast_stream_alloc(existing_stream ? ast_stream_get_name(existing_stream) : ast_codec_media_type2str(type), type);
+			if (ast_strlen_zero(stream_name)) {
+				if (ast_asprintf(&stream_name, "%s-%d", ast_codec_media_type2str(type), i) < 0) {
+					return -1;
+				}
+			}
+
+			stream = ast_stream_alloc(stream_name, type);
 			if (!stream) {
 				return -1;
 			}
+
+			if (!ast_strlen_zero(stream_label)) {
+				ast_stream_set_metadata(stream, "SDP:LABEL", stream_label);
+			}
+
 			if (ast_stream_topology_set_stream(session->pending_media_state->topology, i, stream)) {
 				ast_stream_free(stream);
 				return -1;
-			}
-			if (existing_stream) {
-				const char *stream_label = ast_stream_get_metadata(existing_stream, "SDP:LABEL");
-
-				if (!ast_strlen_zero(stream_label)) {
-					ast_stream_set_metadata(stream, "SDP:LABEL", stream_label);
-				}
 			}
 
 			/* For backwards compatibility with the core the default audio stream is always sendrecv */
@@ -1270,7 +1285,9 @@ struct ast_sip_session_delayed_request {
 	/*! Whether to generate new SDP */
 	int generate_new_sdp;
 	/*! Requested media state for the SDP */
-	struct ast_sip_session_media_state *media_state;
+	struct ast_sip_session_media_state *pending_media_state;
+	/*! Active media state at the time of the original request */
+	struct ast_sip_session_media_state *active_media_state;
 	AST_LIST_ENTRY(ast_sip_session_delayed_request) next;
 };
 
@@ -1280,7 +1297,8 @@ static struct ast_sip_session_delayed_request *delayed_request_alloc(
 	ast_sip_session_sdp_creation_cb on_sdp_creation,
 	ast_sip_session_response_cb on_response,
 	int generate_new_sdp,
-	struct ast_sip_session_media_state *media_state)
+	struct ast_sip_session_media_state *pending_media_state,
+	struct ast_sip_session_media_state *active_media_state)
 {
 	struct ast_sip_session_delayed_request *delay = ast_calloc(1, sizeof(*delay));
 
@@ -1292,13 +1310,15 @@ static struct ast_sip_session_delayed_request *delayed_request_alloc(
 	delay->on_sdp_creation = on_sdp_creation;
 	delay->on_response = on_response;
 	delay->generate_new_sdp = generate_new_sdp;
-	delay->media_state = media_state;
+	delay->pending_media_state = pending_media_state;
+	delay->active_media_state = active_media_state;
 	return delay;
 }
 
 static void delayed_request_free(struct ast_sip_session_delayed_request *delay)
 {
-	ast_sip_session_media_state_free(delay->media_state);
+	ast_sip_session_media_state_free(delay->pending_media_state);
+	ast_sip_session_media_state_free(delay->active_media_state);
 	ast_free(delay);
 }
 
@@ -1323,16 +1343,20 @@ static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_
 	case DELAYED_METHOD_INVITE:
 		res = sip_session_refresh(session, delay->on_request_creation,
 			delay->on_sdp_creation, delay->on_response,
-			AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp, delay->media_state, 1);
+			AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp, delay->pending_media_state,
+			delay->active_media_state, 1);
 		/* Ownership of media state transitions to ast_sip_session_refresh */
-		delay->media_state = NULL;
+		delay->pending_media_state = NULL;
+		delay->active_media_state = NULL;
 		return res;
 	case DELAYED_METHOD_UPDATE:
 		res = sip_session_refresh(session, delay->on_request_creation,
 			delay->on_sdp_creation, delay->on_response,
-			AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp, delay->media_state, 1);
+			AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp, delay->pending_media_state,
+			delay->active_media_state, 1);
 		/* Ownership of media state transitions to ast_sip_session_refresh */
-		delay->media_state = NULL;
+		delay->pending_media_state = NULL;
+		delay->active_media_state = NULL;
 		return res;
 	case DELAYED_METHOD_BYE:
 		ast_sip_session_terminate(session, 0);
@@ -1503,17 +1527,21 @@ static int delay_request(struct ast_sip_session *session,
 	ast_sip_session_response_cb on_response,
 	int generate_new_sdp,
 	enum delayed_method method,
-	struct ast_sip_session_media_state *media_state)
+	struct ast_sip_session_media_state *pending_media_state,
+	struct ast_sip_session_media_state *active_media_state,
+	int queue_head)
 {
 	struct ast_sip_session_delayed_request *delay = delayed_request_alloc(method,
-			on_request, on_sdp_creation, on_response, generate_new_sdp, media_state);
+		on_request, on_sdp_creation, on_response, generate_new_sdp, pending_media_state,
+		active_media_state);
 
 	if (!delay) {
-		ast_sip_session_media_state_free(media_state);
+		ast_sip_session_media_state_free(pending_media_state);
+		ast_sip_session_media_state_free(active_media_state);
 		return -1;
 	}
 
-	if (method == DELAYED_METHOD_BYE) {
+	if (method == DELAYED_METHOD_BYE || queue_head) {
 		/* Send BYE as early as possible */
 		AST_LIST_INSERT_HEAD(&session->delayed_requests, delay, next);
 	} else {
@@ -1630,57 +1658,521 @@ static void set_from_header(struct ast_sip_session *session)
     }
 }
 
+/*
+ * Helper macros for merging and validating media states
+ */
+#define STREAM_REMOVED(_stream) (ast_stream_get_state(_stream) == AST_STREAM_STATE_REMOVED)
+#define STATE_REMOVED(_stream_state) (_stream_state == AST_STREAM_STATE_REMOVED)
+#define STATE_NONE(_stream_state) (_stream_state == AST_STREAM_STATE_END)
+#define GET_STREAM_SAFE(_topology, _i) (_i < ast_stream_topology_get_count(_topology) ? ast_stream_topology_get_stream(_topology, _i) : NULL)
+#define GET_STREAM_STATE_SAFE(_stream) (_stream ? ast_stream_get_state(_stream) : AST_STREAM_STATE_END)
+#define GET_STREAM_NAME_SAFE(_stream) (_stream ? ast_stream_get_name(_stream) : "")
+
+/*!
+ * \internal
+ * \brief Validate a media state
+ *
+ * \param state Media state
+ *
+ * \retval 1 The media state is valid
+ * \retval 0 The media state is NOT valid
+ *
+ */
+static int is_media_state_valid(const char *session_name, struct ast_sip_session_media_state *state)
+{
+	int stream_count = ast_stream_topology_get_count(state->topology);
+	int session_count = AST_VECTOR_SIZE(&state->sessions);
+	int i;
+	int res = 0;
+	SCOPE_ENTER(3, "%s: Topology: %s\n", session_name,
+		ast_str_tmp(256, ast_stream_topology_to_str(state->topology, &STR_TMP)));
+
+	if (session_count != stream_count) {
+		SCOPE_EXIT_RTN_VALUE(0, "%s: %d media sessions but %d streams\n", session_name,
+			session_count, stream_count);
+	}
+
+	for (i = 0; i < stream_count; i++) {
+		struct ast_sip_session_media *media = NULL;
+		struct ast_stream *stream = ast_stream_topology_get_stream(state->topology, i);
+		const char *stream_name = NULL;
+		int j;
+		SCOPE_ENTER(4, "%s: Checking stream %s\n", session_name, ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
+
+		if (!stream) {
+			SCOPE_EXIT_EXPR(goto end, "%s: stream %d is null\n", session_name, i);
+		}
+		stream_name = ast_stream_get_name(stream);
+
+		for (j = 0; j < stream_count; j++) {
+			struct ast_stream *possible_dup = ast_stream_topology_get_stream(state->topology, j);
+			if (j == i || !possible_dup) {
+				continue;
+			}
+			if (!STREAM_REMOVED(stream) && ast_strings_equal(stream_name, GET_STREAM_NAME_SAFE(possible_dup))) {
+				SCOPE_EXIT_EXPR(goto end, "%s: stream %i %s is duplicated to %d\n", session_name,
+					i, stream_name, j);
+			}
+		}
+
+		media = AST_VECTOR_GET(&state->sessions, i);
+		if (!media) {
+			SCOPE_EXIT_EXPR(continue, "%s: media %d is null\n", session_name, i);
+		}
+
+		for (j = 0; j < session_count; j++) {
+			struct ast_sip_session_media *possible_dup = AST_VECTOR_GET(&state->sessions, j);
+			if (j == i || !possible_dup) {
+				continue;
+			}
+			if (!ast_strlen_zero(media->label) && !ast_strlen_zero(possible_dup->label)
+				&& ast_strings_equal(media->label, possible_dup->label)) {
+				SCOPE_EXIT_EXPR(goto end, "%s: media %d %s is duplicated to %d\n", session_name,
+					i, media->label, j);
+			}
+		}
+
+		if (media->stream_num != i) {
+			SCOPE_EXIT_EXPR(goto end, "%s: media %d has stream_num %d\n", session_name,
+				i, media->stream_num);
+		}
+
+		if (media->type != ast_stream_get_type(stream)) {
+			SCOPE_EXIT_EXPR(goto end, "%s: media %d has type %s but stream has type %s\n", stream_name,
+				i, ast_codec_media_type2str(media->type), ast_codec_media_type2str(ast_stream_get_type(stream)));
+		}
+		SCOPE_EXIT("%s: Done with stream %s\n", session_name, ast_str_tmp(128, ast_stream_to_str(stream, &STR_TMP)));
+	}
+
+	res = 1;
+end:
+	SCOPE_EXIT_RTN_VALUE(res, "%s: %s\n", session_name, res ? "Valid" : "NOT Valid");
+}
+
+/*!
+ * \internal
+ * \brief Merge media states for a delayed session refresh
+ *
+ * \param session_name For log messages
+ * \param delayed_pending_state The pending media state at the time the resuest was queued
+ * \param delayed_active_state The active media state  at the time the resuest was queued
+ * \param current_active_state The current active media state
+ * \param run_validation Whether to run validation on the resulting media state or not
+ *
+ * \returns New merged topology or NULL if there's an error
+ *
+ */
+static struct ast_sip_session_media_state *resolve_refresh_media_states(
+	const char *session_name,
+	struct ast_sip_session_media_state *delayed_pending_state,
+	struct ast_sip_session_media_state *delayed_active_state,
+	struct ast_sip_session_media_state *current_active_state,
+	int run_post_validation)
+{
+	RAII_VAR(struct ast_sip_session_media_state *, new_pending_state, NULL, ast_sip_session_media_state_free);
+	struct ast_sip_session_media_state *returned_media_state = NULL;
+	struct ast_stream_topology *delayed_pending = delayed_pending_state->topology;
+	struct ast_stream_topology *delayed_active = delayed_active_state->topology;
+	struct ast_stream_topology *current_active = current_active_state->topology;
+	struct ast_stream_topology *new_pending = NULL;
+	int i;
+	int max_stream_count;
+	int res;
+	SCOPE_ENTER(2, "%s: DP: %s  DA: %s  CA: %s\n", session_name,
+		ast_str_tmp(256, ast_stream_topology_to_str(delayed_pending, &STR_TMP)),
+		ast_str_tmp(256, ast_stream_topology_to_str(delayed_active, &STR_TMP)),
+		ast_str_tmp(256, ast_stream_topology_to_str(current_active, &STR_TMP))
+	);
+
+	max_stream_count = MAX(ast_stream_topology_get_count(delayed_pending),
+		ast_stream_topology_get_count(delayed_active));
+	max_stream_count = MAX(max_stream_count, ast_stream_topology_get_count(current_active));
+
+	/*
+	 * The new_pending_state is always based on the currently negotiated state because
+	 * the stream ordering in its topology must be preserved.
+	 */
+	new_pending_state = ast_sip_session_media_state_clone(current_active_state);
+	if (!new_pending_state) {
+		SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "%s: Couldn't clone current_active_state to new_pending_state\n", session_name);
+	}
+	new_pending = new_pending_state->topology;
+
+	for (i = 0; i < max_stream_count; i++) {
+		struct ast_stream *dp_stream = GET_STREAM_SAFE(delayed_pending, i);
+		struct ast_stream *da_stream = GET_STREAM_SAFE(delayed_active, i);
+		struct ast_stream *ca_stream = GET_STREAM_SAFE(current_active, i);
+		struct ast_stream *np_stream = GET_STREAM_SAFE(new_pending, i);
+		struct ast_stream *found_da_stream = NULL;
+		struct ast_stream *found_np_stream = NULL;
+		enum ast_stream_state dp_state = GET_STREAM_STATE_SAFE(dp_stream);
+		enum ast_stream_state da_state = GET_STREAM_STATE_SAFE(da_stream);
+		enum ast_stream_state ca_state = GET_STREAM_STATE_SAFE(ca_stream);
+		enum ast_stream_state np_state = GET_STREAM_STATE_SAFE(np_stream);
+		enum ast_stream_state found_da_state = AST_STREAM_STATE_END;
+		enum ast_stream_state found_np_state = AST_STREAM_STATE_END;
+		const char *da_name = GET_STREAM_NAME_SAFE(da_stream);
+		const char *dp_name = GET_STREAM_NAME_SAFE(dp_stream);
+		const char *ca_name = GET_STREAM_NAME_SAFE(ca_stream);
+		const char *np_name = GET_STREAM_NAME_SAFE(np_stream);
+		const char *found_da_name __attribute__((unused)) = "";
+		const char *found_np_name __attribute__((unused)) = "";
+		int found_da_slot __attribute__((unused)) = -1;
+		int found_np_slot = -1;
+		int removed_np_slot = -1;
+		int j;
+		SCOPE_ENTER(3, "%s: slot: %d DP: %s  DA: %s  CA: %s\n", session_name, i,
+			ast_str_tmp(128, ast_stream_to_str(dp_stream, &STR_TMP)),
+			ast_str_tmp(128, ast_stream_to_str(da_stream, &STR_TMP)),
+			ast_str_tmp(128, ast_stream_to_str(ca_stream, &STR_TMP)));
+
+		if (STATE_NONE(da_state) && STATE_NONE(dp_state) && STATE_NONE(ca_state)) {
+			SCOPE_EXIT_EXPR(break, "%s: All gone\n", session_name);
+		}
+
+		/*
+		 * Simple cases are handled first to avoid having to search the NP and DA
+		 * topologies for streams with the same name but not in the same position.
+		 */
+
+		if (STATE_NONE(dp_state) && !STATE_NONE(da_state)) {
+		    /*
+		     * The slot in the delayed pending topology can't be empty if the delayed
+		     * active topology has a stream there.  Streams can't just go away.  They
+		     * can be reused or marked "removed" but they can't go away.
+		     */
+		    SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_WARNING, "%s: DP slot is empty but DA is not\n", session_name);
+		}
+
+		if (STATE_NONE(dp_state)) {
+		    /*
+		     * The current active topology can certainly have streams that weren't
+		     * in existence when the delayed request was queued.  In this case,
+		     * no action is needed since we already copied the current active topology
+		     * to the new pending one.
+		     */
+		    SCOPE_EXIT_EXPR(continue, "%s: No DP stream so use CA stream as is\n", session_name);
+		}
+
+		if (ast_strings_equal(dp_name, da_name) && ast_strings_equal(da_name, ca_name)) {
+			/*
+			 * The delayed pending stream in this slot matches by name, the streams
+			 * in the same slot in the other two topologies.  Easy case.
+			 */
+			ast_trace(-1, "%s: Same stream in all 3 states\n", session_name);
+			if (dp_state == da_state && da_state == ca_state) {
+				/* All the same state, no need to update. */
+				SCOPE_EXIT_EXPR(continue, "%s: All in the same state so nothing to do\n", session_name);
+			}
+			if (da_state != ca_state) {
+				/*
+				 * Something set the CA state between the time this request was queued
+				 * and now.  The CA state wins so we don't do anything.
+				 */
+				SCOPE_EXIT_EXPR(continue, "%s: Ignoring request to change state from %s to %s\n",
+					session_name, ast_stream_state2str(ca_state), ast_stream_state2str(dp_state));
+			}
+			if (dp_state != da_state) {
+				/* DP needs to update the state */
+				ast_stream_set_state(np_stream, dp_state);
+				SCOPE_EXIT_EXPR(continue, "%s: Changed NP stream state from %s to %s\n",
+					session_name, ast_stream_state2str(ca_state), ast_stream_state2str(dp_state));
+			}
+		}
+
+		/*
+		 * We're done with the simple cases.  For the rest, we need to identify if the
+		 * DP stream we're trying to take action on is already in the other topologies
+		 * possibly in a different slot.  To do that, if the stream in the DA or CA slots
+		 * doesn't match the current DP stream, we need to iterate over the topology
+		 * looking for a stream with the same name.
+		 */
+
+		/*
+		 * Since we already copied all of the CA streams to the NP topology, we'll use it
+		 * instead of CA because we'll be updating the NP as we go.
+		 */
+		if (!ast_strings_equal(dp_name, np_name)) {
+			/*
+			 * The NP stream in this slot doesn't have the same name as the DP stream
+			 * so we need to see if it's in another NP slot.  We're not going to stop
+			 * when we find a matching stream because we also want to find the first
+			 * removed removed slot, if any, so we can re-use this slot.  We'll break
+			 * early if we find both before we reach the end.
+			 */
+			ast_trace(-1, "%s: Checking if DP is already in NP somewhere\n", session_name);
+			for (j = 0; j < ast_stream_topology_get_count(new_pending); j++) {
+				struct ast_stream *possible_existing = ast_stream_topology_get_stream(new_pending, j);
+				const char *possible_existing_name = GET_STREAM_NAME_SAFE(possible_existing);
+
+				ast_trace(-1, "%s: Checking %s against %s\n", session_name, dp_name, possible_existing_name);
+				if (found_np_slot == -1 && ast_strings_equal(dp_name, possible_existing_name)) {
+					ast_trace(-1, "%s: Pending stream %s slot %d is in NP slot %d\n", session_name,
+					dp_name, i, j);
+					found_np_slot = j;
+					found_np_stream = possible_existing;
+					found_np_state = ast_stream_get_state(possible_existing);
+					found_np_name = ast_stream_get_name(possible_existing);
+				}
+				if (STREAM_REMOVED(possible_existing) && removed_np_slot == -1) {
+					removed_np_slot = j;
+				}
+				if (removed_np_slot >= 0 && found_np_slot >= 0) {
+					break;
+				}
+			}
+		} else {
+			/* Makes the subsequent code easier */
+			found_np_slot = i;
+			found_np_stream = np_stream;
+			found_np_state = np_state;
+			found_np_name = np_name;
+		}
+
+		if (!ast_strings_equal(dp_name, da_name)) {
+			/*
+			 * The DA stream in this slot doesn't have the same name as the DP stream
+			 * so we need to see if it's in another DA slot.  In real life, the DA stream
+			 * in this slot could have a different name but there shouldn't be a case
+			 * where the DP stream is another slot in the DA topology.  Just in case though.
+			 * We don't care about removed slots in the DA topology.
+			 */
+			ast_trace(-1, "%s: Checking if DP is already in DA somewhere\n", session_name);
+			for (j = 0; j < ast_stream_topology_get_count(delayed_active); j++) {
+				struct ast_stream *possible_existing = ast_stream_topology_get_stream(delayed_active, j);
+				const char *possible_existing_name = GET_STREAM_NAME_SAFE(possible_existing);
+
+				ast_trace(-1, "%s: Checking %s against %s\n", session_name, dp_name, possible_existing_name);
+				if (ast_strings_equal(dp_name, possible_existing_name)) {
+					ast_trace(-1, "%s: Pending stream %s slot %d is already in delayed active slot %d\n",
+						session_name, dp_name, i, j);
+					found_da_slot = j;
+					found_da_stream = possible_existing;
+					found_da_state = ast_stream_get_state(possible_existing);
+					found_da_name = ast_stream_get_name(possible_existing);
+					break;
+				}
+			}
+		} else {
+			/* Makes the subsequent code easier */
+			found_da_slot = i;
+			found_da_stream = da_stream;
+			found_da_state = da_state;
+			found_da_name = da_name;
+		}
+
+		ast_trace(-1, "%s: Found NP slot: %d  Found removed NP slot: %d Found DA slot: %d\n",
+			session_name, found_np_slot, removed_np_slot, found_da_slot);
+
+		/*
+		 * Now we know whether the DP stream is new or changing state and we know if the DP
+		 * stream exists in the other topologies and if so, where in those topologies it exists.
+		 */
+
+		if (!found_da_stream) {
+			/*
+			 * The DP stream isn't in the DA topology which would imply that the intention of the
+			 * request was to add the stream, not change its state.  It's possible though that
+			 * the stream was added by another request between the time this request was queued
+			 * and now so we need to check the CA topology as well.
+			 */
+			ast_trace(-1, "%s: There was no corresponding DA stream so the request was to add a stream\n", session_name);
+
+			if (found_np_stream) {
+				/*
+				 * We found it in the CA topology.  Since the intention was to add it
+				 * and it's already there, there's nothing to do.
+				 */
+				SCOPE_EXIT_EXPR(continue, "%s: New stream requested but it's already in CA\n", session_name);
+			} else {
+				/* OK, it's not in either which would again imply that the intention of the
+				 * request was to add the stream.
+				 */
+				ast_trace(-1, "%s: There was no corresponding NP stream\n", session_name);
+				if (STATE_REMOVED(dp_state)) {
+					/*
+					 * How can DP request to remove a stream that doesn't seem to exist anythere?
+					 * It's not.  It's possible that the stream was already removed and the slot
+					 * reused in the CA topology, but it would still have to exist in the DA
+					 * topology.  Bail.
+					 */
+					SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR,
+						"%s: Attempting to remove stream %d:%s but it doesn't exist anywhere.\n", session_name, i, dp_name);
+				} else {
+					/*
+					 * We're now sure we want to add the the stream.  Since we can re-use
+					 * slots in the CA topology that have streams marked as "removed", we
+					 * use the slot we saved in removed_np_slot if it exists.
+					 */
+					ast_trace(-1, "%s: Checking for open slot\n", session_name);
+					if (removed_np_slot >= 0) {
+						struct ast_sip_session_media *old_media = AST_VECTOR_GET(&new_pending_state->sessions, removed_np_slot);
+						res = ast_stream_topology_set_stream(new_pending, removed_np_slot, ast_stream_clone(dp_stream, NULL));
+						if (res != 0) {
+						    SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_WARNING, "%s: Couldn't set stream in new topology\n", session_name);
+						}
+						/*
+						 * Since we're reusing the removed_np_slot slot for something else, we need
+						 * to free and remove any session media already in it.
+						 * ast_stream_topology_set_stream() took care of freeing the old stream.
+						 */
+						res = AST_VECTOR_REPLACE(&new_pending_state->sessions, removed_np_slot, NULL);
+						if (res != 0) {
+						    SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_WARNING, "%s: Couldn't replace media session\n", session_name);
+						}
+
+						ao2_cleanup(old_media);
+						SCOPE_EXIT_EXPR(continue, "%s: Replaced removed stream in slot %d\n",
+							session_name, removed_np_slot);
+					} else {
+						int new_slot = ast_stream_topology_append_stream(new_pending, ast_stream_clone(dp_stream, NULL));
+						if (new_slot < 0) {
+						    SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_WARNING, "%s: Couldn't append stream in new topology\n", session_name);
+						}
+
+						res = AST_VECTOR_REPLACE(&new_pending_state->sessions, new_slot, NULL);
+						if (res != 0) {
+						    SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_WARNING, "%s: Couldn't replace media session\n", session_name);
+						}
+						SCOPE_EXIT_EXPR(continue, "%s: Appended new stream to slot %d\n",
+							session_name, new_slot);
+					}
+				}
+			}
+		} else {
+			/*
+			 * The DP stream exists in the DA topology so it's a change of some sort.
+			 */
+			ast_trace(-1, "%s: There was a corresponding DA stream so the request was to change/remove a stream\n", session_name);
+			if (dp_state == found_da_state) {
+				/* No change? Let's see if it's in CA */
+				if (!found_np_stream) {
+					/*
+					 * The DP and DA state are the same which would imply that the stream
+					 * already exists but it's not in the CA topology.  It's possible that
+					 * between the time this request was queued and now the stream was removed
+					 * from the CA topology and the slot used for something else.  Nothing
+					 * we can do here.
+					 */
+					SCOPE_EXIT_EXPR(continue, "%s: Stream doesn't exist in CA so nothing to do\n", session_name);
+				} else if (dp_state == found_np_state) {
+					SCOPE_EXIT_EXPR(continue, "%s: States are the same all around so nothing to do\n", session_name);
+				} else {
+					SCOPE_EXIT_EXPR(continue, "%s: Something changed the CA state so we're going to leave it as is\n", session_name);
+				}
+			} else {
+				/* We have a state change. */
+				ast_trace(-1, "%s: Requesting state change to %s\n", session_name, ast_stream_state2str(dp_state));
+				if (!found_np_stream) {
+					SCOPE_EXIT_EXPR(continue, "%s: Stream doesn't exist in CA so nothing to do\n", session_name);
+				} else if (da_state == found_np_state) {
+					ast_stream_set_state(found_np_stream, dp_state);
+					SCOPE_EXIT_EXPR(continue, "%s: Changed NP stream state from %s to %s\n",
+						session_name, ast_stream_state2str(found_np_state), ast_stream_state2str(dp_state));
+				} else {
+					SCOPE_EXIT_EXPR(continue, "%s: Something changed the CA state so we're going to leave it as is\n",
+						session_name);
+				}
+			}
+		}
+
+		SCOPE_EXIT("%s: Done with slot %d\n", session_name, i);
+	}
+
+	ast_trace(-1, "%s: Resetting default media states\n", session_name);
+	for (i = 0; i < AST_MEDIA_TYPE_END; i++) {
+		int j;
+		new_pending_state->default_session[i] = NULL;
+		for (j = 0; j < AST_VECTOR_SIZE(&new_pending_state->sessions); j++) {
+			struct ast_sip_session_media *media = AST_VECTOR_GET(&new_pending_state->sessions, j);
+			struct ast_stream *stream = ast_stream_topology_get_stream(new_pending_state->topology, j);
+
+			if (media && media->type == i && !STREAM_REMOVED(stream)) {
+				new_pending_state->default_session[i] = media;
+				break;
+			}
+		}
+	}
+
+	if (run_post_validation) {
+		ast_trace(-1, "%s: Running post-validation\n", session_name);
+		if (!is_media_state_valid(session_name, new_pending_state)) {
+			SCOPE_EXIT_LOG_RTN_VALUE(NULL, LOG_ERROR, "State not consistent\n");
+		}
+	}
+
+	/*
+	 * We need to move the new pending state to another variable and set new_pending_state to NULL
+	 * so RAII_VAR doesn't free it.
+	 */
+	returned_media_state = new_pending_state;
+	new_pending_state = NULL;
+	SCOPE_EXIT_RTN_VALUE(returned_media_state, "%s: NP: %s\n", session_name,
+		ast_str_tmp(256, ast_stream_topology_to_str(new_pending, &STR_TMP)));
+}
+
 static int sip_session_refresh(struct ast_sip_session *session,
 		ast_sip_session_request_creation_cb on_request_creation,
 		ast_sip_session_sdp_creation_cb on_sdp_creation,
 		ast_sip_session_response_cb on_response,
 		enum ast_sip_session_refresh_method method, int generate_new_sdp,
-		struct ast_sip_session_media_state *media_state,
+		struct ast_sip_session_media_state *pending_media_state,
+		struct ast_sip_session_media_state *active_media_state,
 		int queued)
 {
 	pjsip_inv_session *inv_session = session->inv_session;
 	pjmedia_sdp_session *new_sdp = NULL;
 	pjsip_tx_data *tdata;
+	int res;
+	SCOPE_ENTER(3, "%s: New SDP? %s  Queued? %s DP: %s  DA: %s\n", ast_sip_session_get_name(session),
+		generate_new_sdp ? "yes" : "no", queued ? "yes" : "no",
+		pending_media_state ? ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)) : "none",
+		active_media_state ? ast_str_tmp(256, ast_stream_topology_to_str(active_media_state->topology, &STR_TMP)) : "none");
 
-	if (media_state && (!media_state->topology || !generate_new_sdp)) {
-		ast_sip_session_media_state_free(media_state);
-		return -1;
+	if (pending_media_state && (!pending_media_state->topology || !generate_new_sdp)) {
+
+		ast_sip_session_media_state_free(pending_media_state);
+		ast_sip_session_media_state_free(active_media_state);
+		SCOPE_EXIT_RTN_VALUE(-1, "%s: Not sending reinvite because %s%s\n", ast_sip_session_get_name(session),
+			pending_media_state->topology == NULL ? "pending topology is null " : "",
+				!generate_new_sdp ? "generate_new_sdp is false" : "");
 	}
 
 	if (inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
 		/* Don't try to do anything with a hung-up call */
-		ast_debug(3, "Not sending reinvite to %s because of disconnected state...\n",
-				ast_sorcery_object_get_id(session->endpoint));
-		ast_sip_session_media_state_free(media_state);
-		return 0;
+		ast_sip_session_media_state_free(pending_media_state);
+		ast_sip_session_media_state_free(active_media_state);
+		SCOPE_EXIT_RTN_VALUE(0, "%s: Not sending reinvite because of disconnected state\n",
+				ast_sip_session_get_name(session));
 	}
 
 	/* If the dialog has not yet been established we have to defer until it has */
 	if (inv_session->dlg->state != PJSIP_DIALOG_STATE_ESTABLISHED) {
-		ast_debug(3, "Delay sending request to %s because dialog has not been established...\n",
-			ast_sorcery_object_get_id(session->endpoint));
-		return delay_request(session, on_request_creation, on_sdp_creation, on_response,
+		res = delay_request(session, on_request_creation, on_sdp_creation, on_response,
 			generate_new_sdp,
 			method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
 				? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE,
-			media_state);
+			pending_media_state, active_media_state ? active_media_state : ast_sip_session_media_state_clone(session->active_media_state), queued);
+		SCOPE_EXIT_RTN_VALUE(res, "%s: Delay sending reinvite because dialog has not been established\n",
+			ast_sip_session_get_name(session));
 	}
 
 	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
 		if (inv_session->invite_tsx) {
 			/* We can't send a reinvite yet, so delay it */
-			ast_debug(3, "Delay sending reinvite to %s because of outstanding transaction...\n",
-					ast_sorcery_object_get_id(session->endpoint));
-			return delay_request(session, on_request_creation, on_sdp_creation,
-				on_response, generate_new_sdp, DELAYED_METHOD_INVITE, media_state);
+			res = delay_request(session, on_request_creation, on_sdp_creation,
+				on_response, generate_new_sdp, DELAYED_METHOD_INVITE, pending_media_state,
+				active_media_state ? active_media_state : ast_sip_session_media_state_clone(session->active_media_state), queued);
+			SCOPE_EXIT_RTN_VALUE(res, "%s: Delay sending reinvite because of outstanding transaction\n",
+				ast_sip_session_get_name(session));
 		} else if (inv_session->state != PJSIP_INV_STATE_CONFIRMED) {
 			/* Initial INVITE transaction failed to progress us to a confirmed state
 			 * which means re-invites are not possible
 			 */
-			ast_debug(3, "Not sending reinvite to %s because not in confirmed state...\n",
-					ast_sorcery_object_get_id(session->endpoint));
-			ast_sip_session_media_state_free(media_state);
-			return 0;
+			ast_sip_session_media_state_free(pending_media_state);
+			ast_sip_session_media_state_free(active_media_state);
+			SCOPE_EXIT_RTN_VALUE(0, "%s: Not sending reinvite because not in confirmed state\n",
+				ast_sip_session_get_name(session));
 		}
 	}
 
@@ -1689,19 +2181,21 @@ static int sip_session_refresh(struct ast_sip_session *session,
 		if (inv_session->neg
 			&& pjmedia_sdp_neg_get_state(inv_session->neg)
 				!= PJMEDIA_SDP_NEG_STATE_DONE) {
-			ast_debug(3, "Delay session refresh with new SDP to %s because SDP negotiation is not yet done...\n",
-				ast_sorcery_object_get_id(session->endpoint));
-			return delay_request(session, on_request_creation, on_sdp_creation,
+			res = delay_request(session, on_request_creation, on_sdp_creation,
 				on_response, generate_new_sdp,
 				method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
-					? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE, media_state);
+					? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE, pending_media_state,
+				active_media_state ? active_media_state : ast_sip_session_media_state_clone(session->active_media_state), queued);
+			SCOPE_EXIT_RTN_VALUE(res, "%s: Delay session refresh with new SDP because SDP negotiation is not yet done\n",
+				ast_sip_session_get_name(session));
 		}
 
 		/* If an explicitly requested media state has been provided use it instead of any pending one */
-		if (media_state) {
+		if (pending_media_state) {
 			int index;
 			int type_streams[AST_MEDIA_TYPE_END] = {0};
-			struct ast_stream *stream;
+
+			ast_trace(-1, "%s: Pending media state exists\n", ast_sip_session_get_name(session));
 
 			/* Media state conveys a desired media state, so if there are outstanding
 			 * delayed requests we need to ensure we go into the queue and not jump
@@ -1709,12 +2203,35 @@ static int sip_session_refresh(struct ast_sip_session *session,
 			 * order.
 			 */
 			if (!queued && !AST_LIST_EMPTY(&session->delayed_requests)) {
-				ast_debug(3, "Delay sending reinvite to %s because of outstanding requests...\n",
-					ast_sorcery_object_get_id(session->endpoint));
-				return delay_request(session, on_request_creation, on_sdp_creation,
+				res = delay_request(session, on_request_creation, on_sdp_creation,
 					on_response, generate_new_sdp,
 					method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
-						? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE, media_state);
+						? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE, pending_media_state,
+						active_media_state ? active_media_state : ast_sip_session_media_state_clone(session->active_media_state), queued);
+				SCOPE_EXIT_RTN_VALUE(res, "%s: Delay sending reinvite because of outstanding requests\n",
+					ast_sip_session_get_name(session));
+			}
+
+			if (active_media_state) {
+				struct ast_sip_session_media_state *new_pending_state;
+
+				ast_trace(-1, "%s: Active media state exists\n", ast_sip_session_get_name(session));
+				ast_trace(-1, "%s: DP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
+				ast_trace(-1, "%s: DA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(active_media_state->topology, &STR_TMP)));
+				ast_trace(-1, "%s: CP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP)));
+				ast_trace(-1, "%s: CA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->active_media_state->topology, &STR_TMP)));
+
+				new_pending_state = resolve_refresh_media_states(ast_sip_session_get_name(session),
+					pending_media_state, active_media_state, session->active_media_state, 1);
+				if (new_pending_state) {
+					ast_trace(-1, "%s: NP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(new_pending_state->topology, &STR_TMP)));
+					ast_sip_session_media_state_free(pending_media_state);
+					pending_media_state = new_pending_state;
+				} else {
+					ast_sip_session_media_state_reset(pending_media_state);
+					ast_sip_session_media_state_free(active_media_state);
+					SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: Unable to merge media states\n", ast_sip_session_get_name(session));
+				}
 			}
 
 			/* Prune the media state so the number of streams fit within the configured limits - we do it here
@@ -1722,39 +2239,49 @@ static int sip_session_refresh(struct ast_sip_session *session,
 			 * of the SDP when producing it we'd be in trouble. We also enforce formats here for media types that
 			 * are configurable on the endpoint.
 			 */
-			for (index = 0; index < ast_stream_topology_get_count(media_state->topology); ++index) {
-				struct ast_stream *existing_stream = NULL;
+			ast_trace(-1, "%s: Pruning and checking formats of streams\n", ast_sip_session_get_name(session));
 
-				stream = ast_stream_topology_get_stream(media_state->topology, index);
+			for (index = 0; index < ast_stream_topology_get_count(pending_media_state->topology); ++index) {
+				struct ast_stream *existing_stream = NULL;
+				struct ast_stream *stream = ast_stream_topology_get_stream(pending_media_state->topology, index);
+				SCOPE_ENTER(4, "%s: Checking stream %s\n", ast_sip_session_get_name(session),
+					ast_stream_get_name(stream));
 
 				if (session->active_media_state->topology &&
 					index < ast_stream_topology_get_count(session->active_media_state->topology)) {
 					existing_stream = ast_stream_topology_get_stream(session->active_media_state->topology, index);
+					ast_trace(-1, "%s: Found existing stream %s\n", ast_sip_session_get_name(session),
+						ast_stream_get_name(existing_stream));
 				}
 
 				if (is_stream_limitation_reached(ast_stream_get_type(stream), session->endpoint, type_streams)) {
-					if (index < AST_VECTOR_SIZE(&media_state->sessions)) {
-						struct ast_sip_session_media *session_media = AST_VECTOR_GET(&media_state->sessions, index);
+					if (index < AST_VECTOR_SIZE(&pending_media_state->sessions)) {
+						struct ast_sip_session_media *session_media = AST_VECTOR_GET(&pending_media_state->sessions, index);
 
 						ao2_cleanup(session_media);
-						AST_VECTOR_REMOVE(&media_state->sessions, index, 1);
+						AST_VECTOR_REMOVE(&pending_media_state->sessions, index, 1);
 					}
 
-					ast_stream_topology_del_stream(media_state->topology, index);
+					ast_stream_topology_del_stream(pending_media_state->topology, index);
+					ast_trace(-1, "%s: Dropped overlimit stream %s\n", ast_sip_session_get_name(session),
+						ast_stream_get_name(stream));
 
 					/* A stream has potentially moved into our spot so we need to jump back so we process it */
 					index -= 1;
-					continue;
+					SCOPE_EXIT_EXPR(continue);
 				}
 
 				/* No need to do anything with stream if it's media state is removed */
 				if (ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
 					/* If there is no existing stream we can just not have this stream in the topology at all. */
 					if (!existing_stream) {
-						ast_stream_topology_del_stream(media_state->topology, index);
+						ast_trace(-1, "%s: Dropped removed stream %s\n", ast_sip_session_get_name(session),
+							ast_stream_get_name(stream));
+						ast_stream_topology_del_stream(pending_media_state->topology, index);
+						/* TODO: Do we need to remove the corresponding media state? */
 						index -= 1;
 					}
-					continue;
+					SCOPE_EXIT_EXPR(continue);
 				}
 
 				/* Enforce the configured allowed codecs on audio and video streams */
@@ -1764,8 +2291,10 @@ static int sip_session_refresh(struct ast_sip_session *session,
 
 					joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 					if (!joint_cap) {
-						ast_sip_session_media_state_free(media_state);
-						return 0;
+						ast_sip_session_media_state_free(pending_media_state);
+						ast_sip_session_media_state_free(active_media_state);
+						res = -1;
+						SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "%s: Unable to alloc format caps\n", ast_sip_session_get_name(session));
 					}
 					ast_format_cap_get_compatible(ast_stream_get_formats(stream), session->endpoint->media.codecs, joint_cap);
 					if (!ast_format_cap_count(joint_cap)) {
@@ -1775,9 +2304,10 @@ static int sip_session_refresh(struct ast_sip_session *session,
 							/* If there is no existing stream we can just not have this stream in the topology
 							 * at all.
 							 */
-							ast_stream_topology_del_stream(media_state->topology, index);
+							ast_stream_topology_del_stream(pending_media_state->topology, index);
 							index -= 1;
-							continue;
+							SCOPE_EXIT_EXPR(continue, "%s: Dropped incompatible stream %s\n",
+								ast_sip_session_get_name(session), ast_stream_get_name(stream));
 						} else if (ast_stream_get_state(stream) != ast_stream_get_state(existing_stream) ||
 								strcmp(ast_stream_get_name(stream), ast_stream_get_name(existing_stream))) {
 							/* If the underlying stream is a different type or different name then we have to
@@ -1785,7 +2315,8 @@ static int sip_session_refresh(struct ast_sip_session *session,
 							 * is preserved.
 							 */
 							ast_stream_set_state(stream, AST_STREAM_STATE_REMOVED);
-							continue;
+							SCOPE_EXIT_EXPR(continue, "%s: Dropped incompatible stream %s\n",
+								ast_sip_session_get_name(session), ast_stream_get_name(stream));
 						} else {
 							/* However if the stream is otherwise remaining the same we can keep the formats
 							 * that exist on it already which allows media to continue to flow. We don't modify
@@ -1800,6 +2331,8 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				}
 
 				++type_streams[ast_stream_get_type(stream)];
+
+				SCOPE_EXIT();
 			}
 
 			if (session->active_media_state->topology) {
@@ -1808,84 +2341,103 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				 * streams than are currently present we fill in the topology to match the current number of streams
 				 * that are active.
 				 */
-				for (index = ast_stream_topology_get_count(media_state->topology);
-					index < ast_stream_topology_get_count(session->active_media_state->topology); ++index) {
-					struct ast_stream *cloned;
 
-					stream = ast_stream_topology_get_stream(session->active_media_state->topology, index);
-					ast_assert(stream != NULL);
+				for (index = ast_stream_topology_get_count(pending_media_state->topology);
+					index < ast_stream_topology_get_count(session->active_media_state->topology); ++index) {
+					struct ast_stream *stream = ast_stream_topology_get_stream(session->active_media_state->topology, index);
+					struct ast_stream *cloned;
+					int position;
+					SCOPE_ENTER(4, "%s: Stream %s not in pending\n", ast_sip_session_get_name(session),
+						ast_stream_get_name(stream));
 
 					cloned = ast_stream_clone(stream, NULL);
 					if (!cloned) {
-						ast_sip_session_media_state_free(media_state);
-						return -1;
+						ast_sip_session_media_state_free(pending_media_state);
+						ast_sip_session_media_state_free(active_media_state);
+						res = -1;
+						SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "%s: Unable to clone stream %s\n",
+							ast_sip_session_get_name(session), ast_stream_get_name(stream));
 					}
 
 					ast_stream_set_state(cloned, AST_STREAM_STATE_REMOVED);
-					if (ast_stream_topology_append_stream(media_state->topology, cloned) < 0) {
+					position = ast_stream_topology_append_stream(pending_media_state->topology, cloned);
+					if (position < 0) {
 						ast_stream_free(cloned);
-						ast_sip_session_media_state_free(media_state);
-						return -1;
+						ast_sip_session_media_state_free(pending_media_state);
+						ast_sip_session_media_state_free(active_media_state);
+						res = -1;
+						SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "%s: Unable to append cloned stream\n",
+							ast_sip_session_get_name(session));
 					}
+					SCOPE_EXIT("%s: Appended empty stream in position %d to make counts match\n",
+						ast_sip_session_get_name(session), position);
 				}
 
 				/* If the resulting media state matches the existing active state don't bother doing a session refresh */
-				if (ast_stream_topology_equal(session->active_media_state->topology, media_state->topology)) {
-					ast_sip_session_media_state_free(media_state);
+				if (ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
+					ast_trace(-1, "%s: CA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->active_media_state->topology, &STR_TMP)));
+					ast_trace(-1, "%s: NP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
+					ast_sip_session_media_state_free(pending_media_state);
+					ast_sip_session_media_state_free(active_media_state);
 					/* For external consumers we return 0 to say success, but internally for
 					 * send_delayed_request we return a separate value to indicate that this
 					 * session refresh would be redundant so we didn't send it
 					 */
-					return queued ? 1 : 0;
+					SCOPE_EXIT_RTN_VALUE(queued ? 1 : 0, "%s: Topologies are equal. Not sending re-invite\n",
+						ast_sip_session_get_name(session));
 				}
 			}
 
 			ast_sip_session_media_state_free(session->pending_media_state);
-			session->pending_media_state = media_state;
+			session->pending_media_state = pending_media_state;
 		}
 
 		new_sdp = generate_session_refresh_sdp(session);
 		if (!new_sdp) {
-			ast_log(LOG_ERROR, "Failed to generate session refresh SDP. Not sending session refresh\n");
 			ast_sip_session_media_state_reset(session->pending_media_state);
-			return -1;
+			ast_sip_session_media_state_free(active_media_state);
+			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: Failed to generate session refresh SDP. Not sending session refresh\n",
+				ast_sip_session_get_name(session));
 		}
 		if (on_sdp_creation) {
 			if (on_sdp_creation(session, new_sdp)) {
 				ast_sip_session_media_state_reset(session->pending_media_state);
-				return -1;
+				ast_sip_session_media_state_free(active_media_state);
+				SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: on_sdp_creation failed\n", ast_sip_session_get_name(session));
 			}
 		}
 	}
 
 	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
 		if (pjsip_inv_reinvite(inv_session, NULL, new_sdp, &tdata)) {
-			ast_log(LOG_WARNING, "Failed to create reinvite properly.\n");
 			if (generate_new_sdp) {
 				ast_sip_session_media_state_reset(session->pending_media_state);
 			}
-			return -1;
+			ast_sip_session_media_state_free(active_media_state);
+			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: Failed to create reinvite properly\n", ast_sip_session_get_name(session));
 		}
 	} else if (pjsip_inv_update(inv_session, NULL, new_sdp, &tdata)) {
-		ast_log(LOG_WARNING, "Failed to create UPDATE properly.\n");
 		if (generate_new_sdp) {
 			ast_sip_session_media_state_reset(session->pending_media_state);
 		}
-		return -1;
+		ast_sip_session_media_state_free(active_media_state);
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: Failed to create UPDATE properly\n", ast_sip_session_get_name(session));
 	}
 	if (on_request_creation) {
 		if (on_request_creation(session, tdata)) {
 			if (generate_new_sdp) {
 				ast_sip_session_media_state_reset(session->pending_media_state);
 			}
-			return -1;
+			ast_sip_session_media_state_free(active_media_state);
+			SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_WARNING, "%s: on_request_creation failed.\n", ast_sip_session_get_name(session));
 		}
 	}
-	ast_debug(3, "Sending session refresh SDP via %s to %s\n",
-		method == AST_SIP_SESSION_REFRESH_METHOD_INVITE ? "re-INVITE" : "UPDATE",
-		ast_sorcery_object_get_id(session->endpoint));
 	ast_sip_session_send_request_with_cb(session, tdata, on_response);
-	return 0;
+	ast_sip_session_media_state_free(active_media_state);
+
+end:
+	SCOPE_EXIT_RTN_VALUE(res, "%s: Sending session refresh SDP via %s\n", ast_sip_session_get_name(session),
+		method == AST_SIP_SESSION_REFRESH_METHOD_INVITE ? "re-INVITE" : "UPDATE");
 }
 
 int ast_sip_session_refresh(struct ast_sip_session *session,
@@ -1896,9 +2448,8 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		struct ast_sip_session_media_state *media_state)
 {
 	return sip_session_refresh(session, on_request_creation, on_sdp_creation,
-		on_response, method, generate_new_sdp, media_state, 0);
+		on_response, method, generate_new_sdp, media_state, NULL, 0);
 }
-
 int ast_sip_session_regenerate_answer(struct ast_sip_session *session,
 		ast_sip_session_sdp_creation_cb on_sdp_creation)
 {
@@ -2103,6 +2654,11 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
 		!(session = ast_sip_dialog_get_session(dlg)) ||
 		!session->channel) {
+		return PJ_FALSE;
+	}
+
+	if (session->inv_session->invite_tsx) {
+		/* There's a transaction in progress so bail now and let pjproject send 491 */
 		return PJ_FALSE;
 	}
 
@@ -2897,7 +3453,7 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 			/* If this is delayed the only thing that will happen is a BYE request so we don't
 			 * actually need to store the response code for when it happens.
 			 */
-			delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE, NULL);
+			delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE, NULL, NULL, 1);
 			break;
 		}
 		/* Fall through */
@@ -3511,13 +4067,32 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 {
 	pjsip_inv_session *inv = session->inv_session;
 	pj_time_val tv;
+	struct ast_sip_session_media_state *pending_media_state;
+	struct ast_sip_session_media_state *active_media_state;
+	const char *session_name = ast_sip_session_get_name(session);
 
-	ast_debug(3, "Endpoint '%s(%s)' re-INVITE collision.\n",
-		ast_sorcery_object_get_id(session->endpoint),
-		session->channel ? ast_channel_name(session->channel) : "");
-	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE, NULL)) {
+	ast_debug(3, "%s re-INVITE collision.\n", session_name);
+
+	pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
+	if (!pending_media_state) {
+		ast_log(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
 		return;
 	}
+
+	active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
+	if (!active_media_state) {
+		ast_sip_session_media_state_free(pending_media_state);
+		ast_log(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
+		return;
+	}
+
+	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE, pending_media_state,
+		active_media_state, 1)) {
+		ast_sip_session_media_state_free(pending_media_state);
+		ast_sip_session_media_state_free(active_media_state);
+		ast_log(LOG_ERROR, "%s: Failed to add delayed request\n", session_name);
+	}
+
 	if (pj_timer_entry_running(&session->rescheduled_reinvite)) {
 		/* Timer already running.  Something weird is going on. */
 		ast_debug(1, "Endpoint '%s(%s)' re-INVITE collision while timer running!!!\n",
@@ -4604,6 +5179,557 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id, MOD_DATA_NAT_HOOK, nat_hook);
 }
 
+#ifdef TEST_FRAMEWORK
+
+static struct ast_stream *test_stream_alloc(const char *name, enum ast_media_type type, enum ast_stream_state state)
+{
+	struct ast_stream *stream;
+
+	stream = ast_stream_alloc(name, type);
+	if (!stream) {
+		return NULL;
+	}
+	ast_stream_set_state(stream, state);
+
+	return stream;
+}
+
+static struct ast_sip_session_media *test_media_add(
+	struct ast_sip_session_media_state *media_state, const char *name, enum ast_media_type type,
+	enum ast_stream_state state, int position)
+{
+	struct ast_sip_session_media *session_media = NULL;
+	struct ast_stream *stream = NULL;
+
+	stream = test_stream_alloc(name, type, state);
+	if (!stream) {
+		return NULL;
+	}
+
+	if (position >= 0 && position < ast_stream_topology_get_count(media_state->topology)) {
+		ast_stream_topology_set_stream(media_state->topology, position, stream);
+	} else {
+		position = ast_stream_topology_append_stream(media_state->topology, stream);
+	}
+
+	session_media = ao2_alloc_options(sizeof(*session_media), session_media_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!session_media) {
+		return NULL;
+	}
+
+	session_media->keepalive_sched_id = -1;
+	session_media->timeout_sched_id = -1;
+	session_media->type = type;
+	session_media->stream_num = position;
+	session_media->bundle_group = -1;
+	strcpy(session_media->label, name);
+
+	if (AST_VECTOR_REPLACE(&media_state->sessions, position, session_media)) {
+		ao2_ref(session_media, -1);
+
+		return NULL;
+	}
+
+	/* If this stream will be active in some way and it is the first of this type then consider this the default media session to match */
+	if (!media_state->default_session[type] && ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
+		media_state->default_session[type] = session_media;
+	}
+
+	return session_media;
+}
+
+static int test_is_media_session_equal(struct ast_sip_session_media *left, struct ast_sip_session_media *right)
+{
+	if (left == right) {
+		return 1;
+	}
+
+	if (!left) {
+		return 1;
+	}
+
+	if (!right) {
+		return 0;
+	}
+	return memcmp(left, right, sizeof(*left)) == 0;
+}
+
+static int test_is_media_state_equal(struct ast_sip_session_media_state *left, struct ast_sip_session_media_state *right,
+	int assert_on_failure)
+{
+	int i;
+	SCOPE_ENTER(2);
+
+	if (left == right) {
+		SCOPE_EXIT_RTN_VALUE(1, "equal\n");
+	}
+
+	if (!(left && right)) {
+		ast_assert(!assert_on_failure);
+		SCOPE_EXIT_RTN_VALUE(0, "one is null: left: %p  right: %p\n", left, right);
+	}
+
+	if (!ast_stream_topology_equal(left->topology, right->topology)) {
+		ast_assert(!assert_on_failure);
+		SCOPE_EXIT_RTN_VALUE(0, "topologies differ\n");
+	}
+	if (AST_VECTOR_SIZE(&left->sessions) != AST_VECTOR_SIZE(&right->sessions)) {
+		ast_assert(!assert_on_failure);
+		SCOPE_EXIT_RTN_VALUE(0, "session vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->sessions),
+			AST_VECTOR_SIZE(&right->sessions));
+	}
+	if (AST_VECTOR_SIZE(&left->read_callbacks) != AST_VECTOR_SIZE(&right->read_callbacks)) {
+		ast_assert(!assert_on_failure);
+		SCOPE_EXIT_RTN_VALUE(0, "read_callback vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->read_callbacks),
+			AST_VECTOR_SIZE(&right->read_callbacks));
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&left->sessions) ; i++) {
+		if (!test_is_media_session_equal(AST_VECTOR_GET(&left->sessions, i), AST_VECTOR_GET(&right->sessions, i))) {
+			ast_assert(!assert_on_failure);
+			SCOPE_EXIT_RTN_VALUE(0, "Media session %d different\n", i);
+		}
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&left->read_callbacks) ; i++) {
+		if (memcmp(AST_VECTOR_GET_ADDR(&left->read_callbacks, i),
+				AST_VECTOR_GET_ADDR(&right->read_callbacks, i),
+				sizeof(struct ast_sip_session_media_read_callback_state)) != 0) {
+			ast_assert(!assert_on_failure);
+			SCOPE_EXIT_RTN_VALUE(0, "read_callback %d different\n", i);
+		}
+	}
+
+	for (i = 0; i < AST_MEDIA_TYPE_END; i++) {
+		if (!(left->default_session[i] && right->default_session[i])) {
+			continue;
+		}
+		if (!left->default_session[i] || !right->default_session[i]
+			|| left->default_session[i]->stream_num != right->default_session[i]->stream_num) {
+			ast_assert(!assert_on_failure);
+			SCOPE_EXIT_RTN_VALUE(0, "Default media session %d different.  Left: %s  Right: %s\n", i,
+				left->default_session[i] ? left->default_session[i]->label : "null",
+				right->default_session[i] ? right->default_session[i]->label : "null");
+		}
+	}
+
+	SCOPE_EXIT_RTN_VALUE(1, "equal\n");
+}
+
+AST_TEST_DEFINE(test_resolve_refresh_media_states)
+{
+#define FREE_STATE() \
+({ \
+	ast_sip_session_media_state_free(new_pending_state); \
+	new_pending_state = NULL; \
+	ast_sip_session_media_state_free(delayed_pending_state); \
+	delayed_pending_state = NULL; \
+	ast_sip_session_media_state_free(delayed_active_state); \
+	delayed_active_state = NULL; \
+	ast_sip_session_media_state_free(current_active_state); \
+	current_active_state = NULL; \
+	ast_sip_session_media_state_free(expected_pending_state); \
+	expected_pending_state = NULL; \
+})
+
+#define RESET_STATE(__num) \
+({ \
+	testnum=__num; \
+	ast_trace(-1, "Test %d\n", testnum); \
+	test_failed = 0; \
+	delayed_pending_state = ast_sip_session_media_state_alloc(); \
+	delayed_pending_state->topology = ast_stream_topology_alloc(); \
+	delayed_active_state = ast_sip_session_media_state_alloc(); \
+	delayed_active_state->topology = ast_stream_topology_alloc(); \
+	current_active_state = ast_sip_session_media_state_alloc(); \
+	current_active_state->topology = ast_stream_topology_alloc(); \
+	expected_pending_state = ast_sip_session_media_state_alloc(); \
+	expected_pending_state->topology = ast_stream_topology_alloc(); \
+})
+
+#define CHECKER() \
+({ \
+	new_pending_state = resolve_refresh_media_states("unittest", delayed_pending_state, delayed_active_state, current_active_state, 1); \
+	if (!test_is_media_state_equal(new_pending_state, expected_pending_state, 0)) { \
+		res = AST_TEST_FAIL; \
+		test_failed = 1; \
+		ast_test_status_update(test, "da: %s\n", ast_str_tmp(256, ast_stream_topology_to_str(delayed_active_state->topology, &STR_TMP))); \
+		ast_test_status_update(test, "dp: %s\n", ast_str_tmp(256, ast_stream_topology_to_str(delayed_pending_state->topology, &STR_TMP))); \
+		ast_test_status_update(test, "ca: %s\n", ast_str_tmp(256, ast_stream_topology_to_str(current_active_state->topology, &STR_TMP))); \
+		ast_test_status_update(test, "ep: %s\n", ast_str_tmp(256, ast_stream_topology_to_str(expected_pending_state->topology, &STR_TMP))); \
+		ast_test_status_update(test, "np: %s\n", ast_str_tmp(256, ast_stream_topology_to_str(new_pending_state->topology, &STR_TMP))); \
+	} \
+	ast_test_status_update(test, "Test %d %s\n", testnum, test_failed ? "FAILED" : "passed"); \
+	ast_trace(-1, "Test %d %s\n", testnum, test_failed ? "FAILED" : "passed"); \
+	test_failed = 0; \
+	FREE_STATE(); \
+})
+
+
+	struct ast_sip_session_media_state * delayed_pending_state = NULL;
+	struct ast_sip_session_media_state * delayed_active_state = NULL;
+	struct ast_sip_session_media_state * current_active_state = NULL;
+	struct ast_sip_session_media_state * new_pending_state = NULL;
+	struct ast_sip_session_media_state * expected_pending_state = NULL;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int test_failed = 0;
+	int testnum = 0;
+	SCOPE_ENTER(1);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "merge_refresh_topologies";
+		info->category = "/res/res_pjsip_session/";
+		info->summary = "Test merging of delayed request topologies";
+		info->description = "Test merging of delayed request topologies";
+		SCOPE_EXIT_RTN_VALUE(AST_TEST_NOT_RUN);
+	case TEST_EXECUTE:
+		break;
+	}
+
+	RESET_STATE(1);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(2);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(3);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(4);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(5);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	CHECKER();
+
+	RESET_STATE(6);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	test_media_add(current_active_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(7);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo6", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo6", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(8);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(9);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(10);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_REMOVED, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(11);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "myvideo3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(12);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "292-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "296-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "292-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "296-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "297-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "294-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "292-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "296-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "290-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "297-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "292-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "296-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "290-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "297-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "294-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(13);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "293-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "292-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "294-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "295-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "296-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "293-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "292-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "294-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "295-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "296-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "298-7", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "293-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "292-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "294-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "295-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "296-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "290-6", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "293-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "292-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "294-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "295-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "296-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "290-6", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "298-7", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(14);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "295-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "291-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "291-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "295-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	RESET_STATE(15);
+	test_media_add(delayed_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_active_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(delayed_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDONLY, -1);
+	test_media_add(delayed_pending_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(delayed_pending_state, "295-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(current_active_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "291-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(current_active_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+
+	test_media_add(expected_pending_state, "audio", AST_MEDIA_TYPE_AUDIO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "297-2", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "291-3", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "294-4", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	test_media_add(expected_pending_state, "298-1", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDONLY, -1);
+	test_media_add(expected_pending_state, "295-5", AST_MEDIA_TYPE_VIDEO, AST_STREAM_STATE_SENDRECV, -1);
+	CHECKER();
+
+	SCOPE_EXIT_RTN_VALUE(res);
+}
+#endif /* TEST_FRAMEWORK */
+
 static int load_module(void)
 {
 	pjsip_endpoint *endpt;
@@ -4632,12 +5758,17 @@ static int load_module(void)
 	ast_sip_register_service(&outbound_invite_auth_module);
 
 	ast_module_shutdown_ref(ast_module_info->self);
-
+#ifdef TEST_FRAMEWORK
+	AST_TEST_REGISTER(test_resolve_refresh_media_states);
+#endif
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+#ifdef TEST_FRAMEWORK
+	AST_TEST_UNREGISTER(test_resolve_refresh_media_states);
+#endif
 	ast_sip_unregister_service(&outbound_invite_auth_module);
 	ast_sip_unregister_service(&session_reinvite_module);
 	ast_sip_unregister_service(&session_module);
