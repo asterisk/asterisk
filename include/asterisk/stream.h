@@ -198,6 +198,19 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
 const char *ast_stream_to_str(const struct ast_stream *stream, struct ast_str **buf);
 
 /*!
+ * \brief Get a stack allocated string representing the stream for debugging/display purposes
+ *
+ * \param stream A stream
+ *
+ * \returns a stack allocated pointer to a string representing the stream.
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char* as it is allocated from the stack.
+ *
+ */
+#define ast_stream_to_stra(__stream) ast_str_tmp(128, ast_stream_to_str(__stream, &STR_TMP))
+
+/*!
  * \brief Get the count of the current negotiated formats of a stream
  *
  * \param stream The media stream
@@ -609,5 +622,18 @@ int ast_stream_topology_get_active_count(const struct ast_stream_topology *topol
  *
  */
 const char *ast_stream_topology_to_str(const struct ast_stream_topology *topology, struct ast_str **buf);
+
+/*!
+ * \brief Get a stack allocated string representing the topology for debugging/display purposes
+ *
+ * \param topology A topology
+ *
+ * \returns a stack allocated pointer to a string representing the topology.
+ *
+ * \warning No attempt should ever be made to free the returned
+ * char* as it is allocated from the stack.
+ *
+ */
+#define ast_stream_topology_to_stra(__topology) ast_str_tmp(256, ast_stream_topology_to_str(__topology, &STR_TMP))
 
 #endif /* _AST_STREAM_H */
