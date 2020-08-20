@@ -1082,11 +1082,7 @@ static int remove_all_original_streams(struct ast_stream_topology *dest,
 			if (!strcmp(ast_stream_get_name(stream), ast_stream_get_name(original_stream))) {
 				struct ast_stream *removed;
 
-				/* Since the participant is still going to be in the bridge we
-				 * change the name so that routing does not attempt to route video
-				 * to this stream.
-				 */
-				removed = ast_stream_clone(stream, "removed");
+				removed = ast_stream_clone(stream, NULL);
 				if (!removed) {
 					return -1;
 				}
@@ -2273,7 +2269,7 @@ static void softmix_bridge_stream_sources_update(struct ast_bridge *bridge, stru
 
 		/* Ignore all streams that don't carry video and streams that are strictly outgoing destination streams */
 		if ((ast_stream_get_type(old_stream) != AST_MEDIA_TYPE_VIDEO && ast_stream_get_type(new_stream) != AST_MEDIA_TYPE_VIDEO) ||
-			!strncmp(ast_stream_get_name(old_stream), SOFTBRIDGE_VIDEO_DEST_PREFIX,
+			!strncmp(ast_stream_get_name(new_stream), SOFTBRIDGE_VIDEO_DEST_PREFIX,
 				SOFTBRIDGE_VIDEO_DEST_LEN)) {
 			continue;
 		}
