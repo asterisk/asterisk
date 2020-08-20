@@ -228,10 +228,12 @@ const char *ast_stream_state_map[] = {
 	[AST_STREAM_STATE_INACTIVE] = "inactive",
 };
 
+#define MIN_STREAM_NAME_LEN 16
+
 struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 {
 	struct ast_stream *stream;
-	size_t name_len = MAX(strlen(S_OR(name, "")), 7); /* Ensure there is enough room for 'removed' */
+	size_t name_len = MAX(strlen(S_OR(name, "")), MIN_STREAM_NAME_LEN); /* Ensure there is enough room for 'removed' or a type-position */
 
 	stream = ast_calloc(1, sizeof(*stream) + name_len + 1);
 	if (!stream) {
@@ -263,7 +265,7 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream, const char 
 	}
 
 	stream_name = name ?: stream->name;
-	name_len = MAX(strlen(stream_name), 7); /* Ensure there is enough room for 'removed' */
+	name_len = MAX(strlen(S_OR(stream_name, "")), MIN_STREAM_NAME_LEN); /* Ensure there is enough room for 'removed' or a type-position */
 	new_stream = ast_calloc(1, sizeof(*stream) + name_len + 1);
 	if (!new_stream) {
 		return NULL;
@@ -381,18 +383,6 @@ void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state
 
 	stream->state = state;
 
-	/* When a stream is set to removed that means that any previous data for it
-	 * is no longer valid. We therefore change its name to removed and remove
-	 * any old metadata associated with it.
-	 */
-	if (state == AST_STREAM_STATE_REMOVED) {
-		strcpy(stream->name, "removed");
-		ast_variables_destroy(stream->metadata);
-		stream->metadata = NULL;
-		if (stream->formats) {
-			ast_format_cap_remove_by_type(stream->formats, AST_MEDIA_TYPE_UNKNOWN);
-		}
-	}
 }
 
 const char *ast_stream_state2str(enum ast_stream_state state)
@@ -765,6 +755,10 @@ int ast_stream_topology_append_stream(struct ast_stream_topology *topology, stru
 
 	stream->position = AST_VECTOR_SIZE(&topology->streams) - 1;
 
+	if (ast_strlen_zero(stream->name)) {
+		snprintf(stream->name, MIN_STREAM_NAME_LEN, "%s-%d", ast_codec_media_type2str(stream->type), stream->position);
+	}
+
 	return AST_VECTOR_SIZE(&topology->streams) - 1;
 }
 
@@ -819,6 +813,10 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 
 	if (position == AST_VECTOR_SIZE(&topology->streams)) {
 		return AST_VECTOR_APPEND(&topology->streams, stream);
+	}
+
+	if (ast_strlen_zero(stream->name)) {
+		snprintf(stream->name, MIN_STREAM_NAME_LEN, "%s-%d", ast_codec_media_type2str(stream->type), stream->position);
 	}
 
 	return AST_VECTOR_REPLACE(&topology->streams, position, stream);
@@ -879,7 +877,7 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 			return NULL;
 		}
 
-		stream = ast_stream_alloc(ast_codec_media_type2str(type), type);
+		stream = ast_stream_alloc(NULL, type);
 		if (!stream) {
 			ao2_cleanup(new_cap);
 			ast_stream_topology_free(topology);
@@ -894,6 +892,8 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 			ast_stream_topology_free(topology);
 			return NULL;
 		}
+
+		snprintf(stream->name, MIN_STREAM_NAME_LEN, "%s-%d", ast_codec_media_type2str(stream->type), stream->position);
 	}
 
 	return topology;

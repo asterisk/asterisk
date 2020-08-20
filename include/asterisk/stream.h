@@ -718,6 +718,8 @@ void ast_stream_topology_free(struct ast_stream_topology *topology);
  * \returns the position of the stream in the topology (-1 on error)
  *
  * \since 15
+ *
+ * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
  */
 int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
 	struct ast_stream *stream);
@@ -775,6 +777,8 @@ struct ast_stream *ast_stream_topology_get_stream(
  * the first unused position.  You can't set positions beyond that.
  *
  * \since 15
+ *
+ * \note If the stream's name is empty, it'll be set to <stream_type>-<position>
  */
 int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 	unsigned int position, struct ast_stream *stream);
