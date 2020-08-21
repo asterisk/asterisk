@@ -220,16 +220,17 @@ struct ast_speech *ast_speech_new(const char *engine_name, const struct ast_form
 	new_speech->engine = engine;
 
 	/* Can't forget the format audio is going to be in */
-	new_speech->format = best;
+	new_speech->format = ao2_bump(best);
 
 	/* We are not ready to accept audio yet */
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
 
 	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
-	if (engine->create(new_speech, best)) {
+	if (engine->create(new_speech, new_speech->format)) {
 		ast_mutex_destroy(&new_speech->lock);
+		ao2_ref(new_speech->format, -1);
 		ast_free(new_speech);
-		new_speech = NULL;
+		return NULL;
 	}
 
 	return new_speech;
