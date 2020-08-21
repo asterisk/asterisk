@@ -6695,8 +6695,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 {
 #ifdef IMAP_STORAGE
 	int newmsgs, oldmsgs;
-#else
-	char urgdir[PATH_MAX];
 #endif
 	char txtfile[PATH_MAX];
 	char tmptxtfile[PATH_MAX];
@@ -7115,6 +7113,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, &sound_duration, NULL, options->record_gain, vms, flag, msg_id, 0);
 
+		/* At this point, either we were instructed to make the message Urgent
+		   by arguments to VoiceMail or during the review process by the person
+		   leaving the message. So we update the directory where we want this
+		   message to go. */
+		if (!strcmp(flag, "Urgent")) {
+			create_dirpath(dir, sizeof(dir), vmu->context, ext, "Urgent");
+		}
+
 		if (txt) {
 			fprintf(txt, "flag=%s\n", flag);
 			if (sound_duration < vmu->minsecs) {
@@ -7195,25 +7201,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							free_user(recip);
 						}
 					}
-#ifndef IMAP_STORAGE
-					if (!ast_strlen_zero(flag) && !strcmp(flag, "Urgent")) { /* If this is an Urgent message */
-						/* Move the message from INBOX to Urgent folder if this is urgent! */
-						char sfn[PATH_MAX];
-						char dfn[PATH_MAX];
-						int x;
-						/* It's easier just to try to make it than to check for its existence */
-						create_dirpath(urgdir, sizeof(urgdir), vmu->context, ext, "Urgent");
-						x = last_message_index(vmu, urgdir) + 1;
-						make_file(sfn, sizeof(sfn), dir, msgnum);
-						make_file(dfn, sizeof(dfn), urgdir, x);
-						ast_debug(5, "Created an Urgent message, moving file from %s to %s.\n", sfn, dfn);
-						RENAME(dir, msgnum, vmu->mailbox, vmu->context, urgdir, x, sfn, dfn);
-						/* Notification must happen for this new message in Urgent folder, not INBOX */
-						ast_copy_string(fn, dfn, sizeof(fn));
-						pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
-						msgnum = x;
-					}
-#endif
+
 					/* Notification needs to happen after the copy, though. */
 					if (ast_fileexists(fn, NULL, NULL)) {
 #ifdef IMAP_STORAGE
