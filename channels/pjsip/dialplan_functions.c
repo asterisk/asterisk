@@ -1532,6 +1532,11 @@ int pjsip_acf_session_refresh_write(struct ast_channel *chan, const char *cmd, c
 		return -1;
 	}
 
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_log(LOG_WARNING, "'%s' not allowed on unanswered channel '%s'.\n", cmd, ast_channel_name(chan));
+		return -1;
+	}
+
 	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
 		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
 		return -1;
