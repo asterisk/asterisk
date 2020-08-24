@@ -1,0 +1,4 @@
+Subject: chan_pjsip
+
+The PJSIP_SEND_SESSION_REFRESH dialplan function now issues a warning, and
+returns unsuccessful if it's used on a channel prior to answering.
