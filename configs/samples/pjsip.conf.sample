@@ -958,7 +958,8 @@
                         ; refreshing.
                         ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
-;qualify_frequency=0    ; Interval at which to qualify an AoR (default: "0")
+;qualify_frequency=0    ; Interval at which to qualify an AoR via OPTIONS requests.
+                        ; (default: "0")
 ;qualify_timeout=3.0      ; Qualify timeout in fractional seconds (default: "3.0")
 ;authenticate_qualify=no        ; Authenticates a qualify request if needed
                                 ; (default: "no")
@@ -1030,9 +1031,10 @@
                                                         ; int")
 ;debug=no ; Enable/Disable SIP debug logging.  Valid options include yes|no
           ; or a host address (default: "no")
-;keep_alive_interval=20 ; The interval (in seconds) at which to send keepalive
-                        ; messages on all active connection-oriented transports
-                        ; (default: "0")
+;keep_alive_interval=90 ; The interval (in seconds) at which to send (double CRLF)
+                        ; keep-alives on all active connection-oriented transports;
+                        ; for connection-less like UDP see qualify_frequency.
+                        ; (default: "90")
 ;contact_expiration_check_interval=30
                         ; The interval (in seconds) to check for expired contacts.
 ;disable_multi_domain=no
