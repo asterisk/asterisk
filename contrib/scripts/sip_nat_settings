@@ -31,16 +31,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-WGET=`which wget`
-FETCH=`which fetch`
-if [ -x ${WGET} ]; then
-	externip=`${WGET} -q -O- http://www.whatismyip.org`
-elif [ -x ${FETCH} ]; then
-	externip=`${FETCH} -q -o - http://www.whatismyip.org`
-else
-	echo "no binary found to contact http://www.whatismyip.org"
-	exit 1
-fi
+# see http://unix.stackexchange.com/q/22615
+externip=`dig @resolver1.opendns.com -4 myip.opendns.com A +short`
 
 # optional parameter: network interface to use. By default: none.
 IFACE="$1"
@@ -49,8 +41,11 @@ OS=`uname -s`
 case "$OS" in
 Linux)
   echo "externip = $externip"
-  /sbin/ifconfig $IFACE | grep 'inet addr:' | grep Bcast \
-  | sed -e 's/^.*Bcast:\([0-9.]*\)\s*Mask:\([0-9.]*\)\s*$/localnet = \1\/\2/'
+  if [ -x "${IFACE}" ]; then
+	  ip --brief -family inet address show scope global up dev $IFACE | awk '{print "localnet = " $3}'
+  else
+	  ip --brief -family inet address show scope global up | awk '{print "localnet = " $3}'
+  fi
   ;;
 OpenBSD|FreeBSD)
   if [ "${OS}" = "FreeBSD" ]; then
