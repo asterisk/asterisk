@@ -1017,22 +1017,8 @@ struct mwi_sub {
 	int old_new;
 	int old_old;
 	char *uniqueid;
-	char mailbox[0];
+	char *mailbox;
 };
-
-struct mwi_sub_task {
-	const char *mailbox;
-	const char *context;
-	const char *uniqueid;
-};
-
-static void mwi_sub_task_dtor(struct mwi_sub_task *mwist)
-{
-	ast_free((void *) mwist->mailbox);
-	ast_free((void *) mwist->context);
-	ast_free((void *) mwist->uniqueid);
-	ast_free(mwist);
-}
 
 static struct ast_taskprocessor *mwi_subscription_tps;
 
@@ -13298,6 +13284,7 @@ static void *mb_poll_thread(void *data)
 static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
 {
 	ast_free(mwi_sub->uniqueid);
+	ast_free(mwi_sub->mailbox);
 	ast_free(mwi_sub);
 }
 
@@ -13376,35 +13363,12 @@ static int handle_unsubscribe(void *datap)
 
 static int handle_subscribe(void *datap)
 {
-	unsigned int len;
-	struct mwi_sub *mwi_sub;
-	struct mwi_sub_task *p = datap;
-	size_t context_len;
-
-	len = sizeof(*mwi_sub) + 1;
-	if (!ast_strlen_zero(p->mailbox))
-		len += strlen(p->mailbox);
-
-	context_len = strlen(p->context) + 1; /* Allow for seperator */
-	if (!ast_strlen_zero(p->context))
-		len += context_len;
-
-	if (!(mwi_sub = ast_calloc(1, len)))
-		return -1;
-
-	mwi_sub->uniqueid = ast_strdup(p->uniqueid);
-	if (!ast_strlen_zero(p->mailbox))
-		strcpy(mwi_sub->mailbox, p->mailbox);
-
-	if (!ast_strlen_zero(p->context)) {
-		strcat(mwi_sub->mailbox, "@");
-		ast_copy_string(mwi_sub->mailbox, p->context, context_len);
-	}
+	struct mwi_sub *mwi_sub = datap;
 
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
 	AST_RWLIST_UNLOCK(&mwi_subs);
-	mwi_sub_task_dtor(p);
+
 	poll_subscribed_mailbox(mwi_sub);
 	return 0;
 }
@@ -13425,29 +13389,39 @@ static void mwi_unsub_event_cb(struct stasis_subscription_change *change)
 
 static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 {
-	struct mwi_sub_task *mwist;
+	struct mwi_sub *mwi_sub;
 	const char *topic;
 	char *context;
 	char *mailbox;
 
-	mwist = ast_calloc(1, (sizeof(*mwist)));
-	if (!mwist) {
+	mwi_sub = ast_calloc(1, sizeof(*mwi_sub));
+	if (!mwi_sub) {
 		return;
 	}
 
 	/* The topic name is prefixed with "mwi:all/" as this is a pool topic */
 	topic = stasis_topic_name(change->topic) + 8;
 	if (separate_mailbox(ast_strdupa(topic), &mailbox, &context)) {
-		ast_free(mwist);
+		mwi_sub_destroy(mwi_sub);
 		return;
 	}
 
-	mwist->mailbox = ast_strdup(mailbox);
-	mwist->context = ast_strdup(context);
-	mwist->uniqueid = ast_strdup(change->uniqueid);
+	/* separate_mailbox() guarantees a non-NULL, non-empty mailbox and context */
+	if (ast_asprintf(&mwi_sub->mailbox, "%s@%s", mailbox, context) < 0) {
+		mwi_sub_destroy(mwi_sub);
+		return;
+	}
 
-	if (ast_taskprocessor_push(mwi_subscription_tps, handle_subscribe, mwist) < 0) {
-		mwi_sub_task_dtor(mwist);
+	/* The stasis subscription uniqueid will never be NULL */
+	mwi_sub->uniqueid = ast_strdup(change->uniqueid);
+	if (!mwi_sub->uniqueid) {
+		mwi_sub_destroy(mwi_sub);
+		return;
+	}
+
+	if (ast_taskprocessor_push(mwi_subscription_tps, handle_subscribe, mwi_sub) < 0) {
+		mwi_sub_destroy(mwi_sub);
+		return;
 	}
 }
 
