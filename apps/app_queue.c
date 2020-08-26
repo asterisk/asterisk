@@ -5431,6 +5431,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			int status = 0;
 
 			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->parent->leavewhenempty, 0))) {
+				record_abandoned(qe);
 				*reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(qe->parent->name, ast_channel_uniqueid(qe->chan), "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) (time(NULL) - qe->start));
 				res = -1;
