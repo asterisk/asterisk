@@ -64,6 +64,7 @@
 #endif
 
 #include "asterisk/options.h"
+#include "asterisk/logger_category.h"
 #include "asterisk/stun.h"
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
@@ -110,6 +111,7 @@
 #define MAXIMUM_RTP_RECV_BUFFER_SIZE	(DEFAULT_RTP_RECV_BUFFER_SIZE + 20)	/*!< Maximum RTP receive buffer size */
 #define OLD_PACKET_COUNT		1000	/*!< The number of previous packets that are considered old */
 #define MISSING_SEQNOS_ADDED_TRIGGER 	2	/*!< The number of immediate missing packets that will trigger an immediate NACK */
+
 #define SEQNO_CYCLE_OVER		65536	/*!< The number after the maximum allowed sequence number */
 
 /*! Full INTRA-frame Request / Fast Update Request (From RFC2032) */
@@ -189,8 +191,6 @@ static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
 static int rtpstart = DEFAULT_RTP_START;			/*!< First port for RTP sessions (set in rtp.conf) */
 static int rtpend = DEFAULT_RTP_END;			/*!< Last port for RTP sessions (set in rtp.conf) */
-static int rtpdebug;			/*!< Are we debugging? */
-static int rtcpdebug;			/*!< Are we debugging RTCP? */
 static int rtcpstats;			/*!< Are we debugging RTCP? */
 static int rtcpinterval = RTCP_DEFAULT_INTERVALMS; /*!< Time between rtcp reports in millisecs */
 static struct ast_sockaddr rtpdebugaddr;	/*!< Debug packets to/from this host */
@@ -669,6 +669,7 @@ static int dtls_bio_write(BIO *bio, const char *buf, int len)
 	int rtcp = 0;
 	struct ast_sockaddr remote_address = { {0, } };
 	int ice;
+	int bytes_sent;
 
 	/* OpenSSL can't tolerate a packet not being sent, so we always state that
 	 * we sent the packet. If it isn't then retransmission will occur.
@@ -685,7 +686,13 @@ static int dtls_bio_write(BIO *bio, const char *buf, int len)
 		return len;
 	}
 
-	__rtp_sendto(instance, (char *)buf, len, 0, &remote_address, rtcp, &ice, 0);
+	bytes_sent = __rtp_sendto(instance, (char *)buf, len, 0, &remote_address, rtcp, &ice, 0);
+
+	if (bytes_sent > 0 && ast_debug_dtls_packet_is_allowed) {
+		ast_debug(0, "(%p) DTLS - sent %s packet to %s%s (len %-6.6d)\n",
+			instance, rtcp ? "RTCP" : "RTP", ast_sockaddr_stringify(&remote_address),
+			ice ? " (via ICE)" : "", bytes_sent);
+	}
 
 	return len;
 }
@@ -817,6 +824,8 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 	ast_sockaddr_copy(&remote_candidate->relay_address, &candidate->relay_address);
 	remote_candidate->type = candidate->type;
 
+	ast_debug_ice(2, "(%p) ICE add remote candidate\n", instance);
+
 	ao2_link(rtp->ice_proposed_remote_candidates, remote_candidate);
 	ao2_ref(remote_candidate, -1);
 }
@@ -862,6 +871,7 @@ static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
 		ao2_unlock(instance);
 		ao2_ref(ice, -1);
 		ao2_lock(instance);
+		ast_debug_ice(2, "(%p) ICE stopped\n", instance);
 	}
 }
 
@@ -922,13 +932,14 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int res;
 
-	ast_debug(3, "Resetting ICE for RTP instance '%p'\n", instance);
+	ast_debug_ice(3, "(%p) ICE resetting\n", instance);
 	if (!rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
-		ast_debug(3, "Nevermind. ICE isn't ready for a reset\n");
+		ast_debug_ice(3, " (%p) ICE nevermind, not ready for a reset\n", instance);
 		return 0;
 	}
 
-	ast_debug(3, "Recreating ICE session %s (%d) for RTP instance '%p'\n", ast_sockaddr_stringify(&rtp->ice_original_rtp_addr), rtp->ice_port, instance);
+	ast_debug_ice(3, "(%p) ICE recreating ICE session %s (%d)\n",
+		instance, ast_sockaddr_stringify(&rtp->ice_original_rtp_addr), rtp->ice_port);
 	res = ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
 	if (!res) {
 		/* Use the current expected role for the ICE session */
@@ -1004,7 +1015,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	/* Check for equivalence in the lists */
 	if (rtp->ice_active_remote_candidates &&
 			!ice_candidates_compare(rtp->ice_proposed_remote_candidates, rtp->ice_active_remote_candidates)) {
-		ast_debug(3, "Proposed == active candidates for RTP instance '%p'\n", instance);
+		ast_debug_ice(2, "(%p) ICE proposed equals active candidates\n", instance);
 		ao2_cleanup(rtp->ice_proposed_remote_candidates);
 		rtp->ice_proposed_remote_candidates = NULL;
 		/* If this ICE session is being preserved then go back to the role it currently is */
@@ -1017,9 +1028,11 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	rtp->ice_active_remote_candidates = rtp->ice_proposed_remote_candidates;
 	rtp->ice_proposed_remote_candidates = NULL;
 
+	ast_debug_ice(2, "(%p) ICE start\n", instance);
+
 	/* Reset the ICE session. Is this going to work? */
 	if (ice_reset_session(instance)) {
-		ast_log(LOG_NOTICE, "Failed to create replacement ICE session\n");
+		ast_log(LOG_NOTICE, "(%p) ICE failed to create replacement session\n", instance);
 		return;
 	}
 
@@ -1054,13 +1067,13 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		}
 
 		if (candidate->id == AST_RTP_ICE_COMPONENT_RTP && rtp->turn_rtp) {
-			ast_debug(3, "RTP candidate %s (%p)\n", ast_sockaddr_stringify(&candidate->address), instance);
+			ast_debug_ice(2, "(%p) ICE RTP candidate %s\n", instance, ast_sockaddr_stringify(&candidate->address));
 			/* Release the instance lock to avoid deadlock with PJPROJECT group lock */
 			ao2_unlock(instance);
 			pj_turn_sock_set_perm(rtp->turn_rtp, 1, &candidates[cand_cnt].addr, 1);
 			ao2_lock(instance);
 		} else if (candidate->id == AST_RTP_ICE_COMPONENT_RTCP && rtp->turn_rtcp) {
-			ast_debug(3, "RTCP candidate %s (%p)\n", ast_sockaddr_stringify(&candidate->address), instance);
+			ast_debug_ice(2, "(%p) ICE RTCP candidate %s\n", instance, ast_sockaddr_stringify(&candidate->address));
 			/* Release the instance lock to avoid deadlock with PJPROJECT group lock */
 			ao2_unlock(instance);
 			pj_turn_sock_set_perm(rtp->turn_rtcp, 1, &candidates[cand_cnt].addr, 1);
@@ -1074,17 +1087,17 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	ao2_iterator_destroy(&i);
 
 	if (cand_cnt < ao2_container_count(rtp->ice_active_remote_candidates)) {
-		ast_log(LOG_WARNING, "Lost %d ICE candidates. Consider increasing PJ_ICE_MAX_CAND in PJSIP (%p)\n",
-			ao2_container_count(rtp->ice_active_remote_candidates) - cand_cnt, instance);
+		ast_log(LOG_WARNING, "(%p) ICE lost %d candidates. Consider increasing PJ_ICE_MAX_CAND in PJSIP\n",
+			instance, ao2_container_count(rtp->ice_active_remote_candidates) - cand_cnt);
 	}
 
 	if (!has_rtp) {
-		ast_log(LOG_WARNING, "No RTP candidates; skipping ICE checklist (%p)\n", instance);
+		ast_log(LOG_WARNING, "(%p) ICE no RTP candidates; skipping checklist\n", instance);
 	}
 
 	/* If we're only dealing with one ICE component, then we don't care about the lack of RTCP candidates */
 	if (!has_rtcp && rtp->ice_num_components > 1) {
-		ast_log(LOG_WARNING, "No RTCP candidates; skipping ICE checklist (%p)\n", instance);
+		ast_log(LOG_WARNING, "(%p) ICE no RTCP candidates; skipping checklist\n", instance);
 	}
 
 	if (rtp->ice && has_rtp && (has_rtcp || rtp->ice_num_components == 1)) {
@@ -1098,7 +1111,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		ao2_unlock(instance);
 		res = pj_ice_sess_create_check_list(ice->real_ice, &ufrag, &passwd, cand_cnt, &candidates[0]);
 		if (res == PJ_SUCCESS) {
-			ast_debug(3, "Successfully created ICE checklist (%p)\n", instance);
+			ast_debug_ice(2, "(%p) ICE successfully created checklist\n", instance);
 			ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
 			pj_ice_sess_start_check(ice->real_ice);
 			pj_timer_heap_poll(timer_heap, NULL);
@@ -1111,7 +1124,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		ao2_lock(instance);
 
 		pj_strerror(res, reason, sizeof(reason));
-		ast_log(LOG_WARNING, "Failed to create ICE session check list: %s (%p)\n", reason, instance);
+		ast_log(LOG_WARNING, "(%p) ICE failed to create session check list: %s\n", instance, reason);
 	}
 
 	ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: FAILURE");
@@ -1174,11 +1187,8 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	ast_debug(3, "Set role to %s (%p)\n",
-		role == AST_RTP_ICE_ROLE_CONTROLLED ? "CONTROLLED" : "CONTROLLING", instance);
-
 	if (!rtp->ice) {
-		ast_debug(3, "Set role failed; no ice instance (%p)\n", instance);
+		ast_debug_ice(3, "(%p) ICE set role failed; no ice instance\n", instance);
 		return;
 	}
 
@@ -1186,11 +1196,13 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 
 	if (!rtp->ice->real_ice->is_nominating && !rtp->ice->real_ice->is_complete) {
 		pj_thread_register_check();
-
+		ast_debug_ice(2, "(%p) ICE set role to %s\n",
+			instance, role == AST_RTP_ICE_ROLE_CONTROLLED ? "CONTROLLED" : "CONTROLLING");
 		pj_ice_sess_change_role(rtp->ice->real_ice, role == AST_RTP_ICE_ROLE_CONTROLLED ?
 			PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
 	} else {
-		ast_debug(3, "Not setting ICE role because state is %s\n", rtp->ice->real_ice->is_nominating ? "nominating" : "complete" );
+		ast_debug_ice(2, "(%p) ICE not setting role because state is %s\n",
+			instance, rtp->ice->real_ice->is_nominating ? "nominating" : "complete");
 	}
 }
 
@@ -1261,12 +1273,17 @@ static void ast_rtp_ice_add_cand(struct ast_rtp_instance *instance, struct ast_r
 	ao2_ref(ice, -1);
 	ao2_lock(instance);
 	if (!rtp->ice || status != PJ_SUCCESS) {
+		ast_debug_ice(2, "(%p) ICE unable to add candidate: %s, %d\n", instance, ast_sockaddr_stringify(
+			&candidate->address), candidate->priority);
 		ao2_ref(candidate, -1);
 		return;
 	}
 
 	/* By placing the candidate into the ICE session it will have produced the priority, so update the local candidate with it */
 	candidate->priority = rtp->ice->real_ice->lcand[rtp->ice->real_ice->lcand_cnt - 1].prio;
+
+	ast_debug_ice(2, "(%p) ICE add candidate: %s, %d\n", instance, ast_sockaddr_stringify(
+		&candidate->address), candidate->priority);
 
 	ao2_link(rtp->ice_local_candidates, candidate);
 	ao2_ref(candidate, -1);
@@ -1292,8 +1309,8 @@ static void ast_rtp_on_turn_rx_rtp_data(pj_turn_sock *turn_sock, void *pkt, unsi
 			char buf[100];
 
 			pj_strerror(status, buf, sizeof(buf));
-			ast_log(LOG_WARNING, "PJ ICE Rx error status code: %d '%s'.\n",
-				(int)status, buf);
+			ast_log(LOG_WARNING, "(%p) ICE PJ Rx error status code: %d '%s'.\n",
+				instance, (int)status, buf);
 			return;
 		}
 		if (!rtp->rtp_passthrough) {
@@ -1624,7 +1641,7 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 		turn_cb, &turn_sock_cfg, instance, turn_sock);
 	ao2_cleanup(ice);
 	if (status != PJ_SUCCESS) {
-		ast_log(LOG_WARNING, "Could not create a TURN client socket\n");
+		ast_log(LOG_WARNING, "(%p) Could not create a TURN client socket\n", instance);
 		ao2_lock(instance);
 		return;
 	}
@@ -1635,6 +1652,11 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 	pj_strset2(&cred.data.static_cred.data, (char*)password);
 
 	pj_turn_sock_alloc(*turn_sock, pj_cstr(&turn_addr, server), port, NULL, &cred, NULL);
+
+	ast_debug_ice(2, "(%p) ICE request TURN %s %s candidate\n", instance,
+		transport == AST_TRANSPORT_UDP ? "UDP" : "TCP",
+		component == AST_RTP_ICE_COMPONENT_RTP ? "RTP" : "RTCP");
+
 	ao2_lock(instance);
 
 	/*
@@ -1687,6 +1709,9 @@ static void ast_rtp_ice_change_components(struct ast_rtp_instance *instance, int
 	if (!icesupport || !rtp->ice || rtp->ice_num_components == num_components) {
 		return;
 	}
+
+	ast_debug_ice(2, "(%p) ICE change number of components %u -> %u\n", instance,
+		rtp->ice_num_components, num_components);
 
 	rtp->ice_num_components = num_components;
 	ice_reset_session(instance);
@@ -1782,6 +1807,7 @@ static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
 		return 0;
 	}
 
+	ast_debug_dtls(3, "(%p) DTLS RTCP setup\n", instance);
 	return dtls_details_initialize(&rtp->rtcp->dtls, rtp->ssl_ctx, rtp->dtls.dtls_setup, instance);
 }
 
@@ -2075,6 +2101,8 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return 0;
 	}
 
+	ast_debug_dtls(3, "(%p) DTLS RTP setup\n", instance);
+
 	if (!ast_rtp_engine_srtp_is_registered()) {
 		ast_log(LOG_ERROR, "SRTP support module is not loaded or available. Try loading res_srtp.so.\n");
 		return -1;
@@ -2197,6 +2225,7 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	SSL *ssl = rtp->dtls.ssl;
 
+	ast_debug_dtls(3, "(%p) DTLS stop\n", instance);
 	ao2_unlock(instance);
 	dtls_srtp_stop_timeout_timer(instance, rtp, 0);
 	ao2_lock(instance);
@@ -2469,7 +2498,7 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	ast_debug(3, "dtls_perform_handshake (%p) - ssl = %p, setup = %d\n",
+	ast_debug_dtls(3, "(%p) DTLS perform handshake - ssl = %p, setup = %d\n",
 		rtp, dtls->ssl, dtls->dtls_setup);
 
 	/* If we are not acting as a client connecting to the remote side then
@@ -2509,7 +2538,7 @@ static void dtls_perform_setup(struct dtls_details *dtls)
 	}
 	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
 
-	ast_debug(3, "dtls_perform_setup - connection reset'\n");
+	ast_debug_dtls(3, "DTLS perform setup - connection reset\n");
 }
 #endif
 
@@ -2548,7 +2577,8 @@ static void ast_rtp_ice_start_media(pj_ice_sess *ice, pj_status_t status)
 		return;
 	}
 
-	ast_debug(3, "ast_rtp_on_ice_complete (%p) - perform DTLS\n", rtp);
+	ast_debug_category(2, AST_DEBUG_CATEGORY_ICE | AST_DEBUG_CATEGORY_DTLS,
+		"(%p) ICE starting media - perform DTLS - (%p)\n", instance, rtp);
 
 	/*
 	 * Seemingly no reason to call dtls_perform_setup here. Currently we'll do a full
@@ -2585,6 +2615,7 @@ static void ast_rtp_ice_start_media(pj_ice_sess *ice, pj_status_t status)
 /* PJPROJECT ICE optional callback */
 static void ast_rtp_on_valid_pair(pj_ice_sess *ice)
 {
+	ast_debug_ice(2, "(%p) ICE valid pair, start media\n", ice->user_data);
 	ast_rtp_ice_start_media(ice, PJ_SUCCESS);
 }
 #endif
@@ -2592,6 +2623,7 @@ static void ast_rtp_on_valid_pair(pj_ice_sess *ice)
 /* PJPROJECT ICE callback */
 static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 {
+	ast_debug_ice(2, "(%p) ICE complete, start media\n", ice->user_data);
 	ast_rtp_ice_start_media(ice, status);
 }
 
@@ -2681,7 +2713,7 @@ static int timer_worker_thread(void *data)
 
 static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 {
-	if (!rtpdebug) {
+	if (!ast_debug_rtp_packet_is_allowed) {
 		return 0;
 	}
 	if (!ast_sockaddr_isnull(&rtpdebugaddr)) {
@@ -2697,7 +2729,7 @@ static inline int rtp_debug_test_addr(struct ast_sockaddr *addr)
 
 static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 {
-	if (!rtcpdebug) {
+	if (!ast_debug_rtcp_packet_is_allowed) {
 		return 0;
 	}
 	if (!ast_sockaddr_isnull(&rtcpdebugaddr)) {
@@ -2719,6 +2751,7 @@ static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int rtcp)
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	struct timeval dtls_timeout;
 
+	ast_debug_dtls(3, "(%p) DTLS srtp - handle timeout - rtcp=%d\n", instance, rtcp);
 	DTLSv1_handle_timeout(dtls->ssl);
 
 	/* If a timeout can't be retrieved then this recurring scheduled item must stop */
@@ -2778,6 +2811,8 @@ static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, str
 			ao2_ref(instance, -1);
 			ast_log(LOG_WARNING, "Scheduling '%s' DTLS retransmission for RTP instance [%p] failed.\n",
 				!rtcp ? "RTP" : "RTCP", instance);
+		} else {
+			ast_debug_dtls(3, "(%p) DTLS srtp - scheduled timeout timer for '%d'\n", instance, timeout);
 		}
 	}
 }
@@ -2788,6 +2823,7 @@ static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, stru
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 
 	AST_SCHED_DEL_UNREF(rtp->sched, dtls->timeout_timer, ao2_ref(instance, -1));
+	ast_debug_dtls(3, "(%p) DTLS srtp - stopped timeout timer'\n", instance);
 }
 
 /* Scheduler callback */
@@ -2798,6 +2834,7 @@ static int dtls_srtp_renegotiate(const void *data)
 
 	ao2_lock(instance);
 
+	ast_debug_dtls(3, "(%p) DTLS srtp - renegotiate'\n", instance);
 	SSL_renegotiate(rtp->dtls.ssl);
 	SSL_do_handshake(rtp->dtls.ssl);
 
@@ -2821,6 +2858,9 @@ static int dtls_srtp_add_local_ssrc(struct ast_rtp *rtp, struct ast_rtp_instance
 	struct ast_srtp_policy *local_policy, *remote_policy = NULL;
 	int res = -1;
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+
+	ast_debug_dtls(3, "(%p) DTLS srtp - add local ssrc - rtcp=%d, set_remote_policy=%d'\n",
+				   instance, rtcp, set_remote_policy);
 
 	/* Produce key information and set up SRTP */
 	if (!SSL_export_keying_material(dtls->ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
@@ -2899,7 +2939,7 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_rtp_instance *instanc
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	int index;
 
-	ast_debug(3, "Setup DTLS SRTP (%p)'\n", rtp);
+	ast_debug_dtls(3, "(%p) DTLS setup SRTP rtp=%p'\n", instance, rtp);
 
 	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
 	if (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) {
@@ -3048,7 +3088,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			return -1;
 		}
 
-		ast_debug(3, "__rtp_recvfrom (%p) - Got SSL packet '%d'\n", rtp, *in);
+		ast_debug_dtls(3, "(%p) DTLS - __rtp_recvfrom rtp=%p - Got SSL packet '%d'\n", instance, rtp, *in);
 
 		/*
 		 * A race condition is prevented between dtls_perform_handshake()
@@ -3090,7 +3130,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			/* Notify that dtls has been established */
 			res = RTP_DTLS_ESTABLISHED;
 
-			ast_debug(3, "__rtp_recvfrom (%p) - DTLS established'\n", rtp);
+			ast_debug_dtls(3, "(%p) DTLS - __rtp_recvfrom rtp=%p - established'\n", instance, rtp);
 		} else {
 			/* Since we've sent additional traffic start the timeout timer for retransmission */
 			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
@@ -3484,9 +3524,10 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 
 	if (getifaddrs(&ifa) < 0) {
 		/* If we can't get addresses, we can't load ICE candidates */
-		ast_log(LOG_ERROR, "Error obtaining list of local addresses: %s\n",
-				strerror(errno));
+		ast_log(LOG_ERROR, "(%p) ICE Error obtaining list of local addresses: %s\n",
+				instance, strerror(errno));
 	} else {
+		ast_debug_ice(2, "(%p) ICE add system candidates\n", instance);
 		/* Iterate through the list of addresses obtained from the system,
 		 * until we've iterated through all of them, or accepted
 		 * PJ_ICE_MAX_CAND candidates */
@@ -3587,6 +3628,11 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		count < PJ_ICE_MAX_CAND) {
 		struct sockaddr_in answer;
 		int rsp;
+
+		ast_debug_category(3, AST_DEBUG_CATEGORY_ICE | AST_DEBUG_CATEGORY_STUN,
+			"(%p) ICE request STUN %s %s candidate\n", instance,
+			transport == AST_TRANSPORT_UDP ? "UDP" : "TCP",
+			component == AST_RTP_ICE_COMPONENT_RTP ? "RTP" : "RTCP");
 
 		/*
 		 * The instance should not be locked because we can block
@@ -3699,6 +3745,8 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 	ao2_cleanup(rtp->ice_local_candidates);
 	rtp->ice_local_candidates = NULL;
 
+	ast_debug_ice(2, "(%p) ICE create%s\n", instance, replace ? " and replace" : "");
+
 	ice = ao2_alloc_options(sizeof(*ice), ice_wrap_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!ice) {
 		ast_rtp_ice_stop(instance);
@@ -3782,7 +3830,7 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 		ast_sockaddr_set_port(&rtp->bind_address, x);
 		/* Try to bind, this will tell us whether the port is available or not */
 		if (!ast_bind(rtp->s, &rtp->bind_address)) {
-			ast_debug(1, "Allocated port %d for RTP instance '%p'\n", x, instance);
+			ast_debug_rtp(1, "(%p) RTP allocated port %d\n", instance, x);
 			ast_rtp_instance_set_local_address(instance, &rtp->bind_address);
 			ast_test_suite_event_notify("RTP_PORT_ALLOCATED", "Port: %d", x);
 			break;
@@ -3812,9 +3860,10 @@ static int rtp_allocate_transport(struct ast_rtp_instance *instance, struct ast_
 	/* Create an ICE session for ICE negotiation */
 	if (icesupport) {
 		rtp->ice_num_components = 2;
-		ast_debug(3, "Creating ICE session %s (%d) for RTP instance '%p'\n", ast_sockaddr_stringify(&rtp->bind_address), x, instance);
+		ast_debug_ice(2, "(%p) ICE creating session %s (%d)\n", instance,
+			ast_sockaddr_stringify(&rtp->bind_address), x);
 		if (ice_create(instance, &rtp->bind_address, x, 0)) {
-			ast_log(LOG_NOTICE, "Failed to create ICE session\n");
+			ast_log(LOG_NOTICE, "(%p) ICE failed to create session\n", instance);
 		} else {
 			rtp->ice_port = x;
 			ast_sockaddr_copy(&rtp->ice_original_rtp_addr, &rtp->bind_address);
@@ -3891,6 +3940,7 @@ static void rtp_deallocate_transport(struct ast_rtp_instance *instance, struct a
 		rtp->turn_rtcp = NULL;
 	}
 
+	ast_debug_ice(2, "(%p) ICE RTP transport deallocating\n", instance);
 	/* Destroy any ICE session */
 	ast_rtp_ice_stop(instance);
 
@@ -4218,7 +4268,8 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
 	if (duration > 0 && (measured_samples = duration * ast_rtp_get_rate(rtp->f.subclass.format) / 1000) > rtp->send_duration) {
-		ast_debug(2, "Adjusting final end duration from %d to %u\n", rtp->send_duration, measured_samples);
+		ast_debug_rtp(2, "(%p) RTP adjusting final end duration from %d to %u\n",
+			instance, rtp->send_duration, measured_samples);
 		rtp->send_duration = measured_samples;
 	}
 
@@ -4281,7 +4332,7 @@ static void ast_rtp_update_source(struct ast_rtp_instance *instance)
 
 	/* We simply set this bit so that the next packet sent will have the marker bit turned on */
 	ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
-	ast_debug(3, "Setting the marker bit due to a source update\n");
+	ast_debug_rtp(3, "(%p) RTP setting the marker bit due to a source update\n", instance);
 
 	return;
 }
@@ -4299,10 +4350,12 @@ static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 		ast_set_flag(rtp, FLAG_NEED_MARKER_BIT);
 	}
 
-	ast_debug(3, "Changing ssrc from %u to %u due to a source change\n", rtp->ssrc, ssrc);
+	ast_debug_rtp(3, "(%p) RTP changing ssrc from %u to %u due to a source change\n",
+		instance, rtp->ssrc, ssrc);
 
 	if (srtp) {
-		ast_debug(3, "Changing ssrc for SRTP from %u to %u\n", rtp->ssrc, ssrc);
+		ast_debug_rtp(3, "(%p) RTP changing ssrc for SRTP from %u to %u\n",
+			instance, rtp->ssrc, ssrc);
 		res_srtp->change_source(srtp, rtp->ssrc, ssrc);
 		if (rtcp_srtp != srtp) {
 			res_srtp->change_source(rtcp_srtp, rtp->ssrc, ssrc);
@@ -4639,7 +4692,7 @@ static int ast_rtcp_generate_compound_prefix(struct ast_rtp_instance *instance, 
 	res = ast_rtcp_generate_report(instance, rtcpheader, report, sr);
 
 	if (res == 0 || res == 1) {
-		ast_debug(1, "Failed to generate %s report!\n", sr ? "SR" : "RR");
+		ast_debug_rtcp(1, "(%p) RTCP failed to generate %s report!\n", instance, sr ? "SR" : "RR");
 		return 0;
 	}
 
@@ -4648,7 +4701,7 @@ static int ast_rtcp_generate_compound_prefix(struct ast_rtp_instance *instance, 
 	res = ast_rtcp_generate_sdes(instance, rtcpheader + packet_len, report);
 
 	if (res == 0 || res == 1) {
-		ast_debug(1, "Failed to generate SDES!\n");
+		ast_debug_rtcp(1, "(%p) RTCP failed to generate SDES!\n", instance);
 		return 0;
 	}
 
@@ -4856,7 +4909,8 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			if (abs((int)rtp->lastts - pred) < MAX_TIMESTAMP_SKEW) {
 				rtp->lastts = pred;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u\n", abs((int)rtp->lastts - pred), ms);
+				ast_debug_rtp(3, "(%p) RTP audio difference is %d, ms is %u\n",
+					instance, abs((int)rtp->lastts - pred), ms);
 				mark = 1;
 			}
 		}
@@ -4871,7 +4925,8 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += frame->samples;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u (%u), pred/ts/samples %u/%d/%d\n", abs((int)rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, frame->samples);
+				ast_debug_rtp(3, "(%p) RTP video difference is %d, ms is %u (%u), pred/ts/samples %u/%d/%d\n",
+					instance, abs((int)rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, frame->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
 			}
 		}
@@ -4885,7 +4940,8 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 				rtp->lastts = pred;
 				rtp->lastotexttimestamp += frame->samples;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u, pred/ts/samples %u/%d/%d\n", abs((int)rtp->lastts - pred), ms, rtp->lastts, pred, frame->samples);
+				ast_debug_rtp(3, "(%p) RTP other difference is %d, ms is %u, pred/ts/samples %u/%d/%d\n",
+					instance, abs((int)rtp->lastts - pred), ms, rtp->lastts, pred, frame->samples);
 				rtp->lastotexttimestamp = rtp->lastts;
 			}
 		}
@@ -5001,20 +5057,20 @@ static int rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 		res = rtp_sendto(instance, (void *)rtpheader, packet_len, 0, &remote_address, &ice);
 		if (res < 0) {
 			if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT) || (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT) && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				ast_debug(1, "RTP Transmission error of packet %d to %s: %s\n",
-					  rtp->seqno,
+				ast_debug_rtp(1, "(%p) RTP transmission error of packet %d to %s: %s\n",
+					  instance, rtp->seqno,
 					  ast_sockaddr_stringify(&remote_address),
 					  strerror(errno));
-			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
+			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || ast_debug_rtp_packet_is_allowed) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
-				if (rtpdebug)
-					ast_debug(0, "RTP NAT: Can't write RTP to private address %s, waiting for other end to send audio...\n",
-						  ast_sockaddr_stringify(&remote_address));
+				if (ast_debug_rtp_packet_is_allowed)
+					ast_debug(0, "(%p) RTP NAT: Can't write RTP to private address %s, waiting for other end to send audio...\n",
+						instance, ast_sockaddr_stringify(&remote_address));
 				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
 			}
 		} else {
 			if (rtp->rtcp && rtp->rtcp->schedid < 0) {
-				ast_debug(1, "Starting RTCP transmission on RTP instance '%p'\n", instance);
+				ast_debug_rtcp(1, "(%p) RTCP starting transmission\n", instance);
 				ao2_ref(instance, +1);
 				rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, instance);
 				if (rtp->rtcp->schedid < 0) {
@@ -5160,8 +5216,8 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 		ao2_cleanup);
 
 	if (feedback->fmt != AST_RTP_RTCP_FMT_REMB) {
-		ast_debug(1, "Provided an RTCP feedback frame of format %d to write on RTP instance '%p' but only REMB is supported\n",
-			feedback->fmt, instance);
+		ast_debug_rtcp(1, "(%p) RTCP provided feedback frame of format %d to write, but only REMB is supported\n",
+			instance, feedback->fmt);
 		return;
 	}
 
@@ -5171,7 +5227,7 @@ static void rtp_write_rtcp_psfb(struct ast_rtp_instance *instance, struct ast_rt
 
 	/* If REMB support is not enabled don't send this RTCP packet */
 	if (!ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_REMB)) {
-		ast_debug(1, "Provided an RTCP feedback REMB report to write on RTP instance '%p' but REMB support not enabled\n",
+		ast_debug_rtcp(1, "(%p) RTCP provided feedback REMB report to write, but REMB support not enabled\n",
 			instance);
 		return;
 	}
@@ -5223,7 +5279,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	/* If we don't actually know the remote address don't even bother doing anything */
 	if (ast_sockaddr_isnull(&remote_address)) {
-		ast_debug(1, "No remote address on RTP instance '%p' so dropping frame\n", instance);
+		ast_debug_rtp(1, "(%p) RTP no remote address on instance, so dropping frame\n", instance);
 		return 0;
 	}
 
@@ -5240,7 +5296,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 
 	/* If there is no data length we can't very well send the packet */
 	if (!frame->datalen) {
-		ast_debug(1, "Received frame with no data for RTP instance '%p' so dropping frame\n", instance);
+		ast_debug_rtp(1, "(%p) RTP received frame with no data for instance, so dropping frame\n", instance);
 		return 0;
 	}
 
@@ -5272,8 +5328,8 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	format = frame->subclass.format;
 	if (ast_format_cmp(rtp->lasttxformat, format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		/* Oh dear, if the format changed we will have to set up a new smoother */
-		ast_debug(1, "Ooh, format changed from %s to %s\n",
-			ast_format_get_name(rtp->lasttxformat),
+		ast_debug_rtp(1, "(%p) RTP ooh, format changed from %s to %s\n",
+			instance, ast_format_get_name(rtp->lasttxformat),
 			ast_format_get_name(frame->subclass.format));
 		ao2_replace(rtp->lasttxformat, format);
 		if (rtp->smoother) {
@@ -5398,14 +5454,14 @@ static struct ast_frame *create_dtmf_frame(struct ast_rtp_instance *instance, en
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
 
 	if (((compensate && type == AST_FRAME_DTMF_END) || (type == AST_FRAME_DTMF_BEGIN)) && ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
-		ast_debug(1, "Ignore potential DTMF echo from '%s'\n",
-			  ast_sockaddr_stringify(&remote_address));
+		ast_debug_rtp(1, "(%p) RTP ignore potential DTMF echo from '%s'\n",
+			instance, ast_sockaddr_stringify(&remote_address));
 		rtp->resp = 0;
 		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
 	}
-	ast_debug(1, "Creating %s DTMF Frame: %d (%c), at %s\n",
-		type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
+	ast_debug_rtp(1, "(%p) RTP creating %s DTMF Frame: %d (%c), at %s\n",
+		instance, type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
 		rtp->resp, rtp->resp,
 		ast_sockaddr_stringify(&remote_address));
 	if (rtp->resp == 'X') {
@@ -5450,7 +5506,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	}
 
 	/* Print out debug if turned on */
-	if (rtpdebug)
+	if (ast_debug_rtp_packet_is_allowed)
 		ast_debug(0, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 
 	/* Figure out what digit was pressed */
@@ -5466,7 +5522,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 		resp = 'X';
 	} else {
 		/* Not a supported event */
-		ast_debug(1, "Ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", event);
+		ast_debug_rtp(1, "(%p) RTP ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", instance, event);
 		return;
 	}
 
@@ -5504,9 +5560,9 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 				AST_LIST_INSERT_TAIL(frames, f, frame_list);
-			} else if (rtpdebug) {
-				ast_debug(1, "Dropping duplicate or out of order DTMF END frame (seqno: %u, ts %u, digit %c)\n",
-					seqno, timestamp, resp);
+			} else if (ast_debug_rtp_packet_is_allowed) {
+				ast_debug_rtp(1, "(%p) RTP dropping duplicate or out of order DTMF END frame (seqno: %u, ts %u, digit %c)\n",
+					instance, seqno, timestamp, resp);
 			}
 		} else {
 			/* Begin/continuation */
@@ -5521,8 +5577,8 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 				 * improperly duplicate incoming DTMF, so just drop
 				 * this.
 				 */
-				if (rtpdebug) {
-					ast_debug(1, "Dropping out of order DTMF frame (seqno %u, ts %u, digit %c)\n",
+				if (ast_debug_rtp_packet_is_allowed) {
+					ast_debug(0, "Dropping out of order DTMF frame (seqno %u, ts %u, digit %c)\n",
 						seqno, timestamp, resp);
 				}
 				return;
@@ -5606,7 +5662,7 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 	power = data[2];
 	event = data[3] & 0x1f;
 
-	if (rtpdebug)
+	if (ast_debug_rtp_packet_is_allowed)
 		ast_debug(0, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02x, power=%u, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
 	if (event < 10) {
 		resp = '0' + event;
@@ -5646,7 +5702,7 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
-	if (rtpdebug) {
+	if (ast_debug_rtp_packet_is_allowed) {
 		ast_debug(0, "- RTP 3389 Comfort noise event: Format %s (len = %d)\n",
 			ast_format_get_name(rtp->lastrxformat), len);
 	}
@@ -5888,7 +5944,8 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 	unsigned int packets_not_found = 0;
 
 	if (!rtp->send_buffer) {
-		ast_debug(1, "Tried to handle NACK request, but we don't have a RTP packet storage!\n");
+		ast_debug_rtcp(1, "(%p) RTCP tried to handle NACK request, "
+			"but we don't have a RTP packet storage!\n", instance);
 		return res;
 	}
 
@@ -5917,7 +5974,8 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 			}
 			res += rtp_sendto(instance, payload->buf, payload->size, 0, &remote_address, &ice);
 		} else {
-			ast_debug(1, "Received NACK request for RTP packet with seqno %d, but we don't have it\n", pid);
+			ast_debug_rtcp(1, "(%p) RTCP received NACK request for RTP packet with seqno %d, "
+				"but we don't have it\n", instance, pid);
 			packets_not_found++;
 		}
 		/*
@@ -5939,7 +5997,8 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 					}
 					res += rtp_sendto(instance, payload->buf, payload->size, 0, &remote_address, &ice);
 				} else {
-					ast_debug(1, "Remote end also requested RTP packet with seqno %d, but we don't have it\n", seqno);
+					ast_debug_rtcp(1, "(%p) RTCP remote end also requested RTP packet with seqno %d, "
+						"but we don't have it\n", instance, seqno);
 					packets_not_found++;
 				}
 			}
@@ -5954,7 +6013,8 @@ static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned 
 		 */
 		ast_data_buffer_resize(rtp->send_buffer, MIN(MAXIMUM_RTP_SEND_BUFFER_SIZE,
 			ast_data_buffer_max(rtp->send_buffer) + packets_not_found));
-		ast_debug(2, "Send buffer on RTP instance '%p' is now at maximum of %zu\n", instance, ast_data_buffer_max(rtp->send_buffer));
+		ast_debug_rtcp(2, "(%p) RTCP send buffer on RTP instance is now at maximum of %zu\n",
+			instance, ast_data_buffer_max(rtp->send_buffer));
 	}
 
 	return res;
@@ -6028,23 +6088,23 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 
 	packetwords = len / 4;
 
-	ast_debug(1, "Got RTCP report of %d bytes from %s\n",
-		len, ast_sockaddr_stringify(addr));
+	ast_debug_rtcp(1, "(%p) RTCP got report of %d bytes from %s\n",
+		instance, len, ast_sockaddr_stringify(addr));
 
 	/*
 	 * Validate the RTCP packet according to an adapted and slightly
 	 * modified RFC3550 validation algorithm.
 	 */
 	if (packetwords < RTCP_HEADER_SSRC_LENGTH) {
-		ast_debug(1, "%p -- RTCP from %s: Frame size (%u words) is too short\n",
-			transport_rtp, ast_sockaddr_stringify(addr), packetwords);
+		ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: Frame size (%u words) is too short\n",
+			instance, transport_rtp, ast_sockaddr_stringify(addr), packetwords);
 		return &ast_null_frame;
 	}
 	position = 0;
 	first_word = ntohl(rtcpheader[position]);
 	if ((first_word & RTCP_VALID_MASK) != RTCP_VALID_VALUE) {
-		ast_debug(1, "%p -- RTCP from %s: Failed first packet validity check\n",
-			transport_rtp, ast_sockaddr_stringify(addr));
+		ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: Failed first packet validity check\n",
+			instance, transport_rtp, ast_sockaddr_stringify(addr));
 		return &ast_null_frame;
 	}
 	do {
@@ -6055,8 +6115,8 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 		first_word = ntohl(rtcpheader[position]);
 	} while ((first_word & RTCP_VERSION_MASK_SHIFTED) == RTCP_VERSION_SHIFTED);
 	if (position != packetwords) {
-		ast_debug(1, "%p -- RTCP from %s: Failed packet version or length check\n",
-			transport_rtp, ast_sockaddr_stringify(addr));
+		ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: Failed packet version or length check\n",
+			instance, transport_rtp, ast_sockaddr_stringify(addr));
 		return &ast_null_frame;
 	}
 
@@ -6146,8 +6206,8 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 			min_length = length;
 			break;
 		default:
-			ast_debug(1, "%p -- RTCP from %s: %u(%s) skipping record\n",
-				transport_rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt));
+			ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: %u(%s) skipping record\n",
+				instance, transport_rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt));
 			if (rtcp_debug_test_addr(addr)) {
 				ast_verbose("\n");
 				ast_verbose("RTCP from %s: %u(%s) skipping record\n",
@@ -6157,8 +6217,8 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 			continue;
 		}
 		if (length < min_length) {
-			ast_debug(1, "%p -- RTCP from %s: %u(%s) length field less than expected minimum.  Min:%u Got:%u\n",
-				transport_rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt),
+			ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: %u(%s) length field less than expected minimum.  Min:%u Got:%u\n",
+				instance, transport_rtp, ast_sockaddr_stringify(addr), pt, rtcp_payload_type2str(pt),
 				min_length - 1, length - 1);
 			return &ast_null_frame;
 		}
@@ -6248,8 +6308,8 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 				 * for a different stream.
 				 */
 				position += length;
-				ast_debug(1, "%p -- RTCP from %s: Skipping record, received SSRC '%u' != expected '%u'\n",
-					rtp, ast_sockaddr_stringify(addr), ssrc, rtp->themssrc);
+				ast_debug_rtcp(1, "(%p) RTCP %p -- from %s: Skipping record, received SSRC '%u' != expected '%u'\n",
+					instance, rtp, ast_sockaddr_stringify(addr), ssrc, rtp->themssrc);
 				if (child) {
 					ao2_unlock(child);
 				}
@@ -6262,9 +6322,9 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 			/* Send to whoever sent to us */
 			if (ast_sockaddr_cmp(&rtp->rtcp->them, addr)) {
 				ast_sockaddr_copy(&rtp->rtcp->them, addr);
-				if (rtpdebug) {
-					ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
-						ast_sockaddr_stringify(addr));
+				if (ast_debug_rtp_packet_is_allowed) {
+					ast_debug(0, "(%p) RTCP NAT: Got RTCP from other end. Now sending to address %s\n",
+						instance, ast_sockaddr_stringify(addr));
 				}
 			}
 		}
@@ -6527,12 +6587,12 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		if (ast_sockaddr_is_ipv4(&addr)) {
 			ast_sockaddr_to_sin(&addr, &addr_tmp);
 		} else if (ast_sockaddr_ipv4_mapped(&addr, &addr_v4)) {
-			ast_debug(1, "Using IPv6 mapped address %s for STUN\n",
-				  ast_sockaddr_stringify(&addr));
+			ast_debug_stun(2, "(%p) STUN using IPv6 mapped address %s\n",
+				instance, ast_sockaddr_stringify(&addr));
 			ast_sockaddr_to_sin(&addr_v4, &addr_tmp);
 		} else {
-			ast_debug(1, "Cannot do STUN for non IPv4 address %s\n",
-				  ast_sockaddr_stringify(&addr));
+			ast_debug_stun(2, "(%p) STUN cannot do for non IPv4 address %s\n",
+				instance, ast_sockaddr_stringify(&addr));
 			return &ast_null_frame;
 		}
 		if ((ast_stun_handle_packet(rtp->rtcp->s, &addr_tmp, read_area, res, NULL, NULL) == AST_STUN_ACCEPT)) {
@@ -6579,7 +6639,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 
 	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
 	if (ast_rtp_codecs_find_payload_code(ast_rtp_instance_get_codecs(instance1), bridged_payload) == -1) {
-		ast_debug(1, "Unsupported payload type received \n");
+		ast_debug_rtp(1, "(%p, %p) RTP unsupported payload type received\n", instance, instance1);
 		return -1;
 	}
 
@@ -6589,7 +6649,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	 * core so they can be filtered accordingly.
 	 */
 	if (rtp->last_end_timestamp == timestamp) {
-		ast_debug(1, "Feeding packet with duplicate timestamp to core\n");
+		ast_debug_rtp(1, "(%p, %p) RTP feeding packet with duplicate timestamp to core\n", instance, instance1);
 		return -1;
 	}
 
@@ -6621,7 +6681,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 
 	/* If bridged peer is in dtmf, feed all packets to core until it finishes to avoid infinite dtmf */
 	if (bridged->sending_digit) {
-		ast_debug(1, "Feeding packet to core until DTMF finishes\n");
+		ast_debug_rtp(1, "(%p, %p) RTP Feeding packet to core until DTMF finishes\n", instance, instance1);
 		ao2_unlock(instance1);
 		ao2_lock(instance);
 		return -1;
@@ -6635,8 +6695,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 		if (!bridged->asymmetric_codec
 			&& bridged->lastrxformat != ast_format_none
 			&& ast_format_cmp(payload_type->format, bridged->lastrxformat) == AST_FORMAT_CMP_NOT_EQUAL) {
-			ast_debug(1, "Asymmetric RTP codecs detected (TX: %s, RX: %s) sending frame to core\n",
-				ast_format_get_name(payload_type->format),
+			ast_debug_rtp(1, "(%p, %p) RTP asymmetric RTP codecs detected (TX: %s, RX: %s) sending frame to core\n",
+				instance, instance1, ast_format_get_name(payload_type->format),
 				ast_format_get_name(bridged->lastrxformat));
 			ao2_unlock(instance1);
 			ao2_lock(instance);
@@ -6649,7 +6709,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	ast_rtp_instance_get_remote_address(instance1, &remote_address);
 
 	if (ast_sockaddr_isnull(&remote_address)) {
-		ast_debug(5, "Remote address is null, most likely RTP has been stopped\n");
+		ast_debug_rtp(5, "(%p, %p) RTP remote address is null, most likely RTP has been stopped\n",
+			instance, instance1);
 		ao2_unlock(instance1);
 		ao2_lock(instance);
 		return 0;
@@ -6686,8 +6747,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 				"RTP Transmission error of packet to %s: %s\n",
 				ast_sockaddr_stringify(&remote_address),
 				strerror(errno));
-		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
-			if (rtpdebug || DEBUG_ATLEAST(1)) {
+		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || ast_debug_rtp_packet_is_allowed) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
+			if (ast_debug_rtp_packet_is_allowed || DEBUG_ATLEAST(1)) {
 				ast_log(LOG_WARNING,
 					"RTP NAT: Can't write RTP to private "
 					"address %s, waiting for other end to "
@@ -6965,8 +7026,8 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 	/* The packet is now fully constructed so send it out */
 	ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
 
-	ast_debug(2, "Sending transport-cc feedback packet of size '%d' on '%s' with packet count of %d (small = %d, large = %d, lost = %d)\n",
-		packet_len, ast_rtp_instance_get_channel_id(instance), packet_count, small_delta_count, large_delta_count, lost_count);
+	ast_debug_rtcp(2, "(%p) RTCP sending transport-cc feedback packet of size '%d' on '%s' with packet count of %d (small = %d, large = %d, lost = %d)\n",
+		instance, packet_len, ast_rtp_instance_get_channel_id(instance), packet_count, small_delta_count, large_delta_count, lost_count);
 
 	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, packet_len, 0, &remote_address, &ice);
 	if (res < 0) {
@@ -7026,7 +7087,7 @@ static void rtp_instance_parse_transport_wide_cc(struct ast_rtp_instance *instan
 
 	/* If we have not yet scheduled the periodic sending of feedback for this transport then do so */
 	if (transport_rtp->transport_wide_cc.schedid < 0 && transport_rtp->rtcp) {
-		ast_debug(1, "Starting RTCP transport-cc feedback transmission on RTP instance '%p'\n", transport);
+		ast_debug_rtcp(1, "(%p) RTCP starting transport-cc feedback transmission on RTP instance '%p'\n", instance, transport);
 		ao2_ref(transport, +1);
 		transport_rtp->transport_wide_cc.schedid = ast_sched_add(rtp->sched, 1000,
 			rtp_transport_wide_cc_feedback_produce, transport);
@@ -7460,12 +7521,12 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		if (ast_sockaddr_is_ipv4(&addr)) {
 			ast_sockaddr_to_sin(&addr, &addr_tmp);
 		} else if (ast_sockaddr_ipv4_mapped(&addr, &addr_v4)) {
-			ast_debug(1, "Using IPv6 mapped address %s for STUN\n",
-				  ast_sockaddr_stringify(&addr));
+			ast_debug_stun(1, "(%p) STUN using IPv6 mapped address %s\n",
+				instance, ast_sockaddr_stringify(&addr));
 			ast_sockaddr_to_sin(&addr_v4, &addr_tmp);
 		} else {
-			ast_debug(1, "Cannot do STUN for non IPv4 address %s\n",
-				  ast_sockaddr_stringify(&addr));
+			ast_debug_stun(1, "(%p) STUN cannot do for non IPv4 address %s\n",
+				instance, ast_sockaddr_stringify(&addr));
 			return &ast_null_frame;
 		}
 		if ((ast_stun_handle_packet(rtp->s, &addr_tmp, read_area, res, NULL, NULL) == AST_STUN_ACCEPT) &&
@@ -7611,8 +7672,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 					break;
 				}
 				/* Not ready to accept the RTP stream candidate */
-				ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection. Will switch to it in %d packets.\n",
-					rtp, ast_sockaddr_stringify(&addr), rtp->rtp_source_learn.packets);
+				ast_debug_rtp(1, "(%p) RTP %p -- Received packet from %s, dropping due to strict RTP protection. Will switch to it in %d packets.\n",
+					instance, rtp, ast_sockaddr_stringify(&addr), rtp->rtp_source_learn.packets);
 			} else {
 				/*
 				 * This is either an attacking stream or
@@ -7620,8 +7681,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				 */
 				ast_sockaddr_copy(&rtp->rtp_source_learn.proposed_address, &addr);
 				rtp_learning_seq_init(&rtp->rtp_source_learn, seqno);
-				ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection. Qualifying new stream.\n",
-					rtp, ast_sockaddr_stringify(&addr));
+				ast_debug_rtp(1, "(%p) RTP %p -- Received packet from %s, dropping due to strict RTP protection. Qualifying new stream.\n",
+					instance, rtp, ast_sockaddr_stringify(&addr));
 			}
 			return &ast_null_frame;
 		}
@@ -7639,8 +7700,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		if (!ast_sockaddr_cmp(&rtp->strict_rtp_address, &addr)) {
 			break;
 		}
-		ast_debug(1, "%p -- Received RTP packet from %s, dropping due to strict RTP protection.\n",
-			rtp, ast_sockaddr_stringify(&addr));
+		ast_debug_rtp(1, "(%p) RTP %p -- Received packet from %s, dropping due to strict RTP protection.\n",
+			instance, rtp, ast_sockaddr_stringify(&addr));
 #ifdef TEST_FRAMEWORK
 	{
 		static int strict_rtp_test_event = 1;
@@ -7667,9 +7728,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				ast_sockaddr_set_port(&rtp->rtcp->them, ast_sockaddr_port(&addr) + 1);
 			}
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
-			if (rtpdebug)
-				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s\n",
-					  ast_sockaddr_stringify(&remote_address));
+			if (ast_debug_rtp_packet_is_allowed)
+				ast_debug(0, "(%p) RTP NAT: Got audio from other end. Now sending to address %s\n",
+					instance, ast_sockaddr_stringify(&remote_address));
 		}
 	}
 
@@ -7697,8 +7758,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			};
 
 			if (!mark) {
-				if (rtpdebug) {
-					ast_debug(1, "Forcing Marker bit, because SSRC has changed\n");
+				if (ast_debug_rtp_packet_is_allowed) {
+					ast_debug(0, "(%p) RTP forcing Marker bit, because SSRC has changed\n", instance);
 				}
 				mark = 1;
 			}
@@ -7750,8 +7811,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		if (!AST_VECTOR_REMOVE_CMP_ORDERED(&rtp->missing_seqno, seqno, find_by_value,
 			AST_VECTOR_ELEM_CLEANUP_NOOP)) {
-			ast_debug(2, "Packet with sequence number '%d' on RTP instance '%p' is no longer missing\n",
-				seqno, instance);
+			ast_debug_rtp(2, "(%p) RTP Packet with sequence number '%d' on instance is no longer missing\n",
+				instance, seqno);
 		}
 
 		/* If we don't have the next packet after this we can directly return the frame, as there is no
@@ -7793,8 +7854,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				return AST_LIST_FIRST(&frames);
 			}
 
-			ast_debug(2, "Pulled buffered packet with sequence number '%d' to additionally return on RTP instance '%p'\n",
-				frame->seqno, instance);
+			ast_debug_rtp(2, "(%p) RTP pulled buffered packet with sequence number '%d' to additionally return\n",
+				instance, frame->seqno);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			prev_seqno = rtp->expectedrxseqno;
 			rtp->expectedrxseqno++;
@@ -7815,7 +7876,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 */
 
 		if (rtp->rtp_source_learn.stream_type == AST_MEDIA_TYPE_VIDEO) {
-			ast_debug(2, "Source on RTP instance '%p' has wild gap or packet loss, sending FIR\n",
+			ast_debug_rtp(2, "(%p) RTP source has wild gap or packet loss, sending FIR\n",
 				instance);
 			rtp_write_rtcp_fir(instance, rtp, &remote_address);
 		}
@@ -7833,8 +7894,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = seqno;
-					ast_debug(2, "Inserted just received packet with sequence number '%d' in correct order on RTP instance '%p'\n",
-						seqno, instance);
+					ast_debug_rtp(2, "(%p) RTP inserted just received packet with sequence number '%d' in correct order\n",
+						instance, seqno);
 				}
 				/* It is possible due to packet retransmission for this packet to also exist in the receive
 				 * buffer so we explicitly remove it in case this occurs, otherwise the receive buffer will
@@ -7858,8 +7919,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = rtp->expectedrxseqno;
-					ast_debug(2, "Emptying queue and returning packet with sequence number '%d' from RTP instance '%p'\n",
-						frame->seqno, instance);
+					ast_debug_rtp(2, "(%p) RTP emptying queue and returning packet with sequence number '%d'\n",
+						instance, frame->seqno);
 				}
 				ast_free(payload);
 			}
@@ -7883,8 +7944,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				rtp->expectedrxseqno = 0;
 			}
 
-			ast_debug(2, "Adding just received packet with sequence number '%d' to end of dumped queue on RTP instance '%p'\n",
-				seqno, instance);
+			ast_debug_rtp(2, "(%p) RTP adding just received packet with sequence number '%d' to end of dumped queue\n",
+				instance, seqno);
 		}
 
 		/* When we flush increase our chance for next time by growing the receive buffer when possible
@@ -7892,7 +7953,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 */
 		ast_data_buffer_resize(rtp->recv_buffer, MIN(MAXIMUM_RTP_RECV_BUFFER_SIZE,
 			ast_data_buffer_max(rtp->recv_buffer) + AST_VECTOR_SIZE(&rtp->missing_seqno)));
-		ast_debug(2, "Receive buffer on RTP instance '%p' is now at maximum of %zu\n", instance, ast_data_buffer_max(rtp->recv_buffer));
+		ast_debug_rtp(2, "(%p) RTP receive buffer is now at maximum of %zu\n", instance, ast_data_buffer_max(rtp->recv_buffer));
 
 		/* As there is such a large gap we don't want to flood the order side with missing packets, so we
 		 * give up and start anew.
@@ -7918,13 +7979,13 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	if ((seqno < rtp->expectedrxseqno && ((rtp->expectedrxseqno - seqno) <= OLD_PACKET_COUNT)) ||
 		(seqno > rtp->expectedrxseqno && (seqno >= (65535 - OLD_PACKET_COUNT + rtp->expectedrxseqno)))) {
 		/* If this is a packet from the past then we have received a duplicate packet, so just drop it */
-		ast_debug(2, "Received an old packet with sequence number '%d' on RTP instance '%p', dropping it\n",
-			seqno, instance);
+		ast_debug_rtp(2, "(%p) RTP received an old packet with sequence number '%d', dropping it\n",
+			instance, seqno);
 		return &ast_null_frame;
 	} else if (ast_data_buffer_get(rtp->recv_buffer, seqno)) {
 		/* If this is a packet we already have buffered then it is a duplicate, so just drop it */
-		ast_debug(2, "Received a duplicate transmission of packet with sequence number '%d' on RTP instance '%p', dropping it\n",
-			seqno, instance);
+		ast_debug_rtp(2, "(%p) RTP received a duplicate transmission of packet with sequence number '%d', dropping it\n",
+			instance, seqno);
 		return &ast_null_frame;
 	} else {
 		/* This is an out of order packet from the future */
@@ -7933,8 +7994,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		int remove_failed;
 		unsigned int missing_seqnos_added = 0;
 
-		ast_debug(2, "Received an out of order packet with sequence number '%d' while expecting '%d' from the future on RTP instance '%p'\n",
-			seqno, rtp->expectedrxseqno, instance);
+		ast_debug_rtp(2, "(%p) RTP received an out of order packet with sequence number '%d' while expecting '%d' from the future\n",
+			instance, seqno, rtp->expectedrxseqno);
 
 		payload = ast_malloc(sizeof(*payload) + res);
 		if (!payload) {
@@ -7961,8 +8022,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		remove_failed = AST_VECTOR_REMOVE_CMP_ORDERED(&rtp->missing_seqno, seqno, find_by_value,
 			AST_VECTOR_ELEM_CLEANUP_NOOP);
 		if (!remove_failed) {
-			ast_debug(2, "Packet with sequence number '%d' on RTP instance '%p' is no longer missing\n",
-				seqno, instance);
+			ast_debug_rtp(2, "(%p) RTP packet with sequence number '%d' is no longer missing\n",
+				instance, seqno);
 		}
 
 		/* The missing sequence number code works by taking the sequence number of the
@@ -8008,8 +8069,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				continue;
 			}
 
-			ast_debug(2, "Added missing sequence number '%d' to RTP instance '%p'\n",
-				missing_seqno, instance);
+			ast_debug_rtp(2, "(%p) RTP added missing sequence number '%d'\n",
+				instance, missing_seqno);
 			AST_VECTOR_ADD_SORTED(&rtp->missing_seqno, missing_seqno,
 					compare_by_value);
 			missing_seqnos_added++;
@@ -8039,7 +8100,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			 */
 			rtcpheader = ast_malloc(sizeof(*rtcpheader) + data_size);
 			if (!rtcpheader) {
-				ast_debug(1, "Failed to allocate memory for NACK\n");
+				ast_debug_rtcp(1, "(%p) RTCP failed to allocate memory for NACK\n", instance);
 				return &ast_null_frame;
 			}
 
@@ -8056,7 +8117,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			res = ast_rtcp_generate_nack(instance, rtcpheader + packet_len);
 
 			if (res == 0) {
-				ast_debug(1, "Failed to construct NACK, stopping here\n");
+				ast_debug_rtcp(1, "(%p) RTCP failed to construct NACK, stopping here\n", instance);
 				return &ast_null_frame;
 			}
 
@@ -8064,9 +8125,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			res = rtcp_sendto(instance, rtcpheader, packet_len, 0, &remote_address, &ice);
 			if (res < 0) {
-				ast_debug(1, "Failed to send NACK request out\n");
+				ast_debug_rtcp(1, "(%p) RTCP failed to send NACK request out\n", instance);
 			} else {
-				ast_debug(2, "Sending a NACK request on RTP instance '%p' to get missing packets\n", instance);
+				ast_debug_rtcp(2, "(%p) RTCP sending a NACK request to get missing packets\n", instance);
 				/* Update RTCP SR/RR statistics */
 				ast_rtcp_calculate_sr_rr_statistics(instance, rtcp_report, remote_address, ice, sr);
 			}
@@ -8086,7 +8147,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			struct ast_sockaddr local_addr;
 
 			if (rtp->rtcp && rtp->rtcp->type == value) {
-				ast_debug(1, "Ignoring duplicate RTCP property on RTP instance '%p'\n", instance);
+				ast_debug_rtcp(1, "(%p) RTCP ignoring duplicate property\n", instance);
 				return;
 			}
 
@@ -8138,7 +8199,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 						       AF_INET :
 						       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
 						       AF_INET6 : -1)) < 0) {
-					ast_debug(1, "Failed to create a new socket for RTCP on instance '%p'\n", instance);
+					ast_debug_rtcp(1, "(%p) RTCP failed to create a new socket\n", instance);
 					ast_free(rtp->rtcp->local_addr_str);
 					ast_free(rtp->rtcp);
 					rtp->rtcp = NULL;
@@ -8147,7 +8208,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 
 				/* Try to actually bind to the IP address and port we are going to use for RTCP, if this fails we have to bail out */
 				if (ast_bind(rtp->rtcp->s, &rtp->rtcp->us)) {
-					ast_debug(1, "Failed to setup RTCP on RTP instance '%p'\n", instance);
+					ast_debug_rtcp(1, "(%p) RTCP failed to setup RTP instance\n", instance);
 					close(rtp->rtcp->s);
 					ast_free(rtp->rtcp->local_addr_str);
 					ast_free(rtp->rtcp);
@@ -8187,7 +8248,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 #endif
 			}
 
-			ast_debug(1, "Setup RTCP on RTP instance '%p'\n", instance);
+			ast_debug_rtcp(1, "(%p) RTCP setup on RTP instance\n", instance);
 		} else {
 			if (rtp->rtcp) {
 				if (rtp->rtcp->schedid > -1) {
@@ -8197,7 +8258,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 						ao2_ref(instance, -1);
 					} else {
 						/* Unable to cancel scheduler entry */
-						ast_debug(1, "Failed to tear down RTCP on RTP instance '%p'\n", instance);
+						ast_debug_rtcp(1, "(%p) RTCP failed to tear down RTCP\n", instance);
 						ao2_lock(instance);
 						return;
 					}
@@ -8209,7 +8270,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					if (!ast_sched_del(rtp->sched, rtp->transport_wide_cc.schedid)) {
 						ao2_ref(instance, -1);
 					} else {
-						ast_debug(1, "Failed to tear down RTCP transport-cc feedback on RTP instance '%p'\n", instance);
+						ast_debug_rtcp(1, "(%p) RTCP failed to tear down transport-cc feedback\n", instance);
 						ao2_lock(instance);
 						return;
 					}
@@ -8289,7 +8350,7 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 	}
 
 	if (rtp->rtcp && !ast_sockaddr_isnull(addr)) {
-		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
+		ast_debug_rtcp(1, "(%p) RTCP setting address on RTP instance\n", instance);
 		ast_sockaddr_copy(&rtp->rtcp->them, addr);
 
 		if (rtp->rtcp->type == AST_RTP_INSTANCE_RTCP_STANDARD) {
@@ -8785,7 +8846,7 @@ static int ast_rtp_activate(struct ast_rtp_instance *instance)
 	}
 #endif
 
-	ast_debug(3, "ast_rtp_activate (%p) - setup and perform DTLS'\n", rtp);
+	ast_debug_dtls(3, "(%p) DTLS - ast_rtp_activate rtp=%p - setup and perform DTLS'\n", instance, rtp);
 
 	dtls_perform_setup(&rtp->dtls);
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
@@ -8810,9 +8871,9 @@ static char *rtp_do_debug_ip(struct ast_cli_args *a)
 		return CLI_FAILURE;
 	}
 	rtpdebugport = (!ast_strlen_zero(debugport) && debugport[0] != '0');
-	ast_cli(a->fd, "RTP Debugging Enabled for address: %s\n",
+	ast_cli(a->fd, "RTP Packet Debugging Enabled for address: %s\n",
 		ast_sockaddr_stringify(&rtpdebugaddr));
-	rtpdebug = 1;
+	ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTP_PACKET, AST_LOG_CATEGORY_ENABLED);
 	return CLI_SUCCESS;
 }
 
@@ -8827,9 +8888,9 @@ static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 		return CLI_FAILURE;
 	}
 	rtcpdebugport = (!ast_strlen_zero(debugport) && debugport[0] != '0');
-	ast_cli(a->fd, "RTCP Debugging Enabled for address: %s\n",
+	ast_cli(a->fd, "RTCP Packet Debugging Enabled for address: %s\n",
 		ast_sockaddr_stringify(&rtcpdebugaddr));
-	rtcpdebug = 1;
+	ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTCP_PACKET, AST_LOG_CATEGORY_ENABLED);
 	return CLI_SUCCESS;
 }
 
@@ -8850,13 +8911,13 @@ static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct a
 
 	if (a->argc == e->args) { /* set on or off */
 		if (!strncasecmp(a->argv[e->args-1], "on", 2)) {
-			rtpdebug = 1;
+			ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTP_PACKET, AST_LOG_CATEGORY_ENABLED);
 			memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
-			ast_cli(a->fd, "RTP Debugging Enabled\n");
+			ast_cli(a->fd, "RTP Packet Debugging Enabled\n");
 			return CLI_SUCCESS;
 		} else if (!strncasecmp(a->argv[e->args-1], "off", 3)) {
-			rtpdebug = 0;
-			ast_cli(a->fd, "RTP Debugging Disabled\n");
+			ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTP_PACKET, AST_LOG_CATEGORY_DISABLED);
+			ast_cli(a->fd, "RTP Packet Debugging Disabled\n");
 			return CLI_SUCCESS;
 		}
 	} else if (a->argc == e->args +1) { /* ip */
@@ -8921,13 +8982,13 @@ static char *handle_cli_rtcp_set_debug(struct ast_cli_entry *e, int cmd, struct 
 
 	if (a->argc == e->args) { /* set on or off */
 		if (!strncasecmp(a->argv[e->args-1], "on", 2)) {
-			rtcpdebug = 1;
+			ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTCP_PACKET, AST_LOG_CATEGORY_ENABLED);
 			memset(&rtcpdebugaddr, 0, sizeof(rtcpdebugaddr));
-			ast_cli(a->fd, "RTCP Debugging Enabled\n");
+			ast_cli(a->fd, "RTCP Packet Debugging Enabled\n");
 			return CLI_SUCCESS;
 		} else if (!strncasecmp(a->argv[e->args-1], "off", 3)) {
-			rtcpdebug = 0;
-			ast_cli(a->fd, "RTCP Debugging Disabled\n");
+			ast_debug_category_set_sublevel(AST_LOG_CATEGORY_RTCP_PACKET, AST_LOG_CATEGORY_DISABLED);
+			ast_cli(a->fd, "RTCP Packet Debugging Disabled\n");
 			return CLI_SUCCESS;
 		}
 	} else if (a->argc == e->args +1) { /* ip */

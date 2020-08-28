@@ -55,6 +55,7 @@
 #include "asterisk/app.h"
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/logger_category.h"
 #include "asterisk/translate.h"
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
@@ -478,9 +479,11 @@ static char *handle_debug_or_trace(int handler, struct ast_cli_entry *e, int cmd
 		if (!strcasecmp(a->argv[e->args], "atleast")) {
 			atleast = 1;
 		}
+
 		if (a->argc != e->args + atleast + 1 && a->argc != e->args + atleast + 2) {
 			return CLI_SHOWUSAGE;
 		}
+
 		if (sscanf(a->argv[e->args + atleast], "%30d", &newlevel) != 1) {
 			return CLI_SHOWUSAGE;
 		}
@@ -585,6 +588,10 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		return NULL;
 
 	case CLI_GENERATE:
+		if (!strcasecmp(argv3, "category")) {
+			return NULL;
+		}
+
 		if (!strcasecmp(argv3, "atleast")) {
 			atleast = 1;
 		}
@@ -618,7 +625,6 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	 */
 
 	return handle_debug_or_trace(DEBUG_HANDLER, e, cmd, a);
-
 }
 
 static char *handle_trace(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1533,6 +1539,47 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
+static char *handle_debug_category(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	const char *argv4 = a->argv ? S_OR(a->argv[4], "") : "";
+	int offset = strncasecmp(argv4, "off", strlen(argv4)) ? 0 : 1;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core set debug category";
+		e->usage =
+			"Usage: core set debug category <category>[:<sublevel>] [category[:<sublevel] ...]\n"
+			"       core set debug category off [<category> [<category>] ...]\n\n"
+			"       Allows enabling and disabling debug logging categories.\n"
+			"       When a category is enabled all relevant debug messages are logged\n"
+			"       for a given category. However, if a sublevel is specified only\n"
+			"       those categorized messages at or below the coded debug sublevel\n"
+			"       are logged.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		if (a->pos < e->args) {
+			return NULL;
+		}
+
+		if (a->pos == 4 && offset) {
+			ast_cli_completion_add(ast_strdup("off"));
+		}
+
+		return ast_debug_category_complete(a->argv + 4,
+			a->pos - e->args, a->word, a->n - 1);
+	}
+
+	if (a->argc <= e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_debug_category_set_sublevels(a->argv + e->args + offset, a->argc - e->args - offset,
+		offset ? AST_LOG_CATEGORY_DISABLED : AST_LOG_CATEGORY_ENABLED);
+
+	return CLI_SUCCESS;
+}
+
 static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *res;
@@ -1946,6 +1993,8 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
 
 	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel"),
+
+	AST_CLI_DEFINE(handle_debug_category, "Enable/disable debugging categories"),
 
 	AST_CLI_DEFINE(handle_debug, "Set level of debug chattiness"),
 	AST_CLI_DEFINE(handle_trace, "Set level of trace chattiness"),

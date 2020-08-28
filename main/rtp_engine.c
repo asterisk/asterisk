@@ -3533,6 +3533,55 @@ struct stasis_topic *ast_rtp_topic(void)
 	return rtp_topic;
 }
 
+static uintmax_t debug_category_rtp_id;
+
+uintmax_t ast_debug_category_rtp_id(void)
+{
+	return debug_category_rtp_id;
+}
+
+static uintmax_t debug_category_rtp_packet_id;
+
+uintmax_t ast_debug_category_rtp_packet_id(void)
+{
+	return debug_category_rtp_packet_id;
+}
+
+static uintmax_t debug_category_rtcp_id;
+
+uintmax_t ast_debug_category_rtcp_id(void)
+{
+	return debug_category_rtcp_id;
+}
+
+static uintmax_t debug_category_rtcp_packet_id;
+
+uintmax_t ast_debug_category_rtcp_packet_id(void)
+{
+	return debug_category_rtcp_packet_id;
+}
+
+static uintmax_t debug_category_dtls_id;
+
+uintmax_t ast_debug_category_dtls_id(void)
+{
+	return debug_category_dtls_id;
+}
+
+static uintmax_t debug_category_dtls_packet_id;
+
+uintmax_t ast_debug_category_dtls_packet_id(void)
+{
+	return debug_category_dtls_packet_id;
+}
+
+static uintmax_t debug_category_ice_id;
+
+uintmax_t ast_debug_category_ice_id(void)
+{
+	return debug_category_ice_id;
+}
+
 static void rtp_engine_shutdown(void)
 {
 	int x;
@@ -3557,6 +3606,17 @@ static void rtp_engine_shutdown(void)
 	}
 	mime_types_len = 0;
 	ast_rwlock_unlock(&mime_types_lock);
+
+	ast_debug_category_unregister(AST_LOG_CATEGORY_ICE);
+
+	ast_debug_category_unregister(AST_LOG_CATEGORY_DTLS_PACKET);
+	ast_debug_category_unregister(AST_LOG_CATEGORY_DTLS);
+
+	ast_debug_category_unregister(AST_LOG_CATEGORY_RTCP_PACKET);
+	ast_debug_category_unregister(AST_LOG_CATEGORY_RTCP);
+
+	ast_debug_category_unregister(AST_LOG_CATEGORY_RTP_PACKET);
+	ast_debug_category_unregister(AST_LOG_CATEGORY_RTP);
 }
 
 int ast_rtp_engine_init(void)
@@ -3683,6 +3743,14 @@ int ast_rtp_engine_init(void)
 	add_static_payload(126, ast_format_slin48, 0);
 	add_static_payload(127, ast_format_slin96, 0);
 	/* payload types above 127 are not valid */
+
+	debug_category_rtp_id = ast_debug_category_register(AST_LOG_CATEGORY_RTP);
+	debug_category_rtp_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_RTP_PACKET);
+	debug_category_rtcp_id = ast_debug_category_register(AST_LOG_CATEGORY_RTCP);
+	debug_category_rtcp_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_RTCP_PACKET);
+	debug_category_dtls_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS);
+	debug_category_dtls_packet_id = ast_debug_category_register(AST_LOG_CATEGORY_DTLS_PACKET);
+	debug_category_ice_id = ast_debug_category_register(AST_LOG_CATEGORY_ICE);
 
 	return 0;
 }

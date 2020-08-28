@@ -52,6 +52,7 @@
 #include "asterisk/module.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include "asterisk/logger.h"
+#include "asterisk/logger_category.h"
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -1868,12 +1869,16 @@ int init_logger(void)
 		ast_log(LOG_ERROR, "Errors detected in logger.conf.  Default console logging is being used.\n");
 	}
 
+	ast_logger_category_load();
+
 	return 0;
 }
 
 void close_logger(void)
 {
 	struct logchannel *f = NULL;
+
+	ast_logger_category_unload();
 
 	ast_cli_unregister_multiple(cli_logger, ARRAY_LEN(cli_logger));
 

@@ -1,0 +1,18 @@
+Subject: Core
+
+Added debug logging categories that allow a user to output debug information
+based on a specified category. This lets the user limit, and filter debug
+output to data relevant to a particular context, or topic. For instance the
+following categories are now available for debug logging purposes:
+
+  dtls, dtls_packet, ice, rtcp, rtcp_packet, rtp, rtp_packet, stun, stun_packet
+
+These debug categories can be enable/disable via an Asterisk CLI command:
+
+  core set debug category <category>[:<sublevel>] [category[:<sublevel] ...]
+  core set debug category off [<category> [<category>] ...]
+
+If no sub-level is associated all debug statements for a given category are
+output. If a sub-level is given then only those statements assigned a value
+at or below the associated sub-level are output.
+
