@@ -27,10 +27,35 @@
 #define _ASTERISK_STUN_H
 
 #include "asterisk/network.h"
+#include "asterisk/logger_category.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+/* STUN debug logging category name */
+#define AST_LOG_CATEGORY_STUN "stun"
+/* STUN packet debug logging category name */
+#define AST_LOG_CATEGORY_STUN_PACKET "stun_packet"
+
+uintmax_t ast_debug_category_stun_id(void);
+uintmax_t ast_debug_category_stun_packet_id(void);
+
+#define AST_DEBUG_CATEGORY_STUN ast_debug_category_stun_id() /* STUN debug logging category id */
+#define AST_DEBUG_CATEGORY_STUN_PACKET ast_debug_category_stun_packet_id() /* STUN packet debug logging category id */
+
+/*!
+ * \brief Log debug level STUN information
+ *
+ * \param sublevel Debug output sublevel (>= 0)
+ * \param ... String format and any associated arguments
+ */
+#define ast_debug_stun(sublevel, ...) \
+	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_STUN, __VA_ARGS__)
+
+/* Is logging of stun packets allowed? */
+#define ast_debug_stun_packet_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_STUN_PACKET)
 
 static const int STANDARD_STUN_PORT = 3478;
 
