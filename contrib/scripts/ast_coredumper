@@ -478,7 +478,7 @@ tail -n +${ss} $0 >$gdbinit
 
 # Now iterate over the coredumps and dump the debugging info
 for i in ${!COREDUMPS[@]} ; do
-	cf=${COREDUMPS[$i]}
+	cf=$(readlink -ne ${COREDUMPS[$i]})
 	echo "Processing $cf"
 
 	cfdir=`dirname ${cf}`
@@ -520,7 +520,7 @@ for i in ${!COREDUMPS[@]} ; do
 		cp -a /${libdir}/asterisk/* ${dest}/${libdir}/asterisk/
 		cp -a /usr/sbin/asterisk ${dest}/usr/sbin
 		rm -rf ${tf}
-		tar -chzf ${tf} --transform="s/^[.]/${cfname}/" -C ${dest} .
+		tar -chzf ${tf} --transform="s/^[.]/${cfname}.output/" -C ${dest} .
 		sleep 3
 		rm -rf ${dest}
 		echo "Created $tf"
