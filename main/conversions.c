@@ -41,6 +41,18 @@ static int str_is_negative(const char **str)
 	return **str == '-';
 }
 
+int ast_str_to_int(const char *str, int *res)
+{
+	intmax_t val;
+
+	if (ast_str_to_imax(str, &val) || val < INT_MIN || val > INT_MAX) {
+		return -1;
+	}
+
+	*res = val;
+	return 0;
+}
+
 int ast_str_to_uint(const char *str, unsigned int *res)
 {
 	uintmax_t val;
@@ -53,11 +65,50 @@ int ast_str_to_uint(const char *str, unsigned int *res)
 	return 0;
 }
 
+int ast_str_to_long(const char *str, long *res)
+{
+	intmax_t val;
+
+	if (ast_str_to_imax(str, &val) || val < LONG_MIN || val > LONG_MAX) {
+		return -1;
+	}
+
+	*res = val;
+	return 0;
+}
+
 int ast_str_to_ulong(const char *str, unsigned long *res)
 {
 	uintmax_t val;
 
 	if (ast_str_to_umax(str, &val) || val > ULONG_MAX) {
+		return -1;
+	}
+
+	*res = val;
+	return 0;
+}
+
+int ast_str_to_imax(const char *str, intmax_t *res)
+{
+	char *end;
+	intmax_t val;
+
+	if (!str) {
+		return -1;
+	}
+
+	errno = 0;
+	val = strtoimax(str, &end, 0);
+
+	/*
+	 * If str equals end then no digits were found. If end is not pointing to
+	 * a null character then the string contained some numbers that could be
+	 * converted, but some characters that could not, which we'll consider
+	 * invalid.
+	 */
+	if (str == end || *end != '\0' || (errno == ERANGE &&
+			(val == INTMAX_MIN || val == INTMAX_MAX))) {
 		return -1;
 	}
 
