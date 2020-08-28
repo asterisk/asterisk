@@ -77,6 +77,7 @@ extern "C" {
 #include "asterisk/res_srtp.h"
 #include "asterisk/stasis.h"
 #include "asterisk/vector.h"
+#include "asterisk/logger_category.h"
 
 /*! Maximum number of payload types RTP can support. */
 #define AST_RTP_MAX_PT 128
@@ -2818,6 +2819,84 @@ int ast_rtp_get_rate(const struct ast_format *format);
  * \retval A \ref stasis topic
  */
 struct stasis_topic *ast_rtp_topic(void);
+
+/* RTP debug logging category name */
+#define AST_LOG_CATEGORY_RTP "rtp"
+/* RTP packet debug logging category name */
+#define AST_LOG_CATEGORY_RTP_PACKET "rtp_packet"
+/* RTCP debug logging category name */
+#define AST_LOG_CATEGORY_RTCP "rtcp"
+/* RTCP packet debug logging category name */
+#define AST_LOG_CATEGORY_RTCP_PACKET "rtcp_packet"
+/* DTLS debug logging category name */
+#define AST_LOG_CATEGORY_DTLS "dtls"
+/* DTLS packet debug logging category name */
+#define AST_LOG_CATEGORY_DTLS_PACKET "dtls_packet"
+/* ICE debug logging category name */
+#define AST_LOG_CATEGORY_ICE "ice"
+
+uintmax_t ast_debug_category_rtp_id(void);
+uintmax_t ast_debug_category_rtp_packet_id(void);
+uintmax_t ast_debug_category_rtcp_id(void);
+uintmax_t ast_debug_category_rtcp_packet_id(void);
+uintmax_t ast_debug_category_dtls_id(void);
+uintmax_t ast_debug_category_dtls_packet_id(void);
+uintmax_t ast_debug_category_ice_id(void);
+
+#define AST_DEBUG_CATEGORY_RTP ast_debug_category_rtp_id() /* RTP debug logging category id */
+#define AST_DEBUG_CATEGORY_RTP_PACKET ast_debug_category_rtp_packet_id() /* RTP packet debug logging category id */
+#define AST_DEBUG_CATEGORY_RTCP ast_debug_category_rtcp_id() /* RTCP debug logging category id */
+#define AST_DEBUG_CATEGORY_RTCP_PACKET ast_debug_category_rtcp_packet_id() /* RTCP packet debug logging category id */
+#define AST_DEBUG_CATEGORY_DTLS ast_debug_category_dtls_id() /* DTLS debug logging category id */
+#define AST_DEBUG_CATEGORY_DTLS_PACKET ast_debug_category_dtls_packet_id() /* DTLS packet debug logging category id */
+#define AST_DEBUG_CATEGORY_ICE ast_debug_category_ice_id() /* ICE debug logging category id */
+
+/*!
+ * \brief Log debug level RTP information
+ *
+ * \param sublevel Debug output sublevel (>= 0)
+ * \param ... String format and any associated arguments
+ */
+#define ast_debug_rtp(sublevel, ...) \
+	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTP,  __VA_ARGS__)
+
+/* Allow logging of RTP packets? */
+#define ast_debug_rtp_packet_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTP_PACKET)
+
+/*!
+ * \brief Log debug level RTCP information
+ *
+ * \param sublevel Debug output sublevel (>= 0)
+ * \param ... String format and any associated arguments
+ */
+#define ast_debug_rtcp(sublevel, ...) \
+	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_RTCP, __VA_ARGS__)
+
+/* Allow logging of RTCP packets? */
+#define ast_debug_rtcp_packet_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_RTCP_PACKET)
+
+/*!
+ * \brief Log debug level DTLS information
+ *
+ * \param sublevel Debug output sublevel (>= 0)
+ * \param ... String format and any associated arguments
+ */
+#define ast_debug_dtls(sublevel, ...) \
+	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_DTLS, __VA_ARGS__)
+
+/* Allow logging of DTLS packets? */
+#define ast_debug_dtls_packet_is_allowed \
+	ast_debug_category_is_allowed(AST_LOG_CATEGORY_ENABLED, AST_DEBUG_CATEGORY_DTLS_PACKET)
+/*!
+ * \brief Log debug level ICE information
+ *
+ * \param sublevel Debug output sublevel (>= 0)
+ * \param ... String format and any associated arguments
+ */
+#define ast_debug_ice(sublevel, ...) \
+	ast_debug_category(sublevel, AST_DEBUG_CATEGORY_ICE, __VA_ARGS__)
 
 /* @} */
 

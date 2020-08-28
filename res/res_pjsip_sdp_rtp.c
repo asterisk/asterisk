@@ -52,6 +52,7 @@
 #include "asterisk/dsp.h"
 #include "asterisk/linkedlists.h"       /* for AST_LIST_NEXT */
 #include "asterisk/stream.h"
+#include "asterisk/logger_category.h"
 #include "asterisk/format_cache.h"
 
 #include "asterisk/res_pjsip.h"
@@ -81,15 +82,15 @@ static int send_keepalive(const void *data)
 	keepalive = ast_rtp_instance_get_keepalive(rtp);
 
 	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
-		ast_debug(3, "Not sending RTP keepalive on RTP instance %p since direct media is in use\n", rtp);
+		ast_debug_rtp(3, "(%p) RTP not sending keepalive since direct media is in use\n", rtp);
 		return keepalive * 1000;
 	}
 
 	interval = time(NULL) - ast_rtp_instance_get_last_tx(rtp);
 	send_keepalive = interval >= keepalive;
 
-	ast_debug(3, "It has been %d seconds since RTP was last sent on instance %p. %sending keepalive\n",
-			(int) interval, rtp, send_keepalive ? "S" : "Not s");
+	ast_debug_rtp(3, "(%p) RTP it has been %d seconds since RTP was last sent. %sending keepalive\n",
+		rtp, (int) interval, send_keepalive ? "S" : "Not s");
 
 	if (send_keepalive) {
 		ast_rtp_instance_sendcng(rtp, 0);
@@ -137,8 +138,8 @@ static int rtp_check_timeout(const void *data)
 	 * - disconnect channel unless direct media is in use.
 	 */
 	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
-		ast_debug(3, "Not disconnecting channel '%s' for lack of %s RTP activity in %d seconds "
-			"since direct media is in use\n", ast_channel_name(chan),
+		ast_debug_rtp(3, "(%p) RTP not disconnecting channel '%s' for lack of %s RTP activity in %d seconds "
+			"since direct media is in use\n", rtp, ast_channel_name(chan),
 			ast_codec_media_type2str(session_media->type), elapsed);
 		ast_channel_unlock(chan);
 		ast_channel_unref(chan);
@@ -232,12 +233,12 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 
 	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
 		if (ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0)) {
-			ast_debug(1, "Endpoint %s: Binding RTP media to %s\n",
+			ast_debug_rtp(1, "Endpoint %s: Binding RTP media to %s\n",
 				ast_sorcery_object_get_id(session->endpoint),
 				session->endpoint->media.address);
 			media_address = &temp_media_address;
 		} else {
-			ast_debug(1, "Endpoint %s: RTP media address invalid: %s\n",
+			ast_debug_rtp(1, "Endpoint %s: RTP media address invalid: %s\n",
 				ast_sorcery_object_get_id(session->endpoint),
 				session->endpoint->media.address);
 		}
@@ -255,11 +256,11 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 
 				pj_sockaddr_print(&trans_state->host, hoststr, sizeof(hoststr), 0);
 				if (ast_sockaddr_parse(&temp_media_address, hoststr, 0)) {
-					ast_debug(1, "Transport %s bound to %s: Using it for RTP media.\n",
+					ast_debug_rtp(1, "Transport %s bound to %s: Using it for RTP media.\n",
 						session->endpoint->transport, hoststr);
 					media_address = &temp_media_address;
 				} else {
-					ast_debug(1, "Transport %s bound to %s: Invalid for RTP media.\n",
+					ast_debug_rtp(1, "Transport %s bound to %s: Invalid for RTP media.\n",
 						session->endpoint->transport, hoststr);
 				}
 				ao2_ref(trans_state, -1);
@@ -717,6 +718,8 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		return;
 	}
 
+	ast_debug_ice(2, "(%p) ICE process attributes\n", session_media->rtp);
+
 	attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-ufrag", NULL);
 	if (!attr) {
 		attr = pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-ufrag", NULL);
@@ -725,6 +728,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
 		ice->set_authentication(session_media->rtp, attr_value, NULL);
 	} else {
+		ast_debug_ice(2, "(%p) ICE no, or invalid ice-ufrag\n", session_media->rtp);
 		return;
 	}
 
@@ -736,6 +740,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
 		ice->set_authentication(session_media->rtp, NULL, attr_value);
 	} else {
+		ast_debug_ice(2, "(%p) ICE no, or invalid ice-pwd\n", session_media->rtp);
 		return;
 	}
 
