@@ -194,6 +194,7 @@ static int create_parked_subscription_full(struct ast_channel *chan, const char 
 	subscription_data->hangup_after = hangup_after;
 	subscription_data->parkee_uuid = subscription_data->parker_uuid + parker_uuid_size;
 	ast_copy_string(subscription_data->parkee_uuid, parkee_uuid, parkee_uuid_size);
+	ast_copy_string(subscription_data->parker_uuid, parker_uuid, parker_uuid_size);
 
 	if (!(parked_datastore->parked_subscription = stasis_subscribe_pool(ast_parking_topic(), parker_update_cb, subscription_data))) {
 		return -1;
