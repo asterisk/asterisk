@@ -313,6 +313,8 @@ struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, 
 		 * this should rarely be changed but should become configurable in the future.
 		 */
 		ast_bridge_set_video_update_discard(bridge, 5);
+	} else if (video_mode == AST_BRIDGE_VIDEO_MODE_SINGLE_SRC) {
+		ast_bridge_set_single_src_video_mode(bridge, NULL);
 	} else {
 		ast_bridge_set_talker_src_video_mode(bridge);
 	}

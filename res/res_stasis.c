@@ -792,6 +792,8 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 			capabilities &= ~AST_BRIDGE_CAPABILITY_NATIVE;
 		} else if (!strcmp(requested_type, "video_sfu")) {
 			video_mode = AST_BRIDGE_VIDEO_MODE_SFU;
+		} else if (!strcmp(requested_type, "video_single")) {
+			video_mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
 		}
 	}
 
