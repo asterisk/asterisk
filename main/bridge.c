@@ -3792,13 +3792,15 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 	ast_bridge_lock(bridge);
 	cleanup_video_mode(bridge);
 	bridge->softmix.video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
-	bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
-	ast_verb(5, "Video source in bridge '%s' (%s) is now '%s' (%s)\n",
-		bridge->name, bridge->uniqueid,
-		ast_channel_name(video_src_chan),
-		ast_channel_uniqueid(video_src_chan));
+	if (video_src_chan) {
+		bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
+		ast_verb(5, "Video source in bridge '%s' (%s) is now '%s' (%s)\n",
+			bridge->name, bridge->uniqueid,
+			ast_channel_name(video_src_chan),
+			ast_channel_uniqueid(video_src_chan));
+		ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
+	}
 	ast_bridge_publish_state(bridge);
-	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ast_bridge_unlock(bridge);
 }
 

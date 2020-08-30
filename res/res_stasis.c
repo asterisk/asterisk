@@ -775,6 +775,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
 		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
+	enum ast_bridge_video_mode_type video_mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
 
 	while ((requested_type = strsep(&requested_types, ","))) {
 		requested_type = ast_strip(requested_type);
@@ -787,6 +788,8 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 		} else if (!strcmp(requested_type, "dtmf_events") ||
 			!strcmp(requested_type, "proxy_media")) {
 			capabilities &= ~AST_BRIDGE_CAPABILITY_NATIVE;
+		} else if (!strcmp(requested_type, "video_single")) {
+			video_mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
 		}
 	}
 
@@ -797,7 +800,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 		return NULL;
 	}
 
-	bridge = bridge_stasis_new(capabilities, flags, name, id);
+	bridge = bridge_stasis_new(capabilities, flags, name, id, video_mode);
 	if (bridge) {
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);
