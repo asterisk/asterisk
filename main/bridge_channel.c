@@ -209,6 +209,17 @@ static void bridge_sync_signal(struct bridge_sync *sync_struct)
 	ast_sem_post(&sync_struct->sem);
 }
 
+struct ast_channel *ast_bridge_channel_get_chan(struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_channel *chan;
+
+	ao2_lock(bridge_channel);
+	chan = ao2_bump(bridge_channel->chan);
+	ao2_unlock(bridge_channel);
+
+	return chan;
+}
+
 void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge *bridge;
@@ -1096,7 +1107,14 @@ int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, con
 
 int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 {
-	ast_channel_publish_cached_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
+	struct ast_channel *chan = ast_bridge_channel_get_chan(bridge_channel);
+
+	if (!chan) {
+		return -1;
+	}
+
+	ast_channel_publish_cached_blob(chan, ast_channel_unhold_type(), NULL);
+	ao2_ref(chan, -1);
 
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
