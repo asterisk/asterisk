@@ -177,6 +177,20 @@ struct ast_bridge_channel {
 };
 
 /*!
+ * \brief Get a ref to the bridge_channel's ast_channel
+ *
+ * \param bridge_channel The bridge channel
+ *
+ * \note The returned channel NEEDS to be unref'd once you are done with it. In general, this
+ * function is best used when accessing the bridge_channel chan from outside of a bridging
+ * thread.
+ *
+ * \retval ref'd ast_channel on success
+ * \retval NULL otherwise
+ */
+struct ast_channel *ast_bridge_channel_get_chan(struct ast_bridge_channel *bridge_channel);
+
+/*!
  * \brief Try locking the bridge_channel.
  *
  * \param bridge_channel What to try locking
