@@ -1,3 +1,54 @@
+2020-09-01 09:21 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.13.0-rc2 Released.
+
+2020-08-28 04:29 +0000 [2d0a2bd290]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* parking: Copy parker UUID as well.
+
+	  When fixing issues uncovered by GCC10 a copy of the parker UUID
+	  was removed accidentally. This change restores it so that the
+	  subscription has the data it needs.
+
+	  ASTERISK-29042
+
+	  Change-Id: I7d396a14ea648bd26d3c363dd78e78bd386b544a
+
+2020-08-26 08:55 +0000 [345e17080f]  Sean Bright <sean.bright@gmail.com>
+
+	* app_voicemail: Fix pollmailboxes
+
+	  The name of the voicemail context was overwriting the name of the
+	  subscribed mailbox. Fix by simplifying how we create the MWI
+	  subscription.
+
+	  ASTERISK-29029 #close
+
+	  Change-Id: Ie8a7db6a0b68f3995b0846bbb733a21909ba44e5
+
+2020-08-27 05:31 +0000 [fe36d638bb]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* pbx: Fix hints deadlock between reload and ExtensionState.
+
+	  When the ExtensionState AMI action is executed on a pattern matched
+	  hint it can end up adding a new hint if one does not already exist.
+	  This results in a locking order of contexts -> hints -> contexts.
+
+	  If at the same time a reload is occurring and adding its own hint
+	  it will have a locking order of hints -> contexts.
+
+	  This results in a deadlock as one thread wants a lock on contexts
+	  that the other has, and the other thread wants a lock on hints
+	  that the other has.
+
+	  This change enforces a hints -> contexts locking order by explicitly
+	  locking hints in the places where a hint is added when queried for.
+	  This matches the order seen through normal adding of hints.
+
+	  ASTERISK-29046
+
+	  Change-Id: I49f027f4aab5d2d50855ae937bcf5e2fd8bfc504
+
 2020-08-20 10:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.13.0-rc1 Released.
