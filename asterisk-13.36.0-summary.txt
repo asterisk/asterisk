@@ -1,0 +1,226 @@
+                                Release Summary
+
+                                asterisk-13.36.0
+
+                                Date: 2020-09-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.35.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   6 Sean Bright                                     1 Dennis                 
+   4 Joshua C. Colp                                  1 Michael Neuhauser      
+   3 Asterisk Development Team                       1 Ramarajan              
+   1 Michael Neuhauser                               1 tootai                 
+   1 George Joseph                                   1 David Cunningham       
+   1 Nickolay Shmyrev                                1 Andrew Yager           
+   1 Dennis Buteyn                                   1 Nickolay V. Shmyrev    
+   1 sungtae kim                                     1 Michael Neuhauser      
+                                                     1 Misha Vodsedalek       
+                                                     1 sungtae kim            
+                                                     1 Karsten Wemheuer       
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-29029: Voicemail "pollmailboxes"-option not working, bug in
+   function handle_subscribe
+   Reported by: Karsten Wemheuer
+     * [7f46923ebd] Sean Bright -- app_voicemail: Fix pollmailboxes
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-29011: chan_sip: ToHost property not cleared on reload
+   Reported by: Dennis
+     * [56f446482b] Dennis Buteyn -- chan_sip: Clear ToHost property on peer
+       when changing to dynamic host
+
+    Category: Core/ACL
+
+   ASTERISK-28978: acl: named_acl rule misconfiguration results in segfault
+   on reading rule from realtime
+   Reported by: Andrew Yager
+     * [ff90e00677] Sean Bright -- acl.c: Coerce a NULL pointer into the
+       empty string
+
+    Category: PBX/General
+
+   ASTERISK-29046: pbx: Deadlock when doing a reload, while simultaneously
+   doing an ExtensionState on a pattern match hint that ends up adding an
+   extension
+   Reported by: Ramarajan
+     * [8d6c2221a9] Joshua C. Colp -- pbx: Fix hints deadlock between reload
+       and ExtensionState.
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-28975: res_http_websocket: Text payload data doesn't necessary
+   include trailing zero
+   Reported by: Nickolay V. Shmyrev
+     * [f8f934b545] Nickolay Shmyrev -- res_http_websocket: Avoid reading
+       past end of string
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-28927: Asterisk crash in music on hold
+   Reported by: David Cunningham
+     * [7379a54424] Sean Bright -- res_musiconhold.c: Prevent crash with
+       realtime MoH
+
+    Category: Resources/res_parking
+
+   ASTERISK-29042: res_parking: Parker UUID is no longer copied
+   Reported by: Misha Vodsedalek
+     * [aca3c550b5] Joshua C. Colp -- parking: Copy parker UUID as well.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28995: res_pjsip_registrar: Expires on statically configured
+   contacts is not correct
+   Reported by: tootai
+     * [5c0d247d69] Joshua C. Colp -- res_pjsip_registrar: Don't specify an
+       expiration for static contacts.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-28995: res_pjsip_registrar: Expires on statically configured
+   contacts is not correct
+   Reported by: tootai
+     * [5c0d247d69] Joshua C. Colp -- res_pjsip_registrar: Don't specify an
+       expiration for static contacts.
+
+    Category: Resources/res_stasis
+
+   ASTERISK-28987: BridgeCreated ARI event shows wrong video_mode info
+   Reported by: sungtae kim
+     * [53f9bbdc2d] sungtae kim -- stasis_bridge.c: Fixed wrong video_mode
+       shown
+
+    Category: pjproject/pjsip
+
+   ASTERISK-28973: Malformed IP address in SDP of 2nd SIP timer triggered
+   INVITE when NAT is active (UDP transport with external_media_address)
+   Reported by: Michael Neuhauser
+     * [dd739f8a08] Michael Neuhauser -- pjproject: clone sdp to protect
+       against (nat) modifications
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | 4fb6a151f9 | Asterisk         | Update for 13.36.0-rc2                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
+   | 96106ac286 | Asterisk         | Update for 13.36.0-rc1                 |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
+   | 46fb9fb663 | Sean Bright      | vector.h: Fix implementation of        |
+   |            |                  | AST_VECTOR_COMPACT() for empty vectors |
+   |------------+------------------+----------------------------------------|
+   | 718efe9365 | Sean Bright      | utf8.c: Add UTF-8 validation and       |
+   |            |                  | utility functions                      |
+   |------------+------------------+----------------------------------------|
+   | 4fec6da25b | Sean Bright      | vector.h: Add AST_VECTOR_SORT()        |
+   |------------+------------------+----------------------------------------|
+   | f6afac1b37 | George Joseph    | CI: Force publishAsteriskDocs to use   |
+   |            |                  | python2                                |
+   |------------+------------------+----------------------------------------|
+   | bcdc3ec645 | Joshua C. Colp   | pjsip: Include timer patch to prevent  |
+   |            |                  | cancelling timer 0.                    |
+   |------------+------------------+----------------------------------------|
+   | 77a5383957 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 13.35.0                                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-13.35.0-summary.html           |  132 -----------
+ asterisk-13.35.0-summary.txt            |  344 ----------------------------
+ b/.version                              |    2
+ b/ChangeLog                             |  233 +++++++++++++++++++
+ b/apps/app_voicemail.c                  |   72 +-----
+ b/asterisk-13.36.0-rc2-summary.html     |   17 +
+ b/asterisk-13.36.0-rc2-summary.txt      |  100 ++++++++
+ b/channels/chan_sip.c                   |    1
+ b/include/asterisk/utf8.h               |  188 +++++++++++++++
+ b/include/asterisk/vector.h             |   50 ++--
+ b/main/acl.c                            |    2
+ b/main/asterisk.c                       |    2
+ b/main/bridge.c                         |    1
+ b/main/pbx.c                            |   11
+ b/main/utf8.c                           |  382 ++++++++++++++++++++++++++++++++
+ b/res/parking/parking_bridge_features.c |    1
+ b/res/res_http_websocket.c              |    3
+ b/res/res_musiconhold.c                 |  122 +++++++---
+ b/res/res_pjsip_registrar.c             |    6
+ b/res/res_stasis.c                      |    2
+ b/res/stasis/stasis_bridge.c            |    5
+ b/tests/CI/publishAsteriskDocs.sh       |    1
+ 22 files changed, 1097 insertions(+), 580 deletions(-)

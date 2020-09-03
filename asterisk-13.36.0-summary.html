@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-13.36.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-13.36.0</h3><h3 align="center">Date: 2020-09-03</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-13.35.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">6 Sean Bright <sean.bright@gmail.com><br/>4 Joshua C. Colp <jcolp@sangoma.com><br/>3 Asterisk Development Team <asteriskteam@digium.com><br/>1 Michael Neuhauser <mike@firmix.at><br/>1 George Joseph <gjoseph@digium.com><br/>1 Nickolay Shmyrev <nshmyrev@alphacephei.com><br/>1 Dennis Buteyn <dennis.buteyn@xorcom.com><br/>1 sungtae kim <sungtae@messagebird.com><br/></td><td width="33%"><td width="33%">1 Dennis <dennis.buteyn@xorcom.com><br/>1 Michael Neuhauser<br/>1 Ramarajan <pramarajan@sangoma.com><br/>1 tootai <admin@tootai.net><br/>1 David Cunningham <dcunningham@voisonics.com><br/>1 Andrew Yager <andrew@rwts.com.au><br/>1 Nickolay V. Shmyrev <nshmyrev@alphacephei.com><br/>1 Michael Neuhauser <mike@firmix.at><br/>1 Misha Vodsedalek <vmisha@seznam.cz><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Karsten Wemheuer <kwe-digium@iptam.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29029">ASTERISK-29029</a>: Voicemail "pollmailboxes"-option not working, bug in function handle_subscribe<br/>Reported by: Karsten Wemheuer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7f46923ebd5401b1d7a2a803354a39649f27ee99">[7f46923ebd]</a> Sean Bright -- app_voicemail: Fix pollmailboxes</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29011">ASTERISK-29011</a>: chan_sip: ToHost property not cleared on reload<br/>Reported by: Dennis<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=56f446482b612a60b05d964a857e4331fbac8cbe">[56f446482b]</a> Dennis Buteyn -- chan_sip: Clear ToHost property on peer when changing to dynamic host</li>
+</ul><br><h4>Category: Core/ACL</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28978">ASTERISK-28978</a>: acl: named_acl rule misconfiguration results in segfault on reading rule from realtime<br/>Reported by: Andrew Yager<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ff90e006773c6d219fcc3646420d373fdbd32f33">[ff90e00677]</a> Sean Bright -- acl.c: Coerce a NULL pointer into the empty string</li>
+</ul><br><h4>Category: PBX/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29046">ASTERISK-29046</a>: pbx: Deadlock when doing a reload, while simultaneously doing an ExtensionState on a pattern match hint that ends up adding an extension<br/>Reported by: Ramarajan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8d6c2221a982dc879fc07bc7f107101818e4a2f1">[8d6c2221a9]</a> Joshua C. Colp -- pbx: Fix hints deadlock between reload and ExtensionState.</li>
+</ul><br><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28975">ASTERISK-28975</a>: res_http_websocket: Text payload data doesn't necessary include trailing zero<br/>Reported by: Nickolay V. Shmyrev<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f8f934b5451c4671dcdd5f02a1de4aa386944b53">[f8f934b545]</a> Nickolay Shmyrev -- res_http_websocket: Avoid reading past end of string</li>
+</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28927">ASTERISK-28927</a>: Asterisk crash in music on hold<br/>Reported by: David Cunningham<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7379a544242498d2fe99e22372bcd75100dd34c7">[7379a54424]</a> Sean Bright -- res_musiconhold.c: Prevent crash with realtime MoH</li>
+</ul><br><h4>Category: Resources/res_parking</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29042">ASTERISK-29042</a>: res_parking: Parker UUID is no longer copied<br/>Reported by: Misha Vodsedalek<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aca3c550b5a88d4edda6ed5b2eef4a70bdd8bbeb">[aca3c550b5]</a> Joshua C. Colp -- parking: Copy parker UUID as well.</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28995">ASTERISK-28995</a>: res_pjsip_registrar: Expires on statically configured contacts is not correct<br/>Reported by: tootai<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5c0d247d69252caeed7be39aaeccd92e72d74fd0">[5c0d247d69]</a> Joshua C. Colp -- res_pjsip_registrar: Don't specify an expiration for static contacts.</li>
+</ul><br><h4>Category: Resources/res_pjsip_registrar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28995">ASTERISK-28995</a>: res_pjsip_registrar: Expires on statically configured contacts is not correct<br/>Reported by: tootai<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5c0d247d69252caeed7be39aaeccd92e72d74fd0">[5c0d247d69]</a> Joshua C. Colp -- res_pjsip_registrar: Don't specify an expiration for static contacts.</li>
+</ul><br><h4>Category: Resources/res_stasis</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28987">ASTERISK-28987</a>: BridgeCreated ARI event shows wrong video_mode info<br/>Reported by: sungtae kim<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53f9bbdc2de3059cf96825ddce0c3eb4cca4fc09">[53f9bbdc2d]</a> sungtae kim -- stasis_bridge.c: Fixed wrong video_mode shown</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28973">ASTERISK-28973</a>: Malformed IP address in SDP of 2nd SIP timer triggered INVITE when NAT is active (UDP transport with external_media_address)<br/>Reported by: Michael Neuhauser<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dd739f8a08ea32671b3ecc2400ccc9a2b4554cc2">[dd739f8a08]</a> Michael Neuhauser -- pjproject: clone sdp to protect against (nat) modifications</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4fb6a151f90fec23cc36a0976b9b8e5a3243ae44">4fb6a151f9</a></td><td>Asterisk Development Team</td><td>Update for 13.36.0-rc2</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=96106ac286e9648163d74d6d761ccb7fb7d9698f">96106ac286</a></td><td>Asterisk Development Team</td><td>Update for 13.36.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=46fb9fb663102c742266c2d165d82f17cd69df73">46fb9fb663</a></td><td>Sean Bright</td><td>vector.h: Fix implementation of AST_VECTOR_COMPACT() for empty vectors</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=718efe9365683ebfb39ead0486e21f616e2e1503">718efe9365</a></td><td>Sean Bright</td><td>utf8.c: Add UTF-8 validation and utility functions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4fec6da25bab644a040606d2d0bcc49e0f79818b">4fec6da25b</a></td><td>Sean Bright</td><td>vector.h: Add AST_VECTOR_SORT()</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f6afac1b3747e1803c8585e41a6ced8e977b5f51">f6afac1b37</a></td><td>George Joseph</td><td>CI: Force publishAsteriskDocs to use python2</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bcdc3ec645f6f824c423e93826774ccde454320c">bcdc3ec645</a></td><td>Joshua C. Colp</td><td>pjsip: Include timer patch to prevent cancelling timer 0.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=77a5383957504d58889d4347ce72792aac6e51ea">77a5383957</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 13.35.0</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-13.35.0-summary.html           |  132 -----------
+asterisk-13.35.0-summary.txt            |  344 ----------------------------
+b/.version                              |    2
+b/ChangeLog                             |  233 +++++++++++++++++++
+b/apps/app_voicemail.c                  |   72 +-----
+b/asterisk-13.36.0-rc2-summary.html     |   17 +
+b/asterisk-13.36.0-rc2-summary.txt      |  100 ++++++++
+b/channels/chan_sip.c                   |    1
+b/include/asterisk/utf8.h               |  188 +++++++++++++++
+b/include/asterisk/vector.h             |   50 ++--
+b/main/acl.c                            |    2
+b/main/asterisk.c                       |    2
+b/main/bridge.c                         |    1
+b/main/pbx.c                            |   11
+b/main/utf8.c                           |  382 ++++++++++++++++++++++++++++++++
+b/res/parking/parking_bridge_features.c |    1
+b/res/res_http_websocket.c              |    3
+b/res/res_musiconhold.c                 |  122 +++++++---
+b/res/res_pjsip_registrar.c             |    6
+b/res/res_stasis.c                      |    2
+b/res/stasis/stasis_bridge.c            |    5
+b/tests/CI/publishAsteriskDocs.sh       |    1
+22 files changed, 1097 insertions(+), 580 deletions(-)</pre><br></html>
