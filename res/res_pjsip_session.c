@@ -1584,11 +1584,12 @@ static int delay_request(struct ast_sip_session *session,
 	struct ast_sip_session_delayed_request *delay = delayed_request_alloc(method,
 			on_request, on_sdp_creation, on_response, generate_new_sdp, pending_media_state,
 			active_media_state);
+	SCOPE_ENTER(3, "%s\n", ast_sip_session_get_name(session));
 
 	if (!delay) {
 		ast_sip_session_media_state_free(pending_media_state);
 		ast_sip_session_media_state_free(active_media_state);
-		return -1;
+		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "Unable to allocate delay request\n");
 	}
 
 	if (method == DELAYED_METHOD_BYE || queue_head) {
@@ -1597,13 +1598,14 @@ static int delay_request(struct ast_sip_session *session,
 	} else {
 		AST_LIST_INSERT_TAIL(&session->delayed_requests, delay, next);
 	}
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session *session)
 {
 	pjsip_inv_session *inv_session = session->inv_session;
 	const pjmedia_sdp_session *previous_sdp = NULL;
+	SCOPE_ENTER(3, "%s\n", ast_sip_session_get_name(session));
 
 	if (inv_session->neg) {
 		if (pjmedia_sdp_neg_was_answer_remote(inv_session->neg)) {
@@ -1612,7 +1614,7 @@ static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session 
 			pjmedia_sdp_neg_get_active_local(inv_session->neg, &previous_sdp);
 		}
 	}
-	return create_local_sdp(inv_session, session, previous_sdp);
+	SCOPE_EXIT_RTN_VALUE(create_local_sdp(inv_session, session, previous_sdp));
 }
 
 static void set_from_header(struct ast_sip_session *session)
@@ -2245,6 +2247,7 @@ static int sip_session_refresh(struct ast_sip_session *session,
 		if (pending_media_state) {
 			int index;
 			int type_streams[AST_MEDIA_TYPE_END] = {0};
+			int topology_change_request = 0;
 
 			ast_trace(-1, "%s: Pending media state exists\n", ast_sip_session_get_name(session));
 
@@ -2265,8 +2268,16 @@ static int sip_session_refresh(struct ast_sip_session *session,
 
 			if (active_media_state) {
 				struct ast_sip_session_media_state *new_pending_state;
+				/*
+				 * We need to check if the passed in active and pending states are equal
+				 * before we run the media states resolver.  We'll use the flag later
+				 * to signal whether this was topology change or some other change such
+				 * as a connected line change.
+				 */
+				topology_change_request = !ast_stream_topology_equal(active_media_state->topology, pending_media_state->topology);
 
-				ast_trace(-1, "%s: Active media state exists\n", ast_sip_session_get_name(session));
+				ast_trace(-1, "%s: Active media state exists and is%s equal to pending\n", ast_sip_session_get_name(session),
+					topology_change_request ? " not" : "");
 				ast_trace(-1, "%s: DP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: DA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(active_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: CP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP)));
@@ -2424,8 +2435,13 @@ static int sip_session_refresh(struct ast_sip_session *session,
 						ast_sip_session_get_name(session), position);
 				}
 
-				/* If the resulting media state matches the existing active state don't bother doing a session refresh */
-				if (ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
+				/*
+				 * We can suppress this re-invite if the pending topology is equal to the currently
+				 * active topology but only if this re-invite was the result of a requested topology
+				 * change.  If it was the result of some other change, like connected line, then
+				 * we don't want to suppress it even though the topologies are equal.
+				 */
+				if (topology_change_request && ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
 					ast_trace(-1, "%s: CA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->active_media_state->topology, &STR_TMP)));
 					ast_trace(-1, "%s: NP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 					ast_sip_session_media_state_free(pending_media_state);
@@ -4136,34 +4152,29 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 	struct ast_sip_session_media_state *pending_media_state;
 	struct ast_sip_session_media_state *active_media_state;
 	const char *session_name = ast_sip_session_get_name(session);
-
-	ast_debug(3, "%s re-INVITE collision.\n", session_name);
+	SCOPE_ENTER(3, "%s\n", session_name);
 
 	pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
 	if (!pending_media_state) {
-		ast_log(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
-		return;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
 	}
 
 	active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
 	if (!active_media_state) {
 		ast_sip_session_media_state_free(pending_media_state);
-		ast_log(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
-		return;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
 	}
 
 	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE, pending_media_state,
 		active_media_state, 1)) {
 		ast_sip_session_media_state_free(pending_media_state);
 		ast_sip_session_media_state_free(active_media_state);
-		ast_log(LOG_ERROR, "%s: Failed to add delayed request\n", session_name);
-		return;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to add delayed request\n", session_name);
 	}
 
 	if (pj_timer_entry_running(&session->rescheduled_reinvite)) {
 		/* Timer already running.  Something weird is going on. */
-		ast_log(LOG_ERROR, "%s: re-INVITE collision while timer running!!!\n", session_name);
-		return;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: re-INVITE collision while timer running!!!\n", session_name);
 	}
 
 	tv.sec = 0;
@@ -4178,8 +4189,10 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 	if (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(),
 		&session->rescheduled_reinvite, &tv) != PJ_SUCCESS) {
 		ao2_ref(session, -1);
-		ast_log(LOG_ERROR, "%s: Couldn't schedule timer\n", session_name);
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't schedule timer\n", session_name);
 	}
+
+	SCOPE_EXIT_RTN();
 }
 
 static void __print_debug_details(const char *function, pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
