@@ -268,7 +268,7 @@ int ast_format_cap_append_by_type(struct ast_format_cap *cap, enum ast_media_typ
 			continue;
 		}
 
-		format = ast_format_cache_get(codec->name);
+		format = ast_format_cache_get_by_codec(codec);
 
 		if (format == ast_format_none) {
 			ao2_ref(format, -1);

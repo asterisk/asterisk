@@ -541,3 +541,24 @@ int ast_format_cache_is_slinear(struct ast_format *format)
 
 	return 0;
 }
+
+struct ast_format *ast_format_cache_get_by_codec(const struct ast_codec *codec)
+{
+	struct ast_format *format;
+	struct ao2_iterator it;
+
+	for (it = ao2_iterator_init(formats, 0);
+		 (format = ao2_iterator_next(&it));
+		 ao2_ref(format, -1)) {
+		struct ast_codec *candidate = ast_format_get_codec(format);
+		if (codec == candidate) {
+			ao2_cleanup(candidate);
+			ao2_iterator_destroy(&it);
+			return format;
+		}
+		ao2_cleanup(candidate);
+	}
+
+	ao2_iterator_destroy(&it);
+	return NULL;
+}
