@@ -2933,9 +2933,11 @@ static void session_destructor(void *obj)
 	struct ast_sip_session *session = obj;
 	struct ast_sip_session_delayed_request *delay;
 
+#ifdef TEST_FRAMEWORK
 	/* We dup the endpoint ID in case the endpoint gets freed out from under us */
 	const char *endpoint_name = session->endpoint ?
 		ast_strdupa(ast_sorcery_object_get_id(session->endpoint)) : "<none>";
+#endif
 
 	ast_debug(3, "%s: Destroying SIP session\n", ast_sip_session_get_name(session));
 
