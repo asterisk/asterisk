@@ -425,6 +425,33 @@ struct stasis_app_bridge_channel_wrapper {
 	);
 };
 
+/*! AO2 comparison function for bridges moh container */
+static int bridges_channel_compare(void *obj, void *arg, int flags)
+{
+	const struct stasis_app_bridge_channel_wrapper *object_left = obj;
+	const struct stasis_app_bridge_channel_wrapper *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+			right_key = object_right->bridge_id;
+	case OBJ_SEARCH_KEY:
+			cmp = strcmp(object_left->bridge_id, right_key);
+			break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+			cmp = strncmp(object_left->bridge_id, right_key, strlen(right_key));
+			break;
+	default:
+			cmp = 0;
+			break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
 static void stasis_app_bridge_channel_wrapper_destructor(void *obj)
 {
 	struct stasis_app_bridge_channel_wrapper *wrapper = obj;
@@ -2323,7 +2350,7 @@ static int load_module(void)
 		BRIDGES_NUM_BUCKETS, bridges_hash, NULL, bridges_compare);
 	app_bridges_moh = ao2_container_alloc_hash(
 		AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-		37, bridges_channel_hash_fn, NULL, NULL);
+		37, bridges_channel_hash_fn, NULL, bridges_channel_compare);
 	app_bridges_playback = ao2_container_alloc_hash(
 		AO2_ALLOC_OPT_LOCK_MUTEX, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
 		37, bridges_channel_hash_fn, bridges_channel_sort_fn, NULL);
