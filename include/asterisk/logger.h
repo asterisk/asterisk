@@ -663,7 +663,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
  */
 #define ast_trace_raw(level, indent_type, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
-	if (TRACE_ATLEAST(level)) { \
+	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
 		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, indent_type, 0, " " __VA_ARGS__); \
 	}
 
@@ -678,7 +678,7 @@ void __attribute__((format (printf, 6, 7))) __ast_trace(const char *file, int li
  */
 #define ast_trace(level, ...) \
 	ast_debug(level < 0 ? __scope_level : level, " " __VA_ARGS__); \
-	if (TRACE_ATLEAST(level)) { \
+	if (TRACE_ATLEAST(level < 0 ? __scope_level : level)) { \
 		__ast_trace(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_TRACE_INDENT_SAME, 0, " " __VA_ARGS__); \
 	}
 
