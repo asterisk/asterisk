@@ -622,16 +622,16 @@ static int append_all_streams(struct ast_stream_topology *dest,
 static void sfu_topologies_on_join(struct ast_bridge *bridge,
 	struct ast_bridge_channel *joiner)
 {
-	struct ast_stream_topology *joiner_video = NULL;
+	RAII_VAR(struct ast_stream_topology *, joiner_video, NULL, ast_stream_topology_free);
 	struct ast_bridge_channels_list *participants = &bridge->channels;
 	struct ast_bridge_channel *participant;
 	int res;
 	struct softmix_channel *sc;
+	SCOPE_ENTER(3, "%s: \n", ast_channel_name(joiner->chan));
 
 	joiner_video = ast_stream_topology_alloc();
 	if (!joiner_video) {
-		ast_log(LOG_ERROR, "%s: Couldn't alloc topology\n", ast_channel_name(joiner->chan));
-		return;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't alloc topology\n", ast_channel_name(joiner->chan));
 	}
 
 	sc = joiner->tech_pvt;
@@ -644,30 +644,30 @@ static void sfu_topologies_on_join(struct ast_bridge *bridge,
 	ast_channel_unlock(joiner->chan);
 
 	if (res || !sc->topology) {
-		ast_log(LOG_ERROR, "%s: Couldn't append source streams\n", ast_channel_name(joiner->chan));
-		goto cleanup;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't append source streams\n", ast_channel_name(joiner->chan));
 	}
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
 		if (participant == joiner) {
 			continue;
 		}
+		ast_trace(-1, "%s: Appending existing participant %s\n", ast_channel_name(joiner->chan),
+			ast_channel_name(participant->chan));
 		ast_channel_lock(participant->chan);
 		res = append_source_streams(sc->topology, ast_channel_name(participant->chan),
 			bridge->softmix.send_sdp_label ? ast_channel_uniqueid(participant->chan) : NULL,
 			ast_channel_get_stream_topology(participant->chan));
 		ast_channel_unlock(participant->chan);
 		if (res) {
-			ast_log(LOG_ERROR, "%s/%s: Couldn't append source streams\n",
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s/%s: Couldn't append source streams\n",
 				ast_channel_name(participant->chan), ast_channel_name(joiner->chan));
-			goto cleanup;
 		}
 	}
 
+	ast_trace(-1, "%s: Requesting topology change.\n", ast_channel_name(joiner->chan));
 	res = ast_channel_request_stream_topology_change(joiner->chan, sc->topology, NULL);
 	if (res) {
-		ast_debug(3, "%s: Couldn't request topology change\n", ast_channel_name(joiner->chan));
-		goto cleanup;
+		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Couldn't request topology change\n", ast_channel_name(joiner->chan));
 	}
 
 	AST_LIST_TRAVERSE(participants, participant, entry) {
@@ -676,21 +676,22 @@ static void sfu_topologies_on_join(struct ast_bridge *bridge,
 		}
 
 		sc = participant->tech_pvt;
+		ast_trace(-1, "%s: Appending joiner %s\n", ast_channel_name(participant->chan),
+			ast_channel_name(joiner->chan));
+
 		if (append_all_streams(sc->topology, joiner_video)) {
-			ast_log(LOG_ERROR, "%s/%s: Couldn't apopend streams\n",
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s/%s: Couldn't append streams\n",
 				ast_channel_name(participant->chan), ast_channel_name(joiner->chan));
-			goto cleanup;
 		}
+		ast_trace(-1, "%s: Requesting topology change\n", ast_channel_name(participant->chan));
 		res = ast_channel_request_stream_topology_change(participant->chan, sc->topology, NULL);
 		if (res) {
-			ast_debug(3, "%s/%s: Couldn't request topology change\n",
+			ast_trace(-1, "%s/%s: Couldn't request topology change\n",
 				ast_channel_name(participant->chan), ast_channel_name(joiner->chan));
-			goto cleanup;
 		}
 	}
 
-cleanup:
-	ast_stream_topology_free(joiner_video);
+	SCOPE_EXIT();
 }
 
 /*! \brief Function called when a channel is joined into the bridge */
@@ -707,15 +708,16 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	int pos_id;
 	int is_announcement = 0;
 	int samplerate_change;
+	SCOPE_ENTER(3, "%s:\n", ast_channel_name(bridge_channel->chan));
 
 	softmix_data = bridge->tech_pvt;
 	if (!softmix_data) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "No tech_pvt\n");
 	}
 
 	/* Create a new softmix_channel structure and allocate various things on it */
 	if (!(sc = ast_calloc(1, sizeof(*sc)))) {
-		return -1;
+		SCOPE_EXIT_RTN_VALUE(-1, "Couldn't alloc tech_pvt\n");
 	}
 
 	samplerate_change = softmix_data->internal_rate;
@@ -740,7 +742,7 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 						"Could not allocate enough memory.\n", bridge->uniqueid,
 						ast_channel_name(bridge_channel->chan));
 				ast_free(sc);
-				return -1;
+				SCOPE_EXIT_RTN_VALUE(-1, "Couldn't do binaural join\n");
 			}
 		}
 	}
@@ -769,7 +771,7 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	}
 
 	softmix_poke_thread(softmix_data);
-	return 0;
+	SCOPE_EXIT_RTN_VALUE(0);
 }
 
 static int remove_destination_streams(struct ast_stream_topology *topology,
@@ -2330,6 +2332,9 @@ static void softmix_bridge_stream_sources_update(struct ast_bridge *bridge, stru
 			ast_trace(-1, "%s: Stream %d:%s changed state from %s to %s\n",  ast_channel_name(bridge_channel->chan),
 				index, ast_stream_get_name(old_stream), ast_stream_state2str(ast_stream_get_state(old_stream)),
 				ast_stream_state2str(ast_stream_get_state(new_stream)));
+		} else {
+			ast_trace(-1, "%s: Stream %d:%s didn't do anything\n",  ast_channel_name(bridge_channel->chan),
+				index, ast_stream_get_name(old_stream));
 		}
 		SCOPE_EXIT();
 	}
