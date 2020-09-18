@@ -475,7 +475,12 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 			return -1;
 		}
 
-		state->samples += f->samples;
+		/* Only track our offset within the current file if we are not in the
+		 * the middle of an announcement */
+		if (!state->announcement) {
+			state->samples += f->samples;
+		}
+
 		state->sample_queue -= f->samples;
 		if (ast_format_cmp(f->subclass.format, state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
 			ao2_replace(state->mohwfmt, f->subclass.format);
