@@ -705,9 +705,10 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, args.postdata);
 	}
 
-	if (headers) {
-		curl_easy_setopt(*curl, CURLOPT_HTTPHEADER, headers);
-	}
+	/* Always assign the headers - even when NULL - in case we had
+	 * custom headers the last time we used this shared cURL
+	 * instance */
+	curl_easy_setopt(*curl, CURLOPT_HTTPHEADER, headers);
 
 	/* Temporarily assign a buffer for curl to write errors to. */
 	curl_errbuf[0] = curl_errbuf[CURL_ERROR_SIZE] = '\0';
