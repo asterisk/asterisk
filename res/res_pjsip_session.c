@@ -5148,7 +5148,7 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 		tdata->mod_data, session_module.id, MOD_DATA_NAT_HOOK);
 	struct pjmedia_sdp_session *sdp;
 	pjsip_dialog *dlg = pjsip_tdata_get_dlg(tdata);
-	struct ast_sip_session *session = dlg ? ast_sip_dialog_get_session(dlg) : NULL;
+	RAII_VAR(struct ast_sip_session *, session, dlg ? ast_sip_dialog_get_session(dlg) : NULL, ao2_cleanup);
 	int stream;
 
 	/* SDP produced by us directly will never be multipart */
