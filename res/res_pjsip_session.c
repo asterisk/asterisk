@@ -803,7 +803,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		}
 		if (!stream) {
 			struct ast_stream *existing_stream = NULL;
-			char *stream_name = NULL;
+			char *stream_name = NULL, *stream_name_allocated = NULL;
 			const char *stream_label = NULL;
 
 			if (session->active_media_state->topology &&
@@ -819,17 +819,19 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			}
 
 			if (ast_strlen_zero(stream_name)) {
-				if (ast_asprintf(&stream_name, "%s-%d", ast_codec_media_type2str(type), i) < 0) {
+				if (ast_asprintf(&stream_name_allocated, "%s-%d", ast_codec_media_type2str(type), i) < 0) {
 					handled = 0;
 					SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "%s: Couldn't alloc stream name\n",
 						 ast_sip_session_get_name(session));
 
 				}
+				stream_name = stream_name_allocated;
 				ast_trace(-1, "%s: Using %s for new stream name\n", ast_sip_session_get_name(session),
 					stream_name);
 			}
 
 			stream = ast_stream_alloc(stream_name, type);
+			ast_free(stream_name_allocated);
 			if (!stream) {
 				handled = 0;
 				SCOPE_EXIT_LOG_EXPR(goto end, LOG_ERROR, "%s: Couldn't alloc stream\n",
