@@ -358,13 +358,16 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	}
 	if (!tel_event && (session->dtmf == AST_SIP_DTMF_AUTO)) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 0);
 	}
 
 	if (session->dtmf == AST_SIP_DTMF_AUTO_INFO) {
 		if  (tel_event) {
 			ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
+			ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 1);
 		} else {
 			ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_NONE);
+			ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 0);
 		}
 	}
 
