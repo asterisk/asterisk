@@ -1442,12 +1442,12 @@ static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_fra
 	} else {
 		odata = f->data.ptr;
 		len = f->datalen;
-		if (ast_format_cmp(f->subclass.format, ast_format_ulaw)) {
+		if (ast_format_cmp(f->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 			s = ast_alloca(len * 2);
 			for (x = 0; x < len; x++) {
 				s[x] = AST_MULAW(odata[x]);
 			}
-		} else if (ast_format_cmp(f->subclass.format, ast_format_alaw)) {
+		} else if (ast_format_cmp(f->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 			s = ast_alloca(len * 2);
 			for (x = 0; x < len; x++) {
 				s[x] = AST_ALAW(odata[x]);
