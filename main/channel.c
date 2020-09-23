@@ -5709,11 +5709,15 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		if (!direction) {
 			/* reading */
 			trans_pvt = ast_translator_build_path(best_set_fmt, best_native_fmt);
-			trans_pvt->interleaved_stereo = 0;
+			if (trans_pvt) {
+				trans_pvt->interleaved_stereo = 0;
+			}
 		} else {
 			/* writing */
 			trans_pvt = ast_translator_build_path(best_native_fmt, best_set_fmt);
-			trans_pvt->interleaved_stereo = interleaved_stereo;
+			if (trans_pvt) {
+				trans_pvt->interleaved_stereo = interleaved_stereo;
+			}
 		}
 		access->set_trans(chan, trans_pvt);
 		res = trans_pvt ? 0 : -1;
