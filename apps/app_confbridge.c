@@ -1730,6 +1730,9 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL);
 			} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL)) {
 				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL);
+			} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_REMB_BEHAVIOR_FORCE)) {
+				ast_brige_set_remb_behavior(conference->bridge, AST_BRIDGE_VIDEO_SFU_REMB_FORCE);
+				ast_bridge_set_remb_estimated_bitrate(conference->bridge, conference->b_profile.remb_estimated_bitrate);
 			}
 		}
 

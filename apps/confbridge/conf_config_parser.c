@@ -533,8 +533,22 @@
 								<para>The highest estimated maximum bitrate of all receivers in the bridge
 								is taken and sent to each sender.</para>
 							</enum>
+							<enum name="force">
+								<para>The bitrate configured in <literal>remb_estimated_bitrate</literal>
+								is sent to each sender.</para>
+							</enum>
 						</enumlist>
 					</description>
+					<see-also><ref type="configOption">remb_estimated_bitrate</ref></see-also>
+				</configOption>
+				<configOption name="remb_estimated_bitrate">
+					<synopsis>Sets the estimated bitrate sent to each participant in REMB reports</synopsis>
+					<description><para>
+					    When <literal>remb_behavior</literal> is set to <literal>force</literal>,
+					    this options sets the estimated bitrate (in bits per second) sent to each participant
+					    in REMB reports.
+					</para></description>
+					<see-also><ref type="configOption">remb_behavior</ref></see-also>
 				</configOption>
 				<configOption name="enable_events" default="no">
 					<synopsis>Enables events for this bridge</synopsis>
@@ -2159,7 +2173,9 @@ static int remb_behavior_handler(const struct aco_option *opt, struct ast_variab
 		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST |
 		BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL |
 		BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL |
-		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL);
+		BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL |
+		BRIDGE_OPT_REMB_BEHAVIOR_FORCE
+		);
 
 	if (!strcasecmp(var->value, "average")) {
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE);
@@ -2173,6 +2189,8 @@ static int remb_behavior_handler(const struct aco_option *opt, struct ast_variab
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL);
 	} else if (!strcasecmp(var->value, "highest_all")) {
 		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL);
+	} else if (!strcasecmp(var->value, "force")) {
+		ast_set_flag(b_profile, BRIDGE_OPT_REMB_BEHAVIOR_FORCE);
 	} else {
 		return -1;
 	}
@@ -2419,6 +2437,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "video_update_discard", ACO_EXACT, bridge_types, "2000", OPT_UINT_T, 0, FLDSET(struct bridge_profile, video_update_discard));
 	aco_option_register(&cfg_info, "remb_send_interval", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_send_interval));
 	aco_option_register_custom(&cfg_info, "remb_behavior", ACO_EXACT, bridge_types, "average", remb_behavior_handler, 0);
+	aco_option_register(&cfg_info, "remb_estimated_bitrate", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, remb_estimated_bitrate));
 	aco_option_register(&cfg_info, "enable_events", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_ENABLE_EVENTS);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
