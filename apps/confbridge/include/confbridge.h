@@ -87,6 +87,7 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_REMB_BEHAVIOR_AVERAGE_ALL = (1 << 12), /*!< The average of all REMB reports in the entire bridge is sent to each sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_LOWEST_ALL = (1 << 13), /*!< The lowest estimated maximum bitrate from all receivers is sent to each sender */
 	BRIDGE_OPT_REMB_BEHAVIOR_HIGHEST_ALL = (1 << 14), /*!< The highest estimated maximum bitrate from all receivers is sent to each sender */
+	BRIDGE_OPT_REMB_BEHAVIOR_FORCE = (1 << 15), /*!< Force the REMB estimated bitrate to that specifiec in remb_estimated_bitrate */
 };
 
 enum conf_menu_action_id {
@@ -235,6 +236,7 @@ struct bridge_profile {
 	char regcontext[AST_MAX_CONTEXT];
 	unsigned int video_update_discard; /*!< Amount of time after sending a video update request that subsequent requests should be discarded */
 	unsigned int remb_send_interval; /*!< Interval at which a combined REMB frame is sent to video sources */
+	unsigned int remb_estimated_bitrate; /*!< Bitrate sent when BRIDGE_OPT_REMB_BEHAVIOR_FORCE is set */
 };
 
 /*! \brief The structure that represents a conference bridge */

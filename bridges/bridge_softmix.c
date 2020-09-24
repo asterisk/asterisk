@@ -1396,6 +1396,7 @@ static void remb_collect_report_all(struct ast_bridge *bridge, struct softmix_br
 	case AST_BRIDGE_VIDEO_SFU_REMB_AVERAGE:
 	case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST:
 	case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST:
+	case AST_BRIDGE_VIDEO_SFU_REMB_FORCE:
 		/* These will never actually get hit due to being handled by remb_collect_report below */
 		break;
 	}
@@ -1417,6 +1418,12 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 	/* We evenly divide the available maximum bitrate across the video sources
 	 * to this receiver so each source gets an equal slice.
 	 */
+
+	if (bridge->softmix.video_mode.mode_data.sfu_data.remb_behavior == AST_BRIDGE_VIDEO_SFU_REMB_FORCE) {
+		softmix_data->bitrate = bridge->softmix.video_mode.mode_data.sfu_data.estimated_bitrate;
+		return;
+	}
+
 	bitrate = (sc->remb.br_mantissa << sc->remb.br_exp) / AST_VECTOR_SIZE(&sc->video_sources);
 
 	/* If this receiver has no bitrate yet ignore it */
@@ -1461,6 +1468,9 @@ static void remb_collect_report(struct ast_bridge *bridge, struct ast_bridge_cha
 		case AST_BRIDGE_VIDEO_SFU_REMB_LOWEST_ALL:
 		case AST_BRIDGE_VIDEO_SFU_REMB_HIGHEST_ALL:
 			/* These will never actually get hit due to being handled by remb_collect_report_all above */
+			break;
+		case AST_BRIDGE_VIDEO_SFU_REMB_FORCE:
+			/* Don't do anything, we've already forced it */
 			break;
 		}
 	}
