@@ -682,7 +682,7 @@ static struct ast_sip_session_supplement diversion_supplement = {
 	.incoming_response = diversion_incoming_response,
 	.outgoing_request = diversion_outgoing_request,
 	.outgoing_response = diversion_outgoing_response,
-	.response_priority = AST_SIP_SESSION_BEFORE_REDIRECTING|AST_SIP_SESSION_BEFORE_MEDIA,
+	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA,
 };
 
 static int load_module(void)
