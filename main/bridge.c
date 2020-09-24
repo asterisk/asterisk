@@ -3868,6 +3868,15 @@ void ast_brige_set_remb_behavior(struct ast_bridge *bridge, enum ast_bridge_vide
 	ast_bridge_unlock(bridge);
 }
 
+void ast_bridge_set_remb_estimated_bitrate(struct ast_bridge *bridge, float estimated_bitrate)
+{
+	ast_assert(bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_SFU);
+
+	ast_bridge_lock(bridge);
+	bridge->softmix.video_mode.mode_data.sfu_data.estimated_bitrate = estimated_bitrate;
+	ast_bridge_unlock(bridge);
+}
+
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyframe)
 {
 	struct ast_bridge_video_talker_src_data *data;
