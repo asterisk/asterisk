@@ -13,7 +13,7 @@
 ; valid mode options:
 ; files		-- read files from a directory in any Asterisk supported
 ;		   media format
-; playlist	-- provide a fixed list of filenames or URLs to play
+; playlist	-- provide a fixed list of filenames or HTTP(S) URLs to play
 ; quietmp3 	-- default
 ; mp3 		-- loud
 ; mp3nb		-- unbuffered
@@ -56,7 +56,7 @@
 ; Each entry must be one of:
 ;
 ;   * An absolute path to the file to be played, without an extension.
-;   * A URL
+;   * An HTTP(S) URL
 ;
 ; The entries are played in the order in which they appear in the
 ; configuration. The 'sort' option is not used for this mode.
