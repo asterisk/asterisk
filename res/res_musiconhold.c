@@ -1144,7 +1144,7 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 
 				AST_VECTOR_APPEND(playlist_entries, dup);
 			} else {
-				ast_log(LOG_ERROR, "Playlist entries must be a URL or absolute path, '%s' provided.\n", var->value);
+				ast_log(LOG_ERROR, "Playlist entries must be an HTTP(S) URL or absolute path, '%s' provided.\n", var->value);
 			}
 		} else if (!strcasecmp(var->name, "directory")) {
 			ast_copy_string(mohclass->dir, var->value, sizeof(mohclass->dir));
