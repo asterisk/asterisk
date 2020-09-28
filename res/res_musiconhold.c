@@ -1609,19 +1609,22 @@ static struct ast_variable *load_realtime_musiconhold(const char *name)
 	if (var) {
 		const char *mode = ast_variable_find_in_list(var, "mode");
 		if (ast_strings_equal(mode, "playlist")) {
-			struct ast_variable *entries = ast_load_realtime("musiconhold_entry", "name", name, SENTINEL);
-			struct ast_variable *cur = entries;
+			struct ast_config *entries = ast_load_realtime_multientry("musiconhold_entry", "position >=", "0", "name", name, SENTINEL);
+			char *category = NULL;
 			size_t entry_count = 0;
-			for (; cur; cur = cur->next) {
-				if (!strcmp(cur->name, "entry")) {
-					struct ast_variable *dup = ast_variable_new(cur->name, cur->value, "");
+
+			while ((category = ast_category_browse(entries, category))) {
+				const char *entry = ast_variable_retrieve(entries, category, "entry");
+
+				if (entry) {
+					struct ast_variable *dup = ast_variable_new("entry", entry, "");
 					if (dup) {
 						entry_count++;
 						ast_variable_list_append(&var, dup);
 					}
 				}
 			}
-			ast_variables_destroy(entries);
+			ast_config_destroy(entries);
 
 			if (entry_count == 0) {
 				/* Behave as though this class doesn't exist */
