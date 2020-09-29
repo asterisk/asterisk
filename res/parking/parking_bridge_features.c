@@ -643,7 +643,6 @@ static int parking_duration_callback(struct ast_bridge_channel *bridge_channel, 
 			dial_string_flat, PARK_DIAL_CONTEXT, ast_get_extension_registrar(existing_exten));
 	} else if (ast_add_extension2_nolock(park_dial_context, 1, dial_string_flat, 1, NULL, NULL,
 			"Dial", duplicate_returnexten, ast_free_ptr, BASE_REGISTRAR)) {
-			ast_free(duplicate_returnexten);
 		ast_log(LOG_ERROR, "Failed to create parking redial parker extension %s@%s - Dial(%s)\n",
 			dial_string_flat, PARK_DIAL_CONTEXT, returnexten);
 	}

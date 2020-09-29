@@ -726,7 +726,6 @@ static int parking_add_extension(struct ast_context *context, int replace, const
 
 	if (ast_add_extension2_nolock(context, replace, extension, priority, NULL, NULL,
 			application, data_duplicate, ast_free_ptr, registrar)) {
-		ast_free(data_duplicate);
 		return -1;
 	}
 

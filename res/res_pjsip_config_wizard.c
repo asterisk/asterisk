@@ -477,7 +477,6 @@ static int add_extension(struct ast_context *context, const char *exten,
 
 	if (ast_add_extension2_nolock(context, 0, exten, priority, NULL, NULL,
 			app, data, free_ptr, BASE_REGISTRAR)) {
-		ast_free(data);
 		return -1;
 	}
 
