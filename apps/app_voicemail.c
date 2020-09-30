@@ -382,6 +382,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will say the recorded name of the voicemail user specified as the
 			argument to this application. If no context is provided, <literal>default</literal> is assumed.</para>
+			<para>Similar to the Background() application, playback of the recorded
+			name can be interrupted by entering an extension, which will be searched
+			for in the current context.</para>
 		</description>
 	</application>
 	<function name="MAILBOX_EXISTS" language="en_US">
