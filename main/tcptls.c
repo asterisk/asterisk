@@ -608,13 +608,8 @@ struct ast_tcptls_session_instance *ast_tcptls_client_start(struct ast_tcptls_se
 	return handle_tcptls_connection(tcptls_session);
 
 client_start_error:
-	if (desc) {
-		close(desc->accept_fd);
-		desc->accept_fd = -1;
-	}
 	ao2_ref(tcptls_session, -1);
 	return NULL;
-
 }
 
 struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_session_args *desc)
@@ -630,10 +625,6 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 
 	/* If we return early, there is no connection */
 	ast_sockaddr_setnull(&desc->old_address);
-
-	if (desc->accept_fd != -1) {
-		close(desc->accept_fd);
-	}
 
 	fd = desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->remote_address) ?
 				      AF_INET6 : AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -671,6 +662,9 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	if (!tcptls_session->stream) {
 		goto error;
 	}
+
+	/* From here on out, the iostream owns the accept_fd and it will take
+	 * care of closing it when the iostream is closed */
 
 	tcptls_session->parent = desc;
 	tcptls_session->parent->worker_fn = NULL;
