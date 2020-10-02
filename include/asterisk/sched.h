@@ -136,11 +136,12 @@ extern "C" {
 		while (id > -1 && (_res = ast_sched_del(sched, id) && _count++ < 10)) { \
 			usleep(1); \
 		} \
-		if (!_res && _data)							\
+		if (!_res && _data && _data != data)					\
 			unrefcall;	/* should ref _data! */		\
 		if (_count == 10) \
 			ast_log(LOG_WARNING, "Unable to cancel schedule ID %d.  This is probably a bug (%s: %s, line %d).\n", id, __FILE__, __PRETTY_FUNCTION__, __LINE__); \
-		refcall; \
+		if (_data != data) \
+			refcall; \
 		id = ast_sched_add_variable(sched, when, callback, data, variable); \
 		if (id == -1)  \
 			addfailcall;	\
