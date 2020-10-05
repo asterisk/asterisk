@@ -213,6 +213,7 @@ static void send_message(const char *to, const char *from, const char *body, str
 	if (ast_msg_send(msg, to, from)) {
 		ast_ari_response_error(response, 404, "Not Found",
 			"Endpoint not found");
+		return;
 	}
 
 	response->message = ast_json_null();
