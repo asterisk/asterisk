@@ -68,34 +68,43 @@ struct ast_format_cap *ast_sip_create_joint_call_cap(const struct ast_format_cap
 {
 	struct ast_format_cap *joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	struct ast_format_cap *local_filtered = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	struct ast_format_cap *remote_filtered = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
-	if (!joint || !local_filtered) {
+	if (!joint || !local_filtered || !remote_filtered) {
 		ast_log(LOG_ERROR, "Failed to allocate %s call offer capabilities\n",
 				ast_codec_media_type2str(media_type));
 		ao2_cleanup(joint);
 		ao2_cleanup(local_filtered);
+		ao2_cleanup(remote_filtered);
 		return NULL;
 	}
 
 	ast_format_cap_append_from_cap(local_filtered, local, media_type);
 
+	/* Remote should always be a subset of local, as local is what defines the underlying
+	 * permitted formats.
+	 */
+	ast_format_cap_get_compatible(remote, local_filtered, remote_filtered);
+
 	if (ast_sip_call_codec_pref_test(codec_pref, LOCAL)) {
 		if (ast_sip_call_codec_pref_test(codec_pref, INTERSECT)) {
-			ast_format_cap_get_compatible(local_filtered, remote, joint); /* Get common, prefer local */
+			ast_format_cap_get_compatible(local_filtered, remote_filtered, joint); /* Get common, prefer local */
 		} else {
 			ast_format_cap_append_from_cap(joint, local_filtered, media_type); /* Add local */
-			ast_format_cap_append_from_cap(joint, remote, media_type); /* Then remote */
+			ast_format_cap_append_from_cap(joint, remote_filtered, media_type); /* Then remote */
 		}
 	} else {
 		if (ast_sip_call_codec_pref_test(codec_pref, INTERSECT)) {
-			ast_format_cap_get_compatible(remote, local_filtered, joint); /* Get common, prefer remote */
+			joint = remote_filtered; /* Get common, prefer remote - as was done when filtering initially */
+			remote_filtered = NULL;
 		} else {
-			ast_format_cap_append_from_cap(joint, remote, media_type); /* Add remote */
+			ast_format_cap_append_from_cap(joint, remote_filtered, media_type); /* Add remote */
 			ast_format_cap_append_from_cap(joint, local_filtered, media_type); /* Then local */
 		}
 	}
 
 	ao2_ref(local_filtered, -1);
+	ao2_cleanup(remote_filtered);
 
 	if (ast_format_cap_empty(joint)) {
 		return joint;

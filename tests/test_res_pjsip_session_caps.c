@@ -147,11 +147,11 @@ AST_TEST_DEFINE(low_level)
 	ast_test_status_update(test, "Testing outgoing expected pass\n");
 	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"local",		1,	"alaw,g722",			AST_TEST_PASS);
 	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"local_first",	1,	"alaw",					AST_TEST_PASS);
-	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"local_merge",	1,	"ulaw,alaw,g722,g729",	AST_TEST_PASS);
+	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"local_merge",	1,	"ulaw,alaw,g722",	AST_TEST_PASS);
 	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"remote",		1,	"g722,alaw",			AST_TEST_PASS);
 	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"remote_first",	1,	"g722",					AST_TEST_PASS);
-	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"remote_merge",	1,	"g722,g729,alaw,ulaw",	AST_TEST_PASS);
-	RUN_CREATE_JOINT("!all",			"g722,g729,alaw",	"remote_merge",	1,	"g722,g729,alaw",		AST_TEST_PASS);
+	RUN_CREATE_JOINT("ulaw,alaw,g722",	"g722,g729,alaw",	"remote_merge",	1,	"g722,alaw,ulaw",	AST_TEST_PASS);
+	RUN_CREATE_JOINT("!all",			"g722,g729,alaw",	"remote_merge",	1,	"nothing",		AST_TEST_PASS);
 
 	return rc >= 1 ? AST_TEST_FAIL : AST_TEST_PASS;
 }
