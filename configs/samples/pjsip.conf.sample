@@ -828,69 +828,17 @@
                            ; local - Include all codecs in the local list that
                            ; are also in the remote list preserving the local
                            ; order.
-                           ; local_merge - Include all codecs in BOTH lists
-                           ; preserving the local list order.  Codes in the
-                           ; remote list not in the local list will be placed
-                           ; at the end of the joint list.
+                           ; local_merge - Include all codecs in the local list
+                           ; preserving the local order.
                            ; local_first - Include only the first codec in the
                            ; local list.
                            ; remote - Include all codecs in the remote list that
                            ; are also in the local list preserving remote list
-                           ; order. (default)
-                           ; remote_merge - Include all codecs in BOTH lists
-                           ; preserving the remote list order.  Codes in the
-                           ; local list not in the remote list will be placed
-                           ; at the end of the joint list.
-                           ; remote_first - Include only the first codec in
-                           ; the remote list.
-;codec_prefs_incoming_offer=; This is a string that describes how the codecs
-                            ; specified on an incoming SDP offer (pending) are
-                            ; reconciled with the codecs specified on an endpoint
-                            ; (configured) before being sent to the Asterisk core.
-                            ; The string actually specifies 4 name:value pair
-                            ; parameters separated by commas. Whitespace is
-                            ; ignored and they may be specified in any order.
-                            ; prefer: <pending | configured>,
-                            ; operation: <intersect | only_preferred
-                            ;    | only_nonpreferred>,
-                            ; keep: <first | all>,
-                            ; transcode: <allow | prevent>
-;codec_prefs_outgoing_offer=; This is a string that describes how the codecs
-                            ; specified in the topology that comes from the
-                            ; Asterisk core (pending) are reconciled with the
-                            ; codecs specified on an endpoint (configured)
-                            ; when sending an SDP offer.
-                            ; The string actually specifies 4 name:value pair
-                            ; parameters separated by commas. Whitespace is
-                            ; ignored and they may be specified in any order.
-                            ; prefer: <pending | configured>,
-                            ; operation: <intersect | union
-                            ;    | only_preferred | only_nonpreferred>,
-                            ; keep: <first | all>,
-                            ; transcode: <allow | prevent>
-;codec_prefs_incoming_answer=; This is a string that describes how the codecs
-                             ; specified in an incoming SDP answer (pending)
-                             ; are reconciled with the codecs specified on an
-                             ; endpoint (configured) when receiving an SDP
-                             ; answer.
-                             ; The string actually specifies 4 name:value pair
-                             ; parameters separated by commas. Whitespace is
-                             ; ignored and they may be specified in any order.
-                             ; prefer: <pending | configured>,
-                             ; operation: <intersect | union
-                             ;    | only_preferred | only_nonpreferred>,
-                             ; keep: <first | all>
-;codec_prefs_outgoing_answer=; This is a string that describes how the codecs
-                             ; that come from the core (pending) are reconciled
-                             ; with the codecs specified on an endpoint
-                             ; (configured) when sending an SDP answer.
-                             ; The string actually specifies 4 name:value pair
-                             ; parameters separated by commas. Whitespace is
-                             ; ignored and they may be specified in any order.
-                             ; prefer: <pending | configured>,
-                             ; operation: <intersect | union
-                             ;    | only_preferred | only_nonpreferred>,
-                             ; keep: <first | all>
+                           ; order.
+                           ; remote_merge - Include all codecs in the local list
+                           ; preserving the remote list order. (default)
+                           ; remote_first - Include only the first codec in the
+                           ; remote list that is also in the local list.
 ;preferred_codec_only=no   ; Respond to a SIP invite with the single most
                            ; preferred codec rather than advertising all joint
                            ; codec capabilities. This limits the other side's
