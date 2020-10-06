@@ -1,0 +1,213 @@
+                                Release Summary
+
+                       asterisk-certified/16.8-cert4-rc3
+
+                                Date: 2020-10-06
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/16.8-cert4-rc2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   15 George Joseph                                  2 George Joseph          
+   4 Joshua C. Colp                                  1 Ross Beer              
+   1 cmaj                                            1 cmaj                   
+   1 Kevin Harwell                                   1 Kevin Harwell          
+   1 Ben Ford                                        1 Joshua C. Colp         
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Functions/func_version
+
+   ASTERISK-29021: [patch] Fix VERSION(ASTERISK_VERSION_NUM) on certified
+   versions
+   Reported by: cmaj
+     * [4e9e503132] cmaj -- Makefile: Fix certified version numbers
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-29014: res_pjsip_session: Re-INVITE collisions aren't handled
+   correctly
+   Reported by: George Joseph
+     * [1620e94af5] George Joseph -- res_pjsip_session: Fix issue with COLP
+       and 491
+     * [9e54db24b6] George Joseph -- res_pjsip_session: Handle multi-stream
+       re-invites better
+   ASTERISK-29033: res_pjsip_session: Aggressively terminates session on
+   failed re-INVITE
+   Reported by: Joshua C. Colp
+     * [7b1ace9040] Joshua C. Colp -- res_pjsip_session: Don't aggressively
+       terminate on failed re-INVITE.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29089: RTP Ports not cleared after hangup
+   Reported by: Ross Beer
+     * [3e54af3afb] Joshua C. Colp -- res_pjsip_session: Fix session
+       reference leak.
+
+  Improvement
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-28945: AMI SendText - add Content-Type parameter
+   Reported by: Kevin Harwell
+     * [5e58fc3939] Kevin Harwell -- manager - Add Content-Type parameter to
+       the SendText action
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author    | Summary                                       |
+   |------------+-----------+-----------------------------------------------|
+   | d5df3b95c8 | Joshua C. | res_pjsip_session: Fix stream name memory     |
+   |            | Colp      | leak.                                         |
+   |------------+-----------+-----------------------------------------------|
+   | f74ecc4498 | George    | logger.h: Fix ast_trace to respect            |
+   |            | Joseph    | scope_level                                   |
+   |------------+-----------+-----------------------------------------------|
+   | 251c9a1891 | George    | bridge_softmix/sfu_topologies_on_join: Ignore |
+   |            | Joseph    | topology change failures                      |
+   |------------+-----------+-----------------------------------------------|
+   | f67c58aa13 | George    | debugging: Add enough to choke a mule         |
+   |            | Joseph    |                                               |
+   |------------+-----------+-----------------------------------------------|
+   | c2701d8069 | Ben Ford  | Bridging: Use a ref to bridge_channel's       |
+   |            |           | channel to prevent crash.                     |
+   |------------+-----------+-----------------------------------------------|
+   | fb78adce21 | George    | stream.c: Added 2 more debugging utils and    |
+   |            | Joseph    | added pos to stream string                    |
+   |------------+-----------+-----------------------------------------------|
+   | d942fe4837 | George    | scope_trace: Added debug messages and added   |
+   |            | Joseph    | additional macros                             |
+   |------------+-----------+-----------------------------------------------|
+   | 0430e1b3c3 | George    | logger.c: Added a new log formatter called    |
+   |            | Joseph    | "plain"                                       |
+   |------------+-----------+-----------------------------------------------|
+   | 950784a446 | George    | ast_coredumper: Fix issues with naming        |
+   |            | Joseph    |                                               |
+   |------------+-----------+-----------------------------------------------|
+   | d189bf9ae5 | George    | res_pjsip_session: Ensure reused streams have |
+   |            | Joseph    | correct bundle group                          |
+   |------------+-----------+-----------------------------------------------|
+   | b8bb63c82f | Joshua C. | pjsip: Add timer refactor patch and timer 0   |
+   |            | Colp      | cancellation.                                 |
+   |------------+-----------+-----------------------------------------------|
+   | 8ebe4c772e | George    | Scope Trace: Make it easier to trace through  |
+   |            | Joseph    | synchronous tasks                             |
+   |------------+-----------+-----------------------------------------------|
+   | 8076ed59f0 | George    | scope_trace: Add/update utilities             |
+   |            | Joseph    |                                               |
+   |------------+-----------+-----------------------------------------------|
+   | 9d3b01e874 | George    | Scope Trace: Add some new tracing macros and  |
+   |            | Joseph    | an ast_str helper                             |
+   |------------+-----------+-----------------------------------------------|
+   | 360efdd94f | George    | Scope Tracing: A new facility for tracing     |
+   |            | Joseph    | scope enter/exit                              |
+   |------------+-----------+-----------------------------------------------|
+   | 944d691319 | George    | frame.c: Make debugging easier                |
+   |            | Joseph    |                                               |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                                                      |    2
+ bridges/bridge_softmix.c                                      |  143
+ channels/chan_pjsip.c                                         |   74
+ configs/samples/asterisk.conf.sample                          |    1
+ configs/samples/logger.conf.sample                            |   15
+ contrib/scripts/ast_coredumper                                |    4
+ doc/CHANGES-staging/ami_sendtext_content_type.txt             |    4
+ doc/CHANGES-staging/logger_format.txt                         |   12
+ include/asterisk/bridge_channel.h                             |   14
+ include/asterisk/format_cap.h                                 |   11
+ include/asterisk/frame.h                                      |   13
+ include/asterisk/logger.h                                     |  426 ++
+ include/asterisk/manager.h                                    |    2
+ include/asterisk/message.h                                    |   18
+ include/asterisk/options.h                                    |    4
+ include/asterisk/res_pjsip_session.h                          |   12
+ include/asterisk/stream.h                                     |  117
+ include/asterisk/strings.h                                    |   53
+ main/asterisk.c                                               |    1
+ main/asterisk.exports.in                                      |    1
+ main/bridge.c                                                 |   21
+ main/bridge_channel.c                                         |   20
+ main/channel.c                                                |   13
+ main/cli.c                                                    |  261 +
+ main/format_cap.c                                             |   22
+ main/frame.c                                                  |   87
+ main/logger.c                                                 |  150
+ main/manager.c                                                |  115
+ main/message.c                                                |   26
+ main/options.c                                                |    9
+ main/stream.c                                                 |  109
+ res/res_pjsip_session.c                                       | 1809 ++++++++--
+ tests/test_scope_trace.c                                      |  126
+ tests/test_strings.c                                          |   39
+ third-party/pjproject/patches/0040-pjsip-timer-refactor.patch | 1148 ++++++
+ 35 files changed, 4430 insertions(+), 452 deletions(-)
