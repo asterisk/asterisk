@@ -111,6 +111,7 @@
 							on an endpoint (configured) before being sent to the Asterisk core.
 							The string actually specifies 4 <literal>name:value</literal> pair parameters
 							separated by commas. Whitespace is ignored and they may be specified in any order.
+							Note that this option is reserved for future functionality.
 
 						</para>
 						<para>
@@ -171,6 +172,7 @@
 							endpoint (configured) when sending an SDP offer.
 							The string actually specifies 4 <literal>name:value</literal> pair parameters
 							separated by commas. Whitespace is ignored and they may be specified in any order.
+							Note that this option is reserved for future functionality.
 
 						</para>
 						<para>
@@ -232,6 +234,8 @@
 							when receiving an SDP answer.
 							The string actually specifies 4 <literal>name:value</literal> pair parameters
 							separated by commas. Whitespace is ignored and they may be specified in any order.
+							Note that this option is reserved for future functionality.
+
 						</para>
 						<para>
 							Parameters:
@@ -288,6 +292,8 @@
 							when sending an SDP answer.
 							The string actually specifies 4 <literal>name:value</literal> pair parameters
 							separated by commas. Whitespace is ignored and they may be specified in any order.
+							Note that this option is reserved for future functionality.
+
 						</para>
 						<para>
 							Parameters:
@@ -1214,7 +1220,7 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="outgoing_call_offer_pref" default="local">
+				<configOption name="outgoing_call_offer_pref" default="remote_merge">
 					<synopsis>Preferences for selecting codecs for an outgoing call.</synopsis>
 					<description>
 						<para>Based on this setting, a joint list of preferred codecs between
@@ -1227,24 +1233,20 @@
 								preserving the local order.
 							</para></enum>
 							<enum name="local_merge"><para>
-								Include all codecs in BOTH lists preserving the local order.
-								Remote codecs not in the local list will be placed at the end
-								of the joint list.
+								Include all codecs in the local list preserving the local order.
 							</para></enum>
 							<enum name="local_first"><para>
 								Include only the first codec in the local list.
 							</para></enum>
 							<enum name="remote"><para>
 								Include all codecs in the remote list that are also in the local list
-								preserving the remote order. (default)
+								preserving the remote order.
 							</para></enum>
 							<enum name="remote_merge"><para>
-								Include all codecs in BOTH lists preserving the remote order.
-								Local codecs not in the remote list will be placed at the end
-								of the joint list.
+                                                                Include all codecs in the local list preserving the remote order. (default)
 							</para></enum>
 							<enum name="remote_first"><para>
-								Include only the first codec in the remote list.
+								Include only the first codec in the remote list that is also in the local list.
 							</para></enum>
 						</enumlist>
 					</description>

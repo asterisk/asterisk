@@ -2138,7 +2138,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ignore_183_without_sdp", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ignore_183_without_sdp));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "incoming_call_offer_pref", "local",
 		call_offer_pref_handler, incoming_call_offer_pref_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_call_offer_pref", "remote",
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outgoing_call_offer_pref", "remote_merge",
 		call_offer_pref_handler, outgoing_call_offer_pref_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "codec_prefs_incoming_offer",
 		"prefer: pending, operation: intersect, keep: all, transcode: allow",
