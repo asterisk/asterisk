@@ -307,6 +307,10 @@ int daemon(int, int);  /* defined in libresolv of all places */
                 "This is free software, with components licensed under the GNU General Public\n" \
                 "License version 2 and other licenses; you are welcome to redistribute it under\n" \
                 "certain conditions. Type 'core show license' for details.\n" \
+                "=========================================================================\n" \
+                "Please note that this version of Asterisk no longer receives bug fixes.\n" \
+                "Consult the following URL for Asterisk version support status information:\n" \
+                "https://wiki.asterisk.org/wiki/display/AST/Asterisk+Versions\n" \
                 "=========================================================================\n", ast_get_version()) \
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
@@ -4331,6 +4335,12 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	run_startup_commands();
 	ast_sd_notify("READY=1");
+
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_RED, 0, "========================================================================="));
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_RED, 0, "Please note that this version of Asterisk no longer receives bug fixes."));
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_RED, 0, "Consult the following URL for Asterisk version support status information:"));
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_RED, 0, "https://wiki.asterisk.org/wiki/display/AST/Asterisk+Versions"));
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_RED, 0, "========================================================================="));
 
 	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRGREEN, 0, "Asterisk Ready."));
 
