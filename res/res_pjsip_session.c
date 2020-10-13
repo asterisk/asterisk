@@ -4340,6 +4340,8 @@ static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_da
 	SCOPE_ENTER(3, "%s: Method is %.*s\n", ast_sip_session_get_name(session),
 		(int) pj_strlen(&req.method.name), pj_strbuf(&req.method.name));
 
+	ast_sip_message_apply_transport(session->endpoint->transport, tdata);
+
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
 		if (supplement->outgoing_request && does_method_match(&req.method.name, supplement->method)) {
 			supplement->outgoing_request(session, tdata);
@@ -4363,6 +4365,8 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Cannot send response due to missing sequence header",
 			ast_sip_session_get_name(session));
 	}
+
+	ast_sip_message_apply_transport(session->endpoint->transport, tdata);
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
 		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
