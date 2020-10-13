@@ -1,3 +1,27 @@
+2020-10-13 16:24 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.0.0-rc2 Released.
+
+2020-10-06 10:32 +0000 [5cc4a391b3]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* res_pjsip: Adjust outgoing offer call pref.
+
+	  This changes the outgoing offer call preference
+	  default option to match the behavior of previous
+	  versions of Asterisk.
+
+	  The additional advanced codec negotiation options
+	  have also been removed from the sample configuration
+	  and marked as reserved for future functionality in
+	  XML documentation.
+
+	  The codec preference options have also been fixed to
+	  enforce local codec configuration.
+
+	  ASTERISK-29109
+
+	  Change-Id: Iad19347bd5f3d89900c15ecddfebf5e20950a1c2
+
 2020-09-09 15:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.0.0-rc1 Released.
