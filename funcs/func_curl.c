@@ -187,6 +187,9 @@
 							</enum>
 						</enumlist>
 					</enum>
+					<enum name="failurecodes">
+						<para>A comma separated list of HTTP response codes to be treated as errors</para>
+					</enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -205,6 +208,8 @@
 	((LIBCURL_VERSION_MAJOR > (a)) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR > (b))) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR == (b)) && (LIBCURL_VERSION_PATCH >= (c))))
 
 #define CURLOPT_SPECIAL_HASHCOMPAT ((CURLoption) -500)
+
+#define CURLOPT_SPECIAL_FAILURE_CODE 999
 
 static void curlds_free(void *data);
 
@@ -318,6 +323,9 @@ static int parse_curlopt_key(const char *name, CURLoption *key, enum optiontype 
 	} else if (!strcasecmp(name, "hashcompat")) {
 		*key = CURLOPT_SPECIAL_HASHCOMPAT;
 		*ot = OT_ENUM;
+	} else if (!strcasecmp(name, "failurecodes")) {
+		*key = CURLOPT_SPECIAL_FAILURE_CODE;
+		*ot = OT_STRING;
 	} else {
 		return -1;
 	}
@@ -655,7 +663,11 @@ struct curl_args {
 static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 {
 	struct ast_str *escapebuf = ast_str_thread_get(&thread_escapebuf, 16);
-	int ret = -1;
+	int ret = 0;
+	long http_code = 0; /* read curl response */
+	size_t i;
+	struct ast_vector_int hasfailurecode = { NULL };
+	char *failurecodestrings,*found;
 	CURL **curl;
 	struct curl_settings *cur;
 	struct curl_slist *headers = NULL;
@@ -682,12 +694,18 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 		ast_autoservice_start(chan);
 	}
 
+	AST_VECTOR_INIT(&hasfailurecode, 0); /*Initialize vector*/
 	AST_LIST_LOCK(&global_curl_info);
 	AST_LIST_TRAVERSE(&global_curl_info, cur, list) {
 		if (cur->key == CURLOPT_SPECIAL_HASHCOMPAT) {
 			hashcompat = (long) cur->value;
 		} else if (cur->key == CURLOPT_HTTPHEADER) {
 			headers = curl_slist_append(headers, (char*) cur->value);
+		} else if (cur->key == CURLOPT_SPECIAL_FAILURE_CODE) {
+			failurecodestrings = (char*) cur->value;
+			while( (found = strsep(&failurecodestrings, ",")) != NULL) {
+				AST_VECTOR_APPEND(&hasfailurecode, atoi(found));
+			}
 		} else {
 			curl_easy_setopt(*curl, cur->key, cur->value);
 		}
@@ -706,6 +724,11 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 					hashcompat = (long) cur->value;
 				} else if (cur->key == CURLOPT_HTTPHEADER) {
 					headers = curl_slist_append(headers, (char*) cur->value);
+				} else if (cur->key == CURLOPT_SPECIAL_FAILURE_CODE) {
+					failurecodestrings = (char*) cur->value;
+					while( (found = strsep(&failurecodestrings, ",")) != NULL) {
+						AST_VECTOR_APPEND(&hasfailurecode, atoi(found));
+					}
 				} else {
 					curl_easy_setopt(*curl, cur->key, cur->value);
 				}
@@ -739,6 +762,20 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 	 * here, but the source allows it. See: "typecheck: allow NULL to unset
 	 * CURLOPT_ERRORBUFFER" (62bcf005f4678a93158358265ba905bace33b834). */
 	curl_easy_setopt(*curl, CURLOPT_ERRORBUFFER, (char*)NULL);
+	curl_easy_getinfo (*curl, CURLINFO_RESPONSE_CODE, &http_code);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&hasfailurecode); ++i) {
+		if (http_code == AST_VECTOR_GET(&hasfailurecode,i)){
+			ast_log(LOG_NOTICE, "%s%sCURL '%s' returned response code (%ld).\n",
+				chan ? ast_channel_name(chan) : "",
+				chan ? ast_channel_name(chan) : ": ",
+				args->url,
+				http_code);
+			ret=-1;
+			break;
+		}
+	}
+	AST_VECTOR_FREE(&hasfailurecode); /* Release the vector*/
 
 	if (store) {
 		AST_LIST_UNLOCK(list);
@@ -775,7 +812,6 @@ static int acf_curl_helper(struct ast_channel *chan, struct curl_args *args)
 			ast_free(fields);
 			ast_free(values);
 		}
-		ret = 0;
 	}
 
 	if (chan) {
@@ -885,6 +921,7 @@ static struct ast_custom_function acf_curlopt = {
 "  ssl_verifypeer - Whether to verify the peer certificate (boolean)\n"
 "  hashcompat     - Result data will be compatible for use with HASH()\n"
 "                 - if value is \"legacy\", will translate '+' to ' '\n"
+"  failurecodes   - A comma separated list of HTTP response codes to be treated as errors\n"
 "",
 	.read = acf_curlopt_read,
 	.read2 = acf_curlopt_read2,

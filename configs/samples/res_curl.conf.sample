@@ -6,3 +6,4 @@
 proxytype=http
 proxyport=8001
 ;proxyuserpwd=asterisk:asteriskrocks
+;failurecodes=404,408,503
