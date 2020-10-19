@@ -1500,7 +1500,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	}
 	sub_tree->role = AST_SIP_NOTIFIER;
 
-	dlg = ast_sip_create_dialog_uas(endpoint, rdata, dlg_status);
+	dlg = ast_sip_create_dialog_uas_locked(endpoint, rdata, dlg_status);
 	if (!dlg) {
 		if (*dlg_status != PJ_EEXISTS) {
 			ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
@@ -1521,7 +1521,15 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	}
 
 	pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &sub_tree->evsub);
+
 	subscription_setup_dialog(sub_tree, dlg);
+
+	/*
+	 * The evsub and subscription setup both add dialog refs, so the dialog ref that
+	 * was added when the dialog was created (see ast_sip_create_dialog_uas_lock) can
+	 * now be removed. The lock should no longer be needed so can be removed too.
+	 */
+	pjsip_dlg_dec_lock(dlg);
 
 #ifdef HAVE_PJSIP_EVSUB_GRP_LOCK
 	pjsip_evsub_add_ref(sub_tree->evsub);
