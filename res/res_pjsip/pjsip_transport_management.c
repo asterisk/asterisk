@@ -78,7 +78,7 @@ static void keepalive_transport_send_keepalive(struct monitored_transport *monit
 static void *keepalive_transport_thread(void *data)
 {
 	struct ao2_container *transports;
-	pj_thread_desc desc;
+	pj_thread_desc desc = { 0 };
 	pj_thread_t *thread;
 
 	if (pj_thread_register("Asterisk Keepalive Thread", desc, &thread) != PJ_SUCCESS) {
