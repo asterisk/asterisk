@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-17.8.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-17.8.0-rc1</h3><h3 align="center">Date: 2020-09-09</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-17.8.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-17.8.0</h3><h3 align="center">Date: 2020-10-19</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-17.7.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">4 George Joseph <gjoseph@digium.com><br/>3 Sean Bright <sean.bright@gmail.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Alexander Traud <pabstraud@compuserve.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Evandro César Arruda <ecarruda@gmail.com><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Patrick Verzele <patrick@verzele.be><br/>1 Nickolay Shmyrev <nshmyrev@alphacephei.com><br/></td><td width="33%"><td width="33%">1 Nickolay V. Shmyrev <nshmyrev@alphacephei.com><br/>1 Ramarajan <pramarajan@sangoma.com><br/>1 Ove Aursand <oveaurs@gmail.com><br/>1 Evandro César Arruda <ecarruda@gmail.com><br/>1 Thomas Johnson <tjohnson@microautomation.com><br/>1 Misha Vodsedalek <vmisha@seznam.cz><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Joseph Ades <josephades1@gmail.com><br/>1 Leandro Dardini <ldardini@gmail.com><br/></td></tr>
+<tr valign="top"><td width="33%">4 George Joseph <gjoseph@digium.com><br/>3 Sean Bright <sean.bright@gmail.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Alexander Traud <pabstraud@compuserve.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Evandro César Arruda <ecarruda@gmail.com><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 Patrick Verzele <patrick@verzele.be><br/>1 Nickolay Shmyrev <nshmyrev@alphacephei.com><br/>1 Andrew Siplas <andrew@asiplas.net><br/></td><td width="33%"><td width="33%">1 Nickolay V. Shmyrev <nshmyrev@alphacephei.com><br/>1 Ramarajan <pramarajan@sangoma.com><br/>1 Ove Aursand <oveaurs@gmail.com><br/>1 Evandro César Arruda <ecarruda@gmail.com><br/>1 Thomas Johnson <tjohnson@microautomation.com><br/>1 Misha Vodsedalek <vmisha@seznam.cz><br/>1 Andrew Siplas <andrew@asiplas.net><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Kfir Itzhak <mastertheknife@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Joseph Ades <josephades1@gmail.com><br/>1 Leandro Dardini <ldardini@gmail.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25665">ASTERISK-25665</a>: Duplicate logging in queue log for EXITEMPTY events<br/>Reported by: Ove Aursand<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cd53d8917bc9431c195b05cb47f3f4bc4651c354">[cd53d8917b]</a> Kfir Itzhak -- app_queue: Fix leave-empty not recording a call as abandoned</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29043">ASTERISK-29043</a>: app_queue: Leave empty sometimes not recorded as abandoned<br/>Reported by: Kfir Itzhak<ul>
@@ -17,6 +17,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6b9a7dfb5de47bab0c80c02b4a0ddbda3514ce2a">[6b9a7dfb5d]</a> Sean Bright -- app_voicemail: Process urgent messages with mailcmd</li>
 </ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28878">ASTERISK-28878</a>: chan_pjsip: PJSIP_MEDIA_OFFER Broken asterisk 16<br/>Reported by: Joseph Ades<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=05f9b6072df61e826f2d8370bb9b8b4e73b90c6f">[05f9b6072d]</a> Kevin Harwell -- chan_pjsip: disallow PJSIP_SEND_SESSION_REFRESH pre-answer execution</li>
+</ul><br><h4>Category: Configs/Samples</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29123">ASTERISK-29123</a>: logger.conf.sample missing comment mark on line 115<br/>Reported by: Andrew Siplas<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=47ebe33bae1041883df38c8c33aba14ed639f9c2">[47ebe33bae]</a> Andrew Siplas -- logger.conf.sample: add missing comment mark</li>
 </ul><br><h4>Category: PBX/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29046">ASTERISK-29046</a>: pbx: Deadlock when doing a reload, while simultaneously doing an ExtensionState on a pattern match hint that ends up adding an extension<br/>Reported by: Ramarajan<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=be147e08ce916a7fecc38ee802b62ce025d1f9b1">[be147e08ce]</a> Joshua C. Colp -- pbx: Fix hints deadlock between reload and ExtensionState.</li>
 </ul><br><h4>Category: Resources/res_parking</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29042">ASTERISK-29042</a>: res_parking: Parker UUID is no longer copied<br/>Reported by: Misha Vodsedalek<ul>
@@ -31,6 +33,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7f5cc9ad289605384169c180c8c3b24cd1f7f70f">[7f5cc9ad28]</a> Nickolay Shmyrev -- res_speech: Bump reference on format object</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a955dcd03c7f5e95fa012bab9371c3626c512389">a955dcd03c</a></td><td>Asterisk Development Team</td><td>Update for 17.8.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b0410c596094d91cef70a77f3add2cb374900194">b0410c5960</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 17.8.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2cc36e4a8884b9b550950ffa57f026183a33439">d2cc36e4a8</a></td><td>Patrick Verzele</td><td>res_pjsip_session: Deferred re-INVITE without SDP send a=sendrecv instead of a=sendonly</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ee7ded19fb297e9f73822519832922c93330a006">ee7ded19fb</a></td><td>Kevin Harwell</td><td>conversions: Add string to signed integer conversion functions</td></tr>
@@ -41,36 +44,31 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=315b5f3929448fd140c6a47eb34ae29d3c7be553">315b5f3929</a></td><td>Sean Bright</td><td>res_musiconhold.c: Use ast_file_read_dir to scan MoH directory</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=393444fc205d1a2d8173735e133f22e07f228bf8">393444fc20</a></td><td>George Joseph</td><td>stream.c:  Added 2 more debugging utils and added pos to stream string</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d491db4fe2e44d36bf2a7aec64adb3e0c6bbe78e">d491db4fe2</a></td><td>George Joseph</td><td>scope_trace: Added debug messages and added additional macros</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                           |    1
-.version                                             |    1
-ChangeLog                                            |91444 -------------------
-asterisk-17.7.0-summary.html                         |   74
-asterisk-17.7.0-summary.txt                          |  239
-b/CHANGES                                            |   22
-b/apps/app_queue.c                                   |    3
-b/apps/app_voicemail.c                               |   30
-b/channels/pjsip/dialplan_functions.c                |    5
-b/configs/samples/logger.conf.sample                 |    4
-b/configs/samples/pjsip.conf.sample                  |   10
-b/contrib/scripts/ast_coredumper                     |    4
-b/contrib/scripts/sip_nat_settings                   |   19
-b/include/asterisk/conversions.h                     |   54
-b/include/asterisk/frame.h                           |    5
-b/include/asterisk/logger.h                          |   86
-b/include/asterisk/stream.h                          |   26
-b/main/bridge_channel.c                              |   37
-b/main/conversions.c                                 |   51
-b/main/logger.c                                      |   52
-b/main/stream.c                                      |   27
-b/res/res_musiconhold.c                              |  131
-b/res/res_pjsip_diversion.c                          |    6
-b/res/res_pjsip_session.c                            |   13
-b/res/res_speech.c                                   |    7
-b/tests/test_conversions.c                           |  127
-contrib/realtime/mysql/mysql_cdr.sql                 |   41
-contrib/realtime/mysql/mysql_config.sql              | 1276
-contrib/realtime/mysql/mysql_voicemail.sql           |   35
-contrib/realtime/postgresql/postgresql_cdr.sql       |   45
-contrib/realtime/postgresql/postgresql_config.sql    | 1388
-contrib/realtime/postgresql/postgresql_voicemail.sql |   39
-32 files changed, 586 insertions(+), 94716 deletions(-)</pre><br></html>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-17.7.0-summary.html          |   74 ----------
+asterisk-17.7.0-summary.txt           |  239 ----------------------------------
+b/.version                            |    2
+b/CHANGES                             |   22 +++
+b/ChangeLog                           |  227 +++++++++++++++++++++++++++++++-
+b/apps/app_queue.c                    |    3
+b/apps/app_voicemail.c                |   30 +---
+b/asterisk-17.8.0-rc1-summary.html    |   76 ++++++++++
+b/asterisk-17.8.0-rc1-summary.txt     |  237 +++++++++++++++++++++++++++++++++
+b/channels/pjsip/dialplan_functions.c |    5
+b/configs/samples/logger.conf.sample  |    4
+b/configs/samples/pjsip.conf.sample   |   10 -
+b/contrib/scripts/ast_coredumper      |    4
+b/contrib/scripts/sip_nat_settings    |   19 --
+b/include/asterisk/conversions.h      |   54 +++++++
+b/include/asterisk/frame.h            |    5
+b/include/asterisk/logger.h           |   86 ++++++++++--
+b/include/asterisk/stream.h           |   26 +++
+b/main/bridge_channel.c               |   37 +++++
+b/main/conversions.c                  |   51 +++++++
+b/main/logger.c                       |   52 +++++++
+b/main/stream.c                       |   27 +--
+b/res/res_musiconhold.c               |  131 ++++++++++--------
+b/res/res_pjsip_diversion.c           |    6
+b/res/res_pjsip_session.c             |   13 +
+b/res/res_speech.c                    |    7
+b/tests/test_conversions.c            |   96 +++++++++++++
+27 files changed, 1090 insertions(+), 453 deletions(-)</pre><br></html>
