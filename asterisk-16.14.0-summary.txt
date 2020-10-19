@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.14.0-rc1
+                                asterisk-16.14.0
 
-                                Date: 2020-09-09
+                                Date: 2020-10-19
 
                            <asteriskteam@digium.com>
 
@@ -54,13 +54,14 @@
    4 George Joseph                                   1 Ramarajan              
    3 Joshua C. Colp                                  1 Ove Aursand            
    2 Kevin Harwell                                   1 Evandro CÃ©sar Arruda  
-   2 Alexander Traud                                 1 Thomas Johnson         
-   1 Kfir Itzhak                                     1 Misha Vodsedalek       
+   2 Asterisk Development Team                       1 Thomas Johnson         
+   2 Alexander Traud                                 1 Misha Vodsedalek       
+   1 Kfir Itzhak                                     1 Andrew Siplas          
    1 Evandro CÃ©sar Arruda                           1 Torrey Searle          
    1 Torrey Searle                                   1 Kfir Itzhak            
-   1 Asterisk Development Team                       1 Joshua C. Colp         
-   1 Patrick Verzele                                 1 Karsten Wemheuer       
-   1 Nickolay Shmyrev                                1 Joseph Ades            
+   1 Patrick Verzele                                 1 Joshua C. Colp         
+   1 Nickolay Shmyrev                                1 Karsten Wemheuer       
+   1 Andrew Siplas                                   1 Joseph Ades            
                                                      1 Leandro Dardini        
 
      ----------------------------------------------------------------------
@@ -107,6 +108,13 @@
    Reported by: Joseph Ades
      * [17258e0cdf] Kevin Harwell -- chan_pjsip: disallow
        PJSIP_SEND_SESSION_REFRESH pre-answer execution
+
+    Category: Configs/Samples
+
+   ASTERISK-29123: logger.conf.sample missing comment mark on line 115
+   Reported by: Andrew Siplas
+     * [8ac6ae48ce] Andrew Siplas -- logger.conf.sample: add missing comment
+       mark
 
     Category: PBX/General
 
@@ -164,6 +172,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | c1a5bbe7bf | Asterisk Development | Update for 16.14.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | bd0724c7ed | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 16.14.0                            |
    |------------+----------------------+------------------------------------|
@@ -207,36 +218,31 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                           |    1
- .version                                             |    1
- ChangeLog                                            |90578 -------------------
- asterisk-16.13.0-summary.html                        |   77
- asterisk-16.13.0-summary.txt                         |  248
- b/CHANGES                                            |   22
- b/apps/app_queue.c                                   |    3
- b/apps/app_voicemail.c                               |   30
- b/channels/pjsip/dialplan_functions.c                |    5
- b/configs/samples/logger.conf.sample                 |    4
- b/configs/samples/pjsip.conf.sample                  |   10
- b/contrib/scripts/ast_coredumper                     |    4
- b/contrib/scripts/sip_nat_settings                   |   19
- b/include/asterisk/conversions.h                     |   54
- b/include/asterisk/frame.h                           |    5
- b/include/asterisk/logger.h                          |   86
- b/include/asterisk/stream.h                          |   26
- b/main/bridge_channel.c                              |   37
- b/main/conversions.c                                 |   51
- b/main/logger.c                                      |   52
- b/main/stream.c                                      |   27
- b/res/res_musiconhold.c                              |  131
- b/res/res_pjsip_diversion.c                          |    6
- b/res/res_pjsip_session.c                            |   13
- b/res/res_speech.c                                   |    7
- b/tests/test_conversions.c                           |  124
- contrib/realtime/mysql/mysql_cdr.sql                 |   41
- contrib/realtime/mysql/mysql_config.sql              | 1258
- contrib/realtime/mysql/mysql_voicemail.sql           |   35
- contrib/realtime/postgresql/postgresql_cdr.sql       |   45
- contrib/realtime/postgresql/postgresql_config.sql    | 1362
- contrib/realtime/postgresql/postgresql_voicemail.sql |   39
- 32 files changed, 583 insertions(+), 93818 deletions(-)
+ asterisk-16.13.0-summary.html         |   77 ----------
+ asterisk-16.13.0-summary.txt          |  248 ----------------------------------
+ b/.version                            |    2
+ b/CHANGES                             |   22 +++
+ b/ChangeLog                           |  229 ++++++++++++++++++++++++++++++-
+ b/apps/app_queue.c                    |    3
+ b/apps/app_voicemail.c                |   30 +---
+ b/asterisk-16.14.0-rc1-summary.html   |   78 ++++++++++
+ b/asterisk-16.14.0-rc1-summary.txt    |  242 +++++++++++++++++++++++++++++++++
+ b/channels/pjsip/dialplan_functions.c |    5
+ b/configs/samples/logger.conf.sample  |    4
+ b/configs/samples/pjsip.conf.sample   |   10 -
+ b/contrib/scripts/ast_coredumper      |    4
+ b/contrib/scripts/sip_nat_settings    |   19 --
+ b/include/asterisk/conversions.h      |   54 +++++++
+ b/include/asterisk/frame.h            |    5
+ b/include/asterisk/logger.h           |   86 ++++++++++-
+ b/include/asterisk/stream.h           |   26 +++
+ b/main/bridge_channel.c               |   37 ++++-
+ b/main/conversions.c                  |   51 ++++++
+ b/main/logger.c                       |   52 +++++++
+ b/main/stream.c                       |   27 +--
+ b/res/res_musiconhold.c               |  131 +++++++++--------
+ b/res/res_pjsip_diversion.c           |    6
+ b/res/res_pjsip_session.c             |   13 +
+ b/res/res_speech.c                    |    7
+ b/tests/test_conversions.c            |  146 +++++++++++++++++++-
+ 27 files changed, 1147 insertions(+), 467 deletions(-)
