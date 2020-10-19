@@ -3459,7 +3459,11 @@ static int uas_use_sips_contact(pjsip_rx_data *rdata)
 	return 0;
 }
 
-pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pj_status_t *status)
+typedef pj_status_t (*create_dlg_uac)(pjsip_user_agent *ua, pjsip_rx_data *rdata,
+	const pj_str_t *contact, pjsip_dialog **p_dlg);
+
+static pjsip_dialog *create_dialog_uas(const struct ast_sip_endpoint *endpoint,
+	pjsip_rx_data *rdata, pj_status_t *status, create_dlg_uac create_fun)
 {
 	pjsip_dialog *dlg;
 	pj_str_t contact;
@@ -3494,11 +3498,7 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
 
-#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
-	*status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact, &dlg);
-#else
-	*status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact, &dlg);
-#endif
+	*status = create_fun(pjsip_ua_instance(), rdata, &contact, &dlg);
 	if (*status != PJ_SUCCESS) {
 		char err[PJ_ERR_MSG_SIZE];
 
@@ -3511,11 +3511,46 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	dlg->sess_count++;
 	pjsip_dlg_set_transport(dlg, &selector);
 	dlg->sess_count--;
-#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
-	pjsip_dlg_dec_lock(dlg);
-#endif
 
 	return dlg;
+}
+
+pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pj_status_t *status)
+{
+#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+	pjsip_dialog *dlg;
+
+	dlg = create_dialog_uas(endpoint, rdata, status, pjsip_dlg_create_uas_and_inc_lock);
+	if (dlg) {
+		pjsip_dlg_dec_lock(dlg);
+	}
+
+	return dlg;
+#else
+	return create_dialog_uas(endpoint, rdata, status, pjsip_dlg_create_uas);
+#endif
+}
+
+pjsip_dialog *ast_sip_create_dialog_uas_locked(const struct ast_sip_endpoint *endpoint,
+	pjsip_rx_data *rdata, pj_status_t *status)
+{
+#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+	return create_dialog_uas(endpoint, rdata, status, pjsip_dlg_create_uas_and_inc_lock);
+#else
+	/*
+	 * This is put here in order to be compatible with older versions of pjproject.
+	 * Best we can do in this case is immediately lock after getting the dialog.
+	 * However, that does leave a "gap" between creating and locking.
+	 */
+	pjsip_dialog *dlg;
+
+	dlg = create_dialog_uas(endpoint, rdata, status, pjsip_dlg_create_uas);
+	if (dlg) {
+		pjsip_dlg_inc_lock(dlg);
+	}
+
+	return dlg;
+#endif
 }
 
 int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port,
