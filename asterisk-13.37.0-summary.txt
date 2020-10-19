@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.37.0-rc1
+                                asterisk-13.37.0
 
-                                Date: 2020-09-09
+                                Date: 2020-10-19
 
                            <asteriskteam@digium.com>
 
@@ -52,12 +52,12 @@
    Coders                      Testers               Reporters                
    3 Sean Bright                                     1 Dennis                 
    3 Joshua C. Colp                                  1 Nickolay V. Shmyrev    
-   2 George Joseph                                   1 Ramarajan              
-   2 Alexander Traud                                 1 Ove Aursand            
-   1 Kfir Itzhak                                     1 Thomas Johnson         
-   1 Kevin Harwell                                   1 Misha Vodsedalek       
-   1 Torrey Searle                                   1 Torrey Searle          
-   1 Asterisk Development Team                       1 Kfir Itzhak            
+   2 Asterisk Development Team                       1 Ramarajan              
+   2 George Joseph                                   1 Ove Aursand            
+   2 Alexander Traud                                 1 Thomas Johnson         
+   1 Kfir Itzhak                                     1 Misha Vodsedalek       
+   1 Kevin Harwell                                   1 Torrey Searle          
+   1 Torrey Searle                                   1 Kfir Itzhak            
    1 Patrick Verzele                                 1 Joshua C. Colp         
    1 Nickolay Shmyrev                                1 Karsten Wemheuer       
    1 Tzafrir Cohen                                   1 Joseph Ades            
@@ -168,6 +168,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | 7a5b1ab47a | Asterisk Development | Update for 13.37.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | 8ccae31f5d | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 13.37.0                            |
    |------------+----------------------+------------------------------------|
@@ -197,28 +200,24 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                           |    1
- .version                                             |    1
- ChangeLog                                            |70953 -------------------
- asterisk-13.36.0-summary.html                        |   64
- asterisk-13.36.0-summary.txt                         |  226
- b/CHANGES                                            |    9
- b/apps/app_followme.c                                |   90
- b/apps/app_queue.c                                   |    1
- b/apps/app_voicemail.c                               |   30
- b/channels/pjsip/dialplan_functions.c                |    5
- b/configs/samples/followme.conf.sample               |    8
- b/configs/samples/pjsip.conf.sample                  |   10
- b/contrib/scripts/ast_coredumper                     |    4
- b/contrib/scripts/sip_nat_settings                   |   19
- b/include/asterisk/frame.h                           |    5
- b/include/asterisk/logger.h                          |   81
- b/main/bridge_channel.c                              |   37
- b/res/res_pjsip_diversion.c                          |    2
- contrib/realtime/mysql/mysql_cdr.sql                 |   33
- contrib/realtime/mysql/mysql_config.sql              | 1195
- contrib/realtime/mysql/mysql_voicemail.sql           |   35
- contrib/realtime/postgresql/postgresql_cdr.sql       |   37
- contrib/realtime/postgresql/postgresql_config.sql    | 1293
- contrib/realtime/postgresql/postgresql_voicemail.sql |   39
- 24 files changed, 219 insertions(+), 73959 deletions(-)
+ asterisk-13.36.0-summary.html          |   64 ---------
+ asterisk-13.36.0-summary.txt           |  226 ---------------------------------
+ b/.version                             |    2
+ b/CHANGES                              |    9 +
+ b/ChangeLog                            |  185 +++++++++++++++++++++++++--
+ b/apps/app_followme.c                  |   90 ++++++++-----
+ b/apps/app_queue.c                     |    1
+ b/apps/app_voicemail.c                 |   30 +---
+ b/asterisk-13.37.0-rc1-summary.html    |   66 +++++++++
+ b/asterisk-13.37.0-rc1-summary.txt     |  224 ++++++++++++++++++++++++++++++++
+ b/channels/pjsip/dialplan_functions.c  |    5
+ b/configs/samples/followme.conf.sample |    8 +
+ b/configs/samples/pjsip.conf.sample    |   10 -
+ b/contrib/scripts/ast_coredumper       |    4
+ b/contrib/scripts/sip_nat_settings     |   19 +-
+ b/include/asterisk/frame.h             |    5
+ b/include/asterisk/logger.h            |   81 ++++++++++-
+ b/main/bridge_channel.c                |   37 +++++
+ b/res/res_pjsip_diversion.c            |    6
+ b/res/res_pjsip_session.c              |    5
+ 20 files changed, 694 insertions(+), 383 deletions(-)
