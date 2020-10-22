@@ -35499,7 +35499,7 @@ static void startup_event_cb(void *data, struct stasis_subscription *sub, struct
 		return;
 	}
 
-	deprecation_notice();
+	//deprecation_notice();
 
 	stasis_unsubscribe(sub);
 }
@@ -35721,7 +35721,7 @@ static int load_module(void)
 	}
 
 	if (ast_fully_booted) {
-		deprecation_notice();
+		//deprecation_notice();
 	} else {
 		stasis_subscribe_pool(ast_manager_get_topic(), startup_event_cb, NULL);
 	}

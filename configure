@@ -1196,6 +1196,18 @@ PBX_BFD
 BFD_DIR
 BFD_INCLUDE
 BFD_LIB
+PBX_AMR_WB_ENCODER
+AMR_WB_ENCODER_DIR
+AMR_WB_ENCODER_INCLUDE
+AMR_WB_ENCODER_LIB
+PBX_AMR_WB_DECODER
+AMR_WB_DECODER_DIR
+AMR_WB_DECODER_INCLUDE
+AMR_WB_DECODER_LIB
+PBX_AMR_NB
+AMR_NB_DIR
+AMR_NB_INCLUDE
+AMR_NB_LIB
 PBX_ALSA
 ALSA_DIR
 ALSA_INCLUDE
@@ -1347,6 +1359,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1379,6 +1392,9 @@ enable_coverage
 with_jansson_bundled
 with_pjproject_bundled
 with_asound
+with_opencore_amrnb
+with_opencore_amrwb
+with_vo_amrwbenc
 with_bfd
 with_execinfo
 with_bluetooth
@@ -1535,6 +1551,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1787,6 +1804,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1924,7 +1950,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2077,6 +2103,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2138,6 +2165,14 @@ Optional Packages:
   --with-pjproject-bundled
                           Use bundled pjproject libraries (default)
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
+  --with-opencore-amrnb=PATH
+                          use AMR Audio Codec (Narrowband) Decoder/Encoder
+                          files in PATH
+  --with-opencore-amrwb=PATH
+                          use AMR-WB Audio Codec (Wideband) Decoder files in
+                          PATH
+  --with-vo-amrwbenc=PATH use AMR-WB Audio Codec (Wideband) Encoder files in
+                          PATH
   --with-bfd=PATH         use Debug symbol decoding files in PATH
   --with-execinfo=PATH    use Stack Backtrace files in PATH
   --with-bluetooth=PATH   use Bluetooth files in PATH
@@ -9399,6 +9434,102 @@ fi
 
 
 
+    AMR_NB_DESCRIP="AMR Audio Codec (Narrowband) Decoder/Encoder"
+    AMR_NB_OPTION="opencore-amrnb"
+    PBX_AMR_NB=0
+
+# Check whether --with-opencore-amrnb was given.
+if test "${with_opencore_amrnb+set}" = set; then :
+  withval=$with_opencore_amrnb;
+	case ${withval} in
+	n|no)
+	USE_AMR_NB=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_AMR_NB=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} AMR_NB"
+	;;
+	*)
+	AMR_NB_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} AMR_NB"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    AMR_WB_DECODER_DESCRIP="AMR-WB Audio Codec (Wideband) Decoder"
+    AMR_WB_DECODER_OPTION="opencore-amrwb"
+    PBX_AMR_WB_DECODER=0
+
+# Check whether --with-opencore-amrwb was given.
+if test "${with_opencore_amrwb+set}" = set; then :
+  withval=$with_opencore_amrwb;
+	case ${withval} in
+	n|no)
+	USE_AMR_WB_DECODER=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_AMR_WB_DECODER=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} AMR_WB_DECODER"
+	;;
+	*)
+	AMR_WB_DECODER_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} AMR_WB_DECODER"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    AMR_WB_ENCODER_DESCRIP="AMR-WB Audio Codec (Wideband) Encoder"
+    AMR_WB_ENCODER_OPTION="vo-amrwbenc"
+    PBX_AMR_WB_ENCODER=0
+
+# Check whether --with-vo-amrwbenc was given.
+if test "${with_vo_amrwbenc+set}" = set; then :
+  withval=$with_vo_amrwbenc;
+	case ${withval} in
+	n|no)
+	USE_AMR_WB_ENCODER=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_AMR_WB_ENCODER=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} AMR_WB_ENCODER"
+	;;
+	*)
+	AMR_WB_ENCODER_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} AMR_WB_ENCODER"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
     BFD_DESCRIP="Debug symbol decoding"
     BFD_OPTION="bfd"
     PBX_BFD=0
@@ -14797,7 +14928,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14843,7 +14974,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14867,7 +14998,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14912,7 +15043,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14936,7 +15067,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -16236,6 +16367,8 @@ main ()
     if (*(data + i) != *(data3 + i))
       return 14;
   close (fd);
+  free (data);
+  free (data3);
   return 0;
 }
 _ACEOF
@@ -19707,6 +19840,294 @@ fi
          PBX_ALSA=1
          cat >>confdefs.h <<_ACEOF
 #define HAVE_ALSA 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_AMR_NB}" != "x1" -a "${USE_AMR_NB}" != "no"; then
+   pbxlibdir=""
+   # if --with-AMR_NB=DIR has been specified, use it.
+   if test "x${AMR_NB_DIR}" != "x"; then
+      if test -d ${AMR_NB_DIR}/lib; then
+         pbxlibdir="-L${AMR_NB_DIR}/lib"
+      else
+         pbxlibdir="-L${AMR_NB_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Encoder_Interface_init in -lopencore-amrnb" >&5
+$as_echo_n "checking for Encoder_Interface_init in -lopencore-amrnb... " >&6; }
+if ${ac_cv_lib_opencore_amrnb_Encoder_Interface_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lopencore-amrnb ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char Encoder_Interface_init ();
+int
+main ()
+{
+return Encoder_Interface_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_opencore_amrnb_Encoder_Interface_init=yes
+else
+  ac_cv_lib_opencore_amrnb_Encoder_Interface_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_opencore_amrnb_Encoder_Interface_init" >&5
+$as_echo "$ac_cv_lib_opencore_amrnb_Encoder_Interface_init" >&6; }
+if test "x$ac_cv_lib_opencore_amrnb_Encoder_Interface_init" = xyes; then :
+  AST_AMR_NB_FOUND=yes
+else
+  AST_AMR_NB_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_AMR_NB_FOUND}" = "yes"; then
+      AMR_NB_LIB="${pbxlibdir} -lopencore-amrnb "
+      # if --with-AMR_NB=DIR has been specified, use it.
+      if test "x${AMR_NB_DIR}" != "x"; then
+         AMR_NB_INCLUDE="-I${AMR_NB_DIR}/include"
+      fi
+      AMR_NB_INCLUDE="${AMR_NB_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${AMR_NB_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "opencore-amrnb/interf_enc.h" "ac_cv_header_opencore_amrnb_interf_enc_h" "$ac_includes_default"
+if test "x$ac_cv_header_opencore_amrnb_interf_enc_h" = xyes; then :
+  AMR_NB_HEADER_FOUND=1
+else
+  AMR_NB_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${AMR_NB_HEADER_FOUND}" = "x0" ; then
+         AMR_NB_LIB=""
+         AMR_NB_INCLUDE=""
+      else
+
+         PBX_AMR_NB=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_AMR_NB 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_AMR_WB_DECODER}" != "x1" -a "${USE_AMR_WB_DECODER}" != "no"; then
+   pbxlibdir=""
+   # if --with-AMR_WB_DECODER=DIR has been specified, use it.
+   if test "x${AMR_WB_DECODER_DIR}" != "x"; then
+      if test -d ${AMR_WB_DECODER_DIR}/lib; then
+         pbxlibdir="-L${AMR_WB_DECODER_DIR}/lib"
+      else
+         pbxlibdir="-L${AMR_WB_DECODER_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for D_IF_init in -lopencore-amrwb" >&5
+$as_echo_n "checking for D_IF_init in -lopencore-amrwb... " >&6; }
+if ${ac_cv_lib_opencore_amrwb_D_IF_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lopencore-amrwb ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char D_IF_init ();
+int
+main ()
+{
+return D_IF_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_opencore_amrwb_D_IF_init=yes
+else
+  ac_cv_lib_opencore_amrwb_D_IF_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_opencore_amrwb_D_IF_init" >&5
+$as_echo "$ac_cv_lib_opencore_amrwb_D_IF_init" >&6; }
+if test "x$ac_cv_lib_opencore_amrwb_D_IF_init" = xyes; then :
+  AST_AMR_WB_DECODER_FOUND=yes
+else
+  AST_AMR_WB_DECODER_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_AMR_WB_DECODER_FOUND}" = "yes"; then
+      AMR_WB_DECODER_LIB="${pbxlibdir} -lopencore-amrwb "
+      # if --with-AMR_WB_DECODER=DIR has been specified, use it.
+      if test "x${AMR_WB_DECODER_DIR}" != "x"; then
+         AMR_WB_DECODER_INCLUDE="-I${AMR_WB_DECODER_DIR}/include"
+      fi
+      AMR_WB_DECODER_INCLUDE="${AMR_WB_DECODER_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${AMR_WB_DECODER_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "opencore-amrwb/dec_if.h" "ac_cv_header_opencore_amrwb_dec_if_h" "$ac_includes_default"
+if test "x$ac_cv_header_opencore_amrwb_dec_if_h" = xyes; then :
+  AMR_WB_DECODER_HEADER_FOUND=1
+else
+  AMR_WB_DECODER_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${AMR_WB_DECODER_HEADER_FOUND}" = "x0" ; then
+         AMR_WB_DECODER_LIB=""
+         AMR_WB_DECODER_INCLUDE=""
+      else
+
+         PBX_AMR_WB_DECODER=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_AMR_WB_DECODER 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+if test "x${PBX_AMR_WB_ENCODER}" != "x1" -a "${USE_AMR_WB_ENCODER}" != "no"; then
+   pbxlibdir=""
+   # if --with-AMR_WB_ENCODER=DIR has been specified, use it.
+   if test "x${AMR_WB_ENCODER_DIR}" != "x"; then
+      if test -d ${AMR_WB_ENCODER_DIR}/lib; then
+         pbxlibdir="-L${AMR_WB_ENCODER_DIR}/lib"
+      else
+         pbxlibdir="-L${AMR_WB_ENCODER_DIR}"
+      fi
+   fi
+
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for E_IF_init in -lvo-amrwbenc" >&5
+$as_echo_n "checking for E_IF_init in -lvo-amrwbenc... " >&6; }
+if ${ac_cv_lib_vo_amrwbenc_E_IF_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lvo-amrwbenc ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char E_IF_init ();
+int
+main ()
+{
+return E_IF_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_vo_amrwbenc_E_IF_init=yes
+else
+  ac_cv_lib_vo_amrwbenc_E_IF_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_vo_amrwbenc_E_IF_init" >&5
+$as_echo "$ac_cv_lib_vo_amrwbenc_E_IF_init" >&6; }
+if test "x$ac_cv_lib_vo_amrwbenc_E_IF_init" = xyes; then :
+  AST_AMR_WB_ENCODER_FOUND=yes
+else
+  AST_AMR_WB_ENCODER_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+
+
+   # now check for the header.
+   if test "${AST_AMR_WB_ENCODER_FOUND}" = "yes"; then
+      AMR_WB_ENCODER_LIB="${pbxlibdir} -lvo-amrwbenc "
+      # if --with-AMR_WB_ENCODER=DIR has been specified, use it.
+      if test "x${AMR_WB_ENCODER_DIR}" != "x"; then
+         AMR_WB_ENCODER_INCLUDE="-I${AMR_WB_ENCODER_DIR}/include"
+      fi
+      AMR_WB_ENCODER_INCLUDE="${AMR_WB_ENCODER_INCLUDE} "
+
+         # check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${AMR_WB_ENCODER_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "vo-amrwbenc/enc_if.h" "ac_cv_header_vo_amrwbenc_enc_if_h" "$ac_includes_default"
+if test "x$ac_cv_header_vo_amrwbenc_enc_if_h" = xyes; then :
+  AMR_WB_ENCODER_HEADER_FOUND=1
+else
+  AMR_WB_ENCODER_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+
+      if test "x${AMR_WB_ENCODER_HEADER_FOUND}" = "x0" ; then
+         AMR_WB_ENCODER_LIB=""
+         AMR_WB_ENCODER_INCLUDE=""
+      else
+
+         PBX_AMR_WB_ENCODER=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_AMR_WB_ENCODER 1
 _ACEOF
 
       fi
