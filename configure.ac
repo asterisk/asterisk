@@ -2524,7 +2524,7 @@ if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 fi
 AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
 
-for ver in 5.3 5.2 5.1; do
+for ver in 5.4 5.3 5.2 5.1; do
 	AST_EXT_LIB_CHECK([LUA], lua${ver}, [luaL_newstate], lua${ver}/lua.h, [-lm])
 	if test "x${PBX_LUA}" = "x1" ; then
 		if test x"${LUA_DIR}" = x; then

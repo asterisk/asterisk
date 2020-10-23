@@ -29283,7 +29283,7 @@ fi
 
 
 
-for ver in 5.3 5.2 5.1; do
+for ver in 5.4 5.3 5.2 5.1; do
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
