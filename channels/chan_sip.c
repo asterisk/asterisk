@@ -22931,6 +22931,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	char tmp[512];
 	char *c;
 	char oldnonce[256];
+	int start = 0;
 
 	/* table of recognised keywords, and places where they should be copied */
 	const struct x {
@@ -22945,9 +22946,11 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 		{ NULL, 0 },
 	};
 
-	ast_copy_string(tmp, sip_get_header(req, header), sizeof(tmp));
-	if (ast_strlen_zero(tmp))
-		return -1;
+	do {
+		ast_copy_string(tmp, __get_header(req, header, &start), sizeof(tmp));
+		if (ast_strlen_zero(tmp))
+			return -1;
+	} while (strcasestr(tmp, "algorithm=") && !strcasestr(tmp, "algorithm=MD5"));
 	if (strncasecmp(tmp, "Digest ", strlen("Digest "))) {
 		ast_log(LOG_WARNING, "missing Digest.\n");
 		return -1;
