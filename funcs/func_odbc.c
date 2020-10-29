@@ -1181,7 +1181,7 @@ static int free_acf_query(struct acf_odbc_query *query)
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	const char *tmp;
-	const char *tmp2;
+	const char *tmp2 = NULL;
 	int i;
 
 	if (!cfg || !catg) {
