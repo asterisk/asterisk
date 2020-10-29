@@ -6,6 +6,7 @@ the GNU General Public License Version 2.
 """
 
 import re
+import glob
 import itertools
 
 from astdicts import OrderedDict
@@ -56,6 +57,30 @@ class Section(MultiOrderedDict):
         Use self.id as means of determining equality
         """
         return self.id == other.id
+
+    def __lt__(self, other):
+        """
+        Use self.id as means of determining equality
+        """
+        return self.id < other.id
+
+    def __gt__(self, other):
+        """
+        Use self.id as means of determining equality
+        """
+        return self.id > other.id
+
+    def __le__(self, other):
+        """
+        Use self.id as means of determining equality
+        """
+        return self.id <= other.id
+
+    def __ge__(self, other):
+        """
+        Use self.id as means of determining equality
+        """
+        return self.id >= other.id
 
     def get(self, key, from_self=True, from_templates=True,
             from_defaults=True):
@@ -215,8 +240,17 @@ def try_include(line):
     included filename, otherwise None.
     """
 
-    match = re.match('^#include\s*[<"]?(.*)[>"]?$', line)
-    return match.group(1) if match else None
+    match = re.match('^#include\s*([^;]+).*$', line)
+    if match:
+        trimmed = match.group(1).rstrip()
+        quoted = re.match('^"([^"]+)"$', trimmed)
+        if quoted:
+            return quoted.group(1)
+        bracketed = re.match('^<([^>]+)>$', trimmed)
+        if bracketed:
+            return bracketed.group(1)
+        return trimmed
+    return None
 
 
 def try_section(line):
@@ -458,8 +492,9 @@ class MultiOrderedConfigParser:
 
             include_name = try_include(line)
             if include_name:
-                parser = self.add_include(include_name)
-                parser.read(include_name, sect)
+                for incl in sorted(glob.iglob(include_name)):
+                    parser = self.add_include(incl)
+                    parser.read(incl, sect)
                 continue
 
             section, is_template, templates = try_section(line)
