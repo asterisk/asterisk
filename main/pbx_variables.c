@@ -327,6 +327,8 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 			s = ast_str_buffer(*str);
 		} else if (!strcmp(var, "SYSTEMNAME")) {
 			s = ast_config_AST_SYSTEM_NAME;
+		} else if (!strcmp(var, "ASTCACHEDIR")) {
+			s = ast_config_AST_CACHE_DIR;
 		} else if (!strcmp(var, "ASTETCDIR")) {
 			s = ast_config_AST_CONFIG_DIR;
 		} else if (!strcmp(var, "ASTMODDIR")) {
