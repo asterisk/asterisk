@@ -123,7 +123,7 @@ static void add_channel(char *tech, char *location)
 static int load_config(void)
 {
 	FILE *f;
-	char buf[1024];
+	char buf[256];
 	char *val;
 	char *val2;
 	int lineno=0;
