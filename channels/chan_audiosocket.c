@@ -147,7 +147,7 @@ static struct ast_channel *audiosocket_request(const char *type,
 	struct ast_format_cap *caps = NULL;
 	struct ast_format *fmt = NULL;
 	uuid_t uu;
-	int fd;
+	int fd = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(destination);
 		AST_APP_ARG(idStr);

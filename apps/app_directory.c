@@ -396,7 +396,7 @@ static int select_item_menu(struct ast_channel *chan, struct directory_item **it
 {
 	struct directory_item **block, *item;
 	int i, limit, res = 0;
-	char buf[9];
+	char buf[7+12]; /* INT_MIN has a length of 12 chars */
 
 	/* option p(n): cellphone pause option */
 	select_item_pause(chan, flags, opts);

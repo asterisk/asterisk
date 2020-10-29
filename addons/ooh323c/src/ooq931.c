@@ -585,7 +585,7 @@ int ooDecodeUUIE(OOCTXT* pctxt, Q931Message *q931Msg)
    unsigned int i;
    ASN1BOOL aligned=TRUE;
    int stat;
-   Q931InformationElement *ie;
+   Q931InformationElement *ie=NULL;
    /* OOCTXT *pctxt = &gH323ep.msgctxt; */
    if(q931Msg ==NULL)
    {
