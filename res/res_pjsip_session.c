@@ -2979,7 +2979,16 @@ static void session_destructor(void *obj)
 	ast_dsp_free(session->dsp);
 
 	if (session->inv_session) {
-		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
+		struct pjsip_dialog *dlg = session->inv_session->dlg;
+
+		/* The INVITE session uses the dialog pool for memory, so we need to
+		 * decrement its reference first before that of the dialog.
+		 */
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(session->inv_session);
+#endif
+		pjsip_dlg_dec_session(dlg, &session_module);
 	}
 
 	ast_test_suite_event_notify("SESSION_DESTROYED", "Endpoint: %s", endpoint_name);
@@ -3087,6 +3096,24 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 	ast_sip_dialog_set_serializer(inv_session->dlg, session->serializer);
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
+
+	/* When a PJSIP INVITE session is created it is created with a reference
+	 * count of 1, with that reference being managed by the underlying state
+	 * of the INVITE session itself. When the INVITE session transitions to
+	 * a DISCONNECTED state that reference is released. This means we can not
+	 * rely on that reference to ensure the INVITE session remains for the
+	 * lifetime of our session. To ensure it does we add our own reference
+	 * and release it when our own session goes away, ensuring that the INVITE
+	 * session remains for the lifetime of session.
+	 */
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		return NULL;
+	}
+#endif
+
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
 	inv_session->mod_data[session_module.id] = ao2_bump(session);
 	session->contact = ao2_bump(contact);
@@ -3962,9 +3989,6 @@ static int new_invite(struct new_invite *invite)
 			ast_sip_session_get_name(invite->session),
 			invite->session->inv_session->cause,
 			pjsip_get_status_text(invite->session->inv_session->cause)->ptr);
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(invite->session->inv_session);
-#endif
 		SCOPE_EXIT_RTN_VALUE(-1);
 	}
 
@@ -4082,9 +4106,6 @@ static int new_invite(struct new_invite *invite)
 	handle_incoming_request(invite->session, invite->rdata);
 
 end:
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-	pjsip_inv_dec_ref(invite->session->inv_session);
-#endif
 	SCOPE_EXIT_RTN_VALUE(0, "%s\n", ast_sip_session_get_name(invite->session));
 }
 
@@ -4127,17 +4148,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	 * process handling has successfully completed.
 	 */
 
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
-		/* Dialog's lock and a reference are removed in new_invite_initial_answer */
-		if (!new_invite_initial_answer(inv_session, rdata, 500, 500, PJ_FALSE)) {
-			/* Terminate the session if it wasn't done in the answer */
-			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-		}
-		return;
-	}
-#endif
 	session = ast_sip_session_alloc(endpoint, NULL, inv_session, rdata);
 	if (!session) {
 		/* Dialog's lock and reference are removed in new_invite_initial_answer */
@@ -4145,10 +4155,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 			/* Terminate the session if it wasn't done in the answer */
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		}
-
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(inv_session);
-#endif
 		return;
 	}
 
