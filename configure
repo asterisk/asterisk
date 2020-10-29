@@ -1295,6 +1295,7 @@ BUILD_OS
 BUILD_VENDOR
 BUILD_CPU
 BUILD_PLATFORM
+astcachedir
 astvarrundir
 astlogdir
 astspooldir
@@ -4660,6 +4661,7 @@ $as_echo "$ac_cv_safe_to_define___extensions__" >&6; }
 
 # System default paths
 astsbindir='${sbindir}'
+astcachedir='${localstatedir}/cache/asterisk'
 astetcdir='${sysconfdir}/asterisk'
 astheaderdir='${includedir}/asterisk'
 astlibdir='${libdir}'
@@ -4728,6 +4730,7 @@ $as_echo "#define _DARWIN_UNLIMITED_SELECT 1" >>confdefs.h
      ;;
      solaris*)
      if test ${prefix} = 'NONE'; then
+        astcachedir=/var/cache/asterisk
         astetcdir=/var/etc/asterisk
         astsbindir=/opt/asterisk/sbin
         astlibdir=/opt/asterisk/lib

@@ -34,6 +34,7 @@ AC_USE_SYSTEM_EXTENSIONS	dnl note- does not work on FreeBSD
 
 # System default paths
 AC_SUBST([astsbindir],        ['${sbindir}'])dnl
+AC_SUBST([astcachedir],       ['${localstatedir}/cache/asterisk'])dnl
 AC_SUBST([astetcdir],         ['${sysconfdir}/asterisk'])dnl
 AC_SUBST([astheaderdir],      ['${includedir}/asterisk'])dnl
 AC_SUBST([astlibdir],         ['${libdir}'])dnl
@@ -98,6 +99,7 @@ case "${host_os}" in
      ;;
      solaris*)
      if test ${prefix} = 'NONE'; then
+        astcachedir=/var/cache/asterisk
         astetcdir=/var/etc/asterisk
         astsbindir=/opt/asterisk/sbin
         astlibdir=/opt/asterisk/lib

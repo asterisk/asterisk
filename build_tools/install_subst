@@ -26,6 +26,7 @@ trap cleanup_tmp 0
 src="$1"
 dst="$2"
 sed <"$src" \
+	-e "s|__ASTERISK_CACHE_DIR__|$ASTCACHEDIR|g" \
 	-e "s|__ASTERISK_DATA_DIR__|$ASTDATADIR|g" \
 	-e "s|__ASTERISK_DB_DIR__|$ASTDBDIR|g" \
 	-e "s|__ASTERISK_ETC_DIR__|$ASTETCDIR|g" \

@@ -24,6 +24,7 @@ fi
 
 set +e
 if [ x"$USER_GROUP" != x ] ; then
+	chown -R $USER_GROUP $DESTDIR/var/cache/asterisk
 	chown -R $USER_GROUP $DESTDIR/var/lib/asterisk
 	chown -R $USER_GROUP $DESTDIR/var/spool/asterisk
 	chown -R $USER_GROUP $DESTDIR/var/log/asterisk

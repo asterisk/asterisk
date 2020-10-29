@@ -97,6 +97,7 @@ ASTMODDIR = @astmoddir@
 ASTMANDIR = @astmandir@
 astvarlibdir = @astvarlibdir@
 ASTVARLIBDIR = @astvarlibdir@
+ASTCACHEDIR = @astcachedir@
 ASTDATADIR = @astdatadir@
 ASTDBDIR = @astdbdir@
 ASTKEYDIR = @astkeydir@
