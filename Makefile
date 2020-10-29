@@ -49,6 +49,7 @@ DESTDIR?=$(INSTALL_PATH)
 export DESTDIR
 
 export INSTALL_PATH       # Additional prefix for the following paths
+export ASTCACHEDIR
 export ASTETCDIR          # Path for config files
 export ASTVARRUNDIR
 export ASTSPOOLDIR
@@ -555,7 +556,7 @@ update:
 
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
-INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
+INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTCACHEDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
 	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
 	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
 	"$(ASTSPOOLDIR)/voicemail" "$(ASTSPOOLDIR)/recording" \
@@ -779,7 +780,8 @@ define INSTALL_CONFIGS
 	done ; \
 	if [ "$(OVERWRITE)" = "y" ]; then \
 		echo "Updating asterisk.conf" ; \
-		sed -e 's|^astetcdir.*$$|astetcdir => $(ASTETCDIR)|' \
+		sed -e 's|^astcachedir.*$$|astcachedir => $(ASTCACHEDIR)|' \
+			-e 's|^astetcdir.*$$|astetcdir => $(ASTETCDIR)|' \
 			-e 's|^astmoddir.*$$|astmoddir => $(ASTMODDIR)|' \
 			-e 's|^astvarlibdir.*$$|astvarlibdir => $(ASTVARLIBDIR)|' \
 			-e 's|^astdbdir.*$$|astdbdir => $(ASTDBDIR)|' \
