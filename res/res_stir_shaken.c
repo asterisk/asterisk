@@ -1200,7 +1200,7 @@ static int stir_shaken_read(struct ast_channel *chan, const char *function,
 	 */
 	if (ast_strlen_zero(second)) {
 		ast_log(LOG_ERROR, "Retrieving a value using %s requires two paramaters (index, value) "
-			"- only index was given (%s)\n", function, second);
+			"- only index was given\n", function);
 		return -1;
 	}
 
