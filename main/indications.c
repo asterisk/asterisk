@@ -702,7 +702,11 @@ static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct 
 	ast_tone_zone_lock(tz);
 
 	if (ast_register_indication(tz, a->argv[3], a->argv[4])) {
-		ast_log(LOG_WARNING, "Unable to register indication %s/%s\n", a->argv[2], a->argv[3]);
+		if (ast_strlen_zero(a->argv[3])) {
+			ast_log(LOG_WARNING, "Unable to register indication %s\n", a->argv[2]);
+		} else {
+			ast_log(LOG_WARNING, "Unable to register indication %s/%s\n", a->argv[2], a->argv[3]);
+		}
 		if (created_country) {
 			ast_unregister_indication_country(a->argv[2]);
 		}
