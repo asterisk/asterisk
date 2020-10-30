@@ -17,7 +17,6 @@
  */
 
 /*** MODULEINFO
-	<depend>crypto</depend>
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_session</depend>

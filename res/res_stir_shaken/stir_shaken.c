@@ -23,6 +23,9 @@
 
 #include "asterisk.h"
 
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+
 #include "asterisk/cli.h"
 #include "asterisk/sorcery.h"
 
