@@ -25,6 +25,8 @@
 
 #include "asterisk.h"
 
+#include <openssl/evp.h>
+
 #include "asterisk/module.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/time.h"

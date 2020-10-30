@@ -18,9 +18,6 @@
 #ifndef _RES_STIR_SHAKEN_H
 #define _RES_STIR_SHAKEN_H
 
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-
 #define STIR_SHAKEN_ENCRYPTION_ALGORITHM "ES256"
 #define STIR_SHAKEN_PPT "shaken"
 #define STIR_SHAKEN_TYPE "passport"
