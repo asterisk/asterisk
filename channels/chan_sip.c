@@ -28808,7 +28808,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (start && !found_supported) {
 			/* Format requested that we do not support */
 			transmit_response(p, "406 Not Acceptable", req);
-			ast_debug(2, "Received SIP mailbox subscription for unknown format: %s\n", accept);
+			ast_debug(2, "Received SIP mailbox subscription for unknown format\n");
 			pvt_set_needdestroy(p, "unknown format");
 			if (authpeer) {
 				sip_unref_peer(authpeer, "sip_unref_peer, from handle_request_subscribe (authpeer 3)");
@@ -30388,7 +30388,7 @@ static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp)
 
 	p_hdrval = sip_get_header(rsp, "Min-SE");
 	if (ast_strlen_zero(p_hdrval)) {
-		ast_log(LOG_WARNING, "422 response without a Min-SE header %s\n", p_hdrval);
+		ast_log(LOG_WARNING, "422 response without a Min-SE header\n");
 		return;
 	}
 	rtn = parse_minse(p_hdrval, &minse);

@@ -2800,7 +2800,7 @@ static int add_calltoken_ignore(const char *addr)
 	int error = 0;
 
 	if (ast_strlen_zero(addr)) {
-		ast_log(LOG_WARNING, "invalid calltokenoptional %s\n", addr);
+		ast_log(LOG_WARNING, "invalid calltokenoptional (null)\n");
 		return -1;
 	}
 
