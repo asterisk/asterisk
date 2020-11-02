@@ -5842,6 +5842,6 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 5,
-	.requires = "dnsmgr,res_pjproject",
+	.requires = "dnsmgr,res_pjproject,res_sorcery_config,res_sorcery_memory,res_sorcery_astdb",
 	.optional_modules = "res_statsd",
 );

@@ -34,6 +34,7 @@
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
+	<depend>res_sorcery_config</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -767,4 +768,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 6,
+	.requires = "res_sorcery_config",
 );
