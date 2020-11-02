@@ -1947,4 +1947,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,
+	.requires = "res_odbc",
 );
