@@ -4116,8 +4116,6 @@ static pj_bool_t does_method_match(const pj_str_t *message_method, const char *s
 	return pj_stristr(&method, message_method) ? PJ_TRUE : PJ_FALSE;
 }
 
-/*! Maximum number of challenges before assuming that we are in a loop */
-#define MAX_RX_CHALLENGES	10
 #define TIMER_INACTIVE		0
 #define TIMEOUT_TIMER2		5
 

@@ -77,6 +77,9 @@ struct pjsip_tpselector;
 
 AST_VECTOR(ast_sip_service_route_vector, char *);
 
+/*! Maximum number of challenges before assuming that we are in a loop */
+#define MAX_RX_CHALLENGES	10
+
 /*!
  * \brief Structure for SIP transport information
  */
