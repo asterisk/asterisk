@@ -1785,6 +1785,12 @@ enum ast_sip_scheduler_task_flags {
 	AST_SIP_SCHED_TASK_VARIABLE = (1 << 0),
 
 	/*!
+	 * Run just once.
+	 * Return values are ignored.
+	 */
+	AST_SIP_SCHED_TASK_ONESHOT = (1 << 6),
+
+	/*!
 	 * The task data is not an AO2 object.
 	 */
 	AST_SIP_SCHED_TASK_DATA_NOT_AO2 = (0 << 1),
@@ -1906,6 +1912,26 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end);
 
 /*!
+ * \brief Gets the queued, last start, last_end, time left, interval, next run
+ * \since 16.15.0
+ * \since 18.1.0
+ *
+ * \param schtd The task structure pointer
+ * \param[out] when_queued Pointer to a timeval structure to contain the time when queued
+ * \param[out] last_start Pointer to a timeval structure to contain the time when last started
+ * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
+ * \param[out] interval Pointer to an int to contain the interval in ms
+ * \param[out] time_left Pointer to an int to contain the ms left to the next run
+ * \param[out] last_end Pointer to a timeval structure to contain the next run time
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Any of the pointers can be NULL if you don't need them.
+ */
+int ast_sip_sched_task_get_times2(struct ast_sip_sched_task *schtd,
+	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end,
+	int *interval, int *time_left, struct timeval *next_start);
+
+/*!
  * \brief Gets the last start and end times of the task by name
  * \since 13.9.0
  *
@@ -1919,6 +1945,26 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
  */
 int ast_sip_sched_task_get_times_by_name(const char *name,
 	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end);
+
+/*!
+ * \brief Gets the queued, last start, last_end, time left, interval, next run by task name
+ * \since 16.15.0
+ * \since 18.1.0
+ *
+ * \param name The task name
+ * \param[out] when_queued Pointer to a timeval structure to contain the time when queued
+ * \param[out] last_start Pointer to a timeval structure to contain the time when last started
+ * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
+ * \param[out] interval Pointer to an int to contain the interval in ms
+ * \param[out] time_left Pointer to an int to contain the ms left to the next run
+ * \param[out] last_end Pointer to a timeval structure to contain the next run time
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Any of the pointers can be NULL if you don't need them.
+ */
+int ast_sip_sched_task_get_times_by_name2(const char *name,
+	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end,
+	int *interval, int *time_left, struct timeval *next_start);
 
 /*!
  * \brief Gets the number of milliseconds until the next invocation
