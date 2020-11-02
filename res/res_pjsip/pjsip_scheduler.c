@@ -30,6 +30,8 @@
 #include "asterisk/res_pjsip_cli.h"
 #include "asterisk/taskprocessor.h"
 
+#include <regex.h>
+
 #define TASK_BUCKETS 53
 
 static struct ast_sched_context *scheduler_context;
@@ -105,7 +107,7 @@ static int run_task(void *data)
 	 * Don't restart if the task returned <= 0 or if the interval
 	 * was set to 0 while the task was running
 	 */
-	if (res <= 0 || !schtd->interval) {
+	if ((schtd->flags & AST_SIP_SCHED_TASK_ONESHOT) || res <= 0 || !schtd->interval) {
 		schtd->interval = 0;
 		ao2_unlock(schtd);
 		ao2_unlink(tasks, schtd);
@@ -232,9 +234,9 @@ int ast_sip_sched_task_cancel_by_name(const char *name)
 	return res;
 }
 
-
-int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
-	struct timeval *queued, struct timeval *last_start, struct timeval *last_end)
+int ast_sip_sched_task_get_times2(struct ast_sip_sched_task *schtd,
+	struct timeval *queued, struct timeval *last_start, struct timeval *last_end,
+	int *interval, int *time_left, struct timeval *next_start)
 {
 	ao2_lock(schtd);
 	if (queued) {
@@ -246,13 +248,63 @@ int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 	if (last_end) {
 		memcpy(last_end, &schtd->last_end, sizeof(struct timeval));
 	}
+
+	if (interval) {
+		*interval = schtd->interval;
+	}
+
+	if (time_left || next_start) {
+		int delay;
+		struct timeval since_when;
+		struct timeval now;
+		struct timeval next;
+
+		if (schtd->interval) {
+			delay = schtd->interval;
+			now = ast_tvnow();
+
+			if (schtd->flags & AST_SIP_SCHED_TASK_DELAY) {
+				since_when = schtd->is_running ? now : schtd->last_end;
+			} else {
+				since_when = schtd->last_start.tv_sec ? schtd->last_start : schtd->when_queued;
+			}
+
+			delay -= ast_tvdiff_ms(now, since_when);
+
+			delay = delay < 0 ? 0 : delay;
+
+
+			if (time_left) {
+				*time_left = delay;
+			}
+
+			if (next_start) {
+				next = ast_tvadd(now, ast_tv(delay / 1000, (delay % 1000) * 1000));
+				memcpy(next_start, &next, sizeof(struct timeval));
+			}
+		} else {
+			if (time_left) {
+				*time_left = -1;
+			}
+		}
+
+	}
+
 	ao2_unlock(schtd);
 
 	return 0;
 }
 
-int ast_sip_sched_task_get_times_by_name(const char *name,
+
+int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
 	struct timeval *queued, struct timeval *last_start, struct timeval *last_end)
+{
+	return ast_sip_sched_task_get_times2(schtd, queued, last_start, last_end, NULL, NULL, NULL);
+}
+
+int ast_sip_sched_task_get_times_by_name2(const char *name,
+	struct timeval *queued, struct timeval *last_start, struct timeval *last_end,
+	int *interval, int *time_left, struct timeval *next_start)
 {
 	int res;
 	struct ast_sip_sched_task *schtd;
@@ -266,9 +318,17 @@ int ast_sip_sched_task_get_times_by_name(const char *name,
 		return -1;
 	}
 
-	res = ast_sip_sched_task_get_times(schtd, queued, last_start, last_end);
+	res = ast_sip_sched_task_get_times2(schtd, queued, last_start, last_end, interval, time_left,
+		next_start);
 	ao2_ref(schtd, -1);
 	return res;
+}
+
+int ast_sip_sched_task_get_times_by_name(const char *name,
+	struct timeval *queued, struct timeval *last_start, struct timeval *last_end)
+{
+	return ast_sip_sched_task_get_times_by_name2(name, queued, last_start, last_end,
+		NULL, NULL, NULL);
 }
 
 int ast_sip_sched_task_get_name(struct ast_sip_sched_task *schtd, char *name, size_t maxlen)
@@ -287,29 +347,8 @@ int ast_sip_sched_task_get_name(struct ast_sip_sched_task *schtd, char *name, si
 int ast_sip_sched_task_get_next_run(struct ast_sip_sched_task *schtd)
 {
 	int delay;
-	struct timeval since_when;
-	struct timeval now;
 
-	ao2_lock(schtd);
-
-	if (schtd->interval) {
-		delay = schtd->interval;
-		now = ast_tvnow();
-
-		if (schtd->flags & AST_SIP_SCHED_TASK_DELAY) {
-			since_when = schtd->is_running ? now : schtd->last_end;
-		} else {
-			since_when = schtd->last_start.tv_sec ? schtd->last_start : schtd->when_queued;
-		}
-
-		delay -= ast_tvdiff_ms(now, since_when);
-
-		delay = delay < 0 ? 0 : delay;
-	} else {
-		delay = -1;
-	}
-
-	ao2_unlock(schtd);
+	ast_sip_sched_task_get_times2(schtd, NULL, NULL, NULL, NULL, &delay, NULL);
 
 	return delay;
 }
@@ -396,6 +435,7 @@ struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *seria
 	schtd->task = sip_task;
 	schtd->interval = interval;
 	schtd->flags = flags;
+	schtd->last_start = ast_tv(0, 0);
 	if (!ast_strlen_zero(name)) {
 		strcpy(schtd->name, name); /* Safe */
 	} else {
@@ -445,60 +485,75 @@ struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *seria
 #undef ID_LEN
 }
 
+#define TIME_FORMAT "%a %T"
+
 static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_iterator iter;
 	struct ao2_container *sorted_tasks;
 	struct ast_sip_sched_task *schtd;
-	const char *log_format;
 	struct ast_tm tm;
+	char times_run[16];
 	char queued[32];
 	char last_start[32];
 	char next_start[32];
-	int datelen;
 	struct timeval now;
-	static const char separator[] = "=============================================";
+	int using_regex = 0;
+	regex_t regex;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pjsip show scheduled_tasks";
-		e->usage = "Usage: pjsip show scheduled_tasks\n"
-		            "      Show all scheduled tasks\n";
+		e->usage = "Usage: pjsip show scheduled_tasks [ like <pattern> ]\n"
+		            "      Show scheduled pjsip tasks\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 3) {
+	if (a->argc != 3 && a->argc != 5) {
 		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 5) {
+		int regrc;
+		if (!strcasecmp(a->argv[3], "like") == 0) {
+			return CLI_SHOWUSAGE;
+		}
+		regrc = regcomp(&regex, a->argv[4], REG_EXTENDED | REG_ICASE | REG_NOSUB);
+		if (regrc) {
+			char err[256];
+			regerror(regrc, &regex, err, 256);
+			ast_cli(a->fd, "PJSIP Scheduled Tasks: Error: %s\n", err);
+			return CLI_FAILURE;
+		}
+		using_regex = 1;
 	}
 
 	/* Get a sorted snapshot of the scheduled tasks */
 	sorted_tasks = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
 		ast_sip_sched_task_sort_fn, NULL);
 	if (!sorted_tasks) {
-		return CLI_SUCCESS;
+		ast_cli(a->fd, "PJSIP Scheduled Tasks: Unable to allocate temporary container\n");
+		return CLI_FAILURE;
 	}
 	if (ao2_container_dup(sorted_tasks, tasks, 0)) {
 		ao2_ref(sorted_tasks, -1);
-		return CLI_SUCCESS;
+		ast_cli(a->fd, "PJSIP Scheduled Tasks: Unable to sort temporary container\n");
+		return CLI_FAILURE;
 	}
 
 	now = ast_tvnow();
-	log_format = ast_logger_get_dateformat();
 
 	ast_localtime(&now, &tm, NULL);
-	datelen = ast_strftime(queued, sizeof(queued), log_format, &tm);
 
 	ast_cli(a->fd, "PJSIP Scheduled Tasks:\n\n");
 
-	ast_cli(a->fd, "%1$-45s %2$-9s %3$-9s %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s %9$7s\n",
-		"Task Name", "Interval", "Times Run", "State",
-		datelen, "Queued", "Last Started", "Next Start", "( secs)");
-
-	ast_cli(a->fd, "%1$-45.45s %2$-9.9s %3$-9.9s %4$-5.5s  %6$-*5$.*5$s  %7$-*5$.*5$s  %9$-*8$.*8$s\n",
-		separator, separator, separator, separator,
-		datelen, separator, separator, datelen + 8, separator);
+	ast_cli(a->fd,
+		"<Task Name....................................> <Interval> <Times Run> <State>"
+		"  <Queued....>  <Last Start>  <Next Start.....secs>\n"
+		"=============================================================================="
+		"===================================================\n");
 
 	iter = ao2_iterator_init(sorted_tasks, AO2_ITERATOR_UNLINK);
 	for (; (schtd = ao2_iterator_next(&iter)); ao2_ref(schtd, -1)) {
@@ -506,6 +561,11 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		struct timeval next;
 
 		ao2_lock(schtd);
+
+		if (using_regex && regexec(&regex, schtd->name, 0, NULL, 0) == REG_NOMATCH) {
+			ao2_unlock(schtd);
+			continue;
+		}
 
 		next_run_sec = ast_sip_sched_task_get_next_run(schtd) / 1000;
 		if (next_run_sec < 0) {
@@ -516,37 +576,39 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		next = ast_tvadd(now, ast_tv(next_run_sec, 0));
 
 		ast_localtime(&schtd->when_queued, &tm, NULL);
-		ast_strftime(queued, sizeof(queued), log_format, &tm);
+		ast_strftime(queued, sizeof(queued), TIME_FORMAT, &tm);
 
-		if (ast_tvzero(schtd->last_start)) {
-			strcpy(last_start, "not yet started");
-		} else {
-			ast_localtime(&schtd->last_start, &tm, NULL);
-			ast_strftime(last_start, sizeof(last_start), log_format, &tm);
-		}
+		ast_localtime(&schtd->last_start, &tm, NULL);
+		ast_strftime(last_start, sizeof(last_start), TIME_FORMAT, &tm);
 
 		ast_localtime(&next, &tm, NULL);
-		ast_strftime(next_start, sizeof(next_start), log_format, &tm);
+		ast_strftime(next_start, sizeof(next_start), TIME_FORMAT, &tm);
 
-		ast_cli(a->fd, "%1$-46.46s%2$9.3f %3$9d %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s (%9$5d)\n",
+		sprintf(times_run, "%d", schtd->run_count);
+
+		ast_cli(a->fd, "%-46.46s   %9d   %9s   %-5s  %-12s  %-12s  %-12s %8d\n",
 			schtd->name,
-			schtd->interval / 1000.0,
-			schtd->run_count,
+			schtd->interval / 1000,
+			schtd->flags & AST_SIP_SCHED_TASK_ONESHOT ? "oneshot" : times_run,
 			schtd->is_running ? "run" : "wait",
-			datelen, queued, last_start,
+			queued,
+			(ast_tvzero(schtd->last_start) || (schtd->flags & AST_SIP_SCHED_TASK_ONESHOT) ? "" : last_start),
 			next_start,
 			next_run_sec);
 		ao2_unlock(schtd);
 	}
+	if (using_regex) {
+		regfree(&regex);
+	}
 	ao2_iterator_destroy(&iter);
+	ast_cli(a->fd, "\nTotal Scheduled Tasks: %d\n\n", ao2_container_count(sorted_tasks));
 	ao2_ref(sorted_tasks, -1);
-	ast_cli(a->fd, "\n");
 
 	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_commands[] = {
-	AST_CLI_DEFINE(cli_show_tasks, "Show all scheduled tasks"),
+	AST_CLI_DEFINE(cli_show_tasks, "Show pjsip scheduled tasks"),
 };
 
 int ast_sip_initialize_scheduler(void)
