@@ -63,6 +63,9 @@ struct pjsip_tpselector;
 /*! \brief Maximum number of ciphers supported for a TLS transport */
 #define SIP_TLS_MAX_CIPHERS 64
 
+/*! Maximum number of challenges before assuming that we are in a loop */
+#define MAX_RX_CHALLENGES	10
+
 /*!
  * \brief Structure for SIP transport information
  */

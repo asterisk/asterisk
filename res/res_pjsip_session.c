@@ -2842,7 +2842,6 @@ static pjsip_module session_reinvite_module = {
 	.on_rx_request = session_reinvite_on_rx_request,
 };
 
-
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
 {
@@ -3094,6 +3093,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 		return NULL;
 	}
 
+	/* Track the number of challenges received on outbound requests */
+	session->authentication_challenge_count = 0;
+
 	/* Fire seesion begin handlers */
 	handle_session_begin(session);
 
@@ -3263,6 +3265,10 @@ static pj_bool_t outbound_invite_auth(pjsip_rx_data *rdata)
 	}
 	ast_debug(3, "%s: Initial INVITE is being challenged.\n", ast_sip_session_get_name(session));
 
+	if (++session->authentication_challenge_count > MAX_RX_CHALLENGES) {
+		ast_debug(3, "%s: Initial INVITE reached maximum number of auth attempts.\n", ast_sip_session_get_name(session));
+		return PJ_FALSE;
+	}
 
 	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata,
 		tsx->last_tx, &tdata)) {
@@ -4565,6 +4571,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 							ast_sip_session_get_name(session),
 							tsx->status_code);
 						if ((tsx->status_code == 401 || tsx->status_code == 407)
+							&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 							&& !ast_sip_create_request_with_auth(
 								&session->endpoint->outbound_auths,
 								e->body.tsx_state.src.rdata, tsx->last_tx, &tdata)) {
@@ -4641,6 +4648,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						(int) pj_strlen(&tsx->method.name), pj_strbuf(&tsx->method.name),
 						tsx->status_code);
 					if ((tsx->status_code == 401 || tsx->status_code == 407)
+						&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 						&& !ast_sip_create_request_with_auth(
 							&session->endpoint->outbound_auths,
 							e->body.tsx_state.src.rdata, tsx->last_tx, &tdata)) {
