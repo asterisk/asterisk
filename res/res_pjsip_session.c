@@ -1210,7 +1210,6 @@ static pjsip_module session_reinvite_module = {
 	.on_rx_request = session_reinvite_on_rx_request,
 };
 
-
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
 {
@@ -1508,11 +1507,16 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 		ao2_ref(session, -1);
 		return NULL;
 	}
+
+	/* Track the number of challenges received on outbound requests */
+	session->authentication_challenge_count = 0;
+
 	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
 		if (iter->session_begin) {
 			iter->session_begin(session);
 		}
 	}
+
 
 	/* Avoid unnecessary ref manipulation to return a session */
 	ret_session = session;
@@ -1679,6 +1683,11 @@ static pj_bool_t outbound_invite_auth(pjsip_rx_data *rdata)
 	ast_debug(1, "Initial INVITE is being challenged.\n");
 
 	session = inv->mod_data[session_module.id];
+
+	if (++session->authentication_challenge_count > MAX_RX_CHALLENGES) {
+		ast_debug(3, "Initial INVITE reached maximum number of auth attempts.\n");
+		return PJ_FALSE;
+	}
 
 	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata, tsx,
 		&tdata)) {
@@ -2996,6 +3005,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						ast_debug(1, "reINVITE received final response code %d\n",
 							tsx->status_code);
 						if ((tsx->status_code == 401 || tsx->status_code == 407)
+							&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 							&& !ast_sip_create_request_with_auth(
 								&session->endpoint->outbound_auths,
 								e->body.tsx_state.src.rdata, tsx, &tdata)) {
@@ -3090,6 +3100,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						(int) pj_strlen(&tsx->method.name), pj_strbuf(&tsx->method.name),
 						tsx->status_code);
 					if ((tsx->status_code == 401 || tsx->status_code == 407)
+						&& ++session->authentication_challenge_count < MAX_RX_CHALLENGES
 						&& !ast_sip_create_request_with_auth(
 							&session->endpoint->outbound_auths,
 							e->body.tsx_state.src.rdata, tsx, &tdata)) {

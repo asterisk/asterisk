@@ -171,6 +171,8 @@ struct ast_sip_session {
 	pjsip_uri *request_uri;
 	/*! Joint capabilities */
 	struct ast_format_cap *joint_caps;
+	/*! Number of challenges received during outgoing requests to determine if we are in a loop */
+	unsigned int authentication_challenge_count:4;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
