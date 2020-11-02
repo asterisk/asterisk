@@ -233,6 +233,8 @@ struct ast_sip_session {
 	AST_VECTOR(, struct ast_rtp_instance_stats *) media_stats;
 	/*! The direction of the call respective to Asterisk */
 	enum ast_sip_session_call_direction call_direction;
+	/*! Number of challenges received during outgoing requests to determine if we are in a loop */
+	unsigned int authentication_challenge_count:4;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
