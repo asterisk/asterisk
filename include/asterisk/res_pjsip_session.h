@@ -235,6 +235,8 @@ struct ast_sip_session {
 	pjsip_uri *request_uri;
 	/*! Media statistics for negotiated RTP streams */
 	AST_VECTOR(, struct ast_rtp_instance_stats *) media_stats;
+	/*! Number of challenges received during outgoing requests to determine if we are in a loop */
+	unsigned int authentication_challenge_count:4;
 	/*! The direction of the call respective to Asterisk */
 	enum ast_sip_session_call_direction call_direction;
 };
