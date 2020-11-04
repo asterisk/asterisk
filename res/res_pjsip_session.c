@@ -3746,6 +3746,75 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	return SIP_GET_DEST_EXTEN_NOT_FOUND;
 }
 
+/*
+ * /internal
+ * /brief Process initial answer for an incoming invite
+ *
+ * This function should only be called during the setup, and handling of a
+ * new incoming invite. Most, if not all of the time, this will be called
+ * when an error occurs and we need to respond as such.
+ *
+ * When a SIP session termination code is given for the answer it's assumed
+ * this call then will be the final bit of processing before ending session
+ * setup. As such, we've been holding a lock, and a reference on the invite
+ * session's dialog. So before returning this function removes that reference,
+ * and unlocks the dialog.
+ *
+ * \param inv_session The session on which to answer
+ * \param rdata The original request
+ * \param answer_code The answer's numeric code
+ * \param terminate_code The termination code if the answer fails
+ * \param notify Whether or not to call on_state_changed
+ *
+ * \retval 0 if invite successfully answered, -1 if an error occurred
+ */
+static int new_invite_initial_answer(pjsip_inv_session *inv_session, pjsip_rx_data *rdata,
+	int answer_code, int terminate_code, pj_bool_t notify)
+{
+	pjsip_tx_data *tdata = NULL;
+	int res = 0;
+
+	if (inv_session->state != PJSIP_INV_STATE_DISCONNECTED) {
+		if (pjsip_inv_initial_answer(
+				inv_session, rdata, answer_code, NULL, NULL, &tdata) != PJ_SUCCESS) {
+
+			pjsip_inv_terminate(inv_session, terminate_code ? terminate_code : answer_code, notify);
+			res = -1;
+		} else {
+			pjsip_inv_send_msg(inv_session, tdata);
+		}
+	}
+
+	if (answer_code >= 300) {
+		/*
+		 * A session is ending. The dialog has a reference that needs to be
+		 * removed and holds a lock that needs to be unlocked before returning.
+		 */
+		pjsip_dlg_dec_lock(inv_session->dlg);
+	}
+
+	return res;
+}
+
+/*
+ * /internal
+ * /brief Create and initialize a pjsip invite session
+
+ * pjsip_inv_session adds, and maintains a reference to the dialog upon a successful
+ * invite session creation until the session is destroyed. However, we'll wait to
+ * remove the reference that was added for the dialog when it gets created since we're
+ * not ready to unlock the dialog in this function.
+ *
+ * So, if this function successfully returns that means it returns with its newly
+ * created, and associated dialog locked and with two references (i.e. dialog's
+ * reference count should be 2).
+ *
+ * \param endpoint A pointer to the endpoint
+ * \param rdata The request that is starting the dialog
+ *
+ * \retval A pjsip invite session object
+ * \retval NULL on error
+ */
 static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct ast_sip_endpoint *endpoint)
 {
 	pjsip_tx_data *tdata;
@@ -3764,15 +3833,28 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		}
 		return NULL;
 	}
-	dlg = ast_sip_create_dialog_uas(endpoint, rdata, &dlg_status);
+
+	dlg = ast_sip_create_dialog_uas_locked(endpoint, rdata, &dlg_status);
 	if (!dlg) {
 		if (dlg_status != PJ_EEXISTS) {
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		}
 		return NULL;
 	}
+
+	/*
+	 * The returned dialog holds a lock and has a reference added. Any paths where the
+	 * dialog invite session is not returned must unlock the dialog and remove its reference.
+	 */
+
 	if (pjsip_inv_create_uas(dlg, rdata, NULL, options, &inv_session) != PJ_SUCCESS) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		/*
+		 * The acquired dialog holds a lock, and a reference. Since the dialog is not
+		 * going to be returned here it must first be unlocked and de-referenced. This
+		 * must be done prior to calling dialog termination.
+		 */
+		pjsip_dlg_dec_lock(dlg);
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -3781,12 +3863,13 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 	inv_session->sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
 #endif
 	if (pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS) {
-		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) != PJ_SUCCESS) {
-			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-		}
-		pjsip_inv_send_msg(inv_session, tdata);
+		/* Dialog's lock and a reference are removed in new_invite_initial_answer */
+		new_invite_initial_answer(inv_session, rdata, 500, 500, PJ_FALSE);
+		/* Remove 2nd reference added at inv_session creation */
+		pjsip_dlg_dec_session(inv_session->dlg, &session_module);
 		return NULL;
 	}
+
 	return inv_session;
 }
 
@@ -4003,7 +4086,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint,
 			ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
-	pjsip_tx_data *tdata = NULL;
 	pjsip_inv_session *inv_session = NULL;
 	struct ast_sip_session *session;
 	struct new_invite invite;
@@ -4019,15 +4101,37 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		SCOPE_EXIT_RTN("Failure in pre session setup\n");
 	}
 
+	/*
+	 * Upon a successful pre_session_setup the associated dialog is returned locked
+	 * and with an added reference. Well actually two references. One added when the
+	 * dialog itself was created, and another added when the pjsip invite session was
+	 * created and the dialog was added to it.
+	 *
+	 * In order to ensure the dialog's, and any of its internal attributes, lifetimes
+	 * we'll hold the lock and maintain the reference throughout the entire new invite
+	 * handling process. See ast_sip_create_dialog_uas_locked for more details but,
+	 * basically we do this to make sure a transport failure does not destroy the dialog
+	 * and/or transaction out from underneath us between pjsip calls. Alternatively, we
+	 * could probably release the lock if we needed to, but then we'd have to re-lock and
+	 * check the dialog and transaction prior to every pjsip call.
+	 *
+	 * That means any off nominal/failure paths in this function must remove the associated
+	 * dialog reference added at dialog creation, and remove the lock. As well the
+	 * referenced pjsip invite session must be "cleaned up", which should also then
+	 * remove its reference to the dialog at that time.
+	 *
+	 * Nominally we'll unlock the dialog, and release the reference when all new invite
+	 * process handling has successfully completed.
+	 */
+
+
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
-		if (inv_session->state != PJSIP_INV_STATE_DISCONNECTED) {
-			if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
-				pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-			} else {
-				pjsip_inv_send_msg(inv_session, tdata);
-			}
+		/* Dialog's lock and a reference are removed in new_invite_initial_answer */
+		if (!new_invite_initial_answer(inv_session, rdata, 500, 500, PJ_FALSE)) {
+			/* Terminate the session if it wasn't done in the answer */
+			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		}
 		SCOPE_EXIT_RTN("Couldn't add invite session reference\n");
 	}
@@ -4035,10 +4139,10 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 
 	session = ast_sip_session_alloc(endpoint, NULL, inv_session, rdata);
 	if (!session) {
-		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
+		/* Dialog's lock and reference are removed in new_invite_initial_answer */
+		if (!new_invite_initial_answer(inv_session, rdata, 500, 500, PJ_FALSE)) {
+			/* Terminate the session if it wasn't done in the answer */
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-		} else {
-			pjsip_inv_send_msg(inv_session, tdata);
 		}
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 		pjsip_inv_dec_ref(inv_session);
@@ -4057,6 +4161,17 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	invite.session = session;
 	invite.rdata = rdata;
 	new_invite(&invite);
+
+	/*
+	 * The dialog lock and reference added at dialog creation time must be
+	 * maintained throughout the new invite process. Since we're pretty much
+	 * done at this point with things it's safe to go ahead and remove the lock
+	 * and the reference here. See ast_sip_create_dialog_uas_locked for more info.
+	 *
+	 * Note, any future functionality added that does work using the dialog must
+	 * be done before this.
+	 */
+	pjsip_dlg_dec_lock(inv_session->dlg);
 
 	SCOPE_EXIT("Request: %s Session: %s\n", req_uri, ast_sip_session_get_name(session));
 	ao2_ref(session, -1);
