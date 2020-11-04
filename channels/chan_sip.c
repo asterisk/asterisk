@@ -3120,10 +3120,8 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 
 			if (ast_iostream_get_ssl(tcptls_session->stream)) {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TLS);
-				req.socket.port = htons(ourport_tls);
 			} else {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TCP);
-				req.socket.port = htons(ourport_tcp);
 			}
 			req.socket.fd = ast_iostream_get_fd(tcptls_session->stream);
 
@@ -6402,10 +6400,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 		}
 	}
 
-	if (!dialog->socket.type)
+	if (!dialog->socket.type) {
 		set_socket_transport(&dialog->socket, AST_TRANSPORT_UDP);
-	if (!dialog->socket.port) {
-		dialog->socket.port = htons(ast_sockaddr_port(&bindaddr));
 	}
 
 	if (!ast_sockaddr_port(&dialog->sa)) {
@@ -15148,7 +15144,6 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 		ast_string_field_set(mwi->call, peersecret, mwi->secret);
 	}
 	set_socket_transport(&mwi->call->socket, mwi->transport);
-	mwi->call->socket.port = htons(mwi->portno);
 	ast_sip_ouraddrfor(&mwi->call->sa, &mwi->call->ourip, mwi->call);
 	build_via(mwi->call);
 
@@ -16262,19 +16257,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_string_field_set(p, exten, r->callback);
 		}
 
-		/* Set transport and port so the correct contact is built */
+		/* Set transport so the correct contact is built */
 		set_socket_transport(&p->socket, r->transport);
-		if (r->transport == AST_TRANSPORT_TLS || r->transport == AST_TRANSPORT_TCP) {
-			if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
-				ast_log(LOG_ERROR,
-				    "TCP/TLS clients without server were not tested.\n");
-				ast_log(LOG_ERROR,
-				    "Please, follow-up and report at issue 28798.\n");
-			} else {
-				p->socket.port =
-				    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
-			}
-		}
 
 		/*
 		  check which address we should use in our contact header
@@ -29426,8 +29410,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 
 	req.socket.fd = sipsock;
 	set_socket_transport(&req.socket, AST_TRANSPORT_UDP);
-	req.socket.tcptls_session	= NULL;
-	req.socket.port = htons(ast_sockaddr_port(&bindaddr));
+	req.socket.tcptls_session = NULL;
 
 	handle_request_do(&req, &addr);
 	deinit_req(&req);
@@ -32367,9 +32350,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 		ast_sockaddr_set_port(&peer->defaddr,
 				      (peer->socket.type & AST_TRANSPORT_TLS) ?
 				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
-	}
-	if (!peer->socket.port) {
-		peer->socket.port = htons(((peer->socket.type & AST_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
 	}
 
 	if (realtime) {
