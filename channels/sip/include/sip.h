@@ -790,7 +790,7 @@ struct ast_websocket;
 struct sip_socket {
 	enum ast_transport type;  /*!< UDP, TCP or TLS */
 	int fd;                   /*!< Filed descriptor, the actual socket */
-	uint16_t port;
+	uint16_t unused; /* since 1.6.2, retained not to change order/size of struct */
 	struct ast_tcptls_session_instance *tcptls_session;  /* If tcp or tls, a socket manager */
 	struct ast_websocket *ws_session; /*! If ws or wss, a WebSocket session */
 };
