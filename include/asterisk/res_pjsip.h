@@ -1998,11 +1998,54 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 /*!
  * \brief General purpose method for creating a UAS dialog with an endpoint
  *
+ * \deprecated This function is unsafe (due to the returned object not being locked nor
+ *             having its reference incremented) and should no longer be used. Instead
+ *             use ast_sip_create_dialog_uas_locked so a properly locked and referenced
+ *             object is returned.
+ *
  * \param endpoint A pointer to the endpoint
  * \param rdata The request that is starting the dialog
  * \param[out] status On failure, the reason for failure in creating the dialog
  */
 pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pj_status_t *status);
+
+/*!
+ * \brief General purpose method for creating a UAS dialog with an endpoint
+ *
+ * This function creates and returns a locked, and referenced counted pjsip
+ * dialog object. The caller is thus responsible for freeing the allocated
+ * memory, decrementing the reference, and releasing the lock when done with
+ * the returned object.
+ *
+ * \note The safest way to unlock the object, and decrement its reference is by
+ *       calling pjsip_dlg_dec_lock. Alternatively, pjsip_dlg_dec_session can be
+ *       used to decrement the reference only.
+ *
+ * The dialog is returned locked and with a reference in order to ensure that the
+ * dialog object, and any of its associated objects (e.g. transaction) are not
+ * untimely destroyed. For instance, that could happen when a transport error
+ * occurs.
+ *
+ * As long as the caller maintains a reference to the dialog there should be no
+ * worry that it might unknowningly be destroyed. However, once the caller unlocks
+ * the dialog there is a danger that some of the dialog's internal objects could
+ * be lost and/or compromised. For example, when the aforementioned transport error
+ * occurs the dialog's associated transaction gets destroyed (see pjsip_dlg_on_tsx_state
+ * in sip_dialog.c, and mod_inv_on_tsx_state in sip_inv.c).
+ *
+ * In this case and before using the dialog again the caller should re-lock the
+ * dialog, check to make sure the dialog is still established, and the transaction
+ * still exists and has not been destroyed.
+ *
+ * \param endpoint A pointer to the endpoint
+ * \param rdata The request that is starting the dialog
+ * \param[out] status On failure, the reason for failure in creating the dialog
+ *
+ * \retval A locked, and reference counted pjsip_dialog object.
+ * \retval NULL on failure
+ */
+pjsip_dialog *ast_sip_create_dialog_uas_locked(const struct ast_sip_endpoint *endpoint,
+	pjsip_rx_data *rdata, pj_status_t *status);
 
 /*!
  * \brief General purpose method for creating an rdata structure using specific information
