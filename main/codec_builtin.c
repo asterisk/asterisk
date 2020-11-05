@@ -911,6 +911,54 @@ static struct ast_codec silk24 = {
 	.samples_count = silk_samples
 };
 
+static int amr_samples(struct ast_frame *frame)
+{       
+        return 160;
+}
+
+static int amr_length(unsigned int samples)
+{       
+        ast_log(LOG_NOTICE, "untested; please report failure or success: %u\n", samples); return samples / 8;
+}
+
+static struct ast_codec amr = {
+        .name = "amr",
+        .description = "AMR",
+        .type = AST_MEDIA_TYPE_AUDIO,
+        .sample_rate = 8000,
+        .minimum_ms = 20,
+        .maximum_ms = 20,
+        .default_ms = 20,
+        .minimum_bytes = 0, /* no smooth */
+        .samples_count = amr_samples,
+        .get_length = amr_length,
+        .smooth = 0,
+};
+
+static int amrwb_samples(struct ast_frame *frame)
+{       
+        return 320;
+}
+
+static int amrwb_length(unsigned int samples)
+{       
+        ast_log(LOG_NOTICE, "untested; please report failure or success: %u\n", samples); return samples / 16;
+}
+
+static struct ast_codec amrwb = {
+        .name = "amrwb",
+        .description = "AMR-WB",
+        .type = AST_MEDIA_TYPE_AUDIO,
+        .sample_rate = 16000,
+        .minimum_ms = 20,
+        .maximum_ms = 20,
+        .default_ms = 20,
+        .minimum_bytes = 0, /* no smooth */
+        .samples_count = amrwb_samples,
+        .get_length = amrwb_length,
+        .smooth = 0,
+};
+
 #define CODEC_REGISTER_AND_CACHE(codec) \
 	({ \
 		int __res_ ## __LINE__ = 0; \
@@ -944,6 +992,8 @@ int ast_codec_builtin_init(void)
 	int res = 0;
 
 	res |= CODEC_REGISTER_AND_CACHE(codec2);
+	res |= CODEC_REGISTER_AND_CACHE(amr);
+	res |= CODEC_REGISTER_AND_CACHE(amrwb);
 	res |= CODEC_REGISTER_AND_CACHE(g723);
 	res |= CODEC_REGISTER_AND_CACHE(ulaw);
 	res |= CODEC_REGISTER_AND_CACHE(alaw);

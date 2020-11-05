@@ -231,6 +231,16 @@ struct ast_format *ast_format_opus;
 struct ast_format *ast_format_codec2;
 
 /*!
+ * \brief Built-in cached AMR format.
+ */
+struct ast_format *ast_format_amr;
+
+/*!
+ * \brief Built-in cached AMR-WB format.
+ */
+struct ast_format *ast_format_amrwb;
+
+/*!
  * \brief Built-in cached t140 format.
  */
 struct ast_format *ast_format_t140;
@@ -318,6 +328,8 @@ static void format_cache_shutdown(void)
 	ao2_cleanup(formats);
 	formats = NULL;
 
+	ao2_replace(ast_format_amr, NULL);
+	ao2_replace(ast_format_amrwb, NULL);
 	ao2_replace(ast_format_g723, NULL);
 	ao2_replace(ast_format_ulaw, NULL);
 	ao2_replace(ast_format_alaw, NULL);
@@ -440,6 +452,10 @@ static void set_cached_format(const char *name, struct ast_format *format)
 		ao2_replace(ast_format_g719, format);
 	} else if (!strcmp(name, "opus")) {
 		ao2_replace(ast_format_opus, format);
+	} else if (!strcmp(name, "amr")) {
+		ao2_replace(ast_format_amr, format);
+	} else if (!strcmp(name, "amrwb")) {
+		ao2_replace(ast_format_amrwb, format);
 	} else if (!strcmp(name, "jpeg")) {
 		ao2_replace(ast_format_jpeg, format);
 	} else if (!strcmp(name, "png")) {

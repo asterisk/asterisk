@@ -53,6 +53,18 @@
 /* Define to 1 if you have the Advanced Linux Sound Architecture library. */
 #undef HAVE_ALSA
 
+/* Define to 1 if you have the AMR Audio Codec (Narrowband) Decoder/Encoder
+   library. */
+#undef HAVE_AMR_NB
+
+/* Define to 1 if you have the AMR-WB Audio Codec (Wideband) Decoder library.
+   */
+#undef HAVE_AMR_WB_DECODER
+
+/* Define to 1 if you have the AMR-WB Audio Codec (Wideband) Encoder library.
+   */
+#undef HAVE_AMR_WB_ENCODER
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
