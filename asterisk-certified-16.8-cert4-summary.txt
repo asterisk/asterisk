@@ -1,0 +1,257 @@
+                                Release Summary
+
+                         asterisk-certified/16.8-cert4
+
+                                Date: 2020-11-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/16.8-cert3.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   16 George Joseph                                  2 George Joseph          
+   6 Joshua C. Colp                                  2 Joshua C. Colp         
+   5 Asterisk Development Team                       1 Ross Beer              
+   1 Kevin Harwell                                   1 cmaj                   
+   1 cmaj                                            1 Kevin Harwell          
+   1 Joshua Colp               
+   1 Ben Ford                  
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Functions/func_version
+
+   ASTERISK-29021: [patch] Fix VERSION(ASTERISK_VERSION_NUM) on certified
+   versions
+   Reported by: cmaj
+     * [4e9e503132] cmaj -- Makefile: Fix certified version numbers
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28965: res_pjsip: Apply outbound proxy to static contacts on AOR
+   Reported by: Joshua C. Colp
+     * [5eec77b452] Joshua C. Colp -- res_pjsip: Apply AOR outbound proxy to
+       static contacts.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-29014: res_pjsip_session: Re-INVITE collisions aren't handled
+   correctly
+   Reported by: George Joseph
+     * [1620e94af5] George Joseph -- res_pjsip_session: Fix issue with COLP
+       and 491
+     * [9e54db24b6] George Joseph -- res_pjsip_session: Handle multi-stream
+       re-invites better
+   ASTERISK-29033: res_pjsip_session: Aggressively terminates session on
+   failed re-INVITE
+   Reported by: Joshua C. Colp
+     * [7b1ace9040] Joshua C. Colp -- res_pjsip_session: Don't aggressively
+       terminate on failed re-INVITE.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29089: RTP Ports not cleared after hangup
+   Reported by: Ross Beer
+     * [3e54af3afb] Joshua C. Colp -- res_pjsip_session: Fix session
+       reference leak.
+
+  Improvement
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-28945: AMI SendText - add Content-Type parameter
+   Reported by: Kevin Harwell
+     * [5e58fc3939] Kevin Harwell -- manager - Add Content-Type parameter to
+       the SendText action
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      | Update CHANGES and UPGRADE.txt for        |
+   | 5e146dde81 | Development   | certified/16.8-cert4                      |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
+   | f777a0d879 | Development   | Update for certified/16.8-cert4-rc4       |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   |            |               | Revert "Revert "Revert "core_unreal /     |
+   | 0757a5113d | George Joseph | core_local: Add multistream and           |
+   |            |               | re-negotiation."""                        |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
+   | cb9f1759fb | Development   | Update for certified/16.8-cert4-rc3       |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   | d5df3b95c8 | Joshua C.     | res_pjsip_session: Fix stream name memory |
+   |            | Colp          | leak.                                     |
+   |------------+---------------+-------------------------------------------|
+   | f74ecc4498 | George Joseph | logger.h: Fix ast_trace to respect        |
+   |            |               | scope_level                               |
+   |------------+---------------+-------------------------------------------|
+   | 251c9a1891 | George Joseph | bridge_softmix/sfu_topologies_on_join:    |
+   |            |               | Ignore topology change failures           |
+   |------------+---------------+-------------------------------------------|
+   | f67c58aa13 | George Joseph | debugging: Add enough to choke a mule     |
+   |------------+---------------+-------------------------------------------|
+   | c2701d8069 | Ben Ford      | Bridging: Use a ref to bridge_channel's   |
+   |            |               | channel to prevent crash.                 |
+   |------------+---------------+-------------------------------------------|
+   | fb78adce21 | George Joseph | stream.c: Added 2 more debugging utils    |
+   |            |               | and added pos to stream string            |
+   |------------+---------------+-------------------------------------------|
+   | d942fe4837 | George Joseph | scope_trace: Added debug messages and     |
+   |            |               | added additional macros                   |
+   |------------+---------------+-------------------------------------------|
+   | 0430e1b3c3 | George Joseph | logger.c: Added a new log formatter       |
+   |            |               | called "plain"                            |
+   |------------+---------------+-------------------------------------------|
+   | 950784a446 | George Joseph | ast_coredumper: Fix issues with naming    |
+   |------------+---------------+-------------------------------------------|
+   | d189bf9ae5 | George Joseph | res_pjsip_session: Ensure reused streams  |
+   |            |               | have correct bundle group                 |
+   |------------+---------------+-------------------------------------------|
+   | b8bb63c82f | Joshua C.     | pjsip: Add timer refactor patch and timer |
+   |            | Colp          | 0 cancellation.                           |
+   |------------+---------------+-------------------------------------------|
+   | 8ebe4c772e | George Joseph | Scope Trace: Make it easier to trace      |
+   |            |               | through synchronous tasks                 |
+   |------------+---------------+-------------------------------------------|
+   | 8076ed59f0 | George Joseph | scope_trace: Add/update utilities         |
+   |------------+---------------+-------------------------------------------|
+   | 9d3b01e874 | George Joseph | Scope Trace: Add some new tracing macros  |
+   |            |               | and an ast_str helper                     |
+   |------------+---------------+-------------------------------------------|
+   | 360efdd94f | George Joseph | Scope Tracing: A new facility for tracing |
+   |            |               | scope enter/exit                          |
+   |------------+---------------+-------------------------------------------|
+   | 944d691319 | George Joseph | frame.c: Make debugging easier            |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
+   | 017416381f | Development   | Update for certified/16.8-cert4-rc2       |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   | bd86f382ed | Joshua C.     | websocket / pjsip: Increase maximum       |
+   |            | Colp          | packet size.                              |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
+   | aabb04054a | Development   | Update for certified/16.8-cert4-rc1       |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   | 2d7ae83990 | Joshua Colp   | Revert "Revert "core_unreal / core_local: |
+   |            |               | Add multistream and re-negotiation.""     |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-certified-16.8-cert3-summary.html                      |   48
+ asterisk-certified-16.8-cert3-summary.txt                       |  154
+ b/.version                                                      |    2
+ b/CHANGES                                                       |   22
+ b/ChangeLog                                                     |  602 +++
+ b/Makefile                                                      |    2
+ b/asterisk-certified-16.8-cert4-rc4-summary.html                |   15
+ b/asterisk-certified-16.8-cert4-rc4-summary.txt                 |   83
+ b/bridges/bridge_softmix.c                                      |  143
+ b/channels/chan_pjsip.c                                         |   74
+ b/configs/samples/asterisk.conf.sample                          |    1
+ b/configs/samples/logger.conf.sample                            |   15
+ b/contrib/scripts/ast_coredumper                                |    4
+ b/include/asterisk/bridge_channel.h                             |   14
+ b/include/asterisk/format_cap.h                                 |   11
+ b/include/asterisk/frame.h                                      |   13
+ b/include/asterisk/logger.h                                     |  426 ++
+ b/include/asterisk/manager.h                                    |    2
+ b/include/asterisk/message.h                                    |   18
+ b/include/asterisk/options.h                                    |    4
+ b/include/asterisk/res_pjsip_session.h                          |   12
+ b/include/asterisk/stream.h                                     |  117
+ b/include/asterisk/strings.h                                    |   53
+ b/main/asterisk.c                                               |    1
+ b/main/asterisk.exports.in                                      |    1
+ b/main/bridge.c                                                 |   21
+ b/main/bridge_channel.c                                         |   20
+ b/main/channel.c                                                |   13
+ b/main/cli.c                                                    |  261 +
+ b/main/format_cap.c                                             |   22
+ b/main/frame.c                                                  |   87
+ b/main/logger.c                                                 |  150
+ b/main/manager.c                                                |  115
+ b/main/message.c                                                |   26
+ b/main/options.c                                                |    9
+ b/main/stream.c                                                 |  109
+ b/res/res_http_websocket.c                                      |   32
+ b/res/res_pjsip/location.c                                      |   25
+ b/res/res_pjsip_pubsub.c                                        |   16
+ b/res/res_pjsip_session.c                                       | 1809 ++++++++--
+ b/tests/test_scope_trace.c                                      |  126
+ b/tests/test_strings.c                                          |   39
+ b/third-party/pjproject/patches/0040-pjsip-timer-refactor.patch | 1148 ++++++
+ b/third-party/pjproject/patches/0041-pjlib_cancel_timer_0.patch |   39
+ 44 files changed, 5220 insertions(+), 684 deletions(-)
