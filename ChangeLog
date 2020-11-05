@@ -1,3 +1,51 @@
+2020-11-05 21:03 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.37.1 Released.
+
+2020-11-02 10:29 +0000 [66737026ef]  Ben Ford <bford@digium.com>
+
+	* AST-2020-002 - res_pjsip: Stop sending INVITEs after challenge limit.
+
+	  If Asterisk sends out an INVITE and receives a challenge with a
+	  different nonce value each time, it will continuously send out INVITEs,
+	  even if the call is hung up. The endpoint must be configured for
+	  outbound authentication for this to occur. A limit has been set on
+	  outbound INVITEs so that, once reached, Asterisk will stop sending
+	  INVITEs and the transaction will terminate.
+
+	  ASTERISK-29013
+
+	  Change-Id: I2d001ca745b00ca8aa12030f2240cd72363b46f7
+	  (cherry picked from commit 01b7ac0d590b0ad2e3e856d1a81fc87154ae68a0)
+
+2020-10-19 17:21 +0000 [1f169177ed]  Kevin Harwell <kharwell@digium.com>
+
+	* AST-2020-001 - res_pjsip: Return dialog locked and referenced
+
+	  pjproject returns the dialog locked and with a reference. However,
+	  in Asterisk the method that handles this decrements the reference
+	  and removes the lock prior to returning. This makes it possible,
+	  under some circumstances, for another thread to free said dialog
+	  before the thread that created it attempts to use it again. Of
+	  course when the thread that created it tries to use a freed dialog
+	  a crash can occur.
+
+	  This patch makes it so Asterisk now returns the newly created
+	  dialog both locked, and with an added reference. This allows the
+	  caller to de-reference, and unlock the dialog when it is safe to
+	  do so.
+
+	  In the case of a new SIP Invite the lock, and reference are now
+	  held for the entirety of the new invite handling process.
+	  Otherwise it's possible for the dialog, or its dependent objects,
+	  like the transaction, to disappear. For example if there is a TCP
+	  transport error.
+
+	  ASTERISK-29057 #close
+
+	  Change-Id: I5ef645a47829596f402cf383dc02c629c618969e
+	  (cherry picked from commit b87527b000af5e8e28bdc2657f11d4d4a6f07500)
+
 2020-10-19 18:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.37.0 Released.
