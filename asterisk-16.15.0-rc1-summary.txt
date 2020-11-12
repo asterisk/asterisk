@@ -1,0 +1,542 @@
+                                Release Summary
+
+                              asterisk-16.15.0-rc1
+
+                                Date: 2020-11-12
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-16.14.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                       Testers              Reporters                
+   12 Ben Ford                                       3 Alexander Traud        
+   11 Sean Bright                                    2 George Joseph          
+   9 Alexander Traud                                 2 sungtae kim            
+   8 George Joseph                                   2 Sebastian Damm         
+   3 Kevin Harwell                                   1 Walter Doekes          
+   3 Joshua C. Colp                                  1 å*¨å®¶å»º              
+   2 Torrey Searle                                   1 Andrew Siplas          
+   2 Asterisk Development Team                       1 Jean Aunis - Prescom   
+   2 Sungtae Kim                                     1 Kevin Harwell          
+   1 Holger Hans Peter Freyther                      1 dovid                  
+   1 Dovid Bender                                    1 Brian J. Murrell       
+   1 Walter Doekes                                   1 Vieri                  
+   1 Alexei Gradinari                                1 Walter Doekes          
+   1 Jean Aunis                                      1 Ross Beer              
+   1 Jasper van der Neut                             1 Benjamin M.            
+   1 Michal Hajek                                    1 PÃ©ter JuhÃ¡sz         
+   1 lvl                                             1 under                  
+   1 Andrew Siplas                                   1 Thomas Frederiksen     
+                                                     1 lvl                    
+                                                     1 Michael Newton         
+                                                     1 Sandro Gauci           
+                                                     1 Dovid Bender           
+                                                     1 Jasper van der Neut    
+                                                     1 Torrey Searle          
+                                                     1 Michal Hajek           
+                                                     1 Hajek Michal           
+                                                     1 Eric Smith             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: pjproject/pjsip
+
+   ASTERISK-29057: pjsip: Crash on call rejection during high load
+   Reported by: Sandro Gauci
+     * [8973fe5cf3] Kevin Harwell -- AST-2020-001 - res_pjsip: Return dialog
+       locked and referenced
+
+  New Feature
+
+    Category: Resources/res_pjsip_diversion
+
+   ASTERISK-29027: Implement support for History-Info
+   Reported by: Torrey Searle
+     * [5a12463c07] Torrey Searle -- res_pjsip_diversion: implement support
+       for History-Info
+
+  Bug
+
+    Category: . I did not set the category correctly.
+
+   ASTERISK-29146: GCC Warnings: â**%sâ** directive argument is null.
+   Reported by: Alexander Traud
+     * [334661601a] Alexander Traud -- Compiler fixes for GCC when printf %s
+       is NULL
+
+    Category: Applications/app_directory
+
+   ASTERISK-29144: GCC Warnings with OPTIMIZE=-Og make
+   Reported by: Alexander Traud
+     * [13b56c4be6] Alexander Traud -- Compiler fixes for GCC with -Og
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-29144: GCC Warnings with OPTIMIZE=-Og make
+   Reported by: Alexander Traud
+     * [13b56c4be6] Alexander Traud -- Compiler fixes for GCC with -Og
+   ASTERISK-26424: app_voicemail: Undocumented behavior from VMSayName
+   Reported by: Eric Smith
+     * [9ac933fbba] Sean Bright -- app_voicemail.c: Document VMSayName
+       interruption behavior
+
+    Category: Channels/General
+
+   ASTERISK-29144: GCC Warnings with OPTIMIZE=-Og make
+   Reported by: Alexander Traud
+     * [13b56c4be6] Alexander Traud -- Compiler fixes for GCC with -Og
+
+    Category: Configs/Samples
+
+   ASTERISK-29123: logger.conf.sample missing comment mark on line 115
+   Reported by: Andrew Siplas
+     * [606bd35060] Andrew Siplas -- logger.conf.sample: add missing comment
+       mark
+
+    Category: Contrib/General
+
+   ASTERISK-29142: sip_to_pjsip.py: doesn't read globbed includes
+   Reported by: Michael Newton
+     * [e067d5c8fd] Sean Bright -- sip_to_pjsip.py: Handle #include globs and
+       other fixes
+
+    Category: Core/Channels
+
+   ASTERISK-29091: Crash when ast_translator_build_path fails
+   Reported by: Jasper van der Neut
+     * [efcc6d6f6b] Jasper van der Neut -- channels: Don't dereference NULL
+       pointer
+
+    Category: Core/General
+
+   ASTERISK-28430: res_rtp_asterisk.c: FRACK!, Failed assertion errno !=
+   EBADF
+   Reported by: under
+     * [d0313d8b12] Sean Bright -- tcptls.c: Don't close TCP client file
+       descriptors more than once
+   ASTERISK-28311: dsp: ast_dsp_silence_noise_with_energy wrong judgment of
+   frame format
+   Reported by: å*¨å®¶å»º
+     * [cba132a797] Sean Bright -- dsp.c: Update calls to ast_format_cmp to
+       check result properly
+
+    Category: Core/RTP
+
+   ASTERISK-28416: Unable to get rtp codec payload code for slin
+   Reported by: Brian J. Murrell
+     * [c9cc281484] Sean Bright -- format_cap: Perform codec lookups by
+       pointer instead of name
+
+    Category: Documentation
+
+   ASTERISK-29136: config: Sample features.conf incorrectly includes " around
+   sound files
+   Reported by: Benjamin M.
+     * [e326b133dc] Sean Bright -- features.conf.sample: Sample sound files
+       incorrectly quoted
+   ASTERISK-26424: app_voicemail: Undocumented behavior from VMSayName
+   Reported by: Eric Smith
+     * [9ac933fbba] Sean Bright -- app_voicemail.c: Document VMSayName
+       interruption behavior
+
+    Category: Functions/func_curl
+
+   ASTERISK-28825: Any curl response checks out as valid even if 404 is
+   returned.
+   Reported by: dovid
+     * [5046e1fb06] Dovid Bender -- func_curl.c: Allow user to set what
+       return codes constitute a failure.
+   ASTERISK-29085: func_curl: Segmentation fault when using CURL after
+   setting httpheader CURLOPT
+   Reported by: PÃ©ter JuhÃ¡sz
+     * [799426cd58] Sean Bright -- func_curl.c: Prevent crash when using
+       CURLOPT(httpheader)
+
+    Category: Functions/func_odbc
+
+   ASTERISK-29144: GCC Warnings with OPTIMIZE=-Og make
+   Reported by: Alexander Traud
+     * [13b56c4be6] Alexander Traud -- Compiler fixes for GCC with -Og
+
+    Category: Resources/res_ari_endpoints
+
+   ASTERISK-29108: resource_endpoints.c : Memory leak if endpoint not found
+   Reported by: Jean Aunis - Prescom
+     * [0b835f2156] Jean Aunis -- resource_endpoints.c: memory leak when
+       providing a 404 response
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-29099: res_musiconhold: Realtime MOH only loads a single entry
+   Reported by: lvl
+     * [374d18cb97] lvl -- res_musiconhold: Load all realtime entries, not
+       just the first
+   ASTERISK-24329: Music On Hold announcement cuts intro of music the first
+   time it is played
+   Reported by: Thomas Frederiksen
+     * [4a7bbac0ed] Sean Bright -- res_musiconhold: Start playlist after
+       initial announcement
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-28933: res_pjsip.so fails to load when bundled pjproject is
+   compiled without libssl
+   Reported by: Walter Doekes
+     * [ddfb76a864] Alexander Traud -- res_pjsip/config_transport: Load and
+       run without OpenSSL.
+   ASTERISK-29013: res_pjsip: Asterisk doesn't stop sending invites (with
+   auth) on 407 replies
+   Reported by: Sebastian Damm
+     * [58aa6a7057] Ben Ford -- AST-2020-002 - res_pjsip: Stop sending
+       INVITEs after challenge limit.
+
+    Category: Resources/res_pjsip_authenticator_digest
+
+   ASTERISK-29013: res_pjsip: Asterisk doesn't stop sending invites (with
+   auth) on 407 replies
+   Reported by: Sebastian Damm
+     * [58aa6a7057] Ben Ford -- AST-2020-002 - res_pjsip: Stop sending
+       INVITEs after challenge limit.
+
+    Category: Resources/res_pjsip_config_wizard
+
+   ASTERISK-29097: res_pjsip_config_wizard: Crash when freeing string when
+   failing to add extension
+   Reported by: Vieri
+     * [7a64868118] Sean Bright -- pbx.c: On error,
+       ast_add_extension2_lockopt should always free 'data'
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-29051: res_pjsip_sdp_rtp: Does not set correct values on RTP
+   instance when "auto" DTMF is used
+   Reported by: Sebastian Damm
+     * [cd793c7c81] Holger Hans Peter Freyther -- res_pjsip_sdp_rtp: Fix
+       accidentally native bridging calls
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-29014: res_pjsip_session: Re-INVITE collisions aren't handled
+   correctly
+   Reported by: George Joseph
+     * [df429c97a1] George Joseph -- res_pjsip_session: Fix issue with COLP
+       and 491
+     * [65088494cb] George Joseph -- res_pjsip_session: Handle multi-stream
+       re-invites better
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29089: RTP Ports not cleared after hangup
+   Reported by: Ross Beer
+     * [e6ed74347c] Joshua C. Colp -- res_pjsip_session: Fix session
+       reference leak.
+
+    Category: Resources/res_stasis
+
+   ASTERISK-29081: res_stasis: Add compare function for bridges moh container
+   Reported by: Hajek Michal
+     * [f7285140b4] Michal Hajek -- res_stasis.c: Add compare function for
+       bridges moh container
+
+    Category: Utilities/muted
+
+   ASTERISK-29145: GCC Warnings with OPTIMIZE=-Os make
+   Reported by: Alexander Traud
+     * [92ca48d54c] Alexander Traud -- Compiler fixes for GCC with -Os
+
+  Improvement
+
+    Category: Core/Logging
+
+   ASTERISK-29054: Logger: Add debug logging categories
+   Reported by: Kevin Harwell
+     * [e051806e80] Kevin Harwell -- Logging: Add debug logging categories
+
+    Category: Resources/General
+
+   ASTERISK-29056: Increase reg_server column size for ps_contacts table
+   realtime
+   Reported by: sungtae kim
+     * [a353b76c75] Sungtae Kim -- realtime: Increased reg_server character
+       size
+
+    Category: Resources/res_stasis
+
+   ASTERISK-29055: Create a Bridge with video_single mode
+   Reported by: sungtae kim
+     * [af339d0adb] Sungtae Kim -- res_stasis.c: Added video_single option
+       for bridge creation
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      | Update CHANGES and UPGRADE.txt for        |
+   | 3366956139 | Development   | 16.15.0                                   |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   | e1fd51cd2c | George Joseph | res_pjsip_outbound_registration.c: Use    |
+   |            |               | our own scheduler and other stuff         |
+   |------------+---------------+-------------------------------------------|
+   | 80f116c156 | George Joseph | pjsip_scheduler.c: Add type ONESHOT and   |
+   |            |               | enhance cli show command                  |
+   |------------+---------------+-------------------------------------------|
+   | 728cd55cde | Alexei        | sched: AST_SCHED_REPLACE_UNREF can lead   |
+   |            | Gradinari     | to use after free of data                 |
+   |------------+---------------+-------------------------------------------|
+   | 277aa0ced6 | Alexander     | res_stir_shaken: Include OpenSSL headers  |
+   |            | Traud         | where used actually.                      |
+   |------------+---------------+-------------------------------------------|
+   | 951ce0524d | Alexander     | chan_sip: On authentication, pick MD5 for |
+   |            | Traud         | sure.                                     |
+   |------------+---------------+-------------------------------------------|
+   | f98eed17c1 | Walter Doekes | main/say: Work around gcc 9               |
+   |            |               | format-truncation false positive          |
+   |------------+---------------+-------------------------------------------|
+   | 92e1de458a | Kevin Harwell | res_pjsip, res_pjsip_session: initialize  |
+   |            |               | local variables                           |
+   |------------+---------------+-------------------------------------------|
+   | 65426f4312 | Alexander     | install_prereq: Add GMime 3.0.            |
+   |            | Traud         |                                           |
+   |------------+---------------+-------------------------------------------|
+   | fb721ce82c | Alexander     | BuildSystem: Enable Lua 5.4.              |
+   |            | Traud         |                                           |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      | Update CHANGES and UPGRADE.txt for        |
+   | 69356a7895 | Development   | 16.14.0                                   |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   | 681a1624b5 | Ben Ford      | utils.c: NULL terminate                   |
+   |            |               | ast_base64decode_string.                  |
+   |------------+---------------+-------------------------------------------|
+   | df7c4ed0ed | Ben Ford      | res_stir_shaken: Fix memory allocation    |
+   |            |               | error in curl.c                           |
+   |------------+---------------+-------------------------------------------|
+   | 21ab0a450b | Ben Ford      | res_stir_shaken: Add stir_shaken option   |
+   |            |               | and general improvements.                 |
+   |------------+---------------+-------------------------------------------|
+   | d979bdf87a | Ben Ford      | res_stir_shaken: Add outbound INVITE      |
+   |            |               | support.                                  |
+   |------------+---------------+-------------------------------------------|
+   | 746ce16b16 | Ben Ford      | res_stir_shaken: Add inbound INVITE       |
+   |            |               | support.                                  |
+   |------------+---------------+-------------------------------------------|
+   | 9d7628829c | Ben Ford      | res_stir_shaken: Add unit tests for       |
+   |            |               | signing and verification.                 |
+   |------------+---------------+-------------------------------------------|
+   | 035b463c93 | Ben Ford      | res_stir_shaken: Added dialplan function  |
+   |            |               | and API call.                             |
+   |------------+---------------+-------------------------------------------|
+   | 0392a8e620 | Joshua C.     | res_stir_shaken: Use ast_asprintf for     |
+   |            | Colp          | creating file path.                       |
+   |------------+---------------+-------------------------------------------|
+   | 70af7e1311 | Ben Ford      | res_stir_shaken: Implemented signature    |
+   |            |               | verification.                             |
+   |------------+---------------+-------------------------------------------|
+   | 971b125fc0 | Alexander     | res_stir_shaken: Do not build without     |
+   |            | Traud         | OpenSSL.                                  |
+   |------------+---------------+-------------------------------------------|
+   | e9ee9a381b | Ben Ford      | res_stir_shaken: Implemented signing of   |
+   |            |               | JSON payload.                             |
+   |------------+---------------+-------------------------------------------|
+   | 716e51a3f3 | Ben Ford      | res_stir_shaken: Initial commit and       |
+   |            |               | reading private key.                      |
+   |------------+---------------+-------------------------------------------|
+   | 3b0a53f257 | George Joseph | app_confbridge/bridge_softmix: Add        |
+   |            |               | ability to force estimated bitrate        |
+   |------------+---------------+-------------------------------------------|
+   | 14b483dd5e | Torrey Searle | res_pjsip_diversion: fix double 181       |
+   |------------+---------------+-------------------------------------------|
+   | fccf360fcb | Sean Bright   | res_musiconhold: Clarify that playlist    |
+   |            |               | mode only supports HTTP(S) URLs           |
+   |------------+---------------+-------------------------------------------|
+   | baa6e8f112 | Joshua C.     | res_pjsip_session: Fix stream name memory |
+   |            | Colp          | leak.                                     |
+   |------------+---------------+-------------------------------------------|
+   | fb6f2157e7 | George Joseph | logger.h: Fix ast_trace to respect        |
+   |            |               | scope_level                               |
+   |------------+---------------+-------------------------------------------|
+   | 8d9633074e | George Joseph | bridge_softmix/sfu_topologies_on_join:    |
+   |            |               | Ignore topology change failures           |
+   |------------+---------------+-------------------------------------------|
+   | 9458577f68 | Sean Bright   | res_pjsip_session.c: Fix build when       |
+   |            |               | TEST_FRAMEWORK is not defined             |
+   |------------+---------------+-------------------------------------------|
+   | 6abf6f345d | George Joseph | debugging: Add enough to choke a mule     |
+   |------------+---------------+-------------------------------------------|
+   | e7620d034a | Ben Ford      | Bridging: Use a ref to bridge_channel's   |
+   |            |               | channel to prevent crash.                 |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                       |    1
+ .version                                                                         |    1
+ ChangeLog                                                                        |90797 ----------
+ asterisk-16.14.0-summary.html                                                    |   76
+ asterisk-16.14.0-summary.txt                                                     |  248
+ b/CHANGES                                                                        |   51
+ b/Makefile                                                                       |    2
+ b/UPGRADE.txt                                                                    |   10
+ b/addons/ooh323c/src/ooq931.c                                                    |    2
+ b/apps/app_confbridge.c                                                          |    3
+ b/apps/app_directory.c                                                           |    2
+ b/apps/app_voicemail.c                                                           |    5
+ b/apps/confbridge/conf_config_parser.c                                           |   21
+ b/apps/confbridge/include/confbridge.h                                           |    2
+ b/bridges/bridge_softmix.c                                                       |  153
+ b/channels/chan_iax2.c                                                           |    2
+ b/channels/chan_pjsip.c                                                          |   74
+ b/channels/chan_sip.c                                                            |   13
+ b/configs/samples/confbridge.conf.sample                                         |    7
+ b/configs/samples/features.conf.sample                                           |    4
+ b/configs/samples/musiconhold.conf.sample                                        |    4
+ b/configs/samples/pjsip.conf.sample                                              |   18
+ b/configs/samples/res_curl.conf.sample                                           |    1
+ b/configs/samples/stir_shaken.conf.sample                                        |   61
+ b/configure                                                                      |    2
+ b/configure.ac                                                                   |    2
+ b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py  |   22
+ b/contrib/ast-db-manage/config/versions/61797b9fced6_add_stir_shaken.py          |   31
+ b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38
+ b/contrib/scripts/install_prereq                                                 |    2
+ b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                |   43
+ b/funcs/func_curl.c                                                              |   48
+ b/funcs/func_odbc.c                                                              |    2
+ b/include/asterisk/bridge.h                                                      |   14
+ b/include/asterisk/bridge_channel.h                                              |   14
+ b/include/asterisk/format_cache.h                                                |   13
+ b/include/asterisk/logger.h                                                      |    4
+ b/include/asterisk/logger_category.h                                             |  178
+ b/include/asterisk/pbx.h                                                         |    8
+ b/include/asterisk/res_pjsip.h                                                   |  109
+ b/include/asterisk/res_pjsip_session.h                                           |    8
+ b/include/asterisk/res_stir_shaken.h                                             |  114
+ b/include/asterisk/rtp_engine.h                                                  |   79
+ b/include/asterisk/sched.h                                                       |    5
+ b/include/asterisk/stream.h                                                      |    4
+ b/include/asterisk/stun.h                                                        |   25
+ b/include/asterisk/utils.h                                                       |   26
+ b/main/bridge.c                                                                  |   44
+ b/main/bridge_channel.c                                                          |   20
+ b/main/channel.c                                                                 |   14
+ b/main/cli.c                                                                     |   51
+ b/main/dsp.c                                                                     |    4
+ b/main/format_cache.c                                                            |   21
+ b/main/format_cap.c                                                              |    2
+ b/main/indications.c                                                             |    6
+ b/main/logger.c                                                                  |    5
+ b/main/logger_category.c                                                         |  324
+ b/main/pbx.c                                                                     |   12
+ b/main/rtp_engine.c                                                              |   68
+ b/main/say.c                                                                     |   20
+ b/main/stream.c                                                                  |   30
+ b/main/stun.c                                                                    |   61
+ b/main/tcptls.c                                                                  |   12
+ b/main/utils.c                                                                   |   50
+ b/res/Makefile                                                                   |    1
+ b/res/ari/resource_bridges.h                                                     |    4
+ b/res/ari/resource_endpoints.c                                                   |    1
+ b/res/parking/parking_bridge_features.c                                          |    1
+ b/res/res_musiconhold.c                                                          |   24
+ b/res/res_parking.c                                                              |    1
+ b/res/res_pjsip.c                                                                |   78
+ b/res/res_pjsip/config_transport.c                                               |   18
+ b/res/res_pjsip/pjsip_configuration.c                                            |    2
+ b/res/res_pjsip/pjsip_scheduler.c                                                |  180
+ b/res/res_pjsip/pjsip_transport_management.c                                     |    2
+ b/res/res_pjsip_config_wizard.c                                                  |    1
+ b/res/res_pjsip_diversion.c                                                      |  326
+ b/res/res_pjsip_outbound_registration.c                                          |  296
+ b/res/res_pjsip_pubsub.c                                                         |   10
+ b/res/res_pjsip_sdp_rtp.c                                                        |   26
+ b/res/res_pjsip_session.c                                                        | 1938
+ b/res/res_pjsip_stir_shaken.c                                                    |  332
+ b/res/res_rtp_asterisk.c                                                         |  403
+ b/res/res_stasis.c                                                               |   31
+ b/res/res_stir_shaken.c                                                          | 1665
+ b/res/res_stir_shaken.exports.in                                                 |    6
+ b/res/res_stir_shaken/certificate.c                                              |  388
+ b/res/res_stir_shaken/certificate.h                                              |  119
+ b/res/res_stir_shaken/curl.c                                                     |  199
+ b/res/res_stir_shaken/curl.h                                                     |   73
+ b/res/res_stir_shaken/general.c                                                  |  286
+ b/res/res_stir_shaken/general.h                                                  |  111
+ b/res/res_stir_shaken/stir_shaken.c                                              |  122
+ b/res/res_stir_shaken/stir_shaken.h                                              |   55
+ b/res/res_stir_shaken/store.c                                                    |  202
+ b/res/res_stir_shaken/store.h                                                    |   37
+ b/res/stasis/stasis_bridge.c                                                     |    2
+ b/rest-api/api-docs/bridges.json                                                 |    6
+ contrib/realtime/mysql/mysql_cdr.sql                                             |   41
+ contrib/realtime/mysql/mysql_config.sql                                          | 1258
+ contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                | 1362
+ contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
+ 104 files changed, 8051 insertions(+), 94768 deletions(-)
