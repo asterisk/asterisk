@@ -24,7 +24,7 @@ autoload=yes
 ; the "require" keyword. Asterisk will exit with a status code of 2
 ; if a required module does not load.
 ;
-; require = chan_pjsip.so
+;require = chan_pjsip.so
 ;
 ; If you want you can combine with preload
 ; preload-require = your_special_module.so
@@ -35,9 +35,12 @@ autoload=yes
 ; By default, load chan_oss only (automatically).
 ;
 noload => chan_alsa.so
-;noload => chan_oss.so
 noload => chan_console.so
-
+;noload => chan_oss.so
+;
+; Do not load res_hep and kin unless you are using HEP monitoring
+; <http://sipcapture.org> in your network.
+;
 noload => res_hep.so
 noload => res_hep_pjsip.so
 noload => res_hep_rtcp.so
