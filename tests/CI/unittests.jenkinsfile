@@ -38,7 +38,7 @@ pipeline {
 			gerritBuildFailedVerifiedValue: -1,
 			gerritBuildUnstableVerifiedValue: -1,
 			gerritProjects: [
-				[branches: [[compareType: 'PLAIN', pattern: "${BRANCH_NAME}"]],
+				[branches: [[compareType: 'PLAIN', pattern: "${env.BRANCH_NAME}"]],
 					compareType: 'REG_EXP',
 					disableStrictForbiddenFileVerification: false,
 					pattern: '^(Security-)?asterisk.*'
@@ -154,7 +154,7 @@ pipeline {
 						stage ('Build') {
 							echo 'Building..'
 
-							sh "./tests/CI/buildAsterisk.sh --branch-name=${BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
+							sh "./tests/CI/buildAsterisk.sh --branch-name=${env.BRANCH_NAME} --output-dir=${outputdir} --cache-dir=/srv/cache"
 
 							archiveArtifacts allowEmptyArchive: true, defaultExcludes: false, fingerprint: false,
 								artifacts: "${outputdir}/*"
@@ -164,7 +164,7 @@ pipeline {
 							def outputfile = "${outputdir}/unittests-results.xml"
 							def testcmd = "test execute all"
 
-							sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${BRANCH_NAME} --user-group=jenkins:users"
+							sh "sudo ./tests/CI/installAsterisk.sh --uninstall-all --branch-name=${env.BRANCH_NAME} --user-group=jenkins:users"
 
 							sh "tests/CI/runUnittests.sh --user-group=jenkins:users --output-dir='${outputdir}' --output-xml='${outputfile}' --unittest-command='${testcmd}'"
 
