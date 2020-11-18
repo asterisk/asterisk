@@ -222,6 +222,25 @@ struct ast_channel {
 	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 	struct ast_channel_snapshot *snapshot; /*!< The current up to date snapshot of the channel */
 	struct ast_flags snapshot_segment_flags; /*!< Flags regarding the segments of the snapshot */
+	/* DUB */
+	long int  stream_label;
+	long int s1_pkt_count;                          /*!< DUB - Count of packets on Stream1 */
+        long int s2_pkt_count;                          /*!< DUB - Count of packets on Stream2 */
+        long int s1_extra_pkt;                          /*!< DUB - Count of extra packets on Stream1 */
+        long int s2_extra_pkt;                          /*!< DUB - Count of extra packets on Stream2 */
+        long int stream1_last_ts;                       /*!< DUB - Last TS of Stream1 */
+        long int stream2_last_ts;                       /*!< DUB - Last TS of Stream2 */
+        long int s1_last_f_seq;                         /*!< DUB - Last Frame SeqNo of Stream1 */
+        long int s2_last_f_seq;                         /*!< DUB - Last Frame SeqNo of Stream2 */
+        long int packet_size_1;                         /*!< DUB - ptime of Stream1 */
+        long int packet_size_2;                         /*!< DUB - ptime of Stream2 */
+        long int pause_start_time;                      /*!< DUB - Recording Pause Start time */
+        struct timeval rec_start_time;                  /*!< DUB - Recording Start time */
+        struct timeval rec_s1_end_ts;                   /*!< DUB - Recording Stream 1 end ts */
+        struct timeval rec_s2_end_ts;                   /*!< DUB - Recording Stream 2 end ts */
+        unsigned int stream1_last_ssrc;                 /*!< DUB - Last SSRC for stream 1 */
+        unsigned int stream2_last_ssrc;                 /*!< DUB - Last SSRC for stream 2 */
+
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */

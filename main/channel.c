@@ -1010,8 +1010,8 @@ struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const 
 
 static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head, struct ast_frame *after)
 {
-	struct ast_frame *f;
-	struct ast_frame *cur;
+	struct ast_frame *f = NULL;
+	struct ast_frame *cur = NULL;
 	unsigned int new_frames = 0;
 	unsigned int new_voice_frames = 0;
 	unsigned int queued_frames = 0;

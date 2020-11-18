@@ -145,6 +145,8 @@ enum {
 	AST_FRFLAG_REQUEUED = (1 << 1),
 	/*! This frame contains a valid sequence number */
 	AST_FRFLAG_HAS_SEQUENCE_NUMBER = (1 << 2),
+	AST_FRFLAG_STREAM1 = (1 << 3),
+        AST_FRFLAG_STREAM2 = (1 << 4),
 };
 
 struct ast_frame_subclass {
@@ -195,6 +197,8 @@ struct ast_frame {
 	int seqno;
 	/*! Stream number the frame originated from */
 	int stream_num;
+	/*! DUB - Media Stream Label */
+        long int stream_label;
 };
 
 /*!

@@ -220,6 +220,10 @@
 #define DEFAULT_KEEPALIVE      0        /*!< Don't send keep alive packets */
 #define DEFAULT_KEEPALIVE_INTERVAL 60   /*!< Send keep alive packets at 60 second intervals */
 #define DEFAULT_ALWAYSAUTHREJECT  TRUE  /*!< Don't reject authentication requests always */
+/* DUB start */
+#define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
+#define DUB_CMD_DIGITS 4
+/* DUB ends */
 #define DEFAULT_AUTH_OPTIONS  FALSE
 #define DEFAULT_AUTH_MESSAGE  TRUE
 #define DEFAULT_ACCEPT_OUTOFCALL_MESSAGE TRUE
@@ -756,6 +760,9 @@ struct sip_settings {
 	int accept_outofcall_message; /*!< Accept MESSAGE outside of a call */
 	int compactheaders;         /*!< send compact sip headers */
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
+	/* DUB start */
+	int callevents;             /*!< Whether we send manager events or not */
+	/* DUB ends */
 	int regextenonqualify;      /*!< Whether to add/remove regexten when qualifying peers */
 	int legacy_useroption_parsing; /*!< Whether to strip useroptions in URI via semicolons */
 	int send_diversion;	        /*!< Whether to Send SIP Diversion headers */
@@ -1164,7 +1171,11 @@ struct sip_pvt {
 	struct sip_peer *relatedpeer;       /*!< If this dialog is related to a peer, which one
 	                                         Used in peerpoke, mwi subscriptions */
 	struct sip_registry *registry;      /*!< If this is a REGISTER dialog, to which registry */
-	struct ast_rtp_instance *rtp;       /*!< RTP Session */
+	struct ast_rtp_instance *rtp1;      /*!< RTP Session */
+	struct ast_rtp_instance *rtp2;      /*!< DUB- Second RTP Session */
+	long int packet_size;               /*!< DUB - Temp Packet Size */
+        long int packet_size_1;             /*!< DUB - Packet Size */
+        long int packet_size_2;             /*!< DUB - Packet Size */
 	struct ast_rtp_instance *vrtp;      /*!< Video RTP session */
 	struct ast_rtp_instance *trtp;      /*!< Text RTP session */
 	struct sip_pkt *packets;            /*!< Packets scheduled for re-transmission */

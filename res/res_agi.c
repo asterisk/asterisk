@@ -1402,7 +1402,7 @@ static int agidebug = 0;
 #define TONE_BLOCK_SIZE 200
 
 /* Max time to connect to an AGI remote host */
-#define MAX_AGI_CONNECT 2000
+#define MAX_AGI_CONNECT 5000
 
 #define AGI_PORT 4573
 
@@ -2898,7 +2898,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, cons
 
 static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
-	struct ast_filestream *fs;
+	struct ast_filestream *fs, *fs2;
 	struct ast_frame *f;
 	struct timeval start;
 	long sample_offset = 0;
@@ -2914,11 +2914,17 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 
 	/* XXX EAGI FIXME XXX */
+	int filename_size = strlen(argv[2]) * sizeof(char) + 10;
+	char *filename = ast_malloc(filename_size); 
 
-	if (argc < 6)
+	if (argc < 6) {
+		ast_free(filename);
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[5], "%30d", &ms) != 1)
+	}
+	if (sscanf(argv[5], "%30d", &ms) != 1) {
+		ast_free(filename);
 		return RESULT_SHOWUSAGE;
+	}
 
 	if (argc > 6)
 		silencestr = strchr(argv[6],'s');
@@ -2946,12 +2952,14 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
+			ast_free(filename);
 			return RESULT_FAILURE;
 		}
 		sildet = ast_dsp_new();
 		if (!sildet) {
 			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 			ast_agi_send(agi->fd, chan, "200 result=-1\n");
+			ast_free(filename);
 			return RESULT_FAILURE;
 		}
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
@@ -2971,7 +2979,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	if (res) {
 		ast_agi_send(agi->fd, chan, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	} else {
-		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
+		snprintf(filename, filename_size, "%s-stream1", argv[2]);
+		fs = ast_writefile(filename, argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
+		ast_log(LOG_NOTICE, "Audio file #1: %s.%s\n",filename,argv[3]);
 		if (!fs) {
 			res = -1;
 			ast_agi_send(agi->fd, chan, "200 result=%d (writefile)\n", res);
@@ -2979,21 +2989,38 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 				ast_dsp_free(sildet);
 			return RESULT_FAILURE;
 		}
-
+		
+		snprintf(filename, filename_size, "%s-stream2", argv[2]);
+		fs2 = ast_writefile(filename, argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
+		ast_log(LOG_NOTICE, "Audio file #2: %s.%s\n",filename,argv[3]);
+		if (!fs2) {
+                        res = -1;
+                        //ast_agi_send(agi->fd, chan, "200 result=%d (writefile)\n", res);
+                        if (sildet)
+                                ast_dsp_free(sildet);
+                        ast_free(filename);
+                        return RESULT_FAILURE;
+                }
 		/* Request a video update */
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
 		ast_channel_stream_set(chan, fs);
+		ast_channel_stream_set(chan, fs2);
 		ast_applystream(chan,fs);
+		ast_applystream(chan,fs2);
 		/* really should have checks */
 		ast_seekstream(fs, sample_offset, SEEK_SET);
 		ast_truncstream(fs);
+
+		ast_seekstream(fs2, sample_offset, SEEK_SET);
+                ast_truncstream(fs2);
 
 		start = ast_tvnow();
 		while ((ms < 0) || ast_tvdiff_ms(ast_tvnow(), start) < ms) {
 			res = ast_waitfor(chan, ms - ast_tvdiff_ms(ast_tvnow(), start));
 			if (res < 0) {
 				ast_closestream(fs);
+				ast_closestream(fs2);
 				ast_agi_send(agi->fd, chan, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
@@ -3002,9 +3029,11 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			f = ast_read(chan);
 			if (!f) {
 				ast_closestream(fs);
+				ast_closestream(fs2);
 				ast_agi_send(agi->fd, chan, "200 result=%d (hangup) endpos=%ld\n", -1, sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
+				ast_free(filename);
 				return RESULT_FAILURE;
 			}
 			switch(f->frametype) {
@@ -3025,11 +3054,27 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 				}
 				break;
 			case AST_FRAME_VOICE:
-				ast_writestream(fs, f);
+				  if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
+                                           ast_debug(3, "Write Stream1\n");
+                                           ast_writestream(fs, f);
+                                  } else if (ast_test_flag(f, AST_FRFLAG_STREAM2)) {
+                                           ast_debug(3, "Write Stream2\n");
+                                           ast_writestream(fs2, f);
+                                  } else {
+                                           ast_log(LOG_ERROR,"INVALID RTP STREAM NO: Something not right!!!\n");
+                                  }
+				//ast_writestream(fs, f);
 				/* this is a safe place to check progress since we know that fs
 				 * is valid after a write, and it will then have our current
 				 * location */
-				sample_offset = ast_tellstream(fs);
+				//sample_offset = ast_tellstream(fs);
+                                if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
+                                        sample_offset = ast_tellstream(fs);
+                                } else if (ast_test_flag(f, AST_FRFLAG_STREAM2)) {
+                                        sample_offset = ast_tellstream(fs2);
+                                } else {
+                                        ast_log(LOG_ERROR,"INVALID RTP STREAM NO: Something not right!!!\n");
+                                }
 				if (silence > 0) {
 					dspsilence = 0;
 					ast_dsp_silence(sildet, f, &dspsilence);
