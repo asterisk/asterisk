@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.15.0-rc1
+                                asterisk-16.15.0
 
-                                Date: 2020-11-12
+                                Date: 2020-11-19
 
                            <asteriskteam@digium.com>
 
@@ -55,9 +55,9 @@
    9 Alexander Traud                                 2 sungtae kim            
    8 George Joseph                                   2 Sebastian Damm         
    3 Kevin Harwell                                   1 Walter Doekes          
-   3 Joshua C. Colp                                  1 å*¨å®¶å»º              
-   2 Torrey Searle                                   1 Andrew Siplas          
-   2 Asterisk Development Team                       1 Jean Aunis - Prescom   
+   3 Asterisk Development Team                       1 å*¨å®¶å»º              
+   3 Joshua C. Colp                                  1 Andrew Siplas          
+   2 Torrey Searle                                   1 Jean Aunis - Prescom   
    2 Sungtae Kim                                     1 Kevin Harwell          
    1 Holger Hans Peter Freyther                      1 dovid                  
    1 Dovid Bender                                    1 Brian J. Murrell       
@@ -66,9 +66,9 @@
    1 Jean Aunis                                      1 Ross Beer              
    1 Jasper van der Neut                             1 Benjamin M.            
    1 Michal Hajek                                    1 PÃ©ter JuhÃ¡sz         
-   1 lvl                                             1 under                  
+   1 laszlovl                                        1 under                  
    1 Andrew Siplas                                   1 Thomas Frederiksen     
-                                                     1 lvl                    
+                                                     1 laszlovl               
                                                      1 Michael Newton         
                                                      1 Sandro Gauci           
                                                      1 Dovid Bender           
@@ -218,9 +218,9 @@
     Category: Resources/res_musiconhold
 
    ASTERISK-29099: res_musiconhold: Realtime MOH only loads a single entry
-   Reported by: lvl
-     * [374d18cb97] lvl -- res_musiconhold: Load all realtime entries, not
-       just the first
+   Reported by: laszlovl
+     * [374d18cb97] laszlovl -- res_musiconhold: Load all realtime entries,
+       not just the first
    ASTERISK-24329: Music On Hold announcement cuts intro of music the first
    time it is played
    Reported by: Thomas Frederiksen
@@ -329,6 +329,10 @@
    +------------------------------------------------------------------------+
    | Revision   | Author        | Summary                                   |
    |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
+   | fbe2e9b687 | Development   | Update for 16.15.0-rc1                    |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
    |            | Asterisk      | Update CHANGES and UPGRADE.txt for        |
    | 3366956139 | Development   | 16.15.0                                   |
    |            | Team          |                                           |
@@ -435,12 +439,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                       |    1
- .version                                                                         |    1
- ChangeLog                                                                        |90797 ----------
  asterisk-16.14.0-summary.html                                                    |   76
- asterisk-16.14.0-summary.txt                                                     |  248
+ asterisk-16.14.0-summary.txt                                                     |  248 -
+ b/.version                                                                       |    2
  b/CHANGES                                                                        |   51
+ b/ChangeLog                                                                      |  920 ++++
  b/Makefile                                                                       |    2
  b/UPGRADE.txt                                                                    |   10
  b/addons/ooh323c/src/ooq931.c                                                    |    2
@@ -449,6 +452,8 @@
  b/apps/app_voicemail.c                                                           |    5
  b/apps/confbridge/conf_config_parser.c                                           |   21
  b/apps/confbridge/include/confbridge.h                                           |    2
+ b/asterisk-16.15.0-rc1-summary.html                                              |  215 +
+ b/asterisk-16.15.0-rc1-summary.txt                                               |  542 ++
  b/bridges/bridge_softmix.c                                                       |  153
  b/channels/chan_iax2.c                                                           |    2
  b/channels/chan_pjsip.c                                                          |   74
@@ -464,6 +469,8 @@
  b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py  |   22
  b/contrib/ast-db-manage/config/versions/61797b9fced6_add_stir_shaken.py          |   31
  b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38
+ b/contrib/realtime/mysql/mysql_config.sql                                        |   18
+ b/contrib/realtime/postgresql/postgresql_config.sql                              |   18
  b/contrib/scripts/install_prereq                                                 |    2
  b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                |   43
  b/funcs/func_curl.c                                                              |   48
@@ -491,7 +498,7 @@
  b/main/format_cap.c                                                              |    2
  b/main/indications.c                                                             |    6
  b/main/logger.c                                                                  |    5
- b/main/logger_category.c                                                         |  324
+ b/main/logger_category.c                                                         |  324 +
  b/main/pbx.c                                                                     |   12
  b/main/rtp_engine.c                                                              |   68
  b/main/say.c                                                                     |   20
@@ -511,32 +518,26 @@
  b/res/res_pjsip/pjsip_scheduler.c                                                |  180
  b/res/res_pjsip/pjsip_transport_management.c                                     |    2
  b/res/res_pjsip_config_wizard.c                                                  |    1
- b/res/res_pjsip_diversion.c                                                      |  326
- b/res/res_pjsip_outbound_registration.c                                          |  296
+ b/res/res_pjsip_diversion.c                                                      |  326 +
+ b/res/res_pjsip_outbound_registration.c                                          |  296 -
  b/res/res_pjsip_pubsub.c                                                         |   10
  b/res/res_pjsip_sdp_rtp.c                                                        |   26
- b/res/res_pjsip_session.c                                                        | 1938
- b/res/res_pjsip_stir_shaken.c                                                    |  332
- b/res/res_rtp_asterisk.c                                                         |  403
+ b/res/res_pjsip_session.c                                                        | 1938 ++++++++--
+ b/res/res_pjsip_stir_shaken.c                                                    |  332 +
+ b/res/res_rtp_asterisk.c                                                         |  403 +-
  b/res/res_stasis.c                                                               |   31
- b/res/res_stir_shaken.c                                                          | 1665
+ b/res/res_stir_shaken.c                                                          | 1665 ++++++++
  b/res/res_stir_shaken.exports.in                                                 |    6
- b/res/res_stir_shaken/certificate.c                                              |  388
+ b/res/res_stir_shaken/certificate.c                                              |  388 ++
  b/res/res_stir_shaken/certificate.h                                              |  119
- b/res/res_stir_shaken/curl.c                                                     |  199
+ b/res/res_stir_shaken/curl.c                                                     |  199 +
  b/res/res_stir_shaken/curl.h                                                     |   73
- b/res/res_stir_shaken/general.c                                                  |  286
+ b/res/res_stir_shaken/general.c                                                  |  286 +
  b/res/res_stir_shaken/general.h                                                  |  111
  b/res/res_stir_shaken/stir_shaken.c                                              |  122
  b/res/res_stir_shaken/stir_shaken.h                                              |   55
- b/res/res_stir_shaken/store.c                                                    |  202
+ b/res/res_stir_shaken/store.c                                                    |  202 +
  b/res/res_stir_shaken/store.h                                                    |   37
  b/res/stasis/stasis_bridge.c                                                     |    2
- b/rest-api/api-docs/bridges.json                                                 |    6
- contrib/realtime/mysql/mysql_cdr.sql                                             |   41
- contrib/realtime/mysql/mysql_config.sql                                          | 1258
- contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
- contrib/realtime/postgresql/postgresql_config.sql                                | 1362
- contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
- 104 files changed, 8051 insertions(+), 94768 deletions(-)
+ b/rest-api/api-docs/bridges.json                                                 |    4
+ 101 files changed, 9762 insertions(+), 1191 deletions(-)
