@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.1.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.1.0-rc1</h3><h3 align="center">Date: 2020-11-12</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.1.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.1.0</h3><h3 align="center">Date: 2020-11-19</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -6,7 +6,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.0.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">12 Sean Bright <sean.bright@gmail.com><br/>8 George Joseph <gjoseph@digium.com><br/>8 Alexander Traud <pabstraud@compuserve.com><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Torrey Searle <tsearle@voxbone.com><br/>2 Ben Ford <bford@digium.com><br/>2 Sungtae Kim <pchero21@gmail.com><br/>1 Holger Hans Peter Freyther <holger@moiji-mobile.com><br/>1 Dovid Bender <dovid@telecurve.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Michal Hajek <michal.hajek@daktela.com><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Nick French <nickfrench@gmail.com><br/>1 lvl <digium@lvlconsultancy.nl><br/>1 Jasper van der Neut <jasper@isotopic.nl><br/>1 Andrew Siplas <andrew@asiplas.net><br/></td><td width="33%"><td width="33%">3 Alexander Traud <pabstraud@compuserve.com><br/>2 George Joseph <gjoseph@digium.com><br/>2 sungtae kim <pchero21@gmail.com><br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>2 Sebastian Damm <damm@sipgate.de><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 周家建 <zhou_0611@163.com><br/>1 Andrew Siplas <andrew@asiplas.net><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 dovid <dovi5988@dovid.net><br/>1 Brian J. Murrell <brian@interlinx.bc.ca><br/>1 Vieri <vieridipaola@gmail.com><br/>1 Nick French <nickfrench@gmail.com><br/>1 Walter Doekes<br/>1 Benjamin M. <mailinglist@perspectives.qc.ca><br/>1 Péter Juhász <peter.juhasz@comnica.com><br/>1 under <under@list.ru><br/>1 Thomas Frederiksen <tommer@nicesurprise.com><br/>1 Michal Hajek <michal.hajek@daktela.com><br/>1 Michael Newton <miken32@gmail.com><br/>1 Sandro Gauci <sandro@enablesecurity.com><br/>1 Dovid Bender<br/>1 Jasper van der Neut <jasper@isotopic.nl><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 lvl <digium@lvlconsultancy.nl><br/>1 Hajek Michal <michal.hajek@daktela.com><br/>1 Eric Smith <abkowald@gmail.com><br/></td></tr>
+<tr valign="top"><td width="33%">12 Sean Bright <sean.bright@gmail.com><br/>8 George Joseph <gjoseph@digium.com><br/>8 Alexander Traud <pabstraud@compuserve.com><br/>3 Kevin Harwell <kharwell@sangoma.com><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Torrey Searle <tsearle@voxbone.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Ben Ford <bford@digium.com><br/>2 Sungtae Kim <pchero21@gmail.com><br/>1 Holger Hans Peter Freyther <holger@moiji-mobile.com><br/>1 Dovid Bender <dovid@telecurve.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Michal Hajek <michal.hajek@daktela.com><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Nick French <nickfrench@gmail.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Jasper van der Neut <jasper@isotopic.nl><br/>1 Andrew Siplas <andrew@asiplas.net><br/></td><td width="33%"><td width="33%">3 Alexander Traud <pabstraud@compuserve.com><br/>2 George Joseph <gjoseph@digium.com><br/>2 sungtae kim <pchero21@gmail.com><br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>2 Sebastian Damm <damm@sipgate.de><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 周家建 <zhou_0611@163.com><br/>1 Andrew Siplas <andrew@asiplas.net><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 dovid <dovi5988@dovid.net><br/>1 Brian J. Murrell <brian@interlinx.bc.ca><br/>1 Vieri <vieridipaola@gmail.com><br/>1 Nick French <nickfrench@gmail.com><br/>1 Walter Doekes<br/>1 Benjamin M. <mailinglist@perspectives.qc.ca><br/>1 Péter Juhász <peter.juhasz@comnica.com><br/>1 under <under@list.ru><br/>1 Thomas Frederiksen <tommer@nicesurprise.com><br/>1 Michal Hajek <michal.hajek@daktela.com><br/>1 Michael Newton <miken32@gmail.com><br/>1 Sandro Gauci <sandro@enablesecurity.com><br/>1 Dovid Bender<br/>1 Jasper van der Neut <jasper@isotopic.nl><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Hajek Michal <michal.hajek@daktela.com><br/>1 Eric Smith <abkowald@gmail.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29057">ASTERISK-29057</a>: pjsip: Crash on call rejection during high load<br/>Reported by: Sandro Gauci<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6baa4b53bef5d9c53692f22cf146215b42de1e89">[6baa4b53be]</a> Kevin Harwell -- AST-2020-001 - res_pjsip: Return dialog locked and referenced</li>
 </ul><br><h3>New Feature</h3><h4>Category: Resources/res_pjsip_diversion</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29027">ASTERISK-29027</a>: Implement support for History-Info<br/>Reported by: Torrey Searle<ul>
@@ -45,8 +45,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e0ee53dc9cef33619f5f0fd5efffb71dba6455ed">[e0ee53dc9c]</a> Alexander Traud -- Compiler fixes for GCC with -Og</li>
 </ul><br><h4>Category: Resources/res_ari_endpoints</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29108">ASTERISK-29108</a>: resource_endpoints.c : Memory leak if endpoint not found<br/>Reported by: Jean Aunis - Prescom<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7ced14486795342d8501f8ba10306841286715d2">[7ced144867]</a> Jean Aunis -- resource_endpoints.c: memory leak when providing a 404 response</li>
-</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29099">ASTERISK-29099</a>: res_musiconhold: Realtime MOH only loads a single entry<br/>Reported by: lvl<ul>
-<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b3b6b5e9f77852066a7c902acd77a586214e0773">[b3b6b5e9f7]</a> lvl -- res_musiconhold: Load all realtime entries, not just the first</li>
+</ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29099">ASTERISK-29099</a>: res_musiconhold: Realtime MOH only loads a single entry<br/>Reported by: laszlovl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b3b6b5e9f77852066a7c902acd77a586214e0773">[b3b6b5e9f7]</a> laszlovl -- res_musiconhold: Load all realtime entries, not just the first</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24329">ASTERISK-24329</a>: Music On Hold announcement cuts intro of music the first time it is played<br/>Reported by: Thomas Frederiksen<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d0644faa5abbe10c892aade339fc694d0c492c34">[d0644faa5a]</a> Sean Bright -- res_musiconhold: Start playlist after initial announcement</li>
 </ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28933">ASTERISK-28933</a>: res_pjsip.so fails to load when bundled pjproject is compiled without libssl<br/>Reported by: Walter Doekes<ul>
@@ -80,6 +80,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a0d41a27d49c2de03eab4572d0bcc721a8f93dd4">[a0d41a27d4]</a> Sungtae Kim -- res_stasis.c: Added video_single option for bridge creation</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=50145c837a330e16a9e9b91bd1f3639d304a5f81">50145c837a</a></td><td>Asterisk Development Team</td><td>Update for 18.1.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=98d1537c1eab8334416238091632025325297319">98d1537c1e</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.1.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=860e40dd80f0603582b98a7da8150f15b564cce3">860e40dd80</a></td><td>George Joseph</td><td>res_pjsip_outbound_registration.c:  Use our own scheduler and other stuff</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=569fc289664f70190c8ee6884b44a15225987c24">569fc28966</a></td><td>George Joseph</td><td>pjsip_scheduler.c: Add type ONESHOT and enhance cli show command</td></tr>
@@ -100,18 +101,19 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6f32c254bea47ed54e810dfee5305b022453cac9">6f32c254be</a></td><td>Sean Bright</td><td>res_pjsip_session.c: Fix build when TEST_FRAMEWORK is not defined</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ad4f2a8c99d3812868e0e094735df45c3970943d">ad4f2a8c99</a></td><td>George Joseph</td><td>debugging:  Add enough to choke a mule</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7eaae4e7b600ec0aecd6e30b75d89c99241d31fa">7eaae4e7b6</a></td><td>Ben Ford</td><td>Bridging: Use a ref to bridge_channel's channel to prevent crash.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                       |    1
-.version                                                                         |    1
-ChangeLog                                                                        |92149 ----------
-asterisk-18.0.0-summary.html                                                     | 1162
-asterisk-18.0.0-summary.txt                                                      | 2873
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-18.0.0-summary.html                                                     | 1162 ----
+asterisk-18.0.0-summary.txt                                                      | 2873 ----------
+b/.version                                                                       |    2
 b/CHANGES                                                                        |   30
+b/ChangeLog                                                                      |  742 ++
 b/addons/ooh323c/src/ooq931.c                                                    |    2
 b/apps/app_confbridge.c                                                          |    3
 b/apps/app_directory.c                                                           |    2
 b/apps/app_voicemail.c                                                           |    5
 b/apps/confbridge/conf_config_parser.c                                           |   21
 b/apps/confbridge/include/confbridge.h                                           |    2
+b/asterisk-18.1.0-rc1-summary.html                                               |  188
+b/asterisk-18.1.0-rc1-summary.txt                                                |  496 +
 b/bridges/bridge_softmix.c                                                       |  153
 b/channels/chan_audiosocket.c                                                    |    5
 b/channels/chan_iax2.c                                                           |    2
@@ -125,6 +127,8 @@ b/configure                                                                     
 b/configure.ac                                                                   |    2
 b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py  |   22
 b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38
+b/contrib/realtime/mysql/mysql_config.sql                                        |   12
+b/contrib/realtime/postgresql/postgresql_config.sql                              |   12
 b/contrib/scripts/install_prereq                                                 |    2
 b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                |   43
 b/funcs/func_curl.c                                                              |   48
@@ -151,7 +155,7 @@ b/main/format_cache.c                                                           
 b/main/format_cap.c                                                              |    2
 b/main/indications.c                                                             |    6
 b/main/logger.c                                                                  |    5
-b/main/logger_category.c                                                         |  324
+b/main/logger_category.c                                                         |  324 +
 b/main/pbx.c                                                                     |   12
 b/main/rtp_engine.c                                                              |   68
 b/main/say.c                                                                     |   20
@@ -170,19 +174,15 @@ b/res/res_pjsip/pjsip_configuration.c                                           
 b/res/res_pjsip/pjsip_scheduler.c                                                |  180
 b/res/res_pjsip/pjsip_transport_management.c                                     |    2
 b/res/res_pjsip_config_wizard.c                                                  |    1
-b/res/res_pjsip_diversion.c                                                      |  326
+b/res/res_pjsip_diversion.c                                                      |  326 +
 b/res/res_pjsip_outbound_registration.c                                          |  286
 b/res/res_pjsip_pubsub.c                                                         |   10
 b/res/res_pjsip_sdp_rtp.c                                                        |   26
-b/res/res_pjsip_session.c                                                        | 1977
+b/res/res_pjsip_session.c                                                        | 1977 +++++-
 b/res/res_pjsip_stir_shaken.c                                                    |    1
-b/res/res_rtp_asterisk.c                                                         |  403
+b/res/res_rtp_asterisk.c                                                         |  403 -
 b/res/res_stasis.c                                                               |   31
-b/res/res_stir_shaken.c                                                          |    2
-contrib/realtime/mysql/mysql_cdr.sql                                             |   41
-contrib/realtime/mysql/mysql_config.sql                                          | 1294
-contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
-contrib/realtime/postgresql/postgresql_config.sql                                | 1406
-contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
-85 files changed, 4068 insertions(+), 99980 deletions(-)</pre><br></html>
+b/res/res_stir_shaken.c                                                          |    4
+b/res/res_stir_shaken/stir_shaken.c                                              |    3
+b/res/stasis/stasis_bridge.c                                                     |    2
+84 files changed, 5520 insertions(+), 4976 deletions(-)</pre><br></html>
