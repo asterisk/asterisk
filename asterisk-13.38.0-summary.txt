@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.38.0-rc1
+                                asterisk-13.38.0
 
-                                Date: 2020-11-12
+                                Date: 2020-11-19
 
                            <asteriskteam@digium.com>
 
@@ -51,10 +51,10 @@
 
    Coders                       Testers              Reporters                
    6 Sean Bright                                     2 Sebastian Damm         
-   3 Alexander Traud                                 2 sungtae kim            
-   2 Kevin Harwell                                   1 Vieri                  
-   2 Torrey Searle                                   1 Torrey Searle          
-   2 Asterisk Development Team                       1 å*¨å®¶å»º              
+   3 Asterisk Development Team                       2 sungtae kim            
+   3 Alexander Traud                                 1 Vieri                  
+   2 Kevin Harwell                                   1 Torrey Searle          
+   2 Torrey Searle                                   1 å*¨å®¶å»º              
    2 Ben Ford                                        1 Sandro Gauci           
    2 Sungtae Kim                                     1 PÃ©ter JuhÃ¡sz         
    1 Holger Hans Peter Freyther                      1 Thomas Frederiksen     
@@ -213,6 +213,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author               | Summary                            |
    |------------+----------------------+------------------------------------|
+   | e01ed499ca | Asterisk Development | Update for 13.38.0-rc1             |
+   |            | Team                 |                                    |
+   |------------+----------------------+------------------------------------|
    | c7d3c071dd | Asterisk Development | Update CHANGES and UPGRADE.txt for |
    |            | Team                 | 13.38.0                            |
    |------------+----------------------+------------------------------------|
@@ -252,26 +255,29 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                       |    1
- .version                                                                         |    1
- ChangeLog                                                                        |71128 ----------
- asterisk-13.37.0-summary.html                                                    |   63
- asterisk-13.37.0-summary.txt                                                     |  223
+ asterisk-13.37.0-summary.html                                                    |   63 -
+ asterisk-13.37.0-summary.txt                                                     |  223 ------
+ b/.version                                                                       |    2
+ b/ChangeLog                                                                      |  308 +++++++++
  b/apps/app_voicemail.c                                                           |    3
+ b/asterisk-13.38.0-rc1-summary.html                                              |  102 +++
+ b/asterisk-13.38.0-rc1-summary.txt                                               |  303 +++++++++
  b/channels/chan_sip.c                                                            |    9
  b/configure                                                                      |    2
  b/configure.ac                                                                   |    2
  b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py  |   22
- b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38
+ b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38 +
+ b/contrib/realtime/mysql/mysql_config.sql                                        |   12
+ b/contrib/realtime/postgresql/postgresql_config.sql                              |   12
  b/contrib/scripts/install_prereq                                                 |    2
  b/funcs/func_curl.c                                                              |    7
  b/include/asterisk/bridge_channel.h                                              |   14
  b/include/asterisk/format_cache.h                                                |   13
  b/include/asterisk/pbx.h                                                         |    8
- b/include/asterisk/res_pjsip.h                                                   |   48
+ b/include/asterisk/res_pjsip.h                                                   |   48 +
  b/include/asterisk/res_pjsip_session.h                                           |    2
  b/main/asterisk.c                                                                |   10
- b/main/bridge.c                                                                  |   35
+ b/main/bridge.c                                                                  |   35 -
  b/main/bridge_channel.c                                                          |   20
  b/main/dsp.c                                                                     |    4
  b/main/format_cache.c                                                            |   21
@@ -283,21 +289,14 @@
  b/res/parking/parking_bridge_features.c                                          |    1
  b/res/res_musiconhold.c                                                          |    7
  b/res/res_parking.c                                                              |    1
- b/res/res_pjsip.c                                                                |   55
+ b/res/res_pjsip.c                                                                |   55 +
  b/res/res_pjsip/pjsip_configuration.c                                            |    1
  b/res/res_pjsip/pjsip_transport_management.c                                     |    2
  b/res/res_pjsip_config_wizard.c                                                  |    1
- b/res/res_pjsip_diversion.c                                                      |  326
+ b/res/res_pjsip_diversion.c                                                      |  326 +++++++++-
  b/res/res_pjsip_pubsub.c                                                         |   10
  b/res/res_pjsip_sdp_rtp.c                                                        |    3
- b/res/res_pjsip_session.c                                                        |  161
- b/res/res_stasis.c                                                               |   34
- b/res/stasis/stasis_bridge.c                                                     |    9
- b/res/stasis/stasis_bridge.h                                                     |    1
- contrib/realtime/mysql/mysql_cdr.sql                                             |   33
- contrib/realtime/mysql/mysql_config.sql                                          | 1195
- contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                   |   37
- contrib/realtime/postgresql/postgresql_config.sql                                | 1293
- contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
- 48 files changed, 811 insertions(+), 74148 deletions(-)
+ b/res/res_pjsip_session.c                                                        |  161 ++++
+ b/res/res_stasis.c                                                               |   34 -
+ b/res/stasis/stasis_bridge.c                                                     |    8
+ 44 files changed, 1545 insertions(+), 389 deletions(-)
