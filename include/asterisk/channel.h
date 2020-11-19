@@ -1057,6 +1057,8 @@ enum {
 	 * The channel is executing a subroutine or macro
 	 */
 	AST_FLAG_SUBROUTINE_EXEC = (1 << 27),
+	/*! DUB require SRTP call ( late negotiation) */
+	AST_FLAG_DUB_SRTP_CALL = (1 << 28),
 };
 
 /*! \brief ast_bridge_config flags */
