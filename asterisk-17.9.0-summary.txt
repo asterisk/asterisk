@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-17.9.0-rc1
+                                asterisk-17.9.0
 
-                                Date: 2020-11-12
+                                Date: 2020-11-19
 
                            <asteriskteam@digium.com>
 
@@ -52,11 +52,11 @@
    Coders                       Testers              Reporters                
    9 Sean Bright                                     2 Sebastian Damm         
    6 George Joseph                                   2 George Joseph          
-   3 Joshua C. Colp                                  2 sungtae kim            
-   3 Alexander Traud                                 1 Sandro Gauci           
-   2 Kevin Harwell                                   1 Nick French            
-   2 Torrey Searle                                   1 Michal Hajek           
-   2 Asterisk Development Team                       1 Ross Beer              
+   3 Asterisk Development Team                       2 sungtae kim            
+   3 Joshua C. Colp                                  1 Sandro Gauci           
+   3 Alexander Traud                                 1 Nick French            
+   2 Kevin Harwell                                   1 Michal Hajek           
+   2 Torrey Searle                                   1 Ross Beer              
    2 Ben Ford                                        1 under                  
    2 Sungtae Kim                                     1 å*¨å®¶å»º              
    1 Holger Hans Peter Freyther                      1 Torrey Searle          
@@ -64,8 +64,8 @@
    1 Michal Hajek                                    1 Vieri                  
    1 Jean Aunis                                      1 PÃ©ter JuhÃ¡sz         
    1 Nick French                                     1 Andrew Siplas          
-   1 lvl                                             1 Jean Aunis - Prescom   
-   1 Jasper van der Neut                             1 lvl                    
+   1 laszlovl                                        1 Jean Aunis - Prescom   
+   1 Jasper van der Neut                             1 laszlovl               
    1 Andrew Siplas                                   1 Thomas Frederiksen     
                                                      1 Eric Smith             
                                                      1 Brian J. Murrell       
@@ -174,9 +174,9 @@
     Category: Resources/res_musiconhold
 
    ASTERISK-29099: res_musiconhold: Realtime MOH only loads a single entry
-   Reported by: lvl
-     * [9511e8d379] lvl -- res_musiconhold: Load all realtime entries, not
-       just the first
+   Reported by: laszlovl
+     * [9511e8d379] laszlovl -- res_musiconhold: Load all realtime entries,
+       not just the first
    ASTERISK-24329: Music On Hold announcement cuts intro of music the first
    time it is played
    Reported by: Thomas Frederiksen
@@ -265,6 +265,10 @@
    | Revision   | Author        | Summary                                   |
    |------------+---------------+-------------------------------------------|
    |            | Asterisk      |                                           |
+   | baf66a5816 | Development   | Update for 17.9.0-rc1                     |
+   |            | Team          |                                           |
+   |------------+---------------+-------------------------------------------|
+   |            | Asterisk      |                                           |
    | 0654e5f77b | Development   | Update CHANGES and UPGRADE.txt for 17.9.0 |
    |            | Team          |                                           |
    |------------+---------------+-------------------------------------------|
@@ -325,16 +329,17 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                       |    1
- .version                                                                         |    1
- ChangeLog                                                                        |91663 ----------
  asterisk-17.8.0-summary.html                                                     |   74
- asterisk-17.8.0-summary.txt                                                      |  243
+ asterisk-17.8.0-summary.txt                                                      |  243 -
+ b/.version                                                                       |    2
  b/CHANGES                                                                        |   12
+ b/ChangeLog                                                                      |  575 ++
  b/apps/app_confbridge.c                                                          |    3
  b/apps/app_voicemail.c                                                           |    3
  b/apps/confbridge/conf_config_parser.c                                           |   21
  b/apps/confbridge/include/confbridge.h                                           |    2
+ b/asterisk-17.9.0-rc1-summary.html                                               |  138
+ b/asterisk-17.9.0-rc1-summary.txt                                                |  390 ++
  b/bridges/bridge_softmix.c                                                       |  153
  b/channels/chan_pjsip.c                                                          |   74
  b/channels/chan_sip.c                                                            |    9
@@ -344,6 +349,8 @@
  b/configure.ac                                                                   |    2
  b/contrib/ast-db-manage/config/versions/1ae0609b6646_increse_reg_server_size.py  |   22
  b/contrib/ast-db-manage/config/versions/e658c26033ca_create_history_info_flag.py |   38
+ b/contrib/realtime/mysql/mysql_config.sql                                        |   12
+ b/contrib/realtime/postgresql/postgresql_config.sql                              |   12
  b/contrib/scripts/install_prereq                                                 |    2
  b/funcs/func_curl.c                                                              |    7
  b/include/asterisk/bridge.h                                                      |   14
@@ -374,17 +381,11 @@
  b/res/res_pjsip/pjsip_configuration.c                                            |    1
  b/res/res_pjsip/pjsip_transport_management.c                                     |    2
  b/res/res_pjsip_config_wizard.c                                                  |    1
- b/res/res_pjsip_diversion.c                                                      |  326
+ b/res/res_pjsip_diversion.c                                                      |  326 +
  b/res/res_pjsip_pubsub.c                                                         |   10
  b/res/res_pjsip_sdp_rtp.c                                                        |    3
- b/res/res_pjsip_session.c                                                        | 1939
+ b/res/res_pjsip_session.c                                                        | 1939 ++++++++--
  b/res/res_stasis.c                                                               |   31
  b/res/stasis/stasis_bridge.c                                                     |    2
  b/rest-api/api-docs/bridges.json                                                 |    4
- contrib/realtime/mysql/mysql_cdr.sql                                             |   41
- contrib/realtime/mysql/mysql_config.sql                                          | 1276
- contrib/realtime/mysql/mysql_voicemail.sql                                       |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                   |   45
- contrib/realtime/postgresql/postgresql_config.sql                                | 1388
- contrib/realtime/postgresql/postgresql_voicemail.sql                             |   39
- 62 files changed, 2603 insertions(+), 95270 deletions(-)
+ 59 files changed, 3729 insertions(+), 784 deletions(-)
