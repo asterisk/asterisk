@@ -204,6 +204,10 @@ extern "C" {
 #define AST_GENERATOR_FD	(AST_MAX_FDS-4)	/*!< used by generator */
 #define AST_JITTERBUFFER_FD	(AST_MAX_FDS-5)	/*!< used by generator */
 
+/* DUB - Limit the DTMF sequence to pause/resume recording to three digits */
+#define DUB_CMD_DIGITS 4
+#define DUB_PAUSE_RESUME_EVENTS 4096
+
 enum ast_bridge_result {
 	AST_BRIDGE_COMPLETE = 0,
 	AST_BRIDGE_FAILED = -1,
@@ -212,6 +216,12 @@ enum ast_bridge_result {
 };
 
 typedef unsigned long long ast_group_t;
+
+/* DUB - Define pause resume events  */
+enum pause_resume_events {
+    PAUSE_EVENT = 0,
+    RESUME_EVENT = 1
+};
 
 struct ast_stream_topology;
 
@@ -1059,6 +1069,9 @@ enum {
 	AST_FLAG_SUBROUTINE_EXEC = (1 << 27),
 	/*! DUB require SRTP call ( late negotiation) */
 	AST_FLAG_DUB_SRTP_CALL = (1 << 28),
+	AST_FLAG_DUB_PAUSE_RESUME_RECORDING = (1 << 29), /*! DUB - Flag for pause / resume */
+	AST_FLAG_DUB_RECORDING_CONTROL = (1 << 30),      /*! DUB - Flag for recroding call control */
+	AST_FLAG_DUB_RECORD_SILENT_PAUSE = (1 << 31),    /*! DUB - Flag for inserting silence for paused call recording */
 };
 
 /*! \brief ast_bridge_config flags */
@@ -4461,6 +4474,57 @@ void ast_channel_internal_fd_clear_all(struct ast_channel *chan);
 void ast_channel_internal_fd_set(struct ast_channel *chan, int which, int value);
 int ast_channel_fd(const struct ast_channel *chan, int which);
 int ast_channel_fd_isset(const struct ast_channel *chan, int which);
+
+/*! DUB Change */
+long int ast_channel_get_pkt_count(const struct ast_channel *chan, int stream_no);
+void ast_channel_set_pkt_count(struct ast_channel *chan, int stream_no);
+
+long int ast_channel_get_extra_pkt_count(const struct ast_channel *chan, int stream_no);
+void ast_channel_set_extra_pkt_count(struct ast_channel *chan, int stream_no, int count);
+
+long int ast_channel_get_last_ts(const struct ast_channel *chan, int stream_no);
+void ast_channel_set_last_ts(struct ast_channel *chan, long int ts, int stream_no);
+
+void ast_channel_set_rec_start_time(struct ast_channel *chan);
+struct timeval ast_channel_get_rec_start_time(struct ast_channel *chan);
+
+void ast_channel_set_rec_end_ts(struct ast_channel *chan, int stream_no);
+struct timeval ast_channel_get_rec_end_ts(struct ast_channel *chan, int stream_no);
+
+long int ast_channel_get_last_seq(const struct ast_channel *chan, int stream_no);
+void ast_channel_set_last_seq(struct ast_channel *chan, long int seq, int stream_no);
+
+long int ast_channel_get_ptime(const struct ast_channel *chan, int stream_no);
+void ast_channel_set_ptime(struct ast_channel *chan, long int s_ptime, int stream_no);
+
+void ast_channel_set_last_ssrc(struct ast_channel *chan, unsigned int themssrc, int stream_no);
+unsigned int  ast_channel_get_last_ssrc(struct ast_channel *chan,  int stream_no);
+
+void ast_channel_set_pause_seq(struct ast_channel *chan, char *dub_pauseRecord);
+char * ast_channel_get_pause_seq(struct ast_channel *chan);
+
+void ast_channel_set_resume_seq(struct ast_channel *chan, char *dub_resumeRecord);
+char * ast_channel_get_resume_seq(struct ast_channel *chan);
+
+struct timeval ast_channel_get_last_received_digit_tv(struct ast_channel *chan, int stream);
+void ast_channel_set_last_received_digit_tv(struct ast_channel *chan, int stream);
+
+char * ast_channel_get_user_dtmf(struct ast_channel *chan, int stream);
+void ast_channel_set_user_dtmf(struct ast_channel *chan, int stream, char digit);
+void ast_channel_reset_user_dtmf(struct ast_channel *chan, int stream);
+
+int ast_channel_cmp_pause_recording(struct ast_channel *chan, int stream);
+int ast_channel_cmp_resume_recording(struct ast_channel *chan, int stream);
+
+void ast_channel_set_stream_label(struct ast_channel *chan, char *label);
+long int ast_channel_get_stream_label(struct ast_channel *chan);
+
+void ast_channel_set_pause_resume_events(struct ast_channel *chan);
+char * ast_channel_get_pause_resume_events(struct ast_channel *chan);
+void ast_channel_update_pause_resume_events(struct ast_channel *chan, int event);
+
+char *replace_str(char *str, char *orig, char *rep);
+
 
 /*!
  * \since 15
