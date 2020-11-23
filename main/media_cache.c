@@ -184,6 +184,7 @@ static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 					}
 					ast_free(mime_type);
 				}
+				ao2_ref(header, -1);
 			}
 		}
 
