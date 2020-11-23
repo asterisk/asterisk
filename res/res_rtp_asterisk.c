@@ -7345,6 +7345,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	ast_set_flag(&rtp->f, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
 	rtp->f.seqno = seqno;
 	rtp->f.stream_num = rtp->stream_num;
+	rtp->f.themssrc = rtp->themssrc;
 
 	if ((ast_format_cmp(rtp->f.subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL)
 		&& ((int)seqno - (prev_seqno + 1) > 0)
