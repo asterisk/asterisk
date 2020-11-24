@@ -2891,7 +2891,8 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	deactivate_generator_nolock(chan);
 	if (should_trigger_dtmf_emulating(chan)) {
 		/* if in the middle of dtmf emulation keep 50 tick per sec timer on rolling */
-		ast_timer_set_rate(ast_channel_timer(chan), 50);
+		/* DUB */
+		//ast_timer_set_rate(ast_channel_timer(chan), 50);
 	}
 	ast_channel_unlock(chan);
 }
@@ -3898,9 +3899,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * If channel generator is already activated in regular mode use these
 					 * timer events to generate null frames.
 					 */
+					/* DUB
 					if (!ast_channel_generator(chan)) {
 						ast_timer_set_rate(ast_channel_timer(chan), 50);
 					}
+					*/
 				}
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
@@ -3948,9 +3951,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * If channel generator is already activated in regular mode use these
 					 * timer events to generate null frames.
 					 */
+					/* DUB 
 					if (!ast_channel_generator(chan)) {
 						ast_timer_set_rate(ast_channel_timer(chan), 50);
 					}
+					*/
 				} else {
 					ast_log(LOG_DTMF, "DTMF end passthrough '%c' on %s\n", f->subclass.integer, ast_channel_name(chan));
 					if (f->len < option_dtmfminduration) {
@@ -3963,9 +3968,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * If channel generator is already activated in regular mode use these
 					 * timer events to generate null frames.
 					 */
+
+					/* DUB 
 					if (!ast_channel_generator(chan)) {
 						ast_timer_set_rate(ast_channel_timer(chan), 50);
 					}
+					*/
 				}
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
@@ -4025,9 +4033,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 					 * If channel generator is already activated in regular mode use these
 					 * timer events to generate null frames.
 					 */
+					/* DUB
 					if (!ast_channel_generator(chan)) {
 						ast_timer_set_rate(ast_channel_timer(chan), 50);
 					}
+					*/
 				}
 			}
 			break;

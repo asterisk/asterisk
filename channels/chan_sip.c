@@ -33229,6 +33229,8 @@ static int reload_config(enum channelreloadreason reason)
 	ast_copy_string(sip_cfg.default_record_off_feature, DEFAULT_RECORD_FEATURE, sizeof(sip_cfg.default_record_off_feature));
 	sip_cfg.default_subscribecontext[0] = '\0';
 	sip_cfg.default_max_forwards = DEFAULT_MAX_FORWARDS;
+	memset(sip_cfg.dub_pauseRecord, 0, DUB_CMD_DIGITS);
+        memset(sip_cfg.dub_resumeRecord, 0, DUB_CMD_DIGITS);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
 	default_fromdomainport = 0;

@@ -46,7 +46,8 @@
 
 
 /*! Default minimum DTMF digit length - 80ms */
-#define AST_MIN_DTMF_DURATION 80
+/* DUB */
+#define AST_MIN_DTMF_DURATION 40
 
 #define DEFAULT_MONITOR_DIR DEFAULT_SPOOL_DIR "/monitor"
 #define DEFAULT_RECORDING_DIR DEFAULT_SPOOL_DIR "/recording"
