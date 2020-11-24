@@ -3249,6 +3249,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			ast_agi_send(agi->fd, chan, "200 result=%d (writefile)\n", res);
 			if (sildet)
 				ast_dsp_free(sildet);
+			ast_free(filename);
 			return RESULT_FAILURE;
 		}
 		
@@ -3286,6 +3287,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 				ast_agi_send(agi->fd, chan, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
+				ast_free(filename);
 				return RESULT_FAILURE;
 			}
 			f = ast_read(chan);
@@ -3300,11 +3302,43 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			}
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
+				ast_debug(3, "DUB: Processing DTMF digit=%c, flag=%d \n", f->subclass.integer, ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING));
+				if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_RECORDING_CONTROL)) {
+                                        if(f->stream_label == ast_channel_get_stream_label(chan)){
+                                                dub_channel_build_dtmf_pattern(chan, f);
+                                        } else {
+                                                ast_debug(3, "%ld != %ld\n", f->stream_label, ast_channel_get_stream_label(chan));
+                                        }
+                                } else {
+                                        dub_channel_build_dtmf_pattern(chan, f);
+                                }
+				
 				if (strchr(argv[4], f->subclass.integer)) {
-					/* This is an interrupting chracter, so rewind to chop off any small
-					   amount of DTMF that may have been recorded
-					*/
-					ast_stream_rewind(fs, 200);
+                                        /* This is an interrupting chracter, so rewind to chop off any small
+                                           amount of DTMF that may have been recorded
+                                        */
+                                        if (ast_test_flag(f, AST_FRFLAG_STREAM1)) {
+                                                ast_stream_rewind(fs, 200);
+                                                ast_truncstream(fs);
+                                                sample_offset = ast_tellstream(fs);
+                                                ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass.integer, sample_offset);
+                                                ast_closestream(fs);
+                                        } else if (ast_test_flag(f, AST_FRFLAG_STREAM2)) {
+                                                ast_stream_rewind(fs2, 200);
+                                                ast_truncstream(fs2);
+                                                sample_offset = ast_tellstream(fs2);
+                                                ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass.integer, sample_offset);
+                                                ast_closestream(fs2);
+                                        }
+                                        ast_frfree(f);
+                                        if (sildet)
+                                                ast_dsp_free(sildet);
+                                        return RESULT_SUCCESS;
+                                }
+
+				/*
+
+				if (strchr(argv[4], f->subclass.integer)) {
 					ast_truncstream(fs);
 					sample_offset = ast_tellstream(fs);
 					ast_closestream(fs);
@@ -3314,6 +3348,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 						ast_dsp_free(sildet);
 					return RESULT_SUCCESS;
 				}
+				*/
 				break;
 			case AST_FRAME_VOICE:
 				if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING)) {
@@ -3382,8 +3417,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			ast_truncstream(fs);
 			sample_offset = ast_tellstream(fs);
 		}
-		ast_closestream(fs);
 		ast_agi_send(agi->fd, chan, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
+		ast_closestream(fs);
+		ast_closestream(fs2);
 	}
 
 	if (silence > 0) {
