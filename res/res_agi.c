@@ -71,6 +71,8 @@
 #define AST_API_MODULE
 #include "asterisk/agi.h"
 
+#define MIN_FRAME_GAP 10
+
 /*** DOCUMENTATION
 	<agi name="answer" language="en_US">
 		<synopsis>
@@ -2299,17 +2301,16 @@ static int add_silence(struct ast_channel *chan, struct ast_frame *f, struct ast
             gap_ms = ast_tvdiff_ms(ast_tvnow(), s_tv);
 	    nframes = gap_ms/f_ptime;
 
-            if ((nframes > 2) && (nframes < max_pkts)){
+            if ((nframes > MIN_FRAME_GAP) && (nframes < max_pkts)){
                 ast_log(LOG_WARNING, "Stream %d (SSRC: %u) delayed by %ld (ms)...\n", stream_no, themssrc, gap_ms);
                 ast_debug(1, "Stream %d (SSRC: %u) -- pkt_diff: %ld\t f->ts: %ld\t last_ts: %ld\n", stream_no, themssrc, gap_ms, f->ts, ast_channel_get_last_ts(chan, stream_no));
-
                 /*!NOTE: For the initial stream delay we should not depend on the f->ts (as it can be any random value) so we use gap_ms to fill in silence */
                 insert_silence(chan, f, fs, stream_no, 0, f_ptime, gap_ms, themssrc);
             } else {
                 if (nframes > max_pkts)
 		    ast_log(LOG_ERROR, "Stream %d (SSRC: %u) delayed by %ld (ms) > (2 hours)...\n", stream_no, themssrc, gap_ms);
 		else
-                    ast_log(LOG_NOTICE, "No Delay on Stream %d (SSRC: %u) !!!\n", stream_no, themssrc);
+                    ast_log(LOG_NOTICE, "No Delay on Stream %d (SSRC: %u) nframes=%ld !!!\n", stream_no, themssrc,nframes);
             }
         }
 

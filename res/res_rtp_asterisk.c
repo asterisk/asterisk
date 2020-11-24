@@ -7785,7 +7785,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
 		rtp->themssrc_valid = 1;
 		rtp->rxssrc = ssrc;
-	
+	}
 
 	prev_seqno = rtp->lastrxseqno;
 	rtp->lastrxseqno = seqno;
