@@ -2143,7 +2143,12 @@ static void dub_channel_cmp_dtmf_pattern(struct ast_channel *chan, int stream)
 		ast_log(LOG_NOTICE, "DUB - (Stream %d) cleared flag=%d and recording has resumed !!!\n", stream, ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING));
 		ast_channel_reset_user_dtmf(chan, stream);
 		ast_channel_update_pause_resume_events(chan, RESUME_EVENT);
-        }
+        } else{
+
+		ast_log(LOG_NOTICE, "DUB - (Stream %d) cleared flag=%d Inside else !!!\n", stream, ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING));
+
+	}
+
 
         return;
 }
@@ -3303,7 +3308,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			}
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
-				ast_debug(3, "DUB: Processing DTMF digit=%c, flag=%d \n", f->subclass.integer, ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING));
+				ast_log(LOG_NOTICE, "DUB: Processing DTMF digit=%c, flag=%d \n", f->subclass.integer, ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_PAUSE_RESUME_RECORDING));
 				if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DUB_RECORDING_CONTROL)) {
                                         if(f->stream_label == ast_channel_get_stream_label(chan)){
                                                 dub_channel_build_dtmf_pattern(chan, f);

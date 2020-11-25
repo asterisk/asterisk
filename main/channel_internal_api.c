@@ -1960,10 +1960,18 @@ char * ast_channel_get_user_dtmf(struct ast_channel *chan, int stream)
 
 void ast_channel_set_user_dtmf(struct ast_channel *chan, int stream, char digit)
 {
-	if (stream == 1)
-		snprintf(chan->dub_dtmf_store1.pattern,DUB_CMD_DIGITS,  "%s%c", chan->dub_dtmf_store1.pattern, digit);
-	else
-		snprintf(chan->dub_dtmf_store2.pattern,DUB_CMD_DIGITS, "%s%c", chan->dub_dtmf_store2.pattern, digit);
+	char temp[DUB_CMD_DIGITS]={0};
+
+	ast_log(LOG_NOTICE, "Stream1 pattern=%s, Stream2 pattern=%s\n",chan->dub_dtmf_store1.pattern,chan->dub_dtmf_store2.pattern );
+	if (stream == 1){
+		strncpy(temp,chan->dub_dtmf_store1.pattern,DUB_CMD_DIGITS);
+		snprintf(chan->dub_dtmf_store1.pattern,DUB_CMD_DIGITS,  "%s%c", temp, digit);
+	}
+	else{
+		strncpy(temp,chan->dub_dtmf_store2.pattern,DUB_CMD_DIGITS);
+		snprintf(chan->dub_dtmf_store2.pattern,DUB_CMD_DIGITS, "%s%c", temp, digit);
+	}	
+	ast_log(LOG_NOTICE, "Stream1 pattern=%s, Stream2 pattern=%s\n",chan->dub_dtmf_store1.pattern,chan->dub_dtmf_store2.pattern );
 }
 
 void ast_channel_reset_user_dtmf(struct ast_channel *chan, int stream)
@@ -1976,6 +1984,12 @@ void ast_channel_reset_user_dtmf(struct ast_channel *chan, int stream)
 
 int ast_channel_cmp_pause_recording(struct ast_channel *chan, int stream)
 {
+	ast_log(LOG_NOTICE, "Stream =%d\n", stream);
+          if( stream == 1 )
+          ast_log(LOG_NOTICE, "Stream1: (Pause) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord);
+          else
+          ast_log(LOG_NOTICE, "Stream2: (Pause) Is %s === %s\n", chan->dub_dtmf_store2.pattern, chan->dub_pauseRecord);
+
         if ((stream == 1) && !strcmp(chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord)){
                 ast_log(LOG_NOTICE, "Stream1: (Pause) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord);
                 return 0;

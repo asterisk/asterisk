@@ -8739,6 +8739,11 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
                         /* Add flag to distinguish the stream */
                         ast_set_flag(f, AST_FRFLAG_STREAM1);
                 }
+
+		if (f && (f->frametype == AST_FRAME_DTMF)) { /* RTP DTMF */
+			f->stream_label = ast_rtp_instance_get_stream_label(p->rtp1);
+		ast_debug(1,"Got DTMF for stream1\n");
+		}
 		break;
 	case 1:
 		f = ast_rtp_instance_read(p->rtp1, 1);	/* RTCP Control Channel */
@@ -8779,6 +8784,11 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
                 f = ast_rtp_instance_read(p->rtp2, 0);
                 if (f && (f->frametype == AST_FRAME_VOICE)) {
                         ast_set_flag(f, AST_FRFLAG_STREAM2);
+                }
+
+		if (f && (f->frametype == AST_FRAME_DTMF)) { /* RTP DTMF */
+                        f->stream_label = ast_rtp_instance_get_stream_label(p->rtp2);
+		ast_debug(1,"Got DTMF for stream2\n");
                 }
                 break;
 	case 7: 
@@ -11833,6 +11843,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 				framing = 0;
 				ast_debug(1, "Can't read framing from SDP: %s\n", a);
 			}
+			p->packet_size = framing;
 		}
 
 		if (framing && p->autoframing) {
