@@ -1984,12 +1984,6 @@ void ast_channel_reset_user_dtmf(struct ast_channel *chan, int stream)
 
 int ast_channel_cmp_pause_recording(struct ast_channel *chan, int stream)
 {
-	ast_log(LOG_NOTICE, "Stream =%d\n", stream);
-          if( stream == 1 )
-          ast_log(LOG_NOTICE, "Stream1: (Pause) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord);
-          else
-          ast_log(LOG_NOTICE, "Stream2: (Pause) Is %s === %s\n", chan->dub_dtmf_store2.pattern, chan->dub_pauseRecord);
-
         if ((stream == 1) && !strcmp(chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord)){
                 ast_log(LOG_NOTICE, "Stream1: (Pause) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord);
                 return 0;
