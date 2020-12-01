@@ -11153,6 +11153,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		 * from the peer that the RFC says we SHOULD use.
 		 */
 		ast_rtp_codecs_payloads_xover(&newaudiortp[0], &newaudiortp[0], NULL);
+		ast_rtp_codecs_payloads_xover(&newaudiortp[1], &newaudiortp[1], NULL);
 		ast_rtp_codecs_payloads_xover(&newvideortp, &newvideortp, NULL);
 		ast_rtp_codecs_payloads_xover(&newtextrtp, &newtextrtp, NULL);
 	}
@@ -11164,6 +11165,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	ast_rtp_codecs_payload_formats(&newtextrtp, tpeercapability, &tpeernoncodeccapability);
 
 	ast_format_cap_append_from_cap(newpeercapability, peercapability[0], AST_MEDIA_TYPE_AUDIO);
+	ast_format_cap_append_from_cap(newpeercapability, peercapability[1], AST_MEDIA_TYPE_AUDIO);
 	ast_format_cap_append_from_cap(newpeercapability, vpeercapability, AST_MEDIA_TYPE_VIDEO);
 	ast_format_cap_append_from_cap(newpeercapability, tpeercapability, AST_MEDIA_TYPE_TEXT);
 
@@ -11188,9 +11190,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		struct ast_str *s2 = ast_str_alloca(SIPBUFSIZE);
 		struct ast_str *s3 = ast_str_alloca(SIPBUFSIZE);
 
-		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s/text=%s, combined - %s\n",
+		ast_verbose("Capabilities: us - %s, peer - audio1=%s/audio2=%s/video=%s/text=%s, combined - %s\n",
 			    ast_format_cap_get_names(p->caps, &cap_buf),
 			    ast_format_cap_get_names(peercapability[0], &peer_buf),
+			    ast_format_cap_get_names(peercapability[1], &peer_buf),
 			    ast_format_cap_get_names(vpeercapability, &vpeer_buf),
 			    ast_format_cap_get_names(tpeercapability, &tpeer_buf),
 			    ast_format_cap_get_names(newjointcapability, &joint_buf));
@@ -11228,6 +11231,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			/* Peer did not force us to use a specific framing, so use our own */
 			ast_rtp_codecs_set_framing(&newaudiortp[0], framing);
 		}
+		if (!ast_rtp_codecs_get_framing(&newaudiortp[1])) {
+                        /* Peer did not force us to use a specific framing, so use our own */
+                        ast_rtp_codecs_set_framing(&newaudiortp[1], framing);
+                }
 		ao2_ref(tmp_fmt, -1);
 	}
 
