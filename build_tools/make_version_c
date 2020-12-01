@@ -1,6 +1,9 @@
 #!/bin/sh
 
 GREP=${GREP:-grep}
+DUB_ASTERISK_TYPE="asterisk-ms"
+ASTERISKVERSIONNUM="1.18.0"
+DUB_SUBVERSION="1"
 
 if test ! -f .flavor ; then
     EXTRA=""
@@ -37,7 +40,7 @@ cat << END
 
 #include "asterisk/ast_version.h"
 
-static const char asterisk_version[] = "${ASTERISKVERSION}${EXTRA}";
+static const char asterisk_version[] = "${DUB_ASTERISK_TYPE}_${ASTERISKVERSIONNUM}-${DUB_SUBVERSION}";
 
 static const char asterisk_version_num[] = "${ASTERISKVERSIONNUM}";
 

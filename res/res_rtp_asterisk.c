@@ -361,6 +361,7 @@ struct ast_rtp {
 	char cname[AST_UUID_STR_LEN]; /*!< Our local CNAME */
 	unsigned int themssrc;		/*!< Their SSRC */
 	unsigned int themssrc_valid;	/*!< True if their SSRC is available. */
+	unsigned int rxssrc;
 	unsigned int lastts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
@@ -7345,6 +7346,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	ast_set_flag(&rtp->f, AST_FRFLAG_HAS_SEQUENCE_NUMBER);
 	rtp->f.seqno = seqno;
 	rtp->f.stream_num = rtp->stream_num;
+	rtp->f.themssrc = rtp->rxssrc;
 
 	if ((ast_format_cmp(rtp->f.subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL)
 		&& ((int)seqno - (prev_seqno + 1) > 0)
@@ -7782,6 +7784,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
 		rtp->themssrc_valid = 1;
+		rtp->rxssrc = ssrc;
 	}
 
 	prev_seqno = rtp->lastrxseqno;

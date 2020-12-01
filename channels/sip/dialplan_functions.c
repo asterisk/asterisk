@@ -182,7 +182,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			args.type = "audio";
 
 		if (!strcasecmp(args.type, "audio"))
-			stream = p->rtp;
+			stream = p->rtp1;
 		else if (!strcasecmp(args.type, "video"))
 			stream = p->vrtp;
 		else if (!strcasecmp(args.type, "text"))
@@ -205,7 +205,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 			args.type = "audio";
 
 		if (!strcasecmp(args.type, "audio"))
-			stream = p->rtp;
+			stream = p->rtp1;
 		else if (!strcasecmp(args.type, "video"))
 			stream = p->vrtp;
 		else if (!strcasecmp(args.type, "text"))
@@ -235,7 +235,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		}
 
 		if (!strcasecmp(args.type, "audio")) {
-			rtp = p->rtp;
+			rtp = p->rtp1;
 		} else if (!strcasecmp(args.type, "video")) {
 			rtp = p->vrtp;
 		} else if (!strcasecmp(args.type, "text")) {
@@ -316,7 +316,7 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 	} else if (!strcasecmp(args.param, "secure_signaling")) {
 		snprintf(buf, buflen, "%s", p->socket.type == AST_TRANSPORT_TLS ? "1" : "");
 	} else if (!strcasecmp(args.param, "secure_media")) {
-		snprintf(buf, buflen, "%s", p->srtp ? "1" : "");
+		snprintf(buf, buflen, "%s", p->srtp1 ? "1" : "");
 	} else {
 		res = -1;
 	}

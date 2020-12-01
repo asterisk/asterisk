@@ -49,6 +49,13 @@
 #include "asterisk/test.h"
 #include "asterisk/vector.h"
 
+
+/* DUB - Collect the DTMF digits received in this buffer */
+struct dub_collect_dtmf {
+        char pattern[DUB_CMD_DIGITS];
+        struct timeval last_received_digit_tv;
+};
+
 /*!
  * \brief Channel UniqueId structure
  * \note channel creation time used for determining LinkedId Propagation
@@ -222,6 +229,31 @@ struct ast_channel {
 	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 	struct ast_channel_snapshot *snapshot; /*!< The current up to date snapshot of the channel */
 	struct ast_flags snapshot_segment_flags; /*!< Flags regarding the segments of the snapshot */
+	/* DUB */
+	long int  stream_label;
+	long int s1_pkt_count;                          /*!< DUB - Count of packets on Stream1 */
+        long int s2_pkt_count;                          /*!< DUB - Count of packets on Stream2 */
+        long int s1_extra_pkt;                          /*!< DUB - Count of extra packets on Stream1 */
+        long int s2_extra_pkt;                          /*!< DUB - Count of extra packets on Stream2 */
+        long int stream1_last_ts;                       /*!< DUB - Last TS of Stream1 */
+        long int stream2_last_ts;                       /*!< DUB - Last TS of Stream2 */
+        long int s1_last_f_seq;                         /*!< DUB - Last Frame SeqNo of Stream1 */
+        long int s2_last_f_seq;                         /*!< DUB - Last Frame SeqNo of Stream2 */
+        long int packet_size_1;                         /*!< DUB - ptime of Stream1 */
+        long int packet_size_2;                         /*!< DUB - ptime of Stream2 */
+        long int pause_start_time;                      /*!< DUB - Recording Pause Start time */
+        struct timeval rec_start_time;                  /*!< DUB - Recording Start time */
+        struct timeval rec_s1_end_ts;                   /*!< DUB - Recording Stream 1 end ts */
+        struct timeval rec_s2_end_ts;                   /*!< DUB - Recording Stream 2 end ts */
+        unsigned int stream1_last_ssrc;                 /*!< DUB - Last SSRC for stream 1 */
+        unsigned int stream2_last_ssrc;                 /*!< DUB - Last SSRC for stream 2 */
+	char dub_pauseRecord[DUB_CMD_DIGITS];  		/*!< DUB - DTMF pattern sequence to pause recording */
+	char dub_resumeRecord[DUB_CMD_DIGITS]; 		/*!< DUB - DTMF pattern sequence to resume recording */
+	struct dub_collect_dtmf dub_dtmf_store1; 	/*!< DUB - Store the received DTMF pattern of Stream1 */
+	struct dub_collect_dtmf dub_dtmf_store2; 	/*!< DUB - Store the received DTMF pattern of Stream2 */
+	char pause_resume_events[DUB_PAUSE_RESUME_EVENTS];	/*!< DUB - Pause & resume events */
+	int pause_resume_event_counter;				/*!< DUB - Pause & resume events counter */
+
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -1499,6 +1531,7 @@ int ast_channel_internal_is_finalized(struct ast_channel *chan)
 	return chan->finalized;
 }
 
+
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 {
 	if (!chan) {
@@ -1660,3 +1693,328 @@ struct ast_flags *ast_channel_snapshot_segment_flags(struct ast_channel *chan)
 {
 	return &chan->snapshot_segment_flags;
 }
+
+/*! DUB change - Get and Set the Stream Nos*/
+long int ast_channel_get_pkt_count(const struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	return chan->s1_pkt_count;
+	else if (stream_no == 2)
+		return chan->s2_pkt_count;
+	else
+		return 0;
+}
+
+void ast_channel_set_pkt_count(struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	chan->s1_pkt_count += 1;
+	else if (stream_no == 2)
+		chan->s2_pkt_count += 1;
+}
+
+/*! Get and set extra packets written for Stream1 and Stream2 */
+long int ast_channel_get_extra_pkt_count(const struct ast_channel *chan, int stream_no)
+{
+        if (stream_no == 1)
+                return chan->s1_extra_pkt;
+        else if (stream_no == 2)
+                return chan->s2_extra_pkt;
+	else 
+		return 0;
+}
+
+void ast_channel_set_extra_pkt_count(struct ast_channel *chan, int stream_no, int count)
+{
+        if (stream_no == 1)
+                chan->s1_extra_pkt += count;
+        else if (stream_no == 2)
+                chan->s2_extra_pkt += count;
+}
+
+/*! Get and Set the last ts for Stream1 & Stream2 */
+long int ast_channel_get_last_ts(const struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	return chan->stream1_last_ts;
+	else if (stream_no == 2)
+		return chan->stream2_last_ts;
+	else
+		return 0;
+}
+
+void ast_channel_set_last_ts(struct ast_channel *chan, long int ts, int stream_no)
+{
+	if (stream_no == 1)
+        	chan->stream1_last_ts = ts;
+	else if (stream_no == 2)
+		chan->stream2_last_ts = ts;
+}
+
+/*! Get and Set last stream sequence number */
+long int ast_channel_get_last_seq(const struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	return chan->s1_last_f_seq;
+	else if (stream_no == 2)
+		return chan->s2_last_f_seq;
+	else
+		return 0;
+}
+
+void ast_channel_set_last_seq(struct ast_channel *chan, long int seq, int stream_no)
+{
+	if (stream_no == 1)
+        	chan->s1_last_f_seq = seq;
+	else if (stream_no == 2)
+		chan->s2_last_f_seq = seq;
+}
+
+/*! Set the recording start time */
+void ast_channel_set_rec_start_time(struct ast_channel *chan)
+{
+	chan->rec_start_time = ast_tvnow();
+}
+
+struct timeval ast_channel_get_rec_start_time(struct ast_channel *chan)
+{
+	return chan->rec_start_time;
+}
+
+/*! Set and get recording end ts for streams */
+void ast_channel_set_rec_end_ts(struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	chan->rec_s1_end_ts = ast_tvnow();
+	else if (stream_no == 2)
+		chan->rec_s2_end_ts = ast_tvnow();
+}
+
+struct timeval ast_channel_get_rec_end_ts(struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	return chan->rec_s1_end_ts;
+	else if (stream_no == 2)
+		return chan->rec_s2_end_ts;
+}
+
+/*! Get and Set ptime for Stream1 & Stream2 */
+long int ast_channel_get_ptime(const struct ast_channel *chan, int stream_no)
+{
+	if (stream_no == 1)
+        	return chan->packet_size_1;
+	else if (stream_no == 2)
+		return chan->packet_size_2;
+	else
+		return 0;
+}
+
+void ast_channel_set_ptime(struct ast_channel *chan, long int s_ptime, int stream_no)
+{
+	if (stream_no == 1)
+        	chan->packet_size_1 = s_ptime;
+	else if (stream_no == 2)
+		chan->packet_size_2 = s_ptime;
+}
+
+/*! Set and Get last SSRC for streams  */
+void ast_channel_set_last_ssrc(struct ast_channel *chan, unsigned int themssrc, int stream_no)
+{
+        if (stream_no == 1)
+                chan->stream1_last_ssrc = themssrc;
+        else if (stream_no == 2)
+                chan->stream2_last_ssrc = themssrc;
+}
+
+unsigned int  ast_channel_get_last_ssrc(struct ast_channel *chan,  int stream_no)
+{
+        if (stream_no == 1)
+                return chan->stream1_last_ssrc;
+        else if (stream_no == 2)
+                return chan->stream2_last_ssrc;
+	else
+		return 0;
+}
+
+/*! Set and get the pause and resume DTMF pattern */
+void ast_channel_set_pause_seq(struct ast_channel *chan, char *dub_pauseRecord)
+{
+	int slen = strlen(dub_pauseRecord);
+	if ((slen > 0) && (slen < DUB_CMD_DIGITS)) {
+		strncpy(chan->dub_pauseRecord, dub_pauseRecord, DUB_CMD_DIGITS-1);
+		ast_log(LOG_NOTICE, "Pause Recording DTMF Sequence = %s\n", chan->dub_pauseRecord);
+	}
+}
+
+char * ast_channel_get_pause_seq(struct ast_channel *chan)
+{
+	return chan->dub_pauseRecord;
+}
+
+void ast_channel_set_resume_seq(struct ast_channel *chan, char *dub_resumeRecord)
+{
+        int slen = strlen(dub_resumeRecord);
+        if ((slen > 0) && (slen < DUB_CMD_DIGITS)) {
+                strncpy(chan->dub_resumeRecord, dub_resumeRecord, DUB_CMD_DIGITS-1);
+                ast_log(LOG_NOTICE, "Resume Recording DTMF Sequence = %s\n", chan->dub_resumeRecord);
+        }
+}
+
+char * ast_channel_get_resume_seq(struct ast_channel *chan)
+{
+	return chan->dub_resumeRecord;
+}
+
+/*! Pause & Resume events */
+void ast_channel_set_pause_resume_events(struct ast_channel *chan)
+{
+	chan->pause_resume_events[0] = '\0';
+}
+
+char * ast_channel_get_pause_resume_events(struct ast_channel *chan)
+{
+	return chan->pause_resume_events;
+}
+
+/*! Function to replace the first occurance of the word (orig) with another string (rep) */
+char *replace_str(char *str, char *orig, char *rep)
+{
+	static char buffer[4096];
+	char *p;
+
+	if(!(p = strstr(str, orig)))  // Is 'orig' even in 'str'?
+		return str;
+
+	strncpy(buffer, str, p-str); // Copy characters from 'str' start to 'orig' st$
+	buffer[p-str] = '\0';
+
+	sprintf(buffer+(p-str), "\"%s\"%s", rep, p+strlen(orig));
+
+	return buffer;
+}
+
+void ast_channel_update_pause_resume_events(struct ast_channel *chan, int event)
+{
+	int str_len=0;
+	struct timeval pnr_event = ast_tvnow();
+	char *buffer=NULL;
+	char resumed_at[10]="\0", paused_duration[10]="\0";
+
+        if (event == PAUSE_EVENT) {
+		chan->pause_resume_event_counter+=1; /*! Counter to identify number of Pause events */
+		chan->pause_start_time = ast_tvdiff_sec(pnr_event, chan->rec_start_time);
+
+		if (chan->pause_resume_event_counter == 1)
+			snprintf(chan->pause_resume_events, DUB_PAUSE_RESUME_EVENTS, "\"pause_resume_events\": [");
+                else
+                        chan->pause_resume_events[strlen(chan->pause_resume_events)-1]=',';
+
+                str_len = ast_asprintf(&buffer, "%s", chan->pause_resume_events);
+                snprintf(chan->pause_resume_events, DUB_PAUSE_RESUME_EVENTS, "%s {\"paused_at\": \"%ld\", \"resumed_at\": null, \"paused_duration\": null}]",
+                                                                           buffer,
+                                                                           chan->pause_start_time);
+                ast_debug(3, "PAUSE : pause_resume_events === %s\n", chan->pause_resume_events);
+        }else {
+		long int call_resumed_at = ast_tvdiff_sec(pnr_event, chan->rec_start_time);
+		snprintf(resumed_at, sizeof(resumed_at), "%ld", call_resumed_at);
+		snprintf(paused_duration, sizeof(paused_duration), "%ld", call_resumed_at - chan->pause_start_time);
+
+		/*! Update resumed_at */
+                str_len = ast_asprintf(&buffer, "%s", chan->pause_resume_events);
+		snprintf(chan->pause_resume_events, DUB_PAUSE_RESUME_EVENTS, "%s", replace_str(buffer, "null", resumed_at));
+		/*! Update paused_duration */
+		ast_free(buffer);
+		str_len = ast_asprintf(&buffer, "%s", chan->pause_resume_events);
+		snprintf(chan->pause_resume_events, DUB_PAUSE_RESUME_EVENTS, "%s", replace_str(buffer, "null", paused_duration));
+
+                ast_debug(3, "RESUME : pause_resume_events === %s\n", chan->pause_resume_events);
+        }
+
+        ast_free(buffer);
+}
+
+/*! Set & get the timestamp of the last received dtmf */
+struct timeval ast_channel_get_last_received_digit_tv(struct ast_channel *chan, int stream)
+{
+	if (stream == 1)
+		return chan->dub_dtmf_store1.last_received_digit_tv;
+	else
+		return chan->dub_dtmf_store2.last_received_digit_tv;
+}
+
+void ast_channel_set_last_received_digit_tv(struct ast_channel *chan, int stream)
+{
+	if (stream == 1)
+		chan->dub_dtmf_store1.last_received_digit_tv = ast_tvnow();
+	else
+		chan->dub_dtmf_store2.last_received_digit_tv = ast_tvnow();
+}
+
+char * ast_channel_get_user_dtmf(struct ast_channel *chan, int stream)
+{
+	if (stream == 1)
+		return chan->dub_dtmf_store1.pattern;
+	else
+		return chan->dub_dtmf_store2.pattern;
+}
+
+void ast_channel_set_user_dtmf(struct ast_channel *chan, int stream, char digit)
+{
+	char temp[DUB_CMD_DIGITS]={0};
+
+	ast_log(LOG_NOTICE, "Stream1 pattern=%s, Stream2 pattern=%s\n",chan->dub_dtmf_store1.pattern,chan->dub_dtmf_store2.pattern );
+	if (stream == 1){
+		strncpy(temp,chan->dub_dtmf_store1.pattern,DUB_CMD_DIGITS);
+		snprintf(chan->dub_dtmf_store1.pattern,DUB_CMD_DIGITS,  "%s%c", temp, digit);
+	}
+	else{
+		strncpy(temp,chan->dub_dtmf_store2.pattern,DUB_CMD_DIGITS);
+		snprintf(chan->dub_dtmf_store2.pattern,DUB_CMD_DIGITS, "%s%c", temp, digit);
+	}	
+	ast_log(LOG_NOTICE, "Stream1 pattern=%s, Stream2 pattern=%s\n",chan->dub_dtmf_store1.pattern,chan->dub_dtmf_store2.pattern );
+}
+
+void ast_channel_reset_user_dtmf(struct ast_channel *chan, int stream)
+{
+	if (stream == 1)
+		memset(chan->dub_dtmf_store1.pattern, 0, DUB_CMD_DIGITS);
+	else
+		memset(chan->dub_dtmf_store2.pattern, 0, DUB_CMD_DIGITS);
+}
+
+int ast_channel_cmp_pause_recording(struct ast_channel *chan, int stream)
+{
+        if ((stream == 1) && !strcmp(chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord)){
+                ast_log(LOG_NOTICE, "Stream1: (Pause) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_pauseRecord);
+                return 0;
+        } else if ((stream == 2) && !strcmp(chan->dub_dtmf_store2.pattern, chan->dub_pauseRecord)){
+                ast_log(LOG_NOTICE, "Stream2: (Pause) Is %s === %s\n", chan->dub_dtmf_store2.pattern, chan->dub_pauseRecord);
+                return 0;
+        }
+
+        return -1;
+}
+
+int ast_channel_cmp_resume_recording(struct ast_channel *chan, int stream)
+{
+        if ((stream == 1) && !strcmp(chan->dub_dtmf_store1.pattern, chan->dub_resumeRecord)){
+                ast_log(LOG_NOTICE, "Stream1: (Resume) Is %s === %s\n", chan->dub_dtmf_store1.pattern, chan->dub_resumeRecord);
+                return 0;
+        } else if ((stream == 2) && !strcmp(chan->dub_dtmf_store2.pattern, chan->dub_resumeRecord)){
+                ast_log(LOG_NOTICE, "Stream2: (Resume) Is %s === %s\n", chan->dub_dtmf_store2.pattern, chan->dub_resumeRecord);
+                return 0;
+        }
+        return -1;
+}
+
+void ast_channel_set_stream_label(struct ast_channel *chan, char *label)
+{
+	chan->stream_label = atol(label);
+}
+
+long int ast_channel_get_stream_label(struct ast_channel *chan)
+{
+	return chan->stream_label;
+}
+
+/* DUB Ends */

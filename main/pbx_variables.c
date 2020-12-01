@@ -319,7 +319,10 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 		} else if (!strcmp(var, "HANGUPCAUSE")) {
 			ast_str_set(str, maxlen, "%d", ast_channel_hangupcause(c));
 			s = ast_str_buffer(*str);
-		}
+		} else if (!strcmp(var, "PAUSE_RESUME_EVENTS")) {
+			ast_str_set(str, maxlen, "%s", ast_channel_get_pause_resume_events(c));
+			s = ast_str_buffer(*str);
+		}	
 	}
 	if (s == &not_found) { /* look for more */
 		if (!strcmp(var, "EPOCH")) {

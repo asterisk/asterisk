@@ -2370,6 +2370,10 @@ void ast_rtp_instance_set_timeout(struct ast_rtp_instance *instance, int timeout
  */
 void ast_rtp_instance_set_hold_timeout(struct ast_rtp_instance *instance, int timeout);
 
+/* DUB - Set the stream label to the RTP instance  */
+void ast_rtp_instance_set_stream_label(struct ast_rtp_instance *instance, long int s_label);
+long int  ast_rtp_instance_get_stream_label(struct ast_rtp_instance *instance);
+
 /*!
  * \brief Set the RTP keepalive interval
  *
