@@ -489,6 +489,13 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	for (i = 0; i < media_count; i++) {
 		char *media_uri;
 
+		if (ast_strlen_zero(media[i])) {
+			ast_log(LOG_ERROR, "Attempted to play media on channel '%s' but no media URI was provided.\n",
+				stasis_app_control_get_channel_id(control));
+			ao2_ref(playback, -1);
+			return NULL;
+		}
+
 		media_uri = ast_malloc(strlen(media[i]) + 1);
 	 	if (!media_uri) {
 			ao2_ref(playback, -1);
