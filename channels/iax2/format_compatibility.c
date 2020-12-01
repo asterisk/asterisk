@@ -91,7 +91,6 @@ uint64_t iax2_format_compatibility_best(uint64_t formats)
 		AST_FORMAT_G719,
 		AST_FORMAT_SIREN14,
 		AST_FORMAT_SIREN7,
-		AST_FORMAT_TESTLAW,
 		/*! G.722 is better then all below, but not as common as the above... so give ulaw and alaw priority */
 		AST_FORMAT_G722,
 		/*! Okay, well, signed linear is easy to translate into other stuff */

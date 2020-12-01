@@ -97,25 +97,6 @@ static struct ast_translator ulawtolin = {
 	.buf_size = BUFFER_SAMPLES * 2,
 };
 
-static struct ast_translator testlawtolin = {
-	.name = "testlawtolin",
-	.src_codec = {
-		.name = "testlaw",
-		.type = AST_MEDIA_TYPE_AUDIO,
-		.sample_rate = 8000,
-	},
-	.dst_codec = {
-		.name = "slin",
-		.type = AST_MEDIA_TYPE_AUDIO,
-		.sample_rate = 8000,
-	},
-	.format = "slin",
-	.framein = ulawtolin_framein,
-	.sample = ulaw_sample,
-	.buffer_samples = BUFFER_SAMPLES,
-	.buf_size = BUFFER_SAMPLES * 2,
-};
-
 /*!
  * \brief The complete translator for LinToulaw.
  */
@@ -139,33 +120,12 @@ static struct ast_translator lintoulaw = {
 	.buffer_samples = BUFFER_SAMPLES,
 };
 
-static struct ast_translator lintotestlaw = {
-	.name = "lintotestlaw",
-	.src_codec = {
-		.name = "slin",
-		.type = AST_MEDIA_TYPE_AUDIO,
-		.sample_rate = 8000,
-	},
-	.dst_codec = {
-		.name = "testlaw",
-		.type = AST_MEDIA_TYPE_AUDIO,
-		.sample_rate = 8000,
-	},
-	.format = "testlaw",
-	.framein = lintoulaw_framein,
-	.sample = slin8_sample,
-	.buf_size = BUFFER_SAMPLES,
-	.buffer_samples = BUFFER_SAMPLES,
-};
-
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_translator(&lintoulaw);
 	res |= ast_unregister_translator(&ulawtolin);
-	res |= ast_unregister_translator(&testlawtolin);
-	res |= ast_unregister_translator(&lintotestlaw);
 
 	return res;
 }
@@ -176,8 +136,6 @@ static int load_module(void)
 
 	res = ast_register_translator(&ulawtolin);
 	res |= ast_register_translator(&lintoulaw);
-	res |= ast_register_translator(&lintotestlaw);
-	res |= ast_register_translator(&testlawtolin);
 
 	if (res) {
 		unload_module();

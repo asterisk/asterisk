@@ -348,7 +348,7 @@ static const uint64_t iax2_supported_formats[] = {
 	AST_FORMAT_T140,
 	AST_FORMAT_SIREN7,
 	AST_FORMAT_SIREN14,
-	AST_FORMAT_TESTLAW,
+	0, /* reserved; was AST_FORMAT_TESTLAW */
 	AST_FORMAT_G719,
 	0, /* Place holder */
 	0, /* Place holder */

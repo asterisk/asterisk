@@ -76,8 +76,6 @@ uint64_t ast_format_compatibility_format2bitfield(const struct ast_format *forma
 		return AST_FORMAT_SPEEX16;
 	} else if (ast_format_cmp(format, ast_format_opus) == AST_FORMAT_CMP_EQUAL) {
 		return AST_FORMAT_OPUS;
-	} else if (ast_format_cmp(format, ast_format_testlaw) == AST_FORMAT_CMP_EQUAL) {
-		return AST_FORMAT_TESTLAW;
 	} else if (ast_format_cmp(format, ast_format_h261) == AST_FORMAT_CMP_EQUAL) {
 		return AST_FORMAT_H261;
 	} else if (ast_format_cmp(format, ast_format_h263) == AST_FORMAT_CMP_EQUAL) {
@@ -143,8 +141,6 @@ uint64_t ast_format_compatibility_codec2bitfield(const struct ast_codec *codec)
 		return AST_FORMAT_SPEEX16;
 	} else if (codec->id == ast_format_get_codec_id(ast_format_opus)) {
 		return AST_FORMAT_OPUS;
-	} else if (codec->id == ast_format_get_codec_id(ast_format_testlaw)) {
-		return AST_FORMAT_TESTLAW;
 	} else if (codec->id == ast_format_get_codec_id(ast_format_h261)) {
 		return AST_FORMAT_H261;
 	} else if (codec->id == ast_format_get_codec_id(ast_format_h263)) {
@@ -230,9 +226,6 @@ struct ast_format *ast_format_compatibility_bitfield2format(uint64_t bitfield)
 	/*! Opus audio (8kHz, 16kHz, 24kHz, 48Khz) */
 	case AST_FORMAT_OPUS:
 		return ast_format_opus;
-	/*! Raw mu-law data (G.711) */
-	case AST_FORMAT_TESTLAW:
-		return ast_format_testlaw;
 
 	/*! H.261 Video */
 	case AST_FORMAT_H261:

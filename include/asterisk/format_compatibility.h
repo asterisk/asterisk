@@ -72,7 +72,7 @@ struct ast_codec;
 /*! Opus audio (8kHz, 16kHz, 24kHz, 48Khz) */
 #define AST_FORMAT_OPUS (1ULL << 34)
 /*! Raw testing-law data (G.711) */
-#define AST_FORMAT_TESTLAW (1ULL << 47)
+/* #define AST_FORMAT_TESTLAW (1ULL << 47) */
 /*! H.261 Video */
 #define AST_FORMAT_H261 (1ULL << 18)
 /*! H.263 Video */
