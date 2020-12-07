@@ -1922,8 +1922,7 @@ static pjsip_module refer_callback_module = {
  */
 static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 {
-	struct ast_sip_session *session;
-	struct ast_channel *chan = NULL;
+	struct ast_channel *chan;
 	enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
 	int res = 0;
 
@@ -1931,12 +1930,7 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 		return;
 	}
 
-	session = pjsip_evsub_get_mod_data(sub, refer_callback_module.id);
-	if (!session) {
-		return;
-	}
-
-	chan = session->channel;
+	chan = pjsip_evsub_get_mod_data(sub, refer_callback_module.id);
 	if (!chan) {
 		return;
 	}
@@ -1962,7 +1956,9 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 			 */
 			if (refer_sub && !pj_stricmp2(&refer_sub->hvalue, "false")) {
 				/* Since no subscription is desired, assume that call has been transferred successfully. */
+				/* Channel reference will be released at end of function */
 				/* Terminate subscription. */
+				pjsip_evsub_set_mod_data(sub, refer_callback_module.id, NULL);
 				pjsip_evsub_terminate(sub, PJ_TRUE);
 				res = -1;
 			}
@@ -2027,7 +2023,8 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 	}
 
 	if (res) {
-		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		ast_queue_control_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		ao2_ref(chan, -1);
 	}
 }
 
@@ -2040,28 +2037,29 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	const char *ref_by_val;
 	char local_info[pj_strlen(&session->inv_session->dlg->local.info_str) + 1];
 	struct pjsip_evsub_user xfer_cb;
+	struct ast_channel *chan = session->channel;
 
 	pj_bzero(&xfer_cb, sizeof(xfer_cb));
 	xfer_cb.on_evsub_state = &xfer_client_on_evsub_state;
 
 	if (pjsip_xfer_create_uac(session->inv_session->dlg, &xfer_cb, &sub) != PJ_SUCCESS) {
 		message = AST_TRANSFER_FAILED;
-		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
+		ast_queue_control_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
 
 		return;
 	}
 
-	pjsip_evsub_set_mod_data(sub, refer_callback_module.id, session);
+	/* refer_callback_module requires a reference to chan
+	 * which will be released in xfer_client_on_evsub_state()
+	 * when the implicit REFER subscription terminates */
+	pjsip_evsub_set_mod_data(sub, refer_callback_module.id, chan);
+	ao2_ref(chan, +1);
 
 	if (pjsip_xfer_initiate(sub, pj_cstr(&tmp, target), &packet) != PJ_SUCCESS) {
-		message = AST_TRANSFER_FAILED;
-		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
-		pjsip_evsub_terminate(sub, PJ_FALSE);
-
-		return;
+		goto failure;
 	}
 
-	ref_by_val = pbx_builtin_getvar_helper(session->channel, "SIPREFERREDBYHDR");
+	ref_by_val = pbx_builtin_getvar_helper(chan, "SIPREFERREDBYHDR");
 	if (!ast_strlen_zero(ref_by_val)) {
 		ast_sip_add_header(packet, "Referred-By", ref_by_val);
 	} else {
@@ -2069,7 +2067,17 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 		ast_sip_add_header(packet, "Referred-By", local_info);
 	}
 
-	pjsip_xfer_send_request(sub, packet);
+	if (pjsip_xfer_send_request(sub, packet) == PJ_SUCCESS) {
+		return;
+	}
+
+failure:
+	message = AST_TRANSFER_FAILED;
+	ast_queue_control_data(chan, AST_CONTROL_TRANSFER, &message, sizeof(message));
+	pjsip_evsub_set_mod_data(sub, refer_callback_module.id, NULL);
+	pjsip_evsub_terminate(sub, PJ_FALSE);
+
+	ao2_ref(chan, -1);
 }
 
 static int transfer(void *data)
