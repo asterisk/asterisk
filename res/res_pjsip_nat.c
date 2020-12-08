@@ -66,14 +66,14 @@ static void save_orig_contact_host(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 	return;
 }
 
-static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
+static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri, pj_pool_t *pool)
 {
 
 	if (pj_strcmp2(&uri->host, rdata->pkt_info.src_name) != 0) {
 		save_orig_contact_host(rdata, uri);
 	}
 
-	pj_cstr(&uri->host, rdata->pkt_info.src_name);
+	pj_strdup2(pool, &uri->host, rdata->pkt_info.src_name);
 	uri->port = rdata->pkt_info.src_port;
 	if (!strcasecmp("WSS", rdata->tp_info.transport->type_name)) {
 		/* WSS is special, we don't want to overwrite the URI at all as it needs to be ws */
@@ -151,14 +151,14 @@ static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 
 	if (rr) {
 		uri = pjsip_uri_get_uri(&rr->name_addr);
-		rewrite_uri(rdata, uri);
+		rewrite_uri(rdata, uri, rdata->tp_info.pool);
 		res = 0;
 	}
 
 	if (dlg && !pj_list_empty(&dlg->route_set) && !dlg->route_set_frozen) {
 		pjsip_routing_hdr *route = dlg->route_set.next;
 		uri = pjsip_uri_get_uri(&route->name_addr);
-		rewrite_uri(rdata, uri);
+		rewrite_uri(rdata, uri, dlg->pool);
 		res = 0;
 	}
 
@@ -184,7 +184,7 @@ static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 	if (contact && !contact->star && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
-		rewrite_uri(rdata, uri);
+		rewrite_uri(rdata, uri, rdata->tp_info.pool);
 
 		if (dlg && pj_list_empty(&dlg->route_set) && (!dlg->remote.contact
 			|| pjsip_uri_cmp(PJSIP_URI_IN_REQ_URI, dlg->remote.contact->uri, contact->uri))) {
