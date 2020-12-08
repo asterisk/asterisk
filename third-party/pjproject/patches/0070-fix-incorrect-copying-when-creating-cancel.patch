@@ -1,0 +1,37 @@
+From ce18018cc17bef8f80c08686e3a7b28384ef3ba5 Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Mon, 12 Oct 2020 13:31:25 +0800
+Subject: [PATCH] Fix incorrect copying of destination info when creating
+ CANCEL (#2546)
+
+---
+ pjsip/src/pjsip/sip_util.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_util.c b/pjsip/src/pjsip/sip_util.c
+index d10a6fa30..a1bf878ea 100644
+--- a/pjsip/src/pjsip/sip_util.c
++++ b/pjsip/src/pjsip/sip_util.c
+@@ -779,14 +779,14 @@ PJ_DEF(pj_status_t) pjsip_endpt_create_cancel( pjsip_endpoint *endpt,
+ 	    pjsip_hdr_clone(cancel_tdata->pool, req_tdata->saved_strict_route);
+     }
+ 
+-    /* Copy the destination host name from the original request */
+-    pj_strdup(cancel_tdata->pool, &cancel_tdata->dest_info.name,
+-	      &req_tdata->dest_info.name);
+-
+-    /* Finally copy the destination info from the original request */
++    /* Copy the destination info from the original request */
+     pj_memcpy(&cancel_tdata->dest_info, &req_tdata->dest_info,
+ 	      sizeof(req_tdata->dest_info));
+ 
++    /* Finally, copy the destination host name from the original request */
++    pj_strdup(cancel_tdata->pool, &cancel_tdata->dest_info.name,
++	      &req_tdata->dest_info.name);
++
+     /* Done.
+      * Return the transmit buffer containing the CANCEL request.
+      */
+-- 
+2.25.1
+

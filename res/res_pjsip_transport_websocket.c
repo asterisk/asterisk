@@ -454,7 +454,7 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 				pj_strbuf(txp_str));
 		}
 
-		pj_cstr(&uri->host, rdata->pkt_info.src_name);
+		pj_strdup2(rdata->tp_info.pool, &uri->host, rdata->pkt_info.src_name);
 		uri->port = rdata->pkt_info.src_port;
 		pj_strdup(rdata->tp_info.pool, &uri->transport_param, txp_str);
 	}
