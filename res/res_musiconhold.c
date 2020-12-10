@@ -1613,18 +1613,21 @@ static struct ast_variable *load_realtime_musiconhold(const char *name)
 			char *category = NULL;
 			size_t entry_count = 0;
 
-			while ((category = ast_category_browse(entries, category))) {
-				const char *entry = ast_variable_retrieve(entries, category, "entry");
+			/* entries is NULL if there are no results */
+			if (entries) {
+				while ((category = ast_category_browse(entries, category))) {
+					const char *entry = ast_variable_retrieve(entries, category, "entry");
 
-				if (entry) {
-					struct ast_variable *dup = ast_variable_new("entry", entry, "");
-					if (dup) {
-						entry_count++;
-						ast_variable_list_append(&var, dup);
+					if (entry) {
+						struct ast_variable *dup = ast_variable_new("entry", entry, "");
+						if (dup) {
+							entry_count++;
+							ast_variable_list_append(&var, dup);
+						}
 					}
 				}
+				ast_config_destroy(entries);
 			}
-			ast_config_destroy(entries);
 
 			if (entry_count == 0) {
 				/* Behave as though this class doesn't exist */
