@@ -618,7 +618,7 @@ static int exp10_int(int power)
  * - 3,4,...,20
  * - 30,40,...,90
  *
- * - hundereds - 100 - sto, 200 - 2ste, 300,400 3,4sta, 500,600,...,900 5,6,...9set
+ * - hundreds - 100 - sto, 200 - 2ste, 300,400 3,4sta, 500,600,...,900 5,6,...9set
  *
  * for each number 10^(3n + 3) exist 3 files represented as:
  *		1 tousand = jeden tisic = 1_E3
