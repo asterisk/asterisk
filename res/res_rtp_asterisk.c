@@ -6932,7 +6932,7 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 			/* If there is no more room left for storing packets stop now, we leave 20
 			 * extra bits at the end just in case.
 			 */
-			if ((sizeof(bdata) - (packet_len + delta_len + 20)) < 0) {
+			if (packet_len + delta_len + 20 > sizeof(bdata)) {
 				res = -1;
 				break;
 			}
@@ -6966,7 +6966,7 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 		previous_packet = statistics;
 
 		/* If there is no more room left in the packet stop handling of any subsequent packets */
-		if ((sizeof(bdata) - (packet_len + delta_len + 20)) < 0) {
+		if (packet_len + delta_len + 20 > sizeof(bdata)) {
 			break;
 		}
 	}
