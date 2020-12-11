@@ -845,12 +845,12 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	ast_audiohook_unlock(&csth.spy_audiohook);
 	ast_audiohook_destroy(&csth.spy_audiohook);
 
+	ast_verb(2, "Done Spying on channel %s\n", name);
+	publish_chanspy_message(chan, spyee_autochan->chan, 0);
+
 	if (spyee_bridge_autochan) {
 		ast_autochan_destroy(spyee_bridge_autochan);
 	}
-
-	ast_verb(2, "Done Spying on channel %s\n", name);
-	publish_chanspy_message(chan, NULL, 0);
 
 	return running;
 }
