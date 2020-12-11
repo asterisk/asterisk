@@ -808,12 +808,15 @@ static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
 		struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, spyee_channel_string, NULL, ast_free);
 	struct ast_channel_snapshot *spyer;
+	struct ast_channel_snapshot *spyee;
+	const char *spyee_info = "";
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 
 	spyer = ast_multi_channel_blob_get_channel(payload, "spyer_channel");
 	if (!spyer) {
-		ast_log(AST_LOG_WARNING, "Received ChanSpy Start event with no spyer channel!\n");
+		ast_log(AST_LOG_WARNING, "Received ChanSpy Stop event with no spyer channel!\n");
 		return;
 	}
 
@@ -822,9 +825,18 @@ static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
+	spyee = ast_multi_channel_blob_get_channel(payload, "spyee_channel");
+	if (spyee) {
+		spyee_channel_string = ast_manager_build_channel_state_string_prefix(spyee, "Spyee");
+		if (spyee_channel_string) {
+			spyee_info = ast_str_buffer(spyee_channel_string);
+		}
+	}
+
 	manager_event(EVENT_FLAG_CALL, "ChanSpyStop",
-		      "%s",
-		      ast_str_buffer(spyer_channel_string));
+		      "%s%s",
+		      ast_str_buffer(spyer_channel_string),
+		      spyee_info);
 }
 
 static void channel_chanspy_start_cb(void *data, struct stasis_subscription *sub,
