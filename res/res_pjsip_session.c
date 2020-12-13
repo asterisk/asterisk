@@ -2268,7 +2268,7 @@ static int sip_session_refresh(struct ast_sip_session *session,
 					ast_sip_session_get_name(session));
 			}
 
-			if (active_media_state) {
+			if (active_media_state && active_media_state->topology) {
 				struct ast_sip_session_media_state *new_pending_state;
 				/*
 				 * We need to check if the passed in active and pending states are equal
