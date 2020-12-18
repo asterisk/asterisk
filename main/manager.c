@@ -1946,12 +1946,12 @@ void ast_manager_unregister_hook(struct manager_custom_hook *hook)
 	AST_RWLIST_UNLOCK(&manager_hooks);
 }
 
-int check_manager_enabled(void)
+int ast_manager_check_enabled(void)
 {
 	return manager_enabled;
 }
 
-int check_webmanager_enabled(void)
+int ast_webmanager_check_enabled(void)
 {
 	return (webmanager_enabled && manager_enabled);
 }
@@ -6309,7 +6309,7 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			ast_option_maxfiles,
 			AST_CLI_YESNO(ast_realtime_enabled()),
 			AST_CLI_YESNO(ast_cdr_is_enabled()),
-			AST_CLI_YESNO(check_webmanager_enabled())
+			AST_CLI_YESNO(ast_webmanager_check_enabled())
 			);
 	return 0;
 }
