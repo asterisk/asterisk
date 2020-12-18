@@ -115,10 +115,10 @@ struct manager_custom_hook {
 };
 
 /*! \brief Check if AMI is enabled */
-int check_manager_enabled(void);
+int ast_manager_check_enabled(void);
 
 /*! \brief Check if AMI/HTTP is enabled */
-int check_webmanager_enabled(void);
+int ast_webmanager_check_enabled(void);
 
 /*! Add a custom hook to be called when an event is fired
  \param hook struct manager_custom_hook object to add
