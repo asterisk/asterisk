@@ -1,15 +1,22 @@
 [Unit]
 Description=Asterisk PBX and telephony daemon.
 After=network.target
+#include these if asterisk need to bind to a specific IP (other than 0.0.0.0)
+#Wants=network-online.target
+#After=network-online.target network.target
 
 [Service]
 Type=notify
 Environment=HOME=/var/lib/asterisk
+#if systemd do not provide hostname and you need to use ${ENV(HOSTNAME)}
+#Environment=HOSTNAME=%H
 WorkingDirectory=/var/lib/asterisk
 User=asterisk
 Group=asterisk
 ExecStart=/usr/sbin/asterisk -mqf -C /etc/asterisk/asterisk.conf
 ExecReload=/usr/sbin/asterisk -rx 'core reload'
+#if /var/run is a tmpfs, this will create /var/run/asterisk on start
+#RuntimeDirectory=asterisk
 
 #Nice=0
 #UMask=0002
