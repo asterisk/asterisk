@@ -534,8 +534,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
-	ast_cli(a->fd, "  Manager (AMI):               %s\n", check_manager_enabled() ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", check_webmanager_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Manager (AMI):               %s\n", ast_manager_check_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", ast_webmanager_check_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Call data records:           %s\n", ast_cdr_is_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Realtime Architecture (ARA): %s\n", ast_realtime_enabled() ? "Enabled" : "Disabled");
 
