@@ -110,7 +110,6 @@ static AST_LIST_HEAD_STATIC(locklist, lock_frame);
 static void lock_free(void *data);
 static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_channel *newchan);
 static int unloading = 0;
-static pthread_t broker_tid = AST_PTHREADT_NULL;
 
 static const struct ast_datastore_info lock_info = {
 	.type = "MUTEX",
@@ -124,8 +123,8 @@ struct lock_frame {
 	ast_cond_t cond;
 	/*! count is needed so if a recursive mutex exits early, we know how many times to unlock it. */
 	unsigned int count;
-	/*! Container of requesters for the named lock */
-	struct ao2_container *requesters;
+	/*! Count of waiting of requesters for the named lock */
+	unsigned int requesters;
 	/*! who owns us */
 	struct ast_channel *owner;
 	/*! name of the lock */
@@ -147,8 +146,11 @@ static void lock_free(void *data)
 	while ((clframe = AST_LIST_REMOVE_HEAD(oldlist, list))) {
 		/* Only unlock if we own the lock */
 		if (clframe->channel == clframe->lock_frame->owner) {
+			ast_mutex_lock(&clframe->lock_frame->mutex);
 			clframe->lock_frame->count = 0;
 			clframe->lock_frame->owner = NULL;
+			ast_cond_signal(&clframe->lock_frame->cond);
+			ast_mutex_unlock(&clframe->lock_frame->mutex);
 		}
 		ast_free(clframe);
 	}
@@ -173,52 +175,9 @@ static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_chann
 		if (clframe->lock_frame->owner == oldchan) {
 			clframe->lock_frame->owner = newchan;
 		}
-		/* We don't move requesters, because the thread stack is different */
 		clframe->channel = newchan;
 	}
 	AST_LIST_UNLOCK(list);
-}
-
-static void *lock_broker(void *unused)
-{
-	struct lock_frame *frame;
-	struct timespec forever = { 1000000, 0 };
-	for (;;) {
-		int found_requester = 0;
-
-		/* Test for cancel outside of the lock */
-		pthread_testcancel();
-		AST_LIST_LOCK(&locklist);
-
-		AST_LIST_TRAVERSE(&locklist, frame, entries) {
-			if (ao2_container_count(frame->requesters)) {
-				found_requester++;
-				ast_mutex_lock(&frame->mutex);
-				if (!frame->owner) {
-					ast_cond_signal(&frame->cond);
-				}
-				ast_mutex_unlock(&frame->mutex);
-			}
-		}
-
-		AST_LIST_UNLOCK(&locklist);
-		pthread_testcancel();
-
-		/* If there are no requesters, then wait for a signal */
-		if (!found_requester) {
-			nanosleep(&forever, NULL);
-		} else {
-			sched_yield();
-		}
-	}
-	/* Not reached */
-	return NULL;
-}
-
-static int ast_channel_cmp_cb(void *obj, void *arg, int flags)
-{
-	struct ast_channel *chan = obj, *cmp_args = arg;
-	return strcasecmp(ast_channel_name(chan), ast_channel_name(cmp_args)) ? 0 : CMP_MATCH;
 }
 
 static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
@@ -290,17 +249,13 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 			AST_LIST_UNLOCK(&locklist);
 			return -1;
 		}
-		current->requesters = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
-			NULL, ast_channel_cmp_cb);
-		if (!current->requesters) {
-			ast_mutex_destroy(&current->mutex);
-			ast_cond_destroy(&current->cond);
-			ast_free(current);
-			AST_LIST_UNLOCK(&locklist);
-			return -1;
-		}
+		current->requesters = 0;
 		AST_LIST_INSERT_TAIL(&locklist, current, entries);
 	}
+	/* Add to requester list */
+	ast_mutex_lock(&current->mutex);
+	current->requesters++;
+	ast_mutex_unlock(&current->mutex);
 	AST_LIST_UNLOCK(&locklist);
 
 	/* Found lock or created one - now find or create the corresponding link in the channel */
@@ -337,44 +292,42 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 	 * the same amount, before we'll release this one.
 	 */
 	if (current->owner == chan) {
+		/* We're not a requester, we already have it */
+		ast_mutex_lock(&current->mutex);
+		current->requesters--;
+		ast_mutex_unlock(&current->mutex);
 		current->count++;
 		return 0;
 	}
-
-	/* Okay, we have both frames, so now we need to try to lock.
-	 *
-	 * Locking order: always lock locklist first.  We need the
-	 * locklist lock because the broker thread counts whether
-	 * there are requesters with the locklist lock held, and we
-	 * need to hold it, so that when we send our signal, below,
-	 * to wake up the broker thread, it definitely will see that
-	 * a requester exists at that point in time.  Otherwise, we
-	 * could add to the requesters after it has already seen that
-	 * that lock is unoccupied and wait forever for another signal.
-	 */
-	AST_LIST_LOCK(&locklist);
-	ast_mutex_lock(&current->mutex);
-	/* Add to requester list */
-	ao2_link(current->requesters, chan);
-	pthread_kill(broker_tid, SIGURG);
-	AST_LIST_UNLOCK(&locklist);
 
 	/* Wait up to three seconds from now for LOCK. */
 	now = ast_tvnow();
 	timeout.tv_sec = now.tv_sec + 3;
 	timeout.tv_nsec = now.tv_usec * 1000;
 
-	if (!current->owner
-		|| (!trylock
-			&& !(res = ast_cond_timedwait(&current->cond, &current->mutex, &timeout)))) {
-		res = 0;
+	ast_mutex_lock(&current->mutex);
+
+	res = 0;
+	while (!trylock && !res && current->owner) {
+		res = ast_cond_timedwait(&current->cond, &current->mutex, &timeout);
+	}
+	if (current->owner) {
+		/* timeout;
+		 * trylock; or
+		 * cond_timedwait failed.
+		 *
+		 * either way, we fail to obtain the lock.
+		 */
+		res = -1;
+	} else {
 		current->owner = chan;
 		current->count++;
-	} else {
-		res = -1;
+		res = 0;
 	}
 	/* Remove from requester list */
-	ao2_unlink(current->requesters, chan);
+	current->requesters--;
+	if (res && unloading)
+		ast_cond_signal(&current->cond);
 	ast_mutex_unlock(&current->mutex);
 
 	return res;
@@ -422,7 +375,10 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 	}
 
 	if (--clframe->lock_frame->count == 0) {
+		ast_mutex_lock(&clframe->lock_frame->mutex);
 		clframe->lock_frame->owner = NULL;
+		ast_cond_signal(&clframe->lock_frame->cond);
+		ast_mutex_unlock(&clframe->lock_frame->mutex);
 	}
 
 	ast_copy_string(buf, "1", len);
@@ -478,33 +434,33 @@ static int unload_module(void)
 	/* Module flag */
 	unloading = 1;
 
-	AST_LIST_LOCK(&locklist);
-	while ((current = AST_LIST_REMOVE_HEAD(&locklist, entries))) {
-		/* If any locks are currently in use, then we cannot unload this module */
-		if (current->owner || ao2_container_count(current->requesters)) {
-			/* Put it back */
-			AST_LIST_INSERT_HEAD(&locklist, current, entries);
-			AST_LIST_UNLOCK(&locklist);
-			unloading = 0;
-			return -1;
-		}
-		ast_mutex_destroy(&current->mutex);
-		ao2_ref(current->requesters, -1);
-		ast_free(current);
-	}
-
-	/* No locks left, unregister functions */
+	/* Make it impossible for new requesters to be added
+	 * NOTE:  channels could already be in get_lock() */
 	ast_custom_function_unregister(&lock_function);
 	ast_custom_function_unregister(&trylock_function);
-	ast_custom_function_unregister(&unlock_function);
 
-	if (broker_tid != AST_PTHREADT_NULL) {
-		pthread_cancel(broker_tid);
-		pthread_kill(broker_tid, SIGURG);
-		pthread_join(broker_tid, NULL);
+	AST_LIST_LOCK(&locklist);
+	AST_LIST_TRAVERSE(&locklist, current, entries) {
+		ast_mutex_lock(&current->mutex);
+		while (current->owner || current->requesters) {
+			/* either the mutex is locked, or other parties are currently in get_lock,
+			 * we need to wait for all of those to clear first */
+			ast_cond_wait(&current->cond, &current->mutex);
+		}
+		ast_mutex_unlock(&current->mutex);
+		/* At this point we know:
+		 * 1. the lock has been released,
+		 * 2. there are no requesters (nor should any be able to sneak in).
+		 */
+		ast_mutex_destroy(&current->mutex);
+		ast_cond_destroy(&current->cond);
+		ast_free(current);
 	}
-
 	AST_LIST_UNLOCK(&locklist);
+	AST_LIST_HEAD_DESTROY(&locklist);
+
+	/* At this point we can safely stop access to UNLOCK */
+	ast_custom_function_unregister(&unlock_function);
 
 	return 0;
 }
@@ -514,13 +470,6 @@ static int load_module(void)
 	int res = ast_custom_function_register_escalating(&lock_function, AST_CFE_READ);
 	res |= ast_custom_function_register_escalating(&trylock_function, AST_CFE_READ);
 	res |= ast_custom_function_register_escalating(&unlock_function, AST_CFE_READ);
-
-	if (ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL)) {
-		ast_log(LOG_ERROR, "Failed to start lock broker thread. Unloading func_lock module.\n");
-		broker_tid = AST_PTHREADT_NULL;
-		unload_module();
-		return AST_MODULE_LOAD_DECLINE;
-	}
 
 	return res;
 }
