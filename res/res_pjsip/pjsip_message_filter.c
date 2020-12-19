@@ -111,7 +111,8 @@ static pjsip_transport *get_udp_transport(pj_str_t *address, int port)
 	}
 
 	for (iter = ao2_iterator_init(transport_states, 0); (transport_state = ao2_iterator_next(&iter)); ao2_ref(transport_state, -1)) {
-		if (transport_state->type == AST_TRANSPORT_UDP &&
+		if (!transport_state->flow &&
+			transport_state->type == AST_TRANSPORT_UDP &&
 			!pj_strcmp(&transport_state->transport->local_name.host, address) &&
 			transport_state->transport->local_name.port == port) {
 			sip_transport = transport_state->transport;
