@@ -491,15 +491,16 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 	struct ast_sip_session_media_state *media_state, enum ast_media_type type, int position)
 {
 	struct ast_sip_session_media *session_media = NULL;
+	struct ast_sip_session_media *current_session_media = NULL;
 	SCOPE_ENTER(1, "%s Adding position %d\n", ast_sip_session_get_name(session), position);
 
 	/* It is possible for this media state to already contain a session for the stream. If this
 	 * is the case we simply return it.
 	 */
 	if (position < AST_VECTOR_SIZE(&media_state->sessions)) {
-		session_media = AST_VECTOR_GET(&media_state->sessions, position);
-		if (session_media) {
-			SCOPE_EXIT_RTN_VALUE(session_media, "Using existing media_session\n");
+		current_session_media = AST_VECTOR_GET(&media_state->sessions, position);
+		if (current_session_media && current_session_media->type == type) {
+			SCOPE_EXIT_RTN_VALUE(current_session_media, "Using existing media_session\n");
 		}
 	}
 
@@ -575,6 +576,8 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't replace media_session\n");
 	}
+
+	ao2_cleanup(current_session_media);
 
 	/* If this stream will be active in some way and it is the first of this type then consider this the default media session to match */
 	if (!media_state->default_session[type] && ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
