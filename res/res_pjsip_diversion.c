@@ -314,8 +314,14 @@ static void set_redirecting_reason_by_cause(pjsip_name_addr *name_addr,
 {
 	static const pj_str_t cause_name = { "cause", 5 };
 	pjsip_sip_uri *uri = pjsip_uri_get_uri(name_addr);
-	pjsip_param *cause = pjsip_param_find(&uri->other_param, &cause_name);
-	unsigned long cause_value;
+	pjsip_param *cause = NULL;
+	unsigned long cause_value = 0;
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
+		return;
+	}
+
+	cause = pjsip_param_find(&uri->other_param, &cause_name);
 
 	if (!cause) {
 		return;
@@ -377,6 +383,7 @@ static void set_redirecting(struct ast_sip_session *session,
 	ast_party_redirecting_init(&data);
 	memset(&update, 0, sizeof(update));
 
+	data.reason.code = AST_REDIRECTING_REASON_UNKNOWN;
 	if (from_info) {
 		set_redirecting_id((pjsip_name_addr*)from_info->uri,
 			&data.from, &update.from);
