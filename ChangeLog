@@ -2,6 +2,10 @@
 
 	* asterisk 16.15.1 Released.
 
+2020-12-22 15:02 +0000 [49fbd57889]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update for 16.15.1
+
 2020-12-22 02:58 +0000 [354049e055]  Torrey Searle <tsearle@voxbone.com>
 
 	* res/res_pjsip_diversion: prevent crash on tel: uri in History-Info
