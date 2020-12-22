@@ -2,6 +2,10 @@
 
 	* asterisk 17.9.1 Released.
 
+2020-12-22 15:04 +0000 [69895da26d]  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Update for 17.9.1
+
 2020-12-22 02:58 +0000 [fbfc7ab43b]  Torrey Searle <tsearle@voxbone.com>
 
 	* res/res_pjsip_diversion: prevent crash on tel: uri in History-Info
