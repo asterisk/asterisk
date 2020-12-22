@@ -1,3 +1,19 @@
+2020-12-22 20:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.38.1 Released.
+
+2020-12-22 02:58 +0000 [8d90fc1b41]  Torrey Searle <tsearle@voxbone.com>
+
+	* res/res_pjsip_diversion: prevent crash on tel: uri in History-Info
+
+	  Add a check to see if the URI is a Tel URI and prevent crashing on
+	  trying to retrieve the reason parameter.
+
+	  ASTERISK-29191
+	  ASTERISK-29219
+
+	  Change-Id: I0320aa205f22cda511d60a2edf2b037e8fd6cc37
+
 2020-11-19 12:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.38.0 Released.
