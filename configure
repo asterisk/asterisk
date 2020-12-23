@@ -1043,6 +1043,7 @@ PBX_MISDN
 MISDN_DIR
 MISDN_INCLUDE
 MISDN_LIB
+LUA_VERSIONS
 PBX_LUA
 LUA_DIR
 LUA_INCLUDE
@@ -1469,6 +1470,7 @@ CCC
 CXXCPP
 JANSSON_CONFIGURE_OPTS
 PJPROJECT_CONFIGURE_OPTS
+LUA_VERSIONS
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
@@ -2227,6 +2229,8 @@ Some influential environment variables:
               Additional configure options to pass to bundled jansson
   PJPROJECT_CONFIGURE_OPTS
               Additional configure options to pass to bundled pjproject
+  LUA_VERSIONS
+              A space separated list of target lua versions to test.
   PKG_CONFIG  path to pkg-config utility
   PKG_CONFIG_PATH
               directories to add to pkg-config's search path
@@ -29515,7 +29519,7 @@ fi
 
 
 
-for ver in 5.4 5.3 5.2 5.1; do
+for ver in ${LUA_VERSIONS:-5.4 5.3 5.2 5.1}; do
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -29626,6 +29630,7 @@ fi
 done
 
 # Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
+if test "x${LUA_VERSIONS}" = "x"; then
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -29722,6 +29727,7 @@ _ACEOF
 fi
 
 
+fi
 
 # Accept either RADIUS client library, their APIs are fully compatible,
 # just different header filenames and different SONAMEs
