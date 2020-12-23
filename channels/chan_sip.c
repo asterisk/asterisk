@@ -10441,7 +10441,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		rtcp_mux_offered = has_media_level_attribute(iterator, req, "rtcp-mux");
 
 		/* Check for 'audio' media offer */
-		if (strncmp(m, "audio ", 6) == 0) {
+		if (p->rtp && strncmp(m, "audio ", 6) == 0) {
 			if ((sscanf(m, "audio %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "audio %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
@@ -10551,7 +10551,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		}
 		/* Check for 'video' media offer */
-		else if (strncmp(m, "video ", 6) == 0) {
+		else if (p->vrtp && strncmp(m, "video ", 6) == 0) {
 			if ((sscanf(m, "video %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "video %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
@@ -10630,7 +10630,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		}
 		/* Check for 'text' media offer */
-		else if (strncmp(m, "text ", 5) == 0) {
+		else if (p->trtp && strncmp(m, "text ", 5) == 0) {
 			if ((sscanf(m, "text %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "text %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
