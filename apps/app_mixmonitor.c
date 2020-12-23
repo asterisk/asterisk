@@ -865,6 +865,24 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 	return 0;
 }
 
+static void mixmonitor_ds_remove_and_free(struct ast_channel *chan, const char *datastore_id)
+{
+	struct ast_datastore *datastore;
+
+	ast_channel_lock(chan);
+
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, datastore_id);
+
+	/*
+	 * Currently the one place this function is called from guarantees a
+	 * datastore is present, thus return checks can be avoided here.
+	 */
+	ast_channel_datastore_remove(chan, datastore);
+	ast_datastore_free(datastore);
+
+	ast_channel_unlock(chan);
+}
+
 static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				  unsigned int flags, int readvol, int writevol,
 				  const char *post_process, const char *filename_write,
@@ -940,7 +958,6 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 			pbx_builtin_setvar_helper(chan, uid_channel_var, datastore_id);
 		}
 	}
-	ast_free(datastore_id);
 
 	mixmonitor->name = ast_strdup(ast_channel_name(chan));
 
@@ -990,11 +1007,15 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 	if (startmon(chan, &mixmonitor->audiohook)) {
 		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
 			mixmonitor_spy_type, ast_channel_name(chan));
+		mixmonitor_ds_remove_and_free(chan, datastore_id);
+		ast_free(datastore_id);
 		ast_autochan_destroy(mixmonitor->autochan);
 		ast_audiohook_destroy(&mixmonitor->audiohook);
 		mixmonitor_free(mixmonitor);
 		return -1;
 	}
+
+	ast_free(datastore_id);
 
 	/* reference be released at mixmonitor destruction */
 	mixmonitor->callid = ast_read_threadstorage_callid();
