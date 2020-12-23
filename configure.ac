@@ -511,6 +511,7 @@ AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 AST_EXT_LIB_SETUP([LIBXSLT], [LibXSLT], [libxslt])
 AST_EXT_LIB_SETUP_OPTIONAL([LIBXSLT_CLEANUP], [LibXSLT Library Cleanup Function], [LIBXSLT], [libxslt])
 AST_EXT_LIB_SETUP([LUA], [Lua], [lua])
+AC_ARG_VAR([LUA_VERSIONS],[A space separated list of target lua versions to test.])
 AST_EXT_LIB_SETUP([MISDN], [mISDN user], [misdn])
 AST_EXT_LIB_SETUP([MYSQLCLIENT], [MySQL client], [mysqlclient])
 AST_EXT_LIB_SETUP([NBS], [Network Broadcast Sound], [nbs])
@@ -2559,7 +2560,7 @@ if test -z "$__opus_include" -o x"$__opus_include" = x" " ; then
 fi
 AST_EXT_LIB_CHECK([OPUSFILE], [opusfile], [op_open_callbacks], [opus/opusfile.h], [], [$__opus_include])
 
-for ver in 5.4 5.3 5.2 5.1; do
+for ver in ${LUA_VERSIONS:-5.4 5.3 5.2 5.1}; do
 	AST_EXT_LIB_CHECK([LUA], lua${ver}, [luaL_newstate], lua${ver}/lua.h, [-lm])
 	if test "x${PBX_LUA}" = "x1" ; then
 		if test x"${LUA_DIR}" = x; then
@@ -2572,7 +2573,9 @@ for ver in 5.4 5.3 5.2 5.1; do
 done
 
 # Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
-AST_EXT_LIB_CHECK([LUA], [lua], [luaL_newstate], [lua.h], [-lm])
+if test "x${LUA_VERSIONS}" = "x"; then
+	AST_EXT_LIB_CHECK([LUA], [lua], [luaL_newstate], [lua.h], [-lm])
+fi
 
 # Accept either RADIUS client library, their APIs are fully compatible,
 # just different header filenames and different SONAMEs
