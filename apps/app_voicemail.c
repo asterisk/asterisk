@@ -3939,6 +3939,7 @@ static int retrieve_file(char *dir, int msgnum)
 	char fn[PATH_MAX];
 	char full_fn[PATH_MAX];
 	char msgnums[80];
+	char msg_id[MSG_ID_LEN] = "";
 	char *argv[] = { dir, msgnums };
 	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
 	struct odbc_obj *obj;
@@ -4043,10 +4044,10 @@ static int retrieve_file(char *dir, int msgnum)
 		} else {
 			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 			if (res == SQL_NULL_DATA && !strcasecmp(coltitle, "msg_id")) {
-				char msg_id[MSG_ID_LEN];
+				/* Generate msg_id now, but don't store it until we're done with this
+				   connection */
 				generate_msg_id(msg_id);
 				snprintf(rowdata, sizeof(rowdata), "%s", msg_id);
-				odbc_update_msg_id(dir, msgnum, msg_id);
 			} else if (res == SQL_NULL_DATA && !strcasecmp(coltitle, "category")) {
 				/* Ignore null column value for category */
 				ast_debug(3, "Ignoring null category column in ODBC voicemail retrieve_file.\n");
@@ -4071,6 +4072,13 @@ bail:
 		close(fd);
 
 	ast_odbc_release_obj(obj);
+
+	/* If res_odbc is configured to only allow a single database connection, we
+	   will deadlock if we try to do this before releasing the connection we
+	   were just using. */
+	if (!ast_strlen_zero(msg_id)) {
+		odbc_update_msg_id(dir, msgnum, msg_id);
+	}
 
 	return x - 1;
 }
