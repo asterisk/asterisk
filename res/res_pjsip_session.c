@@ -5521,12 +5521,14 @@ static int test_is_media_state_equal(struct ast_sip_session_media_state *left, s
 	}
 	if (AST_VECTOR_SIZE(&left->sessions) != AST_VECTOR_SIZE(&right->sessions)) {
 		ast_assert(!assert_on_failure);
-		SCOPE_EXIT_RTN_VALUE(0, "session vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->sessions),
+		SCOPE_EXIT_RTN_VALUE(0, "session vector sizes different: left %zu != right %zu\n",
+			AST_VECTOR_SIZE(&left->sessions),
 			AST_VECTOR_SIZE(&right->sessions));
 	}
 	if (AST_VECTOR_SIZE(&left->read_callbacks) != AST_VECTOR_SIZE(&right->read_callbacks)) {
 		ast_assert(!assert_on_failure);
-		SCOPE_EXIT_RTN_VALUE(0, "read_callback vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->read_callbacks),
+		SCOPE_EXIT_RTN_VALUE(0, "read_callback vector sizes different: left %zu != right %zu\n",
+			AST_VECTOR_SIZE(&left->read_callbacks),
 			AST_VECTOR_SIZE(&right->read_callbacks));
 	}
 
