@@ -613,6 +613,7 @@ static int handle_client_registration(void *data)
 
 	if (client_state->support_path) {
 		pjsip_supported_hdr *hdr;
+		int i;
 
 		hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_SUPPORTED, NULL);
 		if (!hdr) {
@@ -624,6 +625,17 @@ static int handle_client_registration(void *data)
 			}
 
 			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
+		}
+
+		/* Don't add the value if it's already there */
+		for (i = 0; i < hdr->count; ++i) {
+			if (pj_stricmp(&hdr->values[i], &PATH_NAME) == 0) {
+				return 1;
+			}
+		}
+
+		if (hdr->count >= PJSIP_GENERIC_ARRAY_MAX_COUNT) {
+			return 0;
 		}
 
 		/* add on to the existing Supported header */
