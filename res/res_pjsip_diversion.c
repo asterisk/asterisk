@@ -120,6 +120,7 @@ static enum AST_REDIRECTING_REASON cause_to_reason(const unsigned long cause) {
 static int add_supported(pjsip_tx_data *tdata)
 {
 	pjsip_supported_hdr *hdr;
+	unsigned int i;
 
 	hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_SUPPORTED, NULL);
 	if (!hdr) {
@@ -130,6 +131,19 @@ static int add_supported(pjsip_tx_data *tdata)
 		}
 
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
+	}
+
+	/* Asterisk can send multiple "181 Call forwarded" in a single session,
+	 * we might have already modified Supported before
+	 */
+	for (i = 0; i < hdr->count; ++i) {
+		if (pj_stricmp(&hdr->values[i], &HISTINFO_SUPPORTED_NAME) == 0) {
+			return 0;
+		}
+	}
+
+	if (hdr->count >= PJSIP_GENERIC_ARRAY_MAX_COUNT) {
+		return -1;
 	}
 
 	/* add on to the existing Supported header */
