@@ -2944,6 +2944,18 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 	}
 }
 
+static void set_sipdomain_variable(struct ast_sip_session *session)
+{
+	pjsip_sip_uri *sip_ruri = pjsip_uri_get_uri(session->request_uri);
+	size_t size = pj_strlen(&sip_ruri->host) + 1;
+	char *domain = ast_alloca(size);
+
+	ast_copy_pj_str(domain, &sip_ruri->host, size);
+
+	pbx_builtin_setvar_helper(session->channel, "SIPDOMAIN", domain);
+	return;
+}
+
 /*! \brief Function called when a request is received on the session */
 static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
@@ -2995,6 +3007,9 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		SCOPE_EXIT_LOG_RTN_VALUE(-1, LOG_ERROR, "%s: Failed to allocate new PJSIP channel on incoming SIP INVITE\n",
 			 ast_sip_session_get_name(session));
 	}
+
+	set_sipdomain_variable(session);
+
 	/* channel gets created on incoming request, but we wait to call start
            so other supplements have a chance to run */
 	SCOPE_EXIT_RTN_VALUE(0, "%s\n", ast_sip_session_get_name(session));

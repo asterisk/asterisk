@@ -3739,7 +3739,7 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	 */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(session->exten);
 
-	pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
+	pickup_cfg = ast_get_chan_features_pickup_config(NULL); /* session->channel doesn't exist yet, using NULL */
 	if (!pickup_cfg) {
 		ast_log(LOG_ERROR, "%s: Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n",
 			ast_sip_session_get_name(session));
@@ -3751,12 +3751,6 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 
 	if (!strcmp(session->exten, pickupexten) ||
 		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, NULL)) {
-		size_t size = pj_strlen(&sip_ruri->host) + 1;
-		char *domain = ast_alloca(size);
-
-		ast_copy_pj_str(domain, &sip_ruri->host, size);
-		pbx_builtin_setvar_helper(session->channel, "SIPDOMAIN", domain);
-
 		/*
 		 * Save off the INVITE Request-URI in case it is
 		 * needed: CHANNEL(pjsip,request_uri)
