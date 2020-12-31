@@ -137,6 +137,7 @@ static void chan_pjsip_session_begin(struct ast_sip_session *session);
 static void chan_pjsip_session_end(struct ast_sip_session *session);
 static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
 static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
+static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
 
 /*! \brief SIP session supplement structure */
 static struct ast_sip_session_supplement chan_pjsip_supplement = {
@@ -145,6 +146,7 @@ static struct ast_sip_session_supplement chan_pjsip_supplement = {
 	.session_begin = chan_pjsip_session_begin,
 	.session_end = chan_pjsip_session_end,
 	.incoming_request = chan_pjsip_incoming_request,
+	.incoming_response = chan_pjsip_incoming_response,
 	/* It is important that this supplement runs after media has been negotiated */
 	.response_priority = AST_SIP_SESSION_AFTER_MEDIA,
 };
@@ -153,7 +155,7 @@ static struct ast_sip_session_supplement chan_pjsip_supplement = {
 static struct ast_sip_session_supplement chan_pjsip_supplement_response = {
 	.method = "INVITE",
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL,
-	.incoming_response = chan_pjsip_incoming_response,
+	.incoming_response = chan_pjsip_incoming_response_update_cause,
 	.response_priority = AST_SIP_SESSION_BEFORE_MEDIA | AST_SIP_SESSION_AFTER_MEDIA,
 };
 
@@ -3125,7 +3127,7 @@ static struct ast_sip_session_supplement pbx_start_supplement = {
 };
 
 /*! \brief Function called when a response is received on the session */
-static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
+static void chan_pjsip_incoming_response_update_cause(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
 	struct ast_control_pvt_cause_code *cause_code;
@@ -3150,6 +3152,19 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 	cause_code->ast_cause = hangup_sip2cause(status.code);
 	ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 	ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
+
+	SCOPE_EXIT_RTN("%s\n", ast_sip_session_get_name(session));
+}
+
+/*! \brief Function called when a response is received on the session */
+static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
+{
+	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
+	SCOPE_ENTER(3, "%s: Status: %d\n", ast_sip_session_get_name(session), status.code);
+
+	if (!session->channel) {
+		SCOPE_EXIT_RTN("%s: No channel\n", ast_sip_session_get_name(session));
+	}
 
 	switch (status.code) {
 	case 180:
