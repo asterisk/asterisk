@@ -1428,7 +1428,11 @@ AC_LINK_IFELSE(
 			#include <arpa/nameser.h>
 			#endif
 			#include <resolv.h>],
-			[int foo = res_ninit(NULL);])],
+			[
+				int foo;
+				foo = res_ninit(NULL);
+				foo = res_nsearch(NULL, NULL, 0, 0, NULL, 0);
+			])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAVE_RES_NINIT], 1, [Define to 1 if your system has the re-entrant resolver functions.])
 	AC_SEARCH_LIBS(res_9_ndestroy, resolv)
@@ -2628,10 +2632,12 @@ AC_CHECK_FUNC([crypt], [SYSCRYPT=true], [SYSCRYPT=""])
 if test "x$LIBCRYPT_LIB" != "x" ; then
     CRYPT_LIB="$LIBCRYPT_LIB"
     CRYPT_INCLUDE="$LIBCRYPT_INCLUDE"
+    PBX_CRYPT=1
     AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the 'crypt' function.])
 elif test "x$SYSCRYPT" != "x" ; then
     CRYPT_LIB=""
     CRYPT_INCLUDE=""
+    PBX_CRYPT=1
     AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the 'crypt' function.])
 fi
 

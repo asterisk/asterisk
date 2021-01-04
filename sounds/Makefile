@@ -101,17 +101,7 @@ ifneq ($(SOUNDS_CACHE_DIR),)
 	  if test ! -f "$$(SOUNDS_CACHE_DIR)/$$@"; then \
 	    (cd "$$(SOUNDS_CACHE_DIR)"; $$(DOWNLOAD) $$(SOUNDS_URL)/$$@); \
 	  fi; \
-	  if test ! -f "$$(SOUNDS_CACHE_DIR)/$$@.sha1"; then \
-	    (cd "$$(SOUNDS_CACHE_DIR)"; $$(DOWNLOAD) $$(SOUNDS_URL)/$$@.sha1); \
-	  fi; \
 	  $$(LN) -sf "$$(SOUNDS_CACHE_DIR)/$$@" .; \
-	  $$(LN) -sf "$$(SOUNDS_CACHE_DIR)/$$@.sha1" .; \
-	  $$(SHA1SUM) -c --status $$@.sha1 || \
-	    ( \
-	      rm -f "$$(SOUNDS_CACHE_DIR)/$$@" "$$(SOUNDS_CACHE_DIR)/$$@.sha1" $$@ $$@.sha1; \
-	      echo "Bad checksum: $$@" 1>&2; \
-	      exit 1; \
-	    ) || exit 1; \
 	fi
 else
 	$(CMD_PREFIX) \

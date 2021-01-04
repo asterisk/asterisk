@@ -106,7 +106,7 @@ clean::
 
 install:: all
 	@echo "Installing modules from `basename $(CURDIR)`..."
-	@for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x "$(DESTDIR)$(ASTMODDIR)" ; done
+	@for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -D -m 755 $$x "$(DESTDIR)$(ASTMODDIR)" ; done
 ifneq ($(findstring :,$(XMLSTARLET)$(BASH)),:)
 	@if [ -f .moduleinfo ] ; then \
 		declare -A DISABLED_MODS ;\

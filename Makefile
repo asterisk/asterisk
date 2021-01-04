@@ -828,7 +828,7 @@ adsi:
 		$(INSTALL) -m 644 "$$x" "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
 	done
 
-samples: adsi
+samples: adsi datafiles
 	@echo Installing other config files...
 	$(call INSTALL_CONFIGS,configs/samples,.sample)
 	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX"
