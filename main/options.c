@@ -81,10 +81,6 @@ int ast_option_maxcalls;
 int ast_option_maxfiles;
 /*! Minimum duration of DTMF. */
 unsigned int option_dtmfminduration = AST_MIN_DTMF_DURATION;
-#if defined(HAVE_SYSINFO)
-/*! Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
-long option_minmemfree;
-#endif
 int ast_option_rtpusedynamic = 1;
 unsigned int ast_option_rtpptdynamic = 35;
 
@@ -428,14 +424,6 @@ void load_asterisk_conf(void)
 					"defaulting to 'lockfile'\n", v->value);
 				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
 			}
-#if defined(HAVE_SYSINFO)
-		} else if (!strcasecmp(v->name, "minmemfree")) {
-			/* specify the minimum amount of free memory to retain.  Asterisk should stop accepting new calls
-			 * if the amount of free memory falls below this watermark */
-			if ((sscanf(v->value, "%30ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
-				option_minmemfree = 0;
-			}
-#endif
 		} else if (!strcasecmp(v->name, "entityid")) {
 			struct ast_eid tmp_eid;
 			if (!ast_str_to_eid(&tmp_eid, v->value)) {

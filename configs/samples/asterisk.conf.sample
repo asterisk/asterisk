@@ -42,9 +42,6 @@ astsbindir => /usr/sbin
 ;maxload = 0.9			; Asterisk stops accepting new calls if the
 				; load average exceed this limit.
 ;maxfiles = 1000		; Maximum amount of openfiles.
-;minmemfree = 1			; In MBs, Asterisk stops accepting new calls if
-				; the amount of free memory falls below this
-				; watermark.
 ;cache_media_frames = yes	; Cache media frames for performance
 				; Disable this option to help track down media frame
 				; mismanagement when using valgrind or MALLOC_DEBUG.

@@ -134,17 +134,6 @@
     </listitem>
    </varlistentry>
    <varlistentry>
-    <term>-e <replaceable class="parameter">memory</replaceable></term>
-    <listitem>
-     <para>
-      Limit the generation of new channels when the amount of free memory
-      has decreased to under <replaceable>memory</replaceable> megabytes.
-      Equivalent to <option>minmemfree = <replaceable>memory</replaceable></option> in
-      <filename>asterisk.conf</filename>.
-     </para>
-    </listitem>
-   </varlistentry>
-   <varlistentry>
     <term>-f</term>
     <listitem>
      <para>

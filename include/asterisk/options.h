@@ -191,9 +191,6 @@ extern int option_trace;		/*!< Debugging */
 extern int ast_option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern unsigned int option_dtmfminduration;	/*!< Minimum duration of DTMF (channel.c) in ms */
 extern double ast_option_maxload;
-#if defined(HAVE_SYSINFO)
-extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
-#endif
 extern char ast_defaultlanguage[];
 
 extern struct timeval ast_startuptime;

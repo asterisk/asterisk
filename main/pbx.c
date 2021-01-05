@@ -4616,15 +4616,12 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 /*!
  * \brief Increase call count for channel
  * \retval 0 on success
- * \retval non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached
+ * \retval non-zero if a configured limit (maxcalls, maxload) was reached
 */
 static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
 	double curloadavg;
-#if defined(HAVE_SYSINFO)
-	struct sysinfo sys_info;
-#endif
 
 	ast_mutex_lock(&maxcalllock);
 	if (ast_option_maxcalls) {
@@ -4640,23 +4637,6 @@ static int increase_call_count(const struct ast_channel *c)
 			failed = -1;
 		}
 	}
-#if defined(HAVE_SYSINFO)
-	if (option_minmemfree) {
-		/* Make sure that the free system memory is above the configured low watermark */
-		if (!sysinfo(&sys_info)) {
-			/* Convert the amount of available RAM from mem_units to MB. The calculation
-			 * was done this way to avoid overflow problems */
-			uint64_t curfreemem = sys_info.freeram + sys_info.bufferram;
-			curfreemem *= sys_info.mem_unit;
-			curfreemem /= 1024 * 1024;
-			if (curfreemem < option_minmemfree) {
-				ast_log(LOG_WARNING, "Available system memory (~%" PRIu64 "MB) is below the configured low watermark (%ldMB)\n",
-					curfreemem, option_minmemfree);
-				failed = -1;
-			}
-		}
-	}
-#endif
 
 	if (!failed) {
 		countcalls++;

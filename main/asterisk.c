@@ -492,9 +492,6 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
 	ast_cli(a->fd, "  Trace level:                 %d\n", option_trace);
 	ast_cli(a->fd, "  Maximum load average:        %lf\n", ast_option_maxload);
-#if defined(HAVE_SYSINFO)
-	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
-#endif
 	if (ast_localtime(&ast_startuptime, &tm, NULL)) {
 		ast_strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(a->fd, "  Startup time:                %s\n", buf);
@@ -3583,13 +3580,6 @@ int main(int argc, char *argv[])
 		case 'd':
 			/* already processed. */
 			break;
-#if defined(HAVE_SYSINFO)
-		case 'e':
-			if ((sscanf(&optarg[1], "%30ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
-				option_minmemfree = 0;
-			}
-			break;
-#endif
 #if HAVE_WORKING_FORK
 		case 'F':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
