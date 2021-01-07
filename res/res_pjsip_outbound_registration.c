@@ -359,7 +359,7 @@ struct sip_outbound_registration_client_state {
 	 */
 	pjsip_tx_data *last_tdata;
 	/*! \brief Timer entry for retrying on temporal responses */
-	struct ast_sip_sched_task *sched_task;
+	pj_timer_entry timer;
 	/*! \brief Optional line parameter placed into Contact */
 	char line[LINE_PARAMETER_SIZE];
 	/*! \brief Current number of retries */
@@ -392,12 +392,6 @@ struct sip_outbound_registration_client_state {
 	char *transport_name;
 	/*! \brief The name of the registration sorcery object */
 	char *registration_name;
-	/*! \brief Server URI */
-	char *server_uri;
-	/*! \brief Client URI */
-	char *client_uri;
-	/*! \brief Contact URI */
-	char *contact_uri;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -536,8 +530,8 @@ static struct ast_sip_endpoint *line_identify(pjsip_rx_data *rdata)
 		return NULL;
 	}
 
-	ast_debug(3, "%s: Line '%s', using configured endpoint '%s'\n",
-		state->client_state->registration_name, state->client_state->line, state->registration->endpoint);
+	ast_debug(3, "Determined relationship to outbound registration '%s' based on line '%s', using configured endpoint '%s'\n",
+		ast_sorcery_object_get_id(state->registration), state->client_state->line, state->registration->endpoint);
 
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", state->registration->endpoint);
 }
@@ -549,10 +543,10 @@ static struct ast_sip_endpoint_identifier line_identifier = {
 /*! \brief Helper function which cancels the timer on a client */
 static void cancel_registration(struct sip_outbound_registration_client_state *client_state)
 {
-	if (client_state->sched_task) {
-		ast_sip_sched_task_cancel(client_state->sched_task);
-		ao2_cleanup(client_state->sched_task);
-		client_state->sched_task = NULL;
+	if (pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&client_state->timer, client_state->timer.id)) {
+		/* The timer was successfully cancelled, drop the refcount of client_state */
+		ao2_ref(client_state, -1);
 	}
 }
 
@@ -570,8 +564,6 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
 	if (!callback_invoked) {
 		pjsip_tx_data_dec_ref(tdata);
-		ast_log(LOG_ERROR, "%s: Failed to get threadstorage for registration to server '%s' from client '%s'\n",
-				client_state->registration_name, client_state->server_uri, client_state->client_uri);
 		return PJ_ENOMEM;
 	}
 	*callback_invoked = 0;
@@ -601,8 +593,6 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 	 * drop the references we just added
 	 */
 	if ((status != PJ_SUCCESS) && !(*callback_invoked)) {
-		ast_log(LOG_ERROR, "%s: Failed send registration to server '%s' from client '%s'\n",
-				client_state->registration_name, client_state->server_uri, client_state->client_uri);
 		pjsip_tx_data_dec_ref(tdata);
 		ao2_ref(client_state, -1);
 		return status;
@@ -665,7 +655,7 @@ static int add_configured_supported_headers(struct sip_outbound_registration_cli
 /*! \brief Callback function for registering */
 static int handle_client_registration(void *data)
 {
-	struct sip_outbound_registration_client_state *client_state = data;
+	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, data, ao2_cleanup);
 	pjsip_tx_data *tdata;
 
 	if (set_outbound_initial_authentication_credentials(client_state->client, &client_state->outbound_auths)) {
@@ -673,14 +663,19 @@ static int handle_client_registration(void *data)
 		return -1;
 	}
 
-	if (client_state->status == SIP_REGISTRATION_STOPPED) {
+	if (client_state->status == SIP_REGISTRATION_STOPPED
+		|| pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS) {
 		return 0;
 	}
 
-	if (pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "%s: Failed to create registration to server '%s' from client '%s'\n",
-			client_state->registration_name, client_state->server_uri, client_state->client_uri);
-		return 0;
+	if (DEBUG_ATLEAST(1)) {
+		pjsip_regc_info info;
+
+		pjsip_regc_get_info(client_state->client, &info);
+		ast_log(LOG_DEBUG, "Outbound REGISTER attempt %u to '%.*s' with client '%.*s'\n",
+			client_state->retries + 1,
+			(int) info.server_uri.slen, info.server_uri.ptr,
+			(int) info.client_uri.slen, info.client_uri.ptr);
 	}
 
 	if (!add_configured_supported_headers(client_state, tdata)) {
@@ -693,23 +688,44 @@ static int handle_client_registration(void *data)
 	return 0;
 }
 
-/*! \brief Helper function which sets up the timer to re-register in a specific amount of time */
-static void schedule_registration(struct sip_outbound_registration_client_state *client_state, unsigned int ms)
+/*! \brief Timer callback function, used just for registrations */
+static void sip_outbound_registration_timer_cb(pj_timer_heap_t *timer_heap, struct pj_timer_entry *entry)
 {
+	struct sip_outbound_registration_client_state *client_state = entry->user_data;
 
-	ast_debug(1, "%s: Scheduling outbound registration to server '%s' from client '%s' in %d ms\n",
-		client_state->registration_name, client_state->server_uri, client_state->client_uri,	ms);
+	entry->id = 0;
+
+	/*
+	 * Transfer client_state reference to serializer task so the
+	 * nominal path will not dec the client_state ref in this
+	 * pjproject callback thread.
+	 */
+	if (ast_sip_push_task(client_state->serializer, handle_client_registration, client_state)) {
+		ast_log(LOG_WARNING, "Scheduled outbound registration could not be executed.\n");
+		ao2_ref(client_state, -1);
+	}
+}
+
+/*! \brief Helper function which sets up the timer to re-register in a specific amount of time */
+static void schedule_registration(struct sip_outbound_registration_client_state *client_state, unsigned int seconds)
+{
+	pj_time_val delay = { .sec = seconds, };
+	pjsip_regc_info info;
 
 	cancel_registration(client_state);
 
-	client_state->sched_task = ast_sip_schedule_task(client_state->serializer,
-		ms, handle_client_registration, ast_taskprocessor_name(client_state->serializer),
-		client_state,
-		AST_SIP_SCHED_TASK_ONESHOT | AST_SIP_SCHED_TASK_DATA_AO2);
+	pjsip_regc_get_info(client_state->client, &info);
+	ast_debug(1, "Scheduling outbound registration to server '%.*s' from client '%.*s' in %d seconds\n",
+			(int) info.server_uri.slen, info.server_uri.ptr,
+			(int) info.client_uri.slen, info.client_uri.ptr,
+			seconds);
 
-	if (!client_state->sched_task) {
-		ast_log(LOG_WARNING, "%s: Failed to schedule registration to server '%s' from client '%s'\n",
-			client_state->registration_name, client_state->server_uri, client_state->client_uri);
+	ao2_ref(client_state, +1);
+	if (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(), &client_state->timer, &delay) != PJ_SUCCESS) {
+		ast_log(LOG_WARNING, "Failed to schedule registration to server '%.*s' from client '%.*s'\n",
+				(int) info.server_uri.slen, info.server_uri.ptr,
+				(int) info.client_uri.slen, info.client_uri.ptr);
+		ao2_ref(client_state, -1);
 	}
 }
 
@@ -746,18 +762,18 @@ static int handle_client_state_destruction(void *data)
 {
 	struct sip_outbound_registration_client_state *client_state = data;
 
+	cancel_registration(client_state);
+
 	if (client_state->client) {
 		pjsip_regc_info info;
 		pjsip_tx_data *tdata;
 
-		/* We need to get the live state to test "is_busy" */
 		pjsip_regc_get_info(client_state->client, &info);
 
 		if (info.is_busy == PJ_TRUE) {
 			/* If a client transaction is in progress we defer until it is complete */
 			ast_debug(1,
-				"%s: Registration transaction is busy with server '%.*s' from client '%.*s'.\n",
-				client_state->registration_name,
+				"Registration transaction is busy with server '%.*s' from client '%.*s'.\n",
 				(int) info.server_uri.slen, info.server_uri.ptr,
 				(int) info.client_uri.slen, info.client_uri.ptr);
 			client_state->destroy = 1;
@@ -770,11 +786,10 @@ static int handle_client_state_destruction(void *data)
 			break;
 		case SIP_REGISTRATION_REGISTERED:
 			ast_debug(1,
-				"%s: Trying to unregister with server '%.*s' from client '%.*s' before destruction.\n",
-				client_state->registration_name,
+				"Trying to unregister with server '%.*s' from client '%.*s' before destruction.\n",
 				(int) info.server_uri.slen, info.server_uri.ptr,
 				(int) info.client_uri.slen, info.client_uri.ptr);
-			cancel_registration(client_state);
+
 			update_client_state_status(client_state, SIP_REGISTRATION_STOPPING);
 			client_state->destroy = 1;
 			if (pjsip_regc_unregister(client_state->client, &tdata) == PJ_SUCCESS
@@ -785,10 +800,8 @@ static int handle_client_state_destruction(void *data)
 			}
 			break;
 		case SIP_REGISTRATION_REJECTED_TEMPORARY:
-		case SIP_REGISTRATION_STOPPING:
-			cancel_registration(client_state);
-			break;
 		case SIP_REGISTRATION_REJECTED_PERMANENT:
+		case SIP_REGISTRATION_STOPPING:
 		case SIP_REGISTRATION_STOPPED:
 			break;
 		}
@@ -799,7 +812,6 @@ static int handle_client_state_destruction(void *data)
 
 	update_client_state_status(client_state, SIP_REGISTRATION_STOPPED);
 	ast_sip_auth_vector_destroy(&client_state->outbound_auths);
-
 	ao2_ref(client_state, -1);
 
 	return 0;
@@ -857,21 +869,20 @@ static int sip_outbound_registration_is_temporal(unsigned int code,
 	}
 }
 
-static void schedule_retry(struct registration_response *response, unsigned int interval)
+static void schedule_retry(struct registration_response *response, unsigned int interval,
+			   const char *server_uri, const char *client_uri)
 {
 	update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
-	schedule_registration(response->client_state, interval * 1000);
+	schedule_registration(response->client_state, interval);
 
 	if (response->rdata) {
-		ast_log(LOG_WARNING, "%s: Temporal response '%d' received from '%s' on "
+		ast_log(LOG_WARNING, "Temporal response '%d' received from '%s' on "
 			"registration attempt to '%s', retrying in '%u'\n",
-			response->client_state->registration_name,
-			response->code, response->client_state->server_uri, response->client_state->client_uri, interval);
+			response->code, server_uri, client_uri, interval);
 	} else {
-		ast_log(LOG_WARNING, "%s: No response received from '%s' on "
+		ast_log(LOG_WARNING, "No response received from '%s' on "
 			"registration attempt to '%s', retrying in '%u'\n",
-			response->client_state->registration_name,
-			response->client_state->server_uri, response->client_state->client_uri, interval);
+			server_uri, client_uri, interval);
 	}
 }
 
@@ -884,9 +895,15 @@ static int reregister_immediately_cb(void *obj)
 		return 0;
 	}
 
-	ast_debug(1,
-		"%s: Outbound registration transport to server '%s' from client '%s' shutdown\n",
-		state->client_state->registration_name, state->client_state->server_uri, state->client_state->client_uri);
+	if (DEBUG_ATLEAST(1)) {
+		pjsip_regc_info info;
+
+		pjsip_regc_get_info(state->client_state->client, &info);
+		ast_log(LOG_DEBUG,
+			"Outbound registration transport to server '%.*s' from client '%.*s' shutdown\n",
+			(int) info.server_uri.slen, info.server_uri.ptr,
+			(int) info.client_uri.slen, info.client_uri.ptr);
+	}
 
 	cancel_registration(state->client_state);
 
@@ -1028,15 +1045,21 @@ static void save_response_fields_to_transport(struct registration_response *resp
 static int handle_registration_response(void *data)
 {
 	struct registration_response *response = data;
+	pjsip_regc_info info;
+	char server_uri[PJSIP_MAX_URL_SIZE];
+	char client_uri[PJSIP_MAX_URL_SIZE];
 
 	if (response->client_state->status == SIP_REGISTRATION_STOPPED) {
 		ao2_ref(response, -1);
 		return 0;
 	}
 
-	ast_debug(1, "%s: Processing REGISTER response %d from server '%s' for client '%s' with expiration '%d'\n",
-		response->client_state->registration_name, response->code, response->client_state->server_uri,
-		response->client_state->client_uri, response->expiration);
+	pjsip_regc_get_info(response->client_state->client, &info);
+	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
+	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
+
+	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
+			response->code, server_uri, client_uri);
 
 	if (response->code == 408 || response->code == 503) {
 		if ((ast_sip_failover_request(response->old_request))) {
@@ -1058,9 +1081,8 @@ static int handle_registration_response(void *data)
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->old_request, &tdata)) {
 			response->client_state->auth_attempted = 1;
-			ast_debug(1, "%s: Sending authenticated REGISTER to server '%s' from client '%s'\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri);
+			ast_debug(1, "Sending authenticated REGISTER to server '%s' from client '%s'\n",
+					server_uri, client_uri);
 			pjsip_tx_data_add_ref(tdata);
 			res = registration_client_send(response->client_state, tdata);
 
@@ -1074,9 +1096,8 @@ static int handle_registration_response(void *data)
 				return 0;
 			}
 		} else {
-			ast_log(LOG_WARNING, "%s: Failed to create authenticated REGISTER request to server '%s' from client '%s'\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri);
+			ast_log(LOG_WARNING, "Failed to create authenticated REGISTER request to server '%s' from client '%s'\n",
+					server_uri, client_uri);
 		}
 		/* Otherwise, fall through so the failure is processed appropriately */
 	}
@@ -1089,15 +1110,13 @@ static int handle_registration_response(void *data)
 			int next_registration_round;
 
 			/* If the registration went fine simply reschedule registration for the future */
-			ast_debug(1, "%s: Outbound registration to '%s' with client '%s' successful\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri);
+			ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			update_client_state_status(response->client_state, SIP_REGISTRATION_REGISTERED);
 			response->client_state->retries = 0;
-			next_registration_round = (response->expiration - REREGISTER_BUFFER_TIME) * 1000;
+			next_registration_round = response->expiration - REREGISTER_BUFFER_TIME;
 			if (next_registration_round < 0) {
-				/* Re-register no sooner than the buffer time. */
-				next_registration_round = REREGISTER_BUFFER_TIME * 1000;
+				/* Re-register immediately. */
+				next_registration_round = 0;
 			}
 			schedule_registration(response->client_state, next_registration_round);
 
@@ -1105,9 +1124,7 @@ static int handle_registration_response(void *data)
 			registration_transport_monitor_setup(response->rdata->tp_info.transport,
 				response->client_state->registration_name);
 		} else {
-			ast_debug(1, "%s: Outbound unregistration to '%s' with client '%s' successful\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri);
+			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			update_client_state_status(response->client_state, SIP_REGISTRATION_UNREGISTERED);
 			ast_sip_transport_monitor_unregister(response->rdata->tp_info.transport,
 				registration_transport_shutdown_cb, response->client_state->registration_name,
@@ -1119,19 +1136,18 @@ static int handle_registration_response(void *data)
 		/* We need to deal with the pending destruction instead. */
 	} else if (response->retry_after) {
 		/* If we have been instructed to retry after a period of time, schedule it as such */
-		schedule_retry(response, response->retry_after);
+		schedule_retry(response, response->retry_after, server_uri, client_uri);
 	} else if (response->client_state->retry_interval
 		&& sip_outbound_registration_is_temporal(response->code, response->client_state)) {
 		if (response->client_state->retries == response->client_state->max_retries) {
 			/* If we received enough temporal responses to exceed our maximum give up permanently */
 			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_PERMANENT);
-			ast_log(LOG_WARNING, "%s: Maximum retries reached when attempting outbound registration to '%s' with client '%s', stopping registration attempt\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri);
+			ast_log(LOG_WARNING, "Maximum retries reached when attempting outbound registration to '%s' with client '%s', stopping registration attempt\n",
+				server_uri, client_uri);
 		} else {
 			/* On the other hand if we can still try some more do so */
 			response->client_state->retries++;
-			schedule_retry(response, response->client_state->retry_interval);
+			schedule_retry(response, response->client_state->retry_interval, server_uri, client_uri);
 		}
 	} else {
 		if (response->code == 403
@@ -1140,34 +1156,30 @@ static int handle_registration_response(void *data)
 			/* A forbidden response retry interval is configured and there are retries remaining */
 			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
 			response->client_state->retries++;
-			schedule_registration(response->client_state, response->client_state->forbidden_retry_interval * 1000);
-			ast_log(LOG_WARNING, "%s: 403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
-				response->client_state->registration_name, response->client_state->server_uri,
-				response->client_state->client_uri, response->client_state->forbidden_retry_interval);
+			schedule_registration(response->client_state, response->client_state->forbidden_retry_interval);
+			ast_log(LOG_WARNING, "403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
+				server_uri, client_uri, response->client_state->forbidden_retry_interval);
 		} else if (response->client_state->fatal_retry_interval
 			   && response->client_state->retries < response->client_state->max_retries) {
 			/* Some kind of fatal failure response received, so retry according to configured interval */
 			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
 			response->client_state->retries++;
-			schedule_registration(response->client_state, response->client_state->fatal_retry_interval * 1000);
-			ast_log(LOG_WARNING, "%s: '%d' fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
-				response->client_state->registration_name, response->code, response->client_state->server_uri,
-				response->client_state->client_uri, response->client_state->fatal_retry_interval);
+			schedule_registration(response->client_state, response->client_state->fatal_retry_interval);
+			ast_log(LOG_WARNING, "'%d' fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
+				response->code, server_uri, client_uri, response->client_state->fatal_retry_interval);
 		} else {
 			/* Finally if there's no hope of registering give up */
 			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_PERMANENT);
 			if (response->rdata) {
-				ast_log(LOG_WARNING, "%s: Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
-					response->client_state->registration_name, response->code, response->client_state->server_uri,
-					response->client_state->client_uri);
+				ast_log(LOG_WARNING, "Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
+					response->code, server_uri, client_uri);
 			} else {
-				ast_log(LOG_WARNING, "%s: Fatal registration attempt to '%s', stopping outbound registration\n",
-					response->client_state->registration_name, response->client_state->client_uri);
+				ast_log(LOG_WARNING, "Fatal registration attempt to '%s', stopping outbound registration\n", client_uri);
 			}
 		}
 	}
 
-	ast_system_publish_registry("PJSIP", response->client_state->client_uri, response->client_state->server_uri,
+	ast_system_publish_registry("PJSIP", client_uri, server_uri,
 		sip_outbound_registration_status_str(response->client_state->status), NULL);
 
 	if (response->client_state->destroy) {
@@ -1208,10 +1220,8 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	 */
 	response->client_state = client_state;
 
-	ast_debug(1, "%s: Received REGISTER response %d(%.*s) from '%s': Expires: %d\n",
-		client_state->registration_name,
-		param->code, (int) param->reason.slen, param->reason.ptr,
-		client_state->server_uri, param->expiration);
+	ast_debug(1, "Received REGISTER response %d(%.*s)\n",
+		param->code, (int) param->reason.slen, param->reason.ptr);
 
 	if (param->rdata) {
 		struct pjsip_retry_after_hdr *retry_after;
@@ -1246,8 +1256,7 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	 * pjproject callback thread.
 	 */
 	if (ast_sip_push_task(client_state->serializer, handle_registration_response, response)) {
-		ast_log(LOG_WARNING, "%s: Failed to pass incoming registration response to threadpool\n",
-			client_state->registration_name);
+		ast_log(LOG_WARNING, "Failed to pass incoming registration response to threadpool\n");
 		ao2_cleanup(response);
 	}
 }
@@ -1257,8 +1266,7 @@ static void sip_outbound_registration_state_destroy(void *obj)
 {
 	struct sip_outbound_registration_state *state = obj;
 
-	ast_debug(3, "%s: Destroying registration state for registration to server '%s' from client '%s'\n",
-		state->client_state->registration_name,
+	ast_debug(3, "Destroying registration state for registration to server '%s' from client '%s'\n",
 		state->registration ? state->registration->server_uri : "",
 		state->registration ? state->registration->client_uri : "");
 	ao2_cleanup(state->registration);
@@ -1269,8 +1277,7 @@ static void sip_outbound_registration_state_destroy(void *obj)
 		ao2_ref(state->client_state, -1);
 	} else if (ast_sip_push_task(state->client_state->serializer,
 		handle_client_state_destruction, state->client_state)) {
-		ast_log(LOG_WARNING, "%s: Failed to pass outbound registration client destruction to threadpool\n",
-			state->client_state->registration_name);
+		ast_log(LOG_WARNING, "Failed to pass outbound registration client destruction to threadpool\n");
 		ao2_ref(state->client_state, -1);
 	}
 }
@@ -1280,9 +1287,6 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 {
 	struct sip_outbound_registration_client_state *client_state = obj;
 
-	ast_debug(3, "%s: Destroying registration client state\n",
-		client_state->registration_name);
-
 	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "-1", 1.0);
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "-1", 1.0,
 		sip_outbound_registration_status_str(client_state->status));
@@ -1290,9 +1294,6 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 	ast_taskprocessor_unreference(client_state->serializer);
 	ast_free(client_state->transport_name);
 	ast_free(client_state->registration_name);
-	ast_free(client_state->server_uri);
-	ast_free(client_state->client_uri);
-	ast_free(client_state->contact_uri);
 	if (client_state->last_tdata) {
 		pjsip_tx_data_dec_ref(client_state->last_tdata);
 	}
@@ -1316,6 +1317,8 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	}
 
 	state->client_state->status = SIP_REGISTRATION_UNREGISTERED;
+	pj_timer_entry_init(&state->client_state->timer, 0, state->client_state,
+		sip_outbound_registration_timer_cb);
 	state->client_state->transport_name = ast_strdup(registration->transport);
 	state->client_state->registration_name =
 		ast_strdup(ast_sorcery_object_get_id(registration));
@@ -1671,7 +1674,6 @@ static int sip_outbound_registration_regc_alloc(void *data)
 	}
 
 	pj_cstr(&server_uri, registration->server_uri);
-	state->client_state->server_uri = ast_strdup(registration->server_uri);
 
 	if (sip_dialog_create_contact(pjsip_regc_get_pool(state->client_state->client),
 		&contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector,
@@ -1679,18 +1681,14 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		ast_sip_tpselector_unref(&selector);
 		return -1;
 	}
-	ast_copy_pj_str2(&state->client_state->contact_uri, &contact_uri);
 
 	ast_sip_tpselector_unref(&selector);
 
 	pj_cstr(&client_uri, registration->client_uri);
-	state->client_state->client_uri = ast_strdup(registration->client_uri);
-
 	if (pjsip_regc_init(state->client_state->client, &server_uri, &client_uri,
 		&client_uri, 1, &contact_uri, registration->expiration) != PJ_SUCCESS) {
 		return -1;
 	}
-
 
 	return 0;
 }
@@ -1701,10 +1699,6 @@ static int sip_outbound_registration_perform(void *data)
 	struct sip_outbound_registration_state *state = data;
 	struct sip_outbound_registration *registration = ao2_bump(state->registration);
 	size_t i;
-
-	ast_debug(1, "%s: Performing register to server '%s' from client '%s'  Expiration: %d\n",
-		state->client_state->registration_name,
-		state->registration->server_uri, state->registration->client_uri, registration->expiration);
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
 	ast_sip_auth_vector_destroy(&state->client_state->outbound_auths);
@@ -1728,7 +1722,7 @@ static int sip_outbound_registration_perform(void *data)
 
 	pjsip_regc_update_expires(state->client_state->client, registration->expiration);
 
-	schedule_registration(state->client_state, ((ast_random() % 10) + 1) * 1000);
+	schedule_registration(state->client_state, (ast_random() % 10) + 1);
 
 	ao2_ref(registration, -1);
 	ao2_ref(state, -1);
@@ -1857,9 +1851,10 @@ static int unregister_task(void *obj)
 	struct sip_outbound_registration_state *state = obj;
 	struct pjsip_regc *client = state->client_state->client;
 	pjsip_tx_data *tdata;
+	pjsip_regc_info info;
 
-	ast_debug(1, "%s: Unregistering contacts with server '%s' from client '%s'\n",
-		state->client_state->registration_name,
+	pjsip_regc_get_info(client, &info);
+	ast_debug(1, "Unregistering contacts with server '%s' from client '%s'\n",
 		state->registration->server_uri, state->registration->client_uri);
 
 	cancel_registration(state->client_state);
@@ -1887,11 +1882,6 @@ static int queue_unregister(struct sip_outbound_registration_state *state)
 static int queue_register(struct sip_outbound_registration_state *state)
 {
 	ao2_ref(state, +1);
-
-	ast_debug(1, "%s: Queueing register to server '%s' from client '%s'\n",
-		state->client_state->registration_name,
-		state->registration->server_uri, state->registration->client_uri);
-
 	if (ast_sip_push_task(state->client_state->serializer, sip_outbound_registration_perform, state)) {
 		ao2_ref(state, -1);
 		return -1;
@@ -2145,7 +2135,7 @@ static int ami_outbound_registration_task(void *obj)
 	ast_sip_sorcery_object_to_ami(ami->registration, &buf);
 
 	if ((state = get_state(ast_sorcery_object_get_id(ami->registration)))) {
-		int next_reg = 0;
+		pjsip_regc_info info;
 
 		if (state->client_state->status == SIP_REGISTRATION_REGISTERED) {
 			++ami->registered;
@@ -2156,12 +2146,8 @@ static int ami_outbound_registration_task(void *obj)
 		ast_str_append(&buf, 0, "Status: %s\r\n",
 			sip_outbound_registration_status_str(state->client_state->status));
 
-		if (state->client_state->status == SIP_REGISTRATION_REGISTERED && state->client_state->sched_task) {
-			ast_sip_sched_task_get_times2(state->client_state->sched_task, NULL, NULL, NULL, NULL,
-				&next_reg, NULL);
-		}
-
-		ast_str_append(&buf, 0, "NextReg: %d\r\n", next_reg / 1000);
+		pjsip_regc_get_info(state->client_state->client, &info);
+		ast_str_append(&buf, 0, "NextReg: %d\r\n", info.next_reg);
 		ao2_ref(state, -1);
 	}
 
@@ -2266,15 +2252,10 @@ static int cli_print_header(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>");
-	ast_str_append(&context->output_buffer, 0,
-		"  <Last Reg..>  <Intvl>  <Next Start.....secs>\n"
-		"==============================================");
+		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>\n");
 
 	return 0;
 }
-
-#define TIME_FORMAT "%a %T"
 
 static int cli_print_body(void *obj, void *arg, int flags)
 {
@@ -2282,30 +2263,11 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	const char *id = ast_sorcery_object_get_id(registration);
 	struct sip_outbound_registration_state *state = get_state(id);
-	int next_run_ms = 0;
-	struct timeval next = { 0, 0 };
-	struct timeval last = { 0, 0 };
-	struct ast_tm tm;
-	char next_start[32] = "";
-	char last_start[32] = "";
-	int interval;
-
 #define REGISTRATION_URI_FIELD_LEN	53
 
 	ast_assert(context->output_buffer != NULL);
 
-	if (state->client_state->sched_task) {
-		ast_sip_sched_task_get_times2(state->client_state->sched_task, &last, NULL, NULL, &interval,
-			&next_run_ms, &next);
-
-		ast_localtime(&last, &tm, NULL);
-		ast_strftime(last_start, sizeof(last_start), TIME_FORMAT, &tm);
-
-		ast_localtime(&next, &tm, NULL);
-		ast_strftime(next_start, sizeof(next_start), TIME_FORMAT, &tm);
-	}
-
-	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s",
+	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
 		id,
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
@@ -2313,14 +2275,8 @@ static int cli_print_body(void *obj, void *arg, int flags)
 		AST_VECTOR_SIZE(&registration->outbound_auths)
 			? AST_VECTOR_GET(&registration->outbound_auths, 0)
 			: "n/a",
-		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered")
-		);
-
-	ast_str_append(&context->output_buffer, 0, " %-12s  %7d  %-12s %8d\n",
-		last_start, interval / 1000, next_start, next_run_ms / 1000);
-
+		(state ? sip_outbound_registration_status_str(state->client_state->status) : "Unregistered"));
 	ao2_cleanup(state);
-
 
 	if (context->show_details
 		|| (context->show_details_only_level_0 && context->indent_level == 0)) {
