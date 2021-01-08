@@ -616,11 +616,6 @@ if test -z $ac_header_dirent -o "$ac_header_dirent" = "no"; then
   AC_MSG_ERROR([*** Could not find dirent header that defines 'DIR'.])
 fi
 
-AC_HEADER_STDC
-if test "$ac_cv_header_stdc" != "yes"; then
-  AC_MSG_ERROR([*** ANSI C header files not found.])
-fi
-
 AC_HEADER_SYS_WAIT
 if test "$ac_cv_header_sys_wait_h" != "yes"; then
   AC_MSG_ERROR([*** POSIX.1 compatible sys/wait.h is required.])
