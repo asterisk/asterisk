@@ -1607,7 +1607,9 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		.frametype = AST_FRAME_CONTROL,
 		.subclass = {
 			.integer = condition
-		}
+		},
+		.datalen = datalen,
+		.data.ptr = (void *)data,
 	};
 	char condition_name[256];
 	SCOPE_ENTER(3, "%s: Indicated %s\n", ast_channel_name(ast),
