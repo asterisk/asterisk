@@ -98,6 +98,8 @@ struct ast_unreal_pvt {
 	/*! Base name of the unreal channels.  exten@context or other name. */
 	char name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	struct ast_stream_topology *reqtopology;    /*!< Requested stream topology */
+	struct ast_stream_topology *owner_old_topology;	/*!< Stored topology for owner side when we need to restore later (faxing) */
+	struct ast_stream_topology *chan_old_topology;	/*!< Stored topology for chan side when we need to restore later (faxing) */
 };
 
 #define AST_UNREAL_IS_OUTBOUND(a, b) ((a) == (b)->chan ? 1 : 0)
