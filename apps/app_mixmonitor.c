@@ -51,6 +51,8 @@
 #include "asterisk/channel.h"
 #include "asterisk/autochan.h"
 #include "asterisk/manager.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/callerid.h"
 #include "asterisk/mod_format.h"
 #include "asterisk/linkedlists.h"
@@ -295,6 +297,51 @@
 			</parameter>
 		</syntax>
 	</function>
+	<managerEvent language="en_US" name="MixMonitorStart">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when monitoring has started on a channel.</synopsis>
+			<syntax>
+				<channel_snapshot/>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">MixMonitorStop</ref>
+				<ref type="application">MixMonitor</ref>
+				<ref type="manager">MixMonitor</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MixMonitorStop">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
+		<syntax>
+			<channel_snapshot/>
+		</syntax>
+		<see-also>
+			<ref type="managerEvent">MixMonitorStart</ref>
+			<ref type="application">StopMixMonitor</ref>
+			<ref type="manager">StopMixMonitor</ref>
+		</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MixMonitorMute">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+		<synopsis>Raised when monitoring is muted or unmuted on a channel.</synopsis>
+		<syntax>
+			<channel_snapshot/>
+			<parameter name="Direction">
+				<para>Which part of the recording was muted or unmuted: read, write or both
+				(from channel, to channel or both directions).</para>
+			</parameter>
+			<parameter name="State">
+				<para>If the monitoring was muted or unmuted: 1 when muted, 0 when unmuted.</para>
+			</parameter>
+		</syntax>
+		<see-also>
+			<ref type="manager">MixMonitorMute</ref>
+		</see-also>
+		</managerEventInstance>
+	</managerEvent>
+
 
  ***/
 
@@ -1074,6 +1121,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	struct ast_flags flags = { 0 };
 	char *recipients = NULL;
 	char *parse;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
@@ -1189,6 +1237,12 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 		ast_module_unref(ast_module_info->self);
 	}
 
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
+		ast_channel_mixmonitor_start_type(), NULL);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+
 	return 0;
 }
 
@@ -1198,6 +1252,7 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 	char *parse = "";
 	struct mixmonitor_ds *mixmonitor_ds;
 	const char *beep_id = NULL;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mixmonid);
@@ -1253,6 +1308,13 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 
 	if (!ast_strlen_zero(beep_id)) {
 		ast_beep_stop(chan, beep_id);
+	}
+
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
+	                                             ast_channel_mixmonitor_stop_type(),
+	                                             NULL);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
 	}
 
 	return 0;
@@ -1342,6 +1404,8 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	const char *direction = astman_get_header(m,"Direction");
 	int clearmute = 1;
 	enum ast_audiohook_flags flag;
+	RAII_VAR(struct stasis_message *, stasis_message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, stasis_message_blob, NULL, ast_json_unref);
 
 	if (ast_strlen_zero(direction)) {
 		astman_send_error(s, m, "No direction specified. Must be read, write or both");
@@ -1381,6 +1445,17 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 		ast_channel_unref(c);
 		astman_send_error(s, m, "Cannot set mute flag");
 		return AMI_SUCCESS;
+	}
+
+	stasis_message_blob = ast_json_pack("{s: s, s: b}",
+		"direction", direction,
+		"state", ast_true(state));
+
+	stasis_message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(c),
+		ast_channel_mixmonitor_mute_type(), stasis_message_blob);
+
+	if (stasis_message) {
+		stasis_publish(ast_channel_topic(c), stasis_message);
 	}
 
 	astman_append(s, "Response: Success\r\n");

@@ -481,7 +481,31 @@ struct stasis_message_type *ast_channel_monitor_start_type(void);
 struct stasis_message_type *ast_channel_monitor_stop_type(void);
 
 /*!
- * \since 12.0.0
+ * \since 18
+ * \brief Message type for starting mixmonitor on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_mixmonitor_start_type(void);
+
+/*!
+ * \since 18
+ * \brief Message type for stopping mixmonitor on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_mixmonitor_stop_type(void);
+
+/*!
+ * \since 18
+ * \brief Message type for muting or unmuting mixmonitor on a channel
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_mixmonitor_mute_type(void);
+
+/*!
+ * \since 18.0.0
  * \brief Message type for agent login on a channel
  *
  * \retval A stasis message type
