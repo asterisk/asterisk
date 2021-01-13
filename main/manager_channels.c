@@ -1116,6 +1116,53 @@ static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
 	publish_basic_channel_event("MonitorStop", EVENT_FLAG_CALL, payload->snapshot);
 }
 
+static void channel_mixmonitor_start_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+
+	publish_basic_channel_event("MixMonitorStart", EVENT_FLAG_CALL, payload->snapshot);
+}
+
+static void channel_mixmonitor_stop_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_message *message)
+{
+	struct ast_channel_blob *payload = stasis_message_data(message);
+
+	publish_basic_channel_event("MixMonitorStop", EVENT_FLAG_CALL, payload->snapshot);
+}
+
+static void channel_mixmonitor_mute_cb(void *data, struct stasis_subscription *sub,
+		struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, event_buffer, ast_str_create(64), ast_free);
+	struct ast_channel_blob *payload = stasis_message_data(message);
+	struct ast_json *direction = ast_json_object_get(payload->blob, "direction");
+	const int state = ast_json_is_true(ast_json_object_get(payload->blob, "state"));
+
+	if (!event_buffer) {
+		return;
+	}
+
+	channel_event_string = ast_manager_build_channel_state_string(payload->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	if (direction) {
+		ast_str_append(&event_buffer, 0, "Direction: %s\r\n", ast_json_string_get(direction));
+	}
+	ast_str_append(&event_buffer, 0, "State: %s\r\n", state ? "1" : "0");
+
+	manager_event(EVENT_FLAG_CALL, "MixMonitorMute",
+		"%s"
+		"%s",
+		ast_str_buffer(channel_event_string),
+		ast_str_buffer(event_buffer));
+
+}
+
 static int dial_status_end(const char *dialstatus)
 {
 	return (strcmp(dialstatus, "RINGING") &&
@@ -1319,6 +1366,15 @@ int manager_channels_init(void)
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_monitor_stop_type(), channel_monitor_stop_cb, NULL);
+
+	ret |= stasis_message_router_add(message_router,
+		ast_channel_mixmonitor_start_type(), channel_mixmonitor_start_cb, NULL);
+
+	ret |= stasis_message_router_add(message_router,
+		ast_channel_mixmonitor_stop_type(), channel_mixmonitor_stop_cb, NULL);
+
+	ret |= stasis_message_router_add(message_router,
+		ast_channel_mixmonitor_mute_type(), channel_mixmonitor_mute_cb, NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.
