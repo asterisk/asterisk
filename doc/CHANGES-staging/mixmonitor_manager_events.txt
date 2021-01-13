@@ -1,0 +1,5 @@
+Subject: app_mixmonitor
+
+app_mixmonitor now sends manager events MixMonitorStart, MixMonitorStop and
+MixMonitorMute when the channel monitoring is started, stopped and muted (or
+unmuted) respectively.
