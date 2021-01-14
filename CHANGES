@@ -13,6 +13,24 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.15.0 to Asterisk 16.16.0 ----------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * The location where the media cache stores its temporary files
+   is no longer hardcoded to /tmp but can now be configured separately
+   via the astcachedir config variable in asterisk.conf. To retain
+   backwards compatibility, the default location remains /tmp.
+
+app_voicemail
+------------------
+ * The VoiceMail application can now be configured to send greetings and
+   instructions via early media and only answering the channel when it is
+   time for the caller to record their message. This behavior can be
+   activated by passing the new 'e' option to VoiceMail.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.13.0 to Asterisk 16.14.0 ----------
 ------------------------------------------------------------------------------
 

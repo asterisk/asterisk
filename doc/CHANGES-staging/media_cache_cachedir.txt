@@ -1,6 +1,0 @@
-Subject: Core
-
-The location where the media cache stores its temporary files
-is no longer hardcoded to /tmp but can now be configured separately
-via the astcachedir config variable in asterisk.conf. To retain
-backwards compatibility, the default location remains /tmp.
