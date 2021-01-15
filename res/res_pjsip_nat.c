@@ -448,6 +448,20 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 				via->sent_by.port = transport->external_signaling_port;
 			}
 		}
+	} else {
+		/* set contact port to the bound to port */
+		if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+			if (pj_sockaddr_get_port(&transport_state->host)) {
+				uri->port = pj_sockaddr_get_port(&transport_state->host);
+			}
+		}
+
+		/* set via port to the bound to port */
+		if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
+			if (pj_sockaddr_get_port(&transport_state->host)) {
+				via->sent_by.port = pj_sockaddr_get_port(&transport_state->host);
+			}
+		}
 	}
 
 	/* Invoke any additional hooks that may be registered */
@@ -535,7 +549,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP NAT Support",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP NAT Support Development",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
