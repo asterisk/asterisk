@@ -2190,7 +2190,7 @@ static int sip_session_refresh(struct ast_sip_session *session,
 	pjsip_inv_session *inv_session = session->inv_session;
 	pjmedia_sdp_session *new_sdp = NULL;
 	pjsip_tx_data *tdata;
-	int res;
+	int res = -1;
 	SCOPE_ENTER(3, "%s: New SDP? %s  Queued? %s DP: %s  DA: %s\n", ast_sip_session_get_name(session),
 		generate_new_sdp ? "yes" : "no", queued ? "yes" : "no",
 		pending_media_state ? ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)) : "none",
