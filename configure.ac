@@ -574,6 +574,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PRI_REVERSE_CHARGE], [ISDN reverse charge], [PRI], [
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([FFTW3], [LIBFFTW3], [fftw3])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
+AST_EXT_LIB_SETUP([SIGCOMP], [SIGCOMP Library], [sigcomp])
 AST_EXT_LIB_SETUP([SNDFILE], [libsndfile], [sndfile])
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
 AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image], [SDL_image])
@@ -2525,6 +2526,7 @@ if test "x$PBX_PRI" = "x1" ; then
 fi
 
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
+AST_EXT_LIB_CHECK([SIGCOMP], [tinySIGCOMP], [tcomp_manager_create], [tinysigcomp/tcomp.h], [-ltinySAK -ldl])
 AST_EXT_LIB_CHECK([FFTW3], [fftw3], [fftw_malloc], [fftw3.h])
 AST_EXT_LIB_CHECK([SNDFILE], [sndfile], [sf_open], [sndfile.h])
 
