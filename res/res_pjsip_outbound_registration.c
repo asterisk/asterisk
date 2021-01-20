@@ -591,7 +591,14 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 	 * we can check status and only set the transport and resend if there was an error
 	 */
 	ast_sip_set_tpselector_from_transport_name(client_state->transport_name, &selector);
-	pjsip_regc_set_transport(client_state->client, &selector);
+
+	if (pjsip_regc_set_transport(client_state->client, &selector) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Failed to set registration transport to %s in send\n",
+			client_state->transport_name);
+		ast_sip_tpselector_unref(&selector);
+		return -1;
+	}
+
 	ast_sip_tpselector_unref(&selector);
 
 	status = pjsip_regc_send(client_state->client, tdata);
@@ -1644,7 +1651,12 @@ static int sip_outbound_registration_regc_alloc(void *data)
 	}
 
 	ast_sip_set_tpselector_from_transport_name(registration->transport, &selector);
-	pjsip_regc_set_transport(state->client_state->client, &selector);
+	if (pjsip_regc_set_transport(state->client_state->client, &selector) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Failed to set registration transport to %s\n",
+			registration->transport);
+		ast_sip_tpselector_unref(&selector);
+		return -1;
+	}
 
 	if (!ast_strlen_zero(registration->outbound_proxy)) {
 		pjsip_route_hdr route_set, *route;
