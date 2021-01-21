@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.16.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.16.0-rc1</h3><h3 align="center">Date: 2021-01-14</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.16.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.16.0</h3><h3 align="center">Date: 2021-01-21</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,12 +7,8 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.15.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">6 Sean Bright <sean.bright@gmail.com><br/>4 Alexander Traud <pabstraud@compuserve.com><br/>3 George Joseph <gjoseph@digium.com><br/>3 Jaco Kroon <jaco@uls.co.za><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Ivan Poddubnyi <ivan.poddubny@gmail.com><br/>2 Sungtae Kim <pchero21@gmail.com><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Kevin Harwell <kharwell@sangoma.com><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 Pirmin Walthert <infos@nappsoft.ch><br/>1 Stanislav <stas.abramenkov@gmail.com><br/>1 Alexander Greiner-Baer <alex+asterisk@greiner-baer.de><br/></td><td width="33%">1 Mark Petersen<br/></td><td width="33%">4 Alexander Traud <pabstraud@compuserve.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 sungtae kim <pchero21@gmail.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Flole Systems <flole@flole.de><br/>1 Michael Maier<br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Julien <tigood@gmail.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Hendrik Wedhorn <hwedhorn@addix.net><br/>1 Robert Sutton <rsutton@noojee.com.au><br/>1 Alex Hermann<br/>1 Alex Hermann <alex-asterisk@hexla.nl><br/>1 Juan Carlos Castro y Castro <jccyc1965@gmail.com><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Alexander Greiner-Baer <alex+asterisk@greiner-baer.de><br/>1 Alexander Traud<br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 Mark Petersen<br/>1 Michael Maier <m1278468@mailbox.org><br/>1 Gant Liu <tpzzs@163.com><br/>1 Schneur Rosenberg <thesipguy@gmail.com><br/>1 Dan Cropp<br/>1 Stanislav Abramenkov <stas.abramenkov@gmail.com><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Mikhail Ivanov <mivanov@lanta-net.ru><br/></td></tr>
-</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29230">ASTERISK-29230</a>: pjsip: Asterisk goes crazy and massively spams logfile if registration can't be send<br/>Reported by: Michael Maier<ul>
-<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7ed20b9d3b8447f54316af01c523231bf7dafffc">[7ed20b9d3b]</a> George Joseph -- Revert "res_pjsip_outbound_registration.c:  Use our own scheduler and other stuff"</li>
-</ul><br><h4>Category: Resources/res_http_media_cache</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29173">ASTERISK-29173</a>: Media cache URL requests allow infinite redirects<br/>Reported by: Sean Bright<ul>
-<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0c185c9e21f7f0bd9c9f7a1a1cda8f33e12c2a2a">[0c185c9e21]</a> Sean Bright -- res_http_media_cache.c: Set reasonable number of redirects</li>
-</ul><br><h4>Category: Resources/res_pjsip_diversion</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29219">ASTERISK-29219</a>: res_pjsip_diversion: Crash if Tel URI contains History-Info<br/>Reported by: Torrey Searle<ul>
+<tr valign="top"><td width="33%">6 Sean Bright <sean.bright@gmail.com><br/>4 Alexander Traud <pabstraud@compuserve.com><br/>3 George Joseph <gjoseph@digium.com><br/>3 Jaco Kroon <jaco@uls.co.za><br/>3 Joshua C. Colp <jcolp@sangoma.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Ivan Poddubnyi <ivan.poddubny@gmail.com><br/>2 Sungtae Kim <pchero21@gmail.com><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Kevin Harwell <kharwell@sangoma.com><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Torrey Searle <tsearle@voxbone.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 Pirmin Walthert <infos@nappsoft.ch><br/>1 Stanislav <stas.abramenkov@gmail.com><br/>1 Alexander Greiner-Baer <alex+asterisk@greiner-baer.de><br/></td><td width="33%">1 Mark Petersen<br/></td><td width="33%">4 Alexander Traud <pabstraud@compuserve.com><br/>2 Sean Bright <sean.bright@gmail.com><br/>2 sungtae kim <pchero21@gmail.com><br/>2 George Joseph <gjoseph@digium.com><br/>1 Flole Systems <flole@flole.de><br/>1 Michael Maier<br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Julien <tigood@gmail.com><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Hendrik Wedhorn <hwedhorn@addix.net><br/>1 Robert Sutton <rsutton@noojee.com.au><br/>1 Alex Hermann<br/>1 Alex Hermann <alex-asterisk@hexla.nl><br/>1 Juan Carlos Castro y Castro <jccyc1965@gmail.com><br/>1 Boris P. Korzun <drtr0jan@yandex.ru><br/>1 Alexander Greiner-Baer <alex+asterisk@greiner-baer.de><br/>1 Alexander Traud<br/>1 Mark Petersen <bugs.digium.com@zombie.dk><br/>1 Dan Cropp <dan@amtelco.com><br/>1 Nathan Bruning <nathan@iperity.com><br/>1 Mark Petersen<br/>1 Michael Maier <m1278468@mailbox.org><br/>1 Gant Liu <tpzzs@163.com><br/>1 Schneur Rosenberg <thesipguy@gmail.com><br/>1 Dan Cropp<br/>1 Stanislav Abramenkov <stas.abramenkov@gmail.com><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 laszlovl <digium@lvlconsultancy.nl><br/>1 Mikhail Ivanov <mivanov@lanta-net.ru><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Security</h3><h4>Category: Resources/res_pjsip_diversion</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29219">ASTERISK-29219</a>: res_pjsip_diversion: Crash if Tel URI contains History-Info<br/>Reported by: Torrey Searle<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9196e0d1d5fd1f5e508bc4de90ac27d55b1b336a">[9196e0d1d5]</a> Torrey Searle -- res/res_pjsip_diversion: prevent crash on tel: uri in History-Info</li>
 </ul><br><h3>Bug</h3><h4>Category: Applications/app_chanspy</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28883">ASTERISK-28883</a>: Spyee information ist missing in ChanSpyStop AMI Event<br/>Reported by: Hendrik Wedhorn<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0a23296834c6f238bf1a3baa1a39606528b35ac2">[0a23296834]</a> Sean Bright -- app_chanspy: Spyee information missing in ChanSpyStop AMI Event</li>
@@ -30,6 +26,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=17fa9c93d024444aabdc192b7be145b4b7e9380d">[17fa9c93d0]</a> Ivan Poddubnyi -- chan_pjsip: Stop queueing control frames twice on outgoing channels</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28185">ASTERISK-28185</a>: chan_pjsip: Subsequent same responses are not stopped<br/>Reported by: Julien<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=17fa9c93d024444aabdc192b7be145b4b7e9380d">[17fa9c93d0]</a> Ivan Poddubnyi -- chan_pjsip: Stop queueing control frames twice on outgoing channels</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29230">ASTERISK-29230</a>: pjsip: Asterisk goes crazy and massively spams logfile if registration can't be send<br/>Reported by: Michael Maier<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7ed20b9d3b8447f54316af01c523231bf7dafffc">[7ed20b9d3b]</a> George Joseph -- Revert "res_pjsip_outbound_registration.c:  Use our own scheduler and other stuff"</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29201">ASTERISK-29201</a>: Crash occurs when Transfer and execute Hangup before the Transfer result <br/>Reported by: Dan Cropp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e127a5776154d3f1abed916c0379d7a8610ccc7e">[e127a57761]</a> Dan Cropp -- chan_pjsip: Incorporate channel reference count into transfer_refer().</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29022">ASTERISK-29022</a>: Crash when manipulating PJSIP invite dlg ref counts<br/>Reported by: Sean Bright<ul>
@@ -54,6 +52,8 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4c79bc19d1f85415372ce992b474ea015257f279">[4c79bc19d1]</a> Alexander Traud -- loader: Sync load- and build-time deps.</li>
 </ul><br><h4>Category: Resources/res_ari_channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29188">ASTERISK-29188</a>: null media causing the Asterisk crash<br/>Reported by: sungtae kim<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a47e6965b3b304b313304a0df56753b137dd6fd3">[a47e6965b3]</a> Sungtae Kim -- res_ari: Fix wrong media uri handle for channel play</li>
+</ul><br><h4>Category: Resources/res_http_media_cache</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29173">ASTERISK-29173</a>: Media cache URL requests allow infinite redirects<br/>Reported by: Sean Bright<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0c185c9e21f7f0bd9c9f7a1a1cda8f33e12c2a2a">[0c185c9e21]</a> Sean Bright -- res_http_media_cache.c: Set reasonable number of redirects</li>
 </ul><br><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29211">ASTERISK-29211</a>: res_musiconhold: Segfault on realtime music on hold without entries<br/>Reported by: Nathan Bruning<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bb46595799c65c10df18730ed93d4c16bcc0e503">[bb46595799]</a> Nathan Bruning -- res_musiconhold: Don't crash when real-time doesn't return any entries</li>
 </ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29165">ASTERISK-29165</a>: res_pjsip: malformed header Accept-Encoding in OPTIONS response<br/>Reported by: Alexander Greiner-Baer<ul>
@@ -88,6 +88,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ab3f57d88f2ba8166c3684c10956caade3966e2b">[ab3f57d88f]</a> Sungtae Kim -- res_pjsip_session: Fixed NULL active media topology handle</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e08d866884b5e9195520e12209eb86df140415cd">e08d866884</a></td><td>Asterisk Development Team</td><td>Update for 16.16.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6056818467833d24fbd6491688306f0bb9bc1ba3">6056818467</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 16.16.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=aca435dfe7daed36a05ec59b78a27d7372ea6320">aca435dfe7</a></td><td>Jaco Kroon</td><td>pbx_lua:  Add LUA_VERSIONS environment variable to ./configure.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4c5bffb217519cfa0e8fe9b430d80e612da8b224">4c5bffb217</a></td><td>Sean Bright</td><td>asterisk: Export additional manager functions</td></tr>
@@ -96,69 +97,62 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ddbf3a7f73041c2de39f5e8f1518240507e38b24">ddbf3a7f73</a></td><td>Sean Bright</td><td>media_cache: Fix reference leak with bucket file metadata</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a360150ee025108d8e150423df38878132fe71dd">a360150ee0</a></td><td>Sean Bright</td><td>CHANGES: Remove already applied CHANGES update</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d1a78e047d1f4e80a8bb7c97adce3f19713a1ca2">d1a78e047d</a></td><td>Alexander Traud</td><td>modules.conf: Align the comments for more conclusiveness.</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                            |    1
-.version                                                                              |    1
-ChangeLog                                                                             |91717 ----------
-asterisk-16.15.0-summary.html                                                         |  213
-asterisk-16.15.0-summary.txt                                                          |  543
-b/CHANGES                                                                             |   18
-b/Makefile                                                                            |    6
-b/apps/app_chanspy.c                                                                  |    6
-b/apps/app_mixmonitor.c                                                               |   23
-b/apps/app_queue.c                                                                    |  245
-b/apps/app_voicemail.c                                                                |   36
-b/build_tools/install_subst                                                           |    1
-b/build_tools/make_defaults_h                                                         |    1
-b/build_tools/mkpkgconfig                                                             |    1
-b/channels/chan_pjsip.c                                                               |  214
-b/channels/chan_sip.c                                                                 |   32
-b/channels/sip/include/sip.h                                                          |    2
-b/configs/basic-pbx/modules.conf                                                      |    8
-b/configs/samples/asterisk.conf.sample                                                |    1
-b/configs/samples/modules.conf.sample                                                 |    9
-b/configure                                                                           |   11
-b/configure.ac                                                                        |    9
-b/contrib/systemd/asterisk.service                                                    |    7
-b/funcs/func_lock.c                                                                   |  163
-b/funcs/func_odbc.c                                                                   |    1
-b/funcs/func_periodic_hook.c                                                          |    1
-b/include/asterisk/manager.h                                                          |    4
-b/include/asterisk/paths.h                                                            |    1
-b/main/asterisk.c                                                                     |    4
-b/main/bridge_basic.c                                                                 |    2
-b/main/bucket.c                                                                       |    3
-b/main/logger.c                                                                       |    5
-b/main/manager.c                                                                      |    6
-b/main/manager_channels.c                                                             |   18
-b/main/media_cache.c                                                                  |    1
-b/main/options.c                                                                      |    7
-b/main/pbx_variables.c                                                                |    2
-b/makeopts.in                                                                         |    1
-b/res/res_hep_pjsip.c                                                                 |    2
-b/res/res_http_media_cache.c                                                          |    1
-b/res/res_musiconhold.c                                                               |   21
-b/res/res_odbc.c                                                                      |    1
-b/res/res_pjproject.c                                                                 |    2
-b/res/res_pjsip.c                                                                     |    2
-b/res/res_pjsip/pjsip_options.c                                                       |    2
-b/res/res_pjsip_diversion.c                                                           |   11
-b/res/res_pjsip_dlg_options.c                                                         |    2
-b/res/res_pjsip_nat.c                                                                 |   10
-b/res/res_pjsip_outbound_registration.c                                               |  296
-b/res/res_pjsip_pidf_digium_body_supplement.c                                         |    8
-b/res/res_pjsip_session.c                                                             |   66
-b/res/res_pjsip_stir_shaken.c                                                         |    4
-b/res/res_pjsip_transport_websocket.c                                                 |    2
-b/res/res_stasis_playback.c                                                           |    7
-b/res/res_stasis_snoop.c                                                              |   12
-b/res/stasis/messaging.c                                                              |   58
-b/tests/test_http_media_cache.c                                                       |    1
-b/third-party/pjproject/patches/0070-fix-incorrect-copying-when-creating-cancel.patch |    4
-contrib/realtime/mysql/mysql_cdr.sql                                                  |   41
-contrib/realtime/mysql/mysql_config.sql                                               | 1276
-contrib/realtime/mysql/mysql_voicemail.sql                                            |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                        |   45
-contrib/realtime/postgresql/postgresql_config.sql                                     | 1380
-contrib/realtime/postgresql/postgresql_voicemail.sql                                  |   39
-doc/CHANGES-staging/hide_messaging_ami_events                                         |   11
-65 files changed, 678 insertions(+), 95985 deletions(-)</pre><br></html>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-16.15.0-summary.html                 |  213 ----------
+asterisk-16.15.0-summary.txt                  |  543 --------------------------
+b/.version                                    |    2
+b/CHANGES                                     |   18
+b/ChangeLog                                   |  507 ++++++++++++++++++++++++
+b/Makefile                                    |    6
+b/apps/app_chanspy.c                          |    6
+b/apps/app_mixmonitor.c                       |   23 +
+b/apps/app_queue.c                            |  245 ++++++-----
+b/apps/app_voicemail.c                        |   36 +
+b/asterisk-16.16.0-rc1-summary.html           |  164 +++++++
+b/asterisk-16.16.0-rc1-summary.txt            |  492 +++++++++++++++++++++++
+b/build_tools/install_subst                   |    1
+b/build_tools/make_defaults_h                 |    1
+b/build_tools/mkpkgconfig                     |    1
+b/channels/chan_pjsip.c                       |  214 +++-------
+b/channels/chan_sip.c                         |   32 -
+b/channels/sip/include/sip.h                  |    2
+b/configs/basic-pbx/modules.conf              |    8
+b/configs/samples/asterisk.conf.sample        |    1
+b/configs/samples/modules.conf.sample         |    9
+b/configure                                   |   11
+b/configure.ac                                |    9
+b/contrib/systemd/asterisk.service            |    7
+b/funcs/func_lock.c                           |  163 ++-----
+b/funcs/func_odbc.c                           |    1
+b/funcs/func_periodic_hook.c                  |    1
+b/include/asterisk/manager.h                  |    4
+b/include/asterisk/paths.h                    |    1
+b/main/asterisk.c                             |    4
+b/main/bridge_basic.c                         |    2
+b/main/bucket.c                               |    3
+b/main/logger.c                               |    5
+b/main/manager.c                              |    6
+b/main/manager_channels.c                     |   18
+b/main/media_cache.c                          |    1
+b/main/options.c                              |    7
+b/main/pbx_variables.c                        |    2
+b/makeopts.in                                 |    1
+b/res/res_hep_pjsip.c                         |    2
+b/res/res_http_media_cache.c                  |    1
+b/res/res_musiconhold.c                       |   21 -
+b/res/res_odbc.c                              |    1
+b/res/res_pjproject.c                         |    2
+b/res/res_pjsip.c                             |    2
+b/res/res_pjsip/pjsip_options.c               |    2
+b/res/res_pjsip_diversion.c                   |   11
+b/res/res_pjsip_dlg_options.c                 |    2
+b/res/res_pjsip_nat.c                         |   10
+b/res/res_pjsip_outbound_registration.c       |  296 +++++---------
+b/res/res_pjsip_pidf_digium_body_supplement.c |    8
+b/res/res_pjsip_session.c                     |   66 +--
+b/res/res_pjsip_stir_shaken.c                 |    4
+b/res/res_pjsip_transport_websocket.c         |    2
+b/res/res_stasis_playback.c                   |    7
+b/res/res_stasis_snoop.c                      |   12
+b/res/stasis/messaging.c                      |   33 +
+doc/CHANGES-staging/hide_messaging_ami_events |   11
+58 files changed, 1826 insertions(+), 1437 deletions(-)</pre><br></html>

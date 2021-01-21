@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-16.16.0-rc1
+                                asterisk-16.16.0
 
-                                Date: 2021-01-14
+                                Date: 2021-01-21
 
                            <asteriskteam@digium.com>
 
@@ -56,14 +56,14 @@
    3 George Joseph                              2 sungtae kim                 
    3 Jaco Kroon                                 2 George Joseph               
    3 Joshua C. Colp                             1 Flole Systems               
-   2 Ivan Poddubnyi                             1 Michael Maier               
-   2 Sungtae Kim                                1 Ivan Poddubny               
-   1 Dan Cropp                                  1 Julien                      
-   1 Kevin Harwell                              1 Jaco Kroon                  
-   1 Boris P. Korzun                            1 Jean Aunis - Prescom        
-   1 Jean Aunis                                 1 Hendrik Wedhorn             
-   1 Torrey Searle                              1 Robert Sutton               
-   1 Asterisk Development Team                  1 Alex Hermann                
+   2 Asterisk Development Team                  1 Michael Maier               
+   2 Ivan Poddubnyi                             1 Ivan Poddubny               
+   2 Sungtae Kim                                1 Julien                      
+   1 Dan Cropp                                  1 Jaco Kroon                  
+   1 Kevin Harwell                              1 Jean Aunis - Prescom        
+   1 Boris P. Korzun                            1 Hendrik Wedhorn             
+   1 Jean Aunis                                 1 Robert Sutton               
+   1 Torrey Searle                              1 Alex Hermann                
    1 laszlovl                                   1 Alex Hermann                
    1 Richard Mudgett                            1 Juan Carlos Castro y Castro 
    1 Nathan Bruning                             1 Boris P. Korzun             
@@ -92,22 +92,6 @@
    changes that went into this release.
 
   Security
-
-    Category: Channels/chan_pjsip
-
-   ASTERISK-29230: pjsip: Asterisk goes crazy and massively spams logfile if
-   registration can't be send
-   Reported by: Michael Maier
-     * [7ed20b9d3b] George Joseph -- Revert
-       "res_pjsip_outbound_registration.c: Use our own scheduler and other
-       stuff"
-
-    Category: Resources/res_http_media_cache
-
-   ASTERISK-29173: Media cache URL requests allow infinite redirects
-   Reported by: Sean Bright
-     * [0c185c9e21] Sean Bright -- res_http_media_cache.c: Set reasonable
-       number of redirects
 
     Category: Resources/res_pjsip_diversion
 
@@ -167,6 +151,12 @@
    Reported by: Julien
      * [17fa9c93d0] Ivan Poddubnyi -- chan_pjsip: Stop queueing control
        frames twice on outgoing channels
+   ASTERISK-29230: pjsip: Asterisk goes crazy and massively spams logfile if
+   registration can't be send
+   Reported by: Michael Maier
+     * [7ed20b9d3b] George Joseph -- Revert
+       "res_pjsip_outbound_registration.c: Use our own scheduler and other
+       stuff"
    ASTERISK-29201: Crash occurs when Transfer and execute Hangup before the
    Transfer result
    Reported by: Dan Cropp
@@ -245,6 +235,13 @@
    Reported by: sungtae kim
      * [a47e6965b3] Sungtae Kim -- res_ari: Fix wrong media uri handle for
        channel play
+
+    Category: Resources/res_http_media_cache
+
+   ASTERISK-29173: Media cache URL requests allow infinite redirects
+   Reported by: Sean Bright
+     * [0c185c9e21] Sean Bright -- res_http_media_cache.c: Set reasonable
+       number of redirects
 
     Category: Resources/res_musiconhold
 
@@ -390,6 +387,10 @@
    | Revision   | Author      | Summary                                     |
    |------------+-------------+---------------------------------------------|
    |            | Asterisk    |                                             |
+   | e08d866884 | Development | Update for 16.16.0-rc1                      |
+   |            | Team        |                                             |
+   |------------+-------------+---------------------------------------------|
+   |            | Asterisk    |                                             |
    | 6056818467 | Development | Update CHANGES and UPGRADE.txt for 16.16.0  |
    |            | Team        |                                             |
    |------------+-------------+---------------------------------------------|
@@ -424,69 +425,62 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                            |    1
- .version                                                                              |    1
- ChangeLog                                                                             |91717 ----------
- asterisk-16.15.0-summary.html                                                         |  213
- asterisk-16.15.0-summary.txt                                                          |  543
- b/CHANGES                                                                             |   18
- b/Makefile                                                                            |    6
- b/apps/app_chanspy.c                                                                  |    6
- b/apps/app_mixmonitor.c                                                               |   23
- b/apps/app_queue.c                                                                    |  245
- b/apps/app_voicemail.c                                                                |   36
- b/build_tools/install_subst                                                           |    1
- b/build_tools/make_defaults_h                                                         |    1
- b/build_tools/mkpkgconfig                                                             |    1
- b/channels/chan_pjsip.c                                                               |  214
- b/channels/chan_sip.c                                                                 |   32
- b/channels/sip/include/sip.h                                                          |    2
- b/configs/basic-pbx/modules.conf                                                      |    8
- b/configs/samples/asterisk.conf.sample                                                |    1
- b/configs/samples/modules.conf.sample                                                 |    9
- b/configure                                                                           |   11
- b/configure.ac                                                                        |    9
- b/contrib/systemd/asterisk.service                                                    |    7
- b/funcs/func_lock.c                                                                   |  163
- b/funcs/func_odbc.c                                                                   |    1
- b/funcs/func_periodic_hook.c                                                          |    1
- b/include/asterisk/manager.h                                                          |    4
- b/include/asterisk/paths.h                                                            |    1
- b/main/asterisk.c                                                                     |    4
- b/main/bridge_basic.c                                                                 |    2
- b/main/bucket.c                                                                       |    3
- b/main/logger.c                                                                       |    5
- b/main/manager.c                                                                      |    6
- b/main/manager_channels.c                                                             |   18
- b/main/media_cache.c                                                                  |    1
- b/main/options.c                                                                      |    7
- b/main/pbx_variables.c                                                                |    2
- b/makeopts.in                                                                         |    1
- b/res/res_hep_pjsip.c                                                                 |    2
- b/res/res_http_media_cache.c                                                          |    1
- b/res/res_musiconhold.c                                                               |   21
- b/res/res_odbc.c                                                                      |    1
- b/res/res_pjproject.c                                                                 |    2
- b/res/res_pjsip.c                                                                     |    2
- b/res/res_pjsip/pjsip_options.c                                                       |    2
- b/res/res_pjsip_diversion.c                                                           |   11
- b/res/res_pjsip_dlg_options.c                                                         |    2
- b/res/res_pjsip_nat.c                                                                 |   10
- b/res/res_pjsip_outbound_registration.c                                               |  296
- b/res/res_pjsip_pidf_digium_body_supplement.c                                         |    8
- b/res/res_pjsip_session.c                                                             |   66
- b/res/res_pjsip_stir_shaken.c                                                         |    4
- b/res/res_pjsip_transport_websocket.c                                                 |    2
- b/res/res_stasis_playback.c                                                           |    7
- b/res/res_stasis_snoop.c                                                              |   12
- b/res/stasis/messaging.c                                                              |   58
- b/tests/test_http_media_cache.c                                                       |    1
- b/third-party/pjproject/patches/0070-fix-incorrect-copying-when-creating-cancel.patch |    4
- contrib/realtime/mysql/mysql_cdr.sql                                                  |   41
- contrib/realtime/mysql/mysql_config.sql                                               | 1276
- contrib/realtime/mysql/mysql_voicemail.sql                                            |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                        |   45
- contrib/realtime/postgresql/postgresql_config.sql                                     | 1380
- contrib/realtime/postgresql/postgresql_voicemail.sql                                  |   39
- doc/CHANGES-staging/hide_messaging_ami_events                                         |   11
- 65 files changed, 678 insertions(+), 95985 deletions(-)
+ asterisk-16.15.0-summary.html                 |  213 ----------
+ asterisk-16.15.0-summary.txt                  |  543 --------------------------
+ b/.version                                    |    2
+ b/CHANGES                                     |   18
+ b/ChangeLog                                   |  507 ++++++++++++++++++++++++
+ b/Makefile                                    |    6
+ b/apps/app_chanspy.c                          |    6
+ b/apps/app_mixmonitor.c                       |   23 +
+ b/apps/app_queue.c                            |  245 ++++++-----
+ b/apps/app_voicemail.c                        |   36 +
+ b/asterisk-16.16.0-rc1-summary.html           |  164 +++++++
+ b/asterisk-16.16.0-rc1-summary.txt            |  492 +++++++++++++++++++++++
+ b/build_tools/install_subst                   |    1
+ b/build_tools/make_defaults_h                 |    1
+ b/build_tools/mkpkgconfig                     |    1
+ b/channels/chan_pjsip.c                       |  214 +++-------
+ b/channels/chan_sip.c                         |   32 -
+ b/channels/sip/include/sip.h                  |    2
+ b/configs/basic-pbx/modules.conf              |    8
+ b/configs/samples/asterisk.conf.sample        |    1
+ b/configs/samples/modules.conf.sample         |    9
+ b/configure                                   |   11
+ b/configure.ac                                |    9
+ b/contrib/systemd/asterisk.service            |    7
+ b/funcs/func_lock.c                           |  163 ++-----
+ b/funcs/func_odbc.c                           |    1
+ b/funcs/func_periodic_hook.c                  |    1
+ b/include/asterisk/manager.h                  |    4
+ b/include/asterisk/paths.h                    |    1
+ b/main/asterisk.c                             |    4
+ b/main/bridge_basic.c                         |    2
+ b/main/bucket.c                               |    3
+ b/main/logger.c                               |    5
+ b/main/manager.c                              |    6
+ b/main/manager_channels.c                     |   18
+ b/main/media_cache.c                          |    1
+ b/main/options.c                              |    7
+ b/main/pbx_variables.c                        |    2
+ b/makeopts.in                                 |    1
+ b/res/res_hep_pjsip.c                         |    2
+ b/res/res_http_media_cache.c                  |    1
+ b/res/res_musiconhold.c                       |   21 -
+ b/res/res_odbc.c                              |    1
+ b/res/res_pjproject.c                         |    2
+ b/res/res_pjsip.c                             |    2
+ b/res/res_pjsip/pjsip_options.c               |    2
+ b/res/res_pjsip_diversion.c                   |   11
+ b/res/res_pjsip_dlg_options.c                 |    2
+ b/res/res_pjsip_nat.c                         |   10
+ b/res/res_pjsip_outbound_registration.c       |  296 +++++---------
+ b/res/res_pjsip_pidf_digium_body_supplement.c |    8
+ b/res/res_pjsip_session.c                     |   66 +--
+ b/res/res_pjsip_stir_shaken.c                 |    4
+ b/res/res_pjsip_transport_websocket.c         |    2
+ b/res/res_stasis_playback.c                   |    7
+ b/res/res_stasis_snoop.c                      |   12
+ b/res/stasis/messaging.c                      |   33 +
+ doc/CHANGES-staging/hide_messaging_ami_events |   11
+ 58 files changed, 1826 insertions(+), 1437 deletions(-)
