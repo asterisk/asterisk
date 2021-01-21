@@ -13608,10 +13608,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_format_cap_append_from_cap(tmpcap, p->jointcaps, AST_MEDIA_TYPE_UNKNOWN);
 		}
 
-		/* Check if we need audio */
-		if (ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_AUDIO)
-			|| ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO)) {
-			needaudio = TRUE;
+		/* Check if we need audio in this call */
+		needaudio = ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_AUDIO);
+		if (!needaudio && p->outgoing_call) {
+			/* p->caps are added conditionally, see below "Finally our remain..." */
+			needaudio = ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO);
 		}
 
 		/* Check if we need video in this call */
