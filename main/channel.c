@@ -6475,7 +6475,29 @@ int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 */
 int ast_transfer(struct ast_channel *chan, char *dest)
 {
+	int protocol;
+	return ast_transfer_protocol(chan, dest, &protocol);
+}
+
+/*!
+  \brief Transfer a call to dest, if the channel supports transfer
+
+  \param chan channel to transfer
+  \param dest destination to transfer to
+  \param protocol is the protocol result
+  SIP example, 0=success, 3xx-6xx is SIP error code
+
+  Called by:
+	\arg app_transfer
+	\arg the manager interface
+*/
+int ast_transfer_protocol(struct ast_channel *chan, char *dest, int *protocol)
+{
 	int res = -1;
+
+	if (protocol) {
+		*protocol = 0;
+	}
 
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
@@ -6510,6 +6532,13 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 				res = 1;
 			} else {
 				res = -1;
+				/* Message can contain a protocol specific code
+				   AST_TRANSFER_SUCCESS indicates success
+				   Else, failure.  Protocol will be set to the failure reason.
+				   SIP example, 0 is success, else error code 3xx-6xx */
+				if (protocol) {
+					*protocol = *message;
+				}
 			}
 
 			ast_frfree(fr);

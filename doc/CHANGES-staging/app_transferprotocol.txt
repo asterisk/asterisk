@@ -1,0 +1,6 @@
+Subject: chan_pjsip, app_transfer
+
+Added TRANSFERSTATUSPROTOCOL variable.  When transfer is performed,
+transfers can pass a protocol specific error code.
+Example, in SIP 3xx-6xx represent any SIP specific error received when
+performing a REFER.
