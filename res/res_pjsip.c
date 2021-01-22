@@ -3898,7 +3898,7 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 
 	/* Test URI user against allowed characters in AST_DIGIT_ANY */
 	for (; i < pj_strlen(&sip_uri->user); i++) {
-		if (!strchr(AST_DIGIT_ANYNUM, pj_strbuf(&sip_uri->user)[i])) {
+		if (!strchr(AST_DIGIT_ANY, pj_strbuf(&sip_uri->user)[i])) {
 			break;
 		}
 	}
