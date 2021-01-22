@@ -1966,12 +1966,17 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 			rdata = event->body.tsx_state.src.rdata;
 			msg = rdata->msg_info.msg;
 
-			if (!pjsip_method_cmp(&msg->line.req.method, pjsip_get_notify_method())) {
-				body = msg->body;
-				if (body && !pj_stricmp2(&body->content_type.type, "message")
-					&& !pj_stricmp2(&body->content_type.subtype, "sipfrag")) {
-					pjsip_parse_status_line((char *)body->data, body->len, &status_line);
+			if (msg->type == PJSIP_REQUEST_MSG) {
+				if (!pjsip_method_cmp(&msg->line.req.method, pjsip_get_notify_method())) {
+					body = msg->body;
+					if (body && !pj_stricmp2(&body->content_type.type, "message")
+						&& !pj_stricmp2(&body->content_type.subtype, "sipfrag")) {
+						pjsip_parse_status_line((char *)body->data, body->len, &status_line);
+					}
 				}
+			} else {
+				status_line.code = msg->line.status.code;
+				status_line.reason = msg->line.status.reason;
 			}
 		} else {
 			status_line.code = 500;
@@ -1984,12 +1989,16 @@ static void xfer_client_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 			res = -1;
 
 			/* If the subscription has terminated, return AST_TRANSFER_SUCCESS for 2XX.
-			 * Any other status code returns AST_TRANSFER_FAILED.
+			 * Return AST_TRANSFER_FAILED for any code < 200.
+			 * Otherwise, return the status code.
 			 * The subscription should not terminate for any code < 200,
 			 * but if it does, that constitutes a failure. */
-			if (status_line.code < 200 || status_line.code >= 300) {
+			if (status_line.code < 200) {
 				message = AST_TRANSFER_FAILED;
+			} else if (status_line.code >= 300) {
+				message = status_line.code;
 			}
+
 			/* If subscription not terminated and subscription is finished (status code >= 200)
 			 * terminate it */
 			if (!is_last) {
