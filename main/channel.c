@@ -6264,8 +6264,13 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 
 		/* find the best audio format to use */
 		tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (tmp_cap) {
-			ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
+		if (!tmp_cap) {
+			AST_RWLIST_UNLOCK(&backends);
+			return NULL;
+		}
+
+		ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
+		if (!ast_format_cap_empty(tmp_cap)) {
 			/* We have audio - is it possible to connect the various calls to each other?
 				(Avoid this check for calls without audio, like text+video calls)
 			*/
@@ -6296,7 +6301,9 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 		}
 		ast_format_cap_append_from_cap(joint_cap, request_cap, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(joint_cap, AST_MEDIA_TYPE_AUDIO);
-		ast_format_cap_append(joint_cap, best_audio_fmt, 0);
+		if (best_audio_fmt) { /* text+video call? then, this is NULL */
+			ast_format_cap_append(joint_cap, best_audio_fmt, 0);
+		}
 		ao2_cleanup(tmp_converted_cap);
 
 		c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause);
