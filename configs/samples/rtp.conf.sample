@@ -45,6 +45,18 @@ rtpend=20000
 ; connected. This option is set to 4 by default.
 ; probation=8
 ;
+; Enable sRTP replay protection. Buggy SIP user agents (UAs) reset the
+; sequence number (RTP-SEQ) on a re-INVITE, for example, with Session Timers
+; or on Call Hold/Resume, but keep the synchronization source (RTP-SSRC). If
+; the new RTP-SEQ is higher than the previous one, the call continues if the
+; roll-over counter (sRTP-ROC) is zero (the call lasted less than 22 minutes).
+; In all other cases, the call faces one-way audio or even no audio at all.
+; "replay check failed (index too old)" gets printed continuously. This is a
+; software bug. You have to report this to the creator of that UA. Until it is
+; fixed, you could disable sRTP replay protection (see RFC 3711 section 3.3.2).
+; This option is enabled by default.
+; srtpreplayprotection=yes
+;
 ; Whether to enable or disable ICE support. This option is enabled by default.
 ; icesupport=false
 ;
