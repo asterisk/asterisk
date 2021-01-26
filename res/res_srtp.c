@@ -364,11 +364,12 @@ static void ast_srtp_set_cb(struct ast_srtp *srtp, const struct ast_srtp_cb *cb,
 }
 
 /* Vtable functions */
-static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int rtcp)
+static int ast_srtp_unprotect(struct ast_srtp *srtp, void *buf, int *len, int flags)
 {
 	int res = 0;
 	int i;
-	int retry = 0;
+	int rtcp  = (flags & 0x01) >> 0;
+	int retry = (flags & 0x02) >> 1;
 	struct ast_rtp_instance_stats stats = {0,};
 
 tryagain:
