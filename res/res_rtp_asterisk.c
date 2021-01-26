@@ -166,6 +166,7 @@ enum strict_rtp_mode {
 #define STRICT_RTP_LEARN_TIMEOUT	5000
 
 #define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
+#define DEFAULT_SRTP_REPLAY_PROTECTION 1
 #define DEFAULT_ICESUPPORT 1
 #define DEFAULT_DTLS_MTU 1200
 
@@ -190,6 +191,7 @@ static int nochecksums;
 static int strictrtp = DEFAULT_STRICT_RTP; /*!< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
 static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*!< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
 static int learning_min_duration = DEFAULT_LEARNING_MIN_DURATION; /*!< Lowest acceptable timeout between the first and the last sequential RTP frame. */
+static int srtp_replay_protection = DEFAULT_SRTP_REPLAY_PROTECTION;
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 static int dtls_mtu = DEFAULT_DTLS_MTU;
 #endif
@@ -2715,7 +2717,9 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 #endif
 
 	if ((*in & 0xC0) && res_srtp && srtp && res_srtp->unprotect(
-		    srtp, buf, &len, rtcp || rtcp_mux(rtp, buf)) < 0) {
+		    srtp, buf, &len,
+		    (rtcp || rtcp_mux(rtp, buf)) | (srtp_replay_protection << 1)
+		) < 0) {
 	   return -1;
 	}
 
@@ -6678,6 +6682,8 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 	if (strictrtp) {
 		ast_cli(a->fd, "  Probation:       %d frames\n", learning_min_sequential);
 	}
+
+	ast_cli(a->fd, "  Replay Protect:  %s\n", AST_CLI_YESNO(srtp_replay_protection));
 #ifdef HAVE_PJPROJECT
 	ast_cli(a->fd, "  ICE support:     %s\n", AST_CLI_YESNO(icesupport));
 #endif
@@ -6780,6 +6786,7 @@ static int rtp_reload(int reload, int by_external_config)
 	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
 	learning_min_duration = DEFAULT_LEARNING_MIN_DURATION;
+	srtp_replay_protection = DEFAULT_SRTP_REPLAY_PROTECTION;
 
 	/** This resource is not "reloaded" so much as unloaded and loaded again.
 	 * In the case of the TURN related variables, the memory referenced by a
@@ -6858,6 +6865,9 @@ static int rtp_reload(int reload, int by_external_config)
 			learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
 		}
 		learning_min_duration = CALC_LEARNING_MIN_DURATION(learning_min_sequential);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "srtpreplayprotection"))) {
+		srtp_replay_protection = ast_true(s);
 	}
 #ifdef HAVE_PJPROJECT
 	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {

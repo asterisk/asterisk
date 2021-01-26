@@ -1,0 +1,9 @@
+Subject: res_srtp
+
+SRTP replay protection has been added to res_srtp and
+a new configuration option "srtpreplayprotection" has
+been added to the rtp.conf config file.  For security
+reasons, the default setting is "yes".  Buggy clients
+may not handle this correctly which could result in
+no, or one way, audio and Asterisk error messages like
+"replay check failed".
