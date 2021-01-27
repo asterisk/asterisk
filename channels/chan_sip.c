@@ -30796,7 +30796,6 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	char *ext = NULL, *host;
 	char tmp[256];
 	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
-	struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	char *dnid;
 	char *secret = NULL;
 	char *md5secret = NULL;
@@ -30812,17 +30811,8 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		AST_APP_ARG(remote_address);
 	);
 
-	/* mask request with some set of allowed formats.
-	 * XXX this needs to be fixed.
-	 * The original code uses AST_FORMAT_AUDIO_MASK, but it is
-	 * unclear what to use here. We have global_capabilities, which is
-	 * configured from sip.conf, and sip_tech.capabilities, which is
-	 * hardwired to all audio formats.
-	 */
-	if (!(ast_format_cap_has_type(cap, AST_MEDIA_TYPE_AUDIO))) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n",
-			ast_format_cap_get_names(cap, &codec_buf),
-			ast_format_cap_get_names(sip_cfg.caps, &cap_buf));
+	if (ast_format_cap_empty(cap)) {
+		ast_log(LOG_NOTICE, "Asked to get a channel without offering any format\n");
 		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;	/* Can't find codec to connect to host */
 		return NULL;
 	}
