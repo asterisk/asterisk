@@ -273,6 +273,8 @@ struct ast_ice_host_candidate {
 /*! \brief List of ICE host candidate mappings */
 static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
 
+static char *generate_random_string(char *buf, size_t size);
+
 #endif
 
 #define FLAG_3389_WARNING               (1 << 0)
@@ -766,13 +768,26 @@ static void ast_rtp_ice_candidate_destroy(void *obj)
 static void ast_rtp_ice_set_authentication(struct ast_rtp_instance *instance, const char *ufrag, const char *password)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int ice_attrb_reset = 0;
 
 	if (!ast_strlen_zero(ufrag)) {
+		if (!ast_strlen_zero(rtp->remote_ufrag) && strcmp(ufrag, rtp->remote_ufrag)) {
+			ice_attrb_reset = 1;
+		}
 		ast_copy_string(rtp->remote_ufrag, ufrag, sizeof(rtp->remote_ufrag));
 	}
 
 	if (!ast_strlen_zero(password)) {
+		if (!ast_strlen_zero(rtp->remote_passwd) && strcmp(password, rtp->remote_passwd)) {
+			ice_attrb_reset = 1;
+		}
 		ast_copy_string(rtp->remote_passwd, password, sizeof(rtp->remote_passwd));
+	}
+
+	/* If the remote ufrag or passwd changed, local ufrag and passwd need to regenerate */
+	if (ice_attrb_reset) {
+		generate_random_string(rtp->local_ufrag, sizeof(rtp->local_ufrag));
+		generate_random_string(rtp->local_passwd, sizeof(rtp->local_passwd));
 	}
 }
 
