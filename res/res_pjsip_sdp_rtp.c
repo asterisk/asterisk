@@ -704,6 +704,43 @@ static void check_ice_support(struct ast_sip_session *session, struct ast_sip_se
 	}
 }
 
+static void process_ice_auth_attrb(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+				   const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream)
+{
+	struct ast_rtp_engine_ice *ice;
+	const pjmedia_sdp_attr *ufrag_attr, *passwd_attr;
+	char ufrag_attr_value[256];
+	char passwd_attr_value[256];
+
+	/* If ICE support is not enabled or available exit early */
+	if (!session->endpoint->media.rtp.ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp))) {
+		return;
+	}
+
+	ufrag_attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-ufrag", NULL);
+	if (!ufrag_attr) {
+		ufrag_attr = pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-ufrag", NULL);
+	}
+	if (ufrag_attr) {
+		ast_copy_pj_str(ufrag_attr_value, (pj_str_t*)&ufrag_attr->value, sizeof(ufrag_attr_value));
+	} else {
+		return;
+	}
+        passwd_attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-pwd", NULL);
+	if (!passwd_attr) {
+		passwd_attr = pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-pwd", NULL);
+	}
+	if (passwd_attr) {
+		ast_copy_pj_str(passwd_attr_value, (pj_str_t*)&passwd_attr->value, sizeof(passwd_attr_value));
+	} else {
+		return;
+	}
+
+	if (ufrag_attr && passwd_attr) {
+		ice->set_authentication(session_media->rtp, ufrag_attr_value, passwd_attr_value);
+	}
+}
+
 /*! \brief Function which processes ICE attributes in an audio stream */
 static void process_ice_attributes(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 				   const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream)
@@ -1437,6 +1474,11 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 
 	/* If ICE support is enabled find all the needed attributes */
 	check_ice_support(session, session_media, stream);
+
+	/* If ICE support is enabled then check remote ICE started? */
+	if (session_media->remote_ice) {
+		process_ice_auth_attrb(session, session_media, sdp, stream);
+	}
 
 	if (ast_sip_session_is_pending_stream_default(session, asterisk_stream) && media_type == AST_MEDIA_TYPE_AUDIO) {
 		/* Check if incomming SDP is changing the remotely held state */
