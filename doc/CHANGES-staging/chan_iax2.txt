@@ -1,0 +1,4 @@
+Subject: chan_iax2
+
+You can now specify a default "auth" method in the
+[general] section of iax.conf

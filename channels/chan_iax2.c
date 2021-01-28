@@ -433,6 +433,7 @@ static int amaflags = 0;
 static int adsi = 0;
 static int delayreject = 0;
 static int iax2_encryption = 0;
+static int iax2_authmethods = 0;
 
 static struct ast_flags64 globalflags = { 0 };
 
@@ -4589,6 +4590,7 @@ struct create_addr_info {
 	struct iax2_codec_pref prefs;
 	int maxtime;
 	int encmethods;
+	int authmethods;
 	int found;
 	int sockfd;
 	int adsi;
@@ -4664,6 +4666,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct ast_s
 	cai->maxtime = peer->maxms;
 	cai->capability = peer->capability;
 	cai->encmethods = peer->encmethods;
+	cai->authmethods = peer->authmethods;
 	cai->sockfd = peer->sockfd;
 	cai->adsi = peer->adsi;
 	cai->prefs = peer->prefs;
@@ -5097,6 +5100,7 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 
 	memset(&cai, 0, sizeof(cai));
 	cai.encmethods = iax2_encryption;
+	cai.authmethods = iax2_authmethods;
 
 	memset(&pds, 0, sizeof(pds));
 	tmpstr = ast_strdupa(dest);
@@ -5113,15 +5117,21 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", pds.peer);
 		return -1;
 	}
-	if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT) && !cai.encmethods) {
-		ast_log(LOG_WARNING, "Encryption forced for call, but not enabled\n");
-		ast_channel_hangupcause_set(c, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
-		return -1;
+
+	if (ast_test_flag64(&cai, IAX_FORCE_ENCRYPT) ||
+		ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
+		if (!cai.encmethods) {
+			ast_log(LOG_WARNING, "Encryption forced for call, but not enabled\n");
+			ast_channel_hangupcause_set(c, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
+			return -1;
+		}
+		if (((cai.authmethods & IAX_AUTH_MD5) || (cai.authmethods & IAX_AUTH_PLAINTEXT)) &&
+			ast_strlen_zero(cai.secret) && ast_strlen_zero(pds.password)) {
+		        ast_log(LOG_WARNING, "Call terminated. Encryption forced but no secret provided\n");
+		        return -1;
+		}
 	}
-	if (ast_strlen_zero(cai.secret) && ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
-		ast_log(LOG_WARNING, "Call terminated. No secret given and force encrypt enabled\n");
-		return -1;
-	}
+
 	if (!pds.username && !ast_strlen_zero(cai.username))
 		pds.username = cai.username;
 	if (!pds.password && !ast_strlen_zero(cai.secret))
@@ -8475,6 +8485,11 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct ast_sockaddr *addr
 	}
 
 	if (ies->encmethods) {
+		if (ast_strlen_zero(p->secret) &&
+			((ies->authmethods & IAX_AUTH_MD5) || (ies->authmethods & IAX_AUTH_PLAINTEXT))) {
+			ast_log(LOG_WARNING, "Call terminated. Encryption requested by peer but no secret available locally\n");
+			return -1;
+		}
 		ast_set_flag64(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
 	} else if (ast_test_flag64(iaxs[callno], IAX_FORCE_ENCRYPT)) {
 		ast_log(LOG_NOTICE, "Call initiated without encryption while forceencryption=yes option is set\n");
@@ -12813,6 +12828,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		if (firstpass) {
 			ast_copy_flags64(peer, &globalflags, IAX_USEJITTERBUF | IAX_SENDCONNECTEDLINE | IAX_RECVCONNECTEDLINE | IAX_FORCE_ENCRYPT);
 			peer->encmethods = iax2_encryption;
+			peer->authmethods = iax2_authmethods;
 			peer->adsi = adsi;
 			ast_string_field_set(peer, secret, "");
 			if (!found) {
@@ -13146,6 +13162,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			user->prefs = prefs_global;
 			user->capability = iax2_capability;
 			user->encmethods = iax2_encryption;
+			user->authmethods = iax2_authmethods;
 			user->adsi = adsi;
 			user->calltoken_required = CALLTOKEN_DEFAULT;
 			ast_string_field_set(user, name, name);
@@ -13538,6 +13555,7 @@ static int set_config(const char *config_file, int reload, int forced)
 	maxauthreq = 3;
 
 	srvlookup = 0;
+	iax2_authmethods = 0;
 
 	v = ast_variable_browse(cfg, "general");
 
@@ -13645,6 +13663,11 @@ static int set_config(const char *config_file, int reload, int forced)
 				} else {
 					ast_log(LOG_WARNING, "Invalid address '%s' specified, at line %d\n", v->value, v->lineno);
 				}
+			}
+		} else if (!strcasecmp(v->name, "auth")) {
+			iax2_authmethods = get_auth_methods(v->value);
+			if (iax2_authmethods & IAX_AUTH_PLAINTEXT) {
+				ast_log(LOG_WARNING, "Default auth method is set to deprecated 'plaintext' at line %d of iax.conf\n", v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
