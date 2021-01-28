@@ -201,6 +201,15 @@ jitterbuffer=no
 ;resyncthreshold=1000
 ;jittertargetextra=40
 
+; There are three authentication methods that are supported:  md5, plaintext,
+; and rsa.  The least secure is "plaintext", which sends passwords cleartext
+; across the net.  "md5" uses a challenge/response md5 sum arrangement, but
+; still requires both ends have plain text access to the secret.  "rsa" allows
+; unidirectional secret knowledge through public/private keys.  There is no
+; default unless set here in the [general] section.
+;
+;auth=md5
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; IAX2 Encryption
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
