@@ -2280,7 +2280,14 @@ static int sip_session_refresh(struct ast_sip_session *session,
 					ast_sip_session_get_name(session));
 			}
 
-			if (active_media_state && active_media_state->topology) {
+			/*
+			 * Attempt to resolve only if objects are available, and it's not
+			 * switching to or from an image type.
+			 */
+			if (active_media_state && active_media_state->topology &&
+				(!active_media_state->default_session[AST_MEDIA_TYPE_IMAGE] ==
+				 !pending_media_state->default_session[AST_MEDIA_TYPE_IMAGE])) {
+
 				struct ast_sip_session_media_state *new_pending_state;
 				/*
 				 * We need to check if the passed in active and pending states are equal
