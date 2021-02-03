@@ -195,6 +195,9 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (ast_test_flag(&flags, OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
+			if (ts) {
+				ts = ast_tone_zone_sound_unref(ts);
+			}
 			pbx_builtin_setvar_helper(chan, arglist.variable, "");
 			pbx_builtin_setvar_helper(chan, "READSTATUS", "SKIPPED");
 			return 0;
