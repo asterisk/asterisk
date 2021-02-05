@@ -6555,8 +6555,21 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 	ast_rtp_instance_available_formats(p->rtp, p->caps, p->prefcaps, p->jointcaps);
 	p->jointnoncodeccapability = p->noncodeccapability;
 
-	/* If there are no audio formats left to offer, punt */
-	if (!(ast_format_cap_has_type(p->jointcaps, AST_MEDIA_TYPE_AUDIO))) {
+	/* If there are no formats left to offer, punt */
+	if (ast_format_cap_empty(p->jointcaps)) {
+		ast_log(LOG_WARNING, "No format found to offer. Cancelling call to %s\n", p->username);
+		res = -1;
+	/* If audio was requested (prefcaps) and the [peer] section contains
+	 * audio (caps) the user expects audio. In that case, if jointcaps
+	 * contain no audio, punt. Furthermore, this check allows the [peer]
+	 * section to have no audio. In that case, the user expects no audio
+	 * and we can pass. Finally, this check allows the requester not to
+	 * offer any audio. In that case, the call is expected to have no audio
+	 * and we can pass, as well.
+	 */
+	} else if ((ast_format_cap_empty(p->caps) || ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO)) &&
+		   (ast_format_cap_empty(p->prefcaps) || ast_format_cap_has_type(p->prefcaps, AST_MEDIA_TYPE_AUDIO)) &&
+		   !ast_format_cap_has_type(p->jointcaps, AST_MEDIA_TYPE_AUDIO)) {
 		ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
 		res = -1;
 	} else {
