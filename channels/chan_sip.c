@@ -13622,10 +13622,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		/* Check if we need audio in this call */
 		needaudio = ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_AUDIO);
-		if (!needaudio && p->outgoing_call) {
-			/* p->caps are added conditionally, see below "Finally our remain..." */
-			needaudio = ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO);
-		}
 
 		/* Check if we need video in this call */
 		if ((ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_VIDEO)) && !p->novideo) {
@@ -13756,7 +13752,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
 		   - Then our mutually shared capabilities, determined previous in tmpcap
-		   - Then preferences in order from sip.conf device config for this peer/user
 		*/
 
 
@@ -13782,27 +13777,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Now send any other common codecs */
 		for (x = 0; x < ast_format_cap_count(tmpcap); x++) {
 			tmp_fmt = ast_format_cap_get_format(tmpcap, x);
-
-			if (ast_format_cap_iscompatible_format(alreadysent, tmp_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
-				ao2_ref(tmp_fmt, -1);
-				continue;
-			}
-
-			if (ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_AUDIO) {
-				add_codec_to_sdp(p, tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
-			} else if (needvideo && ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_VIDEO) {
-				add_vcodec_to_sdp(p, tmp_fmt, &m_video, &a_video, debug, &min_video_packet_size);
-			} else if (needtext && ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_TEXT) {
-				add_tcodec_to_sdp(p, tmp_fmt, &m_text, &a_text, debug, &min_text_packet_size);
-			}
-
-			ast_format_cap_append(alreadysent, tmp_fmt, 0);
-			ao2_ref(tmp_fmt, -1);
-		}
-
-		/* Finally our remaining audio/video codecs */
-		for (x = 0; p->outgoing_call && x < ast_format_cap_count(p->caps); x++) {
-			tmp_fmt = ast_format_cap_get_format(p->caps, x);
 
 			if (ast_format_cap_iscompatible_format(alreadysent, tmp_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
 				ao2_ref(tmp_fmt, -1);
