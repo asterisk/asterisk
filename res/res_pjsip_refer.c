@@ -560,7 +560,9 @@ static int refer_attended_task(void *data)
 		notification = refer_progress_notification_alloc(attended->progress, response,
 			PJSIP_EVSUB_STATE_TERMINATED);
 		if (notification) {
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(attended->progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	}
 
@@ -616,7 +618,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 			PJSIP_EVSUB_STATE_TERMINATED);
 
 		if (notification) {
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	} else if (refer->progress) {
 		/* If attended transfer and progress monitoring is being done attach a frame hook so we can monitor it */
@@ -637,7 +641,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 				ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 		}
 
@@ -660,7 +666,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 				ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 
 			ao2_cleanup(refer->progress);
@@ -680,7 +688,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 					ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 
 			ast_channel_lock(chan);
@@ -1155,7 +1165,9 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 
 		if (notification) {
 			/* The refer_progress_notify function will call ao2_cleanup on this for us */
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	}
 
