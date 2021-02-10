@@ -1235,10 +1235,8 @@ int ast_app_group_list_unlock(void);
 #define AST_DEFINE_APP_ARGS_TYPE(type, arglist) \
 	struct type { \
 		unsigned int argc; \
-		union { \
-			char *argv[sizeof(struct {arglist}) / sizeof(char *)]; \
-			struct {arglist}; \
-		}; \
+		char *argv[0]; \
+		arglist; \
 	}
 
 /*!
