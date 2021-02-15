@@ -390,7 +390,7 @@ static struct columns *find_column(struct tables *t, const char *colname)
 static struct ast_variable *realtime_pgsql(const char *database, const char *tablename, const struct ast_variable *fields)
 {
 	RAII_VAR(PGresult *, result, NULL, PQclear);
-	int num_rows = 0, pgresult;
+	int pgresult;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100);
 	struct ast_str *escapebuf = ast_str_thread_get(&escapebuf_buf, 100);
 	char *stringp;
@@ -472,6 +472,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
 	}
+	ast_str_append(&sql, 0, " LIMIT 1");
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
         if (pgsql_exec(database, tablename, ast_str_buffer(sql), &result) != 0) {
@@ -481,13 +482,12 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 	ast_debug(1, "PostgreSQL RealTime: Result=%p Query: %s\n", result, ast_str_buffer(sql));
 
-	if ((num_rows = PQntuples(result)) > 0) {
+	if (PQntuples(result) > 0) {
 		int i = 0;
-		int rowIndex = 0;
 		int numFields = PQnfields(result);
 		char **fieldnames = NULL;
 
-		ast_debug(1, "PostgreSQL RealTime: Found %d rows.\n", num_rows);
+		ast_debug(1, "PostgreSQL RealTime: Found a row.\n");
 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
@@ -495,20 +495,18 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		}
 		for (i = 0; i < numFields; i++)
 			fieldnames[i] = PQfname(result, i);
-		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
-			for (i = 0; i < numFields; i++) {
-				stringp = PQgetvalue(result, rowIndex, i);
-				while (stringp) {
-					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
-						if (prev) {
-							prev->next = ast_variable_new(fieldnames[i], chunk, "");
-							if (prev->next) {
-								prev = prev->next;
-							}
-						} else {
-							prev = var = ast_variable_new(fieldnames[i], chunk, "");
+		for (i = 0; i < numFields; i++) {
+			stringp = PQgetvalue(result, 0, i);
+			while (stringp) {
+				chunk = strsep(&stringp, ";");
+				if (chunk && !ast_strlen_zero(ast_realtime_decode_chunk(ast_strip(chunk)))) {
+					if (prev) {
+						prev->next = ast_variable_new(fieldnames[i], chunk, "");
+						if (prev->next) {
+							prev = prev->next;
 						}
+					} else {
+						prev = var = ast_variable_new(fieldnames[i], chunk, "");
 					}
 				}
 			}
