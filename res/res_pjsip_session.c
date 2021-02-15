@@ -2264,7 +2264,6 @@ static int sip_session_refresh(struct ast_sip_session *session,
 		if (pending_media_state) {
 			int index;
 			int type_streams[AST_MEDIA_TYPE_END] = {0};
-			int topology_change_request = 0;
 
 			ast_trace(-1, "%s: Pending media state exists\n", ast_sip_session_get_name(session));
 
@@ -2292,16 +2291,9 @@ static int sip_session_refresh(struct ast_sip_session *session,
 				 !pending_media_state->default_session[AST_MEDIA_TYPE_IMAGE])) {
 
 				struct ast_sip_session_media_state *new_pending_state;
-				/*
-				 * We need to check if the passed in active and pending states are equal
-				 * before we run the media states resolver.  We'll use the flag later
-				 * to signal whether this was topology change or some other change such
-				 * as a connected line change.
-				 */
-				topology_change_request = !ast_stream_topology_equal(active_media_state->topology, pending_media_state->topology);
 
 				ast_trace(-1, "%s: Active media state exists and is%s equal to pending\n", ast_sip_session_get_name(session),
-					topology_change_request ? " not" : "");
+					!ast_stream_topology_equal(active_media_state->topology,pending_media_state->topology) ? " not" : "");
 				ast_trace(-1, "%s: DP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: DA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(active_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: CP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP)));
@@ -2461,11 +2453,9 @@ static int sip_session_refresh(struct ast_sip_session *session,
 
 				/*
 				 * We can suppress this re-invite if the pending topology is equal to the currently
-				 * active topology but only if this re-invite was the result of a requested topology
-				 * change.  If it was the result of some other change, like connected line, then
-				 * we don't want to suppress it even though the topologies are equal.
+				 * active topology.
 				 */
-				if (topology_change_request && ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
+				if (ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
 					ast_trace(-1, "%s: CA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->active_media_state->topology, &STR_TMP)));
 					ast_trace(-1, "%s: NP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 					ast_sip_session_media_state_free(pending_media_state);
@@ -4280,20 +4270,26 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 {
 	pjsip_inv_session *inv = session->inv_session;
 	pj_time_val tv;
-	struct ast_sip_session_media_state *pending_media_state;
-	struct ast_sip_session_media_state *active_media_state;
+	struct ast_sip_session_media_state *pending_media_state = NULL;
+	struct ast_sip_session_media_state *active_media_state = NULL;
 	const char *session_name = ast_sip_session_get_name(session);
 	SCOPE_ENTER(3, "%s\n", session_name);
 
-	pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
-	if (!pending_media_state) {
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
-	}
+	/* If the two media state topologies are the same this means that the session refresh request
+	 * did not specify a desired topology, so it does not care. If that is the case we don't even
+	 * pass one in here resulting in the current topology being used.
+	 */
+	if (!ast_stream_topology_equal(session->active_media_state->topology, session->pending_media_state->topology)) {
+		pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
+		if (!pending_media_state) {
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
+		}
 
-	active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
-	if (!active_media_state) {
-		ast_sip_session_media_state_free(pending_media_state);
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
+		active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
+		if (!active_media_state) {
+			ast_sip_session_media_state_free(pending_media_state);
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
+		}
 	}
 
 	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE, pending_media_state,
