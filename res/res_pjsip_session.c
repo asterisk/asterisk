@@ -2779,56 +2779,6 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	if (!sdp_info->sdp) {
-		const pjmedia_sdp_session *local;
-		int i;
-
-		ast_queue_unhold(session->channel);
-
-		pjmedia_sdp_neg_get_active_local(session->inv_session->neg, &local);
-		if (!local) {
-			return PJ_FALSE;
-		}
-
-		/*
-		 * Some devices indicate hold with deferred SDP reinvites (i.e. no SDP in the reinvite).
-		 * When hold is initially indicated, we
-		 * - Receive an INVITE with no SDP
-		 * - Send a 200 OK with SDP, indicating sendrecv in the media streams
-		 * - Receive an ACK with SDP, indicating sendonly in the media streams
-		 *
-		 * At this point, the pjmedia negotiator saves the state of the media direction so that
-		 * if we are to send any offers, we'll offer recvonly in the media streams. This is
-		 * problematic if the device is attempting to unhold, though. If the device unholds
-		 * by sending a reinvite with no SDP, then we will respond with a 200 OK with recvonly.
-		 * According to RFC 3264, if an offerer offers recvonly, then the answerer MUST respond
-		 * with sendonly or inactive. The result of this is that the stream is not off hold.
-		 *
-		 * Therefore, in this case, when we receive a reinvite while the stream is on hold, we
-		 * need to be sure to offer sendrecv. This way, the answerer can respond with sendrecv
-		 * in order to get the stream off hold. If this is actually a different purpose reinvite
-		 * (like a session timer refresh), then the answerer can respond to our sendrecv with
-		 * sendonly, keeping the stream on hold.
-		 */
-		for (i = 0; i < local->media_count; ++i) {
-			pjmedia_sdp_media *m = local->media[i];
-			pjmedia_sdp_attr *recvonly;
-			pjmedia_sdp_attr *inactive;
-			pjmedia_sdp_attr *sendonly;
-
-			recvonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "recvonly", NULL);
-			inactive = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "inactive", NULL);
-			sendonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "sendonly", NULL);
-			if (recvonly || inactive || sendonly) {
-				pjmedia_sdp_attr *to_remove = recvonly ?: inactive ?: sendonly;
-				pjmedia_sdp_attr *sendrecv;
-
-				pjmedia_sdp_attr_remove(&m->attr_count, m->attr, to_remove);
-
-				sendrecv = pjmedia_sdp_attr_create(session->inv_session->pool, "sendrecv", NULL);
-				pjmedia_sdp_media_add_attr(m, sendrecv);
-			}
-		}
-
 		return PJ_FALSE;
 	}
 
@@ -5284,12 +5234,70 @@ static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_se
 	SCOPE_EXIT_RTN("%s: create_local_sdp failed\n", ast_sip_session_get_name(session));
 }
 
-#if 0
 static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
 {
-	/* XXX STUB */
+	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	const pjmedia_sdp_session *previous_sdp = NULL;
+	pjmedia_sdp_session *offer;
+	int i;
+
+	if (inv->neg) {
+		if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+			pjmedia_sdp_neg_get_active_remote(inv->neg, &previous_sdp);
+		} else {
+			pjmedia_sdp_neg_get_active_local(inv->neg, &previous_sdp);
+		}
+	}
+
+	offer = create_local_sdp(inv, session, previous_sdp);
+	if (!offer) {
+		return;
+	}
+
+	ast_queue_unhold(session->channel);
+
+	/*
+	 * Some devices indicate hold with deferred SDP reinvites (i.e. no SDP in the reinvite).
+	 * When hold is initially indicated, we
+	 * - Receive an INVITE with no SDP
+	 * - Send a 200 OK with SDP, indicating sendrecv in the media streams
+	 * - Receive an ACK with SDP, indicating sendonly in the media streams
+	 *
+	 * At this point, the pjmedia negotiator saves the state of the media direction so that
+	 * if we are to send any offers, we'll offer recvonly in the media streams. This is
+	 * problematic if the device is attempting to unhold, though. If the device unholds
+	 * by sending a reinvite with no SDP, then we will respond with a 200 OK with recvonly.
+	 * According to RFC 3264, if an offerer offers recvonly, then the answerer MUST respond
+	 * with sendonly or inactive. The result of this is that the stream is not off hold.
+	 *
+	 * Therefore, in this case, when we receive a reinvite while the stream is on hold, we
+	 * need to be sure to offer sendrecv. This way, the answerer can respond with sendrecv
+	 * in order to get the stream off hold. If this is actually a different purpose reinvite
+	 * (like a session timer refresh), then the answerer can respond to our sendrecv with
+	 * sendonly, keeping the stream on hold.
+	 */
+	for (i = 0; i < offer->media_count; ++i) {
+		pjmedia_sdp_media *m = offer->media[i];
+		pjmedia_sdp_attr *recvonly;
+		pjmedia_sdp_attr *inactive;
+		pjmedia_sdp_attr *sendonly;
+
+		recvonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "recvonly", NULL);
+		inactive = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "inactive", NULL);
+		sendonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "sendonly", NULL);
+		if (recvonly || inactive || sendonly) {
+			pjmedia_sdp_attr *to_remove = recvonly ?: inactive ?: sendonly;
+			pjmedia_sdp_attr *sendrecv;
+
+			pjmedia_sdp_attr_remove(&m->attr_count, m->attr, to_remove);
+
+			sendrecv = pjmedia_sdp_attr_create(session->inv_session->pool, "sendrecv", NULL);
+			pjmedia_sdp_media_add_attr(m, sendrecv);
+		}
+	}
+
+	*p_offer = offer;
 }
-#endif
 
 static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t status)
 {
@@ -5418,6 +5426,7 @@ static pjsip_inv_callback inv_callback = {
 	.on_new_session = session_inv_on_new_session,
 	.on_tsx_state_changed = session_inv_on_tsx_state_changed,
 	.on_rx_offer = session_inv_on_rx_offer,
+	.on_create_offer = session_inv_on_create_offer,
 	.on_media_update = session_inv_on_media_update,
 	.on_redirected = session_inv_on_redirected,
 };
