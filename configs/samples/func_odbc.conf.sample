@@ -23,6 +23,10 @@
 ; For substitution, you have ${ARG1}, ${ARG2} ... ${ARGn}
 ; for the arguments to each SQL statement.
 ;
+; Additionally you can use ${ARGC} to determine the number of arguments that
+; was actually passed (or risk using leaked ARGn variables from the channel).
+; Also reference the minargs configuration option.
+;
 ; In addition, for write statements, you have ${VAL1}, ${VAL2} ... ${VALn}
 ; parsed, just like arguments, for the values.  In addition, if you want the
 ; whole value, never mind the parsing, you can get that with ${VALUE}.
@@ -87,6 +91,13 @@
 ;              These additional rows can be returned by using the name of the
 ;              function which was called to retrieve the first row as an
 ;              argument to ODBC_FETCH().
+; minargs      The minimum number of ARGUMENTS that has to be passed to the
+;              function.  If fewer arguments than this is passed, then the call
+;              will fail.  It is important to note that unlike Gosub() and friends,
+;              func_odbc will not mask out ARGn variables that it's not actively
+;              using, as such, without this, it's entirely possible to use say
+;              ARG2 from the Gosub() inside func_odbc when the intent was to
+;              use an argument passed to func_odbc, but it simply was never passed.
 
 
 ; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan
