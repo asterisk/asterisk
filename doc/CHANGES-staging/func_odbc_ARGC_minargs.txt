@@ -1,0 +1,20 @@
+Subject: func_odbc
+
+Introduce an ARGC variable for func_odbc functions, along with a minargs
+per-function configuration option.
+
+minargs enables enforcing of minimum count of arguments to pass to
+func_odbc, so if you're unconditionally using ARG1 through ARG4 then
+this should be set to 4.  func_odbc will generate an error in this case,
+so for example
+
+[FOO]
+minargs = 4
+
+and ODBC_FOO(a,b,c) in dialplan will now error out instead of using a
+potentially leaked ARG4 from Gosub().
+
+ARGC is needed if you're using optional argument, to verify whether or
+not an argument has been passed, else it's possible to use a leaked ARGn
+from Gosub (app_stack).  So now you can safely do
+${IF($[${ARGC}>3]?${ARGV}:default value)} kind of thing.
