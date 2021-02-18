@@ -1,3 +1,65 @@
+2021-02-18 16:46 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.38.2 Released.
+
+2021-01-26 11:09 +0000 [b77dcbd905]  Alexander Traud <pabstraud@compuserve.com>
+
+	* rtp:  Enable srtp replay protection
+
+	  Add option "srtpreplayprotection" rtp.conf to enable srtp
+	  replay protection.
+
+	  ASTERISK-29260
+	  Reported by: Alexander Traud
+
+	  Change-Id: I5cd346e3c6b6812039d1901aa4b7be688173b458
+
+2020-12-28 06:43 +0000 [a86d326b5e]  Ivan Poddubnyi <ivan.poddubny@gmail.com>
+
+	* res_pjsip_diversion: Fix adding more than one histinfo to Supported
+
+	  New responses sent within a PJSIP sessions are based on those that were
+	  sent before. Therefore, adding/modifying a header once causes it to be
+	  sent on all responses that follow.
+
+	  Sending 181 Call Is Being Forwarded many times first adds "histinfo"
+	  duplicated more and more, and eventually overflows past the array
+	  boundary.
+
+	  This commit adds a check preventing adding "histinfo" more than once,
+	  and skipping it if there is no more space in the header.
+
+	  Similar overflow situations can also occur in res_pjsip_path and
+	  res_pjsip_outbound_registration so those were also modified to
+	  check the bounds and suppress duplicate Supported values.
+
+	  ASTERISK-29227
+	  Reported by: Ivan Poddubny
+
+	  Change-Id: Id43704a1f1a0293e35cc7f844026f0b04f2ac322
+
+2021-02-05 05:26 +0000 [5016b84076]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* pjsip: Make modify_local_offer2 tolerate previous failed SDP.
+
+	  If a remote side is broken and sends an SDP that can not be
+	  negotiated the call will be torn down but there is a window
+	  where a second 183 Session Progress or 200 OK that is forked
+	  can be received that also attempts to negotiate SDP. Since
+	  the code marked the SDP negotiation as being done and complete
+	  prior to this it assumes that there is an active local and remote
+	  SDP which it can modify, while in fact there is not as the SDP
+	  did not successfully negotiate. Since there is no local or remote
+	  SDP a crash occurs.
+
+	  This patch changes the pjmedia_sdp_neg_modify_local_offer2
+	  function to no longer assume that a previous SDP negotiation
+	  was successful.
+
+	  ASTERISK-29196
+
+	  Change-Id: I22de45916d3b05fdc2a67da92b3a38271ee5949e
+
 2020-12-22 21:00 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.38.1 Released.
