@@ -362,6 +362,8 @@ struct ast_rtp {
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
+	unsigned int ssrc_orig;		/*!< SSRC used before native bridge activated */
+	unsigned char ssrc_saved;	/*!< indicates if ssrc_orig has a value */
 	char cname[AST_UUID_STR_LEN]; /*!< Our local CNAME */
 	unsigned int themssrc;		/*!< Their SSRC */
 	unsigned int themssrc_valid;	/*!< True if their SSRC is available. */
@@ -8530,6 +8532,18 @@ static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_r
 		ast_smoother_free(rtp->smoother);
 		rtp->smoother = NULL;
 	}
+
+	/* We must use a new SSRC when local bridge ends */
+	if (!instance1) {
+		rtp->ssrc = rtp->ssrc_orig;
+		rtp->ssrc_orig = 0;
+		rtp->ssrc_saved = 0;
+	} else if (!rtp->ssrc_saved) {
+		/* In case ast_rtp_local_bridge is called multiple times, only save the ssrc from before local bridge began */
+		rtp->ssrc_orig = rtp->ssrc;
+		rtp->ssrc_saved = 1;
+	}
+
 	ao2_unlock(instance0);
 
 	return 0;
