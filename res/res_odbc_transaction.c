@@ -44,7 +44,8 @@
 					</enum>
 					<enum name="forcecommit">
 						<para>Controls whether a transaction will be automatically committed when the channel
-						hangs up.  Defaults to false.  If a <replaceable>transaction ID</replaceable> is specified in the optional argument,
+						hangs up.  Defaults to forcecommit value from the relevant DSN (which defaults to false).
+						If a <replaceable>transaction ID</replaceable> is specified in the optional argument,
 						the property will be applied to that ID, otherwise to the current active ID.</para>
 					</enum>
 					<enum name="isolation">
@@ -175,7 +176,7 @@ static struct odbc_txn_frame *create_transaction(struct ast_channel *chan, const
 		return NULL;
 	}
 	txn->isolation = ast_odbc_class_get_isolation(txn->obj->parent);
-	txn->forcecommit = ast_odbc_class_get_isolation(txn->obj->parent);
+	txn->forcecommit = ast_odbc_class_get_forcecommit(txn->obj->parent);
 	txn->active = 1;
 
 	if (SQLSetConnectAttr(txn->obj->con, SQL_ATTR_AUTOCOMMIT, (void *)SQL_AUTOCOMMIT_OFF, 0) == SQL_ERROR) {
