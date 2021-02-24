@@ -4510,7 +4510,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 	memset(&agi, 0, sizeof(agi));
 	buf = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, buf);
-	args.argv[args.argc] = NULL;
+	args.arg[args.argc] = NULL;
 #if 0
 	 /* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
@@ -4518,7 +4518,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 			return -1;
 	}
 #endif
-	res = launch_script(chan, args.argv[0], args.argc, args.argv, fds, enhanced ? &efd : NULL, &pid);
+	res = launch_script(chan, args.arg[0], args.argc, args.arg, fds, enhanced ? &efd : NULL, &pid);
 	/* Async AGI do not require run_agi(), so just proceed if normal AGI
 	   or Fast AGI are setup with success. */
 	if (res == AGI_RESULT_SUCCESS || res == AGI_RESULT_SUCCESS_FAST) {
@@ -4527,7 +4527,7 @@ static int agi_exec_full(struct ast_channel *chan, const char *data, int enhance
 		agi.ctrl = fds[0];
 		agi.audio = efd;
 		agi.fast = (res == AGI_RESULT_SUCCESS_FAST) ? 1 : 0;
-		res = run_agi(chan, args.argv[0], &agi, pid, &status, dead, args.argc, args.argv);
+		res = run_agi(chan, args.arg[0], &agi, pid, &status, dead, args.argc, args.arg);
 		/* If the fork'd process returns non-zero, set AGISTATUS to FAILURE */
 		if ((res == AGI_RESULT_SUCCESS || res == AGI_RESULT_SUCCESS_FAST) && status)
 			res = AGI_RESULT_FAILURE;
