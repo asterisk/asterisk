@@ -5926,6 +5926,26 @@ static const char *rtcp_payload_type2str(unsigned int pt)
 	return str;
 }
 
+static const char *rtcp_payload_subtype2str(unsigned int pt, unsigned int subtype)
+{
+	switch (pt) {
+	case AST_RTP_RTCP_RTPFB:
+		if (subtype == AST_RTP_RTCP_FMT_NACK) {
+			return "NACK";
+		}
+		break;
+	case RTCP_PT_PSFB:
+		if (subtype == AST_RTP_RTCP_FMT_REMB) {
+			return "REMB";
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
 /*! \pre instance is locked */
 static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned int *nackdata, unsigned int position,
 	unsigned int length)
@@ -6255,10 +6275,16 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 		}
 
 		if (rtcp_debug_test_addr(addr)) {
+			const char *subtype = rtcp_payload_subtype2str(pt, rc);
+
 			ast_verbose("\n");
 			ast_verbose("RTCP from %s\n", ast_sockaddr_stringify(addr));
-			ast_verbose("PT: %u(%s)\n", pt, rtcp_payload_type2str(pt));
-			ast_verbose("Reception reports: %u\n", rc);
+			ast_verbose("PT: %u (%s)\n", pt, rtcp_payload_type2str(pt));
+			if (subtype) {
+				ast_verbose("Packet Subtype: %u (%s)\n", rc, subtype);
+			} else {
+				ast_verbose("Reception reports: %u\n", rc);
+			}
 			ast_verbose("SSRC of sender: %u\n", ssrc);
 		}
 
