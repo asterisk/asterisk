@@ -432,12 +432,24 @@ static pj_status_t process_nat(pjsip_tx_data *tdata)
 	}
 
 	if (!ast_sockaddr_isnull(&transport_state->external_signaling_address)) {
-		/* Update the contact header with the external address */
-		if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
-			pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
-			if (transport->external_signaling_port) {
-				uri->port = transport->external_signaling_port;
-				ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+		pjsip_cseq_hdr *cseq = PJSIP_MSG_CSEQ_HDR(tdata->msg);
+
+		/* Update the Contact header with the external address. We only do this if
+		 * a CSeq is not present (which should not happen - but we are extra safe),
+		 * if a request is being sent, or if a response is sent that is not a response
+		 * to a REGISTER. We specifically don't do this for a response to a REGISTER
+		 * as the Contact headers would contain the registered Contacts, and not our
+		 * own Contact.
+		 */
+		if (!cseq || tdata->msg->type == PJSIP_REQUEST_MSG ||
+			pjsip_method_cmp(&cseq->method, &pjsip_register_method)) {
+			/* We can only rewrite the URI when one is present */
+			if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+				pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_signaling_address));
+				if (transport->external_signaling_port) {
+					uri->port = transport->external_signaling_port;
+					ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+				}
 			}
 		}
 
