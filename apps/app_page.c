@@ -160,6 +160,8 @@ AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('n', PAGE_NOCALLERANNOUNCE),
 });
 
+#define PAGE_BEEP "beep"
+
 /* We use this structure as a way to pass this to all dialed channels */
 struct page_options {
 	char *opts[OPT_ARG_ARRAY_SIZE];
@@ -402,9 +404,14 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	ast_free(predial_callee);
 
 	if (!ast_test_flag(&options.flags, PAGE_QUIET)) {
-		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
-		if (!res)
-			res = ast_waitstream(chan, "");
+		if (!ast_fileexists(PAGE_BEEP, NULL, NULL)) {
+			ast_log(LOG_WARNING, "Missing required sound file: '" PAGE_BEEP "'\n");
+		} else {
+			res = ast_streamfile(chan, PAGE_BEEP, ast_channel_language(chan));
+			if (!res) {
+				res = ast_waitstream(chan, "");
+			}
+		}
 	}
 
 	if (!res) {
