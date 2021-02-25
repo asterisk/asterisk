@@ -672,7 +672,6 @@ static int handle_client_registration(void *data)
 
 	if (set_outbound_initial_authentication_credentials(client_state->client, &client_state->outbound_auths)) {
 		ast_log(LOG_WARNING, "Failed to set initial authentication credentials\n");
-		return -1;
 	}
 
 	if (client_state->status == SIP_REGISTRATION_STOPPED
