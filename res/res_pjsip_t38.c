@@ -325,7 +325,7 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 		 * If there is a session_media object, but no udptl object available
 		 * then it's assumed the stream was declined.
 		 */
-		if (!session_media->udptl) {
+		if (session_media && !session_media->udptl) {
 			session_media = NULL;
 		}
 
