@@ -5965,9 +5965,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t t, const char *
 					}
 					if (tm.tm_year > 100) {
 						if (!res) {
-							/* This works until the end of 2020 */
-							snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_year - 100);
-							res = wait_file(chan, ints, nextmsg, lang);
+							res = ast_say_number(chan, tm.tm_year - 100, ints, lang, (char *) NULL);
 						}
 					}
 				} else {
