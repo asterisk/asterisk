@@ -670,20 +670,15 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			return 0;
 		}
 
-		if (!transport->allow_reload && !transport->flow) {
-			if (!perm_state->change_detected) {
-				perm_state->change_detected = 1;
-				ast_log(LOG_WARNING, "Transport '%s' is not reloadable, maintaining previous values\n", transport_id);
-			}
-			/* In case someone is using the deprecated fields, reset them */
-			transport->state = perm_state->state;
-			copy_state_to_transport(transport);
-			ao2_replace(perm_state->transport, transport);
-			return 0;
+		/* If we aren't allowed to reload then we copy values that can't be changed from perm_state */
+		if (!transport->allow_reload) {
+			memcpy(&temp_state->state->host, &perm_state->state->host, sizeof(temp_state->state->host));
+			memcpy(&temp_state->state->tls, &perm_state->state->tls, sizeof(temp_state->state->tls));
+			memcpy(&temp_state->state->ciphers, &perm_state->state->ciphers, sizeof(temp_state->state->ciphers));
 		}
 	}
 
-	if (!transport->flow) {
+	if (!transport->flow && (!perm_state || transport->allow_reload)) {
 		if (temp_state->state->host.addr.sa_family != PJ_AF_INET && temp_state->state->host.addr.sa_family != PJ_AF_INET6) {
 			ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", transport_id);
 			return -1;
@@ -738,6 +733,12 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, "0.0.0.0"), &temp_state->state->host);
 
 		temp_state->state->flow = 1;
+		res = PJ_SUCCESS;
+	} else if (!transport->allow_reload && perm_state) {
+		/* We inherit the transport from perm state, untouched */
+		ast_log(LOG_WARNING, "Transport '%s' is not fully reloadable, not reloading: protocol, bind, TLS, TCP, ToS, or CoS options.\n", transport_id);
+		temp_state->state->transport = perm_state->state->transport;
+		perm_state->state->transport = NULL;
 		res = PJ_SUCCESS;
 	} else if (transport->type == AST_TRANSPORT_UDP) {
 
