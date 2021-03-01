@@ -65,6 +65,9 @@ struct sorcery_config {
 	/*! \brief Configuration is invalid in some way, force reload */
 	unsigned int configuration_invalid:1;
 
+	/*! \brief Configuration contains at least one object with dynamic contents */
+	unsigned int has_dynamic_contents:1;
+
 	/*! \brief Filename of the configuration file */
 	char filename[];
 };
@@ -313,12 +316,13 @@ static int sorcery_is_configuration_met(const struct ast_sorcery *sorcery, const
 static void sorcery_config_internal_load(void *data, const struct ast_sorcery *sorcery, const char *type, unsigned int reload)
 {
 	struct sorcery_config *config = data;
-	struct ast_flags flags = { reload && !config->configuration_invalid ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags flags = { reload && !config->configuration_invalid && !config->has_dynamic_contents ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg = ast_config_load2(config->filename, config->uuid, flags);
 	struct ast_category *category = NULL;
 	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
 	const char *id = NULL;
 	unsigned int buckets = 0;
+	unsigned int has_dynamic_contents = 0;
 
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config file '%s'\n", config->filename);
@@ -430,9 +434,15 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 			ast_log(LOG_NOTICE, "Retaining existing configuration for object of type '%s' with id '%s'\n", type, id);
 		}
 
+		/* We store the dynamic contents state until the end in case this reload or load
+		 * gets rolled back.
+		 */
+		has_dynamic_contents |= ast_sorcery_object_has_dynamic_contents(obj);
+
 		ao2_link(objects, obj);
 	}
 
+	config->has_dynamic_contents = has_dynamic_contents;
 	ao2_global_obj_replace_unref(config->objects, objects);
 	ast_config_destroy(cfg);
 }
