@@ -340,6 +340,11 @@ static pjsip_evsub_user refer_progress_evsub_cb = {
 	.on_evsub_state = refer_progress_on_evsub_state,
 };
 
+static int dlg_releaser_task(void *data) {
+	pjsip_dlg_dec_session((pjsip_dialog *)data, &refer_progress_module);
+	return 0;
+}
+
 /*! \brief Destructor for REFER progress sutrcture */
 static void refer_progress_destroy(void *obj)
 {
@@ -350,7 +355,21 @@ static void refer_progress_destroy(void *obj)
 	}
 
 	if (progress->dlg) {
-		pjsip_dlg_dec_session(progress->dlg, &refer_progress_module);
+		/*
+		 * Although the dlg session count was incremented in a pjsip servant
+		 * thread, there's no guarantee that the last thread to unref this progress
+		 * object was one.  Before we decrement, we need to make sure that this
+		 * is either a servant thread or that we push the decrement to a
+		 * serializer that is one.
+		 *
+		 * Because pjsip_dlg_dec_session requires the dialog lock, we don't want
+		 * to wait on the task to complete if we had to push it to a serializer.
+		 */
+		if (ast_sip_thread_is_servant()) {
+			pjsip_dlg_dec_session(progress->dlg, &refer_progress_module);
+		} else {
+			ast_sip_push_task(NULL, dlg_releaser_task, progress->dlg);
+		}
 	}
 
 	ao2_cleanup(progress->transfer_data);
