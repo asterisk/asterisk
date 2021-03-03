@@ -53,9 +53,9 @@
  *
  * \section copyright Copyright and Author
  *
- * Copyright (C) 1999 - 2018, Digium, Inc.
- * Asterisk is a <a href="http://www.digium.com/en/company/view-policy.php?id=Trademark-Policy">registered trademark</a>
- * of <a rel="nofollow" href="http://www.digium.com">Digium, Inc</a>.
+ * Copyright (C) 1999 - 2021, Sangoma Technologies Corporation.
+ * Asterisk is a <a href="https://cdn.sangoma.com/wp-content/uploads/Sangoma-Trademark-Policy.pdf">registered trademark</a>
+ * of <a rel="nofollow" href="http://www.sangoma.com">Sangoma Technologies Corporation</a>.
  *
  * \author Mark Spencer <markster@digium.com>
  *
@@ -297,7 +297,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #define NUM_MSGS 64
 
 /*! Displayed copyright tag */
-#define COPYRIGHT_TAG "Copyright (C) 1999 - 2018, Digium, Inc. and others."
+#define COPYRIGHT_TAG "Copyright (C) 1999 - 2021, Sangoma Technologies Corporation and others."
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
