@@ -10845,6 +10845,7 @@ static struct ast_frame *suppress_framehook_event_cb(struct ast_channel *chan, s
 	if (suppress_frame) {
 		switch (frame->frametype) {
 		case AST_FRAME_VOICE:
+			ast_frfree(frame);
 			frame = &ast_null_frame;
 			break;
 		default:
