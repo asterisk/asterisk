@@ -1,7 +1,7 @@
 # The Asterisk(R) Open Source PBX
 ```text
         By Mark Spencer <markster@digium.com> and the Asterisk.org developer community.
-        Copyright (C) 2001-2019 Digium, Inc. and other copyright holders.
+        Copyright (C) 2001-2021 Sangoma Technologies Corporation and other copyright holders.
 ```
 ## SECURITY
 
@@ -47,7 +47,7 @@ and the BSD variants.
 ANY special hardware, not even a sound card) to install and run Asterisk.
 
 Supported telephony hardware includes:
-* All Analog and Digital Interface cards from [Digium]
+* All Analog and Digital Interface cards from [Sangoma]
 * QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
 * any full duplex sound card supported by ALSA, OSS, or PortAudio
 * any ISDN card supported by mISDN on Linux
@@ -251,7 +251,7 @@ Welcome to the growing worldwide community of Asterisk users!
 
 ---
 
-Asterisk is a trademark of Digium, Inc.
+Asterisk is a trademark of Sangoma Technologies Corporation
 
 [home page]: https://www.asterisk.org
 [support]: https://www.asterisk.org/support
@@ -261,7 +261,7 @@ Asterisk is a trademark of Digium, Inc.
 [voip-info.org]: http://www.voip-info.org/wiki-Asterisk
 [asteriskdocs.org]: http://www.asteriskdocs.org
 [NTP]: http://www.ntp.org/
-[Digium]: https://www.digium.com/
+[Sangoma]: https://www.sangoma.com/
 [UPGRADE.txt]: UPGRADE.txt
 [CHANGES]: CHANGES
 [configs]: configs
