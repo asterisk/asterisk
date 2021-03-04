@@ -1,0 +1,120 @@
+                                Release Summary
+
+                         asterisk-certified/16.8-cert7
+
+                                Date: 2021-03-04
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2021-006
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/16.8-cert6.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   2 Joshua C. Colp                                  1 Benjamin Keith Ford    
+   2 Ben Ford                                        1 Gregory Massel         
+                                                     1 Alexei Gradinari       
+                                                     1 Stefan Ruf             
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Security
+
+    Category: Resources/res_pjsip_t38
+
+   ASTERISK-29305: ASTERISK-29203 / AST-2021-002 -- Another scenario is
+   causing a crash
+   Reported by: Gregory Massel
+     * [b9fc07ca53] Ben Ford -- AST-2021-006 - res_pjsip_t38.c: Check for
+       session_media on reinvite.
+
+  Bug
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-29071: app_confbridge: Memory rises when jitterbuffer enabled and
+   muting over AMI occurs
+   Reported by: Stefan Ruf
+     * [54f4be115f] Joshua C. Colp -- channel: Fix memory leak in suppress
+       API.
+
+    Category: Core/Bridging
+
+   ASTERISK-29071: app_confbridge: Memory rises when jitterbuffer enabled and
+   muting over AMI occurs
+   Reported by: Stefan Ruf
+     * [54f4be115f] Joshua C. Colp -- channel: Fix memory leak in suppress
+       API.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-28871: res_pjsip_session: Unnecessary re-Invite on call answer
+   Reported by: Alexei Gradinari
+     * [df34b007d9] Joshua C. Colp -- bridge: Don't try to match audio
+       formats.
+   ASTERISK-29303: pjsip: Re-invite occurs when it shouldn't
+   Reported by: Benjamin Keith Ford
+     * [b12fcaaaf0] Ben Ford -- res_pjsip_session.c: Check topology on
+       re-invite.
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ bridges/bridge_native_rtp.c |    4 ++--
+ bridges/bridge_simple.c     |    4 ++--
+ main/channel.c              |    1 +
+ res/res_pjsip_session.c     |   16 +++-------------
+ 4 files changed, 8 insertions(+), 17 deletions(-)
