@@ -1,3 +1,21 @@
+2021-03-04 16:40 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 16.16.2 Released.
+
+2021-02-25 13:50 +0000 [864fd2dde1]  Ben Ford <bford@digium.com>
+
+	* AST-2021-006 - res_pjsip_t38.c: Check for session_media on reinvite.
+
+	  When Asterisk sends a reinvite negotiating T38 faxing, it's possible a
+	  crash can occur if the response contains a m=image and zero port. The
+	  reinvite callback code now checks session_media to see if it is null or
+	  not before trying to access the udptl variable on it.
+
+	  ASTERISK-29305
+
+	  Change-Id: I1dfc51c5fa586e38579ede4bc228edee213ccaa9
+	  (cherry picked from commit b409fa1fff6effa50778d078f7acf0006282f804)
+
 2021-02-18 16:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 16.16.1 Released.
