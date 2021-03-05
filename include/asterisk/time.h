@@ -237,4 +237,83 @@ struct timeval ast_samp2tv(unsigned int _nsamp, unsigned int _rate),
 }
 )
 
+/*!
+ * \brief Time units enumeration.
+ */
+enum TIME_UNIT {
+	TIME_UNIT_ERROR = -1,
+	TIME_UNIT_NANOSECOND,
+	TIME_UNIT_MICROSECOND,
+	TIME_UNIT_MILLISECOND,
+	TIME_UNIT_SECOND,
+	TIME_UNIT_MINUTE,
+	TIME_UNIT_HOUR,
+	TIME_UNIT_DAY,
+	TIME_UNIT_WEEK,
+	TIME_UNIT_MONTH,
+	TIME_UNIT_YEAR,
+};
+
+/*!
+ * \brief Convert a string to a time unit enumeration value.
+ *
+ * This method attempts to be as flexible, and forgiving as possible when
+ * converting. In most cases the algorithm will match on the beginning of
+ * up to three strings (short, medium, long form). So that means if the
+ * given string at least starts with one of the form values it will match.
+ *
+ * For example: us, usec, microsecond will all map to TIME_UNIT_MICROSECOND.
+ * So will uss, usecs, miscroseconds, or even microsecondvals
+ *
+ * Matching is also not case sensitive.
+ *
+ * \param unit The string to map to an enumeration
+ *
+ * \return A time unit enumeration
+ */
+enum TIME_UNIT ast_time_str_to_unit(const char *unit);
+
+/*!
+ * \brief Convert a timeval structure to microseconds
+ *
+ * \param tv The timeval to convert
+ *
+ * \return The time in microseconds
+ */
+ast_suseconds_t ast_time_tv_to_usec(const struct timeval *tv);
+
+/*!
+ * \brief Create a timeval object initialized to given values.
+ *
+ * \param sec The timeval seconds value
+ * \param usec The timeval microseconds value
+ *
+ * \return A timeval object
+ */
+struct timeval ast_time_create(ast_time_t sec, ast_suseconds_t usec);
+
+/*!
+ * \brief Convert the given unit value, and create a timeval object from it.
+ *
+ * \param val The value to convert to a timeval
+ * \param unit The time unit type of val
+ *
+ * \return A timeval object
+ */
+struct timeval ast_time_create_by_unit(unsigned long val, enum TIME_UNIT unit);
+
+/*!
+ * \brief Convert the given unit value, and create a timeval object from it.
+ *
+ * This will first attempt to convert the unit from a string to a TIME_UNIT
+ * enumeration. If that conversion fails then a zeroed out timeval object
+ * is returned.
+ *
+ * \param val The value to convert to a timeval
+ * \param unit The time unit type of val
+ *
+ * \return A timeval object
+ */
+struct timeval ast_time_create_by_unit_str(unsigned long val, const char *unit);
+
 #endif /* _ASTERISK_TIME_H */

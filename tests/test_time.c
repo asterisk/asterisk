@@ -111,8 +111,174 @@ AST_TEST_DEFINE(test_timezone_watch)
 	return res;
 }
 
+AST_TEST_DEFINE(test_time_str_to_unit)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "time_str_to_unit";
+		info->category = "/main/stdtime/";
+		info->summary = "Verify string to time unit conversions";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Nominal */
+	ast_test_validate(test, ast_time_str_to_unit("ns") == TIME_UNIT_NANOSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("us") == TIME_UNIT_MICROSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("ms") == TIME_UNIT_MILLISECOND);
+	ast_test_validate(test, ast_time_str_to_unit("s") == TIME_UNIT_SECOND);
+	ast_test_validate(test, ast_time_str_to_unit("m") == TIME_UNIT_MINUTE);
+	ast_test_validate(test, ast_time_str_to_unit("h") == TIME_UNIT_HOUR);
+	ast_test_validate(test, ast_time_str_to_unit("d") == TIME_UNIT_DAY);
+	ast_test_validate(test, ast_time_str_to_unit("w") == TIME_UNIT_WEEK);
+	ast_test_validate(test, ast_time_str_to_unit("mo") == TIME_UNIT_MONTH);
+	ast_test_validate(test, ast_time_str_to_unit("y") == TIME_UNIT_YEAR);
+
+	/* Plural */
+	ast_test_validate(test, ast_time_str_to_unit("nanoseconds") == TIME_UNIT_NANOSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("microseconds") == TIME_UNIT_MICROSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("milliseconds") == TIME_UNIT_MILLISECOND);
+	ast_test_validate(test, ast_time_str_to_unit("seconds") == TIME_UNIT_SECOND);
+	ast_test_validate(test, ast_time_str_to_unit("minutes") == TIME_UNIT_MINUTE);
+	ast_test_validate(test, ast_time_str_to_unit("hours") == TIME_UNIT_HOUR);
+	ast_test_validate(test, ast_time_str_to_unit("days") == TIME_UNIT_DAY);
+	ast_test_validate(test, ast_time_str_to_unit("weeks") == TIME_UNIT_WEEK);
+	ast_test_validate(test, ast_time_str_to_unit("months") == TIME_UNIT_MONTH);
+	ast_test_validate(test, ast_time_str_to_unit("years") == TIME_UNIT_YEAR);
+
+	/* Case */
+	ast_test_validate(test, ast_time_str_to_unit("Nsec") == TIME_UNIT_NANOSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("Usec") == TIME_UNIT_MICROSECOND);
+	ast_test_validate(test, ast_time_str_to_unit("Msec") == TIME_UNIT_MILLISECOND);
+	ast_test_validate(test, ast_time_str_to_unit("Sec") == TIME_UNIT_SECOND);
+	ast_test_validate(test, ast_time_str_to_unit("Min") == TIME_UNIT_MINUTE);
+	ast_test_validate(test, ast_time_str_to_unit("Hr") == TIME_UNIT_HOUR);
+	ast_test_validate(test, ast_time_str_to_unit("Day") == TIME_UNIT_DAY);
+	ast_test_validate(test, ast_time_str_to_unit("Wk") == TIME_UNIT_WEEK);
+	ast_test_validate(test, ast_time_str_to_unit("Mth") == TIME_UNIT_MONTH);
+	ast_test_validate(test, ast_time_str_to_unit("Yr") == TIME_UNIT_YEAR);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(test_time_create_by_unit)
+{
+	struct timeval tv;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "time_create_by_unit";
+		info->category = "/main/stdtime/";
+		info->summary = "Verify unit value to timeval conversions";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Nominal */
+	ast_test_validate(test, ast_time_create_by_unit(1000, TIME_UNIT_NANOSECOND).tv_usec == 1);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_MICROSECOND).tv_usec == 1);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_MILLISECOND).tv_usec == 1000);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_SECOND).tv_sec == 1);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_MINUTE).tv_sec == 60);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_HOUR).tv_sec == 3600);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_DAY).tv_sec == 86400);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_WEEK).tv_sec == 604800);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_MONTH).tv_sec == 2629746);
+	ast_test_validate(test, ast_time_create_by_unit(1, TIME_UNIT_YEAR).tv_sec == 31556952);
+
+	/* timeval normalization */
+	tv = ast_time_create_by_unit(1500000000, TIME_UNIT_NANOSECOND);
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	tv = ast_time_create_by_unit(1500000, TIME_UNIT_MICROSECOND);
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	tv = ast_time_create_by_unit(1500, TIME_UNIT_MILLISECOND);
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(test_time_create_by_unit_str)
+{
+	struct timeval tv;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "time_create_by_unit_str";
+		info->category = "/main/stdtime/";
+		info->summary = "Verify value with unit as a string to timeval conversions";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Nominal */
+	ast_test_validate(test, ast_time_create_by_unit_str(1000, "ns").tv_usec == 1);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "us").tv_usec == 1);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "ms").tv_usec == 1000);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "s").tv_sec == 1);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "m").tv_sec == 60);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "h").tv_sec == 3600);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "d").tv_sec == 86400);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "w").tv_sec == 604800);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "mo").tv_sec == 2629746);
+	ast_test_validate(test, ast_time_create_by_unit_str(1, "yr").tv_sec == 31556952);
+
+	/* timeval normalization */
+	tv = ast_time_create_by_unit_str(1500000000, "ns");
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	tv = ast_time_create_by_unit_str(1500000, "us");
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	tv = ast_time_create_by_unit_str(1500, "ms");
+	ast_test_validate(test, tv.tv_sec == 1 && tv.tv_usec == 500000);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(test_time_tv_to_usec)
+{
+	struct timeval tv;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "time_tv_to_usec";
+		info->category = "/main/stdtime/";
+		info->summary = "Verify conversion of a timeval structure to microseconds";
+		info->description = info->summary;
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	tv = ast_time_create(0, 0);
+	ast_test_validate(test, ast_time_tv_to_usec(&tv) == 0);
+
+	tv = ast_time_create(0, 1);
+	ast_test_validate(test, ast_time_tv_to_usec(&tv) == 1);
+
+	tv = ast_time_create(1, 0);
+	ast_test_validate(test, ast_time_tv_to_usec(&tv) == 1000000);
+
+	tv = ast_time_create(1, 1);
+	ast_test_validate(test, ast_time_tv_to_usec(&tv) == 1000001);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(test_time_create_by_unit_str);
+	AST_TEST_UNREGISTER(test_time_create_by_unit);
+	AST_TEST_UNREGISTER(test_time_str_to_unit);
+	AST_TEST_UNREGISTER(test_time_tv_to_usec);
 	AST_TEST_UNREGISTER(test_timezone_watch);
 	return 0;
 }
@@ -120,6 +286,10 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_timezone_watch);
+	AST_TEST_REGISTER(test_time_tv_to_usec);
+	AST_TEST_REGISTER(test_time_str_to_unit);
+	AST_TEST_REGISTER(test_time_create_by_unit);
+	AST_TEST_REGISTER(test_time_create_by_unit_str);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
