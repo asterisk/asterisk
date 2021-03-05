@@ -33,8 +33,12 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>                      /* for toupper */
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/strings.h"           /* for ast_str_append */
+#include "asterisk/utils.h"             /* for ast_strip */
 
 /*! \brief Value that indicates an attribute is actually unset */
 #define H263_ATTR_KEY_UNSET UINT8_MAX
@@ -173,6 +177,11 @@ static struct ast_format *h263_parse_sdp_fmtp(const struct ast_format *format, c
 		return NULL;
 	}
 	attr = ast_format_get_attribute_data(cloned);
+
+	/* upper-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = toupper(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
 
 	attr->BPP = H263_ATTR_KEY_UNSET;
 	attr->MaxBR = H263_ATTR_KEY_UNSET;

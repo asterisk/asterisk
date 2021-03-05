@@ -29,8 +29,14 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>                      /* for tolower */
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/astobj2.h"           /* for ao2_ref */
+#include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */
+#include "asterisk/strings.h"           /* for ast_str_append */
+#include "asterisk/utils.h"             /* for MIN */
 
 /*!
  * \brief CELT attribute structure.
@@ -70,6 +76,7 @@ static int celt_clone(const struct ast_format *src, struct ast_format *dst)
 
 static struct ast_format *celt_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
+	char *attribs = ast_strdupa(attributes), *attrib;
 	struct ast_format *cloned;
 	struct celt_attr *attr;
 	unsigned int val;
@@ -80,7 +87,12 @@ static struct ast_format *celt_parse_sdp_fmtp(const struct ast_format *format, c
 	}
 	attr = ast_format_get_attribute_data(cloned);
 
-	if (sscanf(attributes, "framesize=%30u", &val) == 1) {
+	/* lower-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = tolower(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
+
+	if (sscanf(attribs, "framesize=%30u", &val) == 1) {
 		attr->framesize = val;
 	}
 
