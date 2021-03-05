@@ -31,6 +31,8 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>                      /* for tolower */
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */
@@ -76,6 +78,7 @@ static int vp8_clone(const struct ast_format *src, struct ast_format *dst)
 
 static struct ast_format *vp8_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
+	char *attribs = ast_strdupa(attributes), *attrib;
 	struct ast_format *cloned;
 	struct vp8_attr *attr;
 	const char *kvp;
@@ -87,13 +90,18 @@ static struct ast_format *vp8_parse_sdp_fmtp(const struct ast_format *format, co
 	}
 	attr = ast_format_get_attribute_data(cloned);
 
-	if ((kvp = strstr(attributes, "max-fr")) && sscanf(kvp, "max-fr=%30u", &val) == 1) {
+	/* lower-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = tolower(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
+
+	if ((kvp = strstr(attribs, "max-fr")) && sscanf(kvp, "max-fr=%30u", &val) == 1) {
 		attr->maximum_frame_rate = val;
 	} else {
 		attr->maximum_frame_rate = UINT_MAX;
 	}
 
-	if ((kvp = strstr(attributes, "max-fs")) && sscanf(kvp, "max-fs=%30u", &val) == 1) {
+	if ((kvp = strstr(attribs, "max-fs")) && sscanf(kvp, "max-fs=%30u", &val) == 1) {
 		attr->maximum_frame_size = val;
 	} else {
 		attr->maximum_frame_size = UINT_MAX;

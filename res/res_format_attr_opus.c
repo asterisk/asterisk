@@ -29,8 +29,11 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/logger.h"
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
@@ -135,6 +138,7 @@ static void sdp_fmtp_get(const char *attributes, const char *name, int *attr)
 
 static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
+	char *attribs = ast_strdupa(attributes), *attrib;
 	struct ast_format *cloned;
 	struct opus_attr *attr;
 
@@ -145,22 +149,27 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 
 	attr = ast_format_get_attribute_data(cloned);
 
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE, &attr->maxplayrate);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_CODED_AUDIO_BANDWIDTH,
+	/* lower-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = tolower(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
+
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE, &attr->maxplayrate);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_MAX_CODED_AUDIO_BANDWIDTH,
 		&attr->maxplayrate);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE,
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE,
 		&attr->spropmaxcapturerate);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_PTIME, &attr->maxptime);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_MAX_PTIME, &attr->maxptime);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
 	if (attr->stereo) {
 		ast_format_set_channel_count(cloned, 2);
 	}
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_CBR, &attr->cbr);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_FEC, &attr->fec);
-	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_DTX, &attr->dtx);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_CBR, &attr->cbr);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_FEC, &attr->fec);
+	sdp_fmtp_get(attribs, CODEC_OPUS_ATTR_DTX, &attr->dtx);
 
 	return cloned;
 }
