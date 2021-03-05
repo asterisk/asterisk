@@ -63,6 +63,7 @@
 #include <ifaddrs.h>
 #endif
 
+#include "asterisk/conversions.h"
 #include "asterisk/options.h"
 #include "asterisk/logger_category.h"
 #include "asterisk/stun.h"
@@ -7529,6 +7530,113 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	return AST_LIST_FIRST(&frames);
 }
 
+#ifdef AST_DEVMODE
+
+struct rtp_drop_packets_data {
+	/* Whether or not to randomize the number of packets to drop. */
+	unsigned int use_random_num;
+	/* Whether or not to randomize the time interval between packets drops. */
+	unsigned int use_random_interval;
+	/* The total number of packets to drop. If 'use_random_num' is true then this
+	 * value becomes the upper bound for a number of random packets to drop. */
+	unsigned int num_to_drop;
+	/* The current number of packets that have been dropped during an interval. */
+	unsigned int num_dropped;
+	/* The optional interval to use between packet drops. If 'use_random_interval'
+	 * is true then this values becomes the upper bound for a random interval used. */
+	struct timeval interval;
+	/* The next time a packet drop should be triggered. */
+	struct timeval next;
+	/* An optional IP address from which to drop packets from. */
+	struct ast_sockaddr addr;
+	/* The optional port from which to drop packets from. */
+	unsigned int port;
+} drop_packets_data;
+
+static void drop_packets_data_update(struct timeval tv)
+{
+	/*
+	 * num_dropped keeps up with the number of packets that have been dropped for a
+	 * given interval. Once the specified number of packets have been dropped and
+	 * the next time interval is ready to trigger then set this number to zero (drop
+	 * the next 'n' packets up to 'num_to_drop'), or if 'use_random_num' is set to
+	 * true then set to a random number between zero and 'num_to_drop'.
+	 */
+	drop_packets_data.num_dropped = drop_packets_data.use_random_num ?
+		ast_random() % drop_packets_data.num_to_drop : 0;
+
+	/*
+	 * A specified number of packets can be dropped at a given interval (e.g every
+	 * 30 seconds). If 'use_random_interval' is false simply add the interval to
+	 * the given time to get the next trigger point. If set to true, then get a
+	 * random time between the given time and up to the specified interval.
+	 */
+	if (drop_packets_data.use_random_interval) {
+		/* Calculate as a percentage of the specified drop packets interval */
+		struct timeval interval = ast_time_create_by_unit(ast_time_tv_to_usec(
+			&drop_packets_data.interval) * ((double)(ast_random() % 100 + 1) / 100),
+			TIME_UNIT_MICROSECOND);
+
+		drop_packets_data.next = ast_tvadd(tv, interval);
+	} else {
+		drop_packets_data.next = ast_tvadd(tv, drop_packets_data.interval);
+	}
+}
+
+static int should_drop_packets(struct ast_sockaddr *addr)
+{
+	struct timeval tv;
+
+	if (!drop_packets_data.num_to_drop) {
+		return 0;
+	}
+
+	/*
+	 * If an address has been specified then filter on it, and also the port if
+	 * it too was included.
+	 */
+	if (!ast_sockaddr_isnull(&drop_packets_data.addr) &&
+		(drop_packets_data.port ?
+			ast_sockaddr_cmp(&drop_packets_data.addr, addr) :
+			ast_sockaddr_cmp_addr(&drop_packets_data.addr, addr)) != 0) {
+		/* Address and/or port does not match */
+		return 0;
+	}
+
+	/* Keep dropping packets until we've reached the total to drop */
+	if (drop_packets_data.num_dropped < drop_packets_data.num_to_drop) {
+		++drop_packets_data.num_dropped;
+		return 1;
+	}
+
+	/*
+	 * Once the set number of packets has been dropped check to see if it's
+	 * time to drop more.
+	 */
+
+	if (ast_tvzero(drop_packets_data.interval)) {
+		/* If no interval then drop specified number of packets and be done */
+		drop_packets_data.num_to_drop = 0;
+		return 0;
+	}
+
+	tv = ast_tvnow();
+	if (ast_tvcmp(tv, drop_packets_data.next) == -1) {
+		/* Still waiting for the next time interval to elapse */
+		return 0;
+	}
+
+	/*
+	 * The next time interval has elapsed so update the tracking structure
+	 * in order to start dropping more packets, and figure out when the next
+	 * time interval is.
+	 */
+	drop_packets_data_update(tv);
+	return 1;
+}
+
+#endif
+
 /*! \pre instance is locked */
 static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtcp)
 {
@@ -7822,6 +7930,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
+
+#ifdef AST_DEVMODE
+	if (should_drop_packets(&addr)) {
+		ast_debug(0, "(%p) RTP: drop received packet from %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6d)\n",
+			instance, ast_sockaddr_stringify(&addr), payloadtype, seqno, timestamp, res - hdrlen);
+		return &ast_null_frame;
+	}
+#endif
 
 	if (rtp_debug_test_addr(&addr)) {
 		ast_verbose("Got  RTP packet from    %s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6d)\n",
@@ -9088,11 +9204,145 @@ static char *handle_cli_rtcp_set_stats(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
+#ifdef AST_DEVMODE
+
+static unsigned int use_random(struct ast_cli_args *a, int pos, unsigned int index)
+{
+	return pos >= index && !ast_strlen_zero(a->argv[index - 1]) &&
+		!strcasecmp(a->argv[index - 1], "random");
+}
+
+static char *handle_cli_rtp_drop_incoming_packets(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	static const char * const completions_2[] = { "stop", "<N>", NULL };
+	static const char * const completions_3[] = { "random", "incoming packets", NULL };
+	static const char * const completions_5[] = { "on", "every", NULL };
+	static const char * const completions_units[] =	{ "random", "usec", "msec", "sec", "min", NULL };
+
+	unsigned int use_random_num = 0;
+	unsigned int use_random_interval = 0;
+	unsigned int num_to_drop = 0;
+	unsigned int interval = 0;
+	const char *interval_s = NULL;
+	const char *unit_s = NULL;
+	struct ast_sockaddr addr;
+	const char *addr_s = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp drop";
+		e->usage =
+			"Usage: rtp drop [stop|[<N> [random] incoming packets[ every <N> [random] {usec|msec|sec|min}][ on <ip[:port]>]]\n"
+			"       Drop RTP incoming packets.\n";
+		return NULL;
+	case CLI_GENERATE:
+		use_random_num = use_random(a, a->pos, 4);
+		use_random_interval = use_random(a, a->pos, 8 + use_random_num) ||
+			use_random(a, a->pos, 10 + use_random_num);
+
+		switch (a->pos - use_random_num - use_random_interval) {
+		case 2:
+			return ast_cli_complete(a->word, completions_2, a->n);
+		case 3:
+			return ast_cli_complete(a->word, completions_3 + use_random_num, a->n);
+		case 5:
+			return ast_cli_complete(a->word, completions_5, a->n);
+		case 7:
+			if (!strcasecmp(a->argv[a->pos - 2], "on")) {
+				ast_cli_completion_add(ast_strdup("every"));
+				break;
+			}
+			/* Fall through */
+		case 9:
+			if (!strcasecmp(a->argv[a->pos - 2 - use_random_interval], "every")) {
+				return ast_cli_complete(a->word, completions_units + use_random_interval, a->n);
+			}
+			break;
+		case 8:
+			if (!strcasecmp(a->argv[a->pos - 3 - use_random_interval], "every")) {
+				ast_cli_completion_add(ast_strdup("on"));
+			}
+			break;
+		}
+
+		return NULL;
+	}
+
+	if (a->argc < 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	use_random_num = use_random(a, a->argc, 4);
+	use_random_interval = use_random(a, a->argc, 8 + use_random_num) ||
+		use_random(a, a->argc, 10 + use_random_num);
+
+	if (!strcasecmp(a->argv[2], "stop")) {
+		/* rtp drop stop */
+	} else if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	} else if (ast_str_to_uint(a->argv[2], &num_to_drop)) {
+		ast_cli(a->fd, "%s is not a valid number of packets to drop\n", a->argv[2]);
+		return CLI_FAILURE;
+	} else if (a->argc - use_random_num == 5) {
+		/* rtp drop <N> [random] incoming packets */
+	} else if (a->argc - use_random_num >= 7 && !strcasecmp(a->argv[5 + use_random_num], "on")) {
+		/* rtp drop <N> [random] incoming packets on <ip[:port]> */
+		addr_s = a->argv[6 + use_random_num];
+		if (a->argc - use_random_num - use_random_interval == 10 &&
+				!strcasecmp(a->argv[7 + use_random_num], "every")) {
+			/* rtp drop <N> [random] incoming packets on <ip[:port]> every <N> [random] {usec|msec|sec|min} */
+			interval_s = a->argv[8 + use_random_num];
+			unit_s = a->argv[9 + use_random_num + use_random_interval];
+		}
+	} else if (a->argc - use_random_num >= 8 && !strcasecmp(a->argv[5 + use_random_num], "every")) {
+		/* rtp drop <N> [random] incoming packets every <N> [random] {usec|msec|sec|min} */
+		interval_s = a->argv[6 + use_random_num];
+		unit_s = a->argv[7 + use_random_num + use_random_interval];
+		if (a->argc == 10 + use_random_num + use_random_interval &&
+				!strcasecmp(a->argv[8 + use_random_num + use_random_interval], "on")) {
+			/* rtp drop <N> [random] incoming packets every <N> [random] {usec|msec|sec|min} on <ip[:port]> */
+			addr_s = a->argv[9 + use_random_num + use_random_interval];
+		}
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc - use_random_num >= 8 && !interval_s && !addr_s) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (interval_s && ast_str_to_uint(interval_s, &interval)) {
+		ast_cli(a->fd, "%s is not a valid interval number\n", interval_s);
+		return CLI_FAILURE;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	if (addr_s && !ast_sockaddr_parse(&addr, addr_s, 0)) {
+		ast_cli(a->fd, "%s is not a valid hostname[:port]\n", addr_s);
+		return CLI_FAILURE;
+	}
+
+	drop_packets_data.use_random_num = use_random_num;
+	drop_packets_data.use_random_interval = use_random_interval;
+	drop_packets_data.num_to_drop = num_to_drop;
+	drop_packets_data.interval = ast_time_create_by_unit_str(interval, unit_s);
+	ast_sockaddr_copy(&drop_packets_data.addr, &addr);
+	drop_packets_data.port = ast_sockaddr_port(&addr);
+
+	drop_packets_data_update(ast_tvnow());
+
+	return CLI_SUCCESS;
+}
+#endif
+
 static struct ast_cli_entry cli_rtp[] = {
 	AST_CLI_DEFINE(handle_cli_rtp_set_debug,  "Enable/Disable RTP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtp_settings,   "Display RTP settings"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_debug, "Enable/Disable RTCP debugging"),
 	AST_CLI_DEFINE(handle_cli_rtcp_set_stats, "Enable/Disable RTCP stats"),
+#ifdef AST_DEVMODE
+	AST_CLI_DEFINE(handle_cli_rtp_drop_incoming_packets, "Drop RTP incoming packets"),
+#endif
 };
 
 static int rtp_reload(int reload, int by_external_config)
