@@ -1559,12 +1559,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_channel_stage_snapshot_done(in);
 						ast_channel_unlock(in);
 						sent_progress = 1;
-					}
-					if (!ast_strlen_zero(dtmf_progress)) {
-						ast_verb(3,
-							"Sending DTMF '%s' to the called party as result of receiving a PROGRESS message.\n",
-							dtmf_progress);
-						ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+
+						if (!ast_strlen_zero(dtmf_progress)) {
+							ast_verb(3,
+								"Sending DTMF '%s' to the called party as result of "
+								"receiving a PROGRESS message.\n",
+								dtmf_progress);
+							ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
+						}
 					}
 					ast_channel_publish_dial(in, c, NULL, "PROGRESS");
 					break;
