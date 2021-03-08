@@ -1209,7 +1209,8 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 
 		/* We don't need to lock here because we are the thread that
 		 * created this mohclass and we haven't published it yet */
-		ao2_replace(mohclass->files, playlist_entries);
+		ao2_ref(mohclass->files, -1);
+		mohclass->files = playlist_entries;
 	}
 }
 
@@ -1306,7 +1307,8 @@ static int moh_scan_files(struct mohclass *class) {
 	AST_VECTOR_COMPACT(files);
 
 	ao2_lock(class);
-	ao2_replace(class->files, files);
+	ao2_ref(class->files, -1);
+	class->files = files;
 	ao2_unlock(class);
 
 	return AST_VECTOR_SIZE(files);
