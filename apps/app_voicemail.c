@@ -47,9 +47,9 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>yes</defaultenabled>
 	<use type="module">res_adsi</use>
 	<use type="module">res_smdi</use>
+	<defaultenabled>yes</defaultenabled>
 	<support_level>core</support_level>
  ***/
 

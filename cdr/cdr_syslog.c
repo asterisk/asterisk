@@ -37,8 +37,8 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>no</defaultenabled>
 	<depend>syslog</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 ***/
 

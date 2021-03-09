@@ -13,9 +13,9 @@
  */
 
 /*** MODULEINFO
-	<defaultenabled>no</defaultenabled>
 	<depend>spandsp</depend>
 	<conflict>res_fax</conflict>
+	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
 	<replacement>res_fax</replacement>
 ***/
