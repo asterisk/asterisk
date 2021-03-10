@@ -134,4 +134,4 @@ static int load_module(void)
 	return ast_register_application_xml(app, blind_transfer_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Blind transfer channel to the given destination");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Blind transfer channel to the given destination");
