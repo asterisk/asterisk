@@ -279,11 +279,19 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 
 	if (!mem->is_separator) { /* Separators lack support levels */
 		{ /* support level */
+			char buf2[64];
 			wmove(menu, end - start_y + 7, start_x);
 			snprintf(buf, sizeof(buf), "Support Level: %s", mem->support_level);
 			if (mem->replacement && *mem->replacement) {
-				char buf2[64];
 				snprintf(buf2, sizeof(buf2), ", Replaced by: %s", mem->replacement);
+				strncat(buf, buf2, sizeof(buf) - strlen(buf) - 1);
+			}
+			if (mem->deprecated_in && *mem->deprecated_in) {
+				snprintf(buf2, sizeof(buf2), ", Deprecated in: %s", mem->deprecated_in);
+				strncat(buf, buf2, sizeof(buf) - strlen(buf) - 1);
+			}
+			if (mem->removed_in && *mem->removed_in) {
+				snprintf(buf2, sizeof(buf2), ", Removed in: %s", mem->removed_in);
 				strncat(buf, buf2, sizeof(buf) - strlen(buf) - 1);
 			}
 			waddstr(menu, buf);
