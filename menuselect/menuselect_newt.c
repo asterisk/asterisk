@@ -110,6 +110,7 @@ static void reset_display()
 static void display_member_info(struct member *mem)
 {
 	char buffer[128] = { 0 };
+	char buf2[64];
 
 	struct reference *dep;
 	struct reference *con;
@@ -175,8 +176,15 @@ static void display_member_info(struct member *mem)
 	{ /* Support Level */
 		snprintf(buffer, sizeof(buffer), "%s", mem->support_level);
 		if (mem->replacement && *mem->replacement) {
-			char buf2[64];
 			snprintf(buf2, sizeof(buf2), ", Replaced by: %s", mem->replacement);
+			strncat(buffer, buf2, sizeof(buffer) - strlen(buffer) - 1);
+		}
+		if (mem->deprecated_in && *mem->deprecated_in) {
+			snprintf(buf2, sizeof(buf2), ", Deprecated in: %s", mem->deprecated_in);
+			strncat(buffer, buf2, sizeof(buffer) - strlen(buffer) - 1);
+		}
+		if (mem->removed_in && *mem->removed_in) {
+			snprintf(buf2, sizeof(buf2), ", Removed in: %s", mem->removed_in);
 			strncat(buffer, buf2, sizeof(buffer) - strlen(buffer) - 1);
 		}
 		if (mem->is_separator) {
