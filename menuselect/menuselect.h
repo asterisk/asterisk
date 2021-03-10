@@ -70,6 +70,8 @@ struct member {
 	const char *touch_on_change;
 	const char *support_level;
 	const char *replacement;
+	const char *deprecated_in;
+	const char *removed_in;
 	/*! member_data is just an opaque, member-specific string */
 	const char *member_data;
 	/*! This module is currently selected */
