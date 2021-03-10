@@ -11,7 +11,7 @@
   accept	CDATA       #IMPLIED
   accept-language CDATA  #IMPLIED >
 
-  <!ELEMENT module (depend*,use*,conflict*,defaultenabled?,support_level?,replacement?)>
+  <!ELEMENT module (depend*,use*,conflict*,defaultenabled?,support_level?,replacement?,deprecated_in?,removed_in?)>
   <!ATTLIST module name CDATA #REQUIRED>
   <!ATTLIST module language CDATA #REQUIRED>
 
@@ -28,6 +28,10 @@
   <!ATTLIST use type CDATA #IMPLIED>
 
   <!ELEMENT conflict (#PCDATA)>
+
+  <!ELEMENT deprecated_in (#PCDATA)>
+
+  <!ELEMENT removed_in (#PCDATA)>
 
   <!ELEMENT application (synopsis?,syntax?,description?,see-also?)>
   <!ATTLIST application name CDATA #REQUIRED>
