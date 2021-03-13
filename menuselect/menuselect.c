@@ -2120,6 +2120,7 @@ int main(int argc, char *argv[])
 		/* Reset options processing */
 		option_index = 0;
 		optind = 1;
+		res = 0;
 
 		while ((c = getopt_long(argc, argv, "", long_options, &option_index)) != -1) {
 			print_debug("Got option %c\n", c);
@@ -2130,6 +2131,7 @@ int main(int argc, char *argv[])
 						set_member_enabled(mem);
 					} else {
 						fprintf(stderr, "'%s' not found\n", optarg);
+						res = 1;
 					}
 				}
 				break;
@@ -2139,6 +2141,7 @@ int main(int argc, char *argv[])
 						set_all(cat, 1);
 					} else {
 						fprintf(stderr, "'%s' not found\n", optarg);
+						res = 1;
 					}
 				}
 				break;
@@ -2153,6 +2156,7 @@ int main(int argc, char *argv[])
 						clear_member_enabled(mem);
 					} else {
 						fprintf(stderr, "'%s' not found\n", optarg);
+						res = 1;
 					}
 				}
 				break;
@@ -2162,6 +2166,7 @@ int main(int argc, char *argv[])
 						set_all(cat, 0);
 					} else {
 						fprintf(stderr, "'%s' not found\n", optarg);
+						res = 1;
 					}
 				}
 				break;
@@ -2176,7 +2181,6 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
-		res = 0;
 	}
 
 	if (!res) {
