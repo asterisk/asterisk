@@ -158,7 +158,7 @@ if [ $NO_MENUSELECT -eq 0 ] ; then
 
 	runner menuselect/menuselect `gen_mods disable $mod_disables` menuselect.makeopts
 
-	mod_enables="app_voicemail app_directory FILE_STORAGE"
+	mod_enables="app_voicemail app_directory"
 	mod_enables+=" res_mwi_external res_ari_mailboxes res_mwi_external_ami res_stasis_mailbox"
 	mod_enables+=" CORE-SOUNDS-EN-GSM MOH-OPSOUND-GSM EXTRA-SOUNDS-EN-GSM"
 	runner menuselect/menuselect `gen_mods enable $mod_enables` menuselect.makeopts
