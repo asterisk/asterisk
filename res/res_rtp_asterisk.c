@@ -7203,12 +7203,13 @@ static void rtp_instance_parse_extmap_extensions(struct ast_rtp_instance *instan
 }
 
 static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, struct ast_srtp *srtp,
-	const struct ast_sockaddr *remote_address, unsigned char *read_area, int length, int prev_seqno)
+	const struct ast_sockaddr *remote_address, unsigned char *read_area, int length, int prev_seqno,
+	unsigned int bundled)
 {
 	unsigned int *rtpheader = (unsigned int*)(read_area);
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_rtp_instance *instance1;
-	int res = length, hdrlen = 12, seqno, payloadtype, padding, mark, ext, cc;
+	int res = length, hdrlen = 12, ssrc, seqno, payloadtype, padding, mark, ext, cc;
 	unsigned int timestamp;
 	RAII_VAR(struct ast_rtp_payload_type *, payload, NULL, ao2_cleanup);
 	struct frame_list frames;
@@ -7225,6 +7226,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	}
 
 	/* Pull out the various other fields we will need */
+	ssrc = ntohl(rtpheader[2]);
 	seqno = ntohl(rtpheader[0]);
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
@@ -7272,6 +7274,42 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d\n", res, hdrlen);
 		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	}
+
+	/* Only non-bundled instances can change/learn the remote's SSRC implicitly. */
+	if (!bundled) {
+		/* Force a marker bit and change SSRC if the SSRC changes */
+		if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
+			struct ast_frame *f, srcupdate = {
+				AST_FRAME_CONTROL,
+				.subclass.integer = AST_CONTROL_SRCCHANGE,
+			};
+
+			if (!mark) {
+				if (ast_debug_rtp_packet_is_allowed) {
+					ast_debug(0, "(%p) RTP forcing Marker bit, because SSRC has changed\n", instance);
+				}
+				mark = 1;
+			}
+
+			f = ast_frisolate(&srcupdate);
+			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+
+			rtp->seedrxseqno = 0;
+			rtp->rxcount = 0;
+			rtp->rxoctetcount = 0;
+			rtp->cycles = 0;
+			prev_seqno = 0;
+			rtp->last_seqno = 0;
+			rtp->last_end_timestamp = 0;
+			if (rtp->rtcp) {
+				rtp->rtcp->expected_prior = 0;
+				rtp->rtcp->received_prior = 0;
+			}
+		}
+
+		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
+		rtp->themssrc_valid = 1;
 	}
 
 	rtp->rxcount++;
@@ -7498,13 +7536,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	struct ast_srtp *srtp;
 	RAII_VAR(struct ast_rtp_instance *, child, NULL, rtp_instance_unlock);
 	struct ast_sockaddr addr;
-	int res, hdrlen = 12, version, payloadtype, mark;
+	int res, hdrlen = 12, version, payloadtype;
 	unsigned char *read_area = rtp->rawdata + AST_FRIENDLY_OFFSET;
 	size_t read_area_size = sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET;
 	unsigned int *rtpheader = (unsigned int*)(read_area), seqno, ssrc, timestamp, prev_seqno;
 	struct ast_sockaddr remote_address = { {0,} };
 	struct frame_list frames;
 	struct ast_frame *frame;
+	unsigned int bundled;
 
 	/* If this is actually RTCP let's hop on over and handle it */
 	if (rtcp) {
@@ -7781,7 +7820,6 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* Pull out the various other fields we will need */
 	payloadtype = (seqno & 0x7f0000) >> 16;
-	mark = seqno & (1 << 23);
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
 
@@ -7793,48 +7831,14 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	AST_LIST_HEAD_INIT_NOLOCK(&frames);
 
-	/* Only non-bundled instances can change/learn the remote's SSRC implicitly. */
-	if (!child && !AST_VECTOR_SIZE(&rtp->ssrc_mapping)) {
-		/* Force a marker bit and change SSRC if the SSRC changes */
-		if (rtp->themssrc_valid && rtp->themssrc != ssrc) {
-			struct ast_frame *f, srcupdate = {
-				AST_FRAME_CONTROL,
-				.subclass.integer = AST_CONTROL_SRCCHANGE,
-			};
-
-			if (!mark) {
-				if (ast_debug_rtp_packet_is_allowed) {
-					ast_debug(0, "(%p) RTP forcing Marker bit, because SSRC has changed\n", instance);
-				}
-				mark = 1;
-			}
-
-			f = ast_frisolate(&srcupdate);
-			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
-
-			rtp->seedrxseqno = 0;
-			rtp->rxcount = 0;
-			rtp->rxoctetcount = 0;
-			rtp->cycles = 0;
-			rtp->lastrxseqno = 0;
-			rtp->last_seqno = 0;
-			rtp->last_end_timestamp = 0;
-			if (rtp->rtcp) {
-				rtp->rtcp->expected_prior = 0;
-				rtp->rtcp->received_prior = 0;
-			}
-		}
-
-		rtp->themssrc = ssrc; /* Record their SSRC to put in future RR */
-		rtp->themssrc_valid = 1;
-	}
+	bundled = (child || AST_VECTOR_SIZE(&rtp->ssrc_mapping)) ? 1 : 0;
 
 	prev_seqno = rtp->lastrxseqno;
 	rtp->lastrxseqno = seqno;
 
 	if (!rtp->recv_buffer) {
 		/* If there is no receive buffer then we can pass back the frame directly */
-		frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+		frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 		AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 		return AST_LIST_FIRST(&frames);
 	} else if (rtp->expectedrxseqno == -1 || seqno == rtp->expectedrxseqno) {
@@ -7849,7 +7853,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * return it directly without duplicating it.
 		 */
 		if (!ast_data_buffer_count(rtp->recv_buffer)) {
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			return AST_LIST_FIRST(&frames);
 		}
@@ -7864,7 +7868,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * chance it will be overwritten.
 		 */
 		if (!ast_data_buffer_get(rtp->recv_buffer, rtp->expectedrxseqno)) {
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			return AST_LIST_FIRST(&frames);
 		}
@@ -7874,7 +7878,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		 * to the head of the frames list and avoid having to duplicate it but this would result in out
 		 * of order packet processing by libsrtp which we are trying to avoid.
 		 */
-		frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno));
+		frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled));
 		if (frame) {
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			prev_seqno = seqno;
@@ -7889,7 +7893,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 				break;
 			}
 
-			frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno));
+			frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno, bundled));
 			ast_free(payload);
 
 			if (!frame) {
@@ -7935,7 +7939,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			/* If the packet we received is the one we are expecting at this point then add it in */
 			if (rtp->expectedrxseqno == seqno) {
-				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno));
+				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled));
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = seqno;
@@ -7960,7 +7964,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 			payload = (struct ast_rtp_rtcp_nack_payload *)ast_data_buffer_remove(rtp->recv_buffer, rtp->expectedrxseqno);
 			if (payload) {
-				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno));
+				frame = ast_frdup(ast_rtp_interpret(instance, srtp, &addr, payload->buf, payload->size, prev_seqno, bundled));
 				if (frame) {
 					AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 					prev_seqno = rtp->expectedrxseqno;
@@ -7982,7 +7986,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			 * to be the last packet processed right now and it is also guaranteed that it will always return
 			 * non-NULL.
 			 */
-			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno);
+			frame = ast_rtp_interpret(instance, srtp, &addr, read_area, res, prev_seqno, bundled);
 			AST_LIST_INSERT_TAIL(&frames, frame, frame_list);
 			rtp->expectedrxseqno = seqno + 1;
 			if (rtp->expectedrxseqno == SEQNO_CYCLE_OVER) {
