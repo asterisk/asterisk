@@ -4200,18 +4200,40 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 	struct ast_sip_session_media_state *pending_media_state = NULL;
 	struct ast_sip_session_media_state *active_media_state = NULL;
 	const char *session_name = ast_sip_session_get_name(session);
+	int use_pending = 0;
+	int use_active = 0;
+
 	SCOPE_ENTER(3, "%s\n", session_name);
 
-	/* If the two media state topologies are the same this means that the session refresh request
+	/*
+	 * If the two media state topologies are the same this means that the session refresh request
 	 * did not specify a desired topology, so it does not care. If that is the case we don't even
-	 * pass one in here resulting in the current topology being used.
+	 * pass one in here resulting in the current topology being used.  It's possible though that
+	 * either one of the topologies could be NULL so we have to test for that before we check for
+	 * equality.
 	 */
-	if (!ast_stream_topology_equal(session->active_media_state->topology, session->pending_media_state->topology)) {
+
+	/* We only want to clone a media state if its topology is not null */
+	use_pending = session->pending_media_state->topology != NULL;
+	use_active = session->active_media_state->topology != NULL;
+
+	/*
+	 * If both media states have topologies, we can test for equality.  If they're equal we're not going to
+	 * clone either states.
+	 */
+	if (use_pending && use_active && ast_stream_topology_equal(session->active_media_state->topology, session->pending_media_state->topology)) {
+		use_pending = 0;
+		use_active = 0;
+	}
+
+	if (use_pending) {
 		pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
 		if (!pending_media_state) {
 			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
 		}
+	}
 
+	if (use_active) {
 		active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
 		if (!active_media_state) {
 			ast_sip_session_media_state_free(pending_media_state);
