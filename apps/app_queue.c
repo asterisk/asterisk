@@ -2457,9 +2457,9 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 		 * happen when there is latency in the connection to the member.
 		 */
 		pending_members_remove(m);
-	}
 
-	queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
+		queue_publish_member_blob(queue_member_status_type(), queue_member_blob_create(q, m));
+	}
 }
 
 /*!
