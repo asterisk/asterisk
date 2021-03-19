@@ -679,6 +679,23 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	return chan;
 }
 
+void ast_init_logger_for_socket_console(void)
+{
+	struct ast_config *cfg;
+	const char *s;
+	struct ast_flags config_flags = { 0 };
+
+	if (!(cfg = ast_config_load2("logger.conf", "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
+		return;
+	}
+
+	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
+		ast_copy_string(dateformat, s, sizeof(dateformat));
+	}
+
+	ast_config_destroy(cfg);
+}
+
 /*!
  * \brief Read config, setup channels.
  * \param altconf Alternate configuration file to read.

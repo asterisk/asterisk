@@ -3254,6 +3254,8 @@ static void ast_remotecontrol(char *data)
 	}
 
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
+	ast_init_logger_for_socket_console();
+
 	remotehostname = hostname;
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();
