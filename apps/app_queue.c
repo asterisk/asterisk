@@ -7704,6 +7704,10 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 				char *category = NULL;
 				while ((category = ast_category_browse(queue_config, category))) {
 					const char *name = ast_variable_retrieve(queue_config, category, "name");
+					if (ast_strlen_zero(name)) {
+						ast_log(LOG_WARNING, "Ignoring realtime queue with a NULL or empty 'name.'\n");
+						continue;
+					}
 					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
 						foundinterface += set_member_value_help_members(q, interface, property, value);
@@ -9788,6 +9792,10 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 			char *category = NULL;
 			while ((category = ast_category_browse(cfg, category))) {
 				const char *queuename = ast_variable_retrieve(cfg, category, "name");
+				if (ast_strlen_zero(queuename)) {
+					ast_log(LOG_WARNING, "Ignoring realtime queue with a NULL or empty 'name.'\n");
+					continue;
+				}
 				if ((q = find_load_queue_rt_friendly(queuename))) {
 					queue_t_unref(q, "Done with temporary pointer");
 				}
