@@ -710,6 +710,7 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 			 * signaling and we need to be sure that the locking order is the same to prevent possible
 			 * deadlocks.
 			 */
+			ast_channel_unlock(ast);
 			ast_unreal_lock_all(p, &chan, &owner);
 
 			if (owner) {
@@ -726,12 +727,14 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 			}
 
 			ao2_unlock(p);
+			ast_channel_lock(ast);
 		} else if (parameters->request_response == AST_T38_TERMINATED) {
 			/*
 			 * Lock both parts of the local channel so we can restore their topologies to the original.
 			 * The topology should be on the unreal_pvt structure, with a ref that we can steal. Same
 			 * conditions as above.
 			 */
+			ast_channel_unlock(ast);
 			ast_unreal_lock_all(p, &chan, &owner);
 
 			if (owner) {
@@ -745,6 +748,7 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 			}
 
 			ao2_unlock(p);
+			ast_channel_lock(ast);
 		}
 
 		/*
