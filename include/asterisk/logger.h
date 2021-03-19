@@ -621,6 +621,11 @@ an entry/exit message.  To do so, you can use the ast_trace macros...
  */
 unsigned int ast_trace_get_by_module(const char *module);
 
+/*!
+ * \brief load logger.conf configuration for console socket connections
+ */
+void ast_init_logger_for_socket_console(void);
+
 #define TRACE_ATLEAST(level) \
 	(option_trace >= (level) \
 		|| (ast_opt_trace_module \
