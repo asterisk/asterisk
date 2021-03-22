@@ -1,3 +1,39 @@
+2021-03-22 15:41 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.3.0-rc2 Released.
+
+2021-03-18 11:14 +0000 [bffff6e2d0]  George Joseph <gjoseph@digium.com>
+
+	* res_pjsip_session: Make reschedule_reinvite check for NULL topologies
+
+	  When the check for equal topologies was added to reschedule_reinvite()
+	  it was assumed that both the pending and active media states would
+	  actually have non-NULL topologies.  We since discovered this isn't
+	  the case.
+
+	  We now only test for equal topologies if both media states have
+	  non-NULL topologies.  The logic had to be rearranged a bit to make
+	  sure that we cloned the media states if their topologies were
+	  non-NULL but weren't equal.
+
+	  ASTERISK-29215
+
+	  Change-Id: I61313cca7fc571144338aac826091791b87b6e17
+
+2021-03-19 08:52 +0000 [47e9ce96ea]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* core_unreal: Fix deadlock with T.38 control frames.
+
+	  When using the ast_unreal_lock_all function no channel
+	  locks can be held before calling it.
+
+	  This change unlocks the channel that indicate was
+	  called on before doing so and then relocks it afterwards.
+
+	  ASTERISK-29035
+
+	  Change-Id: Id65016201b5f9c9519a216e250f9101c629e19e9
+
 2021-03-11 17:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.3.0-rc1 Released.
