@@ -384,7 +384,7 @@ struct ast_rtp {
 	unsigned int txcount;           /*!< How many packets have we sent? */
 	unsigned int txoctetcount;      /*!< How many octets have we sent? (txcount*160)*/
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
-	double rxjitter;                /*!< Interarrival jitter at the moment in seconds */
+	double rxjitter;                /*!< Interarrival jitter at the moment in seconds to be reported */
 	double rxtransit;               /*!< Relative transit time for previous packet */
 	struct ast_format *lasttxformat;
 	struct ast_format *lastrxformat;
@@ -511,34 +511,36 @@ struct ast_rtcp {
 	unsigned int reported_jitter;	/*!< The contents of their last jitter entry in the RR */
 	unsigned int reported_lost;	/*!< Reported lost packets in their RR */
 
-	double reported_maxjitter;
-	double reported_minjitter;
-	double reported_normdev_jitter;
-	double reported_stdev_jitter;
-	unsigned int reported_jitter_count;
+	double reported_maxjitter; /*!< Maximum reported interarrival jitter */
+	double reported_minjitter; /*!< Minimum reported interarrival jitter */
+	double reported_normdev_jitter; /*!< Mean of reported interarrival jitter */
+	double reported_stdev_jitter; /*!< Standard deviation of reported interarrival jitter */
+	unsigned int reported_jitter_count; /*!< Reported interarrival jitter count */
 
-	double reported_maxlost;
-	double reported_minlost;
-	double reported_normdev_lost;
-	double reported_stdev_lost;
+	double reported_maxlost; /*!< Maximum reported packets lost */
+	double reported_minlost; /*!< Minimum reported packets lost */
+	double reported_normdev_lost; /*!< Mean of reported packets lost */
+	double reported_stdev_lost; /*!< Standard deviation of reported packets lost */
+	unsigned int reported_lost_count; /*!< Reported packets lost count */
 
-	double rxlost;
-	double maxrxlost;
-	double minrxlost;
-	double normdev_rxlost;
-	double stdev_rxlost;
-	unsigned int rxlost_count;
+	double rxlost; /*!< Calculated number of lost packets since last report */
+	double maxrxlost; /*!< Maximum calculated lost number of packets between reports */
+	double minrxlost; /*!< Minimum calculated lost number of packets between reports */
+	double normdev_rxlost; /*!< Mean of calculated lost packets between reports */
+	double stdev_rxlost; /*!< Standard deviation of calculated lost packets between reports */
+	unsigned int rxlost_count; /*!< Calculated lost packets sample count */
 
-	double maxrxjitter;
-	double minrxjitter;
-	double normdev_rxjitter;
-	double stdev_rxjitter;
-	unsigned int rxjitter_count;
-	double maxrtt;
-	double minrtt;
-	double normdevrtt;
-	double stdevrtt;
-	unsigned int rtt_count;
+	double maxrxjitter; /*!< Maximum of calculated interarrival jitter */
+	double minrxjitter; /*!< Minimum of calculated interarrival jitter */
+	double normdev_rxjitter; /*!< Mean of calculated interarrival jitter */
+	double stdev_rxjitter; /*!< Standard deviation of calculated interarrival jitter */
+	unsigned int rxjitter_count; /*!< Calculated interarrival jitter count */
+
+	double maxrtt; /*!< Maximum of calculated round trip time */
+	double minrtt; /*!< Minimum of calculated round trip time */
+	double normdevrtt; /*!< Mean of calculated round trip time */
+	double stdevrtt; /*!< Standard deviation of calculated round trip time */
+	unsigned int rtt_count; /*!< Calculated round trip time count */
 
 	/* VP8: sequence number for the RTCP FIR FCI */
 	int firseq;
@@ -3317,49 +3319,32 @@ static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
 	return interval;
 }
 
-/*! \brief Calculate normal deviation */
-static double normdev_compute(double normdev, double sample, unsigned int sample_count)
+static void calc_mean_and_standard_deviation(double new_sample, double *mean, double *std_dev, unsigned int *count)
 {
-	normdev = normdev * sample_count + sample;
-	sample_count++;
+	double delta1;
+	double delta2;
 
-	/*
-	 It's possible the sample_count hits the maximum value and back to 0.
-	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
-	 */
-	if (sample_count == 0) {
-		sample_count = 1;
+	/* First convert the standard deviation back into a sum of squares. */
+	double last_sum_of_squares = (*std_dev) * (*std_dev) * (*count ?: 1);
+
+	if (++(*count) == 0) {
+		/* Avoid potential divide by zero on an overflow */
+		*count = 1;
 	}
 
-	return normdev / sample_count;
-}
-
-static double stddev_compute(double stddev, double sample, double normdev, double normdev_curent, unsigned int sample_count)
-{
-/*
-		for the formula check http://www.cs.umd.edu/~austinjp/constSD.pdf
-		return sqrt( (sample_count*pow(stddev,2) + sample_count*pow((sample-normdev)/(sample_count+1),2) + pow(sample-normdev_curent,2)) / (sample_count+1));
-		we can compute the sigma^2 and that way we would have to do the sqrt only 1 time at the end and would save another pow 2 compute
-		optimized formula
-*/
-#define SQUARE(x) ((x) * (x))
-
-	stddev = sample_count * stddev;
-	sample_count++;
-
 	/*
-	 It's possible the sample_count hits the maximum value and back to 0.
-	 Set to 1 to prevent the divide by zero crash if the sample_count is 0.
+	 * Below is an implementation of Welford's online algorithm [1] for calculating
+	 * mean and variance in a single pass.
+	 *
+	 * [1] https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 	 */
-	if (sample_count == 0) {
-		sample_count = 1;
-	}
 
-	return stddev +
-		( sample_count * SQUARE( (sample - normdev) / sample_count ) ) +
-		( SQUARE(sample - normdev_curent) / sample_count );
+	delta1 = new_sample - *mean;
+	*mean += (delta1 / *count);
+	delta2 = new_sample - *mean;
 
-#undef SQUARE
+	/* Now calculate the new variance, and subsequent standard deviation */
+	*std_dev = sqrt((last_sum_of_squares + (delta1 * delta2)) / *count);
 }
 
 static int create_new_socket(const char *type, int af)
@@ -4434,7 +4419,6 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	unsigned int expected_packets;
 	unsigned int expected_interval;
 	unsigned int received_interval;
-	double rxlost_current;
 	int lost_interval;
 
 	/* Compute statistics */
@@ -4464,6 +4448,13 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	/* Update RTCP statistics */
 	rtp->rtcp->received_prior = rtp->rxcount;
 	rtp->rtcp->expected_prior = expected_packets;
+
+	/*
+	 * While rxlost represents the number of packets lost since the last report was sent, for
+	 * the calculations below it should be thought of as a single sample. Thus min/max are the
+	 * lowest/highest sample value seen, and the mean is the average number of packets lost
+	 * between each report. As such rxlost_count only needs to be incremented per report.
+	 */
 	if (lost_interval <= 0) {
 		rtp->rtcp->rxlost = 0;
 	} else {
@@ -4478,16 +4469,9 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	if (lost_interval > rtp->rtcp->maxrxlost) {
 		rtp->rtcp->maxrxlost = rtp->rtcp->rxlost;
 	}
-	rxlost_current = normdev_compute(rtp->rtcp->normdev_rxlost,
-			rtp->rtcp->rxlost,
-			rtp->rtcp->rxlost_count);
-	rtp->rtcp->stdev_rxlost = stddev_compute(rtp->rtcp->stdev_rxlost,
-			rtp->rtcp->rxlost,
-			rtp->rtcp->normdev_rxlost,
-			rxlost_current,
-			rtp->rtcp->rxlost_count);
-	rtp->rtcp->normdev_rxlost = rxlost_current;
-	rtp->rtcp->rxlost_count++;
+
+	calc_mean_and_standard_deviation(rtp->rtcp->rxlost, &rtp->rtcp->normdev_rxlost,
+		&rtp->rtcp->stdev_rxlost, &rtp->rtcp->rxlost_count);
 }
 
 static int ast_rtcp_generate_report(struct ast_rtp_instance *instance, unsigned char *rtcpheader,
@@ -5423,7 +5407,6 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 	double prog;
 	int rate = ast_rtp_get_rate(rtp->f.subclass.format);
 
-	double normdev_rxjitter_current;
 	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->drxcore = (double) rtp->rxcore.tv_sec + (double) rtp->rxcore.tv_usec / 1000000;
@@ -5458,11 +5441,8 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		if (rtp->rtcp && rtp->rxjitter < rtp->rtcp->minrxjitter)
 			rtp->rtcp->minrxjitter = rtp->rxjitter;
 
-		normdev_rxjitter_current = normdev_compute(rtp->rtcp->normdev_rxjitter,rtp->rxjitter,rtp->rtcp->rxjitter_count);
-		rtp->rtcp->stdev_rxjitter = stddev_compute(rtp->rtcp->stdev_rxjitter,rtp->rxjitter,rtp->rtcp->normdev_rxjitter,normdev_rxjitter_current,rtp->rtcp->rxjitter_count);
-
-		rtp->rtcp->normdev_rxjitter = normdev_rxjitter_current;
-		rtp->rtcp->rxjitter_count++;
+		calc_mean_and_standard_deviation(rtp->rxjitter, &rtp->rtcp->normdev_rxjitter,
+			&rtp->rtcp->stdev_rxjitter, &rtp->rtcp->rxjitter_count);
 	}
 }
 
@@ -5778,7 +5758,6 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	unsigned int rtt_lsw;
 	unsigned int lsr_a;
 	unsigned int rtt;
-	double normdevrtt_current;
 
 	gettimeofday(&now, NULL);
 	timeval2ntp(now, &msw, &lsw);
@@ -5815,16 +5794,8 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 		rtp->rtcp->maxrtt = rtp->rtcp->rtt;
 	}
 
-	normdevrtt_current = normdev_compute(rtp->rtcp->normdevrtt,
-			rtp->rtcp->rtt,
-			rtp->rtcp->rtt_count);
-	rtp->rtcp->stdevrtt = stddev_compute(rtp->rtcp->stdevrtt,
-			rtp->rtcp->rtt,
-			rtp->rtcp->normdevrtt,
-			normdevrtt_current,
-			rtp->rtcp->rtt_count);
-	rtp->rtcp->normdevrtt = normdevrtt_current;
-	rtp->rtcp->rtt_count++;
+	calc_mean_and_standard_deviation(rtp->rtcp->rtt, &rtp->rtcp->normdevrtt,
+		&rtp->rtcp->stdevrtt, &rtp->rtcp->rtt_count);
 
 	return 0;
 }
@@ -5836,7 +5807,6 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 {
 	double reported_jitter;
-	double reported_normdev_jitter_current;
 
 	rtp->rtcp->reported_jitter = ia_jitter;
 	reported_jitter = (double) rtp->rtcp->reported_jitter;
@@ -5849,9 +5819,9 @@ static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 	if (reported_jitter > rtp->rtcp->reported_maxjitter) {
 		rtp->rtcp->reported_maxjitter = reported_jitter;
 	}
-	reported_normdev_jitter_current = normdev_compute(rtp->rtcp->reported_normdev_jitter, reported_jitter, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_stdev_jitter = stddev_compute(rtp->rtcp->reported_stdev_jitter, reported_jitter, rtp->rtcp->reported_normdev_jitter, reported_normdev_jitter_current, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_normdev_jitter = reported_normdev_jitter_current;
+
+	calc_mean_and_standard_deviation(reported_jitter, &rtp->rtcp->reported_normdev_jitter,
+		&rtp->rtcp->reported_stdev_jitter, &rtp->rtcp->reported_jitter_count);
 }
 
 /*!
@@ -5861,11 +5831,10 @@ static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 {
 	double reported_lost;
-	double reported_normdev_lost_current;
 
 	rtp->rtcp->reported_lost = lost_packets;
 	reported_lost = (double)rtp->rtcp->reported_lost;
-	if (rtp->rtcp->reported_jitter_count == 0) {
+	if (rtp->rtcp->reported_lost_count == 0) {
 		rtp->rtcp->reported_minlost = reported_lost;
 	}
 	if (reported_lost < rtp->rtcp->reported_minlost) {
@@ -5874,9 +5843,9 @@ static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 	if (reported_lost > rtp->rtcp->reported_maxlost) {
 		rtp->rtcp->reported_maxlost = reported_lost;
 	}
-	reported_normdev_lost_current = normdev_compute(rtp->rtcp->reported_normdev_lost, reported_lost, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_stdev_lost = stddev_compute(rtp->rtcp->reported_stdev_lost, reported_lost, rtp->rtcp->reported_normdev_lost, reported_normdev_lost_current, rtp->rtcp->reported_jitter_count);
-	rtp->rtcp->reported_normdev_lost = reported_normdev_lost_current;
+
+	calc_mean_and_standard_deviation(reported_lost, &rtp->rtcp->reported_normdev_lost,
+		&rtp->rtcp->reported_stdev_lost, &rtp->rtcp->reported_lost_count);
 }
 
 /*! \pre instance is locked */
@@ -6449,7 +6418,6 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 				}
 				update_jitter_stats(rtp, report_block->ia_jitter);
 				update_lost_stats(rtp, report_block->lost_count.packets);
-				rtp->rtcp->reported_jitter_count++;
 
 				if (rtcp_debug_test_addr(addr)) {
 					ast_verbose("  Fraction lost: %d\n", report_block->lost_count.fraction);
