@@ -41,19 +41,6 @@ persistentmembers = yes
 ;
 monitor-type = MixMonitor
 ;
-; UpdateCDR behavior.
-;    This option is implemented to mimic chan_agents behavior of populating
-;    CDR dstchannel field of a call with an agent name, which you can set
-;    at the login time with AddQueueMember membername parameter.
-;
-; updatecdr = no
-
-;
-; Note that a timeout to fail out of a queue may be passed as part of
-; an application call from extensions.conf:
-; Queue(queuename,[options],[optionalurl],[announceoverride],[timeout])
-; example: Queue(dave,t,,,45)
-
 ; shared_lastcall will make the lastcall and calls received be the same in
 ; members logged in more than one queue.  This is useful to make the queue
 ; respect the wrapuptime of another queue for a shared member.
