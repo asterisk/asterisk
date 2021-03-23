@@ -1484,9 +1484,6 @@ static int realtime_rules;
 static struct stasis_subscription *device_state_sub;
 
 /*! \brief queues.conf [general] option */
-static int update_cdr;
-
-/*! \brief queues.conf [general] option */
 static int negative_penalty_invalid;
 
 /*! \brief queues.conf [general] option */
@@ -9206,7 +9203,6 @@ static void queue_reset_global_params(void)
 	queue_persistent_members = 0;
 	autofill_default = 0;
 	montype_default = 0;
-	update_cdr = 0;
 	shared_lastcall = 0;
 	negative_penalty_invalid = 0;
 	log_membername_as_agent = 0;
@@ -9225,9 +9221,6 @@ static void queue_set_global_params(struct ast_config *cfg)
 	if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
 		if (!strcasecmp(general_val, "mixmonitor"))
 			montype_default = 1;
-	}
-	if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr"))) {
-		update_cdr = ast_true(general_val);
 	}
 	if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall"))) {
 		shared_lastcall = ast_true(general_val);
