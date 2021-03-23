@@ -106,9 +106,9 @@ monitor-type = MixMonitor
 ; SL2 = ((calls answered within threshold + calls abandoned within threshold) / (answered calls + abandoned calls)) * 100
 ;servicelevel = 60
 ;
-; A context may be specified, in which if the user types a SINGLE
-; digit extension while they are in the queue, they will be taken out
-; of the queue and sent to that extension in this context.
+; If a 'context' is specified, and a caller enters an extension that
+; matches an extension within that context, they will be taken out of
+; the queue and sent to that extension.
 ;
 ;context = qoutcon
 ;
