@@ -1,4 +1,4 @@
-__LOGDIR__/debug __LOGDIR__/console __LOGDIR__/full __LOGDIR__/messages __LOGDIR__/*log {
+__LOGDIR__/debug.log __LOGDIR__/console __LOGDIR__/full.log __LOGDIR__/messages.log __LOGDIR__/*log {
 	weekly
 	missingok
 	rotate 52

@@ -157,15 +157,15 @@
 ; modes on a production system unless you are in the process of debugging
 ; a specific issue.
 ;
-;debug => debug
-;trace => trace
-;security => security
+;debug.log => error,warning,notice,verbose,debug
+;trace.log => trace
+;security.log => security
 console => notice,warning,error
 ;console => notice,warning,error,debug
-messages => notice,warning,error
-;full => notice,warning,error,debug,verbose,dtmf,fax
+messages.log => notice,warning,error
+;full.log => notice,warning,error,debug,verbose,dtmf,fax
 ;
-;full-json => [json]debug,verbose,notice,warning,error,dtmf,fax
+;full-json.log => [json]debug,verbose,notice,warning,error,dtmf,fax
 ;
 ;syslog keyword : This special keyword logs to syslog facility
 ;
