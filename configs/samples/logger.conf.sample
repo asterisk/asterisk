@@ -131,10 +131,15 @@
 ;    fax
 ;    security
 ;
-; Verbose takes an optional argument, in the form of an integer level.
-; Verbose messages with higher levels will not be logged to the file.  If
-; the verbose level is not specified, it will log verbose messages following
-; the current level of the root console.
+; Verbose takes an optional argument, in the form of an integer level. The
+; verbose level can be set per logfile. Verbose messages with higher levels
+; will not be logged to the file.  If the verbose level is not specified, it
+; will log verbose messages following the current level of the root console.
+;
+; Debug has multiple levels like verbose. However, it is a system wide setting
+; and cannot be specified per logfile. You specify the debug level elsewhere
+; such as the CLI 'core set debug 3', starting Asterisk with '-ddd', or in
+; asterisk.conf 'debug=3'.
 ;
 ; Special level name "*" means all levels, even dynamic levels registered
 ; by modules after the logger has been initialized (this means that loading
