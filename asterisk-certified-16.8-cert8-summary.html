@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/16.8-cert8</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/16.8-cert8</h3><h3 align="center">Date: 2021-03-25</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/16.8-cert7.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">3 Joshua C. Colp <jcolp@sangoma.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 George Joseph <gjoseph@digium.com><br/></td><td width="33%"><td width="33%">2 Joshua C. Colp <jcolp@digium.com><br/>1 sungtae kim <pchero21@gmail.com><br/>1 Stefan Ruf <ruf.stefan@swm.de><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29071">ASTERISK-29071</a>: app_confbridge: Memory rises when jitterbuffer enabled and muting over AMI occurs<br/>Reported by: Stefan Ruf<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d1057ac4276aeea4f0c2129f41699b88e078b458">[d1057ac427]</a> Joshua C. Colp -- channel: Fix crash in suppress API.</li>
+</ul><br><h4>Category: Core/Bridging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29071">ASTERISK-29071</a>: app_confbridge: Memory rises when jitterbuffer enabled and muting over AMI occurs<br/>Reported by: Stefan Ruf<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d1057ac4276aeea4f0c2129f41699b88e078b458">[d1057ac427]</a> Joshua C. Colp -- channel: Fix crash in suppress API.</li>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29215">ASTERISK-29215</a>: res_pjsip_session: NULL active_media_state topology caused asterisk crash<br/>Reported by: sungtae kim<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a41edfb46f826eedf62aff86667df6267d4734fd">[a41edfb46f]</a> George Joseph -- res_pjsip_session: Make reschedule_reinvite check for NULL topologies</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29352">ASTERISK-29352</a>: res_rtp_asterisk: Fix frame delivery time when SSRC changes<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=871349275857c0d2e14da5c799a43b0d19fe8ad2">[8713492758]</a> Joshua C. Colp -- res_rtp_asterisk: Force resync on SSRC change.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29326">ASTERISK-29326</a>: asterisk: Update copyright/company<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3875f7ac37cebd3e7078d70974554e9337fd6309">[3875f7ac37]</a> Joshua C. Colp -- asterisk: Update copyright.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8616ea05044397df3f3f0ebff55210e1d8edbfd9">8616ea0504</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for certified/16.8-cert6</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>b/CHANGES                                      |   14 +++
+b/README.md                                    |    8 +-
+b/UPGRADE.txt                                  |   14 +++
+b/main/asterisk.c                              |    8 +-
+b/main/channel.c                               |    4 -
+b/res/res_pjsip_session.c                      |   28 ++++++-
+b/res/res_rtp_asterisk.c                       |   92 +++++++++++++------------
+doc/CHANGES-staging/srtp_replay_protection.txt |    9 --
+doc/UPGRADE-staging/srtp_replay_protection.txt |    9 --
+9 files changed, 112 insertions(+), 74 deletions(-)</pre><br></html>
