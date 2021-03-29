@@ -269,7 +269,7 @@ AST_TEST_DEFINE(lost_packet_stats_nominal)
 	RAII_VAR(struct ast_rtp_instance *, instance2, NULL, ast_rtp_instance_destroy);
 	RAII_VAR(struct ast_sched_context *, test_sched, NULL, ast_sched_context_destroy_wrapper);
 	struct ast_rtp_instance_stats stats = { 0, };
-	enum ast_rtp_instance_stat stat = AST_RTP_INSTANCE_STAT_RXPLOSS;
+	enum ast_rtp_instance_stat stat = AST_RTP_INSTANCE_STAT_ALL;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -303,8 +303,42 @@ AST_TEST_DEFINE(lost_packet_stats_nominal)
 
 	/* Check RTCP stats to see if we got the expected packet loss count */
 	ast_rtp_instance_get_stats(instance2, &stats, stat);
-	ast_test_validate(test, stats.rxploss == 5,
-		"Condition of 5 lost packets was not met");
+	ast_test_validate(test, stats.rxploss == 5 && stats.local_minrxploss == 5 &&
+		stats.local_maxrxploss == 5, "Condition of 5 lost packets was not met");
+
+	/* Drop 3 before writing 5 more */
+	test_write_and_read_frames(instance1, instance2, 1023, 5);
+
+	ast_rtp_instance_queue_report(instance1);
+	test_write_frames(instance2, 1001, 1);
+	ast_rtp_instance_get_stats(instance2, &stats, stat);
+
+	/* Should now be missing 8 total packets with a change in min */
+	ast_test_validate(test, stats.rxploss == 8 && stats.local_minrxploss == 3 &&
+		stats.local_maxrxploss == 5);
+
+	/* Write 5 more with no gaps */
+	test_write_and_read_frames(instance1, instance2, 1028, 5);
+
+	ast_rtp_instance_queue_report(instance1);
+	test_write_frames(instance2, 1002, 1);
+	ast_rtp_instance_get_stats(instance2, &stats, stat);
+
+	/* Should still only be missing 8 total packets */
+	ast_test_validate(test, stats.rxploss == 8 && stats.local_minrxploss == 3 &&
+		stats.local_maxrxploss == 5);
+
+	/* Now drop 1, write another 5, drop 8, and then write 5 */
+	test_write_and_read_frames(instance1, instance2, 1034, 5);
+	test_write_and_read_frames(instance1, instance2, 1047, 5);
+
+	ast_rtp_instance_queue_report(instance1);
+	test_write_frames(instance2, 1003, 1);
+	ast_rtp_instance_get_stats(instance2, &stats, stat);
+
+	/* Now it should be missing 17 total packets, with a change in max */
+	ast_test_validate(test, stats.rxploss == 17 && stats.local_minrxploss == 3 &&
+		stats.local_maxrxploss == 9);
 
 	return AST_TEST_PASS;
 }

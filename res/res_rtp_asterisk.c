@@ -4472,7 +4472,7 @@ static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
 	if (rtp->rtcp->rxlost_count == 0) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
 	}
-	if (lost_interval < rtp->rtcp->minrxlost) {
+	if (lost_interval && lost_interval < rtp->rtcp->minrxlost) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
 	}
 	if (lost_interval > rtp->rtcp->maxrxlost) {
