@@ -1,0 +1,15 @@
+;
+; This file is used by the res_aeap module to configure parameters
+; used for AEAP applications.
+;
+;[myserver]
+;
+; type must be "server".
+;type=server
+;
+; server_url must be a websocket URL (ws or wss).
+;server_url
+;
+; codecs is an optional list of codecs that will be used over the codecs
+; specified on an endpoint if this option is present.
+;codecs=ulaw,alaw,g722,opus
