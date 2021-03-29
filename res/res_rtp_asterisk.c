@@ -5479,15 +5479,24 @@ static struct ast_frame *create_dtmf_frame(struct ast_rtp_instance *instance, en
 		rtp->resp = 0;
 		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
+	} else if (type == AST_FRAME_DTMF_BEGIN && rtp->resp == 'X') {
+		ast_debug_rtp(1, "(%p) RTP ignore flash begin from '%s'\n",
+			instance, ast_sockaddr_stringify(&remote_address));
+		rtp->resp = 0;
+		rtp->dtmfsamples = 0;
+		return &ast_null_frame;
 	}
-	ast_debug_rtp(1, "(%p) RTP creating %s DTMF Frame: %d (%c), at %s\n",
-		instance, type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
-		rtp->resp, rtp->resp,
-		ast_sockaddr_stringify(&remote_address));
+
 	if (rtp->resp == 'X') {
+		ast_debug_rtp(1, "(%p) RTP creating flash Frame at %s\n",
+			instance, ast_sockaddr_stringify(&remote_address));
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass.integer = AST_CONTROL_FLASH;
 	} else {
+		ast_debug_rtp(1, "(%p) RTP creating %s DTMF Frame: %d (%c), at %s\n",
+			instance, type == AST_FRAME_DTMF_END ? "END" : "BEGIN",
+			rtp->resp, rtp->resp,
+			ast_sockaddr_stringify(&remote_address));
 		rtp->f.frametype = type;
 		rtp->f.subclass.integer = rtp->resp;
 	}
