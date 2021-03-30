@@ -619,8 +619,8 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg,
 				&temp_state->state->factory);
 		}
-#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 	} else if (transport->type == AST_TRANSPORT_TLS) {
+#if defined(PJ_HAS_SSL_SOCK) && PJ_HAS_SSL_SOCK != 0
 		static int option = 1;
 
 		if (transport->async_operations > 1 && ast_compare_versions(pj_get_version(), "2.5.0") < 0) {
@@ -650,6 +650,10 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 				&temp_state->state->host, NULL, transport->async_operations,
 				&temp_state->state->factory);
 		}
+#else
+		ast_log(LOG_ERROR, "Transport: %s: PJSIP has not been compiled with TLS transport support, ensure OpenSSL development packages are installed\n",
+			ast_sorcery_object_get_id(obj));
+		return -1;
 #endif
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
 		if (transport->cos || transport->tos) {
