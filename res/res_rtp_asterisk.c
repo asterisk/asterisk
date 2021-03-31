@@ -7560,7 +7560,9 @@ struct rtp_drop_packets_data {
 	struct ast_sockaddr addr;
 	/* The optional port from which to drop packets from. */
 	unsigned int port;
-} drop_packets_data;
+};
+
+static struct rtp_drop_packets_data drop_packets_data;
 
 static void drop_packets_data_update(struct timeval tv)
 {
