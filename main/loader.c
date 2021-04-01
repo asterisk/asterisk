@@ -2422,33 +2422,38 @@ done:
 			continue;
 		}
 
-		results = ast_xmldoc_query("/docs/module[@name='%s']/deprecated_in", mod_name);
-		deprecated_in[0] = '\0';
-		if (results) {
-			const char *result_tmp = ast_xml_get_text(ast_xml_xpath_get_first_result(results));
-			if (!ast_strlen_zero(result_tmp)) {
-				ast_copy_string(deprecated_in, result_tmp, sizeof(deprecated_in));
-			}
-			ast_xml_xpath_results_free(results);
-		}
+		/* Clear out the previous values */
+		deprecated_in[0] = removed_in[0] = replacement[0] = 0;
 
-		results = ast_xmldoc_query("/docs/module[@name='%s']/removed_in", mod_name);
-		removed_in[0] = '\0';
+		results = ast_xmldoc_query("/docs/module[@name='%s']", mod_name);
 		if (results) {
-			const char *result_tmp = ast_xml_get_text(ast_xml_xpath_get_first_result(results));
-			if (!ast_strlen_zero(result_tmp)) {
-				ast_copy_string(removed_in, result_tmp, sizeof(removed_in));
-			}
-			ast_xml_xpath_results_free(results);
-		}
+			struct ast_xml_node *deprecated_node, *removed_node, *replacement_node;
+			struct ast_xml_node *metadata_nodes = ast_xml_node_get_children(ast_xml_xpath_get_first_result(results));
 
-		results = ast_xmldoc_query("/docs/module[@name='%s']/replacement", mod_name);
-		replacement[0] = '\0';
-		if (results) {
-			const char *result_tmp = ast_xml_get_text(ast_xml_xpath_get_first_result(results));
-			if (!ast_strlen_zero(result_tmp)) {
-				ast_copy_string(replacement, result_tmp, sizeof(replacement));
+			deprecated_node = ast_xml_find_element(metadata_nodes, "deprecated_in", NULL, NULL);
+			if (deprecated_node) {
+				const char *result_tmp = ast_xml_get_text(deprecated_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(deprecated_in, result_tmp, sizeof(deprecated_in));
+				}
 			}
+
+			removed_node = ast_xml_find_element(metadata_nodes, "removed_in", NULL, NULL);
+			if (removed_node) {
+				const char *result_tmp = ast_xml_get_text(removed_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(removed_in, result_tmp, sizeof(removed_in));
+				}
+			}
+
+			replacement_node = ast_xml_find_element(metadata_nodes, "replacement", NULL, NULL);
+			if (replacement_node) {
+				const char *result_tmp = ast_xml_get_text(replacement_node);
+				if (!ast_strlen_zero(result_tmp)) {
+					ast_copy_string(replacement, result_tmp, sizeof(replacement));
+				}
+			}
+
 			ast_xml_xpath_results_free(results);
 		}
 
