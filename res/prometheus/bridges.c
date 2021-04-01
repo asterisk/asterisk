@@ -77,6 +77,7 @@ struct bridge_metric_defs {
  */
 static void bridges_scrape_cb(struct ast_str **response)
 {
+	struct ao2_container *bridge_cache;
 	struct ao2_container *bridges;
 	struct ao2_iterator it_bridges;
 	struct ast_bridge *bridge;
@@ -92,10 +93,17 @@ static void bridges_scrape_cb(struct ast_str **response)
 
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 
-	bridges = ast_bridges();
+	bridge_cache = ast_bridges();
+	if (!bridge_cache) {
+		return;
+	}
+
+	bridges = ao2_container_clone(bridge_cache, 0);
+	ao2_ref(bridge_cache, -1);
 	if (!bridges) {
 		return;
 	}
+
 	num_bridges = ao2_container_count(bridges);
 
 	/* Current endpoint count */
