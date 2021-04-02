@@ -1642,7 +1642,7 @@ void ast_channel_internal_swap_stream_topology(struct ast_channel *chan1,
 
 int ast_channel_is_multistream(struct ast_channel *chan)
 {
-	return (chan->tech && chan->tech->read_stream && chan->tech->write_stream);
+	return (chan && chan->tech && chan->tech->read_stream && chan->tech->write_stream);
 }
 
 struct ast_channel_snapshot *ast_channel_snapshot(const struct ast_channel *chan)
