@@ -36,6 +36,11 @@
 
 #include "asterisk.h"
 
+#include <arpa/nameser.h>
+#include "asterisk/dns_core.h"
+#include "asterisk/dns_internal.h"
+#include "asterisk/dns_recurring.h"
+
 #include <sys/time.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -229,6 +234,10 @@ static ast_rwlock_t ice_acl_lock = AST_RWLOCK_INIT_VALUE;
 /*! ACL for STUN requests */
 static struct ast_acl_list *stun_acl = NULL;
 static ast_rwlock_t stun_acl_lock = AST_RWLOCK_INIT_VALUE;
+
+/*! stunaddr recurring resolution */
+static ast_rwlock_t stunaddr_lock = AST_RWLOCK_INIT_VALUE;
+static struct ast_dns_query_recurring *stunaddr_resolver = NULL;
 
 /*! \brief Pool factory used by pjlib to allocate memory. */
 static pj_caching_pool cachingpool;
@@ -645,6 +654,9 @@ static BIO_METHOD *dtls_bio_methods;
 #endif
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *via_ice, int use_srtp);
+
+static void stunaddr_resolve_callback(const struct ast_dns_query *query);
+static int store_stunaddr_resolved(const struct ast_dns_query *query);
 
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 static int dtls_bio_new(BIO *bio)
@@ -3529,6 +3541,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	pj_sockaddr pjtmp;
 	struct ast_ice_host_candidate *candidate;
 	int af_inet_ok = 0, af_inet6_ok = 0;
+	struct sockaddr_in stunaddr_copy;
 
 	if (ast_sockaddr_is_ipv4(addr)) {
 		af_inet_ok = 1;
@@ -3638,8 +3651,12 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		freeifaddrs(ifa);
 	}
 
+	ast_rwlock_rdlock(&stunaddr_lock);
+	memcpy(&stunaddr_copy, &stunaddr, sizeof(stunaddr));
+	ast_rwlock_unlock(&stunaddr_lock);
+
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
+	if (stunaddr_copy.sin_addr.s_addr && !stun_address_is_blacklisted(addr) &&
 		(ast_sockaddr_is_ipv4(addr) || ast_sockaddr_is_any(addr)) &&
 		count < PJ_ICE_MAX_CAND) {
 		struct sockaddr_in answer;
@@ -3656,7 +3673,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 		 */
 		ao2_unlock(instance);
 		rsp = ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP
-			? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer);
+			? rtp->rtcp->s : rtp->s, &stunaddr_copy, NULL, &answer);
 		ao2_lock(instance);
 		if (!rsp) {
 			struct ast_rtp_engine_ice_candidate *candidate;
@@ -9009,6 +9026,72 @@ static int ast_rtp_bundle(struct ast_rtp_instance *child, struct ast_rtp_instanc
 	return 0;
 }
 
+static void stunaddr_resolve_callback(const struct ast_dns_query *query)
+{
+	const int lowest_ttl = ast_dns_result_get_lowest_ttl(ast_dns_query_get_result(query));
+	const char *stunaddr_name = ast_dns_query_get_name(query);
+	const char *stunaddr_resolved_str;
+
+	if (!store_stunaddr_resolved(query)) {
+		ast_log(LOG_WARNING, "Failed to resolve stunaddr '%s'. Cancelling recurring resolution.\n", stunaddr_name);
+		return;
+	}
+
+	if (DEBUG_ATLEAST(2)) {
+		ast_rwlock_rdlock(&stunaddr_lock);
+		stunaddr_resolved_str = ast_inet_ntoa(stunaddr.sin_addr);
+		ast_rwlock_unlock(&stunaddr_lock);
+
+		ast_debug_stun(2, "Resolved stunaddr '%s' to '%s'. Lowest TTL = %d.\n",
+			stunaddr_name,
+			stunaddr_resolved_str,
+			lowest_ttl);
+	}
+
+	if (!lowest_ttl) {
+		ast_log(LOG_WARNING, "Resolution for stunaddr '%s' returned TTL = 0. Recurring resolution was cancelled.\n", ast_dns_query_get_name(query));
+	}
+}
+
+static int store_stunaddr_resolved(const struct ast_dns_query *query)
+{
+	const struct ast_dns_result *result = ast_dns_query_get_result(query);
+	const struct ast_dns_record *record;
+
+	for (record = ast_dns_result_get_records(result); record; record = ast_dns_record_get_next(record)) {
+		const size_t data_size = ast_dns_record_get_data_size(record);
+		const unsigned char *data = (unsigned char *)ast_dns_record_get_data(record);
+		const int rr_type = ast_dns_record_get_rr_type(record);
+
+		if (rr_type == ns_t_a && data_size == 4) {
+			ast_rwlock_wrlock(&stunaddr_lock);
+			memcpy(&stunaddr.sin_addr, data, data_size);
+			stunaddr.sin_family = AF_INET;
+			ast_rwlock_unlock(&stunaddr_lock);
+
+			return 1;
+		} else {
+			ast_debug_stun(3, "Unrecognized rr_type '%u' or data_size '%zu' from DNS query for stunaddr '%s'\n",
+										 rr_type, data_size, ast_dns_query_get_name(query));
+			continue;
+		}
+	}
+	return 0;
+}
+
+static void clean_stunaddr(void) {
+	if (stunaddr_resolver) {
+		if (ast_dns_resolve_recurring_cancel(stunaddr_resolver)) {
+			ast_log(LOG_ERROR, "Failed to cancel recurring DNS resolution of previous stunaddr.\n");
+		}
+		ao2_ref(stunaddr_resolver, -1);
+		stunaddr_resolver = NULL;
+	}
+	ast_rwlock_wrlock(&stunaddr_lock);
+	memset(&stunaddr, 0, sizeof(stunaddr));
+	ast_rwlock_unlock(&stunaddr_lock);
+}
+
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 /*! \pre instance is locked */
 static int ast_rtp_activate(struct ast_rtp_instance *instance)
@@ -9106,6 +9189,7 @@ static char *handle_cli_rtp_set_debug(struct ast_cli_entry *e, int cmd, struct a
 
 static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	struct sockaddr_in stunaddr_copy;
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "rtp show settings";
@@ -9138,6 +9222,11 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 	ast_cli(a->fd, "  Replay Protect:  %s\n", AST_CLI_YESNO(srtp_replay_protection));
 #ifdef HAVE_PJPROJECT
 	ast_cli(a->fd, "  ICE support:     %s\n", AST_CLI_YESNO(icesupport));
+
+	ast_rwlock_rdlock(&stunaddr_lock);
+	memcpy(&stunaddr_copy, &stunaddr, sizeof(stunaddr));
+	ast_rwlock_unlock(&stunaddr_lock);
+	ast_cli(a->fd, "  STUN address:    %s:%d\n", ast_inet_ntoa(stunaddr_copy.sin_addr), htons(stunaddr_copy.sin_port));
 #endif
 	return CLI_SUCCESS;
 }
@@ -9386,7 +9475,7 @@ static int rtp_reload(int reload, int by_external_config)
 	icesupport = DEFAULT_ICESUPPORT;
 	stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
 	turnport = DEFAULT_TURN_PORT;
-	memset(&stunaddr, 0, sizeof(stunaddr));
+	clean_stunaddr();
 	turnaddr = pj_str(NULL);
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
@@ -9464,9 +9553,35 @@ static int rtp_reload(int reload, int by_external_config)
 		stun_software_attribute = ast_true(s);
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
-		stunaddr.sin_port = htons(STANDARD_STUN_PORT);
-		if (ast_parse_arg(s, PARSE_INADDR, &stunaddr)) {
-			ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", s);
+		char *hostport, *host, *port;
+		unsigned int port_parsed = STANDARD_STUN_PORT;
+		struct ast_sockaddr stunaddr_parsed;
+
+		hostport = ast_strdupa(s);
+
+		if (!ast_parse_arg(hostport, PARSE_ADDR, &stunaddr_parsed)) {
+			ast_debug_stun(3, "stunaddr = '%s' does not need name resolution\n",
+				ast_sockaddr_stringify_host(&stunaddr_parsed));
+			if (!ast_sockaddr_port(&stunaddr_parsed)) {
+				ast_sockaddr_set_port(&stunaddr_parsed, STANDARD_STUN_PORT);
+			}
+			ast_rwlock_wrlock(&stunaddr_lock);
+			ast_sockaddr_to_sin(&stunaddr_parsed, &stunaddr);
+			ast_rwlock_unlock(&stunaddr_lock);
+		} else if (ast_sockaddr_split_hostport(hostport, &host, &port, 0)) {
+			if (port) {
+				ast_parse_arg(port, PARSE_UINT32|PARSE_IN_RANGE, &port_parsed, 1, 65535);
+			}
+			stunaddr.sin_port = htons(port_parsed);
+
+			stunaddr_resolver = ast_dns_resolve_recurring(host, T_A, C_IN,
+				&stunaddr_resolve_callback, NULL);
+			if (!stunaddr_resolver) {
+				ast_log(LOG_ERROR, "Failed to setup recurring DNS resolution of stunaddr '%s'",
+					host);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Failed to parse stunaddr '%s'", hostport);
 		}
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "turnaddr"))) {
@@ -9726,6 +9841,7 @@ static int unload_module(void)
 	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 	rtp_unload_acl(&ice_acl_lock, &ice_acl);
 	rtp_unload_acl(&stun_acl_lock, &stun_acl);
+	clean_stunaddr();
 #endif
 
 	return 0;

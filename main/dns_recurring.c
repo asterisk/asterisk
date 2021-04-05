@@ -39,6 +39,11 @@
 
 #include <arpa/nameser.h>
 
+/* \brief Delay between TTL expiration and the next DNS query, to make sure the
+resolver cache really expired. */
+#define EXTRA_TTL 2
+#define MAX_TTL ((INT_MAX - EXTRA_TTL) / 1000)
+
 /*! \brief Destructor for a DNS query */
 static void dns_query_recurring_destroy(void *data)
 {
@@ -91,10 +96,10 @@ static void dns_query_recurring_resolution_callback(const struct ast_dns_query *
 	/* So.. if something has not externally cancelled this we can reschedule based on the TTL */
 	if (!recurring->cancelled) {
 		const struct ast_dns_result *result = ast_dns_query_get_result(query);
-		int ttl = MIN(ast_dns_result_get_lowest_ttl(result), INT_MAX / 1000);
+		int ttl = MIN(ast_dns_result_get_lowest_ttl(result), MAX_TTL);
 
 		if (ttl) {
-			recurring->timer = ast_sched_add(ast_dns_get_sched(), ttl * 1000, dns_query_recurring_scheduled_callback, ao2_bump(recurring));
+			recurring->timer = ast_sched_add(ast_dns_get_sched(), (ttl + EXTRA_TTL) * 1000, dns_query_recurring_scheduled_callback, ao2_bump(recurring));
 			if (recurring->timer < 0) {
 				/* It is impossible for this to be the last reference as the query has a reference to it */
 				ao2_ref(recurring, -1);
