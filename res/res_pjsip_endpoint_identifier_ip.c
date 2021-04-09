@@ -515,6 +515,9 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 		return 0;
 	}
 
+	/* Hosts can produce dynamic content, so mark the identify as such */
+	ast_sorcery_object_set_has_dynamic_contents(obj);
+
 	/* Resolve the match addresses now */
 	i = ao2_iterator_init(identify->hosts, 0);
 	while ((current_string = ao2_iterator_next(&i))) {

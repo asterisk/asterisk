@@ -6264,8 +6264,13 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 
 		/* find the best audio format to use */
 		tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (tmp_cap) {
-			ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
+		if (!tmp_cap) {
+			AST_RWLIST_UNLOCK(&backends);
+			return NULL;
+		}
+
+		ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
+		if (!ast_format_cap_empty(tmp_cap)) {
 			/* We have audio - is it possible to connect the various calls to each other?
 				(Avoid this check for calls without audio, like text+video calls)
 			*/
@@ -6296,7 +6301,9 @@ static struct ast_channel *request_channel(const char *type, struct ast_format_c
 		}
 		ast_format_cap_append_from_cap(joint_cap, request_cap, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(joint_cap, AST_MEDIA_TYPE_AUDIO);
-		ast_format_cap_append(joint_cap, best_audio_fmt, 0);
+		if (best_audio_fmt) { /* text+video call? then, this is NULL */
+			ast_format_cap_append(joint_cap, best_audio_fmt, 0);
+		}
 		ao2_cleanup(tmp_converted_cap);
 
 		c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause);
@@ -6468,7 +6475,29 @@ int ast_call(struct ast_channel *chan, const char *addr, int timeout)
 */
 int ast_transfer(struct ast_channel *chan, char *dest)
 {
+	int protocol;
+	return ast_transfer_protocol(chan, dest, &protocol);
+}
+
+/*!
+  \brief Transfer a call to dest, if the channel supports transfer
+
+  \param chan channel to transfer
+  \param dest destination to transfer to
+  \param protocol is the protocol result
+  SIP example, 0=success, 3xx-6xx is SIP error code
+
+  Called by:
+	\arg app_transfer
+	\arg the manager interface
+*/
+int ast_transfer_protocol(struct ast_channel *chan, char *dest, int *protocol)
+{
 	int res = -1;
+
+	if (protocol) {
+		*protocol = 0;
+	}
 
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
@@ -6503,6 +6532,13 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 				res = 1;
 			} else {
 				res = -1;
+				/* Message can contain a protocol specific code
+				   AST_TRANSFER_SUCCESS indicates success
+				   Else, failure.  Protocol will be set to the failure reason.
+				   SIP example, 0 is success, else error code 3xx-6xx */
+				if (protocol) {
+					*protocol = *message;
+				}
 			}
 
 			ast_frfree(fr);
@@ -10809,6 +10845,9 @@ static struct ast_frame *suppress_framehook_event_cb(struct ast_channel *chan, s
 	if (suppress_frame) {
 		switch (frame->frametype) {
 		case AST_FRAME_VOICE:
+			if (event == AST_FRAMEHOOK_EVENT_READ) {
+				ast_frfree(frame);
+			}
 			frame = &ast_null_frame;
 			break;
 		default:

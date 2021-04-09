@@ -53,9 +53,9 @@
  *
  * \section copyright Copyright and Author
  *
- * Copyright (C) 1999 - 2018, Digium, Inc.
- * Asterisk is a <a href="http://www.digium.com/en/company/view-policy.php?id=Trademark-Policy">registered trademark</a>
- * of <a rel="nofollow" href="http://www.digium.com">Digium, Inc</a>.
+ * Copyright (C) 1999 - 2021, Sangoma Technologies Corporation.
+ * Asterisk is a <a href="https://cdn.sangoma.com/wp-content/uploads/Sangoma-Trademark-Policy.pdf">registered trademark</a>
+ * of <a rel="nofollow" href="http://www.sangoma.com">Sangoma Technologies Corporation</a>.
  *
  * \author Mark Spencer <markster@digium.com>
  *
@@ -297,7 +297,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #define NUM_MSGS 64
 
 /*! Displayed copyright tag */
-#define COPYRIGHT_TAG "Copyright (C) 1999 - 2018, Digium, Inc. and others."
+#define COPYRIGHT_TAG "Copyright (C) 1999 - 2021, Sangoma Technologies Corporation and others."
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
@@ -534,8 +534,8 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
-	ast_cli(a->fd, "  Manager (AMI):               %s\n", check_manager_enabled() ? "Enabled" : "Disabled");
-	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", check_webmanager_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Manager (AMI):               %s\n", ast_manager_check_enabled() ? "Enabled" : "Disabled");
+	ast_cli(a->fd, "  Web Manager (AMI/HTTP):      %s\n", ast_webmanager_check_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Call data records:           %s\n", ast_cdr_is_enabled() ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Realtime Architecture (ARA): %s\n", ast_realtime_enabled() ? "Enabled" : "Disabled");
 

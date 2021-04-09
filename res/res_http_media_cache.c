@@ -215,6 +215,7 @@ static CURL *get_curl_instance(struct curl_bucket_file_data *cb_data)
 	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, curl_header_callback);
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, GLOBAL_USERAGENT);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 8);
 	curl_easy_setopt(curl, CURLOPT_URL, ast_sorcery_object_get_id(cb_data->bucket_file));
 	curl_easy_setopt(curl, CURLOPT_HEADERDATA, cb_data);
 

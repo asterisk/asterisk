@@ -517,7 +517,7 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (a->argc == 5) {
 		int regrc;
-		if (!strcasecmp(a->argv[3], "like") == 0) {
+		if (strcasecmp(a->argv[3], "like")) {
 			return CLI_SHOWUSAGE;
 		}
 		regrc = regcomp(&regex, a->argv[4], REG_EXTENDED | REG_ICASE | REG_NOSUB);

@@ -181,6 +181,7 @@ enum strict_rtp_mode {
 #define STRICT_RTP_LEARN_TIMEOUT	5000
 
 #define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
+#define DEFAULT_SRTP_REPLAY_PROTECTION 1
 #define DEFAULT_ICESUPPORT 1
 #define DEFAULT_DTLS_MTU 1200
 
@@ -203,6 +204,7 @@ static int nochecksums;
 static int strictrtp = DEFAULT_STRICT_RTP; /*!< Only accept RTP frames from a defined source. If we receive an indication of a changing source, enter learning mode. */
 static int learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL; /*!< Number of sequential RTP frames needed from a single source during learning mode to accept new source. */
 static int learning_min_duration = DEFAULT_LEARNING_MIN_DURATION; /*!< Lowest acceptable timeout between the first and the last sequential RTP frame. */
+static int srtp_replay_protection = DEFAULT_SRTP_REPLAY_PROTECTION;
 #if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER >= 0x10001000L) && !defined(OPENSSL_NO_SRTP)
 static int dtls_mtu = DEFAULT_DTLS_MTU;
 #endif
@@ -270,6 +272,8 @@ struct ast_ice_host_candidate {
 
 /*! \brief List of ICE host candidate mappings */
 static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
+
+static char *generate_random_string(char *buf, size_t size);
 
 #endif
 
@@ -358,6 +362,8 @@ struct ast_rtp {
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
+	unsigned int ssrc_orig;		/*!< SSRC used before native bridge activated */
+	unsigned char ssrc_saved;	/*!< indicates if ssrc_orig has a value */
 	char cname[AST_UUID_STR_LEN]; /*!< Our local CNAME */
 	unsigned int themssrc;		/*!< Their SSRC */
 	unsigned int themssrc_valid;	/*!< True if their SSRC is available. */
@@ -764,13 +770,26 @@ static void ast_rtp_ice_candidate_destroy(void *obj)
 static void ast_rtp_ice_set_authentication(struct ast_rtp_instance *instance, const char *ufrag, const char *password)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int ice_attrb_reset = 0;
 
 	if (!ast_strlen_zero(ufrag)) {
+		if (!ast_strlen_zero(rtp->remote_ufrag) && strcmp(ufrag, rtp->remote_ufrag)) {
+			ice_attrb_reset = 1;
+		}
 		ast_copy_string(rtp->remote_ufrag, ufrag, sizeof(rtp->remote_ufrag));
 	}
 
 	if (!ast_strlen_zero(password)) {
+		if (!ast_strlen_zero(rtp->remote_passwd) && strcmp(password, rtp->remote_passwd)) {
+			ice_attrb_reset = 1;
+		}
 		ast_copy_string(rtp->remote_passwd, password, sizeof(rtp->remote_passwd));
+	}
+
+	/* If the remote ufrag or passwd changed, local ufrag and passwd need to regenerate */
+	if (ice_attrb_reset) {
+		generate_random_string(rtp->local_ufrag, sizeof(rtp->local_ufrag));
+		generate_random_string(rtp->local_passwd, sizeof(rtp->local_passwd));
 	}
 }
 
@@ -5924,6 +5943,26 @@ static const char *rtcp_payload_type2str(unsigned int pt)
 	return str;
 }
 
+static const char *rtcp_payload_subtype2str(unsigned int pt, unsigned int subtype)
+{
+	switch (pt) {
+	case AST_RTP_RTCP_RTPFB:
+		if (subtype == AST_RTP_RTCP_FMT_NACK) {
+			return "NACK";
+		}
+		break;
+	case RTCP_PT_PSFB:
+		if (subtype == AST_RTP_RTCP_FMT_REMB) {
+			return "REMB";
+		}
+		break;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
 /*! \pre instance is locked */
 static int ast_rtp_rtcp_handle_nack(struct ast_rtp_instance *instance, unsigned int *nackdata, unsigned int position,
 	unsigned int length)
@@ -6082,7 +6121,7 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 
 	/* If this is encrypted then decrypt the payload */
 	if ((*rtcpheader & 0xC0) && res_srtp && srtp && res_srtp->unprotect(
-		    srtp, rtcpheader, &len, 1) < 0) {
+		    srtp, rtcpheader, &len, 1 | (srtp_replay_protection << 1)) < 0) {
 	   return &ast_null_frame;
 	}
 
@@ -6253,10 +6292,16 @@ static struct ast_frame *ast_rtcp_interpret(struct ast_rtp_instance *instance, s
 		}
 
 		if (rtcp_debug_test_addr(addr)) {
+			const char *subtype = rtcp_payload_subtype2str(pt, rc);
+
 			ast_verbose("\n");
 			ast_verbose("RTCP from %s\n", ast_sockaddr_stringify(addr));
-			ast_verbose("PT: %u(%s)\n", pt, rtcp_payload_type2str(pt));
-			ast_verbose("Reception reports: %u\n", rc);
+			ast_verbose("PT: %u (%s)\n", pt, rtcp_payload_type2str(pt));
+			if (subtype) {
+				ast_verbose("Packet Subtype: %u (%s)\n", rc, subtype);
+			} else {
+				ast_verbose("Reception reports: %u\n", rc);
+			}
 			ast_verbose("SSRC of sender: %u\n", ssrc);
 		}
 
@@ -6932,7 +6977,7 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 			/* If there is no more room left for storing packets stop now, we leave 20
 			 * extra bits at the end just in case.
 			 */
-			if ((sizeof(bdata) - (packet_len + delta_len + 20)) < 0) {
+			if (packet_len + delta_len + 20 > sizeof(bdata)) {
 				res = -1;
 				break;
 			}
@@ -6966,7 +7011,7 @@ static int rtp_transport_wide_cc_feedback_produce(const void *data)
 		previous_packet = statistics;
 
 		/* If there is no more room left in the packet stop handling of any subsequent packets */
-		if ((sizeof(bdata) - (packet_len + delta_len + 20)) < 0) {
+		if (packet_len + delta_len + 20 > sizeof(bdata)) {
 			break;
 		}
 	}
@@ -7170,7 +7215,7 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 
 	/* If this payload is encrypted then decrypt it using the given SRTP instance */
 	if ((*read_area & 0xC0) && res_srtp && srtp && res_srtp->unprotect(
-		    srtp, read_area, &res, 0) < 0) {
+		    srtp, read_area, &res, 0 | (srtp_replay_protection << 1)) < 0) {
 		return &ast_null_frame;
 	}
 
@@ -8487,6 +8532,18 @@ static int ast_rtp_local_bridge(struct ast_rtp_instance *instance0, struct ast_r
 		ast_smoother_free(rtp->smoother);
 		rtp->smoother = NULL;
 	}
+
+	/* We must use a new SSRC when local bridge ends */
+	if (!instance1) {
+		rtp->ssrc = rtp->ssrc_orig;
+		rtp->ssrc_orig = 0;
+		rtp->ssrc_saved = 0;
+	} else if (!rtp->ssrc_saved) {
+		/* In case ast_rtp_local_bridge is called multiple times, only save the ssrc from before local bridge began */
+		rtp->ssrc_orig = rtp->ssrc;
+		rtp->ssrc_saved = 1;
+	}
+
 	ao2_unlock(instance0);
 
 	return 0;
@@ -8958,6 +9015,8 @@ static char *handle_cli_rtp_settings(struct ast_cli_entry *e, int cmd, struct as
 	if (strictrtp) {
 		ast_cli(a->fd, "  Probation:       %d frames\n", learning_min_sequential);
 	}
+
+	ast_cli(a->fd, "  Replay Protect:  %s\n", AST_CLI_YESNO(srtp_replay_protection));
 #ifdef HAVE_PJPROJECT
 	ast_cli(a->fd, "  ICE support:     %s\n", AST_CLI_YESNO(icesupport));
 #endif
@@ -9060,6 +9119,7 @@ static int rtp_reload(int reload, int by_external_config)
 	strictrtp = DEFAULT_STRICT_RTP;
 	learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
 	learning_min_duration = DEFAULT_LEARNING_MIN_DURATION;
+	srtp_replay_protection = DEFAULT_SRTP_REPLAY_PROTECTION;
 
 	/** This resource is not "reloaded" so much as unloaded and loaded again.
 	 * In the case of the TURN related variables, the memory referenced by a
@@ -9138,6 +9198,9 @@ static int rtp_reload(int reload, int by_external_config)
 			learning_min_sequential = DEFAULT_LEARNING_MIN_SEQUENTIAL;
 		}
 		learning_min_duration = CALC_LEARNING_MIN_DURATION(learning_min_sequential);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "srtpreplayprotection"))) {
+		srtp_replay_protection = ast_true(s);
 	}
 #ifdef HAVE_PJPROJECT
 	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {

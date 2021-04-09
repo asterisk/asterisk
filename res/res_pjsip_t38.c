@@ -320,6 +320,15 @@ static int t38_reinvite_response_cb(struct ast_sip_session *session, pjsip_rx_da
 		int index;
 
 		session_media = session->active_media_state->default_session[AST_MEDIA_TYPE_IMAGE];
+
+		/*
+		 * If there is a session_media object, but no udptl object available
+		 * then it's assumed the stream was declined.
+		 */
+		if (session_media && !session_media->udptl) {
+			session_media = NULL;
+		}
+
 		if (!session_media) {
 			ast_log(LOG_WARNING, "Received %d response to T.38 re-invite on '%s' but no active session media\n",
 					status.code, session->channel ? ast_channel_name(session->channel) : "unknown channel");

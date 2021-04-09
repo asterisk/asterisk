@@ -32,6 +32,7 @@ LOCAL_CFLAGS=`echo $CFLAGS | ${EXTREGEX} 's/-pipe\s*//g' | ${EXTREGEX} 's/-[Wmp]
 cat <<EOF > "$PPATH/asterisk.pc"
 install_prefix=$INSTALL_PREFIX
 version_number=$ASTERISKVERSIONNUM
+cachedir=$ASTCACHEDIR
 etcdir=$ASTETCDIR
 libdir=$ASTLIBDIR
 varlibdir=$ASTVARLIBDIR

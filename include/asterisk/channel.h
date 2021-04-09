@@ -2641,6 +2641,18 @@ int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(co
 int ast_transfer(struct ast_channel *chan, char *dest);
 
 /*!
+ * \brief Transfer a channel (if supported) receieve protocol result.
+ * \retval -1 on error
+ * \retval 0 if not supported
+ * \retval 1 if supported and requested
+ * \param chan current channel
+ * \param dest destination extension for transfer
+ * \param protocol specific error code in case of failure
+ * Example, sip 0 success, else sip error code
+ */
+int ast_transfer_protocol(struct ast_channel *chan, char *dest, int *protocol);
+
+/*!
  * \brief Inherits channel variable from parent to child channel
  * \param parent Parent channel
  * \param child Child channel

@@ -1118,7 +1118,7 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 		} else if (!strcasecmp(var->name, "mode")) {
 			ast_copy_string(mohclass->mode, var->value, sizeof(mohclass->mode));
 		} else if (!strcasecmp(var->name, "entry")) {
-			if (ast_begins_with(var->value, "/") || ast_begins_with(var->value, "http://") || ast_begins_with(var->value, "https://")) {
+			if (ast_begins_with(var->value, "/") || strstr(var->value, "://")) {
 				char *dup;
 
 				if (!playlist_entries) {
@@ -1144,7 +1144,7 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 
 				AST_VECTOR_APPEND(playlist_entries, dup);
 			} else {
-				ast_log(LOG_ERROR, "Playlist entries must be an HTTP(S) URL or absolute path, '%s' provided.\n", var->value);
+				ast_log(LOG_ERROR, "Playlist entries must be a URL or an absolute path, '%s' provided.\n", var->value);
 			}
 		} else if (!strcasecmp(var->name, "directory")) {
 			ast_copy_string(mohclass->dir, var->value, sizeof(mohclass->dir));
@@ -1209,7 +1209,8 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 
 		/* We don't need to lock here because we are the thread that
 		 * created this mohclass and we haven't published it yet */
-		ao2_replace(mohclass->files, playlist_entries);
+		ao2_ref(mohclass->files, -1);
+		mohclass->files = playlist_entries;
 	}
 }
 
@@ -1306,7 +1307,8 @@ static int moh_scan_files(struct mohclass *class) {
 	AST_VECTOR_COMPACT(files);
 
 	ao2_lock(class);
-	ao2_replace(class->files, files);
+	ao2_ref(class->files, -1);
+	class->files = files;
 	ao2_unlock(class);
 
 	return AST_VECTOR_SIZE(files);
@@ -1613,18 +1615,21 @@ static struct ast_variable *load_realtime_musiconhold(const char *name)
 			char *category = NULL;
 			size_t entry_count = 0;
 
-			while ((category = ast_category_browse(entries, category))) {
-				const char *entry = ast_variable_retrieve(entries, category, "entry");
+			/* entries is NULL if there are no results */
+			if (entries) {
+				while ((category = ast_category_browse(entries, category))) {
+					const char *entry = ast_variable_retrieve(entries, category, "entry");
 
-				if (entry) {
-					struct ast_variable *dup = ast_variable_new("entry", entry, "");
-					if (dup) {
-						entry_count++;
-						ast_variable_list_append(&var, dup);
+					if (entry) {
+						struct ast_variable *dup = ast_variable_new("entry", entry, "");
+						if (dup) {
+							entry_count++;
+							ast_variable_list_append(&var, dup);
+						}
 					}
 				}
+				ast_config_destroy(entries);
 			}
-			ast_config_destroy(entries);
 
 			if (entry_count == 0) {
 				/* Behave as though this class doesn't exist */

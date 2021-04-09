@@ -3120,10 +3120,8 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 
 			if (ast_iostream_get_ssl(tcptls_session->stream)) {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TLS);
-				req.socket.port = htons(ourport_tls);
 			} else {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TCP);
-				req.socket.port = htons(ourport_tcp);
 			}
 			req.socket.fd = ast_iostream_get_fd(tcptls_session->stream);
 
@@ -6402,10 +6400,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer, struct ast_soc
 		}
 	}
 
-	if (!dialog->socket.type)
+	if (!dialog->socket.type) {
 		set_socket_transport(&dialog->socket, AST_TRANSPORT_UDP);
-	if (!dialog->socket.port) {
-		dialog->socket.port = htons(ast_sockaddr_port(&bindaddr));
 	}
 
 	if (!ast_sockaddr_port(&dialog->sa)) {
@@ -6559,8 +6555,21 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 	ast_rtp_instance_available_formats(p->rtp, p->caps, p->prefcaps, p->jointcaps);
 	p->jointnoncodeccapability = p->noncodeccapability;
 
-	/* If there are no audio formats left to offer, punt */
-	if (!(ast_format_cap_has_type(p->jointcaps, AST_MEDIA_TYPE_AUDIO))) {
+	/* If there are no formats left to offer, punt */
+	if (ast_format_cap_empty(p->jointcaps)) {
+		ast_log(LOG_WARNING, "No format found to offer. Cancelling call to %s\n", p->username);
+		res = -1;
+	/* If audio was requested (prefcaps) and the [peer] section contains
+	 * audio (caps) the user expects audio. In that case, if jointcaps
+	 * contain no audio, punt. Furthermore, this check allows the [peer]
+	 * section to have no audio. In that case, the user expects no audio
+	 * and we can pass. Finally, this check allows the requester not to
+	 * offer any audio. In that case, the call is expected to have no audio
+	 * and we can pass, as well.
+	 */
+	} else if ((ast_format_cap_empty(p->caps) || ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO)) &&
+		   (ast_format_cap_empty(p->prefcaps) || ast_format_cap_has_type(p->prefcaps, AST_MEDIA_TYPE_AUDIO)) &&
+		   !ast_format_cap_has_type(p->jointcaps, AST_MEDIA_TYPE_AUDIO)) {
 		ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
 		res = -1;
 	} else {
@@ -10445,7 +10454,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		rtcp_mux_offered = has_media_level_attribute(iterator, req, "rtcp-mux");
 
 		/* Check for 'audio' media offer */
-		if (strncmp(m, "audio ", 6) == 0) {
+		if (p->rtp && strncmp(m, "audio ", 6) == 0) {
 			if ((sscanf(m, "audio %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "audio %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
@@ -10555,7 +10564,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		}
 		/* Check for 'video' media offer */
-		else if (strncmp(m, "video ", 6) == 0) {
+		else if (p->vrtp && strncmp(m, "video ", 6) == 0) {
 			if ((sscanf(m, "video %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "video %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
@@ -10634,7 +10643,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 		}
 		/* Check for 'text' media offer */
-		else if (strncmp(m, "text ", 5) == 0) {
+		else if (p->trtp && strncmp(m, "text ", 5) == 0) {
 			if ((sscanf(m, "text %30u/%30u %17s %n", &x, &numberofports, protocol, &len) == 3 && len > 0) ||
 			    (sscanf(m, "text %30u %17s %n", &x, protocol, &len) == 2 && len > 0)) {
 				codecs = m + len;
@@ -13611,11 +13620,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 			ast_format_cap_append_from_cap(tmpcap, p->jointcaps, AST_MEDIA_TYPE_UNKNOWN);
 		}
 
-		/* Check if we need audio */
-		if (ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_AUDIO)
-			|| ast_format_cap_has_type(p->caps, AST_MEDIA_TYPE_AUDIO)) {
-			needaudio = TRUE;
-		}
+		/* Check if we need audio in this call */
+		needaudio = ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_AUDIO);
 
 		/* Check if we need video in this call */
 		if ((ast_format_cap_has_type(tmpcap, AST_MEDIA_TYPE_VIDEO)) && !p->novideo) {
@@ -13746,7 +13752,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Now, start adding audio codecs. These are added in this order:
 		   - First what was requested by the calling channel
 		   - Then our mutually shared capabilities, determined previous in tmpcap
-		   - Then preferences in order from sip.conf device config for this peer/user
 		*/
 
 
@@ -13772,27 +13777,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Now send any other common codecs */
 		for (x = 0; x < ast_format_cap_count(tmpcap); x++) {
 			tmp_fmt = ast_format_cap_get_format(tmpcap, x);
-
-			if (ast_format_cap_iscompatible_format(alreadysent, tmp_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
-				ao2_ref(tmp_fmt, -1);
-				continue;
-			}
-
-			if (ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_AUDIO) {
-				add_codec_to_sdp(p, tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
-			} else if (needvideo && ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_VIDEO) {
-				add_vcodec_to_sdp(p, tmp_fmt, &m_video, &a_video, debug, &min_video_packet_size);
-			} else if (needtext && ast_format_get_type(tmp_fmt) == AST_MEDIA_TYPE_TEXT) {
-				add_tcodec_to_sdp(p, tmp_fmt, &m_text, &a_text, debug, &min_text_packet_size);
-			}
-
-			ast_format_cap_append(alreadysent, tmp_fmt, 0);
-			ao2_ref(tmp_fmt, -1);
-		}
-
-		/* Finally our remaining audio/video codecs */
-		for (x = 0; p->outgoing_call && x < ast_format_cap_count(p->caps); x++) {
-			tmp_fmt = ast_format_cap_get_format(p->caps, x);
 
 			if (ast_format_cap_iscompatible_format(alreadysent, tmp_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
 				ao2_ref(tmp_fmt, -1);
@@ -15148,7 +15132,6 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 		ast_string_field_set(mwi->call, peersecret, mwi->secret);
 	}
 	set_socket_transport(&mwi->call->socket, mwi->transport);
-	mwi->call->socket.port = htons(mwi->portno);
 	ast_sip_ouraddrfor(&mwi->call->sa, &mwi->call->ourip, mwi->call);
 	build_via(mwi->call);
 
@@ -16262,19 +16245,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_string_field_set(p, exten, r->callback);
 		}
 
-		/* Set transport and port so the correct contact is built */
+		/* Set transport so the correct contact is built */
 		set_socket_transport(&p->socket, r->transport);
-		if (r->transport == AST_TRANSPORT_TLS || r->transport == AST_TRANSPORT_TCP) {
-			if (ast_sockaddr_isnull(&sip_tcp_desc.local_address)) {
-				ast_log(LOG_ERROR,
-				    "TCP/TLS clients without server were not tested.\n");
-				ast_log(LOG_ERROR,
-				    "Please, follow-up and report at issue 28798.\n");
-			} else {
-				p->socket.port =
-				    htons(ast_sockaddr_port(&sip_tcp_desc.local_address));
-			}
-		}
 
 		/*
 		  check which address we should use in our contact header
@@ -29422,8 +29394,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 
 	req.socket.fd = sipsock;
 	set_socket_transport(&req.socket, AST_TRANSPORT_UDP);
-	req.socket.tcptls_session	= NULL;
-	req.socket.port = htons(ast_sockaddr_port(&bindaddr));
+	req.socket.tcptls_session = NULL;
 
 	handle_request_do(&req, &addr);
 	deinit_req(&req);
@@ -30811,7 +30782,6 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	char *ext = NULL, *host;
 	char tmp[256];
 	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
-	struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	char *dnid;
 	char *secret = NULL;
 	char *md5secret = NULL;
@@ -30827,17 +30797,8 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		AST_APP_ARG(remote_address);
 	);
 
-	/* mask request with some set of allowed formats.
-	 * XXX this needs to be fixed.
-	 * The original code uses AST_FORMAT_AUDIO_MASK, but it is
-	 * unclear what to use here. We have global_capabilities, which is
-	 * configured from sip.conf, and sip_tech.capabilities, which is
-	 * hardwired to all audio formats.
-	 */
-	if (!(ast_format_cap_has_type(cap, AST_MEDIA_TYPE_AUDIO))) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n",
-			ast_format_cap_get_names(cap, &codec_buf),
-			ast_format_cap_get_names(sip_cfg.caps, &cap_buf));
+	if (ast_format_cap_empty(cap)) {
+		ast_log(LOG_NOTICE, "Asked to get a channel without offering any format\n");
 		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;	/* Can't find codec to connect to host */
 		return NULL;
 	}
@@ -32363,9 +32324,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 		ast_sockaddr_set_port(&peer->defaddr,
 				      (peer->socket.type & AST_TRANSPORT_TLS) ?
 				      STANDARD_TLS_PORT : STANDARD_SIP_PORT);
-	}
-	if (!peer->socket.port) {
-		peer->socket.port = htons(((peer->socket.type & AST_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
 	}
 
 	if (realtime) {

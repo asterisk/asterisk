@@ -123,6 +123,7 @@ static int path_get_string(pj_pool_t *pool, struct ast_sip_contact *contact, pj_
 static int add_supported(pjsip_tx_data *tdata)
 {
 	pjsip_supported_hdr *hdr;
+	int i;
 
 	hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_SUPPORTED, NULL);
 	if (!hdr) {
@@ -133,6 +134,17 @@ static int add_supported(pjsip_tx_data *tdata)
 		}
 
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
+	}
+
+	/* Don't add the value if it's already there */
+	for (i = 0; i < hdr->count; ++i) {
+		if (pj_stricmp(&hdr->values[i], &PATH_SUPPORTED_NAME) == 0) {
+			return 0;
+		}
+	}
+
+	if (hdr->count >= PJSIP_GENERIC_ARRAY_MAX_COUNT) {
+		return -1;
 	}
 
 	/* add on to the existing Supported header */

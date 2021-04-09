@@ -517,6 +517,7 @@ static off_t wav_tell(struct ast_filestream *fs)
 static struct ast_format_def wav16_f = {
 	.name = "wav16",
 	.exts = "wav16",
+	.mime_types = "audio/x-wav;codec=pcm;bit=16;rate=16000",
 	.open =	wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,
@@ -532,7 +533,7 @@ static struct ast_format_def wav16_f = {
 static struct ast_format_def wav_f = {
 	.name = "wav",
 	.exts = "wav",
-	.mime_types = "audio/wav|audio/x-wav",
+	.mime_types = "audio/wav|audio/x-wav|audio/x-wav;codec=pcm;bit=16;rate=8000",
 	.open =	wav_open,
 	.rewrite = wav_rewrite,
 	.write = wav_write,

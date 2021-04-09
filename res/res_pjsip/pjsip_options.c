@@ -94,7 +94,7 @@
  */
 
 #define DEFAULT_LANGUAGE "en"
-#define DEFAULT_ENCODING "text/plain"
+#define DEFAULT_ENCODING "identity"
 
 /*! \brief These are the number of buckets to store AORs in */
 #ifdef LOW_MEMORY

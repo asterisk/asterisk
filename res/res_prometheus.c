@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<use>pjproject</use>
+	<use type="module">res_pjsip</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -1001,4 +1002,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_
 	.unload = unload_module,
 	.reload = reload_module,
 	.load_pri = AST_MODPRI_DEFAULT,
+#ifdef HAVE_PJPROJECT
+	.requires = "res_pjsip",
+#endif
 );

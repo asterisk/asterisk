@@ -108,34 +108,49 @@ static struct refer_progress_notification *refer_progress_notification_alloc(str
 	return notification;
 }
 
-/*! \brief Serialized callback for subscription notification */
+/*! \brief Serialized callback for subscription notification
+ *
+ * Locking and serialization:
+ *
+ * Although refer_progress_notify() always runs in the progress serializer,
+ * the pjproject evsub module itself can cause the subscription to be
+ * destroyed which then triggers refer_progress_on_evsub_state() to clean
+ * it up.  In this case, it's possible that refer_progress_notify() could
+ * get the subscription pulled out from under it while it's trying to use it.
+ *
+ * At one point we tried to have refer_progress_on_evsub_state() push the
+ * cleanup to the serializer and wait for its return before returning to
+ * pjproject but since pjproject calls its state callbacks with the dialog
+ * locked, this required us to unlock the dialog while waiting for the
+ * serialized cleanup, then lock it again before returning to pjproject.
+ * There were also still some cases where other callers of
+ * refer_progress_notify() weren't using the serializer and crashes were
+ * resulting.
+ *
+ * Although all callers of refer_progress_notify() now use the progress
+ * serializer, we decided to simplify the locking so we didn't have to
+ * unlock and relock the dialog in refer_progress_on_evsub_state().
+ *
+ * Now, refer_progress_notify() holds the dialog lock for all its work
+ * rather than just when calling pjsip_evsub_set_mod_data() to clear the
+ * module data.  Since pjproject also holds the dialog lock while calling
+ * refer_progress_on_evsub_state(), there should be no more chances for
+ * the subscription to be cleaned up while still being used to send NOTIFYs.
+ */
 static int refer_progress_notify(void *data)
 {
 	RAII_VAR(struct refer_progress_notification *, notification, data, ao2_cleanup);
 	pjsip_evsub *sub;
 	pjsip_tx_data *tdata;
 
+	pjsip_dlg_inc_lock(notification->progress->dlg);
+
 	/* If the subscription has already been terminated we can't send a notification */
 	if (!(sub = notification->progress->sub)) {
 		ast_debug(3, "Not sending NOTIFY of response '%d' and state '%u' on progress monitor '%p' as subscription has been terminated\n",
 			notification->response, notification->state, notification->progress);
-		return 0;
-	}
-
-	/* If the subscription is being terminated we want to actually remove the progress structure here to
-	 * stop a deadlock from occurring - basically terminated changes the state which queues a synchronous task
-	 * but we are already running a task... thus it would deadlock */
-	if (notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
-		ast_debug(3, "Subscription '%p' is being terminated as a result of a NOTIFY, removing REFER progress structure early on progress monitor '%p'\n",
-			notification->progress->sub, notification->progress);
-		pjsip_dlg_inc_lock(notification->progress->dlg);
-		pjsip_evsub_set_mod_data(notification->progress->sub, refer_progress_module.id, NULL);
 		pjsip_dlg_dec_lock(notification->progress->dlg);
-
-		/* This is for dropping the reference on the subscription */
-		ao2_cleanup(notification->progress);
-
-		notification->progress->sub = NULL;
+		return 0;
 	}
 
 	/* Send a deferred initial 100 Trying SIP frag NOTIFY if we haven't already. */
@@ -157,6 +172,8 @@ static int refer_progress_notify(void *data)
 	if (pjsip_xfer_notify(sub, notification->state, notification->response, NULL, &tdata) == PJ_SUCCESS) {
 		pjsip_xfer_send_request(sub, tdata);
 	}
+
+	pjsip_dlg_dec_lock(notification->progress->dlg);
 
 	return 0;
 }
@@ -293,50 +310,28 @@ static void refer_progress_framehook_destroy(void *data)
 	ao2_cleanup(progress);
 }
 
-/*! \brief Serialized callback for subscription termination */
-static int refer_progress_terminate(void *data)
-{
-	struct refer_progress *progress = data;
-
-	/* The subscription is no longer valid */
-	progress->sub = NULL;
-
-	return 0;
-}
-
-/*! \brief Callback for REFER subscription state changes */
+/*!
+ * \brief Callback for REFER subscription state changes
+ * \see refer_progress_notify
+ *
+ * The documentation attached to refer_progress_notify has more
+ * information about the locking issues with cleaning up
+ * the subscription.
+ *
+ * \note pjproject holds the dialog lock while calling this function.
+ */
 static void refer_progress_on_evsub_state(pjsip_evsub *sub, pjsip_event *event)
 {
 	struct refer_progress *progress = pjsip_evsub_get_mod_data(sub, refer_progress_module.id);
 
-	/* If being destroyed queue it up to the serializer */
+	/*
+	 * If being destroyed, remove the progress object from the subscription
+	 * and release the reference it had.
+	 */
 	if (progress && (pjsip_evsub_get_state(sub) == PJSIP_EVSUB_STATE_TERMINATED)) {
-		/* To prevent a deadlock race condition we unlock the dialog so other serialized tasks can execute */
-		ast_debug(3, "Subscription '%p' has been remotely terminated, waiting for other tasks to complete on progress monitor '%p'\n",
-			sub, progress);
-
-		/* It's possible that a task is waiting to remove us already, so bump the refcount of progress so it doesn't get destroyed */
-		ao2_ref(progress, +1);
-		pjsip_dlg_dec_lock(progress->dlg);
-		/*
-		 * XXX We are always going to execute this inline rather than
-		 * in the serializer because this function is a PJPROJECT
-		 * callback and thus has to be a SIP servant thread.
-		 *
-		 * The likely remedy is to push most of this function into
-		 * refer_progress_terminate() with ast_sip_push_task().
-		 */
-		ast_sip_push_task_wait_servant(progress->serializer, refer_progress_terminate, progress);
-		pjsip_dlg_inc_lock(progress->dlg);
-		ao2_ref(progress, -1);
-
-		ast_debug(3, "Subscription '%p' removed from progress monitor '%p'\n", sub, progress);
-
-		/* Since it was unlocked it is possible for this to have been removed already, so check again */
-		if (pjsip_evsub_get_mod_data(sub, refer_progress_module.id)) {
-			pjsip_evsub_set_mod_data(sub, refer_progress_module.id, NULL);
-			ao2_cleanup(progress);
-		}
+		pjsip_evsub_set_mod_data(progress->sub, refer_progress_module.id, NULL);
+		progress->sub = NULL;
+		ao2_cleanup(progress);
 	}
 }
 
@@ -345,6 +340,11 @@ static pjsip_evsub_user refer_progress_evsub_cb = {
 	.on_evsub_state = refer_progress_on_evsub_state,
 };
 
+static int dlg_releaser_task(void *data) {
+	pjsip_dlg_dec_session((pjsip_dialog *)data, &refer_progress_module);
+	return 0;
+}
+
 /*! \brief Destructor for REFER progress sutrcture */
 static void refer_progress_destroy(void *obj)
 {
@@ -352,6 +352,24 @@ static void refer_progress_destroy(void *obj)
 
 	if (progress->bridge_sub) {
 		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
+	}
+
+	if (progress->dlg) {
+		/*
+		 * Although the dlg session count was incremented in a pjsip servant
+		 * thread, there's no guarantee that the last thread to unref this progress
+		 * object was one.  Before we decrement, we need to make sure that this
+		 * is either a servant thread or that we push the decrement to a
+		 * serializer that is one.
+		 *
+		 * Because pjsip_dlg_dec_session requires the dialog lock, we don't want
+		 * to wait on the task to complete if we had to push it to a serializer.
+		 */
+		if (ast_sip_thread_is_servant()) {
+			pjsip_dlg_dec_session(progress->dlg, &refer_progress_module);
+		} else {
+			ast_sip_push_task(NULL, dlg_releaser_task, progress->dlg);
+		}
 	}
 
 	ao2_cleanup(progress->transfer_data);
@@ -388,9 +406,6 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 
 	(*progress)->framehook = -1;
 
-	/* To prevent a potential deadlock we need the dialog so we can lock/unlock */
-	(*progress)->dlg = session->inv_session->dlg;
-
 	/* Create name with seq number appended. */
 	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/refer/%s",
 		ast_sorcery_object_get_id(session->endpoint));
@@ -403,6 +418,12 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 	if (pjsip_xfer_create_uas(session->inv_session->dlg, &refer_progress_evsub_cb, rdata, &(*progress)->sub) != PJ_SUCCESS) {
 		goto error;
 	}
+
+	/* To prevent a potential deadlock we need the dialog so we can lock/unlock */
+	(*progress)->dlg = session->inv_session->dlg;
+	/* We also need to make sure it stays around until we're done with it */
+	pjsip_dlg_inc_session((*progress)->dlg, &refer_progress_module);
+
 
 	/* Associate the REFER progress structure with the subscription */
 	ao2_ref(*progress, +1);
@@ -560,7 +581,9 @@ static int refer_attended_task(void *data)
 		notification = refer_progress_notification_alloc(attended->progress, response,
 			PJSIP_EVSUB_STATE_TERMINATED);
 		if (notification) {
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(attended->progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	}
 
@@ -616,7 +639,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 			PJSIP_EVSUB_STATE_TERMINATED);
 
 		if (notification) {
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	} else if (refer->progress) {
 		/* If attended transfer and progress monitoring is being done attach a frame hook so we can monitor it */
@@ -637,7 +662,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 				ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 		}
 
@@ -660,7 +687,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 				ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 
 			ao2_cleanup(refer->progress);
@@ -680,7 +709,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 					ast_channel_name(chan));
 
 			if (notification) {
-				refer_progress_notify(notification);
+				if (ast_sip_push_task(refer->progress->serializer, refer_progress_notify, notification)) {
+					ao2_cleanup(notification);
+				}
 			}
 
 			ast_channel_lock(chan);
@@ -1155,7 +1186,9 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 
 		if (notification) {
 			/* The refer_progress_notify function will call ao2_cleanup on this for us */
-			refer_progress_notify(notification);
+			if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
+				ao2_cleanup(notification);
+			}
 		}
 	}
 

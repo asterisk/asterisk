@@ -13,6 +13,77 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.2.2 to Asterisk 18.3.0 ------------
+------------------------------------------------------------------------------
+
+app_mixmonitor
+------------------
+ * app_mixmonitor now sends manager events MixMonitorStart, MixMonitorStop and
+   MixMonitorMute when the channel monitoring is started, stopped and muted (or
+   unmuted) respectively.
+
+chan_iax2
+------------------
+ * You can now specify a default "auth" method in the
+   [general] section of iax.conf
+
+chan_pjsip, app_transfer
+------------------
+ * Added TRANSFERSTATUSPROTOCOL variable.  When transfer is performed,
+   transfers can pass a protocol specific error code.
+   Example, in SIP 3xx-6xx represent any SIP specific error received when
+   performing a REFER.
+
+func_odbc
+------------------
+ * Introduce an ARGC variable for func_odbc functions, along with a minargs
+   per-function configuration option.
+
+   minargs enables enforcing of minimum count of arguments to pass to
+   func_odbc, so if you're unconditionally using ARG1 through ARG4 then
+   this should be set to 4.  func_odbc will generate an error in this case,
+   so for example
+
+   [FOO]
+   minargs = 4
+
+   and ODBC_FOO(a,b,c) in dialplan will now error out instead of using a
+   potentially leaked ARG4 from Gosub().
+
+   ARGC is needed if you're using optional argument, to verify whether or
+   not an argument has been passed, else it's possible to use a leaked ARGn
+   from Gosub (app_stack).  So now you can safely do
+   ${IF($[${ARGC}>3]?${ARGV}:default value)} kind of thing.
+
+res_srtp
+------------------
+ * SRTP replay protection has been added to res_srtp and
+   a new configuration option "srtpreplayprotection" has
+   been added to the rtp.conf config file.  For security
+   reasons, the default setting is "yes".  Buggy clients
+   may not handle this correctly which could result in
+   no, or one way, audio and Asterisk error messages like
+   "replay check failed".
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.1.0 to Asterisk 18.2.0 ------------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * The location where the media cache stores its temporary files
+   is no longer hardcoded to /tmp but can now be configured separately
+   via the astcachedir config variable in asterisk.conf. To retain
+   backwards compatibility, the default location remains /tmp.
+
+app_voicemail
+------------------
+ * The VoiceMail application can now be configured to send greetings and
+   instructions via early media and only answering the channel when it is
+   time for the caller to record their message. This behavior can be
+   activated by passing the new 'e' option to VoiceMail.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.0.0 to Asterisk 18.1.0 ------------
 ------------------------------------------------------------------------------
 

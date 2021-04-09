@@ -33,8 +33,15 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>                      /* for toupper */
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/strings.h"           /* for ast_str_append */
+#include "asterisk/utils.h"             /* for ast_strip */
+
+/*! \brief Value that indicates an attribute is actually unset */
+#define H263_ATTR_KEY_UNSET UINT8_MAX
 
 struct h263_attr {
 	unsigned int SQCIF;       /*!< Minimum picture interval for SQCIF resolution */
@@ -46,6 +53,14 @@ struct h263_attr {
 	unsigned int CUSTOM_XMAX; /*!< Custom resolution (Xmax) */
 	unsigned int CUSTOM_YMAX; /*!< Custom resolution (Ymax) */
 	unsigned int CUSTOM_MPI;  /*!< Custom resolution (MPI) */
+	unsigned int CPCF;        /*!< Custom Picture Clock Frequency */
+	unsigned int CPCF_2;
+	unsigned int CPCF_3;
+	unsigned int CPCF_4;
+	unsigned int CPCF_5;
+	unsigned int CPCF_6;
+	unsigned int CPCF_7;
+	unsigned int CPCF_MPI;
 	unsigned int F;           /*!< F annex support */
 	unsigned int I;           /*!< I annex support */
 	unsigned int J;           /*!< J annex support */
@@ -60,6 +75,7 @@ struct h263_attr {
 	unsigned int PAR_HEIGHT;  /*!< Pixel aspect ratio (height) */
 	unsigned int BPP;         /*!< Bits per picture maximum */
 	unsigned int HRD;         /*!< Hypothetical reference decoder status */
+	unsigned int MaxBR;       /*!< Vendor Specific: CounterPath Bria (Solo) */
 };
 
 static void h263_destroy(struct ast_format *format)
@@ -123,6 +139,14 @@ static struct ast_format *h263_getjoint(const struct ast_format *format1, const 
 	DETERMINE_JOINT(attr, attr1, attr2, CUSTOM_XMAX);
 	DETERMINE_JOINT(attr, attr1, attr2, CUSTOM_YMAX);
 	DETERMINE_JOINT(attr, attr1, attr2, CUSTOM_MPI);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_2);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_3);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_4);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_5);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_6);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_7);
+	DETERMINE_JOINT(attr, attr1, attr2, CPCF_MPI);
 	DETERMINE_JOINT(attr, attr1, attr2, F);
 	DETERMINE_JOINT(attr, attr1, attr2, I);
 	DETERMINE_JOINT(attr, attr1, attr2, J);
@@ -137,6 +161,7 @@ static struct ast_format *h263_getjoint(const struct ast_format *format1, const 
 	DETERMINE_JOINT(attr, attr1, attr2, PAR_HEIGHT);
 	DETERMINE_JOINT(attr, attr1, attr2, BPP);
 	DETERMINE_JOINT(attr, attr1, attr2, HRD);
+	DETERMINE_JOINT(attr, attr1, attr2, MaxBR);
 
 	return cloned;
 }
@@ -153,27 +178,59 @@ static struct ast_format *h263_parse_sdp_fmtp(const struct ast_format *format, c
 	}
 	attr = ast_format_get_attribute_data(cloned);
 
+	/* upper-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = toupper(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
+
+	attr->BPP = H263_ATTR_KEY_UNSET;
+	attr->MaxBR = H263_ATTR_KEY_UNSET;
+	attr->PAR_WIDTH = H263_ATTR_KEY_UNSET;
+	attr->PAR_HEIGHT = H263_ATTR_KEY_UNSET;
+
 	while ((attrib = strsep(&attribs, ";"))) {
-		unsigned int val, val2 = 0, val3 = 0, val4 = 0;
+		unsigned int val, val2 = 0, val3 = 0, val4 = 0, val5 = 0, val6 = 0, val7 = 0, val8 = 0;
 
 		attrib = ast_strip(attrib);
 
 		if (sscanf(attrib, "SQCIF=%30u", &val) == 1) {
 			attr->SQCIF = val;
+		} else if (strcmp(attrib, "SQCIF") == 0) {
+			attr->SQCIF = 1;
 		} else if (sscanf(attrib, "QCIF=%30u", &val) == 1) {
 			attr->QCIF = val;
+		} else if (strcmp(attrib, "QCIF") == 0) {
+			attr->QCIF = 1;
 		} else if (sscanf(attrib, "CIF=%30u", &val) == 1) {
 			attr->CIF = val;
+		} else if (strcmp(attrib, "CIF") == 0) {
+			attr->CIF = 1;
 		} else if (sscanf(attrib, "CIF4=%30u", &val) == 1) {
 			attr->CIF4 = val;
+		} else if (strcmp(attrib, "CIF4") == 0) {
+			attr->CIF4 = 1;
 		} else if (sscanf(attrib, "CIF16=%30u", &val) == 1) {
 			attr->CIF16 = val;
+		} else if (strcmp(attrib, "CIF16") == 0) {
+			attr->CIF16 = 1;
 		} else if (sscanf(attrib, "VGA=%30u", &val) == 1) {
 			attr->VGA = val;
+		} else if (strcmp(attrib, "VGA") == 0) {
+			attr->VGA = 1;
 		} else if (sscanf(attrib, "CUSTOM=%30u,%30u,%30u", &val, &val2, &val3) == 3) {
 			attr->CUSTOM_XMAX = val;
 			attr->CUSTOM_YMAX = val2;
 			attr->CUSTOM_MPI = val3;
+		} else if (sscanf(attrib, "CPCF=%30u,%30u,%30u,%30u,%30u,%30u,%30u,%30u",
+				&val, &val2, &val3, &val4, &val5, &val6, &val7, &val8) == 8) {
+			attr->CPCF = val;
+			attr->CPCF_2 = val2;
+			attr->CPCF_3 = val3;
+			attr->CPCF_4 = val4;
+			attr->CPCF_5 = val5;
+			attr->CPCF_6 = val6;
+			attr->CPCF_7 = val7;
+			attr->CPCF_MPI = val8;
 		} else if (sscanf(attrib, "F=%30u", &val) == 1) {
 			attr->F = val;
 		} else if (sscanf(attrib, "I=%30u", &val) == 1) {
@@ -198,34 +255,85 @@ static struct ast_format *h263_parse_sdp_fmtp(const struct ast_format *format, c
 			attr->P_SUB2 = val2;
 			attr->P_SUB3 = val3;
 			attr->P_SUB4 = val4;
+		} else if (sscanf(attrib, "MAXBR=%30u", &val) == 1) {
+			attr->MaxBR = val;
 		}
 	}
 
 	return cloned;
 }
 
+#define APPEND_IF_NOT_H263_UNSET(field, str, name) do {		\
+	if (field != H263_ATTR_KEY_UNSET) {	\
+		if (added) {	\
+			ast_str_append(str, 0, ";");	\
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {	\
+			added = 1;	\
+		}	\
+		ast_str_append(str, 0, "%s=%u", name, field);	\
+	}	\
+} while (0)
+
+#define APPEND_IF_NONZERO(field, str, name) do {		\
+	if (field) {	\
+		if (added) {	\
+			ast_str_append(str, 0, ";");	\
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {	\
+			added = 1;	\
+		}	\
+		ast_str_append(str, 0, "%s=%u", name, field);	\
+	}	\
+} while (0)
+
 static void h263_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
 	struct h263_attr *attr = ast_format_get_attribute_data(format);
+	int added = 0;
 
 	if (!attr) {
 		return;
 	}
 
-	ast_str_append(str, 0, "a=fmtp:%u SQCIF=%u;QCIF=%u;CIF=%u;CIF4=%u;CIF16=%u;VGA=%u;F=%u;I=%u;J=%u;T=%u;K=%u;N=%u;BPP=%u;HRD=%u",
-		payload, attr->SQCIF, attr->QCIF, attr->CIF, attr->CIF4, attr->CIF16, attr->VGA, attr->F, attr->I, attr->J,
-		attr->T, attr->K, attr->N, attr->BPP, attr->HRD);
+	if (attr->CPCF) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "CPCF=%u,%u,%u,%u,%u,%u,%u,%u", attr->CPCF, attr->CPCF_2, attr->CPCF_3,
+			attr->CPCF_4, attr->CPCF_5, attr->CPCF_6, attr->CPCF_7, attr->CPCF_MPI);
+	}
+
+	APPEND_IF_NONZERO(attr->CIF16, str, "CIF16");
+	APPEND_IF_NONZERO(attr->CIF4,  str, "CIF4");
+	APPEND_IF_NONZERO(attr->VGA,   str, "VGA");
+	APPEND_IF_NONZERO(attr->CIF,   str, "CIF");
+	APPEND_IF_NONZERO(attr->QCIF,  str, "QCIF");
+	APPEND_IF_NONZERO(attr->SQCIF, str, "SQCIF");
 
 	if (attr->CUSTOM_XMAX && attr->CUSTOM_YMAX && attr->CUSTOM_MPI) {
-		ast_str_append(str, 0, ";CUSTOM=%u,%u,%u", attr->CUSTOM_XMAX, attr->CUSTOM_YMAX, attr->CUSTOM_MPI);
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "CUSTOM=%u,%u,%u", attr->CUSTOM_XMAX, attr->CUSTOM_YMAX, attr->CUSTOM_MPI);
 	}
 
-	if (attr->PAR_WIDTH && attr->PAR_HEIGHT) {
-		ast_str_append(str, 0, ";PAR=%u:%u", attr->PAR_WIDTH, attr->PAR_HEIGHT);
-	}
+	APPEND_IF_NONZERO(attr->F, str, "F");
+	APPEND_IF_NONZERO(attr->I, str, "I");
+	APPEND_IF_NONZERO(attr->J, str, "J");
+	APPEND_IF_NONZERO(attr->T, str, "T");
+	APPEND_IF_NONZERO(attr->K, str, "K");
+	APPEND_IF_NONZERO(attr->N, str, "N");
 
 	if (attr->P_SUB1) {
-		ast_str_append(str, 0, ";P=%u", attr->P_SUB1);
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "P=%u", attr->P_SUB1);
 		if (attr->P_SUB2) {
 			ast_str_append(str, 0, ",%u", attr->P_SUB2);
 		}
@@ -236,6 +344,21 @@ static void h263_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 			ast_str_append(str, 0, ",%u", attr->P_SUB4);
 		}
 	}
+
+	if (attr->PAR_WIDTH != H263_ATTR_KEY_UNSET && attr->PAR_HEIGHT != H263_ATTR_KEY_UNSET) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;	\
+		}
+		ast_str_append(str, 0, "PAR=%u:%u", attr->PAR_WIDTH, attr->PAR_HEIGHT);
+	}
+
+	APPEND_IF_NOT_H263_UNSET(attr->BPP, str, "BPP");
+
+	APPEND_IF_NONZERO(attr->HRD, str, "HRD");
+
+	APPEND_IF_NOT_H263_UNSET(attr->MaxBR, str, "MaxBR");
 
 	ast_str_append(str, 0, "\r\n");
 

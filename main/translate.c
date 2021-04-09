@@ -1509,16 +1509,19 @@ static void check_translation_path(
 	struct ast_format_cap *result, struct ast_format *src_fmt,
 	enum ast_media_type type)
 {
-	int index, src_index = format2index(src_fmt);
+	int i;
+
+	if (ast_format_get_type(src_fmt) != type) {
+		return;
+	}
+
 	/* For a given source format, traverse the list of
 	   known formats to determine whether there exists
 	   a translation path from the source format to the
 	   destination format. */
-	for (index = 0; (src_index >= 0) && index < cur_max_index; index++) {
-		struct ast_codec *codec = index2codec(index);
-		RAII_VAR(struct ast_format *, fmt, ast_format_create(codec), ao2_cleanup);
-
-		ao2_ref(codec, -1);
+	for (i = ast_format_cap_count(result) - 1; 0 <= i; i--) {
+		int index, src_index;
+		struct ast_format *fmt = ast_format_cap_get_format(result, i);
 
 		if (ast_format_get_type(fmt) != type) {
 			continue;
@@ -1532,6 +1535,15 @@ static void check_translation_path(
 		/* if the source is supplying this format, then
 		   we can leave it in the result */
 		if (ast_format_cap_iscompatible_format(src, fmt) == AST_FORMAT_CMP_EQUAL) {
+			continue;
+		}
+
+		/* if this is a pass-through format, not in the source,
+		   we cannot transcode. Therefore, remove it from the result */
+		src_index = format2index(src_fmt);
+		index = format2index(fmt);
+		if (src_index < 0 || index < 0) {
+			ast_format_cap_remove(result, fmt);
 			continue;
 		}
 

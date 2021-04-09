@@ -18,6 +18,7 @@
 #ifndef _ASTERISK_PATHS_H
 #define _ASTERISK_PATHS_H
 
+extern const char *ast_config_AST_CACHE_DIR;
 extern const char *ast_config_AST_CONFIG_DIR;
 extern const char *ast_config_AST_CONFIG_FILE;
 extern const char *ast_config_AST_MODULE_DIR;
