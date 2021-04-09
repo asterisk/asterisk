@@ -459,11 +459,20 @@ char *ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, c
 		case AST_CONTROL_RADIO_UNKEY:
 			ast_copy_string(subclass, "Unkey Radio", slen);
 			break;
+		case AST_CONTROL_PROGRESS:
+			ast_copy_string(subclass, "Progress", slen);
+			break;
+		case AST_CONTROL_PROCEEDING:
+			ast_copy_string(subclass, "Proceeding", slen);
+			break;
 		case AST_CONTROL_HOLD:
 			ast_copy_string(subclass, "Hold", slen);
 			break;
 		case AST_CONTROL_UNHOLD:
 			ast_copy_string(subclass, "Unhold", slen);
+			break;
+		case AST_CONTROL_VIDUPDATE:
+			ast_copy_string(subclass, "Video Update", slen);
 			break;
 		case AST_CONTROL_T38_PARAMETERS: {
 			char *message = "Unknown";

@@ -1265,7 +1265,7 @@ static force_inline int attribute_pure ast_str_case_hash(const char *str)
  *
  * \retval str for convenience
  */
-static force_inline char *attribute_pure ast_str_to_lower(char *str)
+static force_inline char *ast_str_to_lower(char *str)
 {
 	char *str_orig = str;
 	if (!str) {
@@ -1286,7 +1286,7 @@ static force_inline char *attribute_pure ast_str_to_lower(char *str)
  *
  * \retval str for convenience
  */
-static force_inline char *attribute_pure ast_str_to_upper(char *str)
+static force_inline char *ast_str_to_upper(char *str)
 {
 	char *str_orig = str;
 	if (!str) {

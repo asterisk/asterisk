@@ -331,8 +331,6 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				char tmp1[80];
 				char tmp2[80];
 				char tmp3[EXT_DATA_SIZE];
-				RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-				RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 				appdata[0] = 0; /* just in case the substitute var func isn't called */
 				if(!ast_strlen_zero(appdata_tmp))
@@ -343,25 +341,33 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 						 term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 				if (ast_channel_snapshot_type()) {
+					char *tmp_appl;
+					char *tmp_data;
+
 					ast_channel_lock(chan);
 					/* Force a new dialplan segment that will be unique to use so we can update it with the
 					 * information we want. In the future when a channel snapshot is published this will
 					 * occur again and unset this flag.
 					 */
 					ast_channel_snapshot_invalidate_segment(chan, AST_CHANNEL_SNAPSHOT_INVALIDATE_DIALPLAN);
-					snapshot = ast_channel_snapshot_create(chan);
-					ast_channel_unlock(chan);
-				}
-				if (snapshot) {
+
 					/* pbx_exec sets application name and data, but we don't want to log
-					 * every exec. Just update the snapshot here instead.
+					 * every exec. Just update the snapshot here instead. Publishing the
+					 * snapshot retrieves data from the channel object directly, so save
+					 * current values prior to publishing so they can be restored after.
 					 */
-					ast_string_field_set(snapshot->dialplan, appl, app);
-					ast_string_field_set(snapshot->dialplan, data, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
-					msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-					if (msg) {
-						stasis_publish(ast_channel_topic(chan), msg);
-					}
+					tmp_appl = ast_channel_appl(chan) ? ast_strdupa(ast_channel_appl(chan)) : NULL;
+					tmp_data = ast_channel_data(chan) ? ast_strdupa(ast_channel_data(chan)) : NULL;
+
+					ast_channel_appl_set(chan, app);
+					ast_channel_data_set(chan, !ast_strlen_zero(appdata) ? appdata : "(NULL)");
+
+					ast_channel_publish_snapshot(chan);
+
+					ast_channel_appl_set(chan, tmp_appl);
+					ast_channel_data_set(chan, tmp_data);
+
+					ast_channel_unlock(chan);
 				}
 				res = pbx_exec(chan, a, appdata);
 			} else

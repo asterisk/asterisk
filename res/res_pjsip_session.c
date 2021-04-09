@@ -491,15 +491,16 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 	struct ast_sip_session_media_state *media_state, enum ast_media_type type, int position)
 {
 	struct ast_sip_session_media *session_media = NULL;
+	struct ast_sip_session_media *current_session_media = NULL;
 	SCOPE_ENTER(1, "%s Adding position %d\n", ast_sip_session_get_name(session), position);
 
 	/* It is possible for this media state to already contain a session for the stream. If this
 	 * is the case we simply return it.
 	 */
 	if (position < AST_VECTOR_SIZE(&media_state->sessions)) {
-		session_media = AST_VECTOR_GET(&media_state->sessions, position);
-		if (session_media) {
-			SCOPE_EXIT_RTN_VALUE(session_media, "Using existing media_session\n");
+		current_session_media = AST_VECTOR_GET(&media_state->sessions, position);
+		if (current_session_media && current_session_media->type == type) {
+			SCOPE_EXIT_RTN_VALUE(current_session_media, "Using existing media_session\n");
 		}
 	}
 
@@ -575,6 +576,8 @@ struct ast_sip_session_media *ast_sip_session_media_state_add(struct ast_sip_ses
 
 		SCOPE_EXIT_RTN_VALUE(NULL, "Couldn't replace media_session\n");
 	}
+
+	ao2_cleanup(current_session_media);
 
 	/* If this stream will be active in some way and it is the first of this type then consider this the default media session to match */
 	if (!media_state->default_session[type] && ast_stream_get_state(ast_stream_topology_get_stream(media_state->topology, position)) != AST_STREAM_STATE_REMOVED) {
@@ -2190,7 +2193,7 @@ static int sip_session_refresh(struct ast_sip_session *session,
 	pjsip_inv_session *inv_session = session->inv_session;
 	pjmedia_sdp_session *new_sdp = NULL;
 	pjsip_tx_data *tdata;
-	int res;
+	int res = -1;
 	SCOPE_ENTER(3, "%s: New SDP? %s  Queued? %s DP: %s  DA: %s\n", ast_sip_session_get_name(session),
 		generate_new_sdp ? "yes" : "no", queued ? "yes" : "no",
 		pending_media_state ? ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)) : "none",
@@ -2261,7 +2264,6 @@ static int sip_session_refresh(struct ast_sip_session *session,
 		if (pending_media_state) {
 			int index;
 			int type_streams[AST_MEDIA_TYPE_END] = {0};
-			int topology_change_request = 0;
 
 			ast_trace(-1, "%s: Pending media state exists\n", ast_sip_session_get_name(session));
 
@@ -2280,18 +2282,18 @@ static int sip_session_refresh(struct ast_sip_session *session,
 					ast_sip_session_get_name(session));
 			}
 
-			if (active_media_state) {
+			/*
+			 * Attempt to resolve only if objects are available, and it's not
+			 * switching to or from an image type.
+			 */
+			if (active_media_state && active_media_state->topology &&
+				(!active_media_state->default_session[AST_MEDIA_TYPE_IMAGE] ==
+				 !pending_media_state->default_session[AST_MEDIA_TYPE_IMAGE])) {
+
 				struct ast_sip_session_media_state *new_pending_state;
-				/*
-				 * We need to check if the passed in active and pending states are equal
-				 * before we run the media states resolver.  We'll use the flag later
-				 * to signal whether this was topology change or some other change such
-				 * as a connected line change.
-				 */
-				topology_change_request = !ast_stream_topology_equal(active_media_state->topology, pending_media_state->topology);
 
 				ast_trace(-1, "%s: Active media state exists and is%s equal to pending\n", ast_sip_session_get_name(session),
-					topology_change_request ? " not" : "");
+					!ast_stream_topology_equal(active_media_state->topology,pending_media_state->topology) ? " not" : "");
 				ast_trace(-1, "%s: DP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: DA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(active_media_state->topology, &STR_TMP)));
 				ast_trace(-1, "%s: CP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->pending_media_state->topology, &STR_TMP)));
@@ -2451,11 +2453,9 @@ static int sip_session_refresh(struct ast_sip_session *session,
 
 				/*
 				 * We can suppress this re-invite if the pending topology is equal to the currently
-				 * active topology but only if this re-invite was the result of a requested topology
-				 * change.  If it was the result of some other change, like connected line, then
-				 * we don't want to suppress it even though the topologies are equal.
+				 * active topology.
 				 */
-				if (topology_change_request && ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
+				if (ast_stream_topology_equal(session->active_media_state->topology, pending_media_state->topology)) {
 					ast_trace(-1, "%s: CA: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(session->active_media_state->topology, &STR_TMP)));
 					ast_trace(-1, "%s: NP: %s\n", ast_sip_session_get_name(session), ast_str_tmp(256, ast_stream_topology_to_str(pending_media_state->topology, &STR_TMP)));
 					ast_sip_session_media_state_free(pending_media_state);
@@ -2779,56 +2779,6 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	if (!sdp_info->sdp) {
-		const pjmedia_sdp_session *local;
-		int i;
-
-		ast_queue_unhold(session->channel);
-
-		pjmedia_sdp_neg_get_active_local(session->inv_session->neg, &local);
-		if (!local) {
-			return PJ_FALSE;
-		}
-
-		/*
-		 * Some devices indicate hold with deferred SDP reinvites (i.e. no SDP in the reinvite).
-		 * When hold is initially indicated, we
-		 * - Receive an INVITE with no SDP
-		 * - Send a 200 OK with SDP, indicating sendrecv in the media streams
-		 * - Receive an ACK with SDP, indicating sendonly in the media streams
-		 *
-		 * At this point, the pjmedia negotiator saves the state of the media direction so that
-		 * if we are to send any offers, we'll offer recvonly in the media streams. This is
-		 * problematic if the device is attempting to unhold, though. If the device unholds
-		 * by sending a reinvite with no SDP, then we will respond with a 200 OK with recvonly.
-		 * According to RFC 3264, if an offerer offers recvonly, then the answerer MUST respond
-		 * with sendonly or inactive. The result of this is that the stream is not off hold.
-		 *
-		 * Therefore, in this case, when we receive a reinvite while the stream is on hold, we
-		 * need to be sure to offer sendrecv. This way, the answerer can respond with sendrecv
-		 * in order to get the stream off hold. If this is actually a different purpose reinvite
-		 * (like a session timer refresh), then the answerer can respond to our sendrecv with
-		 * sendonly, keeping the stream on hold.
-		 */
-		for (i = 0; i < local->media_count; ++i) {
-			pjmedia_sdp_media *m = local->media[i];
-			pjmedia_sdp_attr *recvonly;
-			pjmedia_sdp_attr *inactive;
-			pjmedia_sdp_attr *sendonly;
-
-			recvonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "recvonly", NULL);
-			inactive = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "inactive", NULL);
-			sendonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "sendonly", NULL);
-			if (recvonly || inactive || sendonly) {
-				pjmedia_sdp_attr *to_remove = recvonly ?: inactive ?: sendonly;
-				pjmedia_sdp_attr *sendrecv;
-
-				pjmedia_sdp_attr_remove(&m->attr_count, m->attr, to_remove);
-
-				sendrecv = pjmedia_sdp_attr_create(session->inv_session->pool, "sendrecv", NULL);
-				pjmedia_sdp_media_add_attr(m, sendrecv);
-			}
-		}
-
 		return PJ_FALSE;
 	}
 
@@ -2997,7 +2947,16 @@ static void session_destructor(void *obj)
 	ast_dsp_free(session->dsp);
 
 	if (session->inv_session) {
-		pjsip_dlg_dec_session(session->inv_session->dlg, &session_module);
+		struct pjsip_dialog *dlg = session->inv_session->dlg;
+
+		/* The INVITE session uses the dialog pool for memory, so we need to
+		 * decrement its reference first before that of the dialog.
+		 */
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(session->inv_session);
+#endif
+		pjsip_dlg_dec_session(dlg, &session_module);
 	}
 
 	ast_test_suite_event_notify("SESSION_DESTROYED", "Endpoint: %s", endpoint_name);
@@ -3105,6 +3064,24 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 	ast_sip_dialog_set_serializer(inv_session->dlg, session->serializer);
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
+
+	/* When a PJSIP INVITE session is created it is created with a reference
+	 * count of 1, with that reference being managed by the underlying state
+	 * of the INVITE session itself. When the INVITE session transitions to
+	 * a DISCONNECTED state that reference is released. This means we can not
+	 * rely on that reference to ensure the INVITE session remains for the
+	 * lifetime of our session. To ensure it does we add our own reference
+	 * and release it when our own session goes away, ensuring that the INVITE
+	 * session remains for the lifetime of session.
+	 */
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		return NULL;
+	}
+#endif
+
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
 	inv_session->mod_data[session_module.id] = ao2_bump(session);
 	session->contact = ao2_bump(contact);
@@ -3706,7 +3683,7 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	 */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(session->exten);
 
-	pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
+	pickup_cfg = ast_get_chan_features_pickup_config(NULL); /* session->channel doesn't exist yet, using NULL */
 	if (!pickup_cfg) {
 		ast_log(LOG_ERROR, "%s: Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n",
 			ast_sip_session_get_name(session));
@@ -3718,12 +3695,6 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 
 	if (!strcmp(session->exten, pickupexten) ||
 		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, NULL)) {
-		size_t size = pj_strlen(&sip_ruri->host) + 1;
-		char *domain = ast_alloca(size);
-
-		ast_copy_pj_str(domain, &sip_ruri->host, size);
-		pbx_builtin_setvar_helper(session->channel, "SIPDOMAIN", domain);
-
 		/*
 		 * Save off the INVITE Request-URI in case it is
 		 * needed: CHANNEL(pjsip,request_uri)
@@ -3956,9 +3927,6 @@ static int new_invite(struct new_invite *invite)
 			ast_sip_session_get_name(invite->session),
 			invite->session->inv_session->cause,
 			pjsip_get_status_text(invite->session->inv_session->cause)->ptr);
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(invite->session->inv_session);
-#endif
 		SCOPE_EXIT_RTN_VALUE(-1);
 	}
 
@@ -4076,9 +4044,6 @@ static int new_invite(struct new_invite *invite)
 	handle_incoming_request(invite->session, invite->rdata);
 
 end:
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-	pjsip_inv_dec_ref(invite->session->inv_session);
-#endif
 	SCOPE_EXIT_RTN_VALUE(0, "%s\n", ast_sip_session_get_name(invite->session));
 }
 
@@ -4124,19 +4089,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 	 * process handling has successfully completed.
 	 */
 
-
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
-		/* Dialog's lock and a reference are removed in new_invite_initial_answer */
-		if (!new_invite_initial_answer(inv_session, rdata, 500, 500, PJ_FALSE)) {
-			/* Terminate the session if it wasn't done in the answer */
-			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
-		}
-		SCOPE_EXIT_RTN("Couldn't add invite session reference\n");
-	}
-#endif
-
 	session = ast_sip_session_alloc(endpoint, NULL, inv_session, rdata);
 	if (!session) {
 		/* Dialog's lock and reference are removed in new_invite_initial_answer */
@@ -4144,9 +4096,6 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 			/* Terminate the session if it wasn't done in the answer */
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		}
-#ifdef HAVE_PJSIP_INV_SESSION_REF
-		pjsip_inv_dec_ref(inv_session);
-#endif
 		SCOPE_EXIT_RTN("Couldn't create session\n");
 	}
 	session->call_direction = AST_SIP_SESSION_INCOMING_CALL;
@@ -4321,20 +4270,48 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 {
 	pjsip_inv_session *inv = session->inv_session;
 	pj_time_val tv;
-	struct ast_sip_session_media_state *pending_media_state;
-	struct ast_sip_session_media_state *active_media_state;
+	struct ast_sip_session_media_state *pending_media_state = NULL;
+	struct ast_sip_session_media_state *active_media_state = NULL;
 	const char *session_name = ast_sip_session_get_name(session);
+	int use_pending = 0;
+	int use_active = 0;
+
 	SCOPE_ENTER(3, "%s\n", session_name);
 
-	pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
-	if (!pending_media_state) {
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
+	/*
+	 * If the two media state topologies are the same this means that the session refresh request
+	 * did not specify a desired topology, so it does not care. If that is the case we don't even
+	 * pass one in here resulting in the current topology being used.  It's possible though that
+	 * either one of the topologies could be NULL so we have to test for that before we check for
+	 * equality.
+	 */
+
+	/* We only want to clone a media state if its topology is not null */
+	use_pending = session->pending_media_state->topology != NULL;
+	use_active = session->active_media_state->topology != NULL;
+
+	/*
+	 * If both media states have topologies, we can test for equality.  If they're equal we're not going to
+	 * clone either states.
+	 */
+	if (use_pending && use_active && ast_stream_topology_equal(session->active_media_state->topology, session->pending_media_state->topology)) {
+		use_pending = 0;
+		use_active = 0;
 	}
 
-	active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
-	if (!active_media_state) {
-		ast_sip_session_media_state_free(pending_media_state);
-		SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
+	if (use_pending) {
+		pending_media_state = ast_sip_session_media_state_clone(session->pending_media_state);
+		if (!pending_media_state) {
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone pending media state\n", session_name);
+		}
+	}
+
+	if (use_active) {
+		active_media_state = ast_sip_session_media_state_clone(session->active_media_state);
+		if (!active_media_state) {
+			ast_sip_session_media_state_free(pending_media_state);
+			SCOPE_EXIT_LOG_RTN(LOG_ERROR, "%s: Failed to clone active media state\n", session_name);
+		}
 	}
 
 	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE, pending_media_state,
@@ -5279,12 +5256,70 @@ static void session_inv_on_rx_offer(pjsip_inv_session *inv, const pjmedia_sdp_se
 	SCOPE_EXIT_RTN("%s: create_local_sdp failed\n", ast_sip_session_get_name(session));
 }
 
-#if 0
 static void session_inv_on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
 {
-	/* XXX STUB */
+	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	const pjmedia_sdp_session *previous_sdp = NULL;
+	pjmedia_sdp_session *offer;
+	int i;
+
+	if (inv->neg) {
+		if (pjmedia_sdp_neg_was_answer_remote(inv->neg)) {
+			pjmedia_sdp_neg_get_active_remote(inv->neg, &previous_sdp);
+		} else {
+			pjmedia_sdp_neg_get_active_local(inv->neg, &previous_sdp);
+		}
+	}
+
+	offer = create_local_sdp(inv, session, previous_sdp);
+	if (!offer) {
+		return;
+	}
+
+	ast_queue_unhold(session->channel);
+
+	/*
+	 * Some devices indicate hold with deferred SDP reinvites (i.e. no SDP in the reinvite).
+	 * When hold is initially indicated, we
+	 * - Receive an INVITE with no SDP
+	 * - Send a 200 OK with SDP, indicating sendrecv in the media streams
+	 * - Receive an ACK with SDP, indicating sendonly in the media streams
+	 *
+	 * At this point, the pjmedia negotiator saves the state of the media direction so that
+	 * if we are to send any offers, we'll offer recvonly in the media streams. This is
+	 * problematic if the device is attempting to unhold, though. If the device unholds
+	 * by sending a reinvite with no SDP, then we will respond with a 200 OK with recvonly.
+	 * According to RFC 3264, if an offerer offers recvonly, then the answerer MUST respond
+	 * with sendonly or inactive. The result of this is that the stream is not off hold.
+	 *
+	 * Therefore, in this case, when we receive a reinvite while the stream is on hold, we
+	 * need to be sure to offer sendrecv. This way, the answerer can respond with sendrecv
+	 * in order to get the stream off hold. If this is actually a different purpose reinvite
+	 * (like a session timer refresh), then the answerer can respond to our sendrecv with
+	 * sendonly, keeping the stream on hold.
+	 */
+	for (i = 0; i < offer->media_count; ++i) {
+		pjmedia_sdp_media *m = offer->media[i];
+		pjmedia_sdp_attr *recvonly;
+		pjmedia_sdp_attr *inactive;
+		pjmedia_sdp_attr *sendonly;
+
+		recvonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "recvonly", NULL);
+		inactive = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "inactive", NULL);
+		sendonly = pjmedia_sdp_attr_find2(m->attr_count, m->attr, "sendonly", NULL);
+		if (recvonly || inactive || sendonly) {
+			pjmedia_sdp_attr *to_remove = recvonly ?: inactive ?: sendonly;
+			pjmedia_sdp_attr *sendrecv;
+
+			pjmedia_sdp_attr_remove(&m->attr_count, m->attr, to_remove);
+
+			sendrecv = pjmedia_sdp_attr_create(session->inv_session->pool, "sendrecv", NULL);
+			pjmedia_sdp_media_add_attr(m, sendrecv);
+		}
+	}
+
+	*p_offer = offer;
 }
-#endif
 
 static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t status)
 {
@@ -5413,6 +5448,7 @@ static pjsip_inv_callback inv_callback = {
 	.on_new_session = session_inv_on_new_session,
 	.on_tsx_state_changed = session_inv_on_tsx_state_changed,
 	.on_rx_offer = session_inv_on_rx_offer,
+	.on_create_offer = session_inv_on_create_offer,
 	.on_media_update = session_inv_on_media_update,
 	.on_redirected = session_inv_on_redirected,
 };
@@ -5578,12 +5614,14 @@ static int test_is_media_state_equal(struct ast_sip_session_media_state *left, s
 	}
 	if (AST_VECTOR_SIZE(&left->sessions) != AST_VECTOR_SIZE(&right->sessions)) {
 		ast_assert(!assert_on_failure);
-		SCOPE_EXIT_RTN_VALUE(0, "session vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->sessions),
+		SCOPE_EXIT_RTN_VALUE(0, "session vector sizes different: left %zu != right %zu\n",
+			AST_VECTOR_SIZE(&left->sessions),
 			AST_VECTOR_SIZE(&right->sessions));
 	}
 	if (AST_VECTOR_SIZE(&left->read_callbacks) != AST_VECTOR_SIZE(&right->read_callbacks)) {
 		ast_assert(!assert_on_failure);
-		SCOPE_EXIT_RTN_VALUE(0, "read_callback vector sizes different: left %lu != right %lu\n", AST_VECTOR_SIZE(&left->read_callbacks),
+		SCOPE_EXIT_RTN_VALUE(0, "read_callback vector sizes different: left %zu != right %zu\n",
+			AST_VECTOR_SIZE(&left->read_callbacks),
 			AST_VECTOR_SIZE(&right->read_callbacks));
 	}
 

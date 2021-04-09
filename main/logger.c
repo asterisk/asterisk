@@ -1672,6 +1672,11 @@ static struct logmsg * __attribute__((format(printf, 7, 0))) format_log_message_
 		return NULL;
 	}
 
+	/* Automatically add a newline to format strings that don't have one */
+	if (!ast_ends_with(ast_str_buffer(buf), "\n")) {
+		ast_str_append(&buf, 0, "\n");
+	}
+
 	/* Create a new logging message */
 	if (!(logmsg = ast_calloc_with_stringfields(1, struct logmsg, res + 128))) {
 		return NULL;

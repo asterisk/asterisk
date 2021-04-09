@@ -73,6 +73,7 @@
 #include "asterisk/json.h"
 #include "asterisk/file.h"
 #include "asterisk/module.h"
+#include "asterisk/paths.h"
 
 /*! \brief Number of buckets for the container of schemes */
 #define SCHEME_BUCKETS 53
@@ -899,7 +900,7 @@ int ast_bucket_file_temporary_create(struct ast_bucket_file *file)
 {
 	int fd;
 
-	ast_copy_string(file->path, "/tmp/bucket-XXXXXX", sizeof(file->path));
+	snprintf(file->path, sizeof(file->path), "%s/bucket-XXXXXX", ast_config_AST_CACHE_DIR);
 
 	fd = mkstemp(file->path);
 	if (fd < 0) {

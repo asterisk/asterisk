@@ -66,12 +66,12 @@ struct stasis_app_snoop {
 	struct ast_str *app;
 	/*! \brief Snoop channel */
 	struct ast_channel *chan;
+	/*! \brief The channel that the Snoop channel is snooping on */
+	struct ast_channel *spyee_chan;
 	/*! \brief Whether the spy capability is active or not */
 	unsigned int spy_active:1;
 	/*! \brief Whether the whisper capability is active or not */
 	unsigned int whisper_active:1;
-	/*! \brief Uniqueid of the channel this snoop is snooping on */
-	char uniqueid[AST_MAX_UNIQUEID];
 	/*! \brief A frame of silence to use when the audiohook returns null */
 	struct ast_frame silence;
 };
@@ -100,6 +100,7 @@ static void snoop_destroy(void *obj)
 
 	ast_free(snoop->app);
 
+	ast_channel_cleanup(snoop->spyee_chan);
 	ast_channel_cleanup(snoop->chan);
 }
 
@@ -134,7 +135,7 @@ static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)
 	}
 	ast_multi_channel_blob_add_channel(payload, "spyer_channel", snoop_snapshot);
 
-	spyee_snapshot = ast_channel_snapshot_get_latest(snoop->uniqueid);
+	spyee_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop->spyee_chan));
 	if (spyee_snapshot) {
 		ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
 	}
@@ -354,8 +355,6 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 		return NULL;
 	}
 
-	ast_copy_string(snoop->uniqueid, ast_channel_uniqueid(chan), sizeof(snoop->uniqueid));
-
 	/* To keep the channel valid on the Snoop structure until it is destroyed we bump the ref up here */
 	ast_channel_ref(snoop->chan);
 
@@ -424,6 +423,9 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 		ast_hangup(snoop->chan);
 		return NULL;
 	}
+
+	/* Keep a reference to the channel we are spying on */
+	snoop->spyee_chan = ast_channel_ref(chan);
 
 	publish_chanspy_message(snoop, 1);
 

@@ -1051,6 +1051,7 @@ PBX_MISDN
 MISDN_DIR
 MISDN_INCLUDE
 MISDN_LIB
+LUA_VERSIONS
 PBX_LUA
 LUA_DIR
 LUA_INCLUDE
@@ -1295,6 +1296,7 @@ BUILD_OS
 BUILD_VENDOR
 BUILD_CPU
 BUILD_PLATFORM
+astcachedir
 astvarrundir
 astlogdir
 astspooldir
@@ -1476,6 +1478,7 @@ CCC
 CXXCPP
 JANSSON_CONFIGURE_OPTS
 PJPROJECT_CONFIGURE_OPTS
+LUA_VERSIONS
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
@@ -2234,6 +2237,8 @@ Some influential environment variables:
               Additional configure options to pass to bundled jansson
   PJPROJECT_CONFIGURE_OPTS
               Additional configure options to pass to bundled pjproject
+  LUA_VERSIONS
+              A space separated list of target lua versions to test.
   PKG_CONFIG  path to pkg-config utility
   PKG_CONFIG_PATH
               directories to add to pkg-config's search path
@@ -4660,6 +4665,7 @@ $as_echo "$ac_cv_safe_to_define___extensions__" >&6; }
 
 # System default paths
 astsbindir='${sbindir}'
+astcachedir='/tmp'
 astetcdir='${sysconfdir}/asterisk'
 astheaderdir='${includedir}/asterisk'
 astlibdir='${libdir}'
@@ -4728,6 +4734,7 @@ $as_echo "#define _DARWIN_UNLIMITED_SELECT 1" >>confdefs.h
      ;;
      solaris*)
      if test ${prefix} = 'NONE'; then
+        astcachedir=/tmp
         astetcdir=/var/etc/asterisk
         astsbindir=/opt/asterisk/sbin
         astlibdir=/opt/asterisk/lib
@@ -13120,122 +13127,6 @@ fi
 
 if test -z $ac_header_dirent -o "$ac_header_dirent" = "no"; then
   as_fn_error $? "*** Could not find dirent header that defines 'DIR'." "$LINENO" 5
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
-$as_echo_n "checking for ANSI C header files... " >&6; }
-if ${ac_cv_header_stdc+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <float.h>
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_header_stdc=yes
-else
-  ac_cv_header_stdc=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-
-if test $ac_cv_header_stdc = yes; then
-  # SunOS 4.x string.h does not declare mem*, contrary to ANSI.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <string.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "memchr" >/dev/null 2>&1; then :
-
-else
-  ac_cv_header_stdc=no
-fi
-rm -f conftest*
-
-fi
-
-if test $ac_cv_header_stdc = yes; then
-  # ISC 2.0.2 stdlib.h does not declare free, contrary to ANSI.
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdlib.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "free" >/dev/null 2>&1; then :
-
-else
-  ac_cv_header_stdc=no
-fi
-rm -f conftest*
-
-fi
-
-if test $ac_cv_header_stdc = yes; then
-  # /bin/cc in Irix-4.0.5 gets non-ANSI ctype macros unless using -ansi.
-  if test "$cross_compiling" = yes; then :
-  :
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <ctype.h>
-#include <stdlib.h>
-#if ((' ' & 0x0FF) == 0x020)
-# define ISLOWER(c) ('a' <= (c) && (c) <= 'z')
-# define TOUPPER(c) (ISLOWER(c) ? 'A' + ((c) - 'a') : (c))
-#else
-# define ISLOWER(c) \
-		   (('a' <= (c) && (c) <= 'i') \
-		     || ('j' <= (c) && (c) <= 'r') \
-		     || ('s' <= (c) && (c) <= 'z'))
-# define TOUPPER(c) (ISLOWER(c) ? ((c) | 0x40) : (c))
-#endif
-
-#define XOR(e, f) (((e) && !(f)) || (!(e) && (f)))
-int
-main ()
-{
-  int i;
-  for (i = 0; i < 256; i++)
-    if (XOR (islower (i), ISLOWER (i))
-	|| toupper (i) != TOUPPER (i))
-      return 2;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-
-else
-  ac_cv_header_stdc=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-fi
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_stdc" >&5
-$as_echo "$ac_cv_header_stdc" >&6; }
-if test $ac_cv_header_stdc = yes; then
-
-$as_echo "#define STDC_HEADERS 1" >>confdefs.h
-
-fi
-
-if test "$ac_cv_header_stdc" != "yes"; then
-  as_fn_error $? "*** ANSI C header files not found." "$LINENO" 5
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for sys/wait.h that is POSIX.1 compatible" >&5
@@ -29630,7 +29521,7 @@ fi
 
 
 
-for ver in 5.4 5.3 5.2 5.1; do
+for ver in ${LUA_VERSIONS:-5.4 5.3 5.2 5.1}; do
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -29741,6 +29632,7 @@ fi
 done
 
 # Some distributions (like openSUSE and NetBSD) remove the 5.x suffix.
+if test "x${LUA_VERSIONS}" = "x"; then
 
 if test "x${PBX_LUA}" != "x1" -a "${USE_LUA}" != "no"; then
    pbxlibdir=""
@@ -29837,6 +29729,7 @@ _ACEOF
 fi
 
 
+fi
 
 # Accept either RADIUS client library, their APIs are fully compatible,
 # just different header filenames and different SONAMEs

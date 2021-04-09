@@ -29,8 +29,13 @@
 
 #include "asterisk.h"
 
+#include <ctype.h>                      /* for tolower */
+
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/astobj2.h"           /* for ao2_bump */
+#include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */
+#include "asterisk/strings.h"           /* for ast_str_append */
 
 /* Destroy is a required callback and must exist */
 static void siren7_destroy(struct ast_format *format)
@@ -45,9 +50,15 @@ static int siren7_clone(const struct ast_format *src, struct ast_format *dst)
 
 static struct ast_format *siren7_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
+	char *attribs = ast_strdupa(attributes), *attrib;
 	unsigned int val;
 
-	if (sscanf(attributes, "bitrate=%30u", &val) == 1) {
+	/* lower-case everything, so we are case-insensitive */
+	for (attrib = attribs; *attrib; ++attrib) {
+		*attrib = tolower(*attrib);
+	} /* based on channels/chan_sip.c:process_a_sdp_image() */
+
+	if (sscanf(attribs, "bitrate=%30u", &val) == 1) {
 		if (val != 32000) {
 			ast_log(LOG_WARNING, "Got Siren7 offer at %u bps, but only 32000 bps supported; ignoring.\n", val);
 			return NULL;

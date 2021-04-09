@@ -42,9 +42,11 @@ static int pidf_supplement_body(void *body, void *data)
 	pj_xml_node *node;
 	char sanitized[1024];
 
+	/* The res_pjsip_exten_state module converts the user agent to lower case */
 	if (ast_strlen_zero(state_data->user_agent) ||
-	    !strstr(state_data->user_agent, "digium")) {
-		/* not a digium phone */
+	    (!strstr(state_data->user_agent, "digium") &&
+		!strstr(state_data->user_agent, "sangoma"))) {
+		/* not a Sangoma phone */
 		return 0;
 	}
 
@@ -107,7 +109,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP PIDF Digium presence supplement",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP PIDF Sangoma presence supplement",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,

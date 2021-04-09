@@ -697,4 +697,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "HTTP Media Cache Backend
 		.load = load_module,
 		.reload = reload_module,
 		.unload = unload_module,
+		.requires = "res_http_media_cache",
 	);

@@ -1559,6 +1559,28 @@ const char *ast_sorcery_object_get_extended(const void *object, const char *name
 int ast_sorcery_object_set_extended(const void *object, const char *name, const char *value);
 
 /*!
+ * \brief Get whether an object contains dynamic contents or not
+ *
+ * \param object Pointer to a sorcery object
+ *
+ * \since 19
+ * \since 18.3.0
+ * \since 16.17.0
+ */
+unsigned int ast_sorcery_object_has_dynamic_contents(const void *object);
+
+/*!
+ * \brief Set the dynamic contents flag on a sorcery object
+ *
+ * \param object Pointer to a sorcery object
+ *
+ * \since 19
+ * \since 18.3.0
+ * \since 16.17.0
+ */
+void ast_sorcery_object_set_has_dynamic_contents(const void *object);
+
+/*!
  * \brief ao2 object comparator based on sorcery id.
  */
 int ast_sorcery_object_id_compare(void *obj, void *arg, int flags);

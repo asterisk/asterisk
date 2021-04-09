@@ -135,6 +135,10 @@
 						<para>Accept digits for a new extension in context <replaceable>c</replaceable>,
 						if played during the greeting. Context defaults to the current context.</para>
 					</option>
+					<option name="e">
+						<para>Play greetings as early media -- only answer the channel just
+						before accepting the voice message.</para>
+					</option>
 					<option name="g">
 						<argument name="#" required="true" />
 						<para>Use the specified amount of gain when recording the voicemail
@@ -577,7 +581,8 @@ enum vm_option_flags {
 	OPT_AUTOPLAY =         (1 << 6),
 	OPT_DTMFEXIT =         (1 << 7),
 	OPT_MESSAGE_Urgent =   (1 << 8),
-	OPT_MESSAGE_PRIORITY = (1 << 9)
+	OPT_MESSAGE_PRIORITY = (1 << 9),
+	OPT_EARLYM_GREETING =  (1 << 10)
 };
 
 enum vm_option_args {
@@ -603,7 +608,8 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
 	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 	AST_APP_OPTION('U', OPT_MESSAGE_Urgent),
-	AST_APP_OPTION('P', OPT_MESSAGE_PRIORITY)
+	AST_APP_OPTION('P', OPT_MESSAGE_PRIORITY),
+	AST_APP_OPTION('e', OPT_EARLYM_GREETING)
 });
 
 static const char * const mailbox_folders[] = {
@@ -3828,6 +3834,7 @@ static int retrieve_file(char *dir, int msgnum)
 	char fn[PATH_MAX];
 	char full_fn[PATH_MAX];
 	char msgnums[80];
+	char msg_id[MSG_ID_LEN] = "";
 	char *argv[] = { dir, msgnums };
 	struct generic_prepare_struct gps = { .sql = sql, .argc = 2, .argv = argv };
 	struct odbc_obj *obj;
@@ -3932,10 +3939,10 @@ static int retrieve_file(char *dir, int msgnum)
 		} else {
 			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
 			if (res == SQL_NULL_DATA && !strcasecmp(coltitle, "msg_id")) {
-				char msg_id[MSG_ID_LEN];
+				/* Generate msg_id now, but don't store it until we're done with this
+				   connection */
 				generate_msg_id(msg_id);
 				snprintf(rowdata, sizeof(rowdata), "%s", msg_id);
-				odbc_update_msg_id(dir, msgnum, msg_id);
 			} else if (res == SQL_NULL_DATA && !strcasecmp(coltitle, "category")) {
 				/* Ignore null column value for category */
 				ast_debug(3, "Ignoring null category column in ODBC voicemail retrieve_file.\n");
@@ -3960,6 +3967,13 @@ bail:
 		close(fd);
 
 	ast_odbc_release_obj(obj);
+
+	/* If res_odbc is configured to only allow a single database connection, we
+	   will deadlock if we try to do this before releasing the connection we
+	   were just using. */
+	if (!ast_strlen_zero(msg_id)) {
+		odbc_update_msg_id(dir, msgnum, msg_id);
+	}
 
 	return x - 1;
 }
@@ -6854,6 +6868,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		return -1;
 	}
 	/* The meat of recording the message...  All the announcements and beeps have been played*/
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_answer(chan);
+	}
 	ast_copy_string(fmt, vmfmts, sizeof(fmt));
 	if (!ast_strlen_zero(fmt)) {
 		char msg_id[MSG_ID_LEN] = "";
@@ -12259,9 +12276,6 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 
 	memset(&leave_options, 0, sizeof(leave_options));
 
-	if (ast_channel_state(chan) != AST_STATE_UP)
-		ast_answer(chan);
-
 	if (!ast_strlen_zero(data)) {
 		tmp = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, tmp);
@@ -12292,6 +12306,14 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 		if (ast_strlen_zero(temp))
 			return 0;
 		args.argv0 = ast_strdupa(temp);
+	}
+
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		if (ast_test_flag(&flags, OPT_EARLYM_GREETING)) {
+			ast_indicate(chan, AST_CONTROL_PROGRESS);
+		} else {
+			ast_answer(chan);
+		}
 	}
 
 	res = leave_voicemail(chan, args.argv0, &leave_options);

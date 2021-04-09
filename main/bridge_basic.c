@@ -2638,7 +2638,7 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 		&props->original_transferer_colp);
 	ast_party_id_reset(&ast_channel_connected(props->recall_target)->priv);
 
-	common_recall_channel_setup(props->recall_target, props->recall_target);
+	common_recall_channel_setup(props->recall_target, props->transferer);
 	ast_channel_unlock(props->recall_target);
 	ast_channel_unlock(props->transferer);
 

@@ -722,7 +722,7 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 			|| type == SUBSCRIPTION_PERSISTENCE_RECREATED) {
 			if (rdata->msg_info.msg_buf) {
 				ast_copy_string(sub_tree->persistence->packet, rdata->msg_info.msg_buf,
-						MIN(sizeof(sub_tree->persistence->packet), rdata->msg_info.len));
+						MIN(sizeof(sub_tree->persistence->packet), rdata->msg_info.len + 1));
 			} else {
 				ast_copy_string(sub_tree->persistence->packet, rdata->pkt_info.packet,
 						sizeof(sub_tree->persistence->packet));

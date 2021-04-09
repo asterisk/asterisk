@@ -139,6 +139,9 @@ struct ast_sorcery_object {
 
 	/*! \brief Time that the object was created */
 	struct timeval created;
+
+	/*! \brief Whether this object has dynamic contents or not */
+	unsigned int has_dynamic_contents:1;
 };
 
 /*! \brief Structure for registered object type */
@@ -2364,6 +2367,20 @@ int ast_sorcery_object_set_extended(const void *object, const char *name, const 
 	details->object->extended = extended;
 
 	return 0;
+}
+
+unsigned int ast_sorcery_object_has_dynamic_contents(const void *object)
+{
+	const struct ast_sorcery_object_details *details = object;
+
+	return details->object->has_dynamic_contents;
+}
+
+void ast_sorcery_object_set_has_dynamic_contents(const void *object)
+{
+	const struct ast_sorcery_object_details *details = object;
+
+	details->object->has_dynamic_contents = 1;
 }
 
 int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks)

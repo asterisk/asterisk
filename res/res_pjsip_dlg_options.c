@@ -34,7 +34,7 @@
 #include "asterisk/res_pjsip_session.h"
 
 #define DEFAULT_LANGUAGE "en"
-#define DEFAULT_ENCODING "text/plain"
+#define DEFAULT_ENCODING "identity"
 
 static int options_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
