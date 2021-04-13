@@ -46,7 +46,10 @@
 			<parameter name="action" required="true">
 				<enumlist>
 					<enum name="read"><para>Returns instance <replaceable>number</replaceable>
-					of header <replaceable>name</replaceable>.</para></enum>
+					of header <replaceable>name</replaceable>. A <literal>*</literal>
+					may be appended to <replaceable>name</replaceable> to iterate over all 
+					headers <emphasis>beginning with</emphasis> <replaceable>name</replaceable>.
+					</para></enum>
 
 					<enum name="add"><para>Adds a new header <replaceable>name</replaceable>
 					to this session.</para></enum>
@@ -87,6 +90,9 @@
 			<para>;</para>
 			<para>; Set 'via2' to the value of the 2nd 'Via' header.</para>
 			<para>exten => 1,1,Set(via2=${PJSIP_HEADER(read,Via,2)})</para>
+			<para>;</para>
+			<para>; Set 'xhdr' to the value of the 1sx X-header.</para>
+			<para>exten => 1,1,Set(xhdr=${PJSIP_HEADER(read,X-*,1)})</para>
 			<para>;</para>
 			<para>; Add an 'X-Myheader' header with the value of 'myvalue'.</para>
 			<para>exten => 1,1,Set(PJSIP_HEADER(add,X-MyHeader)=myvalue)</para>
@@ -139,6 +145,29 @@
 			</note>
 		</description>
 	</function>
+	<function name="PJSIP_HEADERS" language="en_US">
+		<synopsis>
+			Gets the list of SIP header names from an INVITE message.
+		</synopsis>
+		<syntax>
+			<parameter name="prefix">
+				<para>If specified, only the headers matching the given prefix are returned.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Returns a comma-separated list of header names (without values) from the
+			INVITE message. Multiple headers with the same name are included in the list only once.
+			</para>
+			<para>For example, <literal>${PJSIP_HEADERS(Co)}</literal> might return
+			<literal>Contact,Content-Length,Content-Type</literal>. As a practical example,
+			you may use <literal>${PJSIP_HEADERS(X-)}</literal> to enumerate optional extended
+			headers.</para>
+		</description>
+		<see-also>
+			<ref type="function">PJSIP_HEADER</ref>
+		</see-also>
+	</function>
+
  ***/
 
 /*! \brief Linked list for accumulating headers */
@@ -240,6 +269,92 @@ static pjsip_hdr *find_header(struct hdr_list *list, const char *header_name,
 	return hdr;
 }
 
+/*!
+ * \internal
+ * \brief Implements PJSIP_HEADERS by searching for the requested header prefix.
+ *
+ * Retrieve the header_datastore.
+ * Search for the all matching headers.
+ * Validate the pjsip_hdr found.
+ * Parse pjsip_hdr into a name and copy to the buffer.
+ * Return the value.
+ */
+static int read_headers(void *obj)
+{
+	struct header_data *data = obj;
+	size_t len = strlen(data->header_name);
+	pjsip_hdr *hdr = NULL;
+	char *pj_hdr_string;
+	int pj_hdr_string_len;
+	char *p;
+	char *pos;
+	size_t plen, wlen = 0;
+	struct hdr_list_entry *le;
+	struct hdr_list *list;
+
+	RAII_VAR(struct ast_datastore *, datastore,
+			 ast_sip_session_get_datastore(data->channel->session, header_datastore.type),
+			 ao2_cleanup);
+
+	if (!datastore || !datastore->data) {
+		ast_debug(1, "There was no datastore from which to read headers.\n");
+		return -1;
+	}
+
+	list = datastore->data;
+	pj_hdr_string = ast_alloca(data->len);
+	AST_LIST_TRAVERSE(list, le, nextptr) {
+		if (pj_strnicmp2(&le->hdr->name, data->header_name, len) == 0) {
+			/* Found matched header, append to buf */
+			hdr = le->hdr;
+
+			pj_hdr_string_len = pjsip_hdr_print_on(hdr, pj_hdr_string, data->len - 1);
+			if (pj_hdr_string_len == -1) {
+				ast_log(AST_LOG_ERROR,
+					"Not enought buffer space in pjsip_hdr_print_on\n");
+				return -1;
+			}
+			pj_hdr_string[pj_hdr_string_len] = '\0';
+			p = strchr(pj_hdr_string, ':');
+			if (!p) {
+				ast_log(AST_LOG_WARNING,
+					"A malformed header was returned from pjsip_hdr_print_on\n");
+				continue;
+			}
+
+			pj_hdr_string[p - pj_hdr_string] = '\0';
+			p = ast_strip(pj_hdr_string);
+			plen = strlen(p);
+			if (wlen + plen + 1 > data->len) {
+				ast_log(AST_LOG_ERROR,
+						"Buffer isn't big enough to hold header value.  %zu > %zu\n", plen + 1,
+						data->len);
+				return -1;
+			}
+			pos = strstr(data->buf, p);
+			if (pos && pos[1] == ',') {
+				if (pos == data->buf) {
+					continue;
+				} else if (pos[-1] == ',') {
+					continue;
+				}
+			}
+			ast_copy_string(data->buf + wlen, p, data->len - wlen);
+			wlen += plen;
+			ast_copy_string(data->buf + wlen, ",", data->len - wlen);
+			wlen++;
+		}
+	}
+
+	if (wlen == 0) {
+		ast_debug(1, "There was no header named %s.\n", data->header_name);
+		return -1;
+	} else {
+		data->buf[wlen-1] = '\0';
+	}
+	return 0;
+}
+
 
 /*!
  * \internal
@@ -254,11 +369,15 @@ static pjsip_hdr *find_header(struct hdr_list *list, const char *header_name,
 static int read_header(void *obj)
 {
 	struct header_data *data = obj;
+	size_t len = strlen(data->header_name);
 	pjsip_hdr *hdr = NULL;
 	char *pj_hdr_string;
-	size_t pj_hdr_string_len;
+	int pj_hdr_string_len;
 	char *p;
 	size_t plen;
+	struct hdr_list_entry *le;
+	struct hdr_list *list;
+	int i = 1;
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(data->channel->session, header_datastore.type),
 			 ao2_cleanup);
@@ -268,8 +387,20 @@ static int read_header(void *obj)
 		return -1;
 	}
 
-	hdr = find_header((struct hdr_list *) datastore->data, data->header_name,
-					  data->header_number);
+	list = datastore->data;
+	AST_LIST_TRAVERSE(list, le, nextptr) {
+		if (data->header_name[len - 1] == '*') {
+			if (pj_strnicmp2(&le->hdr->name, data->header_name, len - 1) == 0 && i++ == data->header_number) {
+				hdr = le->hdr;
+				break;
+			}
+		} else {
+			if (pj_stricmp2(&le->hdr->name, data->header_name) == 0 && i++ == data->header_number) {
+				hdr = le->hdr;
+				break;
+			}
+		}
+	}
 
 	if (!hdr) {
 		ast_debug(1, "There was no header named %s.\n", data->header_name);
@@ -277,7 +408,13 @@ static int read_header(void *obj)
 	}
 
 	pj_hdr_string = ast_alloca(data->len);
-	pj_hdr_string_len = pjsip_hdr_print_on(hdr, pj_hdr_string, data->len);
+	pj_hdr_string_len = pjsip_hdr_print_on(hdr, pj_hdr_string, data->len - 1);
+	if (pj_hdr_string_len == -1) {
+		ast_log(AST_LOG_ERROR,
+			"Not enought buffer space in pjsip_hdr_print_on\n");
+		return -1;
+	}
+
 	pj_hdr_string[pj_hdr_string_len] = '\0';
 
 	p = strchr(pj_hdr_string, ':');
@@ -435,12 +572,43 @@ static int remove_header(void *obj)
 }
 
 /*!
+ * \brief Read list of unique SIP headers
+ */
+static int func_read_headers(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
+{
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
+	struct header_data header_data;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(header_pattern);
+	);
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!chan || strncmp(ast_channel_name(chan), "PJSIP/", 6)) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.header_pattern)) {
+		ast_log(AST_LOG_ERROR, "This function requires a pattern.\n");
+		return -1;
+	}
+
+	header_data.channel = channel;
+	header_data.header_name = args.header_pattern;
+	header_data.header_value = NULL;
+	header_data.buf = buf;
+	header_data.len = len;
+
+	return ast_sip_push_task_wait_serializer(channel->session->serializer, read_headers, &header_data);
+
+}
+
+/*!
  * \brief Implements function 'read' callback.
  *
  * Valid actions are 'read' and 'remove'.
  */
-static int func_read_header(struct ast_channel *chan, const char *function, char *data,
-							char *buf, size_t len)
+static int func_read_header(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
 {
 	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
 	struct header_data header_data;
@@ -480,8 +648,7 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 	header_data.len = len;
 
 	if (!strcasecmp(args.action, "read")) {
-		return ast_sip_push_task_wait_serializer(channel->session->serializer,
-			read_header, &header_data);
+		return ast_sip_push_task_wait_serializer(channel->session->serializer, read_header, &header_data);
 	} else if (!strcasecmp(args.action, "remove")) {
 		return ast_sip_push_task_wait_serializer(channel->session->serializer,
 			remove_header, &header_data);
@@ -561,6 +728,11 @@ static struct ast_custom_function pjsip_header_function = {
 	.write = func_write_header,
 };
 
+static struct ast_custom_function pjsip_headers_function = {
+	.name = "PJSIP_HEADERS",
+	.read = func_read_headers
+};
+
 /*!
  * \internal
  * \brief Session supplement callback for outgoing INVITE requests
@@ -604,6 +776,7 @@ static int load_module(void)
 {
 	ast_sip_session_register_supplement(&header_funcs_supplement);
 	ast_custom_function_register(&pjsip_header_function);
+	ast_custom_function_register(&pjsip_headers_function);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -611,6 +784,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_custom_function_unregister(&pjsip_header_function);
+	ast_custom_function_unregister(&pjsip_headers_function);
 	ast_sip_session_unregister_supplement(&header_funcs_supplement);
 	return 0;
 }
