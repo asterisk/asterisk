@@ -1,0 +1,5 @@
+Subject: res_pjsip_dialog_info_body_generator
+
+PJSIP now supports RFC 4235 Section 4.1.6 dialog-info+xml local and
+remote elements by iterating through ringing channels and inserting
+that info into NOTIFY packet sent to the endpoint.
