@@ -30,6 +30,7 @@
 #include <pjlib.h>
 
 #include "asterisk/module.h"
+#include "asterisk/callerid.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_pubsub.h"
 #include "asterisk/res_pjsip_presence_xml.h"
@@ -60,6 +61,35 @@ static void *dialog_info_allocate_body(void *data)
 	return ast_sip_presence_xml_create_node(state_data->pool, NULL, "dialog-info");
 }
 
+/*!
+ * \internal
+ * \brief Find the channel that is causing the RINGING update, ref'd
+ */
+static struct ast_channel *find_ringing_channel(struct ao2_container *device_state_info)
+{
+	struct ao2_iterator citer;
+	struct ast_device_state_info *device_state;
+	struct ast_channel *c = NULL;
+	struct timeval tv = {0,};
+
+	/* iterate ringing devices and get the oldest of all causing channels */
+	citer = ao2_iterator_init(device_state_info, 0);
+	for (; (device_state = ao2_iterator_next(&citer)); ao2_ref(device_state, -1)) {
+		if (!device_state->causing_channel || (device_state->device_state != AST_DEVICE_RINGING &&
+				device_state->device_state != AST_DEVICE_RINGINUSE)) {
+			continue;
+		}
+		ast_channel_lock(device_state->causing_channel);
+		if (ast_tvzero(tv) || ast_tvcmp(ast_channel_creationtime(device_state->causing_channel), tv) < 0) {
+			c = device_state->causing_channel;
+			tv = ast_channel_creationtime(c);
+		}
+		ast_channel_unlock(device_state->causing_channel);
+	}
+	ao2_iterator_destroy(&citer);
+	return c ? ast_channel_ref(c) : NULL;
+}
+
 static int dialog_info_generate_body_content(void *body, void *data)
 {
 	pj_xml_node *dialog_info = body, *dialog, *state;
@@ -67,13 +97,14 @@ static int dialog_info_generate_body_content(void *body, void *data)
 	struct dialog_info_xml_state *datastore_state;
 	struct ast_sip_exten_state_data *state_data = data;
 	char *local = ast_strdupa(state_data->local), *stripped, *statestring = NULL;
+	char *remote = ast_strdupa(state_data->remote);
 	char *pidfstate = NULL, *pidfnote = NULL;
 	enum ast_sip_pidf_state local_state;
 	char version_str[32], sanitized[PJSIP_MAX_URL_SIZE];
 	struct ast_sip_endpoint *endpoint = NULL;
 	unsigned int notify_early_inuse_ringing = 0;
 
-	if (!local || !state_data->datastores) {
+	if (!local || !remote || !state_data->datastores) {
 		return -1;
 	}
 
@@ -133,7 +164,93 @@ static int dialog_info_generate_body_content(void *body, void *data)
 	dialog = ast_sip_presence_xml_create_node(state_data->pool, dialog_info, "dialog");
 	ast_sip_presence_xml_create_attr(state_data->pool, dialog, "id", state_data->exten);
 	if (!ast_strlen_zero(statestring) && !strcmp(statestring, "early")) {
+		struct ast_channel *callee = NULL;
+		char local_target[PJSIP_MAX_URL_SIZE + 32] = "";
+		char *local_cid_name = NULL;
+		pj_xml_node *local_node, *local_identity_node, *local_target_node;
+
 		ast_sip_presence_xml_create_attr(state_data->pool, dialog, "direction", "recipient");
+
+		if (state_data->device_state_info) {
+			callee = find_ringing_channel(state_data->device_state_info);
+		}
+
+		if (callee) {
+			static char *anonymous = "anonymous";
+			static char *invalid = "anonymous.invalid";
+			char *remote_cid_name;
+			char *remote_connected_num;
+			int remote_connected_num_restricted;
+			char *local_caller_num;
+			pjsip_dialog *dlg = ast_sip_subscription_get_dialog(state_data->sub);
+			pjsip_sip_uri *dlg_remote_fromhdr = pjsip_uri_get_uri(dlg->local.info->uri);
+			char remote_target[PJSIP_MAX_URL_SIZE + 32];
+			char dlg_remote_uri[PJSIP_MAX_URL_SIZE];
+			char *from_domain_stripped;
+			char from_domain_sanitized[PJSIP_MAX_URL_SIZE];
+			pj_xml_node *remote_node, *remote_identity_node, *remote_target_node;
+
+			/* We use the local dialog URI to determine the domain to use in the XML itself */
+			ast_copy_pj_str(dlg_remote_uri, &dlg_remote_fromhdr->host, sizeof(dlg_remote_uri));
+			from_domain_stripped = ast_strip_quoted(dlg_remote_uri, "<", ">");
+			ast_sip_sanitize_xml(from_domain_stripped, from_domain_sanitized, sizeof(from_domain_sanitized));
+
+			ast_channel_lock(callee);
+
+			/* The remote node uses the connected line information, so who is calling the
+			 * monitored endpoint.
+			 */
+			remote_cid_name = S_COR(ast_channel_connected(callee)->id.name.valid,
+				S_COR((ast_channel_connected(callee)->id.name.presentation &
+						AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED, anonymous,
+					ast_channel_connected(callee)->id.name.str), "");
+
+			remote_connected_num_restricted = (ast_channel_connected(callee)->id.number.presentation &
+				AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED;
+			remote_connected_num = S_COR(ast_channel_connected(callee)->id.number.valid,
+				S_COR(remote_connected_num_restricted, anonymous,
+					ast_channel_connected(callee)->id.number.str), "invalid");
+
+			snprintf(remote_target, sizeof(remote_target), "sip:%s@%s", remote_connected_num,
+				remote_connected_num_restricted ? invalid : from_domain_sanitized);
+
+			/* The local node uses the callerid information, so what the callerid would be
+			 * if the monitored endpoint was calling.
+			 */
+			local_cid_name = S_COR(ast_channel_caller(callee)->id.name.valid,
+				ast_channel_caller(callee)->id.name.str, "");
+			local_caller_num = S_COR(ast_channel_caller(callee)->id.number.valid,
+				ast_channel_caller(callee)->id.number.str, "invalid");
+
+			snprintf(local_target, sizeof(local_target), "sip:%s@%s", local_caller_num,
+				from_domain_sanitized);
+
+			ast_channel_unlock(callee);
+			callee = ast_channel_unref(callee);
+
+			remote_node = ast_sip_presence_xml_create_node(state_data->pool, dialog, "remote");
+			remote_identity_node = ast_sip_presence_xml_create_node(state_data->pool, remote_node, "identity");
+			remote_target_node = ast_sip_presence_xml_create_node(state_data->pool, remote_node, "target");
+
+			pj_strdup2(state_data->pool, &remote_identity_node->content, remote_target);
+			if (!ast_strlen_zero(remote_cid_name)) {
+				ast_sip_presence_xml_create_attr(state_data->pool, remote_identity_node, "display", remote_cid_name);
+			}
+			ast_sip_presence_xml_create_attr(state_data->pool, remote_target_node, "uri", remote_target);
+		}
+
+		if (state_data->device_state_info) {
+			local_node = ast_sip_presence_xml_create_node(state_data->pool, dialog, "local");
+			local_identity_node = ast_sip_presence_xml_create_node(state_data->pool, local_node, "identity");
+			local_target_node = ast_sip_presence_xml_create_node(state_data->pool, local_node, "target");
+
+			/* If a channel is not available we fall back to the sanitized local URI instead */
+			pj_strdup2(state_data->pool, &local_identity_node->content, S_OR(local_target, sanitized));
+			if (!ast_strlen_zero(local_cid_name)) {
+				ast_sip_presence_xml_create_attr(state_data->pool, local_identity_node, "display", local_cid_name);
+			}
+			ast_sip_presence_xml_create_attr(state_data->pool, local_target_node, "uri", S_OR(local_target, sanitized));
+		}
 	}
 
 	state = ast_sip_presence_xml_create_node(state_data->pool, dialog, "state");
