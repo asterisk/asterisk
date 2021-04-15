@@ -2197,6 +2197,25 @@ void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths)
 	}
 }
 
+int ast_sip_retrieve_auths_vector(const struct ast_sip_auth_vector *auth_ids,
+	struct ast_sip_auth_objects_vector *auth_objects)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(auth_ids); ++i) {
+		/* Using AST_VECTOR_GET is safe since the vector is immutable */
+		const char *name = AST_VECTOR_GET(auth_ids, i);
+		struct ast_sip_auth *auth_object = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, name);
+		if (!auth_object) {
+			ast_log(LOG_WARNING, "Auth object '%s' could not be found\n", name);
+		} else {
+			AST_VECTOR_APPEND(auth_objects, auth_object);
+		}
+	}
+
+	return AST_VECTOR_SIZE(auth_objects) == AST_VECTOR_SIZE(auth_ids) ? 0 : -1;
+}
+
 struct ast_sorcery *ast_sip_get_sorcery(void)
 {
 	return sip_sorcery;

@@ -2423,10 +2423,46 @@ int ast_sip_retrieve_auths(const struct ast_sip_auth_vector *auths, struct ast_s
  * Call this function once you have completed operating on auths
  * retrieved from \ref ast_sip_retrieve_auths
  *
- * \param auths An vector of auth structures to clean up
- * \param num_auths The number of auths in the vector
+ * \param auths An array of auth object pointers to clean up
+ * \param num_auths The number of auths in the array
  */
 void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
+
+/*!
+ * \brief Retrieve relevant SIP auth structures from sorcery as a vector
+ *
+ * \param auth_ids Vector of sorcery IDs of auth credentials to retrieve
+ * \param[out] auth_objects A pointer ast_sip_auth_objects_vector to hold the objects
+ *
+ * \retval 0 Success
+ * \retval -1 Number of auth objects found is less than the number of names supplied.
+ *
+ * \WARNING The number of auth objects retrieved may be less than the
+ * number of auth ids supplied if auth objects couldn't be found for
+ * some of them.
+ *
+ * \NOTE Since the ref count on all auith objects returned has been
+ * bumped, you must call ast_sip_cleanup_auth_objects_vector() to decrement
+ * the ref count on all of the auth objects in the vector,
+ * then call AST_VECTOR_FREE() on the vector itself.
+ *
+ */
+AST_VECTOR(ast_sip_auth_objects_vector, struct ast_sip_auth *);
+int ast_sip_retrieve_auths_vector(const struct ast_sip_auth_vector *auth_ids,
+	struct ast_sip_auth_objects_vector *auth_objects);
+
+/*!
+ * \brief Clean up retrieved auth objects in vector
+ *
+ * Call this function once you have completed operating on auths
+ * retrieved from \ref ast_sip_retrieve_auths_vector.  All
+ * auth objects will have their reference counts decremented and
+ * the vector size will be reset to 0.  You must still call
+ * AST_VECTOR_FREE() on the vector itself.
+ *
+ * \param auth_objects A vector of auth structures to clean up
+ */
+#define ast_sip_cleanup_auth_objects_vector(auth_objects) AST_VECTOR_RESET(auth_objects, ao2_cleanup)
 
 /*!
  * \brief Checks if the given content type matches type/subtype.

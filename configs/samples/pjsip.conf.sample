@@ -918,10 +918,11 @@
                ; The input to the hash function must be in the
                ; following format:
                ; <username>:<realm>:<password>
-               ; For incoming authentication (asterisk is the server),
+               ; For incoming authentication (asterisk is the UAS),
                ; the realm must match either the realm set in this object
                ; or the default set in in the "global" object.
-               ; For outgoing authentication (asterisk is the client),
+               ;
+               ; For outgoing authentication (asterisk is the UAC),
                ; the realm must match what the server will be sending
                ; in their WWW-Authenticate header.  It can't be blank
                ; unless you expect the server to be sending a blank
@@ -932,16 +933,22 @@
                ; Note the '-n'.  You don't want a newline to be part
                ; of the hash.  (default: "")
 ;password=     ; PlainText password used for authentication (default: "")
-;realm=        ; For incoming authentication (asterisk is the server),
+;realm=        ; For incoming authentication (asterisk is the UAS),
                ; this is the realm to be sent on WWW-Authenticate
                ; headers.  If not specified, the global object's
                ; "default_realm" will be used.
-               ; For outgoing authentication (asterisk is the client), this
+               ;
+               ; For outgoing authentication (asterisk is the UAS), this
                ; must either be the realm the server is expected to send,
-               ; or blank to automatically use the realm sent by the server.
-               ; If you have multiple auth object for an endpoint, the realm
-               ; is also used to match the auth object to the realm the
-               ; server sends.  (default: "")
+               ; or left blank or contain a single '*' to automatically
+               ; use the realm sent by the server. If you have multiple
+               ; auth object for an endpoint, the realm is also used to
+               ; match the auth object to the realm the server sent.
+               ; Using the same auth section for inbound and outbound
+               ; authentication is not recommended.  There is a difference in
+               ; meaning for an empty realm setting between inbound and outbound
+               ; authentication uses.
+               ; (default: "")
 ;type=         ; Must be auth (default: "")
 ;username=     ; Username to use for account (default: "")
 
