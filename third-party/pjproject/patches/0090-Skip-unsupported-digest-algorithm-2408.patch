@@ -1,0 +1,212 @@
+From bdbeb7c4b2b11efc2e59f5dee7aa4360a2bc9fff Mon Sep 17 00:00:00 2001
+From: sauwming <ming@teluu.com>
+Date: Thu, 22 Apr 2021 14:03:28 +0800
+Subject: [PATCH 90/90] Skip unsupported digest algorithm (#2408)
+
+Co-authored-by: Nanang Izzuddin <nanang@teluu.com>
+---
+ pjsip/src/pjsip/sip_auth_client.c             | 32 +++++--
+ tests/pjsua/scripts-sipp/uas-auth-two-algo.py |  7 ++
+ .../pjsua/scripts-sipp/uas-auth-two-algo.xml  | 83 +++++++++++++++++++
+ 3 files changed, 117 insertions(+), 5 deletions(-)
+ create mode 100644 tests/pjsua/scripts-sipp/uas-auth-two-algo.py
+ create mode 100644 tests/pjsua/scripts-sipp/uas-auth-two-algo.xml
+
+diff --git a/pjsip/src/pjsip/sip_auth_client.c b/pjsip/src/pjsip/sip_auth_client.c
+index 828b04db9..7eb2f5cd1 100644
+--- a/pjsip/src/pjsip/sip_auth_client.c
++++ b/pjsip/src/pjsip/sip_auth_client.c
+@@ -1042,7 +1042,7 @@ static pj_status_t process_auth( pj_pool_t *req_pool,
+     pjsip_hdr *hdr;
+     pj_status_t status;
+ 
+-    /* See if we have sent authorization header for this realm */
++    /* See if we have sent authorization header for this realm (and scheme) */
+     hdr = tdata->msg->hdr.next;
+     while (hdr != &tdata->msg->hdr) {
+ 	if ((hchal->type == PJSIP_H_WWW_AUTHENTICATE &&
+@@ -1052,7 +1052,8 @@ static pj_status_t process_auth( pj_pool_t *req_pool,
+ 	{
+ 	    sent_auth = (pjsip_authorization_hdr*) hdr;
+ 	    if (pj_stricmp(&hchal->challenge.common.realm,
+-			   &sent_auth->credential.common.realm )==0)
++			   &sent_auth->credential.common.realm)==0 &&
++		pj_stricmp(&hchal->scheme, &sent_auth->scheme)==0)
+ 	    {
+ 		/* If this authorization has empty response, remove it. */
+ 		if (pj_stricmp(&sent_auth->scheme, &pjsip_DIGEST_STR)==0 &&
+@@ -1062,6 +1063,14 @@ static pj_status_t process_auth( pj_pool_t *req_pool,
+ 		    hdr = hdr->next;
+ 		    pj_list_erase(sent_auth);
+ 		    continue;
++		} else
++		if (pj_stricmp(&sent_auth->scheme, &pjsip_DIGEST_STR)==0 &&
++		    pj_stricmp(&sent_auth->credential.digest.algorithm,
++		               &hchal->challenge.digest.algorithm)!=0)
++		{
++		    /* Same 'digest' scheme but different algo */
++		    hdr = hdr->next;
++		    continue;
+ 		} else {
+ 		    /* Found previous authorization attempt */
+ 		    break;
+@@ -1155,9 +1164,10 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+ {
+     pjsip_tx_data *tdata;
+     const pjsip_hdr *hdr;
+-    unsigned chal_cnt;
++    unsigned chal_cnt, auth_cnt;
+     pjsip_via_hdr *via;
+     pj_status_t status;
++    pj_status_t last_auth_err;
+ 
+     PJ_ASSERT_RETURN(sess && rdata && old_request && new_request,
+ 		     PJ_EINVAL);
+@@ -1178,6 +1188,8 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+      */
+     hdr = rdata->msg_info.msg->hdr.next;
+     chal_cnt = 0;
++    auth_cnt = 0;
++    last_auth_err = PJSIP_EAUTHNOAUTH;
+     while (hdr != &rdata->msg_info.msg->hdr) {
+ 	pjsip_cached_auth *cached_auth;
+ 	const pjsip_www_authenticate_hdr *hchal;
+@@ -1222,8 +1234,13 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+ 	 */
+ 	status = process_auth(tdata->pool, hchal, tdata->msg->line.req.uri,
+ 			      tdata, sess, cached_auth, &hauth);
+-	if (status != PJ_SUCCESS)
+-	    return status;
++	if (status != PJ_SUCCESS) {
++	    last_auth_err = status;
++
++	    /* Process next header. */
++	    hdr = hdr->next;
++	    continue;
++	}
+ 
+ 	if (pj_pool_get_used_size(cached_auth->pool) >
+ 	    PJSIP_AUTH_CACHED_POOL_MAX_SIZE) 
+@@ -1236,12 +1253,17 @@ PJ_DEF(pj_status_t) pjsip_auth_clt_reinit_req(	pjsip_auth_clt_sess *sess,
+ 
+ 	/* Process next header. */
+ 	hdr = hdr->next;
++	auth_cnt++;
+     }
+ 
+     /* Check if challenge is present */
+     if (chal_cnt == 0)
+ 	return PJSIP_EAUTHNOCHAL;
+ 
++    /* Check if any authorization header has been created */
++    if (auth_cnt == 0)
++	return last_auth_err;
++
+     /* Remove branch param in Via header. */
+     via = (pjsip_via_hdr*) pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL);
+     via->branch_param.slen = 0;
+diff --git a/tests/pjsua/scripts-sipp/uas-auth-two-algo.py b/tests/pjsua/scripts-sipp/uas-auth-two-algo.py
+new file mode 100644
+index 000000000..c79c9f6d3
+--- /dev/null
++++ b/tests/pjsua/scripts-sipp/uas-auth-two-algo.py
+@@ -0,0 +1,7 @@
++# $Id$
++#
++import inc_const as const
++
++PJSUA = ["--null-audio --max-calls=1 --id=sip:a@localhost --username=a --realm=* --registrar=$SIPP_URI"]
++
++PJSUA_EXPECTS = [[0, "registration success", ""]]
+diff --git a/tests/pjsua/scripts-sipp/uas-auth-two-algo.xml b/tests/pjsua/scripts-sipp/uas-auth-two-algo.xml
+new file mode 100644
+index 000000000..bd4871940
+--- /dev/null
++++ b/tests/pjsua/scripts-sipp/uas-auth-two-algo.xml
+@@ -0,0 +1,83 @@
++<?xml version="1.0" encoding="ISO-8859-1" ?>
++<!DOCTYPE scenario SYSTEM "sipp.dtd">
++
++<scenario name="Basic UAS responder">
++  <recv request="REGISTER" crlf="true">
++  </recv>
++
++  <send>
++    <![CDATA[
++      SIP/2.0 100 Trying
++      [last_Via:];received=1.1.1.1;rport=1111
++      [last_From:]
++      [last_To:];tag=[call_number]
++      [last_Call-ID:]
++      [last_CSeq:]
++      Content-Length: 0
++    ]]>
++  </send>
++
++  <send>
++    <![CDATA[
++      SIP/2.0 401 Unauthorized
++      [last_Via:];received=1.1.1.1;rport=1111
++      [last_From:]
++      [last_To:];tag=[call_number]
++      [last_Call-ID:]
++      [last_CSeq:]
++      WWW-Authenticate: Digest realm="sip.linphone.org", nonce="PARV4gAAAADgw3asAADW8zsi5BEAAAAA", opaque="+GNywA==", algorithm=SHA-256, qop="auth"
++      WWW-Authenticate: Digest realm="sip.linphone.org", nonce="PARV4gAAAADgw3asAADW8zsi5BEAAAAA", opaque="+GNywA==", algorithm=MD5, qop="auth"
++      WWW-Authenticate: Digest realm="sip.linphone.org", nonce="PARV4gAAAADgw3asAADW8zsi5BEAAAAA", opaque="+GNywA==", algorithm=MD2, qop="auth"
++      Content-Length: 0
++    ]]>
++  </send>
++
++  <recv request="REGISTER" crlf="true">
++    <action>
++      <ereg regexp=".*"
++            search_in="hdr"
++	    header="Authorization:"
++	    assign_to="have_auth" />
++    </action>
++  </recv>
++
++  <nop next="resp_okay" test="have_auth" />
++  
++  <send next="end">
++    <![CDATA[
++      SIP/2.0 403 no auth
++      [last_Via:];received=1.1.1.1;rport=1111
++      [last_From:]
++      [last_To:];tag=[call_number]
++      [last_Call-ID:]
++      [last_CSeq:]
++      [last_Contact:]
++      Content-Length: 0
++    ]]>
++  </send>
++
++  <label id="resp_okay" />
++  
++  <send>
++    <![CDATA[
++      SIP/2.0 200 OK
++      [last_Via:];received=1.1.1.1;rport=1111
++      [last_From:]
++      [last_To:];tag=[call_number]
++      [last_Call-ID:]
++      [last_CSeq:]
++      [last_Contact:]
++      Content-Length: 0
++    ]]>
++  </send>
++
++  <label id="end" />
++
++  <!-- definition of the response time repartition table (unit is ms)   -->
++  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
++
++  <!-- definition of the call length repartition table (unit is ms)     -->
++  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
++
++</scenario>
++
+-- 
+2.31.1
+
