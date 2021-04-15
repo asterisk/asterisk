@@ -1504,13 +1504,24 @@
 						This option specifies which of the password style config options should be read
 						when trying to authenticate an endpoint inbound request. If set to <literal>userpass</literal>
 						then we'll read from the 'password' option. For <literal>md5</literal> we'll read
-						from 'md5_cred'. If set to <literal>google_oauth</literal> then we'll read from the refresh_token/oauth_clientid/oauth_secret fields.
+						from 'md5_cred'. If set to <literal>google_oauth</literal> then we'll read from the
+						refresh_token/oauth_clientid/oauth_secret fields. The following values are valid:
 						</para>
 						<enumlist>
 							<enum name="md5"/>
 							<enum name="userpass"/>
 							<enum name="google_oauth"/>
 						</enumlist>
+						<para>
+						</para>
+						<note>
+							<para>
+								This setting only describes whether the password is in
+								plain text or has been pre-hashed with MD5.  It doesn't describe
+								the acceptable digest algorithms we'll accept in a received
+								challenge.
+							</para>
+						</note>
 					</description>
 				</configOption>
 				<configOption name="nonce_lifetime" default="32">
@@ -1542,11 +1553,12 @@
 						<para>
 						</para>
 						<para>
-						For outgoing authentication (asterisk is the client),
+						For outgoing authentication (asterisk is the UAC),
 						the realm must match what the server will be sending
 						in their WWW-Authenticate header.  It can't be blank
 						unless you expect the server to be sending a blank
-						realm in the header.
+						realm in the header.  You can't use pre-hashed
+						paswords with a wildcard auth object.
 						You can generate the hash with the following shell
 						command:
 						</para>
@@ -1578,7 +1590,7 @@
 				<configOption name="realm" default="">
 					<synopsis>SIP realm for endpoint</synopsis>
 					<description><para>
-						For incoming authentication (asterisk is the server),
+						For incoming authentication (asterisk is the UAS),
 						this is the realm to be sent on WWW-Authenticate
 						headers.  If not specified, the <replaceable>global</replaceable>
 						object's <variable>default_realm</variable> will be used.
@@ -1586,12 +1598,12 @@
 						<para>
 						</para>
 						<para>
-						For outgoing authentication (asterisk is the client), this
+						For outgoing authentication (asterisk is the UAS), this
 						must either be the realm the server is expected to send,
-						or blank to automatically use the realm sent by the server.
-						If you have multiple auth object for an endpoint, the realm
-						is also used to match the auth object to the realm the
-						server sent.
+						or left blank or contain a single '*' to automatically
+						use the realm sent by the server. If you have multiple
+						auth object for an endpoint, the realm is also used to
+						match the auth object to the realm the server sent.
 						</para>
 						<para>
 						</para>
@@ -1600,7 +1612,19 @@
 						Using the same auth section for inbound and outbound
 						authentication is not recommended.  There is a difference in
 						meaning for an empty realm setting between inbound and outbound
-						authentication uses.</para></note>
+						authentication uses.
+						</para>
+						</note>
+						<para>
+						</para>
+						<note>
+							<para>
+								If more than one auth object with the same realm or
+								more than one wildcard auth object associated to
+								an endpoint, we can only use the first one of
+								each defined on the endpoint.
+							</para>
+						</note>
 					</description>
 				</configOption>
 				<configOption name="type">
