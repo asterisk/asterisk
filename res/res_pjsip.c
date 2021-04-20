@@ -1192,33 +1192,78 @@
 				<configOption name="nonce_lifetime" default="32">
 					<synopsis>Lifetime of a nonce associated with this authentication config.</synopsis>
 				</configOption>
-				<configOption name="md5_cred">
+				<configOption name="md5_cred" default="">
 					<synopsis>MD5 Hash used for authentication.</synopsis>
-					<description><para>Only used when auth_type is <literal>md5</literal>.</para></description>
+					<description><para>
+						Only used when auth_type is <literal>md5</literal>.
+						As an alternative to specifying a plain text password,
+						you can hash the username, realm and password
+						together one time and place the hash value here.
+						The input to the hash function must be in the
+						following format:
+						</para>
+						<para>
+						</para>
+						<para>
+						&lt;username&gt;:&lt;realm&gt;:&lt;password&gt;
+						</para>
+						<para>
+						</para>
+						<para>
+						For incoming authentication (asterisk is the server),
+						the realm must match either the realm set in this object
+						or the <variable>default_realm</variable> set in in the
+						<replaceable>global</replaceable> object.
+						</para>
+						<para>
+						</para>
+						<para>
+						For outgoing authentication (asterisk is the client),
+						the realm must match what the server will be sending
+						in their WWW-Authenticate header.  It can't be blank
+						unless you expect the server to be sending a blank
+						realm in the header.
+						You can generate the hash with the following shell
+						command:
+						</para>
+						<para>
+						</para>
+						<para>
+						$ echo -n "myname:myrealm:mypassword" | md5sum
+						</para>
+						<para>
+						</para>
+						<para>
+						Note the '-n'.  You don't want a newline to be part
+						of the hash.
+					</para></description>
 				</configOption>
 				<configOption name="password">
 					<synopsis>Plain text password used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
 				</configOption>
-				<configOption name="realm">
+				<configOption name="realm" default="">
 					<synopsis>SIP realm for endpoint</synopsis>
 					<description><para>
-						The treatment of this value depends upon how the authentication
-						object is used.
-						</para><para>
-						When used as an inbound authentication object, the realm is sent
-						as part of the challenge so the peer can know which key to use
-						when responding.  An empty value will use the
-						<replaceable>global</replaceable> section's
-						<literal>default_realm</literal> value when issuing a challenge.
-						</para><para>
-						When used as an outbound authentication object, the realm is
-						matched with the received challenge realm to determine which
-						authentication object to use when responding to the challenge.  An
-						empty value matches any challenging realm when determining
-						which authentication object matches a received challenge.
+						For incoming authentication (asterisk is the server),
+						this is the realm to be sent on WWW-Authenticate
+						headers.  If not specified, the <replaceable>global</replaceable>
+						object's <variable>default_realm</variable> will be used.
 						</para>
-						<note><para>
+						<para>
+						</para>
+						<para>
+						For outgoing authentication (asterisk is the client), this
+						must either be the realm the server is expected to send,
+						or blank to automatically use the realm sent by the server.
+						If you have multiple auth object for an endpoint, the realm
+						is also used to match the auth object to the realm the
+						server sent.
+						</para>
+						<para>
+						</para>
+						<note>
+						<para>
 						Using the same auth section for inbound and outbound
 						authentication is not recommended.  There is a difference in
 						meaning for an empty realm setting between inbound and outbound

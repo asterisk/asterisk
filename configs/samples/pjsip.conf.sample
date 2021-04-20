@@ -886,14 +886,44 @@
 ;  "config show help res_pjsip auth realm" or on the wiki for the
 ;  difference.
 ;
-;auth_type=userpass     ; Authentication type (default: "userpass")
-;nonce_lifetime=32      ; Lifetime of a nonce associated with this
-                        ; authentication config (default: "32")
-;md5_cred=      ; MD5 Hash used for authentication (default: "")
-;password=      ; PlainText password used for authentication (default: "")
-;realm= ; SIP realm for endpoint (default: "")
-;type=  ; Must be auth (default: "")
-;username=      ; Username to use for account (default: "")
+;auth_type=userpass  ; Authentication type.  May be
+                     ; "userpass" for plain text passwords or
+                     ; "md5" for pre-hashed credentials.
+                     ; (default: "userpass")
+;nonce_lifetime=32   ; Lifetime of a nonce associated with this
+                     ; authentication config (default: "32")
+;md5_cred=     ; As an alternative to specifying a plain text password,
+               ; you can hash the username, realm and password
+               ; together one time and place the hash value here.
+               ; The input to the hash function must be in the
+               ; following format:
+               ; <username>:<realm>:<password>
+               ; For incoming authentication (asterisk is the server),
+               ; the realm must match either the realm set in this object
+               ; or the default set in in the "global" object.
+               ; For outgoing authentication (asterisk is the client),
+               ; the realm must match what the server will be sending
+               ; in their WWW-Authenticate header.  It can't be blank
+               ; unless you expect the server to be sending a blank
+               ; realm in the header.
+               ; You can generate the hash with the following shell
+               ; command:
+               ; $ echo -n "myname:myrealm:mypassword" | md5sum
+               ; Note the '-n'.  You don't want a newline to be part
+               ; of the hash.  (default: "")
+;password=     ; PlainText password used for authentication (default: "")
+;realm=        ; For incoming authentication (asterisk is the server),
+               ; this is the realm to be sent on WWW-Authenticate
+               ; headers.  If not specified, the global object's
+               ; "default_realm" will be used.
+               ; For outgoing authentication (asterisk is the client), this
+               ; must either be the realm the server is expected to send,
+               ; or blank to automatically use the realm sent by the server.
+               ; If you have multiple auth object for an endpoint, the realm
+               ; is also used to match the auth object to the realm the
+               ; server sends.  (default: "")
+;type=         ; Must be auth (default: "")
+;username=     ; Username to use for account (default: "")
 
 
 ;==========================DOMAIN_ALIAS SECTION OPTIONS=========================
