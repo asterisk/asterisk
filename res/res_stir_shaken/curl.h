@@ -61,13 +61,15 @@ char *curl_cb_data_get_expires(const struct curl_cb_data *data);
 /*!
  * \brief CURL the public key from the provided URL to the specified path
  *
- * \param public_key_url The public key URL
+ * \note The returned string will need to be freed by the caller
+ *
+ * \param public_cert_url The public cert URL
  * \param path The path to download the file to
  * \param data The curl_cb_data
  *
- * \retval 1 on failure
- * \retval 0 on success
+ * \retval NULL on failure
+ * \retval full path filename on success
  */
-int curl_public_key(const char *public_key_url, const char *path, struct curl_cb_data *data);
+char *curl_public_key(const char *public_cert_url, const char *path, struct curl_cb_data *data);
 
 #endif /* _STIR_SHAKEN_CURL_H */

@@ -1,0 +1,6 @@
+Subject: STIR/SHAKEN
+
+The configuration option public_key_url in stir_shaken.conf
+has been renamed to public_cert_url to better fit what it
+contains. Only the name has changed - functionality is the
+same.

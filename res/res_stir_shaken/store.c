@@ -36,8 +36,8 @@ struct stir_shaken_store {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Path to a directory containing certificates */
 		AST_STRING_FIELD(path);
-		/*! URL to the public key */
-		AST_STRING_FIELD(public_key_url);
+		/*! URL to the public certificate */
+		AST_STRING_FIELD(public_cert_url);
 	);
 };
 
@@ -142,29 +142,29 @@ static int path_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-static int on_load_public_key_url(const struct aco_option *opt, struct ast_variable *var, void *obj)
+static int on_load_public_cert_url(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct stir_shaken_store *cfg = obj;
 
 	if (!ast_begins_with(var->value, "http")) {
-		ast_log(LOG_ERROR, "stir/shaken - public_key_url scheme must be 'http[s]'\n");
+		ast_log(LOG_ERROR, "stir/shaken - public_cert_url scheme must be 'http[s]'\n");
 		return -1;
 	}
 
 	if (!strstr(var->value, VARIABLE_SUBSTITUTE)) {
-		ast_log(LOG_ERROR, "stir/shaken - public_key_url must contain variable '%s' "
+		ast_log(LOG_ERROR, "stir/shaken - public_cert_url must contain variable '%s' "
 				"used for substitution\n", VARIABLE_SUBSTITUTE);
 		return -1;
 	}
 
-	return ast_string_field_set(cfg, public_key_url, var->value);
+	return ast_string_field_set(cfg, public_cert_url, var->value);
 }
 
-static int public_key_url_to_str(const void *obj, const intptr_t *args, char **buf)
+static int public_cert_url_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct stir_shaken_store *cfg = obj;
 
-	*buf = ast_strdup(cfg->public_key_url);
+	*buf = ast_strdup(cfg->public_cert_url);
 
 	return 0;
 }
@@ -192,8 +192,8 @@ int stir_shaken_store_load(void)
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "path", "",
 		on_load_path, path_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "public_key_url", "",
-		on_load_public_key_url, public_key_url_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "public_cert_url", "",
+		on_load_public_cert_url, public_cert_url_to_str, NULL, 0, 0);
 
 	ast_cli_register_multiple(stir_shaken_store_cli,
 		ARRAY_LEN(stir_shaken_store_cli));
