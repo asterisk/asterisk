@@ -90,6 +90,7 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 {
 	EVP_PKEY *key = NULL;
 	FILE *fp;
+	X509 *cert = NULL;
 
 	fp = fopen(path, "r");
 	if (!fp) {
@@ -97,10 +98,24 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 		return NULL;
 	}
 
+	/* If this is to get the private key, the file will be ECDSA or RSA, with the former eventually
+	 * replacing the latter. For the public key, the file will be X.509.
+	 */
 	if (priv) {
 		key = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
 	} else {
-		key = PEM_read_PUBKEY(fp, NULL, NULL, NULL);
+		cert = PEM_read_X509(fp, NULL, NULL, NULL);
+		if (!cert) {
+			ast_log(LOG_ERROR, "Failed to read X.509 cert from file '%s'\n", path);
+			fclose(fp);
+			return NULL;
+		}
+		key = X509_get_pubkey(cert);
+		/* It's fine to free the cert after we get the key because they are 2
+		 * independent objects; you don't need a X509 object to be in memory
+		 * in order to have an EVP_PKEY, and it doesn't rely on it being there.
+		 */
+		X509_free(cert);
 	}
 
 	if (!key) {
@@ -109,8 +124,9 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 		return NULL;
 	}
 
-	if (EVP_PKEY_id(key) != EVP_PKEY_EC) {
-		ast_log(LOG_ERROR, "%s key from '%s' must be of type EVP_PKEY_EC\n", priv ? "private" : "public", path);
+	if (EVP_PKEY_id(key) != EVP_PKEY_EC && EVP_PKEY_id(key) != EVP_PKEY_RSA) {
+		ast_log(LOG_ERROR, "%s key from '%s' must be of type EVP_PKEY_EC or EVP_PKEY_RSA\n",
+			priv ? "Private" : "Public", path);
 		fclose(fp);
 		EVP_PKEY_free(key);
 		return NULL;
@@ -119,4 +135,58 @@ EVP_PKEY *stir_shaken_read_key(const char *path, int priv)
 	fclose(fp);
 
 	return key;
+}
+
+char *stir_shaken_get_serial_number_x509(const char *path)
+{
+	FILE *fp;
+	X509 *cert;
+	ASN1_INTEGER *serial;
+	BIGNUM *bignum;
+	char *serial_hex;
+
+	fp = fopen(path, "r");
+	if (!fp) {
+		ast_log(LOG_ERROR, "Failed to open file %s\n", path);
+		return NULL;
+	}
+
+	cert = PEM_read_X509(fp, NULL, NULL, NULL);
+	if (!cert) {
+		ast_log(LOG_ERROR, "Failed to read X.509 cert from file %s\n", path);
+		fclose(fp);
+		return NULL;
+	}
+
+	serial = X509_get_serialNumber(cert);
+	if (!serial) {
+		ast_log(LOG_ERROR, "Failed to get serial number from certificate %s\n", path);
+		X509_free(cert);
+		fclose(fp);
+		return NULL;
+	}
+
+	bignum = ASN1_INTEGER_to_BN(serial, NULL);
+	if (bignum == NULL) {
+		ast_log(LOG_ERROR, "Failed to convert serial to bignum for certificate %s\n", path);
+		X509_free(cert);
+		fclose(fp);
+		return NULL;
+	}
+
+	/* This will return a string with memory allocated. After we get the string,
+	 * we don't need the cert, file, or bignum references anymore, so free them
+	 * and return the string, if BN_bn2hex was a success.
+	 */
+	serial_hex = BN_bn2hex(bignum);
+	X509_free(cert);
+	fclose(fp);
+	BN_free(bignum);
+
+	if (!serial_hex) {
+		ast_log(LOG_ERROR, "Failed to convert bignum to hex for certificate %s\n", path);
+		return NULL;
+	}
+
+	return serial_hex;
 }
