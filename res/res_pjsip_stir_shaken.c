@@ -130,7 +130,7 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	RAII_VAR(char *, payload, NULL, ast_free);
 	char *signature;
 	char *algorithm;
-	char *public_key_url;
+	char *public_cert_url;
 	char *attestation;
 	int mismatch = 0;
 	struct ast_stir_shaken_payload *ss_payload;
@@ -168,8 +168,8 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 
 	/* Trim "info=<" to get public key URL */
 	strtok_r(identity_hdr_val, "<", &identity_hdr_val);
-	public_key_url = strtok_r(identity_hdr_val, ">", &identity_hdr_val);
-	if (ast_strlen_zero(public_key_url)) {
+	public_cert_url = strtok_r(identity_hdr_val, ">", &identity_hdr_val);
+	if (ast_strlen_zero(public_cert_url)) {
 		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
 		return 0;
 	}
@@ -182,7 +182,7 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 
 	attestation = get_attestation_from_payload(payload);
 
-	ss_payload = ast_stir_shaken_verify(header, payload, signature, algorithm, public_key_url);
+	ss_payload = ast_stir_shaken_verify(header, payload, signature, algorithm, public_cert_url);
 	if (!ss_payload) {
 		ast_stir_shaken_add_verification(chan, caller_id, attestation, AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
 		return 0;
@@ -209,7 +209,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	pj_str_t identity_val;
 	pjsip_fromto_hdr *old_identity;
 	char *signature;
-	char *public_key_url;
+	char *public_cert_url;
 	struct ast_json *header;
 	struct ast_json *payload;
 	char *dumped_string;
@@ -258,13 +258,13 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	}
 
 	signature = (char *)ast_stir_shaken_payload_get_signature(ss_payload);
-	public_key_url = ast_stir_shaken_payload_get_public_key_url(ss_payload);
+	public_cert_url = ast_stir_shaken_payload_get_public_cert_url(ss_payload);
 
 	/* The format for the identity header:
-	 * header.payload.signature;info=<public_key_url>alg=STIR_SHAKEN_ENCRYPTION_ALGORITHM;ppt=STIR_SHAKEN_PPT
+	 * header.payload.signature;info=<public_cert_url>alg=STIR_SHAKEN_ENCRYPTION_ALGORITHM;ppt=STIR_SHAKEN_PPT
 	 */
 	combined_size = strlen(encoded_header) + 1 + strlen(encoded_payload) + 1
-		+ strlen(signature) + strlen(";info=<>alg=;ppt=") + strlen(public_key_url)
+		+ strlen(signature) + strlen(";info=<>alg=;ppt=") + strlen(public_cert_url)
 		+ strlen(STIR_SHAKEN_ENCRYPTION_ALGORITHM) + strlen(STIR_SHAKEN_PPT) + 1;
 	combined_str = ast_calloc(1, combined_size);
 	if (!combined_str) {
@@ -272,7 +272,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 		return;
 	}
 	snprintf(combined_str, combined_size, "%s.%s.%s;info=<%s>alg=%s;ppt=%s", encoded_header,
-		encoded_payload, signature, public_key_url, STIR_SHAKEN_ENCRYPTION_ALGORITHM, STIR_SHAKEN_PPT);
+		encoded_payload, signature, public_cert_url, STIR_SHAKEN_ENCRYPTION_ALGORITHM, STIR_SHAKEN_PPT);
 
 	identity_val = pj_str(combined_str);
 	identity_hdr = pjsip_generic_string_hdr_create(tdata->pool, &identity_str, &identity_val);

@@ -42,7 +42,7 @@ struct stir_shaken_certificate *stir_shaken_certificate_get_by_caller_id_number(
  * \retval NULL on failure
  * \retval The public key URL on success
  */
-const char *stir_shaken_certificate_get_public_key_url(struct stir_shaken_certificate *cert);
+const char *stir_shaken_certificate_get_public_cert_url(struct stir_shaken_certificate *cert);
 
 /*!
  * \brief Get the attestation level associated with a certificate
