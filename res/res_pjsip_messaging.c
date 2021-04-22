@@ -24,13 +24,16 @@
  ***/
 
 /*** DOCUMENTATION
+	<info name="MessageDestinationInfo" language="en_US" tech="PJSIP">
+		<para>Specifying a prefix of <literal>pjsip:</literal> will send the
+		message as a SIP MESSAGE request.</para>
+	</info>
 	<info name="MessageFromInfo" language="en_US" tech="PJSIP">
 		<para>The <literal>from</literal> parameter can be a configured endpoint
 		or in the form of "display-name" &lt;URI&gt;.</para>
 	</info>
 	<info name="MessageToInfo" language="en_US" tech="PJSIP">
-		<para>Specifying a prefix of <literal>pjsip:</literal> will send the
-		message as a SIP MESSAGE request.</para>
+		<para>Ignored</para>
 	</info>
  ***/
 #include "asterisk.h"

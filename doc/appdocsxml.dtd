@@ -83,6 +83,8 @@
 
   <!ELEMENT matchInfo (category|field?)>
 
+  <!ELEMENT dataType (#PCDATA)>
+
   <!ELEMENT category (#PCDATA)>
   <!ATTLIST category match (yes|no|true|false) #REQUIRED>
 
