@@ -1,0 +1,7 @@
+Subject: res_pjsip_messaging
+
+Implemented the new "to" parameter of the MessageSend()
+dialplan application.  This allows a user to specify
+a complete SIP "To" header separate from the Request URI.
+We now also accept a destination in the same format
+as Dial()...  PJSIP/number@endpoint
