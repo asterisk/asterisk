@@ -251,7 +251,7 @@
 			<para>Sends a message to a Jabber Client.</para>
 		</description>
 	</manager>
-	<info name="MessageToInfo" language="en_US" tech="XMPP">
+	<info name="MessageDestinationInfo" language="en_US" tech="XMPP">
 		<para>Specifying a prefix of <literal>xmpp:</literal> will send the
 		message as an XMPP chat message.</para>
 	</info>
@@ -259,6 +259,9 @@
 		<para>Specifying a prefix of <literal>xmpp:</literal> will specify the
 		account defined in <literal>xmpp.conf</literal> to send the message from.
 		Note that this field is required for XMPP messages.</para>
+	</info>
+	<info name="MessageToInfo" language="en_US" tech="XMPP">
+		<para>Ignored</para>
 	</info>
 	<configInfo name="res_xmpp" language="en_US">
 		<synopsis>XMPP Messaging</synopsis>
