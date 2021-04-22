@@ -619,13 +619,16 @@
 			for all of the sip peers will be retrieved.</para>
 		</description>
 	</manager>
+	<info name="MessageDestinationInfo" language="en_US" tech="SIP">
+		<para>Specifying a prefix of <literal>sip:</literal> will send the
+		message as a SIP MESSAGE request.</para>
+	</info>
 	<info name="MessageFromInfo" language="en_US" tech="SIP">
 		<para>The <literal>from</literal> parameter can be a configured peer name
 		or in the form of "display-name" &lt;URI&gt;.</para>
 	</info>
 	<info name="MessageToInfo" language="en_US" tech="SIP">
-		<para>Specifying a prefix of <literal>sip:</literal> will send the
-		message as a SIP MESSAGE request.</para>
+		<para>Ignored</para>
 	</info>
 	<managerEvent language="en_US" name="SIPQualifyPeerDone">
 		<managerEventInstance class="EVENT_FLAG_CALL">
