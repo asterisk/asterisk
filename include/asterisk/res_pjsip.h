@@ -915,6 +915,8 @@ struct ast_sip_endpoint {
 	unsigned int ignore_183_without_sdp;
 	/*! Enable STIR/SHAKEN support on this endpoint */
 	unsigned int stir_shaken;
+	/*! Should we authenticate OPTIONS requests per RFC 3261? */
+	unsigned int allow_unauthenticated_options;
 };
 
 /*! URI parameter for symmetric transport */

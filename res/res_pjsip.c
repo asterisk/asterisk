@@ -1472,6 +1472,23 @@
 						INVITEs, an Identity header will be added.</para>
 					</description>
 				</configOption>
+				<configOption name="allow_unauthenticated_options" default="no">
+					<synopsis>Skip authentication when receiving OPTIONS requests</synopsis>
+					<description><para>
+						RFC 3261 says that the response to an OPTIONS request MUST be the
+						same had the request been an INVITE. Some UAs use OPTIONS requests
+						like a 'ping' and the expectation is that they will return a
+						200 OK.</para>
+						<para>Enabling <literal>allow_unauthenticated_options</literal>
+						will skip authentication of OPTIONS requests for the given
+						endpoint.</para>
+						<para>There are security implications to enabling this setting as
+						it can allow information disclosure to occur - specifically, if
+						enabled, an external party could enumerate and find the endpoint
+						name by sending OPTIONS requests and examining the
+						responses.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
@@ -3307,6 +3324,12 @@ void ast_sip_unregister_authenticator(struct ast_sip_authenticator *auth)
 
 int ast_sip_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
+	if (endpoint->allow_unauthenticated_options
+		&& !pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_options_method)) {
+		ast_debug(3, "Skipping OPTIONS authentication due to endpoint configuration\n");
+		return 0;
+	}
+
 	if (!registered_authenticator) {
 		ast_log(LOG_WARNING, "No SIP authenticator registered. Assuming authentication is not required\n");
 		return 0;
