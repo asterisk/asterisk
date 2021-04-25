@@ -332,7 +332,7 @@ handle_SUSE() {
 
 install_unpackaged() {
 	echo "*** Installing NBS (Network Broadcast Sound) ***"
-	svn co http://svn.digium.com/svn/nbs/trunk nbs-trunk
+	svn co https://svn.digium.com/svn/nbs/trunk nbs-trunk
 	cd nbs-trunk
 	make all install
 	cd ..
@@ -340,7 +340,7 @@ install_unpackaged() {
 	# Only install libresample if it wasn't installed via package
 	if ! test -f /usr/include/libresample.h; then
 		echo "*** Installing libresample ***"
-		svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
+		svn co https://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
 		cd libresample-trunk
 		./configure
 		make all install
