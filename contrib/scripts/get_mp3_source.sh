@@ -15,7 +15,7 @@ if [ -f addons/mp3/mpg123.h ]; then
     exit 1
 fi
 
-svn export http://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
+svn export https://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
 
 # Manually patch interface.c if not done yet.
 if ! grep -q ASTMM_LIBC addons/mp3/interface.c; then
