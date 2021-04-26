@@ -83,6 +83,3 @@
 ;
 ; Must have an attestation of A, B, or C
 ;attestation=C
-;
-; The origination identifier for the certificate
-;origid=MyAsterisk

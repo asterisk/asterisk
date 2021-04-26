@@ -70,8 +70,15 @@
 #define AST_API_MODULE
 #include "asterisk/alertpipe.h"
 
+/* These arrays are global static variables because they are only modified
+ * once - in base64_init. The only purpose they have is to serve as a dictionary
+ * for encoding and decoding base64 and base64 URL, so there's no harm in
+ * accessing these arrays in multiple threads.
+ */
 static char base64[64];
+static char base64url[64];
 static char b2a[256];
+static char b2a_url[256];
 
 AST_THREADSTORAGE(inet_ntoa_buf);
 
@@ -417,28 +424,150 @@ char *ast_base64encode_string(const char *src)
 	return encoded_string;
 }
 
+int ast_base64url_decode(unsigned char *dst, const char *src, int max)
+{
+	int cnt = 0;
+	unsigned int byte = 0;
+	unsigned int bits = 0;
+
+	while (*src && (cnt < max)) {
+		byte <<= 6;
+		byte |= (b2a_url[(int)(*src)]) & 0x3f;
+		bits += 6;
+		src++;
+		if (bits >= 8) {
+			bits -= 8;
+			*dst = (byte >> bits) & 0xff;
+			dst++;
+			cnt++;
+		}
+	}
+	return cnt;
+}
+
+char *ast_base64url_decode_string(const char *src)
+{
+	size_t decoded_len;
+	unsigned char *decoded_string;
+
+	if (ast_strlen_zero(src)) {
+		return NULL;
+	}
+
+	decoded_len = strlen(src) * 3 / 4;
+	decoded_string = ast_malloc(decoded_len + 1);
+	if (!decoded_string) {
+		return NULL;
+	}
+
+	ast_base64url_decode(decoded_string, src, decoded_len);
+	decoded_string[decoded_len] = '\0';
+
+	return (char *)decoded_string;
+}
+
+int ast_base64url_encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks)
+{
+	int cnt = 0;
+	int col = 0;
+	unsigned int byte = 0;
+	int bits = 0;
+	int cntin = 0;
+
+	max--;
+	while ((cntin < srclen) && (cnt < max)) {
+		byte <<= 8;
+		byte |= *(src++);
+		bits += 8;
+		cntin++;
+		if ((bits == 24) && (cnt + 4 <= max)) {
+			*dst++ = base64url[(byte >> 18) & 0x3f];
+			*dst++ = base64url[(byte >> 12) & 0x3f];
+			*dst++ = base64url[(byte >> 6) & 0x3f];
+			*dst++ = base64url[(byte) & 0x3f];
+			cnt += 4;
+			col += 4;
+			bits = 0;
+			byte = 0;
+		}
+		if (linebreaks && (cnt < max) && (col == 64)) {
+			*dst++ = '\n';
+			cnt++;
+			col = 0;
+		}
+	}
+	if (bits && (cnt + 4 <= max)) {
+		byte <<= 24 - bits;
+		*dst++ = base64url[(byte >> 18) & 0x3f];
+		*dst++ = base64url[(byte >> 12) & 0x3f];
+		if (bits == 16) {
+			*dst++ = base64url[(byte >> 6) & 0x3f];
+		}
+		cnt += 4;
+	}
+	if (linebreaks && (cnt < max)) {
+		*dst++ = '\n';
+		cnt++;
+	}
+	*dst = '\0';
+	return cnt;
+}
+
+int ast_base64url_encode(char *dst, const unsigned char *src, int srclen, int max)
+{
+	return ast_base64url_encode_full(dst, src, srclen, max, 0);
+}
+
+char *ast_base64url_encode_string(const char *src)
+{
+	size_t encoded_len;
+	char *encoded_string;
+
+	if (ast_strlen_zero(src)) {
+		return NULL;
+	}
+
+	encoded_len = ((strlen(src) * 4 / 3 + 3) & ~3) + 1;
+	encoded_string = ast_malloc(encoded_len);
+
+	ast_base64url_encode(encoded_string, (const unsigned char *)src, strlen(src), encoded_len);
+
+	return encoded_string;
+}
+
 static void base64_init(void)
 {
 	int x;
 	memset(b2a, -1, sizeof(b2a));
+	memset(b2a_url, -1, sizeof(b2a_url));
 	/* Initialize base-64 Conversion table */
 	for (x = 0; x < 26; x++) {
 		/* A-Z */
 		base64[x] = 'A' + x;
+		base64url[x] = 'A' + x;
 		b2a['A' + x] = x;
+		b2a_url['A' + x] = x;
 		/* a-z */
 		base64[x + 26] = 'a' + x;
+		base64url[x + 26] = 'a' + x;
 		b2a['a' + x] = x + 26;
+		b2a_url['a' + x] = x + 26;
 		/* 0-9 */
 		if (x < 10) {
 			base64[x + 52] = '0' + x;
+			base64url[x + 52] = '0' + x;
 			b2a['0' + x] = x + 52;
+			b2a_url['0' + x] = x + 52;
 		}
 	}
 	base64[62] = '+';
 	base64[63] = '/';
+	base64url[62] = '-';
+	base64url[63] = '_';
 	b2a[(int)'+'] = 62;
 	b2a[(int)'/'] = 63;
+	b2a_url[(int)'-'] = 62;
+	b2a_url[(int)'_'] = 63;
 }
 
 const struct ast_flags ast_uri_http = {AST_URI_UNRESERVED};
