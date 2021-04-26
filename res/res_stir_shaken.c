@@ -104,9 +104,6 @@
 				<configOption name="attestation">
 					<synopsis>Attestation level</synopsis>
 				</configOption>
-				<configOption name="origid" default="">
-					<synopsis>The origination ID</synopsis>
-				</configOption>
 				<configOption name="caller_id_number" default="">
 					<synopsis>The caller ID number to match on.</synopsis>
 				</configOption>
@@ -503,7 +500,7 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
 	EVP_MD_CTX *mdctx = NULL;
 	int ret = 0;
 	unsigned char *decoded_signature;
-	size_t signature_length, decoded_signature_length, padding = 0;
+	size_t signature_length, decoded_signature_length;
 
 	mdctx = EVP_MD_CTX_create();
 	if (!mdctx) {
@@ -525,19 +522,12 @@ static int stir_shaken_verify_signature(const char *msg, const char *signature, 
 		return -1;
 	}
 
-	/* We need to decode the signature from base64 to bytes. Make sure we have
+	/* We need to decode the signature from base64 URL to bytes. Make sure we have
 	 * at least enough characters for this check */
 	signature_length = strlen(signature);
-	if (signature_length > 2 && signature[signature_length - 1] == '=') {
-		padding++;
-		if (signature[signature_length - 2] == '=') {
-			padding++;
-		}
-	}
-
-	decoded_signature_length = (signature_length / 4 * 3) - padding;
+	decoded_signature_length = (signature_length * 3 / 4);
 	decoded_signature = ast_calloc(1, decoded_signature_length);
-	ast_base64decode(decoded_signature, signature, decoded_signature_length);
+	ast_base64url_decode(decoded_signature, signature, decoded_signature_length);
 
 	ret = EVP_DigestVerifyFinal(mdctx, decoded_signature, decoded_signature_length);
 	if (ret != 1) {
@@ -944,7 +934,7 @@ static unsigned char *stir_shaken_sign(char *json_str, EVP_PKEY *private_key)
 		goto cleanup;
 	}
 
-	/* There are 6 bits to 1 base64 digit, so in order to get the size of the base64 encoded
+	/* There are 6 bits to 1 base64 URL digit, so in order to get the size of the base64 encoded
 	 * signature, we need to multiply by the number of bits in a byte and divide by 6. Since
 	 * there's rounding when doing base64 conversions, add 3 bytes, just in case, and account
 	 * for padding. Add another byte for the NULL-terminator.
@@ -956,7 +946,7 @@ static unsigned char *stir_shaken_sign(char *json_str, EVP_PKEY *private_key)
 		goto cleanup;
 	}
 
-	ast_base64encode((char *)encoded_signature, signature, signature_length, encoded_length);
+	ast_base64url_encode((char *)encoded_signature, signature, signature_length, encoded_length);
 
 cleanup:
 	if (mdctx) {
@@ -1013,19 +1003,21 @@ static int stir_shaken_add_attest(struct ast_json *json, const char *attest)
  * \brief Adds the 'origid' field to the JWT.
  *
  * \param json The JWT
- * \param origid The value to set origid to
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-static int stir_shaken_add_origid(struct ast_json *json, const char *origid)
+static int stir_shaken_add_origid(struct ast_json *json)
 {
 	struct ast_json *value;
+	char uuid_str[AST_UUID_STR_LEN];
 
-	value = ast_json_string_create(origid);
-	if (!origid) {
+	ast_uuid_generate_str(uuid_str, sizeof(uuid_str));
+	if (strlen(uuid_str) != (AST_UUID_STR_LEN - 1)) {
 		return -1;
 	}
+
+	value = ast_json_string_create(uuid_str);
 
 	return ast_json_object_set(ast_json_object_get(json, "payload"), "origid", value);
 }
@@ -1097,7 +1089,7 @@ struct ast_stir_shaken_payload *ast_stir_shaken_sign(struct ast_json *json)
 		goto cleanup;
 	}
 
-	if (stir_shaken_add_origid(json, stir_shaken_certificate_get_origid(cert))) {
+	if (stir_shaken_add_origid(json)) {
 		ast_log(LOG_ERROR, "Failed to add 'origid' to payload\n");
 		goto cleanup;
 	}

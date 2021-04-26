@@ -40,8 +40,6 @@ struct stir_shaken_certificate {
 		AST_STRING_FIELD(caller_id_number);
 		/*! The attestation level for this certificate */
 		AST_STRING_FIELD(attestation);
-		/*! The origination ID for this certificate */
-		AST_STRING_FIELD(origid);
 	);
 	/*! The private key for the certificate */
 	EVP_PKEY *private_key;
@@ -103,11 +101,6 @@ const char *stir_shaken_certificate_get_public_cert_url(struct stir_shaken_certi
 const char *stir_shaken_certificate_get_attestation(struct stir_shaken_certificate *cert)
 {
 	return cert ? cert->attestation : NULL;
-}
-
-const char *stir_shaken_certificate_get_origid(struct stir_shaken_certificate *cert)
-{
-	return cert ? cert->origid : NULL;
 }
 
 EVP_PKEY *stir_shaken_certificate_get_private_key(struct stir_shaken_certificate *cert)
@@ -378,7 +371,6 @@ int stir_shaken_certificate_load(void)
 		on_load_public_cert_url, public_cert_url_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, CONFIG_TYPE, "attestation", "",
 		on_load_attestation, attestation_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "origid", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, origid));
 	ast_sorcery_object_field_register(sorcery, CONFIG_TYPE, "caller_id_number", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct stir_shaken_certificate, caller_id_number));
 
 	ast_cli_register_multiple(stir_shaken_certificate_cli,
