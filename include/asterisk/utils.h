@@ -276,6 +276,66 @@ int ast_base64decode(unsigned char *dst, const char *src, int max);
  */
 char *ast_base64decode_string(const char *src);
 
+/*!
+ * \brief Decode data from base64 URL
+ *
+ * \param dst The destination buffer
+ * \param src The source buffer
+ * \param max The maximum number of bytes to write into the destination
+ *            buffer. Note that this function will not ensure that the
+ *            destination buffer is NULL terminated. So, in general,
+ *            this parameter should be sizeof(dst) - 1
+ */
+int ast_base64url_decode(unsigned char *dst, const char *src, int max);
+
+/*!
+ * \brief Same as ast_base64encode_full but for base64 URL
+ *
+ * \param dst The destination buffer
+ * \param src The source buffer
+ * \param srclen The number of bytes present in the source buffer
+ * \param max The maximum number of bytes to write into the destination
+ *            buffer, *including* the terminating NULL character.
+ * \param linebreaks Set to 1 if there should be linebreaks inserted
+ *                   in the result
+ */
+int ast_base64url_encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks);
+
+/*!
+ * \brief Encode data in base64 URL
+ *
+ * \param dst The destination buffer
+ * \param src The source data to be encoded
+ * \param srclen The number of bytes present in the source buffer
+ * \param max The maximum number of bytes to write into the destination
+ *            buffer, including the terminating NULL character
+ */
+int ast_base64url_encode(char *dst, const unsigned char *src, int srclen, int max);
+
+/*!
+ * \brief Decode string from base64 URL
+ *
+ * \note The returned string will need to be freed later
+ *
+ * \param src The source buffer
+ *
+ * \retval NULL on failure
+ * \retval Decoded string on success
+ */
+char *ast_base64url_decode_string(const char *src);
+
+/*!
+ * \brief Encode string in base64 URL
+ *
+ * \note The returned string will need to be freed later
+ *
+ * \param src The source data to be encoded
+ *
+ * \retval NULL on failure
+ * \retval Encoded string on success
+ */
+char *ast_base64url_encode_string(const char *src);
+
 #define AST_URI_ALPHANUM     (1 << 0)
 #define AST_URI_MARK         (1 << 1)
 #define AST_URI_UNRESERVED   (AST_URI_ALPHANUM | AST_URI_MARK)

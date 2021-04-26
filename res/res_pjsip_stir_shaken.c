@@ -146,14 +146,14 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	}
 
 	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
-	header = ast_base64decode_string(encoded_val);
+	header = ast_base64url_decode_string(encoded_val);
 	if (ast_strlen_zero(header)) {
 		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
 		return 0;
 	}
 
 	encoded_val = strtok_r(identity_hdr_val, ".", &identity_hdr_val);
-	payload = ast_base64decode_string(encoded_val);
+	payload = ast_base64url_decode_string(encoded_val);
 	if (ast_strlen_zero(payload)) {
 		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
 		return 0;
@@ -241,7 +241,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 
 	header = ast_json_object_get(json, "header");
 	dumped_string = ast_json_dump_string(header);
-	encoded_header = ast_base64encode_string(dumped_string);
+	encoded_header = ast_base64url_encode_string(dumped_string);
 	ast_json_free(dumped_string);
 	if (!encoded_header) {
 		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN header\n");
@@ -250,7 +250,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 
 	payload = ast_json_object_get(json, "payload");
 	dumped_string = ast_json_dump_string(payload);
-	encoded_payload = ast_base64encode_string(dumped_string);
+	encoded_payload = ast_base64url_encode_string(dumped_string);
 	ast_json_free(dumped_string);
 	if (!encoded_payload) {
 		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN payload\n");

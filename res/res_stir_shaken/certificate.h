@@ -55,16 +55,6 @@ const char *stir_shaken_certificate_get_public_cert_url(struct stir_shaken_certi
 const char *stir_shaken_certificate_get_attestation(struct stir_shaken_certificate *cert);
 
 /*!
- * \brief Get the origination ID associated with a certificate
- *
- * \param cert The certificate
- *
- * \retval NULL on failure
- * \retval The origid on success
- */
-const char *stir_shaken_certificate_get_origid(struct stir_shaken_certificate *cert);
-
-/*!
  * \brief Get the private key associated with a certificate
  *
  * \param cert The certificate to get the private key from
