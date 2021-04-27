@@ -356,6 +356,11 @@ struct rtp_transport_wide_cc_statistics {
 	int schedid;
 };
 
+typedef struct {
+	unsigned int ts;
+	unsigned char is_set;
+} optional_ts;
+
 /*! \brief RTP session description */
 struct ast_rtp {
 	int s;
@@ -392,7 +397,7 @@ struct ast_rtp {
 	/* DTMF Reception Variables */
 	char resp;                        /*!< The current digit being processed */
 	unsigned int last_seqno;          /*!< The last known sequence number for any DTMF packet */
-	unsigned int last_end_timestamp;  /*!< The last known timestamp received from an END packet */
+	optional_ts last_end_timestamp;   /*!< The last known timestamp received from an END packet */
 	unsigned int dtmf_duration;       /*!< Total duration in samples since the digit start event */
 	unsigned int dtmf_timeout;        /*!< When this timestamp is reached we consider END frame lost and forcibly abort digit */
 	unsigned int dtmfsamples;
@@ -5536,12 +5541,13 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 	}
 
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE)) {
-		if ((rtp->last_end_timestamp != timestamp) || (rtp->resp && rtp->resp != resp)) {
+		if (!rtp->last_end_timestamp.is_set || rtp->last_end_timestamp.ts != timestamp || (rtp->resp && rtp->resp != resp)) {
 			rtp->resp = resp;
 			rtp->dtmf_timeout = 0;
 			f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE)));
 			f->len = 0;
-			rtp->last_end_timestamp = timestamp;
+			rtp->last_end_timestamp.ts = timestamp;
+			rtp->last_end_timestamp.is_set = 1;
 			AST_LIST_INSERT_TAIL(frames, f, frame_list);
 		}
 	} else {
@@ -5560,8 +5566,9 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 
 		if (event_end & 0x80) {
 			/* End event */
-			if ((rtp->last_seqno != seqno) && ((timestamp > rtp->last_end_timestamp) || ((timestamp == 0) && (rtp->last_end_timestamp == 0)))) {
-				rtp->last_end_timestamp = timestamp;
+			if (rtp->last_seqno != seqno && (!rtp->last_end_timestamp.is_set || timestamp > rtp->last_end_timestamp.ts)) {
+				rtp->last_end_timestamp.ts = timestamp;
+				rtp->last_end_timestamp.is_set = 1;
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
 				f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, 0));
@@ -5581,7 +5588,8 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 			 * 65535.
 			 */
 			if ((rtp->last_seqno > seqno && rtp->last_seqno - seqno < 50)
-				|| timestamp <= rtp->last_end_timestamp) {
+			   || (rtp->last_end_timestamp.is_set
+				  && timestamp <= rtp->last_end_timestamp.ts)) {
 				/* Out of order frame. Processing this can cause us to
 				 * improperly duplicate incoming DTMF, so just drop
 				 * this.
@@ -6671,7 +6679,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance,
 	 * re-transmissions of the last dtmf end still.  Feed those to the
 	 * core so they can be filtered accordingly.
 	 */
-	if (rtp->last_end_timestamp == timestamp) {
+	if (rtp->last_end_timestamp.is_set && rtp->last_end_timestamp.ts == timestamp) {
 		ast_debug_rtp(1, "(%p, %p) RTP feeding packet with duplicate timestamp to core\n", instance, instance1);
 		return -1;
 	}
@@ -7279,7 +7287,8 @@ static struct ast_frame *ast_rtp_interpret(struct ast_rtp_instance *instance, st
 			rtp->cycles = 0;
 			prev_seqno = 0;
 			rtp->last_seqno = 0;
-			rtp->last_end_timestamp = 0;
+			rtp->last_end_timestamp.ts = 0;
+			rtp->last_end_timestamp.is_set = 0;
 			if (rtp->rtcp) {
 				rtp->rtcp->expected_prior = 0;
 				rtp->rtcp->received_prior = 0;
@@ -8518,7 +8527,8 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 
 	/* Need to reset the DTMF last sequence number and the timestamp of the last END packet */
 	rtp->last_seqno = 0;
-	rtp->last_end_timestamp = 0;
+	rtp->last_end_timestamp.ts = 0;
+	rtp->last_end_timestamp.is_set = 0;
 
 	if (strictrtp && rtp->strict_rtp_state != STRICT_RTP_OPEN
 		&& !ast_sockaddr_isnull(addr) && ast_sockaddr_cmp(addr, &rtp->strict_rtp_address)) {
