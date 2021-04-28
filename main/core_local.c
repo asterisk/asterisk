@@ -967,7 +967,8 @@ static struct ast_channel *local_request_with_stream_topology(const char *type, 
 
 		stream = ast_stream_topology_get_stream(audio_filtered_topology, i);
 
-		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO) {
+		if (ast_stream_get_type(stream) != AST_MEDIA_TYPE_AUDIO ||
+			ast_stream_get_state(stream) == AST_STREAM_STATE_REMOVED) {
 			continue;
 		}
 
