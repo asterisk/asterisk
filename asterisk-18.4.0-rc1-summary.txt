@@ -1,0 +1,366 @@
+                                Release Summary
+
+                              asterisk-18.4.0-rc1
+
+                                Date: 2021-04-29
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-18.3.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                      Testers               Reporters                
+   12 Joshua C. Colp                                 7 Joshua C. Colp         
+   7 Sean Bright                                     2 Ross Beer              
+   5 Kevin Harwell                                   1 Rusty Newton           
+   4 George Joseph                                   1 Matthias Hensler       
+   1 Asterisk Development Team                       1 Alexander Gonchiy      
+   1 Jean Aunis                                      1 George Joseph          
+   1 Jaco Kroon                                      1 Miguel Sanz            
+   1 Ben Ford                                        1 Francisco Correia      
+   1 Mark Murawski                                   1 sungtae kim            
+                                                     1 Vyrva Igor             
+                                                     1 Michael                
+                                                     1 Roman Pertsev          
+                                                     1 Igor Liferenko         
+                                                     1 Jean Aunis - Prescom   
+                                                     1 Etienne Lessard        
+                                                     1 Francisco Correia      
+                                                     1 Kevin Harwell          
+                                                     1 N A                    
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_queue
+
+   ASTERISK-28356: app_queue: CLI set ringinuse for realtime member not
+   working
+   Reported by: Michael
+     * [35302efe73] Sean Bright -- app_queue: Add alembic migration to add
+       ringinuse to queue_members.
+   ASTERISK-24631: Incorrect description of option "context" in
+   queues.conf.sample
+   Reported by: Etienne Lessard
+     * [31364fa4c8] Sean Bright -- queues.conf.sample: Correct 'context'
+       documentation.
+   ASTERISK-26614: app_queue: updatecdr option in queues.conf does
+   effectively nothing
+   Reported by: Alexander Gonchiy
+     * [e27fa9eceb] Sean Bright -- app_queue.c: Remove dead 'updatecdr' code.
+   ASTERISK-27542: app_queue: When "queue show" CLI command is executed a
+   crash occurs
+   Reported by: Miguel Sanz
+     * [4393207751] Sean Bright -- app_queue.c: Don't crash when realtime
+       queue name is empty.
+   ASTERISK-29355: app_queue: Queue member status message sent even if status
+   doesn't change
+   Reported by: Roman Pertsev
+     * [55c467eab1] Joshua C. Colp -- app_queue: Only send QueueMemberStatus
+       if status changes.
+
+    Category: Bridges/bridge_simple
+
+   ASTERISK-29379: Segfault - ast_channel_is_multistream (chan=0x0) at
+   channel_internal_api.c:1590
+   Reported by: Ross Beer
+     * [88aec107df] George Joseph -- bridge_channel_write_frame: Check for
+       NULL channel
+
+    Category: Channels/chan_local
+
+   ASTERISK-29035: chan_local: Multistream support breaks T.38 faxing
+   Reported by: Matthias Hensler
+     * [ed2f637b47] Joshua C. Colp -- core_unreal: Fix deadlock with T.38
+       control frames.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-29348: menuselect doesn't return errors in many cases
+   Reported by: George Joseph
+     * [f47c5cbdf9] Jaco Kroon -- menuselect: exit non-zero in case of
+       failure on --enable|disable options.
+
+    Category: Core/CodecInterface
+
+   ASTERISK-29328: translate.c: possible buffer overflow when upsampling
+   Reported by: Jean Aunis - Prescom
+     * [dec44306cf] Jean Aunis -- translate.c: Take sampling rate into
+       account when checking codec's buffer size
+
+    Category: Core/Stasis
+
+   ASTERISK-29355: app_queue: Queue member status message sent even if status
+   doesn't change
+   Reported by: Roman Pertsev
+     * [55c467eab1] Joshua C. Colp -- app_queue: Only send QueueMemberStatus
+       if status changes.
+
+    Category: Documentation
+
+   ASTERISK-24434: Fix differing usage of assignment operators in
+   modules.conf
+   Reported by: Rusty Newton
+     * [be3153346b] Sean Bright -- modules.conf: Fix more differing usages of
+       assignment operators.
+   ASTERISK-24631: Incorrect description of option "context" in
+   queues.conf.sample
+   Reported by: Etienne Lessard
+     * [31364fa4c8] Sean Bright -- queues.conf.sample: Correct 'context'
+       documentation.
+   ASTERISK-25358: dateformat not read from logger.conf by remote console
+   Reported by: Igor Liferenko
+     * [a0009c807e] Mark Murawski -- logger: Console sessions will now
+       respect logger.conf dateformat= option
+
+    Category: Resources/General
+
+   ASTERISK-29130: prometheus: Crash when scraping bridge
+   Reported by: Francisco Correia
+     * [19eef2a6dc] George Joseph -- res_prometheus: Clone containers before
+       iterating
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-29354: res_pjsip: Allow partial reloading of transports
+   Reported by: Joshua C. Colp
+     * [f213833514] Joshua C. Colp -- res_pjsip: Add support for partial
+       transport reload.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-29215: res_pjsip_session: NULL active_media_state topology caused
+   asterisk crash
+   Reported by: sungtae kim
+     * [c78d0ce429] George Joseph -- res_pjsip_session: Make
+       reschedule_reinvite check for NULL topologies
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-29364: res_rtp_asterisk: standard deviation miscalculation
+   Reported by: Kevin Harwell
+     * [17c86dcfaa] Kevin Harwell -- res_rtp_asterisk: Fix standard deviation
+       calculation
+   ASTERISK-29373: res_rtp_asterisk: Flash events are duplicated
+   Reported by: N A
+     * [b0d828f14a] Joshua C. Colp -- res_rtp_asterisk: Only raise flash
+       control frame on end.
+   ASTERISK-29352: res_rtp_asterisk: Fix frame delivery time when SSRC
+   changes
+   Reported by: Joshua C. Colp
+     * [2e7fc84398] Joshua C. Colp -- res_rtp_asterisk: Force resync on SSRC
+       change.
+
+  Improvement
+
+    Category: Core/General
+
+   ASTERISK-29339: loader: Let's output warnings for deprecated modules!
+   Reported by: Joshua C. Colp
+     * [a9a9864478] Joshua C. Colp -- loader: Output warnings for deprecated
+       modules.
+   ASTERISK-29337: menuselect: Add ability to set deprecated in and removed
+   in versions for modules
+   Reported by: Joshua C. Colp
+     * [6aac148d59] Joshua C. Colp -- menuselect: Add ability to set
+       deprecated and removed versions.
+     * [60fb559ccc] Joshua C. Colp -- xml: Allow deprecated_in and removed_in
+       for MODULEINFO.
+   ASTERISK-29335: xml: Embed module information into core XML documentation.
+   Reported by: Joshua C. Colp
+     * [60800b038a] Joshua C. Colp -- xml: Embed module information into core
+       XML documentation.
+
+    Category: Documentation
+
+   ASTERISK-29336: documentation: Fix inconsistent support levels
+   Reported by: Joshua C. Colp
+     * [be3e469f98] Joshua C. Colp -- documentation: Fix non-matching module
+       support levels.
+   ASTERISK-29335: xml: Embed module information into core XML documentation.
+   Reported by: Joshua C. Colp
+     * [60800b038a] Joshua C. Colp -- xml: Embed module information into core
+       XML documentation.
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  New Feature
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-27477: Chan_pjsip does not support unauthenticated OPTIONS ping
+   Reported by: Ross Beer
+     * [d2dcd15bd8] Sean Bright -- res_pjsip.c: OPTIONS processing can now
+       optionally skip authentication
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author           | Summary                                |
+   |------------+------------------+----------------------------------------|
+   | 1949d828b7 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
+   |            | Development Team | 18.4.0                                 |
+   |------------+------------------+----------------------------------------|
+   | c2f4925ee0 | Joshua C. Colp   | svn: Switch to https scheme.           |
+   |------------+------------------+----------------------------------------|
+   | 5f3d96a765 | George Joseph    | res_pjsip: Update documentation for    |
+   |            |                  | the auth object                        |
+   |------------+------------------+----------------------------------------|
+   | 404533c149 | Sean Bright      | loader.c: Speed up deprecation         |
+   |            |                  | metadata lookup                        |
+   |------------+------------------+----------------------------------------|
+   | 0ad1ff8a72 | Kevin Harwell    | res_rtp_asterisk: Don't count 0 as a   |
+   |            |                  | minimum lost packets                   |
+   |------------+------------------+----------------------------------------|
+   | 1414b9cc57 | Kevin Harwell    | res_rtp_asterisk: Statically declare   |
+   |            |                  | rtp_drop_packets_data object           |
+   |------------+------------------+----------------------------------------|
+   | b912b31853 | Kevin Harwell    | res_rtp_asterisk: Add a DEVMODE RTP    |
+   |            |                  | drop packets CLI command               |
+   |------------+------------------+----------------------------------------|
+   |            |                  | res_pjsip: Give error when TLS         |
+   | 65a4a3a4e6 | Joshua C. Colp   | transport configured but not           |
+   |            |                  | supported.                             |
+   |------------+------------------+----------------------------------------|
+   | 15de2f1727 | Kevin Harwell    | time: Add timeval create and unit      |
+   |            |                  | conversion functions                   |
+   |------------+------------------+----------------------------------------|
+   | bbfb8f2b9d | Ben Ford         | logger.conf.sample: Add more debug     |
+   |            |                  | documentation.                         |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                                                                                |    1
+ .version                                                                                  |    1
+ ChangeLog                                                                                 |94363 ----------
+ asterisk-18.3.0-summary.html                                                              |  202
+ asterisk-18.3.0-summary.txt                                                               |  592
+ b/CHANGES                                                                                 |   61
+ b/Makefile                                                                                |    7
+ b/UPGRADE.txt                                                                             |   10
+ b/apps/app_attended_transfer.c                                                            |    2
+ b/apps/app_blind_transfer.c                                                               |    2
+ b/apps/app_fax.c                                                                          |    2
+ b/apps/app_queue.c                                                                        |   19
+ b/apps/app_speech_utils.c                                                                 |    2
+ b/apps/app_talkdetect.c                                                                   |    2
+ b/cdr/cdr_syslog.c                                                                        |    2
+ b/channels/chan_dahdi.c                                                                   |    2
+ b/codecs/codec_dahdi.c                                                                    |    2
+ b/configs/samples/logger.conf.sample                                                      |   13
+ b/configs/samples/modules.conf.sample                                                     |    8
+ b/configs/samples/pjsip.conf.sample                                                       |   66
+ b/configs/samples/queues.conf.sample                                                      |   19
+ b/contrib/ast-db-manage/config/versions/8915fcc5766f_add_ringinuse_to_queue_members.py    |   30
+ b/contrib/ast-db-manage/config/versions/c20d6e3992f4_add_allow_unauthenticated_options.py |   29
+ b/contrib/scripts/get_mp3_source.sh                                                       |    2
+ b/contrib/scripts/install_prereq                                                          |    4
+ b/doc/appdocsxml.dtd                                                                      |   24
+ b/funcs/func_periodic_hook.c                                                              |    2
+ b/funcs/func_pjsip_aor.c                                                                  |    2
+ b/funcs/func_pjsip_contact.c                                                              |    2
+ b/funcs/func_pjsip_endpoint.c                                                             |    2
+ b/include/asterisk/logger.h                                                               |    5
+ b/include/asterisk/res_pjsip.h                                                            |    2
+ b/include/asterisk/time.h                                                                 |   79
+ b/main/asterisk.c                                                                         |    2
+ b/main/bridge_channel.c                                                                   |   12
+ b/main/channel_internal_api.c                                                             |    2
+ b/main/loader.c                                                                           |  183
+ b/main/logger.c                                                                           |   17
+ b/main/time.c                                                                             |  145
+ b/main/translate.c                                                                        |    8
+ b/menuselect/menuselect.c                                                                 |   36
+ b/menuselect/menuselect.h                                                                 |    2
+ b/menuselect/menuselect_curses.c                                                          |   10
+ b/menuselect/menuselect_newt.c                                                            |   10
+ b/res/prometheus/bridges.c                                                                |   12
+ b/res/prometheus/channels.c                                                               |   15
+ b/res/prometheus/endpoints.c                                                              |    9
+ b/res/res_http_websocket.c                                                                |    2
+ b/res/res_pjsip.c                                                                         |  104
+ b/res/res_pjsip/config_transport.c                                                        |   29
+ b/res/res_pjsip/pjsip_configuration.c                                                     |    1
+ b/res/res_remb_modifier.c                                                                 |    2
+ b/res/res_rtp_asterisk.c                                                                  |  541
+ b/tests/CI/buildAsterisk.sh                                                               |    2
+ b/tests/test_res_rtp.c                                                                    |   40
+ b/tests/test_time.c                                                                       |   75
+ contrib/realtime/mysql/mysql_cdr.sql                                                      |   41
+ contrib/realtime/mysql/mysql_config.sql                                                   | 1306
+ contrib/realtime/mysql/mysql_voicemail.sql                                                |   35
+ contrib/realtime/postgresql/postgresql_cdr.sql                                            |   45
+ contrib/realtime/postgresql/postgresql_config.sql                                         | 1418
+ contrib/realtime/postgresql/postgresql_voicemail.sql                                      |   39
+ 62 files changed, 1369 insertions(+), 98335 deletions(-)

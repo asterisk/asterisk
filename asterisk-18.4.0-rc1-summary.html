@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-18.4.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-18.4.0-rc1</h3><h3 align="center">Date: 2021-04-29</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-18.3.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">12 Joshua C. Colp <jcolp@sangoma.com><br/>7 Sean Bright <sean.bright@gmail.com><br/>5 Kevin Harwell <kharwell@sangoma.com><br/>4 George Joseph <gjoseph@digium.com><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Jean Aunis <jean.aunis@prescom.fr><br/>1 Jaco Kroon <jaco@uls.co.za><br/>1 Ben Ford <bford@digium.com><br/>1 Mark Murawski <markm@intellasoft.net><br/></td><td width="33%"><td width="33%">7 Joshua C. Colp <jcolp@digium.com><br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>1 Rusty Newton <rnewton@digium.com><br/>1 Matthias Hensler <mh@relaix.net><br/>1 Alexander Gonchiy <alexander.gonchiy@gmail.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 Miguel Sanz <miguelsanzpardo@gmail.com><br/>1 Francisco Correia<br/>1 sungtae kim <pchero21@gmail.com><br/>1 Vyrva Igor<br/>1 Michael <ringo@vianet.ca><br/>1 Roman Pertsev <roman@voxlink.ru><br/>1 Igor Liferenko <igor.liferenko@gmail.com><br/>1 Jean Aunis - Prescom <jean.aunis@prescom.fr><br/>1 Etienne Lessard <elessard97@gmail.com><br/>1 Francisco Correia <francisco.correia.pt@gmail.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 N A <mail@interlinked.x10host.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-28356">ASTERISK-28356</a>: app_queue: CLI set ringinuse for realtime member not working<br/>Reported by: Michael<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=35302efe73bb9bcf0547d6c515457fb0fab50aa1">[35302efe73]</a> Sean Bright -- app_queue: Add alembic migration to add ringinuse to queue_members.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24631">ASTERISK-24631</a>: Incorrect description of option "context" in queues.conf.sample<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31364fa4c833cfb1529a9d9f9452c87b19238206">[31364fa4c8]</a> Sean Bright -- queues.conf.sample: Correct 'context' documentation.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26614">ASTERISK-26614</a>: app_queue: updatecdr option in queues.conf does effectively nothing<br/>Reported by: Alexander Gonchiy<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e27fa9eceb24a69fd53fe266b0586b11fbc0b903">[e27fa9eceb]</a> Sean Bright -- app_queue.c: Remove dead 'updatecdr' code.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27542">ASTERISK-27542</a>: app_queue: When "queue show" CLI command is executed a crash occurs<br/>Reported by: Miguel Sanz<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=439320775195b164cf6759bc37b416988ffd6463">[4393207751]</a> Sean Bright -- app_queue.c: Don't crash when realtime queue name is empty.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29355">ASTERISK-29355</a>: app_queue: Queue member status message sent even if status doesn't change<br/>Reported by: Roman Pertsev<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=55c467eab12ed9cabfc31a5e22f3c58c05a131b6">[55c467eab1]</a> Joshua C. Colp -- app_queue: Only send QueueMemberStatus if status changes.</li>
+</ul><br><h4>Category: Bridges/bridge_simple</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29379">ASTERISK-29379</a>: Segfault - ast_channel_is_multistream (chan=0x0) at channel_internal_api.c:1590<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=88aec107df0d22fe147155caed39fe83f35ad6c6">[88aec107df]</a> George Joseph -- bridge_channel_write_frame: Check for NULL channel</li>
+</ul><br><h4>Category: Channels/chan_local</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29035">ASTERISK-29035</a>: chan_local: Multistream support breaks T.38 faxing<br/>Reported by: Matthias Hensler<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ed2f637b4771eda3baeafaecc5ea6d07190c128b">[ed2f637b47]</a> Joshua C. Colp -- core_unreal: Fix deadlock with T.38 control frames.</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29348">ASTERISK-29348</a>: menuselect doesn't return errors in many cases<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f47c5cbdf9c57e9f1d3a6b6dced3542506863920">[f47c5cbdf9]</a> Jaco Kroon -- menuselect: exit non-zero in case of failure on --enable|disable options.</li>
+</ul><br><h4>Category: Core/CodecInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29328">ASTERISK-29328</a>: translate.c: possible buffer overflow when upsampling<br/>Reported by: Jean Aunis - Prescom<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dec44306cf605be2a267d0b7fc3937c1e88483f8">[dec44306cf]</a> Jean Aunis -- translate.c: Take sampling rate into account when checking codec's buffer size</li>
+</ul><br><h4>Category: Core/Stasis</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29355">ASTERISK-29355</a>: app_queue: Queue member status message sent even if status doesn't change<br/>Reported by: Roman Pertsev<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=55c467eab12ed9cabfc31a5e22f3c58c05a131b6">[55c467eab1]</a> Joshua C. Colp -- app_queue: Only send QueueMemberStatus if status changes.</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24434">ASTERISK-24434</a>: Fix differing usage of assignment operators in modules.conf<br/>Reported by: Rusty Newton<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=be3153346bed8b5f9d21c8f362070985bc3760de">[be3153346b]</a> Sean Bright -- modules.conf: Fix more differing usages of assignment operators.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24631">ASTERISK-24631</a>: Incorrect description of option "context" in queues.conf.sample<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=31364fa4c833cfb1529a9d9f9452c87b19238206">[31364fa4c8]</a> Sean Bright -- queues.conf.sample: Correct 'context' documentation.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25358">ASTERISK-25358</a>: dateformat not read from logger.conf by remote console<br/>Reported by: Igor Liferenko<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a0009c807eb6ad01ea0827b2b14ea3bd433ddc69">[a0009c807e]</a> Mark Murawski -- logger: Console sessions will now respect logger.conf dateformat= option</li>
+</ul><br><h4>Category: Resources/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29130">ASTERISK-29130</a>: prometheus: Crash when scraping bridge<br/>Reported by: Francisco Correia<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=19eef2a6dc26e960059c46b7fc8adb08984845c1">[19eef2a6dc]</a> George Joseph -- res_prometheus: Clone containers before iterating</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29354">ASTERISK-29354</a>: res_pjsip: Allow partial reloading of transports<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f213833514bd615ffdd658e3ecd80a5e35e5e9a2">[f213833514]</a> Joshua C. Colp -- res_pjsip: Add support for partial transport reload.</li>
+</ul><br><h4>Category: Resources/res_pjsip_session</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29215">ASTERISK-29215</a>: res_pjsip_session: NULL active_media_state topology caused asterisk crash<br/>Reported by: sungtae kim<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c78d0ce429fb32c0b8eb869fddea216d6dbe4668">[c78d0ce429]</a> George Joseph -- res_pjsip_session: Make reschedule_reinvite check for NULL topologies</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29364">ASTERISK-29364</a>: res_rtp_asterisk: standard deviation miscalculation <br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=17c86dcfaa76c17d397a358b28fb09fc3f21d9ae">[17c86dcfaa]</a> Kevin Harwell -- res_rtp_asterisk: Fix standard deviation calculation</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29373">ASTERISK-29373</a>: res_rtp_asterisk: Flash events are duplicated<br/>Reported by: N A<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b0d828f14a9dac183eb58fe45b72c32dc027658f">[b0d828f14a]</a> Joshua C. Colp -- res_rtp_asterisk: Only raise flash control frame on end.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29352">ASTERISK-29352</a>: res_rtp_asterisk: Fix frame delivery time when SSRC changes<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e7fc84398fcebb2bfe54226d6c3d892d30dbd63">[2e7fc84398]</a> Joshua C. Colp -- res_rtp_asterisk: Force resync on SSRC change.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29339">ASTERISK-29339</a>: loader: Let's output warnings for deprecated modules!<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9a9864478a9909a51bbc03867a36cbb96ec8d67">[a9a9864478]</a> Joshua C. Colp -- loader: Output warnings for deprecated modules.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29337">ASTERISK-29337</a>: menuselect: Add ability to set deprecated in and removed in versions for modules<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6aac148d59f1d5cd7408f78c199b47ca3d9cfd41">[6aac148d59]</a> Joshua C. Colp -- menuselect: Add ability to set deprecated and removed versions.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=60fb559cccefc0cc16ef1cd2870642679bd46be3">[60fb559ccc]</a> Joshua C. Colp -- xml: Allow deprecated_in and removed_in for MODULEINFO.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29335">ASTERISK-29335</a>: xml: Embed module information into core XML documentation.<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=60800b038a3fbcee6828436304e34056d64ac24e">[60800b038a]</a> Joshua C. Colp -- xml: Embed module information into core XML documentation.</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29336">ASTERISK-29336</a>: documentation: Fix inconsistent support levels<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=be3e469f9822247142075323979fb75f6d873deb">[be3e469f98]</a> Joshua C. Colp -- documentation: Fix non-matching module support levels.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29335">ASTERISK-29335</a>: xml: Embed module information into core XML documentation.<br/>Reported by: Joshua C. Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=60800b038a3fbcee6828436304e34056d64ac24e">[60800b038a]</a> Joshua C. Colp -- xml: Embed module information into core XML documentation.</li>
+</ul><br><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-27477">ASTERISK-27477</a>: Chan_pjsip does not support unauthenticated OPTIONS ping<br/>Reported by: Ross Beer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2dcd15bd870fbc4edf8778e6f95ab970c22b11d">[d2dcd15bd8]</a> Sean Bright -- res_pjsip.c: OPTIONS processing can now optionally skip authentication</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1949d828b7d39b26aa474d94ab64bc8cc5ff3c5c">1949d828b7</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 18.4.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c2f4925ee0e696bb4b02ab45d40287ce25d389f8">c2f4925ee0</a></td><td>Joshua C. Colp</td><td>svn: Switch to https scheme.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5f3d96a7659b012f86a604f0fec13858281f4e69">5f3d96a765</a></td><td>George Joseph</td><td>res_pjsip:  Update documentation for the auth object</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=404533c149dd256903aa7a03400d8d85be6ad368">404533c149</a></td><td>Sean Bright</td><td>loader.c: Speed up deprecation metadata lookup</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0ad1ff8a72ab1e653944de7f08ea60a39cacb96e">0ad1ff8a72</a></td><td>Kevin Harwell</td><td>res_rtp_asterisk: Don't count 0 as a minimum lost packets</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1414b9cc576138d9f286f536852b8d158d89d5a5">1414b9cc57</a></td><td>Kevin Harwell</td><td>res_rtp_asterisk: Statically declare rtp_drop_packets_data object</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b912b3185330cd5f03be711570541f6d66addf7d">b912b31853</a></td><td>Kevin Harwell</td><td>res_rtp_asterisk: Add a DEVMODE RTP drop packets CLI command</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=65a4a3a4e6398104e702a80bb5468a98e5eb8fb4">65a4a3a4e6</a></td><td>Joshua C. Colp</td><td>res_pjsip: Give error when TLS transport configured but not supported.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=15de2f1727e674a85987425f14574647f01c7a73">15de2f1727</a></td><td>Kevin Harwell</td><td>time: Add timeval create and unit conversion functions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bbfb8f2b9d84b303811f29ff162f6c7f4ba02baf">bbfb8f2b9d</a></td><td>Ben Ford</td><td>logger.conf.sample: Add more debug documentation.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                                |    1
+.version                                                                                  |    1
+ChangeLog                                                                                 |94363 ----------
+asterisk-18.3.0-summary.html                                                              |  202
+asterisk-18.3.0-summary.txt                                                               |  592
+b/CHANGES                                                                                 |   61
+b/Makefile                                                                                |    7
+b/UPGRADE.txt                                                                             |   10
+b/apps/app_attended_transfer.c                                                            |    2
+b/apps/app_blind_transfer.c                                                               |    2
+b/apps/app_fax.c                                                                          |    2
+b/apps/app_queue.c                                                                        |   19
+b/apps/app_speech_utils.c                                                                 |    2
+b/apps/app_talkdetect.c                                                                   |    2
+b/cdr/cdr_syslog.c                                                                        |    2
+b/channels/chan_dahdi.c                                                                   |    2
+b/codecs/codec_dahdi.c                                                                    |    2
+b/configs/samples/logger.conf.sample                                                      |   13
+b/configs/samples/modules.conf.sample                                                     |    8
+b/configs/samples/pjsip.conf.sample                                                       |   66
+b/configs/samples/queues.conf.sample                                                      |   19
+b/contrib/ast-db-manage/config/versions/8915fcc5766f_add_ringinuse_to_queue_members.py    |   30
+b/contrib/ast-db-manage/config/versions/c20d6e3992f4_add_allow_unauthenticated_options.py |   29
+b/contrib/scripts/get_mp3_source.sh                                                       |    2
+b/contrib/scripts/install_prereq                                                          |    4
+b/doc/appdocsxml.dtd                                                                      |   24
+b/funcs/func_periodic_hook.c                                                              |    2
+b/funcs/func_pjsip_aor.c                                                                  |    2
+b/funcs/func_pjsip_contact.c                                                              |    2
+b/funcs/func_pjsip_endpoint.c                                                             |    2
+b/include/asterisk/logger.h                                                               |    5
+b/include/asterisk/res_pjsip.h                                                            |    2
+b/include/asterisk/time.h                                                                 |   79
+b/main/asterisk.c                                                                         |    2
+b/main/bridge_channel.c                                                                   |   12
+b/main/channel_internal_api.c                                                             |    2
+b/main/loader.c                                                                           |  183
+b/main/logger.c                                                                           |   17
+b/main/time.c                                                                             |  145
+b/main/translate.c                                                                        |    8
+b/menuselect/menuselect.c                                                                 |   36
+b/menuselect/menuselect.h                                                                 |    2
+b/menuselect/menuselect_curses.c                                                          |   10
+b/menuselect/menuselect_newt.c                                                            |   10
+b/res/prometheus/bridges.c                                                                |   12
+b/res/prometheus/channels.c                                                               |   15
+b/res/prometheus/endpoints.c                                                              |    9
+b/res/res_http_websocket.c                                                                |    2
+b/res/res_pjsip.c                                                                         |  104
+b/res/res_pjsip/config_transport.c                                                        |   29
+b/res/res_pjsip/pjsip_configuration.c                                                     |    1
+b/res/res_remb_modifier.c                                                                 |    2
+b/res/res_rtp_asterisk.c                                                                  |  541
+b/tests/CI/buildAsterisk.sh                                                               |    2
+b/tests/test_res_rtp.c                                                                    |   40
+b/tests/test_time.c                                                                       |   75
+contrib/realtime/mysql/mysql_cdr.sql                                                      |   41
+contrib/realtime/mysql/mysql_config.sql                                                   | 1306
+contrib/realtime/mysql/mysql_voicemail.sql                                                |   35
+contrib/realtime/postgresql/postgresql_cdr.sql                                            |   45
+contrib/realtime/postgresql/postgresql_config.sql                                         | 1418
+contrib/realtime/postgresql/postgresql_voicemail.sql                                      |   39
+62 files changed, 1369 insertions(+), 98335 deletions(-)</pre><br></html>
