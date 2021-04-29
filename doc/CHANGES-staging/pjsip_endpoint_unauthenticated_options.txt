@@ -1,5 +1,0 @@
-Subject: res_pjsip
-
-PJSIP endpoints can now be configured to skip authentication when
-handling OPTIONS requests by setting the allow_unauthenticated_options
-configuration property to 'yes.'

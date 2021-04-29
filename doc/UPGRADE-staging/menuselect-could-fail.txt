@@ -1,5 +1,0 @@
-Subject: menuselect
-
-menuselect --enable, --disable, --enable-category and --disable-category will
-now fail with a non-zero exit code instead of silently failing if an invalid
-option or category is specified.
