@@ -1527,7 +1527,7 @@ static void check_translation_path(
 	   destination format. */
 	for (i = ast_format_cap_count(result) - 1; 0 <= i; i--) {
 		int index, src_index;
-		struct ast_format *fmt = ast_format_cap_get_format(result, i);
+		RAII_VAR(struct ast_format *, fmt, ast_format_cap_get_format(result, i), ao2_cleanup);
 
 		if (ast_format_get_type(fmt) != type) {
 			continue;
