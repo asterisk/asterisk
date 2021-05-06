@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-18.4.0-rc1
+                                asterisk-18.4.0
 
-                                Date: 2021-04-29
+                                Date: 2021-05-06
 
                            <asteriskteam@digium.com>
 
@@ -55,7 +55,7 @@
    7 Sean Bright                                     2 Ross Beer              
    5 Kevin Harwell                                   1 Rusty Newton           
    4 George Joseph                                   1 Matthias Hensler       
-   1 Asterisk Development Team                       1 Alexander Gonchiy      
+   2 Asterisk Development Team                       1 Alexander Gonchiy      
    1 Jean Aunis                                      1 George Joseph          
    1 Jaco Kroon                                      1 Miguel Sanz            
    1 Ben Ford                                        1 Francisco Correia      
@@ -261,6 +261,9 @@
    +------------------------------------------------------------------------+
    | Revision   | Author           | Summary                                |
    |------------+------------------+----------------------------------------|
+   | f474fbbccf | Asterisk         | Update for 18.4.0-rc1                  |
+   |            | Development Team |                                        |
+   |------------+------------------+----------------------------------------|
    | 1949d828b7 | Asterisk         | Update CHANGES and UPGRADE.txt for     |
    |            | Development Team | 18.4.0                                 |
    |------------+------------------+----------------------------------------|
@@ -301,12 +304,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                |    1
- .version                                                                                  |    1
- ChangeLog                                                                                 |94363 ----------
- asterisk-18.3.0-summary.html                                                              |  202
- asterisk-18.3.0-summary.txt                                                               |  592
- b/CHANGES                                                                                 |   61
+ asterisk-18.3.0-summary.html                                                              |  202 ---
+ asterisk-18.3.0-summary.txt                                                               |  592 ----------
+ b/.version                                                                                |    2
+ b/CHANGES                                                                                 |   61 +
+ b/ChangeLog                                                                               |  378 ++++++
  b/Makefile                                                                                |    7
  b/UPGRADE.txt                                                                             |   10
  b/apps/app_attended_transfer.c                                                            |    2
@@ -315,15 +317,19 @@
  b/apps/app_queue.c                                                                        |   19
  b/apps/app_speech_utils.c                                                                 |    2
  b/apps/app_talkdetect.c                                                                   |    2
+ b/asterisk-18.4.0-rc1-summary.html                                                        |  136 ++
+ b/asterisk-18.4.0-rc1-summary.txt                                                         |  366 ++++++
  b/cdr/cdr_syslog.c                                                                        |    2
  b/channels/chan_dahdi.c                                                                   |    2
  b/codecs/codec_dahdi.c                                                                    |    2
  b/configs/samples/logger.conf.sample                                                      |   13
  b/configs/samples/modules.conf.sample                                                     |    8
- b/configs/samples/pjsip.conf.sample                                                       |   66
+ b/configs/samples/pjsip.conf.sample                                                       |   66 -
  b/configs/samples/queues.conf.sample                                                      |   19
  b/contrib/ast-db-manage/config/versions/8915fcc5766f_add_ringinuse_to_queue_members.py    |   30
  b/contrib/ast-db-manage/config/versions/c20d6e3992f4_add_allow_unauthenticated_options.py |   29
+ b/contrib/realtime/mysql/mysql_config.sql                                                 |   12
+ b/contrib/realtime/postgresql/postgresql_config.sql                                       |   12
  b/contrib/scripts/get_mp3_source.sh                                                       |    2
  b/contrib/scripts/install_prereq                                                          |    4
  b/doc/appdocsxml.dtd                                                                      |   24
@@ -333,13 +339,13 @@
  b/funcs/func_pjsip_endpoint.c                                                             |    2
  b/include/asterisk/logger.h                                                               |    5
  b/include/asterisk/res_pjsip.h                                                            |    2
- b/include/asterisk/time.h                                                                 |   79
+ b/include/asterisk/time.h                                                                 |   79 +
  b/main/asterisk.c                                                                         |    2
  b/main/bridge_channel.c                                                                   |   12
  b/main/channel_internal_api.c                                                             |    2
- b/main/loader.c                                                                           |  183
+ b/main/loader.c                                                                           |  183 ++-
  b/main/logger.c                                                                           |   17
- b/main/time.c                                                                             |  145
+ b/main/time.c                                                                             |  145 ++
  b/main/translate.c                                                                        |    8
  b/menuselect/menuselect.c                                                                 |   36
  b/menuselect/menuselect.h                                                                 |    2
@@ -349,18 +355,12 @@
  b/res/prometheus/channels.c                                                               |   15
  b/res/prometheus/endpoints.c                                                              |    9
  b/res/res_http_websocket.c                                                                |    2
- b/res/res_pjsip.c                                                                         |  104
+ b/res/res_pjsip.c                                                                         |  104 +
  b/res/res_pjsip/config_transport.c                                                        |   29
  b/res/res_pjsip/pjsip_configuration.c                                                     |    1
  b/res/res_remb_modifier.c                                                                 |    2
- b/res/res_rtp_asterisk.c                                                                  |  541
+ b/res/res_rtp_asterisk.c                                                                  |  541 ++++++---
  b/tests/CI/buildAsterisk.sh                                                               |    2
  b/tests/test_res_rtp.c                                                                    |   40
- b/tests/test_time.c                                                                       |   75
- contrib/realtime/mysql/mysql_cdr.sql                                                      |   41
- contrib/realtime/mysql/mysql_config.sql                                                   | 1306
- contrib/realtime/mysql/mysql_voicemail.sql                                                |   35
- contrib/realtime/postgresql/postgresql_cdr.sql                                            |   45
- contrib/realtime/postgresql/postgresql_config.sql                                         | 1418
- contrib/realtime/postgresql/postgresql_voicemail.sql                                      |   39
- 62 files changed, 1369 insertions(+), 98335 deletions(-)
+ b/tests/test_time.c                                                                       |  164 ++
+ 59 files changed, 2357 insertions(+), 1093 deletions(-)
