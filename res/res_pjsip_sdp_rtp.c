@@ -1389,6 +1389,29 @@ static void process_extmap_attributes(struct ast_sip_session *session, struct as
 	}
 }
 
+static void set_session_media_remotely_held(struct ast_sip_session_media *session_media,
+											const struct ast_sip_session *session,
+											const pjmedia_sdp_media *media,
+											const struct ast_stream *stream,
+											const struct ast_sockaddr *addrs)
+{
+	if (ast_sip_session_is_pending_stream_default(session, stream) &&
+		(session_media->type == AST_MEDIA_TYPE_AUDIO)) {
+		if (((addrs != NULL) && ast_sockaddr_isnull(addrs)) ||
+			((addrs != NULL) && ast_sockaddr_is_any(addrs)) ||
+			pjmedia_sdp_media_find_attr2(media, "sendonly", NULL) ||
+			pjmedia_sdp_media_find_attr2(media, "inactive", NULL)) {
+			if (!session_media->remotely_held) {
+				session_media->remotely_held = 1;
+				session_media->remotely_held_changed = 1;
+			}
+		} else if (session_media->remotely_held) {
+			session_media->remotely_held = 0;
+			session_media->remotely_held_changed = 1;
+		}
+	}
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media, const pjmedia_sdp_session *sdp,
@@ -1480,21 +1503,8 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session,
 		process_ice_auth_attrb(session, session_media, sdp, stream);
 	}
 
-	if (ast_sip_session_is_pending_stream_default(session, asterisk_stream) && media_type == AST_MEDIA_TYPE_AUDIO) {
-		/* Check if incomming SDP is changing the remotely held state */
-		if (ast_sockaddr_isnull(addrs) ||
-			ast_sockaddr_is_any(addrs) ||
-			pjmedia_sdp_media_find_attr2(stream, "sendonly", NULL) ||
-			pjmedia_sdp_media_find_attr2(stream, "inactive", NULL)) {
-			if (!session_media->remotely_held) {
-				session_media->remotely_held = 1;
-				session_media->remotely_held_changed = 1;
-			}
-		} else if (session_media->remotely_held) {
-			session_media->remotely_held = 0;
-			session_media->remotely_held_changed = 1;
-		}
-	}
+	/* Check if incoming SDP is changing the remotely held state */
+	set_session_media_remotely_held(session_media, session, stream, asterisk_stream, addrs);
 
 	if (set_caps(session, session_media, session_media_transport, stream, 1, asterisk_stream)) {
 		return 0;
@@ -2086,6 +2096,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session,
 		}
 		return 1;
 	}
+
+	set_session_media_remotely_held(session_media, session, remote_stream, asterisk_stream, addrs);
 
 	if (session_media->remotely_held_changed) {
 		if (session_media->remotely_held) {
