@@ -4132,6 +4132,7 @@ static void __get_from_jb(const void *p)
 	long ms;
 	long next;
 	struct timeval now = ast_tvnow();
+	struct ast_format *voicefmt;
 
 	/* Make sure we have a valid private structure before going on */
 	ast_mutex_lock(&iaxsl[callno]);
@@ -4151,10 +4152,9 @@ static void __get_from_jb(const void *p)
 
 	ms = ast_tvdiff_ms(now, pvt->rxcore);
 
-	if(ms >= (next = jb_next(pvt->jb))) {
-		struct ast_format *voicefmt;
-		voicefmt = ast_format_compatibility_bitfield2format(pvt->voiceformat);
-		ret = jb_get(pvt->jb, &frame, ms, voicefmt ? ast_format_get_default_ms(voicefmt) : 20);
+	voicefmt = ast_format_compatibility_bitfield2format(pvt->voiceformat);
+	if (voicefmt && ms >= (next = jb_next(pvt->jb))) {
+		ret = jb_get(pvt->jb, &frame, ms, ast_format_get_default_ms(voicefmt));
 		switch(ret) {
 		case JB_OK:
 			fr = frame.data;
@@ -4182,7 +4182,7 @@ static void __get_from_jb(const void *p)
 				pvt = iaxs[callno];
 			}
 		}
-			break;
+		break;
 		case JB_DROP:
 			iax2_frame_free(frame.data);
 			break;
@@ -6442,8 +6442,14 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 		f->frametype = fh->type;
 		if (f->frametype == AST_FRAME_VIDEO) {
 			f->subclass.format = ast_format_compatibility_bitfield2format(uncompress_subclass(fh->csub & ~0x40) | ((fh->csub >> 6) & 0x1));
+			if (!f->subclass.format) {
+				f->subclass.format = ast_format_none;
+			}
 		} else if (f->frametype == AST_FRAME_VOICE) {
 			f->subclass.format = ast_format_compatibility_bitfield2format(uncompress_subclass(fh->csub));
+			if (!f->subclass.format) {
+				f->subclass.format = ast_format_none;
+			}
 		} else {
 			f->subclass.integer = uncompress_subclass(fh->csub);
 		}
@@ -9915,8 +9921,8 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 		} else if (iaxs[fr->callno]->voiceformat == 0) {
 			ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n");
 			iax2_vnak(fr->callno);
-		} else {
-			f.subclass.format = ast_format_compatibility_bitfield2format(iaxs[fr->callno]->voiceformat);
+		} else if ((f.subclass.format = ast_format_compatibility_bitfield2format(
+						iaxs[fr->callno]->voiceformat))) {
 			f.datalen = len;
 			if (f.datalen >= 0) {
 				if (f.datalen)
@@ -10159,11 +10165,17 @@ static int socket_process_helper(struct iax2_thread *thread)
 		f.frametype = fh->type;
 		if (f.frametype == AST_FRAME_VIDEO) {
 			f.subclass.format = ast_format_compatibility_bitfield2format(uncompress_subclass(fh->csub & ~0x40));
+			if (!f.subclass.format) {
+				return 1;
+			}
 			if ((fh->csub >> 6) & 0x1) {
 				f.subclass.frame_ending = 1;
 			}
 		} else if (f.frametype == AST_FRAME_VOICE) {
 			f.subclass.format = ast_format_compatibility_bitfield2format(uncompress_subclass(fh->csub));
+			if (!f.subclass.format) {
+				return 1;
+			}
 		} else {
 			f.subclass.integer = uncompress_subclass(fh->csub);
 		}
@@ -11781,6 +11793,11 @@ immediatedial:
 				f.subclass.frame_ending = 1;
 			}
 			f.subclass.format = ast_format_compatibility_bitfield2format(iaxs[fr->callno]->videoformat);
+			if (!f.subclass.format) {
+				ast_variables_destroy(ies.vars);
+				ast_mutex_unlock(&iaxsl[fr->callno]);
+				return 1;
+			}
 		} else {
 			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n");
 			iax2_vnak(fr->callno);
@@ -11802,9 +11819,14 @@ immediatedial:
 	} else {
 		/* A mini frame */
 		f.frametype = AST_FRAME_VOICE;
-		if (iaxs[fr->callno]->voiceformat > 0)
+		if (iaxs[fr->callno]->voiceformat > 0) {
 			f.subclass.format = ast_format_compatibility_bitfield2format(iaxs[fr->callno]->voiceformat);
-		else {
+			if (!f.subclass.format) {
+				ast_variables_destroy(ies.vars);
+				ast_mutex_unlock(&iaxsl[fr->callno]);
+				return 1;
+			}
+		} else {
 			ast_debug(1, "Received mini frame before first full voice frame\n");
 			iax2_vnak(fr->callno);
 			ast_variables_destroy(ies.vars);
