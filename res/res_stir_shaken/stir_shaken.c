@@ -144,6 +144,7 @@ char *stir_shaken_get_serial_number_x509(const char *path)
 	ASN1_INTEGER *serial;
 	BIGNUM *bignum;
 	char *serial_hex;
+	char *ret;
 
 	fp = fopen(path, "r");
 	if (!fp) {
@@ -188,5 +189,12 @@ char *stir_shaken_get_serial_number_x509(const char *path)
 		return NULL;
 	}
 
-	return serial_hex;
+	ret = ast_strdup(serial_hex);
+	OPENSSL_free(serial_hex);
+	if (!ret) {
+		ast_log(LOG_ERROR, "Failed to dup serial from openssl for certificate %s\n", path);
+		return NULL;
+	}
+
+	return ret;
 }
