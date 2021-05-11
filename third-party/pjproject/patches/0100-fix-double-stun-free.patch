@@ -1,0 +1,82 @@
+commit f0ff5817d0647bdecd1ec99488db9378e304cf83
+Author: sauwming <ming@teluu.com>
+Date:   Mon May 17 09:56:27 2021 +0800
+
+    Fix double free of stun session (#2709)
+
+diff --git a/pjnath/include/pjnath/stun_session.h b/pjnath/include/pjnath/stun_session.h
+index bee630ab4..afca06911 100644
+--- a/pjnath/include/pjnath/stun_session.h
++++ b/pjnath/include/pjnath/stun_session.h
+@@ -341,6 +341,7 @@ struct pj_stun_tx_data
+     pj_pool_t		*pool;		/**< Pool.			    */
+     pj_stun_session	*sess;		/**< The STUN session.		    */
+     pj_stun_msg		*msg;		/**< The STUN message.		    */
++    pj_bool_t		 is_destroying; /**< Is destroying?		    */
+ 
+     void		*token;		/**< The token.			    */
+ 
+diff --git a/pjnath/src/pjnath/stun_session.c b/pjnath/src/pjnath/stun_session.c
+index f2b4f7058..d436b94bf 100644
+--- a/pjnath/src/pjnath/stun_session.c
++++ b/pjnath/src/pjnath/stun_session.c
+@@ -167,16 +167,27 @@ static void tdata_on_destroy(void *arg)
+ {
+     pj_stun_tx_data *tdata = (pj_stun_tx_data*)arg;
+ 
++    if (tdata->grp_lock) {
++	pj_grp_lock_dec_ref(tdata->sess->grp_lock);
++    }
++
+     pj_pool_safe_release(&tdata->pool);
+ }
+ 
+ static void destroy_tdata(pj_stun_tx_data *tdata, pj_bool_t force)
+ {
+-    TRACE_((THIS_FILE, "tdata %p destroy request, force=%d, tsx=%p", tdata,
+-	    force, tdata->client_tsx));
++    TRACE_((THIS_FILE,
++	    "tdata %p destroy request, force=%d, tsx=%p, destroying=%d",
++	    tdata, force, tdata->client_tsx, tdata->is_destroying));
++
++    /* Just return if destroy has been requested before */
++    if (tdata->is_destroying)
++	return;
+ 
+     /* STUN session may have been destroyed, except when tdata is cached. */
+ 
++    tdata->is_destroying = PJ_TRUE;
++
+     if (tdata->res_timer.id != PJ_FALSE) {
+ 	pj_timer_heap_cancel_if_active(tdata->sess->cfg->timer_heap,
+ 				       &tdata->res_timer, PJ_FALSE);
+@@ -189,7 +200,6 @@ static void destroy_tdata(pj_stun_tx_data *tdata, pj_bool_t force)
+ 	    pj_stun_client_tsx_set_data(tdata->client_tsx, NULL);
+ 	}
+ 	if (tdata->grp_lock) {
+-	    pj_grp_lock_dec_ref(tdata->sess->grp_lock);
+ 	    pj_grp_lock_dec_ref(tdata->grp_lock);
+ 	} else {
+ 	    tdata_on_destroy(tdata);
+@@ -200,11 +210,11 @@ static void destroy_tdata(pj_stun_tx_data *tdata, pj_bool_t force)
+ 	    /* "Probably" this is to absorb retransmission */
+ 	    pj_time_val delay = {0, 300};
+ 	    pj_stun_client_tsx_schedule_destroy(tdata->client_tsx, &delay);
++	    tdata->is_destroying = PJ_FALSE;
+ 
+ 	} else {
+ 	    pj_list_erase(tdata);
+ 	    if (tdata->grp_lock) {
+-		pj_grp_lock_dec_ref(tdata->sess->grp_lock);
+ 		pj_grp_lock_dec_ref(tdata->grp_lock);
+ 	    } else {
+ 		tdata_on_destroy(tdata);
+@@ -238,7 +248,7 @@ static void on_cache_timeout(pj_timer_heap_t *timer_heap,
+     sess = tdata->sess;
+ 
+     pj_grp_lock_acquire(sess->grp_lock);
+-    if (sess->is_destroying) {
++    if (sess->is_destroying || tdata->is_destroying) {
+ 	pj_grp_lock_release(sess->grp_lock);
+ 	return;
+     }
