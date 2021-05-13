@@ -1,0 +1,3 @@
+Subject: AMI Flash event
+
+Hook flash events are now exposed as AMI events.

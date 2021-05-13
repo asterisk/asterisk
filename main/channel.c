@@ -3315,6 +3315,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int timeout_ms, const char *bre
 				case AST_CONTROL_UPDATE_RTP_PEER:
 				case AST_CONTROL_HOLD:
 				case AST_CONTROL_UNHOLD:
+				case AST_CONTROL_FLASH:
 				case -1:
 					/* Unimportant */
 					break;
@@ -3391,6 +3392,11 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 	}
 
 	ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), blob);
+}
+
+static void send_flash_event(struct ast_channel *chan)
+{
+	ast_channel_publish_blob(chan, ast_channel_flash_type(), NULL);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -3859,6 +3865,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				 */
 				ast_frfree(f);
 				f = &ast_null_frame;
+			} else if (f->subclass.integer == AST_CONTROL_FLASH) {
+				send_flash_event(chan);
 			}
 			break;
 		case AST_FRAME_DTMF_END:
