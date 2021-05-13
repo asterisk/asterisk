@@ -22626,6 +22626,18 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	const char *c = sip_get_header(req, "Content-Type");
 
 	/* Need to check the media/type */
+
+	if (!strcasecmp(c, "application/hook-flash")) {
+		/* send a FLASH event, for ATAs that send flash as hook-flash not dtmf */
+		struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH, } };
+		ast_queue_frame(p->owner, &f);
+		if (sipdebug) {
+			ast_verbose("* DTMF-relay event received: FLASH\n");
+		}
+		transmit_response(p, "200 OK", req);
+		return;
+	}
+
 	if (!strcasecmp(c, "application/dtmf-relay") ||
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits") ||
 	    !strcasecmp(c, "application/dtmf")) {
