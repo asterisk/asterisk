@@ -985,6 +985,24 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 		digit, duration_ms, direction);
 }
 
+static void channel_flash_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct ast_channel_blob *obj = stasis_message_data(message);
+	struct ast_str *channel_event_string;
+
+	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
+
+	manager_event(EVENT_FLAG_CALL, "Flash",
+		"%s",
+		ast_str_buffer(channel_event_string));
+
+	ast_free(channel_event_string);
+}
+
 static void channel_hangup_handler_cb(void *data, struct stasis_subscription *sub,
 		struct stasis_message *message)
 {
@@ -1343,6 +1361,9 @@ int manager_channels_init(void)
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_dtmf_end_type(), channel_dtmf_end_cb, NULL);
+
+	ret |= stasis_message_router_add(message_router,
+		ast_channel_flash_type(), channel_flash_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_hangup_request_type(), channel_hangup_request_cb,
