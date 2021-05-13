@@ -3211,15 +3211,16 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 		break;
 	}
 	case 183:
-		ast_trace(-1, "%s: Queueing PROGRESS\n", ast_sip_session_get_name(session));
 		if (session->endpoint->ignore_183_without_sdp) {
 			pjsip_rdata_sdp_info *sdp = pjsip_rdata_get_sdp_info(rdata);
 			if (sdp && sdp->body.ptr) {
+				ast_trace(-1, "%s: Queueing PROGRESS\n", ast_sip_session_get_name(session));
 				ast_trace(1, "%s Method: %.*s Status: %d  Queueing PROGRESS with SDP\n", ast_sip_session_get_name(session),
 					(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 				ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
 			}
 		} else {
+			ast_trace(-1, "%s: Queueing PROGRESS\n", ast_sip_session_get_name(session));
 			ast_trace(1, "%s Method: %.*s Status: %d  Queueing PROGRESS without SDP\n", ast_sip_session_get_name(session),
 				(int)rdata->msg_info.cseq->method.name.slen, rdata->msg_info.cseq->method.name.ptr, status.code);
 			ast_queue_control(session->channel, AST_CONTROL_PROGRESS);
