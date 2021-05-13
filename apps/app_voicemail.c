@@ -149,6 +149,11 @@
 						<para>Skip the playback of instructions for leaving a message to the
 						calling party.</para>
 					</option>
+					<option name="t">
+						<argument name="x" required="false" />
+						<para>Play a custom beep tone to the caller instead of the default one.
+						If this option is used but no file is specified, the beep is suppressed.</para>
+					</option>
 					<option name="u">
 						<para>Play the <literal>unavailable</literal> greeting.</para>
 					</option>
@@ -582,15 +587,17 @@ enum vm_option_flags {
 	OPT_DTMFEXIT =         (1 << 7),
 	OPT_MESSAGE_Urgent =   (1 << 8),
 	OPT_MESSAGE_PRIORITY = (1 << 9),
-	OPT_EARLYM_GREETING =  (1 << 10)
+	OPT_EARLYM_GREETING =  (1 << 10),
+	OPT_BEEP =             (1 << 11)
 };
 
 enum vm_option_args {
 	OPT_ARG_RECORDGAIN = 0,
 	OPT_ARG_PLAYFOLDER = 1,
 	OPT_ARG_DTMFEXIT   = 2,
+	OPT_ARG_BEEP_TONE  = 3,
 	/* This *must* be the last value in this enum! */
-	OPT_ARG_ARRAY_SIZE = 3,
+	OPT_ARG_ARRAY_SIZE = 4,
 };
 
 enum vm_passwordlocation {
@@ -609,7 +616,8 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 	AST_APP_OPTION('U', OPT_MESSAGE_Urgent),
 	AST_APP_OPTION('P', OPT_MESSAGE_PRIORITY),
-	AST_APP_OPTION('e', OPT_EARLYM_GREETING)
+	AST_APP_OPTION('e', OPT_EARLYM_GREETING),
+	AST_APP_OPTION_ARG('t', OPT_BEEP, OPT_ARG_BEEP_TONE)
 });
 
 static const char * const mailbox_folders[] = {
@@ -6277,6 +6285,7 @@ struct leave_vm_options {
 	unsigned int flags;
 	signed char record_gain;
 	char *exitcontext;
+	char *beeptone;
 };
 
 static void generate_msg_id(char *dst)
@@ -6938,7 +6947,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		/* Now play the beep once we have the message number for our next message. */
 		if (res >= 0) {
 			/* Unless we're *really* silent, try to send the beep */
-			res = ast_stream_and_wait(chan, "beep", "");
+			/* Play default or custom beep, unless no beep desired */
+			if (!ast_strlen_zero(options->beeptone)) {
+				res = ast_stream_and_wait(chan, options->beeptone, "");
+			}
 		}
 
 		/* Store information in real-time storage */
@@ -8473,6 +8485,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		/* Send VoiceMail */
 		memset(&leave_options, 0, sizeof(leave_options));
 		leave_options.record_gain = record_gain;
+		leave_options.beeptone = "beep";
 		cmd = leave_voicemail(chan, mailbox, &leave_options);
 	} else {
 		/* Forward VoiceMail */
@@ -12298,6 +12311,11 @@ static int vm_exec(struct ast_channel *chan, const char *data)
 					leave_options.exitcontext = opts[OPT_ARG_DTMFEXIT];
 			}
 		}
+		if (ast_test_flag(&flags, OPT_BEEP)) { /* Use custom beep (or none at all) */
+			leave_options.beeptone = opts[OPT_ARG_BEEP_TONE];
+		} else { /* Use default beep */
+			leave_options.beeptone = "beep";
+		}
 	} else {
 		char temp[256];
 		res = ast_app_getdata(chan, "vm-whichbox", temp, sizeof(temp) - 1, 0);
@@ -15450,6 +15468,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 				memset(&leave_options, 0, sizeof(leave_options));
 				leave_options.record_gain = record_gain;
+				leave_options.beeptone = "beep";
 				res = leave_voicemail(chan, mailbox, &leave_options);
 				if (!res)
 					res = 't';
