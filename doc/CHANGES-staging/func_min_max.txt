@@ -1,0 +1,4 @@
+Subject: func_math: Three new dialplan functions
+
+Introduce three new functions, MIN, MAX, and ABS, which can be used to
+obtain the minimum or maximum of up to two integers or absolute value.
