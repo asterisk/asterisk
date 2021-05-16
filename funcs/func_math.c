@@ -5,6 +5,7 @@
  *
  * Updated by Mark Spencer <markster@digium.com>
  * Updated by Nir Simionovich <nirs@greenfieldtech.net>
+ * Updated by Naveen Albert <asterisk@phreaknet.org>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -24,6 +25,7 @@
  * \author Andy Powell
  * \author Mark Spencer <markster@digium.com>
  * \author Nir Simionovich <nirs@greenfieldtech.net>
+ * \author Naveen Albert <asterisk@phreaknet.org>
  *
  * \ingroup functions
  */
@@ -40,6 +42,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
+#include "asterisk/conversions.h"
 #include "asterisk/app.h"
 #include "asterisk/config.h"
 #include "asterisk/test.h"
@@ -103,6 +106,47 @@
 			<para>Decrements the value of a variable, while returning the updated value to the dialplan</para>
 			<para>Example: DEC(MyVAR) - Decrements MyVar</para>
 			<para>Note: DEC(${MyVAR}) - Is wrong, as DEC expects the variable name, not its value</para>
+		</description>
+	</function>
+	<function name="MIN" language="en_US">
+		<synopsis>
+			Returns the minimum of two numbers.
+		</synopsis>
+		<syntax>
+			<parameter name="num1" />
+			<parameter name="num2" />
+		</syntax>
+		<description>
+			<para>Returns the minimum of two numbers <replaceable>num1</replaceable> and <replaceable>num2</replaceable>.</para>
+			<para>Example:  Set(min=${MIN(7,4)});
+			Sets the min variable equal to 4.</para>
+		</description>
+	</function>
+	<function name="MAX" language="en_US">
+		<synopsis>
+			Returns the maximum of two numbers.
+		</synopsis>
+		<syntax>
+			<parameter name="num1" />
+			<parameter name="num2" />
+		</syntax>
+		<description>
+			<para>Returns the maximum of two numbers <replaceable>num1</replaceable> and <replaceable>num2</replaceable>.</para>
+			<para>Example:  Set(max=${MAX(4,7)});
+			Sets the max variable equal to 7.</para>
+		</description>
+	</function>
+	<function name="ABS" language="en_US">
+		<synopsis>
+			Returns absolute value of a number.
+		</synopsis>
+		<syntax>
+			<parameter name="num" />
+		</syntax>
+		<description>
+			<para>Returns the absolute value of a number <replaceable>num</replaceable>.</para>
+			<para>Example:  Set(absval=${ABS(-13)});
+			Sets the absval variable equal to 13.</para>
 		</description>
 	</function>
  ***/
@@ -444,6 +488,111 @@ static int crement_function_read(struct ast_channel *chan, const char *cmd,
 	return ret;
 }
 
+static int acf_min_exec(struct ast_channel *chan, const char *cmd,
+			 char *parse, char *buffer, size_t buflen)
+{
+	double num1, num2, response_num = 0;
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(num1);
+			     AST_APP_ARG(num2);
+	);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.num1) && ast_strlen_zero(args.num2)) {
+		ast_log(LOG_ERROR, "Missing argument for number(s).");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.num1)) {
+		response_num = -1; /* couldn't read num1 successfully */
+	} else if (sscanf(args.num1, "%30lf", &num1) != 1) {
+		ast_log(LOG_WARNING, "'%s' is not a valid number\n", args.num1);
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.num2)) {
+		num2 = num1; /* num1 must be a valid integer here */
+	} else if (sscanf(args.num2, "%30lf", &num2) != 1) {
+		ast_log(LOG_WARNING, "'%s' is not a valid number\n", args.num2);
+		return -1;
+	}
+
+	if (response_num == -1) { /* could only read num2 */
+		response_num = num2;
+	} else {
+		response_num = (num1 > num2) ? num2 : num1;
+	}
+
+	ast_debug(1, "%f is the minimum of [%f,%f]\n", response_num, num1, num2);
+	snprintf(buffer, buflen, "%f", response_num);
+
+	return 0;
+}
+
+static int acf_max_exec(struct ast_channel *chan, const char *cmd,
+			 char *parse, char *buffer, size_t buflen)
+{
+	double num1, num2, response_num = 0;
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(num1);
+			     AST_APP_ARG(num2);
+	);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.num1) && ast_strlen_zero(args.num2)) {
+		ast_log(LOG_ERROR, "Missing argument for number(s).");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.num1)) {
+		response_num = -1; /* couldn't read num1 successfully */
+	} else if (sscanf(args.num1, "%30lf", &num1) != 1) {
+		ast_log(LOG_WARNING, "'%s' is not a valid number\n", args.num1);
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.num2)) {
+		num2 = num1; /* num1 must be a valid integer here */
+	} else if (sscanf(args.num2, "%30lf", &num2) != 1) {
+		ast_log(LOG_WARNING, "'%s' is not a valid number\n", args.num2);
+		return -1;
+	}
+
+	if (response_num == -1) { /* could only read num2 */
+		response_num = num2;
+	} else {
+		response_num = (num1 < num2) ? num2 : num1;
+	}
+
+	ast_debug(1, "%f is the maximum of [%f,%f]\n", response_num, num1, num2);
+	snprintf(buffer, buflen, "%f", response_num);
+
+	return 0;
+}
+
+static int acf_abs_exec(struct ast_channel *chan, const char *cmd,
+			 char *parse, char *buffer, size_t buflen)
+{
+	double num1, response_num;
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(num1);
+	);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.num1) || sscanf(args.num1, "%30lf", &num1) != 1) {
+		ast_log(LOG_WARNING, "Bad or missing argument for number: %s", args.num1);
+		return -1;
+	}
+
+	response_num = fabs(num1);
+	ast_debug(1, "%f is the absolute value of %f\n", response_num, num1);
+	snprintf(buffer, buflen, "%f", response_num);
+
+	return 0;
+}
 
 static struct ast_custom_function math_function = {
 	.name = "MATH",
@@ -458,6 +607,24 @@ static struct ast_custom_function increment_function = {
 static struct ast_custom_function decrement_function = {
 	.name = "DEC",
 	.read = crement_function_read,
+};
+
+static struct ast_custom_function acf_min = {
+	.name = "MIN",
+	.read = acf_min_exec,
+	.read_max = 12,
+};
+
+static struct ast_custom_function acf_max = {
+	.name = "MAX",
+	.read = acf_max_exec,
+	.read_max = 12,
+};
+
+static struct ast_custom_function acf_abs = {
+	.name = "ABS",
+	.read = acf_abs_exec,
+	.read_max = 12,
 };
 
 #ifdef TEST_FRAMEWORK
@@ -518,6 +685,9 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&math_function);
 	res |= ast_custom_function_unregister(&increment_function);
 	res |= ast_custom_function_unregister(&decrement_function);
+	res |= ast_custom_function_unregister(&acf_min);
+	res |= ast_custom_function_unregister(&acf_max);
+	res |= ast_custom_function_unregister(&acf_abs);
 	AST_TEST_UNREGISTER(test_MATH_function);
 
 	return res;
@@ -530,6 +700,9 @@ static int load_module(void)
 	res |= ast_custom_function_register(&math_function);
 	res |= ast_custom_function_register(&increment_function);
 	res |= ast_custom_function_register(&decrement_function);
+	res |= ast_custom_function_register(&acf_min);
+	res |= ast_custom_function_register(&acf_max);
+	res |= ast_custom_function_register(&acf_abs);
 	AST_TEST_REGISTER(test_MATH_function);
 
 	return res;
