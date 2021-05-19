@@ -184,6 +184,7 @@ enum strict_rtp_mode {
 #define DEFAULT_STRICT_RTP STRICT_RTP_YES	/*!< Enabled by default */
 #define DEFAULT_SRTP_REPLAY_PROTECTION 1
 #define DEFAULT_ICESUPPORT 1
+#define DEFAULT_STUN_SOFTWARE_ATTRIBUTE 1
 #define DEFAULT_DTLS_MTU 1200
 
 extern struct ast_srtp_res *res_srtp;
@@ -211,6 +212,7 @@ static int dtls_mtu = DEFAULT_DTLS_MTU;
 #endif
 #ifdef HAVE_PJPROJECT
 static int icesupport = DEFAULT_ICESUPPORT;
+static int stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
 static struct sockaddr_in stunaddr;
 static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
@@ -1652,6 +1654,9 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 	}
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, rtp->ioqueue->ioqueue, rtp->ioqueue->timerheap);
+	if (!stun_software_attribute) {
+		stun_config.software_name = pj_str(NULL);
+	}
 
 	/* Use ICE session group lock for TURN session to avoid deadlock */
 	pj_turn_sock_cfg_default(&turn_sock_cfg);
@@ -3766,6 +3771,9 @@ static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *ad
 	pj_thread_register_check();
 
 	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, NULL, timer_heap);
+	if (!stun_software_attribute) {
+		stun_config.software_name = pj_str(NULL);
+	}
 
 	ufrag = pj_str(rtp->local_ufrag);
 	passwd = pj_str(rtp->local_passwd);
@@ -9374,6 +9382,7 @@ static int rtp_reload(int reload, int by_external_config)
 
 #ifdef HAVE_PJPROJECT
 	icesupport = DEFAULT_ICESUPPORT;
+	stun_software_attribute = DEFAULT_STUN_SOFTWARE_ATTRIBUTE;
 	turnport = DEFAULT_TURN_PORT;
 	memset(&stunaddr, 0, sizeof(stunaddr));
 	turnaddr = pj_str(NULL);
@@ -9448,6 +9457,9 @@ static int rtp_reload(int reload, int by_external_config)
 #ifdef HAVE_PJPROJECT
 	if ((s = ast_variable_retrieve(cfg, "general", "icesupport"))) {
 		icesupport = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "stun_software_attribute"))) {
+		stun_software_attribute = ast_true(s);
 	}
 	if ((s = ast_variable_retrieve(cfg, "general", "stunaddr"))) {
 		stunaddr.sin_port = htons(STANDARD_STUN_PORT);
