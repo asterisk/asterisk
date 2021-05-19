@@ -948,6 +948,17 @@ enum ast_sip_contact_filter {
 };
 
 /*!
+ * \brief Adds a Date header to the tdata, formatted like:
+ * Date: Wed, 01 Jan 2021 14:53:01 GMT
+ * \since 16.19.0
+ *
+ * \note There is no checking done to see if the header already exists
+ * before adding it. It's up to the caller of this function to determine
+ * if that needs to be done or not.
+ */
+void ast_sip_add_date_header(pjsip_tx_data *tdata);
+
+/*!
  * \brief Register a SIP service in Asterisk.
  *
  * This is more-or-less a wrapper around pjsip_endpt_register_module().
