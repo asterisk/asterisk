@@ -247,19 +247,6 @@ static int registrar_add_contact(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*! \brief Helper function which adds a Date header to a response */
-static void registrar_add_date_header(pjsip_tx_data *tdata)
-{
-	char date[256];
-	struct tm tm;
-	time_t t = time(NULL);
-
-	gmtime_r(&t, &tm);
-	strftime(date, sizeof(date), "%a, %d %b %Y %T GMT", &tm);
-
-	ast_sip_add_header(tdata, "Date", date);
-}
-
 static const pj_str_t path_hdr_name = { "Path", 4 };
 
 static int build_path_data(pjsip_rx_data *rdata, struct ast_str **path_str)
@@ -898,7 +885,7 @@ static void register_aor_core(pjsip_rx_data *rdata,
 	ao2_cleanup(response_contact);
 
 	/* Add the date header to the response, some UAs use this to set their date and time */
-	registrar_add_date_header(tdata);
+	ast_sip_add_date_header(tdata);
 
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
 
