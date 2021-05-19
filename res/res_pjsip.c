@@ -3285,6 +3285,18 @@ static pj_sockaddr host_ip_ipv6;
 /*! Local host address for IPv6 (string form) */
 static char host_ip_ipv6_string[PJ_INET6_ADDRSTRLEN];
 
+void ast_sip_add_date_header(pjsip_tx_data *tdata)
+{
+	char date[256];
+	struct tm tm;
+	time_t t = time(NULL);
+
+	gmtime_r(&t, &tm);
+	strftime(date, sizeof(date), "%a, %d %b %Y %T GMT", &tm);
+
+	ast_sip_add_header(tdata, "Date", date);
+}
+
 static int register_service(void *data)
 {
 	pjsip_module **module = data;

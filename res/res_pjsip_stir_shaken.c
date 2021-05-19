@@ -166,10 +166,16 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 		return 0;
 	}
 
-	/* Trim "info=<" to get public key URL */
+	/* Trim "info=<" to get public cert URL */
 	strtok_r(identity_hdr_val, "<", &identity_hdr_val);
 	public_cert_url = strtok_r(identity_hdr_val, ">", &identity_hdr_val);
 	if (ast_strlen_zero(public_cert_url)) {
+		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
+		return 0;
+	}
+
+	/* Make sure the public URL is actually a URL */
+	if (!ast_begins_with(public_cert_url, "http")) {
 		ast_stir_shaken_add_verification(chan, caller_id, "", AST_STIR_SHAKEN_VERIFY_SIGNATURE_FAILED);
 		return 0;
 	}
@@ -202,17 +208,20 @@ static int stir_shaken_incoming_request(struct ast_sip_session *session, pjsip_r
 	return 0;
 }
 
-static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
+static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
 	static const pj_str_t identity_str = { "Identity", 8 };
 	pjsip_generic_string_hdr *identity_hdr;
 	pj_str_t identity_val;
 	pjsip_fromto_hdr *old_identity;
+	pjsip_fromto_hdr *to;
+	pjsip_sip_uri *uri;
 	char *signature;
 	char *public_cert_url;
 	struct ast_json *header;
 	struct ast_json *payload;
 	char *dumped_string;
+	RAII_VAR(char *, dest_tn, NULL, ast_free);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_free);
 	RAII_VAR(struct ast_stir_shaken_payload *, ss_payload, NULL, ast_stir_shaken_payload_free);
 	RAII_VAR(char *, encoded_header, NULL, ast_free);
@@ -222,21 +231,43 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 
 	old_identity = pjsip_msg_find_hdr_by_name(tdata->msg, &identity_str, NULL);
 	if (old_identity) {
-		return;
+		return 0;
 	}
 
+	to = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_TO, NULL);
+	if (!to) {
+		ast_log(LOG_ERROR, "Failed to find To header while adding STIR/SHAKEN Identity header\n");
+		return -1;
+	}
+
+	uri = pjsip_uri_get_uri(to->uri);
+	if (!uri) {
+		ast_log(LOG_ERROR, "Failed to retrieve URI from To header while adding STIR/SHAKEN Identity header\n");
+		return -1;
+	}
+
+	dest_tn = ast_malloc(uri->user.slen + 1);
+	if (!dest_tn) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN dest->tn\n");
+		return -1;
+	}
+
+	ast_copy_pj_str(dest_tn, &uri->user, uri->user.slen + 1);
+
 	/* x5u (public key URL), attestation, and origid will be added by ast_stir_shaken_sign */
-	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}}}", "header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
-		"payload", "orig", "tn", session->id.number.str);
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}, s: {s: s}}}",
+		"header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
+		"payload", "dest", "tn", dest_tn, "orig", "tn",
+		session->id.number.str);
 	if (!json) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN JSON\n");
-		return;
+		return -1;
 	}
 
 	ss_payload = ast_stir_shaken_sign(json);
 	if (!ss_payload) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN payload\n");
-		return;
+		return -1;
 	}
 
 	header = ast_json_object_get(json, "header");
@@ -245,7 +276,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	ast_json_free(dumped_string);
 	if (!encoded_header) {
 		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN header\n");
-		return;
+		return -1;
 	}
 
 	payload = ast_json_object_get(json, "payload");
@@ -254,7 +285,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	ast_json_free(dumped_string);
 	if (!encoded_payload) {
 		ast_log(LOG_ERROR, "Failed to encode STIR/SHAKEN payload\n");
-		return;
+		return -1;
 	}
 
 	signature = (char *)ast_stir_shaken_payload_get_signature(ss_payload);
@@ -269,7 +300,7 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	combined_str = ast_calloc(1, combined_size);
 	if (!combined_str) {
 		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN identity string\n");
-		return;
+		return -1;
 	}
 	snprintf(combined_str, combined_size, "%s.%s.%s;info=<%s>alg=%s;ppt=%s", encoded_header,
 		encoded_payload, signature, public_cert_url, STIR_SHAKEN_ENCRYPTION_ALGORITHM, STIR_SHAKEN_PPT);
@@ -278,10 +309,26 @@ static void add_identity_header(const struct ast_sip_session *session, pjsip_tx_
 	identity_hdr = pjsip_generic_string_hdr_create(tdata->pool, &identity_str, &identity_val);
 	if (!identity_hdr) {
 		ast_log(LOG_ERROR, "Failed to create STIR/SHAKEN Identity header\n");
-		return;
+		return -1;
 	}
 
 	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)identity_hdr);
+
+	return 0;
+}
+
+static void add_date_header(const struct ast_sip_session *session, pjsip_tx_data *tdata)
+{
+	static const pj_str_t date_str = { "Date", 4 };
+	pjsip_fromto_hdr *old_date;
+
+	old_date = pjsip_msg_find_hdr_by_name(tdata->msg, &date_str, NULL);
+	if (old_date) {
+		ast_debug(3, "Found old STIR/SHAKEN date header, no need to add one\n");
+		return;
+	}
+
+	ast_sip_add_date_header(tdata);
 }
 
 static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
@@ -294,7 +341,13 @@ static void stir_shaken_outgoing_request(struct ast_sip_session *session, pjsip_
 		return;
 	}
 
-	add_identity_header(session, tdata);
+	/* If adding the Identity header fails for some reason, there's no point
+	 * adding the Date header.
+	 */
+	if ((add_identity_header(session, tdata)) != 0) {
+		return;
+	}
+	add_date_header(session, tdata);
 }
 
 static struct ast_sip_session_supplement stir_shaken_supplement = {
