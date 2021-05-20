@@ -3687,6 +3687,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 			ao2_iterator_destroy(&i);
 
 			if (srflx && baseset) {
+				pj_sockaddr_set_port(&base, port);
 				ast_rtp_ice_add_cand(instance, rtp, component, transport,
 					PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base, &base,
 					pj_sockaddr_get_len(&ext));
