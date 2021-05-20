@@ -69,6 +69,7 @@ enum user_profile_flags {
 	USER_OPT_SEND_EVENTS = (1 << 17), /*!< Send text message events to users */
 	USER_OPT_ECHO_EVENTS = (1 << 18), /*!< Send events only to the admin(s) */
 	USER_OPT_TEXT_MESSAGING = (1 << 19), /*!< Send text messages to the user */
+	USER_OPT_ANSWER_CHANNEL = (1 << 20), /*!< Sets if the channel should be answered if currently unanswered */
 };
 
 enum bridge_profile_flags {

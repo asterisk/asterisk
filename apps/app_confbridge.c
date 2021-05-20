@@ -2535,10 +2535,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(menu_profile_name);
 	);
 
-	if (ast_channel_state(chan) != AST_STATE_UP) {
-		ast_answer(chan);
-	}
-
 	if (ast_bridge_features_init(&user.features)) {
 		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		res = -1;
@@ -2586,6 +2582,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 			u_profile_name : DEFAULT_USER_PROFILE);
 		res = -1;
 		goto confbridge_cleanup;
+	}
+
+	/* If channel hasn't been answered already, answer it, unless we're explicitly not supposed to */
+	if ((ast_channel_state(chan) != AST_STATE_UP) && (ast_test_flag(&user.u_profile, USER_OPT_ANSWER_CHANNEL))) {
+		ast_answer(chan);
 	}
 
 	quiet = ast_test_flag(&user.u_profile, USER_OPT_QUIET);
