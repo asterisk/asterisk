@@ -3518,6 +3518,17 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 		type |= PJSIP_TRANSPORT_IPV6;
 	}
 
+	/* In multidomain scenario, username may contain @ with domain info */
+	if (!ast_sip_get_disable_multi_domain() && strchr(user, '@')) {
+		from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
+		from->slen = pj_ansi_snprintf(from->ptr, PJSIP_MAX_URL_SIZE,
+				"<sip:%s%s%s>",
+				user,
+				(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
+				(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
+		return 0;
+	}
+
 	if (!ast_strlen_zero(domain)) {
 		from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 		from->slen = pj_ansi_snprintf(from->ptr, PJSIP_MAX_URL_SIZE,
