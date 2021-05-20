@@ -1,0 +1,6 @@
+Subject: app_confbridge answer supervision control
+
+app_confbridge now provides a user option to prevent
+answer supervision if the channel hasn't been
+answered yet. To use it, set a user profile's
+answer_channel option to no.
