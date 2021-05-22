@@ -93,11 +93,17 @@
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
-				<option name="A">
-					<argument name="x" required="true">
+				<option name="A" argsep=":">
+					<argument name="x">
 						<para>The file to play to the called party</para>
 					</argument>
-					<para>Play an announcement to the called party, where <replaceable>x</replaceable> is the prompt to be played</para>
+					<argument name="y">
+						<para>The file to play to the calling party</para>
+					</argument>
+					<para>Play an announcement to the called and/or calling parties, where <replaceable>x</replaceable>
+					is the prompt to be played to the called party and <replaceable>y</replaceable> is the prompt
+					to be played to the caller. The files may be different and will be played to each party
+					simultaneously.</para>
 				</option>
 				<option name="a">
 					<para>Immediately answer the calling channel when the called channel answers in
@@ -2921,33 +2927,71 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			int digit = 0;
 			struct ast_channel *chans[2];
 			struct ast_channel *active_chan;
+			char *calledfile = NULL, *callerfile = NULL;
+			int calledstream = 0, callerstream = 0;
 
 			chans[0] = chan;
 			chans[1] = peer;
 
-			/* we need to stream the announcement to the called party when the OPT_ARG_ANNOUNCE (-A) is setted */
+			/* we need to stream the announcement(s) when the OPT_ARG_ANNOUNCE (-A) is set */
+			callerfile = opt_args[OPT_ARG_ANNOUNCE];
+			calledfile = strsep(&callerfile, ":");
 
-			/* stream the file */
-			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], ast_channel_language(peer));
-			if (res) {
-				res = 0;
-				ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", opt_args[OPT_ARG_ANNOUNCE]);
+			/* stream the file(s) */
+			if (!ast_strlen_zero(calledfile)) {
+				res = ast_streamfile(peer, calledfile, ast_channel_language(peer));
+				if (res) {
+					res = 0;
+					ast_log(LOG_ERROR, "error streaming file '%s' to callee\n", calledfile);
+				} else {
+					calledstream = 1;
+				}
+			}
+			if (!ast_strlen_zero(callerfile)) {
+				res = ast_streamfile(chan, callerfile, ast_channel_language(chan));
+				if (res) {
+					res = 0;
+					ast_log(LOG_ERROR, "error streaming file '%s' to caller\n", callerfile);
+				} else {
+					callerstream = 1;
+				}
 			}
 
+			/* can't use ast_waitstream, because we're streaming two files at once, and can't block
+				We'll need to handle both channels at once. */
+
 			ast_channel_set_flag(peer, AST_FLAG_END_DTMF_ONLY);
-			while (ast_channel_stream(peer)) {
-				int ms;
+			while (ast_channel_stream(peer) || ast_channel_stream(chan)) {
+				int mspeer, mschan;
 
-				ms = ast_sched_wait(ast_channel_sched(peer));
+				mspeer = ast_sched_wait(ast_channel_sched(peer));
+				mschan = ast_sched_wait(ast_channel_sched(chan));
 
-				if (ms < 0 && !ast_channel_timingfunc(peer)) {
-					ast_stopstream(peer);
+				if (calledstream) {
+					if (mspeer < 0 && !ast_channel_timingfunc(peer)) {
+						ast_stopstream(peer);
+						calledstream = 0;
+					}
+				}
+				if (callerstream) {
+					if (mschan < 0 && !ast_channel_timingfunc(chan)) {
+						ast_stopstream(chan);
+						callerstream = 0;
+					}
+				}
+
+				if (!calledstream && !callerstream) {
 					break;
 				}
-				if (ms < 0)
-					ms = 1000;
 
-				active_chan = ast_waitfor_n(chans, 2, &ms);
+				if (mspeer < 0)
+					mspeer = 1000;
+
+				if (mschan < 0)
+					mschan = 1000;
+
+				/* wait for the lowest maximum of the two */
+				active_chan = ast_waitfor_n(chans, 2, (mspeer > mschan ? &mschan : &mspeer));
 				if (active_chan) {
 					struct ast_channel *other_chan;
 					struct ast_frame *fr = ast_read(active_chan);
@@ -2997,6 +3041,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					ast_frfree(fr);
 				}
 				ast_sched_runq(ast_channel_sched(peer));
+				ast_sched_runq(ast_channel_sched(chan));
 			}
 			ast_channel_clear_flag(peer, AST_FLAG_END_DTMF_ONLY);
 		}
