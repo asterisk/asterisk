@@ -268,7 +268,13 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 
 	if (!clframe) {
 		if (unloading) {
+			ast_log(LOG_ERROR,
+				"Busy unloading.  %sLOCK will fail.\n",
+				trylock ? "TRY" : "");
 			/* Don't bother */
+			ast_mutex_lock(&current->mutex);
+			current->requesters--;
+			ast_mutex_unlock(&current->mutex);
 			AST_LIST_UNLOCK(list);
 			return -1;
 		}
@@ -277,6 +283,9 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 			ast_log(LOG_ERROR,
 				"Unable to allocate channel lock frame.  %sLOCK will fail.\n",
 				trylock ? "TRY" : "");
+			ast_mutex_lock(&current->mutex);
+			current->requesters--;
+			ast_mutex_unlock(&current->mutex);
 			AST_LIST_UNLOCK(list);
 			return -1;
 		}
