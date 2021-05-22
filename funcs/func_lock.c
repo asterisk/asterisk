@@ -249,7 +249,6 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 			AST_LIST_UNLOCK(&locklist);
 			return -1;
 		}
-		current->requesters = 0;
 		AST_LIST_INSERT_TAIL(&locklist, current, entries);
 	}
 	/* Add to requester list */
@@ -449,9 +448,16 @@ static int unload_module(void)
 	ast_custom_function_unregister(&trylock_function);
 
 	AST_LIST_LOCK(&locklist);
-	AST_LIST_TRAVERSE(&locklist, current, entries) {
+	while ((current = AST_LIST_REMOVE_HEAD(&locklist, entries))) {
+		int warned = 0;
 		ast_mutex_lock(&current->mutex);
 		while (current->owner || current->requesters) {
+			if (!warned) {
+				ast_log(LOG_WARNING, "Waiting for %d requesters for %s lock %s.\n",
+						current->requesters, current->owner ? "locked" : "unlocked",
+						current->name);
+				warned = 1;
+			}
 			/* either the mutex is locked, or other parties are currently in get_lock,
 			 * we need to wait for all of those to clear first */
 			ast_cond_wait(&current->cond, &current->mutex);
