@@ -42,6 +42,7 @@
 #include "asterisk/linkedlists.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
+#include "asterisk/cli.h"
 
 /*** DOCUMENTATION
 	<function name="LOCK" language="en_US">
@@ -417,6 +418,37 @@ static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, c
 	return 0;
 }
 
+static char *handle_cli_locks_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int c = 0;
+	struct lock_frame* current;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan locks show";
+		e->usage =
+			"Usage: dialplan locks show\n"
+			"       List all locks known to func_lock, along with their current status.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "func_lock locks:\n");
+	ast_cli(a->fd, "%-40s Requesters Owner\n", "Name");
+	AST_LIST_LOCK(&locklist);
+	AST_LIST_TRAVERSE(&locklist, current, entries) {
+		ast_mutex_lock(&current->mutex);
+		ast_cli(a->fd, "%-40s %-10d %s\n", current->name, current->requesters,
+				current->owner ? ast_channel_name(current->owner) : "(unlocked)");
+		ast_mutex_unlock(&current->mutex);
+		c++;
+	}
+	AST_LIST_UNLOCK(&locklist);
+	ast_cli(a->fd, "%d total locks listed.\n", c);
+
+	return 0;
+}
+
 static struct ast_custom_function lock_function = {
 	.name = "LOCK",
 	.read = lock_read,
@@ -435,6 +467,8 @@ static struct ast_custom_function unlock_function = {
 	.read_max = 2,
 };
 
+static struct ast_cli_entry cli_locks_show = AST_CLI_DEFINE(handle_cli_locks_show, "List func_lock locks.");
+
 static int unload_module(void)
 {
 	struct lock_frame *current;
@@ -446,6 +480,8 @@ static int unload_module(void)
 	 * NOTE:  channels could already be in get_lock() */
 	ast_custom_function_unregister(&lock_function);
 	ast_custom_function_unregister(&trylock_function);
+
+	ast_cli_unregister(&cli_locks_show);
 
 	AST_LIST_LOCK(&locklist);
 	while ((current = AST_LIST_REMOVE_HEAD(&locklist, entries))) {
@@ -485,6 +521,7 @@ static int load_module(void)
 	int res = ast_custom_function_register_escalating(&lock_function, AST_CFE_READ);
 	res |= ast_custom_function_register_escalating(&trylock_function, AST_CFE_READ);
 	res |= ast_custom_function_register_escalating(&unlock_function, AST_CFE_READ);
+	res |= ast_cli_register(&cli_locks_show);
 
 	return res;
 }
