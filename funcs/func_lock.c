@@ -158,6 +158,8 @@ static void lock_free(void *data)
 	AST_LIST_UNLOCK(oldlist);
 	AST_LIST_HEAD_DESTROY(oldlist);
 	ast_free(oldlist);
+
+	ast_module_unref(ast_module_info->self);
 }
 
 static void lock_fixup(void *data, struct ast_channel *oldchan, struct ast_channel *newchan)
@@ -192,7 +194,12 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 	struct timeval now;
 
 	if (!lock_store) {
-		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", ast_channel_name(chan));
+		if (unloading) {
+			ast_log(LOG_ERROR, "%sLOCK has no datastore and func_lock is unloading, failing.\n",
+					trylock ? "TRY" : "");
+			return -1;
+		}
+
 		lock_store = ast_datastore_alloc(&lock_info, NULL);
 		if (!lock_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  No locks will be obtained.\n");
@@ -211,6 +218,9 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 		lock_store->data = list;
 		AST_LIST_HEAD_INIT(list);
 		ast_channel_datastore_add(chan, lock_store);
+
+		/* We cannot unload until this channel has released the lock_store */
+		ast_module_ref(ast_module_info->self);
 	} else
 		list = lock_store->data;
 
@@ -224,6 +234,9 @@ static int get_lock(struct ast_channel *chan, char *lockname, int trylock)
 
 	if (!current) {
 		if (unloading) {
+			ast_log(LOG_ERROR,
+				"Lock doesn't exist whilst unloading.  %sLOCK will fail.\n",
+				trylock ? "TRY" : "");
 			/* Don't bother */
 			AST_LIST_UNLOCK(&locklist);
 			return -1;
