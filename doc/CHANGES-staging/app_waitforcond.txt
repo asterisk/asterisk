@@ -1,0 +1,5 @@
+Subject: WaitForCondition application
+
+This application provides a way to halt
+dialplan execution until a provided
+condition evaluates to true.
