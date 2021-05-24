@@ -125,6 +125,37 @@
 			</variablelist>
 		</description>
 		<see-also>
+			<ref type="application">ConfKick</ref>
+			<ref type="function">CONFBRIDGE</ref>
+			<ref type="function">CONFBRIDGE_INFO</ref>
+		</see-also>
+	</application>
+	<application name="ConfKick" language="en_US">
+		<synopsis>
+			Kicks channel(s) from the requested ConfBridge.
+		</synopsis>
+		<syntax>
+			<parameter name="conference" required="true" />
+			<parameter name="channel">
+				<para>The channel to kick, <literal>all</literal>
+				to kick all users, or <literal>participants</literal>
+				to kick all non-admin participants. Default is all.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Kicks the requested channel(s) from a conference bridge.</para>
+			<variablelist>
+				<variable name="CONFKICKSTATUS">
+					<value name="FAILURE">
+						Could not kick any users with the provided arguments.
+					</value>
+					<value name="SUCCESS">
+						Successfully kicked users from specified conference bridge.
+					</value>
+				</variable>
+			</variablelist>
+		</description>
+		<see-also>
 			<ref type="application">ConfBridge</ref>
 			<ref type="function">CONFBRIDGE</ref>
 			<ref type="function">CONFBRIDGE_INFO</ref>
@@ -426,6 +457,7 @@
  */
 
 static const char app[] = "ConfBridge";
+static const char app2[] = "ConfKick";
 
 /*! Number of buckets our conference bridges container can have */
 #define CONFERENCE_BRIDGE_BUCKETS 53
@@ -4221,6 +4253,53 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 	return 0;
 }
 
+static int confkick_exec(struct ast_channel *chan, const char *data)
+{
+	char *parse;
+	struct confbridge_conference *conference;
+	int not_found;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confbridge);
+		AST_APP_ARG(channel);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "No conference bridge specified.\n");
+		pbx_builtin_setvar_helper(chan, "CONFKICKSTATUS", "FAILURE");
+		return 0;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	conference = ao2_find(conference_bridges, args.confbridge, OBJ_KEY);
+	if (!conference) {
+		ast_log(LOG_WARNING, "No conference bridge named '%s' found!\n", args.confbridge);
+		pbx_builtin_setvar_helper(chan, "CONFKICKSTATUS", "FAILURE");
+		return 0;
+	}
+	if (ast_strlen_zero(args.channel)) {
+		not_found = kick_conference_participant(conference, "all");
+	} else {
+		not_found = kick_conference_participant(conference, args.channel);
+	}
+
+	ao2_ref(conference, -1);
+	if (not_found) {
+		if (ast_strlen_zero(args.channel) || !strcasecmp("all", args.channel) || !strcasecmp("participants", args.channel)) {
+			ast_log(LOG_WARNING, "No participants found in conference bridge '%s'!\n", args.confbridge);
+		} else {
+			ast_log(LOG_WARNING, "No participant named '%s' found in conference bridge '%s'!\n", args.channel, args.confbridge);
+		}
+		pbx_builtin_setvar_helper(chan, "CONFKICKSTATUS", "FAILURE");
+		return 0;
+	}
+	ast_debug(1, "Kicked '%s' out of conference '%s'\n", args.channel, args.confbridge);
+	pbx_builtin_setvar_helper(chan, "CONFKICKSTATUS", "SUCCESS");
+	return 0;
+}
+
 void conf_add_user_active(struct confbridge_conference *conference, struct confbridge_user *user)
 {
 	AST_LIST_INSERT_TAIL(&conference->active_list, user, list);
@@ -4314,6 +4393,7 @@ static int register_channel_tech(struct ast_channel_tech *tech)
 static int unload_module(void)
 {
 	ast_unregister_application(app);
+	ast_unregister_application(app2);
 
 	ast_custom_function_unregister(&confbridge_function);
 	ast_custom_function_unregister(&confbridge_info_function);
@@ -4384,6 +4464,7 @@ static int load_module(void)
 	res |= manager_confbridge_init();
 
 	res |= ast_register_application_xml(app, confbridge_exec);
+	res |= ast_register_application_xml(app2, confkick_exec);
 
 	res |= ast_custom_function_register_escalating(&confbridge_function, AST_CFE_WRITE);
 	res |= ast_custom_function_register(&confbridge_info_function);
