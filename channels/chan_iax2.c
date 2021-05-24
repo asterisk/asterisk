@@ -5125,7 +5125,7 @@ static int iax2_call(struct ast_channel *c, const char *dest, int timeout)
 			ast_channel_hangupcause_set(c, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 			return -1;
 		}
-		if (((cai.authmethods & IAX_AUTH_MD5) || (cai.authmethods & IAX_AUTH_PLAINTEXT)) &&
+		if (((cai.authmethods & IAX_AUTH_RSA) || (cai.authmethods & IAX_AUTH_MD5) || (cai.authmethods & IAX_AUTH_PLAINTEXT)) &&
 			ast_strlen_zero(cai.secret) && ast_strlen_zero(pds.password)) {
 		        ast_log(LOG_WARNING, "Call terminated. Encryption forced but no secret provided\n");
 		        return -1;
@@ -8385,6 +8385,18 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 					res = 0;
 				}
 			}
+
+			if (pvt && !ast_strlen_zero(secret)) {
+				struct MD5Context md5;
+				unsigned char digest[16];
+
+				MD5Init(&md5);
+				MD5Update(&md5, (unsigned char *) challenge, strlen(challenge));
+				MD5Update(&md5, (unsigned char *) secret, strlen(secret));
+				MD5Final(digest, &md5);
+
+				build_encryption_keys(digest, pvt);
+			}
 		}
 	}
 	/* Fall back */
@@ -8496,7 +8508,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct ast_sockaddr *addr
 
 	if (ies->encmethods) {
 		if (ast_strlen_zero(p->secret) &&
-			((ies->authmethods & IAX_AUTH_MD5) || (ies->authmethods & IAX_AUTH_PLAINTEXT))) {
+			((ies->authmethods & IAX_AUTH_RSA) || (ies->authmethods & IAX_AUTH_MD5) || (ies->authmethods & IAX_AUTH_PLAINTEXT))) {
 			ast_log(LOG_WARNING, "Call terminated. Encryption requested by peer but no secret available locally\n");
 			return -1;
 		}
@@ -10959,8 +10971,8 @@ static int socket_process_helper(struct iax2_thread *thread)
 					}
 					break;
 				}
-				if (iaxs[fr->callno]->authmethods & IAX_AUTH_MD5)
-					merge_encryption(iaxs[fr->callno],ies.encmethods);
+				if (iaxs[fr->callno]->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA))
+					merge_encryption(iaxs[fr->callno], ies.encmethods);
 				else
 					iaxs[fr->callno]->encmethods = 0;
 				if (!authenticate_request(fr->callno) && iaxs[fr->callno])
