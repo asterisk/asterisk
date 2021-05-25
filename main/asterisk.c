@@ -118,7 +118,7 @@
  *
  * \par IRC
  * \par
- * Use http://www.freenode.net IRC server to connect with Asterisk
+ * Use https://libera.chat IRC server to connect with Asterisk
  * developers and users in realtime.
  *
  * \li \verbatim #asterisk \endverbatim Asterisk Users Room
