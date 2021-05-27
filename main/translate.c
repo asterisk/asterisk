@@ -1465,11 +1465,39 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 				beststeps = matrix_get(x, y)->multistep;
 			} else if (matrix_get(x, y)->table_cost == besttablecost
 					&& matrix_get(x, y)->multistep == beststeps) {
+				int replace = 0;
 				unsigned int gap_selected = format_sample_rate_absdiff(best, bestdst);
 				unsigned int gap_current = format_sample_rate_absdiff(src, dst);
 
 				if (gap_current < gap_selected) {
 					/* better than what we have so far */
+					replace = 1;
+				} else if (gap_current == gap_selected) {
+					int src_quality, best_quality;
+					struct ast_codec *src_codec, *best_codec;
+
+					src_codec = ast_format_get_codec(src);
+					best_codec = ast_format_get_codec(best);
+					src_quality = src_codec->quality;
+					best_quality = best_codec->quality;
+
+					ao2_cleanup(src_codec);
+					ao2_cleanup(best_codec);
+
+					/* We have a tie, so choose the format with the higher quality, if they differ. */
+					if (src_quality > best_quality) {
+						/* Better than what we had before. */
+						replace = 1;
+						ast_debug(2, "Tiebreaker: preferring format %s (%d) to %s (%d)\n", ast_format_get_name(src), src_quality,
+							ast_format_get_name(best), best_quality);
+					} else {
+						/* This isn't necessarily indicative of a problem, but in reality this shouldn't really happen, unless
+						 * there are 2 formats that are basically the same. */
+						ast_debug(1, "Completely ambiguous tie between formats %s and %s (quality %d): sticking with %s, but this is arbitrary\n",
+							ast_format_get_name(src), ast_format_get_name(best), best_quality, ast_format_get_name(best));
+					}
+				}
+				if (replace) {
 					ao2_replace(best, src);
 					ao2_replace(bestdst, dst);
 					besttablecost = matrix_get(x, y)->table_cost;

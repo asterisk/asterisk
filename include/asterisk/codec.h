@@ -78,6 +78,8 @@ struct ast_codec {
 	unsigned int smooth;
 	/*! \brief Flags to be passed to the smoother */
 	unsigned int smoother_flags;
+	/*! \brief Format quality, on scale from 0 to 150 (100 is ulaw, the reference). This allows better format to be used, ceterus paribus. */
+	unsigned int quality;
 	/*! \brief The module that registered this codec */
 	struct ast_module *mod;
 };
