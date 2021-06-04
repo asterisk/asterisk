@@ -107,6 +107,8 @@ static struct ast_json *playback_to_json(struct stasis_message *message,
 		type = "PlaybackContinuing";
 	} else if (!strcmp(state, "done")) {
 		type = "PlaybackFinished";
+	} else if (!strcmp(state, "failed")) {
+		type = "PlaybackFinished";
 	} else {
 		return NULL;
 	}
@@ -202,6 +204,8 @@ static const char *state_to_string(enum stasis_app_playback_state state)
 		return "paused";
 	case STASIS_PLAYBACK_STATE_CONTINUING:
 		return "continuing";
+	case STASIS_PLAYBACK_STATE_FAILED:
+		return "failed";
 	case STASIS_PLAYBACK_STATE_STOPPED:
 	case STASIS_PLAYBACK_STATE_COMPLETE:
 	case STASIS_PLAYBACK_STATE_CANCELED:
@@ -275,7 +279,11 @@ static void playback_final_update(struct stasis_app_playback *playback,
 		} else {
 			ast_log(LOG_WARNING, "%s: Playback failed for %s\n",
 				uniqueid, playback->media);
-			playback->state = STASIS_PLAYBACK_STATE_STOPPED;
+			if (playback->media_index == AST_VECTOR_SIZE(&playback->medias) - 1) {
+				playback->state = STASIS_PLAYBACK_STATE_FAILED;
+			} else {
+				playback->state = STASIS_PLAYBACK_STATE_CONTINUING;
+			}
 		}
 	}
 
@@ -701,6 +709,7 @@ playback_opreation_cb operations[STASIS_PLAYBACK_STATE_MAX][STASIS_PLAYBACK_MEDI
 	[STASIS_PLAYBACK_STATE_PAUSED][STASIS_PLAYBACK_UNPAUSE] = playback_unpause,
 
 	[STASIS_PLAYBACK_STATE_COMPLETE][STASIS_PLAYBACK_STOP] = playback_noop,
+	[STASIS_PLAYBACK_STATE_FAILED][STASIS_PLAYBACK_STOP] = playback_noop,
 	[STASIS_PLAYBACK_STATE_CANCELED][STASIS_PLAYBACK_STOP] = playback_noop,
 	[STASIS_PLAYBACK_STATE_STOPPED][STASIS_PLAYBACK_STOP] = playback_noop,
 };
