@@ -45,6 +45,8 @@ enum stasis_app_playback_state {
 	STASIS_PLAYBACK_STATE_CONTINUING,
 	/*! The media has stopped playing */
 	STASIS_PLAYBACK_STATE_COMPLETE,
+	/*! The media has stopped because of an error playing the file */
+	STASIS_PLAYBACK_STATE_FAILED,
 	/*! The playback was canceled. */
 	STASIS_PLAYBACK_STATE_CANCELED,
 	/*! The playback was stopped. */

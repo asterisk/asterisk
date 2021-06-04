@@ -154,7 +154,8 @@
 							"queued",
 							"playing",
 							"continuing",
-							"done"
+							"done",
+							"failed"
 						]
 					}
 				}
