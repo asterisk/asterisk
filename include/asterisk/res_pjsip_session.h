@@ -239,6 +239,8 @@ struct ast_sip_session {
 	unsigned int authentication_challenge_count:4;
 	/*! The direction of the call respective to Asterisk */
 	enum ast_sip_session_call_direction call_direction;
+	/*! Originating Line Info (ANI II digits) */
+	int ani2;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
