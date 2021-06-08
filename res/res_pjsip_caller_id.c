@@ -33,6 +33,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/callerid.h"
+#include "asterisk/conversions.h"
 
 /*!
  * \internal
@@ -117,6 +118,58 @@ static pjsip_fromto_hdr *get_id_header(pjsip_rx_data *rdata, const pj_str_t *hea
 	}
 
 	return parsed_hdr;
+}
+
+/*!
+ * \internal
+ * \brief Set an ANI2 integer based on OLI data in a From header
+ *
+ * This uses the contents of a From header in order to set Originating Line information.
+ *
+ * \param rdata The incoming message
+ * \param ani2 The ANI2 field to set
+ * \retval 0 Successfully parsed OLI
+ * \retval non-zero Could not parse OLI
+ */
+static int set_id_from_oli(pjsip_rx_data *rdata, int *ani2)
+{
+	char fromhdr[AST_CHANNEL_NAME];
+	const char *s = NULL;
+	pjsip_sip_uri *uri;
+	pjsip_name_addr *id_name_addr;
+
+	pjsip_fromto_hdr *from = pjsip_msg_find_hdr(rdata->msg_info.msg,
+			PJSIP_H_FROM, rdata->msg_info.msg->hdr.next);
+	id_name_addr = (pjsip_name_addr *) from->uri;
+
+	if (!from) {
+		/* This had better not happen */
+		return -1;
+	}
+
+	uri = pjsip_uri_get_uri(id_name_addr);
+	ast_copy_pj_str(fromhdr, &uri->user, sizeof(fromhdr));
+
+	/* Look for the possible OLI tags. */
+	if ((s = strcasestr(fromhdr, ";isup-oli="))) {
+		s += 10;
+	} else if ((s = strcasestr(fromhdr, ";ss7-oli="))) {
+		s += 9;
+	} else if ((s = strcasestr(fromhdr, ";oli="))) {
+		s += 5;
+	}
+
+	if (ast_strlen_zero(s)) {
+		/* OLI tag is missing, or present with nothing following the '=' sign */
+		return -1;
+	}
+
+	/* just in case OLI is quoted */
+	if (*s == '\"') {
+		s++;
+	}
+
+	return ast_str_to_int(s, ani2);
 }
 
 /*!
@@ -371,6 +424,7 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	if (!session->channel) {
+		int ani2;
 		/*
 		 * Since we have no channel this must be the initial inbound
 		 * INVITE.  Set the session ID directly because the channel
@@ -386,6 +440,11 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 		ast_party_id_copy(&session->id, &session->endpoint->id.self);
 		if (!session->endpoint->id.self.number.valid) {
 			set_id_from_from(rdata, &session->id);
+		}
+		if (!set_id_from_oli(rdata, &ani2)) {
+			session->ani2 = ani2;
+		} else {
+			session->ani2 = 0;
 		}
 	} else {
 		/*

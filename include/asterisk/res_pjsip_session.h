@@ -227,6 +227,8 @@ struct ast_sip_session {
 	AST_VECTOR(, struct ast_rtp_instance_stats *) media_stats;
 	/*! Number of challenges received during outgoing requests to determine if we are in a loop */
 	unsigned int authentication_challenge_count:4;
+	/*! Originating Line Info (ANI II digits) */
+	int ani2;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);

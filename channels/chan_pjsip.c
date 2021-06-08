@@ -625,6 +625,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 
 	ast_party_id_copy(&ast_channel_caller(chan)->id, &session->id);
 	ast_party_id_copy(&ast_channel_caller(chan)->ani, &session->id);
+	ast_channel_caller(chan)->ani2 = session->ani2;
 
 	if (!ast_strlen_zero(exten)) {
 		/* Set provided DNID on the new channel. */
