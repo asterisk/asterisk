@@ -1,0 +1,136 @@
+From 68c69f516f95df1faa42e5647e9ce7cfdc41ac38 Mon Sep 17 00:00:00 2001
+From: Nanang Izzuddin <nanang@teluu.com>
+Date: Wed, 16 Jun 2021 12:15:29 +0700
+Subject: [PATCH 2/2] - Fix silly mistake: accepted active socket created
+ without group lock in SSL socket. - Replace assertion with normal validation
+ check of SSL socket instance in OpenSSL verification callback (verify_cb())
+ to avoid crash, e.g: if somehow race condition with SSL socket destroy
+ happens or OpenSSL application data index somehow gets corrupted.
+
+---
+ pjlib/src/pj/ssl_sock_imp_common.c |  3 +-
+ pjlib/src/pj/ssl_sock_ossl.c       | 45 +++++++++++++++++++++++++-----
+ 2 files changed, 40 insertions(+), 8 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_imp_common.c b/pjlib/src/pj/ssl_sock_imp_common.c
+index bc468bcb3..c2b8a846b 100644
+--- a/pjlib/src/pj/ssl_sock_imp_common.c
++++ b/pjlib/src/pj/ssl_sock_imp_common.c
+@@ -927,6 +927,7 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+ 
+     /* Create active socket */
+     pj_activesock_cfg_default(&asock_cfg);
++    asock_cfg.grp_lock = ssock->param.grp_lock;
+     asock_cfg.async_cnt = ssock->param.async_cnt;
+     asock_cfg.concurrency = ssock->param.concurrency;
+     asock_cfg.whole_data = PJ_TRUE;
+@@ -942,7 +943,7 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+ 	    goto on_return;
+ 
+ 	pj_grp_lock_add_ref(glock);
+-	asock_cfg.grp_lock = ssock->param.grp_lock = glock;
++	ssock->param.grp_lock = glock;
+ 	pj_grp_lock_add_handler(ssock->param.grp_lock, ssock->pool, ssock,
+ 				ssl_on_destroy);
+     }
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index a95b339a5..56841f80a 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -327,7 +327,8 @@ static pj_status_t STATUS_FROM_SSL_ERR(char *action, pj_ssl_sock_t *ssock,
+ 	ERROR_LOG("STATUS_FROM_SSL_ERR", err, ssock);
+     }
+ 
+-    ssock->last_err = err;
++    if (ssock)
++	ssock->last_err = err;
+     return GET_STATUS_FROM_SSL_ERR(err);
+ }
+ 
+@@ -344,7 +345,8 @@ static pj_status_t STATUS_FROM_SSL_ERR2(char *action, pj_ssl_sock_t *ssock,
+     /* Dig for more from OpenSSL error queue */
+     SSLLogErrors(action, ret, err, len, ssock);
+ 
+-    ssock->last_err = ssl_err;
++    if (ssock)
++	ssock->last_err = ssl_err;
+     return GET_STATUS_FROM_SSL_ERR(ssl_err);
+ }
+ 
+@@ -587,6 +589,13 @@ static pj_status_t init_openssl(void)
+ 
+     /* Create OpenSSL application data index for SSL socket */
+     sslsock_idx = SSL_get_ex_new_index(0, "SSL socket", NULL, NULL, NULL);
++	if (sslsock_idx == -1) {
++		status = STATUS_FROM_SSL_ERR2("Init", NULL, -1, ERR_get_error(), 0);
++		PJ_LOG(1,(THIS_FILE,
++				  "Fatal error: failed to get application data index for "
++				  "SSL socket"));
++		return status;
++	}
+ 
+     return status;
+ }
+@@ -614,21 +623,36 @@ static int password_cb(char *buf, int num, int rwflag, void *user_data)
+ }
+ 
+ 
+-/* SSL password callback. */
++/* SSL certificate verification result callback.
++ * Note that this callback seems to be always called from library worker
++ * thread, e.g: active socket on_read_complete callback, which should have
++ * already been equipped with race condition avoidance mechanism (should not
++ * be destroyed while callback is being invoked).
++ */
+ static int verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
+ {
+-    pj_ssl_sock_t *ssock;
+-    SSL *ossl_ssl;
++    pj_ssl_sock_t *ssock = NULL;
++    SSL *ossl_ssl = NULL;
+     int err;
+ 
+     /* Get SSL instance */
+     ossl_ssl = X509_STORE_CTX_get_ex_data(x509_ctx, 
+ 				    SSL_get_ex_data_X509_STORE_CTX_idx());
+-    pj_assert(ossl_ssl);
++    if (!ossl_ssl) {
++	PJ_LOG(1,(THIS_FILE,
++		  "SSL verification callback failed to get SSL instance"));
++	goto on_return;
++    }
+ 
+     /* Get SSL socket instance */
+     ssock = SSL_get_ex_data(ossl_ssl, sslsock_idx);
+-    pj_assert(ssock);
++    if (!ssock) {
++	/* SSL socket may have been destroyed */
++	PJ_LOG(1,(THIS_FILE,
++		  "SSL verification callback failed to get SSL socket "
++		  "instance (sslsock_idx=%d).", sslsock_idx));
++	goto on_return;
++    }
+ 
+     /* Store verification status */
+     err = X509_STORE_CTX_get_error(x509_ctx);
+@@ -706,6 +730,7 @@ static int verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
+     if (PJ_FALSE == ssock->param.verify_peer)
+ 	preverify_ok = 1;
+ 
++on_return:
+     return preverify_ok;
+ }
+ 
+@@ -1213,6 +1238,12 @@ static void ssl_destroy(pj_ssl_sock_t *ssock)
+ static void ssl_reset_sock_state(pj_ssl_sock_t *ssock)
+ {
+     ossl_sock_t *ossock = (ossl_sock_t *)ssock;
++
++    /* Detach from SSL instance */
++    if (ossock->ossl_ssl) {
++	SSL_set_ex_data(ossock->ossl_ssl, sslsock_idx, NULL);
++    }
++
+     /**
+      * Avoid calling SSL_shutdown() if handshake wasn't completed.
+      * OpenSSL 1.0.2f complains if SSL_shutdown() is called during an
