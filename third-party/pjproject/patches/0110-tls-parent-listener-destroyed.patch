@@ -1,0 +1,166 @@
+From bb92c97ea512aa0ef316c9b2335c7d57b84dfc9a Mon Sep 17 00:00:00 2001
+From: Nanang Izzuddin <nanang@teluu.com>
+Date: Wed, 16 Jun 2021 12:12:35 +0700
+Subject: [PATCH 1/2] - Avoid SSL socket parent/listener getting destroyed
+ during handshake by increasing parent's reference count. - Add missing SSL
+ socket close when the newly accepted SSL socket is discarded in SIP TLS
+ transport.
+
+---
+ pjlib/src/pj/ssl_sock_imp_common.c  | 44 +++++++++++++++++++++--------
+ pjsip/src/pjsip/sip_transport_tls.c | 23 ++++++++++++++-
+ 2 files changed, 55 insertions(+), 12 deletions(-)
+
+diff --git a/pjlib/src/pj/ssl_sock_imp_common.c b/pjlib/src/pj/ssl_sock_imp_common.c
+index bc468bcb3..abec31805 100644
+--- a/pjlib/src/pj/ssl_sock_imp_common.c
++++ b/pjlib/src/pj/ssl_sock_imp_common.c
+@@ -224,6 +224,8 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
+ 
+     /* Accepting */
+     if (ssock->is_server) {
++	pj_bool_t ret = PJ_TRUE;
++
+ 	if (status != PJ_SUCCESS) {
+ 	    /* Handshake failed in accepting, destroy our self silently. */
+ 
+@@ -241,6 +243,12 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
+ 		      status);
+ 	    }
+ 
++	    /* Decrement ref count of parent */
++	    if (ssock->parent->param.grp_lock) {
++		pj_grp_lock_dec_ref(ssock->parent->param.grp_lock);
++		ssock->parent = NULL;
++	    }
++
+ 	    /* Originally, this is a workaround for ticket #985. However,
+ 	     * a race condition may occur in multiple worker threads
+ 	     * environment when we are destroying SSL objects while other
+@@ -284,23 +292,29 @@ static pj_bool_t on_handshake_complete(pj_ssl_sock_t *ssock,
+ 
+ 	    return PJ_FALSE;
+ 	}
++
+ 	/* Notify application the newly accepted SSL socket */
+ 	if (ssock->param.cb.on_accept_complete2) {
+-	    pj_bool_t ret;
+ 	    ret = (*ssock->param.cb.on_accept_complete2) 
+ 		    (ssock->parent, ssock, (pj_sockaddr_t*)&ssock->rem_addr, 
+ 		    pj_sockaddr_get_len((pj_sockaddr_t*)&ssock->rem_addr), 
+ 		    status);
+-	    if (ret == PJ_FALSE)
+-		return PJ_FALSE;	
+ 	} else if (ssock->param.cb.on_accept_complete) {
+-	    pj_bool_t ret;
+ 	    ret = (*ssock->param.cb.on_accept_complete)
+ 		      (ssock->parent, ssock, (pj_sockaddr_t*)&ssock->rem_addr,
+ 		       pj_sockaddr_get_len((pj_sockaddr_t*)&ssock->rem_addr));
+-	    if (ret == PJ_FALSE)
+-		return PJ_FALSE;
+ 	}
++
++	/* Decrement ref count of parent and reset parent (we don't need it
++	 * anymore, right?).
++	 */
++	if (ssock->parent->param.grp_lock) {
++	    pj_grp_lock_dec_ref(ssock->parent->param.grp_lock);
++	    ssock->parent = NULL;
++	}
++
++	if (ret == PJ_FALSE)
++	    return PJ_FALSE;
+     }
+ 
+     /* Connecting */
+@@ -864,9 +878,13 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+     if (status != PJ_SUCCESS)
+ 	goto on_return;
+ 
++    /* Set parent and add ref count (avoid parent destroy during handshake) */
++    ssock->parent = ssock_parent;
++    if (ssock->parent->param.grp_lock)
++	pj_grp_lock_add_ref(ssock->parent->param.grp_lock);
++
+     /* Update new SSL socket attributes */
+     ssock->sock = newsock;
+-    ssock->parent = ssock_parent;
+     ssock->is_server = PJ_TRUE;
+     if (ssock_parent->cert) {
+ 	status = pj_ssl_sock_set_certificate(ssock, ssock->pool, 
+@@ -913,16 +931,20 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+     ssock->asock_rbuf = (void**)pj_pool_calloc(ssock->pool, 
+ 					       ssock->param.async_cnt,
+ 					       sizeof(void*));
+-    if (!ssock->asock_rbuf)
+-        return PJ_ENOMEM;
++    if (!ssock->asock_rbuf) {
++		status = PJ_ENOMEM;
++		goto on_return;
++	}
+ 
+     for (i = 0; i<ssock->param.async_cnt; ++i) {
+-	ssock->asock_rbuf[i] = (void*) pj_pool_alloc(
++		ssock->asock_rbuf[i] = (void*) pj_pool_alloc(
+ 					    ssock->pool, 
+ 					    ssock->param.read_buffer_size + 
+ 					    sizeof(read_data_t*));
+-        if (!ssock->asock_rbuf[i])
+-            return PJ_ENOMEM;
++		if (!ssock->asock_rbuf[i]) {
++			status = PJ_ENOMEM;
++			goto on_return;
++		}
+     }
+ 
+     /* Create active socket */
+diff --git a/pjsip/src/pjsip/sip_transport_tls.c b/pjsip/src/pjsip/sip_transport_tls.c
+index 17b7ae3de..ce524d53f 100644
+--- a/pjsip/src/pjsip/sip_transport_tls.c
++++ b/pjsip/src/pjsip/sip_transport_tls.c
+@@ -1325,9 +1325,26 @@ static pj_bool_t on_accept_complete2(pj_ssl_sock_t *ssock,
+     PJ_UNUSED_ARG(src_addr_len);
+ 
+     listener = (struct tls_listener*) pj_ssl_sock_get_user_data(ssock);
++    if (!listener) {
++	/* Listener already destroyed, e.g: after TCP accept but before SSL
++	 * handshake is completed.
++	 */
++	if (new_ssock && accept_status == PJ_SUCCESS) {
++	    /* Close the SSL socket if the accept op is successful */
++	    PJ_LOG(4,(THIS_FILE,
++		      "Incoming TLS connection from %s (sock=%d) is discarded "
++		      "because listener is already destroyed",
++		      pj_sockaddr_print(src_addr, addr, sizeof(addr), 3),
++		      new_ssock));
++
++	    pj_ssl_sock_close(new_ssock);
++	}
++
++	return PJ_FALSE;
++    }
+ 
+     if (accept_status != PJ_SUCCESS) {
+-	if (listener && listener->tls_setting.on_accept_fail_cb) {
++	if (listener->tls_setting.on_accept_fail_cb) {
+ 	    pjsip_tls_on_accept_fail_param param;
+ 	    pj_ssl_sock_info ssi;
+ 
+@@ -1350,6 +1367,8 @@ static pj_bool_t on_accept_complete2(pj_ssl_sock_t *ssock,
+     PJ_ASSERT_RETURN(new_ssock, PJ_TRUE);
+ 
+     if (!listener->is_registered) {
++	pj_ssl_sock_close(new_ssock);
++
+ 	if (listener->tls_setting.on_accept_fail_cb) {
+ 	    pjsip_tls_on_accept_fail_param param;
+ 	    pj_bzero(&param, sizeof(param));
+@@ -1401,6 +1420,8 @@ static pj_bool_t on_accept_complete2(pj_ssl_sock_t *ssock,
+ 			 ssl_info.grp_lock, &tls);
+     
+     if (status != PJ_SUCCESS) {
++	pj_ssl_sock_close(new_ssock);
++
+ 	if (listener->tls_setting.on_accept_fail_cb) {
+ 	    pjsip_tls_on_accept_fail_param param;
+ 	    pj_bzero(&param, sizeof(param));
