@@ -93,7 +93,7 @@
 		<literal>pjsip:PJSIP/8005551212@myprovider</literal>.
 		The endpoint contact's URI will have the <literal>user</literal> inserted
 		into it and will become the Request URI.  If the contact URI already has
-		a user specified, an error is returned.
+		a user specified, it will be replaced.
 		</para>
 		<para>
 		</para>
@@ -208,15 +208,14 @@ static enum pjsip_status_code check_content_type_in_dialog(const pjsip_rx_data *
  * \return -1 Fail
  *
  * \note If the contact URI found for the endpoint already has a user in
- * its URI, replacing it is probably not a good idea so an error is returned.
+ * its URI, it will be replaced.
  */
 static int insert_user_in_contact_uri(const char *to, const char *endpoint_name, const char *aors,
 	const char *user, char **uri)
 {
-	char *atsign = NULL;
 	char *scheme = NULL;
 	char *contact_uri = NULL;
-	char *colon = NULL;
+	char *after_scheme = NULL;
 	char *host;
 	struct ast_sip_contact *contact = NULL;
 
@@ -238,37 +237,38 @@ static int insert_user_in_contact_uri(const char *to, const char *endpoint_name,
 
 	ast_debug(3, "Dest: '%s' User: '%s'  Endpoint: '%s'  ContactURI: '%s'\n", to, user, endpoint_name, contact_uri);
 
-	atsign = strchr(contact_uri, '@');
-	if (atsign) {
-		/*
-		 * If there is already a username in the contact URI
-		 * messing with it is probably NOT a good thing.
-		 */
-		ast_log(LOG_WARNING, "Dest: '%s' MSG SEND FAIL: There's already a username in endpoint %s's contact URI '%s'.\n",
-			to, endpoint_name, contact_uri);
-		return -1;
-	}
-
 	/*
 	 * Contact URIs must have a scheme so we must insert the user between it and the host.
 	 */
-	colon = strchr(contact_uri, ':');
-	if (!colon) {
+	scheme = contact_uri;
+	after_scheme = strchr(contact_uri, ':');
+	if (!after_scheme) {
 		/* A contact URI without a scheme?  Something's wrong.  Bail */
 		ast_log(LOG_WARNING, "Dest: '%s' MSG SEND FAIL: There was no scheme in the contact URI '%s'\n",
 			to, contact_uri);
 		return -1;
 	}
-
-	host = colon + 1;
-	scheme = contact_uri;
-	*uri = ast_malloc(strlen(contact_uri) + strlen(user) + 2 /* One for the @ and one for the NULL */);
 	/*
-	 * Need to set the NULL after the malloc or the length of contact_uri will be too short
-	 * to hold the final result.
+	 * Terminate the scheme.
 	 */
-	*colon = '\0';
-	sprintf(*uri, "%s:%s@%s", scheme, user, host);
+	*after_scheme = '\0';
+	after_scheme++;
+
+	/*
+	 * If the contact_uri already has a user, the host starts after the '@', otherwise
+	 * the host is at after_scheme.
+	 *
+	 * We're going to ignore the existing user.
+	 */
+	host = strchr(after_scheme, '@');
+	if (host) {
+		host++;
+	} else {
+		host = after_scheme;
+	}
+
+	*uri = ast_malloc(strlen(scheme) + strlen(user) + strlen(host) + 3 /* One for the ':', '@' and terminating NULL */);
+	sprintf(*uri, "%s:%s@%s", scheme, user, host); /* Safe */
 
 	return 0;
 }
@@ -594,7 +594,7 @@ static struct ast_sip_endpoint *handle_atsign(const char *to, char *destination,
  *   This form is similar to a dialstring:
  *      PJSIP/user@endpoint
  *   In this case, the user will be added to the endpoint contact's URI.
- *   If the contact URI already has a user, an error is returned.
+ *   If the contact URI already has a user, it will be replaced.
  *
  * The ones that have the sip[s] scheme are the easiest to parse.
  * The rest all have some issue.
