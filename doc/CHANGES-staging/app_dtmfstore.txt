@@ -1,0 +1,6 @@
+Subject: app_dtmfstore
+
+New application which collects digits
+dialed and stores them into
+a specified variable.
+
