@@ -19,6 +19,24 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.18.0 to Asterisk 16.19.0 ----------
+------------------------------------------------------------------------------
+
+STIR/SHAKEN
+------------------
+ * The configuration option public_key_url in stir_shaken.conf
+   has been renamed to public_cert_url to better fit what it
+   contains. Only the name has changed - functionality is the
+   same.
+
+ * STIR/SHAKEN originally needed an origid to be specified in
+   stir_shaken.conf under the certificate config object in
+   order to work. Now, one is automatically created by
+   generating a UUID, as recommended by RFC8588. Any origid
+   you have in your stir_shaken.conf will need to be removed
+   for the module to read in certificates.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.17.0 to Asterisk 16.18.0 ----------
 ------------------------------------------------------------------------------
 

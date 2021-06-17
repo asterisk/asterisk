@@ -13,6 +13,93 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 16.18.0 to Asterisk 16.19.0 ----------
+------------------------------------------------------------------------------
+
+AMI Flash event
+------------------
+ * Hook flash events are now exposed as AMI events.
+
+Add variable support to Originate
+------------------
+ * The Originate application now allows
+   variables to be set on the new channel
+   through a new option.
+
+MessageSend
+------------------
+ * The MessageSend dialplan application now takes an
+   optional third argument that can set the message's
+   "To" field on outgoing messages.  It's an alternative
+   to using the MESSAGE(to) dialplan function.
+
+   To prevent confusion with the first argument, currently
+   named "to", it's been renamed to "destination".
+   Its function, creating the request URI, hasn't changed.
+
+   The online documentation has also been enhanced to
+   explain the behavior.
+
+   Despite the changes in this commit, there should be
+   no impact to current users of MessageSend.
+
+New ConfKick application
+------------------
+ * Adds a ConfKick() application, which allows
+   a specific channel, all users, or all non-admin
+   users to be kicked from a conference bridge.
+
+app_confbridge answer supervision control
+------------------
+ * app_confbridge now provides a user option to prevent
+   answer supervision if the channel hasn't been
+   answered yet. To use it, set a user profile's
+   answer_channel option to no.
+
+app_voicemail
+------------------
+ * You can now customize the "beep" tone or omit it entirely.
+
+func_math: Three new dialplan functions
+------------------
+ * Introduce three new functions, MIN, MAX, and ABS, which can be used to
+   obtain the minimum or maximum of up to two integers or absolute value.
+
+func_volume now can be read
+------------------
+ * The VOLUME function can now also be used
+   to read existing values previously set.
+
+res_pjsip
+------------------
+ * PJSIP support of registrations of endpoints in multidomain
+   scenarios, where the endpoint contains the domain info
+   in pjsip_endpoint.conf
+
+res_pjsip_dialog_info_body_generator
+------------------
+ * PJSIP now supports RFC 4235 Section 4.1.6 dialog-info+xml local and
+   remote elements by iterating through ringing channels and inserting
+   that info into NOTIFY packet sent to the endpoint.
+
+res_pjsip_messaging
+------------------
+ * Implemented the new "to" parameter of the MessageSend()
+   dialplan application.  This allows a user to specify
+   a complete SIP "To" header separate from the Request URI.
+   We now also accept a destination in the same format
+   as Dial()...  PJSIP/number@endpoint
+
+res_rtp_asterisk
+------------------
+ * By default Asterisk reports the PJSIP version in all
+   STUN packets it sends.
+
+   This behaviour may not be desired in a production
+   environment and can now be disabled by setting the
+   stun_software_attribute option to 'no' in rtp.conf.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 16.17.0 to Asterisk 16.18.0 ----------
 ------------------------------------------------------------------------------
 
