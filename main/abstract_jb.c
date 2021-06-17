@@ -954,7 +954,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 {
 	struct jb_framedata *framedata = data;
 	struct timeval now_tv;
-	unsigned long now;
+	int64_t relative_frame_start;
 	int putframe = 0; /* signifies if audio frame was placed into the buffer or not */
 
 	switch (event) {
@@ -1064,7 +1064,17 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 	}
 
 	now_tv = ast_tvnow();
-	now = ast_tvdiff_ms(now_tv, framedata->start_tv);
+	relative_frame_start = ast_tvdiff_ms(now_tv, framedata->start_tv);
+	if (relative_frame_start < 0) {
+		/*
+		 * The only way for this to happen is if the system time has
+		 * stepped backwards between the time framedata->start_tv was
+		 * set and now.  Think an ntpd or systemd-timesyncd adjustment.
+		 *
+		 * Just pass the frame through.
+		 */
+		return frame;
+	}
 
 	if (frame->frametype == AST_FRAME_VOICE) {
 		int res;
@@ -1084,9 +1094,9 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		}
 		if (!framedata->first) {
 			framedata->first = 1;
-			res = framedata->jb_impl->put_first(framedata->jb_obj, jbframe, now);
+			res = framedata->jb_impl->put_first(framedata->jb_obj, jbframe, relative_frame_start);
 		} else {
-			res = framedata->jb_impl->put(framedata->jb_obj, jbframe, now);
+			res = framedata->jb_impl->put(framedata->jb_obj, jbframe, relative_frame_start);
 		}
 
 		if (res == AST_JB_IMPL_OK) {
@@ -1104,7 +1114,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		int res;
 		long next = framedata->jb_impl->next(framedata->jb_obj);
 
-		/* If now is earlier than the next expected output frame
+		/* If relative_frame_start is earlier than the next expected output frame
 		 * from the jitterbuffer we may choose to pass on retrieving
 		 * a frame during this read iteration.  The only exception
 		 * to this rule is when an audio frame is placed into the buffer
@@ -1113,8 +1123,8 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		 * doing this we are able to feed off the timing of the input frames
 		 * and only rely on our jitterbuffer timer when frames are dropped.
 		 * During testing, this hybrid form of timing gave more reliable results. */
-		if (now < next) {
-			long int diff = next - now;
+		if (relative_frame_start < next) {
+			long int diff = next - relative_frame_start;
 			if (!putframe) {
 				return frame;
 			} else if (diff >= framedata->timer_interval) {
@@ -1124,7 +1134,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 
 		ast_frfree(frame);
 		frame = &ast_null_frame;
-		res = framedata->jb_impl->get(framedata->jb_obj, &frame, now, framedata->timer_interval);
+		res = framedata->jb_impl->get(framedata->jb_obj, &frame, relative_frame_start, framedata->timer_interval);
 		switch (res) {
 		case AST_JB_IMPL_OK:
 			/* got it, and pass it through */
