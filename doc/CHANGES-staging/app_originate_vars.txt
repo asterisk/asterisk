@@ -1,6 +1,0 @@
-Subject: Add variable support to Originate
-
-The Originate application now allows
-variables to be set on the new channel
-through a new option.
-

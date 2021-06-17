@@ -1,8 +1,0 @@
-Subject: STIR/SHAKEN
-
-STIR/SHAKEN originally needed an origid to be specified in
-stir_shaken.conf under the certificate config object in
-order to work. Now, one is automatically created by
-generating a UUID, as recommended by RFC8588. Any origid
-you have in your stir_shaken.conf will need to be removed
-for the module to read in certificates.

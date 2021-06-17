@@ -1,5 +1,0 @@
-res_pjsip_dtmf_info: Hook flash
-
-Adds recognition for application/
-hook-flash as a hook flash event.
-
