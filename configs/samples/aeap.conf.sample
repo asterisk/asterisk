@@ -2,14 +2,20 @@
 ; This file is used by the res_aeap module to configure parameters
 ; used for AEAP applications.
 ;
-;[myserver]
+;[myclient]
 ;
-; type must be "server".
-;type=server
+; type must be "client".
+;type=client
 ;
-; server_url must be a websocket URL (ws or wss).
-;server_url
+; URL used to connect to a server. It must be a websocket URL (ws or wss).
+;url=ws://127.0.0.1:9099
 ;
-; codecs is an optional list of codecs that will be used over the codecs
-; specified on an endpoint if this option is present.
-;codecs=ulaw,alaw,g722,opus
+; codecs is comma separated string of allowed/disallowed codec names.
+;codecs=!all,ulaw,alaw,opus
+;
+; protocol is the implementation specific sub-protocol
+;protocol=speech_to_text
+;
+; "@" parameters can be specified and are used to to set custom values to
+; be passed as "params" in the initial "setup" request.
+;@language=en-US
