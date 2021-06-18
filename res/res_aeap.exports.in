@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXaeap_*;
+		LINKER_SYMBOL_PREFIXast_aeap_*;
+	local:
+		*;
+};
