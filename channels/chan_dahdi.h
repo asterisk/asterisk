@@ -182,6 +182,22 @@ struct dahdi_pvt {
 	 */
 	unsigned int answeronpolarityswitch:1;
 	/*!
+	 * \brief INTEGER, number of ANI INFO digits on a CAMA trunk.
+	 * older switches use 1 INFO digit, newer switches use 2 INFO digits
+	 * \note Set from the "ani_info_digits" value read in from chan_dahdi.conf
+	 */
+	unsigned int ani_info_digits:8;
+	/*!
+	 * \brief INTEGER, length of ANI failure timeout in ms.
+	 * \note Set from the "ani_timeout" value read in from chan_dahdi.conf
+	 */
+	unsigned int ani_timeout:16;
+	/*!
+	 * \brief INTEGER, length of time to wait before sending ANI wink in ms.
+	 * \note Set from the "ani_wink_time" value read in from chan_dahdi.conf
+	 */
+	unsigned int ani_wink_time:16;
+	/*!
 	 * \brief TRUE if busy detection is enabled.
 	 * (Listens for the beep-beep busy pattern.)
 	 * \note Set from the "busydetect" value read in from chan_dahdi.conf

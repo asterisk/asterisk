@@ -277,6 +277,10 @@ struct analog_pvt {
 	int msgstate;
 
 	/* XXX: Option Variables - Set by allocator of private structure */
+	unsigned int ani_info_digits:8;			/* Older switches use 1 INFO digit, newer switches use 2 */
+	unsigned int ani_timeout:16;			/* Time in ms before we give up waiting for ANI spill */
+	unsigned int ani_wink_time:16;			/* Safe wait time before we wink to start ANI spill */
+
 	unsigned int answeronpolarityswitch:1;
 	unsigned int callreturn:1;
 	unsigned int cancallforward:1;
