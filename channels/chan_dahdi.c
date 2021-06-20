@@ -953,6 +953,10 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.parkinglot = "",
 			.transfertobusy = 1,
 
+			.ani_info_digits = 2,
+			.ani_wink_time = 1000,
+			.ani_timeout = 10000,
+
 			.cid_signalling = CID_SIG_BELL,
 			.cid_start = CID_START_RING,
 			.dahditrcallerid = 0,
@@ -12839,6 +12843,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 		tmp->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 		tmp->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
+		tmp->ani_info_digits = conf->chan.ani_info_digits;
+		tmp->ani_wink_time = conf->chan.ani_wink_time;
+		tmp->ani_timeout = conf->chan.ani_timeout;
 		tmp->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
 		tmp->sendcalleridafter = conf->chan.sendcalleridafter;
 		ast_cc_copy_config_params(tmp->cc_params, conf->chan.cc_params);
@@ -12944,6 +12951,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->channel = tmp->channel;
 				analog_p->polarityonanswerdelay = conf->chan.polarityonanswerdelay;
 				analog_p->answeronpolarityswitch = conf->chan.answeronpolarityswitch;
+				analog_p->ani_info_digits = conf->chan.ani_info_digits;
+				analog_p->ani_timeout = conf->chan.ani_timeout;
+				analog_p->ani_wink_time = conf->chan.ani_wink_time;
 				analog_p->hanguponpolarityswitch = conf->chan.hanguponpolarityswitch;
 				analog_p->permcallwaiting = conf->chan.callwaiting; /* permcallwaiting possibly modified in analog_config_complete */
 				analog_p->callreturn = conf->chan.callreturn;
@@ -18241,6 +18251,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			confp->chan.polarityonanswerdelay = atoi(v->value);
 		} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
 			confp->chan.answeronpolarityswitch = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "ani_info_digits")) {
+			confp->chan.ani_info_digits = atoi(v->value);
+		} else if (!strcasecmp(v->name, "ani_wink_time")) {
+			confp->chan.ani_wink_time = atoi(v->value);
+		} else if (!strcasecmp(v->name, "ani_timeout")) {
+			confp->chan.ani_timeout = atoi(v->value);
 		} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
 			confp->chan.hanguponpolarityswitch = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {

@@ -1098,6 +1098,24 @@ pickupgroup=1
 ; The default is -1: not to set anything.
 ;tonezone = 0 ; 0 is US
 ;
+; The number of ANI info digits to expect before the main ANI spill.
+; Switches using ANI-B, -C, and -D will usually send 1 digit. Modern digital
+; systems will send 2, following NANPA ANI II requirements.
+;
+;ani_info_digits=2
+;
+; Time in ms to wait before asterisk sends wink to start ANI spill. Can be
+; shortened if your switch supports it.
+;
+;ani_wink_time=1000
+;
+; Time in ms to wait for each digit in the spill including the ST pulse.
+; This value can affect how long it takes to recognize ANI failures that do
+; not send a ST pulse. If ANI failures take too long to recognize, you can
+; lower this value.
+;
+;ani_timeout=10000
+;
 ; FXO (FXS signalled) devices must have a timeout to determine if there was a
 ; hangup before the line was answered.  This value can be tweaked to shorten
 ; how long it takes before DAHDI considers a non-ringing line to have hungup.
