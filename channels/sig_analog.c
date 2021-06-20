@@ -1864,7 +1864,6 @@ static void *__analog_ss_thread(void *data)
 					if (p->sig == ANALOG_SIG_E911) {
 						analog_off_hook(p);
 					}
-					res = analog_my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "#", 3000);
 				}
 				if (res < 1) {
 					analog_dsp_reset_and_flush_digits(p);
@@ -1927,21 +1926,64 @@ static void *__analog_ss_thread(void *data)
 			goto quit;
 		}
 
-		if (p->sig == ANALOG_SIG_FGC_CAMA) {
-			char anibuf[100];
+		if (p->sig == ANALOG_SIG_FGC_CAMA || p->sig == ANALOG_SIG_FGC_CAMAMF) {
+			/* This if block is where we process ANI for CAMA */
 
-			if (ast_safe_sleep(chan,1000) == -1) {
+			char anibuf[100];
+			struct ast_party_caller *caller;
+
+			/* cnoffset is the point at which we pull the calling number out
+			 * of anibuf. Must be the number of ani_info_digits + 1 to account
+			 * for the KP, which is considered a digit.  */
+
+			/* The 1XB with ANI-B will send a full 10 digits
+			*  or 2 digits in case of ANI failure.
+			* (CD-95811-01 Section II, page 10)
+			* 10 digit string example:  *08320123#
+			* 2 digit string example:   *2
+			* KP (*) and ST (#) are considered to be digits */
+
+			int cnoffset = p->ani_info_digits + 1;
+			ast_debug(1, "cnoffset: %d\n", cnoffset);
+
+			/* This is how long to wait before the wink to start ANI spill
+			 * Pulled from chan_dahdi.conf, default is 1000ms */
+			if (ast_safe_sleep(chan,p->ani_wink_time) == -1) {
 				ast_hangup(chan);
 				goto quit;
 			}
 			analog_off_hook(p);
+			ast_debug(1, "Sent wink to signal ANI start\n");
 			analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_MF);
-			res = analog_my_getsigstr(chan, anibuf, "#", 10000);
-			if ((res > 0) && (strlen(anibuf) > 2)) {
-				if (anibuf[strlen(anibuf) - 1] == '#') {
+
+			/* ani_timeout is configured in chan_dahdi.conf. default is 10000ms.
+			 * ST, STP, ST2P, ST3P can all signal transmission complete, regardless of timeout */
+			res = analog_my_getsigstr(chan, anibuf, "#ABC", p->ani_timeout);
+
+			/* so we can work with the ani buffer */
+			pbx_builtin_setvar_helper(chan, "ANIBUF", anibuf);
+
+			/* as long as we get a terminating pulse OR the length of ANI buffer is at least >=2, we can treat
+			 * this as a complete spill for the purposes of setting anistart */
+			if ((res > 0) || (strlen(anibuf) >= 2)) {
+				char anistart[2] = "X";
+				char f[10] = {0};
+				if (strchr("#ABC", anibuf[strlen(anibuf) - 1])) {
+					anistart[0] = anibuf[strlen(anibuf) - 1];
 					anibuf[strlen(anibuf) - 1] = 0;
 				}
-				ast_set_callerid(chan, anibuf + 2, NULL, anibuf + 2);
+				ast_set_callerid(chan, anibuf + cnoffset, NULL, anibuf + cnoffset);
+
+				caller = ast_channel_caller(chan);
+				strncpy(f, &(anibuf[1]), MIN((int)(p->ani_info_digits), sizeof(f)-1));
+				caller->ani2 = atoi(f);
+
+				anibuf[cnoffset] = 0;
+
+				/* so we can work with the different start pulses as used in ANI-D */
+				pbx_builtin_setvar_helper(chan, "ANISTART", anistart);
+				/* so we can use our ANI INFO digits in our dialplan */
+				pbx_builtin_setvar_helper(chan, "ANI2", anibuf + 1);
 			}
 			analog_dsp_set_digitmode(p, ANALOG_DIGITMODE_DTMF);
 		}
@@ -2023,7 +2065,7 @@ static void *__analog_ss_thread(void *data)
 					ast_copy_string(exten, "911", sizeof(exten));
 				}
 			} else {
-				ast_log(LOG_WARNING, "Got a non-E911/FGC CAMA input on channel %d.  Assuming E&M Wink instead\n", p->channel);
+				ast_log(LOG_WARNING, "A KP was expected to start signaling for Feature Group C CAMA-MF, but we got something else. Received: %s on channel %d\n", exten, p->channel);
 			}
 		}
 		if (p->sig == ANALOG_SIG_FEATB) {
@@ -2035,7 +2077,7 @@ static void *__analog_ss_thread(void *data)
 				s1 = strsep(&stringp, "#");
 				ast_copy_string(exten, exten2 + 1, sizeof(exten));
 			} else {
-				ast_log(LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
+				ast_log(LOG_WARNING, "A KP was expected to start signaling for Feature Group B, but we got something else. Received: %s on channel %d\n", exten, p->channel);
 			}
 		}
 		if ((p->sig == ANALOG_SIG_FEATDMF) || (p->sig == ANALOG_SIG_FEATDMF_TA)) {
