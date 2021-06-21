@@ -1908,6 +1908,17 @@ int ast_is_deferrable_frame(const struct ast_frame *frame);
 int ast_safe_sleep(struct ast_channel *chan, int ms);
 
 /*!
+ * \brief Wait for a specified amount of time, looking for hangups, and do not generate silence
+ * \param chan channel to wait for
+ * \param ms length of time in milliseconds to sleep. This should never be less than zero.
+ * \details
+ * Waits for a specified amount of time, servicing the channel as required.
+ * \return returns -1 on hangup, otherwise 0.
+ * \note Unlike ast_safe_sleep this will not generate silence if Asterisk is configured to do so.
+ */
+int ast_safe_sleep_without_silence(struct ast_channel *chan, int ms);
+
+/*!
  * \brief Wait for a specified amount of time, looking for hangups and a condition argument
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep.
