@@ -1,0 +1,4 @@
+Subject: func_evalexten
+
+This adds the EVAL_EXTEN function which may be
+used to evaluate data at dialplan extensions.
