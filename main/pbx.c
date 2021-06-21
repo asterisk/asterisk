@@ -8826,6 +8826,47 @@ int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, con
 	return __ast_goto_if_exists(chan, context, exten, priority, 1);
 }
 
+int pbx_parse_location(struct ast_channel *chan, char **contextp, char **extenp, char **prip, int *ipri, int *mode, char *rest)
+{
+	char *context, *exten, *pri;
+	/* do the strsep before here, so we don't have to alloc and free */
+	if (!*extenp) {
+		/* Only a priority in this one */
+		*prip = *contextp;
+		*extenp = NULL;
+		*contextp = NULL;
+	} else if (!*prip) {
+		/* Only an extension and priority in this one */
+		*prip = *extenp;
+		*extenp = *contextp;
+		*contextp = NULL;
+	}
+	context = *contextp;
+	exten = *extenp;
+	pri = *prip;
+	if (mode) {
+		if (*pri == '+') {
+			*mode = 1;
+			pri++;
+		} else if (*pri == '-') {
+			*mode = -1;
+			pri++;
+		}
+	}
+	if ((rest && sscanf(pri, "%30d%1s", ipri, rest) != 1) || sscanf(pri, "%30d", ipri) != 1) {
+		*ipri = ast_findlabel_extension(chan, context ? context : ast_channel_context(chan),
+			exten ? exten : ast_channel_exten(chan), pri,
+			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
+		if (*ipri < 1) {
+			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
+			return -1;
+		} else if (mode) {
+			*mode = 0;
+		}
+	}
+	return 0;
+}
+
 static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string, int async)
 {
 	char *exten, *pri, *context;
@@ -8842,31 +8883,9 @@ static int pbx_parseable_goto(struct ast_channel *chan, const char *goto_string,
 	context = strsep(&stringp, ",");	/* guaranteed non-null */
 	exten = strsep(&stringp, ",");
 	pri = strsep(&stringp, ",");
-	if (!exten) {	/* Only a priority in this one */
-		pri = context;
-		exten = NULL;
-		context = NULL;
-	} else if (!pri) {	/* Only an extension and priority in this one */
-		pri = exten;
-		exten = context;
-		context = NULL;
-	}
-	if (*pri == '+') {
-		mode = 1;
-		pri++;
-	} else if (*pri == '-') {
-		mode = -1;
-		pri++;
-	}
-	if (sscanf(pri, "%30d%1s", &ipri, rest) != 1) {
-		ipri = ast_findlabel_extension(chan, context ? context : ast_channel_context(chan),
-			exten ? exten : ast_channel_exten(chan), pri,
-			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
-		if (ipri < 1) {
-			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
-			return -1;
-		} else
-			mode = 0;
+
+	if (pbx_parse_location(chan, &context, &exten, &pri, &ipri, &mode, rest)) {
+		return -1;
 	}
 	/* At this point we have a priority and maybe an extension and a context */
 
