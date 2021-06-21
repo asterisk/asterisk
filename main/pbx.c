@@ -8256,7 +8256,7 @@ void wait_for_hangup(struct ast_channel *chan, const void *data)
 		waitsec = -1;
 	if (waitsec > -1) {
 		waittime = waitsec * 1000.0;
-		ast_safe_sleep(chan, waittime);
+		ast_safe_sleep_without_silence(chan, waittime);
 	} else do {
 		res = ast_waitfor(chan, -1);
 		if (res < 0)
