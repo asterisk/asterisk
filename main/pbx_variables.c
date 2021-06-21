@@ -736,7 +736,7 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 
 			/* Substitute if necessary */
 			if (needsub) {
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
+				pbx_substitute_variables_helper_full_location(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL, context, exten, pri);
 				vars = ltmp;
 			} else {
 				vars = var;
@@ -770,10 +770,13 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 				/* For dialplan location, if we were told what to substitute explicitly, use that instead */
 				if (exten && !strcmp(vars, "EXTEN")) {
 					ast_copy_string(workspace, exten, VAR_BUF_SIZE);
+					cp4 = workspace;
 				} else if (context && !strcmp(vars, "CONTEXT")) {
 					ast_copy_string(workspace, context, VAR_BUF_SIZE);
+					cp4 = workspace;
 				} else if (pri && !strcmp(vars, "PRIORITY")) {
 					snprintf(workspace, VAR_BUF_SIZE, "%d", pri);
+					cp4 = workspace;
 				} else {
 					pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
 				}
@@ -829,7 +832,7 @@ void pbx_substitute_variables_helper_full_location(struct ast_channel *c, struct
 
 			/* Substitute if necessary */
 			if (needsub) {
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL);
+				pbx_substitute_variables_helper_full_location(c, headp, var, ltmp, VAR_BUF_SIZE - 1, NULL, context, exten, pri);
 				vars = ltmp;
 			} else {
 				vars = var;
