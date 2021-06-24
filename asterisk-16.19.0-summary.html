@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.19.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.19.0-rc1</h3><h3 align="center">Date: 2021-06-17</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-16.19.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-16.19.0</h3><h3 align="center">Date: 2021-06-24</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
 <li><a href="#summary">Summary</a></li>
 <li><a href="#contributors">Contributors</a></li>
 <li><a href="#closed_issues">Closed Issues</a></li>
@@ -7,7 +7,7 @@
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-16.18.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">12 Naveen Albert <asterisk@phreaknet.org><br/>5 Joshua C. Colp <jcolp@sangoma.com><br/>4 Sean Bright <sean.bright@gmail.com><br/>4 George Joseph <gjoseph@digium.com><br/>4 Jaco Kroon <jaco@uls.co.za><br/>4 Ben Ford <bford@digium.com><br/>2 Joseph Nadiv <ynadiv@corpit.xyz><br/>1 Asterisk Development Team <asteriskteam@digium.com><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Evgenios_Greek <jone1984@hotmail.com><br/></td><td width="33%">1 Joseph Nadiv<br/></td><td width="33%">12 N A <mail@interlinked.x10host.com><br/>2 George Joseph <gjoseph@digium.com><br/>2 Michael Maier <m1278468@mailbox.org><br/>1 Robert Sutton <rsutton@noojee.com.au><br/>1 Marco Paland <info@paland.com><br/>1 Lucas Tardioli Silveira<br/>1 Brian J. Murrell<br/>1 Matthias Hensler <mh@relaix.net><br/>1 Andrea Sannucci <asannucci@voztovoice.net><br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Lucas Tardioli Silveira <lucas.tardioli@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Luke Escude <luke@primevox.net><br/>1 Chris <christophe.cap@niko.eu><br/></td></tr>
+<tr valign="top"><td width="33%">12 Naveen Albert <asterisk@phreaknet.org><br/>5 Joshua C. Colp <jcolp@sangoma.com><br/>4 Sean Bright <sean.bright@gmail.com><br/>4 George Joseph <gjoseph@digium.com><br/>4 Jaco Kroon <jaco@uls.co.za><br/>4 Ben Ford <bford@digium.com><br/>2 Asterisk Development Team <asteriskteam@digium.com><br/>2 Joseph Nadiv <ynadiv@corpit.xyz><br/>1 Bernd Zobl <b.zobl@commend.com><br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Evgenios_Greek <jone1984@hotmail.com><br/></td><td width="33%">1 Joseph Nadiv<br/></td><td width="33%">12 N A <mail@interlinked.x10host.com><br/>2 George Joseph <gjoseph@digium.com><br/>2 Michael Maier <m1278468@mailbox.org><br/>1 Robert Sutton <rsutton@noojee.com.au><br/>1 Marco Paland <info@paland.com><br/>1 Lucas Tardioli Silveira<br/>1 Brian J. Murrell<br/>1 Matthias Hensler <mh@relaix.net><br/>1 Andrea Sannucci <asannucci@voztovoice.net><br/>1 Jeremy Lainé <jeremy.laine@m4x.org><br/>1 Lucas Tardioli Silveira <lucas.tardioli@gmail.com><br/>1 Joshua C. Colp <jcolp@digium.com><br/>1 Luke Escude <luke@primevox.net><br/>1 Chris <christophe.cap@niko.eu><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>New Feature</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29446">ASTERISK-29446</a>: app_confbridge: New ConfKick application<br/>Reported by: N A<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2c2dc7d97dfa03e9bfef8bed82d9c02ceed33699">[2c2dc7d97d]</a> Naveen Albert -- app_confbridge: New ConfKick() application</li>
 </ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-29440">ASTERISK-29440</a>: app_confbridge: Allow ConfBridge answer to be suppressed<br/>Reported by: N A<ul>
@@ -64,6 +64,7 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fe40c3cc740b4ae20f7da73e7ae93b76c2bce7dd">[fe40c3cc74]</a> Bernd Zobl -- res_pjsip/pjsip_message_filter: set preferred transport in pjsip_message_filter</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=88bfe3b30a3e13514f08086ace18260fe8a5dc2c">88bfe3b30a</a></td><td>Asterisk Development Team</td><td>Update for 16.19.0-rc1</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d41c4db68d754920b33b01021ca80d9e9dd0c305">d41c4db68d</a></td><td>Asterisk Development Team</td><td>Update CHANGES and UPGRADE.txt for 16.19.0</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b6bf6d091ef91afd2b36b50fe04d6842d80da559">b6bf6d091e</a></td><td>George Joseph</td><td>res_pjsip_messaging: Overwrite user in existing contact URI</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2dbf8cd1350d0ea92e6149b81da296bead32a617">2dbf8cd135</a></td><td>Jaco Kroon</td><td>func_lock: Add "dialplan locks show" cli command.</td></tr>
@@ -78,18 +79,19 @@
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=184a027eaa0125d47c46779c95c246926d68f965">184a027eaa</a></td><td>Ben Ford</td><td>STIR/SHAKEN: Fix certificate type and storage.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=63c25d3821a66b7eaae39851e1ac4d387a2e37c6">63c25d3821</a></td><td>George Joseph</td><td>Updates for the MessageSend Dialplan App</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d72c7d2d664c852c4454893a9c1587538bc55b43">d72c7d2d66</a></td><td>Sean Bright</td><td>translate.c: Avoid refleak when checking for a translation path</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                                                                        |    1
-.version                                                                          |    1
-ChangeLog                                                                         |93454 ----------
-asterisk-16.18.0-summary.html                                                     |  127
-asterisk-16.18.0-summary.txt                                                      |  348
-b/CHANGES                                                                         |   87
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-16.18.0-summary.html                                                     |  127 -
+asterisk-16.18.0-summary.txt                                                      |  348 ----
+b/.version                                                                        |    2
+b/CHANGES                                                                         |   87 +
+b/ChangeLog                                                                       |  651 +++++++
 b/UPGRADE.txt                                                                     |   18
-b/apps/app_confbridge.c                                                           |   90
-b/apps/app_originate.c                                                            |   85
+b/apps/app_confbridge.c                                                           |   90 +
+b/apps/app_originate.c                                                            |   85 -
 b/apps/app_voicemail.c                                                            |   27
 b/apps/confbridge/conf_config_parser.c                                            |   13
 b/apps/confbridge/include/confbridge.h                                            |    1
+b/asterisk-16.19.0-rc1-summary.html                                               |  151 +
+b/asterisk-16.19.0-rc1-summary.txt                                                |  408 ++++
 b/channels/chan_pjsip.c                                                           |    3
 b/channels/chan_sip.c                                                             |   19
 b/configs/samples/confbridge.conf.sample                                          |    2
@@ -100,7 +102,7 @@ b/configs/samples/stir_shaken.conf.sample                                       
 b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                    |    8
 b/doc/appdocsxml.dtd                                                              |    2
 b/funcs/func_lock.c                                                               |   71
-b/funcs/func_math.c                                                               |  173
+b/funcs/func_math.c                                                               |  173 ++
 b/funcs/func_volume.c                                                             |   48
 b/include/asterisk/res_pjsip.h                                                    |   51
 b/include/asterisk/res_stir_shaken.h                                              |    8
@@ -116,36 +118,30 @@ b/main/pbx_builtins.c                                                           
 b/main/stasis.c                                                                   |    1
 b/main/stasis_channels.c                                                          |    3
 b/main/translate.c                                                                |    2
-b/main/utils.c                                                                    |  129
+b/main/utils.c                                                                    |  129 +
 b/res/res_format_attr_ilbc.c                                                      |    3
 b/res/res_pjsip.c                                                                 |   66
 b/res/res_pjsip/config_transport.c                                                |    2
 b/res/res_pjsip/pjsip_configuration.c                                             |   19
 b/res/res_pjsip/pjsip_message_filter.c                                            |    8
 b/res/res_pjsip_authenticator_digest.c                                            |   27
-b/res/res_pjsip_dialog_info_body_generator.c                                      |  119
+b/res/res_pjsip_dialog_info_body_generator.c                                      |  119 +
 b/res/res_pjsip_dtmf_info.c                                                       |   10
-b/res/res_pjsip_messaging.c                                                       |  833
-b/res/res_pjsip_outbound_authenticator_digest.c                                   |  508
+b/res/res_pjsip_messaging.c                                                       |  833 ++++++++--
+b/res/res_pjsip_outbound_authenticator_digest.c                                   |  508 +++++-
 b/res/res_pjsip_registrar.c                                                       |   15
-b/res/res_pjsip_stir_shaken.c                                                     |  106
+b/res/res_pjsip_stir_shaken.c                                                     |  106 -
 b/res/res_rtp_asterisk.c                                                          |   41
-b/res/res_stir_shaken.c                                                           |  256
+b/res/res_stir_shaken.c                                                           |  256 +--
 b/res/res_stir_shaken/certificate.c                                               |   32
 b/res/res_stir_shaken/certificate.h                                               |   12
-b/res/res_stir_shaken/curl.c                                                      |  103
+b/res/res_stir_shaken/curl.c                                                      |  103 +
 b/res/res_stir_shaken/curl.h                                                      |   10
-b/res/res_stir_shaken/stir_shaken.c                                               |   84
+b/res/res_stir_shaken/stir_shaken.c                                               |   84 -
 b/res/res_stir_shaken/stir_shaken.h                                               |   12
 b/res/res_stir_shaken/store.c                                                     |   20
 b/res/res_xmpp.c                                                                  |    5
 b/res/stasis/messaging.c                                                          |   14
-b/third-party/pjproject/patches/0090-Skip-unsupported-digest-algorithm-2408.patch |  212
-b/third-party/pjproject/patches/0100-fix-double-stun-free.patch                   |   11
-contrib/realtime/mysql/mysql_cdr.sql                                              |   41
-contrib/realtime/mysql/mysql_config.sql                                           | 1288
-contrib/realtime/mysql/mysql_voicemail.sql                                        |   35
-contrib/realtime/postgresql/postgresql_cdr.sql                                    |   45
-contrib/realtime/postgresql/postgresql_config.sql                                 | 1392
-contrib/realtime/postgresql/postgresql_voicemail.sql                              |   39
-70 files changed, 3114 insertions(+), 97264 deletions(-)</pre><br></html>
+b/third-party/pjproject/patches/0090-Skip-unsupported-digest-algorithm-2408.patch |  212 ++
+b/third-party/pjproject/patches/0100-fix-double-stun-free.patch                   |   38
+65 files changed, 4350 insertions(+), 971 deletions(-)</pre><br></html>
