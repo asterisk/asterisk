@@ -525,7 +525,11 @@ static int acf_min_exec(struct ast_channel *chan, const char *cmd,
 	}
 
 	ast_debug(1, "%f is the minimum of [%f,%f]\n", response_num, num1, num2);
-	snprintf(buffer, buflen, "%f", response_num);
+	if ((int) response_num == response_num) {
+		snprintf(buffer, buflen, "%d", (int) response_num);
+	} else {
+		snprintf(buffer, buflen, "%f", response_num);
+	}
 
 	return 0;
 }
@@ -567,7 +571,11 @@ static int acf_max_exec(struct ast_channel *chan, const char *cmd,
 	}
 
 	ast_debug(1, "%f is the maximum of [%f,%f]\n", response_num, num1, num2);
-	snprintf(buffer, buflen, "%f", response_num);
+	if ((int) response_num == response_num) {
+		snprintf(buffer, buflen, "%d", (int) response_num);
+	} else {
+		snprintf(buffer, buflen, "%f", response_num);
+	}
 
 	return 0;
 }
@@ -589,7 +597,11 @@ static int acf_abs_exec(struct ast_channel *chan, const char *cmd,
 
 	response_num = fabs(num1);
 	ast_debug(1, "%f is the absolute value of %f\n", response_num, num1);
-	snprintf(buffer, buflen, "%f", response_num);
+	if ((int) response_num == response_num) {
+		snprintf(buffer, buflen, "%d", (int) response_num);
+	} else {
+		snprintf(buffer, buflen, "%f", response_num);
+	}
 
 	return 0;
 }
