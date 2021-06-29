@@ -261,13 +261,13 @@ static int playback_first_update(struct stasis_app_playback *playback,
 }
 
 static void playback_final_update(struct stasis_app_playback *playback,
-	long playedms, int res, const char *uniqueid)
+	long playedms, int res, int hangup, const char *uniqueid)
 {
 	SCOPED_AO2LOCK(lock, playback);
 
 	playback->playedms = playedms;
 	if (res == 0) {
-		if (playback->media_index == AST_VECTOR_SIZE(&playback->medias) - 1) {
+		if (playback->media_index == AST_VECTOR_SIZE(&playback->medias) - 1 || hangup ) {
 			playback->state = STASIS_PLAYBACK_STATE_COMPLETE;
 		} else {
 			playback->state = STASIS_PLAYBACK_STATE_CONTINUING;
@@ -279,7 +279,7 @@ static void playback_final_update(struct stasis_app_playback *playback,
 		} else {
 			ast_log(LOG_WARNING, "%s: Playback failed for %s\n",
 				uniqueid, playback->media);
-			if (playback->media_index == AST_VECTOR_SIZE(&playback->medias) - 1) {
+			if (playback->media_index == AST_VECTOR_SIZE(&playback->medias) - 1 || hangup ) {
 				playback->state = STASIS_PLAYBACK_STATE_FAILED;
 			} else {
 				playback->state = STASIS_PLAYBACK_STATE_CONTINUING;
@@ -294,6 +294,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 	struct ast_channel *chan)
 {
 	int res;
+	int hangup;
 	long offsetms;
 	size_t index;
 
@@ -377,8 +378,16 @@ static void play_on_channel(struct stasis_app_playback *playback,
 			continue;
 		}
 
-		playback_final_update(playback, offsetms, res,
+		hangup = ast_check_hangup(chan);
+
+		playback_final_update(playback, offsetms, res, hangup,
 			ast_channel_uniqueid(chan));
+
+		if (hangup) {
+			ast_log(LOG_DEBUG, "Channel: %s already hangup, stop playback\n", ast_channel_name(chan));
+			break;
+		}
+
 		if (res == AST_CONTROL_STREAM_STOP) {
 			break;
 		}
