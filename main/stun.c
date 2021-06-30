@@ -120,6 +120,8 @@ struct stun_addr {
 #define STUN_UNKNOWN_ATTRIBUTES	0x000a
 #define STUN_REFLECTED_FROM	0x000b
 
+#define STUN_MAX_RETRIES 3
+
 /*! \brief helper function to print message names */
 static const char *stun_msg2str(int msg)
 {
@@ -232,6 +234,22 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 		(*attr) = (struct stun_attr *)((*attr)->value + 8);
 		*len += size;
 		*left -= size;
+	}
+}
+
+static void handle_stun_timeout(int retry, struct sockaddr_in *dst)
+{
+	if (retry < STUN_MAX_RETRIES) {
+		ast_log(LOG_NOTICE,
+			"Attempt %d to send STUN request to '%s' timed out.",
+			retry,
+			ast_inet_ntoa(dst->sin_addr));
+	} else {
+		ast_log(LOG_WARNING,
+			"Attempt %d to send STUN request to '%s' timed out."
+			"Check that the server address is correct and reachable.\n",
+			retry,
+			ast_inet_ntoa(dst->sin_addr));
 	}
 }
 
@@ -410,7 +428,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 	req->msglen = htons(reqlen);
 	req->msgtype = htons(STUN_BINDREQ);
 
-	for (retry = 0; retry++ < 3;) {	/* XXX make retries configurable */
+	for (retry = 0; retry++ < STUN_MAX_RETRIES;) {	/* XXX make retries configurable */
 		/* send request, possibly wait for reply */
 		struct sockaddr_in src;
 		socklen_t srclen;
@@ -438,6 +456,7 @@ try_again:
 			ms = ast_remaining_ms(start, 3000);
 			if (ms <= 0) {
 				/* No response, timeout */
+				handle_stun_timeout(retry, dst);
 				res = 1;
 				continue;
 			}
@@ -448,6 +467,7 @@ try_again:
 			}
 			if (!res) {
 				/* No response, timeout */
+				handle_stun_timeout(retry, dst);
 				res = 1;
 				continue;
 			}
