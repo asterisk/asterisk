@@ -40,6 +40,7 @@
 #include "asterisk/bucket.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/uri.h"
 
 #define GLOBAL_USERAGENT "asterisk-libcurl-agent/1.0"
 
@@ -229,83 +230,22 @@ static char *file_extension_from_content_type(struct ast_bucket_file *bucket_fil
 	return NULL;
 }
 
-/* The URL parsing API was introduced in 7.62.0 */
-#if LIBCURL_VERSION_NUM >= 0x073e00
-
 static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
 {
-	char *path;
-	CURLU *h;
+	struct ast_uri *uri;
 
-	h = curl_url();
-	if (!h) {
-		ast_log(LOG_ERROR, "Failed to allocate cURL URL handle\n");
-		return NULL;
-	}
-
-	if (curl_url_set(h, CURLUPART_URL, ast_sorcery_object_get_id(bucket_file), 0)) {
-		ast_log(LOG_ERROR, "Failed to parse URL: %s\n",
+	uri = ast_uri_parse(ast_sorcery_object_get_id(bucket_file));
+	if (!uri) {
+		ast_log(LOG_ERROR, "Failed to parse URI: %s\n",
 			ast_sorcery_object_get_id(bucket_file));
-		curl_url_cleanup(h);
 		return NULL;
 	}
-
-	curl_url_get(h, CURLUPART_PATH, &path, 0);
 
 	/* Just parse it as a string like before, but without the extra cruft */
-	buffer = file_extension_from_string(path, buffer, capacity);
-
-	curl_free(path);
-	curl_url_cleanup(h);
-
+	buffer = file_extension_from_string(ast_uri_path(uri), buffer, capacity);
+	ao2_cleanup(uri);
 	return buffer;
 }
-
-#elif defined(HAVE_URIPARSER)
-
-#include <uriparser/Uri.h>
-
-static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
-{
-	UriParserStateA state;
-	UriUriA full_uri;
-	char *path;
-
-	state.uri = &full_uri;
-	if (uriParseUriA(&state, ast_sorcery_object_get_id(bucket_file)) != URI_SUCCESS
-	   || !full_uri.scheme.first
-	   || !full_uri.scheme.afterLast
-	   || !full_uri.pathTail) {
-		ast_log(LOG_ERROR, "Failed to parse URL: %s\n",
-			ast_sorcery_object_get_id(bucket_file));
-		uriFreeUriMembersA(&full_uri);
-		return NULL;
-	}
-
-	if (ast_asprintf(&path,
-			"%.*s",
-			(int) (full_uri.pathTail->text.afterLast - full_uri.pathTail->text.first),
-			full_uri.pathTail->text.first) != -1) {
-		/* Just parse it as a string like before, but without the extra cruft */
-		file_extension_from_string(path, buffer, capacity);
-		ast_free(path);
-		uriFreeUriMembersA(&full_uri);
-		return buffer;
-	}
-
-	uriFreeUriMembersA(&full_uri);
-	return NULL;
-}
-
-#else
-
-static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
-{
-	/* NOP */
-	return NULL;
-}
-
-#endif
 
 static void bucket_file_set_extension(struct ast_bucket_file *bucket_file)
 {

@@ -41,14 +41,6 @@
 #include "asterisk/bucket.h"
 #include "asterisk/test.h"
 
-#undef INCLUDE_URI_PARSING_TESTS
-#if defined(HAVE_CURL)
-# include <curl/curl.h>
-#endif
-#if (defined(HAVE_CURL) && LIBCURL_VERSION_NUM >= 0x073e00) || defined(HAVE_URIPARSER)
-# define INCLUDE_URI_PARSING_TESTS 1
-#endif
-
 #define CATEGORY "/res/http_media_cache/"
 
 #define TEST_URI "test_media_cache"
@@ -268,7 +260,6 @@ AST_TEST_DEFINE(retrieve_content_type)
 	return AST_TEST_PASS;
 }
 
-#ifdef INCLUDE_URI_PARSING_TESTS
 AST_TEST_DEFINE(retrieve_parsed_uri)
 {
 	RAII_VAR(struct ast_bucket_file *, bucket_file, NULL, bucket_file_cleanup);
@@ -302,7 +293,6 @@ AST_TEST_DEFINE(retrieve_parsed_uri)
 
 	return AST_TEST_PASS;
 }
-#endif
 
 AST_TEST_DEFINE(retrieve_cache_control_directives)
 {
@@ -754,11 +744,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(retrieve_etag_expired);
 	AST_TEST_REGISTER(retrieve_cache_control_age);
 	AST_TEST_REGISTER(retrieve_cache_control_directives);
-	AST_TEST_REGISTER(retrieve_content_type);
-
-#ifdef INCLUDE_URI_PARSING_TESTS
 	AST_TEST_REGISTER(retrieve_parsed_uri);
-#endif
+	AST_TEST_REGISTER(retrieve_content_type);
 
 	ast_test_register_init(CATEGORY, pre_test_cb);
 
@@ -777,11 +764,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(retrieve_etag_expired);
 	AST_TEST_UNREGISTER(retrieve_cache_control_age);
 	AST_TEST_UNREGISTER(retrieve_cache_control_directives);
-	AST_TEST_REGISTER(retrieve_content_type);
-
-#ifdef INCLUDE_URI_PARSING_TESTS
 	AST_TEST_REGISTER(retrieve_parsed_uri);
-#endif
+	AST_TEST_REGISTER(retrieve_content_type);
 
 	return 0;
 }
