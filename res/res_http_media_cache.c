@@ -35,6 +35,7 @@
 
 #include <curl/curl.h>
 
+#include "asterisk/file.h"
 #include "asterisk/module.h"
 #include "asterisk/bucket.h"
 #include "asterisk/sorcery.h"
@@ -153,6 +154,176 @@ static void bucket_file_set_expiration(struct ast_bucket_file *bucket_file)
 	snprintf(time_buf, sizeof(time_buf), "%30lu", actual_expires.tv_sec);
 
 	ast_bucket_file_metadata_set(bucket_file, "__actual_expires", time_buf);
+}
+
+static char *file_extension_from_string(const char *str, char *buffer, size_t capacity)
+{
+	const char *ext;
+
+	ext = strrchr(str, '.');
+	if (ext && ast_get_format_for_file_ext(ext + 1)) {
+		ast_debug(3, "Found extension '%s' at end of string\n", ext);
+		ast_copy_string(buffer, ext, capacity);
+		return buffer;
+	}
+
+	return NULL;
+}
+
+static char *file_extension_from_url(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
+{
+	return file_extension_from_string(ast_sorcery_object_get_id(bucket_file), buffer, capacity);
+}
+
+/*!
+ * \internal
+ * \brief Normalize the value of a Content-Type header
+ *
+ * This will trim off any optional parameters after the type/subtype.
+ */
+static void normalize_content_type_header(char *content_type)
+{
+	char *params = strchr(content_type, ';');
+
+	if (params) {
+		*params-- = 0;
+		while (params > content_type && (*params == ' ' || *params == '\t')) {
+			*params-- = 0;
+		}
+	}
+}
+
+static char *file_extension_from_content_type(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
+{
+	/* Check for the extension based on the MIME type passed in the Content-Type
+	 * header.
+	 *
+	 * If a match is found then retrieve the extension from the supported list
+	 * corresponding to the mime-type and use that to rename the file */
+
+	struct ast_bucket_metadata *header;
+	char *mime_type;
+
+	header = ast_bucket_file_metadata_get(bucket_file, "content-type");
+	if (!header) {
+		return NULL;
+	}
+
+	mime_type = ast_strdup(header->value);
+	if (mime_type) {
+		normalize_content_type_header(mime_type);
+		if (!ast_strlen_zero(mime_type)) {
+			if (ast_get_extension_for_mime_type(mime_type, buffer, sizeof(buffer))) {
+				ast_debug(3, "Derived extension '%s' from MIME type %s\n",
+					buffer,
+					mime_type);
+				ast_free(mime_type);
+				ao2_ref(header, -1);
+				return buffer;
+			}
+		}
+	}
+	ast_free(mime_type);
+	ao2_ref(header, -1);
+
+	return NULL;
+}
+
+/* The URL parsing API was introduced in 7.62.0 */
+#if LIBCURL_VERSION_NUM >= 0x073e00
+
+static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
+{
+	char *path;
+	CURLU *h;
+
+	h = curl_url();
+	if (!h) {
+		ast_log(LOG_ERROR, "Failed to allocate cURL URL handle\n");
+		return NULL;
+	}
+
+	if (curl_url_set(h, CURLUPART_URL, ast_sorcery_object_get_id(bucket_file), 0)) {
+		ast_log(LOG_ERROR, "Failed to parse URL: %s\n",
+			ast_sorcery_object_get_id(bucket_file));
+		curl_url_cleanup(h);
+		return NULL;
+	}
+
+	curl_url_get(h, CURLUPART_PATH, &path, 0);
+
+	/* Just parse it as a string like before, but without the extra cruft */
+	buffer = file_extension_from_string(path, buffer, capacity);
+
+	curl_free(path);
+	curl_url_cleanup(h);
+
+	return buffer;
+}
+
+#elif defined(HAVE_URIPARSER)
+
+#include <uriparser/Uri.h>
+
+static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
+{
+	UriParserStateA state;
+	UriUriA full_uri;
+	char *path;
+
+	state.uri = &full_uri;
+	if (uriParseUriA(&state, ast_sorcery_object_get_id(bucket_file)) != URI_SUCCESS
+	   || !full_uri.scheme.first
+	   || !full_uri.scheme.afterLast
+	   || !full_uri.pathTail) {
+		ast_log(LOG_ERROR, "Failed to parse URL: %s\n",
+			ast_sorcery_object_get_id(bucket_file));
+		uriFreeUriMembersA(&full_uri);
+		return NULL;
+	}
+
+	if (ast_asprintf(&path,
+			"%.*s",
+			(int) (full_uri.pathTail->text.afterLast - full_uri.pathTail->text.first),
+			full_uri.pathTail->text.first) != -1) {
+		/* Just parse it as a string like before, but without the extra cruft */
+		file_extension_from_string(path, buffer, capacity);
+		ast_free(path);
+		uriFreeUriMembersA(&full_uri);
+		return buffer;
+	}
+
+	uriFreeUriMembersA(&full_uri);
+	return NULL;
+}
+
+#else
+
+static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
+{
+	/* NOP */
+	return NULL;
+}
+
+#endif
+
+static void bucket_file_set_extension(struct ast_bucket_file *bucket_file)
+{
+	/* We will attempt to determine an extension in the following order for backwards
+	 * compatibility:
+	 *
+	 * 1. Look at tail end of URL for extension
+	 * 2. Use the Content-Type header if present
+	 * 3. Parse the URL (assuming we can) and look at the tail of the path
+	 */
+
+	char buffer[64];
+
+	if (file_extension_from_url(bucket_file, buffer, sizeof(buffer))
+	   || file_extension_from_content_type(bucket_file, buffer, sizeof(buffer))
+	   || file_extension_from_url_path(bucket_file, buffer, sizeof(buffer))) {
+		ast_bucket_file_metadata_set(bucket_file, "ext", buffer);
+	}
 }
 
 /*! \internal
@@ -278,6 +449,7 @@ static int bucket_file_run_curl(struct ast_bucket_file *bucket_file)
 
 	if (http_code / 100 == 2) {
 		bucket_file_set_expiration(bucket_file);
+		bucket_file_set_extension(bucket_file);
 		return 0;
 	} else {
 		ast_log(LOG_WARNING, "Failed to retrieve URL '%s': server returned %ld\n",
