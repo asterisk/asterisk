@@ -57,6 +57,7 @@ struct test_options {
 	struct timeval expires;
 	const char *status_text;
 	const char *etag;
+	const char *content_type;
 };
 
 static struct test_options options;
@@ -123,6 +124,10 @@ static int http_callback(struct ast_tcptls_session_instance *ser, const struct a
 			ast_log(LOG_ERROR, "Unable to open temp file for testing: %s (%d)", strerror(errno), errno);
 			goto error;
 		}
+	}
+
+	if (!ast_strlen_zero(options.content_type)) {
+		ast_str_append(&http_header, 0, "Content-Type: %s\r\n", options.content_type);
 	}
 
 	if (options.cache_control.maxage) {
@@ -218,6 +223,75 @@ static void bucket_file_cleanup(void *obj)
 		ast_bucket_file_delete(bucket_file);
 		ao2_ref(bucket_file, -1);
 	}
+}
+
+AST_TEST_DEFINE(retrieve_content_type)
+{
+	RAII_VAR(struct ast_bucket_file *, bucket_file, NULL, bucket_file_cleanup);
+	char uri[1024];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = CATEGORY;
+		info->summary = "Test retrieval of a resource with a Content-Type header";
+		info->description =
+			"This test covers retrieval of a resource whose URL does not end with\n"
+			"a parseable extension and whose response includes a Content-Type\n"
+			"header that we recognize.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	options.send_file = 1;
+	options.status_code = 200;
+	options.status_text = "OK";
+	options.content_type = "audio/wav";
+
+	snprintf(uri, sizeof(uri), "%s/%s", server_uri, "foo.wav?account_id=1234");
+
+	bucket_file = ast_bucket_file_retrieve(uri);
+	ast_test_validate(test, bucket_file != NULL);
+	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
+	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
+	VALIDATE_STR_METADATA(test, bucket_file, "ext", ".wav");
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(retrieve_parsed_uri)
+{
+	RAII_VAR(struct ast_bucket_file *, bucket_file, NULL, bucket_file_cleanup);
+	char uri[1024];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = CATEGORY;
+		info->summary = "Test retrieval of a resource with a complex URI";
+		info->description =
+			"This test covers retrieval of a resource whose URL does not end with\n"
+			"a parseable extension, but the path portion of the URL does end with\n"
+			"parseable extension.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	options.send_file = 1;
+	options.status_code = 200;
+	options.status_text = "OK";
+
+	snprintf(uri, sizeof(uri), "%s/%s", server_uri, "foo.wav?account_id=1234");
+
+	bucket_file = ast_bucket_file_retrieve(uri);
+	ast_test_validate(test, bucket_file != NULL);
+	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
+	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
+	VALIDATE_STR_METADATA(test, bucket_file, "ext", ".wav");
+
+	return AST_TEST_PASS;
 }
 
 AST_TEST_DEFINE(retrieve_cache_control_directives)
@@ -670,6 +744,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(retrieve_etag_expired);
 	AST_TEST_REGISTER(retrieve_cache_control_age);
 	AST_TEST_REGISTER(retrieve_cache_control_directives);
+	AST_TEST_REGISTER(retrieve_parsed_uri);
+	AST_TEST_REGISTER(retrieve_content_type);
 
 	ast_test_register_init(CATEGORY, pre_test_cb);
 
@@ -688,6 +764,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(retrieve_etag_expired);
 	AST_TEST_UNREGISTER(retrieve_cache_control_age);
 	AST_TEST_UNREGISTER(retrieve_cache_control_directives);
+	AST_TEST_REGISTER(retrieve_parsed_uri);
+	AST_TEST_REGISTER(retrieve_content_type);
 
 	return 0;
 }
