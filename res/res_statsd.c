@@ -58,6 +58,10 @@
 					you want to fake out a server using netcat
 					(nc -lu 8125)</synopsis>
 				</configOption>
+				<configOption name="meter_support">
+					<synopsis>Enable/disable the non-standard StatsD Meter type,
+					if disabled falls back to counter and will append a "_meter" suffix to the metric name</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -89,6 +93,8 @@ struct conf_global_options {
 	struct ast_sockaddr statsd_server;
 	/*! Prefix to put on every stat. */
 	char prefix[MAX_PREFIX + 1];
+	/*! Enabled support for non-standard Meter type by default, falls back to counter if disabled */
+	int meter_support;
 };
 
 /*! \brief All configuration options for statsd client. */
@@ -142,7 +148,11 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_string)(const char *metric_name,
 		ast_str_append(&msg, 0, "%s.", cfg->global->prefix);
 	}
 
-	ast_str_append(&msg, 0, "%s:%s|%s", metric_name, value, metric_type);
+	if (!cfg->global->meter_support && strcmp(metric_type, AST_STATSD_METER)) {
+		ast_str_append(&msg, 0, "%s_meter:%s|%s", metric_name, value, AST_STATSD_COUNTER);
+	} else {
+		ast_str_append(&msg, 0, "%s:%s|%s", metric_name, value, metric_type);
+	}
 
 	if (sample_rate < 1.0) {
 		ast_str_append(&msg, 0, "|@%.2f", sample_rate);
@@ -359,6 +369,10 @@ static int load_module(void)
 	aco_option_register(&cfg_info, "prefix", ACO_EXACT, global_options,
 		"", OPT_CHAR_ARRAY_T, 0,
 		CHARFLDSET(struct conf_global_options, prefix));
+
+	aco_option_register(&cfg_info, "meter_support", ACO_EXACT, global_options,
+		"yes", OPT_BOOL_T, 1,
+		FLDSET(struct conf_global_options, meter_support));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		struct conf *cfg;

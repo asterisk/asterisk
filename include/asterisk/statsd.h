@@ -41,8 +41,12 @@
 #define AST_STATSD_TIMER "ms"
 /*! Distribution of values over time. */
 #define AST_STATSD_HISTOGRAM "h"
-/*! Events over time. Sorta like increment-only counters. */
+/*!
+ * Meters are non-standard and poorly supported by StatsD servers
+ * \deprecated You should switch to counter or stateful counters for a similar effect.
+ */
 #define AST_STATSD_METER "m"
+
 
 /*!
  * \brief Send a stat to the configured statsd server.
