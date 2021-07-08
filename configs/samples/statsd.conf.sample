@@ -6,3 +6,6 @@
 ;add_newline = no		; Append a newline to every event. This is
 				; useful if you want to run a fake statsd
 				; server using netcat (nc -lu 8125)
+;meter_support = yes	; Enable/disable the non-standard StatsD Meter type
+				; if disabled falls back to counter
+				; and will append a "_meter" suffix to the metric name
