@@ -255,7 +255,7 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 	ast_copy_pj_str(dest_tn, &uri->user, uri->user.slen + 1);
 
 	/* x5u (public key URL), attestation, and origid will be added by ast_stir_shaken_sign */
-	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: s}, s: {s: s}}}",
+	json = ast_json_pack("{s: {s: s, s: s, s: s}, s: {s: {s: [s]}, s: {s: s}}}",
 		"header", "alg", "ES256", "ppt", "shaken", "typ", "passport",
 		"payload", "dest", "tn", dest_tn, "orig", "tn",
 		session->id.number.str);
@@ -266,7 +266,7 @@ static int add_identity_header(const struct ast_sip_session *session, pjsip_tx_d
 
 	ss_payload = ast_stir_shaken_sign(json);
 	if (!ss_payload) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for STIR/SHAKEN payload\n");
+		ast_log(LOG_ERROR, "Failed to sign STIR/SHAKEN payload\n");
 		return -1;
 	}
 
