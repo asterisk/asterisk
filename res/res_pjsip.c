@@ -940,6 +940,13 @@
 						When enabled the UDPTL stack will use IPv6.
 					</para></description>
 				</configOption>
+				<configOption name="t38_bind_udptl_to_media_address" default="no">
+					<synopsis>Bind the UDPTL instance to the media_adress</synopsis>
+					<description><para>
+						If media_address is specified, this option causes the UDPTL instance to be bound to
+						the specified ip address which causes the packets to be sent from that address.
+					</para></description>
+				</configOption>
 				<configOption name="tone_zone">
 					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
 				</configOption>
@@ -2782,6 +2789,9 @@
 				</parameter>
 				<parameter name="T38UdptlIpv6">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_ipv6']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38BindUdptlToMediaAddress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_bind_udptl_to_media_address']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="ToneZone">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tone_zone']/synopsis/node())"/></para>
