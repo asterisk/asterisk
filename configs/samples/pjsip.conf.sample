@@ -725,6 +725,9 @@
                         ; (default: "0")
 ;t38_udptl_nat=no       ; Whether NAT support is enabled on UDPTL sessions
                         ; (default: "no")
+;t38_bind_rtp_to_media_address=     ; Bind the UDPTL session to the media_address.
+                                    ; This causes all UDPTL packets to be sent from
+                                    ; the specified address. (default: "no")
 ;tone_zone=     ; Set which country s indications to use for channels created
                 ; for this endpoint (default: "")
 ;language=      ; Set the default language to use for channels created for this
