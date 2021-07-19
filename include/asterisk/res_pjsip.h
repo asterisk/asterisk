@@ -760,6 +760,8 @@ struct ast_sip_t38_configuration {
 	unsigned int nat;
 	/*! Whether to use IPv6 for UDPTL or not */
 	unsigned int ipv6;
+	/*! Bind the UDPTL instance to the media_address */
+	unsigned int bind_udptl_to_media_address;
 };
 
 /*!
