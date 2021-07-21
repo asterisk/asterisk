@@ -1,9 +1,0 @@
-Subject: Log Rotate
-Master-Only: True
-
-The sample logger files have been changed to have .log as their file
-extension. This was done so that when attached to issues on the issue
-tracker, they are able to be opened in the browser for convenience.
-Because of this, the asterisk.logrotate script has been updated to look
-for .log extensions instead of no extension for files such as full
-and messages.

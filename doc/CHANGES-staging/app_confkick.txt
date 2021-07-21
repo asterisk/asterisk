@@ -1,6 +1,0 @@
-Subject: New ConfKick application
-
-Adds a ConfKick() application, which allows
-a specific channel, all users, or all non-admin
-users to be kicked from a conference bridge.
-

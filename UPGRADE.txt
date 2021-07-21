@@ -19,6 +19,58 @@
 ===========================================================
 
 ------------------------------------------------------------------------------
+--- New functionality introduced in Asterisk 19.0.0 --------------------------
+------------------------------------------------------------------------------
+
+Log Rotate
+------------------
+ * The sample logger files have been changed to have .log as their file
+   extension. This was done so that when attached to issues on the issue
+   tracker, they are able to be opened in the browser for convenience.
+   Because of this, the asterisk.logrotate script has been updated to look
+   for .log extensions instead of no extension for files such as full
+   and messages.
+
+chan_sip
+------------------
+ * chan_sip is no longer built by default. To build it, make sure to
+   enable it when running 'make menuselect'
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.0.0 to Asterisk 19.0.0 ------------
+------------------------------------------------------------------------------
+
+STIR/SHAKEN
+------------------
+ * The configuration option public_key_url in stir_shaken.conf
+   has been renamed to public_cert_url to better fit what it
+   contains. Only the name has changed - functionality is the
+   same.
+
+ * STIR/SHAKEN originally needed an origid to be specified in
+   stir_shaken.conf under the certificate config object in
+   order to work. Now, one is automatically created by
+   generating a UUID, as recommended by RFC8588. Any origid
+   you have in your stir_shaken.conf will need to be removed
+   for the module to read in certificates.
+
+menuselect
+------------------
+ * menuselect --enable, --disable, --enable-category and --disable-category will
+   now fail with a non-zero exit code instead of silently failing if an invalid
+   option or category is specified.
+
+res_srtp
+------------------
+ * SRTP replay protection has been added to res_srtp and
+   a new configuration option "srtpreplayprotection" has
+   been added to the rtp.conf config file.  For security
+   reasons, the default setting is "yes".  Buggy clients
+   may not handle this correctly which could result in
+   no, or one way, audio and Asterisk error messages like
+   "replay check failed".
+
+------------------------------------------------------------------------------
 --- New functionality introduced in Asterisk 18.0.0 --------------------------
 ------------------------------------------------------------------------------
 

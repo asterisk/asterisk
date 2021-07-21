@@ -1,4 +1,0 @@
-Subject: res_pjsip
-
-PJSIP transports can now be partially reloaded safely. This allows the
-local_net and external_* options to be updated without restarting Asterisk.

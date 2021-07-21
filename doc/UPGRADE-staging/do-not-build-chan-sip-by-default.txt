@@ -1,5 +1,0 @@
-Subject: chan_sip
-Master-Only: True
-
-chan_sip is no longer built by default. To build it, make sure to
-enable it when running 'make menuselect'
