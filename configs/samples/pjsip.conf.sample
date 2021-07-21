@@ -1056,6 +1056,16 @@
                         ; contact created by rewrite_contact that the device is
                         ; refreshing.
                         ; (default: "no")
+;remove_unavailable=no  ; If remove_existing is disabled, will allow a registration
+                        ; to succeed by removing only unavailable contacts when
+                        ; max_contacts is exceeded. This will reject a registration
+                        ; that exceeds max_contacts if no unavailable contacts are
+                        ; present to remove. If remove_existing is enabled, will
+                        ; prioritize removal of unavailable contacts before removing
+                        ; expiring soonest.  This tames the behavior of remove_existing
+                        ; to only remove an available contact if an unavailable one is
+                        ; not present.
+                        ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
 ;qualify_frequency=0    ; Interval at which to qualify an AoR via OPTIONS requests.
                         ; (default: "0")

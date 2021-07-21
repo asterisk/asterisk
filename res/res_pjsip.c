@@ -1679,8 +1679,9 @@
 						TLS.  Unfortunately, refreshing a registration may register a
 						different contact address and exceed
 						<replaceable>max_contacts</replaceable>.  The
-						<replaceable>remove_existing</replaceable> option can help by
-						removing the soonest to expire contact(s) over
+						<replaceable>remove_existing</replaceable> and
+						<replaceable>remove_unavailable</replaceable> options can help by
+						removing either the soonest to expire or unavailable contact(s) over
 						<replaceable>max_contacts</replaceable> which is likely the
 						old <replaceable>rewrite_contact</replaceable> contact source
 						address being refreshed.
@@ -1720,6 +1721,26 @@
 						<note><para>This should be set to <literal>yes</literal> and
 						<replaceable>max_contacts</replaceable> set to <literal>1</literal> if you
 						wish to stick with the older <literal>chan_sip</literal> behaviour.
+						</para></note>
+					</description>
+				</configOption>
+				<configOption name="remove_unavailable" default="no">
+					<synopsis>Determines whether new contacts should replace unavailable ones.</synopsis>
+					<description><para>
+						The effect of this setting depends on the setting of
+						<replaceable>remove_existing</replaceable>.</para>
+						<para>If <replaceable>remove_existing</replaceable> is set to
+						<literal>no</literal> (default), setting remove_unavailable to
+						<literal>yes</literal> will remove only unavailable contacts that exceed
+						<replaceable>max_contacts</replaceable>	to allow an incoming
+						REGISTER to complete sucessfully.</para>
+						<para>If <replaceable>remove_existing</replaceable> is set to
+						<literal>yes</literal>, setting remove_unavailable to
+						<literal>yes</literal> will prioritize unavailable contacts for removal
+						instead of just removing the contact that expires the soonest.</para>
+						<note><para>See <replaceable>remove_existing</replaceable> and
+						<replaceable>max_contacts</replaceable> for further information about how
+						these 3 settings interact.
 						</para></note>
 					</description>
 				</configOption>
@@ -2125,6 +2146,9 @@
 				</parameter>
 				<parameter name="RemoveExisting">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RemoveUnavailable">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_unavailable']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="Mailboxes">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
@@ -2585,6 +2609,9 @@
 				</parameter>
 				<parameter name="RemoveExisting">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RemoveUnavailable">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_unavailable']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="Mailboxes">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
