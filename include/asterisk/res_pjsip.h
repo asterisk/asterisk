@@ -389,6 +389,8 @@ struct ast_sip_aor {
 	double qualify_timeout;
 	/*! Voicemail extension to set in Message-Account */
 	char *voicemail_extension;
+	/*! Whether to remove unavailable contacts over max_contacts at all or first if remove_existing is enabled */
+	unsigned int remove_unavailable;
 };
 
 /*!
