@@ -1,8 +1,8 @@
                                 Release Summary
 
-                                asterisk-13.38.2
+                                asterisk-13.38.3
 
-                                Date: 2021-02-18
+                                Date: 2021-07-22
 
                            <asteriskteam@digium.com>
 
@@ -30,10 +30,10 @@
 
    Security Advisories:
 
-     * AST-2021-001,AST-2021-003,AST-2021-005
+     * AST-2021-008,AST-2021-009
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-13.38.1.
+   previous release, asterisk-13.38.2.
 
      ----------------------------------------------------------------------
 
@@ -50,12 +50,9 @@
    issues that they reported that were affected by commits that went into
    this release.
 
-   Coders                   Testers       Reporters                           
-   1 Ivan Poddubnyi                       1 Ivan Poddubny                     
-   1 Joshua C. Colp                       1 Ivan Poddubny                     
-   1 Alexander Traud                      1 Alexander Traud                   
-                                          1 Mauri de Souza Meneguzzo (3CPlus) 
-                                          1 Alexander Traud                   
+   Coders                   Testers                  Reporters                
+   2 Kevin Harwell                                   1 Michael Welk           
+                                                     1 Andrew Yager           
 
      ----------------------------------------------------------------------
 
@@ -68,28 +65,22 @@
 
   Security
 
-    Category: Resources/res_srtp
+    Category: Channels/chan_pjsip
 
-   ASTERISK-29260: sRTP Replay Protection ignored; even tears down long calls
-   Reported by: Alexander Traud
-     * [b77dcbd905] Alexander Traud -- rtp: Enable srtp replay protection
-
-    Category: pjproject/pjsip
-
-   ASTERISK-29227: res_pjsip_diversion: sending multiple 181 responses causes
-   memory corruption and crash
-   Reported by: Ivan Poddubny
-     * [a86d326b5e] Ivan Poddubnyi -- res_pjsip_diversion: Fix adding more
-       than one histinfo to Supported
+   ASTERISK-29415: Crash in PJSIP TLS transport
+   Reported by: Andrew Yager
+     * [d7499f2eba] Kevin Harwell -- AST-2021-009 - pjproject-bundled: Avoid
+       crash during handshake for TLS
 
   Bug
 
-    Category: Resources/res_pjsip
+    Category: Channels/chan_iax2
 
-   ASTERISK-29196: res_pjsip: Segmentation fault
-   Reported by: Mauri de Souza Meneguzzo (3CPlus)
-     * [5016b84076] Joshua C. Colp -- pjsip: Make modify_local_offer2
-       tolerate previous failed SDP.
+   ASTERISK-29392: chan_iax2: Asterisk crashes when queueing video with
+   format
+   Reported by: Michael Welk
+     * [7eb2032386] Kevin Harwell -- AST-2021-008 - chan_iax2: remote crash
+       on unsupported media format
 
      ----------------------------------------------------------------------
 
@@ -100,11 +91,7 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- configs/samples/rtp.conf.sample                |   12 ++++++++++++
- doc/CHANGES-staging/srtp_replay_protection.txt |    9 +++++++++
- doc/UPGRADE-staging/srtp_replay_protection.txt |    9 +++++++++
- res/res_pjsip_diversion.c                      |   14 ++++++++++++++
- res/res_pjsip_outbound_registration.c          |   12 ++++++++++++
- res/res_pjsip_path.c                           |   12 ++++++++++++
- res/res_rtp_asterisk.c                         |   12 +++++++++++-
- 7 files changed, 79 insertions(+), 1 deletion(-)
+ channels/chan_iax2.c                                                   |   40 +-
+ third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166 ++++++++++
+ third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   36 ++
+ 3 files changed, 233 insertions(+), 9 deletions(-)

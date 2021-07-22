@@ -1,3 +1,35 @@
+2021-07-22 22:04 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.38.3 Released.
+
+2021-06-14 13:28 +0000 [d7499f2eba]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-009 - pjproject-bundled: Avoid crash during handshake for TLS
+
+	  If an SSL socket parent/listener was destroyed during the handshake,
+	  depending on timing, it was possible for the handling callback to
+	  attempt access of it after the fact thus causing a crash.
+
+	  ASTERISK-29415 #close
+
+	  Change-Id: I105dacdcd130ea7fdd4cf2010ccf35b5eaf1432d
+
+2021-05-10 17:59 +0000 [7eb2032386]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-008 - chan_iax2: remote crash on unsupported media format
+
+	  If chan_iax2 received a packet with an unsupported media format, for
+	  example vp9, then it would set the frame's format to NULL. This could
+	  then result in a crash later when an attempt was made to access the
+	  format.
+
+	  This patch makes it so chan_iax2 now ignores/drops frames received
+	  with unsupported media format types.
+
+	  ASTERISK-29392 #close
+
+	  Change-Id: Ifa869a90dafe33eed8fd9463574fe6f1c0ad3eb1
+
 2021-02-18 16:46 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.38.2 Released.
