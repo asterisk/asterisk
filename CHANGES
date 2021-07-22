@@ -13,6 +13,36 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 18.5.0 to Asterisk 18.5.1 ------------
+------------------------------------------------------------------------------
+
+New Reload application
+------------------
+ * Adds an application to reload modules
+
+PlaybackFinished has a new error state
+------------------
+ * The PlaybackFinished event now has a new state "failed"
+   that is used when the sound file was not played due to an error.
+   Before the state on PlaybackFinished was always "done".
+
+   In case of multiple sound files to be played,
+   the PlaybackFinished is sent only once in the end of the list,
+   even in case of error.
+
+WaitForCondition application
+------------------
+ * This application provides a way to halt
+   dialplan execution until a provided
+   condition evaluates to true.
+
+app_dial announcement option
+------------------
+ * The A option for Dial now supports
+   playing audio to the caller as well
+   as the called party.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 18.4.0 to Asterisk 18.5.0 ------------
 ------------------------------------------------------------------------------
 
