@@ -1,9 +1,0 @@
-Subject: PlaybackFinished has a new error state
-
-The PlaybackFinished event now has a new state "failed"
-that is used when the sound file was not played due to an error.
-Before the state on PlaybackFinished was always "done".
-
-In case of multiple sound files to be played,
-the PlaybackFinished is sent only once in the end of the list,
-even in case of error.
