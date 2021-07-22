@@ -457,6 +457,7 @@ static struct ast_codec g729a = {
 	.samples_count = g729_samples,
 	.get_length = g729_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_G729,
 };
 
 static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
