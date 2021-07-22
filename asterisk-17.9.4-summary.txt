@@ -1,8 +1,8 @@
                                 Release Summary
 
-                                asterisk-17.9.3
+                                asterisk-17.9.4
 
-                                Date: 2021-03-04
+                                Date: 2021-07-22
 
                            <asteriskteam@digium.com>
 
@@ -30,10 +30,10 @@
 
    Security Advisories:
 
-     * AST-2021-006
+     * AST-2021-008,AST-2021-009
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-17.9.2.
+   previous release, asterisk-17.9.3.
 
      ----------------------------------------------------------------------
 
@@ -51,7 +51,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Ben Ford                                        1 Gregory Massel         
+   2 Kevin Harwell                                   1 Michael Welk           
+                                                     1 Andrew Yager           
 
      ----------------------------------------------------------------------
 
@@ -64,13 +65,22 @@
 
   Security
 
-    Category: Resources/res_pjsip_t38
+    Category: Channels/chan_pjsip
 
-   ASTERISK-29305: ASTERISK-29203 / AST-2021-002 -- Another scenario is
-   causing a crash
-   Reported by: Gregory Massel
-     * [4be5bddafb] Ben Ford -- AST-2021-006 - res_pjsip_t38.c: Check for
-       session_media on reinvite.
+   ASTERISK-29415: Crash in PJSIP TLS transport
+   Reported by: Andrew Yager
+     * [093167003a] Kevin Harwell -- AST-2021-009 - pjproject-bundled: Avoid
+       crash during handshake for TLS
+
+  Bug
+
+    Category: Channels/chan_iax2
+
+   ASTERISK-29392: chan_iax2: Asterisk crashes when queueing video with
+   format
+   Reported by: Michael Welk
+     * [a73db1ec6b] Kevin Harwell -- AST-2021-008 - chan_iax2: remote crash
+       on unsupported media format
 
      ----------------------------------------------------------------------
 
@@ -81,4 +91,7 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ channels/chan_iax2.c                                                   |   40 +-
+ third-party/pjproject/patches/0110-tls-parent-listener-destroyed.patch |  166 ++++++++++
+ third-party/pjproject/patches/0111-ssl-premature-destroy.patch         |   36 ++
+ 3 files changed, 233 insertions(+), 9 deletions(-)
