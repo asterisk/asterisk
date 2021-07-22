@@ -1,3 +1,50 @@
+2021-07-22 22:10 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 18.5.1 Released.
+
+2021-06-14 13:28 +0000 [6c1aec36cb]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-009 - pjproject-bundled: Avoid crash during handshake for TLS
+
+	  If an SSL socket parent/listener was destroyed during the handshake,
+	  depending on timing, it was possible for the handling callback to
+	  attempt access of it after the fact thus causing a crash.
+
+	  ASTERISK-29415 #close
+
+	  Change-Id: I105dacdcd130ea7fdd4cf2010ccf35b5eaf1432d
+
+2021-05-10 17:59 +0000 [98e0b536d7]  Kevin Harwell <kharwell@sangoma.com>
+
+	* AST-2021-008 - chan_iax2: remote crash on unsupported media format
+
+	  If chan_iax2 received a packet with an unsupported media format, for
+	  example vp9, then it would set the frame's format to NULL. This could
+	  then result in a crash later when an attempt was made to access the
+	  format.
+
+	  This patch makes it so chan_iax2 now ignores/drops frames received
+	  with unsupported media format types.
+
+	  ASTERISK-29392 #close
+
+	  Change-Id: Ifa869a90dafe33eed8fd9463574fe6f1c0ad3eb1
+
+2021-04-28 07:36 +0000 [4a525a8971]  Joshua C. Colp <jcolp@sangoma.com>
+
+	* AST-2021-007 - res_pjsip_session: Don't offer if no channel exists.
+
+	  If a re-INVITE is received after we have sent a BYE request then it
+	  is possible for no channel to be present on the session. If this
+	  occurs we allow PJSIP to produce the offer instead. Since the call
+	  is being hung up if it produces an incorrect offer it doesn't
+	  actually matter. This also ensures that code which produces SDP
+	  does not need to handle if a channel is not present.
+
+	  ASTERISK-29381
+
+	  Change-Id: I673cb88c432f38f69b2e0851d55cc57a62236042
+
 2021-06-24 12:50 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 18.5.0 Released.
