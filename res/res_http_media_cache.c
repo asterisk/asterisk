@@ -171,11 +171,6 @@ static char *file_extension_from_string(const char *str, char *buffer, size_t ca
 	return NULL;
 }
 
-static char *file_extension_from_url(struct ast_bucket_file *bucket_file, char *buffer, size_t capacity)
-{
-	return file_extension_from_string(ast_sorcery_object_get_id(bucket_file), buffer, capacity);
-}
-
 /*!
  * \internal
  * \brief Normalize the value of a Content-Type header
@@ -249,18 +244,13 @@ static char *file_extension_from_url_path(struct ast_bucket_file *bucket_file, c
 
 static void bucket_file_set_extension(struct ast_bucket_file *bucket_file)
 {
-	/* We will attempt to determine an extension in the following order for backwards
-	 * compatibility:
-	 *
-	 * 1. Look at tail end of URL for extension
-	 * 2. Use the Content-Type header if present
-	 * 3. Parse the URL (assuming we can) and look at the tail of the path
-	 */
+	/* Using Content-Type first allows for the most flexibility for whomever
+	 * is serving up the audio file. If that doesn't turn up anything useful
+	 * we'll try to parse the URL and use the extension */
 
 	char buffer[64];
 
-	if (file_extension_from_url(bucket_file, buffer, sizeof(buffer))
-	   || file_extension_from_content_type(bucket_file, buffer, sizeof(buffer))
+	if (file_extension_from_content_type(bucket_file, buffer, sizeof(buffer))
 	   || file_extension_from_url_path(bucket_file, buffer, sizeof(buffer))) {
 		ast_bucket_file_metadata_set(bucket_file, "ext", buffer);
 	}
