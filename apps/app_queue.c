@@ -238,7 +238,13 @@
 			<parameter name="URL">
 				<para><replaceable>URL</replaceable> will be sent to the called party if the channel supports it.</para>
 			</parameter>
-			<parameter name="announceoverride" />
+			<parameter name="announceoverride" argsep="&amp;">
+				<argument name="filename" required="true">
+					<para>Announcement file(s) to play to agent before bridging call, overriding the announcement(s)
+					configured in <filename>queues.conf</filename>, if any.</para>
+				</argument>
+				<argument name="filename2" multiple="true" />
+			</parameter>
 			<parameter name="timeout">
 				<para>Will cause the queue to fail out after a specified number of
 				seconds, checked between each <filename>queues.conf</filename> <replaceable>timeout</replaceable> and
@@ -6953,8 +6959,12 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 					res2 = ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
 				}
 				if (!res2 && announce) {
-					if (play_file(peer, announce) < 0) {
-						ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", announce, ast_channel_name(peer));
+					char *front;
+					char *announcefiles = ast_strdupa(announce);
+					while ((front = strsep(&announcefiles, "&"))) {
+						if (play_file(peer, front) < 0) {
+							ast_log(LOG_ERROR, "play_file failed for '%s' on %s\n", front, ast_channel_name(peer));
+						}
 					}
 				}
 				if (!res2 && qe->parent->reportholdtime) {
