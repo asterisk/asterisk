@@ -330,6 +330,14 @@ unsigned int ast_debug_get_by_module(const char *module);
 int ast_logger_register_level(const char *name);
 
 /*!
+ * \brief Retrieve dynamic logging level id
+ * \param name The name of the level
+ * \retval The unique integer id for the given level
+ * \retval -1 if level name not found
+ */
+int ast_logger_get_dynamic_level(const char *name);
+
+/*!
  * \brief Unregister a previously registered logger level
  * \param name The name of the level to be unregistered
  * \return nothing
