@@ -8259,6 +8259,12 @@ int ast_say_number(struct ast_channel *chan, int num,
 	return ast_say_number_full(chan, num, ints, language, options, -1, -1);
 }
 
+int ast_say_ordinal(struct ast_channel *chan, int num,
+	const char *ints, const char *language, const char *options)
+{
+	return ast_say_ordinal_full(chan, num, ints, language, options, -1, -1);
+}
+
 int ast_say_enumeration(struct ast_channel *chan, int num,
 	const char *ints, const char *language, const char *options)
 {
@@ -8275,6 +8281,12 @@ int ast_say_digit_str(struct ast_channel *chan, const char *str,
 	const char *ints, const char *lang)
 {
 	return ast_say_digit_str_full(chan, str, ints, lang, -1, -1);
+}
+
+int ast_say_money_str(struct ast_channel *chan, const char *str,
+	const char *ints, const char *lang)
+{
+	return ast_say_money_str_full(chan, str, ints, lang, -1, -1);
 }
 
 int ast_say_character_str(struct ast_channel *chan, const char *str,
